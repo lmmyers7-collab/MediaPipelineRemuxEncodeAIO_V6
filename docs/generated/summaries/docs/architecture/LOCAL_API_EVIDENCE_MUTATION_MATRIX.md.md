@@ -3,9 +3,9 @@ file: docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-29
+last_modified: 2026-07-01
 last_reviewed: 2026-06-02
-sha256: 9adf6a6a528b30b95245ec6b4c4861782cc398c82b74481f9cbf149d663afcb9
+sha256: 5572bcc11b268aa904deedcca52143b0db2b4e144332a87ad61a67f6e276d2c2
 ---
 # `docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md`
 

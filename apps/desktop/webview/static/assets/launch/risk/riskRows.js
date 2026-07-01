@@ -6,7 +6,6 @@
       launchRouteHeightBoundaries = function () { return {}; },
       launchSettingsBool = function (value, fallback = false) { return fallback; },
       launchSettingsConfigValue = function () { return undefined; },
-      launchSettingsNumber = function (value, fallback = 0) { return fallback; },
       launchSettingsWorkspace = function () { return {}; },
       pipelineModeLabel = function (mode) { return mode || "Pipeline"; },
       settingsLaunchImpactRows = null,
@@ -278,7 +277,6 @@
     const mediaReadinessRows = Array.isArray(mediaReadiness.rows) ? mediaReadiness.rows : [];
     const mediaReadinessCounts = mediaReadiness.counts || {};
     const mediaReadinessStatus = String(mediaReadiness.operator_status || "not evaluated").toLowerCase();
-    const highest = String(risk.highest_severity || "none").toLowerCase();
     const total = Number(risk.total_count || 0);
     const mode = request?.mode || "unknown";
     const deferred = launchSettingsBool(launchSettingsConfigValue(config, "DeferredPublish"), false);

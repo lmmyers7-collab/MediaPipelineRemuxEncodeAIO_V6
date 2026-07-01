@@ -162,7 +162,7 @@
         } else if (ownerPage) {
           group.primary_action = { kind: "open_owner_page", label: ownerPage.label === "Diagnostics" ? "Review in Diagnostics" : `Open ${ownerPage.label}`, page: ownerPage.page, owner: group.owner };
         } else if (group.clearable_count > 0) {
-          group.primary_action = { kind: "preview_marker_clear", label: "Preview marker clear", page: "" };
+          group.primary_action = { kind: "clear_marker", label: "Clear errors", page: "" };
         } else {
           group.primary_action = { kind: "review_details", label: "Review details", page: "diagnostics" };
         }
@@ -175,12 +175,12 @@
           retryable_count: group.retryable_count,
           clearable: group.clearable_count > 0,
           safe_to_resolve: group.clearable_count === 0,
-          blockers: group.clearable_count > 0 ? ["Active failure markers remain in the backend marker folder."] : [],
+          blockers: group.clearable_count > 0 ? ["Active backend error records still block retry."] : [],
         };
         group.playbook_steps = [
           { id: "review_evidence", label: "Review evidence", detail: "Read why it stopped and compare failure evidence.", status: "current" },
           { id: "primary_action", label: group.primary_action.label, detail: group.safe_next_action || "", status: "not_started" },
-          { id: "verify_markers", label: "Verify marker state", detail: "Confirm whether active backend failure markers still block retry.", status: group.clearable_count ? "blocked" : "done" },
+          { id: "verify_markers", label: "Verify active errors", detail: "Confirm whether backend error records still block retry.", status: group.clearable_count ? "blocked" : "done" },
         ];
         group.available_transitions = [
           { transition: "acknowledge", label: "Acknowledge", preview_required: false, disabled: false },
@@ -225,7 +225,7 @@
       const explicit = failureDisplayValue(item?.suggested_action || item?.recommended_action || item?.next_step, "");
       if (explicit) return explicit;
       const classification = String(item?.classification || "").toLowerCase();
-      if (classification === "transient") return "Preview marker clear, then rerun after confirming logs.";
+      if (classification === "transient") return "Clear errors, then rerun after confirming logs.";
       if (classification === "operator_required" || classification === "permanent") return "Open diagnostics and review the source before retry.";
       return "Review diagnostics before retry.";
     }
@@ -303,7 +303,7 @@
   function failureClearUnavailableReason(item) {
       return failureDisplayValue(
         failureClearError(item).unavailable_reason,
-        "No active failure marker is available for this row."
+        "No active error record is available for this row."
       );
     }
 
@@ -501,7 +501,7 @@
         `Code: ${item?.error_code || "no-code"}`,
         `Class: ${failureClassificationText(item)}`,
         `Retry: ${failureRetrySummaryText(item)}`,
-        `Marker: ${failureClearMarkerPathsForRow(item).length ? "available" : "not active"}`,
+        `Error record: ${failureClearMarkerPathsForRow(item).length ? "available" : "not active"}`,
         ...failureEvidenceProofLines(item).slice(0, 8),
       ].join("\n");
     }
@@ -581,7 +581,7 @@
         status: reportsState.lastFailureRows.length ? (blocking ? "blocked" : retryable ? "retrying" : "review") : "empty",
         status_label: reportsState.lastFailureRows.length ? (blocking ? "Needs operator" : retryable ? "Will retry" : "Review") : "No active failures",
         source_kind: reportsState.lastFailurePreviewPayload?.source_kind || "latest_json",
-        source_mode_label: failureMarkerModeActive() ? "Failure markers" : "Latest failure JSON",
+        source_mode_label: failureMarkerModeActive() ? "Active errors" : "Latest failure JSON",
         refresh_state: reportsState.lastFailureRows.length ? "loaded" : "empty",
         row_count: reportsState.lastFailureRows.length,
         group_count: groups.length,
@@ -612,7 +612,7 @@
       if (!item) return actions;
       const classification = String(item.classification || "").toLowerCase();
       if (classification === "operator_required" || classification === "permanent") {
-        reportAddDiagnosticsAction(actions, "open", "failed_markers", "Open Failure Markers", "Inspect source-level failure markers before rerun.");
+        reportAddDiagnosticsAction(actions, "open", "failed_markers", "Open Error Records", "Inspect source-level error records before rerun.");
       }
       if (String(item.stage || "").toLowerCase().includes("publish")) {
         reportAddDiagnosticsAction(actions, "open", "pending_publish", "Open Pending Publish", "Compare failure state with parked output state.");
@@ -637,7 +637,7 @@
       const owner = String(group?.owner || "").trim();
       const target = reportOwnerPage(owner);
       if (target) return { kind: "open_owner_page", label: target.label === "Diagnostics" ? "Review in Diagnostics" : `Open ${target.label}`, page: target.page, owner };
-      if (selectedFailureGroupMarkerPaths().length) return { kind: "preview_marker_clear", label: "Preview marker clear" };
+      if (selectedFailureGroupMarkerPaths().length) return { kind: "clear_marker", label: "Clear errors" };
       return { kind: "review_details", label: "Review details", page: "diagnostics" };
     }
 
@@ -733,14 +733,14 @@
           "Failure review board: unavailable.",
           `Error: ${failures.error}`,
           "First action: open Latest Failure, Failure Reports, and Run Logs from Diagnostics before deciding whether a rerun is safe.",
-          "Mutation guardrail: Reports uses backend-owned commands only; rerun and cleanup decisions must use backend-owned workflows.",
+          "Boundary: backend commands own cleanup and rerun decisions; media files are not touched here.",
         ];
       }
       if (!reportPreviewLoaded(failures, rows)) {
         return [
           "Failure review board: no failure preview has loaded yet.",
           "First action: refresh Reports or open Failure Reports if you expected recent failures.",
-          "Mutation guardrail: Reports triage is read-only except Marker Cleanup, which only moves marker JSON through the backend command.",
+          "Boundary: backend commands own cleanup and rerun decisions; media files are not touched here.",
         ];
       }
       const operatorRows = rows.filter((row) => ["operator_required", "permanent"].includes(String(row.classification || "").toLowerCase()));
@@ -783,7 +783,7 @@
       } else {
         lines.push("Next step: no failure rows are present; use Audit rows or Diagnostics if you expected a recent failure.");
       }
-      lines.push("Mutation guardrail: Reports triage is read-only; marker cleanup, rerun/export/repair actions must stay backend-owned.");
+      lines.push("Boundary: backend commands own cleanup and rerun decisions; media files are not touched here.");
       return lines;
     }
 

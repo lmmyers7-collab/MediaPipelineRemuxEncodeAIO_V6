@@ -19,10 +19,10 @@ from mediapipeline.core.observability.runtime_outcomes import (
     source_identity_key,
 )
 from mediapipeline.core.subtitles.qa import build_completed_subtitle_qa
-from mediapipeline.desktop.models import CompletedJobRecord
+from mediapipeline.core.completed.contracts import CompletedJobRecord
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_inventory import CompletedPreviewDto
+    from mediapipeline.core.kernel.dto_inventory import CompletedPreviewDto
 
 
 COMPLETED_HISTORY_SERVICE_UNAVAILABLE_MESSAGE = "Completed history service is not available."
@@ -44,7 +44,7 @@ COMPLETED_BENIGN_RUNTIME_ERROR_CODES = {"already_processed"}
 
 
 def _completed_preview_dto(**fields: Any) -> "CompletedPreviewDto":
-    from mediapipeline.desktop.application.dto_inventory import CompletedPreviewDto
+    from mediapipeline.core.kernel.dto_inventory import CompletedPreviewDto
 
     return CompletedPreviewDto(**fields)
 

@@ -1,0 +1,43 @@
+{
+  "id": "MP-CHANGE-2026-0701-019",
+  "title": "Fix CSV rerun active display guard",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-01",
+  "date_completed": "2026-07-01",
+  "summary": "Fixes Home and live-run CSV rerun display classification so stale CSV rerun tail evidence does not override an active normal pipeline worker.",
+  "reason": "The WebView CSV rerun display path treated generic bounded stdout tail text as CSV rerun evidence, then rewrote Home state as csv_rerun_active even when backend worker progress reported job_kind=pipeline processing normal files.",
+  "affected_areas": [
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Any recent stdout tail line, including normal pipeline copy/remux/encode lines or stale CSV rerun tail text, could make Home show CSV rerun staging/active while the backend was running the normal pipeline.",
+  "behavior_after": "CSV rerun display now requires explicit CSV rerun markers or a rerun_csv worker row, and tail-only CSV rerun evidence is suppressed while an active normal Local pipeline worker is present.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/app/home.js",
+    "apps/desktop/webview/static/assets/progressView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/home.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/progressView.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0701-019.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0701-019.json",
+    "tests/python/desktop/test_application_facade_web_static.py"
+  ],
+  "tests_added": [
+    "Added a WebView static Node regression check proving normal pipeline tails and active job_kind=pipeline workers do not render CSV rerun active, while job_kind=rerun_csv still does."
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_progress_csv_rerun_evidence_does_not_override_active_pipeline tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_home_next_queue_shows_first_five_runnable_rows_only -q - passed (2 tests)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_frontend_mutation_boundary -q - passed (23 tests)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static -q - failed in unrelated dirty Launch/UI-polish static assertions: test_launch_controls_are_state_aware_and_topbar_kill_is_emergency_only and test_ui_polish_error_and_tooltip_guards_are_wired",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/progressView.js apps/desktop/webview/static/assets/app.js apps/desktop/webview/static/assets/app/home.js tests/python/desktop/test_application_facade_web_static.py ops/release/changes/unreleased/MP-CHANGE-2026-0701-019.json - passed; 5 summaries written",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed; 887 packet(s) valid"
+  ],
+  "rollback_plan": "Revert the WebView CSV rerun classifier guards and the matching static regression test; no runtime state, command route, queue mutation, PowerShell media policy, or source/scratch/output movement rollback is required.",
+  "related_changes": [],
+  "notes": "Display-only WebView change. No launch scope, CSV rerun execution, queue mutation, FFmpeg policy, subtitle policy, audio policy, publish, drain, rename, or filesystem movement behavior changed. The worktree already contained extensive unrelated dirty files before this change."
+}

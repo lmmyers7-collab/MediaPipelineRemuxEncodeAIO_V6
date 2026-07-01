@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from .coordinator_policy import heartbeat_timeout_mins
 from .diagnostics import diagnostic_preview as _worker_diagnostic_preview
 from .library_roots import accessible_library_ids_from_config
 from .protocol import HeartbeatRequest, coerce_progress_percent
@@ -87,6 +89,28 @@ class WorkerLoopMixin:
             if self._wakeup.wait(min(remaining, 0.1)):
                 self._wakeup.clear()
                 break
+
+    def _heartbeat_failure_abort_threshold_seconds(self) -> int:
+        """Return local abort threshold for consecutive heartbeat POST failures."""
+        try:
+            worker_config = getattr(self, "_worker_config", None)
+            if callable(worker_config):
+                config = worker_config()
+            else:
+                app = getattr(self, "app", None)
+                resolved = getattr(app, "resolved", None)
+                config = getattr(resolved, "config_data", {}) if resolved is not None else {}
+            timeout_seconds = heartbeat_timeout_mins(config) * 60.0
+        except Exception as exc:
+            _log.warning("Worker heartbeat timeout lookup failed; using conservative abort threshold: %s", exc)
+            timeout_seconds = 5 * 60.0
+        return int(max(60.0, min(240.0, timeout_seconds - 60.0)))
+
+    def _reset_heartbeat_failure_state(self) -> None:
+        self._heartbeat_failure_started_monotonic = None
+        self._heartbeat_failure_started_at = ""
+        self._heartbeat_failure_age_seconds = 0
+        self._heartbeat_failure_abort_threshold_seconds_value = self._heartbeat_failure_abort_threshold_seconds()
 
     def _poll_loop(self) -> None:
         """Main worker poll loop.
@@ -274,6 +298,8 @@ class WorkerLoopMixin:
         / ``shutdown``).  If the coordinator responds with ``"reclaimed"``,
         sets ``_job_reclaimed = True`` and schedules an abort on the app callback thread.
         """
+        threshold_seconds = self._heartbeat_failure_abort_threshold_seconds()
+        self._heartbeat_failure_abort_threshold_seconds_value = threshold_seconds
         while not self._heartbeat_stop.wait(_HEARTBEAT_INTERVAL):
             # Grab current progress from the app's live snapshot.
             progress = 0.0
@@ -327,7 +353,18 @@ class WorkerLoopMixin:
                     self._request_abort_reclaimed_job(job)
                     break
                 self._last_heartbeat_failure_text = ""
+                self._reset_heartbeat_failure_state()
             except Exception as exc:
+                now_monotonic = time.monotonic()
+                started = getattr(self, "_heartbeat_failure_started_monotonic", None)
+                if started is None:
+                    self._heartbeat_failure_started_monotonic = now_monotonic
+                    self._heartbeat_failure_started_at = datetime.now(timezone.utc).isoformat()
+                    failure_age = 0
+                else:
+                    failure_age = max(0, int(now_monotonic - float(started)))
+                self._heartbeat_failure_age_seconds = failure_age
+                self._heartbeat_failure_abort_threshold_seconds_value = threshold_seconds
                 err_str = str(exc)
                 reason_preview = _worker_diagnostic_preview(exc)
                 if err_str != getattr(self, "_last_heartbeat_failure_text", ""):
@@ -340,6 +377,29 @@ class WorkerLoopMixin:
                 else:
                     _log.debug("Heartbeat POST still failing for job %s: %s", job.job_id, reason_preview)
                 self._notify_status(f"⚠ Heartbeat failed: {reason_preview[:80]}")
+                if failure_age >= threshold_seconds:
+                    _log.error(
+                        "Worker heartbeat failed for %ss on job %s; aborting before coordinator lease expiry.",
+                        failure_age,
+                        job.job_id,
+                    )
+                    self._notify_status(
+                        f"⚠ Heartbeat failed for {failure_age}s — aborting {Path(str(job.record.source_path)).name}"
+                    )
+                    self._safe_log_cluster_event(
+                        "heartbeat-failure-abort",
+                        level="ERROR",
+                        event="heartbeat_failure_abort",
+                        message=(
+                            f"Heartbeat POST failed for {failure_age}s "
+                            f"(threshold={threshold_seconds}s); aborting local encode"
+                        ),
+                        job_id=job.job_id,
+                        source_path=str(job.record.source_path),
+                    )
+                    self._job_reclaimed = True
+                    self._request_abort_reclaimed_job(job)
+                    break
 
     def _stop_heartbeat(self) -> None:
         """Signal the heartbeat thread to stop and wait for it."""

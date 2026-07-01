@@ -13,7 +13,8 @@ try:
 except Exception:  # pragma: no cover - optional runtime dependency
     psutil = None
 
-from mediapipeline.desktop.models import ResolvedPaths, TelemetrySnapshot
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.telemetry.contracts import TelemetrySnapshot
 from mediapipeline.core.telemetry.health import (
     api_contract_health_rows,
     ass_to_srt_exception_row,
@@ -38,7 +39,7 @@ from mediapipeline.core.telemetry.system_metrics import (
     create_cpu_utility_sampler,
     prime_cpu_sampler,
 )
-from mediapipeline.desktop.subprocess_runner import run_capture
+from mediapipeline.core.kernel.runtime.subprocess_runner import run_capture
 
 
 # Background sampling cadence for the cached CPU/memory telemetry snapshot. The

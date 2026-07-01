@@ -49,6 +49,12 @@
       ]
     },
     {
+      "route": "/api/backend/close-readiness",
+      "files": [
+        "apps/desktop/webview/static/assets/floatingPipelineLog.js"
+      ]
+    },
+    {
       "route": "/api/backend/shutdown",
       "files": [
         "apps/desktop/webview/static/assets/app.js"
@@ -122,6 +128,12 @@
     },
     {
       "route": "/api/failures/archive-evidence",
+      "files": [
+        "apps/desktop/webview/static/assets/reports/failureCommands.js"
+      ]
+    },
+    {
+      "route": "/api/failures/artifacts/cleanup",
       "files": [
         "apps/desktop/webview/static/assets/reports/failureCommands.js"
       ]

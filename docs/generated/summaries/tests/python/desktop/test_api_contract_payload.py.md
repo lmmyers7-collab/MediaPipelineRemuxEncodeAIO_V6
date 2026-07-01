@@ -3,9 +3,9 @@ file: tests/python/desktop/test_api_contract_payload.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-29
+last_modified: 2026-07-01
 last_reviewed: 2026-06-04
-sha256: 34071529886c58a787c61824a06e3abbe36a4f5a2b7b5b084973cd16851ca758
+sha256: 396a480a45affcf37d4df9d615cb38be19abaf09e334f37002425cb0b69a854b
 ---
 # `tests/python/desktop/test_api_contract_payload.py`
 

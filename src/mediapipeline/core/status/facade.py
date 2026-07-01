@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from importlib import import_module
+
 from mediapipeline.core.observability.status_policy import (
     application_capabilities,
     snapshot_counts,
@@ -16,9 +18,18 @@ from mediapipeline.core.status.active_jobs import worker_progress_payload
 from mediapipeline.core.status.eta import eta_payload
 from mediapipeline.core.status.ffmpeg_progress import ffmpeg_progress_payload
 from mediapipeline.core.status.presentation import build_current_work, build_stale_current_work
+from mediapipeline.core.status.runtime_health import runtime_reliability_counters
 from mediapipeline.core.processes.path_evidence import configured_path_health, path_health_warning_lines
-from mediapipeline.desktop.application.dto_status import AppSnapshotDto, HealthDto, TelemetryDto
-from mediapipeline.desktop.models import ResolvedPaths, Snapshot, TelemetrySnapshot
+from mediapipeline.core.kernel.dto_status import AppSnapshotDto, HealthDto, TelemetryDto
+from mediapipeline.core.paths.contracts import ResolvedPaths
+
+
+def _snapshot_type() -> type:
+    return import_module("mediapipeline.core.status.contracts").Snapshot
+
+
+def _telemetry_snapshot_type() -> type:
+    return import_module("mediapipeline.core.telemetry.contracts").TelemetrySnapshot
 
 
 class StatusFacadeMixin:
@@ -55,7 +66,7 @@ class StatusFacadeMixin:
         if not callable(build_snapshot):
             raise RuntimeError("Application facade service does not support build_snapshot().")
         snapshot = build_snapshot(resolved, audit_root)
-        if not isinstance(snapshot, Snapshot):
+        if not isinstance(snapshot, _snapshot_type()):
             raise RuntimeError("Application facade service returned an invalid snapshot.")
         return self.snapshot_to_dto(snapshot)
 
@@ -77,13 +88,15 @@ class StatusFacadeMixin:
                 movie_cleaning_policy=rename_cleaning_policy_from_resolved(snapshot.resolved),
             )
         )
+        counts = snapshot_counts(progress)
+        counts["long_run_reliability"] = runtime_reliability_counters(snapshot.resolved, progress=progress)
         return AppSnapshotDto(
             app_version=self.app_version,
             activity=str(snapshot.current_activity or ""),
             pipeline_state=pipeline_state,
             status_summary=str(snapshot.status_summary or ""),
             current_work=current_work,
-            counts=snapshot_counts(progress),
+            counts=counts,
             progress=progress,
             audit_progress=audit_progress,
             worker_progress=worker_progress,
@@ -100,7 +113,7 @@ class StatusFacadeMixin:
         if not callable(getter):
             return TelemetryDto(error="Telemetry service is not available.")
         telemetry = getter()
-        if not isinstance(telemetry, TelemetrySnapshot):
+        if not isinstance(telemetry, _telemetry_snapshot_type()):
             return TelemetryDto(error="Telemetry service returned an invalid snapshot.")
         return self.telemetry_to_dto(telemetry)
 

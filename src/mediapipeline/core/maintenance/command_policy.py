@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
 
 MAINTENANCE_REFRESH_HINT = "maintenance"
@@ -34,13 +34,13 @@ def request_bool_option(request: dict[str, Any], key: str, default: bool) -> boo
 
 
 def _command_result(**fields: Any) -> "CommandResult":
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**fields)
 
 
 def _json_safe(value: Any) -> Any:
-    from mediapipeline.desktop.application.dto_base import json_safe
+    from mediapipeline.core.kernel.dto_base import json_safe
 
     return json_safe(value)
 

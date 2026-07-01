@@ -3,15 +3,15 @@ file: src/mediapipeline/core/status/contracts.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-06-04
+last_modified: 2026-06-29
 last_reviewed: 2026-06-04
-sha256: 81927aa1bd438a889a13dce7f4a899d62dd26b187df9230e84fc85978e8a1b7e
+sha256: 0cd1a6e4c6374f008a5622bd7915d967a4499054350f21382cfe5bf17ed53adf
 ---
 # `src/mediapipeline/core/status/contracts.py`
 
 **Purpose:** (no module docstring)
 
-**Classes:** `StatusSnapshotServiceProtocol`, `WarningLogger`
-**In-repo imports:** `mediapipeline.desktop.models_core`
+**Classes:** `Snapshot`, `StatusSnapshotServiceProtocol`, `WarningLogger`
+**In-repo imports:** `mediapipeline.core.paths.contracts`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/status/contracts.py`._

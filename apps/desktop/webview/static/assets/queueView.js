@@ -929,7 +929,7 @@
     const title = tile.title || queueSourceTileTitle(tile);
     if (title) {
       card.title = title;
-      if (!card.hasAttribute("aria-label")) card.setAttribute("aria-label", title);
+      if (typeof card.hasAttribute !== "function" || !card.hasAttribute("aria-label")) card.setAttribute("aria-label", title);
     }
     const header = document.createElement("div");
     header.className = "queue-source-tile-header";

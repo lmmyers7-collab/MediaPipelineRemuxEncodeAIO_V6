@@ -48,6 +48,18 @@
     "Remuxed": { "type": "integer", "minimum": 0 },
     "Failed": { "type": "integer", "minimum": 0 },
     "Movies": { "type": "integer", "minimum": 0 },
-    "TVEpisodes": { "type": "integer", "minimum": 0 }
+    "TVEpisodes": { "type": "integer", "minimum": 0 },
+    "ConsecutiveUnexpectedRoundFailures": { "type": "integer", "minimum": 0 },
+    "LastUnexpectedRoundFailureAt": { "type": [ "string", "null" ] },
+    "ContinuousRoundFailuresBlocked": { "type": "boolean" },
+    "ConsecutiveRoundFailureBlockLimit": { "type": "integer", "minimum": 1 },
+    "ConsecutiveRoundFailureProbeBackoffSeconds": { "type": "integer", "minimum": 1 },
+    "PauseFlagReviewSeconds": { "type": "integer", "minimum": 1 },
+    "PauseFlagBlockSeconds": { "type": "integer", "minimum": 1 },
+    "LastQueueScanDurationSeconds": { "type": [ "number", "null" ], "minimum": 0 },
+    "LastQueueCandidateCount": { "type": "integer", "minimum": 0 },
+    "LastQueueExecutionTruncated": { "type": "boolean" },
+    "LastQueueScanTruncated": { "type": "boolean" },
+    "LastQueueScanTimedOut": { "type": "boolean" }
   }
 }

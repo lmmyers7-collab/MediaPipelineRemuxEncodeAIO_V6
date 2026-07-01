@@ -7,7 +7,7 @@ This report groups exact bare Python test function/method names that appear in m
 ## Summary
 
 - Test roots: `tests/python`, `tests/webview`
-- Python test definitions scanned: **2822**
+- Python test definitions scanned: **2890**
 - Duplicate bare names across files: **9**
 
 ## Duplicate Names
@@ -72,6 +72,6 @@ This report groups exact bare Python test function/method names that appear in m
 
 | File | Qualname | Line |
 |---|---|---:|
-| `tests/python/desktop/test_facade_process_audit_policy.py` | `AuditLaunchPolicyTests.test_success_message_and_payload_are_stable` | 33 |
+| `tests/python/desktop/test_facade_process_audit_policy.py` | `AuditLaunchPolicyTests.test_success_message_and_payload_are_stable` | 38 |
 | `tests/python/desktop/test_facade_process_pipeline_policy.py` | `PipelineLaunchPolicyTests.test_success_message_and_payload_are_stable` | 55 |
 | `tests/python/desktop/test_facade_process_rerun_policy.py` | `RerunLaunchPolicyTests.test_success_message_and_payload_are_stable` | 57 |

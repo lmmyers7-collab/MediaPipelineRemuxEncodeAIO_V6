@@ -3,15 +3,14 @@ file: src/mediapipeline/desktop/application/schedule_stop_watcher.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: application
-last_modified: 2026-05-28
+last_modified: 2026-06-29
 last_reviewed: 2026-06-04
-sha256: ba9f8da226daacd4dd92447e42bfc71f290ebfdf1bb55f421d26682e310dd694
+sha256: a258a4fb1f1454d249f95dd80f846613ee60f48c4bc9d58d82f28047432549df
 ---
 # `src/mediapipeline/desktop/application/schedule_stop_watcher.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Compatibility shim for schedule-stop watcher helpers.
 
-**Classes:** `ScheduleStopWatcherManager`, `ScheduleStopWatcherState`
-**Public functions:** `parse_schedule_stop_deadline()`, `schedule_stop_deadline_from_gate()`, `schedule_stop_watcher_state_mapping()`
+**In-repo imports:** `mediapipeline.core.schedule.stop_watcher`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/desktop/application/schedule_stop_watcher.py`._

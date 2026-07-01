@@ -7,13 +7,13 @@ import json
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from mediapipeline.core.network.url_policy import validate_coordinator_url
-from mediapipeline.desktop.network.library_roots import (
+from mediapipeline.core.network.library_roots import (
     auto_source_path_map_from_libraries,
     library_roots_from_config,
     merge_manual_and_auto_path_maps,
 )
-from mediapipeline.desktop.network.path_map import parse_source_path_map
+from mediapipeline.core.network.path_map import parse_source_path_map
+from mediapipeline.core.network.url_policy import validate_coordinator_url
 
 
 NETWORK_JOIN_BLOB_SCHEMA_VERSION = "desktop_network_join_blob.v1"

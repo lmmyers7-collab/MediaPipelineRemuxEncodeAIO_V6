@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
-    from mediapipeline.desktop.application.dto_inventory import PendingPublishPreviewDto
-    from mediapipeline.desktop.models import ResolvedPaths
+    from mediapipeline.core.kernel.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_inventory import PendingPublishPreviewDto
+    from mediapipeline.core.paths.contracts import ResolvedPaths
 
 from .pending_policy import (
     PENDING_PUBLISH_OPEN_TARGETS,

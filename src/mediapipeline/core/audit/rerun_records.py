@@ -3,7 +3,9 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from mediapipeline.desktop.models import AuditRecord, CompletedJobRecord, FailureRecord
+from mediapipeline.core.audit.contracts import AuditRecord
+from mediapipeline.core.completed.contracts import CompletedJobRecord
+from mediapipeline.core.failures.contracts import FailureRecord
 
 
 def audit_correlation_lookup_key(value: str) -> str:

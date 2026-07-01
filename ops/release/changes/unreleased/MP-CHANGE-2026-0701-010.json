@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0701-010",
+  "title": "Clarify CSV rerun handling controls",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-07-01",
+  "date_completed": "2026-07-01",
+  "summary": "Clarified CSV rerun destination collision and original-after-proof handling in the Launch WebView.",
+  "reason": "Operators needed to understand the consequence of destination collision and original handling choices without reading raw lifecycle enum values.",
+  "affected_areas": [
+    "generated-context",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The CSV rerun form showed Destination, Collision, and Original After Proof as separate dropdowns with terse labels, and the preview/preflight surfaces repeated raw policy values.",
+  "behavior_after": "The CSV rerun form groups those controls under Rerun handling, displays destination/collision/original consequence cards, and renders readable handling labels in the policy panel and preflight text while preserving backend-owned request fields.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launchView.js",
+    "apps/desktop/webview/static/assets/launchView.preflight.js",
+    "apps/desktop/webview/static/assets/styles/components/responsive.css",
+    "apps/desktop/webview/static/assets/styles/components/settings-builders.css",
+    "apps/desktop/webview/static/partials/page-launch.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.preflight.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles/components/responsive.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles/components/settings-builders.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-launch.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0701-010.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_launch.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0701-010.json",
+    "tests/python/desktop/test_application_facade_web_static_launch.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_web_static_launch.py",
+    "tests/webview/test_webview_browser_launch_queue_readiness_smoke.py",
+    "tests/webview/test_webview_css_design_tokens.py",
+    "tests/webview/test_webview_launch_command_buttons_smoke.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static_launch -q - passed (6 tests)",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_launch_queue_readiness_smoke -q - passed (1 browser-backed smoke)",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_css_design_tokens -q - passed (19 tests)",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_launch_command_buttons_smoke -q - passed (7 tests)",
+    "mediapipeline.tools.change_control.validate_changes - passed (881 packets valid)",
+    "mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed (881 packets valid; strict coverage clean)",
+    "mediapipeline.tools.dev.refresh_summaries --paths <touched files> - passed (7 summaries written; targeted --check passed)"
+  ],
+  "rollback_plan": "Revert the Launch partial, Launch view/preflight JS, CSS, tests, and generated summaries listed in this packet; no backend state, route, or media-policy migration is required.",
+  "related_changes": [],
+  "notes": "Grouped CSV rerun destination, collision, and original-after-proof controls with readable handling summaries.\nRendered operator-facing labels and consequences for CSV rerun handling selections.\nChanged CSV rerun preflight text from raw enums to readable handling labels.\nStyled the CSV rerun handling fieldset and summary cards.\nAdded responsive containment for CSV rerun handling grids.\nPinned the new CSV rerun handling UI and preflight wording in static tests.\nRefreshed generated summary for CSV rerun handling UI change."
+}

@@ -1,0 +1,36 @@
+{
+  "id": "MP-CHANGE-2026-0630-022",
+  "title": "Network lease safety hardening",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "high",
+  "date_started": "2026-06-30",
+  "date_completed": "2026-07-01",
+  "summary": "Harden network worker lease behavior so heartbeat partitions, stale coordinator leases, and late terminal reports do not allow duplicate source processing.",
+  "reason": "Thirty-day unattended runs need fail-closed worker behavior when the coordinator cannot be reached, and coordinator recovery needs bounded evidence instead of unbounded ledgers or immediate duplicate eligibility.",
+  "affected_areas": [
+    "network",
+    "tests"
+  ],
+  "behavior_before": "Workers could continue local encoding through sustained heartbeat POST failures, reclaimed sources could become claimable again before late terminal evidence was reconciled, and the coordinator failure ledger could grow without a hard cap.",
+  "behavior_after": "Workers abort active encodes before lease expiry after sustained heartbeat POST failure, reclaimed sources are quarantined until late terminal evidence or expiry, late terminal success removes queue eligibility, retryable failure waits for quarantine expiry, and coordinator ledgers are bounded.",
+  "files_touched": [
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0630-022.json",
+    "src/mediapipeline/desktop/network/coordinator_http_handlers.py",
+    "src/mediapipeline/desktop/network/registry.py",
+    "src/mediapipeline/desktop/network/worker.py",
+    "src/mediapipeline/desktop/network/worker_loops.py",
+    "src/mediapipeline/desktop/network/worker_state.py",
+    "tests/python/desktop/test_network_inflight_registry.py",
+    "tests/python/desktop/test_network_worker_runtime.py",
+    "tests/python/desktop/test_network_worker_state.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Targeted Python network suites passed: test_network_inflight_registry, test_network_worker_runtime, test_network_worker_state; combined reliability suite ran 149 tests OK."
+  ],
+  "rollback_plan": "Revert the network worker and registry changes plus their tests; this returns coordinator claim, heartbeat, and ledger behavior to the previous implementation without changing source media or manifests.",
+  "related_changes": [],
+  "notes": "Add lease-safe reclaimed-source quarantine and bounded coordinator ledgers.\nExpose quarantine and late-terminal handling through coordinator claim/report paths.\nAbort active work after sustained heartbeat POST failure before lease expiry.\nCarry heartbeat-failure threshold configuration into worker runtime.\nHold new claims when worker state is corrupt and pending done evidence exists.\nCover quarantine, late-terminal evidence, and failure-ledger cap behavior.\nCover heartbeat failure abort and operator status evidence.\nCover pending-done blocked health evidence used by network reliability checks.\nImplemented fail-closed unattended reliability hardening without relaxing source mutation, scratch isolation, pending publish, or backend-owned mutation boundaries."
+}

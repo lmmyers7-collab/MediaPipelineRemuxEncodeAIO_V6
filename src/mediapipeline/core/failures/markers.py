@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.models import FailureRecord
+from mediapipeline.core.failures.contracts import FailureRecord
 
 FAILURE_MARKER_KEY_MAP = {
     "source_full_path": "SourcePath",

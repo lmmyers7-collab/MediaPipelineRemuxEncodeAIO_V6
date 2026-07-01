@@ -18,6 +18,51 @@ function Get-MediaPipelineWorkerResultField {
     return $Default
 }
 
+function Write-MediaPipelineWorkerChildHeartbeat {
+    param(
+        [string] $Stage = '',
+        [string] $Status = '',
+        [switch] $Final
+    )
+
+    if (-not $WorkerChild -or [string]::IsNullOrWhiteSpace($WorkerHeartbeatPath)) {
+        return
+    }
+
+    $stageText = if ([string]::IsNullOrWhiteSpace($Stage)) { [string]$script:currentStage } else { [string]$Stage }
+    $statusText = if ([string]::IsNullOrWhiteSpace($Status)) { [string]$script:pipelineStatus } else { [string]$Status }
+    $payload = [ordered]@{
+        schema_version           = 'local_worker_heartbeat.v1'
+        worker_slot_id           = [int]$WorkerSlotId
+        worker_run_id            = [string]$WorkerRunId
+        worker_claim_id          = [string]$WorkerClaimId
+        source_path              = [string]$SingleFile
+        stage                    = $stageText
+        status                   = $statusText
+        current_file             = [string]$script:currentFile
+        current_file_path        = [string]$script:currentFilePath
+        current_queue_phase      = [string]$script:currentQueuePhase
+        current_stage_started_at = Get-ProgressIsoTimestamp $script:currentStageStartedAt
+        progress_file            = [string]$ProgressFile
+        final                    = [bool]$Final
+        updated_at               = (Get-Date).ToUniversalTime().ToString('o')
+    }
+
+    try {
+        Write-MediaPipelineJsonAtomic -Path $WorkerHeartbeatPath -InputObject $payload -Depth 10 | Out-Null
+    } catch {
+        try {
+            $heartbeatParent = Split-Path -Parent $WorkerHeartbeatPath
+            if (-not [string]::IsNullOrWhiteSpace($heartbeatParent)) {
+                New-Item -ItemType Directory -Path $heartbeatParent -Force | Out-Null
+            }
+            ($payload | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $WorkerHeartbeatPath -Encoding UTF8 -Force
+        } catch {
+            Write-Log "WORKER CHILD: failed to write heartbeat to $WorkerHeartbeatPath`: $_" 'WARN'
+        }
+    }
+}
+
 function Write-MediaPipelineWorkerChildResult {
     param(
         [string] $SourcePath = '',
@@ -87,9 +132,11 @@ function Write-MediaPipelineWorkerChildResult {
 
     try {
         Write-MediaPipelineJsonAtomic -Path $WorkerResultPath -InputObject $payload -Depth 10 | Out-Null
+        Write-MediaPipelineWorkerChildHeartbeat -Stage 'final_result' -Status $statusText -Final | Out-Null
         Write-Log "WORKER CHILD: wrote result status=$statusText success=$successValue path=$WorkerResultPath" 'DEBUG'
     } catch {
         Write-Log "WORKER CHILD: failed to write result to $WorkerResultPath`: $_" 'ERROR'
+        Write-MediaPipelineWorkerChildHeartbeat -Stage 'final_result_write_failed' -Status 'Failed to write worker result' -Final | Out-Null
     }
 }
 

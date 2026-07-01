@@ -85,6 +85,7 @@ class DiagnosticsDto:
     status_summary: str = ""
     log_tail: str = ""
     launch_logs: str = ""
+    autonomy_health: JsonMap = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
     schema_version: str = "desktop_diagnostics.v1"
 

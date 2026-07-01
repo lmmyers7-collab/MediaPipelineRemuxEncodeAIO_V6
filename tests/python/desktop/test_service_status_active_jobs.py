@@ -160,7 +160,7 @@ class StatusActiveJobsHelperTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["source"], "invalid")
         self.assertEqual(rows[0]["status"], "not-a-status")
-        self.assertEqual(rows[0]["status_state"], "blocked")
+        self.assertEqual(rows[0]["status_state"], "warning")
         self.assertIn("invalid active job contract", rows[0]["issue"])
 
     def test_worker_progress_payload_joins_active_job_progress_and_log_tail(self) -> None:
@@ -222,6 +222,69 @@ class StatusActiveJobsHelperTests(unittest.TestCase):
         self.assertEqual(payload["progress_bars"][0]["mode"], "determinate")
         self.assertEqual(payload["progress_bars"][0]["percent"], 42.5)
         self.assertIn("Mutation guardrail", "\n".join(payload["summary_lines"]))
+
+    def test_worker_progress_payload_uses_active_job_stdout_for_csv_rerun(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            folder = root / "ActiveJobs"
+            folder.mkdir()
+            stdout_log = root / "rerun.stdout.log"
+            current_line = "2026-05-08 12:03:00 [INFO] STAGE COPY attempt 1/3: Delicatessen.mkv"
+            stdout_log.write_text(
+                "\n".join(
+                    [
+                        "2026-05-08 12:02:00 [INFO] Rerun CSV rows listed: 100; enabled/planned: 100",
+                        current_line,
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            (folder / "rerun.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_active_job.v1",
+                        "launch_id": "rerun-1",
+                        "job_kind": "rerun_csv",
+                        "mode": "process",
+                        "status": "active",
+                        "pid": 123,
+                        "app_pid": 456,
+                        "command_line": "pwsh -File Invoke-RerunCsv.ps1",
+                        "args": ["pwsh", "-File", "Invoke-RerunCsv.ps1"],
+                        "cwd": str(root),
+                        "stdout_log": str(stdout_log),
+                        "stderr_log": str(root / "rerun.stderr.log"),
+                        "show_console": False,
+                        "metadata": {"route": "rerun_csv"},
+                        "launched_at": "2026-05-08T12:00:00-04:00",
+                        "last_update": "2026-05-08T12:03:00-04:00",
+                        "return_code": None,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            payload = worker_progress_payload(
+                folder,
+                {
+                    "ProgressVersion": 2,
+                    "Status": "Idle",
+                    "LastUpdate": "2026-05-08T11:59:00-04:00",
+                    "CurrentStage": "idle",
+                    "CurrentStagePercent": 0,
+                    "CurrentFileDisplay": "None",
+                },
+                "2026-05-08 11:59:00 [ERROR] stale generic pipeline tail\n",
+                now=datetime.fromisoformat("2026-05-08T12:03:05-04:00"),
+            )
+
+        self.assertEqual(payload["status"], "running")
+        self.assertEqual(payload["active_count"], 1)
+        self.assertEqual(payload["rows"][0]["worker_label"], "Local rerun_csv")
+        self.assertEqual(payload["rows"][0]["stage"], "active")
+        self.assertEqual(payload["rows"][0]["last_log_line"], current_line)
+        self.assertEqual(payload["progress_bars"][0]["mode"], "indeterminate")
+        self.assertIn(f"last={current_line}", payload["progress_bars"][0]["detail"])
 
     def test_worker_progress_payload_treats_stop_requested_progress_as_warning(self) -> None:
         with tempfile.TemporaryDirectory() as td:

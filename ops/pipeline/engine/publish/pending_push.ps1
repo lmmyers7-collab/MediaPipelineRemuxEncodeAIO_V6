@@ -440,14 +440,32 @@ function Invoke-ParkPendingPush {
 #      after all publish steps succeed.
 #
 # Returns the number of manifests successfully drained. When
-# DeferredPublish is set without -Force, returns 0 immediately —
-# operator must explicitly drain via the dedicated CLI flag.
+# DeferredPublish is set without -Force, manual mode returns 0 immediately;
+# trusted mode allows bounded unattended drain through the same manifest trust
+# checks and transaction helpers used by explicit drains.
 function Invoke-RetryPendingPushes {
     param([switch]$Force)
 
     if (-not (Test-Path -LiteralPath $LocalPendingPush)) { return 0 }
-    $manifests = @(Get-ChildItem -LiteralPath $LocalPendingPush -File -Filter '*.manifest.json' -ErrorAction SilentlyContinue)
+    $allManifests = @(Get-ChildItem -LiteralPath $LocalPendingPush -File -Filter '*.manifest.json' -ErrorAction SilentlyContinue | Sort-Object LastWriteTimeUtc, Name)
+    $manifests = @($allManifests)
     if ($manifests.Count -eq 0) { return 0 }
+    $totalManifestCount = [int]$manifests.Count
+    $drainMode = ([string]$script:PendingPublishDrainMode).Trim().ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($drainMode)) { $drainMode = 'manual' }
+    $trustedDeferredDrain = ([bool]$script:DeferredPublish -and -not $Force -and $drainMode -eq 'trusted')
+    $normalBatchLimit = if ($Force) {
+        $totalManifestCount
+    } else {
+        $configuredBatchLimit = [int]$script:PendingPublishDrainBatchSize
+        if ($configuredBatchLimit -gt 0) { $configuredBatchLimit } else { 100 }
+    }
+    if (-not $Force -and $normalBatchLimit -gt 0 -and $manifests.Count -gt $normalBatchLimit) {
+        $manifests = @($manifests | Select-Object -First $normalBatchLimit)
+    }
+    $batchDeferredCount = [math]::Max(0, $totalManifestCount - $manifests.Count)
+    $backlogWarningThreshold = [int]$script:PendingPublishBacklogWarningThreshold
+    if ($backlogWarningThreshold -le 0) { $backlogWarningThreshold = 25 }
     $summaryItems = New-Object System.Collections.Generic.List[object]
     $summary = [ordered]@{
         schema_version          = 'pending_drain_summary.v1'
@@ -455,7 +473,11 @@ function Invoke-RetryPendingPushes {
         completed_at            = ''
         force                   = [bool]$Force
         pending_root            = [string]$LocalPendingPush
-        manifest_count_at_start = [int]$manifests.Count
+        drain_mode              = [string]$drainMode
+        manifest_count_at_start = [int]$totalManifestCount
+        batch_limit             = [int]$normalBatchLimit
+        batch_count             = [int]$manifests.Count
+        batch_deferred_count    = [int]$batchDeferredCount
         attempted_count         = 0
         recovered_count         = 0
         succeeded_count         = 0
@@ -465,17 +487,39 @@ function Invoke-RetryPendingPushes {
         remaining_count         = [int]$manifests.Count
         stopped                 = $false
         deferred                = $false
+        health                  = [ordered]@{
+            backlog_count             = [int]$totalManifestCount
+            warning_threshold         = [int]$backlogWarningThreshold
+            over_warning_threshold    = [bool]($totalManifestCount -ge $backlogWarningThreshold)
+            batch_deferred_count      = [int]$batchDeferredCount
+            normal_batch_limited      = [bool]((-not $Force) -and $batchDeferredCount -gt 0)
+        }
         status_counts           = [ordered]@{}
         route_counts            = [ordered]@{}
         items                   = @()
     }
+    if ($batchDeferredCount -gt 0) {
+        $summary['skipped_count'] = [int]$summary['skipped_count'] + [int]$batchDeferredCount
+        Write-Log "PendingServerPush: normal retry limited to $($manifests.Count) of $totalManifestCount parked output(s); remaining $batchDeferredCount stay queued for later drain" "WARN"
+    }
+    if ($totalManifestCount -ge $backlogWarningThreshold -and (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue)) {
+        Write-PipelineEvent -EventType 'pending_publish_backlog_health' -Stage 'pending-publish' -Status 'warn' -Data @{
+            backlog_count          = [int]$totalManifestCount
+            warning_threshold      = [int]$backlogWarningThreshold
+            batch_limit            = [int]$normalBatchLimit
+            batch_count            = [int]$manifests.Count
+            batch_deferred_count   = [int]$batchDeferredCount
+            force                  = [bool]$Force
+            drain_mode             = [string]$drainMode
+        } | Out-Null
+    }
     Write-PendingDrainRuntimeProgress -Summary $summary -Status 'Preparing parked output drain'
-    if ($script:DeferredPublish -and -not $Force) {
-        Write-Log "Deferred publish enabled — leaving $($manifests.Count) parked output(s) queued for manual drain" "DEBUG"
+    if ($script:DeferredPublish -and -not $Force -and -not $trustedDeferredDrain) {
+        Write-Log "Deferred publish enabled — leaving $totalManifestCount parked output(s) queued for manual drain" "DEBUG"
         $summary['deferred'] = $true
-        $summary['skipped_count'] = [int]$manifests.Count
-        $summary['status_counts'] = [ordered]@{ deferred = [int]$manifests.Count }
-        $summary['items_omitted_count'] = [int]$manifests.Count
+        $summary['skipped_count'] = [int]$totalManifestCount
+        $summary['status_counts'] = [ordered]@{ deferred = [int]$totalManifestCount }
+        $summary['items_omitted_count'] = [int]$totalManifestCount
         $summary['items_omitted_reason'] = 'deferred_publish_fast_path'
         $summary['items'] = @()
         $summary['completed_at'] = Get-Date -Format 'o'
@@ -483,12 +527,16 @@ function Invoke-RetryPendingPushes {
         Write-PendingDrainSummary -Summary $summary | Out-Null
         return 0
     }
+    if ($trustedDeferredDrain) {
+        Write-Log "Deferred publish trusted drain mode enabled — draining up to $($manifests.Count) trusted parked output(s)." "INFO"
+        $summary['trusted_deferred_drain'] = $true
+    }
 
     $recovered = 0
     $visitedCount = 0
     Set-ProgressStage -Stage 'retry_pending_push' -Status 'Retrying pending push' -PushState 'retrying' -Percent $null -SaveNow
     Write-PendingDrainRuntimeProgress -Summary $summary -Status 'Draining parked outputs'
-    Write-Log "PendingServerPush: found $($manifests.Count) parked file(s) — retrying"
+    Write-Log "PendingServerPush: found $totalManifestCount parked file(s); retrying $($manifests.Count) this pass"
     foreach ($m in $manifests) {
         $manifest = $null
         try {

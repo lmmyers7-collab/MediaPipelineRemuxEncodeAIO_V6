@@ -212,13 +212,18 @@ $globalOnlyOverrideKeys = @(
     'LibraryProfiles',
     'LocalBase',
     'DeferredPublish',
+    'PendingPublishDrainMode',
+    'PendingPublishDrainBatchSize',
+    'AllowSubtitleHelperFallback',
+    'PipelineDebugLogMaxBytes',
     'FinalLibraryPromotionEnabled',
     'FinalLibraryPromotionRules',
     'FinalLibraryPromotionVerificationMode',
     'FinalLibraryPromotionCleanupAfterVerified',
     'FinalLibraryPromotionOverwriteExisting',
     'ShowOverrides',
-    'NetworkRole'
+    'NetworkRole',
+    'StateDbCompletedJobsMaxRows'
 ) | Where-Object { $_ -in $libraryOverrideKeys }
 if ($globalOnlyOverrideKeys.Count -gt 0) {
     throw "Library override allowlist includes global-only/config-shape keys: $($globalOnlyOverrideKeys -join ', ')"
@@ -281,6 +286,7 @@ foreach ($enumPolicy in @(
     @{ Key = 'AudioTranscodeCodec'; Values = @(Get-MediaPipelineAudioTranscodeCodecNames) },
     @{ Key = 'AudioDownmixMode'; Values = @(Get-MediaPipelineAudioDownmixModeNames) },
     @{ Key = 'FinalLibraryPromotionVerificationMode'; Values = @(Get-MediaPipelineFinalLibraryPromotionVerificationModeNames) },
+    @{ Key = 'PendingPublishDrainMode'; Values = @(Get-MediaPipelinePendingPublishDrainModeNames) },
     @{ Key = 'CpuEncodePreset'; Values = @(Get-MediaPipelineCpuEncodePresetNames) },
     @{ Key = 'CpuEncodeProcessPriority'; Values = @(Get-MediaPipelineCpuEncodeProcessPriorityNames) },
     @{ Key = 'ParallelEncodeMode'; Values = @(Get-MediaPipelineParallelEncodeModeNames) }
@@ -460,7 +466,12 @@ foreach ($numericPolicy in @(
     @{ Key = 'IndexScanTimeoutSeconds'; Below = 29; Above = 86401 },
     @{ Key = 'CleanupScanTimeoutSeconds'; Below = 29; Above = 7201 },
     @{ Key = 'CleanupStaleAgeHours'; Below = 0; Above = 721 },
+    @{ Key = 'WatchScanTimeoutSeconds'; Below = 0; Above = 86401 },
+    @{ Key = 'CpuEncodeMutexWaitSeconds'; Below = -1; Above = 86401 },
     @{ Key = 'CpuEncodeMaxThreads'; Below = -1; Above = 257 },
+    @{ Key = 'PendingPublishDrainBatchSize'; Below = 0; Above = 1000001 },
+    @{ Key = 'PipelineDebugLogMaxBytes'; Below = 1048575; Above = 2147483648 },
+    @{ Key = 'StateDbCompletedJobsMaxRows'; Below = 999; Above = 10000001 },
     @{ Key = 'FallbackCpuQuality'; Below = 0; Above = 52 },
     @{ Key = 'OutputSizeMultiplier'; Below = 0.09; Above = 2.1 }
 )) {

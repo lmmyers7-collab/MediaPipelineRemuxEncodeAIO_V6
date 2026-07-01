@@ -3,9 +3,9 @@ file: src/mediapipeline/contracts/config.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-06-21
+last_modified: 2026-06-30
 last_reviewed: 2026-06-04
-sha256: 94e9f7716cf94fdff9ef94648ee130975a2c16519a4acdb8e313cc9955c88193
+sha256: fbbd8ea51e1481d537f80ecfa6e6ab0d17f9c3efa69894ea953e4d03445904ea
 ---
 # `src/mediapipeline/contracts/config.py`
 

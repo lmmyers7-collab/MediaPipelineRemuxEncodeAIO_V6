@@ -5,7 +5,7 @@ import logging
 import os
 from pathlib import Path
 
-from mediapipeline.desktop.models import CompletedJobRecord
+from mediapipeline.core.completed.contracts import CompletedJobRecord
 
 
 # Completed-job live-proof budgeting (backend-load-performance Packet 1).

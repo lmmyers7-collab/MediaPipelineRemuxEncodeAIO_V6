@@ -4,7 +4,8 @@ import time
 from pathlib import Path
 
 from mediapipeline.core.kernel.config_keys import KEY_OUTSOURCE
-from mediapipeline.desktop.models import CompletedJobRecord, ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.completed.contracts import CompletedJobRecord
 from mediapipeline.core.completed.backfill import (
     build_completed_backfill_args,
     completed_backfill_launch_exception_message,
@@ -17,7 +18,7 @@ from mediapipeline.core.completed.manifest import (
     normalize_proof_mode,
     read_completed_manifest_records,
 )
-from mediapipeline.desktop.subprocess_runner import run_capture
+from mediapipeline.core.kernel.runtime.subprocess_runner import run_capture
 
 
 COMPLETED_HISTORY_CACHE_SECONDS = 60.0

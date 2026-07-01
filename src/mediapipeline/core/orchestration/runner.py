@@ -219,7 +219,7 @@ def _record_stage_event(options: RunnerOptions, request: StageRequest, result: S
     if options.state_db_root is None:
         return
     try:
-        from mediapipeline.core.storage.db import open_state_db
+        from mediapipeline.core.storage.db import maybe_maintain_state_db, open_state_db
 
         open_state_db(options.state_db_root).record_stage_event(
             {
@@ -232,6 +232,7 @@ def _record_stage_event(options: RunnerOptions, request: StageRequest, result: S
                 "result": result.model_dump(mode="json"),
             }
         )
+        maybe_maintain_state_db(options.state_db_root)
     except Exception:
         return
 

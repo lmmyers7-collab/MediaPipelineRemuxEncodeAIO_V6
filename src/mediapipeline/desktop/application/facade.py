@@ -19,7 +19,7 @@ from mediapipeline.core.maintenance.retention_facade import MaintenanceRetention
 from mediapipeline.core.maintenance.state_journal_archive_facade import MaintenanceStateJournalArchiveFacadeMixin
 from mediapipeline.core.library.facade import LibraryRouteMapFacadeMixin
 from mediapipeline.core.metrics.facade import MetricsFacadeMixin
-from mediapipeline.core.network.facade import NetworkFacadeMixin
+from mediapipeline.core.network.facade import NetworkDiscoveryUnavailable, NetworkFacadeMixin
 from mediapipeline.core.network.lifecycle_facade import NetworkLifecycleFacadeMixin
 from mediapipeline.core.publish.pending_facade import PendingPublishFacadeMixin
 from mediapipeline.core.publish.reconciliation_facade import PublishReconciliationFacadeMixin
@@ -49,6 +49,15 @@ from mediapipeline.core.application.utilities import FacadeUtilityMixin
 from .schedule_stop_watcher import ScheduleStopWatcherManager
 from ..watch import WatchContext, WatchFolderManager, watch_folder_state_mapping
 from .network_lifecycle_provider import NetworkLifecycleProviderMixin
+from mediapipeline.desktop.network.mdns import ZeroconfUnavailable, discover_coordinators
+from mediapipeline.desktop.network.probe import probe_worker_auth
+
+
+def _discover_network_coordinators_adapter(*, timeout_secs: float) -> list[str]:
+    try:
+        return discover_coordinators(timeout_secs=timeout_secs)
+    except ZeroconfUnavailable as exc:
+        raise NetworkDiscoveryUnavailable(str(exc)) from exc
 
 
 class MediaPipelineApplicationFacade(
@@ -129,6 +138,8 @@ class MediaPipelineApplicationFacade(
         self._network_lifecycle_lock = threading.RLock()
         self._network_lifecycle_state = {}
         self._network_dispatcher_runtime = {}
+        self._network_discover_coordinators = _discover_network_coordinators_adapter
+        self._network_probe_worker_auth = probe_worker_auth
         self._schedule_stop_watcher = ScheduleStopWatcherManager()
         self._watch_folder_manager = WatchFolderManager()
 

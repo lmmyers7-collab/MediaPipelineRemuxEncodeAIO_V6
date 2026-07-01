@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 
 def queue_dry_run_temp_snapshot_path(snapshot_path: Path, request_id: str) -> Path:

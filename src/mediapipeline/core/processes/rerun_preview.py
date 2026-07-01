@@ -10,9 +10,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from mediapipeline.core.kernel.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.processes.file_io import atomic_write_text
-from mediapipeline.core.processes.rerun_policy import rerun_modes_are_supported
+from mediapipeline.core.processes.rerun_policy import (
+    RERUN_DESTINATION_MODES,
+    RERUN_EXECUTION_MODES,
+    RERUN_ORIGINAL_POLICIES,
+    rerun_lifecycle_errors,
+    rerun_lifecycle_from_request,
+    rerun_modes_are_supported,
+)
 
 
 RERUN_CSV_PREVIEW_SCHEMA_VERSION = "desktop_rerun_csv_preview.v1"
@@ -45,8 +52,8 @@ class RerunPreviewScope:
     skip_blocked: bool
     skip_warning_rows: bool
     first_n: int
-    issue_filter: str
-    bucket_filter: str
+    issue_filters: tuple[str, ...]
+    bucket_filters: tuple[str, ...]
     preview_limit: int
 
 
@@ -88,6 +95,36 @@ def _bounded_int(value: Any, *, default: int, minimum: int, maximum: int) -> int
     return min(maximum, max(minimum, parsed))
 
 
+def _filter_values(value: Any) -> tuple[str, ...]:
+    if isinstance(value, (list, tuple, set)):
+        raw_items = value
+    else:
+        raw_items = str(value or "").replace(";", ",").replace("|", ",").split(",")
+    values: list[str] = []
+    seen: set[str] = set()
+    for item in raw_items:
+        text = _clean_text(item)
+        if not text:
+            continue
+        key = text.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        values.append(text)
+    return tuple(values)
+
+
+def _split_option_tokens(text: str) -> list[str]:
+    normalized = _clean_text(text)
+    if not normalized:
+        return []
+    return [
+        token.strip()
+        for token in normalized.replace(";", ",").replace("|", ",").split(",")
+        if token.strip()
+    ]
+
+
 def rerun_preview_scope_from_request(request: Mapping[str, Any]) -> RerunPreviewScope:
     scope = request.get("scope")
     raw_scope = scope if isinstance(scope, Mapping) else request
@@ -104,8 +141,8 @@ def rerun_preview_scope_from_request(request: Mapping[str, Any]) -> RerunPreview
         skip_blocked=_bool_from_request(raw_scope.get("skip_blocked"), False),
         skip_warning_rows=_bool_from_request(raw_scope.get("skip_warning_rows"), False),
         first_n=first_n,
-        issue_filter=_clean_text(raw_scope.get("issue_filter")),
-        bucket_filter=_clean_text(raw_scope.get("bucket_filter")),
+        issue_filters=_filter_values(raw_scope.get("issue_filters", raw_scope.get("issue_filter"))),
+        bucket_filters=_filter_values(raw_scope.get("bucket_filters", raw_scope.get("bucket_filter"))),
         preview_limit=_bounded_int(
             raw_scope.get("preview_limit"),
             default=RERUN_CSV_DEFAULT_PREVIEW_LIMIT,
@@ -115,11 +152,11 @@ def rerun_preview_scope_from_request(request: Mapping[str, Any]) -> RerunPreview
     )
 
 
-def _filter_matches(text: str, filter_text: str) -> bool:
-    if not filter_text:
+def _filter_matches(text: str, filters: tuple[str, ...]) -> bool:
+    if not filters:
         return True
     haystack = text.casefold()
-    tokens = [item.strip().casefold() for item in filter_text.replace(";", ",").split(",") if item.strip()]
+    tokens = [item.strip().casefold() for item in filters if item.strip()]
     return any(token in haystack for token in tokens)
 
 
@@ -197,9 +234,9 @@ def _row_in_scope(row: RerunCsvRow, scope: RerunPreviewScope) -> bool:
         return False
     if scope.skip_warning_rows and row.warning_reasons:
         return False
-    if not _filter_matches(row.issue_text, scope.issue_filter):
+    if not _filter_matches(row.issue_text, scope.issue_filters):
         return False
-    if not _filter_matches(row.bucket_text, scope.bucket_filter):
+    if not _filter_matches(row.bucket_text, scope.bucket_filters):
         return False
     return True
 
@@ -248,12 +285,37 @@ def _recent_csv_entry(path: Path, *, label: str, source: str) -> dict[str, Any] 
     except OSError:
         return None
     return {
+        "csv_key": hashlib.sha256(str(path).encode("utf-8", errors="replace")).hexdigest()[:20],
         "label": label,
         "source": source,
         "path": str(path),
         "size_bytes": int(stat.st_size),
         "modified_at": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
     }
+
+
+def rerun_import_csv_root(resolved: ResolvedPaths) -> Path | None:
+    if resolved.state_root is not None:
+        return resolved.state_root / "Rerun" / "ImportCsv"
+    if resolved.local_base is not None:
+        return resolved.local_base / "State" / "Rerun" / "ImportCsv"
+    return None
+
+
+def scoped_rerun_csv_root(resolved: ResolvedPaths) -> Path | None:
+    if resolved.state_root is not None:
+        return resolved.state_root / "Rerun" / "ScopedCsv"
+    if resolved.local_base is not None:
+        return resolved.local_base / "State" / "Rerun" / "ScopedCsv"
+    return None
+
+
+def rerun_original_hold_root(resolved: ResolvedPaths) -> Path | None:
+    if resolved.state_root is not None:
+        return resolved.state_root / "Rerun" / "OriginalHold"
+    if resolved.local_base is not None:
+        return resolved.local_base / "State" / "Rerun" / "OriginalHold"
+    return None
 
 
 def recent_rerun_csv_candidates(resolved: ResolvedPaths, service: Any | None = None, *, limit: int = 8) -> list[dict[str, Any]]:
@@ -272,20 +334,9 @@ def recent_rerun_csv_candidates(resolved: ResolvedPaths, service: Any | None = N
         seen.add(key)
         entries.append(entry)
 
-    latest = getattr(service, "latest_audit_csv", None) if service is not None else None
-    if callable(latest):
-        try:
-            add(Path(latest(resolved, priority_only=False)), label="Latest audit CSV", source="latest_audit")
-        except Exception:
-            pass
-        try:
-            add(Path(latest(resolved, priority_only=True)), label="Latest priority audit CSV", source="latest_priority_audit")
-        except Exception:
-            pass
-
     for root, pattern, source in (
-        (resolved.audit_reports_path, "audit_rerun_export_*.csv", "audit_rerun_export"),
-        (_scoped_csv_root(resolved), "rerun_scoped_*.csv", "scoped_rerun"),
+        (rerun_import_csv_root(resolved), "audit_rerun_export_*.csv", "rerun_import"),
+        (scoped_rerun_csv_root(resolved), "rerun_scoped_*.csv", "scoped_rerun"),
     ):
         if root is None:
             continue
@@ -314,23 +365,26 @@ def rerun_csv_preview_payload(
     service: Any | None = None,
 ) -> dict[str, Any]:
     csv_text = _clean_text(request.get("csv_path"))
-    stage_mode = _normalize_choice(request.get("stage_mode"), "copy")
-    original_mode = _normalize_choice(request.get("original_mode"), "keep")
-    return_mode = _normalize_choice(request.get("return_mode"), "park")
+    request_dict = dict(request)
+    lifecycle = rerun_lifecycle_from_request(request_dict)
+    lifecycle_errors = rerun_lifecycle_errors(lifecycle)
+    stage_mode = lifecycle.stage_mode
+    original_mode = lifecycle.original_mode
+    return_mode = lifecycle.return_mode
     scope = rerun_preview_scope_from_request(request)
     recent = recent_rerun_csv_candidates(resolved, service)
 
     if not csv_text:
-        return _preview_error_payload("CSV path is required.", csv_text, stage_mode, original_mode, return_mode, scope, recent)
+        return _preview_error_payload("CSV path is required.", csv_text, lifecycle, lifecycle_errors, scope, recent, resolved)
 
     csv_path = Path(csv_text)
     if not csv_path.exists() or not csv_path.is_file():
-        return _preview_error_payload(f"CSV not found: {csv_path}", csv_text, stage_mode, original_mode, return_mode, scope, recent)
+        return _preview_error_payload(f"CSV not found: {csv_path}", csv_text, lifecycle, lifecycle_errors, scope, recent, resolved)
 
     try:
         fieldnames, raw_rows = read_rerun_csv_rows(csv_path)
     except Exception as exc:
-        return _preview_error_payload(f"CSV could not be read: {exc}", csv_text, stage_mode, original_mode, return_mode, scope, recent)
+        return _preview_error_payload(f"CSV could not be read: {exc}", csv_text, lifecycle, lifecycle_errors, scope, recent, resolved)
 
     rows = _classify_rows(
         raw_rows,
@@ -341,15 +395,17 @@ def rerun_csv_preview_payload(
     scoped = scoped_rerun_rows(rows, scope)
     scoped_keys = {row.row_index for row in scoped}
     blocked_in_scope = sum(1 for row in scoped if row.blocked_reasons)
-    unsafe_defaults = not rerun_modes_are_supported(stage_mode, original_mode, return_mode)
+    unsafe_defaults = bool(lifecycle_errors)
     preview_rows = [_preview_row(row, in_scope=row.row_index in scoped_keys) for row in rows[:scope.preview_limit]]
     warnings = _preview_warnings(rows, scoped, unsafe_defaults, fieldnames)
+    warnings.extend(lifecycle_errors)
     status = _status_for_preview(
-        csv_error="",
+        csv_error="; ".join(lifecycle_errors),
         unsafe_default_modes=unsafe_defaults,
         effective_rows=scoped,
         blocked_in_scope=blocked_in_scope,
     )
+    counts = _preview_counts(rows, scoped, blocked_in_scope)
     return {
         "ok": status != "blocked",
         "command": RERUN_PREVIEW_COMMAND,
@@ -363,10 +419,24 @@ def rerun_csv_preview_payload(
         "stage_mode": stage_mode,
         "original_mode": original_mode,
         "return_mode": return_mode,
+        "execution_mode": lifecycle.execution_mode,
+        "destination_mode": lifecycle.destination_mode,
+        "original_policy": lifecycle.original_policy,
+        "collision_policy": lifecycle.collision_policy,
+        "window_size": lifecycle.window_size,
+        "lifecycle": lifecycle.to_mapping(),
         "scope": _scope_mapping(scope),
-        "counts": _preview_counts(rows, scoped, blocked_in_scope),
+        "counts": counts,
+        "tiles": _preview_tiles(
+            csv_path=csv_path,
+            counts=counts,
+            lifecycle=lifecycle,
+            import_root=rerun_import_csv_root(resolved),
+            scoped_root=scoped_rerun_csv_root(resolved),
+        ),
+        "filter_options": _preview_options(rows),
         "warnings": warnings,
-        "errors": [
+        "errors": lifecycle_errors + [
             item
             for item in warnings
             if status == "blocked" and ("blocked" in item or "No effective" in item or "missing source_path" in item)
@@ -374,6 +444,9 @@ def rerun_csv_preview_payload(
         "rows": preview_rows,
         "preview_limit": scope.preview_limit,
         "recent_csvs": recent,
+        "import_csv_root": str(rerun_import_csv_root(resolved) or ""),
+        "scoped_csv_root": str(scoped_rerun_csv_root(resolved) or ""),
+        "original_hold_root": str(rerun_original_hold_root(resolved) or ""),
         "touches_media": False,
         "writes_queue": False,
         "writes_file_overrides": False,
@@ -383,12 +456,14 @@ def rerun_csv_preview_payload(
 def _preview_error_payload(
     message: str,
     csv_path: str,
-    stage_mode: str,
-    original_mode: str,
-    return_mode: str,
+    lifecycle: Any,
+    lifecycle_errors: list[str],
     scope: RerunPreviewScope,
     recent: list[dict[str, Any]],
+    resolved: ResolvedPaths,
 ) -> dict[str, Any]:
+    counts = _empty_counts()
+    errors = [message] + [str(item) for item in lifecycle_errors if str(item).strip()]
     return {
         "ok": False,
         "command": RERUN_PREVIEW_COMMAND,
@@ -398,17 +473,34 @@ def _preview_error_payload(
         "message": message,
         "csv_path": csv_path,
         "fieldnames": [],
-        "safe_modes": rerun_modes_are_supported(stage_mode, original_mode, return_mode),
-        "stage_mode": stage_mode,
-        "original_mode": original_mode,
-        "return_mode": return_mode,
+        "safe_modes": rerun_modes_are_supported(lifecycle.stage_mode, lifecycle.original_mode, lifecycle.return_mode),
+        "stage_mode": lifecycle.stage_mode,
+        "original_mode": lifecycle.original_mode,
+        "return_mode": lifecycle.return_mode,
+        "execution_mode": lifecycle.execution_mode,
+        "destination_mode": lifecycle.destination_mode,
+        "original_policy": lifecycle.original_policy,
+        "collision_policy": lifecycle.collision_policy,
+        "window_size": lifecycle.window_size,
+        "lifecycle": lifecycle.to_mapping(),
         "scope": _scope_mapping(scope),
-        "counts": _empty_counts(),
-        "warnings": [message],
-        "errors": [message],
+        "counts": counts,
+        "tiles": _preview_tiles(
+            csv_path=csv_path,
+            counts=counts,
+            lifecycle=lifecycle,
+            import_root=rerun_import_csv_root(resolved),
+            scoped_root=scoped_rerun_csv_root(resolved),
+        ),
+        "filter_options": _preview_options([]),
+        "warnings": errors,
+        "errors": errors,
         "rows": [],
         "preview_limit": scope.preview_limit,
         "recent_csvs": recent,
+        "import_csv_root": str(rerun_import_csv_root(resolved) or ""),
+        "scoped_csv_root": str(scoped_rerun_csv_root(resolved) or ""),
+        "original_hold_root": str(rerun_original_hold_root(resolved) or ""),
         "touches_media": False,
         "writes_queue": False,
         "writes_file_overrides": False,
@@ -457,12 +549,73 @@ def _preview_counts(rows: list[RerunCsvRow], scoped: list[RerunCsvRow], blocked_
     }
 
 
+def _option_counts(rows: list[RerunCsvRow], attr_name: str) -> list[dict[str, Any]]:
+    counts: dict[str, int] = {}
+    labels: dict[str, str] = {}
+    for row in rows:
+        text = str(getattr(row, attr_name) or "")
+        for token in _split_option_tokens(text):
+            key = token.casefold()
+            counts[key] = counts.get(key, 0) + 1
+            labels.setdefault(key, token)
+    return [
+        {"value": labels[key], "label": labels[key], "count": count}
+        for key, count in sorted(counts.items(), key=lambda item: (-item[1], labels[item[0]].casefold()))
+    ]
+
+
+def _preview_options(rows: list[RerunCsvRow]) -> dict[str, Any]:
+    return {
+        "issue_filters": _option_counts(rows, "issue_text"),
+        "bucket_filters": _option_counts(rows, "bucket_text"),
+        "status_filters": [
+            {"value": "ready", "label": "Ready"},
+            {"value": "warning", "label": "Warning"},
+            {"value": "blocked", "label": "Blocked"},
+            {"value": "filtered", "label": "Filtered"},
+        ],
+        "execution_modes": [{"value": value, "label": value.replace("_", " ").title()} for value in RERUN_EXECUTION_MODES],
+        "destination_modes": [{"value": value, "label": value.replace("_", " ").title()} for value in RERUN_DESTINATION_MODES],
+        "original_policies": [{"value": value, "label": value.replace("_", " ").title()} for value in RERUN_ORIGINAL_POLICIES],
+    }
+
+
+def _preview_tiles(
+    *,
+    csv_path: Path | str,
+    counts: dict[str, int],
+    lifecycle: Any,
+    import_root: Path | None,
+    scoped_root: Path | None,
+) -> list[dict[str, Any]]:
+    executable = max(0, int(counts.get("effective_scoped_rows", 0)) - int(counts.get("blocked_scoped_rows", 0)))
+    scratch_rows = int(counts.get("total_rows", 0))
+    if lifecycle.execution_mode == "one_at_a_time":
+        scratch_rows = min(1, executable)
+    elif lifecycle.execution_mode == "windowed":
+        scratch_rows = min(int(lifecycle.window_size or 1), executable)
+    csv_text = str(csv_path or "").strip()
+    return [
+        {"key": "csv_selected", "label": "CSV", "value": "selected" if csv_text else "missing", "detail": csv_text},
+        {"key": "rows", "label": "Rows", "value": int(counts.get("total_rows", 0))},
+        {"key": "executable_rows", "label": "Executable", "value": executable},
+        {"key": "blockers", "label": "Blockers", "value": int(counts.get("blocked_rows", 0))},
+        {"key": "warnings", "label": "Warnings", "value": int(counts.get("warning_rows", 0))},
+        {"key": "policy", "label": "Policy", "value": lifecycle.original_policy, "detail": lifecycle.collision_policy},
+        {"key": "execution_mode", "label": "Execution", "value": lifecycle.execution_mode, "detail": f"window={lifecycle.window_size}"},
+        {"key": "destination", "label": "Destination", "value": lifecycle.destination_mode},
+        {"key": "scratch_estimate", "label": "Scratch", "value": f"{scratch_rows} staged row(s)", "detail": "Bounded by execution mode."},
+        {"key": "phase", "label": "Phase", "value": "preview"},
+        {"key": "evidence", "label": "Evidence", "value": "backend", "detail": f"import={import_root or ''}; scoped={scoped_root or ''}"},
+    ]
+
+
 def _preview_warnings(rows: list[RerunCsvRow], scoped: list[RerunCsvRow], unsafe_defaults: bool, fieldnames: list[str]) -> list[str]:
     warnings: list[str] = []
     if not fieldnames:
         warnings.append("CSV has no header columns.")
     if unsafe_defaults:
-        warnings.append("Selected default modes are blocked; only copy / keep / park can execute.")
+        warnings.append("Selected lifecycle policy is blocked until required confirmations and supported modes are present.")
     if not scoped:
         warnings.append("No effective scoped rows are available for rerun.")
     blocked = sum(1 for row in rows if _row_has_blocked_mode(row))
@@ -481,23 +634,23 @@ def _preview_warnings(rows: list[RerunCsvRow], scoped: list[RerunCsvRow], unsafe
 
 
 def _scope_mapping(scope: RerunPreviewScope) -> dict[str, Any]:
+    issue_filter = ", ".join(scope.issue_filters)
+    bucket_filter = ", ".join(scope.bucket_filters)
     return {
         "enabled_only": scope.enabled_only,
         "skip_blocked": scope.skip_blocked,
         "skip_warning_rows": scope.skip_warning_rows,
         "first_n": scope.first_n,
-        "issue_filter": scope.issue_filter,
-        "bucket_filter": scope.bucket_filter,
+        "issue_filter": issue_filter,
+        "bucket_filter": bucket_filter,
+        "issue_filters": list(scope.issue_filters),
+        "bucket_filters": list(scope.bucket_filters),
         "preview_limit": scope.preview_limit,
     }
 
 
 def _scoped_csv_root(resolved: ResolvedPaths) -> Path | None:
-    if resolved.state_root is not None:
-        return resolved.state_root / "Rerun" / "ScopedCsv"
-    if resolved.local_base is not None:
-        return resolved.local_base / "State" / "Rerun" / "ScopedCsv"
-    return None
+    return scoped_rerun_csv_root(resolved)
 
 
 def request_needs_scoped_csv(request: Mapping[str, Any], preview: Mapping[str, Any]) -> bool:
@@ -510,8 +663,8 @@ def request_needs_scoped_csv(request: Mapping[str, Any], preview: Mapping[str, A
         or scope.skip_blocked
         or scope.skip_warning_rows
         or scope.first_n > 0
-        or bool(scope.issue_filter)
-        or bool(scope.bucket_filter)
+        or bool(scope.issue_filters)
+        or bool(scope.bucket_filters)
         or effective != total
     )
 
@@ -570,6 +723,9 @@ __all__ = [
     "read_rerun_csv_rows",
     "recent_rerun_csv_candidates",
     "request_needs_scoped_csv",
+    "rerun_import_csv_root",
+    "scoped_rerun_csv_root",
+    "rerun_original_hold_root",
     "rerun_csv_preview_payload",
     "rerun_preview_scope_from_request",
     "scoped_rerun_rows",

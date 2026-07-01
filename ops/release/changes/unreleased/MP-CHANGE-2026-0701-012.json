@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0701-012",
+  "title": "Prevent launch autonomy self-block",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-01",
+  "date_completed": "2026-07-01",
+  "summary": "Prevent the pipeline-side autonomy health gate from counting the current PowerShell launch process ActiveJobs record as external active work.",
+  "reason": "A pipeline start writes an ActiveJobs row before MediaPipeline.ps1 runs the autonomy health CLI gate. The gate could then see that same just-created row as active work, abort with exit 76, and leave a failed ActiveJobs record that blocks later launch/close readiness evidence.",
+  "affected_areas": [
+    "diagnostics",
+    "process",
+    "tests"
+  ],
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline.ps1.md",
+    "docs/generated/summaries/src/mediapipeline/core/diagnostics/autonomy_health.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/status/runtime_health.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/autonomy_health_gate.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_autonomy_health.py.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0701-012.json.md",
+    "ops/pipeline/entrypoints/MediaPipeline.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0701-012.json",
+    "src/mediapipeline/core/diagnostics/autonomy_health.py",
+    "src/mediapipeline/core/status/runtime_health.py",
+    "src/mediapipeline/tools/autonomy_health_gate.py",
+    "tests/python/desktop/test_autonomy_health.py"
+  ],
+  "behavior_before": "The backend-created ActiveJobs row for the current pipeline process could be treated as active external work by the pipeline's own autonomy health gate, causing a self-blocking exit 76 before queue work started.",
+  "behavior_after": "MediaPipeline.ps1 includes the current PowerShell PID in the autonomy health gate payload. The CLI passes that PID as an ignore list to the read-only autonomy health evaluator, which excludes only exact current-PID ActiveJobs rows from the direct workers scan and runtime ActiveJobs counters. Other active, failed, stale, unreadable, or ambiguous records still block.",
+  "tests_added": [
+    "tests/python/desktop/test_autonomy_health.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_autonomy_health -q - passed (24 tests)",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_process_launch -q - passed (39 tests)",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_service_status_active_jobs -q - passed (13 tests)",
+    "apps/desktop/runtime/Python/python.exe -m py_compile src/mediapipeline/core/diagnostics/autonomy_health.py src/mediapipeline/core/status/runtime_health.py src/mediapipeline/tools/autonomy_health_gate.py - passed",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ./ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1 - passed"
+  ],
+  "rollback_plan": "Revert the PID ignore plumbing in MediaPipeline.ps1, autonomy_health_gate.py, autonomy_health.py, runtime_health.py, and the added autonomy health tests; regenerate summaries for those files.",
+  "related_changes": [],
+  "notes": "Prevent pipeline-side autonomy health from treating the current launch process ActiveJobs row as an external blocker.\nPython impact: autonomy_health_payload and runtime_reliability_counters accept an optional ActiveJobs PID ignore list used by the CLI gate only; normal backend Diagnostics and Launch preflight calls keep strict read-first behavior."
+}

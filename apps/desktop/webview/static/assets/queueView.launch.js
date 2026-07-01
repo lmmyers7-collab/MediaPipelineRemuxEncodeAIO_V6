@@ -200,9 +200,9 @@
         action: posture === "Blocked"
           ? "Do not launch. Open Launch > Backend Launch Preflight and Diagnostics before retrying."
           : posture === "Review first"
-            ? "Read the Launch backend preflight review rows before starting queued work."
+            ? "Review the Launch backend preflight rows for context; start routes still re-check immediately before launch."
             : posture === "Evidence incomplete"
-              ? "Refresh Launch backend preflight before treating Queue as launch-ready."
+              ? "Refresh Launch backend preflight for current evidence, or open Launch and let backend start re-check."
               : "Backend preflight is currently ready-looking; start routes still re-check immediately before launch.",
         detail,
       };
@@ -213,7 +213,7 @@
       if (!row) return {
         status: "warning",
         evidence: "No queue row is selected.",
-        action: "Select a representative row before starting a broad batch.",
+        action: "Optional: select a representative row for concrete route, source, and runtime-history context.",
         detail: [
           "A selected row is not required by backend launch, but it gives the operator a concrete route, source, and runtime-history sample to inspect.",
         ],
@@ -235,7 +235,7 @@
         return {
           status: "warning",
           evidence: freshIssue ? [row.runtime_outcome_status, row.runtime_outcome_error_code, row.runtime_outcome_reason].filter(Boolean).join(" - ") : reviewFlags.join(", ") || row.operator_status || "selected row needs review",
-          action: "Inspect Queue diagnostics, route evidence, and recent logs before launch.",
+          action: "Inspect Queue diagnostics, route evidence, and recent logs when this selected row explains queue risk.",
           detail: queueRowIssueDigestLines(row),
         };
       }
@@ -381,7 +381,7 @@
         {
           signal: "Launch preflight cache",
           evidence: backendPreflight.evidence || "no cached backend launch preflight",
-          meaning: backendPreflight.action || "Open Launch and refresh readiness before starting queued work.",
+          meaning: backendPreflight.action || "Open Launch for authoritative start checks; refresh readiness for current evidence if useful.",
           boundary: "Only backend preflight/start routes can authorize or reject a run.",
           status: queueLaunchDecisionPostureStatus(backendPreflight.posture),
         },
@@ -430,7 +430,7 @@
       } else if (!rowList.length) {
         lines.push("First action: explain the empty queue with Source settings, Completed exclusions, schedule state, and Diagnostics before launch.");
       } else {
-        lines.push("First action: compare this scope preview with Launch readiness before submitting the backend-owned start command.");
+        lines.push("Suggested action: use this scope preview as context; Launch start remains backend-owned and re-checks at submission.");
       }
       lines.push("Mutation guardrail: this preview cannot launch, skip, reorder, drop, rewrite queue snapshots, delete files, or bypass backend validation.");
       return lines;
@@ -511,7 +511,7 @@
         "Queue payload",
         payload.error ? "Blocked" : rowList.length ? "Ready" : "Review",
         payload.error ? `Queue unavailable: ${payload.error}` : `${rowList.length} visible row(s), ${counts.runnable} runnable, ${counts.sourceCount} source candidate(s).`,
-        payload.error ? "Open Diagnostics > Queue Snapshot, Run Logs, and Last Stderr before launch." : rowList.length ? "Continue through the checklist before opening Launch." : "Do not launch from an empty visible queue until exclusions/source roots are explained.",
+        payload.error ? "Open Diagnostics > Queue Snapshot, Run Logs, and Last Stderr to explain the queue error." : rowList.length ? "Queue checklist is ready-looking; open Launch for authoritative start checks." : "Do not launch from an empty visible queue until exclusions/source roots are explained.",
         payload.error ? [`Error: ${payload.error}`] : queueReadinessLines(payload, rowList).slice(0, 8),
       );
 
@@ -555,7 +555,7 @@
         payload.runtime_outcome_warning || Number(runtimeFreshness.stale || 0) > 0 ? "Read evidence" : Number(payload.runtime_check_deferred_count || 0) > 0 ? "Review first" : "Ready",
         `Deferred=${payload.runtime_check_deferred_count || 0}; matched=${payload.runtime_outcome_match_count || 0}; freshness=${queueFormatCounts(runtimeFreshness)}; statuses=${queueFormatCounts(runtimeStatuses)}.`,
         payload.runtime_outcome_warning || Number(runtimeFreshness.stale || 0) > 0
-          ? "Treat runtime history as context only and read Run Logs/Last Stderr before launch."
+          ? "Treat runtime history as context only; Run Logs/Last Stderr can explain stale runtime evidence."
           : Number(payload.runtime_check_deferred_count || 0) > 0
             ? "Expect backend runtime checks to still stop unstable sources or unsafe output paths after launch."
             : "No runtime-history warning is visible in the loaded payload.",
@@ -592,7 +592,7 @@
         !latestCommand ? "Read evidence" : ["error", "warning"].includes(latestIssue) ? "Review first" : "Ready",
         latestCommand ? `${latestCommand.at || ""} ${latestCommand.command || latestCommand.raw?.command || "launch command"}: ${latestCommand.message || latestCommand.result || latestIssue}` : "No recent pipeline/audit/rerun start command in the local command stream.",
         !latestCommand
-          ? "If you are about to launch, first compare Queue readiness with Launch readiness and saved-settings trust."
+          ? "Use Queue readiness, Launch readiness, and saved-settings trust as context when opening Launch."
           : ["error", "warning"].includes(latestIssue)
             ? "Inspect the latest launch command result and Diagnostics before trying again."
             : "Recent launch command history has no visible warning/error, but current Queue readiness still decides the next attempt.",
@@ -668,13 +668,13 @@
         `Daily-use handoff: Queue evidence decides whether it is sensible to open Launch; backend Launch owns final start authorization. Operator outcome: ${outcome}.`,
         `Checkpoints loaded: ${decisionRows.length}`,
         `Blocked/review/read-first/unknown: ${blocked}/${review}/${readFirst}/${unknown}`,
-        "Decision rule: open Launch only after backend launch preflight, queue payload, display filter scope, freshness, blocked rows, runtime context, completed exclusions, selected-row proof, command history, and Launch readiness agree.",
+        "Decision context: use backend launch preflight, queue payload, display filter scope, freshness, blocked rows, runtime context, completed exclusions, selected-row proof, command history, and Launch readiness as advisory context; Launch performs authoritative start checks.",
         "Scope boundary: Queue filters, selected rows, review boards, and rendered row caps never narrow backend launch scope or mutate the queue.",
       ];
       if (blocked) {
         lines.push("First action: do not start queued work until blocked evidence is explained in Diagnostics.");
       } else if (review || readFirst || unknown) {
-        lines.push("First action: select review/read-first checkpoints, then use backend allowlisted Diagnostics and Launch readiness before starting work.");
+        lines.push("Suggested action: inspect review/read-first checkpoints when they explain a concrete issue; open Launch for authoritative schedule, settings, lock, and process validation.");
       } else {
         lines.push("First action: Queue evidence is ready-looking; open Launch for authoritative schedule, settings, lock, and process validation.");
       }
@@ -687,7 +687,7 @@
       if (!item) {
         return [
           "Queue-to-Launch handoff:",
-          "Select a handoff checkpoint before opening Launch.",
+          "Select a handoff checkpoint for detail.",
           "Mutation guardrail: this detail panel is read-only.",
         ];
       }

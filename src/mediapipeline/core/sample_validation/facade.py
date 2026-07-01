@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from mediapipeline.desktop.application.dto_commands import CommandResult
+from mediapipeline.core.kernel.dto_commands import CommandResult
 from mediapipeline.core.sample_validation.policy import (
     append_sample_validation_record,
     sample_validation_log_payload,
     sample_validation_preview,
 )
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 
 class SampleValidationFacadeMixin:

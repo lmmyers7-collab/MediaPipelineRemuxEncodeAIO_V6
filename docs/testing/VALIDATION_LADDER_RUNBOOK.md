@@ -182,11 +182,20 @@ What this proves: Queue, Completed, and Pending Publish 260-row payloads disclos
 
 For changes to `ops\pipeline\engine\<domain>\*.ps1` or `ops\pipeline\entrypoints\MediaPipeline.ps1`.
 
-### Pipeline unit checks
+### Focused pipeline unit checks
+
+There is no aggregate `ops\pipeline\tests\Invoke-UnitChecks.ps1` wrapper in
+the current tree. Run the focused `ops\pipeline\tests\Unit\Invoke-*Checks.ps1`
+scripts that match the touched domain, then run the active reliability wrapper
+below when the change affects shared pipeline behavior.
 
 ```powershell
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\ops\pipeline\tests\Invoke-UnitChecks.ps1
+  -File .\ops\pipeline\tests\Unit\Invoke-ContractSchemaChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\ops\pipeline\tests\Unit\Invoke-ConfigKeyRegistryChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\ops\pipeline\tests\Unit\Invoke-PathBoundaryGuardChecks.ps1
 ```
 
 ### Active current reliability regression wrapper

@@ -1,4 +1,4 @@
-/* global ADVANCED_MODE_STORAGE_KEY, EVIDENCE_HIDDEN_STORAGE_KEY, THEME_STORAGE_KEY, applyAdvancedModePreference, applyEvidenceHiddenPreference, applyThemePreference, closeReadinessRequiresWarning, readBooleanUiPreference, showPage, updatePagePanelEmptyStates */
+/* global ADVANCED_MODE_STORAGE_KEY, EVIDENCE_HIDDEN_STORAGE_KEY, applyAdvancedModePreference, applyEvidenceHiddenPreference, applyThemePreference, closeReadinessRequiresWarning, readBooleanUiPreference, showPage, updatePagePanelEmptyStates */
 (function () {
   const LAYOUT_STORAGE_KEY = "mediapipeline-layout-v1";
 

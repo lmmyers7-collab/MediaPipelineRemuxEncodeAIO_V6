@@ -42,7 +42,7 @@ export function collectScriptTags(indexHtml = readFileSync(webviewIndexPath, "ut
 }
 
 export function scriptSrcToRepoPath(src) {
-  const normalized = src.replace(/^\//, "");
+  const normalized = src.split(/[?#]/, 1)[0].replace(/^\//, "");
   if (!normalized.startsWith("assets/")) return "";
   return repoRelative(join(webviewStaticRoot, normalized));
 }

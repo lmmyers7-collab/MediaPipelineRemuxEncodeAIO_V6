@@ -20,13 +20,14 @@
     resumed: { main: "Resumed", detail: "" },
     stopped: { main: "Stopped", detail: "" },
     completed: { main: "Completed", detail: "" },
+    csv_rerun_active: { main: "CSV Rerun", detail: "active" },
     no_new_sources: { main: "No New Sources", detail: "" },
     failed: { main: "Failed", detail: "" },
     error: { main: "Error", detail: "" },
     audit: { main: "Audit", detail: "" },
   });
 
-  const HOME_PIPELINE_STATE_ACRONYMS = new Set(["api", "bdpgs", "cpu", "ffmpeg", "srt", "tv", "tx3g", "vobsub"]);
+  const HOME_PIPELINE_STATE_ACRONYMS = new Set(["api", "bdpgs", "cpu", "csv", "ffmpeg", "srt", "tv", "tx3g", "vobsub"]);
 
   function renderBrandVersion(snapshot = {}, bootstrap = window.MEDIA_PIPELINE_BOOTSTRAP || {}) {
     setText("app-version", bootstrap.appVersion || snapshot.app_version || "2026.06.04.001");
@@ -96,6 +97,10 @@
     return window.mediaPipelineAppLifecycle?.setTopbarPendingLaunch?.(payload);
   }
 
+  function clearTopbarPendingLaunch(snapshot = {}) {
+    return window.mediaPipelineAppLifecycle?.clearTopbarPendingLaunch?.(snapshot);
+  }
+
   window.mediaPipelineAppTopbar = {
     renderBrandVersion,
     titleCaseHomePipelineState,
@@ -105,5 +110,6 @@
     renderTopbarActivity,
     renderTopbarEventTicker,
     setTopbarPendingLaunch,
+    clearTopbarPendingLaunch,
   };
 })();

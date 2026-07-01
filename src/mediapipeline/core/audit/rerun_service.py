@@ -3,7 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.models import AuditRecord, CompletedJobRecord, FailureRecord, ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.audit.contracts import AuditRecord
+from mediapipeline.core.completed.contracts import CompletedJobRecord
+from mediapipeline.core.failures.contracts import FailureRecord
 from mediapipeline.core.audit.rerun_export import save_rerun_records_csv_for_service
 from mediapipeline.core.audit.rerun_records import (
     audit_correlation_lookup_key,
@@ -22,7 +25,7 @@ from mediapipeline.core.audit.rerun_metadata import (
     load_rerun_source_metadata_for_service,
     rerun_source_metadata_script_path_for_service,
 )
-from mediapipeline.desktop.subprocess_runner import run_capture
+from mediapipeline.core.kernel.runtime.subprocess_runner import run_capture
 
 
 class AuditRerunServiceMixin:

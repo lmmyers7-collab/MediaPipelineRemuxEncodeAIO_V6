@@ -17,7 +17,7 @@ from mediapipeline.core.folder_policy.io import (
 )
 from mediapipeline.core.folder_policy.probe import parse_ffprobe_stream_signature
 from mediapipeline.core.files.constants import MEDIA_FILE_SUFFIXES
-from mediapipeline.desktop.subprocess_runner import run_capture
+from mediapipeline.core.kernel.runtime.subprocess_runner import run_capture
 
 
 def _path_is_relative_to(path: Path, root: Path) -> bool:

@@ -8,11 +8,11 @@ from typing import TYPE_CHECKING, Any
 from mediapipeline.core.queue.policy_parts.rules import QUEUE_OPEN_COMMAND, QUEUE_OPEN_SCOPES, QUEUE_OPEN_TARGETS, QUEUE_REFRESH_HINT
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
 
 def _command_result(**fields: Any) -> "CommandResult":
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**fields)
 

@@ -312,8 +312,224 @@ function Invoke-LocalWorkerPostSpawnClaimFailureStopsChildCheck {
     }
 }
 
+function Invoke-LocalWorkerChildHardTimeoutKillReleasesCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('MediaPipelineLocalWorkerTimeoutTest_' + [guid]::NewGuid().ToString('N'))
+    $previousTimeout = $script:LocalWorkerChildHardTimeoutSeconds
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        $sourcePath = Join-Path $tempRoot 'Movie.mkv'
+        Set-Content -LiteralPath $sourcePath -Value 'not real media' -Encoding UTF8
+        $entry = New-LocalWorkerLifecycleEntry -SourcePath $sourcePath
+        $script:LocalStateLayout = [pscustomobject]@{
+            Root    = $tempRoot
+            Workers = Join-Path $tempRoot 'Workers'
+            Paths   = [pscustomobject]@{
+                LocalWorkerClaims     = Join-Path $tempRoot 'claims.json'
+                LocalWorkerActiveJobs = Join-Path $tempRoot 'active_jobs.json'
+            }
+        }
+        $script:LocalWorkerChildHardTimeoutSeconds = 1
+        $script:PipelineRunId = 'run-child-hard-timeout'
+        $script:StopRequested = $false
+        $script:ProgressFile = Join-Path $tempRoot 'pipeline_progress.json'
+        $script:totalFailed = 0
+        $script:StoppedWorkerCount = 0
+        $script:ReleasedClaims = @()
+        $script:PipelineEvents = @()
+
+        function Get-MediaPipelineQueuePlanRunnableEntries {
+            param($QueuePlan)
+            return @($QueuePlan.Entries)
+        }
+        function Check-ControlFlags {}
+        function Write-Log {}
+        function Repair-MediaPipelineLocalWorkerClaims { return $null }
+        function Invoke-MediaPipelineLocalWorkerClaim {
+            return [pscustomobject]@{
+                claim_id    = 'claim-child-timeout'
+                source_path = $sourcePath
+                source_name = 'Movie.mkv'
+                media_kind  = 'movie'
+                queue_index = 1
+                queue_total = 1
+            }
+        }
+        function Start-MediaPipelineLocalWorkerChild {
+            return [pscustomobject]@{ Id = 424243; HasExited = $false; ExitCode = $null }
+        }
+        function Update-MediaPipelineLocalWorkerClaim { return $null }
+        function Stop-MediaPipelineLocalWorkerProcess {
+            param($Job)
+            $script:StoppedWorkerCount++
+            $Job.Process.HasExited = $true
+        }
+        function Release-MediaPipelineLocalWorkerClaim {
+            param(
+                [string] $ClaimStorePath,
+                [string] $ClaimId,
+                [string] $Status,
+                [string] $Reason
+            )
+            $script:ReleasedClaims += ,([pscustomobject]@{
+                ClaimId = $ClaimId
+                Status  = $Status
+                Reason  = $Reason
+            })
+        }
+        function Write-MediaPipelineLocalWorkerActiveJobs { return $null }
+        function Write-PipelineEvent {
+            param(
+                [string] $EventType,
+                [string] $Stage,
+                [string] $Status,
+                [string] $SourcePath,
+                [hashtable] $Data
+            )
+            $script:PipelineEvents += ,([pscustomobject]@{
+                EventType = $EventType
+                Stage     = $Stage
+                Status    = $Status
+                SourcePath = $SourcePath
+                Data      = $Data
+            })
+        }
+        function Invalidate-ProcessedIndexCache {}
+
+        Invoke-MediaQueuePhasePlanLocalWorkerSlots `
+            -QueuePlan ([pscustomobject]@{ Entries = @($entry); HoldCount = 0; MoviePriorityCount = 0; TVPriorityCount = 0; MovieCount = 1; TVCount = 0; LowCount = 0 }) `
+            -ProcessedIndex @{} `
+            -ScriptPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline.ps1') `
+            -ConfigPath (Join-Path $repoRoot 'ops\pipeline\config\MediaPipeline_config.psd1') `
+            -PowerShellPath 'pwsh.exe' `
+            -MaxParallelEncodes 1 | Out-Null
+
+        Assert-Equal $script:StoppedWorkerCount 1 'Hard-timeout child should be stopped by the parent slot controller.'
+        Assert-Equal ([string]$script:ReleasedClaims[0].Status) 'failed_child_timeout' 'Timed-out child claim should be released with a timeout status.'
+        Assert-True ([string]$script:ReleasedClaims[0].Reason -like '*hard timeout of 1s*') 'Timed-out child claim should preserve the timeout duration.'
+        Assert-Equal ([int]$script:totalFailed) 1 'Timed-out child should increment the parent failure counter.'
+        Assert-Equal ([string]$script:PipelineEvents[0].EventType) 'local_worker_child_hard_timeout' 'Timed-out child should emit structured timeout evidence.'
+        Assert-Equal ([string]$script:PipelineEvents[0].Data.error_code) 'LOCAL_WORKER_CHILD_TIMEOUT' 'Timeout evidence should use the stable failure code.'
+    } finally {
+        $script:LocalWorkerChildHardTimeoutSeconds = $previousTimeout
+        Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Invoke-LocalWorkerStaleHeartbeatKillReleasesCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('MediaPipelineLocalWorkerHeartbeatTest_' + [guid]::NewGuid().ToString('N'))
+    $previousTimeout = $script:LocalWorkerChildHardTimeoutSeconds
+    $previousHeartbeatGrace = $script:LocalWorkerHeartbeatGraceSeconds
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        $sourcePath = Join-Path $tempRoot 'Movie.mkv'
+        Set-Content -LiteralPath $sourcePath -Value 'not real media' -Encoding UTF8
+        $entry = New-LocalWorkerLifecycleEntry -SourcePath $sourcePath
+        $script:LocalStateLayout = [pscustomobject]@{
+            Root    = $tempRoot
+            Workers = Join-Path $tempRoot 'Workers'
+            Paths   = [pscustomobject]@{
+                LocalWorkerClaims     = Join-Path $tempRoot 'claims.json'
+                LocalWorkerActiveJobs = Join-Path $tempRoot 'active_jobs.json'
+            }
+        }
+        $script:LocalWorkerChildHardTimeoutSeconds = 3600
+        $script:LocalWorkerHeartbeatGraceSeconds = 1
+        $script:PipelineRunId = 'run-child-stale-heartbeat'
+        $script:StopRequested = $false
+        $script:ProgressFile = Join-Path $tempRoot 'pipeline_progress.json'
+        $script:totalFailed = 0
+        $script:StoppedWorkerCount = 0
+        $script:ReleasedClaims = @()
+        $script:PipelineEvents = @()
+
+        function Get-MediaPipelineQueuePlanRunnableEntries {
+            param($QueuePlan)
+            return @($QueuePlan.Entries)
+        }
+        function Check-ControlFlags {}
+        function Write-Log {}
+        function Repair-MediaPipelineLocalWorkerClaims { return $null }
+        function Invoke-MediaPipelineLocalWorkerClaim {
+            return [pscustomobject]@{
+                claim_id    = 'claim-child-stale-heartbeat'
+                source_path = $sourcePath
+                source_name = 'Movie.mkv'
+                media_kind  = 'movie'
+                queue_index = 1
+                queue_total = 1
+            }
+        }
+        function Start-MediaPipelineLocalWorkerChild {
+            param($Entry, $Claim, $SlotLayout)
+            $heartbeatPath = [string]$SlotLayout.HeartbeatFile
+            New-Item -ItemType Directory -Path (Split-Path -Parent $heartbeatPath) -Force | Out-Null
+            Set-Content -LiteralPath $heartbeatPath -Value '{"schema_version":"local_worker_heartbeat.v1"}' -Encoding UTF8
+            (Get-Item -LiteralPath $heartbeatPath).LastWriteTimeUtc = (Get-Date).ToUniversalTime().AddSeconds(-30)
+            return [pscustomobject]@{ Id = 424244; HasExited = $false; ExitCode = $null }
+        }
+        function Update-MediaPipelineLocalWorkerClaim { return $null }
+        function Stop-MediaPipelineLocalWorkerProcess {
+            param($Job)
+            $script:StoppedWorkerCount++
+            $Job.Process.HasExited = $true
+        }
+        function Release-MediaPipelineLocalWorkerClaim {
+            param(
+                [string] $ClaimStorePath,
+                [string] $ClaimId,
+                [string] $Status,
+                [string] $Reason
+            )
+            $script:ReleasedClaims += ,([pscustomobject]@{
+                ClaimId = $ClaimId
+                Status  = $Status
+                Reason  = $Reason
+            })
+        }
+        function Write-MediaPipelineLocalWorkerActiveJobs { return $null }
+        function Write-PipelineEvent {
+            param(
+                [string] $EventType,
+                [string] $Stage,
+                [string] $Status,
+                [string] $SourcePath,
+                [hashtable] $Data
+            )
+            $script:PipelineEvents += ,([pscustomobject]@{
+                EventType = $EventType
+                Stage     = $Stage
+                Status    = $Status
+                SourcePath = $SourcePath
+                Data      = $Data
+            })
+        }
+        function Invalidate-ProcessedIndexCache {}
+
+        Invoke-MediaQueuePhasePlanLocalWorkerSlots `
+            -QueuePlan ([pscustomobject]@{ Entries = @($entry); HoldCount = 0; MoviePriorityCount = 0; TVPriorityCount = 0; MovieCount = 1; TVCount = 0; LowCount = 0 }) `
+            -ProcessedIndex @{} `
+            -ScriptPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline.ps1') `
+            -ConfigPath (Join-Path $repoRoot 'ops\pipeline\config\MediaPipeline_config.psd1') `
+            -PowerShellPath 'pwsh.exe' `
+            -MaxParallelEncodes 1 | Out-Null
+
+        Assert-Equal $script:StoppedWorkerCount 1 'Stale-heartbeat child should be stopped by the parent slot controller.'
+        Assert-Equal ([string]$script:ReleasedClaims[0].Status) 'failed_child_stale_heartbeat' 'Stale-heartbeat child claim should be released with a stale heartbeat status.'
+        Assert-True ([string]$script:ReleasedClaims[0].Reason -like '*heartbeat stale*') 'Stale-heartbeat release should preserve diagnostic reason.'
+        Assert-Equal ([int]$script:totalFailed) 1 'Stale-heartbeat child should increment the parent failure counter.'
+        Assert-Equal ([string]$script:PipelineEvents[0].EventType) 'local_worker_child_stale_heartbeat' 'Stale-heartbeat child should emit structured stale heartbeat evidence.'
+        Assert-Equal ([string]$script:PipelineEvents[0].Data.error_code) 'LOCAL_WORKER_CHILD_STALE_HEARTBEAT' 'Stale-heartbeat evidence should use the stable failure code.'
+    } finally {
+        $script:LocalWorkerChildHardTimeoutSeconds = $previousTimeout
+        $script:LocalWorkerHeartbeatGraceSeconds = $previousHeartbeatGrace
+        Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 try {
     Invoke-LocalWorkerPostSpawnClaimFailureStopsChildCheck
+    Invoke-LocalWorkerChildHardTimeoutKillReleasesCheck
+    Invoke-LocalWorkerStaleHeartbeatKillReleasesCheck
 } finally {
     if ($null -eq $previousMutexSuffix) {
         Remove-Item Env:\MEDIA_PIPELINE_TEST_MUTEX_SUFFIX -ErrorAction SilentlyContinue

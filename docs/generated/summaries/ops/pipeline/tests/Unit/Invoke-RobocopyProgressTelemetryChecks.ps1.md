@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-RobocopyProgressTelemetryChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-30
 last_reviewed: 2026-06-04
-sha256: 23c3139682e012d4c14f6a6555dacc68b1bc867eb12275be8475230d07cbf564
+sha256: 916d1a31f652d24b0be648bfbea50ae904a7fd81287fba1e1688945899c6a66b
 ---
 # `ops/pipeline/tests/Unit/Invoke-RobocopyProgressTelemetryChecks.ps1`
 

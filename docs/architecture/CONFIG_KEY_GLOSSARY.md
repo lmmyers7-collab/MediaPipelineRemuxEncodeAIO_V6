@@ -125,6 +125,7 @@ Bitrate route decisions use bitrate estimated from `file_size_bytes` and `durati
 | Key | Purpose | Risk note | Builder |
 |---|---|---|---|
 | `SubKeepLanguages` | Language codes for subtitle tracks to retain | Empty list retains no subtitles | Builder |
+| `AllowSubtitleHelperFallback` | Allow degraded launch if the bundled ASS/SSA helper startup self-check fails | Default `false` blocks launch so broken subtitle conversion is visible before unattended work | Builder |
 | `ConvertTx3gToSrt` | Convert TX3G (MP4 embedded) subtitle tracks to SRT | Disabling this drops TX3G subtitles unless `Tx3gPreserveExistingSrt` saves them | Builder |
 | `DropTx3gAfterConversion` | Drop the TX3G track after SRT is produced | Keeping both TX3G and SRT is usually redundant | Builder |
 | `ConvertBdpgsToSrt` | Convert BDPGS (Blu-ray PGS) subtitle tracks to SRT via OCR | Requires `BdpgsOcrToolPath` and tessdata | Builder |
@@ -161,9 +162,11 @@ Bitrate route decisions use bitrate estimated from `file_size_bytes` and `durati
 | Key | Purpose | Risk note | Builder |
 |---|---|---|---|
 | `DeferredPublish` | Enable parking of outputs locally when destination is unavailable | When enabled, outputs are not immediately published; drain is required later | Builder |
+| `PendingPublishDrainMode` | Deferred publish drain posture: `manual` or explicit backend-owned `trusted` drain | `trusted` can move trusted parked manifests unattended; keep `manual` unless soak validation proves the path safe | Builder |
+| `PendingPublishDrainBatchSize` | Maximum pending-publish manifests drained per normal/trusted batch | Too high can monopolize publish time after destination recovery; too low slows backlog recovery | Builder |
 | `CleanupRemoteStaging` | Clean up remote staging after successful drain | Disabling leaves staging artifacts on the destination | Builder |
 | `TransientFailureRetryLimit` | How many transient failures are retried before marking permanent | High limits may retry corrupted sources many times | Builder |
-| `CleanupStaleAgeHours` | Age in hours after which stale scratch/staging files are cleaned up | Too low may clean up files from ongoing operations | Builder |
+| `CleanupStaleAgeHours` | Age in hours after which stale scratch/staging files and empty local encoded-output folders are cleaned up | Too low may clean up folders from recent operations | Builder |
 | `RobocopyTimeoutSeconds` | Per-file timeout for Robocopy publish/transfer operations | Too low may cause false timeout failures on slow networks | Builder |
 | `RobocopyFlags` | Custom flags appended to Robocopy commands | Raw passthrough — incorrect flags can cause overwrite or mirror behavior | Builder |
 
@@ -175,11 +178,26 @@ Bitrate route decisions use bitrate estimated from `file_size_bytes` and `durati
 |---|---|---|---|
 | `DebugMode` | Enable verbose debug logging | Produces large log files; not for production use | Builder |
 | `LogRetentionDays` | How many days of run logs to retain before cleanup | Low values may delete logs before a failure is investigated | Builder |
+| `PipelineDebugLogMaxBytes` | Size cap for live `pipeline_debug.log` rotation | Too low rotates evidence too often; too high delays recovery from runaway debug logging | Builder |
+| `FailureArtifactWarningThresholdGB` | Home/Reports warning threshold for captured failure artifact storage | Set to `0` only to disable the toast; the read-only summary remains visible | Builder |
+| `FailureArtifactRetentionDays` | Reports cleanup age threshold for captured failure artifacts | Set to `0` to disable age-based artifact cleanup; policy cleanup can use the current backend plan with confirmation | Builder |
+| `FailureArtifactCleanupTargetGB` | Reports cleanup target-size threshold for captured failure artifacts | Set to `0` to disable target-size artifact cleanup; policy cleanup can use the current backend plan with confirmation | Builder |
 | `FFmpegEncodeTimeoutSeconds` | Per-file timeout for NVENC encodes | Too low kills slow encodes prematurely | Builder |
 | `FFmpegRemuxTimeoutSeconds` | Per-file timeout for remux operations | Lower than encode timeout is usually safe | Builder |
 | `FFmpegCpuEncodeTimeoutSeconds` | Per-file timeout for CPU fallback encodes | CPU encodes are slower than NVENC; set appropriately | Builder |
 | `MkvmergeRemuxTimeoutSeconds` | Per-file timeout for MKVToolNix remux operations | Too low kills slow remux operations; default 2h is suitable for most sources | Builder |
 | `SourceScanIntervalSeconds` | How often the pipeline scans for new source files | Lower = more responsive to new files; higher = less I/O | Builder |
+| `ConsecutiveRoundFailureBlockLimit` | Continuous-mode unexpected round failure threshold before blocked probe backoff | Too low can pause useful recovery; too high delays blocked-health visibility | Raw/Advanced |
+| `ConsecutiveRoundFailureProbeBackoffSeconds` | Backoff between blocked continuous-mode recovery probes | Too low can churn logs/processes; too high delays recovery after transient issues | Raw/Advanced |
+| `PendingPublishBacklogBlockThreshold` | Non-deferred pending-publish backlog count that blocks new queue work | Too high allows parked outputs to accumulate; too low can stall processing during normal drain delay | Raw/Advanced |
+| `PendingPublishDeferredBlockThreshold` | Deferred pending-publish backlog count that blocks new queue work | Too high allows deferred parked outputs to accumulate; does not force-drain manifests | Raw/Advanced |
+| `PauseFlagReviewSeconds` | Pause-flag age for review health | Does not auto-clear pause; low values increase review noise | Raw/Advanced |
+| `PauseFlagBlockSeconds` | Pause-flag age for blocked autonomy health | Does not auto-clear pause; high values delay unattended blocked-health visibility | Raw/Advanced |
+| `LocalWorkerHeartbeatGraceSeconds` | Grace window for stale local worker child heartbeat evidence | Too low can reclaim slow-but-live workers; too high delays stale slot recovery | Raw/Advanced |
+| `QueueExecutionMaxRunnablePerRound` | Maximum runnable queue items processed in one engine round | Too high increases per-round memory/work; too low increases round churn | Raw/Advanced |
+| `StateDbMaintenanceIntervalSeconds` | Best-effort SQLite mirror maintenance interval | JSON remains authoritative; low values add maintenance overhead | Raw/Advanced |
+| `StateDbWalReviewBytes` | SQLite mirror WAL review/maintenance threshold | JSON remains authoritative; high values allow larger WAL growth before review | Raw/Advanced |
+| `StateDbCompletedJobsMaxRows` | Maximum completed-job rows retained in the SQLite mirror | JSONL completed manifests remain authoritative; too low reduces mirror history, too high increases SQLite growth | Raw/Advanced |
 | `AllowSystemTools` | Allow falling back to system-PATH FFmpeg/MKVToolNix instead of bundled tools | Risky — system tools may be different versions than tested | Builder |
 | `ConsoleLogLevel` | Log level for console output (e.g., WARNING, INFO, DEBUG) | **Builder** — added to Runtime builder in settingsMetadata.js | Builder |
 | `FileLogLevel` | Log level for file-based log output | **Builder** — added to Runtime builder in settingsMetadata.js | Builder |

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/launchView.risk.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-18
+last_modified: 2026-07-01
 last_reviewed: 2026-06-04
-sha256: 8e7af57e4bb21ca261091fb7cc42bf9f2f4761fb56c614f59dd05e6a9d45d197
+sha256: 3d760654f6c07684d29142ed68a73b0adfc0c6fb15576e96c3cad00ab3d94d55
 ---
 # `apps/desktop/webview/static/assets/launchView.risk.js`
 

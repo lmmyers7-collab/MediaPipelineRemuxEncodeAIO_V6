@@ -169,6 +169,44 @@ function Invoke-MkvmergeCommand {
     return [pscustomobject]@{ ExitCode = 0; Output = $script:MkvmergeJson; Error = ''; ReproPath = '' }
 }
 
+function Invoke-FFmpegCommand {
+    param(
+        [array] $ArgumentList,
+        [int] $TimeoutSeconds,
+        [string] $Stage,
+        [switch] $SaveReproOnFailure
+    )
+    $script:LastFFmpegArguments = @($ArgumentList)
+    $target = [string]$ArgumentList[-1]
+    [System.IO.File]::WriteAllText($target, 'fake staged matroska', [System.Text.UTF8Encoding]::new($false))
+    return [pscustomobject]@{ ExitCode = 0; Output = ''; Error = ''; ReproPath = '' }
+}
+
+function Invoke-MkvextractCommand {
+    param(
+        [string] $FilePath,
+        [array] $ArgumentList,
+        [int] $TimeoutSeconds,
+        [string] $Stage,
+        [switch] $SaveReproOnFailure
+    )
+    $script:LastMkvextractFilePath = $FilePath
+    $script:LastMkvextractArguments = @($ArgumentList)
+    $spec = [string]$ArgumentList[-1]
+    if ($spec -notmatch '^\d+:(.+)$') {
+        return [pscustomobject]@{ ExitCode = 2; Output = ''; Error = "bad mkvextract track spec: $spec"; ReproPath = '' }
+    }
+    $idxPath = $matches[1]
+    $subPath = [System.IO.Path]::ChangeExtension($idxPath, '.sub')
+    [System.IO.File]::WriteAllText($idxPath, 'id: en, index: 0', [System.Text.UTF8Encoding]::new($false))
+    [System.IO.File]::WriteAllText($subPath, 'bitmap payload', [System.Text.UTF8Encoding]::new($false))
+    $exitCode = if ($null -ne $script:MkvextractExitCode) { [int]$script:MkvextractExitCode } else { 0 }
+    $output = if ($null -ne $script:MkvextractOutput) { [string]$script:MkvextractOutput } else { '' }
+    $errorText = if ($null -ne $script:MkvextractError) { [string]$script:MkvextractError } else { '' }
+    $reproPath = if ($null -ne $script:MkvextractReproPath) { [string]$script:MkvextractReproPath } else { '' }
+    return [pscustomobject]@{ ExitCode = $exitCode; Output = $output; Error = $errorText; ReproPath = $reproPath }
+}
+
 . (Join-Path $repoRoot 'ops\pipeline\engine\shared\media_constants.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\subtitles\vobsub.ps1')
 
@@ -182,6 +220,8 @@ try {
     $script:VobSubOcrToolPath = Join-Path $root 'SubtitleEdit.exe'
     $script:AllowSystemTools = $false
     Set-Content -LiteralPath $script:VobSubOcrToolPath -Value 'fake Subtitle Edit' -Encoding ASCII
+    $script:mkvextractPath = Join-Path $root 'mkvextract.exe'
+    Set-Content -LiteralPath $script:mkvextractPath -Value 'fake mkvextract' -Encoding ASCII
     $fakeTesseractDir = Join-Path $root 'Tesseract550'
     New-Item -ItemType Directory -Path $fakeTesseractDir -Force | Out-Null
     $fakeTesseract = Join-Path $fakeTesseractDir 'tesseract.exe'
@@ -244,6 +284,58 @@ try {
     Assert-Equal $converted.CueCount 1 'Fake Subtitle Edit VobSub conversion should report one cue.'
     Assert-True ((Test-Path -LiteralPath $out -PathType Leaf) -and ((Get-Content -LiteralPath $out -Raw) -match 'Hello VobSub')) 'Fake Subtitle Edit VobSub conversion did not write expected SRT.'
     Assert-True (@($script:LastVobSubOcrArguments) -contains '/ocrdb:eng') 'Subtitle Edit VobSub OCR should pass the resolved Tesseract language via /ocrdb.'
+
+    $mp4Media = Join-Path $root 'Movie.mp4'
+    Set-Content -LiteralPath $mp4Media -Value 'fake mp4 media' -Encoding ASCII
+    $script:MkvmergeJson = '{"tracks":[{"id":0,"type":"subtitles","codec":"VobSub subtitles","properties":{"number":1,"language":"eng","track_name":"MP4 VobSub","codec_id":"S_VOBSUB"}}]}'
+    $script:LastFFmpegArguments = @()
+    $script:LastMkvextractArguments = @()
+    $mp4Entry = @{
+        SourceKind = 'embedded'
+        Stream = [pscustomobject]@{ index = 3 }
+        Lang = 'eng'
+        Title = 'MP4 VobSub'
+        RawTitle = 'MP4 VobSub'
+        IsForced = $false
+        IsSupplemental = $false
+    }
+    $mp4Out = Join-Path $root 'Movie.mp4.vobsub.srt'
+    $mp4Converted = Convert-VobSubToSrt -SourceFile $mp4Media -StreamIndex 3 -StreamInfo $mp4Entry -DestinationPath $mp4Out
+    Assert-True ([bool]$mp4Converted.Ok) "MP4 embedded VobSub conversion should stage through FFmpeg and OCR successfully: $($mp4Converted.Reason)"
+    Assert-True ((Test-Path -LiteralPath $mp4Out -PathType Leaf) -and ((Get-Content -LiteralPath $mp4Out -Raw) -match 'Hello VobSub')) 'MP4 embedded VobSub conversion did not write expected SRT.'
+    $ffmpegArgsText = @($script:LastFFmpegArguments) -join ' '
+    Assert-True ($ffmpegArgsText -match [regex]::Escape('-map 0:3')) 'MP4 embedded VobSub staging should map only the selected subtitle stream.'
+    Assert-True ($ffmpegArgsText -match [regex]::Escape('-c:s copy')) 'MP4 embedded VobSub staging should copy the bitmap subtitle stream.'
+    Assert-True ($ffmpegArgsText -match [regex]::Escape('-f matroska')) 'MP4 embedded VobSub staging should write a temporary Matroska file.'
+    $stagedMkv = [string]@($script:LastFFmpegArguments)[-1]
+    Assert-True ([System.IO.Path]::GetExtension($stagedMkv).Equals('.mkv', [System.StringComparison]::OrdinalIgnoreCase)) 'MP4 embedded VobSub staging should produce a temporary MKV.'
+    Assert-Equal ([string]@($script:LastMkvextractArguments)[1]) $stagedMkv 'mkvextract should read the staged temporary MKV, not the original MP4.'
+    Assert-True (-not (Test-Path -LiteralPath $stagedMkv -ErrorAction SilentlyContinue)) 'MP4 embedded VobSub temporary MKV should be cleaned after conversion.'
+
+    $script:MkvextractExitCode = 1
+    $script:MkvextractOutput = "Extracting track 4 with the CodecID 'S_VOBSUB'`rProgress: 41%`rWarning: bad.mkv: Error in the Matroska file structure at position 2607339131. Resyncing to the next level 1 element.`r`nWarning: Resync failed: no valid Matroska level 1 element found."
+    $script:MkvextractError = ''
+    $script:MkvextractReproPath = Join-Path $root 'mkvextract_repro.cmd.txt'
+    $script:MkvmergeJson = '{"tracks":[{"id":4,"type":"subtitles","codec":"VobSub","properties":{"number":5,"language":"eng","codec_id":"S_VOBSUB"}}]}'
+    $hellboyLikeEntry = @{
+        SourceKind = 'embedded'
+        Stream = [pscustomobject]@{ index = 4 }
+        Lang = 'eng'
+        Title = 'English'
+        RawTitle = ''
+        IsForced = $false
+        IsSupplemental = $false
+    }
+    $stdoutOnlyFailure = Extract-VobSubToIdxSub -SourceFile $media -StreamInfo $hellboyLikeEntry
+    Assert-True (-not [bool]$stdoutOnlyFailure.Ok) 'mkvextract exit 1 should still fail closed even when partial IDX/SUB files exist.'
+    Assert-Equal $stdoutOnlyFailure.Failure.ErrorCode 'SUBTITLE_VOBSUB_EXTRACT_FAILED' 'mkvextract exit 1 should use the VobSub extract failure code.'
+    Assert-True ([string]$stdoutOnlyFailure.Reason -match 'Matroska file structure|Resync failed') 'mkvextract stdout warnings should be included in the failure reason when stderr is empty.'
+    Assert-True ([string]$stdoutOnlyFailure.Failure.ErrorText -match 'Matroska file structure|Resync failed') 'mkvextract stdout warnings should be preserved in failure evidence when stderr is empty.'
+    Assert-Equal $stdoutOnlyFailure.Failure.ReproPath $script:MkvextractReproPath 'mkvextract repro path should be preserved on stdout-only failures.'
+    $script:MkvextractExitCode = $null
+    $script:MkvextractOutput = $null
+    $script:MkvextractError = $null
+    $script:MkvextractReproPath = $null
 
     $unknownLanguageEntry = $entry.Clone()
     $unknownLanguageEntry.Lang = 'und'

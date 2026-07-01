@@ -317,21 +317,26 @@ Exit criteria for each group:
 
 Goal: make `NO_CORE_TO_DESKTOP` a clean gate instead of allowlisted debt.
 
+Status: complete as of `MP-CHANGE-2026-0629-030`. Strict
+`check_dependency_boundaries` reports zero `NO_CORE_TO_DESKTOP` imports, the
+allowlist has no entries for that rule, and the checker now rejects future
+`NO_CORE_TO_DESKTOP` allowlist lines.
+
 Work items:
 
-- Reduce `dependency_boundary_allowlist.txt` until no
+- Completed: reduce `dependency_boundary_allowlist.txt` until no
   `NO_CORE_TO_DESKTOP` entries remain.
-- Decide whether adjacent hard findings, including the existing package/module
+- Completed: decide whether adjacent hard findings, including the existing package/module
   cycles, should remain separate issues or be handled as follow-up boundary
-  work.
-- Remove any temporary Phase 0 baseline allowances that are no longer needed
+  work. They remain separate non-#23 allowlisted maintenance debt.
+- Completed: remove any temporary Phase 0 baseline allowances that are no longer needed
   after the final core-to-desktop allowlist entry is gone.
 
 Exit criteria:
 
 - `check_dependency_boundaries` passes without core-to-desktop allowlist debt.
 - `check_architecture_guardrails` still passes.
-- Generated summaries/project index are fresh.
+- Generated summaries/project index are fresh when source/tooling changes.
 
 ## Validation Ladder
 

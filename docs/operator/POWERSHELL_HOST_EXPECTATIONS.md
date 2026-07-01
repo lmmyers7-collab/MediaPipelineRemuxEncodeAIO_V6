@@ -73,7 +73,7 @@ The operator wrapper scripts, including the `ops/scripts/smoke/` wrappers, do no
 |---|---|---|
 | `ops\pipeline\tests\Invoke-ReliabilityRegressionChecks.ps1` | PS7 | Checks `$PSVersionTable.PSVersion.Major -lt 7`, re-invokes under system `pwsh` if needed, and runs the active current WebView/backend reliability wrapper by default |
 | `ops\pipeline\tests\Invoke-ToolIntegrationChecks.ps1` | PS7 | Run by release self-test via bundled pwsh |
-| `ops\pipeline\tests\Invoke-UnitChecks.ps1` | PS7 | Run by release self-test via bundled pwsh |
+| `ops\pipeline\tests\Unit\Invoke-*Checks.ps1` | PS7 | Run as focused unit scripts for the touched pipeline domain; the reliability wrapper runs its curated current subset |
 
 ### Python Service Layer (subprocess invocation)
 

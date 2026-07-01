@@ -25,7 +25,8 @@ from mediapipeline.core.kernel.config_locations import (
     user_settings_projection_path,
     user_settings_store_path,
 )
-from mediapipeline.core.kernel.models_core import ConfigSaveResult, ResolvedPaths
+from mediapipeline.core.config.contracts import ConfigSaveResult
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 
 SETTINGS_STORE_SCHEMA_VERSION = "desktop_settings_store.v1"

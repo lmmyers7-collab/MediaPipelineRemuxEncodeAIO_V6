@@ -355,12 +355,58 @@ The snapshot contains a container record and two row lists: queue display rows a
 | `failed` | `int` | `0` | Items failed |
 | `movies` | `int` | `0` | Total movies processed |
 | `tv_episodes` | `int` | `0` | Total TV episodes processed |
+| `ConsecutiveUnexpectedRoundFailures` | `int` | `0` | Consecutive unexpected continuous-mode round failures since the last clean round |
+| `LastUnexpectedRoundFailureAt` | `str \| None` | `None` | ISO 8601 timestamp of the most recent unexpected continuous-mode round failure |
+| `ContinuousRoundFailuresBlocked` | `bool` | `False` | Whether continuous mode has entered blocked probe-backoff state |
+| `ConsecutiveRoundFailureBlockLimit` | `int` | `12` | Runtime threshold used when setting blocked probe-backoff evidence |
+| `ConsecutiveRoundFailureProbeBackoffSeconds` | `int` | `900` | Runtime probe-backoff cadence after the failure threshold is reached |
+| `PauseFlagReviewSeconds` | `int` | `1800` | Pause flag age threshold for review evidence |
+| `PauseFlagBlockSeconds` | `int` | `21600` | Pause flag age threshold for blocked health evidence |
+| `LastQueueScanDurationSeconds` | `float \| None` | `None` | Most recent queue discovery/snapshot duration when available |
+| `LastQueueCandidateCount` | `int` | `0` | Candidate count observed during the most recent queue planning round |
+| `LastQueueExecutionTruncated` | `bool` | `False` | Whether runnable queue work was capped for the current round |
+| `LastQueueScanTruncated` | `bool` | `False` | Whether source scan evidence reported truncation |
+| `LastQueueScanTimedOut` | `bool` | `False` | Whether source scan evidence reported a timeout |
 
 ### Notes
 
 - `current_stage_percent` is `None` for stages that do not report progress (e.g., container analysis).
 - `pause_requested` and `stop_requested` reflect frontend-issued control flags; the pipeline reads them and may not stop immediately.
+- Long-run reliability fields are read-only health evidence. They do not authorize frontend mutation, pending-publish drain, queue rewrites, or runtime flag cleanup.
 - Staleness is detected by comparing `last_update` to wall clock time. The Live page surfaces a stale-progress warning if `last_update` is older than the configured threshold.
+
+---
+
+## LocalWorkerHeartbeat
+
+**Contract file**: `ops/pipeline/engine/process/worker_result.ps1`
+**Artifact**: `State\Workers\slot-<n>\worker_heartbeat.json`
+**Schema version**: `local_worker_heartbeat.v1`
+**Authority**: Worker-liveness evidence only. Worker claims and parent scheduler state remain authoritative for claim/release behavior.
+
+### Fields
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `schema_version` | `str` | — | `"local_worker_heartbeat.v1"` |
+| `worker_slot_id` | `int` | `0` | Local worker slot id |
+| `worker_run_id` | `str` | `""` | Parent pipeline run id |
+| `worker_claim_id` | `str` | `""` | Claim id assigned by the parent scheduler |
+| `source_path` | `str` | `""` | Claimed source path |
+| `stage` | `str` | `""` | Worker child stage at heartbeat write time |
+| `status` | `str` | `""` | Worker child status text |
+| `current_file` | `str` | `""` | Current file display/name evidence |
+| `current_file_path` | `str` | `""` | Current file path evidence |
+| `current_queue_phase` | `str` | `""` | Current queue phase evidence |
+| `current_stage_started_at` | `str \| None` | `None` | ISO 8601 stage-start evidence when available |
+| `progress_file` | `str` | `""` | Child progress file path |
+| `final` | `bool` | `False` | True for terminal heartbeat writes |
+| `updated_at` | `str` | — | ISO 8601 UTC timestamp |
+
+### Notes
+
+- The parent scheduler may reclaim a worker slot when heartbeat evidence is missing or stale beyond the configured grace threshold.
+- A stale heartbeat does not prove source mutation or publish safety. It only supports fail-safe worker-slot release and health reporting.
 
 ---
 
@@ -402,7 +448,7 @@ The snapshot contains a container record and two row lists: queue display rows a
 
 **Contract file**: `src/mediapipeline/core/storage/db.py`
 **Artifact**: `State\mediapipeline_state.sqlite3`
-**Schema version**: `1`
+**Schema version**: `2`
 **Authority**: Shadow mirror only. The JSON/state artifacts above remain authoritative.
 
 The SQLite mirror is populated opportunistically when a state root is available.
@@ -417,6 +463,7 @@ command, stage, queue, completed-manifest, or media behavior.
 | `events` | Python stage runner events | Append-only SQLite row id | Stores request/result payload evidence for Python-owned stage boundaries. |
 | `queue_snapshots` | Queue dry-run snapshot payloads | Append-only SQLite row id | Stores each promoted dry-run snapshot payload plus request id and snapshot path. |
 | `completed_jobs` | Completed manifest rows read by the Completed service | `job_id` when present, otherwise payload hash | Re-reading the same manifest row is idempotent, but distinct append-only rows for the same output path are preserved. |
+| `mirror_health` | Mirror write failure and maintenance evidence | `name` | Bounded key/value health rows for observability only. |
 
 ### Common Mirror Columns
 
@@ -430,6 +477,7 @@ command, stage, queue, completed-manifest, or media behavior.
 
 - `State\mediapipeline_state.sqlite3` is not a Diagnostics open target and is not used to drive WebView command history, Queue scope, Completed acceptance, Pending Publish drain, or recovery decisions.
 - The mirror may be missing rows after permission errors, DB lock contention, or disabled/missing state roots. In those cases inspect the authoritative JSON/state artifact.
+- Opportunistic maintenance writes `State\state_db_maintenance.json` using schema version `state_db_maintenance_marker.v1`; this marker records last maintenance status, trigger reason, DB/WAL/SHM sizes, and any best-effort error. It is health evidence only.
 - Deleting the mirror while the backend is running is unsafe. With the backend stopped, deletion only removes diagnostic mirror history; future activity can recreate the DB.
 
 ---

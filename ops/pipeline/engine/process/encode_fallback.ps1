@@ -764,12 +764,11 @@ function Invoke-MediaPipelineEncodeAttemptLadder {
                 Write-Log "ENCODE-CPU: another CPU encode is already in progress on this machine; waiting for it to finish ($($cpuMutexLock.Reason))" "WARN"
                 Set-ProgressStage -Stage 'encode_cpu' -Status "Waiting for CPU encode slot" -Route 'encode-cpu-fallback' -Percent 0 -SaveNow
                 $script:pipelineStatus = "Waiting for CPU encode slot"
-                # Wait up to the CPU encode timeout for the slot. Worst
-                # case the prior holder times out and releases.
-                $cpuMutexLock = Acquire-CpuEncodeMutex -TimeoutSeconds $script:FFmpegCpuEncodeTimeoutSeconds
+                $cpuMutexWaitSeconds = [int]$script:CpuEncodeMutexWaitSeconds
+                $cpuMutexLock = Acquire-CpuEncodeMutex -TimeoutSeconds $cpuMutexWaitSeconds
             }
             if (-not $cpuMutexLock.Acquired) {
-                $reason = "ENCODE-CPU: CPU encode mutex was not acquired after waiting $($script:FFmpegCpuEncodeTimeoutSeconds) seconds; refusing to start overlapping CPU fallback"
+                $reason = "ENCODE-CPU: CPU encode mutex was not acquired after waiting $([int]$script:CpuEncodeMutexWaitSeconds) seconds; refusing to start overlapping CPU fallback"
                 Write-Log $reason "ERROR"
                 $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'transient' -Reason $reason -Stage 'encode-cpu-mutex' -ErrorCode 'ENCODE_CPU_MUTEX_UNAVAILABLE' -SuggestedAction 'Wait for the existing CPU encode to finish, inspect stale mutex ownership if no encode is running, then retry.'
                 $Context.LocalIn = $null

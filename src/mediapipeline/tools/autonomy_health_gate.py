@@ -9,7 +9,7 @@ from typing import Any, Mapping
 from mediapipeline.core.diagnostics.autonomy_health import autonomy_health_is_blocked, autonomy_health_payload
 from mediapipeline.core.processes.path_evidence import LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS, configured_path_health
 from mediapipeline.core.publish.pending_service import PendingPublishServiceMixin
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 
 AUTONOMY_HEALTH_BLOCKED_EXIT_CODE = 76

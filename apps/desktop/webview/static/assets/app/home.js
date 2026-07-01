@@ -659,21 +659,26 @@
     return "Not loaded";
   }
 
-  function homeQueueDetailItems(item = {}) {
-    return [
+  function homeQueueDetailItems(item = {}, options = {}) {
+    const items = [];
+    if (options.csvRerunQueue) {
+      items.push({ label: "Workflow", value: "CSV rerun queue", state: "source" });
+    }
+    items.push(
       { label: "Route", value: homeQueueRoute(item) || "Not reported", state: "route" },
       { label: "Status", value: formatProgressValue(item.operator_status || item.status || item.decision || "Unknown"), state: "status" },
       { label: "Queue", value: homeQueuePosition(item) || "Unknown", state: "queue" },
       { label: "Source", value: homeQueueSourceLocation(item) || "Not loaded", state: "source" },
       { label: "Output", value: homeQueueOutputEvidence(item), state: "output" },
-    ];
+    );
+    return items;
   }
 
-  function renderHomeQueueDetail(item = {}) {
+  function renderHomeQueueDetail(item = {}, options = {}) {
     const container = byId("home-next-queue-detail");
     if (!container) return;
     const label = homeQueueDisplayLabel(item);
-    const items = homeQueueDetailItems(item);
+    const items = homeQueueDetailItems(item, options);
     container.classList.add("home-next-queue-detail");
     container.setAttribute(
       "aria-label",
@@ -701,7 +706,9 @@
     });
     const handoff = document.createElement("span");
     handoff.className = "home-next-queue-detail-handoff";
-    handoff.textContent = "Open Queue for full row evidence before launch or rerun.";
+    handoff.textContent = options.csvRerunQueue
+      ? "This is the active CSV rerun queue; Open Queue for full backend-owned row evidence."
+      : "Open Queue for full row evidence before launch or rerun.";
     container.replaceChildren(strip, handoff);
   }
 
@@ -716,9 +723,207 @@
     container.textContent = message;
   }
 
+  function homeCsvRerunEvidence(context = {}) {
+    const activityReader = window.mediaPipelineProgressView?.csvRerunActivityEvidence;
+    if (typeof activityReader === "function") return activityReader(context);
+    const tailReader = window.mediaPipelineProgressView?.csvRerunTailEvidence;
+    return typeof tailReader === "function" ? tailReader(context.stdoutTail) : { hasEvidence: false };
+  }
+
+  function homeCsvRerunActive(context = {}, evidence = homeCsvRerunEvidence(context)) {
+    if (!evidence?.hasEvidence) return false;
+    if (context?.closeReadiness?.safe_to_close === true) return false;
+    if (evidence.isActive === true || evidence.workerActive === true) return true;
+    return !/PIPELINE SHUTDOWN CLEANLY|ROUND COMPLETE|Single-pass mode complete/i.test(String(evidence.latestLine || ""));
+  }
+
+  function homeCsvRerunText(value) {
+    if (value == null) return "";
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+    if (Array.isArray(value)) return value.map(homeCsvRerunText).filter(Boolean).join(" ");
+    if (typeof value === "object") return Object.values(value).map(homeCsvRerunText).filter(Boolean).join(" ");
+    return "";
+  }
+
+  function homeQueueRowLooksCsvRerun(item = {}) {
+    const metadata = item?.metadata && typeof item.metadata === "object" ? item.metadata : {};
+    const text = [
+      item.queue_source,
+      item.queue_phase,
+      item.rerun_batch_id,
+      item.batch_id,
+      item.source_path,
+      item.path,
+      item.input_path,
+      item.file,
+      item.relative_path,
+      item.stage_path,
+      item.planned_output_path,
+      metadata.queue_source,
+      metadata.queue_phase,
+      metadata.stage_path,
+      metadata.planned_output_path,
+      metadata.rerun_batch_id,
+      metadata.batch_id,
+    ].map(homeCsvRerunText).filter(Boolean).join(" ");
+    return /\bcsv[_\s-]*rerun\b|RerunQueue|RerunWorkspace|RerunParked|\\rerun_\d{8}_|\/rerun_\d{8}_/i.test(text);
+  }
+
+  function homeCsvRerunWorkerRows(context = {}) {
+    const rows = [];
+    [
+      context?.snapshot?.worker_progress?.rows,
+      context?.diagnostics?.worker_progress?.rows,
+      context?.snapshot?.workers,
+      context?.diagnostics?.workers,
+    ].forEach((source) => {
+      if (Array.isArray(source)) rows.push(...source.filter(Boolean));
+    });
+    return rows;
+  }
+
+  function homeWorkerLooksCsvRerun(row = {}) {
+    const kind = String(row.job_kind || row.kind || "").trim().toLowerCase();
+    const label = String(row.worker_label || "").trim().toLowerCase();
+    if (kind === "rerun_csv" || kind === "csv_rerun") return true;
+    if (kind === "pipeline" || label === "local pipeline") return false;
+    const text = [
+      row.job_kind,
+      row.worker_label,
+      row.worker_id,
+      row.stage,
+      row.status,
+      row.status_state,
+      row.source,
+      row.last_log_line,
+    ].map(homeCsvRerunText).filter(Boolean).join(" ");
+    return /\bcsv\b.*\brerun\b|\brerun\b.*\bcsv\b|RerunQueue|RerunWorkspace|RerunParked|\\rerun_\d{8}_|\/rerun_\d{8}_/i.test(text);
+  }
+
+  function homeCsvRerunQueueContext(context = {}, queue = {}, visibleRows = []) {
+    const queueRows = Array.isArray(queue?.rows) ? queue.rows.filter(Boolean) : [];
+    const hasQueueEvidence = queueRows.some(homeQueueRowLooksCsvRerun) || visibleRows.some(homeQueueRowLooksCsvRerun);
+    const hasWorkerEvidence = homeCsvRerunWorkerRows(context).some(homeWorkerLooksCsvRerun);
+    const progressEvidence = homeCsvRerunEvidence(context);
+    const hasProgressEvidence = Boolean(progressEvidence?.hasWorkerEvidence && progressEvidence?.hasEvidence);
+    return {
+      csvRerunQueue: Boolean(hasQueueEvidence || hasWorkerEvidence || hasProgressEvidence),
+      source: hasQueueEvidence ? "queue_source=csv_rerun" : hasWorkerEvidence ? "worker=Local rerun csv" : hasProgressEvidence ? "progress=csv rerun worker" : "",
+    };
+  }
+
+  function homeCsvRerunRows(evidence = {}) {
+    return [
+      {
+        label: "Importing",
+        value: evidence.currentImport || "Waiting for next copy",
+        meta: "Current CSV staging/import",
+        state: evidence.currentImport ? "running" : "warning",
+      },
+      {
+        label: "Last imported",
+        value: evidence.lastImported || "No staged copy yet",
+        meta: "Most recent completed copy",
+        state: evidence.lastImported ? "ready" : "empty",
+      },
+      {
+        label: "Processing",
+        value: evidence.processing || "Waiting for processing evidence",
+        meta: "Starts after staging",
+        state: evidence.processing && !String(evidence.processing).startsWith("Not processing yet") ? "running" : "warning",
+      },
+      {
+        label: "CSV rows",
+        value: evidence.plannedRows || "Rows loaded",
+        meta: "From stdout tail",
+        state: evidence.plannedRows ? "ready" : "unknown",
+      },
+    ];
+  }
+
+  function renderHomeCsvRerunDetail(evidence = {}) {
+    const container = byId("home-next-queue-detail");
+    if (!container) return;
+    const rows = homeCsvRerunRows(evidence);
+    container.classList.add("home-next-queue-detail");
+    container.setAttribute(
+      "aria-label",
+      rows.map((entry) => `${entry.label}: ${entry.value}`).join(". ")
+    );
+    const strip = document.createElement("span");
+    strip.className = "home-next-queue-detail-strip";
+    rows.forEach((entry) => {
+      const chip = document.createElement("span");
+      chip.className = "home-next-queue-detail-chip";
+      chip.dataset.detail = entry.state || "";
+      chip.title = `${entry.label}: ${entry.value}`;
+      const chipLabel = document.createElement("span");
+      chipLabel.className = "home-next-queue-detail-label";
+      chipLabel.textContent = `${entry.label}:`;
+      const chipValue = document.createElement("strong");
+      chipValue.className = "home-next-queue-detail-value";
+      chipValue.textContent = entry.value;
+      chip.append(chipLabel, chipValue);
+      strip.appendChild(chip);
+    });
+    const handoff = document.createElement("span");
+    handoff.className = "home-next-queue-detail-handoff";
+    handoff.textContent = evidence.processing && !String(evidence.processing).startsWith("Not processing yet")
+      ? "CSV rerun is processing; keep monitoring Home and close-readiness."
+      : "CSV rerun is still importing staged files before processing starts.";
+    container.replaceChildren(strip, handoff);
+  }
+
+  function renderHomeCsvRerunQueue(context = {}) {
+    const evidence = homeCsvRerunEvidence(context);
+    if (!homeCsvRerunActive(context, evidence)) return false;
+    const list = byId("home-next-queue-list");
+    if (!list) return false;
+    list.setAttribute("role", "listbox");
+    list.replaceChildren();
+    setHomePanelStatus("home-next-queue-status", "CSV rerun active", "running");
+    homeCsvRerunRows(evidence).forEach((entry, index) => {
+      const li = document.createElement("li");
+      li.tabIndex = 0;
+      li.setAttribute("role", "option");
+      li.setAttribute("aria-selected", index === 0 ? "true" : "false");
+      li.classList.toggle("is-selected", index === 0);
+      li.dataset.status = entry.state || "";
+      li.setAttribute("aria-label", `${entry.label}: ${entry.value}`);
+      const title = document.createElement("span");
+      title.className = "home-next-queue-title";
+      const titleMain = document.createElement("span");
+      titleMain.className = "home-next-queue-title-main";
+      titleMain.textContent = `${entry.label}: ${entry.value}`;
+      title.appendChild(titleMain);
+      const meta = document.createElement("span");
+      meta.className = "home-next-queue-meta";
+      meta.textContent = entry.meta;
+      li.append(title, meta);
+      const activate = () => {
+        selectHomeListItem(li);
+        renderHomeCsvRerunDetail(evidence);
+      };
+      li.addEventListener("click", activate);
+      li.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          activate();
+        }
+      });
+      list.appendChild(li);
+    });
+    renderHomeCsvRerunDetail(evidence);
+    return true;
+  }
+
   function homeQueueRowIsRunnable(item = {}) {
     const status = String(item.operator_status || "").trim().toLowerCase();
     return status === "ready" || status === "priority ready";
+  }
+
+  function homeQueueRowVisibleInNextPanel(item = {}) {
+    return homeQueueRowIsRunnable(item) || homeQueueRowLooksCsvRerun(item);
   }
 
   function homeQueueGlobalOrder(item = {}) {
@@ -756,7 +961,7 @@
 
   function homeNextQueueRows(queue = {}, currentOrder = 0) {
     const rows = Array.isArray(queue.rows) ? queue.rows.filter(Boolean) : [];
-    const runnable = rows.filter(homeQueueRowIsRunnable);
+    const runnable = rows.filter(homeQueueRowVisibleInNextPanel);
     const cutoff = Math.trunc(Number(currentOrder) || 0);
     if (cutoff > 0) {
       // Genuinely upcoming items sit after the live position in global order.
@@ -929,6 +1134,60 @@
     return message || "No free-space evidence loaded.";
   }
 
+  function homeFailureArtifactSummary(context = {}) {
+    const summary = context.failureArtifacts || context.failure_artifacts || context.failureArtifactSummary || {};
+    return summary && typeof summary === "object" ? summary : {};
+  }
+
+  function homeFailureArtifactSizeText(summary = {}) {
+    if (summary.total_size_text) return String(summary.total_size_text);
+    const totalGb = homeStorageNumber(summary.total_gb);
+    if (totalGb !== null) return `${totalGb.toFixed(totalGb % 1 ? 1 : 0)} GB`;
+    return "Not loaded";
+  }
+
+  function homeFailureArtifactDateText(value) {
+    const text = String(value || "").trim();
+    if (!text) return "";
+    const date = new Date(text);
+    if (Number.isNaN(date.getTime())) return text;
+    return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  function setHomeFailureArtifactMetric(summary = homeFailureArtifactSummary()) {
+    const statusText = summary.schema_version ? homeFailureArtifactSizeText(summary) : "Not loaded";
+    const scanErrors = Array.isArray(summary.scan_errors) ? summary.scan_errors.filter(Boolean) : [];
+    const state = summary.warning ? "warning" : scanErrors.length ? "warning" : summary.schema_version ? "ok" : "empty";
+    setTextState("home-failure-artifact-storage-status", statusText, state);
+    const detail = byId("home-failure-artifact-storage-detail");
+    if (!detail) return;
+    if (!summary.schema_version) {
+      detail.textContent = "No artifact evidence loaded.";
+      detail.title = "";
+      return;
+    }
+    const fileCount = Number(summary.file_count || 0);
+    const threshold = Number(summary.threshold_gb);
+    const thresholdLabel = Number.isInteger(threshold) ? String(threshold) : threshold.toFixed(1);
+    const thresholdText = Number.isFinite(threshold) && threshold > 0 ? `${thresholdLabel} GB threshold` : "toast disabled";
+    const oldest = homeFailureArtifactDateText(summary.oldest_modified_at);
+    detail.textContent = [
+      `${fileCount} file${fileCount === 1 ? "" : "s"}`,
+      oldest ? `oldest ${oldest}` : "",
+      thresholdText,
+    ].filter(Boolean).join("; ");
+    const roots = Array.isArray(summary.root_paths) ? summary.root_paths : [];
+    detail.title = [
+      `total_bytes=${summary.total_bytes || 0}`,
+      `threshold_gb=${summary.threshold_gb}`,
+      `warning=${summary.warning ? "yes" : "no"}`,
+      `touches_media=${summary.touches_media ? "yes" : "no"}`,
+      `cleanup_route_available=${summary.cleanup_route_available ? "yes" : "no"}`,
+      ...roots.map((root) => `${root.role || "root"}=${root.path || ""}; files=${root.file_count || 0}`),
+      ...scanErrors.map((error) => `scan_error=${error}`),
+    ].filter(Boolean).join("\n");
+  }
+
   function setHomeStorageMetric(statusId, detailId, row = {}) {
     const status = homeStorageStatus(row);
     setTextState(statusId, status.text, status.state);
@@ -954,6 +1213,7 @@
   function renderHomeStorageHealth(context = {}) {
     setHomeStorageMetric("home-scratch-storage-status", "home-scratch-storage-detail", homeScratchStorageRow(context));
     setHomeStorageMetric("home-output-storage-status", "home-output-storage-detail", homeOutputStorageRow(context));
+    setHomeFailureArtifactMetric(homeFailureArtifactSummary(context));
   }
 
   function renderHomeQueueSnapshot(queue) {
@@ -1338,7 +1598,13 @@
     list.setAttribute("role", "listbox");
     list.replaceChildren();
     const rows = homeNextQueueRows(queue, homeCurrentQueueOrder(context, queue.rows));
-    setHomePanelStatus("home-next-queue-status", rows.length ? `${rows.length} ready` : "No runnable", rows.length ? "ready" : "empty");
+    const csvRerunQueue = homeCsvRerunQueueContext(context, queue, rows);
+    if (!rows.length && renderHomeCsvRerunQueue(context)) return;
+    setHomePanelStatus(
+      "home-next-queue-status",
+      rows.length ? `${csvRerunQueue.csvRerunQueue ? "CSV rerun queue · " : ""}${rows.length} ${csvRerunQueue.csvRerunQueue ? "queued" : "ready"}` : "No runnable",
+      rows.length ? "ready" : "empty"
+    );
     if (!rows.length) {
       const empty = document.createElement("li");
       empty.textContent = "No runnable queue items loaded.";
@@ -1369,11 +1635,11 @@
       title.title = label.accessibleText || "";
       const meta = document.createElement("span");
       meta.className = "home-next-queue-meta";
-      meta.textContent = homeQueueMeta(item) || "queued";
+      meta.textContent = [csvRerunQueue.csvRerunQueue ? "CSV rerun" : "", homeQueueMeta(item) || "queued"].filter(Boolean).join(" · ");
       li.append(title, meta);
       const activate = () => {
         selectHomeListItem(li);
-        renderHomeQueueDetail(item);
+        renderHomeQueueDetail(item, csvRerunQueue);
       };
       li.addEventListener("click", activate);
       li.addEventListener("keydown", (event) => {
@@ -1384,7 +1650,7 @@
       });
       list.appendChild(li);
     });
-    renderHomeQueueDetail(rows[0]);
+    renderHomeQueueDetail(rows[0], csvRerunQueue);
   }
   function renderDailyDriverReadiness(context = {}) {
     const rows = dailyDriverRows(context);
@@ -1434,6 +1700,11 @@
     homeQueueGlobalOrder,
     homeCurrentQueueOrder,
     homeNextQueueRows,
+    homeCsvRerunEvidence,
+    homeCsvRerunActive,
+    homeCsvRerunQueueContext,
+    homeCsvRerunRows,
+    renderHomeCsvRerunQueue,
     renderHomePendingCount,
     renderHomeNetworkRole,
     renderHomeStorageHealth,

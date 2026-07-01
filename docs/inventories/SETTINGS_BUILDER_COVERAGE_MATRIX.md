@@ -2,10 +2,10 @@
 
 Maps every known `CONFIG_FIELD_DEFINITIONS` key to its WebView settings builder coverage, as of the current state. This is a read-only audit document. It does not implement builder changes.
 
-Total backend metadata keys: 156 (from `CONFIG_FIELD_DEFINITIONS` and the config contract).
-Covered by structured WebView builder arrays: 136.
+Total backend metadata keys: 171 (from `CONFIG_FIELD_DEFINITIONS` and the config contract).
+Covered by structured WebView builder arrays: 140.
 Handled by the dedicated Library Profiles editor: 1 (`LibraryProfiles`).
-Known advanced/direct-config metadata without a routine structured builder: 17.
+Known advanced/direct-config metadata without a routine structured builder: 28.
 Intentionally hidden auth secrets: 2.
 
 ---
@@ -17,11 +17,11 @@ Intentionally hidden auth secrets: 2.
 | Routing / Size | `RoutingProfile`, `RouteThresholdMode`, `SizeGuardMode`, `EncodeTuningPreset`, `EncodeLadder`, `VideoCodec`, `OutputContainer`, `MaxEncodeGrowthPercent`, `CompatibilityEncodeGrowthPercent`, `MovieRoute1080pTargetSizeGB`, `MovieRoute1440pTargetSizeGB`, `MovieRoute4KTargetSizeGB`, `TVRoute1080pTargetSizeGB`, `TVRoute1440pTargetSizeGB`, `TVRoute4KTargetSizeGB`, `Route1080pUpperHeightTolerancePercent`, `Route1080pMaxVideoBitrateMbps`, `Route1440pLowerHeightTolerancePercent`, `Route1440pUpperHeightTolerancePercent`, `Route1440pMaxVideoBitrateMbps`, `Route4KLowerHeightTolerancePercent`, `Route4KMaxVideoBitrateMbps` | High-level route, per-height target, resolution-selected bitrate, and size policy |
 | Video Detail | `VideoPreset`, `VideoQuality`, `AllowH264RemuxIfPlexCompatible`, `H264RemuxMaxBitrateMbps`, `H264RemuxMaxHeight`, `RemuxSafeVideoCodecs`, `FallbackCpuQuality`, `CpuEncodePreset`, `CpuEncodeProcessPriority`, `CpuEncodeMaxThreads`, `ExtraVideoFlags` | NVENC/CPU encoder precision and copy policy |
 | Quality Verification | `EnableQualityVerification`, `QualityMetric`, `QualitySampleMode`, `QualitySampleSeconds`, `QualitySampleCount`, `QualityWarnThreshold`, `QualityFailThreshold`, `QualityFailAction`, `QualityVerifyTimeoutSeconds` | Post-encode objective metric, sampling window, warning/failure thresholds, review action, and verification timeout |
-| File Safety / Publish | `SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`, `MinFreeSpaceGB`, `OutsourceMinFreeSpaceGB`, `FileStabilityWait`, `WatchDebounceSeconds`, `WatchFolderRoots`, `WatchAction`, `EnableWatchFolders`, `WatchRespectScheduleWindow`, `CleanupStaleAgeHours`, `OutputSizeMultiplier`, `ValidExtensions`, `RobocopyFlags`, `DeferredPublish`, `AggressiveEpisodeParsing`, `SkipStabilityCheck`, `EnableIntegrityCheck`, `CreateTVSubfolder`, `CleanupRemoteStaging` | Source/output/scratch paths, stability, watch-folder intake, integrity, deferred publish |
-| Pending Publish / Recovery | `DeferredPublish`, `CleanupRemoteStaging`, `TransientFailureRetryLimit`, `CleanupStaleAgeHours`, `RobocopyTimeoutSeconds`, `RobocopyFlags`, `OutsourceMinFreeSpaceGB`, `OutputSizeMultiplier`, `EnableIntegrityCheck`, `SkipStabilityCheck` | Drain behavior and recovery tuning |
+| File Safety / Publish | `SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`, `MinFreeSpaceGB`, `OutsourceMinFreeSpaceGB`, `FileStabilityWait`, `WatchDebounceSeconds`, `WatchFolderRoots`, `WatchAction`, `EnableWatchFolders`, `WatchRespectScheduleWindow`, `CleanupStaleAgeHours`, `OutputSizeMultiplier`, `ValidExtensions`, `RobocopyFlags`, `DeferredPublish`, `PendingPublishDrainMode`, `PendingPublishDrainBatchSize`, `AggressiveEpisodeParsing`, `SkipStabilityCheck`, `EnableIntegrityCheck`, `CreateTVSubfolder`, `CleanupRemoteStaging` | Source/output/scratch paths, stability, watch-folder intake, integrity, deferred publish |
+| Pending Publish / Recovery | `DeferredPublish`, `PendingPublishDrainMode`, `PendingPublishDrainBatchSize`, `CleanupRemoteStaging`, `TransientFailureRetryLimit`, `CleanupStaleAgeHours`, `RobocopyTimeoutSeconds`, `RobocopyFlags`, `OutsourceMinFreeSpaceGB`, `OutputSizeMultiplier`, `EnableIntegrityCheck`, `SkipStabilityCheck` | Drain behavior and recovery tuning |
 | Audio | `AudioPassthroughProfile`, `CompatibleAudioCodecs`, `PreferredDefaultAudioLanguages`, `AudioTranscodeCodec`, `AudioTranscodeBitrate`, `AudioTranscodeAutoBitrateByChannels`, `AudioDownmixMode`, `AudioMaxChannels`, `AllowNoAudio` | Passthrough, transcode, channel, language policy |
-| Subtitle | `SubKeepLanguages`, `Tx3gExtractLanguages`, `BdpgsExtractLanguages`, `MergeThresholdMs`, `SubtitleExtractTimeoutSeconds`, `SubtitleProbeTimeoutSeconds`, `BdpgsOcrTimeoutSeconds`, `BdpgsOcrToolPath`, `BdpgsOcrTessdataPath`, `SubSDHTitleKeywords`, `SubSupplementalKeywords`, `ExcludeSubtitleStyles`, `IncludeSubtitleStyles`, `ConvertTx3gToSrt`, `DropTx3gAfterConversion`, `CreateExternalTx3gSrtSidecars`, `Tx3gPreserveExistingSrt`, `Tx3gTreatForcedAsSeparate`, `TreatTx3gSignsSongsAsForced`, `ConvertBdpgsToSrt`, `DropBdpgsAfterConversion`, `TreatBdpgsSignsSongsAsForced`, `DropAssAfterConversion`, `RemoveKaraoke`, `StripFormatting`, `MergeAdjacent`, `KeepSignsAndSongs`, `TreatAssSignsSongsAsForced` | TX3G, BDPGS OCR, ASS/SSA drop/convert/preserve, SDH/supplemental keyword classification inputs |
-| Runtime / Diagnostics | `DebugMode`, `ConsoleLogLevel`, `FileLogLevel`, `LogRetentionDays`, `FFmpegEncodeTimeoutSeconds`, `FFmpegRemuxTimeoutSeconds`, `FFmpegCpuEncodeTimeoutSeconds`, `RobocopyTimeoutSeconds`, `SourceScanIntervalSeconds`, `SourceScanTimeoutSeconds`, `IndexScanTimeoutSeconds`, `CleanupScanTimeoutSeconds`, `TransientFailureRetryLimit`, `AllowSystemTools`, `MkvmergeRemuxTimeoutSeconds` | Logging, scan cadence, timeout, retry, PATH fallback |
+| Subtitle | `SubKeepLanguages`, `AllowSubtitleHelperFallback`, `Tx3gExtractLanguages`, `BdpgsExtractLanguages`, `MergeThresholdMs`, `SubtitleExtractTimeoutSeconds`, `SubtitleProbeTimeoutSeconds`, `BdpgsOcrTimeoutSeconds`, `BdpgsOcrToolPath`, `BdpgsOcrTessdataPath`, `SubSDHTitleKeywords`, `SubSupplementalKeywords`, `ExcludeSubtitleStyles`, `IncludeSubtitleStyles`, `ConvertTx3gToSrt`, `DropTx3gAfterConversion`, `CreateExternalTx3gSrtSidecars`, `Tx3gPreserveExistingSrt`, `Tx3gTreatForcedAsSeparate`, `TreatTx3gSignsSongsAsForced`, `ConvertBdpgsToSrt`, `DropBdpgsAfterConversion`, `TreatBdpgsSignsSongsAsForced`, `DropAssAfterConversion`, `RemoveKaraoke`, `StripFormatting`, `MergeAdjacent`, `KeepSignsAndSongs`, `TreatAssSignsSongsAsForced` | TX3G, BDPGS OCR, ASS/SSA drop/convert/preserve, SDH/supplemental keyword classification inputs |
+| Runtime / Diagnostics | `DebugMode`, `ConsoleLogLevel`, `FileLogLevel`, `LogRetentionDays`, `PipelineDebugLogMaxBytes`, `FailureArtifactWarningThresholdGB`, `FailureArtifactRetentionDays`, `FailureArtifactCleanupTargetGB`, `FFmpegEncodeTimeoutSeconds`, `FFmpegRemuxTimeoutSeconds`, `FFmpegCpuEncodeTimeoutSeconds`, `RobocopyTimeoutSeconds`, `SourceScanIntervalSeconds`, `SourceScanTimeoutSeconds`, `IndexScanTimeoutSeconds`, `CleanupScanTimeoutSeconds`, `TransientFailureRetryLimit`, `AllowSystemTools`, `MkvmergeRemuxTimeoutSeconds` | Logging, scan cadence, timeout, retry, PATH fallback, failure-artifact warning and cleanup thresholds |
 | Queue / Reprocess | `PriorityMarkers`, `ProcessedIndexRefreshSeconds`, `MinPipelineVersion`, `ReprocessAll` | Priority markers, index refresh, reprocess mode |
 | Network | `NetworkRole`, `CoordinatorPort`, `CoordinatorBindAddress`, `CoordinatorAlsoEncodeLocally`, `CoordinatorHeartbeatTimeoutMins`, `WorkerCoordinatorUrl`, `WorkerName`, `WorkerPollIntervalSecs`, `WorkerSourcePathMap`, `WorkerConfigOverrides` | Non-secret network role/coordinator/worker settings |
 
@@ -49,6 +49,17 @@ These keys are valid backend metadata and config-contract keys, but they do not 
 | `OutputValidationProbeTimeoutSeconds` | Output validation | Advanced completed-output validation threshold |
 | `OutputValidationMinSizeBytes` | Output validation | Advanced completed-output acceptance threshold |
 | `OutputValidationDurationToleranceSeconds` | Output validation | Advanced completed-output duration tolerance |
+| `ConsecutiveRoundFailureBlockLimit` | Long-run reliability | Backend continuous-mode watchdog threshold; read-only evidence is shown in Diagnostics/Home |
+| `ConsecutiveRoundFailureProbeBackoffSeconds` | Long-run reliability | Backend continuous-mode recovery-probe cadence; read-only evidence is shown in Diagnostics/Home |
+| `PendingPublishBacklogBlockThreshold` | Pending publish backpressure | Backend queue-work backpressure threshold; not a frontend drain policy |
+| `PendingPublishDeferredBlockThreshold` | Pending publish backpressure | Backend deferred-publish backpressure threshold; pending publish remains manifest-backed |
+| `PauseFlagReviewSeconds` | Runtime control flags | Backend health age threshold; runtime pause flags are never auto-cleared |
+| `PauseFlagBlockSeconds` | Runtime control flags | Backend health block threshold; runtime pause flags are never auto-cleared |
+| `LocalWorkerHeartbeatGraceSeconds` | Local worker lifecycle | Backend worker-slot stale-heartbeat grace; no frontend claim release policy |
+| `QueueExecutionMaxRunnablePerRound` | Queue planning | Backend per-round execution cap; queue snapshot display cap remains separate |
+| `StateDbMaintenanceIntervalSeconds` | SQLite mirror observability | Backend best-effort mirror maintenance interval; JSON state remains authoritative |
+| `StateDbWalReviewBytes` | SQLite mirror observability | Backend WAL review/maintenance threshold; JSON state remains authoritative |
+| `StateDbCompletedJobsMaxRows` | SQLite mirror observability | Completed-job mirror row bound; JSONL completed manifests remain authoritative |
 | `ShowOverrides` | Per-show media policy | Direct-config mapping for show-specific routing/video/audio/subtitle overrides |
 
 `LibraryProfiles` is handled by the dedicated Library Profiles editor rather than the static builder arrays.
@@ -98,8 +109,8 @@ Re-checked builder groups against current `settingsView.js` and `settingsOvervie
 |---|---|
 | Routing / Size | Pass — route, threshold mode, size, encode ladder, and movie/TV bitrate ceiling fields are builder-covered |
 | Audio | Pass — `AudioPassthroughProfile`, passthrough/transcode/channel/language fields unchanged |
-| Subtitle | Pass — TX3G, BDPGS, ASS/SSA convert/drop/preserve fields unchanged; BDPGS OCR tool/tessdata paths and SDH/supplemental keyword lists now have structured fields |
-| Pending Publish / Recovery | Pass — `DeferredPublish`, `RobocopyFlags`, `CleanupStaleAgeHours` unchanged |
+| Subtitle | Pass — TX3G, BDPGS, ASS/SSA convert/drop/preserve fields covered; `AllowSubtitleHelperFallback` is represented as a launch-safety setting with backend-owned behavior |
+| Pending Publish / Recovery | Pass — `DeferredPublish`, `PendingPublishDrainMode`, `PendingPublishDrainBatchSize`, `RobocopyFlags`, and `CleanupStaleAgeHours` covered |
 | Auth token exclusion | Pass — `CoordinatorAuthToken` / `WorkerAuthToken` still intentionally raw-only |
 | New sample-validation config keys | None — sample validation is not a settings/config concern; its limits are constants in `app/sample_validation/policy.py` |
 

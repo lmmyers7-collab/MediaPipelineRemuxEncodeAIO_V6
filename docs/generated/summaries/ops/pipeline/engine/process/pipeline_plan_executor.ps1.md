@@ -3,9 +3,9 @@ file: ops/pipeline/engine/process/pipeline_plan_executor.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-26
+last_modified: 2026-06-30
 last_reviewed: 2026-06-04
-sha256: 969c37f3f405bdcdef954e4397be75e528b09a96b58704967f1f13ff1ea75067
+sha256: 2f15abfc3607033afa27825ee0fd5c13d59707c745fea291722efff43854e546
 ---
 # `ops/pipeline/engine/process/pipeline_plan_executor.ps1`
 

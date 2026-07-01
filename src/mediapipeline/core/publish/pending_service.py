@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.publish.pending_format import (
     format_bytes_compact,
     format_pending_datetime_text,

@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0629-014",
+  "title": "Phase 6 audit DTO boundary cleanup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Moves audit preview DTO imports from desktop compatibility shims to the core-owned inventory DTO module, then removes the now-unused audit NO_CORE_TO_DESKTOP allowlist rows and marks the matching ledger rows migrated.",
+  "reason": "Phase 6 architecture-boundary cleanup should retire low-risk DTO-only domain slices without changing audit preview payloads, route behavior, WebView commands, media policy, or filesystem/process behavior.",
+  "affected_areas": [
+    "architecture-boundary",
+    "audit",
+    "generated-context"
+  ],
+  "behavior_before": "Audit facade and preview policy built AuditPreviewDto through mediapipeline.desktop.application DTO shims, requiring temporary NO_CORE_TO_DESKTOP allowlist entries.",
+  "behavior_after": "Audit facade and preview policy build the same DTO class through mediapipeline.core.kernel.dto_inventory, while desktop compatibility exports remain unchanged for external callers.",
+  "files_touched": [
+    "docs/architecture/dependency_boundary_allowlist.txt",
+    "docs/generated/summaries/src/mediapipeline/core/audit/facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/audit/preview_policy.py.md",
+    "docs/implementation/architecture-boundary-cleanup/EDGE_LEDGER.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-014.json",
+    "src/mediapipeline/core/audit/facade.py",
+    "src/mediapipeline/core/audit/preview_policy.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "check_active_doc_references - passed",
+    "check_architecture_guardrails - passed",
+    "check_dependency_boundaries --format json --report-only - passed (hard=70; allowlisted=70; unallowlisted=0; unused_allowlist=0; NO_CORE_TO_DESKTOP=53; audit=0)",
+    "python -m unittest tests.python.desktop.test_application_facade_reports tests.python.desktop.test_facade_audit_policy tests.python.desktop.test_service_audit_rerun_records tests.python.desktop.test_application_public_api tests.python.desktop.test_api_contract_payload tests.python.tooling.test_dependency_boundaries -q - passed (68 tests)",
+    "refresh_summaries --paths src/mediapipeline/core/audit/facade.py src/mediapipeline/core/audit/preview_policy.py - passed (2 written)",
+    "validate_changes - passed",
+    "validate_changes --require-worktree-coverage - passed"
+  ],
+  "rollback_plan": "Restore the audit AuditPreviewDto imports to mediapipeline.desktop.application.dto and dto_inventory, re-add the three audit allowlist rows, revert AB-AUD-002/005/006 to open, and refresh the audit summaries.",
+  "related_changes": [],
+  "notes": "Phase 6 audit slice moves AuditPreviewDto imports from desktop shims to core kernel DTOs, removes the audit allowlist rows, marks AB-AUD-002/005/006 migrated, and refreshes audit summaries."
+}

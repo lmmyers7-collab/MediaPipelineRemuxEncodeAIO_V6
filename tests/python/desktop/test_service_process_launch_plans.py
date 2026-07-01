@@ -161,14 +161,28 @@ class ProcessLaunchPlanTests(unittest.TestCase):
                 stage_mode="copy",
                 original_mode="keep",
                 return_mode="park",
+                execution_mode="windowed",
+                destination_mode="pending_publish",
+                original_policy="keep",
+                collision_policy="suffix",
+                window_size=3,
             )
 
         self.assertEqual(plan.job_kind, "rerun_csv")
         self.assertEqual(plan.mode, "dry_run")
         self.assertIn("-DryRun", plan.args)
+        self.assertIn("-ExecutionMode", plan.args)
+        self.assertIn("windowed", plan.args)
+        self.assertIn("-DestinationMode", plan.args)
+        self.assertIn("pending_publish", plan.args)
+        self.assertIn("-WindowSize", plan.args)
+        self.assertIn("3", plan.args)
         self.assertEqual(plan.metadata["default_stage_mode"], "copy")
         self.assertEqual(plan.metadata["default_original_mode"], "keep")
         self.assertEqual(plan.metadata["default_return_mode"], "park")
+        self.assertEqual(plan.metadata["execution_mode"], "windowed")
+        self.assertEqual(plan.metadata["destination_mode"], "pending_publish")
+        self.assertEqual(plan.metadata["window_size"], 3)
 
     def test_rerun_plan_sets_plan_only_mode_without_dry_run_flag(self) -> None:
         with tempfile.TemporaryDirectory() as td:

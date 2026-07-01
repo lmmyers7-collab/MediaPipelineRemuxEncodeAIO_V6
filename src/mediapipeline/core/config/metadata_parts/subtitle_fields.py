@@ -14,6 +14,15 @@ SUBTITLE_CONFIG_FIELD_DEFINITIONS = (
     },
     {
         "page": "Subtitles",
+        "section": "Shared Subtitle Policy",
+        "key": "AllowSubtitleHelperFallback",
+        "label": "Allow Subtitle Helper Fallback",
+        "kind": "bool",
+        "default": False,
+        "help": "When off, a broken ASS helper self-check blocks launch instead of silently falling back to degraded conversion behavior.",
+    },
+    {
+        "page": "Subtitles",
         "section": "TX3G Subtitles",
         "key": "ConvertTx3gToSrt",
         "label": "Convert TX3G to SRT",

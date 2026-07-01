@@ -343,14 +343,25 @@ class RerunScopePayload(StrictApiCommandPayload):
     first_n: Any = None
     issue_filter: Any = None
     bucket_filter: Any = None
+    issue_filters: Any = None
+    bucket_filters: Any = None
+    status_filters: Any = None
     preview_limit: Any = None
 
 
 class RerunPreviewCommandPayload(StrictApiCommandPayload):
     csv_path: Any = None
+    execution_mode: Any = None
+    destination_mode: Any = None
+    original_policy: Any = None
+    window_size: Any = None
+    collision_policy: Any = None
     stage_mode: Any = None
     original_mode: Any = None
     return_mode: Any = None
+    confirm_replace_final: StrictBool | None = None
+    confirm_original_policy: StrictBool | None = None
+    confirm_delete_original: StrictBool | None = None
     scope: RerunScopePayload | None = None
     preview_limit: Any = None
     enabled_only: StrictBool | None = None
@@ -359,12 +370,30 @@ class RerunPreviewCommandPayload(StrictApiCommandPayload):
     first_n: Any = None
     issue_filter: Any = None
     bucket_filter: Any = None
+    issue_filters: Any = None
+    bucket_filters: Any = None
+    status_filters: Any = None
 
 
 class RerunStartCommandPayload(RerunPreviewCommandPayload):
     dry_run: StrictBool | None = None
     plan_only: StrictBool | None = None
     show_console: StrictBool | None = None
+
+
+class RerunOpenCommandPayload(StrictApiCommandPayload):
+    target: Any = None
+    row_key: Any = None
+    csv_key: Any = None
+
+
+class RerunPromoteDryRunCommandPayload(StrictApiCommandPayload):
+    row_key: Any = None
+
+
+class RerunPromoteCommandPayload(RerunPromoteDryRunCommandPayload):
+    dry_run_fingerprint: Any = None
+    confirm_promote: StrictBool | None = None
 
 
 class NetworkLifecycleDryRunCommandPayload(StrictApiCommandPayload):
@@ -657,6 +686,22 @@ class FailureArchiveEvidenceCommandPayload(StrictApiCommandPayload):
     journal_key: Any = None
 
 
+class FailureOpenCommandPayload(StrictApiCommandPayload):
+    row_key: Any = None
+    target: Any = None
+    source_kind: Any = None
+
+
+class FailureArtifactCleanupCommandPayload(StrictApiCommandPayload):
+    dry_run: StrictBool | None = None
+    dry_run_fingerprint: Any = None
+    confirm_delete: StrictBool | None = None
+    reason: Any = None
+    retention_days: Any = None
+    target_gb: Any = None
+    artifact_paths: Any = None
+
+
 class FailureLifecycleCommandPayload(StrictApiCommandPayload):
     journal_key: Any = None
     transition: Any = None
@@ -702,6 +747,8 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/queue/file-overrides/folder-rule": QueueFileOverridesFolderRuleCommandPayload,
     "/api/failures/clear": FailureCommandPayload,
     "/api/failures/archive-evidence": FailureArchiveEvidenceCommandPayload,
+    "/api/failures/open": FailureOpenCommandPayload,
+    "/api/failures/artifacts/cleanup": FailureArtifactCleanupCommandPayload,
     "/api/failures/lifecycle": FailureLifecycleCommandPayload,
     "/api/pending-publish/open": PendingPublishOpenCommandPayload,
     "/api/pending-publish/recovery-plan": PendingPublishRecoveryPlanCommandPayload,
@@ -776,6 +823,9 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/audit/export-rerun-csv": AuditExportRerunCsvCommandPayload,
     "/api/rerun/preview": RerunPreviewCommandPayload,
     "/api/rerun/start": RerunStartCommandPayload,
+    "/api/rerun/open": RerunOpenCommandPayload,
+    "/api/rerun/promote-dry-run": RerunPromoteDryRunCommandPayload,
+    "/api/rerun/promote": RerunPromoteCommandPayload,
     "/api/backend/shutdown": BackendShutdownCommandPayload,
     "/api/ui-preferences": UiPreferencesCommandPayload,
     "/api/final-library-promotion/promote-queue": FinalLibraryPromoteQueueCommandPayload,

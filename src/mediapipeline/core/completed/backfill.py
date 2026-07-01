@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from mediapipeline.desktop.models import ResolvedPaths
-from mediapipeline.desktop.subprocess_runner import CapturedCommandResult
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.kernel.runtime.subprocess_runner import CapturedCommandResult
 
 
 def completed_backfill_script_path(resolved: ResolvedPaths) -> Path:

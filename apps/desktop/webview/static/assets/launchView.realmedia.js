@@ -105,12 +105,12 @@
       `matches=${sample ? matches.length : "no sample"}`,
     ].join("; ");
     const nextCheck = blocked
-      ? "Resolve generated worksheet read errors before using worksheet evidence for a pilot start decision."
+      ? "Resolve generated worksheet read errors; worksheet evidence is not reliable for pilot decisions while errors remain."
       : matches.length
-        ? "Open Home > Generated Pilot Worksheets and compare the matching worksheet sample/packet rows before pressing Start."
+        ? "Open Home > Generated Pilot Worksheets and compare the matching worksheet sample/packet rows for pilot evidence."
         : rows.length
-          ? "Confirm the selected sample is represented in a generated worksheet, or create/update a worksheet before the pilot run."
-          : "Generate a real-media validation worksheet before the pilot run if persistent Markdown evidence is expected.";
+          ? "Confirm the selected sample is represented in a generated worksheet, or create/update a worksheet for pilot evidence."
+          : "Generate a real-media validation worksheet if persistent Markdown pilot evidence is expected.";
     const detail = [
       `Worksheet payload status: ${payload.operator_status || "not loaded"}`,
       `Selected sample: ${sampleLabel}`,
@@ -250,13 +250,13 @@
       `blocked policy rows=${blockedRows.length}`,
     ].join("; ");
     const nextCheck = blockedRows.length
-      ? "Resolve blocked saved-policy rows before using this Queue route for a real-media pilot."
+      ? "Blocked saved-policy rows mean this Queue route is not ready for real-media pilot evidence."
       : !policyRows.length
         ? "Load Sample Validation / saved media-policy alignment before comparing Launch intent to policy."
-        : !selectedRow
-          ? "Select or load a representative Queue row before trusting policy-to-route comparison."
-          : reviewRows.length
-            ? "Review saved-policy tradeoffs for the selected Queue route before pressing Start."
+      : !selectedRow
+        ? "Select or load a representative Queue row before trusting policy-to-route comparison."
+        : reviewRows.length
+            ? "Review saved-policy tradeoffs for the selected Queue route as pilot evidence."
             : unmatchedRequired.length
               ? "Read the unmatched category rows below; Queue route text may be too thin to prove subtitle/audio/size policy before the run."
               : "Saved policy categories have visible selected-route signals; backend Start and post-run proof remain authoritative.";
@@ -353,12 +353,12 @@
           : "unknown";
     const evidence = launchSampleSetCoverageLine(context);
     const nextCheck = blockedRows.length
-      ? "Resolve blocked Sample Validation / sample-set evidence before using WebView as a pilot shell."
+      ? "Blocked Sample Validation / sample-set evidence means this WebView pilot shell is not ready."
       : nonReadyRequired.length
-        ? "Open Home > Real-Media Sample Set Guide and cover missing required categories before daily-driver trial."
+        ? "Open Home > Real-Media Sample Set Guide; missing required categories remain daily-driver trial coverage gaps."
         : rows.length
           ? "Keep the explicit category records in the regression set and rerun them after media-policy changes."
-          : "Load Sample Validation evidence before using category coverage as Launch proof.";
+          : "Load Sample Validation evidence if category coverage is needed as Launch proof.";
     const detail = [
       "Pilot category coverage:",
       `Status: ${guide.operator_status || "not loaded"}`,
@@ -481,11 +481,11 @@
       `review=${reviewMatches}`,
     ].join("; ");
     const nextCheck = blocked
-      ? "Resolve sample-validation log errors before using validation records as Launch evidence."
+      ? "Resolve sample-validation log errors; validation records are not reliable Launch evidence while errors remain."
       : currentMatches
-        ? "Open Home > Sample Validation records and compare the matching current record before pressing Start."
+        ? "Open Home > Sample Validation records and compare the matching current record for pilot evidence."
         : staleMatches
-          ? "Treat the matching validation record as stale; refresh Queue/Completed/Diagnostics proof or rerun a small sample before unattended starts."
+          ? "Treat the matching validation record as stale; refresh Queue/Completed/Diagnostics proof or rerun a small sample for unattended-start evidence."
           : matches.length
             ? "Review the matching validation record because current-evidence reconciliation is not clean."
             : rows.length
@@ -786,11 +786,11 @@
       "Purpose: mirror Home's backend-authored operator sample execution checklist at the actual Launch decision surface.",
       `Pilot status: ${plan.operator_status || "not loaded"}; sample run required: ${plan.sample_run_required === true ? "yes" : plan.sample_run_required === false ? "no" : "unknown"}.`,
       `Execution rows: ${rows.length}; required ready=${ready}/${requiredRows.length}; manual=${manual}; attention=${attention}.`,
-      "Decision rule: before pressing Start, the before-launch and backend-launch-boundary rows should be understood; post-run rows remain proof tasks after the backend run finishes.",
+      "Pilot context: before-launch and backend-launch-boundary rows explain sample-validation evidence; backend Launch validation remains authoritative for routine starts.",
     ];
     const firstAttention = rows.find((row) => !["ready", "manual"].includes(row.status) && (row.required || ["error", "warning"].includes(String(row.severity || "").toLowerCase())));
     if (firstAttention) {
-      lines.push(`First action: ${firstAttention.phase} / ${firstAttention.check} - ${firstAttention.safeNextAction || firstAttention.operatorProof || "review before starting."}`);
+      lines.push(`Suggested action: ${firstAttention.phase} / ${firstAttention.check} - ${firstAttention.safeNextAction || firstAttention.operatorProof || "review this validation row."}`);
     } else if (rows.length) {
       lines.push("First action: current checklist has no local blocker, but backend Launch validation and post-run real-media proof remain authoritative.");
     } else {

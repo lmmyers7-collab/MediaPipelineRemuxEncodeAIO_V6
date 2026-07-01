@@ -45,6 +45,36 @@ class ApplicationFacadeProcessControlTests(unittest.TestCase):
         self.assertFalse(invalid["ok"])
         self.assertIn("pause, stop, rescan, or kill", invalid["errors"][0])
 
+    def test_kill_resets_idle_progress_with_stale_blocking_status(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.progress_file = root / "State" / "Progress" / "pipeline_progress.json"
+            resolved.progress_file.parent.mkdir(parents=True, exist_ok=True)
+            resolved.progress_file.write_text(
+                json.dumps(
+                    {
+                        "ProgressVersion": 2,
+                        "LastUpdate": "2026-07-01 09:06:49",
+                        "CurrentFile": "None",
+                        "CurrentStage": "idle",
+                        "Status": "Autonomy health blocked",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            service.kill_related_pipeline_processes = lambda _resolved: []  # type: ignore[method-assign]
+
+            kill = facade.request_pipeline_control(resolved, "kill").to_mapping()
+            progress = json.loads(resolved.progress_file.read_text(encoding="utf-8"))
+
+        self.assertTrue(kill["ok"])
+        self.assertEqual(progress["CurrentStage"], "idle")
+        self.assertEqual(progress["Status"], "Idle")
+        self.assertIn("status='autonomy health blocked'", kill["data"]["progress_reset"])
+
     def test_pipeline_control_commands_share_backend_control_lock(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

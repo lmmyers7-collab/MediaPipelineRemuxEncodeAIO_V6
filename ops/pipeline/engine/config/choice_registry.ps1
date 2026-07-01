@@ -192,6 +192,10 @@ function Get-MediaPipelineFinalLibraryPromotionVerificationModeNames {
     return @('fast','cautious')
 }
 
+function Get-MediaPipelinePendingPublishDrainModeNames {
+    return @('manual','trusted')
+}
+
 function Get-MediaPipelineAudioPassthroughProfileNames {
     return @(
         'plex_balanced',

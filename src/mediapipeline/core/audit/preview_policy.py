@@ -7,10 +7,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from mediapipeline.core.audit.ignore_manifest import audit_ignore_entry_for_path
-from mediapipeline.desktop.models import AuditRecord
+from mediapipeline.core.audit.contracts import AuditRecord
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto import AuditPreviewDto
+    from mediapipeline.core.kernel.dto_inventory import AuditPreviewDto
 
 
 AUDIT_REPORT_SERVICE_UNAVAILABLE_MESSAGE = "Audit report service is not available."
@@ -20,7 +20,7 @@ AUDIT_EMPTY_CSV_MESSAGE = "Latest audit CSV contains no rows."
 
 
 def _audit_preview_dto(**kwargs: Any) -> "AuditPreviewDto":
-    from mediapipeline.desktop.application.dto_inventory import AuditPreviewDto
+    from mediapipeline.core.kernel.dto_inventory import AuditPreviewDto
 
     return AuditPreviewDto(**kwargs)
 

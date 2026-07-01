@@ -11,8 +11,8 @@ from mediapipeline.core.queue.contracts import QueueDryRunServiceProtocol
 from mediapipeline.core.queue.dry_run import build_queue_dry_run_command, queue_dry_run_temp_snapshot_path
 from mediapipeline.core.queue.file_io import atomic_write_text
 from mediapipeline.core.queue.snapshot import queue_dry_run_tail
-from mediapipeline.desktop.models import ResolvedPaths
-from mediapipeline.desktop.subprocess_runner import run_capture
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.kernel.runtime.subprocess_runner import run_capture
 
 
 def queue_dry_run_failure_for_service(
@@ -114,13 +114,14 @@ def run_queue_dry_run_for_service(
     atomic_write_text(snap_path, json.dumps(snapshot, indent=2, sort_keys=True) + "\n")
     if resolved.state_root is not None:
         try:
-            from mediapipeline.core.storage.db import open_state_db
+            from mediapipeline.core.storage.db import maybe_maintain_state_db, open_state_db
 
             open_state_db(resolved.state_root).record_queue_snapshot(
                 snapshot,
                 source_path=snap_path,
                 request_id=request_id,
             )
+            maybe_maintain_state_db(resolved.state_root)
         except Exception as exc:
             logger = getattr(service, "logger", None)
             if logger is not None:

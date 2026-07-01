@@ -6,7 +6,7 @@ from typing import Any
 
 from mediapipeline.core.completed.manifest import DEFAULT_COMPLETED_PROOF_MODE
 from mediapipeline.core.subtitles.qa import subtitle_qa_item_from_payloads, subtitle_qa_summary_from_payloads
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 
 class SubtitleQaFacadeMixin:

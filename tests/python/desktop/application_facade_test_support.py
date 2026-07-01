@@ -299,7 +299,6 @@ def exercise_local_api_route_workflow() -> SimpleNamespace:
         service = DummyWorkflowFacadeService(root)
         service.cleanup_stale_launch_guards = lambda _resolved_arg: []  # type: ignore[method-assign]
         service.find_related_pipeline_processes = lambda _resolved_arg, **_kwargs: []  # type: ignore[method-assign]
-        service.active_job_close_block_messages = lambda _resolved_arg, job_kinds=None: []  # type: ignore[method-assign]
         service.read_progress = lambda _resolved_arg: {}  # type: ignore[method-assign]
         service.read_audit_progress = lambda _resolved_arg: {}  # type: ignore[method-assign]
         service.backfill_completed_manifest = lambda resolved, **_kwargs: (  # type: ignore[method-assign]
@@ -1626,7 +1625,15 @@ class DummyWorkflowFacadeService(DummyFacadeService, QueueServiceMixin, RenameSe
         stage_mode: str,
         original_mode: str,
         return_mode: str,
-        show_console: bool,
+        show_console: bool = False,
+        execution_mode: str = "one_at_a_time",
+        destination_mode: str = "review_workspace",
+        original_policy: str = "keep",
+        collision_policy: str = "suffix",
+        window_size: int = 1,
+        confirm_replace_final: bool = False,
+        confirm_original_policy: bool = False,
+        confirm_delete_original: bool = False,
     ) -> DummyProc:
         self.started_rerun = {
             "resolved": resolved,
@@ -1637,6 +1644,14 @@ class DummyWorkflowFacadeService(DummyFacadeService, QueueServiceMixin, RenameSe
             "original_mode": original_mode,
             "return_mode": return_mode,
             "show_console": show_console,
+            "execution_mode": execution_mode,
+            "destination_mode": destination_mode,
+            "original_policy": original_policy,
+            "collision_policy": collision_policy,
+            "window_size": window_size,
+            "confirm_replace_final": confirm_replace_final,
+            "confirm_original_policy": confirm_original_policy,
+            "confirm_delete_original": confirm_delete_original,
         }
         return DummyProc(24682)
 

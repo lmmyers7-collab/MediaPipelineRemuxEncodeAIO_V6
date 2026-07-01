@@ -119,6 +119,58 @@ Invoke-WithTempRoot {
 
 Invoke-WithTempRoot {
     param($Root)
+    $script:CleanupStaleAgeHours = 1
+    $script:CleanupScanTimeoutSeconds = 30
+    $script:LocalBase = Join-Path $Root.FullName 'local-base'
+    $script:LocalEncoded = Join-Path $script:LocalBase 'Encoded'
+    [System.IO.Directory]::CreateDirectory($script:LocalEncoded) | Out-Null
+
+    $oldEmpty = Join-Path $script:LocalEncoded 'Old Movie (2000)'
+    $freshEmpty = Join-Path $script:LocalEncoded 'Fresh Movie (2026)'
+    $nonEmpty = Join-Path $script:LocalEncoded 'Still Has Output'
+    $staging = Join-Path (Join-Path $script:LocalEncoded 'Stage Holder') '.mediapipeline-staging'
+    foreach ($dir in @($oldEmpty, $freshEmpty, $nonEmpty, $staging)) {
+        [System.IO.Directory]::CreateDirectory($dir) | Out-Null
+    }
+    [System.IO.File]::WriteAllText((Join-Path $nonEmpty 'Movie.mkv'), 'keep')
+    foreach ($path in @($oldEmpty, $nonEmpty, $staging)) {
+        Set-OldTestItem -Path $path
+    }
+
+    $result = Clear-EmptyLocalEncodedDirectories
+
+    Assert-Equal $result.Removed 1 'Only the stale empty local encoded folder should be removed.'
+    Assert-True (-not (Test-Path -LiteralPath $oldEmpty -ErrorAction SilentlyContinue)) 'Stale empty local encoded folders should be removed.'
+    Assert-True (Test-Path -LiteralPath $freshEmpty -PathType Container) 'Fresh empty local encoded folders must be preserved.'
+    Assert-True (Test-Path -LiteralPath $nonEmpty -PathType Container) 'Non-empty local encoded folders must be preserved.'
+    Assert-True (Test-Path -LiteralPath (Join-Path $nonEmpty 'Movie.mkv') -PathType Leaf) 'Local encoded cleanup must not delete files.'
+    Assert-True (Test-Path -LiteralPath $staging -PathType Container) 'Publish staging folders remain owned by stale partial cleanup.'
+    Assert-True (Test-Path -LiteralPath $script:LocalEncoded -PathType Container) 'LocalEncoded root must never be removed.'
+    Remove-Variable -Name LocalBase -Scope Script -ErrorAction SilentlyContinue
+    Remove-Variable -Name LocalEncoded -Scope Script -ErrorAction SilentlyContinue
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    $script:CleanupStaleAgeHours = 1
+    $script:CleanupScanTimeoutSeconds = 30
+    $script:LocalBase = Join-Path $Root.FullName 'local-base'
+    $script:LocalEncoded = Join-Path $Root.FullName 'outside-encoded'
+    [System.IO.Directory]::CreateDirectory($script:LocalBase) | Out-Null
+    $outsideEmpty = Join-Path $script:LocalEncoded 'Old Movie (2000)'
+    [System.IO.Directory]::CreateDirectory($outsideEmpty) | Out-Null
+    Set-OldTestItem -Path $outsideEmpty
+
+    $result = Clear-EmptyLocalEncodedDirectories
+
+    Assert-Equal $result.Removed 0 'Local encoded cleanup must fail closed when LocalEncoded is outside LocalBase.'
+    Assert-True (Test-Path -LiteralPath $outsideEmpty -PathType Container) 'Unsafe outside LocalEncoded folders must be preserved.'
+    Remove-Variable -Name LocalBase -Scope Script -ErrorAction SilentlyContinue
+    Remove-Variable -Name LocalEncoded -Scope Script -ErrorAction SilentlyContinue
+}
+
+Invoke-WithTempRoot {
+    param($Root)
     $safeRoot = Join-Path $Root.FullName 'root'
     $nested = Join-Path $safeRoot 'nested'
     [System.IO.Directory]::CreateDirectory($nested) | Out-Null

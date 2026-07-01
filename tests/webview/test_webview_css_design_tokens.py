@@ -29,6 +29,7 @@ APP_LIFECYCLE_PATH = ASSETS_ROOT / "app" / "lifecycle.js"
 APP_LAYOUT_MANAGER_PATH = ASSETS_ROOT / "app" / "layoutManager.js"
 LAUNCH_VIEW_PATH = ASSETS_ROOT / "launchView.js"
 LAUNCH_COMMAND_BUTTONS_PATH = ASSETS_ROOT / "launch" / "commandButtons.js"
+SETTINGS_SUBTITLE_BUILDER_PATH = ASSETS_ROOT / "settingsView.builders.subtitle.js"
 LAUNCH_PARTIAL_PATH = STATIC_ROOT / "partials" / "page-launch.html"
 REPORTS_VIEW_PATH = ASSETS_ROOT / "reportsView.js"
 REPORTS_SHELL_PATH = ASSETS_ROOT / "reports" / "shell.js"
@@ -244,6 +245,60 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertIn(".workflow-table {", components)
         for selector in [".queue-table", ".completed-table", ".pending-table"]:
             self.assertIn(selector, components)
+
+    def test_subtitle_policy_matrix_uses_split_panel_layout(self) -> None:
+        html = _rendered_index_html()
+        components = _read_components_css()
+
+        self.assertIn('class="table-wrap detail-table-wrap subtitle-policy-matrix-wrap"', html)
+        self.assertIn('class="subtitle-policy-matrix"', html)
+        self.assertIn(".subtitle-policy-matrix th:first-child,\n.subtitle-policy-matrix td:first-child", components)
+        self.assertIn("width: 9.5rem;", components)
+
+        row_header_match = re.search(
+            r"\.subtitle-policy-matrix tbody th\s*\{(?P<body>[^}]*)\}",
+            components,
+            re.S,
+        )
+        self.assertIsNotNone(row_header_match)
+        row_header_body = row_header_match.group("body")
+        self.assertNotIn("display: grid;", row_header_body)
+        self.assertIn("position: static;", row_header_body)
+        self.assertIn("letter-spacing: 0;", row_header_body)
+        self.assertIn("text-transform: none;", row_header_body)
+
+        self.assertIn("@media (max-width: 980px)", components)
+        self.assertRegex(
+            components,
+            r"@media \(max-width: 980px\)[\s\S]*"
+            r"\.table-wrap\.subtitle-policy-matrix-wrap\s*\{[\s\S]*overflow: visible;",
+        )
+        self.assertRegex(
+            components,
+            r"@media \(max-width: 980px\)[\s\S]*"
+            r"\.subtitle-policy-matrix tbody tr\s*\{[\s\S]*"
+            r"grid-template-columns: minmax\(7rem, 0\.42fr\) minmax\(0, 1fr\);",
+        )
+        self.assertRegex(
+            components,
+            r"@media \(max-width: 980px\)[\s\S]*"
+            r'\.subtitle-policy-matrix tbody th\s*\{[\s\S]*grid-area: format;',
+        )
+
+    def test_subtitle_language_policy_uses_text_fields_without_preview_badges(self) -> None:
+        html = _rendered_index_html()
+        components = _read_components_css()
+        subtitle_builder = SETTINGS_SUBTITLE_BUILDER_PATH.read_text(encoding="utf-8")
+
+        self.assertIn('data-subtitle-language-field', html)
+        self.assertIn('data-subtitle-language-warning', html)
+        self.assertNotIn('data-subtitle-language-preview', html)
+        self.assertNotIn('subtitle-language-chips', html)
+        self.assertNotIn('subtitle-language-chip', subtitle_builder)
+        self.assertNotIn('data-subtitle-language-preview', subtitle_builder)
+        self.assertNotIn('.subtitle-language-chip', components)
+        self.assertNotIn('.subtitle-language-chips', components)
+        self.assertIn('.subtitle-row-state', components)
 
     def test_shared_data_table_controls_are_wired(self) -> None:
         helpers = _read_dom_helpers_bundle()

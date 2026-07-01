@@ -1,11 +1,19 @@
 from __future__ import annotations
 
+import json
+import shutil
+import subprocess
+from pathlib import Path
 import unittest
 
 from tests.python.desktop.application_facade_test_support import (
     assert_namespace_export as _assert_namespace_export,
     served_webview_static_contract_bundle,
 )
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+START_REQUEST_JS = PROJECT_ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launch" / "startRequest.js"
 
 
 def _assert_contains_all(testcase: unittest.TestCase, text: str, snippets: tuple[str, ...]) -> None:
@@ -114,9 +122,24 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
                 "pipeline-launch-preflight",
                 "pipeline-start-button",
                 "rerun-start-csv-path",
-                "rerun-start-stage-mode",
-                "rerun-start-original-mode",
-                "rerun-start-return-mode",
+                "rerun-start-execution-mode",
+                "rerun-start-window-size",
+                "rerun-start-destination-mode",
+                "rerun-start-collision-policy",
+                "rerun-start-original-policy",
+                "auto destination",
+                "auto collision",
+                "auto original action",
+                "Rerun handling",
+                "Destination Collision",
+                "Original After Proof",
+                'data-rerun-policy-card="destination"',
+                'data-rerun-policy-card="collision"',
+                'data-rerun-policy-card="original"',
+                "Destination handling",
+                "When output exists",
+                "Backend owns output proof, replacement, pending publish, and any original-source action.",
+                "Replace final output applies to the new published file",
                 "rerun-mode-policy-note",
                 "rerun-csv-path-picker-badge",
                 'data-path-picker-target="launch.rerun_csv"',
@@ -129,14 +152,20 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
                 "rerun-scope-issue-filter",
                 "rerun-scope-bucket-filter",
                 "rerun-preview-limit",
+                "rerun-preview-tiles",
                 "rerun-recent-csv-rows",
                 "rerun-preview-summary",
                 "rerun-policy-panel",
                 "rerun-preview-rows",
+                "rerun-results-panel",
                 "rerun-history-summary",
                 'id="rerun-open-audit-tool-button"',
+                'id="rerun-inspect-csv-button"',
+                'id="rerun-open-csv-button"',
+                'id="rerun-open-csv-folder-button"',
                 'data-cross-page-target="reports" data-cross-page-reports-tab="audit"',
                 "rerun-start-button",
+                "Review &amp; Start",
                 "launch-history-status",
                 "launch-history",
                 "launch-command-review-status",
@@ -151,12 +180,25 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
                 "launch-policy-boundary-detail",
                 "launch-backend-preflight-refresh-button",
                 "Refresh Backend Preflight",
-                "rerun-plan-only-button",
-                "Plan CSV Rerun",
-                "rerun-dry-run-button",
-                "Preview CSV Rerun",
             ),
         )
+        _assert_not_contains_any(
+            self,
+            html,
+            (
+                "Confirm Replace Final",
+                "Confirm Original Policy",
+                "Confirm Hold/Delete Intent",
+                "rerun-confirm-replace-final",
+                "rerun-confirm-original-policy",
+                "rerun-confirm-delete-original",
+            ),
+        )
+        self.assertNotIn("rerun-plan-only-button", html)
+        self.assertNotIn("Plan CSV Rerun", html)
+        self.assertNotIn("rerun-dry-run-button", html)
+        self.assertNotIn("Preview CSV Rerun", html)
+        self.assertNotIn("rerun-start-show-console", html)
         self.assertNotIn('data-launch-tab="audit"', html)
         self.assertNotIn('data-launch-tab-panel="audit"', html)
         for absent in (
@@ -353,6 +395,8 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
                 "function browsePipelineSingleFile",
                 'apiPost("/api/pipeline/browse-file", request)',
                 "function startPipelineFromForm",
+                "Submitting ${label} for ${scope}. Backend will re-check queue, settings, schedule, and locks before starting.",
+                "Pipeline start request submitted to the backend; backend launch guards remain authoritative.",
                 "function launchCommandStatusLabel",
                 "function launchCommandResultCorrelationLines",
                 "Command evidence snapshot:",
@@ -416,6 +460,8 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
                 "function renderLaunchAuditLog",
                 "renderLaunchAuditControls",
                 "renderLaunchAuditLog",
+                "window.confirm(pipelineStartConfirmMessage(request, label))",
+                "Pipeline start request confirmed by the operator",
             ),
         )
         _assert_contains_all(
@@ -428,14 +474,17 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
                 "Single-file launch: WebView submits the path only",
                 "Backend validation and launch locking remain the source of truth.",
                 "operator_readiness",
-                'Plan only: ${request.plan_only ? "yes - no manifest or media writes" : "no"}',
-                'Dry run: ${request.dry_run ? "yes - evidence-writing preview" : request.plan_only ? "no - plan-only request" : "no - live rerun start"}',
+                "rerunPreflightLabels",
+                '`Execution: ${rerunPreflightLabel("execution", request.execution_mode, "one_at_a_time")}; window=${request.window_size || 1}`',
+                '`Destination handling: ${rerunPreflightLabel("destination", request.destination_mode, "review_workspace")}; collision=${rerunPreflightLabel("collision", request.collision_policy, "suffix")}`',
+                '`Old source handling after proof: ${rerunPreflightLabel("original", request.original_policy, "keep")}`',
+                "function rerunOriginalPairingLine",
+                "Pairing note: final-output replacement is paired with original hold after publish.",
+                "Pairing warning: final-output replacement is usually paired with Move to original hold after publish.",
                 'Scope: enabled only ${scope.enabled_only !== false ? "yes" : "no"}',
-                "Mode options: stage copy is executable; move is blocked.",
-                "Mode warning: backend preflight/start will block selected source-mutating or in-place CSV rerun policy before process launch.",
-                "Safety policy: plan-only stops before writing manifests, temp config, staging files, parked outputs, or source media.",
-                "Safety policy: dry-run preview should produce backend evidence without staging, moving, publishing, or touching media.",
-                "Safety policy: live rerun copies to scratch, keeps originals, and parks returned outputs.",
+                "Confirmation warning: replacing a final output requires confirm_replace_final=true.",
+                "Confirmation warning: original-source policy requires confirm_original_policy=true.",
+                "Safety policy: live rerun stages bounded scratch input, verifies output, applies destination policy, then applies original-source policy only after proof.",
             ),
         )
 
@@ -580,12 +629,12 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
                 "function launchScopeReconciliationRows",
                 "function renderLaunchScopeReconciliation",
                 "Launch scope reconciliation:",
-                "visible Queue table, selected Launch mode, cached backend preflight",
+                "these read-only signals explain launch posture; backend start remains authoritative",
                 "Mutation guardrail: this reconciliation is read-only",
                 "function launchStartDecisionRows",
                 "function renderLaunchStartDecisionSummary",
                 "Launch start decision summary:",
-                "treat Start as sensible only when Launch readiness, backend preflight, Queue, Settings",
+                "treat these signals as advisory evidence for Start; backend start remains authoritative",
                 "Mutation guardrail: this summary is read-only",
             ),
         )
@@ -734,11 +783,34 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
                 "function refreshRerunPreview",
                 "function renderRerunPreview",
                 "function renderRerunHistorySummary",
+                "function rerunPreviewConflictLines",
+                "Why blocked:",
+                "Selected policy conflict:",
+                "Executable CSV rerun currently only supports scratch-copy staging, review-workspace parking, and keeping the original untouched.",
                 "/api/rerun/start",
                 "/api/rerun/preview",
-                'stage_mode: byId("rerun-start-stage-mode")?.value || "copy"',
-                'original_mode: byId("rerun-start-original-mode")?.value || "keep"',
-                'return_mode: byId("rerun-start-return-mode")?.value || "park"',
+                'execution_mode: byId("rerun-start-execution-mode")?.value || "one_at_a_time"',
+                'destination_mode: destinationMode',
+                'original_policy: originalPolicy',
+                'confirm_replace_final: destinationMode === "publish_replace_final" || collisionPolicy === "replace_final"',
+                "RERUN_POLICY_CHOICES",
+                "function resolveRerunPolicySelection",
+                "function rerunPolicyConflictReason",
+                "function applyRerunPolicySelectionRules",
+                "function updateRerunPolicyOptionStates",
+                "option.dataset.rerunConflict = reason ? \"true\" : \"false\"",
+                "Auto-adjusted ${kind} pairing.",
+                "Backend still receives concrete policy values after auto resolution.",
+                "Auto resolved from the current destination/collision/original equation before backend submit.",
+                "function syncRerunOriginalPolicyForDestination",
+                "function rerunOriginalPolicyChoiceForSummary",
+                "Auto-selected because final replacement is selected.",
+                "Replacement is usually paired with original hold; this manual choice will be sent as selected.",
+                "function renderRerunHandlingSummary",
+                "function rerunStartPolicySummary",
+                "Destination handling: ${destination.label}. ${destination.detail}",
+                "rerunPreviewBlockedReason",
+                "frontend_guard: true",
                 "scope: collectRerunScopeRequest()",
                 'mode: "drain_pending_pushes"',
                 'command: "pending_publish.drain"',
@@ -755,6 +827,8 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
                 "collectRerunScopeRequest",
                 "collectRerunStartRequest",
                 "refreshRerunPreview",
+                "inspectSelectedRerunCsv",
+                "openSelectedRerunCsv",
                 "renderRerunPreview",
                 "renderRerunHistorySummary",
                 "startStateJournalArchive",
@@ -765,6 +839,9 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
             self,
             bundle.launch_view_js,
             (
+                "if (request.plan_only) {\n      await refreshRerunPreview();",
+                "appendCommandResult(blocked);",
+                "appendCommandResult(missing);",
                 "window.collectRerunStartRequest =",
                 "window.startStateJournalArchive =",
                 "window.startRerunFromForm =",
@@ -774,8 +851,6 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
             self,
             bundle.js,
             (
-                'launchView.startRerunFromForm?.({ plan_only: true })',
-                'launchView.startRerunFromForm?.({ dry_run: true })',
                 'launchView.startRerunFromForm?.({ dry_run: false })',
                 "function renderLaunchReadinessPanel",
                 "window.mediaPipelineLaunchReadinessView?.renderLaunchReadiness?.(payload)",
@@ -788,6 +863,73 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
                 "values.health?.startup_progress",
             ),
         )
+
+    def test_rerun_policy_auto_resolver_submits_concrete_backend_values(self) -> None:
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is not available")
+
+        script = """
+const fs = require("fs");
+global.window = {};
+const source = fs.readFileSync(__START_REQUEST_PATH__, "utf8");
+eval(source);
+const fields = {
+  "rerun-start-window-size": { value: "1" },
+  "rerun-start-csv-path": { value: "C:/Media/rerun.csv" },
+  "rerun-start-execution-mode": { value: "one_at_a_time" },
+  "rerun-start-destination-mode": { value: "auto" },
+  "rerun-start-collision-policy": { value: "replace_final" },
+  "rerun-start-original-policy": { value: "auto" },
+  "rerun-scope-enabled-only": { checked: true },
+  "rerun-scope-skip-blocked": { checked: false },
+  "rerun-scope-skip-warning-rows": { checked: false },
+  "rerun-scope-first-n": { value: "0" },
+  "rerun-preview-limit": { value: "50" },
+  "rerun-scope-issue-filter": { options: [] },
+  "rerun-scope-bucket-filter": { options: [] },
+};
+const startModule = window.__launchStartRequestModule.createLaunchStartRequestModule({
+  byId(id) { return fields[id] || null; },
+});
+function assertEqual(actual, expected, label) {
+  if (actual !== expected) throw new Error(`${label}: expected ${expected}, got ${actual}`);
+}
+const replacement = startModule.collectRerunStartRequest({ dry_run: false });
+assertEqual(replacement.destination_mode, "pending_publish", "replacement destination");
+assertEqual(replacement.collision_policy, "replace_final", "replacement collision");
+assertEqual(replacement.original_policy, "move_to_hold_after_publish", "replacement original");
+assertEqual(replacement.confirm_replace_final, true, "replacement confirmation");
+assertEqual(replacement.confirm_original_policy, true, "original confirmation");
+
+fields["rerun-start-destination-mode"].value = "auto";
+fields["rerun-start-collision-policy"].value = "suffix";
+fields["rerun-start-original-policy"].value = "auto";
+const safe = startModule.collectRerunStartRequest({ dry_run: false });
+assertEqual(safe.destination_mode, "review_workspace", "safe destination");
+assertEqual(safe.collision_policy, "suffix", "safe collision");
+assertEqual(safe.original_policy, "keep", "safe original");
+assertEqual(safe.confirm_replace_final, false, "safe replace confirmation");
+assertEqual(safe.confirm_original_policy, false, "safe original confirmation");
+console.log(JSON.stringify({ replacement, safe }));
+""".replace("__START_REQUEST_PATH__", json.dumps(str(START_REQUEST_JS)))
+
+        result = subprocess.run(
+            [node, "-e", script],
+            cwd=str(PROJECT_ROOT),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["replacement"]["destination_mode"], "pending_publish")
+        self.assertEqual(payload["replacement"]["original_policy"], "move_to_hold_after_publish")
+        self.assertEqual(payload["safe"]["destination_mode"], "review_workspace")
+        self.assertEqual(payload["safe"]["original_policy"], "keep")
 
 
 if __name__ == "__main__":

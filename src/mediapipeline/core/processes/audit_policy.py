@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 from mediapipeline.core.kernel.config_keys import KEY_OUTSOURCE
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
 
 AUDIT_START_COMMAND = "audit.start"
@@ -17,7 +17,7 @@ AUDIT_STOP_CONFIRM_ERROR = "Audit stop requires confirm_stop=true."
 
 
 def _command_result(**kwargs: Any) -> "CommandResult":
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**kwargs)
 

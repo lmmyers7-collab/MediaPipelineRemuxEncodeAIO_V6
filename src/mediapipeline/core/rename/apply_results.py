@@ -10,8 +10,8 @@ from mediapipeline.core.rename.path_authority import OUTSIDE_CONFIGURED_ROOTS_ME
 from mediapipeline.core.rename.preview_policy import missing_rename_selection_warnings, rename_blocker_error_lines
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
-    from mediapipeline.desktop.application.dto_base import JsonMap
+    from mediapipeline.core.kernel.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_base import JsonMap
 
 RENAME_APPLY_COMMAND = "rename.apply"
 RENAME_UNDO_COMMAND = "rename.undo"
@@ -29,13 +29,13 @@ RENAME_APPLY_BUSY_MESSAGE = "Rename apply blocked because another rename apply c
 
 
 def _command_result(**fields: Any) -> "CommandResult":
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**fields)
 
 
 def _json_safe(value: Any) -> "JsonMap":
-    from mediapipeline.desktop.application.dto_base import json_safe
+    from mediapipeline.core.kernel.dto_base import json_safe
 
     return json_safe(value)
 

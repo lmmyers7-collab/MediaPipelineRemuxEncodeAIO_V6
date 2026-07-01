@@ -672,8 +672,7 @@ def _browser_diagnostics_handoff_runner_source() -> str:
             window.mediaPipelineProgressView.renderDiagnosticsProgress(payload.snapshot || {});
             await waitFor(
               () => text("active-job-detail-status").includes("2 rows")
-                && text("active-job-detail-status").includes("blocked=1")
-                && text("active-job-detail-status").includes("active/review=1")
+                && text("active-job-detail-status").includes("review=2")
                 && tableText("active-job-detail-rows").includes("launch-active.json")
                 && tableText("active-job-detail-rows").includes("broken-active-job.json")
                 && text("diagnostics-progress-status").includes("Stale progress review"),
@@ -1345,8 +1344,7 @@ class WebViewBrowserDiagnosticsHandoffSmoke(unittest.TestCase):
         self.assertIn("pending_publish", browser_result["historyTargets"])
         self.assertIn("last_stderr_log", browser_result["historyTargets"])
         self.assertGreaterEqual(browser_result["commandHistoryCount"], 3)
-        self.assertIn("blocked=1", browser_result["activeJobStatus"])
-        self.assertIn("active/review=1", browser_result["activeJobStatus"])
+        self.assertIn("review=2", browser_result["activeJobStatus"])
         self.assertIn("Record: broken-active-job.json", browser_result["activeJobDetail"])
         self.assertIn("Stale progress warning:", browser_result["diagnosticsProgressDetail"])
         self.assertIn("artifact", browser_result["stateSummaryStatus"])
@@ -1451,8 +1449,7 @@ class WebViewBrowserDiagnosticsHandoffSmoke(unittest.TestCase):
         self.assertIn("pending_publish", browser_result["historyTargets"])
         self.assertIn("last_stderr_log", browser_result["historyTargets"])
         self.assertGreaterEqual(browser_result["commandHistoryCount"], 3)
-        self.assertIn("blocked=1", browser_result["activeJobStatus"])
-        self.assertIn("active/review=1", browser_result["activeJobStatus"])
+        self.assertIn("review=2", browser_result["activeJobStatus"])
         self.assertIn("Record: broken-active-job.json", browser_result["activeJobDetail"])
         self.assertIn("Stale progress warning:", browser_result["diagnosticsProgressDetail"])
         self.assertIn("State artifact recovery checklist:", browser_result["stateRecoveryText"])

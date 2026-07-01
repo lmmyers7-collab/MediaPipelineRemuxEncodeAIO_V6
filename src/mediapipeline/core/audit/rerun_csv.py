@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from mediapipeline.desktop.models import AuditRecord
+from mediapipeline.core.audit.contracts import AuditRecord
 from mediapipeline.core.audit.rerun_records import audit_row_value, rerun_media_kind_from_audit
 
 RERUN_CSV_COLUMNS = (

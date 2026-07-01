@@ -1,0 +1,49 @@
+{
+  "id": "MP-CHANGE-2026-0630-023",
+  "title": "Unattended pipeline run safety hardening",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "high",
+  "date_started": "2026-06-30",
+  "date_completed": "2026-07-01",
+  "summary": "Add fail-closed unattended PowerShell behavior for stale pause flags, repeated round failures, subtitle helper startup failures, trusted pending-publish drains, and debug log growth.",
+  "reason": "A 30-day unattended run should stop with durable blocked evidence when operator intervention or helper failure is required, and long-running logs/deferred publishes need bounded, policy-owned handling.",
+  "affected_areas": [
+    "config",
+    "observability",
+    "powershell",
+    "tests"
+  ],
+  "behavior_before": "Stale pause flags could linger without a terminal blocked exit, unexpected continuous-loop failures could keep probing, a broken ASS helper could silently fall back, deferred pending publish remained manual-only, and pipeline_debug.log had no configured rotation cap.",
+  "behavior_after": "Stale pause flags emit review and blocked evidence with exit 76, repeated unexpected round failures stop the loop as blocked, ASS helper fallback requires explicit opt-in, trusted deferred pending-publish drains use existing manifest trust and transaction paths, and debug logging rotates under the existing mutex.",
+  "files_touched": [
+    "ops/pipeline/config/MediaPipeline_config_template.psd1",
+    "ops/pipeline/config/profiles/Default.psd1",
+    "ops/pipeline/config/schemas/media_pipeline_config.schema.json",
+    "ops/pipeline/engine/config/choice_registry.ps1",
+    "ops/pipeline/engine/config/config_keys.ps1",
+    "ops/pipeline/engine/config/default_values.ps1",
+    "ops/pipeline/engine/config/runtime_config.ps1",
+    "ops/pipeline/engine/config/schema_keys.ps1",
+    "ops/pipeline/engine/config/schema_validation.ps1",
+    "ops/pipeline/engine/observability/logging.ps1",
+    "ops/pipeline/engine/publish/pending_push.ps1",
+    "ops/pipeline/engine/queue/pipeline_engine.ps1",
+    "ops/pipeline/engine/status/progress_state.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline.ps1",
+    "ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-LoggingJsonLineChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-ProgressStateTelemetryChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0630-023.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Targeted PowerShell unit checks passed: Invoke-PipelineQueueEngineChecks, Invoke-ProgressStateTelemetryChecks, Invoke-LoggingJsonLineChecks, Invoke-PendingPublishSafetyChecks, Invoke-ConfigKeyRegistryChecks."
+  ],
+  "rollback_plan": "Revert the PowerShell engine/config/test changes for pause, loop, subtitle startup, pending publish, and debug log rotation; keep pending publish manifests and source media untouched during rollback.",
+  "related_changes": [],
+  "notes": "Add durable blocked progress/event helpers for unattended stop conditions.\nBlock stale pause flags and repeated unexpected continuous-loop failures.\nFail closed on subtitle helper self-check unless fallback is explicitly allowed.\nAdd trusted deferred pending-publish drain mode through existing manifest trust paths.\nRotate pipeline_debug.log under the existing mutex when size exceeds policy.\nRegister new unattended reliability config keys.\nAdd defaults for drain mode, helper fallback, log cap, and SQLite row cap.\nNormalize and expose runtime reliability config keys.\nAdd schema metadata for new reliability config keys.\nValidate new bounded reliability config values.\nRegister PendingPublishDrainMode choices.\nDocument new operator-facing reliability defaults in the template.\nAdd default profile entries for new reliability keys.\nExpose new reliability keys in the PowerShell config schema.\nCover stale pause and consecutive round failure blocked exits.\nCover blocked progress telemetry helpers.\nCover debug log rotation during live logging.\nCover manual versus trusted deferred pending-publish drain behavior.\nCover registry/schema/default coverage for new reliability keys.\nImplemented fail-closed unattended reliability hardening without relaxing source mutation, scratch isolation, pending publish, or backend-owned mutation boundaries."
+}

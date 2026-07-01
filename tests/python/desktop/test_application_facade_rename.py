@@ -13,7 +13,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.core.rename.policy import OUTSIDE_CONFIGURED_ROOTS_WARNING, rename_configured_media_roots_from_resolved
-from tests.python.desktop.application_facade_test_support import DummyWorkflowFacadeService, _resolved
+from tests.python.desktop.application_facade_test_support import DummyProc, DummyWorkflowFacadeService, _resolved
 
 
 class ApplicationFacadeRenameTests(unittest.TestCase):
@@ -445,10 +445,7 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
             apply_calls: list[object] = []
 
             service.cleanup_stale_launch_guards = lambda _resolved_paths: []  # type: ignore[method-assign]
-            service.find_related_pipeline_processes = lambda _resolved_paths, job_kinds=None: []  # type: ignore[method-assign]
-            service.active_job_close_block_messages = (  # type: ignore[method-assign]
-                lambda _resolved_paths, job_kinds=None: ["ActiveJobs record launch.json reports pipeline work as active."]
-            )
+            service.find_related_pipeline_processes = lambda _resolved_paths, job_kinds=None: [DummyProc(24681)]  # type: ignore[method-assign]
 
             def fake_plan(*args: object, **kwargs: object) -> list[dict[str, object]]:
                 plan_calls.append({"args": args, "kwargs": kwargs})
@@ -477,7 +474,7 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
         self.assertEqual(result.command, "rename.apply")
         self.assertEqual(result.severity, "error")
         self.assertEqual(result.errors, ["active_work"])
-        self.assertIn("ActiveJobs still reports active work", result.message)
+        self.assertIn("PID(s) 24681", result.message)
         self.assertEqual(plan_calls, [])
         self.assertEqual(apply_calls, [])
         self.assertTrue(source_still_exists)

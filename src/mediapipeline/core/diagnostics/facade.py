@@ -37,11 +37,12 @@ from mediapipeline.core.diagnostics.autonomy_health import autonomy_health_paylo
 from mediapipeline.core.status.active_jobs import worker_progress_payload
 from mediapipeline.core.status.eta import eta_payload
 from mediapipeline.core.status.ffmpeg_progress import ffmpeg_progress_payload
-from mediapipeline.desktop.application.dto_commands import CommandResult
-from mediapipeline.desktop.application.dto_status import DiagnosticsDto
+from mediapipeline.core.kernel.dto_commands import CommandResult
+from mediapipeline.core.kernel.dto_status import DiagnosticsDto
 from mediapipeline.core.config.settings_policy import settings_tool_path_evidence
 from mediapipeline.core.processes.path_evidence import configured_path_health
-from mediapipeline.desktop.models import ResolvedPaths, Snapshot
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.status.contracts import Snapshot
 
 
 class DiagnosticsFacadeMixin:
@@ -80,6 +81,7 @@ class DiagnosticsFacadeMixin:
         recent_errors = self._summary_method_lines("format_diagnostics_error_summary", snapshot)
         recent_events = self._summary_method_lines("format_diagnostics_event_summary", snapshot)
         worker_progress = worker_progress_payload(snapshot.resolved.active_jobs_path, snapshot.progress or {}, snapshot.log_tail)
+        path_health = configured_path_health(snapshot.resolved)
         return DiagnosticsDto(
             app_version=self.app_version,
             active_jobs=active_jobs,
@@ -92,6 +94,7 @@ class DiagnosticsFacadeMixin:
             status_summary=str(snapshot.status_summary or ""),
             log_tail=str(snapshot.log_tail or ""),
             launch_logs=diagnostics_launch_log_summary(getattr(self.service, "launch_log_summary", None)),
+            autonomy_health=self._autonomy_health_for_resolved(snapshot.resolved, path_health=path_health),
             warnings=diagnostics_warnings(snapshot),
         )
 

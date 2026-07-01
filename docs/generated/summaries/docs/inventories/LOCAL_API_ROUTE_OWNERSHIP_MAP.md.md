@@ -3,9 +3,9 @@ file: docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-29
+last_modified: 2026-07-01
 last_reviewed: 2026-05-29
-sha256: cef8607bf0c952af77ffc43f601e6da3e367a2e7a7febbb170c94f37fbd85b82
+sha256: 386104faae2705b3026db6d7fd2670fcd687daa34957ee4653dd30ad8ced4ac5
 ---
 # `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`
 

@@ -817,6 +817,101 @@ Invoke-WithTempRoot {
     Assert-Equal $leftoverBackups.Count 0 'Pending sidecar copy failure left backup artifacts behind.'
 }
 
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $previousBatchSize = $script:PendingPublishDrainBatchSize
+    $previousWarningThreshold = $script:PendingPublishBacklogWarningThreshold
+    $previousDeferredPublish = $script:DeferredPublish
+    $previousDrainMode = $script:PendingPublishDrainMode
+    $previousWritePipelineEvent = Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue
+    try {
+        $script:PendingPublishDrainBatchSize = 2
+        $script:PendingPublishBacklogWarningThreshold = 3
+        $script:DeferredPublish = $true
+        $script:PipelineEvents = @()
+        function Write-PipelineEvent {
+            param(
+                [string] $EventType,
+                [string] $Stage,
+                [string] $Status,
+                [hashtable] $Data
+            )
+            $script:PipelineEvents += ,([pscustomobject]@{
+                EventType = $EventType
+                Stage     = $Stage
+                Status    = $Status
+                Data      = $Data
+            })
+        }
+
+        for ($index = 1; $index -le 5; $index++) {
+            $payload = Join-Path $script:LocalPendingPush ("batch-{0}.mkv" -f $index)
+            $serverOut = Join-Path $script:Outsource ("batch-{0}.mkv" -f $index)
+            [System.IO.File]::WriteAllText($payload, 'media')
+            $manifest = New-TestPendingManifest -LocalFile $payload -ServerOut $serverOut
+            $manifest['schema_version'] = 'legacy_manifest.v0'
+            $manifestPath = Join-Path $script:LocalPendingPush ("batch-{0}.manifest.json" -f $index)
+            [System.IO.File]::WriteAllText(
+                $manifestPath,
+                ($manifest | ConvertTo-Json -Depth 10),
+                [System.Text.UTF8Encoding]::new($false)
+            )
+        }
+
+        $script:PendingPublishDrainMode = 'manual'
+        $manualRecovered = Invoke-RetryPendingPushes
+        $manualSummary = Get-Content -LiteralPath (Get-PendingDrainSummaryPath) -Raw | ConvertFrom-Json
+        Assert-Equal $manualRecovered 0 'Manual deferred drain should not recover publishes during unattended retry.'
+        Assert-True ([bool]$manualSummary.deferred) 'Manual deferred drain should preserve deferred=true.'
+        Assert-Equal ([int]$manualSummary.attempted_count) 0 'Manual deferred drain should not attempt parked manifests.'
+        Assert-Equal ([string]$manualSummary.drain_mode) 'manual' 'Manual deferred drain summary should record drain mode.'
+
+        $script:PipelineEvents = @()
+        $script:PendingPublishDrainMode = 'trusted'
+        $trustedRecovered = Invoke-RetryPendingPushes
+        $trustedSummary = Get-Content -LiteralPath (Get-PendingDrainSummaryPath) -Raw | ConvertFrom-Json
+        $trustedEvents = @($script:PipelineEvents)
+
+        Assert-Equal $trustedRecovered 0 'Trusted batched invalid-manifest drain should not recover publishes.'
+        Assert-Equal ([string]$trustedSummary.drain_mode) 'trusted' 'Trusted drain summary should record drain mode.'
+        Assert-True ([bool]$trustedSummary.trusted_deferred_drain) 'Trusted deferred drain should mark trusted_deferred_drain=true.'
+        Assert-Equal ([int]$trustedSummary.manifest_count_at_start) 5 'Trusted drain should record the full backlog.'
+        Assert-Equal ([int]$trustedSummary.batch_limit) 2 'Trusted drain should use the configured batch limit.'
+        Assert-Equal ([int]$trustedSummary.batch_count) 2 'Trusted drain should attempt only the configured batch.'
+        Assert-Equal ([int]$trustedSummary.batch_deferred_count) 3 'Trusted drain should defer work beyond the batch.'
+        Assert-Equal ([int]$trustedSummary.attempted_count) 2 'Trusted drain should not attempt deferred manifests.'
+        Assert-Equal ([int]$trustedSummary.skipped_count) 3 'Trusted drain should count batch-deferred manifests as skipped for this pass.'
+        Assert-Equal ([int]$trustedSummary.health.backlog_count) 5 'Pending publish health should report backlog count.'
+        Assert-True ([bool]$trustedSummary.health.normal_batch_limited) 'Pending publish health should report normal batch limiting.'
+        Assert-True ([bool]$trustedSummary.health.over_warning_threshold) 'Pending publish health should trip the backlog threshold.'
+        Assert-Equal ([string]$trustedEvents[0].EventType) 'pending_publish_backlog_health' 'Backlog threshold should emit a health event.'
+        Assert-Equal ([int]$trustedEvents[0].Data.batch_deferred_count) 3 'Backlog health event should include deferred count.'
+        Assert-Equal ([string]$trustedEvents[0].Data.drain_mode) 'trusted' 'Backlog health event should include drain mode.'
+
+        $script:PipelineEvents = @()
+        $forceRecovered = Invoke-RetryPendingPushes -Force
+        $forceSummary = Get-Content -LiteralPath (Get-PendingDrainSummaryPath) -Raw | ConvertFrom-Json
+
+        Assert-Equal $forceRecovered 0 'Force invalid-manifest drain should not recover publishes.'
+        Assert-True ([bool]$forceSummary.force) 'Force drain summary should preserve force=true.'
+        Assert-Equal ([int]$forceSummary.batch_count) 5 'Force drain should attempt all manifests.'
+        Assert-Equal ([int]$forceSummary.batch_deferred_count) 0 'Force drain should not defer manifests through normal batching.'
+        Assert-Equal ([int]$forceSummary.attempted_count) 5 'Force drain should attempt every manifest.'
+        Assert-True (-not [bool]$forceSummary.health.normal_batch_limited) 'Force drain health should not report normal batch limiting.'
+        Assert-Equal ([int]@($script:PipelineEvents).Count) 1 'Force drain should still emit backlog health when over threshold.'
+    } finally {
+        $script:PendingPublishDrainBatchSize = $previousBatchSize
+        $script:PendingPublishBacklogWarningThreshold = $previousWarningThreshold
+        $script:DeferredPublish = $previousDeferredPublish
+        $script:PendingPublishDrainMode = $previousDrainMode
+        Remove-Item Function:\Write-PipelineEvent -ErrorAction SilentlyContinue
+        if ($previousWritePipelineEvent) {
+            Set-Item -Path Function:\Write-PipelineEvent -Value $previousWritePipelineEvent.ScriptBlock
+        }
+    }
+}
+
 $pendingSidecarTransactionsText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_sidecar_transactions.ps1') -Raw
 Assert-MatchText $pendingSidecarTransactionsText 'function Restore-PendingSidecarBackupIntoPlace' 'Pending sidecar restore overwrite fallback helper is missing.'
 Assert-MatchText $pendingSidecarTransactionsText '\[System\.IO\.File\]::Move\(\$BackupPath,\s*\$DestinationPath,\s*\$true\)' 'Pending sidecar restore fallback must use overwrite move.'

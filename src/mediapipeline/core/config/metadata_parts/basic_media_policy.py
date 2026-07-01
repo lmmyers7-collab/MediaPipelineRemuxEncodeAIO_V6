@@ -172,4 +172,23 @@ BASIC_PENDING_PUBLISH_FIELDS = (
         "kind": "bool",
         "help": "Park completed outputs locally instead of uploading them immediately. Use the recovery action to publish parked outputs later.",
     },
+{
+        "page": "Basic",
+        "section": "Routing",
+        "key": "PendingPublishDrainMode",
+        "label": "Pending Publish Drain Mode",
+        "kind": "combo",
+        "choices": ("manual", "trusted"),
+        "default": "manual",
+        "help": "manual keeps deferred publish parked until operator action. trusted permits unattended backend-owned drain only for manifests that pass existing trust validation.",
+    },
+{
+        "page": "Basic",
+        "section": "Routing",
+        "key": "PendingPublishDrainBatchSize",
+        "label": "Pending Publish Drain Batch Size",
+        "kind": "int",
+        "default": 100,
+        "help": "Maximum pending-publish manifests considered per normal or trusted deferred drain pass.",
+    },
 )

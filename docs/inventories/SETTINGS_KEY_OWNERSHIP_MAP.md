@@ -41,6 +41,8 @@ These keys have no structured WebView builder panel because they are auth secret
 | `Outsource` | **Critical** | Final output destination. Wrong path → outputs go to wrong location or fail. | Yes — output path readiness | `test_service_config_path_warnings.py` |
 | `LocalBase` | **Critical** | Scratch disk (LocalBase / working directory). Wrong path → pipeline fails to start. | Yes — scratch disk readiness | `test_service_config_path_warnings.py` |
 | `DeferredPublish` | **High** | When `true`, outputs are parked in `PendingServerPush` rather than moved immediately. Changing while parked outputs exist can cause drain confusion. | Yes — deferred publish policy visible in Launch handoff | `test_facade_pending_publish_policy.py`, `test_service_pending_publish_manifest.py` |
+| `PendingPublishDrainMode` | **High** | Deferred publish drain mode. Default `manual` preserves operator drain; `trusted` enables unattended backend-owned drain for trusted manifests only. | Diagnostics/Home read-only evidence only | `Invoke-PendingPublishSafetyChecks.ps1`, `Invoke-PipelineQueueEngineChecks.ps1` |
+| `PendingPublishDrainBatchSize` | Medium | Batch size for normal and trusted pending-publish drains. Too high can monopolize publish recovery; too low slows drain. | Diagnostics/Home read-only evidence only | `Invoke-PendingPublishSafetyChecks.ps1`, `Invoke-ConfigKeyRegistryChecks.ps1` |
 | `MinFreeSpaceGB` | **High** | Scratch disk free-space reserve (default 50 GB). Setting too low allows scratch to fill. | Yes — preflight safety row | `test_settings_risk_policy_rules.py` |
 | `OutsourceMinFreeSpaceGB` | **High** | Output destination free-space reserve. Setting too low allows destination to fill. | Yes — preflight safety row | `test_settings_risk_policy_rules.py` |
 | `EnableIntegrityCheck` | Medium | Pre-process media verification. Disabling speeds up processing but skips source file integrity probe. | Yes — integrity posture row | `test_service_config_validation.py` |
@@ -119,6 +121,7 @@ These keys have no structured WebView builder panel because they are auth secret
 | Key | Risk | Description | Launch handoff | Tests |
 |---|---|---|---|---|
 | `SubKeepLanguages` | **High** | Which subtitle languages are preserved in output. Wrong value silently drops subtitles. | Yes — subtitle language policy row | `test_service_config_option_policy.py` |
+| `AllowSubtitleHelperFallback` | **High** | Allows degraded startup if the ASS/SSA helper self-check fails. Default `false` blocks launch so broken subtitle conversion cannot silently continue unattended. | Diagnostics/Home read-only evidence only | `Invoke-PipelineQueueEngineChecks.ps1`, `Invoke-ConfigKeyRegistryChecks.ps1` |
 | `ConvertTx3gToSrt` | **High** | Whether TX3G (MP4 Timed Text) is converted to SRT. Affects subtitle output for MP4 sources. | Yes — TX3G policy row | `test_service_config_option_policy.py` |
 | `ConvertBdpgsToSrt` | **High** | Whether BDPGS (Blu-ray PGS) subtitles are OCR'd to SRT. Requires `BdpgsOcrToolPath` to be valid. | Yes — BDPGS policy row | `test_settings_risk_policy_rules.py` |
 | `DropTx3gAfterConversion` | Medium | Whether original TX3G track is removed after SRT conversion. | Yes — TX3G drop policy | `test_service_config_option_policy.py` |
@@ -133,7 +136,22 @@ These keys have no structured WebView builder panel because they are auth secret
 | Key | Risk | Description | Launch handoff | Tests |
 |---|---|---|---|---|
 | `LogRetentionDays` | Low | Log file rotation window (default 7 days). Low value causes older sessions to be deleted. | Not surfaced | `test_service_config_numeric_policy.py` |
+| `PipelineDebugLogMaxBytes` | Medium | Live `pipeline_debug.log` rotation cap (default 104857600 bytes). Prevents long unattended debug logs from growing without bound. | Diagnostics/Home read-only evidence only | `Invoke-LoggingJsonLineChecks.ps1`, `test_autonomy_health.py` |
+| `FailureArtifactWarningThresholdGB` | Low | WebView warning threshold for captured failure artifact storage (default 100 GB). `0` disables only the toast. | Home and Reports storage-health warning | `test_service_config_numeric_policy.py`, `test_application_facade_web_static.py` |
+| `FailureArtifactRetentionDays` | Medium | Age threshold for Reports failure artifact cleanup preview/delete. `0` disables age-based cleanup. Policy cleanup can use the current backend plan with strict confirmation. | Reports artifact cleanup panel | `test_service_config_numeric_policy.py`, `test_service_failure_markers.py` |
+| `FailureArtifactCleanupTargetGB` | Medium | Target-size threshold for Reports failure artifact cleanup preview/delete. `0` disables size-target cleanup. Policy cleanup can use the current backend plan with strict confirmation. | Reports artifact cleanup panel | `test_service_config_numeric_policy.py`, `test_service_failure_markers.py` |
 | `TransientFailureRetryLimit` | Medium | Retry count before a source is marked as failed (default 3). Low values → sources fail faster. | Not surfaced | `test_service_config_numeric_policy.py` |
+| `ConsecutiveRoundFailureBlockLimit` | Medium | Consecutive unexpected continuous-round failures before blocked probe-backoff evidence is emitted (default 12). | Diagnostics/Home read-only evidence only | `test_autonomy_health.py`, `Invoke-PipelineQueueEngineChecks.ps1` |
+| `ConsecutiveRoundFailureProbeBackoffSeconds` | Medium | Probe backoff after continuous round failures hit the block limit (default 900s). | Diagnostics/Home read-only evidence only | `test_autonomy_health.py`, `Invoke-PipelineQueueEngineChecks.ps1` |
+| `PendingPublishBacklogBlockThreshold` | **High** | Non-deferred pending-publish manifest count that blocks new queue work (default 100). | Diagnostics/Home read-only evidence only | `test_autonomy_health.py`, `Invoke-PendingPublishSafetyChecks.ps1` |
+| `PendingPublishDeferredBlockThreshold` | **High** | Deferred-publish manifest count that blocks new queue work (default 25). Pending publish remains manifest-backed and is not force-drained. | Diagnostics/Home read-only evidence only | `test_autonomy_health.py`, `Invoke-PendingPublishSafetyChecks.ps1` |
+| `PauseFlagReviewSeconds` | Medium | Pause-flag age that emits review health without auto-clearing the flag (default 1800s). | Diagnostics/Home read-only evidence only | `test_autonomy_health.py` |
+| `PauseFlagBlockSeconds` | Medium | Pause-flag age that blocks autonomy health without auto-clearing the flag (default 21600s). | Diagnostics/Home read-only evidence only | `test_autonomy_health.py` |
+| `LocalWorkerHeartbeatGraceSeconds` | **High** | Local worker heartbeat grace before a stale child slot can be reclaimed (default 900s). | Diagnostics/Home read-only evidence only | `test_autonomy_health.py`, `Invoke-PipelineQueueEngineChecks.ps1` |
+| `QueueExecutionMaxRunnablePerRound` | Medium | Cap for runnable queue rows processed in one round; later rows continue next round (default 500). | Diagnostics/Home read-only evidence only | `Invoke-PipelineQueueEngineChecks.ps1` |
+| `StateDbMaintenanceIntervalSeconds` | Low | Minimum interval for opportunistic SQLite mirror maintenance after successful mirror writes (default 21600s). JSON remains authoritative. | Diagnostics/Home read-only evidence only | `test_phase4_storage_observability.py` |
+| `StateDbWalReviewBytes` | Low | SQLite WAL size that triggers best-effort mirror maintenance/review evidence (default 33554432). JSON remains authoritative. | Diagnostics/Home read-only evidence only | `test_phase4_storage_observability.py`, `test_autonomy_health.py` |
+| `StateDbCompletedJobsMaxRows` | Low | Completed-job rows retained in SQLite mirror (default 250000). JSONL completed manifests remain authoritative and are not trimmed by this setting. | Diagnostics/Home read-only evidence only | `test_phase4_storage_observability.py`, `test_autonomy_health.py` |
 | `AllowSystemTools` | Medium | Allow PATH-based fallback for FFmpeg/mkvmerge. Enabling can use wrong tool versions. | Yes — system tools warning | `test_settings_risk_policy_rules.py` |
 | `MinPipelineVersion` | Medium | Version floor for reprocessing. Sources processed by an older version are requeued. | Not surfaced | `test_service_config_validation.py` |
 | `RobocopyTimeoutSeconds` | Medium | File transfer timeout (default 14400s = 4h). Low value kills in-progress transfers. | Not surfaced | `test_service_config_numeric_policy.py` |
@@ -165,8 +183,8 @@ The Launch and Schedule pages read these config values (via `GET /api/launch/pre
 | Route policy | `RoutingProfile`, `RouteThresholdMode`, `MovieRoute1080pTargetSizeGB`, `TVRoute1080pTargetSizeGB`, `Route1080pUpperHeightTolerancePercent`, `Route1080pMaxVideoBitrateMbps`, `Route4KLowerHeightTolerancePercent`, `Route4KMaxVideoBitrateMbps` |
 | Video codec / preset | `VideoCodec`, `EncoderBackend`, `VideoPreset`, `VideoQuality` |
 | Audio policy | `AudioPassthroughProfile`, `AudioTranscodeCodec`, `AudioDownmixMode`, `AllowNoAudio` |
-| Subtitle policy | `SubKeepLanguages`, `ConvertTx3gToSrt`, `ConvertBdpgsToSrt` |
-| Deferred publish posture | `DeferredPublish`, `OutsourceMinFreeSpaceGB` |
+| Subtitle policy | `SubKeepLanguages`, `AllowSubtitleHelperFallback`, `ConvertTx3gToSrt`, `ConvertBdpgsToSrt` |
+| Deferred publish posture | `DeferredPublish`, `PendingPublishDrainMode`, `PendingPublishDrainBatchSize`, `OutsourceMinFreeSpaceGB` |
 | Path readiness | `SourceMovies`, `SourceTV`, `Outsource`, `LocalBase` |
 | Watch folder posture | `EnableWatchFolders`, `WatchFolderRoots`, `WatchDebounceSeconds`, `WatchAction`, `WatchRespectScheduleWindow` |
 | Size guard posture | `SizeGuardMode`, `MaxEncodeGrowthPercent` |

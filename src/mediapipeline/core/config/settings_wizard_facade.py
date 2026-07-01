@@ -15,8 +15,8 @@ from mediapipeline.core.config.settings_wizard import (
     validate_wizard_paths,
     validate_worker_settings,
 )
-from mediapipeline.desktop.application.dto_commands import CommandResult
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.kernel.dto_commands import CommandResult
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 
 class SettingsWizardFacadeMixin:

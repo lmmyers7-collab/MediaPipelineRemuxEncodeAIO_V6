@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0630-018",
+  "title": "Long-run health and backpressure evidence",
+  "version_target": "2026.07.01.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-06-30",
+  "date_completed": "2026-07-01",
+  "summary": "Added read-only long-run reliability evidence to runtime counters, autonomy health, diagnostics payloads, and Home/Diagnostics UI surfaces.",
+  "reason": "A 30-day unattended run needs blocked health evidence for stalled rounds, stale pause flags, pending-publish backlog, stale worker slots, and state DB maintenance before those conditions silently accumulate.",
+  "affected_areas": [
+    "core"
+  ],
+  "behavior_before": "Runtime health exposed only the prior reliability counters and did not classify the new long-run blocker conditions requested for unattended operation.",
+  "behavior_after": "Runtime health carries additive reliability fields and autonomy health emits review/blocker codes without adding frontend-owned mutation or policy decisions.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/diagnosticsView.js",
+    "apps/desktop/webview/static/assets/progressView.js",
+    "docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md",
+    "docs/inventories/API_ROUTE_INVENTORY.md",
+    "docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0630-018.json",
+    "src/mediapipeline/core/diagnostics/autonomy_health.py",
+    "src/mediapipeline/core/diagnostics/facade.py",
+    "src/mediapipeline/core/kernel/dto_status.py",
+    "src/mediapipeline/core/status/facade.py",
+    "src/mediapipeline/core/status/runtime_health.py",
+    "src/mediapipeline/desktop/api/read_payloads_status.py",
+    "tests/python/desktop/test_autonomy_health.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_autonomy_health.py"
+  ],
+  "manual_validation": [
+    "python -m unittest tests.python.desktop.test_autonomy_health tests.python.desktop.test_service_process_kill tests.python.desktop.test_phase4_storage_observability -q - passed",
+    "python -m unittest tests.python.desktop.test_autonomy_health tests.python.desktop.test_service_process_kill tests.python.desktop.test_phase4_storage_observability tests.python.desktop.test_service_process_active_jobs tests.python.desktop.test_application_facade_snapshot tests.python.desktop.test_application_facade_local_api_http -q - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserHomeLiveStateSmoke.ps1 - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserPendingDrainGuardSmoke.ps1 - passed",
+    "mediapipeline.tools.dev.ai_guardrail postflight - passed",
+    "mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed"
+  ],
+  "rollback_plan": "Revert the additive runtime health/autonomy health/UI evidence changes and remove the matching tests and inventory notes; no persisted media state migration is required.",
+  "related_changes": [],
+  "notes": "Additive long-run runtime reliability counters and autonomy health evidence."
+}

@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from mediapipeline.core.kernel.dto_base import json_safe
-from mediapipeline.desktop.subprocess_runner import run_capture
+from mediapipeline.core.kernel.runtime.subprocess_runner import run_capture
 from mediapipeline.core.diagnostics.tdarr_matrix_proof import (
     tdarr_case_keys_for_pack,
     tdarr_expected_manifest_count,

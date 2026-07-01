@@ -139,6 +139,13 @@
   color: var(--grey-50);
 }
 
+.metric strong[data-mode="file"] {
+  display: block;
+  font-size: var(--text-lg);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
 .metric strong[data-state="ok"],
 .metric strong[data-state="ready"],
 .metric strong[data-state="completed"] {

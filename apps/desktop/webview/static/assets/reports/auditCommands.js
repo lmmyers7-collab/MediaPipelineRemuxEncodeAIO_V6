@@ -345,6 +345,22 @@
     return Date.now() - timestamp <= REPORT_AUDIT_BACKEND_ACTIVE_FRESH_MS;
   }
 
+  function reportAuditActiveWorkerRows(snapshot = {}) {
+    const rows = Array.isArray(snapshot?.worker_progress?.rows) ? snapshot.worker_progress.rows : [];
+    return rows.filter((row) => {
+      const kind = String(row?.job_kind || row?.kind || "").trim().replace(/-/g, "_").toLowerCase();
+      if (kind !== "audit") return false;
+      if (row?.stale === true) return false;
+      const state = String(row?.status_state || row?.status || "").toLowerCase();
+      const status = String(row?.status || row?.stage || "").toLowerCase();
+      return /running|active|launching|scanning/.test(`${state} ${status}`);
+    });
+  }
+
+  function reportAuditHasBackendActiveRunEvidence(snapshot = {}) {
+    return reportAuditActiveWorkerRows(snapshot).length > 0;
+  }
+
   function reportAuditSnapshotRunEvidence(snapshot = {}, { requireFresh = true } = {}) {
     if (!reportAuditProgressIsActive(snapshot)) return null;
     const fresh = reportAuditSnapshotIsFreshForUi(snapshot);
@@ -363,6 +379,22 @@
       result: null,
       request: null,
       stale: !fresh,
+      backendActive: reportAuditHasBackendActiveRunEvidence(snapshot),
+    };
+  }
+
+  function reportAuditStaleProgressEvidence(snapshot = {}) {
+    if (!reportAuditProgressIsActive(snapshot)) return null;
+    if (reportAuditProgressIsTerminal(snapshot)) return null;
+    if (reportAuditSnapshotIsFreshForUi(snapshot)) return null;
+    const timestamp = reportAuditSnapshotTimestampMs(snapshot);
+    if (!timestamp) return null;
+    const auditProgress = reportAuditProgressPayload(snapshot);
+    return {
+      elapsed: formatReportAuditElapsed(timestamp),
+      libraryRoot: auditProgress.library_root || auditProgress.LibraryRoot || "",
+      libraryRoots: Array.isArray(auditProgress.library_roots) ? auditProgress.library_roots : [],
+      timestamp,
     };
   }
 
@@ -373,7 +405,9 @@
       return accepted;
     }
     if (reportAuditProgressIsTerminal(snapshot || {})) return null;
-    return reportAuditSnapshotRunEvidence(snapshot || {}, { requireFresh: false });
+    return reportAuditSnapshotRunEvidence(snapshot || {}, {
+      requireFresh: !reportAuditHasBackendActiveRunEvidence(snapshot || {}),
+    });
   }
 
   function reportAuditSyntheticSnapshot(snapshot = {}) {
@@ -449,11 +483,15 @@
     const button = byId("report-audit-start-button");
     const stopButton = byId("report-audit-stop-button");
     const evidence = reportAuditCurrentRunEvidence(snapshot || {});
-    const disabled = reportsState.reportAuditStartBusy || Boolean(reportsState.reportAuditCommandBusy) || Boolean(evidence);
+    const hasSelectedSources = selectedReportAuditSourceRows().length > 0;
+    const disabled = reportsState.reportAuditStartBusy || Boolean(reportsState.reportAuditCommandBusy) || Boolean(evidence) || !hasSelectedSources;
     if (button) {
       button.disabled = disabled;
       button.setAttribute("aria-busy", String(Boolean(reportsState.reportAuditStartBusy || evidence)));
       button.textContent = evidence ? "Audit Running" : "Start Audit Selected";
+      button.title = hasSelectedSources
+        ? "Start an audit for the selected Locations table rows."
+        : "Select one or more Locations table rows before starting an audit.";
     }
     if (stopButton) {
       const stopBusy = reportsState.reportAuditCommandBusy === "audit.stop";
@@ -486,7 +524,7 @@
         ok: true,
         severity: "info",
         message: evidence.stale
-          ? "Audit progress is active but stale in the backend snapshot."
+          ? "Audit process evidence is active, but audit progress is stale in the backend snapshot."
           : "Audit progress is active in the backend snapshot.",
       };
       const request = evidence.request || collectReportAuditStartRequest();
@@ -504,6 +542,27 @@
       renderReportAuditProgressPanel(snapshot || {});
       ensureReportAuditTimer();
     } else {
+      const staleProgress = reportAuditStaleProgressEvidence(snapshot || {});
+      if (staleProgress) {
+        setText("report-audit-launch-status", `Review ${staleProgress.elapsed}`);
+        const result = {
+          command: "audit.status",
+          ok: true,
+          severity: "warning",
+          message: "Audit progress is stale and no active audit process is visible in the backend snapshot.",
+        };
+        const request = collectReportAuditStartRequest();
+        setText("report-audit-launch-detail", [
+          formatReportAuditCommandDetail(result, request),
+          "",
+          "Running indicator: stale progress only",
+          `Last progress update age: ${staleProgress.elapsed}`,
+          `Locations: ${(staleProgress.libraryRoots || []).length || 1}`,
+          `Primary location: ${staleProgress.libraryRoot || request.library_root || "(backend configured Outsource fallback)"}`,
+          "Stop Audit is unavailable until backend active-run evidence appears.",
+          "Safe action: refresh Reports, inspect ActiveJobs if close-readiness blocks, or start a new audit when ready.",
+        ].join("\n"));
+      }
       stopReportAuditTimerIfIdle(snapshot || {});
     }
     updateReportAuditStartButtonState(snapshot || {});
@@ -558,8 +617,7 @@
     const selectedRows = selectedReportAuditSourceRows();
     const selectedRoots = selectedRows.map((row) => reportAuditLocationText(row.path)).filter(Boolean);
     const sourceIds = selectedRows.map(reportAuditSourceId).filter(Boolean);
-    const typedRoot = String(byId("report-audit-start-library-root")?.value || "").trim();
-    const libraryRoots = selectedRoots.length ? selectedRoots : (typedRoot ? [typedRoot] : []);
+    const libraryRoots = selectedRoots;
     return {
       library_root: libraryRoots[0] || "",
       library_roots: libraryRoots,
@@ -571,14 +629,20 @@
 
   function reportAuditLaunchPreflightLines(request = collectReportAuditStartRequest()) {
     const roots = Array.isArray(request.library_roots) ? request.library_roots.filter(Boolean) : [];
+    const typedRoot = reportAuditLocationText(byId("report-audit-start-library-root")?.value);
+    const typedRootIsSelected = Boolean(typedRoot && roots.some((root) => reportAuditLocationKey(root) === reportAuditLocationKey(typedRoot)));
     const lines = [
       "Reports audit start request:",
-      `Selected locations: ${roots.length || (request.library_root ? 1 : 0)}`,
-      `Primary location: ${request.library_root || "(backend configured Outsource fallback)"}`,
+      `Selected table locations: ${roots.length}`,
+      typedRoot
+        ? `Typed location: ${typedRoot}${typedRootIsSelected ? "" : " (not in the table selection)"}`
+        : "Typed location: none",
+      `Primary location: ${request.library_root || "(none selected)"}`,
       `Include sidecars: ${request.include_sidecars ? "yes" : "no"}`,
       `Show console: ${request.show_console ? "yes" : "no"}`,
       ...roots.slice(0, 5).map((root, index) => `Location ${index + 1}: ${root}`),
       ...(roots.length > 5 ? [`Additional locations: ${roots.length - 5}`] : []),
+      ...(!roots.length ? ["Add Source to put the typed location in the Locations table, then select it before starting an audit."] : []),
       "Readiness preview: informational only; this is not a backend dry-run.",
       "Boundary: Reports submits /api/audit/start only after confirmation. Backend launch locking, config identity, duplicate-audit detection, and audit/pipeline concurrency policy remain authoritative.",
       "Concurrency: an active backend pipeline does not by itself block audit start; an active audit or CSV rerun still blocks this request.",
@@ -588,6 +652,7 @@
 
   function renderReportAuditLaunchPreflight(request = collectReportAuditStartRequest()) {
     setText("report-audit-launch-preflight", reportAuditLaunchPreflightLines(request).join("\n"));
+    updateReportAuditStartButtonState();
   }
 
   function renderReportAuditSourceCommandResult(result, request) {
@@ -777,7 +842,20 @@
     }
     const request = collectReportAuditStartRequest();
     renderReportAuditLaunchPreflight(request);
-    const rootCount = Array.isArray(request.library_roots) && request.library_roots.length ? request.library_roots.length : 1;
+    const rootCount = Array.isArray(request.library_roots) ? request.library_roots.length : 0;
+    if (!rootCount) {
+      const result = {
+        command: "audit.start",
+        ok: false,
+        severity: "warning",
+        message: "Select one or more locations in the Locations table before starting an audit. Use Add Source to create a table row from the typed Location to Scan.",
+      };
+      appendReportAuditCommandResult(result);
+      setText("report-audit-launch-status", "Select location");
+      setText("report-audit-launch-detail", formatReportAuditCommandDetail(result, request));
+      updateReportAuditStartButtonState();
+      return;
+    }
     if (!window.confirm(`Start audit for ${rootCount} location${rootCount === 1 ? "" : "s"} from Reports?`)) {
       const result = {
         command: "audit.start",

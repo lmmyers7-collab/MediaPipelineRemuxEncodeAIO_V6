@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+import json
+import os
 import sys
 import tempfile
 import threading
@@ -12,7 +15,17 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
-from mediapipeline.desktop.network.worker_state import atomic_write_text, load_worker_state, save_worker_state
+from mediapipeline.core.status.runtime_health import runtime_reliability_counters
+from mediapipeline.desktop.network.worker_state import (
+    atomic_write_text,
+    iter_pending_done_report_files,
+    load_pending_done_report,
+    load_worker_state,
+    pending_done_reports_review_dir,
+    queue_pending_done_report,
+    save_worker_state,
+    worker_state_backup_path,
+)
 from mediapipeline.desktop.network.worker import WorkerDispatcher, _atomic_write_text
 
 
@@ -77,6 +90,36 @@ class NetworkWorkerStateTests(unittest.TestCase):
 
             self.assertEqual(state["pending_done_report"], pending)
 
+    def test_runtime_health_reports_pending_done_oldest_age_and_blocked_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            state_root = root / "State"
+            app_state = state_root / "App"
+            queued_dir = app_state / "pending_done_reports"
+            queued_dir.mkdir(parents=True)
+            now = datetime(2026, 6, 18, 12, 0, tzinfo=timezone.utc)
+            report_path = queued_dir / "job-1.json"
+            report_path.write_text(json.dumps({"job_id": "job-1", "success": True}), encoding="utf-8")
+            old_mtime = (now - timedelta(hours=3)).timestamp()
+            os.utime(report_path, (old_mtime, old_mtime))
+            resolved = SimpleNamespace(
+                state_root=state_root,
+                app_state_path=app_state / "worker_state.json",
+                progress_file=state_root / "Progress" / "pipeline_progress.json",
+                pending_push_path=state_root / "PendingServerPush",
+                active_jobs_path=state_root / "ActiveJobs",
+                log_file=root / "LocalBase" / "pipeline_debug.log",
+                config_data={},
+            )
+
+            counters = runtime_reliability_counters(resolved, now=now)
+
+        reports = counters["worker_pending_reports"]
+        self.assertEqual(reports["pending_report_count"], 1)
+        self.assertEqual(reports["oldest_pending_report_age_seconds"], 10800)
+        self.assertTrue(reports["blocked"])
+        self.assertEqual(reports["block_reason"], "pending_done_reports_present")
+
     def test_pending_done_report_save_failure_updates_status_and_cluster_log(self) -> None:
         worker = WorkerDispatcher.__new__(WorkerDispatcher)
         worker._state_path = Path("worker_state.json")
@@ -88,7 +131,7 @@ class NetworkWorkerStateTests(unittest.TestCase):
         payload = {"job_id": "job-1", "worker_id": "worker-1", "success": True}
 
         with (
-            patch("mediapipeline.desktop.network.worker_state.save_worker_state", side_effect=OSError("disk full")),
+            patch("mediapipeline.desktop.network.worker_state.queue_pending_done_report", side_effect=OSError("disk full")),
             self.assertLogs("mediapipeline.desktop.network.worker", level="WARNING") as logs,
         ):
             saved = WorkerDispatcher._save_pending_done_report(worker, job, payload)  # type: ignore[arg-type]
@@ -106,8 +149,24 @@ class NetworkWorkerStateTests(unittest.TestCase):
             path = Path(td) / "worker_state.json"
             path.write_text('{"job_id": "job-1", "source_path": NaN}', encoding="utf-8")
 
-            with self.assertRaisesRegex(ValueError, "non-finite JSON value is not allowed"):
+            with self.assertRaisesRegex(ValueError, "worker_state.json was corrupt and quarantined"):
                 load_worker_state(path)
+
+            self.assertFalse(path.exists())
+
+    def test_worker_state_load_recovers_corrupt_main_from_backup(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "worker_state.json"
+            backup = worker_state_backup_path(path)
+            backup.write_text('{"job_id": "job-backup", "source_path": "C:/Media/backup.mkv"}', encoding="utf-8")
+            path.write_text("{not json", encoding="utf-8")
+
+            state = load_worker_state(path)
+
+            self.assertEqual(state["job_id"], "job-backup")
+            self.assertEqual(load_worker_state(path)["job_id"], "job-backup")
+            quarantined = list((path.parent / "worker_state_review").glob("*.json"))
+            self.assertEqual(len(quarantined), 1)
 
     def test_worker_state_rejects_nonfinite_pending_done_json(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -232,6 +291,48 @@ class WorkerPendingDoneFlushTests(unittest.TestCase):
             self.assertFalse(path.exists())
             self.assertEqual(events[0]["event"], "pending_done_recovered")
 
+    def test_save_pending_done_report_queues_report_and_clears_active_state(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "worker_state.json"
+            save_worker_state(path, job_id="job-1", source_path=r"C:\Media\movie.mkv")
+            worker = self._make_worker(path, [], [])
+            job = SimpleNamespace(job_id="job-1", record=SimpleNamespace(source_path=r"C:\Media\movie.mkv"))
+            payload = {"job_id": "job-1", "worker_id": "worker-1", "success": True}
+
+            self.assertTrue(WorkerDispatcher._save_pending_done_report(worker, job, payload))  # type: ignore[arg-type]
+
+            self.assertFalse(path.exists())
+            queued = iter_pending_done_report_files(path)
+            self.assertEqual(len(queued), 1)
+            queued_payload = load_pending_done_report(queued[0])
+            self.assertEqual(queued_payload["job_id"], "job-1")
+            self.assertEqual(queued_payload["source_path"], r"C:\Media\movie.mkv")
+            self.assertEqual(queued_payload["schema_version"], "worker_pending_done_report.v1")
+            self.assertTrue(queued_payload["queued_utc"])
+
+    def test_flush_delivers_queued_reports_and_strips_queue_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "worker_state.json"
+            queue_pending_done_report(
+                path,
+                job_id="job-1",
+                source_path=r"C:\Media\movie.mkv",
+                pending_done_report={"job_id": "job-1", "worker_id": "worker-1", "success": True},
+            )
+            posts: list[tuple[str, dict]] = []
+            events: list[dict] = []
+            worker = self._make_worker(path, posts, events)
+
+            self.assertTrue(WorkerDispatcher._flush_pending_done_report(worker))
+
+            self.assertEqual(len(posts), 1)
+            self.assertEqual(posts[0][0], "/api/done")
+            self.assertEqual(posts[0][1]["job_id"], "job-1")
+            self.assertNotIn("schema_version", posts[0][1])
+            self.assertNotIn("queued_utc", posts[0][1])
+            self.assertEqual(iter_pending_done_report_files(path), [])
+            self.assertEqual(events[0]["event"], "pending_done_recovered")
+
     def test_flush_holds_claims_while_delivery_fails(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "worker_state.json"
@@ -251,7 +352,7 @@ class WorkerPendingDoneFlushTests(unittest.TestCase):
             self.assertTrue(path.exists())
             self.assertIn("holding new claims", "\n".join(logs.output))
 
-    def test_flush_holds_pending_report_unknown_to_coordinator(self) -> None:
+    def test_flush_quarantines_legacy_pending_report_unknown_to_coordinator(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "worker_state.json"
             save_worker_state(
@@ -265,10 +366,33 @@ class WorkerPendingDoneFlushTests(unittest.TestCase):
             )
 
             with self.assertLogs("mediapipeline.desktop.network.worker", level="WARNING") as logs:
-                self.assertFalse(WorkerDispatcher._flush_pending_done_report(worker))
+                self.assertTrue(WorkerDispatcher._flush_pending_done_report(worker))
 
-            self.assertTrue(path.exists())
-            self.assertIn("holding new claims", "\n".join(logs.output))
+            self.assertFalse(path.exists())
+            review_files = list(pending_done_reports_review_dir(path).glob("*.json"))
+            self.assertEqual(len(review_files), 1)
+            self.assertIn("quarantined for review and continuing claims", "\n".join(logs.output))
+
+    def test_flush_quarantines_queued_pending_report_unknown_to_coordinator(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "worker_state.json"
+            queue_pending_done_report(
+                path,
+                job_id="job-1",
+                source_path=r"C:\Media\movie.mkv",
+                pending_done_report={"job_id": "job-1", "worker_id": "worker-1", "success": True},
+            )
+            worker = self._make_worker(
+                path, [], [], post_error=RuntimeError("HTTP 404 from http://x/api/done: not found"),
+            )
+
+            with self.assertLogs("mediapipeline.desktop.network.worker", level="WARNING") as logs:
+                self.assertTrue(WorkerDispatcher._flush_pending_done_report(worker))
+
+            self.assertEqual(iter_pending_done_report_files(path), [])
+            review_files = list(pending_done_reports_review_dir(path).glob("*.json"))
+            self.assertEqual(len(review_files), 1)
+            self.assertIn("unknown to coordinator; quarantined for review and continuing claims", "\n".join(logs.output))
 
     def test_flush_clears_pending_report_after_late_recorded_response(self) -> None:
         with tempfile.TemporaryDirectory() as td:

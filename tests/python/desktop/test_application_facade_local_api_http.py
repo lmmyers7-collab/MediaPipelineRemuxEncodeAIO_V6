@@ -23,6 +23,8 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.core.api.commands_process import LocalApiProcessCommandPayloadMixin
+from mediapipeline.core.failures.cleanup_service import FailureCleanupServiceMixin
+from mediapipeline.core.paths.layout import path_within_root
 from mediapipeline.desktop.api.handler import build_local_api_handler_class
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.local_api_main import BOOTSTRAP_SCHEMA_VERSION, bootstrap_payload, build_backend, main as local_api_main
@@ -304,6 +306,153 @@ class LocalApiHttpTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertEqual(commands_status, 200)
         self.assertEqual(commands["entries"], [])
 
+    def test_failure_artifacts_route_is_authenticated_read_only_and_not_journaled(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+            resolved.config_data = {"FailureArtifactWarningThresholdGB": 0.000001}
+            artifacts = resolved.state_root / "Failures" / "Artifacts"
+            artifacts.mkdir(parents=True)
+            artifact = artifacts / "failed-output.mkv"
+            artifact.write_bytes(b"x" * 2048)
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
+            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved)
+            try:
+                server.start()
+                denied_status, denied = self._get_json(f"{server.url}/api/failures/artifacts")
+                status, payload = self._get_json(f"{server.url}/api/failures/artifacts", token="test-token")
+                commands_status, commands = self._get_json(f"{server.url}/api/commands?limit=10", token="test-token")
+                artifact_size_after = artifact.stat().st_size
+            finally:
+                server.stop()
+
+        self.assertEqual(denied_status, 401)
+        self.assertEqual(denied["error"], "unauthorized")
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["schema_version"], "failure_artifact_summary.v1")
+        self.assertEqual(payload["evidence_authority"], "backend")
+        self.assertEqual(payload["total_bytes"], 2048)
+        self.assertEqual(payload["file_count"], 1)
+        self.assertEqual(payload["largest_files"][0]["name"], "failed-output.mkv")
+        self.assertTrue(payload["warning"])
+        self.assertEqual(payload["touches_media"], False)
+        self.assertEqual(payload["cleanup_route_available"], True)
+        self.assertEqual(commands_status, 200)
+        self.assertEqual(commands["entries"], [])
+        self.assertEqual(artifact_size_after, 2048)
+
+    def test_failure_artifact_cleanup_route_previews_and_deletes_only_confirmed_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+            resolved.failed_markers_path = resolved.state_root / "Failures" / "Markers"
+            resolved.failed_reports_path = resolved.state_root / "Failures" / "Reports"
+            resolved.config_data = {"FailureArtifactRetentionDays": 1}
+            artifacts = resolved.state_root / "Failures" / "Artifacts"
+            artifacts.mkdir(parents=True)
+            old_artifact = artifacts / "old-artifact.mkv"
+            recent_artifact = artifacts / "recent-artifact.mkv"
+            old_artifact.write_bytes(b"x" * 128)
+            recent_artifact.write_bytes(b"y" * 256)
+            os.utime(old_artifact, (1_700_000_000, 1_700_000_000))
+            os.utime(recent_artifact, (int(time.time()), int(time.time())))
+            marker = resolved.failed_markers_path / "marker-1.json"
+            report = resolved.failed_reports_path / "round_failures_1.json"
+            media = root / "Movie.mkv"
+            marker.parent.mkdir(parents=True)
+            report.parent.mkdir(parents=True)
+            marker.write_text("{}", encoding="utf-8")
+            report.write_text("[]", encoding="utf-8")
+            media.write_bytes(b"media")
+            facade = MediaPipelineApplicationFacade(_FailureArtifactCleanupRouteService(root), app_version="v6-test")
+            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved)
+            try:
+                server.start()
+                denied_status, denied = self._post_json(
+                    f"{server.url}/api/failures/artifacts/cleanup",
+                    {"dry_run": True},
+                )
+                preview_status, preview = self._post_json(
+                    f"{server.url}/api/failures/artifacts/cleanup",
+                    {"dry_run": True, "confirm_delete": False},
+                    token="test-token",
+                )
+                confirm_status, confirmed = self._post_json(
+                    f"{server.url}/api/failures/artifacts/cleanup",
+                    {
+                        "dry_run": False,
+                        "confirm_delete": True,
+                    },
+                    token="test-token",
+                )
+                selected_preview_status, selected_preview = self._post_json(
+                    f"{server.url}/api/failures/artifacts/cleanup",
+                    {
+                        "dry_run": True,
+                        "confirm_delete": False,
+                        "artifact_paths": [str(recent_artifact)],
+                    },
+                    token="test-token",
+                )
+                selected_confirm_status, selected_confirmed = self._post_json(
+                    f"{server.url}/api/failures/artifacts/cleanup",
+                    {
+                        "dry_run": False,
+                        "confirm_delete": True,
+                        "dry_run_fingerprint": selected_preview["data"]["dry_run_fingerprint"],
+                        "reason": "operator selected failure artifact",
+                        "artifact_paths": [str(recent_artifact)],
+                    },
+                    token="test-token",
+                )
+            finally:
+                server.stop()
+
+            self.assertFalse(old_artifact.exists())
+            self.assertFalse(recent_artifact.exists())
+            self.assertTrue(marker.exists())
+            self.assertTrue(report.exists())
+            self.assertTrue(media.exists())
+            manifest_exists = Path(confirmed["data"]["manifest_path"]).exists()
+            selected_manifest_exists = Path(selected_confirmed["data"]["manifest_path"]).exists()
+
+        self.assertEqual(denied_status, 401)
+        self.assertEqual(denied["error"], "unauthorized")
+        self.assertEqual(preview_status, 200)
+        self.assertTrue(preview["ok"])
+        self.assertTrue(preview["data"]["dry_run"])
+        self.assertEqual(preview["data"]["planned_count"], 1)
+        self.assertTrue(preview["data"]["dry_run_fingerprint"])
+        self.assertEqual(preview["data"]["touches_media"], False)
+        self.assertEqual(preview["data"]["source_media_mutation"], False)
+        self.assertEqual(confirm_status, 200)
+        self.assertTrue(confirmed["ok"])
+        self.assertEqual(confirmed["data"]["deleted_count"], 1)
+        self.assertEqual(confirmed["data"]["deleted_bytes"], 128)
+        self.assertTrue(confirmed["data"]["writes_failure_artifacts"])
+        self.assertEqual(confirmed["data"]["confirmation_mode"], "current_plan")
+        self.assertEqual(confirmed["data"]["touches_media"], False)
+        self.assertEqual(confirmed["data"]["source_media_mutation"], False)
+        self.assertTrue(manifest_exists)
+        self.assertEqual(selected_preview_status, 200)
+        self.assertTrue(selected_preview["ok"])
+        self.assertEqual(selected_preview["data"]["planned_count"], 1)
+        self.assertEqual(selected_preview["data"]["planned"][0]["name"], "recent-artifact.mkv")
+        self.assertEqual(selected_preview["data"]["requested_artifact_paths"], [str(recent_artifact)])
+        self.assertTrue(selected_preview["data"]["policy"]["selection_enabled"])
+        self.assertEqual(selected_confirm_status, 200)
+        self.assertTrue(selected_confirmed["ok"])
+        self.assertEqual(selected_confirmed["data"]["deleted_count"], 1)
+        self.assertEqual(selected_confirmed["data"]["deleted_bytes"], 256)
+        self.assertTrue(selected_confirmed["data"]["writes_failure_artifacts"])
+        self.assertEqual(selected_confirmed["data"]["touches_media"], False)
+        self.assertEqual(selected_confirmed["data"]["source_media_mutation"], False)
+        self.assertTrue(selected_manifest_exists)
+
     def test_local_api_health_is_public_and_snapshot_requires_token(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -351,6 +500,7 @@ class LocalApiHttpTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertEqual(health_status, 200)
         self.assertEqual(health["app_version"], "v6-test")
         self.assertIn("command-history", health["capabilities"])
+        self.assertNotIn("long_run_reliability", health)
         self.assertEqual(health["startup_progress"]["schema_version"], "desktop_startup_progress.v1")
         self.assertEqual(health["startup_progress"]["status"], "complete")
         self.assertEqual(contract_denied_status, 401)
@@ -363,6 +513,9 @@ class LocalApiHttpTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertIn("/api/backend/close-readiness", contract["auth"]["token_routes"])
         self.assertIn("/api/launch/preflight", contract["auth"]["token_routes"])
         self.assertIn("/api/commands", contract["auth"]["token_routes"])
+        self.assertIn("/api/failures/artifacts", contract["auth"]["token_routes"])
+        self.assertIn("/api/failures/open", contract["auth"]["token_routes"])
+        self.assertIn("/api/failures/artifacts/cleanup", contract["auth"]["token_routes"])
         self.assertIn("/api/network/workers", contract["auth"]["token_routes"])
         self.assertIn("/api/network/worker/test-connection", contract["auth"]["token_routes"])
         self.assertIn("/api/audit-controls", contract["auth"]["token_routes"])
@@ -425,6 +578,9 @@ class LocalApiHttpTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertEqual(paths_by_effect["/api/completed/reconcile-manifest-dry-run"], "none")
         self.assertEqual(paths_by_effect["/api/completed/repair-sidecar-metadata-dry-run"], "none")
         self.assertEqual(paths_by_effect["/api/failures"], "none")
+        self.assertEqual(paths_by_effect["/api/failures/artifacts"], "none")
+        self.assertEqual(paths_by_effect["/api/failures/open"], "shell-open")
+        self.assertEqual(paths_by_effect["/api/failures/artifacts/cleanup"], "failure-artifact-delete")
         self.assertEqual(paths_by_effect["/api/audit-results"], "none")
         self.assertEqual(paths_by_effect["/api/audit-controls"], "none")
         self.assertEqual(paths_by_effect["/api/audit/score-policy"], "audit-state-write")
@@ -494,6 +650,7 @@ class LocalApiHttpTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertEqual(snapshot_status, 200)
         self.assertEqual(snapshot["schema_version"], "desktop_app_snapshot.v1")
         self.assertEqual(snapshot["pipeline_state"], "processing")
+        self.assertEqual(snapshot["counts"]["long_run_reliability"]["schema_version"], "desktop_runtime_reliability_counters.v1")
         self.assertEqual(snapshot["current_work"]["schema_version"], "desktop_current_work.v1")
         self.assertEqual(snapshot["worker_progress"]["schema_version"], "desktop_worker_progress.v1")
         self.assertTrue(snapshot["worker_progress"]["read_only"])
@@ -543,6 +700,11 @@ class LocalApiHttpTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertEqual(shutdown["data"]["safe_to_close"], False)
         self.assertEqual(shutdown["data"]["state"], "processing")
         self.assertFalse(shutdown_event.wait(0.2))
+
+
+class _FailureArtifactCleanupRouteService(DummyFacadeService, FailureCleanupServiceMixin):
+    def _path_within_root(self, path: Path, root: Path) -> bool:
+        return path_within_root(path, root)
 
 
 if __name__ == "__main__":

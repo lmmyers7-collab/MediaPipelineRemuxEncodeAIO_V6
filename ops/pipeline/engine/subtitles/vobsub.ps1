@@ -325,6 +325,92 @@ function New-VobSubFailureRecord {
     }
 }
 
+function Get-VobSubToolResultText {
+    param($Result)
+
+    if ($null -eq $Result) { return '' }
+    foreach ($name in @('Error', 'Stderr', 'Output', 'Stdout')) {
+        $value = $null
+        if ($Result -is [System.Collections.IDictionary] -and $Result.Contains($name)) {
+            $value = $Result[$name]
+        } elseif ($Result.PSObject.Properties[$name]) {
+            $value = $Result.$name
+        }
+        $text = if ($null -eq $value) { '' } else { [string]$value }
+        if (-not [string]::IsNullOrWhiteSpace($text)) { return $text }
+    }
+    return ''
+}
+
+function Get-VobSubToolFailureSummary {
+    param(
+        $Result,
+        [Parameter(Mandatory)] [string]$ToolName
+    )
+
+    $text = Get-VobSubToolResultText -Result $Result
+    if (-not [string]::IsNullOrWhiteSpace($text)) {
+        $normalized = ([string]$text) -replace "`r", "`n"
+        if (Get-Command -Name Get-ErrorTextSummary -ErrorAction SilentlyContinue) {
+            $summary = Get-ErrorTextSummary -ErrorText $normalized
+            if (-not [string]::IsNullOrWhiteSpace($summary)) { return $summary }
+        }
+        return $normalized.Trim()
+    }
+
+    $exitCode = if ($Result -and $Result.PSObject.Properties['ExitCode']) { [int]$Result.ExitCode } else { 1 }
+    return "$ToolName exited $exitCode"
+}
+
+function Convert-VobSubMp4StreamToTemporaryMatroska {
+    param(
+        [Parameter(Mandatory)] [string]$SourceFile,
+        [Parameter(Mandatory)] [hashtable]$StreamInfo,
+        [int]$StreamIndex = -1,
+        [string]$Context = ''
+    )
+
+    if ($StreamIndex -lt 0 -and $StreamInfo -and $StreamInfo.Stream) { $StreamIndex = [int]$StreamInfo.Stream.index }
+    if ($StreamIndex -lt 0) {
+        $reason = 'VobSub stream index is not available for MP4 staging'
+        return [pscustomobject]@{ Ok = $false; SourceFile = ''; TempFiles = @(); Reason = $reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_VOBSUB_EXTRACT_FAILED') }
+    }
+
+    $processingRoot = if (Get-Variable -Name processingDir -Scope Script -ErrorAction SilentlyContinue) { [string]$script:processingDir } else { [System.IO.Path]::GetTempPath() }
+    if ([string]::IsNullOrWhiteSpace($processingRoot)) { $processingRoot = [System.IO.Path]::GetTempPath() }
+    $stagedMkv = Join-Path $processingRoot "sub_vobsub_mp4_$([guid]::NewGuid().ToString('N')).mkv"
+    $ffArgs = @(
+        '-v', 'error',
+        '-y',
+        '-i', $SourceFile,
+        '-map', "0:$StreamIndex",
+        '-c:s', 'copy',
+        '-f', 'matroska',
+        $stagedMkv
+    )
+
+    try {
+        Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $StreamIndex -Stage 'extract' -Status 'Staging MP4 VobSub as Matroska' -StepIndex 1 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail ([System.IO.Path]::GetFileName($SourceFile))
+        $timeoutSeconds = Get-SubtitleOperationTimeoutSeconds -ScriptVariableName 'SubtitleExtractTimeoutSeconds' -DefaultSeconds 180
+        $result = Invoke-FFmpegCommand -ArgumentList $ffArgs -TimeoutSeconds $timeoutSeconds -Stage 'subtitle-vobsub-mp4-stage' -SaveReproOnFailure
+        if ($result.ExitCode -ne 0) {
+            $reason = if ($result.Error) { Get-ErrorTextSummary -ErrorText $result.Error } else { "ffmpeg exited $($result.ExitCode) while staging MP4 VobSub" }
+            Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $StreamIndex -Stage 'extract' -Status 'MP4 VobSub staging failed' -StepIndex 1 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $reason -Failed
+            return [pscustomobject]@{ Ok = $false; SourceFile = $stagedMkv; TempFiles = @($stagedMkv); Reason = $reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_VOBSUB_EXTRACT_FAILED' -ReproPath $result.ReproPath -ErrorText $result.Error) }
+        }
+        if (-not (Test-Path -LiteralPath $stagedMkv -PathType Leaf -ErrorAction SilentlyContinue) -or (Get-Item -LiteralPath $stagedMkv -ErrorAction SilentlyContinue).Length -le 0) {
+            $reason = 'MP4 VobSub staging produced no temporary Matroska output'
+            Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $StreamIndex -Stage 'extract' -Status 'MP4 VobSub staging failed' -StepIndex 1 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $reason -Failed
+            return [pscustomobject]@{ Ok = $false; SourceFile = $stagedMkv; TempFiles = @($stagedMkv); Reason = $reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_VOBSUB_EXTRACT_FAILED') }
+        }
+        return [pscustomobject]@{ Ok = $true; SourceFile = $stagedMkv; TempFiles = @($stagedMkv); Reason = 'ok'; Failure = $null }
+    } catch {
+        $reason = "MP4 VobSub staging error: $($_.Exception.Message)"
+        Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $StreamIndex -Stage 'extract' -Status 'MP4 VobSub staging failed' -StepIndex 1 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $reason -Failed
+        return [pscustomobject]@{ Ok = $false; SourceFile = $stagedMkv; TempFiles = @($stagedMkv); Reason = $reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_VOBSUB_EXTRACT_FAILED') }
+    }
+}
+
 function ConvertTo-VobSubEmbeddedSrtTrackRecords {
     param([array] $VobSubTracks)
 
@@ -603,7 +689,14 @@ function Extract-VobSubToIdxSub {
     }
 
     $sourceExt = [System.IO.Path]::GetExtension($SourceFile).TrimStart('.').ToLowerInvariant()
-    if ($sourceExt -notin (Get-MediaContainerMatroskaFamilyNames)) {
+    $extractSourceFile = $SourceFile
+    $extractTempFiles = @()
+    if ($sourceExt -in (Get-MediaContainerMp4FamilyNames)) {
+        $staged = Convert-VobSubMp4StreamToTemporaryMatroska -SourceFile $SourceFile -StreamInfo $StreamInfo -StreamIndex $streamIndex -Context $Context
+        if (-not $staged.Ok) { return $staged }
+        $extractSourceFile = [string]$staged.SourceFile
+        $extractTempFiles = @($staged.TempFiles)
+    } elseif ($sourceExt -notin (Get-MediaContainerMatroskaFamilyNames)) {
         $reason = "Embedded VobSub extraction is currently supported only for Matroska-family inputs; source extension is .$sourceExt"
         return [pscustomobject]@{ Ok = $false; IdxPath = ''; SubPath = ''; TempFiles = @(); Reason = $reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_VOBSUB_EXTRACT_UNSUPPORTED_CONTAINER') }
     }
@@ -613,35 +706,37 @@ function Extract-VobSubToIdxSub {
         return [pscustomobject]@{ Ok = $false; IdxPath = ''; SubPath = ''; TempFiles = @(); Reason = $mkvextract.Reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $mkvextract.Reason -ErrorCode 'SUBTITLE_VOBSUB_EXTRACT_TOOL_MISSING') }
     }
 
-    $trackId = Resolve-VobSubMkvTrackId -SourceFile $SourceFile -StreamInfo $StreamInfo -Context $Context
+    $trackId = Resolve-VobSubMkvTrackId -SourceFile $extractSourceFile -StreamInfo $StreamInfo -Context $Context
     if (-not $trackId.Ok) {
-        return [pscustomobject]@{ Ok = $false; IdxPath = ''; SubPath = ''; TempFiles = @(); Reason = $trackId.Reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $trackId.Reason -ErrorCode 'SUBTITLE_VOBSUB_EXTRACT_FAILED' -ReproPath $trackId.ReproPath -ErrorText $trackId.ErrorText) }
+        return [pscustomobject]@{ Ok = $false; IdxPath = ''; SubPath = ''; TempFiles = @($extractTempFiles); Reason = $trackId.Reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $trackId.Reason -ErrorCode 'SUBTITLE_VOBSUB_EXTRACT_FAILED' -ReproPath $trackId.ReproPath -ErrorText $trackId.ErrorText) }
     }
 
     $idxPath = Join-Path $script:processingDir "sub_vobsub_$([guid]::NewGuid().ToString('N')).idx"
     $subPath = [System.IO.Path]::ChangeExtension($idxPath, '.sub')
-    $args = @('tracks', $SourceFile, ('{0}:{1}' -f $trackId.TrackId, $idxPath))
+    $args = @('tracks', $extractSourceFile, ('{0}:{1}' -f $trackId.TrackId, $idxPath))
+    $tempFiles = @($extractTempFiles) + @($idxPath, $subPath)
 
     try {
         Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $streamIndex -Stage 'extract' -Status 'Extracting VobSub IDX/SUB' -StepIndex 1 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail ([System.IO.Path]::GetFileName($SourceFile))
         $timeoutSeconds = Get-SubtitleOperationTimeoutSeconds -ScriptVariableName 'SubtitleExtractTimeoutSeconds' -DefaultSeconds 180
         $result = Invoke-MkvextractCommand -FilePath $mkvextract.FilePath -ArgumentList $args -TimeoutSeconds $timeoutSeconds -Stage 'subtitle-vobsub-extract' -SaveReproOnFailure
         if ($result.ExitCode -ne 0) {
-            $reason = if ($result.Error) { Get-ErrorTextSummary -ErrorText $result.Error } else { "mkvextract exited $($result.ExitCode)" }
+            $toolText = Get-VobSubToolResultText -Result $result
+            $reason = Get-VobSubToolFailureSummary -Result $result -ToolName 'mkvextract'
             Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $streamIndex -Stage 'extract' -Status 'VobSub extraction failed' -StepIndex 1 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $reason -Failed
-            return [pscustomobject]@{ Ok = $false; IdxPath = $idxPath; SubPath = $subPath; TempFiles = @($idxPath, $subPath); Reason = $reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_VOBSUB_EXTRACT_FAILED' -ReproPath $result.ReproPath -ErrorText $result.Error) }
+            return [pscustomobject]@{ Ok = $false; IdxPath = $idxPath; SubPath = $subPath; TempFiles = $tempFiles; Reason = $reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_VOBSUB_EXTRACT_FAILED' -ReproPath $result.ReproPath -ErrorText $toolText) }
         }
         if (-not (Test-Path -LiteralPath $idxPath -PathType Leaf -ErrorAction SilentlyContinue) -or -not (Test-Path -LiteralPath $subPath -PathType Leaf -ErrorAction SilentlyContinue) -or (Get-Item -LiteralPath $subPath -ErrorAction SilentlyContinue).Length -le 0) {
             $reason = 'VobSub extraction produced no usable IDX/SUB pair'
             Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $streamIndex -Stage 'extract' -Status 'VobSub extraction failed' -StepIndex 1 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $reason -Failed
-            return [pscustomobject]@{ Ok = $false; IdxPath = $idxPath; SubPath = $subPath; TempFiles = @($idxPath, $subPath); Reason = $reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_VOBSUB_EXTRACT_FAILED') }
+            return [pscustomobject]@{ Ok = $false; IdxPath = $idxPath; SubPath = $subPath; TempFiles = $tempFiles; Reason = $reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_VOBSUB_EXTRACT_FAILED') }
         }
         Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $streamIndex -Stage 'extract' -Status 'VobSub IDX/SUB extracted' -StepIndex 1 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail ([System.IO.Path]::GetFileName($idxPath))
-        return [pscustomobject]@{ Ok = $true; IdxPath = $idxPath; SubPath = $subPath; TempFiles = @($idxPath, $subPath); Reason = 'ok'; Failure = $null }
+        return [pscustomobject]@{ Ok = $true; IdxPath = $idxPath; SubPath = $subPath; TempFiles = $tempFiles; Reason = 'ok'; Failure = $null }
     } catch {
         $reason = "VobSub extraction error: $($_.Exception.Message)"
         Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $streamIndex -Stage 'extract' -Status 'VobSub extraction failed' -StepIndex 1 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $reason -Failed
-        return [pscustomobject]@{ Ok = $false; IdxPath = $idxPath; SubPath = $subPath; TempFiles = @($idxPath, $subPath); Reason = $reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_VOBSUB_EXTRACT_FAILED') }
+        return [pscustomobject]@{ Ok = $false; IdxPath = $idxPath; SubPath = $subPath; TempFiles = $tempFiles; Reason = $reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_VOBSUB_EXTRACT_FAILED') }
     }
 }
 

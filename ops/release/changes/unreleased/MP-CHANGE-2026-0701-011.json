@@ -1,0 +1,37 @@
+{
+  "id": "MP-CHANGE-2026-0701-011",
+  "title": "Clarify CSV rerun blockers",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-01",
+  "date_completed": "2026-07-01",
+  "summary": "Adds an explicit CSV rerun blocker explanation to the Launch rerun preview summary and button tooltip, backed by focused static coverage.",
+  "reason": "The CSV rerun preview exposed blocked row counts and raw row reasons, but the visible status did not translate all-row lifecycle blockers into an operator-readable cause.",
+  "affected_areas": [
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "A blocked CSV rerun preview could show only a generic blocked status plus aggregate counts, leaving operators to infer that selected destination/original policies were the conflict.",
+  "behavior_after": "Blocked CSV rerun previews now show a Why blocked section explaining that the selected rerun lifecycle policy, such as final replacement or original-source action, conflicts with the executable CSV rerun safety boundary and lists safe settings to retry.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launchView.js",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0701-011.json",
+    "tests/python/desktop/test_application_facade_web_static_launch.py"
+  ],
+  "tests_added": [
+    "Focused static assertions in tests/python/desktop/test_application_facade_web_static_launch.py pin the CSV rerun blocker explainer strings."
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static_launch.ApplicationFacadeWebStaticLaunchTests.test_launch_rerun_and_pending_drain_commands_are_guarded -q -- passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static_launch -q -- passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_rerun_csv_preview -q -- passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_launch_command_buttons_smoke -q -- passed",
+    "npm run webview:check -- passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/launchView.js tests/python/desktop/test_application_facade_web_static_launch.py -- 0 written, 2 unchanged"
+  ],
+  "rollback_plan": "Remove rerunPreviewConflictLines, remove the Why blocked lines from rerunSummaryLines/button tooltip handling, and revert the focused static assertions.",
+  "related_changes": [],
+  "notes": "Show explicit CSV rerun blocker explanation in the Launch rerun UI.\nPin CSV rerun blocker explanation strings in static Launch coverage.\nGenerated summary refresh for the touched source/test files reported 0 written, 2 unchanged."
+}

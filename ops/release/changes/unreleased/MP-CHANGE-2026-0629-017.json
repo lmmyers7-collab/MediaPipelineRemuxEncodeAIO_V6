@@ -1,0 +1,36 @@
+{
+  "id": "MP-CHANGE-2026-0629-017",
+  "title": "Phase 6 rename preview DTO boundary cleanup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Moved rename preview DTO imports from the desktop workspace compatibility module to the core kernel DTO workspace owner and removed the resolved allowlist row.",
+  "reason": "Continue the GitHub #23 Phase 6 boundary cleanup with a narrow rename DTO-only reduction that does not change rename preview, apply, undo, route, or WebView behavior.",
+  "affected_areas": [
+    "architecture",
+    "core",
+    "generated-context"
+  ],
+  "behavior_before": "Rename facade preview code imported RenamePreviewDto through mediapipeline.desktop.application.dto_workspaces and relied on a temporary NO_CORE_TO_DESKTOP allowlist row.",
+  "behavior_after": "Rename facade preview code imports RenamePreviewDto from mediapipeline.core.kernel.dto_workspaces; the desktop workspace DTO module remains a compatibility export and the resolved allowlist row is removed.",
+  "files_touched": [
+    "docs/architecture/dependency_boundary_allowlist.txt",
+    "docs/generated/summaries/src/mediapipeline/core/rename/facade.py.md",
+    "docs/implementation/architecture-boundary-cleanup/EDGE_LEDGER.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-017.json",
+    "src/mediapipeline/core/rename/facade.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_rename tests.python.desktop.test_service_rename_preview tests.python.desktop.test_application_facade_local_api_rename tests.python.desktop.test_rename_workbench tests.python.desktop.test_application_public_api tests.python.tooling.test_dependency_boundaries -q (passed, 68 tests)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_active_doc_references (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_architecture_guardrails (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --format json --report-only (passed: 64 hard findings, 64 allowlisted, 0 unallowlisted, 0 allowlist errors, 0 unused allowlist entries, 47 remaining NO_CORE_TO_DESKTOP, 0 rename NO_CORE_TO_DESKTOP)"
+  ],
+  "rollback_plan": "Restore the RenamePreviewDto imports from mediapipeline.desktop.application.dto_workspaces, re-add the rename facade NO_CORE_TO_DESKTOP allowlist row, and mark AB-REN-007/008 open again in the ledger.",
+  "related_changes": [],
+  "notes": "Import RenamePreviewDto from the core kernel DTO workspace owner instead of desktop compatibility export.\nRemove the resolved rename facade NO_CORE_TO_DESKTOP allowlist row.\nMark AB-REN-007 and AB-REN-008 migrated with final owner and compatibility export notes.\nRefresh generated summary after rename facade import ownership change.\nNo rename preview policy, apply, undo, path-boundary, collision, route schema, strict confirmation, or WebView command behavior changed."
+}

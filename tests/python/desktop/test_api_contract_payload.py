@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -100,6 +101,53 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         )
         self.assertEqual(routes["/api/completed"]["effect"], "none")
 
+    def test_failure_artifacts_contract_is_read_only_visibility(self) -> None:
+        routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
+        route = routes["/api/failures/artifacts"]
+
+        self.assertIn("/api/failures/artifacts", GET_ROUTE_HANDLERS)
+        self.assertFalse(GET_ROUTE_HANDLERS["/api/failures/artifacts"].needs_query)
+        self.assertEqual(route["method"], "GET")
+        self.assertTrue(route["auth_required"])
+        self.assertEqual(route["effect"], "none")
+        self.assertEqual(route["response_schema"], "failure_artifact_summary.v1")
+        self.assertIn("read-only", route["purpose"].casefold())
+        self.assertIn("touching media files", route["purpose"])
+        self.assertFalse(route.get("mutation_enabled", False))
+        self.assertFalse(route.get("journaled", False))
+
+    def test_failure_artifact_cleanup_contract_is_confirmed_delete_command(self) -> None:
+        routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
+        route = routes["/api/failures/artifacts/cleanup"]
+
+        self.assertEqual(route["method"], "POST")
+        self.assertTrue(route["auth_required"])
+        self.assertEqual(route["effect"], "failure-artifact-delete")
+        self.assertEqual(
+            route["request_keys"],
+            ["dry_run", "dry_run_fingerprint", "confirm_delete", "reason", "retention_days", "target_gb", "artifact_paths"],
+        )
+        self.assertEqual(route["safe_defaults"], {"dry_run": True, "confirm_delete": False})
+        self.assertTrue(route["requires_confirmation"])
+        self.assertTrue(route["journaled"])
+        self.assertEqual(route["response_schema"], "desktop_command_result.v1")
+        self.assertEqual(route["data_schema"], "failure_artifact_cleanup_result.v1")
+        self.assertIn("Confirm", route["purpose"])
+        self.assertIn("artifact_paths", route["purpose"])
+        self.assertIn("never deletes source/output media", route["purpose"])
+
+    def test_failure_open_contract_is_backend_selected_shell_open(self) -> None:
+        routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
+        route = routes["/api/failures/open"]
+
+        self.assertEqual(route["method"], "POST")
+        self.assertTrue(route["auth_required"])
+        self.assertEqual(route["effect"], "shell-open")
+        self.assertEqual(route["request_keys"], ["row_key", "target", "source_kind"])
+        self.assertEqual(route["allowed_targets"], ["artifact", "repro", "record_file", "record_folder"])
+        self.assertEqual(route["allowed_source_kinds"], ["latest_json", "markers"])
+        self.assertIn("arbitrary frontend paths are not accepted", route["purpose"])
+
     def test_file_overrides_effective_contract_discloses_read_only_probe_dependency(self) -> None:
         routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
 
@@ -161,6 +209,17 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertIn("/api/diagnostics/tdarr-matrix/compare", GET_ROUTE_HANDLERS)
         self.assertTrue(GET_ROUTE_HANDLERS["/api/diagnostics/tdarr-matrix/latest"].needs_query)
         self.assertTrue(GET_ROUTE_HANDLERS["/api/diagnostics/tdarr-matrix/compare"].needs_query)
+
+    def test_route_purpose_text_does_not_advertise_local_machine_paths(self) -> None:
+        local_path_pattern = re.compile(
+            r"(?:[A-Za-z]:[\\/]|[\\/]Users[\\/]|AppData[\\/]Local[\\/]Temp)",
+            re.IGNORECASE,
+        )
+
+        for route in LOCAL_API_ROUTE_CONTRACT:
+            purpose = str(route.get("purpose", ""))
+            with self.subTest(route=route["path"]):
+                self.assertIsNone(local_path_pattern.search(purpose), purpose)
 
     def test_shell_open_route_contracts_match_backend_allowlists(self) -> None:
         routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
@@ -554,7 +613,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
                 self.assertTrue(any("LOCAL_API_ROUTE_CONTRACT" in gate for gate in exposure_gates))
                 self.assertTrue(any("DOC_TOUCH_LOG" in gate for gate in exposure_gates))
 
-    def test_csv_rerun_route_contract_preserves_copy_keep_park_defaults(self) -> None:
+    def test_csv_rerun_route_contract_exposes_lifecycle_defaults(self) -> None:
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
         routes = {route["path"]: route for route in payload["routes"]}
         rerun_route = routes["/api/rerun/start"]
@@ -566,17 +625,22 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             {
                 "dry_run": False,
                 "plan_only": False,
-                "stage_mode": "copy",
-                "original_mode": "keep",
-                "return_mode": "park",
+                "execution_mode": "one_at_a_time",
+                "destination_mode": "review_workspace",
+                "original_policy": "keep",
+                "collision_policy": "suffix",
+                "window_size": 1,
                 "enabled_only": True,
                 "skip_blocked": False,
                 "skip_warning_rows": False,
             },
         )
-        self.assertIn("conservative media-safe defaults", rerun_route["purpose"])
+        self.assertIn("one-at-a-time", rerun_route["purpose"])
         self.assertEqual(routes["/api/rerun/preview"]["effect"], "read-only-preview")
         self.assertEqual(routes["/api/rerun/preview"]["response_schema"], "desktop_rerun_csv_preview.v1")
+        self.assertEqual(routes["/api/rerun/results"]["response_schema"], "desktop_rerun_results.v1")
+        self.assertEqual(routes["/api/rerun/promote-dry-run"]["effect"], "read-only-preview")
+        self.assertEqual(routes["/api/rerun/promote"]["effect"], "pending-manifest-write")
 
     def test_effectful_post_routes_return_command_results_for_operator_history(self) -> None:
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
@@ -670,6 +734,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             "diagnostic-process",
             "diagnostics-artifact-write",
             "filesystem-mutation",
+            "failure-artifact-delete",
             "failure-evidence-archive",
             "failure-marker-write",
             "failure-resolution-journal-write",

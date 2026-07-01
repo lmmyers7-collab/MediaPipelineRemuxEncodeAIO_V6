@@ -6,7 +6,7 @@ import threading
 import time
 from typing import Any, Mapping, Protocol
 
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.processes.constants import ACTIVE_JOB_HEARTBEAT_SECONDS
 
 from .spawn import (
@@ -73,6 +73,9 @@ def _start_active_job_completion_watcher(
     service: ProcessSpawnService,
     proc: subprocess.Popen[Any],
     job_kind: str,
+    *,
+    resolved: ResolvedPaths | None = None,
+    metadata: Mapping[str, Any] | None = None,
 ) -> bool:
     update_active_job = getattr(service, "update_active_job_record", None)
     wait_for_exit = getattr(proc, "wait", None)
@@ -82,6 +85,7 @@ def _start_active_job_completion_watcher(
     is_active_process_registered = getattr(service, "_active_spawned_process_is_registered", None)
 
     def _watch() -> None:
+        return_code: int | None = None
         try:
             return_code = wait_for_exit()
             if callable(is_active_process_registered) and not is_active_process_registered(proc):
@@ -89,6 +93,19 @@ def _start_active_job_completion_watcher(
             update_active_job(proc, return_code=return_code)
         except Exception as exc:
             service.logger.warning("Failed to update %s ActiveJobs record after process exit: %s", job_kind, exc)
+        else:
+            sync_after_exit = getattr(service, "sync_audit_sources_after_process_exit", None)
+            if callable(sync_after_exit):
+                try:
+                    sync_after_exit(
+                        proc,
+                        resolved=resolved,
+                        job_kind=job_kind,
+                        return_code=return_code,
+                        metadata=dict(metadata or {}),
+                    )
+                except Exception as exc:
+                    service.logger.warning("Failed to sync %s post-exit state: %s", job_kind, exc)
         finally:
             if callable(unregister_active_process):
                 unregister_active_process(proc)
@@ -183,7 +200,13 @@ def spawn_process_for_service(
             if callable(register_active_process):
                 register_active_process(proc, job_kind)
             _start_active_job_heartbeat_watcher(service, proc, job_kind)
-            if not _start_active_job_completion_watcher(service, proc, job_kind):
+            if not _start_active_job_completion_watcher(
+                service,
+                proc,
+                job_kind,
+                resolved=resolved,
+                metadata=metadata or {},
+            ):
                 unregister_active_process = getattr(service, "_unregister_active_spawned_process", None)
                 if callable(unregister_active_process):
                     unregister_active_process(proc)

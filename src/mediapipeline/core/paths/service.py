@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.paths.defaults import (
     default_audit_script_path_for_roots,
     default_config_path_for_roots,

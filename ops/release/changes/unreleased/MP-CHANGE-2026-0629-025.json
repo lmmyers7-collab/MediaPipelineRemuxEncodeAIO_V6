@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0629-025",
+  "title": "Phase 6 process contract and close-readiness DTO boundary cleanup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Migrates process active-job/control-flag contract imports and CloseReadinessDto imports from desktop compatibility exports to existing core owners, leaving schedule-stop watcher lifecycle edges open.",
+  "reason": "Phase 6 boundary cleanup is reducing process-domain core-to-desktop imports in contract/DTO-only slices while deferring lifecycle-sensitive schedule-stop watcher movement to a separate plan.",
+  "affected_areas": [
+    "code",
+    "docs",
+    "generated"
+  ],
+  "behavior_before": "Process active-job/control-flag modules imported contracts and schema constants through desktop contracts, and guard facade imported CloseReadinessDto through desktop dto_status, producing seven allowlisted NO_CORE_TO_DESKTOP findings across five import-statement groups.",
+  "behavior_after": "Process modules import the same contracts/schema constants from mediapipeline.core.kernel.contracts and CloseReadinessDto from mediapipeline.core.kernel.dto_status while desktop compatibility exports remain in place; the process schedule-stop watcher allowlist rows remain open.",
+  "files_touched": [
+    "docs/architecture/dependency_boundary_allowlist.txt",
+    "docs/generated/summaries/src/mediapipeline/core/processes/active_jobs.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/constants.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/control_flags.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/guard_facade.py.md",
+    "docs/implementation/architecture-boundary-cleanup/EDGE_LEDGER.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-025.json",
+    "src/mediapipeline/core/processes/active_jobs.py",
+    "src/mediapipeline/core/processes/constants.py",
+    "src/mediapipeline/core/processes/control_flags.py",
+    "src/mediapipeline/core/processes/guard_facade.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/processes/active_jobs.py src/mediapipeline/core/processes/constants.py src/mediapipeline/core/processes/control_flags.py src/mediapipeline/core/processes/guard_facade.py",
+    "PASS: $env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_process_launch tests.python.desktop.test_facade_process_rerun_policy tests.python.desktop.test_application_facade_close_readiness tests.python.desktop.test_service_status_active_jobs tests.python.desktop.test_contracts tests.python.desktop.test_application_public_api tests.python.tooling.test_dependency_boundaries -q",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_active_doc_references",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_architecture_guardrails",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --format json --report-only (hard_findings=32, allowlisted=32, unallowlisted=0, unused_allowlist=0, NO_CORE_TO_DESKTOP=15; domains: config=8, processes=2, queue=4, schedule=1)",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage"
+  ],
+  "rollback_plan": "Restore process active-job/control-flag imports to the desktop compatibility modules, restore guard facade CloseReadinessDto import to desktop dto_status, restore the five removed allowlist rows, refresh the four generated summaries, and mark AB-PROC-002, AB-PROC-008, AB-PROC-009, AB-PROC-012, and AB-PROC-013 open again in the edge ledger.",
+  "related_changes": [
+    "GitHub #23"
+  ],
+  "notes": "Import ownership change only. No Local API routes, WebView commands, active-job lifecycle behavior, control flag persistence, close-readiness logic, schedule-stop watcher behavior, route schemas, process launch behavior, or operator behavior changed. AB-PROC-014 and AB-PROC-019 remain open because schedule-stop watcher movement is lifecycle-sensitive.\nMove process active-job contract imports from desktop compatibility export to core contracts.\nMove process schema version imports from desktop compatibility modules to core contracts.\nMove control flag contract imports from desktop compatibility export to core contracts.\nMove CloseReadinessDto import from desktop compatibility export to core DTO status module while leaving schedule-stop watcher imports unchanged.\nRemove migrated process contract and close-readiness DTO allowlist rows; leave schedule-stop watcher rows open.\nMark process contract and CloseReadinessDto rows migrated; leave schedule-stop watcher rows open for lifecycle-specific work.\nRefresh generated summary after process active-jobs contract import ownership change.\nRefresh generated summary after process constants contract import ownership change.\nRefresh generated summary after control flag contract import ownership change.\nRefresh generated summary after CloseReadinessDto import ownership change."
+}

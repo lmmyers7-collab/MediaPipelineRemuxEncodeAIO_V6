@@ -1,0 +1,52 @@
+{
+  "id": "MP-CHANGE-2026-0630-024",
+  "title": "Reliability state observability bounds",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-06-30",
+  "date_completed": "2026-07-01",
+  "summary": "Expose bounded runtime reliability health and retention controls for pending done reports, ActiveJobs ambiguity, coordinator ledgers, log size, SQLite completed rows, and autonomy scan truncation.",
+  "reason": "Thirty-day unattended operation needs visible lower-bound metrics and bounded mirrors so failure evidence can accumulate without unbounded memory/state growth or unsafe automatic recovery decisions.",
+  "affected_areas": [
+    "config",
+    "docs",
+    "generated_docs",
+    "observability",
+    "schemas",
+    "storage",
+    "tests"
+  ],
+  "behavior_before": "Runtime/autonomy health did not expose several long-run failure counters, ActiveJobs ambiguity was not a hard read-first blocker, scan truncation was not surfaced as lower-bound evidence, and SQLite completed_jobs rows were not trimmed by maintenance policy.",
+  "behavior_after": "Runtime/autonomy health reports pending done age, heartbeat failure age, ActiveJobs read-first ambiguity, coordinator quarantine/ledger metrics, debug log and SQLite limits, scan truncation lower bounds, and SQLite maintenance trims completed_jobs above the configured cap while JSONL remains authoritative.",
+  "files_touched": [
+    "docs/architecture/CONFIG_KEY_GLOSSARY.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/metadata_parts/subtitle_fields.py.md",
+    "docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md",
+    "docs/inventories/SETTINGS_KEY_OWNERSHIP_MAP.md",
+    "docs/testing/THIRTY_DAY_SOAK_TEST_DESIGN.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0630-024.json",
+    "src/mediapipeline/contracts/config.py",
+    "src/mediapipeline/contracts/schemas/config.v1.schema.json",
+    "src/mediapipeline/core/config/metadata_parts/advanced_fields.py",
+    "src/mediapipeline/core/config/metadata_parts/basic_media_policy.py",
+    "src/mediapipeline/core/config/metadata_parts/field_display.py",
+    "src/mediapipeline/core/config/metadata_parts/subtitle_fields.py",
+    "src/mediapipeline/core/config/numeric_policy.py",
+    "src/mediapipeline/core/diagnostics/autonomy_health.py",
+    "src/mediapipeline/core/kernel/config_key_groups.py",
+    "src/mediapipeline/core/kernel/config_key_order.py",
+    "src/mediapipeline/core/status/runtime_health.py",
+    "src/mediapipeline/core/storage/db.py",
+    "tests/python/desktop/test_autonomy_health.py",
+    "tests/python/desktop/test_phase4_storage_observability.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Targeted Python health/storage/config suites passed; generate_config_schema --check and refresh_summaries --changed passed; validate_changes --require-worktree-coverage passed. ai_guardrail postflight exited 1 after reporting broad risky-file validation requirements from the large dirty worktree; real-media/30-day soak not run."
+  ],
+  "rollback_plan": "Revert the runtime health, autonomy health, config, schema, SQLite maintenance, documentation, and targeted test changes; JSONL completed manifests remain authoritative if the SQLite trim behavior is removed.",
+  "related_changes": [],
+  "notes": "Add Python config contract fields for reliability hardening keys.\nRegenerate config JSON schema for new reliability keys.\nPlace reliability keys in settings groups.\nPreserve deterministic config key order for new keys.\nAdd metadata for pending-publish reliability controls.\nAdd metadata for subtitle helper fallback policy.\nAdd metadata for debug log and SQLite retention bounds.\nExpose reliability metadata taxonomy.\nAdd numeric bounds for batch, log, and completed-job limits.\nTrim completed_jobs during SQLite maintenance while preserving JSONL authority.\nExpose bounded runtime reliability counters and read-first ActiveJobs ambiguity.\nAdd autonomy blocking and soak telemetry for runtime reliability state.\nCover runtime health metrics, ActiveJobs ambiguity, and scan truncation flags.\nCover completed_jobs maintenance trimming.\nDocument new reliability config keys.\nDocument backend ownership for new reliability settings.\nRefresh settings coverage matrix counts and rows.\nAdd pass/fail criteria and fault injection for the new reliability controls.\nRefresh generated summary for subtitle helper fallback metadata.\nImplemented fail-closed unattended reliability hardening without relaxing source mutation, scratch isolation, pending publish, or backend-owned mutation boundaries."
+}

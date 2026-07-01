@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,11 +14,13 @@ import sys
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.core.diagnostics.autonomy_health import (
+    AUTONOMY_SCAN_LIMIT,
     autonomy_health_payload,
     load_autonomy_growth_history,
     record_autonomy_growth_snapshot,
 )
 from mediapipeline.core.processes.path_evidence import LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS
+from mediapipeline.core.storage.db import open_state_db
 from mediapipeline.desktop.models import ResolvedPaths
 from mediapipeline.tools.autonomy_health_gate import (
     AUTONOMY_HEALTH_GATE_PATH_HEALTH_TIMEOUT_SECONDS,
@@ -97,6 +100,183 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
         self.assertIsNone(projection["projected_7_day_growth_bytes"])
         self.assertIsNone(projection["projected_30_day_growth_bytes"])
         self.assertIsNone(projection["days_to_budget_exhaustion"])
+        self.assertEqual(payload["runtime_reliability"]["schema_version"], "desktop_runtime_reliability_counters.v1")
+        self.assertIn("runtime_health", payload["categories"])
+
+    def test_runtime_reliability_counters_surface_long_run_health(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "NetworkRole": "standalone",
+                "DeferredPublish": True,
+                "PendingPublishDeferredBlockThreshold": 1,
+                "LocalWorkerHeartbeatGraceSeconds": 10,
+                "CoordinatorHeartbeatTimeoutMins": 5,
+                "PipelineDebugLogMaxBytes": 10,
+                "StateDbCompletedJobsMaxRows": 250000,
+            }
+            resolved.pause_flag = resolved.state_root / "Pipeline" / "pipeline_pause.flag"
+            assert resolved.progress_file is not None
+            assert resolved.active_jobs_path is not None
+            assert resolved.pending_push_path is not None
+            now = datetime(2026, 6, 18, 12, 0, tzinfo=timezone.utc)
+            started = now - timedelta(minutes=10)
+            pause_created = now - timedelta(hours=7)
+            for path in (
+                resolved.progress_file.parent,
+                resolved.active_jobs_path,
+                resolved.pending_push_path,
+                resolved.pause_flag.parent,
+                resolved.log_file.parent,
+                resolved.state_root / "Workers" / "slot-1",
+                resolved.state_root / "App" / "pending_done_reports",
+                resolved.state_root / "App" / "pending_done_reports_review",
+            ):
+                path.mkdir(parents=True, exist_ok=True)
+            resolved.pause_flag.write_text("pause", encoding="utf-8")
+            resolved.progress_file.write_text(
+                json.dumps(
+                    {
+                        "CurrentFile": "Movie.mkv",
+                        "CurrentFilePath": str(root / "Movie.mkv"),
+                        "CurrentStage": "encode",
+                        "Status": "Encoding",
+                        "CurrentItemStartedAt": started.isoformat(),
+                        "RoundFailureCount": 2,
+                        "UnexpectedQueueEntryFailures": 1,
+                        "UnexpectedRoundFailures": 1,
+                        "ConsecutiveUnexpectedRoundFailures": 12,
+                        "ConsecutiveRoundFailureBlockLimit": 12,
+                        "ConsecutiveRoundFailureProbeBackoffSeconds": 900,
+                        "ContinuousRoundFailuresBlocked": True,
+                        "LastUnexpectedRoundFailureAt": (now - timedelta(minutes=5)).isoformat(),
+                        "PauseFlagReviewSeconds": 1800,
+                        "PauseFlagBlockSeconds": 21600,
+                        "ControlRequests": {
+                            "Pause": {
+                                "Requested": True,
+                                "CreatedAt": pause_created.isoformat(),
+                            }
+                        },
+                        "NativeNoProgressAbortCount": 1,
+                        "ProgressPersistenceHealthy": False,
+                        "ProgressWriteFailures": 3,
+                        "HeartbeatFailureStartedAt": (now - timedelta(seconds=90)).isoformat(),
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (resolved.active_jobs_path / "bad.json").write_text("{not-json", encoding="utf-8")
+            (resolved.pending_push_path / "movie.manifest.json").write_text("{}", encoding="utf-8")
+            heartbeat = resolved.state_root / "Workers" / "slot-1" / "worker_heartbeat.json"
+            heartbeat.write_text(
+                json.dumps({"schema_version": "local_worker_heartbeat.v1", "updated_at": started.isoformat()}),
+                encoding="utf-8",
+            )
+            os.utime(heartbeat, (started.timestamp(), started.timestamp()))
+            app_state = resolved.state_root / "App"
+            (app_state / "worker_state.json").write_text(
+                json.dumps({"pending_done_report": {"job_id": "legacy-job"}}),
+                encoding="utf-8",
+            )
+            (app_state / "pending_done_reports" / "queued.json").write_text("{}", encoding="utf-8")
+            (app_state / "pending_done_reports_review" / "review.json").write_text("{}", encoding="utf-8")
+            pending_done_mtime = (now - timedelta(hours=2)).timestamp()
+            os.utime(app_state / "worker_state.json", (pending_done_mtime, pending_done_mtime))
+            os.utime(app_state / "pending_done_reports" / "queued.json", (pending_done_mtime, pending_done_mtime))
+            os.utime(app_state / "pending_done_reports_review" / "review.json", (pending_done_mtime, pending_done_mtime))
+            (app_state / "coordinator_inflight.json").write_text(
+                json.dumps(
+                    {
+                        "reclaimed_source_quarantine": [
+                            {
+                                "source_path": str(root / "Movie.mkv"),
+                                "reclaimed_at": (now - timedelta(hours=1)).isoformat(),
+                                "expires_at": (now + timedelta(hours=1)).isoformat(),
+                            }
+                        ],
+                        "late_terminal_reports": [{"job_id": "late-1"}],
+                        "failure_ledger": [{"job_id": "fail-1"}, {"job_id": "fail-2"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            resolved.log_file.write_text("0123456789ABCDEF", encoding="utf-8")
+            db = open_state_db(resolved.state_root)
+            db.record_completed_job({"job_id": "job-1", "output_path": "out.mkv", "sidecar_path": "out.pipeline.json"})
+            marker_path = resolved.state_root / "state_db_maintenance.json"
+            marker_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "state_db_maintenance_marker.v1",
+                        "checked_at": now.isoformat(),
+                        "ok": False,
+                        "error": "database is locked",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            payload = autonomy_health_payload(
+                resolved,
+                pending_publish={"rows": [{"row_key": "movie"}], "count": 1, "total_bytes": 123, "health_count": 1},
+                path_health={"operator_status": "ready", "rows": []},
+                now=now,
+            )
+
+        counters = payload["runtime_reliability"]
+        self.assertEqual(counters["current_file"]["age_seconds"], 600)
+        self.assertEqual(counters["round_failures"]["round_failure_count"], 2)
+        self.assertEqual(counters["round_failures"]["unexpected_queue_entry_failures"], 1)
+        self.assertEqual(counters["round_failures"]["unexpected_round_failures"], 1)
+        self.assertTrue(counters["continuous_round_state"]["blocked"])
+        self.assertEqual(counters["continuous_round_state"]["consecutive_unexpected_round_failures"], 12)
+        self.assertTrue(counters["control_flags"]["pause_flag_present"])
+        self.assertGreaterEqual(counters["control_flags"]["pause_age_seconds"], 21600)
+        self.assertEqual(counters["native_processes"]["native_no_progress_abort_count"], 1)
+        self.assertEqual(counters["pending_publish"]["backlog_count"], 1)
+        self.assertTrue(counters["pending_publish_backpressure"]["blocked"])
+        self.assertEqual(counters["pending_publish_backpressure"]["block_reason"], "deferred_backlog_threshold")
+        self.assertEqual(counters["worker_pending_reports"]["pending_report_count"], 3)
+        self.assertGreaterEqual(counters["worker_pending_reports"]["oldest_pending_report_age_seconds"], 7200)
+        self.assertEqual(counters["worker_heartbeat_failure"]["age_seconds"], 90)
+        self.assertEqual(counters["worker_heartbeat_failure"]["abort_threshold_seconds"], 240)
+        self.assertFalse(counters["worker_heartbeat_failure"]["abort_due"])
+        self.assertEqual(counters["active_jobs"]["total_count"], 1)
+        self.assertEqual(counters["active_jobs"]["blocking_count"], 0)
+        self.assertEqual(counters["active_jobs"]["warning_count"], 1)
+        self.assertEqual(counters["active_jobs"]["ambiguous_count"], 1)
+        self.assertFalse(counters["active_jobs"]["ambiguous_read_first"])
+        self.assertEqual(counters["worker_slots"]["active_child_count"], 1)
+        self.assertEqual(counters["worker_slots"]["stale_heartbeat_count"], 1)
+        self.assertGreater(counters["sqlite_mirror"]["db_size_bytes"], 0)
+        self.assertEqual(counters["sqlite_mirror"]["completed_jobs_count"], 1)
+        self.assertEqual(counters["sqlite_mirror"]["completed_jobs_max_rows"], 250000)
+        self.assertEqual(counters["coordinator_state"]["reclaimed_source_quarantine_count"], 1)
+        self.assertEqual(counters["coordinator_state"]["late_terminal_report_count"], 1)
+        self.assertEqual(counters["coordinator_state"]["failure_ledger_count"], 2)
+        self.assertEqual(counters["coordinator_state"]["failure_ledger_max_entries"], 5000)
+        self.assertEqual(counters["debug_log"]["rotation_state"], "rotation_due_or_pending")
+        self.assertEqual(counters["debug_log"]["max_bytes"], 10)
+        self.assertEqual(counters["state_db"]["last_maintenance"]["error"], "database is locked")
+        self.assertFalse(counters["progress_persistence"]["healthy"])
+        self.assertEqual(counters["progress_persistence"]["write_failures"], 3)
+        runtime_category = payload["categories"]["runtime_health"]
+        self.assertEqual(runtime_category["status"], "blocked")
+        self.assertEqual(runtime_category["metrics"]["pending_publish_backlog_count"], 1)
+        self.assertEqual(runtime_category["metrics"]["coordinator_reclaimed_source_quarantine_count"], 1)
+        self.assertEqual(runtime_category["metrics"]["coordinator_failure_ledger_count"], 2)
+        self.assertEqual(runtime_category["metrics"]["debug_log_rotation_state"], "rotation_due_or_pending")
+        self.assertEqual(runtime_category["metrics"]["sqlite_completed_jobs_count"], 1)
+        blocker_codes = {item["code"] for item in payload["blockers"]}
+        review_codes = {item["code"] for item in payload["review_items"]}
+        self.assertIn("autonomy_round_failures_blocked", blocker_codes)
+        self.assertIn("autonomy_pause_flag_stale", blocker_codes)
+        self.assertIn("autonomy_pending_backlog_blocked", blocker_codes)
+        self.assertIn("autonomy_worker_slot_stale", blocker_codes)
+        self.assertIn("autonomy_progress_persistence_unhealthy", blocker_codes)
+        self.assertIn("autonomy_state_db_maintenance_overdue", review_codes)
 
     def test_retry_exhausted_pending_publish_blocks(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -248,7 +428,7 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
         self.assertEqual(action["request"]["mode"], "drain_pending_pushes")
         self.assertTrue(action["requires_confirmation"])
 
-    def test_stale_active_job_blocks_without_killing_process(self) -> None:
+    def test_stale_active_job_is_passive_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             resolved = _resolved(root)
@@ -276,10 +456,96 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
                 path_health={"operator_status": "ready", "rows": []},
             )
 
-        self.assertEqual(payload["overall_status"], "blocked")
-        self.assertIn("autonomy_active_job_stale_blocked", {item["code"] for item in payload["blockers"]})
+        workers = payload["categories"]["workers"]
+        record = workers["metrics"]["active_liveness_watchdog"]["records"][0]
+        self.assertEqual(payload["overall_status"], "ready")
+        self.assertEqual(workers["status"], "ready")
+        self.assertEqual(workers["metrics"]["active_count"], 1)
+        self.assertEqual(workers["metrics"]["active_read_first_count"], 0)
+        self.assertFalse(workers["metrics"]["ambiguous_read_first"])
+        self.assertEqual(record["status"], "passive_stale")
+        self.assertTrue(record["blocking_disabled"])
 
-    def test_fresh_progress_evidence_keeps_old_active_job_liveness_ready(self) -> None:
+    def test_active_job_records_are_passive_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            assert resolved.active_jobs_path is not None
+            resolved.active_jobs_path.mkdir(parents=True)
+            launched = datetime.now(timezone.utc).isoformat()
+            (resolved.active_jobs_path / "pipeline.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "active_job.v1",
+                        "job_kind": "pipeline",
+                        "mode": "once",
+                        "status": "active",
+                        "pid": 43210,
+                        "launched_at": launched,
+                        "last_update": launched,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            payload = autonomy_health_payload(
+                resolved,
+                pending_publish={"rows": [], "count": 0, "total_bytes": 0, "health_count": 0},
+                path_health={"operator_status": "ready", "rows": []},
+            )
+
+        workers = payload["categories"]["workers"]
+        active_jobs = payload["runtime_reliability"]["active_jobs"]
+        record = workers["metrics"]["active_liveness_watchdog"]["records"][0]
+        self.assertEqual(payload["overall_status"], "ready")
+        self.assertEqual(workers["metrics"]["active_count"], 1)
+        self.assertEqual(workers["metrics"]["active_jobs_ignored_count"], 0)
+        self.assertEqual(active_jobs["total_count"], 1)
+        self.assertEqual(active_jobs["ignored_count"], 0)
+        self.assertFalse(active_jobs["ambiguous_read_first"])
+        self.assertEqual(record["status"], "passive_active")
+        self.assertTrue(record["blocking_disabled"])
+
+    def test_multiple_active_job_records_do_not_block(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            assert resolved.active_jobs_path is not None
+            resolved.active_jobs_path.mkdir(parents=True)
+            launched = datetime.now(timezone.utc).isoformat()
+            for file_name, pid in (("current.json", 43210), ("previous.json", 43211)):
+                (resolved.active_jobs_path / file_name).write_text(
+                    json.dumps(
+                        {
+                            "schema_version": "active_job.v1",
+                            "job_kind": "pipeline",
+                            "mode": "once",
+                            "status": "active",
+                            "pid": pid,
+                            "launched_at": launched,
+                            "last_update": launched,
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+
+            payload = autonomy_health_payload(
+                resolved,
+                pending_publish={"rows": [], "count": 0, "total_bytes": 0, "health_count": 0},
+                path_health={"operator_status": "ready", "rows": []},
+            )
+
+        workers = payload["categories"]["workers"]
+        active_jobs = payload["runtime_reliability"]["active_jobs"]
+        self.assertEqual(payload["overall_status"], "ready")
+        self.assertEqual(workers["metrics"]["active_count"], 2)
+        self.assertEqual(workers["metrics"]["active_jobs_ignored_count"], 0)
+        self.assertEqual(active_jobs["total_count"], 2)
+        self.assertEqual(active_jobs["ignored_count"], 0)
+        self.assertFalse(active_jobs["ambiguous_read_first"])
+        self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["record_count"], 2)
+
+    def test_fresh_progress_evidence_keeps_active_job_passive(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             resolved = _resolved(root)
@@ -318,11 +584,14 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
 
         workers = payload["categories"]["workers"]
         self.assertEqual(payload["overall_status"], "ready")
+        self.assertTrue(payload["launch_gate"]["can_start_new_work"])
+        self.assertFalse(workers["metrics"]["ambiguous_read_first"])
         self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["schema_version"], "desktop_active_liveness_watchdog.v1")
         self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["records"][0]["latest_evidence_source"], "progress_file")
+        self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["records"][0]["status"], "passive_active")
         self.assertFalse(workers["metrics"]["active_liveness_watchdog"]["would_kill_active_processes"])
 
-    def test_configured_native_timeout_blocks_before_fixed_legacy_threshold(self) -> None:
+    def test_configured_native_timeout_is_passive_active_job_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             resolved = _resolved(root)
@@ -354,12 +623,12 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
             )
 
         workers = payload["categories"]["workers"]
-        self.assertEqual(payload["overall_status"], "blocked")
-        self.assertIn("autonomy_active_job_stale_blocked", {item["code"] for item in payload["blockers"]})
+        self.assertEqual(payload["overall_status"], "ready")
         self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["records"][0]["native_timeout_seconds"], 300)
         self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["records"][0]["block_after_seconds"], 1200)
+        self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["records"][0]["status"], "passive_stale")
 
-    def test_missing_native_timeout_blocks_after_no_progress_threshold(self) -> None:
+    def test_missing_native_timeout_is_passive_active_job_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             resolved = _resolved(root)
@@ -390,11 +659,12 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
             )
 
         workers = payload["categories"]["workers"]
-        self.assertEqual(payload["overall_status"], "blocked")
+        self.assertEqual(payload["overall_status"], "ready")
         self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["records"][0]["native_timeout_source"], "")
         self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["records"][0]["block_after_seconds"], 1800)
+        self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["records"][0]["status"], "passive_stale")
 
-    def test_malformed_progress_does_not_mask_stale_active_job(self) -> None:
+    def test_malformed_progress_keeps_stale_active_job_passive(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             resolved = _resolved(root)
@@ -429,8 +699,9 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
 
         workers = payload["categories"]["workers"]
         record = workers["metrics"]["active_liveness_watchdog"]["records"][0]
-        self.assertEqual(payload["overall_status"], "blocked")
+        self.assertEqual(payload["overall_status"], "ready")
         self.assertEqual(record["latest_evidence_source"], "active_job")
+        self.assertEqual(record["status"], "passive_stale")
 
     def test_low_configured_storage_free_space_blocks(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -459,6 +730,30 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
         self.assertEqual(payload["overall_status"], "blocked")
         self.assertIn("autonomy_storage_free_space_low", {item["code"] for item in payload["blockers"]})
         self.assertNotIn("autonomy_configured_path_blocked", {item["code"] for item in payload["blockers"]})
+
+    def test_disk_state_reports_autonomy_scan_truncation_as_lower_bound(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            scan_root = resolved.state_root / "ManyFiles"
+            scan_root.mkdir(parents=True)
+            for index in range(AUTONOMY_SCAN_LIMIT + 1):
+                (scan_root / f"state-{index}.json").write_text("x", encoding="utf-8")
+
+            payload = autonomy_health_payload(
+                resolved,
+                pending_publish={"rows": [], "count": 0, "total_bytes": 0, "health_count": 0},
+                path_health={"operator_status": "ready", "rows": []},
+            )
+
+        disk_state = payload["categories"]["disk_state"]
+        metrics = disk_state["metrics"]
+        self.assertEqual(payload["overall_status"], "review")
+        self.assertTrue(metrics["state_root_scan_truncated"])
+        self.assertTrue(metrics["state_root_size_lower_bound"])
+        self.assertEqual(metrics["state_root_scanned_file_count"], AUTONOMY_SCAN_LIMIT)
+        self.assertIn("autonomy_scan_truncated", {item["code"] for item in payload["review_items"]})
+        self.assertTrue(payload["growth_projection"]["current_budget"]["state_root_scan_truncated"])
 
     def test_blocked_path_health_does_not_report_false_low_space(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -610,6 +905,13 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
         self.assertGreaterEqual(current_budget["journal_file_bytes"], len("event-data"))
         self.assertGreaterEqual(current_budget["observed_bytes"], current_budget["pending_publish_bytes"])
         self.assertEqual(current_budget["minimum_free_bytes"], 150 * 1024**3)
+        self.assertIn("process_count", current_budget)
+        self.assertIn("pending_publish_oldest_age_seconds", current_budget)
+        self.assertIn("pending_done_oldest_age_seconds", current_budget)
+        self.assertIn("state_db_wal_size_bytes", current_budget)
+        self.assertIn("log_size_bytes", current_budget)
+        self.assertIn("failure_ledger_size", current_budget)
+        self.assertIn("reclaimed_source_quarantine_count", current_budget)
         self.assertEqual(projection["storage_roots"][0]["role"], "scratch")
         self.assertEqual(projection["storage_roots"][0]["threshold_bytes"], 100 * 1024**3)
         self.assertEqual(projection["storage_roots"][1]["threshold_bytes"], 100 * 1024**3)

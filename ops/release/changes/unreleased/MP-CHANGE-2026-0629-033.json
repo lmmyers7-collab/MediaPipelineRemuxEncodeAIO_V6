@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0629-033",
+  "title": "Gate stale audit stop prompt",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Changed Reports audit running-state logic so stale audit_progress.json alone is review evidence, not a stoppable active audit. Shared audit progress rendering now labels old active-looking progress as stale.",
+  "reason": "The Reports Audit tab could show stale audit progress as Audit Running and enable Stop Audit even when no audit process was actually visible in backend runtime evidence.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Reports treated active-looking audit progress as current run evidence even when the progress timestamp was stale, which disabled Start Audit, enabled Stop Audit, and prompted the operator to stop work that might not exist.",
+  "behavior_after": "Reports enables Stop Audit only for a locally accepted audit start, fresh backend audit progress, or backend audit ActiveJobs evidence. Stale audit progress without active-run evidence is shown as review/stale status with Stop Audit disabled.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/progressView.js",
+    "apps/desktop/webview/static/assets/reports/auditCommands.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/progressView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/reports/auditCommands.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0629-033.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_reports_view_static.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_maintenance_reports_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-033.json",
+    "tests/python/desktop/test_reports_view_static.py",
+    "tests/webview/test_webview_browser_maintenance_reports_smoke.py"
+  ],
+  "tests_added": [
+    "tests.python.desktop.test_reports_view_static guards stale audit stop-gating helpers and stale review copy",
+    "tests.webview.test_webview_browser_maintenance_reports_smoke stale audit progress without active audit evidence keeps Stop Audit disabled"
+  ],
+  "manual_validation": [
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static_diagnostics_reports -q",
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_reports_view_static -q",
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_maintenance_reports_smoke.WebViewBrowserMaintenanceReportsSmoke -q",
+    "PASS: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/progressView.js apps/desktop/webview/static/assets/reports/auditCommands.js tests/webview/test_webview_browser_maintenance_reports_smoke.py tests/python/desktop/test_reports_view_static.py",
+    "PASS: node --check apps/desktop/webview/static/assets/progressView.js",
+    "PASS: node --check apps/desktop/webview/static/assets/reports/auditCommands.js",
+    "PASS: npm run webview:check",
+    "PASS: ops/scripts/smoke/Test-WebViewBrowserMaintenanceReportsSmoke.ps1",
+    "PASS: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage",
+    "FAIL (broader gate, unrelated/pre-existing): ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke reached current WebView reliability checks and failed on schedule-stop watcher generation-id/stale-thread guard outside this change; command was killed at the 180s timeout after reporting the failure."
+  ],
+  "rollback_plan": "Revert the stale audit-progress rendering changes in progressView.js, the Reports audit stop-gating changes in reports/auditCommands.js, the stale-progress smoke/static assertions, and the refreshed generated summaries.",
+  "related_changes": [],
+  "notes": "Classify stale active-looking audit progress as stale/review in shared progress rendering.\nRequire fresh progress or backend audit ActiveJobs evidence before enabling Stop Audit from Reports.\nAdd browser smoke coverage for stale audit progress without active audit evidence.\nGuard Reports audit stale-stop decision helpers in static coverage.\nRefresh summary after audit progress stale/review rendering change.\nRefresh summary after Reports stale audit stop gating change.\nRefresh summary after browser smoke stale audit coverage update.\nRefresh summary after Reports static guard update.\nPython impact: test-only Python updates; no backend route, API contract, process lifecycle, media policy, filesystem mutation, or source/scratch/output behavior changed.\nRefresh summary for completed change packet."
+}

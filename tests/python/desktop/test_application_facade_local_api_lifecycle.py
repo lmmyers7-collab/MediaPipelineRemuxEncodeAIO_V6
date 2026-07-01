@@ -88,7 +88,7 @@ class LocalApiLifecycleTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertIn("resolved paths are unavailable", payload["errors"][0])
         self.assertFalse(shutdown_event.wait(0.2))
 
-    def test_local_api_shutdown_blocks_when_active_jobs_block_close(self) -> None:
+    def test_local_api_shutdown_ignores_active_jobs_when_close_readiness_is_safe(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             service = DummyWorkflowFacadeService(root)
@@ -155,19 +155,17 @@ class LocalApiLifecycleTests(LocalApiHttpTestMixin, unittest.TestCase):
                 server.stop()
 
         self.assertEqual(readiness_status, 200)
-        self.assertFalse(readiness["safe_to_close"])
-        self.assertIn("ActiveJobs still reports active work", readiness["reason"])
+        self.assertTrue(readiness["safe_to_close"])
+        self.assertEqual(readiness["reason"], "No active pipeline, audit, or CSV rerun work was detected.")
         self.assertEqual(denied_status, 401)
         self.assertEqual(denied["error"], "unauthorized")
         self.assertEqual(shutdown_status, 200)
         self.assertEqual(shutdown["command"], "backend.shutdown")
-        self.assertFalse(shutdown["ok"])
-        self.assertEqual(shutdown["severity"], "error")
-        self.assertEqual(shutdown["message"], "Backend shutdown blocked because active work may still be running.")
-        self.assertEqual(shutdown["data"]["safe_to_close"], False)
-        self.assertEqual(shutdown["data"]["state"], "completed")
-        self.assertIn("ActiveJobs still reports active work", shutdown["errors"][0])
-        self.assertFalse(shutdown_event.wait(0.2))
+        self.assertTrue(shutdown["ok"])
+        self.assertEqual(shutdown["severity"], "info")
+        self.assertEqual(shutdown["message"], "Backend shutdown requested.")
+        self.assertEqual(shutdown["data"], {})
+        self.assertTrue(shutdown_event.wait(0.5))
 
     def test_local_api_shutdown_blocks_when_schedule_stop_watcher_is_armed(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

@@ -952,7 +952,7 @@ def _sqlite_state_check(state_root: Path) -> tuple[bool, str]:
 
 def api_contract_health_rows() -> list[HealthRow]:
     try:
-        from mediapipeline.desktop.api.contract import LOCAL_API_ROUTE_CONTRACT
+        from mediapipeline.contracts.api_routes import LOCAL_API_ROUTE_CONTRACT
     except Exception as exc:
         return [("API contract", False, f"Local API route contract could not be imported: {exc}")]
     routes = {str(route.get("path") or "") for route in LOCAL_API_ROUTE_CONTRACT if isinstance(route, Mapping)}
@@ -967,12 +967,6 @@ def process_guard_health_rows(resolved: Any, service: Any | None = None) -> list
     messages: list[str] = []
     informational: list[str] = []
     if service is not None:
-        active_blocks = getattr(service, "active_job_close_block_messages", None)
-        if callable(active_blocks):
-            try:
-                messages.extend(str(item) for item in active_blocks(resolved) if _text(item))
-            except Exception as exc:
-                messages.append(f"ActiveJobs could not be verified: {exc}")
         related = getattr(service, "find_related_pipeline_processes", None)
         if callable(related):
             try:

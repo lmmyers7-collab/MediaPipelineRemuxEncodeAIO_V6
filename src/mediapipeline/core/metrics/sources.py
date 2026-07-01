@@ -11,7 +11,8 @@ from typing import Any
 
 from mediapipeline.core.completed.manifest import OUTPUT_PROOF_DEFERRED
 from mediapipeline.core.kernel.dto_base import json_safe
-from mediapipeline.desktop.models import CompletedJobRecord, ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.completed.contracts import CompletedJobRecord
 
 from .policy import utc_now_text
 

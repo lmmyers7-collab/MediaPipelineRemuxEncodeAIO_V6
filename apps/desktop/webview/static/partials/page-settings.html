@@ -1438,25 +1438,21 @@
               <label class="subtitle-language-field" data-subtitle-language-field>
                 <span class="subtitle-field-heading">Subtitle language priority</span>
                 <input id="settings-subtitle-languages" type="text" autocomplete="off" placeholder="eng, und">
-                <span class="subtitle-language-chips" data-subtitle-language-preview aria-live="polite"></span>
                 <span class="subtitle-language-note" data-subtitle-language-warning></span>
               </label>
               <label class="subtitle-language-field" data-subtitle-language-field>
                 <span class="subtitle-field-heading">TX3G extraction languages</span>
                 <input id="settings-subtitle-tx3g-languages" type="text" autocomplete="off" placeholder="eng, und">
-                <span class="subtitle-language-chips" data-subtitle-language-preview aria-live="polite"></span>
                 <span class="subtitle-language-note" data-subtitle-language-warning></span>
               </label>
               <label class="subtitle-language-field" data-subtitle-language-field>
                 <span class="subtitle-field-heading">BDPGS OCR languages</span>
                 <input id="settings-subtitle-bdpgs-languages" type="text" autocomplete="off" placeholder="eng, und">
-                <span class="subtitle-language-chips" data-subtitle-language-preview aria-live="polite"></span>
                 <span class="subtitle-language-note" data-subtitle-language-warning></span>
               </label>
               <label class="subtitle-language-field" data-subtitle-language-field>
                 <span class="subtitle-field-heading">VobSub OCR languages</span>
                 <input id="settings-subtitle-vobsub-languages" type="text" autocomplete="off" placeholder="eng, en, und">
-                <span class="subtitle-language-chips" data-subtitle-language-preview aria-live="polite"></span>
                 <span class="subtitle-language-note" data-subtitle-language-warning></span>
               </label>
             </div>
@@ -2076,6 +2072,18 @@
             <label>
               Log retention days
               <input id="settings-runtime-log-retention" type="number" min="0" step="1">
+            </label>
+            <label>
+              Failure artifact warning GB
+              <input id="settings-runtime-failure-artifact-threshold" type="number" min="0" step="1">
+            </label>
+            <label>
+              Failure artifact retention days
+              <input id="settings-runtime-failure-artifact-retention" type="number" min="0" step="1">
+            </label>
+            <label>
+              Failure artifact cleanup target GB
+              <input id="settings-runtime-failure-artifact-cleanup-target" type="number" min="0" step="1">
             </label>
             <label>
               FFmpeg encode timeout s

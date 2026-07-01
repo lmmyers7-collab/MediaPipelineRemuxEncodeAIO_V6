@@ -205,7 +205,7 @@
       `Current filter: severity=${severity || "all"}; search=${query || "(none)"}`,
     ];
     if (!rows.length) {
-      lines.push("Next step: refresh diagnostics. If the page is still empty while work is active, check Close Readiness and ActiveJobs.");
+      lines.push("Next step: refresh diagnostics. If the page is still empty while work is active, check Diagnostics > Overview > Shutdown Readiness and Active Jobs.");
     } else if (visibleCounts.error) {
       lines.push("Next step: select the newest visible error, then use the row action strip to open/read the inferred artifact.");
     } else if (visibleCounts.warning) {

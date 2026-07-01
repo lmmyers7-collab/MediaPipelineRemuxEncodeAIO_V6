@@ -25,8 +25,8 @@ function Get-MediaPipelineResolvedConfigDump {
         'ConvertBdpgsToSrt','DropBdpgsAfterConversion','TreatBdpgsSignsSongsAsForced','BdpgsOcrToolPath','BdpgsOcrTessdataPath',
         'ConvertVobSubToSrt','DropVobSubAfterConversion','TreatVobSubSignsSongsAsForced','VobSubOcrToolPath',
         'TreatAssSignsSongsAsForced','TreatTx3gSignsSongsAsForced','AggressiveEpisodeParsing','AllowSystemTools',
-        'MergeThresholdMs','LogRetentionDays',
-        'FFmpegEncodeTimeoutSeconds','FFmpegCpuEncodeTimeoutSeconds','FFmpegRemuxTimeoutSeconds','MkvmergeRemuxTimeoutSeconds',
+        'MergeThresholdMs','LogRetentionDays','FailureArtifactWarningThresholdGB','FailureArtifactRetentionDays','FailureArtifactCleanupTargetGB',
+        'FFmpegEncodeTimeoutSeconds','FFmpegCpuEncodeTimeoutSeconds','CpuEncodeMutexWaitSeconds','FFmpegRemuxTimeoutSeconds','MkvmergeRemuxTimeoutSeconds',
         'SubtitleExtractTimeoutSeconds','SubtitleProbeTimeoutSeconds','BdpgsOcrTimeoutSeconds','VobSubOcrTimeoutSeconds',
         'EnableQualityVerification','QualityMetric','QualitySampleMode','QualitySampleSeconds','QualitySampleCount',
         'QualityWarnThreshold','QualityFailThreshold','QualityFailAction','QualityVerifyTimeoutSeconds',
@@ -46,7 +46,7 @@ function Get-MediaPipelineResolvedConfigDump {
         'ExtraVideoFlags','AudioPassthroughProfile','CompatibleAudioCodecs','AudioTranscodeCodec','AudioTranscodeBitrate',
         'AudioDownmixMode','AudioMaxChannels','AllowNoAudio','AudioTranscodeAutoBitrateByChannels',
         'ProductVersion','PipelineVersion','MinPipelineVersion','ReprocessAll','DeferredPublish',
-        'OutputSizeMultiplier','FallbackCpuQuality','CpuEncodePreset','CpuEncodeProcessPriority','CpuEncodeMaxThreads',
+        'OutputSizeMultiplier','FallbackCpuQuality','CpuEncodePreset','CpuEncodeProcessPriority','CpuEncodeMaxThreads','WatchScanTimeoutSeconds',
         'ConsoleLogLevel','FileLogLevel','ConfigSchemaVersion'
     ) | Sort-Object -Unique
 

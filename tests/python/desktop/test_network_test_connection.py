@@ -97,8 +97,9 @@ class NetworkWorkerTestConnectionTests(unittest.TestCase):
 
             with (
                 patch("mediapipeline.core.network.facade.socket.create_connection", return_value=_TcpConnectOk()) as tcp_connect,
-                patch(
-                    "mediapipeline.core.network.facade.probe_worker_auth",
+                patch.object(
+                    facade,
+                    "_network_probe_worker_auth",
                     return_value=NetworkProbeResult(True, "Auth ping accepted (HTTP 200)", 200),
                 ) as auth_ping,
             ):
@@ -140,8 +141,9 @@ class NetworkWorkerTestConnectionTests(unittest.TestCase):
 
             with (
                 patch("mediapipeline.core.network.facade.socket.create_connection", return_value=_TcpConnectOk()),
-                patch(
-                    "mediapipeline.core.network.facade.probe_worker_auth",
+                patch.object(
+                    facade,
+                    "_network_probe_worker_auth",
                     return_value=NetworkProbeResult(False, "401 Unauthorized - token does not match coordinator", 401),
                 ),
             ):
@@ -167,8 +169,9 @@ class NetworkWorkerTestConnectionTests(unittest.TestCase):
 
             with (
                 patch("mediapipeline.core.network.facade.socket.create_connection", return_value=_TcpConnectOk()),
-                patch(
-                    "mediapipeline.core.network.facade.probe_worker_auth",
+                patch.object(
+                    facade,
+                    "_network_probe_worker_auth",
                     return_value=NetworkProbeResult(True, "Auth ping accepted (HTTP 200)", 200),
                 ),
             ):
@@ -204,7 +207,7 @@ class NetworkWorkerTestConnectionTests(unittest.TestCase):
 
             with (
                 patch("mediapipeline.core.network.facade.socket.create_connection") as tcp_connect,
-                patch("mediapipeline.core.network.facade.probe_worker_auth") as auth_ping,
+                patch.object(facade, "_network_probe_worker_auth") as auth_ping,
             ):
                 result = facade.request_network_test_connection(resolved, {}).to_mapping()
 

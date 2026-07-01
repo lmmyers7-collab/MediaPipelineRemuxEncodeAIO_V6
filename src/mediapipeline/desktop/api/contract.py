@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from .contract_command import LOCAL_API_COMMAND_ROUTE_CONTRACT
-from .contract_read import LOCAL_API_READ_ROUTE_CONTRACT
-from .contract_shared import LOCAL_API_CONTRACT_SCHEMA_VERSION
-
-
-LOCAL_API_ROUTE_CONTRACT = LOCAL_API_READ_ROUTE_CONTRACT + LOCAL_API_COMMAND_ROUTE_CONTRACT
+from mediapipeline.contracts.api_routes import (
+    LOCAL_API_COMMAND_ROUTE_CONTRACT,
+    LOCAL_API_CONTRACT_SCHEMA_VERSION,
+    LOCAL_API_READ_ROUTE_CONTRACT,
+    LOCAL_API_ROUTE_CONTRACT,
+)
 
 
 __all__ = [

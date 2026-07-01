@@ -16,7 +16,9 @@ from mediapipeline.core.queue.priority_markers import (
     format_priority_leaf_name as format_priority_leaf_name_for_marker,
     get_source_priority_info as get_source_priority_info_for_path,
     path_is_unc,
+    remove_priority_markers_from_name,
     safe_mtime,
+    starts_with_priority_marker,
     touch_priority_target as touch_priority_target_path,
 )
 from mediapipeline.core.queue.snapshot import (
@@ -39,8 +41,8 @@ from mediapipeline.core.queue.source_inventory import (
     utc_now_iso,
     write_json_artifact,
 )
-from mediapipeline.desktop.models import QueueRecord, ResolvedPaths
-from mediapipeline.desktop.priority_markers import remove_priority_markers_from_name, starts_with_priority_marker
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.queue.contracts import QueueRecord
 
 
 class QueueServiceMixin:

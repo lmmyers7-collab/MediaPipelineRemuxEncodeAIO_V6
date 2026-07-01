@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from mediapipeline.core.completed.manifest import PROOF_MODE_SUMMARY
-from mediapipeline.desktop.models import CompletedJobRecord, ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.completed.contracts import CompletedJobRecord
 
 from .policy import build_metrics_payload
 from .sources import (
@@ -19,11 +20,11 @@ from .sources import (
 )
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
 
 def _command_result(**fields: Any) -> "CommandResult":
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**fields)
 

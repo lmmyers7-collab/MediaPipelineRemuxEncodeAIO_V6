@@ -102,6 +102,7 @@ function Invoke-FFmpegWithProgress {
         [string]$ProcessPriority = 'inherit',
         [string]$OutputPath = '',
         [AllowNull()] $WasteGuardContext = $null,
+        [int]$IdleTimeoutSeconds = 1800,
         [string]$WorkingDirectory = ''
     )
 
@@ -129,6 +130,7 @@ function Invoke-FFmpegWithProgress {
         executable       = $ffmpegPath
         command_line     = $ffmpegContext.CommandLine
         timeout_seconds  = $TimeoutSeconds
+        idle_timeout_seconds = $IdleTimeoutSeconds
         cpu_encode       = [bool]$CpuEncode
         process_priority = if ($priorityClassEnum) { [string]$priorityClassEnum } else { 'inherit' }
         working_directory = $WorkingDirectory
@@ -295,6 +297,7 @@ function Invoke-FFmpegWithProgress {
         -StderrLineHandler $stderrLineHandler `
         -PollHandler $pollHandler `
         -ProcessStartedHandler $processStartedHandler `
+        -IdleTimeoutSeconds $IdleTimeoutSeconds `
         -WorkingDirectory $WorkingDirectory
 
     if ([int]$result.ExitCode -eq -2) {
@@ -332,6 +335,7 @@ function Invoke-FFmpegWithProgress {
         -Executable $ffmpegPath `
         -CommandLine $ffmpegContext.CommandLine `
         -TimeoutSeconds $TimeoutSeconds `
+        -IdleTimeoutSeconds $IdleTimeoutSeconds `
         -ProgressStage $ProgressStage `
         -ProgressRoute $ProgressRoute `
         -InputFile $InputFile `
@@ -389,6 +393,7 @@ function Invoke-FFmpegWithProgress {
                 -Executable $ffmpegPath `
                 -CommandLine $script:LastFFmpegCommandLine `
                 -TimeoutSeconds $TimeoutSeconds `
+                -IdleTimeoutSeconds $IdleTimeoutSeconds `
                 -ProgressStage $ProgressStage `
                 -ProgressRoute $ProgressRoute `
                 -InputFile $InputFile `
@@ -445,6 +450,7 @@ function Invoke-MkvmergeWithProgress {
         [string]$Stage = 'remux-mkvmerge',
         [string]$ProgressStage = $null,
         [string]$ProgressRoute = $null,
+        [int]$IdleTimeoutSeconds = 1800,
         [switch]$SaveReproOnFailure
     )
 
@@ -472,6 +478,7 @@ function Invoke-MkvmergeWithProgress {
             executable      = $mkvmergePath
             command_line    = $commandLine
             timeout_seconds = $TimeoutSeconds
+            idle_timeout_seconds = $IdleTimeoutSeconds
         } | Out-Null
     }
 
@@ -499,6 +506,7 @@ function Invoke-MkvmergeWithProgress {
         -Label $Label `
         -MaxStdoutChars 65536 `
         -MaxStderrChars 65536 `
+        -IdleTimeoutSeconds $IdleTimeoutSeconds `
         -StdoutLineHandler $stdoutLineHandler
 
     $completedAt = Get-Date
@@ -537,6 +545,7 @@ function Invoke-MkvmergeWithProgress {
         @{ Name = 'DurationSeconds'; Value = $durationSeconds },
         @{ Name = 'ToolErrorCode';   Value = $toolErrorCode },
         @{ Name = 'ReproPath';       Value = $reproPath },
+        @{ Name = 'IdleTimeoutSeconds'; Value = $IdleTimeoutSeconds },
         @{ Name = 'MkvmergeWarningBlocking'; Value = [bool]$mkvmergeBlockingWarning },
         @{ Name = 'MkvmergeWarningReason';   Value = if ($warningClassification) { [string]$warningClassification.Reason } else { '' } },
         @{ Name = 'MkvmergeWarningMatchedText'; Value = if ($warningClassification) { [string]$warningClassification.MatchedText } else { '' } }
@@ -549,15 +558,22 @@ function Invoke-MkvmergeWithProgress {
     }
 
     if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+        $mkvIdleTimedOut = if ($result -is [System.Collections.IDictionary] -and $result.Contains('IdleTimedOut')) { [bool]$result['IdleTimedOut'] } elseif ($result.PSObject.Properties['IdleTimedOut']) { [bool]$result.IdleTimedOut } else { $false }
+        $mkvAbortCode = if ($result -is [System.Collections.IDictionary] -and $result.Contains('AbortCode')) { [string]$result['AbortCode'] } elseif ($result.PSObject.Properties['AbortCode']) { [string]$result.AbortCode } else { '' }
+        $mkvAbortReason = if ($result -is [System.Collections.IDictionary] -and $result.Contains('AbortReason')) { [string]$result['AbortReason'] } elseif ($result.PSObject.Properties['AbortReason']) { [string]$result.AbortReason } else { '' }
         Write-PipelineEvent -EventType 'tool_completed' -Stage $ProgressStage -Route $ProgressRoute -Status $(if (-not $mkvmergeFailed) { 'succeeded' } else { 'failed' }) -Data @{
             tool_name        = 'mkvmerge'
             label            = $Label
             executable       = $mkvmergePath
             command_line     = $commandLine
             timeout_seconds  = $TimeoutSeconds
+            idle_timeout_seconds = $IdleTimeoutSeconds
             exit_code        = $exitCode
             timed_out        = [bool]$result.TimedOut
             stopped          = [bool]$result.Stopped
+            idle_timed_out   = $mkvIdleTimedOut
+            abort_code       = $mkvAbortCode
+            abort_reason     = $mkvAbortReason
             error_code       = $toolErrorCode
             duration_seconds = $durationSeconds
             repro_path       = $reproPath

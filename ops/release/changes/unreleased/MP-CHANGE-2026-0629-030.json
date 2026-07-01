@@ -1,0 +1,74 @@
+{
+  "id": "MP-CHANGE-2026-0629-030",
+  "title": "Phase 7 boundary enforcement tightening",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Closes GitHub #23 Phase 7 by making NO_CORE_TO_DESKTOP a permanently enforced dependency-boundary rule, requiring zero current core-to-desktop imports, rejecting future NO_CORE_TO_DESKTOP allowlist entries, and documenting the closed ledger state.",
+  "reason": "The #23 implementation slices have migrated the core-to-desktop imports. Phase 7 needs to remove temporary allowances, preserve the ratchet as a permanent guard, and make the dependency-boundary tool fail fast on any future NO_CORE_TO_DESKTOP debt.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "tooling"
+  ],
+  "behavior_before": "NO_CORE_TO_DESKTOP was treated as migration debt controlled by the Phase 0 ratchet and the allowlist could still contain temporary NO_CORE_TO_DESKTOP entries if added.",
+  "behavior_after": "NO_CORE_TO_DESKTOP has zero current findings, cannot be allowlisted, and is covered by dependency-boundary tests that fail on new core-to-desktop imports or future NO_CORE_TO_DESKTOP allowlist rows.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/DOCS_INDEX.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/architecture/dependency_boundary_allowlist.txt",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/check_dependency_boundaries.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_dependency_boundaries.py.md",
+    "docs/implementation/architecture-boundary-cleanup/EDGE_LEDGER.md",
+    "docs/implementation/architecture-boundary-cleanup/README.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-030.json",
+    "src/mediapipeline/tools/dev/check_dependency_boundaries.py",
+    "tests/python/tooling/test_dependency_boundaries.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_dependency_boundaries.py::DependencyBoundaryToolTests.test_no_core_to_desktop_imports_remain_in_repository",
+    "tests/python/tooling/test_dependency_boundaries.py::DependencyBoundaryToolTests.test_no_core_to_desktop_allowlist_entries_are_allowed",
+    "tests/python/tooling/test_dependency_boundaries.py::DependencyBoundaryToolTests.test_core_to_desktop_allowlist_entry_is_rejected",
+    "tests/python/tooling/test_dependency_boundaries.py::DependencyBoundaryToolTests.test_phase7_ledger_closes_core_to_desktop_rows"
+  ],
+  "manual_validation": [
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/tools/dev/check_dependency_boundaries.py tests/python/tooling/test_dependency_boundaries.py",
+      "result": "pass - regenerated the two affected dependency-boundary tooling summaries."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.tooling.test_dependency_boundaries -q",
+      "result": "pass - 14 targeted dependency-boundary tooling tests passed."
+    },
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --format json",
+      "result": "pass - hard_findings=17, allowlisted=17, unallowlisted=0, warnings=39, allowlist_errors=0, unused_allowlist=0, NO_CORE_TO_DESKTOP=0, NO_CORE_TO_DESKTOP allowlist hits=0."
+    },
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_active_doc_references",
+      "result": "pass - active doc reference checks passed."
+    },
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_architecture_guardrails",
+      "result": "pass - architecture guardrails passed."
+    },
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes",
+      "result": "pass - 830 change packet(s) valid."
+    },
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage",
+      "result": "pass - 830 change packet(s) valid with strict worktree coverage; 408 dirty path(s), all covered by unreleased packets."
+    }
+  ],
+  "rollback_plan": "Restore the previous NO_CORE_TO_DESKTOP allowlist handling, restore the Phase 0 baseline-based ratchet tests, re-add any intentionally temporary NO_CORE_TO_DESKTOP allowlist rows, reopen the ledger closeout status, and refresh the affected generated summaries.",
+  "related_changes": [
+    "GitHub #23"
+  ],
+  "notes": "Reject NO_CORE_TO_DESKTOP allowlist entries as permanently enforced.\nTighten dependency-boundary tests to require zero core-to-desktop imports and zero allowlist entries.\nDocument that NO_CORE_TO_DESKTOP cannot be allowlisted after Phase 7.\nClose out Phase 7 ledger and permanent no-regression guard evidence.\nMark Phase 7 enforcement tightening complete.\nUpdate architecture-boundary ledger description for Phase 7 closeout.\nRecord GitHub #23 NO_CORE_TO_DESKTOP closure.\nMove #23 architecture boundary cleanup to completed work.\nRefresh generated summary after dependency-boundary enforcement update.\nRefresh generated summary after dependency-boundary tooling test update.\nAdjacent module/package cycles and config higher-level imports remain existing non-#23 maintenance debt controlled by their current allowlist owners.\nNo Local API routes, WebView commands, media policy, publish/drain, rename, source/scratch/output behavior, or operator runtime behavior changed."
+}

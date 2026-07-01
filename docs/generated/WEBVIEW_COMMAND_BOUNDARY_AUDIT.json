@@ -6,16 +6,16 @@
   "ok": true,
   "violations": [],
   "summary": {
-    "scripts": 151,
-    "controls": 484,
-    "route_usages": 101,
+    "scripts": 152,
+    "controls": 482,
+    "route_usages": 107,
     "dynamic_api_posts": 1,
-    "route_contracts": 154,
-    "high_risk_route_usages": 50,
+    "route_contracts": 161,
+    "high_risk_route_usages": 52,
     "unclassified_high_risk_controls": 0,
     "controls_by_classification": {
       "backend-contract-dynamic-route": 4,
-      "backend-owned-route": 167,
+      "backend-owned-route": 166,
       "disabled-future-network-control": 5,
       "local-copy": 2,
       "local-display-state": 70,
@@ -26,7 +26,7 @@
       "local-network-staging": 1,
       "local-or-read-only": 61,
       "local-queue-order-staging": 1,
-      "local-read-navigation": 42,
+      "local-read-navigation": 41,
       "local-rename-staging": 6,
       "local-sample-validation-staging": 2,
       "local-schedule-staging": 3,
@@ -1752,10 +1752,10 @@
     {
       "page": "launch",
       "tag": "button",
-      "id": "rerun-dry-run-button",
-      "text": "Preview CSV Rerun",
+      "id": "rerun-inspect-csv-button",
+      "text": "Inspect CSV",
       "classification": "backend-owned-route",
-      "route": "/api/rerun/start",
+      "route": "/api/rerun/preview",
       "data_attrs": {}
     },
     {
@@ -1773,17 +1773,26 @@
     {
       "page": "launch",
       "tag": "button",
-      "id": "rerun-plan-only-button",
-      "text": "Plan CSV Rerun",
+      "id": "rerun-open-csv-button",
+      "text": "Open CSV",
       "classification": "backend-owned-route",
-      "route": "/api/rerun/start",
+      "route": "/api/rerun/open",
+      "data_attrs": {}
+    },
+    {
+      "page": "launch",
+      "tag": "button",
+      "id": "rerun-open-csv-folder-button",
+      "text": "Open Folder",
+      "classification": "backend-owned-route",
+      "route": "/api/rerun/open",
       "data_attrs": {}
     },
     {
       "page": "launch",
       "tag": "button",
       "id": "rerun-start-button",
-      "text": "Start CSV Rerun",
+      "text": "Review & Start",
       "classification": "backend-owned-route",
       "route": "/api/rerun/start",
       "data_attrs": {}
@@ -3631,26 +3640,17 @@
     {
       "page": "reports",
       "tag": "button",
-      "id": "failure-archive-preview-button",
-      "text": "Preview archive",
-      "classification": "local-read-navigation",
-      "route": "",
+      "id": "failure-artifact-cleanup-confirm-button",
+      "text": "Delete selected artifacts",
+      "classification": "backend-owned-route",
+      "route": "/api/failures/artifacts/cleanup",
       "data_attrs": {}
     },
     {
       "page": "reports",
       "tag": "button",
       "id": "failure-clear-confirm-button",
-      "text": "Clear markers",
-      "classification": "backend-owned-route",
-      "route": "/api/failures/clear",
-      "data_attrs": {}
-    },
-    {
-      "page": "reports",
-      "tag": "button",
-      "id": "failure-clear-preview-button",
-      "text": "Preview marker clear",
+      "text": "Clear errors",
       "classification": "backend-owned-route",
       "route": "/api/failures/clear",
       "data_attrs": {}
@@ -3676,26 +3676,8 @@
     {
       "page": "reports",
       "tag": "button",
-      "id": "failure-lifecycle-reopen-preview-button",
-      "text": "Preview reopen",
-      "classification": "backend-owned-route",
-      "route": "/api/failures/lifecycle",
-      "data_attrs": {}
-    },
-    {
-      "page": "reports",
-      "tag": "button",
       "id": "failure-lifecycle-resolve-confirm-button",
       "text": "Mark resolved",
-      "classification": "backend-owned-route",
-      "route": "/api/failures/lifecycle",
-      "data_attrs": {}
-    },
-    {
-      "page": "reports",
-      "tag": "button",
-      "id": "failure-lifecycle-resolve-preview-button",
-      "text": "Preview resolve",
       "classification": "backend-owned-route",
       "route": "/api/failures/lifecycle",
       "data_attrs": {}
@@ -5041,7 +5023,7 @@
       "normalized_route": "/api/audit/export-rerun-csv",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 1012,
+      "line": 1090,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5057,7 +5039,7 @@
       "normalized_route": "/api/audit/ignore",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 972,
+      "line": 1050,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5073,7 +5055,7 @@
       "normalized_route": "/api/audit/score-policy",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 928,
+      "line": 1006,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5089,7 +5071,7 @@
       "normalized_route": "/api/audit/sources",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 631,
+      "line": 696,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5105,7 +5087,7 @@
       "normalized_route": "/api/audit/sources",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 664,
+      "line": 729,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5121,7 +5103,7 @@
       "normalized_route": "/api/audit/sources/scan",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 696,
+      "line": 761,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5137,7 +5119,7 @@
       "normalized_route": "/api/audit/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 803,
+      "line": 881,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5153,7 +5135,7 @@
       "normalized_route": "/api/audit/stop",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 884,
+      "line": 962,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5165,11 +5147,27 @@
       "owner_ok": true
     },
     {
+      "route": "/api/backend/close-readiness",
+      "normalized_route": "/api/backend/close-readiness",
+      "method": "GET",
+      "file": "apps/desktop/webview/static/assets/floatingPipelineLog.js",
+      "line": 281,
+      "script_owner": "Shared",
+      "allowed_owners": [
+        "App Shell",
+        "Diagnostics"
+      ],
+      "contract_effect": "none",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
       "route": "/api/backend/shutdown",
       "normalized_route": "/api/backend/shutdown",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/app.js",
-      "line": 414,
+      "line": 431,
       "script_owner": "App Shell",
       "allowed_owners": [
         "App Shell",
@@ -5335,7 +5333,7 @@
       "normalized_route": "/api/diagnostics",
       "method": "GET",
       "file": "apps/desktop/webview/static/assets/floatingPipelineLog.js",
-      "line": 218,
+      "line": 358,
       "script_owner": "Shared",
       "allowed_owners": [
         "Shared"
@@ -5350,7 +5348,7 @@
       "normalized_route": "/api/diagnostics/open",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 2203,
+      "line": 2235,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -5365,7 +5363,7 @@
       "normalized_route": "/api/diagnostics/tdarr-matrix-audit",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 2146,
+      "line": 2178,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -5380,7 +5378,7 @@
       "normalized_route": "/api/diagnostics/tdarr-matrix/evidence/open",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 2034,
+      "line": 2066,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -5395,7 +5393,7 @@
       "normalized_route": "/api/diagnostics/tdarr-matrix/rerun",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 2061,
+      "line": 2093,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -5410,7 +5408,7 @@
       "normalized_route": "/api/failures/archive-evidence",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/failureCommands.js",
-      "line": 703,
+      "line": 656,
       "script_owner": "Reports",
       "allowed_owners": [
         "Reports"
@@ -5421,11 +5419,56 @@
       "owner_ok": true
     },
     {
+      "route": "/api/failures/archive-evidence",
+      "normalized_route": "/api/failures/archive-evidence",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/reports/failureCommands.js",
+      "line": 669,
+      "script_owner": "Reports",
+      "allowed_owners": [
+        "Reports"
+      ],
+      "contract_effect": "failure-evidence-archive",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/failures/artifacts/cleanup",
+      "normalized_route": "/api/failures/artifacts/cleanup",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/reports/failureCommands.js",
+      "line": 837,
+      "script_owner": "Reports",
+      "allowed_owners": [
+        "Reports"
+      ],
+      "contract_effect": "failure-artifact-delete",
+      "high_risk_effect": true,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/failures/artifacts/cleanup",
+      "normalized_route": "/api/failures/artifacts/cleanup",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/reports/failureCommands.js",
+      "line": 867,
+      "script_owner": "Reports",
+      "allowed_owners": [
+        "Reports"
+      ],
+      "contract_effect": "failure-artifact-delete",
+      "high_risk_effect": true,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
       "route": "/api/failures/clear",
       "normalized_route": "/api/failures/clear",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/failureCommands.js",
-      "line": 518,
+      "line": 495,
       "script_owner": "Reports",
       "allowed_owners": [
         "Reports"
@@ -5440,12 +5483,27 @@
       "normalized_route": "/api/failures/lifecycle",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/failureCommands.js",
-      "line": 295,
+      "line": 292,
       "script_owner": "Reports",
       "allowed_owners": [
         "Reports"
       ],
       "contract_effect": "failure-resolution-journal-write",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/failures/open",
+      "normalized_route": "/api/failures/open",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/reports/failureCommands.js",
+      "line": 917,
+      "script_owner": "Reports",
+      "allowed_owners": [
+        "Reports"
+      ],
+      "contract_effect": "shell-open",
       "high_risk_effect": false,
       "contract_found": true,
       "owner_ok": true
@@ -5530,7 +5588,7 @@
       "normalized_route": "/api/maintenance/archive-state-journals",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1130,
+      "line": 1150,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5801,7 +5859,7 @@
       "normalized_route": "/api/pipeline/browse-file",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 860,
+      "line": 880,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5817,7 +5875,7 @@
       "normalized_route": "/api/pipeline/control",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 822,
+      "line": 842,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5833,7 +5891,7 @@
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1060,
+      "line": 1080,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5849,7 +5907,7 @@
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 962,
+      "line": 982,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6227,11 +6285,27 @@
       "owner_ok": true
     },
     {
+      "route": "/api/rerun/open",
+      "normalized_route": "/api/rerun/open",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/launchView.js",
+      "line": 1380,
+      "script_owner": "Launch",
+      "allowed_owners": [
+        "Launch",
+        "Reports"
+      ],
+      "contract_effect": "shell-open",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
       "route": "/api/rerun/preview",
       "normalized_route": "/api/rerun/preview",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1334,
+      "line": 1440,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6247,7 +6321,7 @@
       "normalized_route": "/api/rerun/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1457,
+      "line": 1577,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6597,7 +6671,7 @@
       "normalized_route": "/api/ui-preferences",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/app.js",
-      "line": 1146,
+      "line": 1277,
       "script_owner": "App Shell",
       "allowed_owners": [
         "App Shell"
@@ -6750,6 +6824,16 @@
     {
       "method": "GET",
       "path": "/api/failures",
+      "effect": "none",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/failures/artifacts",
       "effect": "none",
       "owner": "",
       "requires_confirmation": null,
@@ -7000,6 +7084,16 @@
     {
       "method": "GET",
       "path": "/api/rename/movie-cleaning-filters",
+      "effect": "none",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/rerun/results",
       "effect": "none",
       "owner": "",
       "requires_confirmation": null,
@@ -7396,6 +7490,24 @@
     },
     {
       "method": "POST",
+      "path": "/api/failures/artifacts/cleanup",
+      "effect": "failure-artifact-delete",
+      "owner": "",
+      "requires_confirmation": true,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "artifact_paths",
+        "confirm_delete",
+        "dry_run",
+        "dry_run_fingerprint",
+        "reason",
+        "retention_days",
+        "target_gb"
+      ]
+    },
+    {
+      "method": "POST",
       "path": "/api/failures/clear",
       "effect": "failure-marker-write",
       "owner": "",
@@ -7429,6 +7541,20 @@
         "reason",
         "step_id",
         "transition"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/failures/open",
+      "effect": "shell-open",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "row_key",
+        "source_kind",
+        "target"
       ]
     },
     {
@@ -8215,6 +8341,20 @@
     },
     {
       "method": "POST",
+      "path": "/api/rerun/open",
+      "effect": "shell-open",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "csv_key",
+        "row_key",
+        "target"
+      ]
+    },
+    {
+      "method": "POST",
       "path": "/api/rerun/preview",
       "effect": "read-only-preview",
       "owner": "",
@@ -8223,17 +8363,54 @@
       "network_lifecycle": false,
       "request_keys": [
         "bucket_filter",
+        "bucket_filters",
+        "collision_policy",
+        "confirm_delete_original",
+        "confirm_original_policy",
+        "confirm_replace_final",
         "csv_path",
+        "destination_mode",
         "enabled_only",
+        "execution_mode",
         "first_n",
         "issue_filter",
+        "issue_filters",
         "original_mode",
+        "original_policy",
         "preview_limit",
         "return_mode",
         "scope",
         "skip_blocked",
         "skip_warning_rows",
-        "stage_mode"
+        "stage_mode",
+        "status_filters",
+        "window_size"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/rerun/promote",
+      "effect": "pending-manifest-write",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "confirm_promote",
+        "dry_run_fingerprint",
+        "row_key"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/rerun/promote-dry-run",
+      "effect": "read-only-preview",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "row_key"
       ]
     },
     {
@@ -8246,12 +8423,21 @@
       "network_lifecycle": false,
       "request_keys": [
         "bucket_filter",
+        "bucket_filters",
+        "collision_policy",
+        "confirm_delete_original",
+        "confirm_original_policy",
+        "confirm_replace_final",
         "csv_path",
+        "destination_mode",
         "dry_run",
         "enabled_only",
+        "execution_mode",
         "first_n",
         "issue_filter",
+        "issue_filters",
         "original_mode",
+        "original_policy",
         "plan_only",
         "preview_limit",
         "return_mode",
@@ -8259,7 +8445,9 @@
         "show_console",
         "skip_blocked",
         "skip_warning_rows",
-        "stage_mode"
+        "stage_mode",
+        "status_filters",
+        "window_size"
       ]
     },
     {

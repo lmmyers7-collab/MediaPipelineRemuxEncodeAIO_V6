@@ -1,0 +1,55 @@
+{
+  "id": "MP-CHANGE-2026-0630-006",
+  "title": "Show CSV rerun queue on Home",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-30",
+  "date_completed": "2026-06-30",
+  "summary": "Home now keeps the active CSV rerun queue visible in the Tauri shell while live progress refreshes continue.",
+  "reason": "Fast live-run refreshes were re-rendering the Home queue panel without the /api/queue payload, replacing valid CSV rerun queue rows with a misleading No runnable message.",
+  "affected_areas": [
+    "generated",
+    "queue",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Tauri Home panel could show active CSV rerun progress but then overwrite Next 5 Videos with No runnable, even while /api/queue returned rerun queue rows.",
+  "behavior_after": "The Home panel recognizes CSV rerun queue rows, caches the last successful queue payload across fast progress refreshes, and shows the next rerun videos on the Tauri shell.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/app/home.js",
+    "apps/desktop/webview/static/index.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/index.html.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_shell.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_frontend_mutation_boundary.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0630-006.json",
+    "src/mediapipeline/core/queue/facade.py",
+    "tests/python/desktop/test_application_facade_queue.py",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/python/desktop/test_application_facade_web_static_shell.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_queue.py::ApplicationFacadeQueueTests::test_queue_preview_falls_back_to_active_csv_rerun_manifest_rows",
+    "tests/python/desktop/test_application_facade_web_static.py Home queue assertions for CSV rerun rows and cached fast-path queue rendering",
+    "tests/webview/test_webview_frontend_mutation_boundary.py guard for read-only CSV rerun Home progress and queue surfaces"
+  ],
+  "manual_validation": [
+    "Fresh Tauri shell served app.js with cached queue fast-path and /api/queue returned 99 rows, runnable=99.",
+    "Tauri screenshot proof captured in local temp workspace; path redacted for release package policy.",
+    "node --check apps/desktop/webview/static/assets/app.js",
+    "node --check apps/desktop/webview/static/assets/app/home.js",
+    "python -m unittest tests.python.desktop.test_application_facade_queue.ApplicationFacadeQueueTests.test_queue_preview_falls_back_to_active_csv_rerun_manifest_rows -q",
+    "python -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_home_next_queue_shows_first_five_runnable_rows_only -q",
+    "python -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_ui_polish_error_and_tooltip_guards_are_wired -q",
+    "python -m unittest tests.python.desktop.test_application_facade_web_static_shell.ApplicationFacadeWebStaticShellTests.test_index_cache_busts_home_summary_assets_for_tauri_webview -q",
+    "python -m unittest tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_live_run_progress_surfaces_are_read_only_shared_renderer -q"
+  ],
+  "rollback_plan": "Revert the Home/app.js/index cache-bust changes and the queue facade fallback/test additions; restart the Tauri shell to reload previous assets.",
+  "related_changes": [],
+  "notes": "Show active CSV rerun queue rows on Home.\nPreserve the loaded queue during fast live-run refreshes.\nBust Tauri WebView static cache for Home queue assets.\nExpose active CSV rerun manifest rows as read-only queue preview fallback.\nCover CSV rerun manifest queue preview fallback.\nCover Home CSV rerun queue rendering and fast-path cache behavior.\nCover Tauri cache-bust asset tokens.\nGuard read-only Home CSV rerun queue/progress surfaces.\nRefresh generated summary for changed CSV rerun Home queue file."
+}

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from mediapipeline.desktop.application.dto import PublishReconciliationDto
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.kernel.dto_inventory import PublishReconciliationDto
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 from .reconciliation_policy import publish_reconciliation_from_payloads
 

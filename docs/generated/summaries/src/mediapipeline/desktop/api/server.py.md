@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: api
 last_modified: 2026-06-29
 last_reviewed: 2026-06-04
-sha256: cab9acd8cd1a76fec04cd01b20066a14c50c228202add72bed45b4a77a6f18d1
+sha256: 8f4eb7d969a7098870de5468d3f9d71b57af8bb03fe6d956c2b4c1aa6475c784
 ---
 # `src/mediapipeline/desktop/api/server.py`
 

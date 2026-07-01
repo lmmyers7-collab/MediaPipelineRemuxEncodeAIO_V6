@@ -28,6 +28,9 @@ from mediapipeline.core.queue.file_overrides import (
     set_file_override_entry,
     validate_file_override_payload,
 )
+from mediapipeline.core.processes.source_path_policy import (
+    validate_queue_source_path,
+)
 
 from .command_results import resolved_paths_unavailable_payload
 from .file_overrides.effective_fields import _file_override_effective_payload
@@ -88,14 +91,6 @@ from .file_overrides.tracks import (
     _file_override_tracks_payload_from_probe_result,
     _probe_tracks_for_source_path,
 )
-
-
-def validate_queue_source_path(resolved: Any, raw_path: Any, **kwargs: Any):
-    from mediapipeline.desktop.api.queue_source_path_policy import (
-        validate_queue_source_path as _validate_queue_source_path,
-    )
-
-    return _validate_queue_source_path(resolved, raw_path, **kwargs)
 
 
 class LocalApiFileOverridesCommandPayloadMixin:

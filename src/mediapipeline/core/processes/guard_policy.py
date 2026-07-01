@@ -6,7 +6,7 @@ from typing import Any, Mapping
 
 
 ACTIVE_CLOSE_STATES = frozenset({"processing", "paused", "audit"})
-NON_BLOCKING_CLOSE_STATES = frozenset({"idle", "completed", "failed", "stale", "unknown"})
+NON_BLOCKING_CLOSE_STATES = frozenset({"idle", "completed", "failed", "stale", "stopped", "unknown"})
 INACTIVE_PIPELINE_PROGRESS_STAGES = frozenset({"", "idle", "sleeping", "stopped", "completed"})
 INACTIVE_AUDIT_PROGRESS_STATUSES = frozenset({"", "idle", "completed", "failed", "stopped"})
 SNAPSHOT_UNAVAILABLE_WARNING = "Snapshot was unavailable while evaluating close readiness."

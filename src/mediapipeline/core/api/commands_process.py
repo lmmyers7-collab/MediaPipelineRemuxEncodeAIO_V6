@@ -5,8 +5,12 @@ import threading
 from typing import Any
 
 from mediapipeline.core.files.constants import MEDIA_FILE_SUFFIXES
-from mediapipeline.desktop.api.path_dialogs import select_windows_paths_with_dialog
-from mediapipeline.desktop.application.dto import CommandResult
+from mediapipeline.core.kernel.dto_commands import CommandResult
+from mediapipeline.core.processes.rerun_results import (
+    rerun_open_backend_known_path,
+    rerun_promote_dry_run,
+    rerun_promote_to_pending_publish,
+)
 
 from .command_results import (
     backend_shutdown_success_payload,
@@ -112,7 +116,14 @@ class LocalApiProcessCommandPayloadMixin:
         if callable(picker):
             result = picker(**picker_kwargs)
         else:
-            result = select_windows_paths_with_dialog(**picker_kwargs)
+            result = {
+                "ok": False,
+                "canceled": False,
+                "selection_mode": "files",
+                "paths": [],
+                "message": "Pipeline file picker backend adapter is unavailable.",
+                "errors": ["pipeline_file_picker_adapter_unavailable"],
+            }
         paths = [str(path).strip() for path in result.get("paths", []) if str(path).strip()]
         selected_path = paths[0] if paths else ""
         canceled = bool(result.get("canceled", False))
@@ -182,6 +193,24 @@ class LocalApiProcessCommandPayloadMixin:
         if resolved is None:
             return resolved_paths_unavailable_payload("rerun.preview", "snapshot")
         return self.facade.preview_rerun_csv(resolved, request)
+
+    def _rerun_open_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("rerun.open", "snapshot")
+        return rerun_open_backend_known_path(resolved, self.facade.service, request).to_mapping()
+
+    def _rerun_promote_dry_run_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("rerun.promote_dry_run", "snapshot")
+        return rerun_promote_dry_run(resolved, request).to_mapping()
+
+    def _rerun_promote_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("rerun.promote", "snapshot")
+        return rerun_promote_to_pending_publish(resolved, request).to_mapping()
 
     def _force_active_work_shutdown_cleanup(self, resolved: Any) -> list[str]:
         messages: list[str] = []

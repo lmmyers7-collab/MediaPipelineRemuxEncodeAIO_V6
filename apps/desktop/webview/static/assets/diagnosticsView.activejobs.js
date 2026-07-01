@@ -65,12 +65,12 @@
 
   function activeJobRowPosture(item) {
     const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
-    if (backendState) return backendState;
+    if (backendState) return backendState === "blocked" ? "warning" : backendState;
     const status = String(item?.status || "").toLowerCase();
     const issue = String(item?.issue || "").toLowerCase();
     const source = String(item?.source || "").toLowerCase();
     const combined = `${status} ${issue} ${source}`;
-    if (/\b(invalid|unreadable|failed|killed|orphan|blocked|malformed|corrupt)\b/.test(combined)) return "blocked";
+    if (/\b(invalid|unreadable|failed|killed|orphan|blocked|malformed|corrupt)\b/.test(combined)) return "warning";
     if (/\b(launching|active|running|stale|unknown|review)\b/.test(combined)) return "warning";
     if (/\b(completed|completed_immediate)\b/.test(status)) return "match";
     return "";
@@ -81,13 +81,12 @@
     if (!items.length) return "No rows";
     const counts = items.reduce((acc, item) => {
       const posture = activeJobRowPosture(item);
-      if (posture === "blocked") acc.blocked += 1;
-      else if (posture === "warning" || posture === "running") acc.review += 1;
+      if (posture === "warning" || posture === "running") acc.review += 1;
       else if (posture === "match" || posture === "completed") acc.completed += 1;
       else acc.unknown += 1;
       return acc;
     }, { blocked: 0, review: 0, completed: 0, unknown: 0 });
-    return `${items.length} row${items.length === 1 ? "" : "s"}; blocked=${counts.blocked}; active/review=${counts.review}; completed=${counts.completed}; unknown=${counts.unknown}.`;
+    return `${items.length} row${items.length === 1 ? "" : "s"}; review=${counts.review}; completed=${counts.completed}; unknown=${counts.unknown}.`;
   }
 
   function renderActiveJobDiagnosticsActions(item) {
@@ -149,7 +148,7 @@
       ...diagnosticsActionPlanLines(
         "ActiveJobs selected row",
         actions,
-        "ActiveJobs is process-lifecycle evidence. Compare it with Close Readiness before closing the app, clearing state, or rerunning media."
+        "ActiveJobs is passive launch diagnostics evidence. Use close-readiness progress and logs for lifecycle decisions."
       ),
     ];
     setText("active-job-detail", lines.join("\n"));
@@ -161,9 +160,7 @@
       selectedActiveJobKey = "";
     }
     const statusText = activeJobRowsStatusText(lastActiveJobRows);
-    const statusState = lastActiveJobRows.some((row) => activeJobRowPosture(row) === "blocked")
-      ? "blocked"
-      : lastActiveJobRows.some((row) => activeJobRowPosture(row) === "warning")
+    const statusState = lastActiveJobRows.some((row) => activeJobRowPosture(row) === "warning")
         ? "warning"
         : lastActiveJobRows.length
           ? "ready"
@@ -176,7 +173,7 @@
     const tbody = byId("active-job-detail-rows");
     if (!tbody) return;
     if (!lastActiveJobRows.length) {
-      clearRows(tbody, 7, "No structured ActiveJobs rows loaded. Use the summary text above or open the ActiveJobs folder if close-readiness is blocked.");
+      clearRows(tbody, 7, "No structured ActiveJobs rows loaded. Use the summary text above or open the ActiveJobs folder for passive launch diagnostics.");
       updateTableStatusLegend("active-job-table-legend", tbody, "ActiveJob rows");
       renderActiveJobDetail(null);
       return;

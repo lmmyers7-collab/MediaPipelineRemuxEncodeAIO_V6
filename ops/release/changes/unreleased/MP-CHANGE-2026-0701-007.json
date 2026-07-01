@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0701-007",
+  "title": "Clarify ActiveJobs autonomy gate guidance",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-01",
+  "date_completed": "2026-07-01",
+  "summary": "Clarified the autonomy health ActiveJobs launch blocker and surfaced the first blocker code/reason directly in launch preflight evidence.",
+  "reason": "The launch warning only reported overall_status=blocked and can_start_new_work=no, then told the operator to use close-readiness and ActiveJobs evidence without saying what evidence was expected or what condition would clear the gate.",
+  "affected_areas": [
+    "diagnostics",
+    "generated",
+    "process",
+    "tests"
+  ],
+  "behavior_before": "When non-terminal ActiveJobs records blocked unattended launch, the backend action said to use close-readiness and ActiveJobs evidence and noted that autonomy health would not auto-clear non-validate records. The preflight evidence shown in the red launch banner only included overall_status and can_start_new_work.",
+  "behavior_after": "The ActiveJobs blocker now tells the operator to open Diagnostics > Readiness > Close Readiness and ActiveJobs, verify close-readiness/progress show no active work, then repair or evidence-archive failed, killed, orphaned, or stale active ActiveJobs records until only completed records remain at the top level. Launch preflight evidence now includes the first autonomy blocker code and reason.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0701-007.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/diagnostics/autonomy_health.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/preflight_facade.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_process_launch.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_autonomy_health.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0701-007.json",
+    "src/mediapipeline/core/diagnostics/autonomy_health.py",
+    "src/mediapipeline/core/processes/preflight_facade.py",
+    "tests/python/desktop/test_application_facade_process_launch.py",
+    "tests/python/desktop/test_autonomy_health.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_autonomy_health.py::AutonomyHealthPayloadTests.test_runtime_reliability_counters_surface_long_run_health assertion coverage for clearer ActiveJobs next_action",
+    "tests/python/desktop/test_application_facade_process_launch.py::ApplicationFacadeProcessLaunchTests.test_pipeline_start_blocks_autonomy_health_before_spawn assertion coverage for preflight blocker code/reason evidence"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_autonomy_health tests.python.desktop.test_application_facade_process_launch -q - passed (61 tests)"
+  ],
+  "rollback_plan": "Revert the message/evidence changes in src/mediapipeline/core/diagnostics/autonomy_health.py and src/mediapipeline/core/processes/preflight_facade.py, revert the two focused test assertions, refresh generated summaries for those files, and delete this change packet. Rollback does not require mutating runtime ActiveJobs state or media files.",
+  "related_changes": [],
+  "notes": "Added first autonomy blocker code and reason to preflight evidence shown in launch warnings.\nCovered clearer ActiveJobs autonomy blocker message and next action.\nClarified ActiveJobs autonomy blocker message and operator next action.\nCovered launch preflight evidence including first autonomy blocker code and reason.\nRefreshed generated summary for autonomy health wording.\nRefreshed generated summary for launch preflight wording.\nRefreshed generated summary for autonomy health tests.\nRefreshed generated summary for launch preflight tests.\nGenerated summary for this change packet."
+}

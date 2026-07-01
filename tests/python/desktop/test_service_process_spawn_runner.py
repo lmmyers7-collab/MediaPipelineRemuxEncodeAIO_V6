@@ -29,6 +29,8 @@ class DummySpawnRunnerService:
         self.killed_labels: list[str] = []
         self.active_job_updates: list[tuple[object, int | None]] = []
         self.active_job_update_event = threading.Event()
+        self.audit_sync_calls: list[dict[str, object]] = []
+        self.audit_sync_event = threading.Event()
         self.registered_processes: dict[int, tuple[object, str]] = {}
         self.unregistered_processes: list[int] = []
         self.write_exception: Exception | None = None
@@ -58,6 +60,20 @@ class DummySpawnRunnerService:
         _ = status
         self.active_job_updates.append((proc, return_code))
         self.active_job_update_event.set()
+
+    def sync_audit_sources_after_process_exit(self, proc, *, resolved, job_kind, return_code, metadata) -> None:
+        if job_kind != "audit":
+            return
+        self.audit_sync_calls.append(
+            {
+                "proc": proc,
+                "resolved": resolved,
+                "job_kind": job_kind,
+                "return_code": return_code,
+                "metadata": metadata,
+            }
+        )
+        self.audit_sync_event.set()
 
     def _register_active_spawned_process(self, proc, job_kind: str) -> None:
         self.registered_processes[int(proc.pid)] = (proc, job_kind)
@@ -213,8 +229,42 @@ class SpawnRunnerTests(unittest.TestCase):
             self.assertIs(result, fake_proc)
             self.assertTrue(service.active_job_update_event.wait(timeout=2.0))
             self.assertEqual(service.active_job_updates, [(fake_proc, 0)])
+            self.assertEqual(service.audit_sync_calls, [])
             self.assertEqual(service.registered_processes, {})
             self.assertEqual(service.unregistered_processes, [fake_proc.pid])
+
+    def test_spawn_runner_invokes_audit_sync_hook_after_successful_audit_exit(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            service = DummySpawnRunnerService(Path(td))
+            fake_proc = FakeSpawnProcess(returncode=0)
+            resolved = object()
+            metadata = {"library_roots": ["C:/Media"]}
+
+            with patch(
+                "mediapipeline.core.processes.spawn_runner.subprocess.Popen",
+                lambda *args, **kwargs: fake_proc,
+            ):
+                result = spawn_process_for_service(
+                    service,
+                    ["pwsh", "-File", "Audit-MediaLibrary.ps1"],
+                    False,
+                    resolved=resolved,  # type: ignore[arg-type]
+                    job_kind="audit",
+                    metadata=metadata,
+                )
+
+            self.assertIs(result, fake_proc)
+            self.assertTrue(service.active_job_update_event.wait(timeout=2.0))
+            self.assertTrue(service.audit_sync_event.wait(timeout=2.0))
+            self.assertEqual(service.active_job_updates, [(fake_proc, 0)])
+            self.assertEqual(len(service.audit_sync_calls), 1)
+            call = service.audit_sync_calls[0]
+            self.assertIs(call["proc"], fake_proc)
+            self.assertIs(call["resolved"], resolved)
+            self.assertEqual(call["job_kind"], "audit")
+            self.assertEqual(call["return_code"], 0)
+            self.assertEqual(call["metadata"], metadata)
+            self.assertEqual(service.registered_processes, {})
 
     def test_force_cleanup_unregisters_before_kill_so_watcher_cannot_overwrite_killed_status(self) -> None:
         service = DummyProcessLifecycleService()

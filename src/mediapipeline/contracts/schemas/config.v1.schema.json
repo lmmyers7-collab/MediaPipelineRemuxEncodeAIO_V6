@@ -267,6 +267,7 @@
                   "CpuEncodePreset": {},
                   "CpuEncodeProcessPriority": {},
                   "CpuEncodeMaxThreads": {},
+                  "CpuEncodeMutexWaitSeconds": {},
                   "ExtraVideoFlags": {}
                 },
                 "type": "object"
@@ -370,6 +371,7 @@
               "CpuEncodePreset": {},
               "CpuEncodeProcessPriority": {},
               "CpuEncodeMaxThreads": {},
+              "CpuEncodeMutexWaitSeconds": {},
               "ExtraVideoFlags": {},
               "SubKeepLanguages": {},
               "ConvertTx3gToSrt": {},
@@ -673,6 +675,22 @@
       "title": "Deferredpublish",
       "type": "boolean"
     },
+    "PendingPublishDrainMode": {
+      "default": "manual",
+      "enum": [
+        "manual",
+        "trusted"
+      ],
+      "title": "Pendingpublishdrainmode",
+      "type": "string"
+    },
+    "PendingPublishDrainBatchSize": {
+      "default": 100,
+      "maximum": 1000000,
+      "minimum": 1,
+      "title": "Pendingpublishdrainbatchsize",
+      "type": "integer"
+    },
     "FinalLibraryPromotionEnabled": {
       "default": false,
       "title": "Finallibrarypromotionenabled",
@@ -919,6 +937,11 @@
       },
       "title": "Subkeeplanguages",
       "type": "array"
+    },
+    "AllowSubtitleHelperFallback": {
+      "default": false,
+      "title": "Allowsubtitlehelperfallback",
+      "type": "boolean"
     },
     "ConvertTx3gToSrt": {
       "default": true,
@@ -1167,6 +1190,13 @@
       "title": "Watchdebounceseconds",
       "type": "integer"
     },
+    "WatchScanTimeoutSeconds": {
+      "default": 300,
+      "maximum": 86400,
+      "minimum": 1,
+      "title": "Watchscantimeoutseconds",
+      "type": "integer"
+    },
     "WatchAction": {
       "default": "enqueue_only",
       "enum": [
@@ -1217,6 +1247,31 @@
       "default": 7,
       "minimum": 0,
       "title": "Logretentiondays",
+      "type": "integer"
+    },
+    "PipelineDebugLogMaxBytes": {
+      "default": 104857600,
+      "maximum": 2147483647,
+      "minimum": 1048576,
+      "title": "Pipelinedebuglogmaxbytes",
+      "type": "integer"
+    },
+    "FailureArtifactWarningThresholdGB": {
+      "default": 100,
+      "minimum": 0,
+      "title": "Failureartifactwarningthresholdgb",
+      "type": "integer"
+    },
+    "FailureArtifactRetentionDays": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Failureartifactretentiondays",
+      "type": "integer"
+    },
+    "FailureArtifactCleanupTargetGB": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Failureartifactcleanuptargetgb",
       "type": "integer"
     },
     "PriorityMarkers": {
@@ -1363,6 +1418,13 @@
       "title": "Ffmpegcpuencodetimeoutseconds",
       "type": "integer"
     },
+    "CpuEncodeMutexWaitSeconds": {
+      "default": 1800,
+      "maximum": 86400,
+      "minimum": 0,
+      "title": "Cpuencodemutexwaitseconds",
+      "type": "integer"
+    },
     "FFmpegRemuxTimeoutSeconds": {
       "default": 7200,
       "minimum": 1,
@@ -1505,6 +1567,83 @@
       "maximum": 100,
       "minimum": 1,
       "title": "Transientfailureretrylimit",
+      "type": "integer"
+    },
+    "ConsecutiveRoundFailureBlockLimit": {
+      "default": 12,
+      "maximum": 1000,
+      "minimum": 1,
+      "title": "Consecutiveroundfailureblocklimit",
+      "type": "integer"
+    },
+    "ConsecutiveRoundFailureProbeBackoffSeconds": {
+      "default": 900,
+      "maximum": 86400,
+      "minimum": 30,
+      "title": "Consecutiveroundfailureprobebackoffseconds",
+      "type": "integer"
+    },
+    "PendingPublishBacklogBlockThreshold": {
+      "default": 100,
+      "maximum": 1000000,
+      "minimum": 1,
+      "title": "Pendingpublishbacklogblockthreshold",
+      "type": "integer"
+    },
+    "PendingPublishDeferredBlockThreshold": {
+      "default": 25,
+      "maximum": 1000000,
+      "minimum": 1,
+      "title": "Pendingpublishdeferredblockthreshold",
+      "type": "integer"
+    },
+    "PauseFlagReviewSeconds": {
+      "default": 1800,
+      "maximum": 86400,
+      "minimum": 60,
+      "title": "Pauseflagreviewseconds",
+      "type": "integer"
+    },
+    "PauseFlagBlockSeconds": {
+      "default": 21600,
+      "maximum": 604800,
+      "minimum": 300,
+      "title": "Pauseflagblockseconds",
+      "type": "integer"
+    },
+    "LocalWorkerHeartbeatGraceSeconds": {
+      "default": 900,
+      "maximum": 86400,
+      "minimum": 60,
+      "title": "Localworkerheartbeatgraceseconds",
+      "type": "integer"
+    },
+    "QueueExecutionMaxRunnablePerRound": {
+      "default": 500,
+      "maximum": 1000000,
+      "minimum": 1,
+      "title": "Queueexecutionmaxrunnableperround",
+      "type": "integer"
+    },
+    "StateDbMaintenanceIntervalSeconds": {
+      "default": 21600,
+      "maximum": 604800,
+      "minimum": 60,
+      "title": "Statedbmaintenanceintervalseconds",
+      "type": "integer"
+    },
+    "StateDbWalReviewBytes": {
+      "default": 33554432,
+      "maximum": 2147483647,
+      "minimum": 1048576,
+      "title": "Statedbwalreviewbytes",
+      "type": "integer"
+    },
+    "StateDbCompletedJobsMaxRows": {
+      "default": 250000,
+      "maximum": 10000000,
+      "minimum": 1000,
+      "title": "Statedbcompletedjobsmaxrows",
       "type": "integer"
     },
     "IndexScanTimeoutSeconds": {

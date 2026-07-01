@@ -1,11 +1,26 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
-from mediapipeline.desktop.models_core import ConfigSaveResult
-from mediapipeline.desktop.subprocess_runner import CapturedCommandResult, KillTreeCallback
+from mediapipeline.core.kernel.runtime.subprocess_runner import CapturedCommandResult, KillTreeCallback
+
+
+@dataclass
+class ConfigPreview:
+    merged_config: dict[str, Any]
+    preview_text: str
+    errors: list[str]
+    warnings: list[str]
+    preserved_keys: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ConfigSaveResult:
+    output_path: Path
+    backup_path: Path | None = None
 
 
 class WarningLogger(Protocol):

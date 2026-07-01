@@ -188,6 +188,15 @@ VIDEO_CONFIG_FIELD_DEFINITIONS = (
     {
         "page": "Video",
         "section": "Remux / Safety",
+        "key": "CpuEncodeMutexWaitSeconds",
+        "label": "CPU Encode Mutex Wait (seconds)",
+        "kind": "int",
+        "default": 1800,
+        "help": "Maximum time to wait for another local CPU encode slot before recording a visible transient failure instead of waiting for the full encode timeout.",
+    },
+    {
+        "page": "Video",
+        "section": "Remux / Safety",
         "key": "MkvmergeRemuxTimeoutSeconds",
         "label": "Mkvmerge Remux Timeout (seconds)",
         "kind": "int",

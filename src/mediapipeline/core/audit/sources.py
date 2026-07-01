@@ -12,7 +12,7 @@ from typing import Any
 
 from mediapipeline.core.files.constants import MEDIA_FILE_SUFFIXES, SIDECAR_FILE_SUFFIXES
 from mediapipeline.core.kernel.dto_base import json_safe
-from mediapipeline.core.kernel.models_core import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 
 AUDIT_SOURCE_REGISTRY_SCHEMA_VERSION = "desktop_audit_sources.v1"
@@ -621,11 +621,137 @@ def scan_audit_sources(resolved: ResolvedPaths, request: Mapping[str, Any]) -> d
     }
 
 
+def _dedupe_text_values(values: Iterable[Any]) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = _text(value)
+        key = text.replace("/", "\\").rstrip("\\").casefold()
+        if not text or key in seen:
+            continue
+        seen.add(key)
+        result.append(text)
+    return result
+
+
+def _library_roots_from_metadata(metadata: Mapping[str, Any]) -> list[str]:
+    raw_roots = metadata.get("library_roots")
+    if isinstance(raw_roots, list):
+        values: Iterable[Any] = raw_roots
+    else:
+        values = []
+    roots = _dedupe_text_values(values)
+    if roots:
+        return roots
+    return _dedupe_text_values([metadata.get("library_root")])
+
+
+def _source_ids_for_library_roots(
+    registry: Mapping[str, Any],
+    library_roots: Iterable[Any],
+) -> tuple[list[str], list[str]]:
+    configured_ids = {
+        _source_lookup_key(item)
+        for item in registry.get("roots") or []
+        if isinstance(item, Mapping)
+    }
+    source_ids: list[str] = []
+    missing_paths: list[str] = []
+    seen: set[str] = set()
+    for library_root in _dedupe_text_values(library_roots):
+        source_id = _source_key(library_root)
+        if source_id not in configured_ids:
+            missing_paths.append(library_root)
+            continue
+        if source_id in seen:
+            continue
+        seen.add(source_id)
+        source_ids.append(source_id)
+    return source_ids, missing_paths
+
+
+def sync_audit_sources_from_completed_audit(
+    resolved: ResolvedPaths,
+    *,
+    metadata: Mapping[str, Any] | None = None,
+    library_roots: Iterable[Any] | None = None,
+) -> dict[str, Any]:
+    """Refresh configured audit-source metrics after a successful audit run.
+
+    The audit process itself writes report files but the Locations table reads
+    from the audit-source registry. Reuse the existing read-only source scan so
+    media, sidecar, and folder counts stay consistent with the manual Scan
+    buttons.
+    """
+    paths = audit_source_state_paths(resolved)
+    if paths is None:
+        message = "Audit source metrics sync is unavailable because state_root is not configured."
+        return {
+            "ok": False,
+            "message": message,
+            "severity": "error",
+            "warnings": [],
+            "errors": [message],
+            "data": {"audit_sources": audit_source_state_payload(resolved)},
+        }
+    registry = _load_registry(paths["registry"])
+    roots = _dedupe_text_values(library_roots or [])
+    if not roots and metadata is not None:
+        roots = _library_roots_from_metadata(metadata)
+    source_ids: list[str] = []
+    missing_paths: list[str] = []
+    if roots:
+        source_ids, missing_paths = _source_ids_for_library_roots(registry, roots)
+        if not source_ids:
+            message = "Completed audit did not match any configured Audit source rows."
+            return {
+                "ok": False,
+                "message": message,
+                "severity": "warning",
+                "warnings": [*missing_paths, message],
+                "errors": [],
+                "data": {"audit_sources": _source_state_from_registry(resolved, registry=registry)},
+            }
+    request: dict[str, Any] = {"source_ids": source_ids} if source_ids else {"scope": "enabled"}
+    result = scan_audit_sources(resolved, request)
+    if missing_paths:
+        warnings = list(result.get("warnings") or [])
+        warnings.extend(f"Completed audit root is not configured as an Audit source row: {path}" for path in missing_paths)
+        result = {**result, "warnings": warnings, "severity": "warning"}
+    return result
+
+
+class AuditSourceMetricsServiceMixin:
+    def sync_audit_sources_after_process_exit(
+        self,
+        proc: Any,
+        *,
+        resolved: ResolvedPaths | None,
+        job_kind: str,
+        return_code: int | None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> None:
+        if str(job_kind or "").strip().casefold() != "audit":
+            return
+        if return_code != 0 or resolved is None:
+            return
+        result = sync_audit_sources_from_completed_audit(resolved, metadata=metadata)
+        logger = getattr(self, "logger", None)
+        message = str(result.get("message") or "Audit source metrics sync finished.")
+        if bool(result.get("ok")):
+            if logger is not None and hasattr(logger, "info"):
+                logger.info("Synced Audit source metrics after audit PID %s completed: %s", getattr(proc, "pid", ""), message)
+        elif logger is not None and hasattr(logger, "warning"):
+            logger.warning("Audit source metrics sync after audit PID %s did not complete: %s", getattr(proc, "pid", ""), message)
+
+
 __all__ = [
+    "AuditSourceMetricsServiceMixin",
     "AUDIT_SOURCE_REGISTRY_SCHEMA_VERSION",
     "AUDIT_SOURCE_SCAN_SCHEMA_VERSION",
     "audit_source_state_payload",
     "audit_source_state_paths",
     "scan_audit_sources",
+    "sync_audit_sources_from_completed_audit",
     "update_audit_sources",
 ]

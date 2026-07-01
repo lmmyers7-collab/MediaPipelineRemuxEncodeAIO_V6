@@ -3,9 +3,9 @@ file: docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-26
+last_modified: 2026-07-01
 last_reviewed: 2026-06-02
-sha256: 4a9ea277ee674044001d09f974c7b3af3692fc441c26b7ecf9c997a2fd9d0990
+sha256: 06d47537f5909b1a050d0d01dd4c086b425fb225410b74c51ae4975f56758b07
 ---
 # `docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`
 

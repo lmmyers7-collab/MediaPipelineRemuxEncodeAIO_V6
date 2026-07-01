@@ -15,7 +15,7 @@ $ErrorActionPreference = 'Stop'
 
 $testsRoot = Split-Path -Parent $PSCommandPath
 $pipelineRoot = Split-Path -Parent (Split-Path -Parent $testsRoot)
-$repoRoot = Split-Path -Parent $pipelineRoot
+$repoRoot = Split-Path -Parent (Split-Path -Parent $pipelineRoot)
 
 . (Join-Path $repoRoot 'ops\pipeline\engine\audit\policy.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\audit\reports.ps1')

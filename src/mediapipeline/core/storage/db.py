@@ -20,6 +20,10 @@ from typing import Any
 
 CURRENT_SCHEMA_VERSION = 2
 STATE_DB_FILENAME = "mediapipeline_state.sqlite3"
+STATE_DB_MAINTENANCE_MARKER_FILENAME = "state_db_maintenance.json"
+DEFAULT_STATE_DB_MAINTENANCE_INTERVAL_SECONDS = 21600
+DEFAULT_STATE_DB_WAL_REVIEW_BYTES = 33_554_432
+DEFAULT_STATE_DB_COMPLETED_JOBS_MAX_ROWS = 250_000
 
 
 class StateDbError(RuntimeError):
@@ -57,11 +61,126 @@ def open_state_db(root: Path | str) -> "StateDb":
     return db
 
 
+def maybe_maintain_state_db(
+    root: Path | str,
+    *,
+    interval_seconds: int = DEFAULT_STATE_DB_MAINTENANCE_INTERVAL_SECONDS,
+    wal_review_bytes: int = DEFAULT_STATE_DB_WAL_REVIEW_BYTES,
+    completed_jobs_max_rows: int = DEFAULT_STATE_DB_COMPLETED_JOBS_MAX_ROWS,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Best-effort SQLite mirror maintenance.
+
+    JSON state remains authoritative; failures here are bounded observability
+    evidence and intentionally do not raise into callers that just finished a
+    successful mirror write.
+    """
+
+    root_path = Path(root)
+    db_path = root_path / STATE_DB_FILENAME
+    wal_path = db_path.with_name(f"{db_path.name}-wal")
+    shm_path = db_path.with_name(f"{db_path.name}-shm")
+    marker_path = root_path / STATE_DB_MAINTENANCE_MARKER_FILENAME
+    checked_at_dt = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    checked_at = checked_at_dt.isoformat()
+    interval = max(60, int(interval_seconds or DEFAULT_STATE_DB_MAINTENANCE_INTERVAL_SECONDS))
+    wal_threshold = max(1_048_576, int(wal_review_bytes or DEFAULT_STATE_DB_WAL_REVIEW_BYTES))
+    completed_jobs_limit = max(1_000, int(completed_jobs_max_rows or DEFAULT_STATE_DB_COMPLETED_JOBS_MAX_ROWS))
+    marker = _read_json_mapping(marker_path)
+    last_maintenance_at = str(marker.get("last_maintenance_at") or "")
+    last_age_seconds = _timestamp_age_seconds(last_maintenance_at, checked_at_dt)
+    db_size = _file_size(db_path)
+    wal_size = _file_size(wal_path)
+    shm_size = _file_size(shm_path)
+    reason = ""
+    if wal_size >= wal_threshold:
+        reason = "wal_threshold"
+    elif last_age_seconds is None or last_age_seconds >= interval:
+        reason = "interval"
+
+    payload: dict[str, Any] = {
+        "schema_version": "state_db_maintenance_marker.v1",
+        "checked_at": checked_at,
+        "path": str(db_path),
+        "db_size_bytes": db_size,
+        "wal_size_bytes": wal_size,
+        "shm_size_bytes": shm_size,
+        "interval_seconds": interval,
+        "wal_review_bytes": wal_threshold,
+        "completed_jobs_max_rows": completed_jobs_limit,
+        "last_maintenance_at": last_maintenance_at,
+        "last_maintenance_age_seconds": last_age_seconds,
+        "ran": False,
+        "reason": reason,
+        "ok": True,
+        "error": "",
+    }
+    if not reason:
+        _write_json_marker(marker_path, payload)
+        return payload
+
+    try:
+        result = open_state_db(root_path).maintenance(max_completed_jobs=completed_jobs_limit)
+        payload["ran"] = True
+        payload["last_maintenance_at"] = checked_at
+        payload["last_maintenance_age_seconds"] = 0
+        payload["result"] = {
+            "deleted_counts": result.get("deleted_counts", {}),
+            "checkpoint": result.get("checkpoint", []),
+            "health": result.get("health", {}),
+        }
+    except Exception as exc:
+        payload["ok"] = False
+        payload["error"] = _scalar_text(exc, limit=1000)
+    _write_json_marker(marker_path, payload)
+    return payload
+
+
+def _read_json_mapping(path: Path) -> Mapping[str, Any]:
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        return payload if isinstance(payload, Mapping) else {}
+    except Exception:
+        return {}
+
+
+def _write_json_marker(path: Path, payload: Mapping[str, Any]) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = path.with_name(f"{path.name}.tmp")
+        temp_path.write_text(json.dumps(payload, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8")
+        temp_path.replace(path)
+    except OSError:
+        return
+
+
+def _timestamp_age_seconds(value: str, now: datetime) -> int | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    age = (now - parsed.astimezone(timezone.utc)).total_seconds()
+    return max(0, int(age))
+
+
+def _file_size(path: Path) -> int:
+    try:
+        return int(path.stat().st_size)
+    except OSError:
+        return 0
+
+
 @dataclass
 class StateDb:
     path: Path
     timeout_seconds: float = 5.0
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
+    _write_failures: int = field(default=0, init=False, repr=False)
 
     def connect(self) -> sqlite3.Connection:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -105,6 +224,86 @@ class StateDb:
                     self._apply_migration_2(conn)
                     conn.execute("PRAGMA user_version = 2")
                 conn.commit()
+
+    def _note_write_failure(self) -> None:
+        self._write_failures += 1
+
+    def _file_size(self, path: Path) -> int:
+        try:
+            return int(path.stat().st_size)
+        except OSError:
+            return 0
+
+    def _table_counts(self, conn: sqlite3.Connection) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for table in ("commands", "events", "queue_snapshots", "completed_jobs"):
+            counts[table] = int(conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
+        return counts
+
+    def health_counters(self) -> dict[str, Any]:
+        with self._lock:
+            with self.connection() as conn:
+                counts = self._table_counts(conn)
+        wal_path = self.path.with_name(f"{self.path.name}-wal")
+        shm_path = self.path.with_name(f"{self.path.name}-shm")
+        return {
+            "path": str(self.path),
+            "db_size_bytes": self._file_size(self.path),
+            "wal_size_bytes": self._file_size(wal_path),
+            "shm_size_bytes": self._file_size(shm_path),
+            "write_failures": int(self._write_failures),
+            "counts": counts,
+        }
+
+    def maintenance(
+        self,
+        *,
+        max_commands: int = 5000,
+        max_events: int = 50000,
+        max_queue_snapshots: int = 1000,
+        max_completed_jobs: int = DEFAULT_STATE_DB_COMPLETED_JOBS_MAX_ROWS,
+        checkpoint_wal: bool = True,
+    ) -> dict[str, Any]:
+        limits = {
+            "commands": max(0, int(max_commands)),
+            "events": max(0, int(max_events)),
+            "queue_snapshots": max(0, int(max_queue_snapshots)),
+            "completed_jobs": max(0, int(max_completed_jobs)),
+        }
+        deleted: dict[str, int] = {}
+        checkpoint_result: list[tuple[Any, ...]] = []
+        with self._lock:
+            with self.connection() as conn:
+                before_counts = self._table_counts(conn)
+                for table, keep_count in limits.items():
+                    deleted_count = int(
+                        conn.execute(
+                            f"""
+                            DELETE FROM {table}
+                            WHERE id NOT IN (
+                                SELECT id FROM {table}
+                                ORDER BY id DESC
+                                LIMIT ?
+                            )
+                            """,
+                            (keep_count,),
+                        ).rowcount
+                    )
+                    deleted[table] = max(0, deleted_count)
+                conn.commit()
+                if checkpoint_wal:
+                    checkpoint_result = [tuple(row) for row in conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchall()]
+                after_counts = self._table_counts(conn)
+        health = self.health_counters()
+        return {
+            "schema_version": "state_db_maintenance.v1",
+            "path": str(self.path),
+            "before_counts": before_counts,
+            "after_counts": after_counts,
+            "deleted_counts": deleted,
+            "checkpoint": checkpoint_result,
+            "health": health,
+        }
 
     def _apply_migration_1(self, conn: sqlite3.Connection) -> None:
         conn.executescript(
@@ -208,55 +407,63 @@ class StateDb:
 
     def record_command(self, command_event: Mapping[str, Any]) -> None:
         payload_json = _json_text(command_event)
-        with self._lock:
-            with self.connection() as conn:
-                conn.execute(
-                    """
-                    INSERT INTO commands(
-                        recorded_at, command, ok, severity, message, job_id,
-                        refresh_hint, payload_hash, payload_json
+        try:
+            with self._lock:
+                with self.connection() as conn:
+                    conn.execute(
+                        """
+                        INSERT INTO commands(
+                            recorded_at, command, ok, severity, message, job_id,
+                            refresh_hint, payload_hash, payload_json
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            _utc_now(),
+                            _scalar_text(command_event.get("command"), limit=160) or "unknown",
+                            1 if bool(command_event.get("ok")) else 0,
+                            _scalar_text(command_event.get("severity"), limit=40) or "info",
+                            _scalar_text(command_event.get("message"), limit=2000),
+                            _scalar_text(command_event.get("job_id"), limit=120),
+                            _scalar_text(command_event.get("refresh_hint"), limit=80),
+                            _payload_hash(payload_json),
+                            payload_json,
+                        ),
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        _utc_now(),
-                        _scalar_text(command_event.get("command"), limit=160) or "unknown",
-                        1 if bool(command_event.get("ok")) else 0,
-                        _scalar_text(command_event.get("severity"), limit=40) or "info",
-                        _scalar_text(command_event.get("message"), limit=2000),
-                        _scalar_text(command_event.get("job_id"), limit=120),
-                        _scalar_text(command_event.get("refresh_hint"), limit=80),
-                        _payload_hash(payload_json),
-                        payload_json,
-                    ),
-                )
-                conn.commit()
+                    conn.commit()
+        except Exception:
+            self._note_write_failure()
+            raise
 
     def record_stage_event(self, stage_event: Mapping[str, Any]) -> None:
         payload_json = _json_text(stage_event)
-        with self._lock:
-            with self.connection() as conn:
-                conn.execute(
-                    """
-                    INSERT INTO events(
-                        recorded_at, event_type, run_id, command_id, stage,
-                        ok, payload_hash, payload_json
+        try:
+            with self._lock:
+                with self.connection() as conn:
+                    conn.execute(
+                        """
+                        INSERT INTO events(
+                            recorded_at, event_type, run_id, command_id, stage,
+                            ok, payload_hash, payload_json
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            _utc_now(),
+                            _scalar_text(stage_event.get("event_type") or stage_event.get("journal_event_type"), limit=160)
+                            or "pipeline.stage.unknown",
+                            _scalar_text(stage_event.get("run_id"), limit=120),
+                            _scalar_text(stage_event.get("command_id"), limit=120),
+                            _scalar_text(stage_event.get("stage"), limit=80),
+                            None if stage_event.get("ok") is None else 1 if bool(stage_event.get("ok")) else 0,
+                            _payload_hash(payload_json),
+                            payload_json,
+                        ),
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        _utc_now(),
-                        _scalar_text(stage_event.get("event_type") or stage_event.get("journal_event_type"), limit=160)
-                        or "pipeline.stage.unknown",
-                        _scalar_text(stage_event.get("run_id"), limit=120),
-                        _scalar_text(stage_event.get("command_id"), limit=120),
-                        _scalar_text(stage_event.get("stage"), limit=80),
-                        None if stage_event.get("ok") is None else 1 if bool(stage_event.get("ok")) else 0,
-                        _payload_hash(payload_json),
-                        payload_json,
-                    ),
-                )
-                conn.commit()
+                    conn.commit()
+        except Exception:
+            self._note_write_failure()
+            raise
 
     def record_queue_snapshot(
         self,
@@ -268,27 +475,31 @@ class StateDb:
         rows = snapshot.get("rows")
         row_count = len(rows) if isinstance(rows, list) else int(snapshot.get("row_count") or 0)
         payload_json = _json_text(snapshot)
-        with self._lock:
-            with self.connection() as conn:
-                conn.execute(
-                    """
-                    INSERT INTO queue_snapshots(
-                        recorded_at, request_id, produced_at, source_path,
-                        row_count, payload_hash, payload_json
+        try:
+            with self._lock:
+                with self.connection() as conn:
+                    conn.execute(
+                        """
+                        INSERT INTO queue_snapshots(
+                            recorded_at, request_id, produced_at, source_path,
+                            row_count, payload_hash, payload_json
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            _utc_now(),
+                            _scalar_text(request_id or snapshot.get("desktop_queue_preview_request_id"), limit=120),
+                            _scalar_text(snapshot.get("produced_at"), limit=120),
+                            _scalar_text(source_path, limit=1000),
+                            int(row_count),
+                            _payload_hash(payload_json),
+                            payload_json,
+                        ),
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        _utc_now(),
-                        _scalar_text(request_id or snapshot.get("desktop_queue_preview_request_id"), limit=120),
-                        _scalar_text(snapshot.get("produced_at"), limit=120),
-                        _scalar_text(source_path, limit=1000),
-                        int(row_count),
-                        _payload_hash(payload_json),
-                        payload_json,
-                    ),
-                )
-                conn.commit()
+                    conn.commit()
+        except Exception:
+            self._note_write_failure()
+            raise
 
     def record_completed_job(self, completed_job: Mapping[str, Any]) -> None:
         payload_json = _json_text(completed_job)
@@ -302,27 +513,31 @@ class StateDb:
             _scalar_text(completed_job.get("job_id"), limit=300)
             or payload_hash
         )
-        with self._lock:
-            with self.connection() as conn:
-                conn.execute(
-                    """
-                    INSERT INTO completed_jobs(
-                        recorded_at, job_key, output_path, sidecar_path,
-                        completed_at, payload_hash, payload_json
+        try:
+            with self._lock:
+                with self.connection() as conn:
+                    conn.execute(
+                        """
+                        INSERT INTO completed_jobs(
+                            recorded_at, job_key, output_path, sidecar_path,
+                            completed_at, payload_hash, payload_json
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            _utc_now(),
+                            job_key,
+                            output_path,
+                            sidecar_path,
+                            completed_at,
+                            payload_hash,
+                            payload_json,
+                        ),
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        _utc_now(),
-                        job_key,
-                        output_path,
-                        sidecar_path,
-                        completed_at,
-                        payload_hash,
-                        payload_json,
-                    ),
-                )
-                conn.commit()
+                    conn.commit()
+        except Exception:
+            self._note_write_failure()
+            raise
 
     def list_recent_events(self, filters: Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
         filters = dict(filters or {})
@@ -362,9 +577,14 @@ class StateDb:
 
 __all__ = [
     "CURRENT_SCHEMA_VERSION",
+    "DEFAULT_STATE_DB_MAINTENANCE_INTERVAL_SECONDS",
+    "DEFAULT_STATE_DB_WAL_REVIEW_BYTES",
+    "DEFAULT_STATE_DB_COMPLETED_JOBS_MAX_ROWS",
+    "STATE_DB_MAINTENANCE_MARKER_FILENAME",
     "STATE_DB_FILENAME",
     "StateDb",
     "StateDbError",
     "StateDbIncompatibleVersion",
+    "maybe_maintain_state_db",
     "open_state_db",
 ]

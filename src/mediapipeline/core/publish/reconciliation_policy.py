@@ -6,8 +6,8 @@ import re
 from typing import Any
 import unicodedata
 
-from mediapipeline.desktop.application.dto import PublishReconciliationDto
-from mediapipeline.desktop.application.dto_base import json_safe
+from mediapipeline.core.kernel.dto_inventory import PublishReconciliationDto
+from mediapipeline.core.kernel.dto_base import json_safe
 from mediapipeline.core.completed.policy import bounded_completed_limit
 
 

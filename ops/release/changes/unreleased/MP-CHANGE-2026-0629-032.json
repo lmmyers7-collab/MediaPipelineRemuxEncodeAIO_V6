@@ -1,0 +1,56 @@
+{
+  "id": "MP-CHANGE-2026-0629-032",
+  "title": "Fix CSV rerun planning and completion states",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Fix CSV rerun plan-only execution and completion classification so operator planning uses the backend launch path, no-output rows fail clearly, and generated temp configs preserve non-identifier PSD1 keys.",
+  "reason": "The CSV rerun Plan button and facade returned only the lightweight CSV preview instead of running the PowerShell planner, missing or empty outputs were reported as parked rows even when no parked payload existed, and generated temp PSD1 files could become unparsable when preserved config maps used keys with spaces, dots, or hyphens.",
+  "affected_areas": [
+    "backend",
+    "generated",
+    "pipeline",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Plan-only CSV rerun requests stopped at the WebView/backend preview layer; deeper source/path/identity planning failures were only surfaced later on dry/live launch. Missing or empty planned outputs were marked parked, and parked rows did not force a nonzero rerun process exit. Temp config serialization emitted top-level PSD1 keys bare, which broke imported configs with non-identifier custom keys.",
+  "behavior_after": "Confirmed plan-only CSV rerun requests post to /api/rerun/start and spawn the backend PowerShell -PlanOnly path after preview gating. Missing or empty planned outputs are failed rows, parked rows force nonzero exit, and temp config writers quote PSD1 keys at both top-level and nested levels.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launchView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.js.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/Invoke-RerunCsv.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-RerunNestedConfigChecks.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-RerunPlanOnlyChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0629-032.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/rerun_facade.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_process_launch.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_launch.py.md",
+    "ops/pipeline/entrypoints/Invoke-RerunCsv.ps1",
+    "ops/pipeline/tests/Unit/Invoke-RerunNestedConfigChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-RerunPlanOnlyChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-032.json",
+    "src/mediapipeline/core/processes/rerun_facade.py",
+    "tests/python/desktop/test_application_facade_process_launch.py",
+    "tests/python/desktop/test_application_facade_web_static_launch.py"
+  ],
+  "tests_added": [
+    "Updated ops/pipeline/tests/Unit/Invoke-RerunNestedConfigChecks.ps1 to verify temp PSD1 import preserves custom keys with spaces and dots.",
+    "Updated ops/pipeline/tests/Unit/Invoke-RerunPlanOnlyChecks.ps1 to guard no-output failure classification and parked-row exit policy.",
+    "Updated tests/python/desktop/test_application_facade_process_launch.py to assert CSV rerun plan-only starts the backend rerun launch path instead of returning preview data.",
+    "Updated tests/python/desktop/test_application_facade_web_static_launch.py to pin removal of the WebView plan-only preview shortcut."
+  ],
+  "manual_validation": [
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_rerun_csv_preview tests.python.desktop.test_facade_process_rerun_policy tests.python.desktop.test_application_facade_process_launch.ApplicationFacadeProcessLaunchTests.test_rerun_start_uses_existing_service_launch_path tests.python.desktop.test_application_facade_process_launch.ApplicationFacadeProcessLaunchTests.test_rerun_plan_launches_backend_plan_and_start_materializes_scoped_csv tests.python.desktop.test_application_facade_web_static_launch.ApplicationFacadeWebStaticLaunchTests.test_launch_rerun_and_pending_drain_commands_are_guarded tests.python.desktop.test_service_process_launch_plans tests.python.desktop.test_service_process_launch_runner tests.webview.test_webview_launch_command_buttons_smoke -q",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage",
+    "PASS: .\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-RerunNestedConfigChecks.ps1",
+    "PASS: .\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-RerunPlanOnlyChecks.ps1",
+    "PASS: .\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-RerunSourceIdentityChecks.ps1"
+  ],
+  "rollback_plan": "Restore the WebView plan-only preview shortcut and rerun facade preview return, revert CSV rerun missing/empty planned-output rows to parked classification and parked-row zero exit behavior, restore bare top-level PSD1 key emission, and remove the added test assertions.",
+  "related_changes": [],
+  "notes": "CSV rerun is a high-risk queue launch surface; this change keeps source mutation disabled and does not alter media policy. The worktree already contains broad unrelated dirty generated summaries and source/docs changes; this packet only claims the listed CSV rerun implementation, tests, generated summaries, and packet metadata.\nRefresh generated summary for the change packet metadata."
+}

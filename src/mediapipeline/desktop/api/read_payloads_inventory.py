@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from mediapipeline.core.failures.artifacts import failure_artifact_summary_unavailable
 from mediapipeline.core.publish.reconciliation_policy import publish_reconciliation_from_payloads
 
 from .http_helpers import query_bool, query_int, query_value
@@ -85,6 +86,12 @@ class LocalApiInventoryReadPayloadMixin:
         limit = query_int(query, "limit", 100)
         source_kind = query_value(query, "source", "latest_json")
         return self.facade.get_failure_preview(resolved, source_kind=source_kind, limit=limit).to_mapping()
+
+    def _failure_artifacts_payload(self) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return failure_artifact_summary_unavailable("Resolved paths are unavailable.")
+        return self.facade.get_failure_artifact_summary(resolved)
 
     def _audit_results_payload(self, query: dict[str, list[str]]) -> dict[str, Any]:
         resolved = self._resolved()

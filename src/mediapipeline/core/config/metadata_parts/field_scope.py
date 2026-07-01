@@ -52,6 +52,7 @@ METADATA_LIBRARY_OVERRIDE_KEYS_BY_GROUP = {
         "CpuEncodePreset",
         "CpuEncodeProcessPriority",
         "CpuEncodeMaxThreads",
+        "CpuEncodeMutexWaitSeconds",
         "ExtraVideoFlags",
     ),
     "subtitles": (

@@ -10,7 +10,7 @@ try:
 except Exception:  # pragma: no cover - optional runtime dependency
     psutil = None
 
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.processes.constants import (
     ACTIVE_JOB_STALE_VALIDATE_HEARTBEAT_SECONDS,
     AUDIT_PROGRESS_LAUNCH_CLEANUP_STALE_SECONDS,
@@ -19,7 +19,6 @@ from mediapipeline.core.processes.constants import (
     PROCESS_LAUNCH_READY_CHECK_SECONDS,
 )
 from .active_job_runner import (
-    active_job_close_block_messages_for_service,
     active_job_pid_is_alive_for_service,
     active_job_record_path_for_proc_for_service,
     active_jobs_dir_for_service,
@@ -138,7 +137,15 @@ class ProcessLifecycleServiceMixin:
         stage_mode: str,
         original_mode: str,
         return_mode: str,
-        show_console: bool,
+        show_console: bool = False,
+        execution_mode: str = "one_at_a_time",
+        destination_mode: str = "review_workspace",
+        original_policy: str = "keep",
+        collision_policy: str = "suffix",
+        window_size: int = 1,
+        confirm_replace_final: bool = False,
+        confirm_original_policy: bool = False,
+        confirm_delete_original: bool = False,
         plan_only: bool = False,
     ) -> subprocess.Popen[Any]:
         return start_rerun_csv_for_service(
@@ -150,6 +157,14 @@ class ProcessLifecycleServiceMixin:
             stage_mode=stage_mode,
             original_mode=original_mode,
             return_mode=return_mode,
+            execution_mode=execution_mode,
+            destination_mode=destination_mode,
+            original_policy=original_policy,
+            collision_policy=collision_policy,
+            window_size=window_size,
+            confirm_replace_final=confirm_replace_final,
+            confirm_original_policy=confirm_original_policy,
+            confirm_delete_original=confirm_delete_original,
             show_console=show_console,
         )
 
@@ -272,21 +287,6 @@ class ProcessLifecycleServiceMixin:
 
     def _active_job_pid_is_alive(self, pid: int) -> bool | None:
         return active_job_pid_is_alive_for_service(self, pid, psutil)
-
-    def active_job_close_block_messages(
-        self,
-        resolved: ResolvedPaths,
-        *,
-        max_items: int = 24,
-        job_kinds: set[str] | None = None,
-    ) -> list[str]:
-        return active_job_close_block_messages_for_service(
-            self,
-            resolved,
-            max_items=max_items,
-            psutil_module=psutil,
-            job_kinds=job_kinds,
-        )
 
     def reconcile_active_job_records(self, resolved: ResolvedPaths, *, max_items: int = 24) -> list[str]:
         return reconcile_active_job_records_for_service(self, resolved, max_items=max_items, psutil_module=psutil)

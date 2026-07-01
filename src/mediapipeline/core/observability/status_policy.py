@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Mapping
 
 from mediapipeline.core.telemetry.gpu_usage import gpu_encoder_usage_payload
-from mediapipeline.desktop.models import Snapshot, TelemetrySnapshot
 
 
 APP_CAPABILITIES = (
@@ -159,6 +159,43 @@ def bool_from_mapping(mapping: Mapping[str, Any], *keys: str) -> bool:
         if text in {"0", "false", "no", "n"}:
             return False
     return False
+
+
+def _parse_progress_datetime(raw: str) -> datetime | None:
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    iso_text = text.replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(iso_text)
+    except ValueError:
+        pass
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+        try:
+            return datetime.strptime(text[:19], fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _datetime_is_stale(raw: str, stale_after_seconds: float) -> bool:
+    parsed = _parse_progress_datetime(raw)
+    if parsed is None:
+        return False
+    now = datetime.now(parsed.tzinfo) if parsed.tzinfo is not None else datetime.now()
+    return (now - parsed) > timedelta(seconds=stale_after_seconds)
+
+
+def _audit_progress_is_stale(audit_progress: Mapping[str, Any] | None, *, stale_after_seconds: float = 5.0) -> bool:
+    if not audit_progress:
+        return False
+    if bool_from_mapping(audit_progress, "completed", "Completed") or bool_from_mapping(audit_progress, "failed", "Failed"):
+        return False
+    status = text_from_mapping(audit_progress, "status", "Status").lower()
+    if status in {"", "idle", "completed", "failed", "stopped"}:
+        return False
+    raw = text_from_mapping(audit_progress, "last_update", "LastUpdate", "updated_at", "UpdatedAt")
+    return _datetime_is_stale(raw, stale_after_seconds)
 
 
 def progress_state_status(*values: str, stale: bool = False) -> str:
@@ -558,7 +595,7 @@ def string_list_from_mapping(mapping: Mapping[str, Any], *keys: str) -> list[str
     return []
 
 
-def audit_report_progress_bar(audit_progress: Mapping[str, Any], *, status_text: str) -> dict[str, Any] | None:
+def audit_report_progress_bar(audit_progress: Mapping[str, Any], *, status_text: str, stale: bool = False) -> dict[str, Any] | None:
     step_total = int_from_mapping(audit_progress, "report_step_total", "ReportStepTotal")
     if step_total <= 0:
         return None
@@ -586,7 +623,7 @@ def audit_report_progress_bar(audit_progress: Mapping[str, Any], *, status_text:
     elif step_index >= step_total and (audit_progress.get("completed") is True or stage.lower() == "complete"):
         status = "complete"
     else:
-        status = progress_state_status(status_text, stage)
+        status = progress_state_status(status_text, stage, stale=stale)
     return progress_bar(
         bar_id="audit_reports",
         label="Audit reports",
@@ -596,10 +633,11 @@ def audit_report_progress_bar(audit_progress: Mapping[str, Any], *, status_text:
         detail=" | ".join(detail_parts),
         source="audit_progress.json",
         updated_at=text_from_mapping(audit_progress, "last_update", "LastUpdate", "updated_at"),
+        stale=stale,
     )
 
 
-def audit_progress_bars(audit_progress: Mapping[str, Any]) -> list[dict[str, Any]]:
+def audit_progress_bars(audit_progress: Mapping[str, Any], *, stale: bool = False) -> list[dict[str, Any]]:
     if not audit_progress:
         return []
     processed = int_from_mapping(audit_progress, "processed_files", "ProcessedFiles")
@@ -621,14 +659,15 @@ def audit_progress_bars(audit_progress: Mapping[str, Any]) -> list[dict[str, Any
         progress_bar(
             bar_id="audit_progress",
             label="Audit progress",
-            status=progress_state_status(status_text),
+            status=progress_state_status(status_text, stale=stale),
             percent=percent,
             detail=detail,
             source="audit_progress.json",
             updated_at=text_from_mapping(audit_progress, "last_update", "LastUpdate", "updated_at"),
+            stale=stale,
         )
     ]
-    report_bar = audit_report_progress_bar(audit_progress, status_text=status_text)
+    report_bar = audit_report_progress_bar(audit_progress, status_text=status_text, stale=stale)
     if report_bar is not None:
         bars.append(report_bar)
     return bars
@@ -638,9 +677,10 @@ def snapshot_progress_bars(snapshot: Snapshot, *, pipeline_state: str) -> list[d
     progress = snapshot.progress or {}
     audit_progress = snapshot.audit_progress or {}
     stale = "stale progress" in str(snapshot.current_activity or "").lower()
+    audit_stale = _audit_progress_is_stale(audit_progress)
     return [
         *pipeline_progress_bars(progress, pipeline_state=pipeline_state, stale=stale),
-        *audit_progress_bars(audit_progress),
+        *audit_progress_bars(audit_progress, stale=audit_stale),
     ]
 
 

@@ -149,6 +149,14 @@ def build_rerun_csv_launch_plan(
     stage_mode: str,
     original_mode: str,
     return_mode: str,
+    execution_mode: str = "one_at_a_time",
+    destination_mode: str = "review_workspace",
+    original_policy: str = "keep",
+    collision_policy: str = "suffix",
+    window_size: int = 1,
+    confirm_replace_final: bool = False,
+    confirm_original_policy: bool = False,
+    confirm_delete_original: bool = False,
     plan_only: bool = False,
 ) -> ProcessLaunchPlan:
     if not resolved.powershell_host:
@@ -177,11 +185,27 @@ def build_rerun_csv_launch_plan(
         original_mode,
         "-DefaultReturnMode",
         return_mode,
+        "-ExecutionMode",
+        execution_mode,
+        "-DestinationMode",
+        destination_mode,
+        "-OriginalPolicy",
+        original_policy,
+        "-CollisionPolicy",
+        collision_policy,
+        "-WindowSize",
+        str(max(1, int(window_size))),
     ]
     if plan_only:
         args.append("-PlanOnly")
     if dry_run:
         args.append("-DryRun")
+    if confirm_replace_final:
+        args.append("-ConfirmReplaceFinal")
+    if confirm_original_policy:
+        args.append("-ConfirmOriginalPolicy")
+    if confirm_delete_original:
+        args.append("-ConfirmDeleteOriginal")
     mode = "plan_only" if plan_only else "dry_run" if dry_run else "run"
 
     return ProcessLaunchPlan(
@@ -195,5 +219,13 @@ def build_rerun_csv_launch_plan(
             "default_stage_mode": stage_mode,
             "default_original_mode": original_mode,
             "default_return_mode": return_mode,
+            "execution_mode": execution_mode,
+            "destination_mode": destination_mode,
+            "original_policy": original_policy,
+            "collision_policy": collision_policy,
+            "window_size": max(1, int(window_size)),
+            "confirm_replace_final": bool(confirm_replace_final),
+            "confirm_original_policy": bool(confirm_original_policy),
+            "confirm_delete_original": bool(confirm_delete_original),
         },
     )

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from mediapipeline.desktop.application.dto import CommandResult
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.kernel.dto_commands import CommandResult
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 
 class FinalLibraryPromotionFacadeMixin:

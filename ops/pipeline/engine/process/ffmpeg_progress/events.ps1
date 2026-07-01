@@ -10,6 +10,7 @@ function Complete-FFmpegToolEvent {
         [Parameter(Mandatory)] [string]$Executable,
         [AllowNull()] [string]$CommandLine,
         [Parameter(Mandatory)] [int]$TimeoutSeconds,
+        [int]$IdleTimeoutSeconds = 0,
         [AllowNull()] [string]$ProgressStage,
         [AllowNull()] [string]$ProgressRoute,
         [AllowNull()] [string]$InputFile,
@@ -46,6 +47,20 @@ function Complete-FFmpegToolEvent {
         }
     }
     $script:LastFFmpegToolErrorCode = Get-ExternalToolFailureCode -ToolName 'ffmpeg' -Result $classificationResult
+    $idleTimedOut = $false
+    $abortCode = ''
+    $abortReason = ''
+    if ($null -ne $Result) {
+        if ($Result -is [System.Collections.IDictionary]) {
+            if ($Result.Contains('IdleTimedOut')) { $idleTimedOut = [bool]$Result['IdleTimedOut'] }
+            if ($Result.Contains('AbortCode')) { $abortCode = [string]$Result['AbortCode'] }
+            if ($Result.Contains('AbortReason')) { $abortReason = [string]$Result['AbortReason'] }
+        } else {
+            if ($Result.PSObject.Properties['IdleTimedOut']) { $idleTimedOut = [bool]$Result.IdleTimedOut }
+            if ($Result.PSObject.Properties['AbortCode']) { $abortCode = [string]$Result.AbortCode }
+            if ($Result.PSObject.Properties['AbortReason']) { $abortReason = [string]$Result.AbortReason }
+        }
+    }
 
     $eventData = @{
         tool_name           = 'ffmpeg'
@@ -53,9 +68,13 @@ function Complete-FFmpegToolEvent {
         executable          = $Executable
         command_line        = $CommandLine
         timeout_seconds     = $TimeoutSeconds
+        idle_timeout_seconds = $IdleTimeoutSeconds
         exit_code           = $ExitCode
         timed_out           = $TimedOut
         stopped             = $Stopped
+        idle_timed_out      = $idleTimedOut
+        abort_code          = $abortCode
+        abort_reason        = $abortReason
         error_code          = $script:LastFFmpegToolErrorCode
         duration_seconds    = $script:LastFFmpegDurationSeconds
         priority_requested  = [string]$script:LastFFmpegPriorityRequested

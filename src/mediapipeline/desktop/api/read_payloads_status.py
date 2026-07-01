@@ -10,7 +10,8 @@ from mediapipeline.desktop.watch import watch_folder_state_mapping
 
 class LocalApiStatusReadPayloadMixin:
     def _health_payload(self) -> dict[str, Any]:
-        payload = self.facade.get_health(self._resolved()).to_mapping()
+        resolved = self._resolved()
+        payload = self.facade.get_health(resolved).to_mapping()
         startup_progress = getattr(self, "startup_progress", None)
         if isinstance(startup_progress, dict):
             payload["startup_progress"] = dict(startup_progress)
@@ -118,12 +119,22 @@ class LocalApiStatusReadPayloadMixin:
                     "csv_path": query_value(query, "csv_path", ""),
                     "dry_run": query_bool(query, "dry_run", False),
                     "plan_only": query_bool(query, "plan_only", False),
-                    "stage_mode": query_value(query, "stage_mode", "copy"),
-                    "original_mode": query_value(query, "original_mode", "keep"),
-                    "return_mode": query_value(query, "return_mode", "park"),
-                    "show_console": query_bool(query, "show_console", False),
+                    "execution_mode": query_value(query, "execution_mode", "one_at_a_time"),
+                    "destination_mode": query_value(query, "destination_mode", "review_workspace"),
+                    "original_policy": query_value(query, "original_policy", "keep"),
+                    "collision_policy": query_value(query, "collision_policy", "suffix"),
+                    "window_size": query_int(query, "window_size", 1),
+                    "confirm_replace_final": query_bool(query, "confirm_replace_final", False),
+                    "confirm_original_policy": query_bool(query, "confirm_original_policy", False),
+                    "confirm_delete_original": query_bool(query, "confirm_delete_original", False),
                 }
             )
+            if "stage_mode" in query:
+                request["stage_mode"] = query_value(query, "stage_mode", "copy")
+            if "original_mode" in query:
+                request["original_mode"] = query_value(query, "original_mode", "keep")
+            if "return_mode" in query:
+                request["return_mode"] = query_value(query, "return_mode", "park")
         return self.facade.get_launch_preflight(resolved, request)
 
     def _command_history_payload(self, query: dict[str, list[str]]) -> dict[str, Any]:

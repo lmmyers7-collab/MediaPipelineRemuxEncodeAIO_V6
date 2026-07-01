@@ -66,6 +66,7 @@ $script:TreatAssSignsSongsAsForced = Get-ConfigBool 'TreatAssSignsSongsAsForced'
 $script:TreatTx3gSignsSongsAsForced = Get-ConfigBool 'TreatTx3gSignsSongsAsForced' $false
 $script:AggressiveEpisodeParsing = Get-ConfigBool 'AggressiveEpisodeParsing' $false
 $script:AllowSystemTools = Get-ConfigBool 'AllowSystemTools' $false
+$script:AllowSubtitleHelperFallback = Get-ConfigBool 'AllowSubtitleHelperFallback' $false
 $script:DoviToolPath = if ($config.ContainsKey('DoviToolPath')) { [string]$config['DoviToolPath'] } else { '' }
 $script:Hdr10PlusToolPath = if ($config.ContainsKey('Hdr10PlusToolPath')) { [string]$config['Hdr10PlusToolPath'] } else { '' }
 $script:MergeThresholdMs  = Get-ConfigInt  'MergeThresholdMs'  150 0 5000
@@ -76,6 +77,7 @@ $script:FFmpegEncodeTimeoutSeconds = Get-ConfigInt 'FFmpegEncodeTimeoutSeconds' 
 # operator did not set one, default to 2x the GPU timeout so old configs do not
 # silently degrade.
 $script:FFmpegCpuEncodeTimeoutSeconds = Get-ConfigInt 'FFmpegCpuEncodeTimeoutSeconds' ([int][math]::Min(172800, $script:FFmpegEncodeTimeoutSeconds * 2)) 300 172800
+$script:CpuEncodeMutexWaitSeconds = Get-ConfigInt 'CpuEncodeMutexWaitSeconds' 1800 0 86400
 $script:FFmpegRemuxTimeoutSeconds  = Get-ConfigInt 'FFmpegRemuxTimeoutSeconds'  7200 300 86400
 # R2 fix — replaces the previous hard-coded 600 s mkvmerge timeout in
 # Do-Remux. mkvmerge default in Get-NativeToolDefaultTimeoutSeconds is
@@ -115,6 +117,18 @@ $script:CleanupScanTimeoutSeconds    = Get-ConfigInt 'CleanupScanTimeoutSeconds'
 $script:CleanupRemoteStaging         = Get-ConfigBool 'CleanupRemoteStaging' $false
 $script:CleanupStaleAgeHours         = Get-ConfigInt 'CleanupStaleAgeHours' 24 1 720
 $script:TransientFailureRetryLimit   = Get-ConfigInt 'TransientFailureRetryLimit' 3 1 100
+$script:ConsecutiveRoundFailureBlockLimit = Get-ConfigInt 'ConsecutiveRoundFailureBlockLimit' 12 1 1000
+$script:ConsecutiveRoundFailureProbeBackoffSeconds = Get-ConfigInt 'ConsecutiveRoundFailureProbeBackoffSeconds' 900 30 86400
+$script:PendingPublishBacklogBlockThreshold = Get-ConfigInt 'PendingPublishBacklogBlockThreshold' 100 1 1000000
+$script:PendingPublishDeferredBlockThreshold = Get-ConfigInt 'PendingPublishDeferredBlockThreshold' 25 1 1000000
+$script:PendingPublishDrainBatchSize = Get-ConfigInt 'PendingPublishDrainBatchSize' 100 1 1000000
+$script:PauseFlagReviewSeconds = Get-ConfigInt 'PauseFlagReviewSeconds' 1800 60 86400
+$script:PauseFlagBlockSeconds = Get-ConfigInt 'PauseFlagBlockSeconds' 21600 300 604800
+$script:LocalWorkerHeartbeatGraceSeconds = Get-ConfigInt 'LocalWorkerHeartbeatGraceSeconds' 900 60 86400
+$script:QueueExecutionMaxRunnablePerRound = Get-ConfigInt 'QueueExecutionMaxRunnablePerRound' 500 1 1000000
+$script:StateDbMaintenanceIntervalSeconds = Get-ConfigInt 'StateDbMaintenanceIntervalSeconds' 21600 60 604800
+$script:StateDbWalReviewBytes = Get-ConfigInt 'StateDbWalReviewBytes' 33554432 1048576 2147483647
+$script:StateDbCompletedJobsMaxRows = Get-ConfigInt 'StateDbCompletedJobsMaxRows' 250000 1000 10000000
 
 # v1.0 — new optional keys
 #
@@ -447,6 +461,15 @@ $script:MinPipelineVersion = if ($config.ContainsKey('MinPipelineVersion') -and 
 # after the run or it'll loop forever.
 $script:ReprocessAll = Get-ConfigBool 'ReprocessAll' $false
 $script:DeferredPublish = Get-ConfigBool 'DeferredPublish' $false
+$script:PendingPublishDrainMode = if ($config.ContainsKey('PendingPublishDrainMode')) {
+    ([string]$config['PendingPublishDrainMode']).Trim().ToLowerInvariant()
+} else {
+    'manual'
+}
+if ($script:PendingPublishDrainMode -notin @('manual','trusted')) {
+    Add-StartupWarning "PendingPublishDrainMode='$script:PendingPublishDrainMode' is invalid; using manual"
+    $script:PendingPublishDrainMode = 'manual'
+}
 
 # Estimated output-to-input size ratio used for the pre-encode disk check.
 # At CQ 22 on the RTX 5080, HEVC output typically lands at 0.55–0.75x of
@@ -484,6 +507,7 @@ $script:CpuEncodeMaxThreads = Get-ConfigInt 'CpuEncodeMaxThreads' 0 0 256
 
 $script:ConsoleLogLevel = Get-ConfigLogLevel 'ConsoleLogLevel' $(if ($DebugMode) { 'DEBUG' } else { 'INFO' })
 $script:FileLogLevel    = Get-ConfigLogLevel 'FileLogLevel'    $(if ($DebugMode) { 'DEBUG' } else { 'INFO' })
+$script:PipelineDebugLogMaxBytes = Get-ConfigInt 'PipelineDebugLogMaxBytes' 104857600 1048576 2147483647
 
 # Per-show overrides. Hashtable keyed by GLOB PATTERN (case-insensitive)
 # matching the TV show name. The match uses PowerShell -like semantics

@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0701-018",
+  "title": "Reset stale idle progress block",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-01",
+  "date_completed": "2026-07-01",
+  "summary": "Fixes stale progress Status values from keeping lifecycle surfaces blocked after progress has otherwise become idle, stopped, or terminal.",
+  "reason": "A prior autonomy-health shutdown/cleanup left CurrentStage=idle but Status=Autonomy health blocked. Status snapshot mapping converted that stale text into pipeline_state=autonomy_health_blocked, causing close-readiness to block even though launch preflight and active-work checks were clear. A follow-up scan found the same class in _pipeline_state(), where arbitrary Status text could override explicit idle/stopped CurrentStage evidence.",
+  "affected_areas": [
+    "core",
+    "generated_context",
+    "tests"
+  ],
+  "behavior_before": "pipeline.control.kill skipped progress cleanup whenever CurrentStage was idle/startup/empty, and _pipeline_state() trusted arbitrary progress Status text before explicit idle/stopped CurrentStage evidence. A stale blocking Status could keep Home/Launch/close-readiness surfaces blocked after work was already idle.",
+  "behavior_after": "pipeline.control.kill only treats progress as already idle when both CurrentStage and Status are idle-looking; otherwise it rewrites the progress payload to the existing Idle reset shape. _pipeline_state() now lets explicit idle/sleeping/completed/stopped CurrentStage evidence take precedence over stale arbitrary Status text, while preserving completed/failed terminal labels.",
+  "files_touched": [
+    "docs/generated/summaries/src/mediapipeline/core/application/utilities.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/control_facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/guard_policy.py.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0701-018.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_close_readiness.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_process_control.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_facade_process_guard_policy.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0701-018.json",
+    "src/mediapipeline/core/application/utilities.py",
+    "src/mediapipeline/core/processes/control_facade.py",
+    "src/mediapipeline/core/processes/guard_policy.py",
+    "tests/python/desktop/test_application_facade_close_readiness.py",
+    "tests/python/desktop/test_application_facade_process_control.py",
+    "tests/python/desktop/test_facade_process_guard_policy.py"
+  ],
+  "tests_added": [
+    "Added process-control regression coverage for kill cleanup resetting CurrentStage=idle with Status=Autonomy health blocked.",
+    "Added close-readiness regression coverage for CurrentStage=idle with stale blocking Status.",
+    "Extended guard-policy coverage so stopped is treated as a known non-blocking terminal close state."
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_process_control -q - passed (3 tests)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_close_readiness tests.python.desktop.test_facade_process_guard_policy -q - passed (20 tests)",
+    "Live backend-owned cleanup via MediaPipelineApplicationFacade.request_pipeline_control(..., 'kill') - passed; killed_process_tree_count=0; progress reset from stage='idle', status='autonomy health blocked' to idle",
+    "Direct post-cleanup verification - passed before a later real run began; snapshot_pipeline_state=idle; close_readiness.safe_to_close=true; launch_preflight.blocked_count=0; launch_preflight.can_request_start=true; autonomy_health.blocked_count=0",
+    "Follow-up live verification observed legitimate active work, not stale blockage: MediaPipeline.ps1 PID 48300 running -Once with CurrentStage=push for Django Unchained (2012); launch preflight blocked only on active_work."
+  ],
+  "rollback_plan": "Revert the process-control cleanup, pipeline-state normalization, close-readiness stopped-state allowance, and matching regression tests; refresh generated summaries for those files; rely on manual backend-owned progress reset for any already-stale runtime files.",
+  "related_changes": [],
+  "notes": "No source media, pending-publish manifests, queue ordering, FFmpeg policy, subtitle policy, audio policy, or final-library movement behavior changed. Runtime remediation only reset the idle progress file Status to Idle. Existing unrelated dirty changes were present in several touched files before this work and were not reverted."
+}

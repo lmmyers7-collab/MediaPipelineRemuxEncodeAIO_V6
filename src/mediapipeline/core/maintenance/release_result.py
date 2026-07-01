@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.subprocess_runner import CapturedCommandResult
+from mediapipeline.core.kernel.runtime.subprocess_runner import CapturedCommandResult
 
 
 def release_artifact_fingerprint(path: Path) -> dict[str, Any]:

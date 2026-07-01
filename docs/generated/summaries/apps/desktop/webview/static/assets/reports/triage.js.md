@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/reports/triage.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-26
+last_modified: 2026-07-01
 last_reviewed: 2026-06-24
-sha256: 771673de3012ef8f198b8b31f6a43b21a698dd6e6b1116a8098c3abe26d567ef
+sha256: b471cf31b5ffbb7a9ef2a4c3af99f08f08c55d9d4874517f80aadd1590f46a32
 ---
 # `apps/desktop/webview/static/assets/reports/triage.js`
 

@@ -140,20 +140,19 @@
     state: reportsState,
   });
   const failureClearButtonIds = [
-    "failure-clear-preview-button",
     "failure-clear-confirm-button",
     "failure-primary-action-button",
   ];
   const failureArchiveButtonIds = [
-    "failure-archive-preview-button",
     "failure-archive-confirm-button",
+  ];
+  const failureArtifactCleanupButtonIds = [
+    "failure-artifact-cleanup-confirm-button",
   ];
   const failureLifecycleButtonIds = [
     "failure-lifecycle-ack-button",
     "failure-lifecycle-start-button",
-    "failure-lifecycle-resolve-preview-button",
     "failure-lifecycle-resolve-confirm-button",
-    "failure-lifecycle-reopen-preview-button",
     "failure-lifecycle-reopen-confirm-button",
   ];
   const FAILURE_LIFECYCLE_BACKEND_REASONS = {
@@ -169,14 +168,18 @@
   const {
     configureFailurePrimaryAction,
     failureTransition,
+    renderFailureArtifactCleanupResult,
     renderFailureArchiveResult,
     renderFailureClearResult,
+    requestFailureArtifactCleanup,
+    requestFailureEvidenceOpen,
     requestFailureEvidenceArchive,
     requestFailureLifecycleTransition,
     requestFailureMarkerClear,
     requestFailureRowClear,
     runFailurePrimaryAction,
     setFailureLifecycleButton,
+    updateFailureArtifactCleanupConfirmState,
     updateFailureArchiveConfirmState,
     updateFailureClearConfirmState,
     updateFailureLifecycleConfirmState,
@@ -197,6 +200,7 @@
     },
     byId,
     failureArchiveButtonIds,
+    failureArtifactCleanupButtonIds,
     failureClearButtonIds,
     failureClearMarkerPathsForRow,
     failureClearUnavailableReason,
@@ -251,6 +255,7 @@
     renderFailureLifecycleControls,
     renderFailureLifecyclePanels,
     renderFailurePlaybook,
+    renderFailureArtifactSummary,
     renderFailurePreview,
     renderFailureResolutionDetail,
     renderFailureResolutionGroups,
@@ -260,6 +265,7 @@
     renderFailureTimeline,
     renderFailureVerification,
     reportsFailuresTabActive,
+    selectVisibleFailureArtifacts,
     selectFailureGroup,
     selectFailureRow,
     toggleFailureRowSelection,
@@ -315,10 +321,12 @@
     normalizeFailureMarkerPaths,
     renderReportDiagnosticsActions,
     renderReportTriage,
+    reportCompactPath,
     reportNumber,
     reportRenderedRows,
     reportRenderedRowsNote,
     reportTableStatusText,
+    requestFailureEvidenceOpen,
     rowKeySet,
     runFailurePrimaryAction,
     setCellStatusChip: typeof setCellStatusChip === "function" ? setCellStatusChip : window.setCellStatusChip,
@@ -327,6 +335,7 @@
     setText,
     setTextState,
     state: reportsState,
+    updateFailureArtifactCleanupConfirmState,
     updateFailureClearConfirmState,
     updateFailureLifecycleConfirmState,
     updateTableStatusLegend,
@@ -893,26 +902,22 @@
       reportsState.lastFailureClearPreview = null;
       updateFailureClearConfirmState();
     });
-    const clearPreviewButton = byId("failure-clear-preview-button");
-    if (clearPreviewButton) clearPreviewButton.addEventListener("click", () => requestFailureMarkerClear(byId("failure-clear-scope")?.value || "selected_group", true));
     const clearConfirmButton = byId("failure-clear-confirm-button");
-    if (clearConfirmButton) clearConfirmButton.addEventListener("click", () => requestFailureMarkerClear(byId("failure-clear-scope")?.value || "selected_group", false));
+    if (clearConfirmButton) clearConfirmButton.addEventListener("click", () => requestFailureMarkerClear(byId("failure-clear-scope")?.value || "selected_files", false));
     const lifecycleAckButton = byId("failure-lifecycle-ack-button");
     if (lifecycleAckButton) lifecycleAckButton.addEventListener("click", () => requestFailureLifecycleTransition("acknowledge", false));
     const lifecycleStartButton = byId("failure-lifecycle-start-button");
     if (lifecycleStartButton) lifecycleStartButton.addEventListener("click", () => requestFailureLifecycleTransition("start_work", false));
-    const lifecycleResolvePreviewButton = byId("failure-lifecycle-resolve-preview-button");
-    if (lifecycleResolvePreviewButton) lifecycleResolvePreviewButton.addEventListener("click", () => requestFailureLifecycleTransition("mark_resolved", true));
     const lifecycleResolveConfirmButton = byId("failure-lifecycle-resolve-confirm-button");
     if (lifecycleResolveConfirmButton) lifecycleResolveConfirmButton.addEventListener("click", () => requestFailureLifecycleTransition("mark_resolved", false));
-    const lifecycleReopenPreviewButton = byId("failure-lifecycle-reopen-preview-button");
-    if (lifecycleReopenPreviewButton) lifecycleReopenPreviewButton.addEventListener("click", () => requestFailureLifecycleTransition("reopen", true));
     const lifecycleReopenConfirmButton = byId("failure-lifecycle-reopen-confirm-button");
     if (lifecycleReopenConfirmButton) lifecycleReopenConfirmButton.addEventListener("click", () => requestFailureLifecycleTransition("reopen", false));
-    const archivePreviewButton = byId("failure-archive-preview-button");
-    if (archivePreviewButton) archivePreviewButton.addEventListener("click", () => requestFailureEvidenceArchive(true));
     const archiveConfirmButton = byId("failure-archive-confirm-button");
     if (archiveConfirmButton) archiveConfirmButton.addEventListener("click", () => requestFailureEvidenceArchive(false));
+    const artifactSelectAll = byId("failure-artifact-select-all");
+    if (artifactSelectAll) artifactSelectAll.addEventListener("change", () => selectVisibleFailureArtifacts(artifactSelectAll.checked));
+    const artifactCleanupConfirmButton = byId("failure-artifact-cleanup-confirm-button");
+    if (artifactCleanupConfirmButton) artifactCleanupConfirmButton.addEventListener("click", () => requestFailureArtifactCleanup(false));
     ["failure-archive-include-markers", "failure-archive-include-reports"].forEach((id) => {
       const element = byId(id);
       if (!element) return;
@@ -930,6 +935,7 @@
       archiveReason.addEventListener("input", () => updateFailureArchiveConfirmState());
       archiveReason.addEventListener("change", () => updateFailureArchiveConfirmState());
     }
+    updateFailureArchiveConfirmState();
     const saveAuditScorePolicyButton = byId("report-audit-score-policy-save-button");
     if (saveAuditScorePolicyButton) saveAuditScorePolicyButton.addEventListener("click", () => saveReportAuditScorePolicy(false));
     const resetAuditScorePolicyButton = byId("report-audit-score-policy-reset-button");
@@ -986,6 +992,7 @@
     renderFailureResolutionGroups,
     renderFailureRows,
     renderFailureDetail,
+    renderFailureArtifactSummary,
     renderFailureReviewBoard,
     failureRetryStatePayload,
     failureRetryRows,
@@ -993,6 +1000,8 @@
     failureRetryPreviewSummaryLine,
     requestFailureMarkerClear,
     renderFailureClearResult,
+    requestFailureArtifactCleanup,
+    renderFailureArtifactCleanupResult,
     requestFailureEvidenceArchive,
     renderFailureArchiveResult,
     failureReviewStatus,

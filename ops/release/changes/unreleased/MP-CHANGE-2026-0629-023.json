@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0629-023",
+  "title": "Phase 6 queue snapshot contract boundary cleanup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Migrates queue snapshot contract imports from the desktop compatibility export to the existing core contract owner and removes the matching temporary boundary allowlist row.",
+  "reason": "Phase 6 boundary cleanup is reducing queue core-to-desktop imports in bounded contract-only slices while leaving priority marker behavior for separate queue work.",
+  "affected_areas": [
+    "code",
+    "docs",
+    "generated"
+  ],
+  "behavior_before": "Queue snapshot reading imported ContractError and QueuePlanSnapshot through mediapipeline.desktop.contracts, producing two allowlisted NO_CORE_TO_DESKTOP findings in one import-statement group.",
+  "behavior_after": "Queue snapshot reading imports the same symbols from mediapipeline.core.kernel.contracts while mediapipeline.desktop.contracts remains a compatibility export; the queue snapshot allowlist row is removed.",
+  "files_touched": [
+    "docs/architecture/dependency_boundary_allowlist.txt",
+    "docs/generated/summaries/src/mediapipeline/core/queue/snapshot.py.md",
+    "docs/implementation/architecture-boundary-cleanup/EDGE_LEDGER.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-023.json",
+    "src/mediapipeline/core/queue/snapshot.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/queue/snapshot.py",
+    "PASS: $env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_queue tests.python.desktop.test_service_queue_snapshot tests.python.desktop.test_contracts tests.python.desktop.test_api_contract_payload tests.python.desktop.test_application_public_api tests.python.tooling.test_dependency_boundaries -q",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_active_doc_references",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_architecture_guardrails",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --format json --report-only (hard_findings=47, allowlisted=47, unallowlisted=0, unused_allowlist=0, NO_CORE_TO_DESKTOP=30; domains: config=8, processes=9, queue=4, schedule=1, status=8)",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage"
+  ],
+  "rollback_plan": "Restore the queue snapshot contract import to mediapipeline.desktop.contracts, restore the removed allowlist row, refresh the generated queue snapshot summary, and mark AB-QUE-017 open again in the edge ledger.",
+  "related_changes": [
+    "GitHub #23"
+  ],
+  "notes": "Import ownership change only. No Local API routes, WebView commands, queue snapshot schema validation, queue selection/open behavior, filesystem mutation, route schemas, or operator behavior changed.\nMove queue snapshot contract imports from desktop compatibility export to core contracts.\nRemove migrated temporary NO_CORE_TO_DESKTOP allowlist row for queue snapshot contracts.\nMark AB-QUE-017 migrated with core contract ownership and removed allowlist action.\nRefresh generated summary after queue snapshot contract import ownership change."
+}

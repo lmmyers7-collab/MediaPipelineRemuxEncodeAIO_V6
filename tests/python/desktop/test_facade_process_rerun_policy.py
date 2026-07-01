@@ -14,6 +14,8 @@ from mediapipeline.core.processes.rerun_policy import (
     CSV_RERUN_PLAN_MODE_ERROR,
     normalize_rerun_csv_path,
     normalize_rerun_mode,
+    rerun_lifecycle_errors,
+    rerun_lifecycle_from_request,
     rerun_bool_from_request,
     rerun_csv_path_missing_result,
     rerun_csv_path_from_request,
@@ -52,7 +54,28 @@ class RerunLaunchPolicyTests(unittest.TestCase):
         self.assertFalse(rerun_modes_are_supported("move", "keep", "park"))
         self.assertFalse(rerun_modes_are_supported("copy", "delete", "park"))
         self.assertFalse(rerun_modes_are_supported("copy", "keep", "move"))
-        self.assertIn("copy", CSV_RERUN_MODE_ERROR)
+        self.assertIn("lifecycle", CSV_RERUN_MODE_ERROR)
+
+    def test_lifecycle_defaults_aliases_and_confirmations_are_explicit(self) -> None:
+        lifecycle = rerun_lifecycle_from_request({})
+        self.assertEqual(lifecycle.execution_mode, "one_at_a_time")
+        self.assertEqual(lifecycle.destination_mode, "review_workspace")
+        self.assertEqual(lifecycle.original_policy, "keep")
+        self.assertEqual(lifecycle.window_size, 1)
+        self.assertEqual(rerun_lifecycle_errors(lifecycle), [])
+
+        alias = rerun_lifecycle_from_request({"return_mode": "replace_original"})
+        self.assertEqual(alias.destination_mode, "publish_replace_final")
+        self.assertIn("confirm_replace_final=true", "\n".join(rerun_lifecycle_errors(alias)))
+
+        confirmed = rerun_lifecycle_from_request({
+            "destination_mode": "publish_replace_final",
+            "confirm_replace_final": True,
+            "original_policy": "hold_then_delete_after_publish",
+            "confirm_original_policy": True,
+            "confirm_delete_original": True,
+        })
+        self.assertEqual(rerun_lifecycle_errors(confirmed), [])
 
     def test_success_message_and_payload_are_stable(self) -> None:
         csv_path = Path("C:/queue/rerun.csv")
@@ -82,6 +105,9 @@ class RerunLaunchPolicyTests(unittest.TestCase):
         self.assertEqual(payload["stage_mode"], "copy")
         self.assertEqual(payload["original_mode"], "keep")
         self.assertEqual(payload["return_mode"], "park")
+        self.assertEqual(payload["execution_mode"], "one_at_a_time")
+        self.assertEqual(payload["destination_mode"], "review_workspace")
+        self.assertEqual(payload["original_policy"], "keep")
         self.assertEqual(payload["pid"], 24682)
         self.assertEqual(payload["logs"], "stdout: rerun.stdout.log")
 

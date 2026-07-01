@@ -3,9 +3,9 @@ file: src/mediapipeline/contracts/__init__.py
 pipeline_stage: contracts
 token_priority: low
 owner_domain: contracts
-last_modified: 2026-06-05
+last_modified: 2026-06-29
 last_reviewed: 2026-06-04
-sha256: 765528cf48550f4be065fdcbe0a3ca679582d0cd8a4e7882a267e70333cc4507
+sha256: 0867fee09512bc10f977ddbc16c44a25aecb2b4390d0b21c22c49566c6273eec
 ---
 # `src/mediapipeline/contracts/__init__.py`
 

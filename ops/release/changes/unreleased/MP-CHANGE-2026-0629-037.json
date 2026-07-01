@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0629-037",
+  "title": "Remove subtitle language preview badges",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Removed the duplicate subtitle language preview badges from the Settings language policy cards while keeping the editable comma-separated language fields and advisory validation text.",
+  "reason": "The chip badges repeated the same language tokens shown in the input immediately above them, adding visual noise without useful information.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Subtitle language policy cards rendered an input and a second row of generated blue badges containing the same language tokens.",
+  "behavior_after": "Subtitle language policy cards render the input and advisory status text only; no duplicate language badge placeholders or generated chips remain.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settingsView.builders.subtitle.js",
+    "apps/desktop/webview/static/assets/styles/components/settings-builders.css",
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.builders.subtitle.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles/components/settings-builders.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-settings.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0629-037.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_css_design_tokens.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-037.json",
+    "tests/webview/test_webview_css_design_tokens.py"
+  ],
+  "tests_added": [
+    "Added tests.webview.test_webview_css_design_tokens.WebViewCssDesignTokenTests.test_subtitle_language_policy_uses_text_fields_without_preview_badges to guard against reintroducing subtitle language preview chip markup, JS hooks, or CSS."
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_css_design_tokens -q -> OK, 19 tests",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_css_design_tokens.WebViewCssDesignTokenTests.test_subtitle_language_policy_uses_text_fields_without_preview_badges -q -> OK, 1 test",
+    ".\\ops\\scripts\\smoke\\Test-WebViewSettingsLaunchPolicySmoke.ps1 -> OK, 1 test"
+  ],
+  "rollback_plan": "Revert the page-settings.html chip container removal, restore the subtitle language chip renderer and CSS, remove the regression test, then refresh the matching generated summaries.",
+  "related_changes": [],
+  "notes": "Removed duplicate subtitle language preview chip containers from language policy cards.\nStopped generating subtitle language preview badge elements while retaining advisory state updates.\nRemoved unused subtitle language chip styles and kept matrix row state styling.\nAdded a WebView regression test that language policy fields no longer render duplicate preview badges.\nRefreshed summary after subtitle language policy markup cleanup.\nRefreshed summary after subtitle language builder cleanup.\nRefreshed summary after subtitle language chip style removal.\nRefreshed summary after adding subtitle language badge regression coverage.\nReal-media validation not required: this is a WebView presentation cleanup and does not alter subtitle conversion policy, settings persistence, pipeline execution, FFmpeg arguments, or media movement.\nGenerated summary for this change packet."
+}

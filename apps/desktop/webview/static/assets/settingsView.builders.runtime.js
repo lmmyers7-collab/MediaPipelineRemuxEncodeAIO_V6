@@ -32,6 +32,9 @@
       setRuntimeBuilderControl("settings-runtime-console-log", "ConsoleLogLevel", "select", "");
       setRuntimeBuilderControl("settings-runtime-file-log", "FileLogLevel", "select", "");
       setRuntimeBuilderControl("settings-runtime-log-retention", "LogRetentionDays", "number", 7);
+      setRuntimeBuilderControl("settings-runtime-failure-artifact-threshold", "FailureArtifactWarningThresholdGB", "number", 100);
+      setRuntimeBuilderControl("settings-runtime-failure-artifact-retention", "FailureArtifactRetentionDays", "number", 0);
+      setRuntimeBuilderControl("settings-runtime-failure-artifact-cleanup-target", "FailureArtifactCleanupTargetGB", "number", 0);
       setRuntimeBuilderControl("settings-runtime-ffmpeg-encode-timeout", "FFmpegEncodeTimeoutSeconds", "number_positive", 21600);
       setRuntimeBuilderControl("settings-runtime-ffmpeg-remux-timeout", "FFmpegRemuxTimeoutSeconds", "number_positive", 7200);
       setRuntimeBuilderControl("settings-runtime-cpu-encode-timeout", "FFmpegCpuEncodeTimeoutSeconds", "number_positive", 43200);
@@ -119,6 +122,15 @@
         }
         if (key === "LogRetentionDays" && Number(settingsBuilderInputValue(id)) === 0) {
           lines.push("  Warning: zero-day retention can remove forensic logs quickly after failures.");
+        }
+        if (key === "FailureArtifactWarningThresholdGB" && Number(settingsBuilderInputValue(id)) === 0) {
+          lines.push("  Note: the warning toast is disabled, but artifact size remains visible on Home and Reports.");
+        }
+        if (key === "FailureArtifactRetentionDays" && Number(settingsBuilderInputValue(id)) === 0) {
+          lines.push("  Note: age-based artifact cleanup is disabled.");
+        }
+        if (key === "FailureArtifactCleanupTargetGB" && Number(settingsBuilderInputValue(id)) === 0) {
+          lines.push("  Note: target-size artifact cleanup is disabled.");
         }
       });
       setText("settings-runtime-guidance", lines.join("\n") || "No runtime guidance loaded.");

@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.models import QueueRecord
 from mediapipeline.core.rename.apply import (
     build_rename_operations,
     pipeline_sidecar_paths_for_destination,
@@ -64,7 +63,7 @@ from mediapipeline.core.rename.utils import (
     resolve_same_file,
     strip_known_media_suffix,
 )
-from mediapipeline.desktop.subprocess_runner import run_capture
+from mediapipeline.core.kernel.runtime.subprocess_runner import run_capture
 
 
 class RenameServiceMixin:

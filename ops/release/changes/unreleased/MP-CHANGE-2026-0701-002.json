@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0701-002",
+  "title": "Hide rerun safety checkboxes",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-07-01",
+  "date_completed": "2026-07-01",
+  "summary": "Hide the CSV rerun safety confirmation checkboxes on the Launch tab while keeping backend confirmation fields in the request payload.",
+  "reason": "The Launch tab exposed redundant safety checkboxes for rerun replacement/original-source policy after the operator had already selected the relevant lifecycle policies.",
+  "affected_areas": [
+    "generated_docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Launch tab rendered three CSV rerun confirmation checkboxes for replace-final, original policy, and hold/delete intent.",
+  "behavior_after": "The Launch tab no longer renders those checkboxes. The WebView derives explicit boolean confirmation fields from the selected destination, collision, and original-source policies before calling backend routes.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launch/startRequest.js",
+    "apps/desktop/webview/static/assets/launchView.js",
+    "apps/desktop/webview/static/partials/page-launch.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launch/startRequest.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-launch.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0701-002.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_launch.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_launch_command_buttons_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0701-002.json",
+    "tests/python/desktop/test_application_facade_web_static_launch.py",
+    "tests/webview/test_webview_launch_command_buttons_smoke.py"
+  ],
+  "tests_added": [
+    "Updated WebView launch start request smoke coverage for derived rerun confirmation booleans."
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_launch_command_buttons_smoke -q - passed (7 tests)",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static_launch -q - passed (6 tests)",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths <touched files> - passed",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke - failed on unrelated broader repository gates: existing network unit failures, generated freshness drift, and MP-CHANGE-2026-0630-015 release-package policy redaction",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed"
+  ],
+  "rollback_plan": "Re-add the three rerun checkbox rows and restore request collection from their checked state.",
+  "related_changes": [],
+  "notes": "Backend strict JSON validation and rerun lifecycle confirmation requirements remain unchanged.\nRefresh generated summary for this existing change packet."
+}

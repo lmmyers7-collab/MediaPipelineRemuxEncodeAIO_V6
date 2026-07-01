@@ -90,8 +90,8 @@
               <span class="metric-label">Working</span>
               <strong id="failure-resolution-working-count">0</strong>
             </section>
-            <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="reports" data-quick-link-reports-tab="failures" data-quick-link-module="reports" data-quick-link-action="failure-ready-clear" aria-label="Show clearable failure markers" title="Show clearable failure markers">
-              <span class="metric-label">Clearable markers</span>
+            <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="reports" data-quick-link-reports-tab="failures" data-quick-link-module="reports" data-quick-link-action="failure-ready-clear" aria-label="Show clearable errors" title="Show clearable errors">
+              <span class="metric-label">Clearable errors</span>
               <strong id="failure-resolution-clearable-count">0</strong>
             </section>
             <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="reports" data-quick-link-reports-tab="files" aria-label="Open report source locations" title="Open report source locations">
@@ -103,6 +103,58 @@
             <summary>Source evidence</summary>
             <pre id="failure-summary" class="prose-block compact-text-block">No failure preview loaded.</pre>
           </details>
+          <section id="failure-artifact-summary-panel" class="failure-records-panel" aria-label="Failure artifact storage">
+            <div class="panel-heading panel-subheading">
+              <h3>Failure artifact storage</h3>
+              <strong id="failure-artifact-storage-status">Not loaded</strong>
+            </div>
+            <div class="metric-grid failure-artifact-metrics">
+              <section class="metric">
+                <span class="metric-label">Total size</span>
+                <strong id="failure-artifact-total-size">0 B</strong>
+              </section>
+              <section class="metric">
+                <span class="metric-label">Files</span>
+                <strong id="failure-artifact-file-count">0</strong>
+              </section>
+              <section class="metric">
+                <span class="metric-label">Oldest</span>
+                <strong id="failure-artifact-oldest">None</strong>
+              </section>
+              <section class="metric">
+                <span class="metric-label">Warning</span>
+                <strong id="failure-artifact-threshold">100 GB</strong>
+              </section>
+            </div>
+            <pre id="failure-artifact-storage-summary" class="prose-block compact-text-block">No failure artifact storage evidence loaded.</pre>
+            <details id="failure-artifact-cleanup-disclosure" class="settings-advanced-disclosure">
+              <summary>Delete</summary>
+              <div class="panel-heading panel-subheading">
+                <h4>Delete artifacts</h4>
+                <strong id="failure-artifact-cleanup-status">No selection</strong>
+              </div>
+              <div class="action-row action-row-left wrap-actions" role="toolbar" aria-label="Failure artifact delete actions">
+                <button type="button" id="failure-artifact-cleanup-confirm-button" class="danger-button" disabled>Delete selected artifacts</button>
+              </div>
+              <pre id="failure-artifact-cleanup-summary" class="prose-block compact-text-block">Select artifact files, then delete. This only deletes backend failure artifact files.</pre>
+            </details>
+            <div class="table-wrap failure-records-table-wrap">
+              <table class="failure-records-table">
+                <thead>
+                  <tr>
+                    <th scope="col"><input id="failure-artifact-select-all" type="checkbox" aria-label="Select all visible failure artifacts"></th>
+                    <th scope="col">File</th>
+                    <th scope="col">Size</th>
+                    <th scope="col">Modified</th>
+                    <th scope="col">Root</th>
+                  </tr>
+                </thead>
+                <tbody id="failure-artifact-largest-files">
+                  <tr><td colspan="5">No artifact files loaded.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
           <label class="filter-field">
             Filter failures
             <input id="failure-filter" type="search" autocomplete="off" placeholder="Title, path, stage, code, reason">
@@ -141,6 +193,7 @@
                   <div id="failure-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
                 </details>
               </div>
+              <div id="failure-evidence-links" class="failure-evidence-links" aria-label="Selected failure evidence links"></div>
               <pre id="failure-detail" class="prose-block" data-visual-keep="operator-resolution-detail">No failure issue selected.</pre>
             </section>
           </div>
@@ -172,27 +225,26 @@
               </div>
             </div>
             <p id="failure-table-legend" class="note table-legend">Failure rows: no selectable rows.</p>
-            <div class="failure-records-actions" aria-label="Marker cleanup">
+            <div class="failure-records-actions" aria-label="Error cleanup">
               <div class="panel-heading panel-subheading">
-                <h3>Clear markers</h3>
+                <h3>Clear errors</h3>
                 <strong id="failure-clear-status">No clear action</strong>
               </div>
               <div class="guided-action-row">
                 <label>
                   Scope
                   <select id="failure-clear-scope">
-                    <option value="selected_group">Selected group</option>
-                    <option value="selected_files">Selected files</option>
-                    <option value="visible">Visible filtered rows</option>
-                    <option value="all_markers">All active markers</option>
+                    <option value="selected_files">Checked errors</option>
+                    <option value="selected_group">Selected issue</option>
+                    <option value="visible">Visible errors</option>
+                    <option value="all_markers">All active errors</option>
                   </select>
                 </label>
                 <div class="action-row action-row-left wrap-actions">
-                  <button type="button" id="failure-clear-preview-button" class="secondary-button">Preview marker clear</button>
-                  <button type="button" id="failure-clear-confirm-button" class="danger-button" disabled>Clear markers</button>
+                  <button type="button" id="failure-clear-confirm-button" class="danger-button" disabled>Clear errors</button>
                 </div>
               </div>
-              <pre id="failure-clear-summary" class="prose-block">Preview marker clear before confirming. This moves marker JSON out of the active marker folder only; it does not delete media, logs, reports, manifests, source files, or output files.</pre>
+              <pre id="failure-clear-summary" class="prose-block">Select errors, then clear. This removes backend error records from the active list; it does not touch media files.</pre>
 
               <details id="failure-archive-disclosure" class="settings-advanced-disclosure">
                 <summary>Advanced evidence archive</summary>
@@ -201,18 +253,17 @@
                   <strong id="failure-archive-status">No archive action</strong>
                 </div>
                 <div class="option-grid option-grid-compact">
-                  <label class="check-row"><input id="failure-archive-include-markers" type="checkbox" checked> Include active markers</label>
+                  <label class="check-row"><input id="failure-archive-include-markers" type="checkbox" checked> Include active errors</label>
                   <label class="check-row"><input id="failure-archive-include-reports" type="checkbox" checked> Include round failure reports</label>
                 </div>
                 <label class="filter-field">
-                  Reason
-                  <input id="failure-archive-reason" type="text" autocomplete="off" placeholder="Why this evidence is being archived">
+                  Reason (optional)
+                  <input id="failure-archive-reason" type="text" autocomplete="off" placeholder="Optional archive note">
                 </label>
                 <div class="action-row action-row-left wrap-actions">
-                  <button type="button" id="failure-archive-preview-button" class="secondary-button">Preview archive</button>
                   <button type="button" id="failure-archive-confirm-button" class="danger-button" disabled>Archive evidence</button>
                 </div>
-                <pre id="failure-archive-summary" class="prose-block">Advanced archive is preview-first and requires a reason plus matching fingerprint. It moves active markers and round failure reports into a manifest-backed evidence archive.</pre>
+                <pre id="failure-archive-summary" class="prose-block">Archive active errors and round failure reports into evidence storage. A default reason is recorded if this is left blank.</pre>
               </details>
             </div>
           </section>
@@ -236,9 +287,7 @@
               <div class="action-row action-row-left wrap-actions">
                 <button type="button" id="failure-lifecycle-ack-button" class="secondary-button">Acknowledge</button>
                 <button type="button" id="failure-lifecycle-start-button" class="secondary-button">Start work</button>
-                <button type="button" id="failure-lifecycle-resolve-preview-button" class="secondary-button">Preview resolve</button>
                 <button type="button" id="failure-lifecycle-resolve-confirm-button" class="primary-button" disabled>Mark resolved</button>
-                <button type="button" id="failure-lifecycle-reopen-preview-button" class="secondary-button">Preview reopen</button>
                 <button type="button" id="failure-lifecycle-reopen-confirm-button" class="secondary-button" disabled>Reopen</button>
               </div>
             </div>

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import inspect
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
+from mediapipeline.core.kernel.dto_workspaces import MaintenanceWorkspaceDto
 from mediapipeline.core.maintenance.policy import (
     maintenance_health_progress,
     maintenance_health_progress_with_error,
@@ -17,15 +18,10 @@ from mediapipeline.core.maintenance.productization import (
     productization_status_payload,
     write_support_export,
 )
-from mediapipeline.desktop.models import ResolvedPaths
-
-if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_workspaces import MaintenanceWorkspaceDto
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 
-def _maintenance_workspace_dto(**fields: Any) -> "MaintenanceWorkspaceDto":
-    from mediapipeline.desktop.application.dto_workspaces import MaintenanceWorkspaceDto
-
+def _maintenance_workspace_dto(**fields: Any) -> MaintenanceWorkspaceDto:
     return MaintenanceWorkspaceDto(**fields)
 
 

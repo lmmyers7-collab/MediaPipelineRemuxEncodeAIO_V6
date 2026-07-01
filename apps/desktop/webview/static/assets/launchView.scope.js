@@ -186,8 +186,8 @@
         ? `loaded rows=${queueRows.length}; queue status=${queuePayload?.status || queuePayload?.operator_status || "loaded"}.`
         : "No queue rows are loaded in the current WebView session.",
       queueRows.length
-        ? "Compare queue rows, route reasons, and blocked/review evidence before launching."
-        : "Refresh Queue or inspect Diagnostics > Queue Snapshot before starting queued work.",
+        ? "Use queue rows, route reasons, and blocked/review evidence as current row context."
+        : "Queue evidence is not loaded in this WebView session; refresh Queue or inspect Diagnostics if you need current row context.",
       queueRows.slice(0, 5).map((row) => `${row.display_name || row.source_path || "row"}: ${row.operator_status || row.status || row.route_name || "unknown"}`),
     );
 
@@ -199,7 +199,7 @@
         ? `filters=${queueScope.active ? "active" : "inactive"}; visible=${queueScope.visibleRows}/${queueScope.totalRows}; hidden blocked=${queueScope.hiddenBlocked}; hidden review=${queueScope.hiddenReview}.`
         : "Queue tab display state is unavailable.",
       queueScope?.active
-        ? "Do not treat the visible Queue subset as launch scope; clear filters or inspect hidden rows before starting."
+        ? "Do not treat the visible Queue subset as launch scope; clear filters or inspect hidden rows if you need row context."
         : "No visible Queue filter is narrowing the table; backend Launch still owns actual processing scope.",
       queueScope && typeof queueFilterScopeDetailLines === "function"
         ? queueFilterScopeDetailLines(queueScope)
@@ -217,7 +217,7 @@
         ? `${queueDecisionRows.length} queue-to-Launch handoff checkpoint(s); non-ready=${queueDecisionNonReady.length}.`
         : "Queue-to-Launch handoff rows are unavailable.",
       queueDecisionNonReady.length
-        ? "Open Queue-to-Launch Handoff rows and Diagnostics cross-links before starting."
+        ? "Open Queue-to-Launch Handoff rows and Diagnostics cross-links when they explain hidden or blocked queue evidence."
         : "Queue-to-Launch handoff is ready-looking; backend start still re-checks at submission time.",
       queueDecisionNonReady.slice(0, 6).map((row) => `${row.checkpoint || row.key}: ${row.posture}; ${row.action}`),
     );
@@ -231,9 +231,9 @@
         : "No cached Pipeline backend preflight payload is loaded.",
       backendPreflight
         ? backendNonReady.length
-          ? "Select Backend Launch Preflight rows before submitting a start."
+          ? "Review Backend Launch Preflight rows; matching blocked backend preflight still disables Start."
           : "Cached backend preflight is ready-looking; start route still re-checks state at submission time."
-        : "Refresh Backend Preflight before relying on Launch scope reconciliation.",
+        : "No cached Backend Preflight is loaded; routine Start can submit and backend guards will re-check.",
       backendNonReady.slice(0, 6).map((row) => `${row.check}: ${row.posture}; ${row.action}`),
     );
 
@@ -243,10 +243,10 @@
       closeReadiness?.safe_to_close === false || closeReadiness?.active_work === true ? "blocked" : closeReadiness ? "ready" : "unknown",
       `snapshot=${snapshot ? (snapshot.pipeline_state || "loaded") : "missing"}; close=${closeReadiness ? (closeReadiness.safe_to_close ? "safe" : "active/blocked") : "unknown"}.`,
       closeReadiness?.safe_to_close === false || closeReadiness?.active_work === true
-        ? "Wait for active work to finish or use backend-owned controls intentionally before starting more work."
+        ? "Active backend work is already running; duplicate-start guard keeps Start disabled until idle or backend control changes it."
         : closeReadiness
           ? "Close-readiness does not report an active-work block."
-          : "Refresh before launch if close-readiness has not loaded.",
+          : "Close-readiness evidence has not loaded; backend Start still re-checks active work.",
       [
         `Close reason: ${closeReadiness?.reason || "none reported"}`,
         `Activity: ${snapshot?.activity || "none reported"}`,
@@ -318,10 +318,10 @@
     const lines = [
       "Launch scope reconciliation:",
       `Signals: ${rows.length}; ready=${counts.ready || 0}; review=${counts.review || 0}; high review=${counts["high review"] || 0}; blocked=${counts.blocked || 0}; read-first=${counts["read-first"] || 0}; unknown=${counts.unknown || 0}.`,
-      "Decision rule: the visible Queue table, selected Launch mode, cached backend preflight, Schedule posture, close-readiness, and recent command evidence must agree before starting queued work.",
+      "Decision context: these read-only signals explain launch posture; backend start remains authoritative and re-checks queue, settings, schedule, close-readiness, and locks at submission time.",
     ];
     if (nonReady.length) {
-      lines.push("First action: select blocked/review/read-first rows below and reconcile the evidence before using backend-owned start buttons.");
+      lines.push("Suggested action: inspect blocked/review/read-first rows when they explain a concrete issue; backend Start remains the final gate.");
       nonReady.slice(0, 8).forEach((row) => lines.push(`- ${row.signal}: ${row.posture}; ${row.action}`));
       if (nonReady.length > 8) lines.push(`- ${nonReady.length - 8} more scope signal(s) need review.`);
     } else {
@@ -514,7 +514,7 @@
       launchStartDecisionPostureFromStatus(readinessStatus),
       `status=${readinessStatus}; snapshot=${snapshot ? "loaded" : "missing"}; close=${closeReadiness ? (closeReadiness.safe_to_close ? "safe" : "active/blocked") : "unknown"}.`,
       launchStartDecisionPostureFromStatus(readinessStatus) === "blocked"
-        ? "Resolve the Launch Readiness blocker before pressing Start."
+        ? "Read the Launch Readiness blocker; backend Start will enforce it at submission time."
         : "Use this as the top-level readiness posture; backend start still re-checks.",
       typeof launchReadinessLines === "function"
         ? launchReadinessLines(readinessPayload)
@@ -541,9 +541,9 @@
       `status=${backendStatus}; target=pipeline; checks=${pipelineBackendRows.length}; non-ready=${pipelineBackendNonReady.length}; other targets=${Math.max(backendPayloads.length - pipelineBackendPayloads.length, 0)}; fetch failures=${getLastLaunchBackendPreflightRefreshInfo().fetch_failure_count || 0}.`,
       pipelineBackendPayloads.length
         ? pipelineBackendNonReady.length
-          ? "Select Pipeline Backend Launch Preflight non-ready rows before submitting a pipeline start."
+          ? "Review Pipeline Backend Launch Preflight non-ready rows; matching blocked backend preflight still disables Start."
           : "Cached Pipeline backend preflight is ready-looking; the start route still re-checks state."
-        : "Refresh Pipeline Backend Preflight before trusting a pipeline start decision.",
+        : "Cached Pipeline Backend Preflight is not required for routine Start; refresh for current evidence if useful.",
       launchBackendPreflightSummaryLines(pipelineBackendPayloads),
     );
 
@@ -563,7 +563,7 @@
       launchStartDecisionPostureFromStatus(queueStatus),
       `status=${queueStatus}; loaded rows=${queueRows.length}; decision rows=${queueDecisionRows.length}; non-ready=${queueNonReady.length}.`,
       queueNonReady.length
-        ? "Inspect Queue-to-Launch Handoff rows and Diagnostics cross-links before pressing Start."
+        ? "Inspect Queue-to-Launch Handoff rows and Diagnostics cross-links when they explain hidden or blocked queue evidence."
         : "Queue-to-Launch handoff is ready-looking; backend Launch still owns actual processing scope.",
       typeof queueLaunchDecisionSummaryLines === "function" ? queueLaunchDecisionSummaryLines(queuePayload, queueRows, history) : [],
     );
@@ -579,7 +579,7 @@
       ]),
       `intent=${settingsIntentStatus}; active policy=${policyStatus}; settings loaded=${launchSettingsWorkspace()?.schema_version ? "yes" : "no"}.`,
       settingsIntentRows.some((row) => row.posture !== "ready") || policyRows.some((row) => !["ready", "launch-active", "same as saved"].includes(row.launchState))
-        ? "Resolve staged/saved settings evidence before unattended starts; Launch uses saved backend settings only."
+        ? "Staged/saved settings evidence needs review; Launch uses saved backend settings only."
         : "No local settings/policy blocker is visible.",
       [
         ...launchSettingsIntentSummaryLines(settingsIntentRows),
@@ -680,10 +680,10 @@
     const lines = [
       "Launch start decision summary:",
       `Signals: ${rows.length}; ready=${counts.ready || 0}; review=${counts.review || 0}; blocked=${counts.blocked || 0}; unknown=${counts.unknown || 0}.`,
-      "Decision rule: treat Start as sensible only when Launch readiness, backend preflight, Queue, Settings, schedule/close-readiness, real-media proof, sample checklist, and recent command evidence agree.",
+      "Decision context: treat these signals as advisory evidence for Start; backend start remains authoritative and re-checks locks, schedule, settings, and runtime state at submission.",
     ];
     if (nonReady.length) {
-      lines.push("First action: select the highest-severity row below and reconcile it before using backend-owned Start controls.");
+      lines.push("Suggested action: select the highest-severity row when you need its evidence; backend Start remains the final gate.");
       nonReady.slice(0, 8).forEach((row) => lines.push(`- ${row.signal}: ${row.posture}; ${row.action}`));
       if (nonReady.length > 8) lines.push(`- ${nonReady.length - 8} more start decision signal(s) need review.`);
     } else {
@@ -1023,7 +1023,7 @@
         "Backend",
         "unknown",
         "Refresh",
-        "Refresh Backend Preflight before submitting normal start modes.",
+        "No cached Backend Preflight; routine Start can still submit and backend guards will re-check.",
         ["No cached Pipeline backend preflight is loaded for the current form state."],
         {
           page: "diagnostics",
@@ -1202,7 +1202,7 @@
       active ? "Active" : (closeReadiness || snapshot ? "Idle" : "Not loaded"),
       active
         ? "Active backend work is in progress; Start controls remain disabled to prevent duplicate pipeline starts."
-        : (closeReadiness || snapshot ? "No active backend work is visible in the latest loaded state." : "Backend state evidence is not loaded in this view. Use Refresh before starting work."),
+        : (closeReadiness || snapshot ? "No active backend work is visible in the latest loaded state." : "Backend state evidence is not loaded in this view; backend Start still re-checks active work."),
       typeof launchReadinessLines === "function"
         ? launchReadinessLines({ snapshot, closeReadiness, schedule: context.schedule || {}, settings: launchSettingsWorkspace(), backendPreflight: pipelineBackendPreflight })
         : [],
@@ -1308,7 +1308,7 @@
     });
     const detail = selected
       ? `${selected.label}: ${selected.value}. ${selected.summary} ${launchCompactGateActionLabel(selected)} Backend start remains authoritative.`
-      : "Compact gate not evaluated. Refresh Backend Preflight before submitting normal start modes.";
+      : "Compact gate not evaluated. Routine Start can still submit; refresh Backend Preflight for current evidence if useful.";
     setText("pipeline-compact-gate-detail", detail);
     return rows;
   }

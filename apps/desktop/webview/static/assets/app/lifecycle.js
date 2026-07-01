@@ -64,12 +64,20 @@
     const node = byId("activity");
     if (!node) return;
     const payload = snapshot && typeof snapshot === "object" ? snapshot : {};
+    const latestEvent = topbarLatestEvent(Array.isArray(payload.recent_events) ? payload.recent_events : []);
+    const pendingLaunch = topbarPendingLaunchIsValid(payload, latestEvent) ? topbarPendingLaunch : null;
     const progress = payload.progress && typeof payload.progress === "object" ? payload.progress : {};
     const currentWork = payload.current_work && typeof payload.current_work === "object" ? payload.current_work : {};
-    const activity = formatProgressValue(payload.activity || "No active work reported.").trim();
+    const pendingPid = pendingLaunch?.pid ? ` · PID ${pendingLaunch.pid}` : "";
+    const pendingActivity = pendingLaunch
+      ? `${pendingLaunch.label || "pipeline.start"} ${pendingLaunch.statusLabel || "accepted"}${pendingPid}`
+      : "";
+    const activity = formatProgressValue(pendingActivity || payload.activity || "No active work reported.").trim();
     const cleanName = topbarCleanCurrentName(progress, currentWork);
-    const phaseLabel = formatProgressValue(currentWork.phase_label || "").trim();
-    const metaText = topbarCurrentWorkMeta(currentWork, progress) || topbarStageContext(progress);
+    const phaseLabel = formatProgressValue(pendingLaunch?.label || currentWork.phase_label || "").trim();
+    const metaText = pendingLaunch
+      ? topbarTickerCompactText(pendingLaunch.waitLabel || "", 64)
+      : topbarCurrentWorkMeta(currentWork, progress) || topbarStageContext(progress);
     const primaryText = cleanName || activity || "No active work reported.";
 
     const primary = document.createElement("span");
@@ -158,8 +166,11 @@
   }
 
   function topbarPendingLaunchLine(pending) {
+    const label = topbarTickerCompactText(pending?.label || pending?.command || "pipeline.start", 48) || "pipeline.start";
+    const status = topbarTickerCompactText(pending?.statusLabel || "accepted", 32) || "accepted";
+    const wait = topbarTickerCompactText(pending?.waitLabel || "waiting for backend event", 64);
     const pid = pending?.pid ? ` · PID ${pending.pid}` : "";
-    return `Latest event: pipeline.start accepted${pid} · waiting for backend event`;
+    return `Latest event: ${label} ${status}${pid}${wait ? ` · ${wait}` : ""}`;
   }
 
   function topbarPipelineState(snapshot = {}) {
@@ -215,9 +226,17 @@
       acceptedAt,
       baselineEventKey: topbarEventKey(latestEvent),
       expiresAt: acceptedAt + TOPBAR_PENDING_LAUNCH_TTL_MS,
+      label: topbarTickerCompactText(payload.label || payload.command || "pipeline.start", 48) || "pipeline.start",
       pid: topbarTickerCompactText(payload.pid || "", 24),
+      statusLabel: topbarTickerCompactText(payload.status_label || payload.statusLabel || payload.status || "accepted", 32) || "accepted",
+      waitLabel: topbarTickerCompactText(payload.wait_label || payload.waitLabel || "waiting for backend event", 64),
     };
     renderTopbarEventTicker(lastSnapshot || {});
+  }
+
+  function clearTopbarPendingLaunch(snapshot = lastSnapshot || {}) {
+    topbarPendingLaunch = null;
+    renderTopbarEventTicker(snapshot || {});
   }
 
   function formatCloseReadiness(closeReadiness) {
@@ -634,9 +653,7 @@
     const tooltips = [
       ["#pipeline-start-button", "Start is disabled while active work is reported. Backend start routes re-check queue, schedule, settings, and process locks at submission time."],
       ["#home-refresh-button", "Refreshes dashboard state from backend snapshots without starting or mutating media work."],
-      ["#rerun-plan-only-button", "Reads CSV rerun summary, scope, recent CSVs, and preview rows through the backend without launching work or writing scoped CSVs."],
-      ["#rerun-dry-run-button", "Previews backend CSV rerun as a dry run. Review dry-run evidence before starting a live copy / keep / park rerun."],
-      ["#rerun-start-button", "Starts backend CSV rerun with copy / keep / park policy. Review the CSV path and preflight before starting."],
+      ["#rerun-start-button", "Starts backend CSV rerun with the selected lifecycle policy after backend preview and preflight evidence."],
       ["#rerun-open-audit-tool-button", "Opens Reports > Audit for audit rows, score policy, and backend-owned rerun CSV export controls."],
       ["#pending-drain-button", "Requests backend pending-publish drain. Drain safety remains backend-owned and requires parked payload evidence."],
       ['[data-control-action="pause"]', "Pause or resume the active backend pipeline. Disabled while no active work is reported."],
@@ -1241,7 +1258,7 @@
     renderBackendLifecycleOverview(lifecycle, closeReadiness, snapshot, warnings, watcher);
     const lines = ["Backend lifecycle handoff:", `Request status: ${backendShutdownInFlight ? "shutdown command in progress" : lifecycle.label}`, `Close-readiness: ${closeReadiness ? closeReadiness.safe_to_close ? "safe" : "blocked" : "not loaded"}`, `Pipeline state: ${snapshot?.pipeline_state || closeReadiness?.state || "unknown"}`, `Reason: ${lifecycle.reason}`, `Continuous watcher: ${closeReadinessWatcherSummary(closeReadiness)}`, `Watcher generation: ${Number(watcher.generation || 0) > 0 ? watcher.generation : "none"}`, `Watcher stop requested: ${watcher.stop_requested ? "yes" : "no"}`, `Warnings: ${warnings.length ? warnings.slice(0, 5).join(" | ") : "none"}`, "", ...startupProgressLines(), ...tauriBackendLifecycleLines(), "", "Guardrail: WebView exposes backend shutdown only when the loaded close-readiness payload reports safe.", "Backend authority: /api/backend/shutdown remains token-protected and performs the actual lifecycle request.", "Scope: this does not launch, pause, stop media, drain pending publish, rename files, save settings, delete files, or touch source/output/scratch media."];
     if (!lifecycle.canShutdown) {
-      lines.push("Next step: inspect Close Readiness, ActiveJobs, Progress, Run Logs, and Last Stderr before closing or retrying lifecycle actions.");
+      lines.push("Next step: inspect Close Readiness, Progress, Run Logs, and Last Stderr before closing or retrying lifecycle actions.");
       if (closeReadinessWatcherIsArmed(closeReadiness)) {
         lines.push("Watcher note: keep the backend alive until the schedule boundary requests Stop, or use backend-owned Stop After Current before shutting down.");
       }
@@ -1526,6 +1543,7 @@
     renderTopbarActivity,
     renderTopbarEventTicker,
     setTopbarPendingLaunch,
+    clearTopbarPendingLaunch,
     topbarEventTickerLine,
     formatCloseReadiness,
     closeReadinessWatcherData,

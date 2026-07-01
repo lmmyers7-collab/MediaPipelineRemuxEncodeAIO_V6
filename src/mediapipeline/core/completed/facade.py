@@ -15,10 +15,11 @@ from mediapipeline.core.completed.policy import (
     completed_record_to_row,
     format_bytes_compact,
 )
-from mediapipeline.desktop.models import CompletedJobRecord, ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.completed.contracts import CompletedJobRecord
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_inventory import CompletedPreviewDto
+    from mediapipeline.core.kernel.dto_inventory import CompletedPreviewDto
 
 
 class CompletedFacadeMixin:
@@ -74,7 +75,7 @@ class CompletedFacadeMixin:
             rows, promotion_status = annotator(resolved, records, list(payload.get("rows") or []))
             payload["rows"] = rows
             payload["final_library_promotion"] = promotion_status
-            from mediapipeline.desktop.application.dto_inventory import CompletedPreviewDto
+            from mediapipeline.core.kernel.dto_inventory import CompletedPreviewDto
 
             return CompletedPreviewDto(**payload)
         except Exception:

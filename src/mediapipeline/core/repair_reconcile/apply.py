@@ -12,7 +12,7 @@ from typing import Any, Mapping
 from mediapipeline.core.completed.manifest import completed_sidecar_path_from_payload
 from mediapipeline.core.completed.policy import completed_record_key
 from mediapipeline.core.kernel.dto_commands import CommandResult
-from mediapipeline.core.kernel.models import CompletedJobRecord
+from mediapipeline.core.completed.contracts import CompletedJobRecord
 from mediapipeline.core.kernel.contracts.pending_publish import PendingPushManifest
 
 from .dry_run import (

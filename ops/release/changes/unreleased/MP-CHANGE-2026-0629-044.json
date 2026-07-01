@@ -1,0 +1,55 @@
+{
+  "id": "MP-CHANGE-2026-0629-044",
+  "title": "Move CSV rerun status into Home summary",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Moved active CSV rerun progress into the Home summary surfaces: topbar activity, Pipeline card, Current Item card, Live Run status panel, and Next 5 Videos activity rows.",
+  "reason": "Operators need to see what CSV rerun is importing, what is currently staged, and whether processing has begun without opening Evidence.",
+  "affected_areas": [
+    "generated-context",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "CSV rerun details were mainly visible through the Live Run evidence/worker detail, while Home summary cards still looked idle or unrelated to the active CSV staging work.",
+  "behavior_after": "While CSV rerun is active, Home shows a CSV state pill, current import filename, CSV row counts, Pipeline=CSV Rerun active, Current Item=current importing file, and Next 5 Videos rows for importing, last imported, processing state, and CSV row totals.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/app/home.js",
+    "apps/desktop/webview/static/assets/app/topbar.js",
+    "apps/desktop/webview/static/assets/styles/components/base-panels.css",
+    "apps/desktop/webview/static/partials/page-home.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/home.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/topbar.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles/components/base-panels.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-home.html.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_frontend_mutation_boundary.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-044.json",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "manual_validation": [
+    "In-app browser screenshots confirmed CSV rerun status in topbar, Pipeline card, Current Item card, and Next 5 Videos activity rows.",
+    "node --check apps\\\\desktop\\\\webview\\\\static\\\\assets\\\\app.js - passed",
+    "node --check apps\\\\desktop\\\\webview\\\\static\\\\assets\\\\app\\\\home.js - passed",
+    "node --check apps\\\\desktop\\\\webview\\\\static\\\\assets\\\\app\\\\topbar.js - passed",
+    "node --check apps\\\\desktop\\\\webview\\\\static\\\\assets\\\\progressView.js - passed",
+    "python -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_home_next_queue_shows_first_five_runnable_rows_only -q - passed",
+    "python -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_home_pipeline_state_metric_uses_naturalized_text_renderer -q - passed",
+    "python -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_ui_polish_error_and_tooltip_guards_are_wired -q - passed",
+    "python -m unittest tests.webview.test_webview_browser_home_live_state_smoke -q - passed",
+    "python -m unittest tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_live_run_progress_surfaces_are_read_only_shared_renderer -q - passed"
+  ],
+  "rollback_plan": "Revert the WebView Home/topbar/static test changes from this packet and refresh generated summaries for the reverted files.",
+  "related_changes": [],
+  "notes": "CSV rerun status now populates Home topbar, Pipeline card, Current Item card, Live Run status panel, and Next 5 Videos activity rows.\nStatic tests cover the CSV active override for Home summary placement and non-evidence Live Run status.\nGenerated summaries refreshed for changed WebView source and test files."
+}

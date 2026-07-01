@@ -51,7 +51,7 @@ DIAGNOSTICS_RECOVERY_READY_STATUSES: tuple[str, ...] = (
 )
 
 DIAGNOSTICS_STATE_TARGET_GUIDANCE: dict[str, str] = {
-    "active_jobs": "ActiveJobs is the first stop when Close Readiness is blocked or a process looks orphaned.",
+    "active_jobs": "ActiveJobs is passive launch diagnostics evidence; process/progress close-readiness owns lifecycle decisions.",
     "queue_snapshot": "Queue Snapshot explains what the next launch would process; stale or malformed data can make queue state look wrong.",
     "completed_manifest": "Completed Manifest explains processed outputs; malformed records can hide completed work or trigger false reruns.",
     "pending_publish": "Pending Publish holds parked outputs; review this before rerunning files that may already be waiting to drain.",

@@ -8,8 +8,8 @@ from typing import Any
 
 from mediapipeline.core.config.settings_policy import settings_encoder_capability_report
 from mediapipeline.core.kernel.runtime.subprocess_runner import run_capture
-from mediapipeline.desktop.application.dto_base import JsonMap, json_safe
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.kernel.dto_base import JsonMap, json_safe
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 from mediapipeline.core.config.identity import config_identity_block_reasons
 from mediapipeline.core.processes.audit_policy import AUDIT_LIBRARY_ROOT_ERROR, resolve_audit_library_root
@@ -29,12 +29,11 @@ from mediapipeline.core.processes.pipeline_policy import (
     network_role_is_valid,
 )
 from mediapipeline.core.processes.rerun_policy import (
-    CSV_RERUN_MODE_ERROR,
     CSV_RERUN_PATH_ERROR,
+    rerun_lifecycle_errors,
+    rerun_lifecycle_from_request,
     rerun_csv_path_from_request,
     rerun_dry_run_from_request,
-    rerun_modes_are_supported,
-    rerun_modes_from_request,
     rerun_plan_only_from_request,
 )
 from mediapipeline.core.processes.path_evidence import (
@@ -708,6 +707,18 @@ class ProcessFacadeMixin:
             f"blocked_count={len(blockers)}",
             f"review_count={len(review_items)}",
         ]
+        evidence = [
+            f"overall_status={status}",
+            f"can_start_new_work={'yes' if status != 'blocked' else 'no'}",
+        ]
+        if blockers:
+            first_blocker = blockers[0]
+            blocker_code = str(first_blocker.get("code") or "").strip()
+            blocker_message = str(first_blocker.get("message") or "").strip()
+            if blocker_code:
+                evidence.append(f"blocker={blocker_code}")
+            if blocker_message:
+                evidence.append(f"reason={blocker_message}")
         recovery_actions: list[dict[str, Any]] = []
         for item in blockers[:5]:
             detail.append(f"{item.get('code')}: {item.get('message')}")
@@ -726,7 +737,7 @@ class ProcessFacadeMixin:
             "autonomy_health",
             "Autonomy health gate",
             check_status,
-            f"overall_status={status}; can_start_new_work={'yes' if status != 'blocked' else 'no'}",
+            "; ".join(evidence),
             str(
                 (health.get("launch_gate") if isinstance(health.get("launch_gate"), dict) else {}).get("safe_next_action")
                 or "Review autonomy health before unattended launch."
@@ -905,20 +916,25 @@ class ProcessFacadeMixin:
     ) -> tuple[list[dict[str, Any]], dict[str, Any], str]:
         _ = resolved
         csv_path = rerun_csv_path_from_request(request)
-        stage_mode, original_mode, return_mode = rerun_modes_from_request(request)
+        lifecycle = rerun_lifecycle_from_request(request)
+        lifecycle_errors = rerun_lifecycle_errors(lifecycle)
         dry_run = rerun_dry_run_from_request(request)
         plan_only = rerun_plan_only_from_request(request)
         evidence, details = path_evidence(csv_path)
-        modes_supported = rerun_modes_are_supported(stage_mode, original_mode, return_mode)
         normalized = {
             "target": "rerun",
             "csv_path": str(csv_path or ""),
             "dry_run": dry_run,
             "plan_only": plan_only,
-            "stage_mode": stage_mode,
-            "original_mode": original_mode,
-            "return_mode": return_mode,
-            "show_console": bool(request.get("show_console", False)),
+            "stage_mode": lifecycle.stage_mode,
+            "original_mode": lifecycle.original_mode,
+            "return_mode": lifecycle.return_mode,
+            "execution_mode": lifecycle.execution_mode,
+            "destination_mode": lifecycle.destination_mode,
+            "original_policy": lifecycle.original_policy,
+            "collision_policy": lifecycle.collision_policy,
+            "window_size": lifecycle.window_size,
+            "show_console": False,
         }
         checks = [
             _preflight_check(
@@ -930,12 +946,16 @@ class ProcessFacadeMixin:
                 detail=details if csv_path is not None else [CSV_RERUN_PATH_ERROR],
             ),
             _preflight_check(
-                "safe_modes",
-                "CSV rerun safety modes",
-                "ready" if modes_supported else "blocked",
-                f"stage={stage_mode}; original={original_mode}; return={return_mode}; dry_run={dry_run}; plan_only={plan_only}",
-                "Choose copy / keep / park before execution; move, delete, and replace_original are blocked source-mutating or in-place policies.",
-                detail=[] if modes_supported else [CSV_RERUN_MODE_ERROR],
+                "lifecycle_policy",
+                "CSV rerun lifecycle policy",
+                "ready" if not lifecycle_errors else "blocked",
+                (
+                    f"execution={lifecycle.execution_mode}; destination={lifecycle.destination_mode}; "
+                    f"original_policy={lifecycle.original_policy}; collision={lifecycle.collision_policy}; "
+                    f"window={lifecycle.window_size}; dry_run={dry_run}; plan_only={plan_only}"
+                ),
+                "Use one-at-a-time by default; destructive original/final policies require explicit backend-validated confirmations.",
+                detail=lifecycle_errors,
             ),
             self._process_launch_lock_preflight_check("CSV rerun preflight"),
             self._config_identity_preflight_check(resolved),
@@ -951,8 +971,8 @@ class ProcessFacadeMixin:
                 "media_safety_policy",
                 "Media safety policy",
                 "ready",
-                "execution-safe policy is copy to scratch; keep originals; park returned outputs.",
-                "Rerun remains backend-owned and blocks source mutation or in-place replacement before process launch.",
+                "execution-safe default is one-at-a-time copy to scratch, verified output, then destination policy application.",
+                "Rerun remains backend-owned; source mutation and final replacement are delayed until output proof and confirmations.",
             ),
         ]
         return checks, normalized, "/api/rerun/start"

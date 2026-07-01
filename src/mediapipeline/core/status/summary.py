@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.status.summary_sections import (
     append_audit_progress_section,
     append_control_flag_states,

@@ -215,7 +215,7 @@
             <h2>Rerun from CSV</h2>
             <strong id="rerun-launch-status">Idle</strong>
           </div>
-          <div class="form-grid launch-form-grid">
+          <div class="form-grid launch-form-grid launch-rerun-setup-grid">
             <label>
               <span class="path-picker-label-row">
                 <span class="path-picker-label-text">CSV Path</span>
@@ -224,29 +224,70 @@
               <input id="rerun-start-csv-path" type="text" autocomplete="off">
             </label>
             <label>
-              Stage
-              <select id="rerun-start-stage-mode" title="CSV rerun stages files by copying to scratch first; source-mutating modes remain backend-blocked.">
-                <option value="copy" selected>copy - stage a scratch copy</option>
-                <option value="move">move - blocked source mutation</option>
+              Execution
+              <select id="rerun-start-execution-mode" title="Backend-owned rerun execution mode.">
+                <option value="one_at_a_time" selected>one at a time</option>
+                <option value="windowed">windowed</option>
+                <option value="batch_stage_all">batch stage all</option>
               </select>
             </label>
             <label>
-              Original
-              <select id="rerun-start-original-mode" title="CSV rerun keeps original source media by default; source deletion remains backend-blocked.">
-                <option value="keep" selected>keep - preserve original</option>
-                <option value="delete">delete - blocked source mutation</option>
-              </select>
+              Window
+              <input id="rerun-start-window-size" type="number" min="1" max="100" step="1" value="1">
             </label>
-            <label>
-              Return
-              <select id="rerun-start-return-mode" title="CSV rerun parks outputs for backend publish/drain review; in-place replacement remains backend-blocked.">
-                <option value="park" selected>park - review output later</option>
-                <option value="replace_original">replace original - blocked in-place mutation</option>
-              </select>
-            </label>
-            <label class="check-row launch-check-row"><input id="rerun-start-show-console" type="checkbox"> Show Console</label>
           </div>
-          <p id="rerun-mode-policy-note" class="note">Executable CSV rerun policy remains copy / keep / park. Other staged choices are shown for CSV review and backend preflight, but source-mutating or in-place policies are blocked before process launch.</p>
+          <fieldset class="rerun-handling-panel">
+            <legend>Rerun handling</legend>
+            <div class="rerun-handling-grid">
+              <label>
+                Destination
+                <select id="rerun-start-destination-mode" title="Where verified rerun outputs go after backend proof.">
+                  <option value="auto">auto destination</option>
+                  <option value="review_workspace" selected>review workspace</option>
+                  <option value="pending_publish">pending publish</option>
+                  <option value="publish_non_overlap">publish with non-overlap name</option>
+                  <option value="publish_replace_final">publish and replace final output</option>
+                </select>
+              </label>
+              <label>
+                Destination Collision
+                <select id="rerun-start-collision-policy" title="Collision handling for publish destinations.">
+                  <option value="auto">auto collision</option>
+                  <option value="suffix" selected>suffix when needed</option>
+                  <option value="fail">block on overlap</option>
+                  <option value="replace_final">replace final output</option>
+                </select>
+              </label>
+              <label>
+                Original After Proof
+                <select id="rerun-start-original-policy" title="What happens to the original file after new output proof exists.">
+                  <option value="auto">auto original action</option>
+                  <option value="keep" selected>keep original</option>
+                  <option value="rename_after_publish">keep but rename after publish</option>
+                  <option value="move_to_hold_after_publish">move to original hold after publish</option>
+                  <option value="hold_then_delete_after_publish">hold then mark cleanup-ready</option>
+                </select>
+              </label>
+            </div>
+            <div class="rerun-handling-summary" aria-live="polite">
+              <div class="rerun-policy-card" data-rerun-policy-card="destination" data-state="ok">
+                <span class="rerun-policy-card-label">Destination handling</span>
+                <strong data-rerun-policy-summary="destination">Review workspace</strong>
+                <span data-rerun-policy-detail="destination">Verified outputs stay in review; final library placement is not attempted from this selection.</span>
+              </div>
+              <div class="rerun-policy-card" data-rerun-policy-card="collision" data-state="ok">
+                <span class="rerun-policy-card-label">When output exists</span>
+                <strong data-rerun-policy-summary="collision">Suffix when needed</strong>
+                <span data-rerun-policy-detail="collision">Backend uses a non-overlap name instead of overwriting a destination.</span>
+              </div>
+              <div class="rerun-policy-card" data-rerun-policy-card="original" data-state="ok">
+                <span class="rerun-policy-card-label">Original after proof</span>
+                <strong data-rerun-policy-summary="original">Keep original</strong>
+                <span data-rerun-policy-detail="original">The original file remains untouched after output proof.</span>
+              </div>
+            </div>
+          </fieldset>
+          <p id="rerun-mode-policy-note" class="note">Backend owns output proof, replacement, pending publish, and any original-source action. Replace final output applies to the new published file; Original After Proof controls the prior source and cleanup handoff after proof.</p>
           <div class="form-grid launch-form-grid" aria-label="CSV rerun scope controls">
             <label class="check-row launch-check-row"><input id="rerun-scope-enabled-only" type="checkbox" checked> Enabled Rows</label>
             <label class="check-row launch-check-row"><input id="rerun-scope-skip-blocked" type="checkbox"> Skip Blocked</label>
@@ -257,17 +298,18 @@
             </label>
             <label>
               Issue Filter
-              <input id="rerun-scope-issue-filter" type="text" autocomplete="off" placeholder="Optional code text">
+              <select id="rerun-scope-issue-filter" multiple size="4" title="Backend preview issue options."></select>
             </label>
             <label>
               Bucket Filter
-              <input id="rerun-scope-bucket-filter" type="text" autocomplete="off" placeholder="Optional bucket text">
+              <select id="rerun-scope-bucket-filter" multiple size="4" title="Backend preview bucket options."></select>
             </label>
             <label>
               Preview Rows
               <input id="rerun-preview-limit" type="number" min="1" max="200" step="1" value="50">
             </label>
           </div>
+          <div id="rerun-preview-tiles" class="launch-command-history" aria-label="CSV rerun status tiles">No CSV rerun status tiles loaded.</div>
           <div class="table-wrap detail-table-wrap" aria-label="Recent CSV rerun files">
             <table>
               <thead>
@@ -284,7 +326,7 @@
             </table>
           </div>
           <pre id="rerun-preview-summary" class="prose-block">No CSV rerun preview loaded.</pre>
-          <div id="rerun-policy-panel" class="prose-block">Executable policy: copy / keep / park. Blocked policy: move / delete / replace_original.</div>
+          <div id="rerun-policy-panel" class="prose-block">Executable policy: one-at-a-time / review workspace / keep original.</div>
           <div class="table-wrap detail-table-wrap" aria-label="CSV rerun row preview">
             <table>
               <thead>
@@ -293,7 +335,7 @@
                   <th scope="col">State</th>
                   <th scope="col">Source</th>
                   <th scope="col">Issue / Bucket</th>
-                  <th scope="col">Modes</th>
+                  <th scope="col">Destination</th>
                   <th scope="col">Reason</th>
                 </tr>
               </thead>
@@ -305,10 +347,12 @@
           <pre id="rerun-launch-preflight" class="prose-block">No CSV rerun preflight loaded.</pre>
           <div class="action-row action-row-left">
             <button type="button" id="rerun-open-audit-tool-button" class="secondary-button" data-cross-page-target="reports" data-cross-page-reports-tab="audit">Open Reports Audit</button>
-            <button type="button" id="rerun-plan-only-button" class="secondary-button">Plan CSV Rerun</button>
-            <button type="button" id="rerun-dry-run-button" class="secondary-button">Preview CSV Rerun</button>
-            <button type="button" id="rerun-start-button" class="primary-button">Start CSV Rerun</button>
+            <button type="button" id="rerun-inspect-csv-button" class="secondary-button">Inspect CSV</button>
+            <button type="button" id="rerun-open-csv-button" class="secondary-button">Open CSV</button>
+            <button type="button" id="rerun-open-csv-folder-button" class="secondary-button">Open Folder</button>
+            <button type="button" id="rerun-start-button" class="primary-button">Review &amp; Start</button>
           </div>
+          <div id="rerun-results-panel" class="launch-command-history" aria-label="CSV rerun results">No rerun results loaded.</div>
           <pre id="rerun-launch-detail" class="prose-block">No CSV rerun launch result.</pre>
           <pre id="rerun-history-summary" class="prose-block">No CSV rerun history loaded.</pre>
         </section>

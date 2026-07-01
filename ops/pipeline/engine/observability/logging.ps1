@@ -50,19 +50,50 @@ function Add-StartupWarning {
 
 # --- Phase B: log file + Write-Log -------------------------------------------
 
+function Get-PipelineDebugLogMaxBytes {
+    try {
+        $maxBytes = [int64]$script:PipelineDebugLogMaxBytes
+    } catch {
+        $maxBytes = 104857600
+    }
+    if ($maxBytes -lt 0) { return 0 }
+    if ($maxBytes -eq 0) { return 104857600 }
+    return $maxBytes
+}
+
+function Invoke-LogRotationCore {
+    param([string]$NextLine = '')
+
+    if ([string]::IsNullOrWhiteSpace([string]$LogFile)) { return }
+    $maxBytes = Get-PipelineDebugLogMaxBytes
+    if ($maxBytes -le 0) { return }
+    if (Test-Path -LiteralPath $LogFile) {
+        $item = Get-Item -LiteralPath $LogFile -ErrorAction SilentlyContinue
+        if ($item) {
+            $nextBytes = 0
+            if ($NextLine) {
+                $nextBytes = [System.Text.Encoding]::UTF8.GetByteCount($NextLine + [Environment]::NewLine)
+            }
+            if (($item.Length + $nextBytes) -gt $maxBytes) {
+                $archive = $LogFile -replace '\.log$', "_$(Get-Date -Format 'yyyyMMdd_HHmmss').log.old"
+                Move-Item -LiteralPath $LogFile -Destination $archive -Force
+                $script:PipelineDebugLogLastRotationAt = (Get-Date).ToUniversalTime().ToString('o')
+                $script:PipelineDebugLogLastArchivePath = [string]$archive
+            }
+        }
+    }
+    $cutoff = (Get-Date).AddDays(-$script:LogRetentionDays)
+    Get-ChildItem -LiteralPath (Split-Path $LogFile -Parent) -Filter "*.log.old" -ErrorAction SilentlyContinue |
+        Where-Object { $_.LastWriteTime -lt $cutoff } |
+        Remove-Item -Force -ErrorAction SilentlyContinue
+}
+
 function Invoke-LogRotation {
     $acquired = $false
     try {
         if ($logLock.WaitOne(2000)) {
             $acquired = $true
-            if ((Test-Path $LogFile) -and (Get-Item $LogFile).Length -gt 100MB) {
-                $archive = $LogFile -replace '\.log$', "_$(Get-Date -Format 'yyyyMMdd_HHmmss').log.old"
-                Move-Item $LogFile $archive -Force
-            }
-            $cutoff = (Get-Date).AddDays(-$script:LogRetentionDays)
-            Get-ChildItem -LiteralPath (Split-Path $LogFile -Parent) -Filter "*.log.old" -ErrorAction SilentlyContinue |
-                Where-Object { $_.LastWriteTime -lt $cutoff } |
-                Remove-Item -Force -ErrorAction SilentlyContinue
+            Invoke-LogRotationCore
         }
     } catch { Write-Host "Log rotation error: $_" }
     finally  { if ($acquired) { $logLock.ReleaseMutex() } }
@@ -103,6 +134,7 @@ function Write-Log {
     try {
         if ((Should-WriteLog -MessageLevel $Level -TargetLevel $script:FileLogLevel) -and $logLock.WaitOne(2000)) {
             $acquired = $true
+            Invoke-LogRotationCore -NextLine $line
             Add-Content -LiteralPath $LogFile -Value $line -ErrorAction SilentlyContinue
         }
     } catch {

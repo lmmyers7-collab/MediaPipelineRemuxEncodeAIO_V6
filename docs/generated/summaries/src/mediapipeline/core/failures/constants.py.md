@@ -3,9 +3,9 @@ file: src/mediapipeline/core/failures/constants.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: failures
-last_modified: 2026-05-31
+last_modified: 2026-07-01
 last_reviewed: 2026-06-04
-sha256: 74dfe65129774c186e3ef95681d08efe684adf5c2018167188b1f56b09d99fde
+sha256: 99d59d76fdc513a47fe23273854b1b752f5e972b1975aa455ab0daa8466ea994
 ---
 # `src/mediapipeline/core/failures/constants.py`
 

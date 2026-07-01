@@ -114,6 +114,8 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "MinFreeSpaceGB",
     "OutsourceMinFreeSpaceGB",
     "DeferredPublish",
+    "PendingPublishDrainMode",
+    "PendingPublishDrainBatchSize",
     "FinalLibraryPromotionEnabled",
     "FinalLibraryPromotionRules",
     "FinalLibraryPromotionVerificationMode",
@@ -140,6 +142,7 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "AudioMaxChannels",
     "AllowNoAudio",
     "SubKeepLanguages",
+    "AllowSubtitleHelperFallback",
     "ConvertTx3gToSrt",
     "DropTx3gAfterConversion",
     "CreateExternalTx3gSrtSidecars",
@@ -181,6 +184,7 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "EnableWatchFolders",
     "WatchFolderRoots",
     "WatchDebounceSeconds",
+    "WatchScanTimeoutSeconds",
     "WatchAction",
     "WatchRespectScheduleWindow",
     "SkipStabilityCheck",
@@ -190,6 +194,10 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "RobocopyFlags",
     "DebugMode",
     "LogRetentionDays",
+    "PipelineDebugLogMaxBytes",
+    "FailureArtifactWarningThresholdGB",
+    "FailureArtifactRetentionDays",
+    "FailureArtifactCleanupTargetGB",
     "PriorityMarkers",
     "MixPriorityPhase",
     "QueueOrderingStrategy",
@@ -204,6 +212,7 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "OutputSizeMultiplier",
     "FFmpegEncodeTimeoutSeconds",
     "FFmpegCpuEncodeTimeoutSeconds",
+    "CpuEncodeMutexWaitSeconds",
     "FFmpegRemuxTimeoutSeconds",
     "MkvmergeRemuxTimeoutSeconds",
     "SubtitleExtractTimeoutSeconds",
@@ -225,6 +234,17 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "AllowSystemTools",
     "RobocopyTimeoutSeconds",
     "TransientFailureRetryLimit",
+    "ConsecutiveRoundFailureBlockLimit",
+    "ConsecutiveRoundFailureProbeBackoffSeconds",
+    "PendingPublishBacklogBlockThreshold",
+    "PendingPublishDeferredBlockThreshold",
+    "PauseFlagReviewSeconds",
+    "PauseFlagBlockSeconds",
+    "LocalWorkerHeartbeatGraceSeconds",
+    "QueueExecutionMaxRunnablePerRound",
+    "StateDbMaintenanceIntervalSeconds",
+    "StateDbWalReviewBytes",
+    "StateDbCompletedJobsMaxRows",
     "IndexScanTimeoutSeconds",
     "SourceScanTimeoutSeconds",
     "CleanupScanTimeoutSeconds",
@@ -273,6 +293,8 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "FinalLibraryPromotionVerificationMode",
     "FinalLibraryPromotionCleanupAfterVerified",
     "FinalLibraryPromotionOverwriteExisting",
+    "MinFreeSpaceGB",
+    "OutsourceMinFreeSpaceGB",
     "CreateTVSubfolder",
     "AudioPassthroughProfile",
     "CompatibleAudioCodecs",
@@ -315,6 +337,8 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "EncodeWasteGuardPreflightSampleCount",
     "EncodeWasteGuardPreflightTimeoutSeconds",
     "DeferredPublish",
+    "PendingPublishDrainMode",
+    "PendingPublishDrainBatchSize",
     "AggressiveEpisodeParsing",
     "VideoCodec",
     "EncoderBackend",
@@ -332,9 +356,11 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "CpuEncodePreset",
     "CpuEncodeProcessPriority",
     "FFmpegCpuEncodeTimeoutSeconds",
+    "CpuEncodeMutexWaitSeconds",
     "MkvmergeRemuxTimeoutSeconds",
     "CpuEncodeMaxThreads",
     "SubKeepLanguages",
+    "AllowSubtitleHelperFallback",
     "ConvertTx3gToSrt",
     "DropTx3gAfterConversion",
     "CreateExternalTx3gSrtSidecars",
@@ -383,10 +409,12 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "ConsoleLogLevel",
     "FileLogLevel",
     "LogRetentionDays",
-    "MinFreeSpaceGB",
+    "PipelineDebugLogMaxBytes",
+    "FailureArtifactWarningThresholdGB",
+    "FailureArtifactRetentionDays",
+    "FailureArtifactCleanupTargetGB",
     "FileStabilityWait",
     "SkipStabilityCheck",
-    "OutsourceMinFreeSpaceGB",
     "FFmpegEncodeTimeoutSeconds",
     "FFmpegRemuxTimeoutSeconds",
     "SubtitleExtractTimeoutSeconds",
@@ -396,6 +424,17 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "AllowSystemTools",
     "RobocopyTimeoutSeconds",
     "TransientFailureRetryLimit",
+    "ConsecutiveRoundFailureBlockLimit",
+    "ConsecutiveRoundFailureProbeBackoffSeconds",
+    "PendingPublishBacklogBlockThreshold",
+    "PendingPublishDeferredBlockThreshold",
+    "PauseFlagReviewSeconds",
+    "PauseFlagBlockSeconds",
+    "LocalWorkerHeartbeatGraceSeconds",
+    "QueueExecutionMaxRunnablePerRound",
+    "StateDbMaintenanceIntervalSeconds",
+    "StateDbWalReviewBytes",
+    "StateDbCompletedJobsMaxRows",
     "MinPipelineVersion",
     "OutputSizeMultiplier",
     "OutputValidationProbeTimeoutSeconds",
@@ -427,6 +466,7 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "EnableWatchFolders",
     "WatchFolderRoots",
     "WatchDebounceSeconds",
+    "WatchScanTimeoutSeconds",
     "WatchAction",
     "WatchRespectScheduleWindow",
     *NETWORK_CONFIG_KEYS,
@@ -474,18 +514,25 @@ NUMERIC_CONFIG_KEYS: tuple[str, ...] = (
     "CompatibilityEncodeGrowthPercent",
     "MinFreeSpaceGB",
     "OutsourceMinFreeSpaceGB",
+    "PendingPublishDrainBatchSize",
     "VideoQuality",
     "AudioMaxChannels",
     "MergeThresholdMs",
     "FileStabilityWait",
     "WatchDebounceSeconds",
+    "WatchScanTimeoutSeconds",
     "LogRetentionDays",
+    "PipelineDebugLogMaxBytes",
+    "FailureArtifactWarningThresholdGB",
+    "FailureArtifactRetentionDays",
+    "FailureArtifactCleanupTargetGB",
     "MaxParallelEncodes",
     "FallbackCpuQuality",
     "CpuEncodeMaxThreads",
     "OutputSizeMultiplier",
     "FFmpegEncodeTimeoutSeconds",
     "FFmpegCpuEncodeTimeoutSeconds",
+    "CpuEncodeMutexWaitSeconds",
     "FFmpegRemuxTimeoutSeconds",
     "MkvmergeRemuxTimeoutSeconds",
     "SubtitleExtractTimeoutSeconds",
@@ -502,6 +549,17 @@ NUMERIC_CONFIG_KEYS: tuple[str, ...] = (
     "QualityVerifyTimeoutSeconds",
     "RobocopyTimeoutSeconds",
     "TransientFailureRetryLimit",
+    "ConsecutiveRoundFailureBlockLimit",
+    "ConsecutiveRoundFailureProbeBackoffSeconds",
+    "PendingPublishBacklogBlockThreshold",
+    "PendingPublishDeferredBlockThreshold",
+    "PauseFlagReviewSeconds",
+    "PauseFlagBlockSeconds",
+    "LocalWorkerHeartbeatGraceSeconds",
+    "QueueExecutionMaxRunnablePerRound",
+    "StateDbMaintenanceIntervalSeconds",
+    "StateDbWalReviewBytes",
+    "StateDbCompletedJobsMaxRows",
     "IndexScanTimeoutSeconds",
     "SourceScanTimeoutSeconds",
     "CleanupScanTimeoutSeconds",
@@ -550,6 +608,7 @@ LIBRARY_PROFILE_OVERRIDE_KEYS_BY_GROUP: dict[str, tuple[str, ...]] = {
         "CpuEncodePreset",
         "CpuEncodeProcessPriority",
         "CpuEncodeMaxThreads",
+        "CpuEncodeMutexWaitSeconds",
         "ExtraVideoFlags",
     ),
     "subtitles": (
@@ -807,6 +866,8 @@ class Config(BaseModel):
     MinFreeSpaceGB: int = Field(default=50, ge=0)
     OutsourceMinFreeSpaceGB: int = Field(default=50, ge=0)
     DeferredPublish: bool = False
+    PendingPublishDrainMode: Literal["manual", "trusted"] = "manual"
+    PendingPublishDrainBatchSize: int = Field(default=100, ge=1, le=1000000)
     FinalLibraryPromotionEnabled: bool = False
     FinalLibraryPromotionRules: list[dict[str, Any]] = Field(
         default_factory=list,
@@ -874,6 +935,7 @@ class Config(BaseModel):
     SubKeepLanguages: list[str] = Field(
         default_factory=lambda: _list_default(SUBTITLE_LANGUAGE_DEFAULT)
     )
+    AllowSubtitleHelperFallback: bool = False
     ConvertTx3gToSrt: bool = True
     DropTx3gAfterConversion: bool = False
     CreateExternalTx3gSrtSidecars: bool = False
@@ -932,6 +994,7 @@ class Config(BaseModel):
     EnableWatchFolders: bool = False
     WatchFolderRoots: list[str] = Field(default_factory=list)
     WatchDebounceSeconds: int = Field(default=30, ge=5)
+    WatchScanTimeoutSeconds: int = Field(default=300, ge=1, le=86400)
     WatchAction: Literal["enqueue_only", "enqueue_and_launch"] = "enqueue_only"
     WatchRespectScheduleWindow: bool = True
     SkipStabilityCheck: bool = False
@@ -944,6 +1007,10 @@ class Config(BaseModel):
 
     DebugMode: bool = True
     LogRetentionDays: int = Field(default=7, ge=0)
+    PipelineDebugLogMaxBytes: int = Field(default=104857600, ge=1048576, le=2147483647)
+    FailureArtifactWarningThresholdGB: int = Field(default=100, ge=0)
+    FailureArtifactRetentionDays: int = Field(default=0, ge=0)
+    FailureArtifactCleanupTargetGB: int = Field(default=0, ge=0)
     PriorityMarkers: list[str] = Field(default_factory=lambda: ["!", "[NOW]"])
     MixPriorityPhase: bool = False
     QueueOrderingStrategy: Literal[
@@ -987,6 +1054,7 @@ class Config(BaseModel):
 
     FFmpegEncodeTimeoutSeconds: int = Field(default=21600, ge=1)
     FFmpegCpuEncodeTimeoutSeconds: int = Field(default=43200, ge=1)
+    CpuEncodeMutexWaitSeconds: int = Field(default=1800, ge=0, le=86400)
     FFmpegRemuxTimeoutSeconds: int = Field(default=7200, ge=1)
     MkvmergeRemuxTimeoutSeconds: int = Field(default=7200, ge=60, le=86400)
     SubtitleExtractTimeoutSeconds: int = Field(default=180, ge=30, le=3600)
@@ -1008,6 +1076,17 @@ class Config(BaseModel):
     AllowSystemTools: bool = False
     RobocopyTimeoutSeconds: int = Field(default=14400, ge=60, le=172800)
     TransientFailureRetryLimit: int = Field(default=3, ge=1, le=100)
+    ConsecutiveRoundFailureBlockLimit: int = Field(default=12, ge=1, le=1000)
+    ConsecutiveRoundFailureProbeBackoffSeconds: int = Field(default=900, ge=30, le=86400)
+    PendingPublishBacklogBlockThreshold: int = Field(default=100, ge=1, le=1000000)
+    PendingPublishDeferredBlockThreshold: int = Field(default=25, ge=1, le=1000000)
+    PauseFlagReviewSeconds: int = Field(default=1800, ge=60, le=86400)
+    PauseFlagBlockSeconds: int = Field(default=21600, ge=300, le=604800)
+    LocalWorkerHeartbeatGraceSeconds: int = Field(default=900, ge=60, le=86400)
+    QueueExecutionMaxRunnablePerRound: int = Field(default=500, ge=1, le=1000000)
+    StateDbMaintenanceIntervalSeconds: int = Field(default=21600, ge=60, le=604800)
+    StateDbWalReviewBytes: int = Field(default=33554432, ge=1048576, le=2147483647)
+    StateDbCompletedJobsMaxRows: int = Field(default=250000, ge=1000, le=10000000)
     IndexScanTimeoutSeconds: int = Field(default=1800, ge=30, le=86400)
     SourceScanTimeoutSeconds: int = Field(default=1800, ge=30, le=86400)
     CleanupScanTimeoutSeconds: int = Field(default=300, ge=30, le=7200)
@@ -1172,6 +1251,7 @@ class Config(BaseModel):
         "EncodeTuningPreset",
         "EncodeLadder",
         "FinalLibraryPromotionVerificationMode",
+        "PendingPublishDrainMode",
         "AudioPassthroughProfile",
         "AudioTranscodeCodec",
         "AudioDownmixMode",

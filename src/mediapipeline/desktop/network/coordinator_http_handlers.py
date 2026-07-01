@@ -427,9 +427,33 @@ class CoordinatorHttpHandlersMixin:
                 if callable(recorder):
                     late_report = recorder(req)
                 if late_report is not None:
+                    if late_report.get("removes_queue_record"):
+                        source_path = str(late_report.get("source_path", "") or "")
+                        try:
+                            self._remove_from_queue(source_path)
+                            clearer = getattr(self._registry, "clear_reclaimed_source_quarantine", None)
+                            if callable(clearer):
+                                clearer(source_path)
+                        except Exception as exc:
+                            if rollback_snapshot is not None:
+                                restorer = getattr(self._registry, "restore_rollback_snapshot", None)
+                                if callable(restorer):
+                                    restorer(rollback_snapshot)
+                            _log.warning(
+                                "Late terminal report for job %s could not remove queue record for %s: %s",
+                                req.job_id[:8],
+                                source_path,
+                                redact_network_secret_text(exc),
+                            )
+                            handler._send_json({"error": "done state unavailable"}, 503)
+                            return
                     try:
                         self._registry.save(self._inflight_state_path())
                     except Exception as exc:
+                        if rollback_snapshot is not None:
+                            restorer = getattr(self._registry, "restore_rollback_snapshot", None)
+                            if callable(restorer):
+                                restorer(rollback_snapshot)
                         safe_exc = redact_network_secret_text(exc)
                         _log.warning("Failed to save late terminal report for job %s: %s", req.job_id[:8], safe_exc)
                         handler._send_json({"error": "done state unavailable"}, 503)
@@ -437,8 +461,16 @@ class CoordinatorHttpHandlersMixin:
                     self._safe_log_cluster_event(
                         "late-terminal-recorded",
                         level="WARN",
-                        event="late_terminal_recorded",
-                        message="Worker reported terminal status after stale reclaim; evidence recorded.",
+                        event=(
+                            "late_terminal_accepted"
+                            if late_report.get("removes_queue_record")
+                            else "late_terminal_recorded"
+                        ),
+                        message=(
+                            "Worker reported terminal status after stale reclaim; queue record removed."
+                            if late_report.get("removes_queue_record")
+                            else "Worker reported retryable terminal status after stale reclaim; evidence recorded and quarantine retained."
+                        ),
                         worker_id=req.worker_id,
                         role="coordinator",
                         job_id=req.job_id,

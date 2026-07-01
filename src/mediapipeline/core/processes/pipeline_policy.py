@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
 PIPELINE_START_COMMAND = "pipeline.start"
 PIPELINE_START_MODES = frozenset({"continuous", "once", "validate", "drain_pending_pushes"})
@@ -30,7 +30,7 @@ NETWORK_ROLES = frozenset({"standalone", "coordinator", "worker"})
 
 
 def _command_result(**kwargs: Any) -> "CommandResult":
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**kwargs)
 

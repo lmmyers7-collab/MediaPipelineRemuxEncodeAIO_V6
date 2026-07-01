@@ -116,6 +116,45 @@ function Resolve-MediaPipelineLocalWorkerSlotCompletion {
     }
 }
 
+function Get-MediaPipelineLocalWorkerHardTimeoutSeconds {
+    $override = [int]$script:LocalWorkerChildHardTimeoutSeconds
+    if ($override -gt 0) { return $override }
+    $configuredTimeouts = @(
+        [int]$script:FFmpegEncodeTimeoutSeconds,
+        [int]$script:FFmpegCpuEncodeTimeoutSeconds,
+        [int]$script:FFmpegRemuxTimeoutSeconds,
+        [int]$script:MkvmergeRemuxTimeoutSeconds,
+        [int]$script:SubtitleExtractTimeoutSeconds,
+        [int]$script:BdpgsOcrTimeoutSeconds,
+        [int]$script:VobSubOcrTimeoutSeconds,
+        [int]$script:QualityVerifyTimeoutSeconds,
+        [int]$script:OutputValidationProbeTimeoutSeconds,
+        [int]$script:RobocopyTimeoutSeconds
+    ) | Where-Object { $_ -gt 0 }
+    $largest = if (@($configuredTimeouts).Count -gt 0) { [int](@($configuredTimeouts) | Measure-Object -Maximum).Maximum } else { 43200 }
+    return [int]($largest + 1800)
+}
+
+function Get-MediaPipelineLocalWorkerHeartbeatAgeSeconds {
+    param([string] $HeartbeatPath = '')
+
+    if ([string]::IsNullOrWhiteSpace($HeartbeatPath) -or -not (Test-Path -LiteralPath $HeartbeatPath -PathType Leaf)) {
+        return $null
+    }
+    try {
+        $item = Get-Item -LiteralPath $HeartbeatPath -ErrorAction Stop
+        return [math]::Max(0, [int]((Get-Date) - $item.LastWriteTime).TotalSeconds)
+    } catch {
+        return $null
+    }
+}
+
+function Get-MediaPipelineLocalWorkerHeartbeatGraceSeconds {
+    $configured = [int]$script:LocalWorkerHeartbeatGraceSeconds
+    if ($configured -gt 0) { return $configured }
+    return 900
+}
+
 function Invoke-MediaQueuePhasePlanLocalWorkerSlots {
     param(
         [Parameter(Mandatory)] $QueuePlan,
@@ -135,6 +174,8 @@ function Invoke-MediaQueuePhasePlanLocalWorkerSlots {
     foreach ($entry in $allEntries) { $queue.Enqueue($entry) }
     $active = @{}
     $slotIds = @(1..$MaxParallelEncodes)
+    $childHardTimeoutSeconds = Get-MediaPipelineLocalWorkerHardTimeoutSeconds
+    $heartbeatGraceSeconds = Get-MediaPipelineLocalWorkerHeartbeatGraceSeconds
 
     while (($queue.Count -gt 0 -or $active.Count -gt 0) -and -not $script:StopRequested) {
         Check-ControlFlags
@@ -161,16 +202,18 @@ function Invoke-MediaQueuePhasePlanLocalWorkerSlots {
                             $metadata | Add-Member -NotePropertyName worker_pid -NotePropertyValue ([int]$proc.Id) -Force
                             $metadata | Add-Member -NotePropertyName worker_start_time -NotePropertyValue $workerStartTime -Force
                             $metadata | Add-Member -NotePropertyName started_at -NotePropertyValue (Get-MediaPipelineLocalWorkerTimestamp) -Force
+                            $metadata | Add-Member -NotePropertyName heartbeat_path -NotePropertyValue ([string]$slotLayout.HeartbeatFile) -Force
                             Write-MediaPipelineJsonAtomic -Path $slotLayout.MetadataFile -InputObject $metadata -Depth 5 | Out-Null
                         }
                     } catch {
                         Write-Log "Local worker slot $slotId metadata update failed after launch: $_" 'WARN'
                     }
                 }
-                Update-MediaPipelineLocalWorkerClaim -ClaimStorePath $claimStorePath -ClaimId ([string]$claim.claim_id) -Updates @{ status = 'running'; worker_pid = [int]$proc.Id; worker_start_time = $workerStartTime; worker_metadata_path = [string]$slotLayout.MetadataFile; started_at = Get-MediaPipelineLocalWorkerTimestamp } | Out-Null
+                Update-MediaPipelineLocalWorkerClaim -ClaimStorePath $claimStorePath -ClaimId ([string]$claim.claim_id) -Updates @{ status = 'running'; worker_pid = [int]$proc.Id; worker_start_time = $workerStartTime; worker_metadata_path = [string]$slotLayout.MetadataFile; worker_heartbeat_path = [string]$slotLayout.HeartbeatFile; started_at = Get-MediaPipelineLocalWorkerTimestamp } | Out-Null
                 $claim | Add-Member -NotePropertyName worker_pid -NotePropertyValue ([int]$proc.Id) -Force
                 $claim | Add-Member -NotePropertyName worker_start_time -NotePropertyValue $workerStartTime -Force
                 $claim | Add-Member -NotePropertyName worker_metadata_path -NotePropertyValue ([string]$slotLayout.MetadataFile) -Force
+                $claim | Add-Member -NotePropertyName worker_heartbeat_path -NotePropertyValue ([string]$slotLayout.HeartbeatFile) -Force
                 $claim | Add-Member -NotePropertyName status -NotePropertyValue 'running' -Force
                 $active[[string]$slotId] = [pscustomobject]@{
                     SlotLayout = $slotLayout
@@ -203,7 +246,60 @@ function Invoke-MediaQueuePhasePlanLocalWorkerSlots {
 
         foreach ($slotKey in @($active.Keys)) {
             $job = $active[$slotKey]
-            if (-not $job.Process.HasExited) { continue }
+            if (-not $job.Process.HasExited) {
+                $elapsedSeconds = ((Get-Date) - ([datetime]$job.StartedAt)).TotalSeconds
+                $heartbeatAgeSeconds = Get-MediaPipelineLocalWorkerHeartbeatAgeSeconds -HeartbeatPath ([string]$job.SlotLayout.HeartbeatFile)
+                if ($childHardTimeoutSeconds -gt 0 -and $elapsedSeconds -ge $childHardTimeoutSeconds) {
+                    $reason = "local worker child exceeded hard timeout of ${childHardTimeoutSeconds}s"
+                    Write-Log "Local worker slot $($job.SlotLayout.SlotId) PID $($job.Process.Id) $reason; stopping child and releasing claim" 'ERROR'
+                    if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+                        try {
+                            Write-PipelineEvent -EventType 'local_worker_child_hard_timeout' -Stage 'local_worker_slots' -Status 'failed' -SourcePath ([string]$job.Claim.source_path) -Data @{
+                                claim_id              = [string]$job.Claim.claim_id
+                                slot_id               = [int]$job.SlotLayout.SlotId
+                                worker_pid            = [int]$job.Process.Id
+                                timeout_seconds       = [int]$childHardTimeoutSeconds
+                                elapsed_seconds       = [math]::Round($elapsedSeconds, 3)
+                                error_code            = 'LOCAL_WORKER_CHILD_TIMEOUT'
+                            } | Out-Null
+                        } catch {}
+                    }
+                    Stop-MediaPipelineLocalWorkerProcess -Job $job
+                    $script:totalFailed = [int]$script:totalFailed + 1
+                    Release-MediaPipelineLocalWorkerClaim -ClaimStorePath $claimStorePath -ClaimId ([string]$job.Claim.claim_id) -Status 'failed_child_timeout' -Reason $reason | Out-Null
+                    $active.Remove($slotKey)
+                    Invalidate-ProcessedIndexCache
+                    continue
+                }
+                $heartbeatMissingPastGrace = ($heartbeatGraceSeconds -gt 0 -and $null -eq $heartbeatAgeSeconds -and $elapsedSeconds -ge $heartbeatGraceSeconds)
+                $heartbeatStalePastGrace = ($heartbeatGraceSeconds -gt 0 -and $null -ne $heartbeatAgeSeconds -and $heartbeatAgeSeconds -ge $heartbeatGraceSeconds)
+                if ($heartbeatMissingPastGrace -or $heartbeatStalePastGrace) {
+                    $heartbeatAgeForEvidence = if ($null -eq $heartbeatAgeSeconds) { [int]$elapsedSeconds } else { [int]$heartbeatAgeSeconds }
+                    $reason = "local worker child heartbeat stale for ${heartbeatAgeForEvidence}s (grace ${heartbeatGraceSeconds}s)"
+                    Write-Log "Local worker slot $($job.SlotLayout.SlotId) PID $($job.Process.Id) $reason; stopping child and releasing claim" 'ERROR'
+                    if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+                        try {
+                            Write-PipelineEvent -EventType 'local_worker_child_stale_heartbeat' -Stage 'local_worker_slots' -Status 'failed' -SourcePath ([string]$job.Claim.source_path) -Data @{
+                                claim_id              = [string]$job.Claim.claim_id
+                                slot_id               = [int]$job.SlotLayout.SlotId
+                                worker_pid            = [int]$job.Process.Id
+                                heartbeat_path        = [string]$job.SlotLayout.HeartbeatFile
+                                heartbeat_age_seconds = [int]$heartbeatAgeForEvidence
+                                heartbeat_missing     = [bool]$heartbeatMissingPastGrace
+                                grace_seconds         = [int]$heartbeatGraceSeconds
+                                elapsed_seconds       = [math]::Round($elapsedSeconds, 3)
+                                error_code            = 'LOCAL_WORKER_CHILD_STALE_HEARTBEAT'
+                            } | Out-Null
+                        } catch {}
+                    }
+                    Stop-MediaPipelineLocalWorkerProcess -Job $job
+                    $script:totalFailed = [int]$script:totalFailed + 1
+                    Release-MediaPipelineLocalWorkerClaim -ClaimStorePath $claimStorePath -ClaimId ([string]$job.Claim.claim_id) -Status 'failed_child_stale_heartbeat' -Reason $reason | Out-Null
+                    $active.Remove($slotKey)
+                    Invalidate-ProcessedIndexCache
+                }
+                continue
+            }
             $exitCode = $job.Process.ExitCode
             $result = $null
             $resultFileExists = Test-Path -LiteralPath $job.SlotLayout.ResultFile -PathType Leaf

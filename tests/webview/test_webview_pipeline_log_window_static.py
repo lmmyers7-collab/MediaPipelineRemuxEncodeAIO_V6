@@ -54,6 +54,7 @@ class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
         for fragment in (
             "const REFRESH_INTERVAL_MS = 2000",
             'apiClient.apiGet("/api/diagnostics"',
+            'apiClient.apiGet("/api/backend/close-readiness"',
             "function initFloatingPipelineLogEvents",
             "function toggleFloatingPipelineLog",
             "function openFloatingPipelineLog",
@@ -61,6 +62,8 @@ class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
             "function refreshFloatingPipelineLog",
             "function renderFloatingPipelineLog",
             "function compactRepeatedProgressLines",
+            "function activeWorkLogLines",
+            "ACTIVE WORK DETECTED",
             "shown once;",
             "function initFloatingPipelineLogDragEvents",
             "header.addEventListener(\"pointerdown\", startPanelDrag)",
@@ -114,9 +117,12 @@ class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
 
         self.assertIn("const REFRESH_INTERVAL_MS = 2000", script)
         self.assertIn('apiClient.apiGet("/api/diagnostics"', script)
+        self.assertIn('apiClient.apiGet("/api/backend/close-readiness"', script)
         self.assertIn("function renderPipelineLogWindow", script)
         self.assertIn("function renderRefreshError", script)
         self.assertIn("function compactRepeatedProgressLines", script)
+        self.assertIn("function activeWorkLogLines", script)
+        self.assertIn("ACTIVE WORK DETECTED", script)
         self.assertIn("shown once;", script)
         self.assertIn("isNearBottom", script)
         self.assertIn("pipeline-log-window-follow", script)
@@ -261,13 +267,34 @@ class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
             context.window.mediaPipelineApi = {
               async apiGet(path) {
                 apiCalls += 1;
-                if (path !== "/api/diagnostics") throw new Error(`Unexpected path ${path}`);
-                return { log_tail: [
-                  "2026-06-25 20:03:00 [INFO] ENCODE : 65%",
-                  "2026-06-25 20:03:00 [INFO] ENCODE : 65%",
-                  "2026-06-25 20:03:01 [INFO] ENCODE : 65%",
-                  "2026-06-25 20:03:02 [INFO] smoke log line",
-                ].join("\n") };
+                if (path === "/api/backend/close-readiness") {
+                  return {
+                    safe_to_close: false,
+                    active_work: true,
+                    state: "running",
+                    reason: "Shell close blocked because CSV rerun is active.",
+                  };
+                }
+                if (path === "/api/diagnostics") {
+                  return {
+                    log_tail: [
+                      "2026-06-25 20:03:00 [INFO] ENCODE : 65%",
+                      "2026-06-25 20:03:00 [INFO] ENCODE : 65%",
+                      "2026-06-25 20:03:01 [INFO] ENCODE : 65%",
+                      "2026-06-25 20:03:02 [INFO] smoke log line",
+                    ].join("\n"),
+                    active_jobs: ["csv rerun: active (pid 56492) launched 2026-06-29T21:36:12"],
+                    active_job_rows: [{
+                      launch_id: "csv-rerun-smoke",
+                      job_kind: "csv_rerun",
+                      mode: "copy",
+                      status: "active",
+                      status_state: "running",
+                      pid: 56492,
+                    }],
+                  };
+                }
+                throw new Error(`Unexpected path ${path}`);
               },
             };
 
@@ -281,7 +308,9 @@ class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
             await new Promise((resolve) => setImmediate(resolve));
             if (nodes["floating-pipeline-log-panel"].hidden) throw new Error("floating panel did not open");
             if (nodes["pipeline-log-window-button"].attributes["aria-pressed"] !== "true") throw new Error("button pressed state not set");
-            if (apiCalls !== 1) throw new Error(`expected one diagnostics call, got ${apiCalls}`);
+            if (apiCalls !== 2) throw new Error(`expected diagnostics and close-readiness calls, got ${apiCalls}`);
+            if (!nodes["floating-pipeline-log-text"].textContent.includes("ACTIVE WORK DETECTED")) throw new Error("active work banner did not render");
+            if (!nodes["floating-pipeline-log-text"].textContent.includes("Shell close blocked because CSV rerun is active.")) throw new Error("close-readiness reason did not render");
             if (!nodes["floating-pipeline-log-text"].textContent.includes("smoke log line")) throw new Error("log text did not render");
             if (!nodes["floating-pipeline-log-text"].textContent.includes("3 repeated progress updates collapsed")) throw new Error("progress repeats were not compacted");
 

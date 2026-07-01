@@ -999,15 +999,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                     return []
                 return [DummyProc(25001)]
 
-            def active_job_messages(_resolved: object, *, job_kinds: set[str] | None = None) -> list[str]:
-                if job_kinds is not None and "pipeline" not in job_kinds:
-                    return []
-                return [
-                    "ActiveJobs record pipeline.json reports pipeline continuous as active and PID 25001 is still running."
-                ]
-
             service.find_related_pipeline_processes = related_processes  # type: ignore[method-assign]
-            service.active_job_close_block_messages = active_job_messages  # type: ignore[method-assign]
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             resolved = _resolved(root)
             resolved.config_data = {"NetworkRole": "standalone", "Outsource": str(root / "Outsource")}
@@ -1129,14 +1121,19 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertFalse(result["data"]["dry_run"])
         self.assertFalse(result["data"]["plan_only"])
         self.assertEqual(service.started_rerun["return_mode"], "park")
+        self.assertEqual(service.started_rerun["execution_mode"], "one_at_a_time")
+        self.assertEqual(service.started_rerun["destination_mode"], "review_workspace")
+        self.assertEqual(result["data"]["execution_mode"], "one_at_a_time")
+        self.assertEqual(result["data"]["destination_mode"], "review_workspace")
         self.assertFalse(rejected["ok"])
-        self.assertIn("copy/keep/park", rejected["message"])
+        self.assertIn("lifecycle policy", rejected["message"])
+        self.assertIn("confirm_original_policy=true", "\n".join(rejected["errors"]))
         self.assertFalse(conflicting_plan["ok"])
         self.assertIn("either dry_run or plan_only", conflicting_plan["message"])
         self.assertFalse(missing["ok"])
         self.assertIn("csv_path", missing["message"])
 
-    def test_rerun_plan_is_read_only_and_start_materializes_scoped_csv(self) -> None:
+    def test_rerun_plan_launches_backend_plan_and_start_materializes_scoped_csv(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             csv_path = root / "rerun.csv"
@@ -1154,8 +1151,10 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             plan = facade.start_rerun_csv_process(resolved, {"csv_path": str(csv_path), "plan_only": True}).to_mapping()
             scoped_dir = root / "State" / "Rerun" / "ScopedCsv"
             self.assertTrue(plan["ok"])
-            self.assertEqual(plan["data"]["schema_version"], "desktop_rerun_csv_preview.v1")
-            self.assertFalse(scoped_dir.exists())
+            self.assertEqual(plan["data"]["pid"], 24682)
+            self.assertTrue(plan["data"]["plan_only"])
+            self.assertEqual(service.started_rerun["plan_only"], True)
+            self.assertEqual(service.started_rerun["return_mode"], "park")
 
             result = facade.start_rerun_csv_process(resolved, {"csv_path": str(csv_path), "dry_run": True}).to_mapping()
 
@@ -1241,16 +1240,11 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertIn("PID(s) 24681", blocked["message"])
         self.assertFalse(hasattr(service, "started_pipeline"))
 
-    def test_pipeline_start_stop_requested_progress_still_uses_active_jobs_fallback(self) -> None:
+    def test_pipeline_start_stop_requested_progress_blocks_from_fresh_progress(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             service = DummyWorkflowFacadeService(root)
             service.find_related_pipeline_processes = lambda _resolved_arg, *, job_kinds=None: []  # type: ignore[method-assign]
-            service.active_job_close_block_messages = (  # type: ignore[method-assign]
-                lambda _resolved_arg, *, job_kinds=None: [
-                    "ActiveJobs record pipeline.json reports pipeline validate as active."
-                ]
-            )
             service.read_progress = lambda _resolved_arg: {"CurrentStage": "encode", "StopRequested": True}  # type: ignore[method-assign]
             service.is_progress_stale = lambda _progress: False  # type: ignore[method-assign]
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
@@ -1260,8 +1254,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
 
         self.assertFalse(blocked["ok"])
         self.assertEqual(blocked["severity"], "warning")
-        self.assertIn("ActiveJobs still reports active work", blocked["message"])
-        self.assertIn("pipeline validate", blocked["message"])
+        self.assertIn("fresh pipeline progress indicates active work", blocked["message"])
         self.assertFalse(hasattr(service, "started_pipeline"))
 
     def test_pipeline_start_blocks_autonomy_health_before_spawn(self) -> None:
@@ -1302,6 +1295,8 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         rows = {row["key"]: row for row in preflight["checks"]}
         self.assertEqual(rows["autonomy_health"]["status"], "blocked")
         self.assertIn("can_start_new_work=no", rows["autonomy_health"]["evidence"])
+        self.assertIn("blocker=", rows["autonomy_health"]["evidence"])
+        self.assertIn("reason=", rows["autonomy_health"]["evidence"])
         self.assertTrue(rows["autonomy_health"]["recovery_actions"])
         self.assertEqual(rows["autonomy_health"]["recovery_actions"][0]["route"], "/api/pending-publish/recovery-plan")
         readiness_rows = {row["key"]: row for row in preflight["operator_readiness"]["non_ready_checks"]}
@@ -1398,9 +1393,11 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertTrue(any(row["key"] == "runtime_prep_boundary" and row["status"] == "ready" for row in audit["checks"]))
         self.assertEqual(rerun["target"], "rerun")
         self.assertEqual(rerun["start_route"], "/api/rerun/start")
-        self.assertEqual(rerun["request"]["stage_mode"], "copy")
+        self.assertEqual(rerun["request"]["execution_mode"], "one_at_a_time")
+        self.assertEqual(rerun["request"]["destination_mode"], "review_workspace")
+        self.assertEqual(rerun["request"]["original_policy"], "keep")
         self.assertEqual(blocked_rerun["status"], "blocked")
-        self.assertTrue(any(row["key"] == "safe_modes" and row["status"] == "blocked" for row in blocked_rerun["checks"]))
+        self.assertTrue(any(row["key"] == "lifecycle_policy" and row["status"] == "blocked" for row in blocked_rerun["checks"]))
 
     def test_launch_preflight_surfaces_configured_path_health_warning(self) -> None:
         health = {

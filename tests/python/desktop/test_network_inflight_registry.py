@@ -259,6 +259,134 @@ class NetworkInFlightRegistryTests(unittest.TestCase):
         self.assertEqual(ledger[0]["job_id"], "job-stale")
         self.assertEqual(ledger[0]["source_path"], r"C:\Media\stale.mkv")
 
+    def test_reclaimed_source_quarantine_blocks_duplicate_claim_until_late_success(self) -> None:
+        registry = InFlightRegistry()
+        source = r"C:\Media\stale.mkv"
+        self.assertTrue(
+            registry.claim(
+                job_id="job-stale",
+                worker_id="worker-1",
+                worker_name="Worker",
+                source_path=source,
+                encode_config={},
+            )
+        )
+        with registry._lock:
+            registry._jobs["job-stale"].last_heartbeat = "2026-01-01T00:00:00+00:00"
+
+        reclaimed = registry.reclaim_stale(0.01)
+        self.assertEqual([job.job_id for job in reclaimed], ["job-stale"])
+        self.assertTrue(registry.is_in_flight(source))
+        self.assertFalse(
+            registry.claim(
+                job_id="job-duplicate",
+                worker_id="worker-2",
+                worker_name="Worker Two",
+                source_path="c:/media/stale.mkv",
+                encode_config={},
+            )
+        )
+
+        report = registry.record_late_terminal_report(
+            SimpleNamespace(
+                job_id="job-stale",
+                worker_id="worker-1",
+                success=True,
+                output_path=r"C:\Out\stale.mkv",
+            )
+        )
+        self.assertIsNotNone(report)
+        self.assertTrue(report["removes_queue_record"])
+        self.assertTrue(registry.clear_reclaimed_source_quarantine(source))
+        with registry._lock:
+            registry._recent_completions.clear()
+
+        self.assertFalse(registry.is_in_flight(source))
+
+    def test_retryable_late_failure_keeps_reclaimed_source_quarantined(self) -> None:
+        registry = InFlightRegistry()
+        source = r"C:\Media\retryable.mkv"
+        self.assertTrue(
+            registry.claim(
+                job_id="job-stale",
+                worker_id="worker-1",
+                worker_name="Worker",
+                source_path=source,
+                encode_config={},
+            )
+        )
+        with registry._lock:
+            registry._jobs["job-stale"].last_heartbeat = "2026-01-01T00:00:00+00:00"
+
+        registry.reclaim_stale(0.01)
+        report = registry.record_late_terminal_report(
+            SimpleNamespace(
+                job_id="job-stale",
+                worker_id="worker-1",
+                success=False,
+                queue_terminal=False,
+                retry_on_failure=True,
+                reason_code="ENCODE_ERROR",
+                reason="worker lost coordinator",
+            )
+        )
+        self.assertIsNotNone(report)
+        self.assertFalse(report["removes_queue_record"])
+        with registry._lock:
+            registry._recent_completions.clear()
+
+        self.assertTrue(registry.is_in_flight("c:/media/retryable.mkv"))
+        stats = registry.reclaimed_source_quarantine_stats()
+        self.assertEqual(stats["count"], 1)
+
+    def test_failure_ledger_is_capped_and_persists_bounded_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "inflight_registry.json"
+            registry = InFlightRegistry()
+            registry._RECENT_COMPLETION_TTL_SECONDS = 0.0
+
+            for index in range(5005):
+                source = rf"C:\Media\failure-{index}.mkv"
+                job_id = f"job-{index}"
+                self.assertTrue(
+                    registry.claim(
+                        job_id=job_id,
+                        worker_id="worker-1",
+                        worker_name="Worker",
+                        source_path=source,
+                        encode_config={},
+                    )
+                )
+                registry.complete(
+                    job_id,
+                    "worker-1",
+                    success=False,
+                    reason_code="SOURCE_NOT_FOUND",
+                    reason="missing",
+                )
+
+            self.assertEqual(registry.failure_ledger_stats()["count"], 5000)
+            self.assertIsNone(
+                registry.claim_blocked_by_failure(
+                    worker_id="worker-1",
+                    source_path=r"C:\Media\failure-0.mkv",
+                    max_retries=1,
+                )
+            )
+            self.assertIsNotNone(
+                registry.claim_blocked_by_failure(
+                    worker_id="worker-1",
+                    source_path=r"C:\Media\failure-5004.mkv",
+                    max_retries=1,
+                )
+            )
+            registry.save(path)
+
+            restored = InFlightRegistry()
+            self.assertTrue(restored.load(path))
+
+        self.assertEqual(restored.failure_ledger_stats(), {"count": 5000, "max_entries": 5000})
+
     def test_inflight_registry_persists_idle_worker_seen_before_any_claim(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "inflight_registry.json"

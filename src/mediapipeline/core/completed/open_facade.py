@@ -20,8 +20,9 @@ from mediapipeline.core.completed.open_policy import (
     find_completed_record_by_key,
     normalize_completed_open_target,
 )
-from mediapipeline.desktop.application.dto_commands import CommandResult
-from mediapipeline.desktop.models import CompletedJobRecord, ResolvedPaths
+from mediapipeline.core.kernel.dto_commands import CommandResult
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.completed.contracts import CompletedJobRecord
 
 
 class CompletedOpenFacadeMixin:

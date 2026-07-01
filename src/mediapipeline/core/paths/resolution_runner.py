@@ -1,15 +1,21 @@
 from __future__ import annotations
 
+from importlib import import_module
 from pathlib import Path
 
 from mediapipeline.core.kernel.config_keys import KEY_LOCAL_BASE, KEY_PRIORITY_MARKERS, KEY_SOURCE_MOVIES, KEY_SOURCE_TV
-from mediapipeline.desktop.models import ResolvedPaths
-from mediapipeline.core.config.identity import build_config_identity, write_last_good_config_snapshot
+from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.paths.contracts import PathResolutionServiceProtocol
 from mediapipeline.core.storage.state_migration import app_state_path_for_state_root
 
 
+def _config_identity_helpers():
+    module = import_module("mediapipeline.core.config.identity")
+    return module.build_config_identity, module.write_last_good_config_snapshot
+
+
 def resolve_paths_for_service(service: PathResolutionServiceProtocol, pipeline_path: str, config_path: str) -> ResolvedPaths:
+    build_config_identity, write_last_good_config_snapshot = _config_identity_helpers()
     resolved = ResolvedPaths(
         app_root=service.app_root,
         workspace_root=service.workspace_root,

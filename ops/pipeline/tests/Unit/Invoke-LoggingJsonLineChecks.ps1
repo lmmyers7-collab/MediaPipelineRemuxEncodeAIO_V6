@@ -155,6 +155,54 @@ function Invoke-PipelineEventLogRotationCheck {
     }
 }
 
+function Invoke-DebugLogRotationDuringWriteCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('MediaPipelineDebugLogRotationTest_' + [guid]::NewGuid().ToString('N'))
+    $oldLogLock = $script:logLock
+    $oldLogFile = $global:LogFile
+    $oldConsoleLogLevel = $script:ConsoleLogLevel
+    $oldFileLogLevel = $script:FileLogLevel
+    $oldRetentionDays = $script:LogRetentionDays
+    $oldMaxBytes = $script:PipelineDebugLogMaxBytes
+    $oldLastRotation = $script:PipelineDebugLogLastRotationAt
+    $oldLastArchive = $script:PipelineDebugLogLastArchivePath
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        $mutexName = 'Global\MediaPipelineDebugLogRotationTest_' + [guid]::NewGuid().ToString('N')
+        $script:logLock = [System.Threading.Mutex]::new($false, $mutexName)
+        $global:LogFile = Join-Path $tempRoot 'pipeline_debug.log'
+        $script:ConsoleLogLevel = 'ERROR'
+        $script:FileLogLevel = 'DEBUG'
+        $script:LogRetentionDays = 14
+        $script:PipelineDebugLogMaxBytes = 64
+        $script:PipelineDebugLogLastRotationAt = ''
+        $script:PipelineDebugLogLastArchivePath = ''
+        [System.IO.File]::WriteAllText($global:LogFile, ('x' * 80), [System.Text.Encoding]::UTF8)
+
+        Write-Log 'rotation check line' 'INFO'
+
+        $archives = @(Get-ChildItem -LiteralPath $tempRoot -Filter 'pipeline_debug_*.log.old' -ErrorAction Stop)
+        Assert-Equal $archives.Count 1 'Oversized pipeline_debug.log should rotate during Write-Log.'
+        Assert-Equal ([System.IO.File]::ReadAllText($archives[0].FullName, [System.Text.Encoding]::UTF8)) ('x' * 80) 'Debug log archive should preserve previous content.'
+        $newText = [System.IO.File]::ReadAllText($global:LogFile, [System.Text.Encoding]::UTF8)
+        Assert-True ($newText -match 'rotation check line') 'Fresh debug log should contain the triggering log line.'
+        Assert-True (-not [string]::IsNullOrWhiteSpace([string]$script:PipelineDebugLogLastRotationAt)) 'Debug log rotation should stamp last rotation time.'
+        Assert-True (-not [string]::IsNullOrWhiteSpace([string]$script:PipelineDebugLogLastArchivePath)) 'Debug log rotation should stamp archive path.'
+    } finally {
+        if ($script:logLock -and $script:logLock -ne $oldLogLock) {
+            $script:logLock.Dispose()
+        }
+        $script:logLock = $oldLogLock
+        $global:LogFile = $oldLogFile
+        $script:ConsoleLogLevel = $oldConsoleLogLevel
+        $script:FileLogLevel = $oldFileLogLevel
+        $script:LogRetentionDays = $oldRetentionDays
+        $script:PipelineDebugLogMaxBytes = $oldMaxBytes
+        $script:PipelineDebugLogLastRotationAt = $oldLastRotation
+        $script:PipelineDebugLogLastArchivePath = $oldLastArchive
+        Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Invoke-ConcurrentCompletedManifestJsonLineAppendCheck {
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('MediaPipelineCompletedJsonLineStress_' + [guid]::NewGuid().ToString('N'))
     $jobs = @()
@@ -211,6 +259,7 @@ function Invoke-ConcurrentCompletedManifestJsonLineAppendCheck {
 
 Invoke-JsonLineAppendFailsClosedWhenLogLockIsHeldCheck
 Invoke-PipelineEventLogRotationCheck
+Invoke-DebugLogRotationDuringWriteCheck
 Invoke-ConcurrentCompletedManifestJsonLineAppendCheck
 
 Write-Host 'Logging JSONL checks passed.'

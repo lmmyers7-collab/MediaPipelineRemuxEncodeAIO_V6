@@ -42,6 +42,8 @@
     MinFreeSpaceGB = 50
     OutsourceMinFreeSpaceGB = 50
     DeferredPublish = $false
+    PendingPublishDrainMode = 'manual'
+    PendingPublishDrainBatchSize = 100
     FinalLibraryPromotionEnabled = $false
     FinalLibraryPromotionRules = @()
     FinalLibraryPromotionVerificationMode = 'cautious'
@@ -62,6 +64,7 @@
     CompatibleAudioCodecs = @('aac', 'ac3', 'eac3', 'mp3', 'opus', 'vorbis', 'truehd', 'mlp')
     PreferredDefaultAudioLanguages = @('english')
     SubKeepLanguages = @('eng', 'en', 'und', '')
+    AllowSubtitleHelperFallback = $false
     ConvertTx3gToSrt = $true
     DropTx3gAfterConversion = $false
     CreateExternalTx3gSrtSidecars = $false
@@ -114,6 +117,7 @@
     EnableWatchFolders = $false
     WatchFolderRoots = @()
     WatchDebounceSeconds = 30
+    WatchScanTimeoutSeconds = 300
     WatchAction = 'enqueue_only'
     WatchRespectScheduleWindow = $true
     SkipStabilityCheck = $false
@@ -123,6 +127,10 @@
     RobocopyFlags = @('/J', '/R:3', '/W:15', '/MT:2', '/NP', '/NDL', '/NFL')
     DebugMode = $true
     LogRetentionDays = 7
+    PipelineDebugLogMaxBytes = 104857600
+    FailureArtifactWarningThresholdGB = 100
+    FailureArtifactRetentionDays = 0
+    FailureArtifactCleanupTargetGB = 0
     PriorityMarkers = @('!', '[NOW]')
     MaxParallelEncodes = 1
     ParallelEncodeMode = 'single'
@@ -133,6 +141,7 @@
     OutputSizeMultiplier = 0.7
     FFmpegEncodeTimeoutSeconds = 21600
     FFmpegCpuEncodeTimeoutSeconds = 43200
+    CpuEncodeMutexWaitSeconds = 1800
     FFmpegRemuxTimeoutSeconds = 7200
     MkvmergeRemuxTimeoutSeconds = 7200
     SubtitleExtractTimeoutSeconds = 180
@@ -154,6 +163,17 @@
     AllowSystemTools = $false
     RobocopyTimeoutSeconds = 14400
     TransientFailureRetryLimit = 3
+    ConsecutiveRoundFailureBlockLimit = 12
+    ConsecutiveRoundFailureProbeBackoffSeconds = 900
+    PendingPublishBacklogBlockThreshold = 100
+    PendingPublishDeferredBlockThreshold = 25
+    PauseFlagReviewSeconds = 1800
+    PauseFlagBlockSeconds = 21600
+    LocalWorkerHeartbeatGraceSeconds = 900
+    QueueExecutionMaxRunnablePerRound = 500
+    StateDbMaintenanceIntervalSeconds = 21600
+    StateDbWalReviewBytes = 33554432
+    StateDbCompletedJobsMaxRows = 250000
     SourceScanTimeoutSeconds = 1800
     IndexScanTimeoutSeconds = 1800
     CleanupScanTimeoutSeconds = 300

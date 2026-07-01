@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
-from mediapipeline.desktop.application import CommandResult
+from mediapipeline.core.kernel.dto_commands import CommandResult
 
 
 RESOLVED_PIPELINE_PATHS_UNAVAILABLE_MESSAGE = "Resolved pipeline paths are unavailable."

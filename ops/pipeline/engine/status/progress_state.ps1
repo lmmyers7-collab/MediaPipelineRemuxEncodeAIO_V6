@@ -19,7 +19,15 @@ function Get-ControlFlagProperty {
 
     if ($null -eq $Payload) { return $null }
     $property = $Payload.PSObject.Properties[$Name]
-    if ($property -and $null -ne $property.Value) { return [string]$property.Value }
+    if ($property -and $null -ne $property.Value) {
+        if ($property.Value -is [datetime]) {
+            return ([datetime]$property.Value).ToUniversalTime().ToString('o')
+        }
+        if ($property.Value -is [datetimeoffset]) {
+            return ([datetimeoffset]$property.Value).UtcDateTime.ToString('o')
+        }
+        return [string]$property.Value
+    }
     return $null
 }
 
@@ -56,6 +64,65 @@ function Get-ControlFlagInfo {
     } catch {}
 
     return [pscustomobject]$info
+}
+
+function Get-ControlFlagAgeSeconds {
+    param($Info)
+
+    if (-not $Info -or -not $Info.Exists) { return 0 }
+    $nowUtc = (Get-Date).ToUniversalTime()
+    $createdUtc = $null
+    if (-not [string]::IsNullOrWhiteSpace([string]$Info.CreatedAt)) {
+        try {
+            $createdUtc = ([datetimeoffset]::Parse([string]$Info.CreatedAt)).UtcDateTime
+        } catch {
+            $createdUtc = $null
+        }
+    }
+    if ($null -eq $createdUtc) {
+        try {
+            $item = Get-Item -LiteralPath ([string]$Info.Path) -ErrorAction Stop
+            $createdUtc = $item.LastWriteTimeUtc
+        } catch {
+            $createdUtc = $nowUtc
+        }
+    }
+    return [math]::Max(0, [int][math]::Floor(($nowUtc - $createdUtc).TotalSeconds))
+}
+
+function Write-ControlFlagEventOnce {
+    param(
+        [Parameter(Mandatory)] [string]$EventType,
+        [Parameter(Mandatory)] [string]$Stage,
+        [Parameter(Mandatory)] [string]$Status,
+        [Parameter(Mandatory)] $Info,
+        [int]$AgeSeconds,
+        [int]$ReviewSeconds = 0,
+        [int]$BlockSeconds = 0
+    )
+
+    if (-not $Info -or -not $Info.Exists) { return }
+    if (-not $script:ControlFlagDurableEventIds) { $script:ControlFlagDurableEventIds = @{} }
+    $requestId = [string]$Info.RequestId
+    if ([string]::IsNullOrWhiteSpace($requestId)) {
+        $requestId = "path:$([string]$Info.Path)"
+    }
+    $key = "$EventType|$requestId"
+    if ($script:ControlFlagDurableEventIds.ContainsKey($key)) { return }
+    $script:ControlFlagDurableEventIds[$key] = $true
+
+    if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+        try {
+            Write-PipelineEvent -EventType $EventType -Stage $Stage -Status $Status -Data @{
+                request_id     = [string]$Info.RequestId
+                created_at     = [string]$Info.CreatedAt
+                path           = [string]$Info.Path
+                age_seconds    = [int]$AgeSeconds
+                review_seconds = [int]$ReviewSeconds
+                block_seconds  = [int]$BlockSeconds
+            } | Out-Null
+        } catch {}
+    }
 }
 
 function Register-ControlFlagObservation {
@@ -133,7 +200,24 @@ function Check-ControlFlags {
         Register-ControlFlagObservation -Kind pause -Info $pauseInfo
         Write-Log "PAUSE flag detected — waiting..." "WARN"
         Set-ProgressStage -Stage 'paused' -Status 'Paused' -Percent $null -SaveNow
-        do {
+        $pauseReviewSeconds = [int]$script:PauseFlagReviewSeconds
+        if ($pauseReviewSeconds -le 0) { $pauseReviewSeconds = 1800 }
+        $pauseBlockSeconds = [int]$script:PauseFlagBlockSeconds
+        if ($pauseBlockSeconds -le 0) { $pauseBlockSeconds = 21600 }
+        while ($pauseInfo.Exists -and -not $script:StopRequested) {
+            $pauseAgeSeconds = Get-ControlFlagAgeSeconds -Info $pauseInfo
+            if ($pauseAgeSeconds -ge $pauseReviewSeconds) {
+                Write-ControlFlagEventOnce -EventType 'pause_flag_stale_review' -Stage 'paused' -Status 'review' -Info $pauseInfo -AgeSeconds $pauseAgeSeconds -ReviewSeconds $pauseReviewSeconds -BlockSeconds $pauseBlockSeconds
+            }
+            if ($pauseAgeSeconds -ge $pauseBlockSeconds) {
+                Write-Log "PAUSE flag has been present for $pauseAgeSeconds second(s); blocking unattended run without deleting flag." "ERROR"
+                $script:StopRequested = $true
+                $script:PipelineBlockedExitCode = 76
+                $script:PipelineStopReason = 'pause_flag_stale_blocked'
+                Write-ControlFlagEventOnce -EventType 'pause_flag_stale_blocked' -Stage 'blocked' -Status 'blocked' -Info $pauseInfo -AgeSeconds $pauseAgeSeconds -ReviewSeconds $pauseReviewSeconds -BlockSeconds $pauseBlockSeconds
+                Set-ProgressStage -Stage 'blocked' -Status 'Pause flag stale blocked' -Percent $null -SaveNow
+                break
+            }
             Start-Sleep 5
             $stopInfo = Get-ControlFlagInfo -Path $StopFlag
             if ($stopInfo.Exists) {
@@ -144,7 +228,7 @@ function Check-ControlFlags {
                 break
             }
             $pauseInfo = Get-ControlFlagInfo -Path $PauseFlag
-        } while ($pauseInfo.Exists)
+        }
         if (-not $script:StopRequested) {
             Write-Log "Resuming"
             Set-ProgressStage -Stage 'processing' -Status 'Resumed' -Percent $null -SaveNow
@@ -282,6 +366,12 @@ function Set-ProgressStage {
     }
     if ($PSBoundParameters.ContainsKey('SidecarState')) {
         $script:currentSidecarState = if ($null -eq $SidecarState -or [string]::IsNullOrWhiteSpace([string]$SidecarState)) { $null } else { [string]$SidecarState }
+    }
+
+    if (Get-Command -Name Write-MediaPipelineWorkerChildHeartbeat -ErrorAction SilentlyContinue) {
+        try {
+            Write-MediaPipelineWorkerChildHeartbeat -Stage $script:currentStage -Status $script:pipelineStatus | Out-Null
+        } catch {}
     }
 
     if ($SaveNow) {
@@ -766,6 +856,25 @@ function Save-Progress {
             Failed                = $script:totalFailed
             Movies                = $script:totalMovies
             TVEpisodes            = $script:totalTVEpisodes
+            RoundFailureCount     = if ($null -eq $script:RoundFailureRecords) { 0 } else { [int]$script:RoundFailureRecords.Count }
+            UnexpectedQueueEntryFailures = [int]$script:UnexpectedQueueEntryFailures
+            UnexpectedRoundFailures = [int]$script:UnexpectedRoundFailures
+            ConsecutiveUnexpectedRoundFailures = [int]$script:ConsecutiveUnexpectedRoundFailures
+            LastUnexpectedRoundFailureAt = $script:LastUnexpectedRoundFailureAt
+            ContinuousRoundFailuresBlocked = [bool]$script:ContinuousRoundFailuresBlocked
+            ConsecutiveRoundFailureBlockLimit = [int]$script:ConsecutiveRoundFailureBlockLimit
+            ConsecutiveRoundFailureProbeBackoffSeconds = [int]$script:ConsecutiveRoundFailureProbeBackoffSeconds
+            PauseFlagReviewSeconds = [int]$script:PauseFlagReviewSeconds
+            PauseFlagBlockSeconds = [int]$script:PauseFlagBlockSeconds
+            LastQueueScanDurationSeconds = $script:LastQueueScanDurationSeconds
+            LastQueueCandidateCount = [int]$script:LastQueueCandidateCount
+            LastQueueExecutionTruncated = [bool]$script:LastQueueExecutionTruncated
+            LastQueueScanTruncated = [bool]$script:LastQueueScanTruncated
+            LastQueueScanTimedOut = [bool]$script:LastQueueScanTimedOut
+            NativeNoProgressAbortCount = [int]$script:NativeIdleWatchdogAbortCount
+            NativeIdleWatchdogAbortCount = [int]$script:NativeIdleWatchdogAbortCount
+            ProgressPersistenceHealthy = [bool]$script:ProgressPersistenceHealthy
+            ProgressWriteFailures = [int]$script:ProgressWriteFailures
         } | ConvertTo-Json -Depth 4
         [System.IO.File]::WriteAllText($tmp, $json, [System.Text.UTF8Encoding]::new($false))
         # Replace() is a true atomic NTFS metadata swap (no delete+create gap).
@@ -790,6 +899,17 @@ function Save-Progress {
             }
         } catch {}
         Write-Log "Failed to save progress: $_" "WARN"
+        if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+            try {
+                Write-PipelineEvent -EventType 'progress_persistence_failed' -Stage 'progress' -Status 'failed' -Data @{
+                    error_code      = 'PROGRESS_PERSISTENCE_FAILED'
+                    error           = [string]$_
+                    progress_file   = [string]$ProgressFile
+                    failure_count   = [int]$script:ProgressWriteFailures
+                    fail_closed     = $true
+                } | Out-Null
+            } catch {}
+        }
         return $false
     }
 }
@@ -811,6 +931,16 @@ function Test-ProgressPersistence {
     } catch {
         $script:ProgressPersistenceHealthy = $false
         Write-Log "Progress persistence probe failed: $_" "ERROR"
+        if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+            try {
+                Write-PipelineEvent -EventType 'progress_persistence_probe_failed' -Stage 'progress' -Status 'failed' -Data @{
+                    error_code    = 'PROGRESS_PERSISTENCE_FAILED'
+                    error         = [string]$_
+                    progress_file = [string]$ProgressFile
+                    fail_closed   = $true
+                } | Out-Null
+            } catch {}
+        }
         return $false
     }
 }
@@ -883,6 +1013,15 @@ $script:RoundRetryCount   = 0
 $script:RoundMovieFilesFound = 0
 $script:RoundTVFilesFound    = 0
 $script:RoundFailureRecords  = [System.Collections.Generic.List[psobject]]::new()
+$script:UnexpectedRoundFailures = 0
+$script:ConsecutiveUnexpectedRoundFailures = 0
+$script:LastUnexpectedRoundFailureAt = $null
+$script:ContinuousRoundFailuresBlocked = $false
+$script:LastQueueScanDurationSeconds = $null
+$script:LastQueueCandidateCount = 0
+$script:LastQueueExecutionTruncated = $false
+$script:LastQueueScanTruncated = $false
+$script:LastQueueScanTimedOut = $false
 $script:ProcessedIndexCache  = $null
 $script:ProcessedIndexCacheAt = $null
 $script:MovieScanCache       = @()

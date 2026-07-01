@@ -371,11 +371,11 @@ def _startup_active_jobs_category(resolved: Any) -> dict[str, Any]:
             _startup_finding(
                 "startup_active_jobs_unreadable",
                 "active_jobs",
-                "blocked",
-                "high",
+                "review",
+                "medium",
                 f"ActiveJobs folder could not be listed: {exc}",
                 evidence_path=str(active_dir),
-                next_action="Restore ActiveJobs folder readability before startup repair or launch.",
+                next_action="Restore ActiveJobs folder readability only if passive launch diagnostics are needed.",
             )
         )
         records = []
@@ -388,11 +388,11 @@ def _startup_active_jobs_category(resolved: Any) -> dict[str, Any]:
                 _startup_finding(
                     "startup_active_job_unreadable",
                     "active_jobs",
-                    "blocked",
-                    "high",
+                    "review",
+                    "medium",
                     f"ActiveJobs record could not be read: {exc}",
                     evidence_path=str(record_path),
-                    next_action="Keep launch gated until unreadable ActiveJobs evidence is repaired or archived by a proven route.",
+                    next_action="Treat this as passive diagnostics debt; launch and close-readiness do not depend on this record.",
                 )
             )
             continue
@@ -401,11 +401,11 @@ def _startup_active_jobs_category(resolved: Any) -> dict[str, Any]:
                 _startup_finding(
                     "startup_active_job_invalid_shape",
                     "active_jobs",
-                    "blocked",
-                    "high",
+                    "review",
+                    "medium",
                     "ActiveJobs record JSON root is not an object.",
                     evidence_path=str(record_path),
-                    next_action="Repair invalid ActiveJobs evidence before startup repair or launch.",
+                    next_action="Repair invalid ActiveJobs evidence only if passive launch diagnostics are needed.",
                 )
             )
             continue
@@ -419,11 +419,11 @@ def _startup_active_jobs_category(resolved: Any) -> dict[str, Any]:
                 _startup_finding(
                     "startup_active_job_missing_pid",
                     "active_jobs",
-                    "blocked",
-                    "high",
-                    "ActiveJobs record reports active work with no PID.",
+                    "review",
+                    "medium",
+                    "ActiveJobs record reports passive active-work evidence with no PID.",
                     evidence_path=str(record_path),
-                    next_action="Do not launch new work; dry-run cannot prove whether this active job is safe to reconcile.",
+                    next_action="Use process/progress close-readiness for lifecycle decisions; this record is passive diagnostics evidence.",
                 )
             )
         else:
@@ -431,11 +431,11 @@ def _startup_active_jobs_category(resolved: Any) -> dict[str, Any]:
                 _startup_finding(
                     "startup_active_job_unverified",
                     "active_jobs",
-                    "blocked",
-                    "high",
-                    f"ActiveJobs record reports active work for PID {pid}; identity was not reconciled by this dry-run.",
+                    "review",
+                    "medium",
+                    f"ActiveJobs record reports passive active-work evidence for PID {pid}; identity was not reconciled by this dry-run.",
                     evidence_path=str(record_path),
-                    next_action="Use close-readiness/lifecycle evidence before any ActiveJobs repair. This dry-run does not kill or rewrite records.",
+                    next_action="Use process/progress close-readiness for lifecycle decisions. This dry-run does not kill or rewrite records.",
                 )
             )
     return _startup_category(
@@ -445,7 +445,7 @@ def _startup_active_jobs_category(resolved: Any) -> dict[str, Any]:
         metrics={"record_count": record_count, "active_record_count": active_count},
         summary_lines=[
             f"ActiveJobs records scanned: {record_count}; active/launching records: {active_count}.",
-            "No ActiveJobs record was rewritten and no process was killed.",
+            "ActiveJobs records are passive diagnostics here; no record was rewritten and no process was killed.",
         ],
     )
 

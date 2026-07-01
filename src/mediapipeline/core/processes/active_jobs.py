@@ -7,8 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol
 
-from mediapipeline.desktop.contracts import ActiveJobRecord, ContractError
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.kernel.contracts import ActiveJobRecord, ContractError
+from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.processes.constants import ACTIVE_JOB_SCHEMA_VERSION, ACTIVE_JOB_STALE_VALIDATE_HEARTBEAT_SECONDS
 from mediapipeline.core.processes.file_io import atomic_write_text, read_json_file
 from mediapipeline.core.processes.kill import kill_psutil_process_tree
@@ -26,19 +26,6 @@ class WarningLogger(Protocol):
 
 ACTIVE_JOB_BLOCKING_STATUSES = frozenset({"launching", "active"})
 VALIDATE_ONLY_ARG = "-validateonly"
-
-
-def _normalized_job_kind_filter(job_kinds: set[str] | None) -> set[str] | None:
-    if job_kinds is None:
-        return None
-    normalized: set[str] = set()
-    for item in job_kinds:
-        key = str(item or "").strip().casefold()
-        if key == "rerun":
-            key = "rerun_csv"
-        if key:
-            normalized.add(key)
-    return normalized
 
 
 def active_jobs_dir_for_resolved(resolved: ResolvedPaths | None) -> Path | None:
@@ -269,65 +256,10 @@ def active_job_pid_matches_record(record: ActiveJobRecord, psutil_module: Any) -
     return True
 
 
-def active_job_close_block_messages(
-    resolved: ResolvedPaths,
-    *,
-    max_items: int = 24,
-    psutil_module: Any = None,
-    job_kinds: set[str] | None = None,
-) -> list[str]:
-    """Return operator-facing close blockers from non-terminal ActiveJobs records.
-
-    A missing/dead PID is not treated as active work here because normal
-    reconciliation can mark it orphaned. A live or unverifiable PID remains a
-    close blocker so the shell does not report "safe to close" while runtime
-    state still claims a launch is active.
-    """
-    folder = active_jobs_dir_for_resolved(resolved)
-    if not folder or not folder.exists():
-        return []
-    normalized_job_kinds = _normalized_job_kind_filter(job_kinds)
-    try:
-        records = sorted(folder.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
-    except OSError as exc:
-        return [f"ActiveJobs folder could not be read: {exc}"]
-
-    messages: list[str] = []
-    for record_path in records[:max_items]:
-        try:
-            payload = read_json_file(record_path, retries=1)
-            record = ActiveJobRecord.from_mapping(payload)
-        except Exception as exc:
-            messages.append(f"ActiveJobs record {record_path.name} could not be verified: {exc}")
-            continue
-        if record.status not in ACTIVE_JOB_BLOCKING_STATUSES:
-            continue
-        if normalized_job_kinds is not None and str(record.job_kind or "").strip().casefold() not in normalized_job_kinds:
-            continue
-        label = record.job_kind
-        if record.mode:
-            label = f"{label} {record.mode}"
-        if record.pid is None:
-            messages.append(f"ActiveJobs record {record_path.name} reports {label} as {record.status} with no PID.")
-            continue
-        matches_record = active_job_pid_matches_record(record, psutil_module)
-        if matches_record is False:
-            continue
-        if matches_record is True:
-            messages.append(
-                f"ActiveJobs record {record_path.name} reports {label} as {record.status} and PID {record.pid} is still running."
-            )
-        else:
-            messages.append(
-                f"ActiveJobs record {record_path.name} reports {label} as {record.status}; PID {record.pid} identity could not be verified."
-            )
-    return messages
-
-
 def reconcile_active_job_records(
     resolved: ResolvedPaths,
     *,
-    max_items: int = 24,
+    max_items: int | None = None,
     psutil_module: Any = None,
     logger: WarningLogger | None = None,
 ) -> list[str]:
@@ -349,7 +281,7 @@ def reconcile_active_job_records(
 
     messages: list[str] = []
     now = datetime.now().astimezone().isoformat(timespec="seconds")
-    for record_path in records[:max_items]:
+    for record_path in (records if max_items is None else records[:max_items]):
         try:
             payload = read_json_file(record_path, retries=1)
             record = ActiveJobRecord.from_mapping(payload)
@@ -392,7 +324,7 @@ def reconcile_active_job_records(
 def cleanup_stale_validate_active_jobs(
     resolved: ResolvedPaths,
     *,
-    max_items: int = 24,
+    max_items: int | None = None,
     stale_after_seconds: float = ACTIVE_JOB_STALE_VALIDATE_HEARTBEAT_SECONDS,
     psutil_module: Any = None,
     logger: WarningLogger | None = None,
@@ -418,7 +350,7 @@ def cleanup_stale_validate_active_jobs(
     messages: list[str] = []
     now = datetime.now().astimezone()
     now_text = now.isoformat(timespec="seconds")
-    for record_path in records[:max_items]:
+    for record_path in (records if max_items is None else records[:max_items]):
         try:
             payload = read_json_file(record_path, retries=1)
             record = ActiveJobRecord.from_mapping(payload)

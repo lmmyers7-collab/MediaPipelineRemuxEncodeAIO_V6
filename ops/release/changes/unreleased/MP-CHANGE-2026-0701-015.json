@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0701-015",
+  "title": "Auto pair rerun replace with original hold",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-07-01",
+  "date_completed": "2026-07-01",
+  "summary": "Pair CSV rerun final-output replacement with original-hold handling in the Launch WebView.",
+  "reason": "When operators choose publish-and-replace behavior, the original-after-proof selection should visibly default to the safer review-hold path instead of leaving the relationship ambiguous.",
+  "affected_areas": [
+    "generated-context",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Selecting publish-and-replace or replace-final collision did not automatically adjust Original After Proof; operators had to manually infer the matching original-hold policy.",
+  "behavior_after": "The Launch WebView auto-selects Move to original hold after publish while replacement handling remains auto-controlled, preserves manual original-policy overrides, and calls out replacement/original pairing in preflight text.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launchView.js",
+    "apps/desktop/webview/static/assets/launchView.preflight.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.preflight.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0701-015.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_launch.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_launch_command_buttons_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0701-015.json",
+    "tests/python/desktop/test_application_facade_web_static_launch.py",
+    "tests/webview/test_webview_launch_command_buttons_smoke.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_web_static_launch.py",
+    "tests/webview/test_webview_launch_command_buttons_smoke.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static_launch -q - passed (6 tests)",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_launch_command_buttons_smoke -q - passed (7 tests)",
+    "Manual Node Launch view check with launch/startRequest.js loaded - passed (replace-final auto-selected move_to_hold_after_publish; manual keep override preserved)",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_launch_queue_readiness_smoke -q - failed on existing pipeline-start backend-preflight expectation; rerun replacement/original pairing path was not implicated",
+    "mediapipeline.tools.dev.refresh_summaries --check --paths <touched files> - passed (5 source files current)",
+    "mediapipeline.tools.change_control.validate_changes - passed (885 packets valid)",
+    "mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed because unrelated dirty file apps/desktop/webview/static/assets/launchView.realmedia.js is not listed in any unreleased change packet",
+    "git diff --check -- <touched files> - passed (LF-to-CRLF warnings only)"
+  ],
+  "rollback_plan": "Revert the Launch view/preflight JS changes, test updates, generated summaries, and this change packet; no backend route, persisted state, or media-policy migration is required.",
+  "related_changes": [
+    "MP-CHANGE-2026-0701-010"
+  ],
+  "notes": "Frontend-only pairing guidance. Backend proof, confirmation, pending publish, and original movement policy remain authoritative."
+}

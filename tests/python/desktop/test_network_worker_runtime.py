@@ -433,6 +433,42 @@ class NetworkWorkerRuntimeTests(unittest.TestCase):
 
         self.assertEqual(statuses, ["⚠ Heartbeat failed: coordinator offline"])
 
+    def test_worker_heartbeat_failures_abort_before_lease_expiry(self) -> None:
+        class TwoFailureStop:
+            def wait(self, _seconds: float) -> bool:
+                return False
+
+        worker = WorkerDispatcher.__new__(WorkerDispatcher)
+        worker.app = SimpleNamespace(
+            snapshot=None,
+            resolved=SimpleNamespace(config_data={"CoordinatorHeartbeatTimeoutMins": 2}),
+        )
+        worker._worker_id = "worker-1"
+        worker._heartbeat_stop = TwoFailureStop()
+        worker._http_post = lambda _path, _data: (_ for _ in ()).throw(RuntimeError("coordinator offline"))
+        worker._last_heartbeat_failure_text = ""
+        worker._heartbeat_failure_started_monotonic = None
+        worker._heartbeat_failure_started_at = ""
+        worker._heartbeat_failure_age_seconds = 0
+        worker._heartbeat_failure_abort_threshold_seconds_value = 0
+        statuses: list[str] = []
+        aborts: list[object] = []
+        events: list[dict[str, object]] = []
+        worker._notify_status = statuses.append
+        worker._request_abort_reclaimed_job = aborts.append  # type: ignore[method-assign]
+        worker._safe_log_cluster_event = lambda context, **kwargs: events.append({"context": context, **kwargs})  # type: ignore[method-assign]
+        job = SimpleNamespace(job_id="job-1", record=SimpleNamespace(source_path=r"C:\Media\movie.mkv"))
+
+        with patch("mediapipeline.desktop.network.worker_loops.time.monotonic", side_effect=[100.0, 161.0]):
+            WorkerDispatcher._heartbeat_loop(worker, job)
+
+        self.assertEqual(aborts, [job])
+        self.assertEqual(worker._heartbeat_failure_age_seconds, 61)
+        self.assertEqual(worker._heartbeat_failure_abort_threshold_seconds_value, 60)
+        self.assertTrue(worker._job_reclaimed)
+        self.assertIn("⚠ Heartbeat failed for 61s — aborting movie.mkv", statuses)
+        self.assertEqual(events[-1]["event"], "heartbeat_failure_abort")
+
     def test_worker_stop_heartbeat_warns_when_thread_does_not_exit(self) -> None:
         class StuckHeartbeatThread:
             def __init__(self) -> None:

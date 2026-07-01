@@ -97,6 +97,33 @@ These rules protect source media, operator trust, and release safety.
    manifests, sidecars, SQLite mirrors, generated summaries, and WebView
    evidence must keep authority boundaries explicit.
 
+### Right-Sized Safety Protocol
+
+The safety rules above protect source media and irreversible operations. They
+must not be expanded into redundant warnings, confirmations, review queues, or
+manual checklists unless the added control reduces a specific, named risk.
+
+When proposing or implementing a safety control:
+
+- Start from the existing invariant or backend boundary that already covers the
+  risk. Reuse it before adding a new surface.
+- Use the least cumbersome control that prevents the concrete hazard. Prefer
+  backend validation, clear disabled states, and actionable error messages over
+  extra operator prompts.
+- Do not stack frontend warnings or confirmations on top of backend strict
+  confirmations, dry-runs, or manifest-backed flows unless there is a
+  demonstrated gap.
+- Treat read-only, preview-only, and already reversible operations as normal
+  operator workflows. Do not add mutation-level ceremony to them.
+- If a new block, confirmation, quarantine, or review step is still needed,
+  document the hazard, the existing control that was insufficient, and the
+  condition that lets the operator proceed.
+- Remove or simplify obsolete safety layers when a stronger lower-level control
+  makes them redundant.
+
+Safety is successful when it prevents corruption or hidden loss while keeping
+routine operation fast and predictable.
+
 Before touching any high-risk area, read
 `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`.
 

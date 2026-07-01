@@ -3,7 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.models import ConfigPreview, ConfigSaveResult, ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.config.contracts import ConfigPreview, ConfigSaveResult
 from mediapipeline.core.config.document_runner import (
     load_config_data_for_service,
     validate_config_document_for_save_for_service,
@@ -47,7 +48,7 @@ from mediapipeline.core.config.path_warnings import (
     config_warning_path_within_root,
     normalized_config_warning_path_key,
 )
-from mediapipeline.desktop.subprocess_runner import run_capture
+from mediapipeline.core.kernel.runtime.subprocess_runner import run_capture
 
 
 class ConfigProfileServiceMixin:

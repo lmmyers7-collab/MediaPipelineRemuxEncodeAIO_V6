@@ -3,9 +3,9 @@ file: AGENTS.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-19
+last_modified: 2026-07-01
 last_reviewed: 2026-06-03
-sha256: fa042c50355b23aaa89f63b979255c828fcc1c289c6ba60670167814b275f46c
+sha256: 9a7024e491489abef44b37fe78347c03fa7032d8ab2d04bc58c9f3ea81ff17b4
 ---
 # `AGENTS.md`
 

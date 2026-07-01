@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/guard_policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-26
+last_modified: 2026-07-01
 last_reviewed: 2026-06-04
-sha256: d1479a48d0029d9e04571752cd3df3239c20026025d18e6cf15fd0f727d4d0e6
+sha256: 64d0ddfa67a75076381f09f7c571c5f2a35deb50adda0126b2236a0e13d4c976
 ---
 # `src/mediapipeline/core/processes/guard_policy.py`
 

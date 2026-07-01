@@ -133,7 +133,7 @@
 
 .failure-resolution-layout {
   display: grid;
-  grid-template-columns: minmax(16rem, 0.75fr) minmax(34rem, 1.55fr);
+  grid-template-columns: minmax(13rem, 0.55fr) minmax(0, 2.45fr);
   gap: var(--space-2);
   align-items: start;
   margin-top: var(--space-2);
@@ -197,6 +197,21 @@
 .failure-resolution-primary-actions {
   align-items: center;
   margin-bottom: var(--space-1);
+}
+
+.failure-evidence-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.failure-evidence-links:empty {
+  display: none;
+}
+
+.failure-evidence-links button {
+  min-height: 2.25rem;
 }
 
 .failure-lifecycle-strip {
@@ -339,10 +354,14 @@
 }
 
 #failure-detail[data-visual-keep] {
-  max-height: 8rem;
+  min-height: 22rem;
+  max-height: min(68vh, 46rem);
   margin-bottom: var(--space-2);
-  font-size: var(--text-xs);
-  line-height: 1.4;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .failure-records-panel {

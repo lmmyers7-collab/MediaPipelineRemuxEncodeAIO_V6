@@ -3,9 +3,9 @@ file: docs/operator/POWERSHELL_HOST_EXPECTATIONS.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-26
+last_modified: 2026-06-30
 last_reviewed: 2026-06-02
-sha256: d366ced2f4028757d439d9aaced9c613e0e070e043804f7118950086115dae14
+sha256: 1a8f5f733201d4c1f425c66510e4104c30952224a04780bfc1ba1d907efa95f5
 ---
 # `docs/operator/POWERSHELL_HOST_EXPECTATIONS.md`
 

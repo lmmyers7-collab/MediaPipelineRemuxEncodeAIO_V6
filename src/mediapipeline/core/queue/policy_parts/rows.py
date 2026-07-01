@@ -27,7 +27,7 @@ from mediapipeline.core.queue.policy_parts.row_identity import (
 from mediapipeline.core.queue.policy_parts.runtime_outcomes import queue_apply_runtime_outcomes
 from mediapipeline.core.queue.policy_parts.track_metadata import queue_preview_track_metadata_summary
 from mediapipeline.core.subtitles.qa import build_queue_subtitle_qa
-from mediapipeline.desktop.models import QueueRecord
+from mediapipeline.core.queue.contracts import QueueRecord
 
 
 

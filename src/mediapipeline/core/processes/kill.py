@@ -8,7 +8,7 @@ import signal
 import subprocess
 from typing import Any, Protocol
 
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 
 class WarningLogger(Protocol):
@@ -202,13 +202,23 @@ def kill_process_tree(
 
     logger.warning("Force-killing %s process tree for PID %s", label, pid)
     if os.name == "nt":
-        result = subprocess.run(
-            ["taskkill", "/PID", str(pid), "/T", "/F"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode != 0 and proc.poll() is None:
+        taskkill_timed_out = False
+        taskkill_detail = ""
+        try:
+            result = subprocess.run(
+                ["taskkill", "/PID", str(pid), "/T", "/F"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=10,
+            )
+            taskkill_detail = (result.stderr or result.stdout or "").strip()
+        except subprocess.TimeoutExpired as exc:
+            result = None
+            taskkill_timed_out = True
+            taskkill_detail = str(exc)
+            logger.warning("taskkill timed out for %s PID %s after 10s: %s", label, pid, taskkill_detail)
+        if result is not None and result.returncode != 0 and proc.poll() is None:
             detail = (result.stderr or result.stdout or "").strip()
             logger.warning("taskkill reported a failure for %s PID %s: %s", label, pid, detail)
         if not wait_for_process_exit(proc, timeout_seconds=5.0):
@@ -217,6 +227,13 @@ def kill_process_tree(
             with contextlib.suppress(Exception):
                 kill_psutil_process_tree(psutil_module.Process(pid), label, psutil_module=psutil_module, logger=logger)
         if proc.poll() is None:
+            if taskkill_timed_out:
+                update_active_job_record(proc, status="kill_degraded", return_code=proc.returncode)
+                return (
+                    f"Kill requested for {label} process tree (PID {pid}), but taskkill timed out "
+                    "and exit could not be verified. Existing fallback attempts completed without "
+                    f"blocking the control path. Detail: {taskkill_detail}"
+                )
             raise RuntimeError(f"Unable to verify {label} process tree exited for PID {pid}.")
         update_active_job_record(proc, status="killed", return_code=proc.returncode)
         return f"Force-killed {label} process tree (PID {pid})."

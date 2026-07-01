@@ -3,9 +3,9 @@ file: src/mediapipeline/core/queue/policy_parts/open_policy.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-06-04
+last_modified: 2026-06-29
 last_reviewed: 2026-06-04
-sha256: 0bb50943fce75fb978a58bc01e447f78c0c00b63b85545a01436a1daaafd0491
+sha256: c397f9db99131a9400a2d355d9fb072c8bb87f475267d485b24a509b61262998
 ---
 # `src/mediapipeline/core/queue/policy_parts/open_policy.py`
 

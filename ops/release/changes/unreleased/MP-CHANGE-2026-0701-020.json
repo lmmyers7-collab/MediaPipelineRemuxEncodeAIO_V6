@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0701-020",
+  "title": "Rerun handling auto conflict choices",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-07-01",
+  "date_completed": "2026-07-01",
+  "summary": "Add auto-aware rerun handling controls that grey incompatible selections, auto-adjust the other policy axes when an incompatible choice is selected, and resolve all auto values to concrete backend policy fields before submit.",
+  "reason": "Operators need the Destination, Destination Collision, and Original After Proof controls to behave like a single policy equation while still preserving backend ownership of media mutation and strict confirmations.",
+  "affected_areas": [
+    "generated-context",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The rerun handling selects exposed fixed destination, collision, and original-source policies without an auto choice or visible impossible-combination handling.",
+  "behavior_after": "The rerun handling selects include auto choices, visually mark incompatible option pairings, switch the other policy axes to auto when a conflicting option is selected, and submit only concrete least-destructive backend policy values.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launch/startRequest.js",
+    "apps/desktop/webview/static/assets/launchView.js",
+    "apps/desktop/webview/static/assets/launchView.preflight.js",
+    "apps/desktop/webview/static/assets/styles/components/settings-builders.css",
+    "apps/desktop/webview/static/partials/page-launch.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launch/startRequest.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.preflight.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles/components/settings-builders.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-launch.html.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_launch.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0701-020.json",
+    "tests/python/desktop/test_application_facade_web_static_launch.py"
+  ],
+  "tests_added": [
+    "tests.python.desktop.test_application_facade_web_static_launch.ApplicationFacadeWebStaticLaunchTests.test_rerun_policy_auto_resolver_submits_concrete_backend_values"
+  ],
+  "manual_validation": [
+    "node --check apps/desktop/webview/static/assets/launch/startRequest.js",
+    "node --check apps/desktop/webview/static/assets/launchView.js",
+    "node --check apps/desktop/webview/static/assets/launchView.preflight.js",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static_launch -q",
+    "ops/scripts/smoke/Test-WebViewBrowserSettingsLaunchSmoke.ps1",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/launch/startRequest.js apps/desktop/webview/static/assets/launchView.js apps/desktop/webview/static/assets/launchView.preflight.js apps/desktop/webview/static/partials/page-launch.html apps/desktop/webview/static/assets/styles/components/settings-builders.css tests/python/desktop/test_application_facade_web_static_launch.py"
+  ],
+  "rollback_plan": "Revert the Launch WebView rerun handling select changes, the startRequest auto resolver, the option-state styling, the static test updates, and the matching generated summaries.",
+  "related_changes": [],
+  "notes": "Resolve rerun auto selections to concrete backend policy values.\nApply rerun policy conflict greying and auto-adjust handling in Launch UI.\nKeep rerun preflight labels aligned with Original After Proof policy wording.\nAdd rerun handling auto options and Original After Proof UI labels.\nStyle rerun policy auto and conflict option states.\nPin rerun auto conflict UI contracts and executable resolver behavior.\nRefresh generated summary for rerun handling auto conflict change."
+}

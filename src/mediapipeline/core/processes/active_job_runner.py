@@ -5,10 +5,9 @@ import subprocess
 from pathlib import Path
 from typing import Any, Protocol
 
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 from .active_jobs import (
-    active_job_close_block_messages,
     active_job_pid_is_alive,
     active_job_record_path_for_proc,
     active_jobs_dir_for_resolved,
@@ -80,22 +79,6 @@ def write_active_job_launch_record_for_service(
 
 def active_job_pid_is_alive_for_service(_service: object, pid: int, psutil_module: Any) -> bool | None:
     return active_job_pid_is_alive(pid, psutil_module)
-
-
-def active_job_close_block_messages_for_service(
-    _service: object,
-    resolved: ResolvedPaths,
-    *,
-    max_items: int,
-    psutil_module: Any,
-    job_kinds: set[str] | None = None,
-) -> list[str]:
-    return active_job_close_block_messages(
-        resolved,
-        max_items=max_items,
-        psutil_module=psutil_module,
-        job_kinds=job_kinds,
-    )
 
 
 def reconcile_active_job_records_for_service(

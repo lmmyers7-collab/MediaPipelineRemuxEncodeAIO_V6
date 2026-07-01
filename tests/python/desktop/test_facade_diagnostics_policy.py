@@ -106,7 +106,8 @@ class DiagnosticsFacadePolicyTests(unittest.TestCase):
         active = diagnostics_tail_evidence(text="ffmpeg running\n", ok=True, exists=True, is_file=True)
         self.assertEqual(active["operator_status"], "active")
         self.assertEqual(active["operator_status_state"], "running")
-        self.assertIn("Close Readiness", active["safe_next_action"])
+        self.assertIn("Diagnostics > Overview > Shutdown Readiness", active["safe_next_action"])
+        self.assertIn("Active Jobs", active["safe_next_action"])
 
         ready = diagnostics_tail_evidence(text="completed normally\n", ok=True, exists=True, is_file=True)
         self.assertEqual(ready["operator_status"], "ready")

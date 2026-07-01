@@ -132,6 +132,94 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
         self.assertEqual(preview["source_inventory"]["rows"][0]["curation_state"], "uncurated")
         self.assertIn("No queue snapshot is available yet.", "\n".join(preview["warnings"]))
 
+    def test_queue_preview_falls_back_to_active_csv_rerun_manifest_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            local_base = root / "Local"
+            manifest_root = local_base / "RerunManifests"
+            manifest_root.mkdir(parents=True)
+            manifest_path = manifest_root / "rerun_20260630_010000_abcd1234.json"
+            manifest_path.write_text(
+                json.dumps(
+                    {
+                        "batch_id": "rerun_20260630_010000_abcd1234",
+                        "created_at": "2026-06-30T01:00:00",
+                        "csv_path": str(local_base / "AuditReports" / "audit_rerun.csv"),
+                        "config_path": str(root / "config.psd1"),
+                        "pipeline_local_base": str(local_base),
+                        "output_root": str(local_base / "RerunParked"),
+                        "status": "staged",
+                        "dry_run": False,
+                        "plan_only": False,
+                        "rows": [
+                            {
+                                "source_path": r"\\server\share\Movies\Paprika(2006)\Paprika(2006).mkv",
+                                "media_kind": "Movie",
+                                "stage_mode": "copy",
+                                "original_mode": "keep",
+                                "return_mode": "park",
+                                "stage_path": str(root / "Local_RerunWorkspace" / "RerunQueue" / "rerun_20260630_010000_abcd1234" / "Movies" / "Paprika (2006)" / "Paprika (2006).mkv"),
+                                "planned_output_path": str(root / "Local_RerunWorkspace" / "RerunParked" / "rerun_20260630_010000_abcd1234" / "Output" / "Paprika (2006)" / "Paprika (2006).mkv"),
+                                "status": "staged",
+                                "audit_issue_codes": "image-only-subtitles",
+                                "queue_item": {
+                                    "queue_source": "csv_rerun",
+                                    "queue_phase": "csv_rerun",
+                                    "media_kind": "movie",
+                                    "source_path": r"\\server\share\Movies\Paprika(2006)\Paprika(2006).mkv",
+                                    "metadata": {
+                                        "stage_path": str(root / "Local_RerunWorkspace" / "RerunQueue" / "rerun_20260630_010000_abcd1234" / "Movies" / "Paprika (2006)" / "Paprika (2006).mkv"),
+                                        "planned_output_path": str(root / "Local_RerunWorkspace" / "RerunParked" / "rerun_20260630_010000_abcd1234" / "Output" / "Paprika (2006)" / "Paprika (2006).mkv"),
+                                        "status": "pending",
+                                    },
+                                },
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            resolved = _resolved(root)
+            resolved.local_base = local_base
+            resolved.queue_snapshot_path = root / "State" / "Progress" / "missing_queue_snapshot.json"
+            assert resolved.active_jobs_path is not None
+            resolved.active_jobs_path.mkdir(parents=True)
+            (resolved.active_jobs_path / "rerun.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_active_job.v1",
+                        "launch_id": "rerun-1",
+                        "job_kind": "rerun_csv",
+                        "mode": "rerun_csv",
+                        "status": "active",
+                        "pid": 1234,
+                        "app_pid": 5678,
+                        "command_line": "pwsh -File Invoke-RerunCsv.ps1",
+                        "args": [],
+                        "cwd": str(root),
+                        "stdout_log": str(root / "rerun.stdout.log"),
+                        "stderr_log": str(root / "rerun.stderr.log"),
+                        "show_console": False,
+                        "metadata": {},
+                        "launched_at": "2026-06-30T01:00:00",
+                        "last_update": "2026-06-30T01:01:00",
+                        "completed_at": "",
+                        "return_code": None,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+
+            preview = facade.get_queue_preview(resolved).to_mapping()
+
+        self.assertEqual(preview["source"], str(manifest_path))
+        self.assertEqual(preview["rows"][0]["queue_source"], "csv_rerun")
+        self.assertEqual(preview["rows"][0]["operator_status"], "CSV rerun queued")
+        self.assertEqual(preview["rows"][0]["queue_position"], "1/1")
+        self.assertEqual(preview["rows"][0]["display_name"], "Paprika (2006).mkv")
+        self.assertIn("active CSV rerun manifest queue rows", "\n".join(preview["warnings"]))
+
     def test_queue_preview_reads_existing_snapshot_without_dry_run(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

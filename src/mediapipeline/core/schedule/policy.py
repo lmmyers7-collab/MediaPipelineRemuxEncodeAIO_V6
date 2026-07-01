@@ -7,7 +7,7 @@ import re
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
 from mediapipeline.core.schedule.constants import SCHEDULE_DAY_NAMES
 
@@ -23,7 +23,7 @@ SCHEDULE_TIME_RE = re.compile(
 
 
 def _command_result(**kwargs: Any) -> "CommandResult":
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**kwargs)
 

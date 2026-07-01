@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import sys
 import tempfile
 import textwrap
@@ -11,46 +10,10 @@ from mediapipeline.tools.paths import find_repo_root
 
 
 REPO_ROOT = find_repo_root(Path(__file__))
-PHASE0_BASELINE_PATH = REPO_ROOT / "tests" / "fixtures" / "dependency_boundaries" / "no_core_to_desktop_phase0_baseline.json"
 PHASE0_LEDGER_PATH = REPO_ROOT / "docs" / "implementation" / "architecture-boundary-cleanup" / "EDGE_LEDGER.md"
 sys.path.insert(0, str(REPO_ROOT / "src" / "mediapipeline" / "tools" / "dev"))
 
 import check_dependency_boundaries as dependency_check  # noqa: E402
-
-
-def imported_symbol(import_text: str) -> str:
-    if import_text.startswith("from "):
-        return import_text.split(" import ", 1)[1]
-    if import_text.startswith("import "):
-        return "module import"
-    return import_text
-
-
-def core_to_desktop_group_keys(report: dependency_check.DependencyReport) -> set[tuple[str, str, str, tuple[str, ...]]]:
-    grouped: dict[tuple[str, str, str], set[str]] = {}
-    for edge in report.forbidden_core_desktop_imports:
-        grouped.setdefault(
-            (edge.source_module, edge.source_path, edge.target_module),
-            set(),
-        ).add(imported_symbol(edge.import_text))
-    return {
-        (source_module, source_path, target_module, tuple(sorted(symbols)))
-        for (source_module, source_path, target_module), symbols in grouped.items()
-    }
-
-
-def phase0_baseline_group_keys() -> set[tuple[str, str, str, tuple[str, ...]]]:
-    payload = json.loads(PHASE0_BASELINE_PATH.read_text(encoding="utf-8"))
-    grouped: dict[tuple[str, str, str], set[str]] = {}
-    for group in payload["groups"]:
-        grouped.setdefault(
-            (group["source_module"], group["source_path"], group["target_module"]),
-            set(),
-        ).update(group["symbols"])
-    return {
-        (source_module, source_path, target_module, tuple(sorted(symbols)))
-        for (source_module, source_path, target_module), symbols in grouped.items()
-    }
 
 
 def phase0_ledger_rows() -> list[dict[str, str]]:
@@ -90,21 +53,6 @@ def phase0_ledger_rows() -> list[dict[str, str]]:
             }
         )
     return rows
-
-
-def phase0_ledger_group_keys() -> set[tuple[str, str, str, tuple[str, ...]]]:
-    grouped: dict[tuple[str, str, str], set[str]] = {}
-    for row in phase0_ledger_rows():
-        source_path, _line = row["source_path_line"].rsplit(":", 1)
-        symbols = tuple(sorted(part for part in row["symbols"].split("`") if part and not part.startswith(", ")))
-        grouped.setdefault(
-            (row["source_module"], source_path, row["target_module"]),
-            set(),
-        ).update(symbols)
-    return {
-        (source_module, source_path, target_module, tuple(sorted(symbols)))
-        for (source_module, source_path, target_module), symbols in grouped.items()
-    }
 
 
 def write_module(root: Path, relative_path: str, body: str = "") -> None:
@@ -285,50 +233,58 @@ class DependencyBoundaryTests(unittest.TestCase):
 
             self.assertEqual(dependency_check.main(["--root", str(root), "--allowlist", str(allowlist)]), 1)
 
-    def test_phase0_no_new_core_to_desktop_imports_outside_frozen_baseline(self) -> None:
+    def test_no_core_to_desktop_imports_remain_in_repository(self) -> None:
         report = dependency_check.analyze(REPO_ROOT)
-        current_groups = core_to_desktop_group_keys(report)
-        baseline_groups = phase0_baseline_group_keys()
-
-        unexpected_groups = sorted(current_groups - baseline_groups)
 
         self.assertEqual(
-            unexpected_groups,
+            report.forbidden_core_desktop_imports,
             [],
-            "New NO_CORE_TO_DESKTOP import groups must not appear outside the Phase 0 frozen baseline.",
+            "NO_CORE_TO_DESKTOP is a permanent rule; core modules must not import desktop modules.",
         )
 
-    def test_phase0_frozen_baseline_groups_have_ledger_rows(self) -> None:
-        baseline_groups = phase0_baseline_group_keys()
-        ledger_groups = phase0_ledger_group_keys()
-
-        missing_rows = sorted(baseline_groups - ledger_groups)
-
-        self.assertEqual(
-            missing_rows,
-            [],
-            "Every frozen NO_CORE_TO_DESKTOP import group needs a Phase 0 ledger row.",
-        )
-
-    def test_phase0_no_core_to_desktop_allowlist_entries_have_ledger_rows(self) -> None:
+    def test_no_core_to_desktop_allowlist_entries_are_allowed(self) -> None:
         allowlist_entries, allowlist_errors = dependency_check.load_allowlist(dependency_check.DEFAULT_ALLOWLIST_PATH)
-        self.assertEqual(allowlist_errors, [])
-        ledger_pairs = {
-            (row["source_module"], row["target_module"])
-            for row in phase0_ledger_rows()
-        }
-        allowlist_pairs = {
-            (entry.importing_module, entry.imported_module)
+        no_core_to_desktop_entries = [
+            entry
             for entry in allowlist_entries
             if entry.rule_id == "NO_CORE_TO_DESKTOP"
-        }
-
-        missing_rows = sorted(allowlist_pairs - ledger_pairs)
+        ]
 
         self.assertEqual(
-            missing_rows,
+            allowlist_errors,
             [],
-            "Every temporary NO_CORE_TO_DESKTOP allowlist entry needs matching Phase 0 ledger coverage.",
+            "The dependency-boundary allowlist must not contain permanently enforced rule entries.",
+        )
+        self.assertEqual(no_core_to_desktop_entries, [])
+
+    def test_core_to_desktop_allowlist_entry_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            write_module(root, "src/mediapipeline/core/__init__.py")
+            allowlist = root / "allowlist.txt"
+            allowlist.write_text(
+                "mediapipeline.core.config.settings | mediapipeline.desktop.models | NO_CORE_TO_DESKTOP | Legacy test entry | Owner: test\n",
+                encoding="utf-8",
+            )
+
+            _entries, errors = dependency_check.load_allowlist(allowlist)
+
+            self.assertEqual(len(errors), 1)
+            self.assertIn("permanently enforced", errors[0].detail)
+            self.assertEqual(dependency_check.main(["--root", str(root), "--allowlist", str(allowlist)]), 1)
+
+    def test_phase7_ledger_closes_core_to_desktop_rows(self) -> None:
+        unfinished_rows = [
+            row
+            for row in phase0_ledger_rows()
+            if row["target_module"].startswith("mediapipeline.desktop")
+            and row["status"] in {"open", "migrating"}
+        ]
+
+        self.assertEqual(
+            unfinished_rows,
+            [],
+            "All #23 NO_CORE_TO_DESKTOP ledger rows must be migrated, blocked with a separate issue, or out of scope.",
         )
 
     def test_current_repository_dependency_check_passes_with_allowlist(self) -> None:

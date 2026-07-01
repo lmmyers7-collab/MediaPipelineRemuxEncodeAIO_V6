@@ -1,0 +1,36 @@
+{
+  "id": "MP-CHANGE-2026-0629-016",
+  "title": "Phase 6 schedule workspace DTO boundary cleanup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Moved the schedule workspace DTO import from the desktop compatibility module to the core kernel DTO workspace owner and removed the resolved allowlist row.",
+  "reason": "Continue the GitHub #23 Phase 6 boundary cleanup with a narrow schedule DTO-only reduction that does not change schedule execution, stop-watcher, or route behavior.",
+  "affected_areas": [
+    "architecture",
+    "core",
+    "generated-context"
+  ],
+  "behavior_before": "The schedule facade imported ScheduleWorkspaceDto through mediapipeline.desktop.application.dto_workspaces and used a temporary NO_CORE_TO_DESKTOP allowlist row.",
+  "behavior_after": "The schedule facade imports ScheduleWorkspaceDto from mediapipeline.core.kernel.dto_workspaces; the desktop DTO workspace module remains a compatibility export and the stop-watcher import remains open/allowlisted for separate work.",
+  "files_touched": [
+    "docs/architecture/dependency_boundary_allowlist.txt",
+    "docs/generated/summaries/src/mediapipeline/core/schedule/facade.py.md",
+    "docs/implementation/architecture-boundary-cleanup/EDGE_LEDGER.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-016.json",
+    "src/mediapipeline/core/schedule/facade.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_schedule tests.python.desktop.test_schedule_stop_watcher tests.python.desktop.test_application_facade_local_api_workflow tests.python.desktop.test_application_public_api tests.python.tooling.test_dependency_boundaries -q (passed, 33 tests)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_active_doc_references (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_architecture_guardrails (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --format json --report-only (passed: 66 hard findings, 66 allowlisted, 0 unallowlisted, 0 allowlist errors, 0 unused allowlist entries, 49 remaining NO_CORE_TO_DESKTOP, 1 schedule NO_CORE_TO_DESKTOP stop-watcher edge left open intentionally)"
+  ],
+  "rollback_plan": "Restore the schedule facade ScheduleWorkspaceDto import from mediapipeline.desktop.application.dto_workspaces, re-add the matching NO_CORE_TO_DESKTOP allowlist row, and mark AB-SCH-003 open again in the ledger.",
+  "related_changes": [],
+  "notes": "Import ScheduleWorkspaceDto from the core kernel DTO workspace owner instead of desktop compatibility export.\nRemove the resolved schedule DTO NO_CORE_TO_DESKTOP allowlist row while leaving the stop-watcher edge allowlisted.\nMark AB-SCH-003 migrated and leave AB-SCH-004 open for separate stop-watcher boundary work.\nRefresh generated summary after schedule facade import ownership change.\nNo schedule start, stop-watcher, close-readiness, route schema, WebView command, or app-state persistence behavior changed."
+}

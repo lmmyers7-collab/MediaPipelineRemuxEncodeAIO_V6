@@ -6,7 +6,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.models import ConfigSaveResult, ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.config.contracts import ConfigSaveResult
 from mediapipeline.core.config.contracts import ConfigSaveServiceProtocol
 from mediapipeline.core.config.file_io import atomic_write_text, normalize_open_path_text
 

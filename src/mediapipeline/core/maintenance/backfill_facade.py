@@ -13,10 +13,10 @@ from mediapipeline.core.maintenance.command_policy import (
     completed_backfill_unavailable_result,
     maintenance_command_blocked_result,
 )
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
 
 class MaintenanceBackfillFacadeMixin:

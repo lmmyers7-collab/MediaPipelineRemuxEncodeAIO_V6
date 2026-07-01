@@ -1,0 +1,58 @@
+{
+  "id": "MP-CHANGE-2026-0629-026",
+  "title": "Phase 6 queue priority marker helper boundary cleanup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Moves priority marker string helper ownership from the desktop compatibility module into core queue priority markers and removes the matching queue NO_CORE_TO_DESKTOP allowlist rows.",
+  "reason": "Phase 6 boundary cleanup is removing transport-neutral queue helper imports from desktop while preserving the desktop module as a compatibility export.",
+  "affected_areas": [
+    "code",
+    "docs",
+    "generated"
+  ],
+  "behavior_before": "Core queue priority marker and service modules imported remove_priority_markers_from_name and starts_with_priority_marker from mediapipeline.desktop.priority_markers, producing four allowlisted NO_CORE_TO_DESKTOP findings across two import-statement groups.",
+  "behavior_after": "Core queue modules import and own the priority marker helpers under mediapipeline.core.queue.priority_markers, while mediapipeline.desktop.priority_markers re-exports the same helpers as a compatibility shim; queue priority marker allowlist rows are removed.",
+  "files_touched": [
+    "docs/architecture/dependency_boundary_allowlist.txt",
+    "docs/generated/summaries/src/mediapipeline/core/queue/priority_markers.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/queue/service.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/priority_markers.py.md",
+    "docs/implementation/architecture-boundary-cleanup/EDGE_LEDGER.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-026.json",
+    "src/mediapipeline/core/queue/priority_markers.py",
+    "src/mediapipeline/core/queue/service.py",
+    "src/mediapipeline/desktop/priority_markers.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/queue/priority_markers.py src/mediapipeline/core/queue/service.py src/mediapipeline/desktop/priority_markers.py",
+      "result": "pass - regenerated 3 generated summaries for the priority marker ownership move."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_service_queue_priority tests.python.desktop.test_application_facade_queue tests.python.desktop.test_service_queue_snapshot tests.python.desktop.test_architecture_boundary_phase2_compatibility_imports tests.python.desktop.test_application_public_api tests.python.tooling.test_dependency_boundaries -q",
+      "result": "pass - 52 targeted queue/public API/dependency-boundary tests passed."
+    },
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_active_doc_references",
+      "result": "pass - active doc reference checks passed."
+    },
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_architecture_guardrails",
+      "result": "pass - architecture guardrails passed."
+    },
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --format json --report-only",
+      "result": "pass - hard_findings=28, allowlisted=28, unallowlisted=0, unused_allowlist=0; NO_CORE_TO_DESKTOP=11 across config=8, processes=2, schedule=1."
+    }
+  ],
+  "rollback_plan": "Move sorted_priority_markers, starts_with_priority_marker, and remove_priority_markers_from_name back to mediapipeline.desktop.priority_markers, restore the core imports from desktop, restore the two removed allowlist rows, refresh the three generated summaries, and mark AB-QUE-014 and AB-QUE-016 open again in the edge ledger.",
+  "related_changes": [
+    "GitHub #23"
+  ],
+  "notes": "Transport-neutral helper ownership change. No Local API routes, WebView commands, queue snapshot contracts, queue selection/open behavior, priority marker rename semantics, filesystem mutation behavior, route schemas, or operator behavior changed.\nMove priority marker string helper ownership into core queue priority markers.\nImport priority marker string helpers from core queue priority markers instead of desktop compatibility shim.\nConvert desktop priority markers module to a compatibility export for core queue helper ownership.\nRemove migrated queue priority marker helper allowlist rows.\nMark AB-QUE-014 and AB-QUE-016 migrated with core queue helper ownership and desktop compatibility export.\nRefresh generated summary after queue priority marker helper ownership change.\nRefresh generated summary after queue service priority marker import update.\nRefresh generated summary after desktop priority marker compatibility shim update."
+}

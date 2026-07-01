@@ -26,6 +26,22 @@ function Write-Log {
     param([string]$Message, [string]$Level = 'INFO')
 }
 
+$script:ProgressStateEvents = @()
+function Write-PipelineEvent {
+    param(
+        [string]$EventType,
+        [string]$Stage,
+        [string]$Status,
+        [hashtable]$Data
+    )
+    $script:ProgressStateEvents += ,([pscustomobject]@{
+        EventType = $EventType
+        Stage = $Stage
+        Status = $Status
+        Data = $Data
+    })
+}
+
 $root = Join-Path ([System.IO.Path]::GetTempPath()) ('mediapipeline-progress-telemetry-' + [guid]::NewGuid().ToString('N'))
 try {
     New-Item -ItemType Directory -Path $root -Force | Out-Null
@@ -129,6 +145,32 @@ try {
             Remove-Job $lockJob -Force -ErrorAction SilentlyContinue
         }
     }
+
+    $script:StopRequested = $false
+    $script:PipelineBlockedExitCode = 0
+    $script:PipelineStopReason = ''
+    $script:ControlFlagDurableEventIds = @{}
+    $script:ProgressStateEvents = @()
+    $script:PauseFlagReviewSeconds = 60
+    $script:PauseFlagBlockSeconds = 120
+    $oldCreatedAt = (Get-Date).ToUniversalTime().AddSeconds(-180).ToString('o')
+    @{
+        schema_version = 'pipeline_control_flag.v1'
+        action = 'pause'
+        request_id = 'pause-stale-test'
+        created_at = $oldCreatedAt
+    } | ConvertTo-Json -Compress | Set-Content -LiteralPath $PauseFlag -Encoding UTF8
+
+    Check-ControlFlags
+
+    Assert-True ([bool]$script:StopRequested) 'Stale pause flag should request a terminal stop.'
+    Assert-Equal ([int]$script:PipelineBlockedExitCode) 76 'Stale pause flag should request blocked exit code 76.'
+    Assert-Equal ([string]$script:PipelineStopReason) 'pause_flag_stale_blocked' 'Stale pause flag should preserve blocked stop reason.'
+    Assert-True (Test-Path -LiteralPath $PauseFlag -PathType Leaf) 'Stale pause flag must not be deleted when the run blocks.'
+    $blockedPayload = Get-Content -LiteralPath $ProgressFile -Raw | ConvertFrom-Json -ErrorAction Stop
+    Assert-Equal ([string]$blockedPayload.CurrentStage) 'blocked' 'Stale pause flag should persist blocked progress state.'
+    Assert-True ([bool](@($script:ProgressStateEvents | Where-Object { $_.EventType -eq 'pause_flag_stale_review' }))) 'Stale pause flag should emit one review event.'
+    Assert-True ([bool](@($script:ProgressStateEvents | Where-Object { $_.EventType -eq 'pause_flag_stale_blocked' }))) 'Stale pause flag should emit one blocked event.'
 } finally {
     if (Test-Path -LiteralPath $root -ErrorAction SilentlyContinue) {
         Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue

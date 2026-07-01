@@ -20,6 +20,7 @@
       pipelineProgressIsStuck = function () { return false; },
       pipelineProgressIsStale = function () { return false; },
       pipelineSingleFileValue = function () { return ""; },
+      rerunPreviewBlockedReason = function () { return ""; },
       renderPipelineControllerStatus = function () {},
       setPipelineControlMessage = function () {},
       setText = function () {},
@@ -48,8 +49,6 @@
   const launchCommandButtonIds = [
     "pipeline-start-button",
     "pending-drain-button",
-    "rerun-plan-only-button",
-    "rerun-dry-run-button",
     "rerun-start-button",
   ];
   const pipelineStartBoundaryNote = "Backend start still re-checks queue, schedule, settings, and process locks; Queue tab display filters and row selection are not submitted.";
@@ -75,12 +74,12 @@
     const label = options.label || "this start control";
     if (!payload) {
       return allowMissing
-        ? launchGateResult(false, `${label}: Validate can submit without cached Backend Preflight; backend still re-checks queue, settings, schedule, and locks at submission time.`, { state: "ready" })
+        ? launchGateResult(false, `${label}: can submit without cached Backend Preflight; backend still re-checks queue, settings, schedule, and locks at submission time.`, { state: "stale" })
         : launchGateResult(true, `Blocked: Backend Preflight is not loaded for ${label}. Action: Refresh Backend Preflight before using this control.`, { state: "stale" });
     }
     if (matchKeys.length && !launchPreflightRequestMatches(payload, request, matchKeys)) {
       return allowMissing
-        ? launchGateResult(false, `${label}: cached Backend Preflight is stale for the current form, but Validate remains available; backend re-checks at submission time.`, { state: "stale" })
+        ? launchGateResult(false, `${label}: cached Backend Preflight is stale for the current form, but backend start can submit and re-check at submission time.`, { state: "stale" })
         : launchGateResult(true, `Blocked: cached Backend Preflight is stale for ${label}. Action: Refresh Backend Preflight for the selected mode and form values.`, { state: "stale" });
     }
     const status = launchBackendPreflightOverallStatus([payload]);
@@ -110,15 +109,12 @@
   function launchButtonGate(id) {
     if (id === "pipeline-start-button") {
       const request = collectPipelineStartRequest();
-      const allowMissing = String(request.mode || "") === "validate";
       const targetGate = launchTargetGate("pipeline", request, {
-        allowMissing,
+        allowMissing: true,
         matchKeys: ["mode", "sleep_seconds", "schedule_override", "single_file"],
         label: "Start Pipeline",
       });
       if (targetGate.blocked) return targetGate;
-      const decisionGate = launchStartDecisionGate(request);
-      if (decisionGate.blocked) return decisionGate;
       return targetGate;
     }
     if (id === "pending-drain-button") {
@@ -132,17 +128,16 @@
       const decisionGate = launchStartDecisionGate(request);
       return decisionGate.blocked ? decisionGate : targetGate;
     }
-    if (id === "rerun-start-button" || id === "rerun-dry-run-button" || id === "rerun-plan-only-button") {
-      const request = collectRerunStartRequest({
-        dry_run: id === "rerun-dry-run-button",
-        plan_only: id === "rerun-plan-only-button",
-      });
-      const label = id === "rerun-plan-only-button"
-        ? "Plan CSV Rerun"
-        : id === "rerun-dry-run-button" ? "Preview CSV Rerun" : "Start CSV Rerun";
+    if (id === "rerun-start-button") {
+      const request = collectRerunStartRequest({ dry_run: false, plan_only: false });
+      const previewReason = String(rerunPreviewBlockedReason(request) || "").trim();
+      if (previewReason) {
+        return launchGateResult(true, `Blocked: ${previewReason}`, { state: "blocked", reason_source: "rerun_preview" });
+      }
+      const label = "Review & Start CSV Rerun";
       const targetGate = launchTargetGate("rerun", request, {
         allowMissing: false,
-        matchKeys: ["csv_path", "dry_run", "plan_only", "stage_mode", "original_mode", "return_mode"],
+        matchKeys: ["csv_path", "dry_run", "plan_only", "execution_mode", "destination_mode", "original_policy", "window_size", "collision_policy"],
         label,
       });
       if (targetGate.blocked) return targetGate;

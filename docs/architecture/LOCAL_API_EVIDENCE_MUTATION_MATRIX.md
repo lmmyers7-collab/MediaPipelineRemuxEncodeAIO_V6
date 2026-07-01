@@ -2,7 +2,7 @@
 
 Companion to `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
 
-Total routes: 154 (51 read, 103 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+Total routes: 156 (52 read, 104 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
 
 ---
 
@@ -16,9 +16,9 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 |---|---|---|---|
 | `GET /api/health` | `read` | No | Public startup probe before the token is passed to WebView |
 | `GET /api/contract` | `read` | No | Self-describing route contract; Tauri validates before opening WebView |
-| `GET /api/snapshot` | `read` | No | Backend assembles pipeline, audit, and process state |
+| `GET /api/snapshot` | `read` | No | Backend assembles pipeline, audit, process state, and read-only long-run reliability counters |
 | `GET /api/telemetry` | `read` | No | CPU/RAM/GPU sample cached by backend |
-| `GET /api/diagnostics` | `read` | No | Recent backend events, errors, and launch-log summary |
+| `GET /api/diagnostics` | `read` | No | Recent backend events, errors, launch-log summary, and backend-owned autonomy health evidence |
 | `GET /api/diagnostics/tail` | `read` | No | `target` must be allowlisted; `max_bytes` is capped at 256 KB; no arbitrary path accepted |
 | `GET /api/diagnostics/state-summary` | `read` | No | Bounded inline artifact summary; no arbitrary path accepted |
 | `GET /api/diagnostics/tdarr-matrix/latest` | `read` | No | Reads latest or selected Tdarr Matrix run evidence and target keys; no file open or launch |
@@ -45,6 +45,7 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | `GET /api/metrics` | `read` | No | Backend aggregates completed manifest, pending publish, worker runtime, and final-library promotion evidence; no launch, drain, promote, settings, queue, or media mutation |
 | `GET /api/final-library-promotion/status` | `read` | No | Reads final-library promotion readiness/run state; no copy, move, delete, or cleanup action |
 | `GET /api/failures` | `read` | No | Failure markers and reports; query-bounded |
+| `GET /api/failures/artifacts` | `read` | No | Backend-resolved current and legacy failure artifact folders only; reports size, age, largest files, threshold, cleanup-policy, and scan errors; no media touch or cleanup action |
 | `GET /api/audit-results` | `read` | No | Audit CSV preview; no rerun CSV written |
 | `GET /api/audit-controls` | `read` | No | Reads audit score policy and audit-only ignore state; no save/export/media mutation |
 | `GET /api/audit-sources` | `read` | No | Reads backend-owned Audit source registry and scan status only; no scan, save, launch, or media mutation |
@@ -133,8 +134,9 @@ Moves backend-owned failure marker JSON out of the active marker folder after ex
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
 | `POST /api/failures/clear` | `failure-marker-write` | Frontend cannot delete or move marker files directly | `confirm_clear` required unless `dry_run` is true; marker paths must resolve inside backend `State\Failures\Markers` |
-| `POST /api/failures/archive-evidence` | `failure-evidence-archive` | Frontend cannot archive, delete, or move failure evidence directly | v1 scope is `all_active`; confirmed archive requires `confirm_archive: true`, non-empty `reason`, and matching `dry_run_fingerprint`; moves only active marker JSON and `round_failures_*.json/.txt` reports into the clear-manifest archive |
-| `POST /api/failures/lifecycle` | `failure-resolution-journal-write` | Frontend cannot write lifecycle journal state directly | Active backend-authored group only; resolve/reopen/waive require reason, preview fingerprint, and `confirm_transition: true`; writes only `State\Failures\ResolutionJournal\events.jsonl` |
+| `POST /api/failures/archive-evidence` | `failure-evidence-archive` | Frontend cannot archive, delete, or move failure evidence directly | v1 scope is `all_active`; confirmed archive requires `confirm_archive: true`; reason and fingerprint are optional for routine current-plan archive, and supplied fingerprints are validated; moves only active marker JSON and `round_failures_*.json/.txt` reports into the clear-manifest archive |
+| `POST /api/failures/artifacts/cleanup` | `failure-artifact-delete` | Frontend cannot delete failure artifact files directly | Confirmed delete requires `confirm_delete: true`; policy-based cleanup may use the current backend plan without a fingerprint; explicit `artifact_paths` deletion still requires a matching fingerprint; deletes only files under current and legacy failure artifact roots |
+| `POST /api/failures/lifecycle` | `failure-resolution-journal-write` | Frontend cannot write lifecycle journal state directly | Active backend-authored group only; resolve/reopen/waive require reason and `confirm_transition: true`; backend recomputes blockers at apply time and validates supplied fingerprints; writes only `State\Failures\ResolutionJournal\events.jsonl` |
 
 ### shell-open (no media mutation)
 

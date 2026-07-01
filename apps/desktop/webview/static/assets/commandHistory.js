@@ -873,7 +873,7 @@
       const launchIntent = typeof launchView.launchSettingsIntentStatus === "function" ? launchView.launchSettingsIntentStatus() : "unavailable";
       const queueDecision = typeof queueLaunchDecisionStatus === "function" ? queueLaunchDecisionStatus() : "unavailable";
       return finish(true, `Launch cached evidence: preflight=${pipelinePreflight?.status || "missing"}; launch intent=${launchIntent}; queue decision=${queueDecision}.`, [], [
-        "Owner action: compare Backend Launch Preflight, Saved Settings vs Launch Intent, Queue-to-Launch Handoff, and Diagnostics before pressing Start again.",
+        "Owner action: use Backend Launch Preflight, Saved Settings vs Launch Intent, Queue-to-Launch Handoff, and Diagnostics to explain the backend result before retrying.",
       ]);
     }
 

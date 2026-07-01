@@ -25,7 +25,7 @@ from .pending_results import (
 )
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_inventory import PendingPublishPreviewDto
+    from mediapipeline.core.kernel.dto_inventory import PendingPublishPreviewDto
 
 def int_value(value: Any) -> int:
     try:

@@ -8,7 +8,7 @@ Source: `src/mediapipeline/desktop/api/contract_command.py`,
 `src/mediapipeline/core/api/commands.py`, and the WebView `apiPost` call
 inventory.
 
-Total command routes: 103 POST routes across 11 contract groups.
+Total command routes: 108 POST routes across 11 contract groups.
 
 Network lifecycle start/stop now has backend-owned dry-run and confirmed POST
 routes. Confirmed coordinator/worker lifecycle routes are confirmation-gated,
@@ -22,7 +22,7 @@ dry-run fingerprints and backend backups.
 
 | Contract constant | Routes |
 |---|---|
-| `LOCAL_API_FILE_COMMAND_ROUTE_CONTRACT` | queue/scan, queue/priority, queue/strategy, queue/file-overrides, queue/file-overrides/route-preview, queue/file-overrides/series-preview, queue/file-overrides/series-apply, queue/file-overrides/series-clear-preview, queue/file-overrides/series-clear-apply, queue/file-overrides/remux-pilot-promote, queue/file-overrides/folder-preview, queue/file-overrides/folder-rule, failures/clear, failures/archive-evidence, failures/lifecycle, queue/open, completed/open, subtitle-qa/preview, pending-publish/open, pending-publish/recovery-plan, completed/reconcile-manifest-dry-run, completed/reconcile-manifest, completed/repair-sidecar-metadata-dry-run, completed/repair-sidecar-metadata, pending-publish/repair-manifest-dry-run, pending-publish/repair-manifest, pending-publish/reconcile-orphan-payloads-dry-run, pending-publish/reconcile-orphan-payloads, startup/reconcile-dry-run, final-library-promotion/promote-queue, final-library-promotion/pause, final-library-promotion/resume |
+| `LOCAL_API_FILE_COMMAND_ROUTE_CONTRACT` | queue/scan, queue/priority, queue/strategy, queue/file-overrides, queue/file-overrides/route-preview, queue/file-overrides/series-preview, queue/file-overrides/series-apply, queue/file-overrides/series-clear-preview, queue/file-overrides/series-clear-apply, queue/file-overrides/remux-pilot-promote, queue/file-overrides/folder-preview, queue/file-overrides/folder-rule, failures/clear, failures/archive-evidence, failures/open, failures/artifacts/cleanup, failures/lifecycle, queue/open, completed/open, subtitle-qa/preview, pending-publish/open, pending-publish/recovery-plan, completed/reconcile-manifest-dry-run, completed/reconcile-manifest, completed/repair-sidecar-metadata-dry-run, completed/repair-sidecar-metadata, pending-publish/repair-manifest-dry-run, pending-publish/repair-manifest, pending-publish/reconcile-orphan-payloads-dry-run, pending-publish/reconcile-orphan-payloads, startup/reconcile-dry-run, final-library-promotion/promote-queue, final-library-promotion/pause, final-library-promotion/resume |
 | `LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT` | maintenance/release-dry-run, maintenance/release-build, maintenance/completed-backfill-dry-run, maintenance/retention-dry-run, maintenance/dependency-atlas, maintenance/dependency-atlas/open-folder, maintenance/archive-state-journals, maintenance/support-export |
 | `LOCAL_API_METRICS_COMMAND_ROUTE_CONTRACT` | metrics/sources, metrics/backfill |
 | `LOCAL_API_DIAGNOSTICS_COMMAND_ROUTE_CONTRACT` | diagnostics/open, diagnostics/tdarr-matrix-audit, diagnostics/tdarr-matrix/evidence/open, diagnostics/tdarr-matrix/rerun |
@@ -31,7 +31,7 @@ dry-run fingerprints and backend backups.
 | `LOCAL_API_SCHEDULE_COMMAND_ROUTE_CONTRACT` | schedule/preview, schedule/save |
 | `LOCAL_API_SAMPLE_VALIDATION_COMMAND_ROUTE_CONTRACT` | sample-validation/preview, sample-validation/append |
 | `LOCAL_API_UI_COMMAND_ROUTE_CONTRACT` | ui-preferences, path-picker/browse |
-| `LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT` | pipeline/control, pipeline/browse-file, pipeline/start, audit/start, audit/stop, audit/sources, audit/sources/scan, audit/score-policy, audit/ignore, audit/export-rerun-csv, rerun/preview, rerun/start, backend/shutdown |
+| `LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT` | pipeline/control, pipeline/browse-file, pipeline/start, audit/start, audit/stop, audit/sources, audit/sources/scan, audit/score-policy, audit/ignore, audit/export-rerun-csv, rerun/preview, rerun/start, rerun/open, rerun/promote-dry-run, rerun/promote, backend/shutdown |
 | `LOCAL_API_NETWORK_COMMAND_ROUTE_CONTRACT` | network/coordinator/start-dry-run, network/coordinator/stop-dry-run, network/coordinator/join-blob, network/worker/start-dry-run, network/worker/stop-dry-run, network/worker/test-connection, network/worker/discover-coordinators, network/worker/join-cluster, network/coordinator/start, network/coordinator/stop, network/worker/start, network/worker/stop |
 
 ---
@@ -65,8 +65,10 @@ launch processing work, publish, drain, or mutate source media.
 | Route | Owner page | Owner JS | Mutation class | Key restriction |
 |---|---|---|---|---|
 | `POST /api/failures/clear` | Reports | `reportsView.js` | `failure-marker-write` | `confirm_clear: true` required unless `dry_run: true`; marker paths must resolve inside backend `State\Failures\Markers` |
-| `POST /api/failures/archive-evidence` | Reports | `reportsView.js` | `failure-evidence-archive` | Supported scope is `all_active`; dry-run first; confirmed archive requires `confirm_archive: true`, non-empty `reason`, and matching `dry_run_fingerprint` |
-| `POST /api/failures/lifecycle` | Reports | `reportsView.js` | `failure-resolution-journal-write` | Appends lifecycle state to `State\Failures\ResolutionJournal\events.jsonl`; resolve/reopen/waive require reason, dry-run fingerprint, and `confirm_transition: true` |
+| `POST /api/failures/archive-evidence` | Reports | `reportsView.js` | `failure-evidence-archive` | Supported scope is `all_active`; confirmed archive requires `confirm_archive: true`; reason and fingerprint are optional for routine current-plan archive, and supplied fingerprints are validated |
+| `POST /api/failures/open` | Reports | `reportsView.js` | `shell-open` | Opens only backend-resolved evidence paths from the selected failure row; frontend supplies row key, source kind, and allowlisted target, never a raw path |
+| `POST /api/failures/artifacts/cleanup` | Reports | `reportsView.js` | `failure-artifact-delete` | UI is select-and-delete; selected `artifact_paths` limit deletion to checked rows and still require the internal dry-run fingerprint; policy cleanup may use the current backend plan; deletes only backend-resolved current/legacy failure artifact files |
+| `POST /api/failures/lifecycle` | Reports | `reportsView.js` | `failure-resolution-journal-write` | Appends lifecycle state to `State\Failures\ResolutionJournal\events.jsonl`; resolve/reopen/waive require reason and `confirm_transition: true`; backend recomputes blockers at apply time |
 
 Failure marker clear moves marker JSON out of the active marker folder and
 writes a clear manifest. It does not delete media files, failure reports,
@@ -79,6 +81,11 @@ or source/output files.
 Failure lifecycle writes append-only operator resolution state only. It does
 not clear markers, archive reports, retry work, mutate queue/publish/completed
 state, or touch media files.
+Failure artifact cleanup permanently deletes only files under backend-resolved
+`State\Failures\Artifacts` and legacy `Failed\Artifacts` after a matching
+dry-run fingerprint and reason. It does not delete source or output media,
+marker JSON, round failure reports, completed manifests, pending publish state,
+or artifact root directories.
 
 ### File Open And Pending Recovery
 
@@ -266,8 +273,11 @@ claims silently, or mutate source/scratch/output/pending-publish files.
 | `POST /api/audit/stop` | Reports | `reportsView.js` | `process-control` | Requires `confirm_stop: true`; backend stops audit process trees only and marks audit progress stopped |
 | `POST /api/audit/sources` | Reports | `reportsView.js` | `audit-source-state-write` | Adds/removes/enables/disables backend-owned Audit source roots in `State\Audit`; does not scan, launch, or touch media |
 | `POST /api/audit/sources/scan` | Reports | `reportsView.js` | `audit-source-scan-state-write` | Recursively counts media, sidecar, and folder totals for selected Audit roots; writes aggregate scan status only and does not mutate media |
-| `POST /api/rerun/preview` | Launch | `launchView.js` | `read-only-preview` | Backend parses the selected CSV, recent candidates, policy warnings, and scoped counts without launch, scoped CSV writes, or media mutation |
-| `POST /api/rerun/start` | Launch | `launchView.js` | `process-launch` | Mode fields are operator-selectable; executable policy remains `stage_mode: copy`, `original_mode: keep`, `return_mode: park`; narrowed dry-run/live scope writes a backend-owned scoped CSV under `State\Rerun\ScopedCsv` |
+| `POST /api/rerun/preview` | Launch | `launchView.js` | `read-only-preview` | Backend parses the selected CSV, import/scoped candidates, lifecycle warnings, filter options, status tiles, and scoped counts without launch or media mutation |
+| `POST /api/rerun/start` | Launch | `launchView.js` | `process-launch` | Backend-owned CSV rerun v2; default one-at-a-time execution controls scratch pressure, and destination/original policies are strict-confirmation and evidence gated |
+| `POST /api/rerun/open` | Launch | `launchView.js` | `shell-open` | Opens only backend-derived review output, manifest, import/scoped CSV, or folder targets by row/csv key |
+| `POST /api/rerun/promote-dry-run` | Launch | `launchView.js` | `read-only-preview` | Builds dry-run evidence for promoting an existing rerun review output into Pending Publish |
+| `POST /api/rerun/promote` | Launch | `launchView.js` | `pending-manifest-write` | Requires matching dry-run fingerprint and `confirm_promote: true`; moves the review output into Pending Publish and writes a manifest |
 | `POST /api/backend/shutdown` | App shell | `app.js`, Tauri shell | `backend-lifecycle` | Shell must check `GET /api/backend/close-readiness`; unsafe close is rejected unless `force_active_work_shutdown` is literal boolean `true` |
 
 ---
@@ -277,13 +287,14 @@ claims silently, or mutate source/scratch/output/pending-publish files.
 | Class | Count | Routes |
 |---|---:|---|
 | `none` | 26 | pending-publish/recovery-plan, completed/reconcile-manifest-dry-run, completed/repair-sidecar-metadata-dry-run, pending-publish/repair-manifest-dry-run, pending-publish/reconcile-orphan-payloads-dry-run, startup/reconcile-dry-run, maintenance/retention-dry-run, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, settings/import-psd1-preview, settings/wizard/validate-paths, settings/wizard/validate-tools, settings/wizard/probe-hardware, settings/wizard/validate-workers, settings/wizard/preview, settings/reload, schedule/preview, sample-validation/preview, network/coordinator/start-dry-run, network/coordinator/stop-dry-run, network/worker/start-dry-run, network/worker/stop-dry-run, network/worker/test-connection, network/worker/discover-coordinators |
-| `read-only-preview` | 6 | queue/file-overrides/route-preview, queue/file-overrides/series-preview, queue/file-overrides/series-clear-preview, queue/file-overrides/folder-preview, subtitle-qa/preview, rerun/preview |
-| `shell-open` | 6 | queue/open, completed/open, pending-publish/open, diagnostics/open, diagnostics/tdarr-matrix/evidence/open, maintenance/dependency-atlas/open-folder |
+| `read-only-preview` | 7 | queue/file-overrides/route-preview, queue/file-overrides/series-preview, queue/file-overrides/series-clear-preview, queue/file-overrides/folder-preview, subtitle-qa/preview, rerun/preview, rerun/promote-dry-run |
+| `shell-open` | 8 | queue/open, completed/open, pending-publish/open, diagnostics/open, diagnostics/tdarr-matrix/evidence/open, failures/open, maintenance/dependency-atlas/open-folder, rerun/open |
 | `shell-dialog` | 4 | rename/browse, settings/browse-path, path-picker/browse, pipeline/browse-file |
 | `test-fixture-write` | 1 | rename/filter-cases |
 | `queue-state-write` | 7 | queue/priority, queue/strategy, queue/file-overrides, queue/file-overrides/series-apply, queue/file-overrides/series-clear-apply, queue/file-overrides/remux-pilot-promote, queue/file-overrides/folder-rule |
 | `failure-marker-write` | 1 | failures/clear |
 | `failure-evidence-archive` | 1 | failures/archive-evidence |
+| `failure-artifact-delete` | 1 | failures/artifacts/cleanup |
 | `failure-resolution-journal-write` | 1 | failures/lifecycle |
 | `audit-state-write` | 2 | audit/score-policy, audit/ignore |
 | `report-file-write` | 1 | audit/export-rerun-csv |
@@ -297,6 +308,7 @@ claims silently, or mutate source/scratch/output/pending-publish files.
 | `config-write` | 4 | settings/save-patch, settings/import-psd1, settings/wizard/save, network/worker/join-cluster |
 | `secret-transfer` | 1 | network/coordinator/join-blob |
 | `filesystem-mutation` | 3 | rename/apply, rename/undo, final-library-promotion/promote-queue |
+| `pending-manifest-write` | 2 | pending-publish/repair-manifest, rerun/promote |
 | `control-state-write` | 2 | final-library-promotion/pause, final-library-promotion/resume |
 | `control-flag-write` | 1 | pipeline/control |
 | `process-control` | 1 | audit/stop |
@@ -322,8 +334,8 @@ outputs, force process cleanup, or shut down the backend:
 - `pipeline/start` with `mode: drain_pending_pushes`
 - `backend/shutdown`
 
-**High** - starts long-running work, writes live config, or creates release
-deployment artifacts:
+**High** - starts long-running work, writes live config, deletes bounded
+runtime evidence, or creates release deployment artifacts:
 
 - `pipeline/start` with non-drain modes
 - `audit/start`
@@ -336,6 +348,7 @@ deployment artifacts:
 - `network/coordinator/join-blob`
 - `network/worker/join-cluster`
 - `maintenance/release-build`
+- `failures/artifacts/cleanup`
 
 **Medium** - writes bounded backend state or control signals:
 

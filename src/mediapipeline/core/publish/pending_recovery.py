@@ -20,7 +20,7 @@ from .pending_rows import (
 )
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
 def normalize_pending_publish_recovery_scope(value: Any, row_key: str = "") -> str:
     text = str(value or "").strip().casefold()

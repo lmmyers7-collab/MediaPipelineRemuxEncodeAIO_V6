@@ -120,7 +120,7 @@
     const lines = ["", "Root-cause summary:"];
     lines.push(`Cause: ${cause || "The backend rejected or failed the command without a detailed cause."}`);
     if (payload.command === "pipeline.start") {
-      lines.push("Suggested next step: compare Backend Preflight, Launch Start Summary, Queue selected row, Run Logs, and Last Stderr before pressing Start again.");
+      lines.push("Suggested next step: inspect the backend rejection with Backend Preflight, Launch Start Summary, Queue selected row, Run Logs, and Last Stderr, then retry when the concrete issue is clear.");
     } else if (payload.command === "audit.start") {
       lines.push("Suggested next step: verify the library root/Outsource path, audit preflight, Run Logs, and Last Stderr before starting Audit again.");
     } else if (payload.command === "rerun.start") {

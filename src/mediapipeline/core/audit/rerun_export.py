@@ -4,7 +4,8 @@ import csv
 import io
 from pathlib import Path
 
-from mediapipeline.desktop.models import AuditRecord, ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.audit.contracts import AuditRecord
 from mediapipeline.core.audit.rerun_contracts import RerunCsvExportServiceProtocol
 from mediapipeline.core.audit.rerun_csv import (
     RERUN_CSV_COLUMNS,

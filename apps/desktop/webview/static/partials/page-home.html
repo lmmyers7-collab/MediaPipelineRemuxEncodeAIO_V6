@@ -13,6 +13,7 @@
           <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="live" aria-label="Open Telemetry for the current item position" title="Open Telemetry">
             <span class="metric-label">Current Item</span>
             <strong id="queue-count">0 / 0</strong>
+            <span id="queue-count-detail" class="metric-detail">No active item loaded.</span>
           </section>
           <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="pending" aria-label="Open Pending Publish" title="Open Pending Publish">
             <span class="metric-label">Pending</span>
@@ -41,7 +42,7 @@
           <p id="home-promotion-entry-message" class="note visually-hidden" aria-live="polite">Completed Output opens when reviewed files are eligible for final-library promotion.</p>
         </section>
 
-        <section class="panel live-run-strip-panel" data-panel-type="evidence">
+        <section class="panel live-run-strip-panel" data-panel-type="status">
           <div class="panel-heading">
             <h2>Live Run</h2>
             <strong id="home-live-run-status" data-state="unknown">Checking</strong>
@@ -137,6 +138,11 @@
               <span class="metric-label">Library Output</span>
               <strong id="home-output-storage-status">...</strong>
               <span id="home-output-storage-detail" class="metric-detail">No storage evidence loaded.</span>
+            </section>
+            <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="reports" data-quick-link-reports-tab="failures" data-quick-link-module="reports" data-quick-link-action="failure-all" aria-label="Open failure artifact storage evidence" title="Open failure artifact evidence">
+              <span class="metric-label">Failure Artifacts</span>
+              <strong id="home-failure-artifact-storage-status">...</strong>
+              <span id="home-failure-artifact-storage-detail" class="metric-detail">No artifact evidence loaded.</span>
             </section>
           </div>
 

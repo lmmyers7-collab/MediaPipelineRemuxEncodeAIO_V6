@@ -14,6 +14,7 @@ from mediapipeline.desktop.network import mdns
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application.facade import MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.network.facade import NetworkDiscoveryUnavailable
 from tests.python.desktop.application_facade_test_support import DummyFacadeService
 
 
@@ -313,8 +314,9 @@ class NetworkCoordinatorDiscoveryCommandTests(unittest.TestCase):
             facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
             resolved = _resolved(root, {"NetworkRole": "worker"})
 
-            with patch(
-                "mediapipeline.core.network.facade.discover_coordinators",
+            with patch.object(
+                facade,
+                "_network_discover_coordinators",
                 return_value=["http://coordinator.test:7830", "http://coordinator.test:7830", "bad-url"],
             ) as discover:
                 result = facade.request_network_worker_discover_coordinators(
@@ -350,9 +352,10 @@ class NetworkCoordinatorDiscoveryCommandTests(unittest.TestCase):
             facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
             resolved = _resolved(root, {"NetworkRole": "worker"})
 
-            with patch(
-                "mediapipeline.core.network.facade.discover_coordinators",
-                side_effect=mdns.ZeroconfUnavailable("zeroconf not installed"),
+            with patch.object(
+                facade,
+                "_network_discover_coordinators",
+                side_effect=NetworkDiscoveryUnavailable("zeroconf not installed"),
             ):
                 result = facade.request_network_worker_discover_coordinators(resolved, {}).to_mapping()
 
@@ -375,8 +378,9 @@ class NetworkCoordinatorDiscoveryCommandTests(unittest.TestCase):
             )
             try:
                 server.start()
-                with patch(
-                    "mediapipeline.core.network.facade.discover_coordinators",
+                with patch.object(
+                    facade,
+                    "_network_discover_coordinators",
                     return_value=["http://coordinator.test:7830"],
                 ):
                     status, payload = _post_json(

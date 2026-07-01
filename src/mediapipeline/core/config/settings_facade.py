@@ -20,21 +20,21 @@ from mediapipeline.core.config.settings_policy import (
     settings_workspace_paths,
 )
 from mediapipeline.core.processes.path_evidence import configured_path_health, path_health_warning_lines
-from mediapipeline.desktop.application.settings_risk_policy import (
+from mediapipeline.core.config.settings_risk_policy import (
     build_current_settings_risk_summary,
     build_media_policy_readiness,
     build_settings_policy_impact,
 )
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.config.profiles import config_profile_path, config_profiles_dir
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
-    from mediapipeline.desktop.application.dto_workspaces import SettingsWorkspaceDto
+    from mediapipeline.core.kernel.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_workspaces import SettingsWorkspaceDto
 
 
 def _settings_workspace_dto(**fields: Any) -> "SettingsWorkspaceDto":
-    from mediapipeline.desktop.application.dto_workspaces import SettingsWorkspaceDto
+    from mediapipeline.core.kernel.dto_workspaces import SettingsWorkspaceDto
 
     return SettingsWorkspaceDto(**fields)
 
@@ -118,7 +118,7 @@ class SettingsFacadeMixin:
     def preview_settings_psd1_import(self, resolved: ResolvedPaths) -> CommandResult:
         importer = getattr(self.service, "import_psd1_settings_preview", None)
         if not callable(importer):
-            from mediapipeline.desktop.application.dto_commands import CommandResult
+            from mediapipeline.core.kernel.dto_commands import CommandResult
 
             return CommandResult(
                 command="settings.import_psd1_preview",
@@ -131,7 +131,7 @@ class SettingsFacadeMixin:
         try:
             data = importer(resolved)
         except Exception as exc:
-            from mediapipeline.desktop.application.dto_commands import CommandResult
+            from mediapipeline.core.kernel.dto_commands import CommandResult
 
             return CommandResult(
                 command="settings.import_psd1_preview",
@@ -141,7 +141,7 @@ class SettingsFacadeMixin:
                 errors=[str(exc)],
                 data={"writes_config": False, "writes_store": False},
             )
-        from mediapipeline.desktop.application.dto_commands import CommandResult
+        from mediapipeline.core.kernel.dto_commands import CommandResult
 
         errors = [str(item) for item in data.get("errors") or []]
         warnings = [str(item) for item in data.get("warnings") or []]
@@ -156,7 +156,7 @@ class SettingsFacadeMixin:
         )
 
     def import_settings_psd1(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
-        from mediapipeline.desktop.application.dto_commands import CommandResult
+        from mediapipeline.core.kernel.dto_commands import CommandResult
 
         if request.get("confirm_import") is not True:
             return CommandResult(

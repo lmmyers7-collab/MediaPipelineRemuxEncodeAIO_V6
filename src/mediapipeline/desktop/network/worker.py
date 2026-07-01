@@ -156,6 +156,10 @@ class WorkerDispatcher(
         self._heartbeat_thread: threading.Thread | None = None
         self._job_reclaimed    = False
         self._last_heartbeat_failure_text = ""
+        self._heartbeat_failure_started_monotonic: float | None = None
+        self._heartbeat_failure_started_at = ""
+        self._heartbeat_failure_age_seconds = 0
+        self._heartbeat_failure_abort_threshold_seconds_value = 0
 
         # Poll thread management.
         self._poll_stop   = threading.Event()

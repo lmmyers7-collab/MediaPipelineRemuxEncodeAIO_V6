@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Protocol
 
-from mediapipeline.desktop.subprocess_runner import CapturedCommandResult, KillTreeCallback
+from mediapipeline.core.kernel.runtime.subprocess_runner import CapturedCommandResult, KillTreeCallback
 
 
 class WarningLogger(Protocol):

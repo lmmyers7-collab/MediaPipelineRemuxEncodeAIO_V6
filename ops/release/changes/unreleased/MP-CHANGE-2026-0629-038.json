@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0629-038",
+  "title": "Fix audit source command route",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-30",
+  "summary": "Fixed the audit source add command so POST /api/audit/sources resolves to the command handler, and added the requested audit source locations to the runtime source registry.",
+  "reason": "The Reports audit source UI showed typed input outside the Locations table because the add-source command failed with an internal route error before the backend could persist a table row.",
+  "affected_areas": [
+    "api",
+    "generated-context",
+    "tests"
+  ],
+  "behavior_before": "POST /api/audit/sources resolved to the GET audit source payload method name and raised a TypeError, leaving the Locations table empty while the typed value only appeared in command summary/preflight text.",
+  "behavior_after": "POST /api/audit/sources resolves to a distinct command payload method, the requested UNC roots persist as audit source rows, and GET /api/audit-sources returns both rows for the Locations table.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0629-038.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/api/commands.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/api/commands_audit.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_audit_sources.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-038.json",
+    "src/mediapipeline/core/api/commands.py",
+    "src/mediapipeline/core/api/commands_audit.py",
+    "tests/python/desktop/test_audit_sources.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_audit_sources.py::AuditSourcesTests::test_local_api_post_audit_sources_uses_command_handler"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_audit_sources -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_api_command_contracts -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_maintenance_reports_smoke -q",
+    "Updated E:\\Videos\\Scratch\\State\\Audit\\audit_sources.json through mediapipeline.core.audit.sources.update_audit_sources and verified it contains \\\\LAYNE-SERVER\\Users\\Layne\\Videos\\outsource and \\\\LAYNE-SERVER\\share\\Video as enabled source rows."
+  ],
+  "rollback_plan": "Revert the command method rename and route mapping, remove the added regression test, refresh generated summaries, and remove the two runtime audit source rows through the audit source service if the runtime state change must be undone.",
+  "related_changes": [],
+  "notes": "Route POST /api/audit/sources to a distinct command handler to avoid GET method-name collision.\nRename audit source POST payload method so LocalApiServer resolves the command implementation.\nAdd HTTP regression proving two requested UNC audit sources persist and read back as table rows.\nTreated the trailing pipe after \\\\LAYNE-SERVER\\share\\Video as a delimiter/typo because | is not a valid Windows path character.\nRefreshed summary after audit source command route fix.\nRefreshed summary after audit command handler rename.\nRefresh summary after audit source route regression test.\nRefresh summary after change packet update."
+}

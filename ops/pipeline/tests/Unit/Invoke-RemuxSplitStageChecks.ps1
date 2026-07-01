@@ -170,13 +170,54 @@ function New-MediaRouteDecisionTraceEntry {
     }
 }
 
+function New-RemuxHarnessVideoStream {
+    param(
+        [int] $Index,
+        [int] $VideoOrdinal,
+        [string] $Codec,
+        [bool] $AttachedPicture = $false
+    )
+
+    return [pscustomobject][ordered]@{
+        Index           = [int]$Index
+        VideoOrdinal    = [int]$VideoOrdinal
+        Codec           = [string]$Codec
+        Width           = if ($AttachedPicture) { 600 } else { 1920 }
+        Height          = if ($AttachedPicture) { 900 } else { 1080 }
+        AttachedPicture = [bool]$AttachedPicture
+    }
+}
+
+function New-RemuxHarnessVideoInventory {
+    param(
+        [array] $RealVideoStreams,
+        [array] $AttachedPicStreams = @()
+    )
+
+    return [pscustomobject][ordered]@{
+        Ok                   = $true
+        ErrorCode            = ''
+        Reason               = ''
+        RealVideoStreams     = @($RealVideoStreams)
+        AttachedPicStreams   = @($AttachedPicStreams)
+        RealVideoStreamCount = @($RealVideoStreams).Count
+        AttachedPicCount     = @($AttachedPicStreams).Count
+    }
+}
+
 function Test-SourceVideoStreamPublishPolicy {
     param([string] $FilePath, [string] $Route)
+    $inventory = $script:VideoStreamInventory
+    if (-not $inventory) {
+        $inventory = New-RemuxHarnessVideoInventory -RealVideoStreams @(
+            (New-RemuxHarnessVideoStream -Index 0 -VideoOrdinal 0 -Codec 'h264')
+        )
+    }
     return [pscustomobject][ordered]@{
         Allowed   = $true
         Reason    = ''
         ErrorCode = ''
-        Inventory = [pscustomobject][ordered]@{ video_stream_count = 1 }
+        Inventory = $inventory
     }
 }
 
@@ -521,6 +562,9 @@ function Reset-RemuxHarness {
     $script:MkvmergeExitCode = $MkvmergeExitCode
     $script:MkvmergeCreatesOutput = $MkvmergeCreatesOutput
     $script:IncludeSubtitleTracks = $IncludeSubtitleTracks
+    $script:VideoStreamInventory = New-RemuxHarnessVideoInventory -RealVideoStreams @(
+        (New-RemuxHarnessVideoStream -Index 0 -VideoOrdinal 0 -Codec 'h264')
+    )
     $script:LastFfmpegArgs = @()
     $script:LastMkvArgs = @()
     $script:DoEncodeCalled = $false
@@ -536,12 +580,25 @@ try {
     Assert-OrderContainsBefore 'mkvmerge' 'duration' 'Duration verification must run after accepted mkvmerge.'
     Assert-OrderContainsBefore 'duration' 'video-preservation' 'Video preservation verification must run after duration verification.'
     Assert-OrderContainsBefore 'video-preservation' 'publish' 'Publish must run after video preservation verification.'
-    Assert-ContainsSubsequence $script:LastFfmpegArgs @('-fflags', '+genpts', '-i', $script:ScratchPath, '-map', '0:V', '-c:v', 'copy') 'REMUX-AV command shape drifted before video stream-copy mapping.'
+    Assert-ContainsSubsequence $script:LastFfmpegArgs @('-fflags', '+genpts', '-i', $script:ScratchPath, '-map', '0:0', '-c:v', 'copy') 'REMUX-AV command shape drifted before video stream-copy mapping.'
     Assert-ContainsSubsequence $script:LastFfmpegArgs @('-map', '0:t?', '-map_chapters', '0', '-map_metadata', '0') 'REMUX-AV command shape drifted for attachments, chapters, or metadata.'
     Assert-ContainsSubsequence $script:LastMkvArgs @('--output', $script:CurrentPaths.LocalOut, '--title') 'REMUX-MUX command shape drifted before output/title arguments.'
     Assert-ContainsSubsequence $script:LastMkvArgs @('--default-track', '1:yes') 'REMUX-MUX command shape must include explicit audio default-track flags.'
     Assert-True (Test-Path -LiteralPath $script:ScratchPath -PathType Leaf) 'KeepScratchInput publish result should preserve scratch input.'
     Assert-False (Test-Path -LiteralPath $script:CurrentPaths.LocalOut -PathType Leaf) 'DeleteLocalOutput publish result should delete local output after successful push.'
+
+    Reset-RemuxHarness
+    $script:VideoStreamInventory = New-RemuxHarnessVideoInventory `
+        -RealVideoStreams @((New-RemuxHarnessVideoStream -Index 0 -VideoOrdinal 0 -Codec 'hevc')) `
+        -AttachedPicStreams @((New-RemuxHarnessVideoStream -Index 5 -VideoOrdinal -1 -Codec 'mjpeg' -AttachedPicture:$true))
+    $ok = Do-Remux $script:SourceFile $false $null
+    Assert-True $ok 'HEVC remux with an MJPEG cover-art video stream should return true.'
+    $ffmpegArgText = $script:LastFfmpegArgs -join ' '
+    Assert-ContainsSubsequence $script:LastFfmpegArgs @('-fflags', '+genpts', '-i', $script:ScratchPath, '-map', '0:0', '-map', '0:5', '-c:v', 'copy') 'REMUX-AV must map HEVC real video and MJPEG cover-art streams explicitly.'
+    Assert-ContainsSubsequence $script:LastFfmpegArgs @('-bsf:v:0', 'hevc_mp4toannexb') 'REMUX-AV must scope HEVC bitstream filtering to the HEVC output stream.'
+    Assert-False ($ffmpegArgText -match '(^|\s)-bsf:v(\s|$)') 'REMUX-AV must not emit a broad -bsf:v filter that also applies to MJPEG cover-art streams.'
+    Assert-False ($ffmpegArgText -match '(^|\s)-bsf:v:1\s+hevc_mp4toannexb(\s|$)') 'REMUX-AV must not apply HEVC bitstream filtering to the MJPEG cover-art output stream.'
+    Assert-False ($ffmpegArgText -match '(^|\s)-map\s+0:V(\s|$)') 'REMUX-AV should use stream-inventory maps when cover-art video evidence is available.'
 
     Reset-RemuxHarness -IncludeSubtitleTracks:$true
     $ok = Do-Remux $script:SourceFile $false $null

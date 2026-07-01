@@ -4,7 +4,8 @@ from typing import Any
 
 from mediapipeline.core.queue.contracts import QueuePreviewServiceProtocol
 from mediapipeline.core.queue.dry_run import format_queue_plan_source_status, queue_snapshot_file_is_fresh
-from mediapipeline.desktop.models import QueueRecord, ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.queue.contracts import QueueRecord
 
 
 def build_queue_preview_for_service(

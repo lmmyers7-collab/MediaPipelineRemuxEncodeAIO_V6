@@ -19,10 +19,10 @@ from mediapipeline.core.schedule.policy import (
     schedule_save_success_result,
     schedule_save_validation_error_result,
 )
-from mediapipeline.desktop.application.dto_base import json_safe
-from mediapipeline.desktop.application.dto_commands import CommandResult
-from mediapipeline.desktop.application.dto_workspaces import ScheduleWorkspaceDto
-from mediapipeline.desktop.application.schedule_stop_watcher import schedule_stop_watcher_state_mapping
+from mediapipeline.core.kernel.dto_base import json_safe
+from mediapipeline.core.kernel.dto_commands import CommandResult
+from mediapipeline.core.kernel.dto_workspaces import ScheduleWorkspaceDto
+from mediapipeline.core.schedule.stop_watcher import schedule_stop_watcher_state_mapping
 
 
 def _request_bool(request: dict[str, Any], key: str, default: bool) -> bool:

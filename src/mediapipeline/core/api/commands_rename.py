@@ -3,11 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.api.path_dialogs import (
-    select_rename_paths_from_known_paths,
-    select_windows_paths_with_dialog,
-)
-from mediapipeline.desktop.application.dto import CommandResult
+from mediapipeline.core.kernel.dto_commands import CommandResult
+from mediapipeline.core.rename.path_selection import select_rename_paths_from_known_paths
 from mediapipeline.core.rename.bad_case_corpus import (
     DEFAULT_RENAME_BAD_CASE_FIXTURE,
     RenameBadCaseCorpusError,
@@ -74,7 +71,14 @@ class LocalApiRenameCommandPayloadMixin:
             result = picker(selection_mode=selection_mode, initial_path=initial_path)
             source = "windows_file_browser"
         else:
-            result = select_windows_paths_with_dialog(selection_mode=selection_mode, initial_path=initial_path)
+            result = {
+                "ok": False,
+                "canceled": False,
+                "selection_mode": selection_mode,
+                "paths": [],
+                "message": "Rename path picker backend adapter is unavailable.",
+                "errors": ["rename_path_picker_adapter_unavailable"],
+            }
             source = "windows_file_browser"
         paths = [str(path).strip() for path in result.get("paths", []) if str(path).strip()]
         canceled = bool(result.get("canceled", False))

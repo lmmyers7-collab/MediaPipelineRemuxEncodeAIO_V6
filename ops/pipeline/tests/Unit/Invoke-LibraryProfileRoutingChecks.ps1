@@ -603,8 +603,12 @@ Assert-True (-not $fileUnknownConfigMap.Contains('ProcessingStrategy')) 'Expecte
 Assert-True (-not $fileUnknownConfigMap.Contains('VideoCodec')) 'Expected unsupported legacy-cased per-file video override key not to be promoted.'
 
 $pipelineProcessingText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\process\pipeline_processing.ps1') -Raw
-$encodeEntrypointText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\encode.ps1') -Raw
-$remuxEntrypointText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\remux.ps1') -Raw
+$encodeSizeGuardText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\process\encode_size_guard.ps1') -Raw
+$encodeFallbackText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\process\encode_fallback.ps1') -Raw
+$remuxFallbackText = @(
+    (Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\process\remux_context.ps1') -Raw)
+    (Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\process\remux_preflight.ps1') -Raw)
+) -join "`n"
 $routingText = @(
     (Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\decide\route_plan.ps1') -Raw)
     (Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\decide\profile_selection.ps1') -Raw)
@@ -624,9 +628,9 @@ Assert-True ($pipelineProcessingText -match 'routing_key_sources\s*=\s*\$routing
 Assert-True ($pipelineProcessingText -match 'runtime_consumer_evidence\s*=\s*\$runtimeConsumerEvidence' -and $pipelineProcessingText -match 'audio_consumer_settings\s*=\s*\$audioConsumerSettings' -and $pipelineProcessingText -match 'subtitle_consumer_settings\s*=\s*\$subtitleConsumerSettings') 'Expected route_selected evidence to expose consumer-specific runtime settings.'
 Assert-True ($pipelineProcessingText -match 'container_path_planning_evidence\s*=\s*\$containerPathPlanningEvidence') 'Expected route_selected evidence to expose container/path planning evidence.'
 Assert-True ($pipelineProcessingText -match 'size_guard_evidence\s*=\s*\$Result\.SizeGuardEvidence' -and $pipelineProcessingText -match 'verification_evidence\s*=\s*\$Result\.VerificationEvidence' -and $pipelineProcessingText -match 'publish_evidence\s*=\s*\$Result\.PublishEvidence') 'Expected job_completed evidence to expose size guard, verification, and publish diagnostics.'
-Assert-True ($encodeEntrypointText -match 'remux fallback unavailable; rejecting oversized encode before publish' -and $encodeEntrypointText -match 'ENCODE_SIZE_GUARD_EXCEEDED' -and $encodeEntrypointText -match 'return\s+\$false') 'Expected fallback_remux failure to reject the oversized encode before publish.'
-Assert-True ($encodeEntrypointText -match 'remux fallback block reason' -and $encodeEntrypointText -match 'remux_fallback_rejection' -and $encodeEntrypointText -match 'AdditionalProperties') 'Expected fallback_remux failure output to include the concrete remux rejection reason and structured marker context.'
-Assert-True ($remuxEntrypointText -match 'Remux fallback after oversized encode' -and $remuxEntrypointText -match 'oversized_encode_remux_fallback' -and $remuxEntrypointText -match 'CurrentSizePolicyResult\s*=\s*\$fallbackSizePolicyResult' -and $remuxEntrypointText -match 'LastRemuxFallbackRejection') 'Expected successful fallback_remux remux to preserve oversized encode size-policy evidence, route reason, and clear fallback rejection state.'
+Assert-True ($encodeSizeGuardText -match 'remux fallback unavailable; rejecting oversized encode before publish' -and $encodeSizeGuardText -match 'ENCODE_SIZE_GUARD_EXCEEDED' -and $encodeSizeGuardText -match 'return\s+New-MediaPipelineEncodeStageResult\s+-Ok\s+\$false\s+-Terminal\s+\$true\s+-Value\s+\$false') 'Expected fallback_remux failure to reject the oversized encode before publish.'
+Assert-True ($encodeFallbackText -match 'remux fallback block reason' -and $encodeFallbackText -match 'remux_fallback_rejection' -and $encodeSizeGuardText -match 'AdditionalProperties') 'Expected fallback_remux failure output to include the concrete remux rejection reason and structured marker context.'
+Assert-True ($remuxFallbackText -match 'Remux fallback after oversized encode' -and $remuxFallbackText -match 'oversized_encode_remux_fallback' -and $remuxFallbackText -match 'CurrentSizePolicyResult\s*=\s*\$fallbackSizePolicyResult' -and $remuxFallbackText -match 'LastRemuxFallbackRejection') 'Expected successful fallback_remux remux to preserve oversized encode size-policy evidence, route reason, and clear fallback rejection state.'
 Assert-True ($pipelineProcessingText -match 'RUNTIME EVIDENCE: layers=') 'Expected concise runtime evidence debug logging.'
 Assert-True ($pipelineProcessingText -match 'Pop-MediaPipelineActiveConfigOverrides' -and $pipelineProcessingText -match '\$script:ActiveOverrides\s*=\s*\$null' -and $pipelineProcessingText -match '\$script:LastFileOverrideConfigMap\s*=\s*\$null') 'Expected processing finally block to restore/clear active override state.'
 Assert-True ($pipelineProcessingText -match '\$script:CurrentRuntimeEffectiveSettings\s*=\s*\$null' -and $pipelineProcessingText -match '\$script:CurrentRoutePlan\s*=\s*\$null' -and $pipelineProcessingText -match '\$script:CurrentSizePolicyResult\s*=\s*\$null') 'Expected processing finally block to clear runtime evidence, route, and size guard state.'

@@ -146,36 +146,13 @@
     }
 
     function renderSubtitleLanguagePreviews() {
-      const doc = subtitleDocumentNode();
-      subtitleLanguageFields.forEach(({ id }) => {
+      subtitleLanguageFields.forEach(({ id, key }) => {
         const input = byId(id);
         const field = input?.closest?.("[data-subtitle-language-field]");
-        const preview = field?.querySelector?.("[data-subtitle-language-preview]");
         const warning = field?.querySelector?.("[data-subtitle-language-warning]");
         const tokens = parseSettingsListText(input?.value || "");
         const unusual = tokens.filter((token) => !/^[a-z]{2,3}$/i.test(String(token || "").trim()));
-        if (field) field.dataset.state = subtitleKeyChanged(subtitleLanguageFields.find((item) => item.id === id)?.key || "") ? "changed" : "current";
-        if (preview) {
-          preview.textContent = "";
-          if (!tokens.length) {
-            const empty = doc?.createElement ? doc.createElement("span") : null;
-            if (empty) {
-              empty.className = "subtitle-language-chip is-empty";
-              empty.textContent = "No languages";
-              preview.appendChild(empty);
-            } else {
-              preview.textContent = "No languages";
-            }
-          } else {
-            tokens.forEach((token) => {
-              const chip = doc?.createElement ? doc.createElement("span") : null;
-              if (!chip) return;
-              chip.className = "subtitle-language-chip";
-              chip.textContent = String(token || "").trim();
-              preview.appendChild(chip);
-            });
-          }
-        }
+        if (field) field.dataset.state = subtitleKeyChanged(key || "") ? "changed" : "current";
         if (warning) {
           warning.textContent = !tokens.length
             ? "Advisory: empty language lists can make subtitle routing unpredictable."

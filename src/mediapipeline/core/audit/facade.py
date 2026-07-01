@@ -36,9 +36,11 @@ from mediapipeline.core.audit.sources import (
     update_audit_sources,
 )
 
-from mediapipeline.desktop.application.dto_commands import CommandResult
-from mediapipeline.desktop.application.dto_inventory import AuditPreviewDto
-from mediapipeline.desktop.models import AuditRecord, ResolvedPaths
+from mediapipeline.core.kernel.dto_commands import CommandResult
+from mediapipeline.core.kernel.dto_inventory import AuditPreviewDto
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.audit.contracts import AuditRecord
+from mediapipeline.core.processes.rerun_preview import rerun_import_csv_root
 
 
 class AuditFacadeMixin:
@@ -280,14 +282,14 @@ class AuditFacadeMixin:
         )
 
     def export_audit_rerun_csv(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
-        report_root = getattr(resolved, "audit_reports_path", None)
+        report_root = rerun_import_csv_root(resolved)
         if report_root is None:
             return CommandResult(
                 command="audit.export_rerun_csv",
                 ok=False,
                 severity="error",
-                message="Audit report root is unavailable.",
-                errors=["audit_report_root_unavailable"],
+                message="Rerun import CSV root is unavailable.",
+                errors=["rerun_import_csv_root_unavailable"],
             )
         priority_only = bool(request.get("priority_only", False))
         limit = bounded_audit_limit(request.get("limit", 100))

@@ -73,6 +73,16 @@ if ($null -ne (Get-MediaPipelineFailureCodeMetadata -Code 'NOT_A_REAL_FAILURE_CO
     throw 'Failure metadata lookup returned metadata for an unknown failure code.'
 }
 
+$mjpegHevcBsfText = @"
+[vost#0:1/copy @ 000001749185b4c0] Codec 'mjpeg' (7) is not supported by the bitstream filter 'hevc_mp4toannexb'. Supported codecs are: hevc
+Error initializing bitstream filter: hevc_mp4toannexb
+Error opening output files: Invalid argument
+"@
+$mjpegHevcBsfCode = Get-FFmpegFailureCode -Stage 'remux-av' -ErrorText $mjpegHevcBsfText -ExitCode 234
+if ($mjpegHevcBsfCode -ne 'REMUX_ATTACHED_PICTURE_MAPPED') {
+    throw "MJPEG cover-art HEVC bitstream-filter failure should classify as REMUX_ATTACHED_PICTURE_MAPPED, got $mjpegHevcBsfCode."
+}
+
 $scanFiles = @()
 foreach ($scanRoot in @(
     (Join-Path $pipelineRoot 'entrypoints'),

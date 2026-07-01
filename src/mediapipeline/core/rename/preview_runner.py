@@ -5,7 +5,7 @@ from typing import Any
 
 from mediapipeline.core.rename.contracts import RenamePreviewLoadServiceProtocol, RenamePreviewScriptServiceProtocol, RunCaptureFunc
 from mediapipeline.core.rename.preview import find_naming_preview_script, load_pipeline_name_previews
-from mediapipeline.desktop.subprocess_runner import CapturedCommandResult
+from mediapipeline.core.kernel.runtime.subprocess_runner import CapturedCommandResult
 
 
 def naming_preview_script_path_for_service(service: RenamePreviewScriptServiceProtocol) -> Path | None:

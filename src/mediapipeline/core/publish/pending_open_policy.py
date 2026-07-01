@@ -11,7 +11,7 @@ from .pending_results import (
 )
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
 def normalize_pending_publish_open_target(value: Any) -> str:
     return str(value or "").strip().casefold()

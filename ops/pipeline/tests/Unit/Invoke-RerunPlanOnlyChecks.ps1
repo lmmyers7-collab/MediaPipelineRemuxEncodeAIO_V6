@@ -34,7 +34,23 @@ function Assert-False {
     if ($Condition) { throw $Message }
 }
 
+function Assert-Match {
+    param(
+        [string] $Text,
+        [string] $Pattern,
+        [string] $Message
+    )
+    if ($Text -notmatch $Pattern) { throw $Message }
+}
+
 Assert-True (Test-Path -LiteralPath $rerunScript -PathType Leaf) "Rerun script missing: $rerunScript"
+
+$rerunScriptText = Get-Content -LiteralPath $rerunScript -Raw
+Assert-Match $rerunScriptText "planned output was not produced" 'Missing planned output check is missing.'
+Assert-Match $rerunScriptText "planned output is empty" 'Empty planned output check is missing.'
+Assert-False ($rerunScriptText -match "(?s)`$plan\.status = 'parked'\s+`$plan\.reason = `"planned output was not produced`"") 'Missing planned output must not be classified as parked.'
+Assert-False ($rerunScriptText -match "(?s)`$plan\.status = 'parked'\s+`$plan\.reason = `"planned output is empty`"") 'Empty planned output must not be classified as parked.'
+Assert-True ($rerunScriptText.Contains('if ($pipelineExitFailures -gt 0 -or $failed -gt 0) { exit 1 }')) 'Rerun process exit must fail when failed rows remain.'
 
 $root = Join-Path ([System.IO.Path]::GetTempPath()) ('mediapipeline-rerun-planonly-' + [guid]::NewGuid().ToString('N'))
 try {

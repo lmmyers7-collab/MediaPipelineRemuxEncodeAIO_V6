@@ -6,8 +6,8 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from mediapipeline.desktop.application.dto_commands import CommandResult
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.kernel.dto_commands import CommandResult
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 from mediapipeline.core.processes.audit_policy import (
     AUDIT_STOP_COMMAND,

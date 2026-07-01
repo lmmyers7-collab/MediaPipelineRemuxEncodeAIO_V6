@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from mediapipeline.core.rename.file_io import atomic_write_text
-from mediapipeline.desktop.subprocess_runner import CapturedCommandResult
+from mediapipeline.core.kernel.runtime.subprocess_runner import CapturedCommandResult
 
 
 RunCaptureFunc = Callable[..., CapturedCommandResult]

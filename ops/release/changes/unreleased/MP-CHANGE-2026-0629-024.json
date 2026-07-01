@@ -1,0 +1,45 @@
+{
+  "id": "MP-CHANGE-2026-0629-024",
+  "title": "Phase 6 status contract and DTO boundary cleanup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Migrates status contract and DTO imports from desktop compatibility exports to existing core contract/DTO owners and removes the matching temporary boundary allowlist rows.",
+  "reason": "Phase 6 boundary cleanup is removing read-only status core-to-desktop imports while preserving public desktop compatibility exports and status behavior.",
+  "affected_areas": [
+    "code",
+    "docs",
+    "generated"
+  ],
+  "behavior_before": "Status active-job/readers modules imported contracts through mediapipeline.desktop.contracts and status facade imported DTOs through mediapipeline.desktop.application.dto_status, producing eight allowlisted NO_CORE_TO_DESKTOP findings across three import-statement groups.",
+  "behavior_after": "Status modules import the same contracts from mediapipeline.core.kernel.contracts and DTOs from mediapipeline.core.kernel.dto_status while desktop compatibility exports remain in place; the three status allowlist rows are removed.",
+  "files_touched": [
+    "docs/architecture/dependency_boundary_allowlist.txt",
+    "docs/generated/summaries/src/mediapipeline/core/status/active_jobs.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/status/facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/status/readers.py.md",
+    "docs/implementation/architecture-boundary-cleanup/EDGE_LEDGER.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-024.json",
+    "src/mediapipeline/core/status/active_jobs.py",
+    "src/mediapipeline/core/status/facade.py",
+    "src/mediapipeline/core/status/readers.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/status/active_jobs.py src/mediapipeline/core/status/facade.py src/mediapipeline/core/status/readers.py",
+    "PASS: $env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_snapshot tests.python.desktop.test_service_status_active_jobs tests.python.desktop.test_service_status_readers tests.python.desktop.test_service_status_summary tests.python.desktop.test_contracts tests.python.desktop.test_application_public_api tests.python.tooling.test_dependency_boundaries -q",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_active_doc_references",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_architecture_guardrails",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --format json --report-only (hard_findings=39, allowlisted=39, unallowlisted=0, unused_allowlist=0, NO_CORE_TO_DESKTOP=22; domains: config=8, processes=9, queue=4, schedule=1)",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage"
+  ],
+  "rollback_plan": "Restore status active_jobs/readers imports to mediapipeline.desktop.contracts, restore status facade DTO imports to mediapipeline.desktop.application.dto_status, restore the three removed allowlist rows, refresh the three generated summaries, and mark AB-STAT-001, AB-STAT-003, and AB-STAT-005 open again in the edge ledger.",
+  "related_changes": [
+    "GitHub #23"
+  ],
+  "notes": "Import ownership change only. No Local API routes, WebView commands, snapshot construction, health fields, telemetry conversion, event/progress parsing, active-job formatting, route schemas, or operator behavior changed.\nMove status active-job contract imports from desktop compatibility export to core contracts.\nMove status DTO imports from desktop compatibility export to core DTO status module.\nMove status reader contract imports from desktop compatibility export to core contracts.\nRemove migrated temporary NO_CORE_TO_DESKTOP allowlist rows for status contracts and DTOs.\nMark AB-STAT-001, AB-STAT-003, and AB-STAT-005 migrated with core ownership and removed allowlist actions.\nRefresh generated summary after status active-job contract import ownership change.\nRefresh generated summary after status DTO import ownership change.\nRefresh generated summary after status reader contract import ownership change."
+}

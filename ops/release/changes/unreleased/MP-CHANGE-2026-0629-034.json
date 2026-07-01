@@ -1,0 +1,45 @@
+{
+  "id": "MP-CHANGE-2026-0629-034",
+  "title": "Harden stale audit close readiness",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Made backend close-readiness and snapshot progress bars freshness-aware for audit progress. Stale audit_progress.json no longer derives an active audit state or active progress bars.",
+  "reason": "A stale audit_progress.json could still make the backend close-readiness DTO report active work, which downstream UI surfaces trusted for start/stop/close guidance.",
+  "affected_areas": [
+    "backend",
+    "generated",
+    "observability",
+    "tests"
+  ],
+  "behavior_before": "When a snapshot had stale active-looking audit progress and no live pipeline progress, close-readiness could report safe_to_close=false, active_work=true, state=audit. Backend progress bars also emitted active audit bars from the stale audit file.",
+  "behavior_after": "Stale or terminal audit progress is ignored when deriving close-readiness state, and backend audit progress bars carry stale=true with warning status. Fresh audit progress still reports active audit state and active bars.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0629-034.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/application/utilities.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/observability/status_policy.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_close_readiness.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_snapshot.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-034.json",
+    "src/mediapipeline/core/application/utilities.py",
+    "src/mediapipeline/core/observability/status_policy.py",
+    "tests/python/desktop/test_application_facade_close_readiness.py",
+    "tests/python/desktop/test_application_facade_snapshot.py"
+  ],
+  "tests_added": [
+    "tests.python.desktop.test_application_facade_close_readiness covers stale audit progress without live work returning safe close-readiness",
+    "tests.python.desktop.test_application_facade_snapshot covers stale backend audit progress bars as warning/stale review evidence"
+  ],
+  "manual_validation": [
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_close_readiness tests.python.desktop.test_application_facade_snapshot tests.python.desktop.test_service_status_progress -q",
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_local_api_lifecycle_contract_smoke tests.python.desktop.test_application_facade_local_api_lifecycle tests.python.desktop.test_application_facade_process_control -q",
+    "PASS: apps/desktop/runtime/Python/python.exe -m py_compile src/mediapipeline/core/application/utilities.py src/mediapipeline/core/observability/status_policy.py tests/python/desktop/test_application_facade_close_readiness.py tests/python/desktop/test_application_facade_snapshot.py",
+    "PASS: stale audit reproduction fixture now returns safe_to_close=True, active_work=False, state=idle"
+  ],
+  "rollback_plan": "Revert the audit-staleness check in src/mediapipeline/core/application/utilities.py, the stale audit progress-bar plumbing in src/mediapipeline/core/observability/status_policy.py, the two regression tests, and the refreshed generated summaries.",
+  "related_changes": [],
+  "notes": "Ignore stale or terminal audit progress when deriving close-readiness state.\nMark stale audit progress bars as warning/stale in backend snapshot DTOs.\nCover stale audit progress no longer making close-readiness active.\nCover backend stale audit progress bars as review evidence.\nRefresh summary after stale-audit close-readiness state fix.\nRefresh summary after stale audit progress bar status fix.\nRefresh summary after close-readiness stale audit regression coverage.\nRefresh summary after stale audit progress bar regression coverage.\nRefresh summary for stale audit close-readiness change packet.\nPython impact: backend status/close-readiness policy and Python tests only; no media engine, source/scratch/output mutation, route contract, or filesystem movement behavior changed."
+}

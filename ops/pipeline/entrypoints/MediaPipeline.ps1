@@ -64,6 +64,7 @@ param(
     [string]$WorkerRunId = "",
     [string]$WorkerClaimId = "",
     [string]$WorkerResultPath = "",
+    [string]$WorkerHeartbeatPath = "",
 
     # Diagnostic: resolve config + derived runtime settings, write a complete
     # JSON dump of them to this path, and exit before the scan loop. Read-only
@@ -191,6 +192,28 @@ function Write-MediaPipelineEarlyWorkerChildFailureResult {
         ($payload | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $WorkerResultPath -Encoding UTF8 -Force
     } catch {
         Write-Host "WARN: failed to write early worker result to $WorkerResultPath`: $_" -ForegroundColor Yellow
+    }
+    if (-not [string]::IsNullOrWhiteSpace($WorkerHeartbeatPath)) {
+        try {
+            $heartbeatParent = Split-Path -Parent $WorkerHeartbeatPath
+            if (-not [string]::IsNullOrWhiteSpace($heartbeatParent)) {
+                New-Item -ItemType Directory -Path $heartbeatParent -Force | Out-Null
+            }
+            $heartbeat = [ordered]@{
+                schema_version  = 'local_worker_heartbeat.v1'
+                worker_slot_id  = [int]$WorkerSlotId
+                worker_run_id   = [string]$WorkerRunId
+                worker_claim_id = [string]$WorkerClaimId
+                source_path     = [string]$SingleFile
+                stage           = 'startup_failure'
+                status          = [string]$Reason
+                final           = $true
+                updated_at      = (Get-Date).ToUniversalTime().ToString('o')
+            }
+            ($heartbeat | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $WorkerHeartbeatPath -Encoding UTF8 -Force
+        } catch {
+            Write-Host "WARN: failed to write early worker heartbeat to $WorkerHeartbeatPath`: $_" -ForegroundColor Yellow
+        }
     }
 }
 
@@ -500,6 +523,7 @@ if (-not $ValidateOnly -and -not $locklessDiagnostic) {
     } else {
         Clear-StalePartialFiles -Roots @($LocalEncoded, $Outsource)
     }
+    Invoke-PeriodicLocalEncodedDirectoryCleanup -Force | Out-Null
 }
 
 # Clear stale operator pause/stop flags from a previous run -- controller runs
@@ -537,10 +561,30 @@ if ($DrainPendingPushes) {
 } else {
     $_assCheck = Invoke-PythonToolCommand -ArgumentList @($assToSrtScript) -TimeoutSeconds 15 -Stage 'subtitle-helper-selfcheck'
     if ($_assCheck.ExitCode -ne 2) {
-        Write-Log "STARTUP: ass_to_srt import check FAILED (exit $($_assCheck.ExitCode)) - ASS->SRT conversion will silently fall back to ASS for ALL files until fixed" "ERROR"
+        $assHelperMessage = "STARTUP: ass_to_srt import check FAILED (exit $($_assCheck.ExitCode))"
+        if ([bool]$script:AllowSubtitleHelperFallback) {
+            $script:SubtitleHelperFallbackDegraded = $true
+            Write-Log "$assHelperMessage - AllowSubtitleHelperFallback=true; ASS->SRT conversion will fall back to ASS until fixed" "ERROR"
+        } else {
+            Write-Log "$assHelperMessage - blocking launch because AllowSubtitleHelperFallback=false" "ERROR"
+        }
         if ($_assCheck.Error) {
             $_assCheck.Error -split '\r?\n' | Where-Object { $_ -match '\S' } | Select-Object -First 5 |
                 ForEach-Object { Write-Log "  $_" "ERROR" }
+        }
+        if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+            try {
+                Write-PipelineEvent -EventType 'subtitle_helper_selfcheck_failed' -Stage 'startup' -Status $(if ([bool]$script:AllowSubtitleHelperFallback) { 'degraded' } else { 'blocked' }) -Data @{
+                    error_code = 'SUBTITLE_HELPER_SELFCHECK_FAILED'
+                    exit_code = [int]$_assCheck.ExitCode
+                    allow_fallback = [bool]$script:AllowSubtitleHelperFallback
+                } | Out-Null
+            } catch {}
+        }
+        if (-not [bool]$script:AllowSubtitleHelperFallback) {
+            Set-ProgressStage -Stage 'blocked' -Status 'Subtitle helper self-check failed' -Percent $null -SaveNow
+            & $Script:ExitCleanup
+            exit 76
         }
     } else {
         Write-Log "ass_to_srt import: OK" "DEBUG"
@@ -856,9 +900,37 @@ try {
     Write-Log "AUTONOMY HEALTH: passed; launch gate output could not be summarized: $_" 'WARN'
 }
 
-Invoke-MediaPipelineRun -EnginePlan $enginePlan | Out-Null
+$pipelineExitCode = 0
+try {
+    $script:PipelineBlockedExitCode = 0
+    $script:PipelineStopReason = ''
+    Invoke-MediaPipelineRun -EnginePlan $enginePlan | Out-Null
+    if ([int]$script:PipelineBlockedExitCode -gt 0) {
+        $pipelineExitCode = [int]$script:PipelineBlockedExitCode
+    }
+} catch {
+    $pipelineExitCode = if ([int]$script:PipelineBlockedExitCode -gt 0) { [int]$script:PipelineBlockedExitCode } else { 1 }
+    $message = if ($_.Exception -and $_.Exception.Message) { [string]$_.Exception.Message } else { [string]$_ }
+    Write-Log "PIPELINE SHUTDOWN AFTER UNEXPECTED FAILURE: $message" 'ERROR'
+    if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+        try {
+            Write-PipelineEvent -EventType 'pipeline_unexpected_shutdown' -Stage 'shutdown' -Status 'failed' -Data @{
+                error_code = 'UNEXPECTED_PIPELINE_SHUTDOWN'
+                error      = $message
+                once       = [bool]$Once
+            } | Out-Null
+        } catch {}
+    }
+    try {
+        Reset-ProgressItemContext
+        Set-ProgressStage -Stage 'failed' -Status 'Unexpected pipeline failure' -Percent $null -Route $null -CopyState $null -PushState $null -SidecarState $null -SaveNow
+    } catch {}
+}
 
-Reset-ProgressItemContext
-Set-ProgressStage -Stage 'idle' -Status 'Idle' -Percent $null -Route $null -CopyState $null -PushState $null -SidecarState $null -SaveNow
-Write-Log "PIPELINE SHUTDOWN CLEANLY"
+if ($pipelineExitCode -eq 0) {
+    Reset-ProgressItemContext
+    Set-ProgressStage -Stage 'idle' -Status 'Idle' -Percent $null -Route $null -CopyState $null -PushState $null -SidecarState $null -SaveNow
+    Write-Log "PIPELINE SHUTDOWN CLEANLY"
+}
 & $Script:ExitCleanup
+if ($pipelineExitCode -ne 0) { exit $pipelineExitCode }

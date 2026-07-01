@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import queue
 import threading
 import time
 from collections.abc import Callable, Mapping
@@ -15,7 +16,7 @@ from mediapipeline.core.processes.pipeline_policy import (
     network_role_is_valid,
 )
 
-from .scanner import FileStat, FiredRegistry, StabilityTracker, normalize_extensions, scan_root
+from .scanner import FileStat, FiredRegistry, ScanError, ScanResult, StabilityTracker, normalize_extensions, scan_root
 
 
 WATCH_POLL_INTERVAL_SECONDS = 10.0
@@ -123,6 +124,7 @@ class WatchFolderManager:
         self._baseline_stats: dict[str, FileStat] = {}
         self._tracker = StabilityTracker(debounce_seconds=30.0)
         self._fired = FiredRegistry()
+        self._scan_threads: dict[str, threading.Thread] = {}
         self._recent_detections: list[dict[str, str]] = []
         self._state: dict[str, Any] = self._default_state()
 
@@ -136,6 +138,7 @@ class WatchFolderManager:
             "roots": [],
             "derived_roots_from_library_profiles": False,
             "debounce_seconds": 30,
+            "scan_timeout_seconds": 300,
             "pending_work": False,
             "recent_detections": [],
             "last_launch": None,
@@ -231,6 +234,67 @@ class WatchFolderManager:
         with self._lock:
             self._state["pending_work"] = False
 
+    def _scan_root_bounded(self, root: str, extensions: frozenset[str], timeout_seconds: int) -> ScanResult:
+        root_key = _path_key(root)
+        with self._lock:
+            existing = self._scan_threads.get(root_key)
+            if existing is not None and existing.is_alive():
+                return ScanResult(
+                    root=root,
+                    snapshot={},
+                    errors=(
+                        ScanError(
+                            path=root,
+                            message="previous watch-folder scan is still running; skipping overlapping scan",
+                        ),
+                    ),
+                )
+            if existing is not None:
+                self._scan_threads.pop(root_key, None)
+
+        result_queue: queue.Queue[ScanResult | BaseException] = queue.Queue(maxsize=1)
+
+        def worker() -> None:
+            try:
+                result_queue.put(scan_root(root, extensions))
+            except BaseException as exc:  # pragma: no cover - defensive against filesystem scanner surprises
+                result_queue.put(exc)
+
+        thread = threading.Thread(
+            target=worker,
+            name=f"MediaPipelineWatchScan:{root_key[:48]}",
+            daemon=True,
+        )
+        with self._lock:
+            self._scan_threads[root_key] = thread
+        thread.start()
+        thread.join(timeout=max(0.001, float(timeout_seconds)))
+        if thread.is_alive():
+            return ScanResult(
+                root=root,
+                snapshot={},
+                errors=(
+                    ScanError(
+                        path=root,
+                        message=f"watch-folder scan timed out after {timeout_seconds} seconds",
+                    ),
+                ),
+            )
+        with self._lock:
+            if self._scan_threads.get(root_key) is thread:
+                self._scan_threads.pop(root_key, None)
+        try:
+            outcome = result_queue.get_nowait()
+        except queue.Empty:
+            return ScanResult(
+                root=root,
+                snapshot={},
+                errors=(ScanError(path=root, message="watch-folder scan finished without returning a result"),),
+            )
+        if isinstance(outcome, BaseException):
+            return ScanResult(root=root, snapshot={}, errors=(ScanError(path=root, message=str(outcome)),))
+        return outcome
+
     def _update_state(
         self,
         *,
@@ -240,6 +304,7 @@ class WatchFolderManager:
         roots: list[dict[str, Any]],
         derived_roots: bool,
         debounce_seconds: int,
+        scan_timeout_seconds: int,
         pending_work: bool,
         status: str,
         reason: str,
@@ -255,6 +320,7 @@ class WatchFolderManager:
                     "roots": [dict(root) for root in roots],
                     "derived_roots_from_library_profiles": bool(derived_roots),
                     "debounce_seconds": int(debounce_seconds),
+                    "scan_timeout_seconds": int(scan_timeout_seconds),
                     "pending_work": bool(pending_work),
                     "status": status,
                     "reason": reason,
@@ -279,6 +345,7 @@ class WatchFolderManager:
             configured_action = "enqueue_only"
         network_mode_active = network_role_blocks_normal_launch(network_role)
         effective_action = "enqueue_only" if network_mode_active else configured_action
+        scan_timeout_seconds = max(1, _setting_int(settings, "WatchScanTimeoutSeconds", 300))
 
         if not enabled or network_role == "worker":
             reason = (
@@ -293,6 +360,7 @@ class WatchFolderManager:
                 roots=[],
                 derived_roots=False,
                 debounce_seconds=max(5, _setting_int(settings, "WatchDebounceSeconds", 30)),
+                scan_timeout_seconds=scan_timeout_seconds,
                 pending_work=bool(self._state.get("pending_work", False)),
                 status="idle",
                 reason=settings_warning or reason,
@@ -313,6 +381,7 @@ class WatchFolderManager:
                     roots=[],
                     derived_roots=True,
                     debounce_seconds=max(5, _setting_int(settings, "WatchDebounceSeconds", 30)),
+                    scan_timeout_seconds=scan_timeout_seconds,
                     pending_work=bool(self._state.get("pending_work", False)),
                     status="degraded",
                     reason=f"default watch roots unavailable: {exc}",
@@ -330,7 +399,7 @@ class WatchFolderManager:
         combined_snapshot: dict[str, FileStat] = {}
         root_errors: list[str] = []
         for root in roots:
-            result = scan_root(root, extensions)
+            result = self._scan_root_bounded(root, extensions, scan_timeout_seconds)
             combined_snapshot.update(result.snapshot)
             error_text = "; ".join(error.message for error in result.errors[:3])
             root_exists = os.path.isdir(root)
@@ -354,8 +423,9 @@ class WatchFolderManager:
                 roots=root_states,
                 derived_roots=derived_roots,
                 debounce_seconds=debounce,
+                scan_timeout_seconds=scan_timeout_seconds,
                 pending_work=False,
-                status="running",
+                status="running" if not (settings_warning or root_errors) else "degraded",
                 reason=settings_warning or "Baseline snapshot recorded; future changes can trigger watch work.",
                 last_error=settings_warning or "; ".join(root_errors),
             )
@@ -407,6 +477,7 @@ class WatchFolderManager:
             roots=root_states,
             derived_roots=derived_roots,
             debounce_seconds=debounce,
+            scan_timeout_seconds=scan_timeout_seconds,
             pending_work=pending_work,
             status="running" if not last_error else "degraded",
             reason=settings_warning or reason,

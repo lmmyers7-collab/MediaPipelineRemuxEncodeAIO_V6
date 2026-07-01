@@ -7,8 +7,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.application.dto_commands import CommandResult
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.kernel.dto_commands import CommandResult
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 from mediapipeline.core.processes.control_policy import (
     PIPELINE_CONTROL_ACTION_ERROR,
@@ -20,6 +20,7 @@ from mediapipeline.core.processes.control_policy import (
 from mediapipeline.core.processes.file_io import atomic_write_text
 
 _IDLE_STAGES = frozenset({"idle", "startup", ""})
+_IDLE_STATUSES = frozenset({"", "idle", "none"})
 
 
 def _write_idle_progress_file(progress_file: Path | None, logger: Any = None) -> str:
@@ -43,7 +44,8 @@ def _write_idle_progress_file(progress_file: Path | None, logger: Any = None) ->
         return f"could not read progress file: {exc}"
 
     current_stage = str(existing.get("CurrentStage") or "").lower()
-    if current_stage in _IDLE_STAGES:
+    status = str(existing.get("Status") or "").strip().lower()
+    if current_stage in _IDLE_STAGES and status in _IDLE_STATUSES:
         return "progress file was already idle; no change needed"
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -90,7 +92,7 @@ def _write_idle_progress_file(progress_file: Path | None, logger: Any = None) ->
     }
     try:
         atomic_write_text(progress_file, json.dumps(idle_payload, indent=2) + "\n")
-        return f"progress stage reset from '{current_stage}' to idle"
+        return f"progress reset from stage='{current_stage}', status='{status}' to idle"
     except Exception as exc:
         if logger is not None:
             try:

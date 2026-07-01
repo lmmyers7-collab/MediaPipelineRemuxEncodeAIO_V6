@@ -4,7 +4,9 @@ const AUTOMATIC_OPTIONAL_GET_TIMEOUT_MS = 12000;
 
 let lastSnapshot = null;
 let lastCloseReadiness = null;
+let lastStdoutTail = null;
 let lastSchedule = null;
+let lastQueue = null;
 let refreshInFlight = false;
 let refreshQueued = false;
 let refreshQueuedOptions = null;
@@ -45,6 +47,10 @@ function setTopbarPendingLaunch(payload = {}) {
   return window.mediaPipelineAppTopbar?.setTopbarPendingLaunch?.(payload);
 }
 
+function clearTopbarPendingLaunch(snapshot = {}) {
+  return window.mediaPipelineAppTopbar?.clearTopbarPendingLaunch?.(snapshot);
+}
+
 function formatCloseReadiness(closeReadiness) {
   return window.mediaPipelineAppCloseReadiness?.formatCloseReadiness?.(closeReadiness) || "Close readiness has not loaded yet.";
 }
@@ -64,6 +70,7 @@ void [
   topbarStageContext,
   renderTopbarEventTicker,
   setTopbarPendingLaunch,
+  clearTopbarPendingLaunch,
   closeReadinessWatcherData,
   closeReadinessWatcherSummary,
   closeReadinessWatcherIsArmed,
@@ -112,6 +119,15 @@ function renderSnapshot(snapshot) {
   const queueIndex = Math.max(0, Math.trunc(Number(counts.queue_index) || 0));
   const queueTotal = Math.max(0, Math.trunc(Number(counts.queue_total) || 0));
   setText("queue-count", `${queueIndex} / ${queueTotal}`);
+  setText("queue-count-detail", "Backend queue position.");
+  const queueCount = byId("queue-count");
+  if (queueCount) {
+    delete queueCount.dataset.mode;
+    delete queueCount.dataset.state;
+    queueCount.title = "";
+  }
+  const pipelineState = byId("pipeline-state");
+  if (pipelineState) delete pipelineState.dataset.state;
   setText("processed-count", String(counts.processed || 0));
   renderDashboardIssueMetric(snapshot, dashboardCount(counts.failed));
   window.mediaPipelineProgressView?.renderProgressBars?.(Array.isArray(snapshot.progress_bars) ? snapshot.progress_bars : [], snapshot);
@@ -122,6 +138,7 @@ function renderSnapshot(snapshot) {
     snapshot: lastSnapshot,
     diagnostics: null,
     closeReadiness: lastCloseReadiness,
+    stdoutTail: lastStdoutTail,
   });
   const recentEvents = Array.isArray(snapshot.recent_events) ? snapshot.recent_events : [];
   window.mediaPipelineProgressView?.renderPipelineEvents?.(recentEvents);
@@ -639,6 +656,83 @@ function applyDefaultActionTooltips(root = document) {
 
 void [showPage, refreshTimeLabel, "[data-settings-path-key]"];
 
+function csvRerunTailEvidence(stdoutTail = lastStdoutTail) {
+  const reader = window.mediaPipelineProgressView?.csvRerunTailEvidence;
+  if (typeof reader !== "function") return { hasEvidence: false };
+  return reader(stdoutTail);
+}
+
+function csvRerunActivityEvidence(context = {}) {
+  const reader = window.mediaPipelineProgressView?.csvRerunActivityEvidence;
+  if (typeof reader !== "function") return csvRerunTailEvidence(context?.stdoutTail || context || lastStdoutTail);
+  return reader(context && typeof context === "object" ? context : { stdoutTail: context || lastStdoutTail });
+}
+
+function csvRerunHomeIsActive(csvRerun = csvRerunTailEvidence(), closeReadiness = lastCloseReadiness) {
+  if (!csvRerun?.hasEvidence) return false;
+  if (closeReadiness?.safe_to_close === true) return false;
+  if (csvRerun.isActive === true || csvRerun.workerActive === true) return true;
+  return !/PIPELINE SHUTDOWN CLEANLY|ROUND COMPLETE|Single-pass mode complete/i.test(String(csvRerun.latestLine || ""));
+}
+
+function renderCsvRerunHomeSummary(context = { stdoutTail: lastStdoutTail, snapshot: lastSnapshot, closeReadiness: lastCloseReadiness }) {
+  const source = context && typeof context === "object" && ("stdoutTail" in context || "snapshot" in context || "diagnostics" in context)
+    ? context
+    : { stdoutTail: context || lastStdoutTail, snapshot: lastSnapshot, closeReadiness: lastCloseReadiness };
+  const csvRerun = csvRerunActivityEvidence(source);
+  if (!csvRerunHomeIsActive(csvRerun, source.closeReadiness || lastCloseReadiness)) return false;
+  const item = csvRerun.currentImport || csvRerun.lastImported || "CSV rerun staging";
+  const activity = csvRerun.currentImport ? `Importing ${csvRerun.currentImport}` : "CSV rerun active";
+  const stage = csvRerun.currentImport ? "Importing from CSV" : "CSV rerun";
+  renderTopbarActivity({
+    activity,
+    pipeline_state: "csv_rerun_active",
+    current_work: {
+      phase_label: "CSV rerun",
+      item_label: item,
+      percent_label: csvRerun.plannedRows || "",
+    },
+    progress: {
+      Status: "CSV rerun",
+      CurrentStage: stage,
+      CurrentFileDisplay: item,
+    },
+  });
+  renderTopbarEventTicker({
+    recent_events: [{
+      event_type: "csv_rerun",
+      stage: csvRerun.currentImport ? "importing" : "staging",
+      status: "active",
+      data: { display_name: item },
+    }],
+  });
+  const pill = byId("state-pill");
+  if (pill) {
+    pill.textContent = "CSV";
+    pill.dataset.state = "running";
+    pill.title = [stage, item, csvRerun.plannedRows].filter(Boolean).join("\n");
+  }
+  renderHomePipelineState("csv_rerun_active");
+  const pipelineState = byId("pipeline-state");
+  if (pipelineState) pipelineState.dataset.state = "running";
+  const currentItem = byId("queue-count");
+  if (currentItem) {
+    currentItem.textContent = item;
+    currentItem.title = item;
+    currentItem.dataset.mode = "file";
+    currentItem.dataset.state = "running";
+  }
+  setText(
+    "queue-count-detail",
+    [
+      csvRerun.currentImport ? "Importing now" : "CSV rerun active",
+      csvRerun.plannedRows,
+      csvRerun.lastImported ? `last imported ${csvRerun.lastImported}` : "",
+    ].filter(Boolean).join(" · ")
+  );
+  return true;
+}
+
 function normalizeRefreshOptions(options = {}) {
   return {
     automatic: Boolean(options && options.automatic === true),
@@ -664,6 +758,29 @@ function refreshGet(path, refreshOptions = {}, options = {}) {
     requestOptions.timeoutMs = AUTOMATIC_OPTIONAL_GET_TIMEOUT_MS;
   }
   return apiGet(path, requestOptions);
+}
+
+async function refreshLiveRunTail(refreshOptions = {}) {
+  try {
+    const stdoutTail = await refreshGet(
+      "/api/diagnostics/tail?target=last_stdout_log&max_bytes=65536",
+      refreshOptions,
+      { timeoutMs: 5000 }
+    );
+    lastStdoutTail = attachRefreshMetadata("last stdout tail", stdoutTail);
+    const liveRunContext = {
+      snapshot: lastSnapshot,
+      diagnostics: null,
+      closeReadiness: lastCloseReadiness,
+      stdoutTail: lastStdoutTail,
+    };
+    window.mediaPipelineProgressView?.renderHomeActiveWork?.(liveRunContext);
+    window.mediaPipelineProgressView?.renderLiveRunStrip?.(liveRunContext);
+    renderCsvRerunHomeSummary(liveRunContext);
+    renderHomeNextQueue({ ...liveRunContext, queue: lastQueue || {} });
+  } catch (_error) {
+    // The full refresh path owns route error reporting; this fast path keeps Home responsive.
+  }
 }
 
 async function refreshAll(options = {}) {
@@ -706,6 +823,7 @@ async function refreshAllNow(options = {}) {
   const refreshStartedMs = Date.now();
   const refreshStartScrollSnapshot = window.mediaPipelineDom?.captureScrollablePositions?.();
   renderRefreshInProgress(refreshOptions);
+  void refreshLiveRunTail(refreshOptions);
   window.mediaPipelineDom?.restoreScrollablePositions?.(refreshStartScrollSnapshot);
   const failureSourceMarkers = Boolean(byId("failure-source-markers")?.checked);
   const failureQuery = `/api/failures?limit=100${failureSourceMarkers ? "&source=markers" : ""}`;
@@ -717,12 +835,14 @@ async function refreshAllNow(options = {}) {
     ["close readiness", refreshGet("/api/backend/close-readiness", refreshOptions), false],
     ["telemetry", refreshGet("/api/telemetry", refreshOptions), false],
     ["diagnostics", refreshGet("/api/diagnostics", refreshOptions), false],
+    ["last stdout tail", refreshGet("/api/diagnostics/tail?target=last_stdout_log&max_bytes=65536", refreshOptions), false],
     ["diagnostics state summary", refreshGet("/api/diagnostics/state-summary", refreshOptions), false],
     ["commands", refreshGet("/api/commands?limit=20", refreshOptions), false],
     ["metrics", refreshGet("/api/metrics", refreshOptions), false],
     ["queue", refreshGet("/api/queue", refreshOptions), false],
     ["completed", refreshGet("/api/completed?limit=500", refreshOptions), false],
     ["failures", refreshGet(failureQuery, refreshOptions), false],
+    ["failure artifacts", refreshGet("/api/failures/artifacts", refreshOptions), false],
     ["audit results", refreshGet(auditQuery, refreshOptions), false],
     ["audit controls", refreshGet("/api/audit-controls", refreshOptions), false],
     ["audit sources", refreshGet("/api/audit-sources", refreshOptions), false],
@@ -805,9 +925,13 @@ async function refreshAllNow(options = {}) {
   }
   if (values.commands) window.mediaPipelineCommandHistory?.renderCommandHistoryPayload?.(values.commands);
   if (values.metrics) window.mediaPipelineMetricsView?.renderMetrics?.(values.metrics);
-  if (values.queue) renderQueue(values.queue);
-  renderHomeQueueSnapshot(values.queue || {});
-  renderHomePipelineQueueOutcome(values.snapshot || lastSnapshot, values.queue || {});
+  if (values.queue) {
+    lastQueue = values.queue;
+    renderQueue(values.queue);
+  }
+  const latestQueue = values.queue || lastQueue || {};
+  renderHomeQueueSnapshot(latestQueue);
+  renderHomePipelineQueueOutcome(values.snapshot || lastSnapshot, latestQueue);
   if (values.completed) window.mediaPipelineCompletedView?.renderCompleted?.(values.completed);
   // Reuse the final-library promotion status attached to the completed payload:
   // the completed read already computes it via the same builder
@@ -820,6 +944,10 @@ async function refreshAllNow(options = {}) {
   renderHomePromotionEntry(finalLibraryPromotion || {});
   renderHomeRecentCompleted(values.completed || {});
   if (values.failures) window.mediaPipelineReportsView?.renderFailurePreview?.(values.failures);
+  if (values["failure artifacts"]) {
+    window.mediaPipelineReportsView?.renderFailureArtifactSummary?.(values["failure artifacts"]);
+    window.mediaPipelineOperatorToast?.showFailureArtifactWarning?.(values["failure artifacts"]);
+  }
   if (values["audit results"]) {
     window.mediaPipelineReportsView?.renderAuditPreview?.(values["audit results"]);
   }
@@ -835,6 +963,7 @@ async function refreshAllNow(options = {}) {
     lastSchedule = values.schedule;
     window.mediaPipelineScheduleView?.renderSchedule?.(values.schedule);
   }
+  lastStdoutTail = values["last stdout tail"] || lastStdoutTail;
   const watchFoldersFailure = failures.find((item) => item.name === "watch folders");
   if (values["watch folders"] || watchFoldersFailure) {
     window.mediaPipelineScheduleView?.renderWatchFolderStatus?.(values["watch folders"] || {
@@ -855,7 +984,7 @@ async function refreshAllNow(options = {}) {
   }
   if (values["libraries route map"]) {
     window.mediaPipelineLibraryRouteMap?.renderRouteMap?.(values["libraries route map"], {
-      queue: values.queue || {},
+      queue: latestQueue,
       completed: values.completed || {},
       sampleValidation: values["sample validation"] || {},
     });
@@ -868,7 +997,7 @@ async function refreshAllNow(options = {}) {
       contract: values.contract || {},
       closeReadiness: values["close readiness"] || lastCloseReadiness,
       snapshot: values.snapshot || lastSnapshot,
-      queue: values.queue || {},
+      queue: latestQueue,
       networkWorkers: values["network workers"] || null,
       bootstrap,
     });
@@ -915,16 +1044,15 @@ async function refreshAllNow(options = {}) {
     values.snapshot || lastSnapshot,
     values["close readiness"] || lastCloseReadiness
   );
-  window.mediaPipelineProgressView?.renderHomeActiveWork?.({
+  const liveRunContext = {
     snapshot: values.snapshot || lastSnapshot,
     diagnostics: values.diagnostics || null,
     closeReadiness: values["close readiness"] || lastCloseReadiness,
-  });
-  window.mediaPipelineProgressView?.renderLiveRunStrip?.({
-    snapshot: values.snapshot || lastSnapshot,
-    diagnostics: values.diagnostics || null,
-    closeReadiness: values["close readiness"] || lastCloseReadiness,
-  });
+    stdoutTail: values["last stdout tail"] || lastStdoutTail,
+  };
+  window.mediaPipelineProgressView?.renderHomeActiveWork?.(liveRunContext);
+  window.mediaPipelineProgressView?.renderLiveRunStrip?.(liveRunContext);
+  renderCsvRerunHomeSummary(liveRunContext);
   window.mediaPipelineProgressView?.renderProgressEvidence?.({
     snapshot: values.snapshot || lastSnapshot,
     closeReadiness: values["close readiness"] || lastCloseReadiness,
@@ -935,7 +1063,7 @@ async function refreshAllNow(options = {}) {
     const crossPageContext = {
       snapshot: values.snapshot || lastSnapshot,
       closeReadiness: values["close readiness"] || lastCloseReadiness,
-      queue: values.queue || {},
+      queue: latestQueue,
       completed: values.completed || {},
       pending: pendingPublishPayload,
       diagnostics: values.diagnostics || {},
@@ -953,7 +1081,7 @@ async function refreshAllNow(options = {}) {
       diagnostics: values.diagnostics || {},
       stateSummary: values["diagnostics state summary"] || {},
       commands: values.commands || {},
-      queue: values.queue || {},
+      queue: latestQueue,
       completed: values.completed || {},
       pending: pendingPublishPayload,
       settings: values.settings || getLastSettings(),
@@ -970,7 +1098,7 @@ async function refreshAllNow(options = {}) {
   const renderDiagnosticsOwnerHandoffFn = window.mediaPipelineDiagnosticsView?.renderDiagnosticsOwnerHandoff;
   if (typeof renderDiagnosticsOwnerHandoffFn === "function") {
     renderDiagnosticsOwnerHandoffFn({
-      queue: values.queue || {},
+      queue: latestQueue,
       completed: values.completed || {},
       pending: pendingPublishPayload,
       sampleValidation: values["sample validation"] || {},
@@ -991,13 +1119,15 @@ async function refreshAllNow(options = {}) {
     settings: values.settings || getLastSettings(),
     stateSummary: values["diagnostics state summary"] || {},
     maintenance: window.mediaPipelineMaintenanceView?.getLastMaintenance?.() || {},
-    queue: values.queue || {},
+    queue: latestQueue,
     completed: values.completed || {},
     pending: pendingPublishPayload,
     diagnostics: values.diagnostics || {},
     networkWorkers: values["network workers"] || {},
     failuresPayload: values.failures || {},
+    failureArtifacts: values["failure artifacts"] || {},
     auditResults: values["audit results"] || {},
+    stdoutTail: values["last stdout tail"] || lastStdoutTail,
     failures,
   };
   renderHomeNextQueue(dashboardContext);
@@ -1012,6 +1142,7 @@ async function refreshAllNow(options = {}) {
 window.refreshAll = refreshAll;
 window.refreshAllNow = refreshAllNow;
 window.setTopbarPendingLaunch = setTopbarPendingLaunch;
+window.clearTopbarPendingLaunch = clearTopbarPendingLaunch;
 window.externalDependencyRows = externalDependencyRows;
 window.externalDependencyOverallStatus = externalDependencyOverallStatus;
 window.externalDependencySummaryLines = externalDependencySummaryLines;
@@ -1714,10 +1845,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (typeof initSampleValidationViewEvents === "function") initSampleValidationViewEvents();
   const pipelineStartButton = byId("pipeline-start-button");
   if (pipelineStartButton) pipelineStartButton.addEventListener("click", () => launchView.startPipelineFromForm?.());
-  const rerunPlanOnlyButton = byId("rerun-plan-only-button");
-  if (rerunPlanOnlyButton) rerunPlanOnlyButton.addEventListener("click", () => launchView.startRerunFromForm?.({ plan_only: true }));
-  const rerunDryRunButton = byId("rerun-dry-run-button");
-  if (rerunDryRunButton) rerunDryRunButton.addEventListener("click", () => launchView.startRerunFromForm?.({ dry_run: true }));
   const rerunStartButton = byId("rerun-start-button");
   if (rerunStartButton) rerunStartButton.addEventListener("click", () => launchView.startRerunFromForm?.({ dry_run: false }));
   const pendingDrainButton = byId("pending-drain-button");

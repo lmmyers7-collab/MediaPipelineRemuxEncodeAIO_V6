@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0629-022",
+  "title": "Phase 6 pending publish manifest contract boundary cleanup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Migrates pending publish manifest contract imports from the desktop compatibility export to the existing core contract owner and removes the matching temporary boundary allowlist row.",
+  "reason": "Phase 6 boundary cleanup is removing the remaining publish core-to-desktop import while preserving pending manifest contract parsing and drain safety behavior.",
+  "affected_areas": [
+    "code",
+    "docs",
+    "generated"
+  ],
+  "behavior_before": "Pending manifest row building imported ContractError, PENDING_PUSH_MANIFEST_STATES, and PendingPushManifest through mediapipeline.desktop.contracts, producing three allowlisted NO_CORE_TO_DESKTOP findings in one import-statement group.",
+  "behavior_after": "Pending manifest row building imports the same symbols from mediapipeline.core.kernel.contracts while mediapipeline.desktop.contracts remains a compatibility export; the pending manifest allowlist row is removed.",
+  "files_touched": [
+    "docs/architecture/dependency_boundary_allowlist.txt",
+    "docs/generated/summaries/src/mediapipeline/core/publish/pending_manifest.py.md",
+    "docs/implementation/architecture-boundary-cleanup/EDGE_LEDGER.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-022.json",
+    "src/mediapipeline/core/publish/pending_manifest.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/publish/pending_manifest.py",
+    "PASS: $env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_pending_publish tests.python.desktop.test_service_pending_publish_manifest tests.python.desktop.test_contracts tests.python.desktop.test_api_contract_payload tests.python.desktop.test_application_public_api tests.python.tooling.test_dependency_boundaries -q",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_active_doc_references",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_architecture_guardrails",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --format json --report-only (hard_findings=49, allowlisted=49, unallowlisted=0, unused_allowlist=0, NO_CORE_TO_DESKTOP=32; domains: config=8, processes=9, queue=6, schedule=1, status=8)",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage"
+  ],
+  "rollback_plan": "Restore the pending manifest contract import to mediapipeline.desktop.contracts, restore the removed allowlist row, refresh the generated pending manifest summary, and mark AB-PUB-004 open again in the edge ledger.",
+  "related_changes": [
+    "GitHub #23"
+  ],
+  "notes": "Import ownership change only. No Local API routes, WebView commands, pending manifest schema/state validation, drain eligibility, final placement, filesystem mutation, route schemas, or operator behavior changed.\nMove pending publish manifest contract imports from desktop compatibility export to core contracts.\nRemove migrated temporary NO_CORE_TO_DESKTOP allowlist row for pending publish manifest contracts.\nMark AB-PUB-004 migrated with core contract ownership and removed allowlist action.\nRefresh generated summary after pending manifest contract import ownership change."
+}

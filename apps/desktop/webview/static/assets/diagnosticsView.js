@@ -703,6 +703,27 @@
     return text ? text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean) : [];
   }
 
+  function diagnosticsLongRunReliabilityLines(autonomyHealth) {
+    const health = autonomyHealth && typeof autonomyHealth === "object" ? autonomyHealth : {};
+    const runtime = health.runtime_reliability && typeof health.runtime_reliability === "object" ? health.runtime_reliability : {};
+    if (!Object.keys(runtime).length) return [];
+    const continuous = runtime.continuous_round_state || {};
+    const flags = runtime.control_flags || {};
+    const pending = runtime.pending_publish_backpressure || {};
+    const workers = runtime.worker_slots || {};
+    const stateDb = runtime.state_db || {};
+    const stateDbMaintenance = stateDb.last_maintenance && typeof stateDb.last_maintenance === "object" ? stateDb.last_maintenance : {};
+    const lines = [
+      `Autonomy health: ${health.overall_status || "unknown"}; blockers=${Number(health.blocked_count || 0)}; review=${Number(health.review_count || 0)}`,
+      `Continuous rounds: consecutive_failures=${Number(continuous.consecutive_unexpected_round_failures || 0)}; blocked=${Boolean(continuous.blocked)}; probe_backoff_seconds=${Number(continuous.probe_backoff_seconds || 0)}`,
+      `Control flags: pause=${Boolean(flags.pause_flag_present)}; pause_age_seconds=${flags.pause_age_seconds ?? "n/a"}; stop=${Boolean(flags.stop_flag_present)}`,
+      `Pending backpressure: blocked=${Boolean(pending.blocked)}; reason=${pending.block_reason || "none"}; manifests=${Number(pending.manifest_count || 0)}; oldest_age_seconds=${pending.oldest_age_seconds ?? "n/a"}`,
+      `Worker slots: active=${Number(workers.active_child_count || 0)}; stale_heartbeats=${Number(workers.stale_heartbeat_count || 0)}; oldest_age_seconds=${workers.oldest_child_age_seconds ?? "n/a"}`,
+      `State DB: db_bytes=${Number(stateDb.db_size_bytes || 0)}; wal_bytes=${Number(stateDb.wal_size_bytes || 0)}; maintenance_ok=${stateDbMaintenance.ok ?? "n/a"}; maintenance_reason=${stateDbMaintenance.reason || "none"}`,
+    ];
+    return lines;
+  }
+
   function progressCompactionKey(line) {
     const text = String(line || "").trim();
     const match = text.match(/^(?:\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d+)?\s+)?(?:\[[A-Z]+\]\s+)?([A-Z][A-Z0-9_-]*)\s*:\s*(\d{1,3})%\s*$/i);
@@ -1217,10 +1238,17 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
       acc[severity] = (acc[severity] || 0) + 1;
       return acc;
     }, {});
+    const autonomyHealth = diagnostics?.autonomy_health && typeof diagnostics.autonomy_health === "object" ? diagnostics.autonomy_health : {};
+    const longRunLines = diagnosticsLongRunReliabilityLines(autonomyHealth);
+    const longRunStatus = String(autonomyHealth.overall_status || "").toLowerCase();
+    const longRunBlocked = longRunStatus === "blocked" || Number(autonomyHealth.blocked_count || 0) > 0;
+    const longRunReview = longRunStatus === "review" || Number(autonomyHealth.review_count || 0) > 0;
     const malformedLines = diagnosticsMalformedStateLines(allLines).slice(0, 8);
-    const status = counts.error
+    const status = longRunBlocked
+      ? "Blocked"
+      : counts.error
       ? "Errors"
-      : counts.warning
+      : (counts.warning || longRunReview)
         ? "Warnings"
         : counts.active
           ? "Active"
@@ -1230,7 +1258,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     setDiagnosticsPanelStatus(
       "diagnostics-triage-status",
       status,
-      counts.error ? "blocked" : counts.warning ? "warning" : counts.active ? "running" : allLines.length ? "ready" : "empty",
+      longRunBlocked || counts.error ? "blocked" : counts.warning || longRunReview ? "warning" : counts.active ? "running" : allLines.length || longRunLines.length ? "ready" : "empty",
     );
     const freshnessLines = window.mediaPipelineDom?.payloadFreshnessLines
       ? window.mediaPipelineDom.payloadFreshnessLines({
@@ -1249,16 +1277,20 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
       `Warnings: ${warnings.length}`,
       `Severity groups: error ${counts.error || 0}; warning ${counts.warning || 0}; active ${counts.active || 0}; info ${counts.info || 0}`,
     ];
+    if (longRunLines.length) {
+      lines.push("", "Long-run reliability evidence:");
+      longRunLines.forEach((line) => lines.push(`- ${line}`));
+    }
     if (malformedLines.length) {
       lines.push("", "Malformed/stale runtime-state hint(s):");
       malformedLines.forEach((line) => lines.push(`- ${line}`));
-      lines.push("Next step: Check Close Readiness first. If it is blocked, inspect ActiveJobs, progress files, Run Logs, and State Folder before closing or clearing runtime files.");
+      lines.push("Next step: Check Diagnostics > Overview > Shutdown Readiness first. If it is blocked, inspect Active Jobs, progress files, Run Logs, and State Folder before closing or clearing runtime files.");
     } else if (counts.error) {
       lines.push("", "Next step: Open Run Logs and Last Stderr, then review the newest failure/audit report if one exists.");
     } else if (counts.warning) {
       lines.push("", "Next step: Review warnings and refresh once; if the same warning persists, open the relevant state/log location below.");
     } else if (counts.active) {
-      lines.push("", "Next step: Active work appears to be present. Use Close Readiness and ActiveJobs before exiting.");
+      lines.push("", "Next step: Active work appears to be present. Use Diagnostics > Overview > Shutdown Readiness and Active Jobs before exiting.");
     } else {
       lines.push("", "Next step: No diagnostics issues are currently visible from the backend snapshot.");
     }
@@ -1394,24 +1426,24 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
       closeBlocked ? "Review" : closeSafe ? "Ready" : "Read evidence",
       `close=${payload.closeReadiness ? (closeSafe ? "safe" : "not safe") : "unknown"}; state=${snapshotState}; reason=${payload.closeReadiness?.reason || "none"}`,
       closeBlocked
-        ? "Do not close or start competing work until ActiveJobs, Progress, Last Stderr, and Run Logs agree."
+        ? "Do not close or start competing work until progress, Last Stderr, and Run Logs agree."
         : closeSafe
           ? "Close-readiness is not blocking; continue with state/log checks if another page looks wrong."
-          : "Wait for close-readiness or inspect ActiveJobs before treating the session as idle.",
+          : "Wait for close-readiness or inspect runtime logs before treating the session as idle.",
     );
 
     diagnosticsFirstResponseAdd(
       rows,
       "activejobs-progress",
       "ActiveJobs / progress",
-      activeJobBlocked ? "Blocked review" : activeJobReview ? "Review" : activeRows.length ? "Read evidence" : "Ready",
-      `active-job rows=${activeRows.length}; blocked=${activeJobBlocked}; review=${activeJobReview}; pipeline state=${snapshotState}`,
+      activeJobBlocked ? "Review" : activeJobReview ? "Review" : activeRows.length ? "Read evidence" : "Ready",
+      `active-job rows=${activeRows.length}; review=${activeJobBlocked + activeJobReview}; pipeline state=${snapshotState}`,
       activeJobBlocked
-        ? "Select the malformed/orphaned ActiveJobs row, read Last Stderr, then compare Close Readiness before clearing or rerunning."
+        ? "Select the malformed/orphaned ActiveJobs row, then read Last Stderr and Run Logs for lifecycle evidence."
         : activeJobReview
-          ? "Inspect ActiveJobs detail and progress freshness before closing or starting more work."
+          ? "Inspect ActiveJobs detail as passive diagnostics and use progress freshness for lifecycle decisions."
           : activeRows.length
-            ? "Use ActiveJobs as process-lifecycle evidence only; Completed/Pending still prove output state."
+            ? "Use ActiveJobs as passive launch diagnostics only; Completed/Pending still prove output state."
             : "No structured ActiveJobs rows are loaded.",
     );
 

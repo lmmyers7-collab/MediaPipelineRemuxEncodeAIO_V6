@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from mediapipeline.desktop.application.dto_commands import CommandResult
-from mediapipeline.desktop.application.schedule_stop_watcher import schedule_stop_deadline_from_gate
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.kernel.dto_commands import CommandResult
+from mediapipeline.core.schedule.stop_watcher import schedule_stop_deadline_from_gate
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 from mediapipeline.core.processes.pipeline_policy import (
     configured_network_role,

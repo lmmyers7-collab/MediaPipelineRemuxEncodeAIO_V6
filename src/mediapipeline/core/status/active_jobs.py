@@ -5,11 +5,12 @@ from pathlib import Path
 import re
 from typing import Any, Callable, Mapping
 
-from mediapipeline.desktop.contracts import ActiveJobRecord, ContractError
+from mediapipeline.core.kernel.contracts import ActiveJobRecord, ContractError
 from mediapipeline.core.status.file_io import read_json_file
 from mediapipeline.core.status.progress import parse_progress_datetime
 
 ReadJsonFileFunc = Callable[[Path], Any]
+ReadTextFileFunc = Callable[[Path], str]
 
 WORKER_PROGRESS_SCHEMA_VERSION = "desktop_worker_progress.v1"
 
@@ -18,7 +19,7 @@ def active_job_status_state(status: str = "", issue: str = "", source: str = "")
     combined = " ".join(str(value or "").strip().casefold() for value in (status, issue, source))
     normalized_status = str(status or "").strip().casefold()
     if any(term in combined for term in ("invalid", "unreadable", "failed", "failure", "killed", "orphan", "blocked", "malformed", "corrupt")):
-        return "blocked"
+        return "warning"
     if any(term in normalized_status for term in ("launching", "active", "running", "processing")):
         return "running"
     if any(term in combined for term in ("stale", "unknown", "review")):
@@ -233,6 +234,31 @@ def _last_nonempty_log_line(log_tail: str, *, max_chars: int = 240) -> str:
     return ""
 
 
+def _read_text_file_tail(path: Path, *, max_bytes: int = 64 * 1024) -> str:
+    try:
+        if not path.exists() or not path.is_file():
+            return ""
+        size = path.stat().st_size
+        with path.open("rb") as handle:
+            if size > max_bytes:
+                handle.seek(size - max_bytes)
+            data = handle.read(max_bytes)
+    except OSError:
+        return ""
+    return data.decode("utf-8", errors="replace")
+
+
+def _active_job_log_tail(row: Mapping[str, Any], fallback_log_tail: str, *, read_text_file: ReadTextFileFunc) -> str:
+    for key in ("stdout_log", "stderr_log"):
+        log_path = _text_from_mapping(row, key)
+        if not log_path:
+            continue
+        log_tail = read_text_file(Path(log_path))
+        if _last_nonempty_log_line(log_tail):
+            return log_tail
+    return fallback_log_tail
+
+
 def _progress_id(*values: object) -> str:
     text = "_".join(str(value or "").strip().casefold() for value in values if str(value or "").strip())
     text = re.sub(r"[^a-z0-9]+", "_", text).strip("_")
@@ -374,6 +400,7 @@ def _active_job_worker_row(
     *,
     progress: Mapping[str, Any] | None,
     log_tail: str,
+    read_text_file: ReadTextFileFunc,
     stale_after_seconds: float,
     now: datetime | None,
 ) -> dict[str, Any]:
@@ -391,6 +418,7 @@ def _active_job_worker_row(
         else None
     )
     progress_stale = _progress_is_stale(merged_progress or {}, stale_after_seconds=stale_after_seconds, now=now) if merged_progress else False
+    row_log_tail = _active_job_log_tail(row, log_tail, read_text_file=read_text_file)
     updated_at = (
         _text_from_mapping(merged_progress or {}, "LastUpdate", "UpdatedAt", "updated_at")
         or _text_from_mapping(row, "last_update", "launched_at")
@@ -413,7 +441,7 @@ def _active_job_worker_row(
         "status_state": status_state,
         "percent": _float_percent_from_mapping(merged_progress or {}, "CurrentStagePercent"),
         "elapsed_seconds": _elapsed_seconds(started_at, updated_at, now=now),
-        "last_log_line": _last_nonempty_log_line(log_tail),
+        "last_log_line": _last_nonempty_log_line(row_log_tail),
         "updated_at": updated_at,
         "stale_after_seconds": int(stale_after_seconds),
         "stale": bool(progress_stale),
@@ -466,6 +494,7 @@ def worker_progress_payload(
     stale_after_seconds: float = 5.0,
     max_items: int = 8,
     read_json_file: ReadJsonFileFunc = read_json_file,
+    read_text_file: ReadTextFileFunc = _read_text_file_tail,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     """Build a read-only operator telemetry payload from existing runtime evidence."""
@@ -481,6 +510,7 @@ def worker_progress_payload(
             row,
             progress=progress_mapping,
             log_tail=log_tail,
+            read_text_file=read_text_file,
             stale_after_seconds=stale_after_seconds,
             now=now,
         )
@@ -517,7 +547,7 @@ def worker_progress_payload(
         "summary_lines": [
             f"Worker progress: {status}",
             f"Rows: {len(rows)}; running={active_count}; blocked={blocked_count}; warning={warning_count}; completed={completed_count}.",
-            "Data sources: pipeline_progress.json, ActiveJobs records, and bounded pipeline log tail.",
+            "Data sources: pipeline_progress.json, ActiveJobs records, and bounded run log tails.",
             "Mutation guardrail: worker progress is read-only telemetry; WebView does not launch, stop, retry, clear state, mutate queue state, or touch media files.",
         ],
         "read_only": True,

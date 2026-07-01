@@ -1024,7 +1024,7 @@ def _browser_maintenance_reports_runner_source() -> str:
                 { label: "Open Failure JSON", target: "latest_failure_json" },
                 { label: "Open Failure Reports", target: "failed_reports" },
                 { label: "Open Run Logs", target: "run_logs" },
-                { label: "Open Failure Markers", target: "failed_markers" },
+                { label: "Open Error Records", target: "failed_markers" },
               ],
               primary_action: { kind: "open_owner_page", label: "Review in Diagnostics", page: "diagnostics", owner: "Manual review" },
               primary_action_label: "Review in Diagnostics",
@@ -1278,7 +1278,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Failure review board:",
               "Operator/permanent rows: 1",
               "source_locked",
-              "Mutation guardrail:",
+              "Boundary:",
             ]);
             requireText("audit-preview-summary", [
               "Rows: 1",
@@ -1304,7 +1304,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "1",
               "Will retry",
               "0",
-              "Clearable markers",
+              "Clearable errors",
               "0",
               "Source mode",
               "Latest failure JSON",
@@ -1333,8 +1333,12 @@ def _browser_maintenance_reports_runner_source() -> str:
               "source v:0 hevc 1920x1080",
               "source v:1 h264 1280x720",
               "Evidence",
-              "Clearable marker paths: 0",
+              "Clearable error records: 0",
               "Record file: C:/Reports/failures.json",
+            ]);
+            requireText("failure-evidence-links", [
+              "Open record file",
+              "Open record folder",
             ]);
             requireText("failure-rows", [
               "Needs operator",
@@ -1343,7 +1347,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Code: source_locked",
               "Class: operator_required",
               "Retry: Blocked (1/3)",
-              "Marker: not active",
+              "Error record: not active",
               "Video streams: source real=2, attached=0",
               "source v:0 hevc 1920x1080",
               "source v:1 h264 1280x720",
@@ -1403,7 +1407,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Mark resolved | not started | Confirm resolution after verification.",
             ]);
             requireText("failure-verification-panel", [
-              "Active markers",
+              "Active errors",
               "0",
               "Failure rows",
               "1",
@@ -1428,24 +1432,17 @@ def _browser_maintenance_reports_runner_source() -> str:
                 () => posts.some((entry) => entry.path.includes("/api/failures/lifecycle") && entry.body?.transition === "start_work"),
                 "failure lifecycle start-work post"
               );
-              await waitFor(() => !byId("failure-lifecycle-resolve-preview-button").disabled, "failure lifecycle resolve preview button ready");
-              if (!byId("failure-lifecycle-resolve-confirm-button").disabled) {
-                throw new Error("failure lifecycle resolve confirm should require a dry-run preview");
-              }
-              byId("failure-lifecycle-resolve-preview-button").click();
-              await waitFor(() => text("failure-lifecycle-result").includes("Fingerprint: smoke-lifecycle-fingerprint"), "failure lifecycle resolve preview");
-              await waitFor(() => !byId("failure-lifecycle-resolve-confirm-button").disabled, "failure lifecycle resolve confirm enabled after preview");
+              await waitFor(() => !byId("failure-lifecycle-resolve-confirm-button").disabled, "failure lifecycle resolve confirm ready");
               byId("failure-lifecycle-resolve-confirm-button").click();
               await waitFor(
                 () => posts.some((entry) => entry.path.includes("/api/failures/lifecycle") && entry.body?.transition === "mark_resolved" && entry.body?.confirm_transition === true),
                 "failure lifecycle resolve confirm post"
               );
-              byId("failure-lifecycle-resolve-confirm-button").click();
               const lifecyclePosts = posts.filter((entry) => entry.path.includes("/api/failures/lifecycle"));
-              if (lifecyclePosts.length !== 4) {
-                throw new Error("failure lifecycle duplicate guard expected 4 posts, saw " + lifecyclePosts.length);
+              if (lifecyclePosts.length !== 3) {
+                throw new Error("failure lifecycle flow expected 3 posts, saw " + lifecyclePosts.length);
               }
-              if (posts.length !== beforeLifecyclePosts + 4) {
+              if (posts.length !== beforeLifecyclePosts + 3) {
                 throw new Error("failure lifecycle flow posted unexpected commands");
               }
               if (lifecycleRefreshes !== 3) {
@@ -1461,7 +1458,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Open Failure JSON",
               "Open Failure Reports",
               "Open Run Logs",
-              "Open Failure Markers",
+              "Open Error Records",
             ]);
             window.mediaPipelineReportsView.renderFailurePreview({
               source: "C:/Reports/failures.json",
@@ -1506,27 +1503,21 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Will retry",
               "Retry Latest",
               "Configure PgsToSrt before retry.",
-              "Marker: available",
+              "Error record: available",
             ]);
             requireText("failure-resolution-summary-strip", [
               "Will retry",
               "Wait for backend retry",
-              "Clearable markers",
+              "Clearable errors",
               "2",
             ]);
-            byId("failure-clear-scope").value = "selected_group";
-            byId("failure-clear-preview-button").click();
-            await waitFor(
-              () => posts.some((entry) => entry.path.includes("/api/failures/clear") && entry.body?.dry_run === true && Array.isArray(entry.body?.marker_paths) && entry.body.marker_paths.includes("C:/State/Failures/Markers/latest-warning-b.json")),
-              "latest-json retryable warning clear preview"
-            );
-            requireText("failure-clear-summary", [
-              "Dry run: yes",
-              "Planned marker clears: 2",
-              "C:/State/Failures/Markers/latest-warning-a.json",
-              "C:/State/Failures/Markers/latest-warning-b.json",
-              "Guardrail:",
+            requireText("failure-evidence-links", [
+              "Open record file",
+              "Open record folder",
             ]);
+            byId("failure-clear-scope").value = "selected_group";
+            byId("failure-clear-scope").dispatchEvent(new Event("change", { bubbles: true }));
+            await waitFor(() => !byId("failure-clear-confirm-button").disabled, "latest-json selected group clear enabled");
             byId("failure-clear-confirm-button").click();
             await waitFor(
               () => posts.some((entry) => entry.path.includes("/api/failures/clear") && entry.body?.confirm_clear === true && Array.isArray(entry.body?.marker_paths) && entry.body.marker_paths.includes("C:/State/Failures/Markers/latest-warning-b.json")),
@@ -1605,12 +1596,17 @@ def _browser_maintenance_reports_runner_source() -> str:
             requireText("failure-status", ["1 selected hidden by filter"]);
             const beforeHiddenFailurePosts = posts.length;
             byId("failure-clear-scope").value = "selected_files";
-            byId("failure-clear-preview-button").click();
+            byId("failure-clear-scope").dispatchEvent(new Event("change", { bubbles: true }));
+            if (!byId("failure-clear-confirm-button").disabled) {
+              throw new Error("hidden failure selected cleanup should disable the clear button");
+            }
             byId("failure-clear-confirm-button").click();
             if (posts.length !== beforeHiddenFailurePosts) {
               throw new Error("hidden failure selected cleanup posted unexpectedly");
             }
-            requireText("failure-clear-summary", ["selected failure row", "hidden by the active filter/search"]);
+            if (!byId("failure-clear-confirm-button").title.includes("hidden by the active filter/search")) {
+              throw new Error("hidden failure selected cleanup did not explain why clear is disabled");
+            }
             clickFirst('[data-failure-filter-chip="all"]', "Failure All filter");
             const largeFailureRows = Array.from({ length: 260 }, (_, index) => ({
               ...markerFailurePreview.rows[0],
@@ -1631,15 +1627,10 @@ def _browser_maintenance_reports_runner_source() -> str:
             if (!firstGroup) throw new Error("failure resolution group button missing");
             firstGroup.click();
             byId("failure-clear-scope").value = "selected_group";
-            if (!byId("failure-clear-confirm-button").disabled) {
-              throw new Error("marker clear confirm should stay disabled until the selected scope has a successful preview");
+            byId("failure-clear-scope").dispatchEvent(new Event("change", { bubbles: true }));
+            if (byId("failure-clear-confirm-button").disabled) {
+              throw new Error("marker clear confirm should be enabled for a clearable selected scope");
             }
-            byId("failure-clear-preview-button").click();
-            await waitFor(
-              () => posts.some((entry) => entry.path.includes("/api/failures/clear") && entry.body?.dry_run === true && entry.body?.marker_paths?.[0] === "C:/State/Failures/Markers/marker-1.json"),
-              "row clear preview post"
-            );
-            await waitFor(() => !byId("failure-clear-confirm-button").disabled, "row clear confirm enabled after preview");
             const originalRefreshAllForRowClear = window.refreshAll;
             window.refreshAll = async () => {};
             try {
@@ -1669,24 +1660,22 @@ def _browser_maintenance_reports_runner_source() -> str:
               releaseBulkRefresh = resolve;
             });
             try {
-              if (!byId("failure-clear-confirm-button").disabled) {
-                throw new Error("clear-all confirm should be disabled until the all active markers preview completes");
-              }
               const beforeBulkClearPosts = posts.length;
               byId("failure-clear-scope").value = "all_markers";
-              byId("failure-clear-preview-button").click();
-              await waitFor(() => text("failure-clear-status").includes("Preview ready"), "failure marker clear all preview");
-              await waitFor(() => !byId("failure-clear-confirm-button").disabled, "failure clear confirm enabled after all active markers preview");
+              byId("failure-clear-scope").dispatchEvent(new Event("change", { bubbles: true }));
+              if (byId("failure-clear-confirm-button").disabled) {
+                throw new Error("clear-all confirm should be enabled for all active errors");
+              }
               byId("failure-clear-confirm-button").click();
               await waitFor(() => text("failure-clear-status").includes("Cleared"), "failure marker clear all success");
               const bulkClearPost = posts.find((entry) => entry.path.includes("/api/failures/clear") && entry.body?.scope === "all_markers" && entry.body?.dry_run === false);
-              if (!bulkClearPost) throw new Error("Clear all active markers did not post after preview.");
+              if (!bulkClearPost) throw new Error("Clear all active markers did not post.");
               if (bulkClearPost.body.confirm_clear !== true) throw new Error("Clear all active markers must send confirm_clear true.");
               if (Object.prototype.hasOwnProperty.call(bulkClearPost.body, "marker_paths")) {
                 throw new Error("Clear all active markers must let the backend enumerate marker paths.");
               }
               byId("failure-clear-confirm-button").click();
-              if (posts.length !== beforeBulkClearPosts + 2) {
+              if (posts.length !== beforeBulkClearPosts + 1) {
                 throw new Error("Clear all active markers duplicate click posted more than once.");
               }
               if (!bulkRefreshStarted) throw new Error("clear-all did not request the authoritative refresh");
@@ -1716,30 +1705,15 @@ def _browser_maintenance_reports_runner_source() -> str:
             });
             try {
               byId("failure-archive-disclosure").open = true;
-              if (!byId("failure-archive-confirm-button").disabled) {
-                throw new Error("archive evidence confirm should stay disabled until preview and reason are present");
+              if (byId("failure-archive-confirm-button").disabled) {
+                throw new Error("archive evidence confirm should be enabled when evidence scopes are selected");
               }
-              byId("failure-archive-preview-button").click();
-              await waitFor(() => text("failure-archive-status").includes("Preview ready"), "failure archive preview ready");
-              requireText("failure-archive-summary", [
-                "Dry run: yes",
-                "Planned evidence files: 3",
-                "Fingerprint: smoke-archive-fingerprint",
-                "Guardrail:",
-              ]);
-              if (!byId("failure-archive-confirm-button").disabled) {
-                throw new Error("archive evidence confirm should stay disabled until a reason is entered");
-              }
-              byId("failure-archive-reason").value = "Smoke test evidence cleanup";
-              byId("failure-archive-reason").dispatchEvent(new Event("input", { bubbles: true }));
-              await waitFor(() => !byId("failure-archive-confirm-button").disabled, "failure archive confirm enabled after preview and reason");
               byId("failure-archive-confirm-button").click();
               await waitFor(() => text("failure-archive-status").includes("Archived"), "failure archive confirmed");
               const archiveConfirmPost = posts.find((entry) => entry.path.includes("/api/failures/archive-evidence") && entry.body?.confirm_archive === true);
               if (!archiveConfirmPost) throw new Error("archive evidence confirm did not post");
               if (archiveConfirmPost.body.scope !== "all_active") throw new Error("archive evidence did not use all_active scope");
-              if (archiveConfirmPost.body.reason !== "Smoke test evidence cleanup") throw new Error("archive evidence did not send the operator reason");
-              if (archiveConfirmPost.body.dry_run_fingerprint !== "smoke-archive-fingerprint") throw new Error("archive evidence did not send dry-run fingerprint");
+              if ((archiveConfirmPost.body.dry_run_fingerprint || "") !== "") throw new Error("archive evidence should not require dry-run fingerprint");
               if (!archiveRefreshStarted) throw new Error("archive evidence did not request the authoritative refresh");
             } finally {
               releaseArchiveRefresh();
@@ -1790,6 +1764,66 @@ def _browser_maintenance_reports_runner_source() -> str:
             window.mediaPipelineReportsView.renderAuditControls(reportAuditControls);
             clickFirst('[data-reports-tab="audit"]', "Reports Audit tab");
             await waitFor(() => document.querySelector('[data-reports-tab="audit"]')?.getAttribute("aria-selected") === "true", "Reports Audit tab selected");
+            const staleAuditTimestamp = "2000-01-01T00:00:00Z";
+            window.mediaPipelineReportsView.renderReports(
+              {
+                latest_paths: {
+                  latest_failure_report: "C:/Reports/failures.txt",
+                  latest_failure_json: "C:/Reports/failures.json",
+                  latest_audit_csv: "C:/Reports/audit_summary.csv",
+                  latest_priority_csv: "C:/Reports/audit_priority.csv",
+                },
+                warnings: [],
+                audit_progress: {
+                  status: "scanning",
+                  completed: false,
+                  failed: false,
+                  processed_files: 2403,
+                  total_files: 3030,
+                  percent_complete: 79,
+                  current_operation: "Scanning 2404 / 3030",
+                  last_update: staleAuditTimestamp,
+                  updated_at: staleAuditTimestamp,
+                },
+                progress_bars: [{
+                  id: "audit_progress",
+                  label: "Audit progress",
+                  mode: "determinate",
+                  percent: 79,
+                  status: "active",
+                  detail: "2403 / 3030 | Scanning 2404 / 3030",
+                  source: "audit_progress.json",
+                  updated_at: staleAuditTimestamp,
+                }],
+              },
+              {
+                paths: {
+                  failed_reports: "C:/Reports/Failures",
+                  failed_markers: "C:/State/FailedMarkers",
+                  audit_reports: "C:/Reports/Audit",
+                  completed_manifest: "C:/State/Completed/completed_jobs.jsonl",
+                  pending_push: "C:/PendingServerPush",
+                  queue_snapshot: "C:/State/Progress/queue_snapshot.json",
+                  active_jobs: "C:/State/ActiveJobs",
+                },
+              }
+            );
+            requireText("report-progress-status", ["Audit stale"]);
+            requireText("report-progress-summary", [
+              "Audit status: scanning",
+              "Audit health: stale progress only",
+            ]);
+            requireText("report-audit-launch-detail", [
+              "Audit progress is stale",
+              "Running indicator: stale progress only",
+              "Stop Audit is unavailable",
+            ]);
+            if (!byId("report-audit-stop-button").disabled) {
+              throw new Error("Reports Stop Audit became clickable for stale progress without active audit evidence.");
+            }
+            if (text("report-audit-start-button") === "Audit Running") {
+              throw new Error("Reports stale audit progress was presented as a running audit.");
+            }
             const largeAuditRows = Array.from({ length: 260 }, (_, index) => ({
               ...reportAuditPreview.rows[0],
               path: "C:/Outsource/Large Audit " + index + ".mkv",
@@ -1890,6 +1924,25 @@ def _browser_maintenance_reports_runner_source() -> str:
               throw new Error("missing Reports audit clear selection control");
             }
             const dispatchAuditLocationInput = () => byId("report-audit-start-library-root").dispatchEvent(new Event("input", { bubbles: true }));
+            byId("report-audit-start-library-root").value = "C:/Reports/Typed Only";
+            dispatchAuditLocationInput();
+            requireText("report-audit-launch-preflight", [
+              "Selected table locations: 0",
+              "Typed location: C:/Reports/Typed Only (not in the table selection)",
+              "Add Source to put the typed location in the Locations table",
+            ]);
+            if (!byId("report-audit-start-button").disabled) {
+              throw new Error("Reports audit start was enabled before a Locations table row was selected.");
+            }
+            const beforeTypedOnlyAuditStartPosts = posts.filter((entry) => entry.path.includes("/api/audit/start")).length;
+            await window.mediaPipelineReportsView.startReportAuditFromForm();
+            if (posts.filter((entry) => entry.path.includes("/api/audit/start")).length !== beforeTypedOnlyAuditStartPosts) {
+              throw new Error("Reports audit start posted from a typed-only path without a Locations table row.");
+            }
+            requireText("report-audit-launch-detail", [
+              "Select one or more locations in the Locations table",
+              "Submitted request",
+            ]);
             byId("report-audit-start-library-root").value = "C:/Reports/Library";
             dispatchAuditLocationInput();
             byId("report-audit-add-source-button").click();
@@ -2263,7 +2316,7 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
         browser_result = result["result"]
         posts = browser_result["posts"]
         gets = browser_result["gets"]
-        self.assertEqual(len(posts), 19)
+        self.assertEqual(len(posts), 14)
         failure_get_paths = [get["path"] for get in gets if get["path"].startswith("/api/failures")]
         self.assertIn("/api/failures?limit=100&source=markers", failure_get_paths)
         self.assertIn("/api/failures?limit=100", failure_get_paths)
@@ -2276,36 +2329,22 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
         lifecycle_posts = [post for post in posts if post["path"] == "/api/failures/lifecycle"]
         lifecycle_ack = next(post for post in lifecycle_posts if post["body"].get("transition") == "acknowledge")
         lifecycle_start = next(post for post in lifecycle_posts if post["body"].get("transition") == "start_work")
-        lifecycle_resolve_preview = next(
-            post
-            for post in lifecycle_posts
-            if post["body"].get("transition") == "mark_resolved" and post["body"].get("dry_run") is True
-        )
         lifecycle_resolve_confirm = next(
             post
             for post in lifecycle_posts
             if post["body"].get("transition") == "mark_resolved" and post["body"].get("confirm_transition") is True
         )
-        latest_warning_preview = next(
+        failure_clear_previews = [
             post
             for post in posts
-            if post["path"] == "/api/failures/clear"
-            and post["body"].get("dry_run") is True
-            and "C:/State/Failures/Markers/latest-warning-b.json" in post["body"].get("marker_paths", [])
-        )
+            if post["path"] == "/api/failures/clear" and post["body"].get("dry_run") is True
+        ]
         latest_warning_clear = next(
             post
             for post in posts
             if post["path"] == "/api/failures/clear"
             and post["body"].get("confirm_clear") is True
             and "C:/State/Failures/Markers/latest-warning-b.json" in post["body"].get("marker_paths", [])
-        )
-        row_preview = next(
-            post
-            for post in posts
-            if post["path"] == "/api/failures/clear"
-            and post["body"].get("dry_run") is True
-            and post["body"].get("marker_paths") == ["C:/State/Failures/Markers/marker-1.json"]
         )
         row_clear = next(
             post
@@ -2314,7 +2353,6 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
             and post["body"].get("confirm_clear") is True
             and post["body"].get("marker_paths") == ["C:/State/Failures/Markers/marker-1.json"]
         )
-        bulk_preview = next(post for post in posts if post["body"].get("scope") == "all_markers" and post["body"].get("dry_run") is True)
         bulk_clear = next(post for post in posts if post["body"].get("scope") == "all_markers" and post["body"].get("dry_run") is False)
         archive_previews = [
             post
@@ -2337,24 +2375,19 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
         self.assertTrue(audit_stop_post["body"]["confirm_stop"])
         self.assertEqual(audit_stop_post["body"]["reason"], "Reports Stop Audit button")
         self.assertEqual(diagnostics_open_post["body"]["target"], "latest_failure_report")
-        self.assertEqual(len(lifecycle_posts), 4)
+        self.assertEqual(len(lifecycle_posts), 3)
         self.assertEqual(lifecycle_ack["body"]["journal_key"], "source_locked|source-stability|manual-review|review-in-diagnostics")
         self.assertFalse(lifecycle_ack["body"]["dry_run"])
         self.assertTrue(lifecycle_ack["body"]["confirm_transition"])
         self.assertEqual(lifecycle_start["body"]["journal_key"], lifecycle_ack["body"]["journal_key"])
         self.assertFalse(lifecycle_start["body"]["dry_run"])
         self.assertTrue(lifecycle_start["body"]["confirm_transition"])
-        self.assertEqual(lifecycle_resolve_preview["body"]["reason"], "Operator marked failure resolved from Reports.")
-        self.assertEqual(lifecycle_resolve_preview["body"]["operator_note"], "")
-        self.assertTrue(lifecycle_resolve_preview["body"]["dry_run"])
-        self.assertFalse(lifecycle_resolve_preview["body"]["confirm_transition"])
-        self.assertEqual(lifecycle_resolve_preview["body"]["dry_run_fingerprint"], "")
-        self.assertEqual(lifecycle_resolve_confirm["body"]["dry_run_fingerprint"], "smoke-lifecycle-fingerprint")
+        self.assertEqual(lifecycle_resolve_confirm["body"]["reason"], "Operator marked failure resolved from Reports.")
+        self.assertEqual(lifecycle_resolve_confirm["body"]["operator_note"], "")
+        self.assertEqual(lifecycle_resolve_confirm["body"]["dry_run_fingerprint"], "")
         self.assertFalse(lifecycle_resolve_confirm["body"]["dry_run"])
         self.assertTrue(lifecycle_resolve_confirm["body"]["confirm_transition"])
-        self.assertEqual(latest_warning_preview["body"]["scope"], "selected")
-        self.assertTrue(latest_warning_preview["body"]["dry_run"])
-        self.assertFalse(latest_warning_preview["body"]["confirm_clear"])
+        self.assertEqual(failure_clear_previews, [])
         self.assertEqual(latest_warning_clear["path"], "/api/failures/clear")
         self.assertEqual(latest_warning_clear["body"]["scope"], "selected")
         self.assertFalse(latest_warning_clear["body"]["dry_run"])
@@ -2366,38 +2399,24 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
                 "C:/State/Failures/Markers/latest-warning-b.json",
             ],
         )
-        self.assertEqual(row_preview["body"]["scope"], "selected")
-        self.assertTrue(row_preview["body"]["dry_run"])
-        self.assertFalse(row_preview["body"]["confirm_clear"])
         self.assertEqual(row_clear["path"], "/api/failures/clear")
         self.assertEqual(row_clear["body"]["scope"], "selected")
         self.assertFalse(row_clear["body"]["dry_run"])
         self.assertTrue(row_clear["body"]["confirm_clear"])
         self.assertEqual(row_clear["body"]["marker_paths"], ["C:/State/Failures/Markers/marker-1.json"])
-        self.assertEqual(bulk_preview["path"], "/api/failures/clear")
-        self.assertTrue(bulk_preview["body"]["dry_run"])
-        self.assertFalse(bulk_preview["body"]["confirm_clear"])
-        self.assertNotIn("marker_paths", bulk_preview["body"])
         self.assertEqual(bulk_clear["path"], "/api/failures/clear")
         self.assertEqual(bulk_clear["body"]["scope"], "all_markers")
         self.assertFalse(bulk_clear["body"]["dry_run"])
         self.assertTrue(bulk_clear["body"]["confirm_clear"])
         self.assertNotIn("marker_paths", bulk_clear["body"])
-        self.assertEqual(len(archive_previews), 1)
-        for archive_preview in archive_previews:
-            self.assertEqual(archive_preview["body"]["scope"], "all_active")
-            self.assertTrue(archive_preview["body"]["include_markers"])
-            self.assertTrue(archive_preview["body"]["include_reports"])
-            self.assertTrue(archive_preview["body"]["dry_run"])
-            self.assertFalse(archive_preview["body"]["confirm_archive"])
-            self.assertEqual(archive_preview["body"].get("dry_run_fingerprint", ""), "")
+        self.assertEqual(archive_previews, [])
         self.assertEqual(archive_confirm["body"]["scope"], "all_active")
         self.assertTrue(archive_confirm["body"]["include_markers"])
         self.assertTrue(archive_confirm["body"]["include_reports"])
         self.assertFalse(archive_confirm["body"]["dry_run"])
         self.assertTrue(archive_confirm["body"]["confirm_archive"])
-        self.assertEqual(archive_confirm["body"]["dry_run_fingerprint"], "smoke-archive-fingerprint")
-        self.assertEqual(archive_confirm["body"]["reason"], "Smoke test evidence cleanup")
+        self.assertEqual(archive_confirm["body"]["dry_run_fingerprint"], "")
+        self.assertEqual(archive_confirm["body"]["reason"], "")
         self.assertEqual(score_policy_post["body"]["policy"]["issue_code_weights"]["audio-default-policy-mismatch"], 222)
         self.assertEqual(score_policy_post["body"]["policy"]["issue_code_weights"]["bdpgs-subtitles-ocr-candidate"], 40)
         self.assertIn(browser_result["maintenanceStatus"], {"Ready", "Warnings", "Blocked"})

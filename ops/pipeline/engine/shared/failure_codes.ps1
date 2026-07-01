@@ -111,9 +111,11 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'MEDIA_INTEGRITY_EXCEPTION',
         'MEDIA_PROBE_STOPPED',
         'MEDIA_PROBE_TIMEOUT',
+        'LOCAL_WORKER_CHILD_TIMEOUT',
         'MKVMERGE_WARNINGS',
         'MKVMERGE_WARNING_STREAM_LOSS',
         'NATIVE_ABORTED',
+        'NATIVE_IDLE_TIMEOUT',
         'NATIVE_START_FAILED',
         'NATIVE_STOPPED',
         'NATIVE_TIMEOUT',
@@ -533,7 +535,7 @@ function Get-FFmpegFailureCode {
     # routes by error_code can show CPU-specific guidance.
     $isCpuEncode = $stageText -match '^encode-cpu(\b|-)'
 
-    if ($text -match '\[KILLED:\s*TIMEOUT|timed out|timeout after') {
+    if ($text -match '\[KILLED:\s*TIMEOUT|timed out|timeout after|NATIVE_IDLE_TIMEOUT|produced no output for|no output for') {
         if ($isCpuEncode) { return 'ENCODE_CPU_TIMEOUT' }
         if ($isEncode) { return 'ENCODE_TIMEOUT' }
         if ($isRemux) { return 'REMUX_TIMEOUT' }
@@ -565,6 +567,10 @@ function Get-FFmpegFailureCode {
     if ($text -match 'Unknown encoder|Encoder .* not found|codec .* not found') { return 'ENCODER_UNAVAILABLE' }
     if ($text -match 'Decoder .* not found|unsupported codec|Could not find codec parameters|Could not open codec') {
         return 'SOURCE_MEDIA_STREAM_UNSUPPORTED'
+    }
+    if ($isRemux -and
+        $text -match "Codec 'mjpeg'.*bitstream filter 'hevc_mp4toannexb'|bitstream filter 'hevc_mp4toannexb'.*Codec 'mjpeg'|mjpeg.*hevc_mp4toannexb.*Invalid argument") {
+        return 'REMUX_ATTACHED_PICTURE_MAPPED'
     }
     if ($isRemux -and
         $text -match 'Could not write header' -and
@@ -603,7 +609,7 @@ function Get-MkvmergeFailureCode {
 
     $text = if ($ErrorText) { $ErrorText } else { "" }
     $ffprobeCode = Get-FFprobeFailureCode -ErrorText $text
-    if ($TimedOut -or $text -match '\[KILLED:\s*TIMEOUT|timed out|timeout after') { return 'MKVMERGE_TIMEOUT' }
+    if ($TimedOut -or $text -match '\[KILLED:\s*TIMEOUT|timed out|timeout after|NATIVE_IDLE_TIMEOUT|produced no output for|no output for') { return 'MKVMERGE_TIMEOUT' }
     if ($Stopped -or $text -match '\[KILLED:\s*STOP|stop requested') { return 'MKVMERGE_STOPPED' }
     if ($text -match 'No space left on device|not enough space|disk full') { return 'OUTPUT_DISK_FULL' }
     if ($text -match 'Permission denied|Access is denied|UnauthorizedAccess') { return 'MEDIA_ACCESS_DENIED' }

@@ -16,10 +16,81 @@ function Invoke-MediaPipelineProcessQueueEntry {
     return Process-File $Entry.File ([bool]$Entry.IsTV) $ProcessedIndex -QueueIndex $progressQueueIndex -QueueTotal $progressQueueTotal -PriorityInfo $Entry.PriorityInfo -LibraryProfileId ([string]$Entry.LibraryId)
 }
 
+function Write-MediaPipelineUnexpectedQueueEntryFailure {
+    param(
+        [Parameter(Mandatory)] $Entry,
+        [Parameter(Mandatory)] $ErrorRecord
+    )
+
+    $file = $Entry.File
+    $sourcePath = if ($file -and $file.PSObject.Properties['FullName']) { [string]$file.FullName } else { [string]$Entry.SourcePath }
+    $sourceName = if ($file -and $file.PSObject.Properties['Name']) { [string]$file.Name } else { Split-Path $sourcePath -Leaf }
+    $message = if ($ErrorRecord.Exception -and $ErrorRecord.Exception.Message) { [string]$ErrorRecord.Exception.Message } else { [string]$ErrorRecord }
+    Write-Log "Unexpected queue item failure for ${sourceName}: $message" 'ERROR'
+    $script:UnexpectedQueueEntryFailures = [int]$script:UnexpectedQueueEntryFailures + 1
+    $script:totalFailed = [int]$script:totalFailed + 1
+
+    if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+        try {
+            Write-PipelineEvent -EventType 'queue_item_unexpected_failure' -Stage 'processing' -Status 'failed' -SourcePath $sourcePath -Data @{
+                source_name = $sourceName
+                error_code  = 'UNEXPECTED_PIPELINE_EXCEPTION'
+                error       = $message
+                category    = ([string]$Entry.LocalWorkerPhase)
+                retryable   = $true
+            } | Out-Null
+        } catch {}
+    }
+
+    if ($file -and (Get-Command -Name Register-SourceFailure -ErrorAction SilentlyContinue)) {
+        try {
+            Register-SourceFailure `
+                -SourceFile $file `
+                -Classification 'transient' `
+                -Reason "Unexpected queue item failure: $message" `
+                -Stage 'queue-item' `
+                -ErrorCode 'UNEXPECTED_PIPELINE_EXCEPTION' `
+                -SuggestedAction 'Inspect the failure report and retry after confirming the source and runtime state are healthy.' | Out-Null
+        } catch {
+            Write-Log "Failed to record unexpected queue item failure for ${sourceName}: $_" 'WARN'
+        }
+    }
+
+    return [pscustomobject]@{
+        Status            = 'failed'
+        Success           = $false
+        QueueTerminal     = $false
+        Retryable         = $true
+        UnexpectedFailure = $true
+        ErrorCode         = 'UNEXPECTED_PIPELINE_EXCEPTION'
+        Reason            = $message
+        SourcePath        = $sourcePath
+    }
+}
+
+function Invoke-MediaPipelineProcessQueueEntrySafely {
+    param(
+        [Parameter(Mandatory)] $Entry,
+        [Parameter(Mandatory)] $ProcessedIndex,
+        [switch] $StopOnUnexpectedFailure
+    )
+
+    try {
+        return Invoke-MediaPipelineProcessQueueEntry -Entry $Entry -ProcessedIndex $ProcessedIndex
+    } catch {
+        $result = Write-MediaPipelineUnexpectedQueueEntryFailure -Entry $Entry -ErrorRecord $_
+        if ($StopOnUnexpectedFailure) {
+            throw
+        }
+        return $result
+    }
+}
+
 function Invoke-MediaQueuePhasePlan {
     param(
         [Parameter(Mandatory)] $QueuePlan,
-        [Parameter(Mandatory)] $ProcessedIndex
+        [Parameter(Mandatory)] $ProcessedIndex,
+        [switch] $StopOnUnexpectedFailure
     )
 
     $runnableEntries = @(Get-MediaPipelineQueuePlanRunnableEntries -QueuePlan $QueuePlan)
@@ -39,7 +110,7 @@ function Invoke-MediaQueuePhasePlan {
         Write-Log "PRIORITY PHASE (mixed): $($mixedPriority.Count) item(s) queued first (movies: $mixedMovieCount, tv: $mixedTVCount)"
         foreach ($entry in $mixedPriority) {
             Check-ControlFlags; if ($script:StopRequested) { break }
-            Invoke-MediaPipelineProcessQueueEntry -Entry $entry -ProcessedIndex $ProcessedIndex
+            Invoke-MediaPipelineProcessQueueEntrySafely -Entry $entry -ProcessedIndex $ProcessedIndex -StopOnUnexpectedFailure:$StopOnUnexpectedFailure
         }
     } else {
         # Default: priority movies first, then priority TV
@@ -48,7 +119,7 @@ function Invoke-MediaQueuePhasePlan {
             for ($i = 0; $i -lt $highMovies.Count; $i++) {
                 Check-ControlFlags; if ($script:StopRequested) { break }
                 $entry = $highMovies[$i]
-                Invoke-MediaPipelineProcessQueueEntry -Entry $entry -ProcessedIndex $ProcessedIndex
+                Invoke-MediaPipelineProcessQueueEntrySafely -Entry $entry -ProcessedIndex $ProcessedIndex -StopOnUnexpectedFailure:$StopOnUnexpectedFailure
             }
         }
         if (-not $script:StopRequested -and $highTV.Count -gt 0) {
@@ -56,7 +127,7 @@ function Invoke-MediaQueuePhasePlan {
             for ($i = 0; $i -lt $highTV.Count; $i++) {
                 Check-ControlFlags; if ($script:StopRequested) { break }
                 $entry = $highTV[$i]
-                Invoke-MediaPipelineProcessQueueEntry -Entry $entry -ProcessedIndex $ProcessedIndex
+                Invoke-MediaPipelineProcessQueueEntrySafely -Entry $entry -ProcessedIndex $ProcessedIndex -StopOnUnexpectedFailure:$StopOnUnexpectedFailure
             }
         }
     }
@@ -67,7 +138,7 @@ function Invoke-MediaQueuePhasePlan {
         for ($i = 0; $i -lt $normalMovieEntries.Count; $i++) {
             Check-ControlFlags; if ($script:StopRequested) { break }
             $entry = $normalMovieEntries[$i]
-            Invoke-MediaPipelineProcessQueueEntry -Entry $entry -ProcessedIndex $ProcessedIndex
+            Invoke-MediaPipelineProcessQueueEntrySafely -Entry $entry -ProcessedIndex $ProcessedIndex -StopOnUnexpectedFailure:$StopOnUnexpectedFailure
         }
     }
 
@@ -77,7 +148,7 @@ function Invoke-MediaQueuePhasePlan {
         for ($i = 0; $i -lt $normalTvEntries.Count; $i++) {
             Check-ControlFlags; if ($script:StopRequested) { break }
             $entry = $normalTvEntries[$i]
-            Invoke-MediaPipelineProcessQueueEntry -Entry $entry -ProcessedIndex $ProcessedIndex
+            Invoke-MediaPipelineProcessQueueEntrySafely -Entry $entry -ProcessedIndex $ProcessedIndex -StopOnUnexpectedFailure:$StopOnUnexpectedFailure
         }
     }
 
@@ -89,7 +160,7 @@ function Invoke-MediaQueuePhasePlan {
             for ($i = 0; $i -lt $lowEntries.Count; $i++) {
                 Check-ControlFlags; if ($script:StopRequested) { break }
                 $entry = $lowEntries[$i]
-                Invoke-MediaPipelineProcessQueueEntry -Entry $entry -ProcessedIndex $ProcessedIndex
+                Invoke-MediaPipelineProcessQueueEntrySafely -Entry $entry -ProcessedIndex $ProcessedIndex -StopOnUnexpectedFailure:$StopOnUnexpectedFailure
             }
         }
     }
@@ -107,6 +178,6 @@ function Invoke-MediaQueuePhasePlan {
         TVCount       = [int]$QueuePlan.TVCount
         LowCount      = $QueuePlan.LowCount
         HoldCount     = $holdCount
+        UnexpectedFailures = [int]$script:UnexpectedQueueEntryFailures
     }
 }
-

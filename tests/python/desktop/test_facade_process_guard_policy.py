@@ -20,7 +20,7 @@ from mediapipeline.core.processes.guard_policy import (
 
 class ProcessGuardPolicyTests(unittest.TestCase):
     def test_close_readiness_allows_known_idle_terminal_states(self) -> None:
-        for state in ("idle", "completed", "failed"):
+        for state in ("idle", "completed", "failed", "stopped"):
             fields = close_readiness_fields(state=state, snapshot_available=True, block_message="")
             self.assertTrue(fields["safe_to_close"])
             self.assertFalse(fields["active_work"])

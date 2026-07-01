@@ -12,11 +12,22 @@ Runtime state lives under `LocalBase\State\`. `LocalBase` is a config key; its d
 
 ---
 
+## Local Work and Output Staging
+
+| Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
+|---|---|---|---|---|---|---|
+| Scratch processing root | `Incoming\Processing\` | Pipeline (PS) | Source-to-scratch copy and temp subtitle/remux/encode helpers | Pipeline processing stages | No during active work; pipeline startup removes stale generated temp files and stale `src_*` scratch-copy folders only after boundary checks | N/A |
+| Local encoded output staging | `Encoded\` | Pipeline (PS) | Remux/encode output before publish or pending-publish park | Publish, pending-publish park, and retry paths | No during active work; successful publish deletes local output files, and pipeline cleanup may remove only empty folders older than `CleanupStaleAgeHours` under this root | N/A |
+| Remux temp root | `RemuxTemp\` | Pipeline (PS) | Remux helper work | Remux processing | No during active work | N/A |
+
+---
+
 ## SQLite Mirror
 
 | Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
 |---|---|---|---|---|---|---|
 | SQLite state mirror | `State\mediapipeline_state.sqlite3` | Desktop app / Python stage tooling | Shadow writes from command journal entries, Python stage events, Queue dry-run snapshots, and Completed manifest rows | Troubleshooting only; JSON/state files remain authoritative | No while the backend is running; with the backend stopped it can be rebuilt opportunistically from future JSON/state activity | N/A |
+| SQLite maintenance marker | `State\state_db_maintenance.json` | Desktop app / Python stage tooling | Opportunistic mirror maintenance after successful mirror writes | Long-run health evidence and Diagnostics/Home read-only summaries | No while the backend is running; with the backend stopped it can be removed to force a fresh best-effort maintenance attempt on the next mirror write | N/A |
 
 The SQLite mirror is additive diagnostic evidence only. Do not use it as the source of truth for queue scope, completed output acceptance, pending publish drain decisions, command history rendering, or recovery actions.
 
@@ -45,6 +56,17 @@ The SQLite mirror is additive diagnostic evidence only. Do not use it as the sou
 
 ---
 
+## Local Worker Slots
+
+| Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
+|---|---|---|---|---|---|---|
+| Worker slot folder | `State\Workers\slot-<n>\` | Pipeline (PS) | Local worker execution | Pipeline worker scheduler and long-run health counters | No during active work | N/A |
+| Worker metadata | `State\Workers\slot-<n>\worker_metadata.json` | Pipeline (PS) | Parent worker scheduler | Pipeline worker scheduler and operator evidence | No during active work | N/A |
+| Worker result | `State\Workers\slot-<n>\worker_result.json` | Pipeline (PS) | Worker child on completion/failure | Parent worker scheduler | No during active work | N/A |
+| Worker child heartbeat | `State\Workers\slot-<n>\worker_heartbeat.json` | Pipeline (PS) | Worker child on startup, stage changes, native progress, and final result | Parent worker scheduler and long-run health counters | No during active work; stale heartbeat is scheduler evidence, not an operator control surface | N/A |
+
+---
+
 ## Completed Manifest
 
 | Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
@@ -62,6 +84,7 @@ Legacy `DesktopApp\encode_speed_history.json` and `DesktopApp\MediaPipelineRemux
 |---|---|---|---|---|---|---|
 | Failure markers | `State\Failures\Markers\` | Pipeline (PS) | Failed jobs | Queue exclusions, local API | Via Reports Clear Retry Blockers / `POST /api/failures/clear` only — not manual delete | `failed_markers` |
 | Failure reports | `State\Failures\Reports\` | Pipeline (PS) | Failed jobs | Desktop app, Diagnostics | After reviewing and capturing evidence | `failed_reports` |
+| Failure artifacts | `State\Failures\Artifacts\` and legacy `Failed\Artifacts\` | Pipeline (PS) | Failed jobs with captured scratch/output evidence | Local API `/api/failures/artifacts`, WebView Home and Reports; cleanup via `POST /api/failures/artifacts/cleanup` | No manual delete; only backend cleanup after strict confirmation; selected artifact paths still require a preview fingerprint | N/A |
 | Latest failure JSON target | `State\Failures\Reports\round_failures_*.json` (newest by modification time) | Pipeline (PS) | Most recent failure report JSON | Local API, WebView Diagnostics | No during active investigation | `latest_failure_json` |
 | Latest failure report target | `State\Failures\Reports\round_failures_*.txt` (newest by modification time) | Pipeline (PS) | Most recent failure report text | Desktop app, Diagnostics | After reviewing | `latest_failure_report` |
 | Failure resolution journal | `State\Failures\ResolutionJournal\events.jsonl` | Desktop app (Python) | Reports failure lifecycle command | Failure Resolution Center, operator audit trail | No — retain as operator resolution evidence | N/A |

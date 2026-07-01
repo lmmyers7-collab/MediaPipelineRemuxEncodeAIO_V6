@@ -5,7 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.models import Snapshot
+from mediapipeline.core.status.contracts import Snapshot
+from mediapipeline.core.status.progress import is_audit_progress_stale
+
+_COMPLETED_PROGRESS_STATUSES = frozenset({"complete", "completed", "done"})
+_FAILED_PROGRESS_STATUSES = frozenset({"failed", "error"})
+_IDLE_PROGRESS_STAGES = frozenset({"idle", "sleeping"})
 
 
 class FacadeUtilityMixin:
@@ -52,18 +57,31 @@ class FacadeUtilityMixin:
         if "stale progress" in activity:
             return "stale"
         status = str(progress.get("Status") or "").strip().casefold()
+        stage = str(progress.get("CurrentStage") or "").strip().casefold()
+        if stage in _IDLE_PROGRESS_STAGES:
+            if status in _COMPLETED_PROGRESS_STATUSES:
+                return "completed"
+            if status in _FAILED_PROGRESS_STATUSES:
+                return "failed"
+            return "idle"
+        if stage == "completed":
+            return "completed"
+        if stage == "stopped":
+            return "stopped"
         if status:
             if status in {"processing", "running", "active"}:
                 return "processing"
             if status in {"paused", "pause"}:
                 return "paused"
-            if status in {"complete", "completed", "done"}:
+            if status in _COMPLETED_PROGRESS_STATUSES:
                 return "completed"
-            if status in {"failed", "error"}:
+            if status in _FAILED_PROGRESS_STATUSES:
                 return "failed"
             return status.replace(" ", "_")
         audit_status = str(audit_progress.get("status") or audit_progress.get("Status") or "").strip().casefold()
-        if audit_status and audit_status not in {"complete", "completed", "idle"}:
+        if audit_status and audit_status not in {"complete", "completed", "failed", "idle", "stopped"}:
+            if is_audit_progress_stale(audit_progress):
+                return "idle"
             return "audit"
         return "idle"
 

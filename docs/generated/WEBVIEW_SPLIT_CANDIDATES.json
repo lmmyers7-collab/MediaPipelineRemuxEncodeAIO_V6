@@ -13,6 +13,7 @@
     {
       "source_file": "apps/desktop/webview/static/assets/app.js",
       "globals_to_preserve": [
+        "clearTopbarPendingLaunch",
         "externalDependencyEvidenceText",
         "externalDependencyOverallStatus",
         "externalDependencyRows",
@@ -31,12 +32,13 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.refresh.js",
           "topic": "app-refresh",
           "line_range": {
-            "start": 658,
-            "end": 1000,
-            "line_count": 343
+            "start": 752,
+            "end": 1140,
+            "line_count": 389
           },
           "functions_to_move": [
             "refreshGet",
+            "refreshLiveRunTail",
             "refreshAll",
             "refreshCurrentOutputStatus",
             "refreshAllNow"
@@ -51,12 +53,14 @@
             "attachRefreshMetadata",
             "bootstrap",
             "lastCloseReadiness",
+            "lastQueue",
             "lastRefreshCompletedAt",
             "lastRefreshDurationMs",
             "lastRefreshStartedAt",
             "lastSchedule",
             "lastSnapshot",
             "lastStartupProgress",
+            "lastStdoutTail",
             "mergeRefreshOptions",
             "normalizeRefreshOptions",
             "refreshFailure",
@@ -65,6 +69,7 @@
             "refreshQueuedOptions",
             "renderBackendLifecycle",
             "renderCloseReadiness",
+            "renderCsvRerunHomeSummary",
             "renderDailyDriverReadiness",
             "renderExternalDependencyDigest",
             "renderHomeNextQueue",
@@ -72,12 +77,10 @@
             "renderHomePipelineQueueOutcome",
             "renderHomePromotionEntry",
             "renderHomeQueueSnapshot",
-            "renderHomeReadiness",
-            "renderHomeRecentCompleted",
-            "renderHomeStorageHealth",
-            "renderLaunchReadinessPanel"
+            "renderHomeReadiness"
           ],
           "globals_to_preserve": [
+            "clearTopbarPendingLaunch",
             "externalDependencyEvidenceText",
             "externalDependencyOverallStatus",
             "externalDependencyRows",
@@ -102,8 +105,10 @@
               "AUTOMATIC_REFRESH_INTERVAL_MS",
               "bootstrap",
               "lastCloseReadiness",
+              "lastQueue",
               "lastSchedule",
               "lastSnapshot",
+              "lastStdoutTail",
               "refreshInFlight",
               "refreshQueued",
               "refreshQueuedOptions"
@@ -116,6 +121,7 @@
               "refreshFailure",
               "renderBackendLifecycle",
               "renderCloseReadiness",
+              "renderCsvRerunHomeSummary",
               "renderDailyDriverReadiness",
               "renderExternalDependencyDigest",
               "renderHomeNextQueue",
@@ -153,6 +159,7 @@
               "window.mediaPipelineMaintenanceView",
               "window.mediaPipelineMetricsView",
               "window.mediaPipelineNetworkView",
+              "window.mediaPipelineOperatorToast",
               "window.mediaPipelineProgressView",
               "window.mediaPipelineReportsView",
               "window.mediaPipelineScheduleView",
@@ -193,17 +200,20 @@
               "renderDiagnosticsProgress",
               "renderDiagnosticsRefreshFailures",
               "renderDiagnosticsStateSummary",
+              "renderFailureArtifactSummary",
               "renderFailurePreview",
               "renderFinalLibraryPromotion",
               "renderFloatingPipelineLog",
               "renderHomeActiveWork",
               "renderLaunchRealMediaProofHandoff",
+              "renderLibrarySummary",
               "renderLiveRunStrip",
               "renderMetrics",
               "renderNetworkView",
               "renderPendingPublish",
               "renderProgressEvidence",
               "renderQueue",
+              "renderReportAuditSources",
               "renderReports",
               "renderRouteMap",
               "renderSchedule",
@@ -211,6 +221,7 @@
               "renderSettingsLibraries",
               "renderWatchFolderStatus",
               "restoreScrollablePositions",
+              "showFailureArtifactWarning",
               "startup_progress"
             ],
             "movement_assessment": "needs_wrapper_or_context",
@@ -233,9 +244,9 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 1029,
-            "end": 1334,
-            "line_count": 306
+            "start": 1170,
+            "end": 1477,
+            "line_count": 308
           },
           "functions_to_move": [
             "initSettingsTabNav",
@@ -286,6 +297,7 @@
             "updatePagePanelEmptyStates"
           ],
           "globals_to_preserve": [
+            "clearTopbarPendingLaunch",
             "externalDependencyEvidenceText",
             "externalDependencyOverallStatus",
             "externalDependencyRows",
@@ -367,9 +379,9 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 89,
-            "end": 334,
-            "line_count": 246
+            "start": 96,
+            "end": 351,
+            "line_count": 256
           },
           "functions_to_move": [
             "renderTauriBackendLifecycleAlert",
@@ -403,6 +415,7 @@
             "lastCloseReadiness",
             "lastSchedule",
             "lastSnapshot",
+            "lastStdoutTail",
             "lastTauriBackendLifecycleEvent",
             "normalizeTauriBackendLifecycleEvent",
             "renderBackendLifecycle",
@@ -414,6 +427,7 @@
             "renderTopbarEventTicker"
           ],
           "globals_to_preserve": [
+            "clearTopbarPendingLaunch",
             "externalDependencyEvidenceText",
             "externalDependencyOverallStatus",
             "externalDependencyRows",
@@ -428,6 +442,8 @@
           "api_routes": [],
           "dom_ids_touched": [
             "close-readiness",
+            "pipeline-state",
+            "queue-count",
             "state-pill"
           ],
           "event_types": [],
@@ -436,6 +452,7 @@
               "lastCloseReadiness",
               "lastSchedule",
               "lastSnapshot",
+              "lastStdoutTail",
               "lastTauriBackendLifecycleEvent"
             ],
             "parent_state_writes": [],
@@ -452,6 +469,8 @@
             ],
             "dom_dependencies": [
               "close-readiness",
+              "pipeline-state",
+              "queue-count",
               "state-pill"
             ],
             "api_dependencies": [],
@@ -512,9 +531,9 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 538,
-            "end": 656,
-            "line_count": 119
+            "start": 555,
+            "end": 750,
+            "line_count": 196
           },
           "functions_to_move": [
             "renderExternalDependencyDigest",
@@ -526,6 +545,10 @@
             "updatePagePanelEmptyStates",
             "showPage",
             "applyDefaultActionTooltips",
+            "csvRerunTailEvidence",
+            "csvRerunActivityEvidence",
+            "csvRerunHomeIsActive",
+            "renderCsvRerunHomeSummary",
             "normalizeRefreshOptions",
             "mergeRefreshOptions"
           ],
@@ -534,8 +557,16 @@
             "renderDailyDriverReadiness",
             "showPage"
           ],
-          "dependencies_to_resolve": [],
+          "dependencies_to_resolve": [
+            "lastCloseReadiness",
+            "lastSnapshot",
+            "lastStdoutTail",
+            "renderHomePipelineState",
+            "renderTopbarActivity",
+            "renderTopbarEventTicker"
+          ],
           "globals_to_preserve": [
+            "clearTopbarPendingLaunch",
             "externalDependencyEvidenceText",
             "externalDependencyOverallStatus",
             "externalDependencyRows",
@@ -548,17 +579,34 @@
             "showPage"
           ],
           "api_routes": [],
-          "dom_ids_touched": [],
+          "dom_ids_touched": [
+            "pipeline-state",
+            "queue-count",
+            "state-pill"
+          ],
           "event_types": [],
           "dependency_classification": {
-            "parent_state_reads": [],
+            "parent_state_reads": [
+              "lastCloseReadiness",
+              "lastSnapshot",
+              "lastStdoutTail"
+            ],
             "parent_state_writes": [],
-            "outside_local_functions": [],
-            "dom_dependencies": [],
+            "outside_local_functions": [
+              "renderHomePipelineState",
+              "renderTopbarActivity",
+              "renderTopbarEventTicker"
+            ],
+            "dom_dependencies": [
+              "pipeline-state",
+              "queue-count",
+              "state-pill"
+            ],
             "api_dependencies": [],
             "window_dependencies": [
               "window.mediaPipelineAppHomeReadiness",
               "window.mediaPipelineAppLifecycle",
+              "window.mediaPipelineProgressView",
               "window.mediaPipelineTelemetryView"
             ],
             "browser_globals": [
@@ -570,9 +618,13 @@
             ],
             "unresolved_global_dependencies": [
               "appendCommandResult",
+              "byId",
+              "hasEvidence",
               "renderTelemetry",
+              "safe_to_close",
               "setText",
-              "setTextState"
+              "setTextState",
+              "stdoutTail"
             ],
             "movement_assessment": "needs_wrapper_or_context",
             "assessment_reasons": [

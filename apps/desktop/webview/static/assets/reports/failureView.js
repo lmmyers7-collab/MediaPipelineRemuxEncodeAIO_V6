@@ -61,17 +61,20 @@
     const normalizeFailureMarkerPaths = typeof deps.normalizeFailureMarkerPaths === "function" ? deps.normalizeFailureMarkerPaths : function (paths) { return Array.isArray(paths) ? paths.filter(Boolean) : []; };
     const renderReportDiagnosticsActions = typeof deps.renderReportDiagnosticsActions === "function" ? deps.renderReportDiagnosticsActions : noop;
     const renderReportTriage = typeof deps.renderReportTriage === "function" ? deps.renderReportTriage : noop;
+    const reportCompactPath = typeof deps.reportCompactPath === "function" ? deps.reportCompactPath : function (value) { return String(value || ""); };
     const reportNumber = typeof deps.reportNumber === "function" ? deps.reportNumber : function (value) { const numeric = Number(value); return Number.isFinite(numeric) ? numeric : 0; };
     const reportRenderedRows = typeof deps.reportRenderedRows === "function" ? deps.reportRenderedRows : function (rows) { return Array.isArray(rows) ? rows : []; };
     const reportRenderedRowsNote = typeof deps.reportRenderedRowsNote === "function" ? deps.reportRenderedRowsNote : function () { return ""; };
     const reportTableStatusText = typeof deps.reportTableStatusText === "function" ? deps.reportTableStatusText : function (visibleCount, totalCount) { return `${visibleCount} / ${totalCount}`; };
     const rowKeySet = typeof deps.rowKeySet === "function" ? deps.rowKeySet : function () { return new Set(); };
+    const requestFailureEvidenceOpen = typeof deps.requestFailureEvidenceOpen === "function" ? deps.requestFailureEvidenceOpen : noop;
     const runFailurePrimaryAction = typeof deps.runFailurePrimaryAction === "function" ? deps.runFailurePrimaryAction : noop;
     const setCellStatusChip = typeof deps.setCellStatusChip === "function" ? deps.setCellStatusChip : null;
     const setFailureLifecycleButton = typeof deps.setFailureLifecycleButton === "function" ? deps.setFailureLifecycleButton : noop;
     const setReportChipPressed = typeof deps.setReportChipPressed === "function" ? deps.setReportChipPressed : noop;
     const setText = typeof deps.setText === "function" ? deps.setText : noop;
     const setTextState = typeof deps.setTextState === "function" ? deps.setTextState : noop;
+    const updateFailureArtifactCleanupConfirmState = typeof deps.updateFailureArtifactCleanupConfirmState === "function" ? deps.updateFailureArtifactCleanupConfirmState : noop;
     const updateFailureClearConfirmState = typeof deps.updateFailureClearConfirmState === "function" ? deps.updateFailureClearConfirmState : noop;
     const updateFailureLifecycleConfirmState = typeof deps.updateFailureLifecycleConfirmState === "function" ? deps.updateFailureLifecycleConfirmState : noop;
     const updateTableStatusLegend = typeof deps.updateTableStatusLegend === "function" ? deps.updateTableStatusLegend : noop;
@@ -177,7 +180,7 @@
       setText("failure-resolution-retry-count", String(reportNumber(summary.retryable_count)));
       setText("failure-resolution-working-count", String(reportNumber(summary.working_count) || reportNumber(lifecycleCounts.working) + reportNumber(lifecycleCounts.acknowledged)));
       setText("failure-resolution-clearable-count", String(reportNumber(summary.clearable_count)));
-      setText("failure-resolution-source-mode", summary.source_mode_label || (failureMarkerModeActive() ? "Failure markers" : "Latest JSON"));
+      setText("failure-resolution-source-mode", summary.source_mode_label || (failureMarkerModeActive() ? "Active errors" : "Latest JSON"));
     }
 
   function selectFailureGroup(group) {
@@ -206,6 +209,7 @@
         configureFailurePrimaryAction(null);
         setText("failure-resolution-detail-status", "No selection");
         setText("failure-detail", reportsState.lastFailureEmptyMessage);
+        renderFailureEvidenceLinks(null);
         renderReportDiagnosticsActions("failure-diagnostics-actions", failureDiagnosticsActionsForRow(null), "Reports failure page");
         updateFailureClearConfirmState();
         return;
@@ -267,11 +271,11 @@
       const markerCount = reportNumber(verification.active_marker_count);
       const blockers = Array.isArray(verification.blockers) ? verification.blockers.filter(Boolean) : [];
       setText("failure-verification-status", safe ? "Pass" : "Blocked");
-      setText("failure-lifecycle-verification-state", safe ? "Pass" : markerCount ? `${markerCount} marker${markerCount === 1 ? "" : "s"}` : "Review");
+      setText("failure-lifecycle-verification-state", safe ? "Pass" : markerCount ? `${markerCount} active error${markerCount === 1 ? "" : "s"}` : "Review");
       if (!panel) return;
       panel.replaceChildren();
       [
-        ["Active markers", String(markerCount)],
+        ["Active errors", String(markerCount)],
         ["Failure rows", String(reportNumber(verification.active_failure_row_count || group?.row_count))],
         ["Blocking rows", String(reportNumber(verification.blocking_count || group?.blocking_count))],
         ["Retryable rows", String(reportNumber(verification.retryable_count || group?.retryable_count))],
@@ -346,18 +350,6 @@
         Boolean(start?.disabled),
         start?.disabled_reason || ""
       );
-      setFailureLifecycleButton(
-        "failure-lifecycle-resolve-preview-button",
-        Boolean(current && resolve),
-        Boolean(resolve?.disabled),
-        resolve?.disabled_reason || ""
-      );
-      setFailureLifecycleButton(
-        "failure-lifecycle-reopen-preview-button",
-        Boolean(current && reopen),
-        Boolean(reopen?.disabled),
-        reopen?.disabled_reason || ""
-      );
       updateFailureLifecycleConfirmState();
     }
 
@@ -388,6 +380,7 @@
         configureFailurePrimaryAction(null);
         setText("failure-resolution-detail-status", "No selection");
         setText("failure-detail", reportsState.lastFailureEmptyMessage);
+        renderFailureEvidenceLinks(null);
         renderFailureLifecyclePanels(null);
         renderReportDiagnosticsActions("failure-diagnostics-actions", failureDiagnosticsActionsForRow(null), "Reports failure page");
         updateFailureClearConfirmState();
@@ -401,6 +394,7 @@
       const proofLines = sample ? failureEvidenceProofLines(sample, { includeFallback: true }) : [];
       configureFailurePrimaryAction(current);
       renderFailureLifecyclePanels(current);
+      renderFailureEvidenceLinks(sample);
       setText("failure-resolution-detail-status", `${current.owner || "Diagnostics"} | ${current.row_count || rows.length || 0} row${Number(current.row_count || rows.length || 0) === 1 ? "" : "s"}`);
       const lines = [
         "Why it stopped",
@@ -426,9 +420,9 @@
         `Rows: ${current.row_count || rows.length || 0}`,
         `Blocking rows: ${current.blocking_count || 0}`,
         `Retryable rows: ${current.retryable_count || 0}`,
-        `Clearable marker paths: ${clearablePaths.length}`,
+        `Clearable error records: ${clearablePaths.length}`,
         ...clearablePaths.slice(0, 6).map((path) => `- ${path}`),
-        clearablePaths.length > 6 ? `- ... ${clearablePaths.length - 6} more markers` : "",
+        clearablePaths.length > 6 ? `- ... ${clearablePaths.length - 6} more` : "",
         sample?.artifact_path ? `Artifact: ${sample.artifact_path}` : "",
         sample?.repro_path ? `Repro: ${sample.repro_path}` : "",
         sample?.source_json ? `Record file: ${sample.source_json}` : "",
@@ -436,6 +430,29 @@
       setText("failure-detail", lines.join("\n"));
       renderReportDiagnosticsActions("failure-diagnostics-actions", failureDiagnosticsActionsForGroup(current), "Reports failure selected group");
       updateFailureClearConfirmState();
+    }
+
+  function renderFailureEvidenceLinks(row) {
+      const container = byId("failure-evidence-links");
+      if (!container) return;
+      container.replaceChildren();
+      if (!row) return;
+      const links = [
+        { target: "artifact", label: "Open artifact", path: row.artifact_path },
+        { target: "repro", label: "Open repro", path: row.repro_path },
+        { target: "record_file", label: "Open record file", path: row.source_json },
+        { target: "record_folder", label: "Open record folder", path: row.source_json },
+      ].filter((item) => String(item.path || "").trim());
+      links.forEach((item) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "secondary-button";
+        button.textContent = item.label;
+        button.title = `${item.label}: ${item.path}`;
+        button.dataset.failureEvidenceTarget = item.target;
+        button.addEventListener("click", () => requestFailureEvidenceOpen(row, item.target, button));
+        container.appendChild(button);
+      });
     }
 
   function selectFailureRow(item) {
@@ -517,6 +534,173 @@
         tbody.appendChild(row);
       });
       updateTableStatusLegend("failure-table-legend", tbody, "Failure rows");
+    }
+
+  function artifactNumber(value, fallback = 0) {
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : fallback;
+    }
+
+  function artifactSizeText(item = {}) {
+      if (item.total_size_text) return String(item.total_size_text);
+      if (item.size_bytes !== undefined) {
+        const bytes = artifactNumber(item.size_bytes);
+        const gib = 1024 * 1024 * 1024;
+        const mib = 1024 * 1024;
+        if (bytes >= gib) return `${(bytes / gib).toFixed(3)} GB`;
+        if (bytes >= mib) return `${(bytes / mib).toFixed(1)} MB`;
+        if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${bytes} B`;
+      }
+      const gb = artifactNumber(item.total_gb ?? item.size_gb, null);
+      return gb === null ? "0 B" : `${gb.toFixed(gb % 1 ? 3 : 0)} GB`;
+    }
+
+  function artifactDateText(value) {
+      const text = String(value || "").trim();
+      if (!text) return "None";
+      const date = new Date(text);
+      if (Number.isNaN(date.getTime())) return text;
+      return date.toLocaleString();
+    }
+
+  function artifactThresholdText(summary = {}) {
+      const threshold = artifactNumber(summary.threshold_gb, 0);
+      if (threshold <= 0) return "Disabled";
+      return `${Number.isInteger(threshold) ? threshold : threshold.toFixed(1)} GB`;
+    }
+
+  function artifactCleanupPolicyText(summary = {}) {
+      const retentionDays = artifactNumber(summary.retention_days, 0);
+      const targetGb = artifactNumber(summary.cleanup_target_gb, 0);
+      const age = retentionDays > 0 ? `${retentionDays} day${retentionDays === 1 ? "" : "s"}` : "disabled";
+      const target = targetGb > 0 ? `${Number.isInteger(targetGb) ? targetGb : targetGb.toFixed(1)} GB` : "disabled";
+      return `Retention: ${age}; target: ${target}`;
+    }
+
+  function artifactPathKey(file = {}) {
+      return String(file.path || "").trim();
+    }
+
+  function failureArtifactFiles(summary = reportsState.lastFailureArtifactSummary) {
+      const payload = summary && typeof summary === "object" ? summary : {};
+      return Array.isArray(payload.largest_files) ? payload.largest_files.filter((file) => artifactPathKey(file)) : [];
+    }
+
+  function selectedFailureArtifactPaths() {
+      if (!(reportsState.selectedFailureArtifactPaths instanceof Set)) {
+        reportsState.selectedFailureArtifactPaths = new Set();
+      }
+      return reportsState.selectedFailureArtifactPaths;
+    }
+
+  function updateFailureArtifactSelectAll(files = failureArtifactFiles()) {
+      const selectAll = byId("failure-artifact-select-all");
+      if (!selectAll) return;
+      const paths = files.map((file) => artifactPathKey(file)).filter(Boolean);
+      const selected = selectedFailureArtifactPaths();
+      const selectedCount = paths.filter((path) => selected.has(path)).length;
+      selectAll.disabled = !paths.length;
+      selectAll.checked = paths.length > 0 && selectedCount === paths.length;
+      selectAll.indeterminate = selectedCount > 0 && selectedCount < paths.length;
+    }
+
+  function toggleFailureArtifactSelection(path, checked) {
+      const cleanPath = String(path || "").trim();
+      if (!cleanPath) return;
+      const selected = selectedFailureArtifactPaths();
+      if (checked) {
+        selected.add(cleanPath);
+      } else {
+        selected.delete(cleanPath);
+      }
+      updateFailureArtifactSelectAll();
+      updateFailureArtifactCleanupConfirmState();
+    }
+
+  function selectVisibleFailureArtifacts(checked) {
+      const selected = selectedFailureArtifactPaths();
+      failureArtifactFiles().forEach((file) => {
+        const path = artifactPathKey(file);
+        if (!path) return;
+        if (checked) {
+          selected.add(path);
+        } else {
+          selected.delete(path);
+        }
+      });
+      renderFailureArtifactSummary(reportsState.lastFailureArtifactSummary);
+    }
+
+  function renderFailureArtifactSummary(summary) {
+      const payload = summary && typeof summary === "object" ? summary : {};
+      reportsState.lastFailureArtifactSummary = payload;
+      const loaded = Boolean(payload.schema_version);
+      const files = failureArtifactFiles(payload);
+      const availablePaths = new Set(files.map((file) => artifactPathKey(file)).filter(Boolean));
+      reportsState.selectedFailureArtifactPaths = new Set(
+        Array.from(selectedFailureArtifactPaths()).filter((path) => availablePaths.has(path))
+      );
+      const scanErrors = Array.isArray(payload.scan_errors) ? payload.scan_errors.filter(Boolean) : [];
+      const statusText = !loaded ? "Not loaded" : payload.warning ? "Review" : scanErrors.length ? "Review" : "OK";
+      setTextState("failure-artifact-storage-status", statusText, payload.warning || scanErrors.length ? "warning" : loaded ? "ok" : "empty");
+      setText("failure-artifact-total-size", loaded ? artifactSizeText(payload) : "0 B");
+      setText("failure-artifact-file-count", String(reportNumber(payload.file_count)));
+      setText("failure-artifact-oldest", loaded ? artifactDateText(payload.oldest_modified_at) : "None");
+      setText("failure-artifact-threshold", loaded ? artifactThresholdText(payload) : "100 GB");
+
+      const roots = Array.isArray(payload.root_paths) ? payload.root_paths : [];
+      const lines = [
+        `Total: ${loaded ? artifactSizeText(payload) : "0 B"} across ${reportNumber(payload.file_count)} file(s).`,
+        `Oldest modified: ${loaded ? artifactDateText(payload.oldest_modified_at) : "None"}`,
+        `Delete policy: ${loaded ? artifactCleanupPolicyText(payload) : "disabled"}`,
+        `Delete route: ${payload.cleanup_route_available ? "available" : "unavailable"}`,
+      ];
+      if (roots.length) {
+        lines.push("", "Roots:");
+        roots.forEach((root) => {
+          lines.push(`- ${root.role || "root"}: ${root.exists ? "exists" : "missing"}; ${artifactSizeText(root)}; ${reportNumber(root.file_count)} file(s); ${root.path || ""}`);
+        });
+      }
+      if (scanErrors.length) {
+        lines.push("", "Scan errors:");
+        scanErrors.slice(0, 8).forEach((error) => lines.push(`- ${error}`));
+        if (scanErrors.length > 8) lines.push(`- ${scanErrors.length - 8} more scan error(s).`);
+      }
+      setText("failure-artifact-storage-summary", lines.join("\n"));
+      updateFailureArtifactCleanupConfirmState();
+      updateFailureArtifactSelectAll(files);
+
+      const tbody = byId("failure-artifact-largest-files");
+      if (!tbody) return;
+      if (!files.length) {
+        clearRows(tbody, 5, loaded ? "No artifact files found." : "No artifact files loaded.");
+        return;
+      }
+      tbody.replaceChildren();
+      files.forEach((file) => {
+        const row = document.createElement("tr");
+        if (payload.warning) row.dataset.status = "warning";
+        const pathText = reportCompactPath(file.relative_path || file.path || file.name || "");
+        const selectCell = document.createElement("td");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = selectedFailureArtifactPaths().has(artifactPathKey(file));
+        checkbox.dataset.failureArtifactPath = artifactPathKey(file);
+        checkbox.setAttribute("aria-label", `Select artifact ${file.relative_path || file.name || file.path || ""}`);
+        checkbox.addEventListener("click", (event) => event.stopPropagation());
+        checkbox.addEventListener("change", () => toggleFailureArtifactSelection(artifactPathKey(file), checkbox.checked));
+        selectCell.appendChild(checkbox);
+        row.appendChild(selectCell);
+        appendCells(row, [
+          pathText,
+          artifactSizeText(file),
+          artifactDateText(file.modified_at),
+          file.role || "",
+        ]);
+        if (row.cells[1]) row.cells[1].title = file.path || file.relative_path || "";
+        tbody.appendChild(row);
+      });
     }
 
   function renderFailureReviewBoard() {
@@ -605,6 +789,7 @@
       renderFailureLifecycleControls,
       renderFailureLifecyclePanels,
       renderFailurePlaybook,
+      renderFailureArtifactSummary,
       renderFailurePreview,
       renderFailureResolutionDetail,
       renderFailureResolutionGroups,
@@ -614,6 +799,7 @@
       renderFailureTimeline,
       renderFailureVerification,
       reportsFailuresTabActive,
+      selectVisibleFailureArtifacts,
       selectFailureGroup,
       selectFailureRow,
       toggleFailureRowSelection,

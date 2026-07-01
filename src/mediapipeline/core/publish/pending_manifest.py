@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.contracts import ContractError, PENDING_PUSH_MANIFEST_STATES, PendingPushManifest
+from mediapipeline.core.kernel.contracts import ContractError, PENDING_PUSH_MANIFEST_STATES, PendingPushManifest
 from mediapipeline.core.kernel.contracts.pending_publish import PENDING_PUSH_RETRY_LIMIT
 from mediapipeline.core.publish.pending_format import int_or_none
 from mediapipeline.core.publish.pending_manifest_rows import (

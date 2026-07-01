@@ -246,14 +246,14 @@
     }
     lines.push("", "Launch guidance:");
     if (closeReadiness?.safe_to_close === false || closeReadiness?.active_work === true) {
-      lines.push("- Active work is reported. Wait for completion or use backend-owned controls before starting more work.");
+      lines.push("- Active work is reported. Duplicate-start guards keep Start disabled until work is idle or backend-owned controls change state.");
     } else {
       lines.push("- No active work block is reported by close-readiness.");
     }
     if (launchReadinessSettingsBlocks(settingsStatus)) {
-      lines.push("- Saved settings are invalid or critical-risk. Use Settings > Validate / Reload before starting media work.");
+      lines.push("- Saved settings are invalid or critical-risk. Backend validation may reject media work until Settings > Validate / Reload clears the block.");
     } else if (String(settingsStatus).toLowerCase() === "not loaded") {
-      lines.push("- Saved settings have not loaded; refresh before launch if the config was edited.");
+      lines.push("- Saved settings have not loaded; refresh for current evidence if the config was edited.");
     } else if (launchReadinessSettingsNeedsReview(settingsStatus)) {
       lines.push("- Saved settings need review. Avoid long unattended runs until risk items are understood.");
     } else {

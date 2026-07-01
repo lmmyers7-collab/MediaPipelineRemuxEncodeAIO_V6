@@ -1,0 +1,40 @@
+{
+  "id": "MP-CHANGE-2026-0629-015",
+  "title": "Phase 6 failures DTO boundary cleanup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Moved failures preview DTO imports from desktop compatibility modules to the core kernel DTO owner and removed the resolved NO_CORE_TO_DESKTOP allowlist entries.",
+  "reason": "Continue the GitHub #23 architecture-boundary cleanup by retiring a bounded Phase 6 DTO-only dependency slice without changing runtime/operator behavior.",
+  "affected_areas": [
+    "architecture",
+    "core",
+    "generated-context"
+  ],
+  "behavior_before": "Failures facade and policy code imported FailurePreviewDto through desktop compatibility exports, with three temporary NO_CORE_TO_DESKTOP allowlist entries covering the debt.",
+  "behavior_after": "Failures facade and policy code import FailurePreviewDto from mediapipeline.core.kernel.dto_inventory; desktop DTO modules remain compatibility exports and the resolved allowlist rows are removed.",
+  "files_touched": [
+    "docs/architecture/dependency_boundary_allowlist.txt",
+    "docs/generated/summaries/src/mediapipeline/core/failures/facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/failures/policy.py.md",
+    "docs/implementation/architecture-boundary-cleanup/EDGE_LEDGER.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-015.json",
+    "src/mediapipeline/core/failures/facade.py",
+    "src/mediapipeline/core/failures/policy.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_reports tests.python.desktop.test_facade_failures_policy tests.python.desktop.test_service_failure_markers tests.python.desktop.test_application_public_api tests.python.desktop.test_api_contract_payload tests.python.tooling.test_dependency_boundaries -q (passed, 79 tests)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_active_doc_references (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_architecture_guardrails (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --format json --report-only (passed: 67 hard findings, 67 allowlisted, 0 unallowlisted, 0 allowlist errors, 0 unused allowlist entries, 50 remaining NO_CORE_TO_DESKTOP, 0 failures NO_CORE_TO_DESKTOP)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage (passed)"
+  ],
+  "rollback_plan": "Restore the previous failures imports, reinstate the three failures NO_CORE_TO_DESKTOP allowlist rows, and mark AB-FAIL-003/007/008 open again in the architecture-boundary ledger.",
+  "related_changes": [],
+  "notes": "Import FailurePreviewDto from the core kernel DTO owner instead of desktop compatibility exports.\nImport FailurePreviewDto from the core kernel DTO owner in type hints and DTO factory.\nRemove resolved failures NO_CORE_TO_DESKTOP allowlist rows.\nMark failures DTO boundary rows migrated with final owner and compatibility export notes.\nRefresh generated summary after failures facade import ownership change.\nRefresh generated summary after failures policy import ownership change."
+}

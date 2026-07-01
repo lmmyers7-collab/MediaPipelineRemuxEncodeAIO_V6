@@ -37,10 +37,10 @@ from mediapipeline.core.config.validation import (
     canonical_config_key_spelling_error,
     canonical_config_key_spelling_errors,
 )
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_base import JsonMap
+    from mediapipeline.core.kernel.dto_base import JsonMap
 
 
 REGISTERED_CONFIG_KEYS = frozenset(ALL_CONFIG_KEYS)
@@ -109,7 +109,7 @@ def _raw_change_value(raw_changes: dict[str, Any], key: str) -> Any:
 
 
 def _json_safe(value: Any) -> "JsonMap":
-    from mediapipeline.desktop.application.dto_base import json_safe
+    from mediapipeline.core.kernel.dto_base import json_safe
 
     return json_safe(value)
 

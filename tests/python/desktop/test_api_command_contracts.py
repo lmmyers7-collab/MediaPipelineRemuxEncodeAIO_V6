@@ -127,6 +127,38 @@ class ApiCommandContractsTests(unittest.TestCase):
         with self.assertRaises(ValidationFailure):
             validate_api_payload("/api/failures/archive-evidence", {**payload, "marker_paths": []})
 
+    def test_failure_open_accepts_row_target_source_kind_only(self) -> None:
+        payload = {
+            "row_key": "failure-row-1",
+            "target": "record_file",
+            "source_kind": "latest_json",
+        }
+
+        self.assertEqual(validate_api_payload("/api/failures/open", payload), payload)
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/failures/open", {**payload, "path": r"C:\Media\Movie.mkv"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/failures/open", {**payload, "confirm_open": True})
+
+    def test_failure_artifact_cleanup_requires_strict_boolean_fields(self) -> None:
+        payload = {
+            "dry_run": True,
+            "confirm_delete": False,
+            "dry_run_fingerprint": "",
+            "reason": "",
+            "retention_days": 30,
+            "target_gb": 100,
+            "artifact_paths": [r"C:\FailureArtifacts\selected.mkv"],
+        }
+
+        self.assertEqual(validate_api_payload("/api/failures/artifacts/cleanup", payload), payload)
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/failures/artifacts/cleanup", {**payload, "dry_run": "false"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/failures/artifacts/cleanup", {**payload, "confirm_delete": "true"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/failures/artifacts/cleanup", {**payload, "path": r"C:\Media\Movie.mkv"})
+
     def test_failure_lifecycle_requires_strict_journal_contract_fields(self) -> None:
         payload = {
             "journal_key": "source_video_streams_unvetted",
@@ -472,26 +504,40 @@ class ApiCommandContractsTests(unittest.TestCase):
         )
         rerun_preview_payload = {
             "csv_path": r"C:\Media\runs.csv",
+            "execution_mode": "one_at_a_time",
+            "destination_mode": "review_workspace",
+            "original_policy": "keep",
+            "collision_policy": "suffix",
+            "window_size": 1,
             "stage_mode": "copy",
             "original_mode": "keep",
             "return_mode": "park",
+            "confirm_replace_final": False,
+            "confirm_original_policy": False,
+            "confirm_delete_original": False,
             "scope": {
                 "enabled_only": True,
                 "skip_blocked": True,
                 "skip_warning_rows": False,
                 "first_n": 25,
-                "issue_filter": "audio",
-                "bucket_filter": "movie",
+                "issue_filters": ["audio"],
+                "bucket_filters": ["movie"],
                 "preview_limit": 20,
             },
         }
         self.assertEqual(validate_api_payload("/api/rerun/preview", rerun_preview_payload), rerun_preview_payload)
-        rerun_start_payload = {**rerun_preview_payload, "dry_run": True, "plan_only": False, "show_console": False}
+        rerun_start_payload = {**rerun_preview_payload, "dry_run": True, "plan_only": False}
         self.assertEqual(validate_api_payload("/api/rerun/start", rerun_start_payload), rerun_start_payload)
+        self.assertEqual(
+            validate_api_payload("/api/rerun/promote", {"row_key": "abc", "dry_run_fingerprint": "fp", "confirm_promote": True}),
+            {"row_key": "abc", "dry_run_fingerprint": "fp", "confirm_promote": True},
+        )
         with self.assertRaises(ValidationFailure):
             validate_api_payload("/api/rerun/start", {**rerun_start_payload, "dry_run": "true"})
         with self.assertRaises(ValidationFailure):
             validate_api_payload("/api/rerun/start", {**rerun_start_payload, "scope": {**rerun_preview_payload["scope"], "enabled_only": "true"}})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/rerun/promote", {"row_key": "abc", "dry_run_fingerprint": "fp", "confirm_promote": "true"})
         self.assertEqual(
             validate_api_payload(
                 "/api/metrics/sources",

@@ -396,8 +396,8 @@
       mode === "continuous" && override === "ignore" ? "high review" : mode === "continuous" ? "review" : "ready",
       `mode=${pipelineModeLabel(mode)}; sleep=${request?.sleep_seconds || 30}s; schedule override=${override || "none"}.`,
       mode === "continuous"
-        ? "Continuous runs are unattended-sensitive; verify schedule, settings, and close-readiness before confirming."
-        : "Confirm the selected mode matches the current operator intent before starting.",
+        ? "Continuous runs are unattended-sensitive; schedule, settings, and close-readiness remain backend-checked at submission."
+        : "Selected mode is operator intent; backend start still re-checks schedule, settings, and locks.",
       [
         `Show config: ${request?.show_config ? "yes" : "no"}`,
         `Show console: ${request?.show_console ? "yes" : "no"}`,
@@ -412,10 +412,10 @@
       closeReadiness?.safe_to_close === false || closeReadiness?.active_work === true ? "blocked" : closeReadiness ? "ready" : "unknown",
       `snapshot=${snapshot ? (snapshot.pipeline_state || "loaded") : "missing"}; close=${closeReadiness ? (closeReadiness.safe_to_close ? "safe" : "active/blocked") : "unknown"}.`,
       closeReadiness?.safe_to_close === false || closeReadiness?.active_work === true
-        ? "Do not start another media run until active work is complete or backend-owned controls intentionally stop/pause it."
+        ? "Active backend work is already running; duplicate-start guard keeps Start disabled until idle or backend control changes it."
         : closeReadiness
           ? "Close-readiness does not report an active-work block."
-          : "Refresh before launch if close-readiness has not loaded.",
+          : "Close-readiness evidence has not loaded; backend Start still re-checks active work.",
       [
         `Close reason: ${closeReadiness?.reason || "none reported"}`,
         `Activity: ${snapshot?.activity || "none reported"}`,
@@ -449,9 +449,9 @@
         : "Queue display filter state is unavailable in this WebView session.",
       queueScope
         ? queueScope.active
-          ? "Do not treat the visible Queue table as launch scope; clear filters or inspect hidden review rows before starting."
+          ? "Do not treat the visible Queue table as launch scope; clear filters or inspect hidden review rows if you need row context."
           : "No Queue display filter is active, but backend Launch still owns the actual processing scope."
-        : "Refresh Queue before launch if the launch decision depends on queue display filters.",
+        : "Queue display filter evidence is unavailable; backend Launch still owns actual processing scope.",
       queueScope && typeof queueFilterScopeDetailLines === "function"
         ? queueFilterScopeDetailLines(queueScope)
         : [
@@ -466,9 +466,9 @@
       blockedRiskRows.length ? "blocked" : reviewRiskRows.length ? "review" : "ready",
       `${riskRows.length} launch risk row(s); ${blockedRiskRows.length} blocked; ${reviewRiskRows.length} non-ready.`,
       blockedRiskRows.length
-        ? "Resolve blocked Launch Risk Handoff rows before starting media work."
+        ? "Blocked Launch Risk Handoff rows indicate backend validation may reject media work."
         : reviewRiskRows.length
-          ? "Read Launch Risk Handoff rows before unattended runs."
+          ? "Read Launch Risk Handoff rows as unattended-run evidence."
           : "Launch Risk Handoff has no local non-ready rows.",
       reviewRiskRows.slice(0, 8).map((row) => `${row.area}: ${row.impact}; ${row.action}`),
     );

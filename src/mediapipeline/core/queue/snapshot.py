@@ -5,8 +5,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable
 
-from mediapipeline.desktop.contracts import ContractError, QueuePlanSnapshot
-from mediapipeline.desktop.models import QueueRecord, ResolvedPaths
+from mediapipeline.core.kernel.contracts import ContractError, QueuePlanSnapshot
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.queue.contracts import QueueRecord
 
 ProgressDateParser = Callable[[str], datetime | None]
 

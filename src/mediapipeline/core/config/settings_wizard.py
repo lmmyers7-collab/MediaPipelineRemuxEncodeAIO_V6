@@ -61,10 +61,10 @@ from mediapipeline.core.kernel.config_keys import (
     KEY_VIDEO_PRESET,
     KEY_VIDEO_QUALITY,
 )
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
 
 WIZARD_REFRESH_HINT = "settings"
@@ -180,7 +180,7 @@ def settings_wizard_defaults(resolved: ResolvedPaths, service: object) -> dict[s
 
 
 def preview_settings_wizard(facade: object, resolved: ResolvedPaths, request: object) -> CommandResult:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
     raw_wizard = settings_wizard_payload_from_request(request)
     validation = validate_wizard_payload(raw_wizard)
@@ -207,7 +207,7 @@ def preview_settings_wizard(facade: object, resolved: ResolvedPaths, request: ob
 
 
 def save_settings_wizard(facade: object, resolved: ResolvedPaths, request: object) -> CommandResult:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
     confirm_save = request.get("confirm_save") is True if isinstance(request, dict) else False
     if not confirm_save:
@@ -789,7 +789,7 @@ def _save_initial_settings_wizard(
     wizard: dict[str, Any],
     base_config: dict[str, Any],
 ) -> CommandResult:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
     if not base_config:
         message = "Settings Wizard first-run save could not load the bundled config template."

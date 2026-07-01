@@ -67,6 +67,7 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/audit/sources": {"reports/auditCommands.js"},
     "/api/audit/sources/scan": {"reports/auditCommands.js"},
     "/api/audit/export-rerun-csv": {"reports/auditCommands.js"},
+    "/api/rerun/open": {"launchView.js"},
     "/api/completed/open": {"completed/openActions.js"},
     "/api/final-library-promotion/promote-queue": {"completed/promotionCommands.js"},
     "/api/final-library-promotion/pause": {"completed/promotionCommands.js"},
@@ -106,6 +107,8 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/queue/file-overrides/remux-pilot-promote": {"queue/fileOverrides.drawer.series.js"},
     "/api/failures/clear": {"reports/failureCommands.js"},
     "/api/failures/archive-evidence": {"reports/failureCommands.js"},
+    "/api/failures/open": {"reports/failureCommands.js"},
+    "/api/failures/artifacts/cleanup": {"reports/failureCommands.js"},
     "/api/failures/lifecycle": {"reports/failureCommands.js"},
     "/api/rename/apply": {"renameView.js"},
     "/api/rename/browse": {"renameView.js"},
@@ -340,6 +343,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         diagnostics_html = DIAGNOSTICS_PARTIAL.read_text(encoding="utf-8")
         app_js = _asset_sources()["app.js"]
         progress_js = _asset_sources()["progressView.js"]
+        home_js = _asset_sources()["app/home.js"]
         pending_js = _asset_sources()["pendingPublishView.js"]
 
         for html, prefix in [
@@ -352,8 +356,25 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             self.assertIn(f'id="{prefix}-live-run-strip"', html)
             self.assertIn('class="live-run-strip"', html)
 
+        self.assertIn('class="panel live-run-strip-panel" data-panel-type="status"', home_html)
+        self.assertIn('id="queue-count-detail" class="metric-detail"', home_html)
         self.assertIn("function renderLiveRunStrip", progress_js)
         self.assertIn("function liveRunStripItems", progress_js)
+        self.assertIn("function csvRerunTailEvidence", progress_js)
+        self.assertIn("function csvRerunActivityEvidence", progress_js)
+        self.assertIn("csvRerunWorkerLooksActive", progress_js)
+        self.assertIn('liveRunItem("Importing"', progress_js)
+        self.assertIn('liveRunItem("Last imported"', progress_js)
+        self.assertIn('liveRunItem("Processing"', progress_js)
+        self.assertIn("function refreshLiveRunTail", app_js)
+        self.assertIn("function csvRerunActivityEvidence", app_js)
+        self.assertIn("function renderCsvRerunHomeSummary", app_js)
+        self.assertIn("renderCsvRerunHomeSummary(liveRunContext)", app_js)
+        self.assertIn("renderHomePipelineState(\"csv_rerun_active\")", app_js)
+        self.assertIn("renderHomeNextQueue({ ...liveRunContext, queue: lastQueue || {} })", app_js)
+        self.assertIn("function homeCsvRerunQueueContext", home_js)
+        self.assertIn("void refreshLiveRunTail(refreshOptions);", app_js)
+        self.assertIn('/api/diagnostics/tail?target=last_stdout_log&max_bytes=65536', app_js)
         self.assertIn("progressBarForStableDisplay", progress_js)
         self.assertIn('track.setAttribute("aria-valuetext", progressBarStatusLabel(bar));', progress_js)
         self.assertIn("renderLiveRunStrip?.({", app_js)

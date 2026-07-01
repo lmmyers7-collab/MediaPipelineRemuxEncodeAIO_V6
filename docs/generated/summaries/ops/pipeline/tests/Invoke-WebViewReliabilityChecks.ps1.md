@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Invoke-WebViewReliabilityChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-06-30
 last_reviewed: 2026-06-04
-sha256: 9618c8522d1af5ec49dd28dd62807a02cf32f9f37c1158801b8dc2e5a12316e9
+sha256: eab5d6414010071bcc1469ccdbe81b9fa166ba5bd8c9bedc6e3b1918d65954f5
 ---
 # `ops/pipeline/tests/Invoke-WebViewReliabilityChecks.ps1`
 

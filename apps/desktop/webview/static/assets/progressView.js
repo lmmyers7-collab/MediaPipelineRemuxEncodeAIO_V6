@@ -10,6 +10,7 @@
       };
   let selectedProgressEvidenceKey = "";
   const STALE_DISPLAY_CONFIRMATION_COUNT = 2;
+  const AUDIT_PROGRESS_ACTIVE_FRESH_MS = 10 * 60 * 1000;
   const progressStaleDisplayCounts = new Map();
   let progressStaleDisplayItemKey = "";
   const progressDisplayPercentCache = new Map();
@@ -526,7 +527,11 @@
     renderHomeProgressTimeline(bars, snapshot);
   }
 
-  function auditProgressBars(snapshot = {}) {
+  function auditProgressPayload(snapshot = {}) {
+    return snapshot?.audit_progress && typeof snapshot.audit_progress === "object" ? snapshot.audit_progress : {};
+  }
+
+  function rawAuditProgressBars(snapshot = {}) {
     const bars = Array.isArray(snapshot?.progress_bars) ? snapshot.progress_bars : [];
     return bars.filter((bar) => {
       const id = String(bar?.id || "").toLowerCase();
@@ -535,10 +540,59 @@
     });
   }
 
+  function parseAuditProgressTimestamp(value) {
+    if (!value) return 0;
+    const timestamp = Date.parse(String(value));
+    return Number.isFinite(timestamp) ? timestamp : 0;
+  }
+
+  function auditProgressSnapshotTimestampMs(snapshot = {}, bars = rawAuditProgressBars(snapshot)) {
+    const auditProgress = auditProgressPayload(snapshot);
+    const timestamps = [
+      auditProgress.started_at,
+      auditProgress.StartedAt,
+      auditProgress.last_update,
+      auditProgress.LastUpdate,
+      auditProgress.updated_at,
+      auditProgress.UpdatedAt,
+      ...(Array.isArray(bars) ? bars.map((bar) => bar?.updated_at) : []),
+    ].map(parseAuditProgressTimestamp).filter((value) => value > 0);
+    return timestamps.length ? Math.max(...timestamps) : 0;
+  }
+
+  function auditProgressActiveState(snapshot = {}, bars = rawAuditProgressBars(snapshot)) {
+    const auditProgress = auditProgressPayload(snapshot);
+    if (auditProgress.completed === true || auditProgress.failed === true) return false;
+    const status = String(auditProgress.status || auditProgress.Status || "").toLowerCase();
+    if (["completed", "complete", "failed", "error", "blocked", "stopped", "idle"].includes(status)) return false;
+    if (["starting", "scanning", "writing-reports", "running", "active", "audit", "auditing"].includes(status)) return true;
+    return (Array.isArray(bars) ? bars : []).some((bar) => ["active", "running", "warning"].includes(String(bar?.status || "").toLowerCase()));
+  }
+
+  function auditProgressIsStaleForUi(snapshot = {}, bars = rawAuditProgressBars(snapshot)) {
+    if (!auditProgressActiveState(snapshot, bars)) return false;
+    const timestamp = auditProgressSnapshotTimestampMs(snapshot, bars);
+    return Boolean(timestamp && Date.now() - timestamp > AUDIT_PROGRESS_ACTIVE_FRESH_MS);
+  }
+
+  function auditProgressBars(snapshot = {}) {
+    const bars = rawAuditProgressBars(snapshot);
+    if (!auditProgressIsStaleForUi(snapshot, bars)) return bars;
+    return bars.map((bar) => {
+      const status = String(bar?.status || "").toLowerCase();
+      return {
+        ...bar,
+        status: ["active", "running"].includes(status) ? "warning" : bar.status,
+        stale: true,
+      };
+    });
+  }
+
   function auditProgressStatus(snapshot = {}, bars = auditProgressBars(snapshot)) {
     if (!snapshot) return "No snapshot";
-    const auditProgress = snapshot.audit_progress && typeof snapshot.audit_progress === "object" ? snapshot.audit_progress : {};
+    const auditProgress = auditProgressPayload(snapshot);
     const statuses = Array.isArray(bars) ? bars.map((bar) => String(bar?.status || "").toLowerCase()) : [];
+    if (auditProgressIsStaleForUi(snapshot)) return "Audit stale";
     if (statuses.some((status) => status === "blocked")) return "Audit blocked";
     if (statuses.some((status) => status === "active")) return "Audit active";
     if (statuses.length && statuses.every((status) => status === "complete")) return "Audit complete";
@@ -547,7 +601,7 @@
   }
 
   function auditProgressSummaryLines(snapshot = {}, bars = auditProgressBars(snapshot)) {
-    const auditProgress = snapshot?.audit_progress && typeof snapshot.audit_progress === "object" ? snapshot.audit_progress : {};
+    const auditProgress = auditProgressPayload(snapshot);
     if (!Object.keys(auditProgress).length && (!Array.isArray(bars) || !bars.length)) {
       return [
         "Audit progress: no audit progress object is loaded.",
@@ -574,6 +628,9 @@
       completedSteps.length ? `Completed report steps: ${completedSteps.map((step) => String(step).replaceAll("_", " ")).join(", ")}` : "",
       bars.length ? `Progress bars: ${bars.map((bar) => `${bar.label || bar.id}: ${progressBarStatusLabel(bar)}`).join(" | ")}` : "Progress bars: none emitted.",
     ].filter(Boolean);
+    if (auditProgressIsStaleForUi(snapshot, bars)) {
+      lines.push("Audit health: stale progress only; refresh or check ActiveJobs before treating it as active work.");
+    }
     const written = [
       auditProgress.latest_json_path ? "JSON" : "",
       auditProgress.latest_csv_path ? "CSV" : "",
@@ -1065,6 +1122,211 @@
     ].filter(Boolean).join("; ");
   }
 
+  function stdoutTailText(stdoutTail = null) {
+    if (typeof stdoutTail === "string") return stdoutTail;
+    if (stdoutTail && typeof stdoutTail === "object") return String(stdoutTail.text || "");
+    return "";
+  }
+
+  function stdoutTailLines(stdoutTail = null) {
+    return stdoutTailText(stdoutTail)
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
+
+  function csvRerunLineMessage(line) {
+    const text = String(line || "").trim();
+    const match = text.match(/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+\[[A-Z]+\]\s*(.*)$/);
+    return (match ? match[1] : text).trim();
+  }
+
+  function csvRerunLeaf(value) {
+    const text = String(value || "").trim().replace(/^["']|["']$/g, "");
+    const parts = text.split(/[\\/]/).filter(Boolean);
+    return (parts[parts.length - 1] || text || "").trim();
+  }
+
+  function csvRerunStageCopy(line) {
+    const match = csvRerunLineMessage(line).match(/^STAGE COPY attempt\s+\d+\/\d+:\s*(.+?)\s+->\s+(.+)$/i);
+    if (!match) return null;
+    return {
+      file: csvRerunLeaf(match[1]),
+      destination: String(match[2] || "").trim(),
+    };
+  }
+
+  function csvRerunStagedCopy(line) {
+    const match = csvRerunLineMessage(line).match(/^STAGED copy:\s*(.+)$/i);
+    return match ? csvRerunLeaf(match[1]) : "";
+  }
+
+  function csvRerunPlannedRows(line) {
+    const match = csvRerunLineMessage(line).match(/^Rerun CSV rows listed:\s*(\d+);\s*enabled\/planned:\s*(\d+)/i);
+    return match ? `${match[2]} enabled / ${match[1]} CSV rows` : "";
+  }
+
+  function csvRerunExplicitLine(line) {
+    const message = csvRerunLineMessage(line);
+    return /^(Rerun CSV rows listed|STAGE COPY attempt|STAGED copy:|CSV rerun workspace:|PLAN \[|PLAN ONLY complete)/i.test(message)
+      || /\bCSV\s+rerun\b|\bRerun\s+CSV\b|RerunQueue|RerunWorkspace|RerunParked/i.test(message);
+  }
+
+  function csvRerunProcessingMessage(line) {
+    const message = csvRerunLineMessage(line);
+    if (!message) return "";
+    if (/^(Rerun CSV rows listed|PLAN |STAGE COPY|STAGED copy|CSV rerun workspace)/i.test(message)) return "";
+    if (/\b(nested pipeline|PIPELINE START|ffmpeg|mkvmerge|remux|encode|publish|processing)\b/i.test(message)) return message;
+    return "";
+  }
+
+  function csvRerunTailEvidence(stdoutTail = null) {
+    const lines = stdoutTailLines(stdoutTail);
+    const hasExplicitCsvEvidence = lines.some(csvRerunExplicitLine);
+    const evidence = {
+      hasEvidence: false,
+      plannedRows: "",
+      currentImport: "",
+      lastImported: "",
+      processing: "",
+      latestLine: "",
+    };
+    if (!lines.length) return evidence;
+
+    let stageIndex = -1;
+    let stagedIndex = -1;
+    let processingIndex = -1;
+    lines.forEach((line, index) => {
+      const plannedRows = csvRerunPlannedRows(line);
+      if (plannedRows) evidence.plannedRows = plannedRows;
+      const stageCopy = csvRerunStageCopy(line);
+      if (stageCopy?.file) {
+        stageIndex = index;
+        evidence.currentImport = stageCopy.file;
+      }
+      const stagedCopy = csvRerunStagedCopy(line);
+      if (stagedCopy) {
+        stagedIndex = index;
+        evidence.lastImported = stagedCopy;
+      }
+      const processing = hasExplicitCsvEvidence ? csvRerunProcessingMessage(line) : "";
+      if (processing) {
+        processingIndex = index;
+        evidence.processing = processing;
+      }
+    });
+
+    if (stagedIndex >= stageIndex && stagedIndex >= 0) {
+      evidence.currentImport = stageIndex >= 0 ? "Waiting for next copy" : "";
+    }
+    if (!evidence.processing) {
+      evidence.processing = stageIndex >= 0 || stagedIndex >= 0
+        ? "Not processing yet; importing staged CSV files"
+        : "";
+    }
+    if (processingIndex >= 0 && processingIndex > Math.max(stageIndex, stagedIndex)) {
+      evidence.currentImport = "";
+    }
+    evidence.latestLine = hasExplicitCsvEvidence ? csvRerunLineMessage(lines[lines.length - 1]) : "";
+    evidence.hasEvidence = Boolean(hasExplicitCsvEvidence && (
+      evidence.plannedRows
+      || evidence.currentImport
+      || evidence.lastImported
+      || evidence.processing
+      || evidence.latestLine
+    ));
+    return evidence;
+  }
+
+  function csvRerunWorkerText(row = {}) {
+    return [
+      row.job_kind,
+      row.worker_label,
+      row.worker_id,
+      row.stage,
+      row.status,
+      row.status_state,
+      row.source,
+      row.last_log_line,
+    ].map((value) => String(value || "").trim()).filter(Boolean).join(" ");
+  }
+
+  function csvRerunWorkerJobKind(row = {}) {
+    return String(row.job_kind || row.kind || "").trim().toLowerCase();
+  }
+
+  function csvRerunWorkerIsActive(row = {}) {
+    const status = [
+      row.status_state,
+      row.status,
+      row.stage,
+    ].map((value) => String(value || "").trim().toLowerCase()).join(" ");
+    return /\b(running|active|warning|copying|staging|import|processing|remux|encode|publish)\b/.test(status);
+  }
+
+  function csvRerunActivePipelineWorkerPresent(rows = []) {
+    return rows.some((row) => {
+      const kind = csvRerunWorkerJobKind(row);
+      const label = String(row.worker_label || "").trim().toLowerCase();
+      return (kind === "pipeline" || label === "local pipeline") && csvRerunWorkerIsActive(row);
+    });
+  }
+
+  function csvRerunWorkerLooksRelevant(row = {}) {
+    const kind = csvRerunWorkerJobKind(row);
+    if (kind === "rerun_csv" || kind === "csv_rerun") return true;
+    if (kind === "pipeline" || String(row.worker_label || "").trim().toLowerCase() === "local pipeline") return false;
+    return /\b(csv|rerun)\b|RerunQueue|STAGE COPY|STAGED copy|Rerun CSV/i.test(csvRerunWorkerText(row));
+  }
+
+  function csvRerunWorkerLooksActive(row = {}) {
+    const lastLine = String(row.last_log_line || "");
+    return /STAGE COPY|STAGED copy|Rerun CSV rows listed|CSV rerun workspace/i.test(lastLine)
+      || csvRerunWorkerIsActive(row);
+  }
+
+  function csvRerunWorkerEvidence(context = {}) {
+    const snapshot = context?.snapshot && typeof context.snapshot === "object" ? context.snapshot : null;
+    const diagnostics = context?.diagnostics && typeof context.diagnostics === "object" ? context.diagnostics : null;
+    const rows = progressWorkerRows(snapshot, diagnostics).filter(csvRerunWorkerLooksRelevant);
+    const activeRow = rows.find(csvRerunWorkerLooksActive) || rows[0] || null;
+    const lineText = rows.map((row) => row.last_log_line).filter(Boolean).join("\n");
+    const lineEvidence = csvRerunTailEvidence({ text: lineText });
+    const sourceLeaf = csvRerunLeaf(activeRow?.source || "");
+    return {
+      ...lineEvidence,
+      hasWorkerEvidence: rows.length > 0,
+      workerActive: rows.some(csvRerunWorkerLooksActive),
+      currentImport: lineEvidence.currentImport || (csvRerunWorkerLooksActive(activeRow || {}) ? sourceLeaf : ""),
+      latestLine: lineEvidence.latestLine || String(activeRow?.last_log_line || "").trim(),
+    };
+  }
+
+  function csvRerunActivityEvidence(context = {}) {
+    const source = context && typeof context === "object" && ("stdoutTail" in context || "snapshot" in context || "diagnostics" in context)
+      ? context
+      : { stdoutTail: context };
+    const tail = csvRerunTailEvidence(source.stdoutTail);
+    const allWorkerRows = progressWorkerRows(source.snapshot, source.diagnostics);
+    const worker = csvRerunWorkerEvidence(source);
+    const activePipelineWorker = csvRerunActivePipelineWorkerPresent(allWorkerRows);
+    const tailAllowed = Boolean(tail.hasEvidence && (!activePipelineWorker || worker.hasWorkerEvidence));
+    const isActive = Boolean(worker.workerActive)
+      || (tailAllowed && !/PIPELINE SHUTDOWN CLEANLY|ROUND COMPLETE|Single-pass mode complete/i.test(String(tail.latestLine || "")));
+    return {
+      hasEvidence: Boolean(tailAllowed || worker.hasEvidence || worker.hasWorkerEvidence),
+      plannedRows: tail.plannedRows || worker.plannedRows || "",
+      currentImport: tail.currentImport || worker.currentImport || "",
+      lastImported: tail.lastImported || worker.lastImported || "",
+      processing: tail.processing || worker.processing || "",
+      latestLine: worker.latestLine || tail.latestLine || "",
+      hasWorkerEvidence: Boolean(worker.hasWorkerEvidence),
+      workerActive: Boolean(worker.workerActive),
+      tailSuppressedByPipelineWorker: Boolean(tail.hasEvidence && activePipelineWorker && !worker.hasWorkerEvidence),
+      isActive,
+    };
+  }
+
   function progressFfmpegPayload(snapshot = null, diagnostics = null) {
     const fromSnapshot = snapshot?.ffmpeg_progress && typeof snapshot.ffmpeg_progress === "object" ? snapshot.ffmpeg_progress : null;
     const fromDiagnostics = diagnostics?.ffmpeg_progress && typeof diagnostics.ffmpeg_progress === "object" ? diagnostics.ffmpeg_progress : null;
@@ -1548,6 +1810,7 @@
     const pipelineState = String(snapshot.pipeline_state || progress.Status || "").toLowerCase();
     const auditState = String(auditProgress.status || auditProgress.Status || "").toLowerCase();
     if (pipelineState && /processing|running|active|publishing/.test(pipelineState)) return "Pipeline active";
+    if (auditProgressIsStaleForUi(snapshot)) return "Audit stale";
     if (auditState && /running|active|processing|scanning/.test(auditState)) return "Audit active";
     return rows.length ? "Progress loaded" : "No progress";
   }
@@ -1687,10 +1950,12 @@
     return `Latest pipeline event: ${formatProgressValue(event?.event_type || event?.type || event)}`;
   }
 
-  function liveRunStatus({ snapshot = null, closeReadiness = null } = {}) {
+  function liveRunStatus({ snapshot = null, diagnostics = null, closeReadiness = null, stdoutTail = null } = {}) {
     const activity = String(snapshot?.activity || snapshot?.current_activity || "").toLowerCase();
     const state = String(snapshot?.pipeline_state || closeReadiness?.state || "").toLowerCase();
+    const csvRerun = csvRerunActivityEvidence({ snapshot, diagnostics, closeReadiness, stdoutTail });
     if (activity.includes("stale progress")) return { label: "Stale/review", state: "warning" };
+    if (csvRerun.hasEvidence) return { label: "CSV rerun active", state: "running" };
     if (closeReadiness?.safe_to_close === false || ["processing", "running", "active", "publishing"].includes(state)) {
       return { label: "Active work", state: "running" };
     }
@@ -1712,12 +1977,45 @@
     };
   }
 
-  function liveRunStripItems({ snapshot = null, diagnostics = null, closeReadiness = null } = {}) {
+  function longRunReliabilityPayload(snapshot = null) {
+    const counts = snapshot?.counts && typeof snapshot.counts === "object" ? snapshot.counts : {};
+    return counts.long_run_reliability && typeof counts.long_run_reliability === "object" ? counts.long_run_reliability : {};
+  }
+
+  function longRunReliabilitySummary(snapshot = null) {
+    const payload = longRunReliabilityPayload(snapshot);
+    if (!Object.keys(payload).length) return "";
+    const continuous = payload.continuous_round_state || {};
+    const pending = payload.pending_publish_backpressure || {};
+    const workers = payload.worker_slots || {};
+    const stateDb = payload.state_db || {};
+    return [
+      `round_blocked=${Boolean(continuous.blocked)}`,
+      `round_failures=${Number(continuous.consecutive_unexpected_round_failures || 0)}`,
+      `pending_blocked=${Boolean(pending.blocked)}`,
+      `pending_manifests=${Number(pending.manifest_count || 0)}`,
+      `stale_workers=${Number(workers.stale_heartbeat_count || 0)}`,
+      `wal_bytes=${Number(stateDb.wal_size_bytes || 0)}`,
+    ].join("; ");
+  }
+
+  function longRunReliabilityStatus(snapshot = null) {
+    const payload = longRunReliabilityPayload(snapshot);
+    const continuous = payload.continuous_round_state || {};
+    const pending = payload.pending_publish_backpressure || {};
+    const workers = payload.worker_slots || {};
+    if (continuous.blocked || pending.blocked || Number(workers.stale_heartbeat_count || 0) > 0) return "blocked";
+    if (Number(continuous.consecutive_unexpected_round_failures || 0) > 0 || Number(payload?.state_db?.wal_size_bytes || 0) >= Number(payload?.state_db?.wal_review_bytes || 0)) return "warning";
+    return Object.keys(payload).length ? "ok" : "unknown";
+  }
+
+  function liveRunStripItems({ snapshot = null, diagnostics = null, closeReadiness = null, stdoutTail = null } = {}) {
     const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
     const currentWork = snapshot?.current_work && typeof snapshot.current_work === "object" ? snapshot.current_work : {};
     const workerRows = progressWorkerRows(snapshot, diagnostics);
     const etaRows = progressEtaRows(snapshot, diagnostics);
     const ffmpegPayload = progressFfmpegPayload(snapshot, diagnostics);
+    const csvRerun = csvRerunActivityEvidence({ snapshot, diagnostics, stdoutTail });
     const state = snapshot?.pipeline_state || closeReadiness?.state || progress.Status || "unknown";
     const stage = currentWork.phase_label || progress.CurrentStage || progress.Status || "No active work";
     const percent = currentWork.percent_label || (progress.CurrentStagePercent !== undefined && progress.CurrentStagePercent !== null && progress.CurrentStagePercent !== "" ? `${formatProgressValue(progress.CurrentStagePercent)}%` : "");
@@ -1727,6 +2025,8 @@
     const updated = compactUpdatedAgeText(progress.LastUpdate || progress.UpdatedAt || progress.updated_at);
     const eta = etaRows.find((row) => row && row.eta_seconds !== undefined && row.eta_seconds !== null);
     const activeWorker = workerRows.find((row) => ["running", "active", "warning"].includes(String(row.status_state || row.status || "").toLowerCase())) || workerRows[0];
+    const reliabilitySummary = longRunReliabilitySummary(snapshot);
+    const reliabilityStatus = longRunReliabilityStatus(snapshot);
     const items = [
       liveRunItem("Stage", [formatProgressValue(stage), percent].filter(Boolean).join(" "), activeWorkFinalizingLine(progress), progressLooksFinalizing(progress) ? "warning" : "running"),
       liveRunItem("File", file || "No current file", file ? "Current backend-reported item." : "No current file evidence loaded.", file ? "running" : "empty"),
@@ -1736,9 +2036,18 @@
       liveRunItem("Last update", updated || "Not loaded", updated ? "Runtime progress update age." : "No runtime progress timestamp loaded.", updated ? "ok" : "unknown"),
       liveRunItem("FFmpeg", ffmpegPayload?.status || "idle", progressFfmpegSummaryLine(snapshot, diagnostics), ffmpegPayload?.status === "unavailable" ? "warning" : "ok"),
       liveRunItem("Worker", activeWorker ? formatWorkerProgressRow(activeWorker) : "No active worker", progressWorkerSummaryLine(snapshot, diagnostics), activeWorker ? "running" : "empty"),
+      liveRunItem("Reliability", reliabilityStatus === "ok" ? "Ready" : reliabilityStatus === "blocked" ? "Blocked" : reliabilityStatus === "warning" ? "Review" : "Unknown", reliabilitySummary || "Long-run reliability counters are backend-owned and read-only.", reliabilityStatus),
       liveRunItem("Close", closeReadiness ? (closeReadiness.safe_to_close ? "Safe" : "Not safe") : "Unknown", closeReadiness?.reason || "Close-readiness is backend-owned.", closeReadiness?.safe_to_close ? "ok" : closeReadiness?.safe_to_close === false ? "blocked" : "unknown"),
     ];
-    const status = liveRunStatus({ snapshot, closeReadiness });
+    if (csvRerun.hasEvidence) {
+      items.unshift(
+        liveRunItem("CSV rows", csvRerun.plannedRows || "CSV rerun active", "From the bounded last stdout log.", csvRerun.plannedRows ? "ok" : "running"),
+        liveRunItem("Importing", csvRerun.currentImport || "No current import line", "Current CSV staging/import line.", csvRerun.currentImport ? "running" : "empty"),
+        liveRunItem("Last imported", csvRerun.lastImported || "No staged copy yet", "Most recent completed stage copy in the stdout tail.", csvRerun.lastImported ? "ok" : "empty"),
+        liveRunItem("Processing", csvRerun.processing || "Waiting for processing evidence", "Processing starts after CSV staging/import completes.", csvRerun.processing && !csvRerun.processing.startsWith("Not processing yet") ? "running" : "warning"),
+      );
+    }
+    const status = liveRunStatus({ snapshot, diagnostics, closeReadiness, stdoutTail });
     if (status.state === "warning") {
       items.unshift(liveRunItem("Review", "Stale progress", "No update from runtime progress. Inspect Diagnostics, ActiveJobs, Run Logs, and Last Stderr before stopping or closing.", "warning"));
     }
@@ -1762,6 +2071,7 @@
     queue: { page: "queue", label: "Open Queue" },
     ffmpeg: { page: "diagnostics", diagTab: "logs", label: "Open Diagnostics logs" },
     worker: { page: "network", label: "Open Network workers" },
+    reliability: { page: "diagnostics", diagTab: "triage", label: "Open Diagnostics reliability evidence" },
     close: { page: "diagnostics", diagTab: "readiness", label: "Open Diagnostics readiness" },
   };
 
@@ -1775,13 +2085,22 @@
     const stage = items.find((item) => item.label === "Stage")?.value || "No stage";
     const file = items.find((item) => item.label === "File")?.value || "No current file";
     const close = items.find((item) => item.label === "Close")?.value || "Unknown";
+    const csvRerun = csvRerunActivityEvidence(context);
     const next = review
       ? "Open Diagnostics, Active Jobs, Run Logs, and Last Stderr before stopping or closing."
       : active
         ? "Monitor Run Progress and wait for close-readiness to report safe before closing."
         : "No active work is reported; refresh before starting a long unattended operation.";
+    const csvLines = csvRerun.hasEvidence ? [
+      `CSV rerun: ${csvRerun.plannedRows || "active"}.`,
+      `Importing: ${csvRerun.currentImport || "no active copy line in stdout tail"}.`,
+      `Last imported: ${csvRerun.lastImported || "none in stdout tail"}.`,
+      `Processing: ${csvRerun.processing || "waiting for processing evidence"}.`,
+      `Latest stdout: ${csvRerun.latestLine || "none"}.`,
+    ] : [];
     return [
       `Run state: ${status.label}; stage=${stage}; file=${file}; close=${close}.`,
+      ...csvLines,
       `Safe next step: ${next}`,
       "Mutation guardrail: this handoff is read-only and cannot start, stop, drain, publish, rename, or touch media.",
     ];
@@ -1845,14 +2164,15 @@
     return "No active work indicators are currently reported.";
   }
 
-  function renderHomeActiveWork({ snapshot = null, diagnostics = null, closeReadiness = null } = {}) {
+  function renderHomeActiveWork({ snapshot = null, diagnostics = null, closeReadiness = null, stdoutTail = null } = {}) {
     const activeJobs = Array.isArray(diagnostics?.active_jobs) ? diagnostics.active_jobs.filter(Boolean) : [];
     const workerRows = progressWorkerRows(snapshot, diagnostics);
     const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
     const auditProgress = snapshot?.audit_progress && typeof snapshot.audit_progress === "object" ? snapshot.audit_progress : {};
     const state = snapshot?.pipeline_state || closeReadiness?.state || "unknown";
+    const csvRerun = csvRerunActivityEvidence({ snapshot, diagnostics, stdoutTail });
     const stateActive = ["processing", "running", "active", "publishing"].includes(String(state || "").toLowerCase());
-    const active = activeJobs.length > 0 || closeReadiness?.safe_to_close === false || stateActive;
+    const active = activeJobs.length > 0 || closeReadiness?.safe_to_close === false || stateActive || csvRerun.hasEvidence;
     setProgressPanelStatus("home-active-work-status", active ? "Active work" : closeReadiness?.safe_to_close === true ? "Idle" : "Checking", active ? "running" : closeReadiness?.safe_to_close === true ? "ok" : "loading");
     const lines = [
       `Pipeline state: ${state}`,
@@ -1861,6 +2181,12 @@
       `ActiveJobs: ${activeJobs.length || 0}`,
       progressWorkerSummaryLine(snapshot, diagnostics),
       progressEtaSummaryLine(snapshot, diagnostics),
+      longRunReliabilitySummary(snapshot) ? `Long-run reliability: ${longRunReliabilitySummary(snapshot)}` : "",
+      csvRerun.hasEvidence ? `CSV rerun: ${csvRerun.plannedRows || "active"}` : "",
+      csvRerun.currentImport ? `Importing: ${csvRerun.currentImport}` : "",
+      csvRerun.lastImported ? `Last imported: ${csvRerun.lastImported}` : "",
+      csvRerun.processing ? `Processing: ${csvRerun.processing}` : "",
+      csvRerun.latestLine ? `Latest stdout: ${csvRerun.latestLine}` : "",
       ...workerRows.slice(0, 4).map((row) => `- ${formatWorkerProgressRow(row)}`),
       ...activeJobs.slice(0, 5).map((item) => `- ${item}`),
       activeJobs.length > 5 ? `- and ${activeJobs.length - 5} more ActiveJobs row(s)` : "",
@@ -1901,6 +2227,8 @@
     progressEtaPayload,
     progressEtaRows,
     progressEtaSummaryLine,
+    csvRerunTailEvidence,
+    csvRerunActivityEvidence,
     progressEvidenceRows,
     progressEvidenceStatus,
     progressEvidenceSummaryLines,

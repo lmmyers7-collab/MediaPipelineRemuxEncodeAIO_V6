@@ -128,6 +128,7 @@ $requiredLeaves = @(
     'src\mediapipeline\core\api\commands_rename.py',
     'src\mediapipeline\core\api\commands_settings.py',
     'src\mediapipeline\core\api\commands_schedule.py',
+    'src\mediapipeline\core\schedule\stop_watcher.py',
     'src\mediapipeline\desktop\application\schedule_stop_watcher.py',
     'apps\desktop\webview\static\index.html',
     'apps\desktop\webview\static\assets\apiClient.js',
@@ -189,7 +190,7 @@ $renameApplyRunnerText = Read-Text (Join-Path $projectRoot 'src\mediapipeline\co
 $tauriLibText = Read-Text (Join-Path $tauriSrcRoot 'lib.rs')
 $tauriBackendProcessText = Read-Text (Join-Path $tauriSrcRoot 'backend_process.rs')
 $tauriBackendContractText = Read-Text (Join-Path $tauriSrcRoot 'backend_contract.rs')
-$scheduleWatcherText = Read-Text (Join-Path $packageRoot 'application\schedule_stop_watcher.py')
+$scheduleWatcherText = Read-Text (Join-Path $projectRoot 'src\mediapipeline\core\schedule\stop_watcher.py')
 $ffmpegProgressText = Read-Text (Join-Path $projectRoot 'ops\pipeline\engine\process\ffmpeg_progress.ps1')
 $nativeText = Read-Text (Join-Path $projectRoot 'ops\pipeline\engine\shared\native.ps1')
 $remuxText = (@(

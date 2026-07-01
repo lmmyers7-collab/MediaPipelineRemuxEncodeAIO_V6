@@ -8,10 +8,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.core.failures.constants import FAILURE_CLEAR_MANIFEST_SCHEMA_VERSION
+from mediapipeline.core.failures.artifacts import failure_artifact_cleanup_plan
+from mediapipeline.core.failures.constants import (
+    DEFAULT_FAILURE_ARTIFACT_CLEANUP_REASON,
+    DEFAULT_FAILURE_EVIDENCE_ARCHIVE_REASON,
+    FAILURE_CLEAR_MANIFEST_SCHEMA_VERSION,
+)
 from mediapipeline.core.failures.file_io import atomic_write_text
 from mediapipeline.core.paths.layout import path_boundary_check
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 
 class FailureCleanupServiceMixin:
@@ -356,6 +361,7 @@ class FailureCleanupServiceMixin:
             "dry_run": bool(dry_run),
             "dry_run_fingerprint": fingerprint,
             "fingerprint": fingerprint,
+            "confirmation_mode": "preview" if dry_run else "",
             "manifest_path": str(manifest_path),
             "archive_dir": str(archive_dir),
             "writes_failure_evidence": False,
@@ -363,10 +369,9 @@ class FailureCleanupServiceMixin:
         }
         if dry_run:
             return result
-        if not str(reason or "").strip():
-            result["errors"].append("Failure evidence archive requires a non-empty reason.")
-            return result
-        if not dry_run_fingerprint or dry_run_fingerprint != fingerprint:
+        reason_text = str(reason or "").strip() or DEFAULT_FAILURE_EVIDENCE_ARCHIVE_REASON
+        result["confirmation_mode"] = "dry_run_fingerprint" if dry_run_fingerprint else "current_plan"
+        if dry_run_fingerprint and dry_run_fingerprint != fingerprint:
             result["errors"].append("Failure evidence archive fingerprint mismatch; run preview again before confirming.")
             return result
         if result["errors"]:
@@ -379,11 +384,12 @@ class FailureCleanupServiceMixin:
             "operation": "archive_failure_evidence",
             "status": "planned",
             "dry_run": False,
-            "reason": str(reason or "").strip(),
+            "reason": reason_text,
             "scope": scope,
             "include_markers": include_markers,
             "include_reports": include_reports,
             "dry_run_fingerprint": fingerprint,
+            "confirmation_mode": result["confirmation_mode"],
             "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
             "local_base": str(resolved.local_base),
             "allowed_roots": [str(root) for root in self._failure_workspace_roots(resolved)],
@@ -418,6 +424,124 @@ class FailureCleanupServiceMixin:
                 result["errors"].append(message)
                 manifest["errors"].append(message)
         result["writes_failure_evidence"] = bool(result["markers"] or result["reports"])
+        manifest["status"] = "completed_with_errors" if manifest["errors"] else "completed"
+        self._write_failure_clear_manifest(manifest_path, manifest)
+        return result
+
+    def cleanup_failure_artifacts(
+        self,
+        resolved: ResolvedPaths,
+        *,
+        retention_days: Any = None,
+        target_gb: Any = None,
+        artifact_paths: list[str] | None = None,
+        dry_run: bool = False,
+        dry_run_fingerprint: str = "",
+        reason: str = "",
+    ) -> dict[str, Any]:
+        if not resolved.local_base:
+            raise RuntimeError("LocalBase is not resolved; failure artifacts cannot be cleaned up.")
+
+        plan = failure_artifact_cleanup_plan(
+            resolved,
+            retention_days=retention_days,
+            target_gb=target_gb,
+            artifact_paths=artifact_paths,
+        )
+        result = dict(plan)
+        result["dry_run"] = bool(dry_run)
+        result["deleted"] = []
+        result["deleted_count"] = 0
+        result["deleted_bytes"] = 0
+        result["manifest_path"] = ""
+        result["touches_failure_artifacts"] = False
+        if dry_run:
+            return result
+
+        errors = [str(item) for item in result.get("errors") or [] if str(item).strip()]
+        reason_text = str(reason or "").strip() or DEFAULT_FAILURE_ARTIFACT_CLEANUP_REASON
+        expected_fingerprint = str(result.get("dry_run_fingerprint") or "")
+        explicit_artifact_paths = artifact_paths is not None
+        result["confirmation_mode"] = "dry_run_fingerprint" if dry_run_fingerprint else "current_plan"
+        if explicit_artifact_paths and not dry_run_fingerprint:
+            errors.append("Failure artifact cleanup for selected artifact paths requires a matching dry_run_fingerprint.")
+        elif dry_run_fingerprint and dry_run_fingerprint != expected_fingerprint:
+            errors.append("Failure artifact cleanup fingerprint mismatch; run preview again before confirming.")
+
+        planned = [dict(item) for item in result.get("planned") or [] if isinstance(item, dict)]
+        allowed_roots = [
+            Path(str(root.get("path") or ""))
+            for root in result.get("root_paths") or []
+            if isinstance(root, dict) and root.get("is_dir") and str(root.get("path") or "").strip()
+        ]
+        for root in allowed_roots:
+            self._validate_failure_cleanup_folder(root, allowed_roots, "failure artifact root")
+        for item in planned:
+            path = Path(str(item.get("path") or ""))
+            root_path = Path(str(item.get("root_path") or ""))
+            if not root_path or not any(os.path.normcase(os.path.abspath(str(root_path))) == os.path.normcase(os.path.abspath(str(root))) for root in allowed_roots):
+                errors.append(f"Refusing artifact outside allowed artifact roots: {path}")
+                continue
+            if not self._path_within_root(path, root_path):
+                errors.append(f"Refusing artifact outside its backend artifact root: {path}")
+                continue
+            boundary = path_boundary_check(path, root_path)
+            if not boundary.ok:
+                errors.append(f"Refusing artifact with unsafe path boundary ({boundary.reason_code}): {path}")
+                continue
+            try:
+                if path.is_symlink() or not path.is_file():
+                    errors.append(f"Failure artifact is no longer a regular file: {path}")
+            except OSError as exc:
+                errors.append(f"{path}: {exc}")
+        if errors:
+            result["errors"] = errors
+            return result
+
+        manifest_path = self._failure_clear_manifest_preview_path(resolved, prefix="failure_artifact_cleanup")
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        result["manifest_path"] = str(manifest_path)
+        manifest: dict[str, Any] = {
+            "schema_version": FAILURE_CLEAR_MANIFEST_SCHEMA_VERSION,
+            "operation": "cleanup_failure_artifacts",
+            "status": "planned",
+            "dry_run": False,
+            "reason": reason_text,
+            "dry_run_fingerprint": expected_fingerprint,
+            "confirmation_mode": result["confirmation_mode"],
+            "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "local_base": str(resolved.local_base),
+            "allowed_roots": [str(root) for root in allowed_roots],
+            "manifest_path": str(manifest_path),
+            "policy": result.get("policy") or {},
+            "requested_artifact_paths": list(result.get("requested_artifact_paths") or []),
+            "planned": planned,
+            "deleted": [],
+            "skipped": list(result.get("skipped") or []),
+            "errors": [],
+            "source_media_mutation": False,
+        }
+        self._write_failure_clear_manifest(manifest_path, manifest)
+
+        deleted_bytes = 0
+        for item in planned:
+            path = Path(str(item.get("path") or ""))
+            deleted_entry = dict(item)
+            try:
+                size = int(path.stat().st_size)
+                path.unlink()
+                deleted_entry["deleted_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
+                result["deleted"].append(deleted_entry)
+                manifest["deleted"].append(deleted_entry)
+                deleted_bytes += size
+            except OSError as exc:
+                message = f"{path}: {exc}"
+                result["errors"].append(message)
+                manifest["errors"].append(message)
+        result["deleted_count"] = len(result["deleted"])
+        result["deleted_bytes"] = deleted_bytes
+        result["deleted_gb"] = round(float(deleted_bytes) / (1024**3), 3)
+        result["touches_failure_artifacts"] = bool(result["deleted_count"])
         manifest["status"] = "completed_with_errors" if manifest["errors"] else "completed"
         self._write_failure_clear_manifest(manifest_path, manifest)
         return result

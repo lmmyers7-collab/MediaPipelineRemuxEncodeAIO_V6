@@ -23,6 +23,7 @@ from mediapipeline.core.rename.constants import PLEX_RENAME_DEFAULT_REMOVE_TERMS
 from mediapipeline.core.storage.constants import APP_STATE_NAME
 from mediapipeline.core.schedule.app_state import AppStateScheduleServiceMixin
 from mediapipeline.core.audit.rerun_service import AuditRerunServiceMixin
+from mediapipeline.core.audit.sources import AuditSourceMetricsServiceMixin
 from mediapipeline.core.config.service import ConfigProfileServiceMixin
 from mediapipeline.core.completed.service import CompletedJobsServiceMixin
 from mediapipeline.core.files.opening import FileOpenServiceMixin
@@ -57,6 +58,7 @@ class DesktopAppService(
     RemuxPilotAutoPromotionServiceMixin,
     TelemetryServiceMixin,
     StatusServiceMixin,
+    AuditSourceMetricsServiceMixin,
     ProcessLifecycleServiceMixin,
     AppStateScheduleServiceMixin,
     ReleasePackageServiceMixin,

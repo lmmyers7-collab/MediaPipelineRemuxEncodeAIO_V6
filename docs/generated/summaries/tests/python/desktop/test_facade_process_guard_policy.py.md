@@ -3,9 +3,9 @@ file: tests/python/desktop/test_facade_process_guard_policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-01
 last_reviewed: 2026-06-04
-sha256: caf0eb1f7e6594eacb623b4a77e4461668d8a58ac670fffa2ccda967269821d8
+sha256: 802cd39fcebc4e633bfc3e98fe907d9e3ad8be9c70175294743a5ad2d88638fb
 ---
 # `tests/python/desktop/test_facade_process_guard_policy.py`
 

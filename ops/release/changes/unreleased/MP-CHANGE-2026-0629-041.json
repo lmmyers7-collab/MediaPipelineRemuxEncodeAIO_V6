@@ -1,0 +1,40 @@
+{
+  "id": "MP-CHANGE-2026-0629-041",
+  "title": "Show active work in pipeline log",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Pipeline Log surfaces now prepend active-work evidence when close-readiness or diagnostics reports running work, even if the raw log tail is still from a previous run.",
+  "reason": "Operators need immediate visible evidence that a CSV rerun or other pipeline work is active; showing only diagnostics.log_tail can make the log panel appear idle or stale.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The floating Pipeline Log and standalone log window rendered only /api/diagnostics log_tail, so old tail lines could be shown while close-readiness reported active work.",
+  "behavior_after": "Both log surfaces read /api/backend/close-readiness alongside diagnostics and prepend an ACTIVE WORK DETECTED block with close reason and ActiveJobs/worker-progress evidence before the raw tail.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/floatingPipelineLog.js",
+    "apps/desktop/webview/static/assets/pipelineLogWindow.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/floatingPipelineLog.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/pipelineLogWindow.js.md",
+    "docs/generated/summaries/tests/webview/test_webview_pipeline_log_window_static.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-041.json",
+    "tests/webview/test_webview_pipeline_log_window_static.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_pipeline_log_window_static.py"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_pipeline_log_window_static -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed",
+    "node --check apps\\desktop\\webview\\static\\assets\\floatingPipelineLog.js - passed",
+    "node --check apps\\desktop\\webview\\static\\assets\\pipelineLogWindow.js - passed"
+  ],
+  "rollback_plan": "Revert the changes in the two Pipeline Log WebView scripts plus the related static test and refreshed generated summaries.",
+  "related_changes": [],
+  "notes": "Prepend active-work evidence to the floating pipeline log when close-readiness or diagnostics reports running work.\nMirror active-work evidence in the standalone read-only pipeline log window.\nCover close-readiness reads and active-work banner rendering in the pipeline log overlay smoke.\nRefresh generated source summary after active-work log overlay change.\nRefresh generated source summary after standalone log window change.\nRefresh generated test summary for pipeline log static smoke coverage."
+}

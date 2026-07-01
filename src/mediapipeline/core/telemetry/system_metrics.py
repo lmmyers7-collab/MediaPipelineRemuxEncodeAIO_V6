@@ -6,7 +6,7 @@ import sys
 import threading
 from typing import Any
 
-from mediapipeline.desktop.models import TelemetrySnapshot
+from mediapipeline.core.telemetry.contracts import TelemetrySnapshot
 
 
 BYTES_PER_GB = 1024**3

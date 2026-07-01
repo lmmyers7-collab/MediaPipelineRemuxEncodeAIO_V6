@@ -3,9 +3,9 @@ file: src/mediapipeline/core/maintenance/command_policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: maintenance
-last_modified: 2026-06-18
+last_modified: 2026-06-29
 last_reviewed: 2026-06-04
-sha256: 2d8da77173c30bfd0cc82aad3d1b990e7f2b1ae2301176ab1cfe407f59bf4faf
+sha256: 991be332c41f520c688c75fec6cb3380d0cda333985dc731d09a2614290d32ab
 ---
 # `src/mediapipeline/core/maintenance/command_policy.py`
 

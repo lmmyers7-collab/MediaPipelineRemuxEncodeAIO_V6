@@ -7,7 +7,7 @@ import sqlite3
 import sys
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
@@ -18,7 +18,14 @@ sys.path.insert(0, str(find_repo_root(Path(__file__))))
 
 from mediapipeline.core.observability.logging import JsonLineFormatter, bind_run_context, configure_json_logging
 from mediapipeline.core.orchestration.runner import RunnerOptions, StageProcessResult, run_decide_stage
-from mediapipeline.core.storage.db import CURRENT_SCHEMA_VERSION, STATE_DB_FILENAME, StateDbIncompatibleVersion, open_state_db
+from mediapipeline.core.storage.db import (
+    CURRENT_SCHEMA_VERSION,
+    STATE_DB_FILENAME,
+    STATE_DB_MAINTENANCE_MARKER_FILENAME,
+    StateDbIncompatibleVersion,
+    maybe_maintain_state_db,
+    open_state_db,
+)
 from mediapipeline.core.validation.boundary import ValidationFailure, validate_api_payload, validate_stage_payload, validate_stage_result
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.api.command_journal import CommandJournal
@@ -107,6 +114,90 @@ class Phase4StorageObservabilityTests(unittest.TestCase):
         self.assertEqual(events[0]["event_type"], "pipeline.stage.decide")
         self.assertEqual(queue_count, 1)
         self.assertEqual(completed_count, 1)
+
+    def test_state_db_maintenance_trims_mirror_tables_and_reports_health(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            db = open_state_db(root)
+            for index in range(6):
+                db.record_command({"command": f"command.{index}", "ok": True, "message": "ok"})
+                db.record_stage_event(
+                    {
+                        "event_type": "pipeline.stage.test",
+                        "run_id": f"run-{index}",
+                        "command_id": f"cmd-{index}",
+                        "stage": "test",
+                        "ok": True,
+                    }
+                )
+                db.record_queue_snapshot(
+                    {
+                        "produced_at": f"2026-05-28T00:00:{index:02d}Z",
+                        "rows": [{"source_path": f"{index}.mkv"}],
+                    }
+                )
+                db.record_completed_job(
+                    {
+                        "job_id": f"job-{index}",
+                        "output_path": f"out-{index}.mkv",
+                        "sidecar_path": f"out-{index}.pipeline.json",
+                    }
+                )
+
+            result = db.maintenance(max_commands=2, max_events=3, max_queue_snapshots=1, max_completed_jobs=4)
+
+            conn = sqlite3.connect(root / STATE_DB_FILENAME)
+            try:
+                counts = {
+                    table: conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                    for table in ("commands", "events", "queue_snapshots", "completed_jobs")
+                }
+            finally:
+                conn.close()
+
+        self.assertEqual(result["schema_version"], "state_db_maintenance.v1")
+        self.assertEqual(counts["commands"], 2)
+        self.assertEqual(counts["events"], 3)
+        self.assertEqual(counts["queue_snapshots"], 1)
+        self.assertEqual(counts["completed_jobs"], 4)
+        self.assertEqual(result["deleted_counts"]["completed_jobs"], 2)
+        self.assertEqual(result["health"]["write_failures"], 0)
+        self.assertIn("db_size_bytes", result["health"])
+        self.assertIn("wal_size_bytes", result["health"])
+
+    def test_state_db_maybe_maintenance_runs_on_interval_and_records_marker(self) -> None:
+        now = datetime(2026, 6, 30, 12, 0, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            open_state_db(root).record_command({"command": "settings.reload", "ok": True})
+
+            first = maybe_maintain_state_db(root, interval_seconds=60, completed_jobs_max_rows=1000, now=now)
+            second = maybe_maintain_state_db(root, interval_seconds=60, now=now + timedelta(seconds=30))
+            marker_path = root / STATE_DB_MAINTENANCE_MARKER_FILENAME
+            marker = json.loads(marker_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(first["schema_version"], "state_db_maintenance_marker.v1")
+        self.assertTrue(first["ran"])
+        self.assertEqual(first["reason"], "interval")
+        self.assertEqual(first["completed_jobs_max_rows"], 1000)
+        self.assertFalse(second["ran"])
+        self.assertEqual(second["reason"], "")
+        self.assertEqual(marker["schema_version"], "state_db_maintenance_marker.v1")
+        self.assertFalse(marker["ran"])
+
+    def test_state_db_maybe_maintenance_is_best_effort_on_failure(self) -> None:
+        now = datetime(2026, 6, 30, 12, 0, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            with patch("mediapipeline.core.storage.db.open_state_db", side_effect=RuntimeError("database is locked")):
+                result = maybe_maintain_state_db(root, interval_seconds=60, now=now)
+            marker = json.loads((root / STATE_DB_MAINTENANCE_MARKER_FILENAME).read_text(encoding="utf-8"))
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["reason"], "interval")
+        self.assertIn("database is locked", result["error"])
+        self.assertFalse(marker["ok"])
+        self.assertIn("database is locked", marker["error"])
 
     def test_completed_job_mirror_preserves_same_output_append_rows(self) -> None:
         with tempfile.TemporaryDirectory() as td:

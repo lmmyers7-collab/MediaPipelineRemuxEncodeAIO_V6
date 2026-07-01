@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Mapping
 
-from mediapipeline.desktop.models import TelemetrySnapshot
+from mediapipeline.core.telemetry.contracts import TelemetrySnapshot
 
 GPU_ENCODER_USAGE_SCHEMA_VERSION = "desktop_gpu_encoder_usage.v1"
 

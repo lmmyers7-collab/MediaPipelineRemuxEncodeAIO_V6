@@ -325,6 +325,8 @@ function Invoke-NativeProcess {
         [scriptblock]$StderrLineHandler,
         [scriptblock]$PollHandler,
         [scriptblock]$ProcessStartedHandler,
+        [int]$IdleTimeoutSeconds = 0,
+        [string]$IdleTimeoutErrorCode = 'NATIVE_IDLE_TIMEOUT',
         # CPU-A2 — when non-empty / non-'inherit', set the child process
         # priority class right after Process.Start. Threads inherit the
         # priority class change automatically. Used by CPU-bound external
@@ -378,6 +380,7 @@ function Invoke-NativeProcess {
     $aborted    = $false
     $abortCode  = ''
     $abortReason = ''
+    $idleTimedOut = $false
     # Suggestion #6 — record whether the requested ProcessPriority was
     # actually applied. Failures here are silent without this (the
     # WARN log line is easy to miss); surfacing it on the
@@ -388,6 +391,7 @@ function Invoke-NativeProcess {
     $priorityApplied   = ($priorityClassEnum -eq $null)  # 'inherit' is trivially "applied"
     $priorityError     = ''
     $startedAt  = Get-Date
+    $lastOutputAt = $startedAt
     try {
         $proc       = [System.Diagnostics.Process]::Start($psi)
         if ($priorityClassEnum) {
@@ -425,6 +429,16 @@ function Invoke-NativeProcess {
             $didWork = $false
             $didWork = (Receive-NativeProcessLine -LineTask ([ref]$stdoutTask) -Reader $proc.StandardOutput -Builder $stdout -StreamName 'stdout' -LineHandler $StdoutLineHandler -MaxChars $MaxStdoutChars) -or $didWork
             $didWork = (Receive-NativeProcessLine -LineTask ([ref]$stderrTask) -Reader $proc.StandardError -Builder $stderr -StreamName 'stderr' -LineHandler $StderrLineHandler -MaxChars $MaxStderrChars) -or $didWork
+            if ($didWork) { $lastOutputAt = Get-Date }
+            if ($IdleTimeoutSeconds -gt 0 -and ((Get-Date) - $lastOutputAt).TotalSeconds -ge $IdleTimeoutSeconds) {
+                $idleTimedOut = $true
+                $aborted = $true
+                $abortCode = if ([string]::IsNullOrWhiteSpace($IdleTimeoutErrorCode)) { 'NATIVE_IDLE_TIMEOUT' } else { $IdleTimeoutErrorCode }
+                $abortReason = "$Label produced no output for ${IdleTimeoutSeconds}s"
+                $script:NativeIdleWatchdogAbortCount = [int]$script:NativeIdleWatchdogAbortCount + 1
+                Stop-NativeProcessTree -Process $proc -Label $Label
+                break
+            }
             if ($PollHandler) {
                 try {
                     $pollResult = & $PollHandler ([math]::Round(((Get-Date) - $startedAt).TotalSeconds, 3)) $proc
@@ -524,6 +538,8 @@ function Invoke-NativeProcess {
     Set-ExternalToolResultProperty -Result $result -Name 'Aborted'           -Value $aborted
     Set-ExternalToolResultProperty -Result $result -Name 'AbortCode'         -Value $abortCode
     Set-ExternalToolResultProperty -Result $result -Name 'AbortReason'       -Value $abortReason
+    Set-ExternalToolResultProperty -Result $result -Name 'IdleTimedOut'      -Value $idleTimedOut
+    Set-ExternalToolResultProperty -Result $result -Name 'IdleTimeoutSeconds' -Value $IdleTimeoutSeconds
     Set-ExternalToolResultProperty -Result $result -Name 'WorkingDirectory'  -Value $effectiveWorkingDirectory
     return $result
 }
@@ -539,6 +555,8 @@ function Invoke-NativeCommand {
         [scriptblock]$StderrLineHandler,
         [scriptblock]$PollHandler,
         [int]$PollMilliseconds = 100,
+        [int]$IdleTimeoutSeconds = 0,
+        [string]$IdleTimeoutErrorCode = 'NATIVE_IDLE_TIMEOUT',
         [string]$WorkingDirectory = ''
     )
     $nativeArgs = @{
@@ -547,6 +565,8 @@ function Invoke-NativeCommand {
         TimeoutSeconds    = $TimeoutSeconds
         ProcessPriority   = $ProcessPriority
         PollMilliseconds  = $PollMilliseconds
+        IdleTimeoutSeconds = $IdleTimeoutSeconds
+        IdleTimeoutErrorCode = $IdleTimeoutErrorCode
         WorkingDirectory  = $WorkingDirectory
     }
     if ($StdoutLineHandler) { $nativeArgs.StdoutLineHandler = $StdoutLineHandler }
@@ -572,6 +592,8 @@ function Invoke-ExternalToolCommand {
         # ProcessPriorityClass right after launch. Used by BDPGS OCR and
         # other CPU-bound tool calls so they don't starve the desktop.
         [string]$ProcessPriority = 'inherit',
+        [int]$IdleTimeoutSeconds = 0,
+        [string]$IdleTimeoutErrorCode = 'NATIVE_IDLE_TIMEOUT',
         [string]$WorkingDirectory = ''
     )
 
@@ -588,6 +610,7 @@ function Invoke-ExternalToolCommand {
             executable       = $FilePath
             command_line     = $commandLine
             timeout_seconds  = $TimeoutSeconds
+            idle_timeout_seconds = $IdleTimeoutSeconds
             process_priority = $ProcessPriority
             working_directory = $WorkingDirectory
         } | Out-Null
@@ -598,6 +621,8 @@ function Invoke-ExternalToolCommand {
         ArgumentList    = $ArgumentList
         TimeoutSeconds  = $TimeoutSeconds
         ProcessPriority = $ProcessPriority
+        IdleTimeoutSeconds = $IdleTimeoutSeconds
+        IdleTimeoutErrorCode = $IdleTimeoutErrorCode
         WorkingDirectory = $WorkingDirectory
     }
     if ($ErrorHandler) {
@@ -637,6 +662,9 @@ function Invoke-ExternalToolCommand {
         $priorityRequestedField = if ($result.PSObject.Properties['PriorityRequested']) { [string]$result.PriorityRequested } else { 'inherit' }
         $priorityAppliedField   = if ($result.PSObject.Properties['PriorityApplied']) { [bool]$result.PriorityApplied } else { $true }
         $priorityErrorField     = if ($result.PSObject.Properties['PriorityError']) { [string]$result.PriorityError } else { '' }
+        $idleTimedOutField      = if ($result.PSObject.Properties['IdleTimedOut']) { [bool]$result.IdleTimedOut } else { $false }
+        $abortCodeField         = if ($result.PSObject.Properties['AbortCode']) { [string]$result.AbortCode } else { '' }
+        $abortReasonField       = if ($result.PSObject.Properties['AbortReason']) { [string]$result.AbortReason } else { '' }
         $workingDirectoryField  = $WorkingDirectory
         if ($result -is [System.Collections.IDictionary] -and $result.Contains('WorkingDirectory')) {
             $workingDirectoryField = [string]$result['WorkingDirectory']
@@ -651,6 +679,10 @@ function Invoke-ExternalToolCommand {
             exit_code           = [int]$result.ExitCode
             timed_out           = [bool]$result.TimedOut
             stopped             = [bool]$result.Stopped
+            idle_timed_out      = $idleTimedOutField
+            idle_timeout_seconds = $IdleTimeoutSeconds
+            abort_code          = $abortCodeField
+            abort_reason        = $abortReasonField
             error_code          = $toolErrorCode
             duration_seconds    = $durationSeconds
             repro_path          = $reproPath
@@ -684,10 +716,11 @@ function Invoke-FFmpegCommand {
         [switch]$SaveReproOnFailure,
         [scriptblock]$ErrorHandler,
         [string]$ProcessPriority = 'inherit',
+        [int]$IdleTimeoutSeconds = 0,
         [string]$WorkingDirectory = ''
     )
 
-    return Invoke-ExternalToolCommand -ToolName 'ffmpeg' -FilePath $ffmpegPath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority -WorkingDirectory $WorkingDirectory
+    return Invoke-ExternalToolCommand -ToolName 'ffmpeg' -FilePath $ffmpegPath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority -IdleTimeoutSeconds $IdleTimeoutSeconds -WorkingDirectory $WorkingDirectory
 }
 
 function Invoke-MkvmergeCommand {
@@ -697,10 +730,11 @@ function Invoke-MkvmergeCommand {
         [string]$Stage = 'mkvmerge',
         [switch]$SaveReproOnFailure,
         [scriptblock]$ErrorHandler,
-        [string]$ProcessPriority = 'inherit'
+        [string]$ProcessPriority = 'inherit',
+        [int]$IdleTimeoutSeconds = 0
     )
 
-    return Invoke-ExternalToolCommand -ToolName 'mkvmerge' -FilePath $mkvmergePath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority
+    return Invoke-ExternalToolCommand -ToolName 'mkvmerge' -FilePath $mkvmergePath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority -IdleTimeoutSeconds $IdleTimeoutSeconds
 }
 
 function Invoke-MkvextractCommand {

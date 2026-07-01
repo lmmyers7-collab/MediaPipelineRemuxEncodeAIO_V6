@@ -37,7 +37,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from mediapipeline.desktop.api.queue_source_path_policy import validate_queue_source_path
+from mediapipeline.core.processes.source_path_policy import validate_queue_source_path
 from mediapipeline.core.queue.priority_manifest import (
     PriorityManifestReadError,
     VALID_LEVELS,

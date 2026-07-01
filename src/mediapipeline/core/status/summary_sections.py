@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 
 def append_environment_section(lines: list[str], *, resolved: ResolvedPaths, audit_root: str) -> None:

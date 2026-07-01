@@ -18,7 +18,8 @@ from mediapipeline.core.kernel.config_keys import (
     KEY_FINAL_LIBRARY_PROMOTION_VERIFICATION_MODE,
     KEY_OUTSOURCE,
 )
-from mediapipeline.desktop.models import CompletedJobRecord, ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.completed.contracts import CompletedJobRecord
 
 from .promotion_parts.cleanup import cleanup_verified_files
 from .promotion_parts.planning import (

@@ -4,7 +4,9 @@ import csv
 import io
 from pathlib import Path
 
-from mediapipeline.desktop.models import AuditRecord, FailureRecord, ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.audit.contracts import AuditRecord
+from mediapipeline.core.failures.contracts import FailureRecord
 from mediapipeline.core.failures.markers import failure_record_from_marker_payload
 from mediapipeline.core.audit.rerun_file_io import atomic_write_text, read_json_file
 

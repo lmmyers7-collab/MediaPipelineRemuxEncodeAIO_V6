@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0701-021",
+  "title": "Clarify rerun original cleanup wording",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-07-01",
+  "date_completed": "2026-07-01",
+  "summary": "Clarified CSV rerun lifecycle wording so the replace-final-output choice is distinguished from old-source handling after proof.",
+  "reason": "Operators could read Original After Proof as an option to replace the original source directly. The UI now names that lifecycle decision as old-source handling and keeps deletion framed as a later cleanup decision.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "CSV rerun controls and preflight text used Original After Proof/original-source wording, which made final output replacement and prior source cleanup handoff easy to conflate.",
+  "behavior_after": "CSV rerun controls, policy summaries, blocked guidance, and preflight text use Old Source After Proof/old-source wording. No backend lifecycle or source deletion behavior changed.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launchView.js",
+    "apps/desktop/webview/static/assets/launchView.preflight.js",
+    "apps/desktop/webview/static/partials/page-launch.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.preflight.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-launch.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0701-021.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_launch.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_launch_command_buttons_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0701-021.json",
+    "tests/python/desktop/test_application_facade_web_static_launch.py",
+    "tests/webview/test_webview_launch_command_buttons_smoke.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static_launch tests.webview.test_webview_launch_command_buttons_smoke -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/partials/page-launch.html apps/desktop/webview/static/assets/launchView.js apps/desktop/webview/static/assets/launchView.preflight.js tests/python/desktop/test_application_facade_web_static_launch.py tests/webview/test_webview_launch_command_buttons_smoke.py ops/release/changes/unreleased/MP-CHANGE-2026-0701-021.json"
+  ],
+  "rollback_plan": "Revert the launch WebView wording changes, test expectation updates, refreshed summaries, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0701-010",
+    "MP-CHANGE-2026-0701-015"
+  ],
+  "notes": "Clarify CSV rerun old-source handling label and help text.\nClarify CSV rerun old-source policy summaries and blocked guidance.\nClarify preflight wording for final-output replacement and old-source handling.\nUpdate static launch copy assertions for old-source wording.\nKeep WebView smoke expectations aligned with old-source preflight wording.\nRefresh generated summary after launch partial copy change.\nRefresh generated summary after launchView copy change.\nRefresh generated summary after preflight copy change.\nRefresh generated summary after static test expectation change.\nRefresh generated summary after WebView smoke expectation change.\nRefresh generated summary for the change packet."
+}

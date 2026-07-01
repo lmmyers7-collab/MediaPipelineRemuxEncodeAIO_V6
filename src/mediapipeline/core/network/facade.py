@@ -25,20 +25,18 @@ from mediapipeline.core.network.join import (
     encode_network_join_blob,
     worker_join_patch_from_blob,
 )
+from mediapipeline.core.network.auth import generate_token
+from mediapipeline.core.network.library_roots import library_roots_from_config
+from mediapipeline.core.network.path_map import parse_source_path_map
+from mediapipeline.core.network.registry import InFlightRegistry
 from mediapipeline.core.network.url_policy import redact_network_secret_text, redact_url
 from mediapipeline.core.network.url_policy import validate_coordinator_url
+from mediapipeline.core.network.worker_state import load_worker_state
 from mediapipeline.core.processes.pipeline_policy import configured_network_role
-from mediapipeline.desktop.models import ResolvedPaths
-from mediapipeline.desktop.network.auth import generate_token
-from mediapipeline.desktop.network.library_roots import library_roots_from_config
-from mediapipeline.desktop.network.mdns import ZeroconfUnavailable, discover_coordinators
-from mediapipeline.desktop.network.path_map import parse_source_path_map
-from mediapipeline.desktop.network.probe import probe_worker_auth
-from mediapipeline.desktop.network.registry import InFlightRegistry
-from mediapipeline.desktop.network.worker_state import load_worker_state
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_workspaces import NetworkWorkersDto
+    from mediapipeline.core.kernel.dto_workspaces import NetworkWorkersDto
 
 
 _log = logging.getLogger(__name__)
@@ -47,9 +45,13 @@ NETWORK_COORDINATOR_DISCOVERY_SCHEMA_VERSION = "desktop_network_coordinator_disc
 
 
 def _network_workers_dto(**fields: Any) -> "NetworkWorkersDto":
-    from mediapipeline.desktop.application.dto_workspaces import NetworkWorkersDto
+    from mediapipeline.core.kernel.dto_workspaces import NetworkWorkersDto
 
     return NetworkWorkersDto(**fields)
+
+
+class NetworkDiscoveryUnavailable(RuntimeError):
+    """Raised when the desktop-owned coordinator discovery adapter is unavailable."""
 
 
 def _network_role(resolved: ResolvedPaths) -> str:
@@ -968,7 +970,13 @@ def _network_tcp_probe(coordinator_url: Any, *, timeout_seconds: float) -> dict[
     )
 
 
-def _network_auth_ping_probe(coordinator_url: Any, token: Any, *, timeout_seconds: float) -> dict[str, Any]:
+def _network_auth_ping_probe(
+    coordinator_url: Any,
+    token: Any,
+    *,
+    timeout_seconds: float,
+    probe_worker_auth_func: Any,
+) -> dict[str, Any]:
     normalized, _host, _port, error = _coordinator_endpoint_parts(coordinator_url)
     if error:
         return _test_layer(
@@ -980,7 +988,7 @@ def _network_auth_ping_probe(coordinator_url: Any, token: Any, *, timeout_second
             status_code=None,
         )
     try:
-        result = probe_worker_auth(normalized, str(token or ""), timeout_seconds=max(1, int(timeout_seconds)))
+        result = probe_worker_auth_func(normalized, str(token or ""), timeout_seconds=max(1, int(timeout_seconds)))
     except Exception as exc:
         return _test_layer(
             "l2_auth",
@@ -1343,6 +1351,18 @@ class NetworkFacadeMixin:
 
     service: object
     app_version: str
+
+    def _network_probe_worker_auth_adapter(self, base_url: str, token: str, *, timeout_seconds: int = 4) -> Any:
+        probe = getattr(self, "_network_probe_worker_auth", None)
+        if not callable(probe):
+            raise RuntimeError("Network worker auth probe adapter is unavailable.")
+        return probe(base_url, token, timeout_seconds=timeout_seconds)
+
+    def _network_discover_coordinators_adapter(self, *, timeout_seconds: float) -> list[str]:
+        discover = getattr(self, "_network_discover_coordinators", None)
+        if not callable(discover):
+            raise NetworkDiscoveryUnavailable("mDNS coordinator discovery adapter is unavailable.")
+        return list(discover(timeout_secs=timeout_seconds) or [])
 
     def _network_dispatcher_for_role(self, role: str) -> Any:
         runtime = getattr(self, "_network_dispatcher_runtime", None)
@@ -1708,8 +1728,8 @@ class NetworkFacadeMixin:
             },
         }
         try:
-            discovered_urls = discover_coordinators(timeout_secs=timeout_seconds)
-        except ZeroconfUnavailable as exc:
+            discovered_urls = self._network_discover_coordinators_adapter(timeout_seconds=timeout_seconds)
+        except NetworkDiscoveryUnavailable as exc:
             warning = _bounded_network_detail(exc)
             return CommandResult(
                 command="network.worker.discover_coordinators",
@@ -1796,6 +1816,7 @@ class NetworkFacadeMixin:
             config.get("WorkerCoordinatorUrl"),
             config.get("WorkerAuthToken"),
             timeout_seconds=timeout_seconds,
+            probe_worker_auth_func=self._network_probe_worker_auth_adapter,
         )
         l3_paths = _network_path_access_probe(resolved)
         layers = {

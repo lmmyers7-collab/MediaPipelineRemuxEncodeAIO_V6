@@ -5,7 +5,8 @@ import time
 from typing import Any, Mapping
 
 from mediapipeline.core.completed.manifest import PROOF_MODE_SUMMARY
-from mediapipeline.desktop.models import CompletedJobRecord, ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.completed.contracts import CompletedJobRecord
 
 from .promotion import (
     CONSECUTIVE_FAILURE_LIMIT,

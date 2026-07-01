@@ -140,6 +140,16 @@ class ApplicationFacadeWebStaticShellTests(unittest.TestCase):
             self.assertIn(after, bundle.html)
             self.assertLess(bundle.html.index(before), bundle.html.index(after), f"{before} must load before {after}")
 
+    def test_index_cache_busts_home_summary_assets_for_tauri_webview(self) -> None:
+        bundle = served_webview_static_contract_bundle()
+
+        version = "v=20260630-csv-home-queue-fastpath"
+        self.assertIn(f'/assets/styles.css?{version}', bundle.html)
+        self.assertIn(f'/assets/progressView.js?{version}', bundle.html)
+        self.assertIn(f'/assets/app/topbar.js?{version}', bundle.html)
+        self.assertIn(f'/assets/app/home.js?{version}', bundle.html)
+        self.assertIn(f'/assets/app.js?{version}', bundle.html)
+
     def test_served_static_assets_return_expected_content_types(self) -> None:
         bundle = served_webview_static_contract_bundle()
 

@@ -21,7 +21,7 @@ import tempfile
 import threading
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -158,6 +158,19 @@ def _safe_failure_ledger_entry(raw_entry: Any) -> dict[str, Any] | None:
     }
 
 
+def _parse_utc_datetime(value: Any) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
 # ---------------------------------------------------------------------------
 # InFlightJob
 # ---------------------------------------------------------------------------
@@ -243,6 +256,8 @@ class InFlightRegistry:
     _RECENT_COMPLETION_TTL_SECONDS = 30.0
     _MAX_RECLAIM_LEDGER_ENTRIES = 128
     _MAX_LATE_TERMINAL_REPORTS = 128
+    _MAX_FAILURE_LEDGER_ENTRIES = 5000
+    _MIN_RECLAIMED_SOURCE_QUARANTINE_SECONDS = 900.0
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -262,10 +277,90 @@ class InFlightRegistry:
         # Reclaim and late-terminal ledgers preserve evidence after stale takeover.
         self._reclaim_ledger: dict[str, dict[str, Any]] = {}
         self._late_terminal_reports: list[dict[str, Any]] = []
+        self._reclaimed_source_quarantine: dict[str, dict[str, Any]] = {}
 
     # ------------------------------------------------------------------
     # Mutations
     # ------------------------------------------------------------------
+
+    def _reclaimed_source_quarantine_seconds(self, timeout_mins: float) -> float:
+        try:
+            timeout_seconds = coerce_finite_float(timeout_mins, "timeout_mins", minimum=0.0) * 60.0
+        except Exception:
+            timeout_seconds = 0.0
+        return max(self._MIN_RECLAIMED_SOURCE_QUARANTINE_SECONDS, timeout_seconds * 2.0)
+
+    def _prune_reclaimed_source_quarantine_locked(self, now: datetime | None = None) -> None:
+        if not self._reclaimed_source_quarantine:
+            return
+        now = now or datetime.now(timezone.utc)
+        expired: list[str] = []
+        for source_identity, entry in self._reclaimed_source_quarantine.items():
+            expires_at = _parse_utc_datetime(entry.get("expires_at"))
+            if expires_at is None or expires_at <= now:
+                expired.append(source_identity)
+        for source_identity in expired:
+            self._reclaimed_source_quarantine.pop(source_identity, None)
+
+    def _reclaimed_source_quarantine_entry_locked(
+        self,
+        source_identity: str,
+        now: datetime | None = None,
+    ) -> dict[str, Any] | None:
+        if not source_identity:
+            return None
+        now = now or datetime.now(timezone.utc)
+        entry = self._reclaimed_source_quarantine.get(source_identity)
+        if not entry:
+            return None
+        expires_at = _parse_utc_datetime(entry.get("expires_at"))
+        if expires_at is None or expires_at <= now:
+            self._reclaimed_source_quarantine.pop(source_identity, None)
+            return None
+        return entry
+
+    def _record_reclaimed_source_quarantine_locked(
+        self,
+        job: InFlightJob,
+        *,
+        timeout_mins: float,
+        reclaimed_at: str,
+        quarantine_seconds: float | None = None,
+    ) -> dict[str, Any]:
+        source_identity = normalize_source_identity(job.source_path)
+        if not source_identity:
+            return {}
+        reclaimed_dt = _parse_utc_datetime(reclaimed_at) or datetime.now(timezone.utc)
+        ttl = float(quarantine_seconds) if quarantine_seconds is not None else self._reclaimed_source_quarantine_seconds(timeout_mins)
+        ttl = max(self._MIN_RECLAIMED_SOURCE_QUARANTINE_SECONDS, ttl)
+        expires_at = (reclaimed_dt + timedelta(seconds=ttl)).isoformat()
+        entry = {
+            "source_identity": source_identity,
+            "source_path": job.source_path,
+            "job_id": job.job_id,
+            "worker_id": job.worker_id,
+            "worker_name": job.worker_name,
+            "claimed_at": job.claimed_at,
+            "last_heartbeat": job.last_heartbeat,
+            "reclaimed_at": reclaimed_dt.isoformat(),
+            "expires_at": expires_at,
+            "timeout_mins": float(timeout_mins),
+            "quarantine_seconds": int(ttl),
+        }
+        self._reclaimed_source_quarantine[source_identity] = entry
+        return dict(entry)
+
+    def clear_reclaimed_source_quarantine(self, source_path: str) -> bool:
+        """Clear stale-reclaim quarantine after an accepted terminal report."""
+        source_identity = normalize_source_identity(source_path)
+        if not source_identity:
+            return False
+        with self._lock:
+            return self._reclaimed_source_quarantine.pop(source_identity, None) is not None
+
+    def _cap_failure_ledger_locked(self) -> None:
+        while len(self._failure_ledger) > self._MAX_FAILURE_LEDGER_ENTRIES:
+            self._failure_ledger.pop(next(iter(self._failure_ledger)), None)
 
     def claim(
         self,
@@ -299,10 +394,13 @@ class InFlightRegistry:
             )
             return False
         with self._lock:
+            self._prune_reclaimed_source_quarantine_locked()
             if safe_job_id in self._jobs:
                 _log.warning("Rejecting duplicate in-flight job_id %r for source %s", safe_job_id[:32], safe_source_path)
                 return False
             if source_identity in self._claimed_paths:
+                return False
+            if self._reclaimed_source_quarantine_entry_locked(source_identity) is not None:
                 return False
             try:
                 safe_estimated_size_gb = coerce_finite_float(
@@ -502,6 +600,7 @@ class InFlightRegistry:
                     "last_job_id": job.job_id,
                     "alert_emitted": alert_emitted,
                 }
+                self._cap_failure_ledger_locked()
                 stats = self._worker_stats.setdefault(
                     job.worker_id,
                     _default_worker_stats(job.worker_id, job.worker_name),
@@ -622,7 +721,12 @@ class InFlightRegistry:
         with self._lock:
             return [dict(entry) for entry in self._failure_ledger.values()]
 
-    def reclaim_stale(self, timeout_mins: float) -> list[InFlightJob]:
+    def reclaim_stale(
+        self,
+        timeout_mins: float,
+        *,
+        quarantine_seconds: float | None = None,
+    ) -> list[InFlightJob]:
         """Return and remove all jobs whose heartbeat has expired.
 
         A job is stale when its ``last_heartbeat`` is older than
@@ -651,13 +755,33 @@ class InFlightRegistry:
                     self._claimed_paths.pop(source_identity, None)
                     # Quarantine like complete()/unclaim() (N10): the
                     # silenced worker may still be running and writing
-                    # output; the grace TTL absorbs its late done/release
-                    # reports before the path can be claimed again.
+                    # output; the short grace TTL absorbs immediate late
+                    # reports while the persisted reclaimed-source quarantine
+                    # blocks duplicate claims until a terminal report is
+                    # accepted or the lease-safety window expires.
                     self._recent_completions[source_identity] = time.monotonic()
-                    self._record_reclaim_locked(job, timeout_mins=timeout_mins, reclaimed_at=now.isoformat())
+                    quarantine = self._record_reclaimed_source_quarantine_locked(
+                        job,
+                        timeout_mins=timeout_mins,
+                        reclaimed_at=now.isoformat(),
+                        quarantine_seconds=quarantine_seconds,
+                    )
+                    self._record_reclaim_locked(
+                        job,
+                        timeout_mins=timeout_mins,
+                        reclaimed_at=now.isoformat(),
+                        quarantine_expires_at=str(quarantine.get("expires_at", "") or ""),
+                    )
         return stale
 
-    def _record_reclaim_locked(self, job: InFlightJob, *, timeout_mins: float, reclaimed_at: str) -> None:
+    def _record_reclaim_locked(
+        self,
+        job: InFlightJob,
+        *,
+        timeout_mins: float,
+        reclaimed_at: str,
+        quarantine_expires_at: str = "",
+    ) -> None:
         self._reclaim_ledger[job.job_id] = {
             "job_id": job.job_id,
             "worker_id": job.worker_id,
@@ -668,6 +792,7 @@ class InFlightRegistry:
             "last_heartbeat": job.last_heartbeat,
             "reclaimed_at": reclaimed_at,
             "timeout_mins": float(timeout_mins),
+            "quarantine_expires_at": quarantine_expires_at,
         }
         while len(self._reclaim_ledger) > self._MAX_RECLAIM_LEDGER_ENTRIES:
             self._reclaim_ledger.pop(next(iter(self._reclaim_ledger)), None)
@@ -705,6 +830,7 @@ class InFlightRegistry:
                 "queue_terminal": bool(getattr(request, "queue_terminal", False)),
                 "retry_on_failure": bool(getattr(request, "retry_on_failure", True)),
             }
+            report["removes_queue_record"] = bool(report["success"] or report["queue_terminal"])
             self._late_terminal_reports.append(report)
             if len(self._late_terminal_reports) > self._MAX_LATE_TERMINAL_REPORTS:
                 self._late_terminal_reports = self._late_terminal_reports[-self._MAX_LATE_TERMINAL_REPORTS :]
@@ -738,7 +864,11 @@ class InFlightRegistry:
         if not source_identity:
             return False
         with self._lock:
+            now_dt = datetime.now(timezone.utc)
+            self._prune_reclaimed_source_quarantine_locked(now_dt)
             if source_identity in self._claimed_paths:
+                return True
+            if self._reclaimed_source_quarantine_entry_locked(source_identity, now_dt) is not None:
                 return True
             # Lazy-prune any expired grace entries while we're here.
             ttl = self._RECENT_COMPLETION_TTL_SECONDS
@@ -904,6 +1034,7 @@ class InFlightRegistry:
                 "failure_ledger": copy.deepcopy(self._failure_ledger),
                 "reclaim_ledger": copy.deepcopy(self._reclaim_ledger),
                 "late_terminal_reports": copy.deepcopy(self._late_terminal_reports),
+                "reclaimed_source_quarantine": copy.deepcopy(self._reclaimed_source_quarantine),
             }
 
     def restore_rollback_snapshot(self, snapshot: dict[str, Any]) -> None:
@@ -918,6 +1049,7 @@ class InFlightRegistry:
             self._failure_ledger = copy.deepcopy(snapshot.get("failure_ledger", {}))
             self._reclaim_ledger = copy.deepcopy(snapshot.get("reclaim_ledger", {}))
             self._late_terminal_reports = copy.deepcopy(snapshot.get("late_terminal_reports", []))
+            self._reclaimed_source_quarantine = copy.deepcopy(snapshot.get("reclaimed_source_quarantine", {}))
 
     def reclaim_ledger_snapshot(self) -> list[dict[str, Any]]:
         with self._lock:
@@ -926,6 +1058,39 @@ class InFlightRegistry:
     def late_terminal_reports_snapshot(self) -> list[dict[str, Any]]:
         with self._lock:
             return [dict(entry) for entry in self._late_terminal_reports]
+
+    def reclaimed_source_quarantine_snapshot(self) -> list[dict[str, Any]]:
+        with self._lock:
+            self._prune_reclaimed_source_quarantine_locked()
+            return [dict(entry) for entry in self._reclaimed_source_quarantine.values()]
+
+    def reclaimed_source_quarantine_stats(self) -> dict[str, Any]:
+        now = datetime.now(timezone.utc)
+        with self._lock:
+            self._prune_reclaimed_source_quarantine_locked(now)
+            entries = [dict(entry) for entry in self._reclaimed_source_quarantine.values()]
+        oldest_age_seconds: int | None = None
+        oldest_reclaimed_at = ""
+        for entry in entries:
+            reclaimed_at = _parse_utc_datetime(entry.get("reclaimed_at"))
+            if reclaimed_at is None:
+                continue
+            age = max(0, int((now - reclaimed_at).total_seconds()))
+            if oldest_age_seconds is None or age > oldest_age_seconds:
+                oldest_age_seconds = age
+                oldest_reclaimed_at = reclaimed_at.isoformat()
+        return {
+            "count": len(entries),
+            "oldest_age_seconds": oldest_age_seconds,
+            "oldest_reclaimed_at": oldest_reclaimed_at,
+        }
+
+    def failure_ledger_stats(self) -> dict[str, Any]:
+        with self._lock:
+            return {
+                "count": len(self._failure_ledger),
+                "max_entries": self._MAX_FAILURE_LEDGER_ENTRIES,
+            }
 
     # ------------------------------------------------------------------
     # Persistence (crash recovery)
@@ -942,6 +1107,7 @@ class InFlightRegistry:
                 "failure_ledger":    [dict(entry) for entry in self._failure_ledger.values()],
                 "reclaim_ledger":    [dict(entry) for entry in self._reclaim_ledger.values()],
                 "late_terminal_reports": [dict(entry) for entry in self._late_terminal_reports],
+                "reclaimed_source_quarantine": [dict(entry) for entry in self._reclaimed_source_quarantine.values()],
             }
         tmp_path: Path | None = None
         try:
@@ -1055,6 +1221,8 @@ class InFlightRegistry:
                     _log.warning("Skipping malformed failure ledger entry at index %d in %s", index, path)
                     continue
                 failure_ledger[_failure_ledger_key(entry["worker_id"], entry["source_path"])] = entry
+            while len(failure_ledger) > self._MAX_FAILURE_LEDGER_ENTRIES:
+                failure_ledger.pop(next(iter(failure_ledger)), None)
 
             reclaim_ledger: dict[str, dict[str, Any]] = {}
             raw_reclaim = data.get("reclaim_ledger", [])
@@ -1088,6 +1256,7 @@ class InFlightRegistry:
                     "last_heartbeat": str(raw_entry.get("last_heartbeat", "") or ""),
                     "reclaimed_at": str(raw_entry.get("reclaimed_at", "") or ""),
                     "timeout_mins": timeout_mins,
+                    "quarantine_expires_at": str(raw_entry.get("quarantine_expires_at", "") or ""),
                 }
 
             late_terminal_reports: list[dict[str, Any]] = []
@@ -1106,6 +1275,51 @@ class InFlightRegistry:
                     _log.warning("Skipping incomplete late terminal report at index %d in %s", index, path)
                     continue
                 late_terminal_reports.append(dict(raw_entry))
+
+            reclaimed_source_quarantine: dict[str, dict[str, Any]] = {}
+            raw_quarantine = data.get("reclaimed_source_quarantine", [])
+            if isinstance(raw_quarantine, dict):
+                quarantine_items = list(raw_quarantine.values())
+            elif isinstance(raw_quarantine, list):
+                quarantine_items = raw_quarantine
+            else:
+                quarantine_items = []
+                if raw_quarantine:
+                    _log.warning("Ignoring malformed reclaimed_source_quarantine in %s: expected array or object", path)
+            load_now = datetime.now(timezone.utc)
+            for index, raw_entry in enumerate(quarantine_items):
+                if not isinstance(raw_entry, dict):
+                    _log.warning("Skipping malformed reclaimed-source quarantine entry at index %d in %s", index, path)
+                    continue
+                source_path = str(raw_entry.get("source_path", "") or "").strip()
+                source_identity = normalize_source_identity(raw_entry.get("source_identity", "") or source_path)
+                if not source_path or not source_identity:
+                    _log.warning("Skipping incomplete reclaimed-source quarantine entry at index %d in %s", index, path)
+                    continue
+                expires_at = _parse_utc_datetime(raw_entry.get("expires_at"))
+                if expires_at is None or expires_at <= load_now:
+                    continue
+                try:
+                    timeout_mins = coerce_finite_float(raw_entry.get("timeout_mins", 0.0), "timeout_mins", minimum=0.0)
+                except Exception:
+                    timeout_mins = 0.0
+                try:
+                    quarantine_seconds = coerce_nonnegative_int(raw_entry.get("quarantine_seconds", 0), "quarantine_seconds")
+                except Exception:
+                    quarantine_seconds = 0
+                reclaimed_source_quarantine[source_identity] = {
+                    "source_identity": source_identity,
+                    "source_path": source_path,
+                    "job_id": str(raw_entry.get("job_id", "") or ""),
+                    "worker_id": str(raw_entry.get("worker_id", "") or ""),
+                    "worker_name": str(raw_entry.get("worker_name", "") or ""),
+                    "claimed_at": str(raw_entry.get("claimed_at", "") or ""),
+                    "last_heartbeat": str(raw_entry.get("last_heartbeat", "") or ""),
+                    "reclaimed_at": str(raw_entry.get("reclaimed_at", "") or ""),
+                    "expires_at": expires_at.isoformat(),
+                    "timeout_mins": timeout_mins,
+                    "quarantine_seconds": quarantine_seconds,
+                }
 
             try:
                 session_completed = coerce_nonnegative_int(data.get("session_completed", 0), "session_completed")
@@ -1127,6 +1341,7 @@ class InFlightRegistry:
                 self._failure_ledger = failure_ledger
                 self._reclaim_ledger = reclaim_ledger
                 self._late_terminal_reports = late_terminal_reports
+                self._reclaimed_source_quarantine = reclaimed_source_quarantine
             _log.info("Restored %d in-flight job(s) from %s", len(self._jobs), path)
             return True
         except Exception:

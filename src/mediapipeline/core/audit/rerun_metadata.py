@@ -5,10 +5,10 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.audit.rerun_contracts import RerunMetadataServiceProtocol, RunCaptureFunc
 from mediapipeline.core.audit.rerun_file_io import atomic_write_text, read_json_file
-from mediapipeline.desktop.subprocess_runner import run_capture
+from mediapipeline.core.kernel.runtime.subprocess_runner import run_capture
 
 
 def rerun_source_metadata_script_path_for_service(service: RerunMetadataServiceProtocol, resolved: ResolvedPaths) -> Path:

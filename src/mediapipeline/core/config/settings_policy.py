@@ -17,10 +17,10 @@ from mediapipeline.core.kernel.config_keys import (
     KEY_OUTSOURCE,
     KEY_VOBSUB_OCR_TOOL_PATH,
 )
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
 
 SETTINGS_VALIDATE_COMMAND = "settings.validate"
@@ -43,7 +43,7 @@ HARDWARE_ENCODER_BACKENDS = frozenset({"nvenc", "qsv", "amf"})
 
 
 def _command_result(**fields: Any) -> "CommandResult":
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**fields)
 

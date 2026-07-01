@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0630-015",
+  "title": "Support MP4 VobSub extraction staging",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-30",
+  "date_completed": "2026-06-30",
+  "summary": "Add MP4-family embedded VobSub extraction support by staging the selected subtitle stream into a temporary Matroska file before the existing MKVToolNix IDX/SUB extraction and OCR flow.",
+  "reason": "Recent failure markers showed MP4 sources with embedded VobSub tracks were rejected as unsupported before OCR could run, even though the existing pipeline can OCR VobSub once it has an IDX/SUB pair.",
+  "affected_areas": [
+    "docs",
+    "subtitles",
+    "tests"
+  ],
+  "behavior_before": "Embedded VobSub extraction failed for MP4-family inputs with SUBTITLE_VOBSUB_EXTRACT_UNSUPPORTED_CONTAINER because only Matroska-family inputs were allowed into the mkvextract path.",
+  "behavior_after": "MP4-family embedded VobSub tracks are staged through FFmpeg into a temporary Matroska file, then processed by the existing mkvextract and VobSub OCR path. Unsupported non-MP4, non-Matroska containers still fail closed.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/subtitles/vobsub.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-VobSubSubtitleChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0630-015.json.md",
+    "ops/pipeline/engine/subtitles/vobsub.ps1",
+    "ops/pipeline/tests/Unit/Invoke-VobSubSubtitleChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0630-015.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-VobSubSubtitleChecks.ps1 covers MP4 embedded VobSub FFmpeg staging, mkvextract input selection, OCR output, and staged MKV cleanup."
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed because unrelated dirty files docs/testing/THIRTY_DAY_SOAK_TEST_DESIGN.md and src/mediapipeline/core/kernel/dto_status.py are not listed in any unreleased change packet",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check --paths ops/pipeline/engine/subtitles/vobsub.ps1 ops/pipeline/tests/Unit/Invoke-VobSubSubtitleChecks.ps1 ops/release/changes/unreleased/MP-CHANGE-2026-0630-015.json - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/engine/subtitles/vobsub.ps1 ops/pipeline/tests/Unit/Invoke-VobSubSubtitleChecks.ps1 ops/release/changes/unreleased/MP-CHANGE-2026-0630-015.json - passed",
+    ".\\ops\\pipeline\\tests\\Unit\\Invoke-FailureCodeRegistryChecks.ps1 - passed",
+    ".\\ops\\pipeline\\tests\\Unit\\Invoke-VobSubSubtitleChecks.ps1 - passed",
+    "git diff --check -- scoped MP4 VobSub files - passed",
+    ".\\ops\\pipeline\\entrypoints\\Invoke-RerunCsv.ps1 -CsvPath E:\\Videos\\Scratch\\AuditReports\\audit_rerun_subset_20260630_mp4_vobsub_codex.csv -ConfigPath C:\\Users\\lmmye\\AppData\\Local\\MediaPipelineRemuxEncodeAIO\\MediaPipeline_config.psd1 -PlanOnly - passed; planned Clueless (1995) and Underworld (1985) parked outputs with no source or output writes",
+    "Real-media rerun E:\\Videos\\Scratch\\RerunManifests\\rerun_20260630_220549_c486a2cf.json - Underworld (1985).mp4 completed as review_workspace with output E:\\Videos\\Scratch_RerunWorkspace\\RerunParked\\rerun_20260630_220549_c486a2cf\\Output\\Underworld (1985)\\Underworld (1985).mkv; MP4 VobSub staging/OCR produced 900 SRT cues after remux fallback, duration verified, pipeline_exit_failures=0",
+    "Real-media rerun E:\\Videos\\Scratch\\RerunManifests\\rerun_20260630_225253_1c3c47a1.json - Clueless (1995).mp4 completed as review_workspace with output E:\\Videos\\Scratch_RerunWorkspace\\RerunParked\\rerun_20260630_225253_1c3c47a1\\Output\\Clueless (1995)\\Clueless (1995).mkv; scratch-only temp config raised Route1080pMaxVideoBitrateMbps from 5 to 6 for this rerun, live config remained unchanged, MP4 VobSub staging/OCR produced 1673 SRT cues, duration verified, pipeline_exit_failures=0",
+    "ffprobe verification of both parked outputs - passed; each output contains HEVC video, English AAC audio, preserved English dvd_subtitle, and generated English subrip subtitle streams",
+    "failures.clear selected-marker dry-run then confirm_clear:true - passed; moved the resolved Clueless/Underworld markers to E:\\Videos\\Scratch\\State\\Failures\\ClearManifests\\failure_clear_20260630_230126_523678_fb49e286.json, touches_media=false, active failure artifact count now 0 and autonomy health is ready"
+  ],
+  "rollback_plan": "Revert the MP4 staging helper and Extract-VobSubToIdxSub MP4 branch, remove the mocked MP4 embedded VobSub regression assertions, and refresh the two generated summaries.",
+  "related_changes": [],
+  "notes": "Stage MP4-family embedded VobSub streams through a temporary Matroska file before existing mkvextract/OCR handling.\nAdd a mocked MP4 embedded VobSub conversion regression covering FFmpeg staging, mkvextract input, OCR output, and temp cleanup.\nRefresh generated summary for MP4 VobSub staging support.\nRefresh generated summary for MP4 VobSub regression test coverage.\nAdd generated summary for the MP4 VobSub change packet."
+}

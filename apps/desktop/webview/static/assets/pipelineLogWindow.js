@@ -4,6 +4,7 @@
   let refreshTimer = null;
   let refreshInFlight = false;
   let lastSuccessfulRefresh = 0;
+  let lastCloseReadinessPayload = null;
 
   function byId(id) {
     return document.getElementById(id);
@@ -89,7 +90,141 @@
     return compacted.join("\n");
   }
 
-  function renderPipelineLogWindow(diagnostics) {
+  function isPlainObject(value) {
+    return Boolean(value && typeof value === "object" && !Array.isArray(value));
+  }
+
+  function closeReadinessIndicatesActiveWork(closeReadiness) {
+    return isPlainObject(closeReadiness)
+      && (closeReadiness.safe_to_close === false || closeReadiness.active_work === true);
+  }
+
+  function activeEvidenceState(value) {
+    return String(value || "").trim().toLowerCase();
+  }
+
+  function activeJobRowLooksRelevant(row) {
+    if (!isPlainObject(row)) return false;
+    const state = activeEvidenceState(row.status_state);
+    if (["running", "blocked", "warning"].includes(state)) return true;
+    const text = [
+      row.status,
+      row.issue,
+      row.source,
+      row.job_kind,
+    ].map(activeEvidenceState).join(" ");
+    if (text.includes("completed")) return false;
+    return ["launching", "active", "running", "processing", "blocked", "stale", "review", "unreadable", "invalid"].some((term) => text.includes(term));
+  }
+
+  function summarizeActiveJobRow(row) {
+    const kind = String(row.job_kind || row.kind || "job").trim();
+    const mode = String(row.mode || "").trim();
+    const status = String(row.status || row.status_state || "unknown").trim();
+    const pid = row.pid || row.app_pid ? `pid=${row.pid || row.app_pid}` : "pid=unknown";
+    const id = String(row.launch_id || row.record_file || "").trim();
+    const issue = String(row.issue || "").trim();
+    return [
+      `${kind}${mode ? ` ${mode}` : ""}: ${status}`,
+      pid,
+      id ? `id=${id}` : "",
+      issue ? `issue=${issue}` : "",
+    ].filter(Boolean).join("; ");
+  }
+
+  function activeJobsSummaryLines(diagnostics) {
+    const rows = Array.isArray(diagnostics?.active_job_rows) ? diagnostics.active_job_rows : [];
+    const rowLines = rows.filter(activeJobRowLooksRelevant).map(summarizeActiveJobRow);
+    const summaryLines = (Array.isArray(diagnostics?.active_jobs) ? diagnostics.active_jobs : [])
+      .map((line) => String(line || "").trim())
+      .filter((line) => line && !/^(no activejobs records found|activejobs folder is empty|no active jobs)/i.test(line));
+    return Array.from(new Set([...rowLines, ...summaryLines])).slice(0, 6);
+  }
+
+  function workerProgressSummaryLines(diagnostics) {
+    const payload = isPlainObject(diagnostics?.worker_progress) ? diagnostics.worker_progress : {};
+    const rows = Array.isArray(payload.rows) ? payload.rows : [];
+    return rows
+      .filter((row) => ["running", "blocked", "warning"].includes(activeEvidenceState(row?.status_state)))
+      .map((row) => {
+        const label = String(row.worker_label || row.worker_id || row.job_kind || "worker").trim();
+        const stage = String(row.stage || row.status || "active").trim();
+        const pid = row.pid ? `pid=${row.pid}` : "";
+        const source = String(row.source || "").trim();
+        return [`${label}: ${stage}`, pid, source ? `source=${source}` : ""].filter(Boolean).join("; ");
+      })
+      .filter(Boolean)
+      .slice(0, 6);
+  }
+
+  function activeWorkEvidenceLines(diagnostics) {
+    return Array.from(new Set([
+      ...activeJobsSummaryLines(diagnostics),
+      ...workerProgressSummaryLines(diagnostics),
+    ])).slice(0, 8);
+  }
+
+  function hasActiveWorkEvidence(diagnostics, closeReadiness) {
+    return closeReadinessIndicatesActiveWork(closeReadiness) || activeWorkEvidenceLines(diagnostics).length > 0;
+  }
+
+  function closeReadinessLine(closeReadiness) {
+    if (!isPlainObject(closeReadiness)) return "Close readiness: not loaded in this log refresh.";
+    const closeState = closeReadiness.safe_to_close === true
+      ? "safe"
+      : closeReadiness.safe_to_close === false
+        ? "active/blocked"
+        : "unknown";
+    const state = String(closeReadiness.state || "").trim();
+    return `Close readiness: ${closeState}${state ? ` (${state})` : ""}`;
+  }
+
+  function activeWorkLogLines(diagnostics, closeReadiness) {
+    if (!hasActiveWorkEvidence(diagnostics, closeReadiness)) return [];
+    const lines = [
+      "ACTIVE WORK DETECTED",
+      closeReadinessLine(closeReadiness),
+    ];
+    const reason = String(closeReadiness?.reason || "").trim();
+    if (reason) lines.push(`Reason: ${reason}`);
+    const warnings = Array.isArray(closeReadiness?.warnings)
+      ? closeReadiness.warnings.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    if (warnings.length) lines.push(`Warnings: ${warnings.slice(0, 3).join(" | ")}`);
+    const evidence = activeWorkEvidenceLines(diagnostics);
+    if (evidence.length) {
+      lines.push("Active evidence:");
+      evidence.forEach((line) => lines.push(`- ${line}`));
+    } else {
+      lines.push("Active evidence: close-readiness reports active work, but no structured ActiveJobs rows are present in this diagnostics payload.");
+    }
+    lines.push("Log note: the pipeline tail below may be from a previous run until the active process writes or flushes new log lines.");
+    return lines;
+  }
+
+  function pipelineLogDisplayText(diagnostics, closeReadiness) {
+    const rawLogText = String(diagnostics?.log_tail || "");
+    const logText = compactRepeatedProgressLines(rawLogText);
+    const activeLines = activeWorkLogLines(diagnostics, closeReadiness);
+    if (!activeLines.length) return logText || "No pipeline log tail loaded.";
+    const tailLines = logText
+      ? ["", "--- pipeline log tail ---", logText]
+      : ["", "No pipeline log tail loaded yet."];
+    return [...activeLines, ...tailLines].join("\n");
+  }
+
+  async function readCloseReadiness(apiClient) {
+    try {
+      return await apiClient.apiGet("/api/backend/close-readiness", {
+        timeoutMs: DIAGNOSTICS_TIMEOUT_MS,
+      });
+    } catch (_error) {
+      return lastCloseReadinessPayload;
+    }
+  }
+
+  function renderPipelineLogWindow(diagnostics, closeReadiness) {
+    if (arguments.length > 1) lastCloseReadinessPayload = closeReadiness || null;
     const textNode = byId("pipeline-log-window-text");
     const follow = byId("pipeline-log-window-follow");
     if (!textNode) return;
@@ -97,8 +232,8 @@
     const shouldFollow = Boolean(follow?.checked) || isNearBottom(textNode);
     const previousScrollTop = textNode.scrollTop;
     const rawLogText = String(diagnostics?.log_tail || "");
-    const logText = compactRepeatedProgressLines(rawLogText);
-    const nextLogText = logText || "No pipeline log tail loaded.";
+    const activeWork = hasActiveWorkEvidence(diagnostics, lastCloseReadinessPayload);
+    const nextLogText = pipelineLogDisplayText(diagnostics, lastCloseReadinessPayload);
     if (textNode.textContent !== nextLogText) textNode.textContent = nextLogText;
     if (shouldFollow) {
       window.requestAnimationFrame(() => scrollToBottom(textNode));
@@ -108,8 +243,8 @@
 
     lastSuccessfulRefresh = Date.now();
     setUpdated(`Last refresh: ${localTimestamp(new Date(lastSuccessfulRefresh))}`);
-    setStatus(rawLogText ? "Loaded" : "Empty", rawLogText ? "ok" : "empty");
-    setDetail("Source: GET /api/diagnostics log_tail. This window is read-only and refreshes every 2 seconds.");
+    setStatus(activeWork ? "Active work" : rawLogText ? "Loaded" : "Empty", activeWork ? "stale" : rawLogText ? "ok" : "empty");
+    setDetail("Source: GET /api/diagnostics log_tail + GET /api/backend/close-readiness. This window is read-only and refreshes every 2 seconds.");
   }
 
   function renderRefreshError(error) {
@@ -131,10 +266,13 @@
       if (typeof apiClient.apiGet !== "function") {
         throw new Error("API client is not available.");
       }
-      const diagnostics = await apiClient.apiGet("/api/diagnostics", {
-        timeoutMs: DIAGNOSTICS_TIMEOUT_MS,
-      });
-      renderPipelineLogWindow(diagnostics);
+      const [diagnostics, closeReadiness] = await Promise.all([
+        apiClient.apiGet("/api/diagnostics", {
+          timeoutMs: DIAGNOSTICS_TIMEOUT_MS,
+        }),
+        readCloseReadiness(apiClient),
+      ]);
+      renderPipelineLogWindow(diagnostics, closeReadiness);
     } catch (error) {
       renderRefreshError(error);
     } finally {

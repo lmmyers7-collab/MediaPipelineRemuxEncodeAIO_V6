@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0629-027",
+  "title": "Phase 6 settings workspace DTO boundary cleanup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Moves SettingsWorkspaceDto imports in the core settings facade from the desktop DTO compatibility shim to the core kernel DTO module and removes the matching allowlist row.",
+  "reason": "Phase 6 boundary cleanup is removing DTO-only core-to-desktop imports while preserving existing desktop compatibility exports.",
+  "affected_areas": [
+    "code",
+    "docs",
+    "generated"
+  ],
+  "behavior_before": "Core settings workspace facade imported SettingsWorkspaceDto from mediapipeline.desktop.application.dto_workspaces for type checking and construction, producing two allowlisted NO_CORE_TO_DESKTOP findings.",
+  "behavior_after": "Core settings workspace facade imports SettingsWorkspaceDto from mediapipeline.core.kernel.dto_workspaces; the desktop dto_workspaces module remains as a compatibility export for existing desktop/application imports.",
+  "files_touched": [
+    "docs/architecture/dependency_boundary_allowlist.txt",
+    "docs/generated/summaries/src/mediapipeline/core/config/settings_facade.py.md",
+    "docs/implementation/architecture-boundary-cleanup/EDGE_LEDGER.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-027.json",
+    "src/mediapipeline/core/config/settings_facade.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/config/settings_facade.py",
+      "result": "pass - regenerated the settings_facade generated summary."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_service_config_preview tests.python.desktop.test_application_facade_settings_workspace tests.python.desktop.test_settings_risk_policy_rules tests.python.desktop.test_architecture_boundary_phase2_compatibility_imports tests.python.desktop.test_application_public_api tests.python.tooling.test_dependency_boundaries -q",
+      "result": "pass - 46 targeted settings/public API/dependency-boundary tests passed."
+    },
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --format json --report-only",
+      "result": "pass - hard_findings=26, allowlisted=26, unallowlisted=0, unused_allowlist=0; NO_CORE_TO_DESKTOP=9 across config=6, processes=2, schedule=1."
+    }
+  ],
+  "rollback_plan": "Restore the SettingsWorkspaceDto imports in src/mediapipeline/core/config/settings_facade.py to mediapipeline.desktop.application.dto_workspaces, restore the removed settings_facade dto_workspaces allowlist row, mark AB-CFG-010 and AB-CFG-011 open again, and refresh the settings_facade generated summary.",
+  "related_changes": [
+    "GitHub #23"
+  ],
+  "notes": "Import SettingsWorkspaceDto from core kernel DTO workspace module.\nRemove migrated settings workspace DTO allowlist row.\nMark AB-CFG-010 and AB-CFG-011 migrated for settings workspace DTO ownership.\nRefresh generated summary after settings workspace DTO import move.\nNo Local API routes, WebView commands, settings persistence, settings preview/save behavior, route schemas, strict confirmation handling, media policy, publish/drain, rename, or filesystem mutation behavior changed."
+}

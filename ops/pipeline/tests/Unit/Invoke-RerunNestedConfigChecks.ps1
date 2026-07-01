@@ -139,6 +139,10 @@ try {
     DebugMode = `$true
     MinFreeSpaceGB = 0
     OutsourceMinFreeSpaceGB = 0
+    'custom-map' = @{
+        'path key' = 'value with spaces'
+        'dotted.key' = 'value.with.dots'
+    }
 }
 "@ | Set-Content -LiteralPath $config -Encoding UTF8
 
@@ -155,10 +159,21 @@ true,"$source",Movie,copy,keep,park
         '-ConfigPath', $config,
         '-DefaultReturnMode', 'park'
     )
-    $runOutput = & $bundledPwsh @rerunArgs *>&1 | ForEach-Object { [string]$_ }
+    $previousMutexSuffix = $env:MEDIA_PIPELINE_TEST_MUTEX_SUFFIX
+    try {
+        $env:MEDIA_PIPELINE_TEST_MUTEX_SUFFIX = 'rerun_nested_' + [guid]::NewGuid().ToString('N')
+        $runOutput = & $bundledPwsh @rerunArgs *>&1 | ForEach-Object { [string]$_ }
+    } finally {
+        if ($null -eq $previousMutexSuffix) {
+            Remove-Item Env:\MEDIA_PIPELINE_TEST_MUTEX_SUFFIX -ErrorAction SilentlyContinue
+        } else {
+            $env:MEDIA_PIPELINE_TEST_MUTEX_SUFFIX = $previousMutexSuffix
+        }
+    }
     $output = $runOutput -join [Environment]::NewLine
 
     Assert-False ($output -match 'LocalBase and (Outsource|SourceMovies|SourceTV) must not be nested inside each other') "CSV rerun still emits nested LocalBase validation errors. Output: $output"
+    Assert-False ($output -match 'Another instance of MediaPipeline is already running') "CSV rerun nested pipeline collided with an external controller mutex. Output: $output"
     Assert-True ($output -match 'Nested pipeline LocalBase:') "CSV rerun did not log nested pipeline LocalBase evidence. Output: $output"
     Assert-True ($output -match 'CSV rerun workspace:') "CSV rerun did not log isolated rerun workspace evidence. Output: $output"
     Assert-True ($output -match 'CSV rerun library profiles rewritten to staged roots') "CSV rerun did not log library profile rewrite evidence. Output: $output"
@@ -181,6 +196,8 @@ true,"$source",Movie,copy,keep,park
     Assert-False (Test-NestedOrSamePath ([string]$tempConfig['LocalBase']) ([string]$tempConfig['SourceMovies'])) 'Temp LocalBase and SourceMovies should not be nested or identical.'
     Assert-False (Test-NestedOrSamePath ([string]$tempConfig['LocalBase']) ([string]$tempConfig['SourceTV'])) 'Temp LocalBase and SourceTV should not be nested or identical.'
     Assert-False (Test-NestedOrSamePath ([string]$tempConfig['LocalBase']) ([string]$tempConfig['Outsource'])) 'Temp LocalBase and Outsource should not be nested or identical.'
+    Assert-Equal ([string]$tempConfig['custom-map']['path key']) 'value with spaces' 'Temp config should preserve quoted custom map keys with spaces.'
+    Assert-Equal ([string]$tempConfig['custom-map']['dotted.key']) 'value.with.dots' 'Temp config should preserve quoted custom map keys with dots.'
 
     $profiles = @($tempConfig['LibraryProfiles'])
     $movieProfile = @($profiles | Where-Object { [string]$_['id'] -eq 'movies' } | Select-Object -First 1)

@@ -42,6 +42,7 @@ function New-MediaPipelineWorkerSlotLayout {
         Progress         = $progress
         ProgressFile     = Join-Path $progress 'pipeline_progress.json'
         EventLogFile     = Join-Path $progress 'pipeline_events.jsonl'
+        HeartbeatFile    = Join-Path $root 'worker_heartbeat.json'
         ResultFile       = Join-Path $root 'worker_result.json'
         ResultArchive    = $resultArchive
         MetadataFile     = Join-Path $root 'worker_metadata.json'

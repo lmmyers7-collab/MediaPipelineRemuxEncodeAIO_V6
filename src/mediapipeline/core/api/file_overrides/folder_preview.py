@@ -14,6 +14,7 @@ from mediapipeline.core.queue.file_overrides import (
     resolve_file_override_match,
     validate_file_override_payload,
 )
+from mediapipeline.core.processes.source_path_policy import queue_source_roots, validate_queue_source_path
 
 from .effective_fields import _library_response
 from .results import (
@@ -49,20 +50,6 @@ FOLDER_PREVIEW_REJECTED_SELECTOR_KEYS = frozenset(
     {"streamIndex", "stream_index", "trackIndex", "track_index", "index", "map", "ffmpegMap", "ffmpeg_map", "titleContains"}
 )
 FOLDER_PREVIEW_UNSAFE_TEXT_CHARS = frozenset("\r\n;&|<>`$(){}[]")
-
-
-def queue_source_roots(resolved: Any):
-    from mediapipeline.desktop.api.queue_source_path_policy import queue_source_roots as _queue_source_roots
-
-    return _queue_source_roots(resolved)
-
-
-def validate_queue_source_path(resolved: Any, raw_path: Any, **kwargs: Any):
-    from mediapipeline.desktop.api.queue_source_path_policy import (
-        validate_queue_source_path as _validate_queue_source_path,
-    )
-
-    return _validate_queue_source_path(resolved, raw_path, **kwargs)
 
 
 def _folder_preview_safe_scalar(value: Any) -> bool:

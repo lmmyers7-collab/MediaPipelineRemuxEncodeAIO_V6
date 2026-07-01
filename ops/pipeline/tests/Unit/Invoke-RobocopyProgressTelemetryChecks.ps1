@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-$repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..\..')
+$repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')
 . (Join-Path $repoRoot 'ops\pipeline\engine\storage\disk.ps1')
 
 function Assert-Equal {

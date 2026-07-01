@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from mediapipeline.desktop.models import TelemetrySnapshot
+from mediapipeline.core.telemetry.contracts import TelemetrySnapshot
 
 
 def _parse_percent_text(value: object, *, default_for_na: float | None = None) -> float | None:

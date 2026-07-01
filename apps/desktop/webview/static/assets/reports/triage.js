@@ -217,7 +217,7 @@
       lines.push("3. Ready | Reports | no report-driven action is indicated if review boards are clean.");
     }
     lines.push("");
-    lines.push("Mutation guardrail: Reports triage is read-only; marker cleanup, rerun, export, repair, delete, and filesystem mutation must stay behind backend-owned commands.");
+    lines.push("Mutation guardrail: Reports triage is read-only; error clearing, rerun, export, repair, delete, and filesystem mutation must stay behind backend-owned commands.");
     return lines;
   }
 

@@ -1,0 +1,45 @@
+{
+  "id": "MP-CHANGE-2026-0629-021",
+  "title": "Phase 6 pending publish preview DTO boundary cleanup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Migrates pending publish preview DTO imports from the desktop compatibility export to the existing core DTO inventory owner and removes the matching temporary boundary allowlist rows.",
+  "reason": "Phase 6 boundary cleanup is reducing remaining publish core-to-desktop imports in DTO-only slices while leaving pending manifest contracts, drain confidence cycles, recovery, and final placement behavior untouched.",
+  "affected_areas": [
+    "code",
+    "docs",
+    "generated"
+  ],
+  "behavior_before": "Pending publish facade, result helpers, and row helpers referenced PendingPublishPreviewDto through mediapipeline.desktop.application.dto_inventory, producing four allowlisted NO_CORE_TO_DESKTOP findings across three import-statement groups.",
+  "behavior_after": "Pending publish facade, result helpers, and row helpers reference PendingPublishPreviewDto from mediapipeline.core.kernel.dto_inventory while the desktop inventory DTO module remains a compatibility export; the three pending publish DTO allowlist rows are removed.",
+  "files_touched": [
+    "docs/architecture/dependency_boundary_allowlist.txt",
+    "docs/generated/summaries/src/mediapipeline/core/publish/pending_facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/publish/pending_results.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/publish/pending_rows.py.md",
+    "docs/implementation/architecture-boundary-cleanup/EDGE_LEDGER.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-021.json",
+    "src/mediapipeline/core/publish/pending_facade.py",
+    "src/mediapipeline/core/publish/pending_results.py",
+    "src/mediapipeline/core/publish/pending_rows.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/publish/pending_facade.py src/mediapipeline/core/publish/pending_results.py src/mediapipeline/core/publish/pending_rows.py",
+    "PASS: $env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_pending_publish tests.python.desktop.test_service_pending_publish_manifest tests.python.desktop.test_api_contract_payload tests.python.desktop.test_application_public_api tests.python.tooling.test_dependency_boundaries -q",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_active_doc_references",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_architecture_guardrails",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --format json --report-only (hard_findings=52, allowlisted=52, unallowlisted=0, unused_allowlist=0, NO_CORE_TO_DESKTOP=35; domains: config=8, processes=9, publish=3, queue=6, schedule=1, status=8)",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage"
+  ],
+  "rollback_plan": "Restore PendingPublishPreviewDto imports in pending facade, pending results, and pending rows to mediapipeline.desktop.application.dto_inventory, restore the three removed allowlist rows, refresh the three generated summaries, and mark AB-PUB-002, AB-PUB-008, AB-PUB-011, and AB-PUB-012 open again in the edge ledger.",
+  "related_changes": [
+    "GitHub #23"
+  ],
+  "notes": "DTO-only import ownership change. No Local API routes, WebView commands, pending publish manifest schema/state handling, drain confidence, recovery plan behavior, final placement, filesystem mutation, route schemas, or operator behavior changed.\nMove PendingPublishPreviewDto type import from desktop compatibility export to core DTO inventory.\nMove PendingPublishPreviewDto type/local imports from desktop compatibility export to core DTO inventory.\nRemove migrated temporary NO_CORE_TO_DESKTOP allowlist rows for pending publish preview DTO imports.\nMark pending publish preview DTO ledger rows migrated with core DTO ownership and removed allowlist action.\nRefresh generated summary after pending publish facade DTO import ownership change.\nRefresh generated summary after pending publish results DTO import ownership change.\nRefresh generated summary after pending publish rows DTO import ownership change."
+}

@@ -87,7 +87,7 @@ function New-ExpectedLegacyRemuxAvArgs {
     $expected = [System.Collections.Generic.List[string]]::new()
     $expected.AddRange([string[]]@('-fflags', '+genpts', '-i', $InputPath, '-map', '0:V', '-c:v', 'copy'))
     if (([string]$videoAction.inputCodec).Trim().ToLowerInvariant() -in (Get-MediaVideoCodecHevcNames)) {
-        $expected.AddRange([string[]]@('-bsf:v', 'hevc_mp4toannexb'))
+        $expected.AddRange([string[]]@('-bsf:v:0', 'hevc_mp4toannexb'))
     }
     $expected.AddRange([string[]]@('-map', '0:t?', '-map_chapters', '0', '-map_metadata', '0'))
     $expected.AddRange([string[]](New-PipelinePlanExecutorAudioArgumentList -Plan $Plan))
@@ -251,6 +251,18 @@ Assert-ContainsText $mp4Joined '-movflags +faststart' 'MP4 REMUX should enable f
 Assert-DoesNotContainText $mp4Joined '-map 0:t?' 'MP4 REMUX should not map attachments/fonts.'
 Assert-DoesNotContainText $mp4Joined '-map_metadata 0' 'MP4 REMUX should not preserve metadata.'
 Assert-DoesNotContainText $mp4Joined '-c:t copy' 'MP4 REMUX should not copy attachments/fonts.'
+
+$hevcCoverRemuxPlan = [pscustomobject]@{
+    streamActions = @(
+        [pscustomobject]@{ streamType = 'video'; streamIndex = 0; action = 'copy'; inputCodec = 'hevc'; outputCodec = ''; reasonCodes = @() },
+        [pscustomobject]@{ streamType = 'audio'; streamIndex = 1; action = 'copy'; inputCodec = 'aac'; outputCodec = ''; reasonCodes = @() },
+        [pscustomobject]@{ streamType = 'container'; action = 'remux'; inputCodec = 'matroska'; outputCodec = 'mkv'; reasonCodes = @() }
+    )
+}
+$hevcCoverRemuxArgs = New-PipelinePlanExecutorRemuxAvArgumentList -Plan $hevcCoverRemuxPlan -InputPath 'C:\Media\hevc-cover.mkv' -TempAvPath 'C:\Temp\hevc-cover.temp_av.mkv'
+$hevcCoverRemuxText = $hevcCoverRemuxArgs -join ' '
+Assert-ContainsText $hevcCoverRemuxText '-bsf:v:0 hevc_mp4toannexb' 'HEVC REMUX dry-run must scope the bitstream filter to the first HEVC video output stream.'
+Assert-DoesNotContainText $hevcCoverRemuxText '-bsf:v hevc_mp4toannexb' 'HEVC REMUX dry-run must not emit a broad video bitstream filter that also hits MJPEG cover-art streams.'
 
 $allAudioDroppedPlan = [pscustomobject]@{
     streamActions = @(

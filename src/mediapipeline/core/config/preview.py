@@ -9,7 +9,7 @@ from mediapipeline.core.config.constants import (
     AUDIO_PASSTHROUGH_PROFILE_DEFAULT,
 )
 from mediapipeline.core.config.library_profiles import mirror_legacy_keys_from_library_profiles
-from mediapipeline.desktop.models import ConfigPreview
+from mediapipeline.core.config.contracts import ConfigPreview
 
 
 ValidateConfigValuesFunc = Callable[[dict[str, Any]], tuple[list[str], list[str]]]

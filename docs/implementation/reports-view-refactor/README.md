@@ -82,9 +82,9 @@ Preserve these backend route boundaries:
 
 | Route | Reports role | Required guardrail |
 |---|---|---|
-| `POST /api/failures/lifecycle` | Operator resolution journal write | preview fingerprint plus `confirm_transition` for confirmed resolve/reopen/waive |
+| `POST /api/failures/lifecycle` | Operator resolution journal write | reason plus `confirm_transition` for confirmed resolve/reopen/waive; backend recomputes blockers at apply time |
 | `POST /api/failures/clear` | Failure marker move only | preview-first flow plus `confirm_clear` for confirmed marker clear |
-| `POST /api/failures/archive-evidence` | Failure marker/report archive only | preview fingerprint, reason, and `confirm_archive` |
+| `POST /api/failures/archive-evidence` | Failure marker/report archive only | `confirm_archive`; reason and fingerprint are optional for routine current-plan archive |
 | `POST /api/audit/start` | Audit process launch | explicit operator confirmation before POST; backend owns launch locks |
 | `POST /api/audit/stop` | Audit process control | `confirm_stop: true` and reason |
 | `POST /api/audit/score-policy` | Audit policy state write | backend-owned score-policy write only |

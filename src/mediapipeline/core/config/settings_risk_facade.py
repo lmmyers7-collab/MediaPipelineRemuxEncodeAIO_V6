@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from mediapipeline.desktop.application.settings_risk_policy import (
+from mediapipeline.core.config.settings_risk_policy import (
     build_settings_patch_risk_summary,
     source_mutation_setting,
     truthy_setting,
@@ -33,4 +33,3 @@ class SettingsRiskFacadeMixin:
 __all__ = [
     "SettingsRiskFacadeMixin",
 ]
-

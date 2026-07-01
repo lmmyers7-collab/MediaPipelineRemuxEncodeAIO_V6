@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from mediapipeline.desktop.contracts.active_job import ACTIVE_JOB_SCHEMA_VERSION
-from mediapipeline.desktop.contracts.control_flag import CONTROL_FLAG_SCHEMA_VERSION
+from mediapipeline.core.kernel.contracts import ACTIVE_JOB_SCHEMA_VERSION, CONTROL_FLAG_SCHEMA_VERSION
 
 CONTROL_FLAG_STALE_AFTER_SECONDS = 3600.0
 PROCESS_LAUNCH_ERROR_TAIL_LINES = 24

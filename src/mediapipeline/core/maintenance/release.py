@@ -13,7 +13,7 @@ from .release_plan import (
 )
 from .release_result import release_artifact_fingerprint, release_result_payload
 from mediapipeline.core.maintenance.file_io import read_json_file
-from mediapipeline.desktop.subprocess_runner import run_capture
+from mediapipeline.core.kernel.runtime.subprocess_runner import run_capture
 
 
 class ReleasePackageServiceMixin:

@@ -15,7 +15,7 @@ from mediapipeline.core.queue.source_inventory import (
     read_json_artifact,
     read_queue_scan_status,
 )
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 
 class LibraryRouteMapFacadeMixin:

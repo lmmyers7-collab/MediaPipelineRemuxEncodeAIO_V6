@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0701-009",
+  "title": "Fix CSV rerun start preview gate",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-01",
+  "date_completed": "2026-07-01",
+  "summary": "Keep blocked CSV rerun previews out of Launch command history and gate the Review & Start button on the latest backend preview readiness.",
+  "reason": "A blocked read-only CSV rerun preview could be appended as a failed rerun.start history entry, making the History tab look like a backend launch error even though the start route was not submitted.",
+  "affected_areas": [
+    "generated",
+    "test",
+    "webview"
+  ],
+  "behavior_before": "The rerun-specific preview gate could be overwritten by the shared Launch button state updater, and startRerunFromForm appended missing-path or blocked-preview results to command history as rerun.start errors.",
+  "behavior_after": "The shared Launch button gate now respects the rerun preview blocked reason, and missing-path or blocked-preview starts render local Launch detail with frontend_guard=true without appending synthetic rerun.start history entries.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launch/commandButtons.js",
+    "apps/desktop/webview/static/assets/launchView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launch/commandButtons.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0701-009.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_launch.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_launch_command_buttons_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0701-009.json",
+    "tests/python/desktop/test_application_facade_web_static_launch.py",
+    "tests/webview/test_webview_launch_command_buttons_smoke.py"
+  ],
+  "tests_added": [
+    "Updated tests/webview/test_webview_launch_command_buttons_smoke.py to cover rerun preview blocked-reason gating.",
+    "Updated tests/python/desktop/test_application_facade_web_static_launch.py to forbid appending blocked/missing preview results to command history."
+  ],
+  "manual_validation": [
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_launch_command_buttons_smoke -q",
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static_launch -q",
+    "PASS: ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewCommandEvidenceSmoke.ps1",
+    "PASS: node --check apps/desktop/webview/static/assets/launch/commandButtons.js",
+    "PASS: node --check apps/desktop/webview/static/assets/launchView.js",
+    "PASS: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths <touched files>"
+  ],
+  "rollback_plan": "Remove the rerunPreviewBlockedReason dependency from launch/commandButtons.js, restore blocked/missing preview appendCommandResult calls in launchView.js, and revert the focused WebView/static tests and generated summaries.",
+  "related_changes": [],
+  "notes": "Gate CSV rerun start button on backend preview readiness.\nRender blocked CSV preview locally without appending a launch-history error.\nCover rerun preview blocked reason in launch button gating.\nPin Launch static contract against blocked preview command-history append.\nRefresh generated summary for command button gate change.\nRefresh generated summary for Launch rerun guard change.\nRefresh generated summary for WebView smoke update.\nRefresh generated summary for Launch static test update.\nAdd generated summary for this change packet.\nThis does not change backend CSV rerun validation, command journal policy, PowerShell rerun execution, source/scratch/output movement, FFmpeg arguments, or media policy. Real-media validation is not required for this frontend guard/history fix."
+}

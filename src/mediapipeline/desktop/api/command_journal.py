@@ -191,9 +191,10 @@ class CommandJournal:
             self._last_sqlite_mirror_error = ""
             return
         try:
-            from mediapipeline.core.storage.db import open_state_db
+            from mediapipeline.core.storage.db import maybe_maintain_state_db, open_state_db
 
             open_state_db(self.state_db_root).record_command(dict(entry))
+            maybe_maintain_state_db(self.state_db_root)
             self._last_sqlite_mirror_ok = True
             self._last_sqlite_mirror_error = ""
         except Exception as exc:

@@ -4,6 +4,7 @@ import json
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
@@ -51,6 +52,8 @@ class ApplicationFacadeSnapshotTests(unittest.TestCase):
 
         self.assertEqual(snapshot.pipeline_state, "processing")
         self.assertEqual(snapshot.counts["queue_total"], 5)
+        self.assertEqual(snapshot.counts["long_run_reliability"]["schema_version"], "desktop_runtime_reliability_counters.v1")
+        self.assertEqual(snapshot.counts["long_run_reliability"]["active_jobs"]["total_count"], 1)
         self.assertEqual(snapshot.latest_paths["latest_failure_json"], str(root / "failures.json"))
         self.assertTrue(any(row["id"] == "current_stage" for row in snapshot.progress_bars))
         run_total = next(row for row in snapshot.progress_bars if row["id"] == "run_total")
@@ -271,7 +274,7 @@ class ApplicationFacadeSnapshotTests(unittest.TestCase):
                     "report_step_total": 5,
                     "report_completed_steps": ["classify", "write_json"],
                     "latest_json_path": str(root / "audit_summary.json"),
-                    "last_update": "2026-05-17T12:00:00Z",
+                    "last_update": (datetime.now() + timedelta(seconds=60)).isoformat(timespec="seconds"),
                 },
                 latest_failure_report=None,
                 latest_failure_json=None,
@@ -304,6 +307,43 @@ class ApplicationFacadeSnapshotTests(unittest.TestCase):
         self.assertEqual(bars["audit_reports"]["percent"], 40.0)
         self.assertEqual(bars["audit_reports"]["status"], "active")
         self.assertIn("write csv", bars["audit_reports"]["detail"])
+
+    def test_snapshot_progress_bars_mark_stale_audit_progress_as_review(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            service = DummyFacadeService(root)
+            service.snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="Ready.",
+                status_summary="Idle with stale audit progress",
+                log_tail="",
+                progress={},
+                audit_progress={
+                    "status": "scanning",
+                    "processed_files": 12,
+                    "total_files": 50,
+                    "percent_complete": 24,
+                    "current_operation": "Scanning 12 / 50",
+                    "report_stage": "write_csv",
+                    "report_step_index": 2,
+                    "report_step_total": 5,
+                    "last_update": (datetime.now() - timedelta(minutes=30)).isoformat(timespec="seconds"),
+                },
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            snapshot = facade.get_snapshot(resolved)
+
+        self.assertEqual(snapshot.pipeline_state, "idle")
+        bars = {bar["id"]: bar for bar in snapshot.progress_bars}
+        self.assertEqual(bars["audit_progress"]["status"], "warning")
+        self.assertTrue(bars["audit_progress"]["stale"])
+        self.assertEqual(bars["audit_reports"]["status"], "warning")
+        self.assertTrue(bars["audit_reports"]["stale"])
 
     def test_snapshot_progress_bars_include_publish_copy_bytes_and_pending_total(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

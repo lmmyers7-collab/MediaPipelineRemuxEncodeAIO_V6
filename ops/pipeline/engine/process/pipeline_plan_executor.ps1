@@ -351,7 +351,7 @@ function New-PipelinePlanExecutorRemuxAvArgumentList {
     $args.AddRange([string[]]@('-fflags', '+genpts', '-i', $InputPath, '-map', '0:V', '-c:v', 'copy'))
     $codec = ([string]$videoAction.inputCodec).Trim().ToLowerInvariant()
     if ($codec -in (Get-MediaVideoCodecHevcNames)) {
-        $args.AddRange([string[]]@('-bsf:v', 'hevc_mp4toannexb'))
+        $args.AddRange([string[]]@('-bsf:v:0', 'hevc_mp4toannexb'))
     }
     $args.AddRange([string[]]@('-map', '0:t?', '-map_chapters', '0', '-map_metadata', '0'))
     $args.AddRange([string[]](New-PipelinePlanExecutorAudioArgumentList -Plan $Plan))

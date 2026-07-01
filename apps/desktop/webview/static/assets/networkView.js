@@ -3780,7 +3780,7 @@
       "",
       "Safe interpretation:",
       "- Active bars reflect last reported persisted coordinator/worker runtime state, not a lifecycle command surface.",
-      "- Stale or blocked bars should be cross-checked with Cluster Log, ActiveJobs, Run Logs, and Last Stderr before retries.",
+      "- Stale or blocked bars should be cross-checked with Cluster Log, Run Logs, and Last Stderr before retries; ActiveJobs is passive launch diagnostics only.",
       "Mutation guardrail: this panel uses backend-owned Network lifecycle routes only; it does not reclaim jobs, release claims, send done reports, mutate queue state, or touch media files."
     );
     return lines;

@@ -34,6 +34,13 @@ AuditRootProvider = Callable[[], str]
 ShutdownRequest = Callable[[], None]
 
 
+def _windows_path_picker_adapter(**kwargs: Any) -> dict[str, Any]:
+    picker_kwargs = dict(kwargs)
+    picker_kwargs.pop("target_key", None)
+    picker_kwargs.pop("setting_key", None)
+    return select_windows_paths_with_dialog(**picker_kwargs)
+
+
 class _LocalApiThreadingHTTPServer(http.server.ThreadingHTTPServer):
     def __init__(self, *args: Any, logger: logging.Logger, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -88,7 +95,10 @@ class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandHandlerMixin):
         self.shell_surface = str(shell_surface or "webview")
         self.startup_progress = dict(startup_progress or {})
         self.logger = logger or logging.getLogger(__name__)
-        self._path_picker = select_windows_paths_with_dialog
+        self._path_picker = _windows_path_picker_adapter
+        self._rename_path_picker = _windows_path_picker_adapter
+        self._settings_path_picker = _windows_path_picker_adapter
+        self._pipeline_file_picker = _windows_path_picker_adapter
         resolved = self._resolved()
         self.command_journal = CommandJournal(
             path=command_journal_path,

@@ -133,6 +133,11 @@ class ProcessLaunchRunnerTests(unittest.TestCase):
                 stage_mode="copy",
                 original_mode="keep",
                 return_mode="park",
+                execution_mode="batch_stage_all",
+                destination_mode="review_workspace",
+                original_policy="keep",
+                collision_policy="suffix",
+                window_size=10,
                 show_console=False,
             )
 
@@ -144,6 +149,8 @@ class ProcessLaunchRunnerTests(unittest.TestCase):
         self.assertEqual(service.spawn_call["metadata"]["csv_path"], str(csv_path))
         self.assertEqual(service.spawn_call["metadata"]["default_stage_mode"], "copy")
         self.assertEqual(service.spawn_call["metadata"]["default_return_mode"], "park")
+        self.assertEqual(service.spawn_call["metadata"]["execution_mode"], "batch_stage_all")
+        self.assertEqual(service.spawn_call["metadata"]["window_size"], 10)
 
     def test_rerun_runner_can_launch_no_write_plan_only(self) -> None:
         with tempfile.TemporaryDirectory() as td:

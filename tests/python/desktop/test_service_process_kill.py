@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -267,6 +268,27 @@ class ProcessKillHelperTests(unittest.TestCase):
 
         self.assertEqual(message, "App-owned pipeline process already exited.")
         self.assertEqual(updates, [{"proc": proc, "return_code": 0}])
+
+    def test_kill_process_tree_returns_degraded_when_windows_taskkill_times_out(self) -> None:
+        proc = FakePopen(pid=1234, returncode=None)
+        updates: list[dict[str, Any]] = []
+
+        with patch("mediapipeline.core.processes.kill.os.name", "nt"), patch(
+            "mediapipeline.core.processes.kill.subprocess.run",
+            side_effect=subprocess.TimeoutExpired(["taskkill"], 10),
+        ) as run:
+            message = kill_process_tree(
+                proc,
+                "pipeline",
+                psutil_module=None,
+                logger=logging.getLogger("test_service_process_kill"),
+                update_active_job_record=lambda proc, **kwargs: updates.append({"proc": proc, **kwargs}),
+            )
+
+        self.assertIn("taskkill timed out", message)
+        self.assertIn("without blocking the control path", message)
+        self.assertEqual(updates, [{"proc": proc, "status": "kill_degraded", "return_code": None}])
+        self.assertEqual(run.call_args.kwargs["timeout"], 10)
 
     def test_process_service_wrappers_route_to_extracted_helpers(self) -> None:
         with tempfile.TemporaryDirectory() as td:

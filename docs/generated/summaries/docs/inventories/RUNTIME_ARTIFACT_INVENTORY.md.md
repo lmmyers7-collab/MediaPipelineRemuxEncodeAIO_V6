@@ -3,9 +3,9 @@ file: docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-26
+last_modified: 2026-07-01
 last_reviewed: 2026-06-02
-sha256: b1cf869d4318f012090dd75bb97daada20fd23ebac81ff1e4c42f201e5dfc8e8
+sha256: e367e027f37c0e69ab0d8711bbe68ac6d049d14f2517790432f71a5f5e6421f0
 ---
 # `docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md`
 

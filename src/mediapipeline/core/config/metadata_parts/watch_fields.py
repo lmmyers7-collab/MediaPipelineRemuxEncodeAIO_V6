@@ -34,6 +34,15 @@ WATCH_CONFIG_FIELD_DEFINITIONS = (
     {
         "page": "Schedule",
         "section": "Watch Folders",
+        "key": "WatchScanTimeoutSeconds",
+        "label": "Watch Scan Timeout (s)",
+        "kind": "int",
+        "default": 300,
+        "help": "Maximum seconds a single watch-folder scan may run before the watch manager marks that root degraded and skips overlapping scans.",
+    },
+    {
+        "page": "Schedule",
+        "section": "Watch Folders",
         "key": "WatchAction",
         "label": "Watch Action",
         "kind": "combo",

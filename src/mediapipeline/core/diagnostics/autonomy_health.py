@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from mediapipeline.core.kernel.contracts.pending_publish import PENDING_PUSH_RETRY_LIMIT
+from mediapipeline.core.status.runtime_health import runtime_reliability_counters
 
 AUTONOMY_HEALTH_SCHEMA_VERSION = "desktop_autonomy_health.v1"
 
@@ -32,7 +33,6 @@ FAILURE_INFRASTRUCTURE_TEXT_KEYS = {
     "tool",
 }
 
-ACTIVE_JOB_REVIEW_SECONDS = 30 * 60
 ACTIVE_JOB_TIMEOUT_GRACE_SECONDS = 15 * 60
 ACTIVE_JOB_NO_TIMEOUT_BLOCK_SECONDS = 30 * 60
 
@@ -50,7 +50,8 @@ GIB_BYTES = 1024**3
 AUTONOMY_CATEGORY_LABELS: dict[str, str] = {
     "pending_publish": "Pending publish",
     "failures": "Failure review",
-    "workers": "Workers and ActiveJobs",
+    "workers": "Workers",
+    "runtime_health": "Runtime health counters",
     "disk_state": "Disk and state growth",
     "path_health": "Configured path health",
     "journals": "Journals and manifests",
@@ -72,10 +73,20 @@ def autonomy_health_payload(
     """Return read-only health evidence for unattended launch gating."""
     checked_at = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     failure_findings = _failure_findings(resolved, checked_at)
+    runtime_reliability = runtime_reliability_counters(
+        resolved,
+        pending_publish=pending_publish,
+        now=checked_at,
+    )
     categories = {
         "pending_publish": _pending_publish_category(pending_publish, checked_at),
         "failures": _failures_category(failure_findings),
-        "workers": _workers_category(resolved, checked_at, psutil_module=psutil_module),
+        "workers": _workers_category(
+            resolved,
+            checked_at,
+            psutil_module=psutil_module,
+        ),
+        "runtime_health": _runtime_health_category(runtime_reliability),
         "disk_state": _disk_state_category(resolved, path_health),
         "path_health": _path_health_category(path_health),
         "journals": _journals_category(resolved),
@@ -126,6 +137,7 @@ def autonomy_health_payload(
             checked_at,
             growth_history,
         ),
+        "runtime_reliability": runtime_reliability,
         "categories": categories,
         "blockers": blockers,
         "review_items": review_items,
@@ -451,10 +463,13 @@ def _failures_category(findings: list[dict[str, Any]]) -> dict[str, Any]:
     )
 
 
-def _workers_category(resolved: Any, now: datetime, *, psutil_module: Any = None) -> dict[str, Any]:
+def _workers_category(
+    resolved: Any,
+    now: datetime,
+    *,
+    psutil_module: Any = None,
+) -> dict[str, Any]:
     active_dir = resolved.active_jobs_path or (resolved.state_root / "ActiveJobs" if resolved.state_root else None)
-    blockers: list[dict[str, Any]] = []
-    review_items: list[dict[str, Any]] = []
     watchdog_records: list[dict[str, Any]] = []
     active_count = 0
     malformed_count = 0
@@ -462,7 +477,14 @@ def _workers_category(resolved: Any, now: datetime, *, psutil_module: Any = None
         return _category(
             "workers",
             "ready",
-            metrics={"active_count": 0, "malformed_count": 0, "active_liveness_watchdog": _active_liveness_watchdog([])},
+            metrics={
+                "active_count": 0,
+                "malformed_count": 0,
+                "active_read_first_count": 0,
+                "active_jobs_ignored_count": 0,
+                "ambiguous_read_first": False,
+                "active_liveness_watchdog": _active_liveness_watchdog([]),
+            },
             summary_lines=["No ActiveJobs folder is present yet, or it contains no active job evidence."],
         )
     for path in _iter_files(active_dir, "*.json"):
@@ -470,28 +492,23 @@ def _workers_category(resolved: Any, now: datetime, *, psutil_module: Any = None
             payload = json.loads(path.read_text(encoding="utf-8-sig"))
         except Exception as exc:
             malformed_count += 1
-            blockers.append(
-                _issue(
-                    "autonomy_active_job_unreadable",
-                    "workers",
-                    "high",
-                    f"ActiveJobs record could not be read: {exc}",
-                    evidence_path=str(path),
-                    next_action="Repair or archive unreadable ActiveJobs evidence before launching new work.",
-                )
+            watchdog_records.append(
+                {
+                    "path": str(path),
+                    "status": "passive_malformed",
+                    "read_error": str(exc),
+                    "blocking_disabled": True,
+                }
             )
             continue
         if not isinstance(payload, Mapping):
             malformed_count += 1
-            blockers.append(
-                _issue(
-                    "autonomy_active_job_invalid_shape",
-                    "workers",
-                    "high",
-                    "ActiveJobs record JSON root is not an object.",
-                    evidence_path=str(path),
-                    next_action="Repair or archive invalid ActiveJobs evidence before launching new work.",
-                )
+            watchdog_records.append(
+                {
+                    "path": str(path),
+                    "status": "passive_invalid_shape",
+                    "blocking_disabled": True,
+                }
             )
             continue
         status = str(payload.get("status") or "").casefold()
@@ -503,62 +520,308 @@ def _workers_category(resolved: Any, now: datetime, *, psutil_module: Any = None
         evidence = _active_liveness_evidence(resolved, payload, path, now)
         watchdog_records.append(evidence)
         age_seconds = evidence.get("latest_evidence_age_seconds")
-        pid = payload.get("pid")
-        label = f"{payload.get('job_kind') or 'process'} {payload.get('mode') or ''}".strip()
-        if pid in (None, ""):
-            blockers.append(
-                _issue(
-                    "autonomy_active_job_missing_pid",
-                    "workers",
-                    "high",
-                    f"ActiveJobs record reports {label} as {status} with no PID.",
-                    evidence_path=str(path),
-                    age_seconds=age_seconds,
-                    next_action="Reconcile ActiveJobs before launching new work.",
-                )
-            )
-            evidence["status"] = "blocked"
-        elif age_seconds is not None and age_seconds >= _safe_int(evidence.get("block_after_seconds")):
-            blockers.append(
-                _issue(
-                    "autonomy_active_job_stale_blocked",
-                    "workers",
-                    "high",
-                    f"ActiveJobs record reports {label} as {status} with stale liveness evidence.",
-                    evidence_path=str(evidence.get("latest_evidence_path") or path),
-                    age_seconds=age_seconds,
-                    next_action="Use backend lifecycle controls or ActiveJobs reconciliation; this health gate will not kill the process.",
-                )
-            )
-            evidence["status"] = "blocked"
-        elif age_seconds is not None and age_seconds >= _safe_int(evidence.get("review_after_seconds")):
-            review_items.append(
-                _issue(
-                    "autonomy_active_job_stale_review",
-                    "workers",
-                    "medium",
-                    f"ActiveJobs record reports {label} as {status} with aging liveness evidence.",
-                    evidence_path=str(evidence.get("latest_evidence_path") or path),
-                    age_seconds=age_seconds,
-                    next_action="Review Close Readiness and ActiveJobs before unattended launch.",
-                )
-            )
-            evidence["status"] = "review"
+        evidence["blocking_disabled"] = True
+        evidence["ambiguous_read_first"] = False
+        evidence["status"] = (
+            "passive_stale"
+            if age_seconds is not None and age_seconds >= _safe_int(evidence.get("block_after_seconds"))
+            else "passive_active"
+        )
     return _category(
         "workers",
-        _issue_status(blockers, review_items),
+        "ready",
         metrics={
             "active_count": active_count,
             "malformed_count": malformed_count,
+            "active_read_first_count": 0,
+            "active_jobs_ignored_count": 0,
+            "ambiguous_read_first": False,
             "active_liveness_watchdog": _active_liveness_watchdog(watchdog_records),
         },
         summary_lines=[
             f"Active worker records: {active_count}; malformed records: {malformed_count}.",
-            "Worker health is detection-only in this pilot; active processes are not stopped or rewritten.",
+            "ActiveJobs evidence is passive and does not block launch, Shutdown Readiness, or autonomy health.",
+        ],
+    )
+
+
+def _runtime_health_category(runtime_reliability: Mapping[str, Any]) -> dict[str, Any]:
+    blockers: list[dict[str, Any]] = []
+    review_items: list[dict[str, Any]] = []
+    continuous_round_state = runtime_reliability.get("continuous_round_state")
+    if isinstance(continuous_round_state, Mapping):
+        consecutive = _safe_int(continuous_round_state.get("consecutive_unexpected_round_failures"))
+        limit = _safe_int(continuous_round_state.get("block_limit"))
+        if bool(continuous_round_state.get("blocked")):
+            blockers.append(
+                _issue(
+                    "autonomy_round_failures_blocked",
+                    "runtime_health",
+                    "high",
+                    f"Continuous pipeline round failures reached the block threshold: consecutive={consecutive}; limit={limit}.",
+                    next_action="Inspect the latest pipeline_round_unexpected_failure events before starting or trusting unattended work.",
+                )
+            )
+    control_flags = runtime_reliability.get("control_flags")
+    if isinstance(control_flags, Mapping):
+        pause_age = _safe_int(control_flags.get("pause_age_seconds"))
+        pause_review = _safe_int(control_flags.get("pause_review_seconds"))
+        pause_block = _safe_int(control_flags.get("pause_block_seconds"))
+        if bool(control_flags.get("pause_flag_present")) and pause_age > 0:
+            issue = _issue(
+                "autonomy_pause_flag_stale",
+                "runtime_health",
+                "medium" if pause_age < pause_block else "high",
+                f"Pipeline pause flag is present; age_seconds={pause_age}.",
+                evidence_path=str(control_flags.get("pause_flag_path") or ""),
+                next_action="Confirm whether the operator pause is intentional before unattended operation.",
+            )
+            if pause_age >= pause_block:
+                blockers.append(issue)
+            elif pause_age >= pause_review:
+                review_items.append(issue)
+    pending_backpressure = runtime_reliability.get("pending_publish_backpressure")
+    if isinstance(pending_backpressure, Mapping) and bool(pending_backpressure.get("blocked")):
+        blockers.append(
+            _issue(
+                "autonomy_pending_backlog_blocked",
+                "runtime_health",
+                "high",
+                f"Pending publish backpressure is blocking new work: {pending_backpressure.get('block_reason') or 'threshold'}.",
+                evidence_path=str(pending_backpressure.get("path") or ""),
+                next_action="Use backend-owned Pending Publish diagnostics/recovery before adding more unattended work.",
+            )
+        )
+    worker_slots = runtime_reliability.get("worker_slots")
+    if isinstance(worker_slots, Mapping):
+        stale_heartbeats = _safe_int(worker_slots.get("stale_heartbeat_count"))
+        if stale_heartbeats > 0:
+            blockers.append(
+                _issue(
+                    "autonomy_worker_slot_stale",
+                    "runtime_health",
+                    "high",
+                    f"Local worker heartbeat evidence is stale for {stale_heartbeats} slot(s).",
+                    evidence_path=str(worker_slots.get("workers_root") or ""),
+                    next_action="Let backend lifecycle cleanup reconcile stale local worker slots before starting more unattended work.",
+                )
+            )
+    progress = runtime_reliability.get("progress_persistence")
+    if isinstance(progress, Mapping):
+        progress_healthy = bool(progress.get("healthy", True))
+        progress_failures = _safe_int(progress.get("write_failures"))
+        if not progress_healthy or progress_failures > 0:
+            blockers.append(
+                _issue(
+                    "autonomy_progress_persistence_unhealthy",
+                    "runtime_health",
+                    "high",
+                    f"Progress persistence is unhealthy; write_failures={progress_failures}.",
+                    evidence_path=str(progress.get("path") or ""),
+                    next_action="Fix progress-state persistence before launching unattended work; progress writes are the stop reason evidence.",
+                )
+            )
+    round_failures = runtime_reliability.get("round_failures")
+    if isinstance(round_failures, Mapping):
+        round_failure_count = _safe_int(round_failures.get("round_failure_count"))
+        unexpected_item_count = _safe_int(round_failures.get("unexpected_queue_entry_failures"))
+        unexpected_round_count = _safe_int(round_failures.get("unexpected_round_failures"))
+        if round_failure_count > 0 or unexpected_item_count > 0 or unexpected_round_count > 0:
+            review_items.append(
+                _issue(
+                    "autonomy_runtime_round_failures_present",
+                    "runtime_health",
+                    "medium",
+                    f"Runtime failure counters are nonzero: round={round_failure_count}; item={unexpected_item_count}; loop={unexpected_round_count}.",
+                    next_action="Review the latest failure markers and event log before trusting a long unattended run.",
+                )
+            )
+    native_processes = runtime_reliability.get("native_processes")
+    if isinstance(native_processes, Mapping):
+        abort_count = _safe_int(native_processes.get("native_no_progress_abort_count"))
+        if abort_count > 0:
+            review_items.append(
+                _issue(
+                    "autonomy_native_no_progress_aborts_present",
+                    "runtime_health",
+                    "medium",
+                    f"Native no-progress watchdog aborts recorded: {abort_count}.",
+                    next_action="Inspect FFmpeg/MKVToolNix no-progress abort evidence before starting more unattended work.",
+                )
+            )
+    worker_reports = runtime_reliability.get("worker_pending_reports")
+    if isinstance(worker_reports, Mapping):
+        pending_reports = _safe_int(worker_reports.get("pending_report_count"))
+        if pending_reports > 0:
+            review_items.append(
+                _issue(
+                    "autonomy_worker_pending_done_reports_present",
+                    "runtime_health",
+                    "medium",
+                    f"Worker pending done report evidence remains queued or under review: {pending_reports}.",
+                    evidence_path=str(worker_reports.get("state_dir") or ""),
+                    next_action="Let backend worker recovery deliver or quarantine pending done reports before trusting new claims.",
+                )
+            )
+    heartbeat_failure = runtime_reliability.get("worker_heartbeat_failure")
+    if isinstance(heartbeat_failure, Mapping) and bool(heartbeat_failure.get("abort_due")):
+        blockers.append(
+            _issue(
+                "autonomy_worker_heartbeat_failure_abort_due",
+                "runtime_health",
+                "high",
+                f"Worker heartbeat POST failures have exceeded the local abort threshold: age_seconds={heartbeat_failure.get('age_seconds')}.",
+                next_action="Inspect worker/coordinator connectivity before starting more network work.",
+            )
+        )
+    sqlite_mirror = runtime_reliability.get("sqlite_mirror")
+    if isinstance(sqlite_mirror, Mapping):
+        db_size = _safe_int(sqlite_mirror.get("db_size_bytes"))
+        wal_size = _safe_int(sqlite_mirror.get("wal_size_bytes"))
+        if db_size > STATE_FILE_BLOCK_BYTES or wal_size > STATE_FILE_BLOCK_BYTES:
+            blockers.append(
+                _issue(
+                    "autonomy_sqlite_mirror_blocked_size",
+                    "runtime_health",
+                    "high",
+                    f"SQLite mirror DB/WAL exceeds the blocked size budget: db={db_size}; wal={wal_size}.",
+                    evidence_path=str(sqlite_mirror.get("path") or ""),
+                    next_action="Run backend-owned SQLite mirror maintenance or archive planning before unattended launch.",
+                )
+            )
+        elif db_size > STATE_FILE_REVIEW_BYTES or wal_size > STATE_FILE_REVIEW_BYTES:
+            review_items.append(
+                _issue(
+                    "autonomy_sqlite_mirror_review_size",
+                    "runtime_health",
+                    "medium",
+                    f"SQLite mirror DB/WAL exceeds the review size budget: db={db_size}; wal={wal_size}.",
+                    evidence_path=str(sqlite_mirror.get("path") or ""),
+                    next_action="Review SQLite mirror maintenance posture before a long unattended run.",
+                )
+            )
+    state_db = runtime_reliability.get("state_db")
+    if isinstance(state_db, Mapping):
+        wal_size = _safe_int(state_db.get("wal_size_bytes"))
+        wal_review = _safe_int(state_db.get("wal_review_bytes"))
+        last_maintenance = state_db.get("last_maintenance")
+        maintenance_error = ""
+        if isinstance(last_maintenance, Mapping):
+            maintenance_error = str(last_maintenance.get("error") or "")
+        if wal_review > 0 and wal_size >= wal_review:
+            review_items.append(
+                _issue(
+                    "autonomy_state_db_maintenance_overdue",
+                    "runtime_health",
+                    "medium",
+                    f"SQLite mirror WAL is at or above the review threshold: wal={wal_size}; threshold={wal_review}.",
+                    evidence_path=str(state_db.get("maintenance_path") or state_db.get("path") or ""),
+                    next_action="Confirm backend-owned mirror maintenance is running; JSON files remain authoritative.",
+                )
+            )
+        if maintenance_error:
+            review_items.append(
+                _issue(
+                    "autonomy_state_db_maintenance_overdue",
+                    "runtime_health",
+                    "medium",
+                    f"Last SQLite mirror maintenance failed: {maintenance_error}.",
+                    evidence_path=str(state_db.get("maintenance_path") or state_db.get("path") or ""),
+                    next_action="Inspect maintenance diagnostics; do not delete authoritative JSON state files.",
+                )
+            )
+    metrics = _runtime_health_metrics(runtime_reliability)
+    return _category(
+        "runtime_health",
+        _issue_status(blockers, review_items),
+        metrics=metrics,
+        summary_lines=[
+            (
+                "Runtime counters: "
+                f"current_file_age_seconds={metrics['current_file_age_seconds']}; "
+                f"round_failures={metrics['round_failure_count']}; "
+                f"native_no_progress_aborts={metrics['native_no_progress_abort_count']}."
+            ),
+            (
+                "Backlog counters: "
+                f"pending_publish={metrics['pending_publish_backlog_count']}; "
+                f"worker_pending_reports={metrics['worker_pending_report_count']}; "
+                f"active_jobs_total={metrics['active_jobs_total_count']}; "
+                f"active_jobs_blocking={metrics['active_jobs_blocking_count']}."
+            ),
+            (
+                "State counters: "
+                f"sqlite_db_bytes={metrics['sqlite_db_size_bytes']}; "
+                f"sqlite_wal_bytes={metrics['sqlite_wal_size_bytes']}; "
+                f"progress_persistence_healthy={metrics['progress_persistence_healthy']}."
+            ),
         ],
         blockers=blockers,
         review_items=review_items,
     )
+
+
+def _runtime_health_metrics(runtime_reliability: Mapping[str, Any]) -> dict[str, Any]:
+    current_file = runtime_reliability.get("current_file") if isinstance(runtime_reliability, Mapping) else {}
+    round_failures = runtime_reliability.get("round_failures") if isinstance(runtime_reliability, Mapping) else {}
+    native_processes = runtime_reliability.get("native_processes") if isinstance(runtime_reliability, Mapping) else {}
+    pending_publish = runtime_reliability.get("pending_publish") if isinstance(runtime_reliability, Mapping) else {}
+    worker_reports = runtime_reliability.get("worker_pending_reports") if isinstance(runtime_reliability, Mapping) else {}
+    active_jobs = runtime_reliability.get("active_jobs") if isinstance(runtime_reliability, Mapping) else {}
+    sqlite_mirror = runtime_reliability.get("sqlite_mirror") if isinstance(runtime_reliability, Mapping) else {}
+    progress = runtime_reliability.get("progress_persistence") if isinstance(runtime_reliability, Mapping) else {}
+    continuous_round_state = runtime_reliability.get("continuous_round_state") if isinstance(runtime_reliability, Mapping) else {}
+    control_flags = runtime_reliability.get("control_flags") if isinstance(runtime_reliability, Mapping) else {}
+    pending_backpressure = runtime_reliability.get("pending_publish_backpressure") if isinstance(runtime_reliability, Mapping) else {}
+    worker_slots = runtime_reliability.get("worker_slots") if isinstance(runtime_reliability, Mapping) else {}
+    state_db = runtime_reliability.get("state_db") if isinstance(runtime_reliability, Mapping) else {}
+    heartbeat_failure = runtime_reliability.get("worker_heartbeat_failure") if isinstance(runtime_reliability, Mapping) else {}
+    coordinator_state = runtime_reliability.get("coordinator_state") if isinstance(runtime_reliability, Mapping) else {}
+    debug_log = runtime_reliability.get("debug_log") if isinstance(runtime_reliability, Mapping) else {}
+    return {
+        "current_file_age_seconds": None if not isinstance(current_file, Mapping) else current_file.get("age_seconds"),
+        "round_failure_count": _safe_int(round_failures.get("round_failure_count")) if isinstance(round_failures, Mapping) else 0,
+        "unexpected_queue_entry_failures": _safe_int(round_failures.get("unexpected_queue_entry_failures")) if isinstance(round_failures, Mapping) else 0,
+        "unexpected_round_failures": _safe_int(round_failures.get("unexpected_round_failures")) if isinstance(round_failures, Mapping) else 0,
+        "consecutive_unexpected_round_failures": _safe_int(continuous_round_state.get("consecutive_unexpected_round_failures")) if isinstance(continuous_round_state, Mapping) else 0,
+        "continuous_round_blocked": bool(continuous_round_state.get("blocked")) if isinstance(continuous_round_state, Mapping) else False,
+        "pause_flag_present": bool(control_flags.get("pause_flag_present")) if isinstance(control_flags, Mapping) else False,
+        "pause_age_seconds": control_flags.get("pause_age_seconds") if isinstance(control_flags, Mapping) else None,
+        "native_no_progress_abort_count": _safe_int(native_processes.get("native_no_progress_abort_count")) if isinstance(native_processes, Mapping) else 0,
+        "pending_publish_backlog_count": _safe_int(pending_publish.get("backlog_count")) if isinstance(pending_publish, Mapping) else 0,
+        "pending_publish_health_count": _safe_int(pending_publish.get("health_count")) if isinstance(pending_publish, Mapping) else 0,
+        "pending_publish_oldest_age_seconds": pending_backpressure.get("oldest_age_seconds") if isinstance(pending_backpressure, Mapping) else None,
+        "pending_publish_backpressure_blocked": bool(pending_backpressure.get("blocked")) if isinstance(pending_backpressure, Mapping) else False,
+        "pending_publish_backpressure_reason": str(pending_backpressure.get("block_reason") or "") if isinstance(pending_backpressure, Mapping) else "",
+        "worker_pending_report_count": _safe_int(worker_reports.get("pending_report_count")) if isinstance(worker_reports, Mapping) else 0,
+        "worker_pending_report_oldest_age_seconds": worker_reports.get("oldest_pending_report_age_seconds") if isinstance(worker_reports, Mapping) else None,
+        "worker_heartbeat_failure_age_seconds": heartbeat_failure.get("age_seconds") if isinstance(heartbeat_failure, Mapping) else None,
+        "worker_heartbeat_failure_abort_threshold_seconds": _safe_int(heartbeat_failure.get("abort_threshold_seconds")) if isinstance(heartbeat_failure, Mapping) else 0,
+        "worker_heartbeat_failure_abort_due": bool(heartbeat_failure.get("abort_due")) if isinstance(heartbeat_failure, Mapping) else False,
+        "worker_slot_active_child_count": _safe_int(worker_slots.get("active_child_count")) if isinstance(worker_slots, Mapping) else 0,
+        "worker_slot_stale_heartbeat_count": _safe_int(worker_slots.get("stale_heartbeat_count")) if isinstance(worker_slots, Mapping) else 0,
+        "active_jobs_total_count": _safe_int(active_jobs.get("total_count")) if isinstance(active_jobs, Mapping) else 0,
+        "active_jobs_blocking_count": _safe_int(active_jobs.get("blocking_count")) if isinstance(active_jobs, Mapping) else 0,
+        "active_jobs_ambiguous_count": _safe_int(active_jobs.get("ambiguous_count")) if isinstance(active_jobs, Mapping) else 0,
+        "active_jobs_ambiguous_read_first": bool(active_jobs.get("ambiguous_read_first")) if isinstance(active_jobs, Mapping) else False,
+        "sqlite_db_size_bytes": _safe_int(sqlite_mirror.get("db_size_bytes")) if isinstance(sqlite_mirror, Mapping) else 0,
+        "sqlite_wal_size_bytes": _safe_int(sqlite_mirror.get("wal_size_bytes")) if isinstance(sqlite_mirror, Mapping) else 0,
+        "sqlite_completed_jobs_count": sqlite_mirror.get("completed_jobs_count") if isinstance(sqlite_mirror, Mapping) else None,
+        "sqlite_completed_jobs_max_rows": _safe_int(sqlite_mirror.get("completed_jobs_max_rows")) if isinstance(sqlite_mirror, Mapping) else 0,
+        "sqlite_completed_jobs_count_error": str(sqlite_mirror.get("completed_jobs_count_error") or "") if isinstance(sqlite_mirror, Mapping) else "",
+        "state_db_wal_review_bytes": _safe_int(state_db.get("wal_review_bytes")) if isinstance(state_db, Mapping) else 0,
+        "sqlite_write_failures": sqlite_mirror.get("write_failures") if isinstance(sqlite_mirror, Mapping) else None,
+        "progress_persistence_healthy": bool(progress.get("healthy", True)) if isinstance(progress, Mapping) else True,
+        "progress_write_failures": _safe_int(progress.get("write_failures")) if isinstance(progress, Mapping) else 0,
+        "coordinator_reclaimed_source_quarantine_count": _safe_int(coordinator_state.get("reclaimed_source_quarantine_count")) if isinstance(coordinator_state, Mapping) else 0,
+        "coordinator_reclaimed_source_quarantine_oldest_age_seconds": coordinator_state.get("reclaimed_source_quarantine_oldest_age_seconds") if isinstance(coordinator_state, Mapping) else None,
+        "coordinator_pending_done_report_count": _safe_int(coordinator_state.get("late_terminal_report_count")) if isinstance(coordinator_state, Mapping) else 0,
+        "coordinator_failure_ledger_count": _safe_int(coordinator_state.get("failure_ledger_count")) if isinstance(coordinator_state, Mapping) else 0,
+        "coordinator_failure_ledger_max_entries": _safe_int(coordinator_state.get("failure_ledger_max_entries")) if isinstance(coordinator_state, Mapping) else 0,
+        "debug_log_size_bytes": _safe_int(debug_log.get("size_bytes")) if isinstance(debug_log, Mapping) else 0,
+        "debug_log_max_bytes": _safe_int(debug_log.get("max_bytes")) if isinstance(debug_log, Mapping) else 0,
+        "debug_log_rotation_state": str(debug_log.get("rotation_state") or "") if isinstance(debug_log, Mapping) else "",
+    }
 
 
 def _active_liveness_watchdog(records: list[dict[str, Any]]) -> dict[str, Any]:
@@ -569,8 +832,8 @@ def _active_liveness_watchdog(records: list[dict[str, Any]]) -> dict[str, Any]:
         "would_kill_active_processes": False,
         "would_rewrite_active_jobs": False,
         "policy": (
-            "Detection-only liveness evidence for launch gating. Existing native process timeouts and "
-            "lifecycle controls remain responsible for active work."
+            "Passive ActiveJobs evidence only. ActiveJobs records do not block launch, Shutdown Readiness, "
+            "or autonomy health."
         ),
         "native_timeout_grace_seconds": ACTIVE_JOB_TIMEOUT_GRACE_SECONDS,
         "no_native_timeout_block_after_seconds": ACTIVE_JOB_NO_TIMEOUT_BLOCK_SECONDS,
@@ -616,7 +879,6 @@ def _active_liveness_evidence(resolved: Any, payload: Mapping[str, Any], active_
         "native_timeout_source": native_timeout_source,
         "native_timeout_seconds": native_timeout_seconds,
         "native_timeout_grace_seconds": ACTIVE_JOB_TIMEOUT_GRACE_SECONDS,
-        "review_after_seconds": min(ACTIVE_JOB_REVIEW_SECONDS, block_after),
         "block_after_seconds": block_after,
         "evidence_candidates": evidence_candidates,
     }
@@ -730,18 +992,35 @@ def _disk_state_category(resolved: Any, path_health: Mapping[str, Any] | None) -
                         next_action="Refresh path health and verify free space before unattended launch.",
                     )
                 )
-    state_dir_size = _directory_size(resolved.state_root)
-    local_base_size = _directory_size(resolved.local_base, limit=AUTONOMY_SCAN_LIMIT)
+    state_scan = _directory_size_scan(resolved.state_root)
+    local_scan = _directory_size_scan(resolved.local_base, limit=AUTONOMY_SCAN_LIMIT)
+    if bool(state_scan["truncated"]) or bool(local_scan["truncated"]):
+        review_items.append(
+            _issue(
+                "autonomy_scan_truncated",
+                "disk_state",
+                "medium",
+                f"Autonomy file enumeration hit the scan limit of {AUTONOMY_SCAN_LIMIT}; size metrics are lower bounds.",
+                next_action="Use the lower-bound sizes as soak telemetry only; raise the scan limit or inspect storage externally before trusting capacity projections.",
+            )
+        )
     return _category(
         "disk_state",
         _issue_status(blockers, review_items),
         metrics={
-            "state_root_size_bytes": state_dir_size,
-            "local_base_scanned_size_bytes": local_base_size,
+            "state_root_size_bytes": state_scan["size_bytes"],
+            "state_root_size_lower_bound": bool(state_scan["truncated"]),
+            "state_root_scan_truncated": bool(state_scan["truncated"]),
+            "state_root_scanned_file_count": state_scan["scanned_file_count"],
+            "local_base_scanned_size_bytes": local_scan["size_bytes"],
+            "local_base_size_lower_bound": bool(local_scan["truncated"]),
+            "local_base_scan_truncated": bool(local_scan["truncated"]),
+            "local_base_scanned_file_count": local_scan["scanned_file_count"],
+            "autonomy_scan_limit": AUTONOMY_SCAN_LIMIT,
         },
         summary_lines=[
-            f"State root scanned bytes: {state_dir_size}.",
-            f"LocalBase scanned bytes: {local_base_size}.",
+            f"State root scanned bytes: {state_scan['size_bytes']}; lower_bound={state_scan['truncated']}.",
+            f"LocalBase scanned bytes: {local_scan['size_bytes']}; lower_bound={local_scan['truncated']}.",
             "No cleanup is performed by autonomy health.",
         ],
         blockers=blockers,
@@ -1148,17 +1427,41 @@ def _growth_projection_payload(
 ) -> dict[str, Any]:
     disk_metrics = _category_metrics(categories, "disk_state")
     journal_metrics = _category_metrics(categories, "journals")
+    runtime_metrics = _category_metrics(categories, "runtime_health")
     pending_bytes = _safe_int((pending_publish or {}).get("total_bytes")) if isinstance(pending_publish, Mapping) else 0
     state_root_bytes = _safe_int(disk_metrics.get("state_root_size_bytes"))
     local_base_bytes = _safe_int(disk_metrics.get("local_base_scanned_size_bytes"))
     journal_bytes = _safe_int(journal_metrics.get("total_size_bytes"))
+    active_jobs_count = _safe_int(runtime_metrics.get("active_jobs_total_count"))
+    worker_process_count = _safe_int(runtime_metrics.get("worker_slot_active_child_count"))
     storage_roots = _growth_storage_roots(path_health)
     minimum_free_bytes = _minimum_present(row.get("free_bytes") for row in storage_roots)
     current_budget = {
         "state_root_size_bytes": state_root_bytes,
+        "state_root_scan_truncated": bool(disk_metrics.get("state_root_scan_truncated")),
+        "state_root_size_lower_bound": bool(disk_metrics.get("state_root_size_lower_bound")),
         "local_base_scanned_size_bytes": local_base_bytes,
+        "local_base_scan_truncated": bool(disk_metrics.get("local_base_scan_truncated")),
+        "local_base_size_lower_bound": bool(disk_metrics.get("local_base_size_lower_bound")),
         "journal_file_bytes": journal_bytes,
         "pending_publish_bytes": pending_bytes,
+        "pending_publish_oldest_age_seconds": runtime_metrics.get("pending_publish_oldest_age_seconds"),
+        "pending_done_oldest_age_seconds": runtime_metrics.get("worker_pending_report_oldest_age_seconds"),
+        "process_count": active_jobs_count + worker_process_count,
+        "process_count_source": "active_jobs_plus_worker_slots_lower_bound",
+        "state_db_size_bytes": runtime_metrics.get("sqlite_db_size_bytes"),
+        "state_db_wal_size_bytes": runtime_metrics.get("sqlite_wal_size_bytes"),
+        "state_db_completed_jobs_count": runtime_metrics.get("sqlite_completed_jobs_count"),
+        "state_db_completed_jobs_max_rows": runtime_metrics.get("sqlite_completed_jobs_max_rows"),
+        "log_size_bytes": runtime_metrics.get("debug_log_size_bytes"),
+        "log_max_bytes": runtime_metrics.get("debug_log_max_bytes"),
+        "log_rotation_state": runtime_metrics.get("debug_log_rotation_state"),
+        "failure_ledger_size": runtime_metrics.get("coordinator_failure_ledger_count"),
+        "failure_ledger_max_entries": runtime_metrics.get("coordinator_failure_ledger_max_entries"),
+        "reclaimed_source_quarantine_count": runtime_metrics.get("coordinator_reclaimed_source_quarantine_count"),
+        "reclaimed_source_quarantine_oldest_age_seconds": runtime_metrics.get(
+            "coordinator_reclaimed_source_quarantine_oldest_age_seconds"
+        ),
         "observed_bytes": state_root_bytes + local_base_bytes + pending_bytes,
         "minimum_free_bytes": minimum_free_bytes,
         "storage_row_count": len(storage_roots),
@@ -1605,32 +1908,43 @@ def _safe_float(*values: Any) -> float | None:
 
 
 def _iter_files(root: Path, pattern: str = "*") -> list[Path]:
+    return _limited_iter_files(root, pattern)[0]
+
+
+def _limited_iter_files(root: Path, pattern: str = "*", *, limit: int = AUTONOMY_SCAN_LIMIT) -> tuple[list[Path], bool]:
     try:
-        return sorted(root.glob(pattern), key=lambda item: item.stat().st_mtime, reverse=True)[:AUTONOMY_SCAN_LIMIT]
+        paths = sorted(root.glob(pattern), key=lambda item: item.stat().st_mtime, reverse=True)
     except OSError:
-        return []
+        return [], False
+    return paths[:limit], len(paths) > limit
 
 
 def _directory_size(root: Path | None, *, limit: int = AUTONOMY_SCAN_LIMIT) -> int:
+    return int(_directory_size_scan(root, limit=limit)["size_bytes"])
+
+
+def _directory_size_scan(root: Path | None, *, limit: int = AUTONOMY_SCAN_LIMIT) -> dict[str, Any]:
     if root is None or not root.exists() or not root.is_dir():
-        return 0
+        return {"size_bytes": 0, "scanned_file_count": 0, "truncated": False, "limit": limit}
     total = 0
     scanned = 0
+    truncated = False
     try:
         iterator = root.rglob("*")
         for path in iterator:
-            if scanned >= limit:
-                break
             if not path.is_file():
                 continue
+            if scanned >= limit:
+                truncated = True
+                break
             scanned += 1
             try:
                 total += int(path.stat().st_size)
             except OSError:
                 continue
     except OSError:
-        return total
-    return total
+        return {"size_bytes": total, "scanned_file_count": scanned, "truncated": truncated, "limit": limit}
+    return {"size_bytes": total, "scanned_file_count": scanned, "truncated": truncated, "limit": limit}
 
 
 def _journal_paths(resolved: Any) -> list[Path | None]:

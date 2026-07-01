@@ -17,7 +17,7 @@ from mediapipeline.core.maintenance.command_policy import (
 )
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
 
 class MaintenanceDependencyAtlasFacadeMixin:

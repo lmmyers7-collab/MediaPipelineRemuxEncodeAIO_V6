@@ -1009,7 +1009,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertNotIn("/api/pipeline/start", route_map_js)
         self.assertIn('["libraries route map", refreshGet("/api/libraries/route-map", refreshOptions), false]', app_js)
         self.assertIn("window.mediaPipelineLibraryRouteMap?.renderRouteMap?", app_js)
-        self.assertIn("queue: values.queue || {}", app_js)
+        self.assertIn("queue: latestQueue", app_js)
         self.assertIn("completed: values.completed || {}", app_js)
         self.assertIn('sampleValidation: values["sample validation"] || {}', app_js)
 

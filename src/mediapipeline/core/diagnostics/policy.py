@@ -9,7 +9,8 @@ import re
 import stat
 from typing import Any
 
-from mediapipeline.desktop.models import ResolvedPaths, Snapshot
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.status.contracts import Snapshot
 from mediapipeline.core.status.active_jobs import active_job_detail_rows
 
 DIAGNOSTICS_TAIL_SCHEMA_VERSION = "desktop_diagnostics_tail.v1"
@@ -149,7 +150,7 @@ def diagnostics_tail_evidence(
         safe_next_action = "Review the warning/truncation evidence and compare with the owning page before changing workflow state."
     elif active_count:
         operator_status = "active"
-        safe_next_action = "Compare active-process clues with Close Readiness and ActiveJobs before starting or closing work."
+        safe_next_action = "Compare active-process clues with Diagnostics > Overview > Shutdown Readiness and Active Jobs before starting or closing work."
     elif ok and exists and is_file and lines:
         operator_status = "ready"
         safe_next_action = "No high-risk tail terms were detected in the returned window; still verify against the owning page before accepting a run."

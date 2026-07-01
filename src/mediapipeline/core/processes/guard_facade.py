@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from mediapipeline.desktop.application.dto_status import CloseReadinessDto
-from mediapipeline.desktop.application.schedule_stop_watcher import schedule_stop_watcher_state_mapping
-from mediapipeline.desktop.models import ResolvedPaths, Snapshot
+from mediapipeline.core.kernel.dto_status import CloseReadinessDto
+from mediapipeline.core.schedule.stop_watcher import schedule_stop_watcher_state_mapping
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 from mediapipeline.core.processes.guard_policy import (
     audit_progress_indicates_active_work,
@@ -87,11 +87,6 @@ class ProcessGuardFacadeMixin:
             watcher_block = self._schedule_stop_watcher_close_block_message(action)
             if watcher_block:
                 return watcher_block
-        active_job_blocks = self._active_job_block_messages(resolved, job_kinds=blocking_job_kinds)
-        if active_job_blocks:
-            shown = "; ".join(active_job_blocks[:3])
-            suffix = "" if len(active_job_blocks) <= 3 else f"; and {len(active_job_blocks) - 3} more"
-            return f"{action} blocked because ActiveJobs still reports active work: {shown}{suffix}"
         if blocking_job_kinds is None or "pipeline" in blocking_job_kinds:
             progress_block = self._progress_block_message(resolved, action)
             if progress_block:
@@ -146,26 +141,6 @@ class ProcessGuardFacadeMixin:
         except Exception as exc:
             self._log_close_guard_exception("Queue source scan close-readiness verification failed", exc)
             return f"{action} blocked because queue source scan state could not be verified: {exc}"
-
-    def _active_job_block_messages(self, resolved: ResolvedPaths, *, job_kinds: set[str] | None = None) -> list[str]:
-        block_messages = getattr(self.service, "active_job_close_block_messages", None)
-        if not callable(block_messages):
-            return []
-        try:
-            if job_kinds is None:
-                messages = block_messages(resolved)
-            else:
-                messages = block_messages(resolved, job_kinds=job_kinds)
-            return [str(message) for message in messages if str(message).strip()]
-        except TypeError:
-            try:
-                return [str(message) for message in block_messages(resolved) if str(message).strip()]
-            except Exception as exc:
-                self._log_close_guard_exception("ActiveJobs close-readiness verification failed", exc)
-                return ["ActiveJobs state could not be verified."]
-        except Exception as exc:
-            self._log_close_guard_exception("ActiveJobs close-readiness verification failed", exc)
-            return ["ActiveJobs state could not be verified."]
 
     def _progress_block_message(self, resolved: ResolvedPaths, action: str) -> str:
         read_progress = getattr(self.service, "read_progress", None)

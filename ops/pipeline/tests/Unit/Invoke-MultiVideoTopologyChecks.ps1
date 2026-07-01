@@ -19,6 +19,10 @@ function Assert-Equal {
     }
 }
 
+function Write-Log {
+    param([string] $Message, [string] $Level = 'INFO')
+}
+
 function Invoke-RequiredTool {
     param(
         [Parameter(Mandatory)] [string] $FilePath,
@@ -77,6 +81,7 @@ Assert-True (Test-Path -LiteralPath $ffprobePath -PathType Leaf) "Bundled ffprob
 . (Join-Path $repoRoot 'ops\pipeline\engine\config\default_values.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\decide\encoder_descriptors.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\decide\encode_policy.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\process\remux_ffmpeg_av_stage.ps1')
 
 $workRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('mp-fr016-topology-' + [guid]::NewGuid().ToString('N'))
 [System.IO.Directory]::CreateDirectory($workRoot) | Out-Null
@@ -149,6 +154,34 @@ try {
 
     Invoke-RequiredTool -FilePath $ffmpegPath -Label 'encode preserve-all topology' -Arguments (@('-hide_banner', '-loglevel', 'error', '-y') + @($encodeArgs)) | Out-Null
     Assert-Equal (Get-RealVideoStreamCount -FilePath $encodeOut) 2 'Encode topology should preserve both real video streams.'
+
+    $remuxVideoArgs = New-MediaPipelineRemuxVideoArgumentList -Context ([pscustomobject]@{
+        LocalIn            = $multiSource
+        SourceCodec        = 'hevc'
+        VideoStreamPolicy  = [pscustomobject]@{
+            Inventory = [pscustomobject]@{
+                Ok                   = $true
+                ErrorCode            = ''
+                Reason               = ''
+                RealVideoStreams     = @(
+                    [pscustomobject]@{ Index = 0; VideoOrdinal = 0; Codec = 'hevc'; Width = 160; Height = 90; AttachedPicture = $false },
+                    [pscustomobject]@{ Index = 2; VideoOrdinal = 1; Codec = 'h264'; Width = 128; Height = 72; AttachedPicture = $false }
+                )
+                AttachedPicStreams   = @(
+                    [pscustomobject]@{ Index = 5; VideoOrdinal = -1; Codec = 'mjpeg'; Width = 600; Height = 900; AttachedPicture = $true }
+                )
+                RealVideoStreamCount = 2
+                AttachedPicCount     = 1
+            }
+        }
+    })
+    $remuxVideoArgText = @($remuxVideoArgs) -join '|'
+    Assert-True ($remuxVideoArgText -match '(^|\|)-map\|0:0\|-map\|0:2\|-map\|0:5\|-c:v\|copy(\||$)') 'Remux video arg builder must preserve all inventory video streams with explicit maps.'
+    Assert-True ($remuxVideoArgText -match '(^|\|)-bsf:v:0\|hevc_mp4toannexb(\||$)') 'Remux video arg builder must scope HEVC bitstream filtering to the HEVC output ordinal.'
+    Assert-True ($remuxVideoArgText -notmatch '(^|\|)-bsf:v\|hevc_mp4toannexb(\||$)') 'Remux video arg builder must not emit a broad HEVC bitstream filter.'
+    Assert-True ($remuxVideoArgText -notmatch '(^|\|)-bsf:v:1\|hevc_mp4toannexb(\||$)') 'Remux video arg builder must not apply HEVC filtering to non-HEVC alternate video.'
+    Assert-True ($remuxVideoArgText -notmatch '(^|\|)-bsf:v:2\|hevc_mp4toannexb(\||$)') 'Remux video arg builder must not apply HEVC filtering to MJPEG cover-art output.'
+    Assert-True ($remuxVideoArgText -notmatch '(^|\|)-bsf:v:5\|hevc_mp4toannexb(\||$)') 'Remux video arg builder must not treat source indexes as output filter ordinals.'
 
     Write-Host "FR-016 multi-video topology checks passed. SourceOrigin=$sourceOrigin source=2 remux=2 encode=2"
 } finally {

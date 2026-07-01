@@ -1,0 +1,49 @@
+{
+  "id": "MP-CHANGE-2026-0629-039",
+  "title": "Sync audit source metrics after audit completion",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-30",
+  "summary": "Synced audit source table metrics after successful audit process completion and refreshed the live audit-source registry with the completed run's source counts.",
+  "reason": "A completed Reports audit updated audit_progress.json and report files, but the Locations table reads media, sidecar, folder, and scan-status fields from Audit/audit_sources.json. That registry was never refreshed by Start Audit completion, so rows stayed Not scanned with zero counts.",
+  "affected_areas": [
+    "audit",
+    "desktop",
+    "generated-context",
+    "process",
+    "tests"
+  ],
+  "behavior_before": "After Start Audit Selected completed, the progress bars showed 3030/3030 and report generation complete, but the selected Locations rows still showed Not scanned, Video files 0, Sidecars 0, Folders 0, and Last scan '-'.",
+  "behavior_after": "After a successful audit process exits, the backend runs the existing read-only audit-source scan for the launched source rows and writes their media, sidecar, folder, scan-status, and last-scan fields back to Audit/audit_sources.json for the Locations table.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0629-039.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/audit/sources.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/spawn_runner.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/services.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_audit_sources.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_process_spawn_runner.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-039.json",
+    "src/mediapipeline/core/audit/sources.py",
+    "src/mediapipeline/core/processes/spawn_runner.py",
+    "src/mediapipeline/desktop/services.py",
+    "tests/python/desktop/test_audit_sources.py",
+    "tests/python/desktop/test_service_process_spawn_runner.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_audit_sources.py::AuditSourcesTests::test_audit_completion_service_hook_syncs_source_metrics",
+    "tests/python/desktop/test_audit_sources.py::AuditSourcesTests::test_completed_audit_sync_updates_selected_source_metrics",
+    "tests/python/desktop/test_service_process_spawn_runner.py::SpawnRunnerTests::test_spawn_runner_invokes_audit_sync_hook_after_successful_audit_exit"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_audit_sources -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_service_process_spawn_runner -q",
+    "Ran live backend audit-source sync for E:\\Videos\\Scratch\\State\\Audit\\audit_sources.json. Result: 3030 media file(s), 2708 sidecar file(s), and 805 folder(s) across 2 source rows.",
+    "Verified live rows: \\\\LAYNE-SERVER\\Users\\Layne\\Videos\\outsource -> complete, 0 media, 0 sidecars, 3 folders; \\\\LAYNE-SERVER\\share\\Video -> complete, 3030 media, 2708 sidecars, 802 folders."
+  ],
+  "rollback_plan": "Revert the audit-source sync helper, the optional process completion hook, the desktop service mixin wiring, and the added tests; refresh generated summaries. Runtime table metrics can be reset by removing and re-adding the affected Audit source rows or by restoring the previous Audit/audit_sources.json if needed.",
+  "related_changes": [],
+  "notes": "Add completed-audit source metrics sync using existing read-only source scan.\nCall optional post-exit audit source sync hook after successful process completion update.\nExpose audit source metrics sync mixin on the desktop service.\nCover completed audit sync of selected source metrics and service hook behavior.\nCover process completion watcher invoking the audit sync hook with metadata.\nRefresh source summary after audit metrics sync changes.\nRefresh source summary after process completion hook change.\nRefresh source summary after service mixin wiring.\nRefresh test summary after audit-source regression coverage.\nRefresh test summary after spawn-runner hook coverage.\nRefresh summary after completed audit-source metrics change packet update."
+}

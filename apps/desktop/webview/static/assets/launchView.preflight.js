@@ -66,6 +66,47 @@
       payload_count: 0,
       fetch_failure_count: 0,
     };
+    const rerunPreflightLabels = {
+      execution: {
+        one_at_a_time: "One at a time",
+        windowed: "Windowed",
+        batch_stage_all: "Batch stage all",
+      },
+      destination: {
+        review_workspace: "Review workspace",
+        pending_publish: "Pending publish",
+        publish_non_overlap: "Publish with non-overlap name",
+        publish_replace_final: "Publish and replace final output",
+      },
+      collision: {
+        suffix: "Suffix when needed",
+        fail: "Block on overlap",
+        replace_final: "Replace final output",
+      },
+      original: {
+        keep: "Keep original",
+        rename_after_publish: "Keep but rename after publish",
+        move_to_hold_after_publish: "Move to original hold after publish",
+        hold_then_delete_after_publish: "Hold then mark cleanup-ready",
+      },
+    };
+
+    function rerunPreflightLabel(kind, value, fallback) {
+      const key = String(value || fallback || "");
+      return rerunPreflightLabels[kind]?.[key] || key || "Unknown";
+    }
+
+    function rerunFinalReplacementSelected(request) {
+      return request?.destination_mode === "publish_replace_final" || request?.collision_policy === "replace_final";
+    }
+
+    function rerunOriginalPairingLine(request) {
+      if (!rerunFinalReplacementSelected(request)) return "";
+      if (request.original_policy === "move_to_hold_after_publish") {
+        return "Pairing note: final-output replacement is paired with original hold after publish.";
+      }
+      return "Pairing warning: final-output replacement is usually paired with Move to original hold after publish.";
+    }
 
     function getLaunchRealMediaContext() {
       return state.context && typeof state.context === "object" ? state.context : {};
@@ -186,7 +227,7 @@
         launchStartDecisionPostureFromStatus(settingsStatus.policyStatus),
       ]),
       `settings=${settingsStatus.settingsStatus}; intent=${settingsStatus.settingsIntentStatus}; active policy=${settingsStatus.policyStatus}.`,
-      "Confirm saved policy covers route, size, subtitle, audio, source/scratch, and pending-publish behavior before the pilot run.",
+      "Saved policy evidence should cover route, size, subtitle, audio, source/scratch, and pending-publish behavior for pilot proof.",
       [
         `Launch-intent rows: ${settingsStatus.intentRows.length}`,
         `Active policy rows: ${settingsStatus.policyRows.length}`,
@@ -456,8 +497,6 @@
     return [
       { key: "pipeline", target: "pipeline", label: "Pipeline", request: collectPipelineStartRequest() },
       { key: "rerun-live", target: "rerun", label: "CSV Rerun Start", request: collectRerunStartRequest({ dry_run: false }) },
-      { key: "rerun-preview", target: "rerun", label: "CSV Rerun Preview", request: collectRerunStartRequest({ dry_run: true }) },
-      { key: "rerun-plan-only", target: "rerun", label: "CSV Rerun Plan Only", request: collectRerunStartRequest({ plan_only: true }) },
     ].map((item) => {
       const activity = launchBackendPreflightRequestActivity(item);
       return {
@@ -672,7 +711,7 @@
     const hint = document.createElement("span");
     hint.textContent = first.action
       ? `Open Diagnostics > Readiness > Backend Preflight. Backend action: ${first.action}`
-      : "Open Diagnostics > Readiness > Backend Preflight before starting the media pipeline.";
+      : "Open Diagnostics > Readiness > Backend Preflight for the backend-authored blocker details.";
     node.replaceChildren(title, detail, hint);
   }
 
@@ -733,11 +772,11 @@
     launchBackendPreflightEncoderActivationLines(payloads).forEach((line) => lines.push(line));
     launchBackendPreflightEncoderHardwareRuntimeLines(payloads).forEach((line) => lines.push(line));
     if (stale && payloads.length) {
-      lines.push("Form state changed after the last backend preflight. Action: Refresh Backend Preflight before using normal Start or CSV Rerun controls.");
+      lines.push("Form state changed after the last backend preflight. Action: refresh Backend Preflight for current evidence; routine Start still submits to backend guards.");
     }
     const reviewRows = rows.filter((row) => row.posture !== "ready");
     if (reviewRows.length) {
-      lines.push("First action: select blocked/review checks before pressing backend-owned start buttons.");
+      lines.push("First action: select blocked/review checks for backend-authored evidence; blocked checks still disable matching start controls.");
       reviewRows.slice(0, 8).forEach((row) => lines.push(`- ${row.targetLabel} / ${row.check}: ${row.posture}; ${row.action}`));
       if (reviewRows.length > 8) lines.push(`- ${reviewRows.length - 8} more backend preflight check(s) need review.`);
     } else {
@@ -967,29 +1006,26 @@
 
   function rerunLaunchPreflightLines(request) {
     const csv = String(request.csv_path || "").trim();
-    const safeModes = request.stage_mode === "copy" && request.original_mode === "keep" && request.return_mode === "park";
     const scope = request.scope && typeof request.scope === "object" ? request.scope : {};
+    const issueFilters = Array.isArray(scope.issue_filters) ? scope.issue_filters.join(", ") : (scope.issue_filter || "");
+    const bucketFilters = Array.isArray(scope.bucket_filters) ? scope.bucket_filters.join(", ") : (scope.bucket_filter || "");
     const lines = [
       `CSV path: ${csv || "missing"}`,
-      `Stage mode: ${request.stage_mode}`,
-      `Original mode: ${request.original_mode}`,
-      `Return mode: ${request.return_mode}`,
-      `Scope: enabled only ${scope.enabled_only !== false ? "yes" : "no"}; skip blocked ${scope.skip_blocked ? "yes" : "no"}; skip warnings ${scope.skip_warning_rows ? "yes" : "no"}; first rows ${scope.first_n || 0}; issue "${scope.issue_filter || ""}"; bucket "${scope.bucket_filter || ""}"`,
-      `Plan only: ${request.plan_only ? "yes - no manifest or media writes" : "no"}`,
-      `Dry run: ${request.dry_run ? "yes - evidence-writing preview" : request.plan_only ? "no - plan-only request" : "no - live rerun start"}`,
+      `Execution: ${rerunPreflightLabel("execution", request.execution_mode, "one_at_a_time")}; window=${request.window_size || 1}`,
+      `Destination handling: ${rerunPreflightLabel("destination", request.destination_mode, "review_workspace")}; collision=${rerunPreflightLabel("collision", request.collision_policy, "suffix")}`,
+      `Old source handling after proof: ${rerunPreflightLabel("original", request.original_policy, "keep")}`,
+      `Scope: enabled only ${scope.enabled_only !== false ? "yes" : "no"}; skip blocked ${scope.skip_blocked ? "yes" : "no"}; skip warnings ${scope.skip_warning_rows ? "yes" : "no"}; first rows ${scope.first_n || 0}; issue "${issueFilters}"; bucket "${bucketFilters}"`,
     ];
+    const pairingLine = rerunOriginalPairingLine(request);
+    if (pairingLine) lines.push(pairingLine);
     if (!csv) lines.push("Input warning: CSV path is required before CSV rerun can start.");
-    lines.push("Mode options: stage copy is executable; move is blocked. Original keep is executable; delete is blocked. Return park is executable; replace_original is blocked.");
-    if (!safeModes) {
-      lines.push("Mode warning: backend preflight/start will block selected source-mutating or in-place CSV rerun policy before process launch.");
+    if (request.destination_mode === "publish_replace_final" && request.confirm_replace_final !== true) {
+      lines.push("Confirmation warning: replacing a final output requires confirm_replace_final=true.");
     }
-    lines.push(request.plan_only
-      ? "Safety policy: plan-only stops before writing manifests, temp config, staging files, parked outputs, or source media."
-      : request.dry_run
-      ? "Safety policy: dry-run preview should produce backend evidence without staging, moving, publishing, or touching media."
-      : "Safety policy: live rerun copies to scratch, keeps originals, and parks returned outputs."
-    );
-    if (request.show_console) lines.push("Console: visible rerun process window requested.");
+    if (request.original_policy && request.original_policy !== "keep" && request.confirm_original_policy !== true) {
+      lines.push("Confirmation warning: original-source policy requires confirm_original_policy=true.");
+    }
+    lines.push("Safety policy: live rerun stages bounded scratch input, verifies output, applies destination policy, then applies original-source policy only after proof.");
     lines.push("", ...launchSettingsRiskLines(request));
     lines.push(...launchRealMediaReadinessLines("CSV rerun"));
     lines.push("Backend validation and launch locking remain the source of truth.");
@@ -1003,7 +1039,7 @@
   function renderAllLaunchPreflights(options = {}) {
     const pipelineRequest = collectPipelineStartRequest();
     renderLaunchPreflight("pipeline-launch-preflight", pipelineLaunchPreflightLines(pipelineRequest));
-    renderLaunchPreflight("rerun-launch-preflight", rerunLaunchPreflightLines(collectRerunStartRequest({ plan_only: true })));
+    renderLaunchPreflight("rerun-launch-preflight", rerunLaunchPreflightLines(collectRerunStartRequest({ dry_run: false })));
     renderLaunchSettingsRiskHandoff(pipelineRequest);
     renderLaunchPolicyBoundary();
     renderLaunchSettingsIntentChecklist(pipelineRequest);

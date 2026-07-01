@@ -1,0 +1,37 @@
+{
+  "id": "MP-CHANGE-2026-0629-035",
+  "title": "Audit source table locations",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Made Reports audit starts depend on selected Locations table rows and added browser-smoke proof that typed-only paths cannot submit /api/audit/start.",
+  "reason": "The Reports Audit Sources panel could show a typed Location to Scan as an audit-start location while the Locations table still had zero configured rows, which made the operator-visible source list contradictory.",
+  "affected_areas": [
+    "generated-context",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Reports audit start fell back to the typed Location to Scan value when no Locations table rows were selected, so the preflight could report one selected location while the table said no sources.",
+  "behavior_after": "Reports audit start uses only selected rows from the Locations table. Typed-only locations are shown as not selected, the Start Audit button stays disabled, and direct start calls return a warning without posting /api/audit/start.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/reports/auditCommands.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/reports/auditCommands.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0629-035.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_maintenance_reports_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-035.json",
+    "tests/webview/test_webview_browser_maintenance_reports_smoke.py"
+  ],
+  "tests_added": [
+    "Extended tests/webview/test_webview_browser_maintenance_reports_smoke.py to assert typed-only paths do not post audit starts and table rows remain the audited source list."
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_audit_sources -q -> OK, 3 tests",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_maintenance_reports_smoke -q -> OK, 1 test"
+  ],
+  "rollback_plan": "Revert the auditCommands.js and Reports browser-smoke changes in this packet, then refresh the matching generated summaries.",
+  "related_changes": [],
+  "notes": "Make Reports audit start use selected Locations table rows instead of typed-path fallback.\nAssert typed-only audit paths cannot start and table rows are rendered/submitted.\nRefreshed summary after Reports audit source table change.\nRefreshed summary after Reports browser smoke assertion change.\nGenerated summary for this change packet.\nReal-media validation not required: this change gates WebView audit-start staging and does not alter audit script behavior, FFmpeg policy, media movement, or scan counting."
+}

@@ -1,8 +1,10 @@
 // reports/failureCommands.js
-// Failure command request, preview, confirmation, and result helpers for reportsView.js.
+// Failure command request, preview, delete, and result helpers for reportsView.js.
 
 (function () {
   "use strict";
+
+  const FAILURE_ARTIFACT_CLEANUP_REASON = "Operator confirmed failure artifact cleanup from Reports.";
 
   function noop() {}
 
@@ -12,6 +14,7 @@
     const appendCommandResult = typeof deps.appendCommandResult === "function" ? deps.appendCommandResult : null;
     const byId = typeof deps.byId === "function" ? deps.byId : function () { return null; };
     const failureArchiveButtonIds = Array.isArray(deps.failureArchiveButtonIds) ? deps.failureArchiveButtonIds : [];
+    const failureArtifactCleanupButtonIds = Array.isArray(deps.failureArtifactCleanupButtonIds) ? deps.failureArtifactCleanupButtonIds : [];
     const failureClearButtonIds = Array.isArray(deps.failureClearButtonIds) ? deps.failureClearButtonIds : [];
     const failureClearMarkerPathsForRow = typeof deps.failureClearMarkerPathsForRow === "function" ? deps.failureClearMarkerPathsForRow : function () { return []; };
     const failureClearUnavailableReason = typeof deps.failureClearUnavailableReason === "function" ? deps.failureClearUnavailableReason : function () { return "No marker path is available for this row."; };
@@ -58,15 +61,21 @@
       if (!reportsState.failureArchiveBusy) updateFailureArchiveConfirmState();
     }
 
+    function setFailureArtifactCleanupBusy(busy, activeId = "") {
+      reportsState.failureArtifactCleanupBusy = Boolean(busy);
+      setButtonsBusy(failureArtifactCleanupButtonIds, reportsState.failureArtifactCleanupBusy, activeId);
+      if (!reportsState.failureArtifactCleanupBusy) updateFailureArtifactCleanupConfirmState();
+    }
+
     function setFailureLifecycleBusy(busy, activeId = "") {
       reportsState.failureLifecycleBusy = Boolean(busy);
       setButtonsBusy(failureLifecycleButtonIds, reportsState.failureLifecycleBusy, activeId);
       if (!reportsState.failureLifecycleBusy) updateFailureLifecycleConfirmState();
     }
 
-    function hiddenFailureSelectionMessage(actionLabel = "selected marker cleanup") {
+    function hiddenFailureSelectionMessage(actionLabel = "selected error clear") {
       const count = hiddenSelectedFailureCount();
-      return `${count} selected failure row${count === 1 ? " is" : "s are"} hidden by the active filter/search. Return to All and clear search, or deselect hidden rows before ${actionLabel}.`;
+      return `${count} selected error row${count === 1 ? " is" : "s are"} hidden by the active filter/search. Return to All and clear search, or deselect hidden rows before ${actionLabel}.`;
     }
 
     function selectedFailureMarkerPaths() {
@@ -118,10 +127,10 @@
       const selected = group || getSelectedFailureGroup();
       const action = failureResolutionPrimaryAction(selected);
       const kind = String(action.kind || "");
-      if (kind === "preview_marker_clear") {
+      if (kind === "preview_marker_clear" || kind === "clear_marker") {
         const select = byId("failure-clear-scope");
         if (select) select.value = "selected_group";
-        requestFailureMarkerClear("selected_group", true);
+        requestFailureMarkerClear("selected_group", false);
         return;
       }
       if (kind === "wait_for_backend_retry") {
@@ -195,13 +204,6 @@
         confirm_transition: !dryRun,
         dry_run_fingerprint: "",
       };
-      if (!dryRun && failureLifecyclePreviewRequired(transition)) {
-        const key = failureLifecyclePreviewKey(request);
-        if (!reportsState.lastFailureLifecyclePreview || reportsState.lastFailureLifecyclePreview.key !== key || !reportsState.lastFailureLifecyclePreview.dry_run_fingerprint) {
-          return { error: "Preview this lifecycle transition again before confirming." };
-        }
-        request.dry_run_fingerprint = reportsState.lastFailureLifecyclePreview.dry_run_fingerprint;
-      }
       return request;
     }
 
@@ -220,27 +222,19 @@
       const reopen = failureTransition(group, "reopen");
       const resolveRequest = group && resolve ? failureLifecycleRequest("mark_resolved", false) : { error: "not available" };
       const reopenRequest = group && reopen ? failureLifecycleRequest("reopen", false) : { error: "not available" };
-      const resolveMatches = Boolean(
-        !resolveRequest.error &&
-        reportsState.lastFailureLifecyclePreview?.key === failureLifecyclePreviewKey(resolveRequest) &&
-        reportsState.lastFailureLifecyclePreview?.dry_run_fingerprint
-      );
-      const reopenMatches = Boolean(
-        !reopenRequest.error &&
-        reportsState.lastFailureLifecyclePreview?.key === failureLifecyclePreviewKey(reopenRequest) &&
-        reportsState.lastFailureLifecyclePreview?.dry_run_fingerprint
-      );
+      const resolveReady = Boolean(!resolveRequest.error && !resolve?.disabled);
+      const reopenReady = Boolean(!reopenRequest.error && !reopen?.disabled);
       setFailureLifecycleButton(
         "failure-lifecycle-resolve-confirm-button",
         Boolean(group && resolve),
-        !resolveMatches || Boolean(resolve?.disabled),
-        resolveMatches ? "Confirm the previewed resolve transition." : resolve?.disabled_reason || "Preview resolve first."
+        !resolveReady,
+        resolveReady ? "Mark this issue resolved." : resolve?.disabled_reason || resolveRequest.error || "Resolve is not available."
       );
       setFailureLifecycleButton(
         "failure-lifecycle-reopen-confirm-button",
         Boolean(group && reopen),
-        !reopenMatches || Boolean(reopen?.disabled),
-        reopenMatches ? "Confirm the previewed reopen transition." : reopen?.disabled_reason || "Preview reopen first."
+        !reopenReady,
+        reopenReady ? "Reopen this issue." : reopen?.disabled_reason || reopenRequest.error || "Reopen is not available."
       );
     }
 
@@ -258,6 +252,7 @@
         `Writes resolution journal: ${data.writes_failure_resolution_journal ? "yes" : "no"}`,
         `Touches media: ${data.touches_media ? "unexpected yes" : "no"}`,
         data.journal_path ? `Journal: ${data.journal_path}` : "",
+        data.confirmation_mode ? `Confirmation: ${data.confirmation_mode}` : "",
         `Safe next action: ${data.safe_next_action || "Refresh Reports and continue from the playbook."}`,
         "",
         result?.message || "",
@@ -280,12 +275,14 @@
       }
       if (!dryRun && failureLifecyclePreviewRequired(transition)) {
         const stateLabel = transition === "reopen" ? "reopen this issue" : "mark this issue resolved";
-        if (!window.confirm(`Confirm ${stateLabel}?\n\nThis writes only the failure resolution journal. It does not clear markers, archive reports, retry files, or touch media.`)) return;
+        if (!window.confirm(`Confirm ${stateLabel}?\n\nThis writes only the failure resolution journal. It does not clear errors, archive reports, retry files, or touch media.`)) return;
       }
-      const activeButtonId = transition === "mark_resolved"
-        ? dryRun ? "failure-lifecycle-resolve-preview-button" : "failure-lifecycle-resolve-confirm-button"
-        : transition === "reopen"
-          ? dryRun ? "failure-lifecycle-reopen-preview-button" : "failure-lifecycle-reopen-confirm-button"
+      const activeButtonId = dryRun
+        ? ""
+        : transition === "mark_resolved"
+          ? "failure-lifecycle-resolve-confirm-button"
+          : transition === "reopen"
+            ? "failure-lifecycle-reopen-confirm-button"
           : transition === "start_work"
             ? "failure-lifecycle-start-button"
             : "failure-lifecycle-ack-button";
@@ -366,7 +363,7 @@
       const visibleRows = visibleFailureRows();
       const journalKey = failureGroupJournalKey(getSelectedFailureGroup());
       if (!clearAll && normalizedScope === "selected" && hiddenSelectedFailureCount(visibleRows)) {
-        return { error: hiddenFailureSelectionMessage(dryRun ? "previewing selected markers" : "clearing selected markers") };
+        return { error: hiddenFailureSelectionMessage(dryRun ? "previewing selected errors" : "clearing selected errors") };
       }
       const markerPaths = clearAll
         ? []
@@ -380,17 +377,17 @@
         return { scope: "all_markers", marker_paths: [], dry_run: dryRun, confirm_clear: !dryRun, journal_key: journalKey, all_markers: true, marker_count: markerCount };
       }
       if (normalizedScope === "visible" && visibleRows.length > REPORTS_ROW_RENDER_LIMIT) {
-        setText("failure-clear-summary", reportRenderedRowsNote(visibleRows, "failure rows"));
+        setText("failure-clear-summary", reportRenderedRowsNote(visibleRows, "error rows"));
       }
       if (!markerPaths.length) {
         return {
           error: clearAll
-            ? "No marker rows are loaded."
+            ? "No active errors are loaded."
             : normalizedScope === "visible"
-              ? "No visible marker rows are loaded."
+              ? "No visible errors are loaded."
               : normalizedScope === "selected_group"
-                ? "Selected failure group has no active clearable marker paths."
-                : "Select one or more failure marker rows first.",
+                ? "Selected issue has no active errors to clear."
+                : "Check one or more error rows first.",
         };
       }
       return {
@@ -424,20 +421,14 @@
       if (!button) return;
       if (reportsState.failureClearBusy) {
         button.disabled = true;
-        button.title = "Marker clear command is running.";
+        button.title = "Error clear command is running.";
         return;
       }
-      const scope = byId("failure-clear-scope")?.value || "selected_group";
+      const scope = byId("failure-clear-scope")?.value || "selected_files";
       const request = failureClearRequest(scope, false);
-      const matchesPreview = Boolean(
-        !request.error &&
-        reportsState.lastFailureClearPreview &&
-        reportsState.lastFailureClearPreview.key === failureClearPreviewKey(request),
-      );
-      button.disabled = !matchesPreview;
-      button.title = matchesPreview
-        ? "Clear markers for the previewed scope."
-        : "Preview marker clear for the current scope before confirming.";
+      const ready = !request.error;
+      button.disabled = !ready;
+      button.title = ready ? "Clear errors for the selected scope." : (request.error || "Select errors before clearing.");
     }
 
     function renderFailureClearResult(result) {
@@ -449,15 +440,15 @@
         `Command accepted: ${result?.ok ? "yes" : "no"}`,
         `Dry run: ${data.dry_run ? "yes" : "no"}`,
         `Scope: ${data.scope || ""}`,
-        data.scope === "all_markers" ? "Scope note: all backend failure markers; backend enumerates marker paths." : "",
-        `Planned marker clears: ${planned.length}`,
-        `Moved markers: ${data.markers || 0}`,
-        `Writes active marker folder: ${data.writes_failure_markers ? "yes" : "no"}`,
+        data.scope === "all_markers" ? "Scope note: all active backend error records." : "",
+        `Planned error clears: ${planned.length}`,
+        `Cleared errors: ${data.markers || 0}`,
+        `Writes active error folder: ${data.writes_failure_markers ? "yes" : "no"}`,
         `Touches media: ${data.touches_media ? "unexpected yes" : "no"}`,
         data.manifest_path ? `Clear manifest: ${data.manifest_path}` : "",
-        data.archive_dir ? `Cleared marker archive: ${data.archive_dir}` : "",
-        `Safe next action: ${data.safe_next_action || "Review marker rows before confirming."}`,
-        "Guardrail: this command moves marker JSON out of State\\Failures\\Markers only; it does not delete media, logs, reports, completed manifests, pending publish state, or source/output files.",
+        data.archive_dir ? `Cleared error archive: ${data.archive_dir}` : "",
+        `Next action: ${data.safe_next_action || "Refresh Reports and retry only after reviewing evidence."}`,
+        "Scope: backend error records only; media files are not touched.",
         "",
         result?.message || "",
       ].filter((line) => line !== "");
@@ -468,17 +459,17 @@
         lines.push("", "Skipped:", ...skipped.slice(0, 8).map((item) => `- ${item.path || ""}: ${item.reason || "skipped"}`));
       }
       if (planned.length) {
-        lines.push("", "Planned markers:", ...planned.slice(0, 8).map((item) => `- ${item.path || ""}`));
+        lines.push("", "Planned errors:", ...planned.slice(0, 8).map((item) => `- ${item.path || ""}`));
         if (planned.length > 8) lines.push(`- ... ${planned.length - 8} more`);
       }
-      setText("failure-clear-status", result?.ok ? (data.dry_run ? "Preview ready" : "Cleared") : "Blocked");
+      setText("failure-clear-status", result?.ok ? (data.dry_run ? "Checked" : "Cleared") : "Blocked");
       setText("failure-clear-summary", lines.join("\n"));
     }
 
     async function requestFailureMarkerClear(scope, dryRun) {
       if (reportsState.failureClearBusy) {
         setText("failure-clear-status", "Busy");
-        setText("failure-clear-summary", "Another Reports marker cleanup command is already in progress.");
+        setText("failure-clear-summary", "Another error clear command is already in progress.");
         return;
       }
       const request = failureClearRequest(scope, dryRun);
@@ -487,26 +478,12 @@
         setText("failure-clear-summary", request.error);
         return;
       }
-      if (!dryRun && (!reportsState.lastFailureClearPreview || reportsState.lastFailureClearPreview.key !== failureClearPreviewKey(request))) {
-        setText("failure-clear-status", "Preview required");
-        setText("failure-clear-summary", "Preview marker clear for the current scope before confirming. This prevents clearing a different selection than the one reviewed.");
-        return;
-      }
-      if (!dryRun) {
-        const count = Array.isArray(request.marker_paths) ? request.marker_paths.length : 0;
-        const targetText = request.all_markers ? "all active failure markers" : `${count} failure marker${count === 1 ? "" : "s"}`;
-        const cappedNote = request.capped_visible_scope
-          ? `\n\n${reportRenderedRowsNote(visibleFailureRows(), "failure rows")}`
-          : "";
-        const message = `Clear ${targetText}?\n\nThis moves active failure marker JSON out of the blocking folder so affected files can be retried later. It does not delete media files, logs, reports, manifests, source files, or output files.${cappedNote}`;
-        if (!window.confirm(message)) return;
-      }
-      const activeButtonId = dryRun ? "failure-clear-preview-button" : "failure-clear-confirm-button";
+      const activeButtonId = dryRun ? "" : "failure-clear-confirm-button";
       setFailureClearBusy(true, activeButtonId);
-      setText("failure-clear-status", dryRun ? "Previewing..." : "Clearing...");
+      setText("failure-clear-status", dryRun ? "Checking..." : "Clearing...");
       setText("failure-clear-summary", dryRun
-        ? `Previewing backend marker clear. No marker files will move.${request.capped_visible_scope ? `\n${reportRenderedRowsNote(visibleFailureRows(), "failure rows")}` : ""}`
-        : request.all_markers ? "Clearing all backend marker files." : "Clearing backend marker files after confirmation.");
+        ? `Checking error clear. Nothing will move yet.${request.capped_visible_scope ? `\n${reportRenderedRowsNote(visibleFailureRows(), "error rows")}` : ""}`
+        : request.all_markers ? "Clearing all active errors." : "Clearing selected errors.");
       try {
         const payload = {
           scope: request.scope,
@@ -570,23 +547,14 @@
       await requestFailureMarkerClear("selected", false);
     }
 
-    function failureArchiveRequest(dryRun) {
+    function failureArchiveRequest(dryRun, dryRunFingerprint = "") {
       const includeMarkers = byId("failure-archive-include-markers")?.checked === true;
       const includeReports = byId("failure-archive-include-reports")?.checked === true;
       const reason = String(byId("failure-archive-reason")?.value || "").trim();
       if (!includeMarkers && !includeReports) {
-        return { error: "Select active markers, round failure reports, or both before previewing archive." };
-      }
-      if (!dryRun && !reason) {
-        return { error: "Enter a reason before confirming evidence archive." };
-      }
-      if (!dryRun && !reportsState.lastFailureArchivePreview?.dry_run_fingerprint) {
-        return { error: "Preview archive first so the backend can issue a dry-run fingerprint." };
+        return { error: "Select active errors, round failure reports, or both before archiving evidence." };
       }
       const requestKey = failureArchivePreviewKey({ scope: "all_active", include_markers: includeMarkers, include_reports: includeReports, journal_key: failureGroupJournalKey(getSelectedFailureGroup()) });
-      if (!dryRun && reportsState.lastFailureArchivePreview?.key && reportsState.lastFailureArchivePreview.key !== requestKey) {
-        return { error: "Preview archive again after changing evidence options." };
-      }
       return {
         scope: "all_active",
         include_markers: includeMarkers,
@@ -594,8 +562,9 @@
         dry_run: Boolean(dryRun),
         confirm_archive: !dryRun,
         reason,
-        dry_run_fingerprint: dryRun ? "" : reportsState.lastFailureArchivePreview.dry_run_fingerprint,
+        dry_run_fingerprint: dryRun ? "" : dryRunFingerprint,
         journal_key: failureGroupJournalKey(getSelectedFailureGroup()),
+        key: requestKey,
       };
     }
 
@@ -613,24 +582,14 @@
       if (!button) return;
       if (reportsState.failureArchiveBusy) {
         button.disabled = true;
-        button.title = "Evidence archive command is running.";
+        button.title = "Archive command is running.";
         return;
       }
       const includeMarkers = byId("failure-archive-include-markers")?.checked === true;
       const includeReports = byId("failure-archive-include-reports")?.checked === true;
-      const reason = String(byId("failure-archive-reason")?.value || "").trim();
-      const currentKey = failureArchivePreviewKey({ scope: "all_active", include_markers: includeMarkers, include_reports: includeReports, journal_key: failureGroupJournalKey(getSelectedFailureGroup()) });
-      const matchesPreview = Boolean(
-        includeMarkers || includeReports
-      ) && Boolean(
-        reason &&
-        reportsState.lastFailureArchivePreview?.dry_run_fingerprint &&
-        (!reportsState.lastFailureArchivePreview.key || reportsState.lastFailureArchivePreview.key === currentKey)
-      );
-      button.disabled = !matchesPreview;
-      button.title = matchesPreview
-        ? "Archive evidence for the previewed options."
-        : "Preview archive and enter a reason before confirming.";
+      const ready = Boolean(includeMarkers || includeReports);
+      button.disabled = !ready;
+      button.title = ready ? "Archive selected evidence." : "Select evidence before archiving.";
     }
 
     function renderFailureArchiveResult(result) {
@@ -643,18 +602,18 @@
         `Command accepted: ${result?.ok ? "yes" : "no"}`,
         `Dry run: ${data.dry_run ? "yes" : "no"}`,
         `Scope: ${data.scope || "all_active"}`,
-        `Include markers: ${data.include_markers ? "yes" : "no"}`,
+        `Include active errors: ${data.include_markers ? "yes" : "no"}`,
         `Include reports: ${data.include_reports ? "yes" : "no"}`,
         `Planned evidence files: ${planned.length}`,
-        `Moved markers: ${data.markers || 0}`,
+        `Moved active errors: ${data.markers || 0}`,
         `Moved reports: ${data.reports || 0}`,
         `Writes failure evidence: ${data.writes_failure_evidence ? "yes" : "no"}`,
         `Touches media: ${data.touches_media ? "unexpected yes" : "no"}`,
         data.manifest_path ? `Clear manifest: ${data.manifest_path}` : "",
         data.archive_dir ? `Evidence archive: ${data.archive_dir}` : "",
         data.dry_run_fingerprint ? `Fingerprint: ${data.dry_run_fingerprint}` : "",
-        `Safe next action: ${data.safe_next_action || "Review preview and reason before confirming archive."}`,
-        "Guardrail: archive moves active failure markers and round failure reports into a manifest-backed archive; it does not delete media, completed manifests, pending publish state, source files, or output files.",
+        `Next action: ${data.safe_next_action || "Refresh Reports before making retry decisions."}`,
+        "Scope: active errors and round failure reports only; media files are not touched.",
         "",
         result?.message || "",
       ].filter((line) => line !== "");
@@ -672,14 +631,14 @@
         lines.push("", "Moved evidence:", ...moved.slice(0, 8).map((item) => `- ${item.path || ""} -> ${item.archive_path || ""}`));
         if (moved.length > 8) lines.push(`- ... ${moved.length - 8} more`);
       }
-      setText("failure-archive-status", result?.ok ? (data.dry_run ? "Preview ready" : "Archived") : "Blocked");
+      setText("failure-archive-status", result?.ok ? (data.dry_run ? "Checked" : "Archived") : "Blocked");
       setText("failure-archive-summary", lines.join("\n"));
     }
 
     async function requestFailureEvidenceArchive(dryRun) {
       if (reportsState.failureArchiveBusy) {
         setText("failure-archive-status", "Busy");
-        setText("failure-archive-summary", "Another failure evidence archive command is already in progress.");
+        setText("failure-archive-summary", "Another evidence archive command is already in progress.");
         return;
       }
       const request = failureArchiveRequest(dryRun);
@@ -689,32 +648,30 @@
         updateFailureArchiveConfirmState();
         return;
       }
-      if (!dryRun) {
-        const target = [
-          request.include_markers ? "active markers" : "",
-          request.include_reports ? "round failure reports" : "",
-        ].filter(Boolean).join(" and ");
-        if (!window.confirm(`Archive ${target}?\n\nReason: ${request.reason}\n\nThis moves evidence into the cleared-evidence archive and writes a manifest. It does not delete media, completed manifests, pending publish state, source files, or output files.`)) return;
-      }
-      setFailureArchiveBusy(true, dryRun ? "failure-archive-preview-button" : "failure-archive-confirm-button");
-      setText("failure-archive-status", dryRun ? "Previewing..." : "Archiving...");
-      setText("failure-archive-summary", dryRun ? "Previewing evidence archive. No evidence files will move." : "Archiving failure evidence after confirmation.");
+      setFailureArchiveBusy(true, dryRun ? "" : "failure-archive-confirm-button");
+      setText("failure-archive-status", dryRun ? "Checking..." : "Archiving...");
+      setText("failure-archive-summary", dryRun ? "Checking evidence archive. Nothing will move yet." : "Checking selected evidence, then archiving.");
       try {
+        if (dryRun) {
+          const result = await apiPost("/api/failures/archive-evidence", request);
+          if (typeof appendCommandResult === "function") appendCommandResult(result);
+          renderFailureArchiveResult(result);
+          if (result?.ok) {
+            reportsState.lastFailureArchivePreview = {
+              ...(result.data || {}),
+              key: failureArchivePreviewKey(request),
+            };
+            updateFailureArchiveConfirmState();
+          }
+          return;
+        }
+
         const result = await apiPost("/api/failures/archive-evidence", request);
         if (typeof appendCommandResult === "function") appendCommandResult(result);
         renderFailureArchiveResult(result);
-        if (dryRun && result?.ok) {
-          reportsState.lastFailureArchivePreview = {
-            ...(result.data || {}),
-            key: failureArchivePreviewKey(request),
-          };
-          updateFailureArchiveConfirmState();
-        }
-        if (!dryRun && result?.ok) {
-          reportsState.lastFailureArchivePreview = null;
-          updateFailureArchiveConfirmState();
-          if (typeof refreshAll === "function") await refreshAll();
-        }
+        reportsState.lastFailureArchivePreview = null;
+        updateFailureArchiveConfirmState();
+        if (result?.ok && typeof refreshAll === "function") await refreshAll();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         const result = {
@@ -732,17 +689,268 @@
       }
     }
 
+    function selectedFailureArtifactPaths() {
+      const selected = reportsState.selectedFailureArtifactPaths;
+      if (!(selected instanceof Set)) return [];
+      return Array.from(selected).map((path) => String(path || "").trim()).filter(Boolean);
+    }
+
+    function artifactCleanupPolicyKey(paths = selectedFailureArtifactPaths()) {
+      return JSON.stringify({
+        mode: "selected_failure_artifacts",
+        artifact_paths: paths.slice().sort(),
+      });
+    }
+
+    function failureArtifactCleanupRequest(dryRun, dryRunFingerprint = "") {
+      const summary = reportsState.lastFailureArtifactSummary || {};
+      if (!summary.schema_version) return { error: "Load failure artifact storage before deleting artifacts." };
+      if (summary.cleanup_route_available === false) return { error: "Failure artifact delete route is not available." };
+      const artifactPaths = selectedFailureArtifactPaths();
+      if (!artifactPaths.length) return { error: "Select one or more artifact files first." };
+      const key = artifactCleanupPolicyKey(artifactPaths);
+      return {
+        dry_run: Boolean(dryRun),
+        confirm_delete: !dryRun,
+        reason: dryRun ? "" : FAILURE_ARTIFACT_CLEANUP_REASON,
+        dry_run_fingerprint: dryRun ? "" : dryRunFingerprint,
+        artifact_paths: artifactPaths,
+        key,
+      };
+    }
+
+    function updateFailureArtifactCleanupConfirmState() {
+      const button = byId("failure-artifact-cleanup-confirm-button");
+      if (!button) return;
+      if (reportsState.failureArtifactCleanupBusy) {
+        button.disabled = true;
+        button.title = "Artifact delete command is running.";
+        return;
+      }
+      const request = failureArtifactCleanupRequest(false);
+      const ready = !request.error;
+      button.disabled = !ready;
+      button.title = ready ? `Delete ${request.artifact_paths.length} selected artifact file(s).` : (request.error || "Select artifacts before deleting.");
+    }
+
+    function artifactCleanupSizeText(bytesValue, gbValue) {
+      const bytes = Number(bytesValue || 0);
+      if (Number.isFinite(bytes) && bytes > 0) {
+        const gib = 1024 * 1024 * 1024;
+        const mib = 1024 * 1024;
+        if (bytes >= gib) return `${(bytes / gib).toFixed(3)} GB`;
+        if (bytes >= mib) return `${(bytes / mib).toFixed(1)} MB`;
+        if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${bytes} B`;
+      }
+      const gb = Number(gbValue || 0);
+      return gb > 0 ? `${gb.toFixed(gb % 1 ? 3 : 0)} GB` : "0 B";
+    }
+
+    function appendFailureArtifactCleanupList(lines, heading, items, formatter) {
+      if (!items.length) return;
+      lines.push("", heading, ...items.slice(0, 8).map(formatter));
+      if (items.length > 8) lines.push(`- ... ${items.length - 8} more`);
+    }
+
+    function appendFailureArtifactCleanupDetails(lines, details) {
+      const { errors, skipped, planned, deleted } = details;
+      if (errors.length) {
+        lines.push("", "Errors:", ...errors.map((item) => `- ${item}`));
+      }
+      appendFailureArtifactCleanupList(
+        lines,
+        "Skipped:",
+        skipped,
+        (item) => `- ${item.path || item.reason || "skipped"}${item.detail ? `: ${item.detail}` : ""}`
+      );
+      appendFailureArtifactCleanupList(
+        lines,
+        "Planned artifacts:",
+        planned,
+        (item) => `- ${item.relative_path || item.path || ""} (${artifactCleanupSizeText(item.size_bytes, item.size_gb)})`
+      );
+      appendFailureArtifactCleanupList(
+        lines,
+        "Deleted artifacts:",
+        deleted,
+        (item) => `- ${item.relative_path || item.path || ""}`
+      );
+    }
+
+    function renderFailureArtifactCleanupResult(result) {
+      const data = result?.data && typeof result.data === "object" ? result.data : {};
+      const policy = data.policy && typeof data.policy === "object" ? data.policy : {};
+      const planned = Array.isArray(data.planned) ? data.planned : [];
+      const deleted = Array.isArray(data.deleted) ? data.deleted : [];
+      const skipped = Array.isArray(data.skipped) ? data.skipped : [];
+      const errors = Array.isArray(result?.errors) ? result.errors : Array.isArray(data.errors) ? data.errors : [];
+      const requested = Array.isArray(data.requested_artifact_paths) ? data.requested_artifact_paths : [];
+      const lines = [
+        data.dry_run ? "Checked selected artifacts" : result?.ok ? "Delete complete" : "Delete blocked",
+        requested.length ? `Selected: ${requested.length} file(s)` : "",
+        `Planned: ${data.planned_count || planned.length} file(s), ${artifactCleanupSizeText(data.planned_bytes, data.planned_gb)}`,
+        `Deleted: ${data.deleted_count || deleted.length} file(s), ${artifactCleanupSizeText(data.deleted_bytes, data.deleted_gb)}`,
+        Number(policy.retention_days || 0) > 0 ? `Retention: ${policy.retention_days} day(s)` : "",
+        policy.selection_enabled ? "Selection: checked artifact files" : "",
+        policy.target_enabled && Number(policy.cleanup_target_gb || 0) === 0 ? "Storage target: current artifact backlog" : "",
+        Number(policy.cleanup_target_gb || 0) > 0 ? `Storage target: ${policy.cleanup_target_gb} GB` : "",
+        result?.message || "",
+      ].filter((line) => line !== "");
+      appendFailureArtifactCleanupDetails(lines, { errors, skipped, planned, deleted });
+      setText("failure-artifact-cleanup-status", result?.ok ? (data.dry_run ? "Checked" : "Deleted") : "Blocked");
+      setText("failure-artifact-cleanup-summary", lines.join("\n"));
+    }
+
+    function failureArtifactCleanupPayload(request) {
+      return {
+        dry_run: Boolean(request.dry_run),
+        confirm_delete: Boolean(request.confirm_delete),
+        reason: request.reason || "",
+        dry_run_fingerprint: request.dry_run_fingerprint || "",
+        artifact_paths: Array.isArray(request.artifact_paths) ? request.artifact_paths : [],
+      };
+    }
+
+    async function requestFailureArtifactCleanup(dryRun) {
+      if (reportsState.failureArtifactCleanupBusy) {
+        setText("failure-artifact-cleanup-status", "Busy");
+        setText("failure-artifact-cleanup-summary", "Another artifact delete command is already in progress.");
+        return;
+      }
+      const request = failureArtifactCleanupRequest(dryRun);
+      if (request.error) {
+        setText("failure-artifact-cleanup-status", "Blocked");
+        setText("failure-artifact-cleanup-summary", request.error);
+        updateFailureArtifactCleanupConfirmState();
+        return;
+      }
+      setFailureArtifactCleanupBusy(true, dryRun ? "" : "failure-artifact-cleanup-confirm-button");
+      setText("failure-artifact-cleanup-status", dryRun ? "Checking..." : "Deleting...");
+      setText("failure-artifact-cleanup-summary", dryRun ? "Checking selected artifacts. Nothing will be deleted yet." : "Checking selected artifacts, then deleting.");
+      try {
+        const confirmedArtifactCleanupPayload = (confirmedRequest) => ({
+          ...failureArtifactCleanupPayload(confirmedRequest),
+          confirm_delete: true,
+        });
+        const previewRequest = dryRun ? request : failureArtifactCleanupRequest(true);
+        let result = await apiPost("/api/failures/artifacts/cleanup", failureArtifactCleanupPayload(previewRequest));
+        if (dryRun) {
+          if (typeof appendCommandResult === "function") appendCommandResult(result);
+          renderFailureArtifactCleanupResult(result);
+        }
+        if (dryRun && result?.ok) {
+          reportsState.lastFailureArtifactCleanupPreview = {
+            ...(result.data || {}),
+            key: previewRequest.key,
+          };
+          updateFailureArtifactCleanupConfirmState();
+        }
+        if (!dryRun) {
+          if (!result?.ok) {
+            if (typeof appendCommandResult === "function") appendCommandResult(result);
+            renderFailureArtifactCleanupResult(result);
+            return;
+          }
+          const plannedCount = Number(result?.data?.planned_count || 0) || (Array.isArray(result?.data?.planned) ? result.data.planned.length : 0);
+          if (plannedCount < 1) {
+            if (typeof appendCommandResult === "function") appendCommandResult(result);
+            renderFailureArtifactCleanupResult(result);
+            setText("failure-artifact-cleanup-status", "Blocked");
+            return;
+          }
+          reportsState.lastFailureArtifactCleanupPreview = {
+            ...(result.data || {}),
+            key: previewRequest.key,
+          };
+          const confirmRequest = failureArtifactCleanupRequest(false, String(result?.data?.dry_run_fingerprint || ""));
+          result = await apiPost("/api/failures/artifacts/cleanup", confirmedArtifactCleanupPayload(confirmRequest));
+          if (typeof appendCommandResult === "function") appendCommandResult(result);
+          renderFailureArtifactCleanupResult(result);
+          reportsState.lastFailureArtifactCleanupPreview = null;
+          if (result?.ok && reportsState.selectedFailureArtifactPaths instanceof Set) {
+            confirmRequest.artifact_paths.forEach((path) => reportsState.selectedFailureArtifactPaths.delete(path));
+          }
+          updateFailureArtifactCleanupConfirmState();
+          if (result?.ok && typeof refreshAll === "function") await refreshAll();
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const result = {
+          command: "failures.artifacts_cleanup",
+          ok: false,
+          severity: "error",
+          message,
+          errors: [message],
+        };
+        if (typeof appendCommandResult === "function") appendCommandResult(result);
+        renderFailureArtifactCleanupResult(result);
+        updateFailureArtifactCleanupConfirmState();
+      } finally {
+        setFailureArtifactCleanupBusy(false);
+      }
+    }
+
+    async function requestFailureEvidenceOpen(row, target, button = null) {
+      const rowKey = failureRowKey(row);
+      const cleanTarget = String(target || "").trim();
+      if (!rowKey || !cleanTarget) {
+        const message = "Select a failure evidence row before opening evidence.";
+        const result = {
+          command: "failures.open",
+          ok: false,
+          severity: "warning",
+          message,
+          warnings: [message],
+        };
+        if (typeof appendCommandResult === "function") appendCommandResult(result);
+        return result;
+      }
+      const sourceKind = failureMarkerModeActive() ? "markers" : "latest_json";
+      const payload = { row_key: rowKey, target: cleanTarget, source_kind: sourceKind };
+      const originalDisabled = button ? button.disabled : false;
+      if (button) {
+        button.disabled = true;
+        button.setAttribute("aria-busy", "true");
+      }
+      try {
+        const result = await apiPost("/api/failures/open", payload);
+        if (typeof appendCommandResult === "function") appendCommandResult(result);
+        return result;
+      } catch (error) {
+        const message = error?.message || String(error || "Failed to open failure evidence.");
+        const result = {
+          command: "failures.open",
+          ok: false,
+          severity: "error",
+          message,
+          errors: [message],
+        };
+        if (typeof appendCommandResult === "function") appendCommandResult(result);
+        return result;
+      } finally {
+        if (button) {
+          button.disabled = originalDisabled;
+          button.removeAttribute("aria-busy");
+        }
+      }
+    }
+
     return {
       configureFailurePrimaryAction,
       failureTransition,
+      renderFailureArtifactCleanupResult,
       renderFailureArchiveResult,
       renderFailureClearResult,
+      requestFailureArtifactCleanup,
+      requestFailureEvidenceOpen,
       requestFailureEvidenceArchive,
       requestFailureLifecycleTransition,
       requestFailureMarkerClear,
       requestFailureRowClear,
       runFailurePrimaryAction,
       setFailureLifecycleButton,
+      updateFailureArtifactCleanupConfirmState,
       updateFailureArchiveConfirmState,
       updateFailureClearConfirmState,
       updateFailureLifecycleConfirmState,

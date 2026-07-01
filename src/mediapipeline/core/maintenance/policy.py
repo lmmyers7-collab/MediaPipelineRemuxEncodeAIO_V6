@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 
 def maintenance_row_key(name: str) -> str:

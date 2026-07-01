@@ -102,6 +102,80 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
         self.assertEqual(marker_preview["retry_state"]["status_state"], "retrying")
         self.assertTrue(marker_preview["retry_state"]["rows"][0]["retry_allowed"])
 
+    def test_failure_evidence_open_uses_backend_row_paths_only(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            state_root = root / "State"
+            artifact_root = state_root / "Failures" / "Artifacts"
+            artifact_root.mkdir(parents=True)
+            artifact_path = artifact_root / "failure-artifact.json"
+            artifact_path.write_text("{}", encoding="utf-8")
+            repro_path = artifact_root / "repro.txt"
+            repro_path.write_text("repro", encoding="utf-8")
+            outside_path = root / "outside-artifact.json"
+            outside_path.write_text("{}", encoding="utf-8")
+            failure_json = root / "failures.json"
+            failure_json.write_text(
+                json.dumps(
+                    [
+                        {
+                            "SourcePath": str(root / "Movies" / "Movie.mkv"),
+                            "Stage": "encode",
+                            "Reason": "Encode failed.",
+                            "Classification": "operator_required",
+                            "ErrorCode": "ENCODE_FAILED",
+                            "ArtifactPath": str(artifact_path),
+                            "ReproPath": str(repro_path),
+                        }
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.state_root = state_root
+            resolved.local_base = root
+            resolved.failed_reports_path = root
+            resolved.failed_markers_path = state_root / "Failures" / "Markers"
+            row_key = facade.get_failure_preview(resolved).rows[0]["row_key"]
+
+            artifact_result = facade.open_failure_evidence(
+                resolved,
+                {"row_key": row_key, "target": "artifact", "source_kind": "latest_json"},
+            )
+            record_result = facade.open_failure_evidence(
+                resolved,
+                {"row_key": row_key, "target": "record_file", "source_kind": "latest_json"},
+            )
+
+            failure_json.write_text(
+                json.dumps(
+                    [
+                        {
+                            "SourcePath": str(root / "Movies" / "Movie.mkv"),
+                            "Stage": "encode",
+                            "Reason": "Encode failed.",
+                            "Classification": "operator_required",
+                            "ErrorCode": "ENCODE_FAILED",
+                            "ArtifactPath": str(outside_path),
+                        }
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            blocked_result = facade.open_failure_evidence(
+                resolved,
+                {"row_key": row_key, "target": "artifact", "source_kind": "latest_json"},
+            )
+
+        self.assertTrue(artifact_result.ok)
+        self.assertEqual(artifact_result.data["opened_path"], str(artifact_path))
+        self.assertTrue(record_result.ok)
+        self.assertEqual(record_result.data["opened_path"], str(failure_json))
+        self.assertFalse(blocked_result.ok)
+        self.assertEqual(service.opened_paths, [artifact_path, failure_json])
+
     def test_latest_failure_preview_maps_single_active_marker_for_clear_error(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -397,7 +471,7 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
         self.assertFalse(result["data"]["writes_failure_markers"])
         self.assertFalse(result["data"]["touches_media"])
 
-    def test_archive_failure_evidence_requires_preview_reason_and_matching_fingerprint(self) -> None:
+    def test_archive_failure_evidence_allows_current_plan_without_reason_or_fingerprint(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             service = DummyFacadeService(root)
@@ -455,7 +529,7 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
                 resolved,
                 {"scope": "all_active", "include_markers": True, "include_reports": True, "dry_run": False},
             ).to_mapping()
-            no_reason = facade.archive_failure_evidence(
+            current_plan = facade.archive_failure_evidence(
                 resolved,
                 {
                     "scope": "all_active",
@@ -463,7 +537,6 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
                     "include_reports": True,
                     "dry_run": False,
                     "confirm_archive": True,
-                    "dry_run_fingerprint": "abc123",
                 },
             ).to_mapping()
             preview = facade.archive_failure_evidence(
@@ -493,9 +566,10 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
         self.assertIn("dry_run", invalid_bool["message"])
         self.assertFalse(no_confirm["ok"])
         self.assertIn("confirm_archive", no_confirm["message"])
-        self.assertFalse(no_reason["ok"])
-        self.assertIn("non-empty reason", no_reason["message"])
-        self.assertEqual(len(calls), 2)
+        self.assertTrue(current_plan["ok"])
+        self.assertEqual(calls[0]["dry_run_fingerprint"], "")
+        self.assertEqual(calls[0]["reason"], "Routine failure evidence archive.")
+        self.assertEqual(len(calls), 3)
         self.assertTrue(preview["ok"])
         self.assertTrue(preview["data"]["dry_run"])
         self.assertFalse(preview["data"]["writes_failure_evidence"])
@@ -616,7 +690,6 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
                     "transition": "mark_resolved",
                     "dry_run": False,
                     "confirm_transition": True,
-                    "dry_run_fingerprint": resolve_preview["data"]["dry_run_fingerprint"],
                     "reason": "operator reviewed issue and markers are clear",
                 },
             ).to_mapping()
@@ -644,6 +717,7 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
         self.assertIn("fingerprint mismatch", wrong_fingerprint["message"])
         self.assertTrue(resolved_result["ok"])
         self.assertEqual(resolved_result["data"]["lifecycle_state"], "resolved")
+        self.assertEqual(resolved_result["data"]["confirmation_mode"], "current_plan")
         self.assertTrue(journal_exists)
         self.assertEqual(journal_line_count, 2)
 
@@ -859,6 +933,8 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
             service.save_rerun_records_csv = _save  # type: ignore[attr-defined]
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             resolved = _resolved(root)
+            resolved.local_base = root
+            resolved.state_root = root / "State"
             resolved.audit_reports_path = root / "AuditReports"
             resolved.audit_ignore_manifest_path = root / "State" / "audit_ignore_manifest.json"
             preview = facade.get_audit_preview(resolved).to_mapping()
@@ -871,5 +947,6 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual(result["data"]["schema_version"], "desktop_audit_rerun_export.v1")
         self.assertEqual(result["data"]["row_count"], 1)
+        self.assertEqual(saved["output_path"].parent, root / "State" / "Rerun" / "ImportCsv")
         self.assertEqual(saved["kwargs"], {"stage_mode": "copy", "original_mode": "keep", "return_mode": "park"})
         self.assertEqual(saved["records"][0].lookup_title, "Skip")

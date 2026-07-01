@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import shutil
+import subprocess
+import textwrap
 import unittest
 from pathlib import Path
 
@@ -118,6 +121,7 @@ REPORTS_TRIAGE = (
     / "triage.js"
 )
 APP_JS = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "app.js"
+OPERATOR_TOAST = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "operatorToast.js"
 INDEX_HTML = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "index.html"
 REPORTS_PAGE = (
     REPO_ROOT
@@ -229,6 +233,202 @@ class ReportsViewStaticTests(unittest.TestCase):
         )
         self.assertIn('failureSourceMarkers.addEventListener("change", refreshAll)', app_source)
 
+    def test_failure_artifact_storage_panel_and_toast_are_read_only(self) -> None:
+        html = REPORTS_PAGE.read_text(encoding="utf-8")
+        app_source = APP_JS.read_text(encoding="utf-8")
+        reports_source = REPORTS_VIEW.read_text(encoding="utf-8")
+        reports_state_source = REPORTS_STATE.read_text(encoding="utf-8")
+        failure_commands_source = REPORTS_FAILURE_COMMANDS.read_text(encoding="utf-8")
+        failure_view_source = REPORTS_FAILURE_VIEW.read_text(encoding="utf-8")
+        index_source = INDEX_HTML.read_text(encoding="utf-8")
+        toast_source = OPERATOR_TOAST.read_text(encoding="utf-8")
+        styles = _read_component_styles()
+
+        for snippet in (
+            'id="failure-artifact-summary-panel"',
+            'id="failure-artifact-storage-status"',
+            'id="failure-artifact-total-size"',
+            'id="failure-artifact-file-count"',
+            'id="failure-artifact-oldest"',
+            'id="failure-artifact-threshold"',
+            'id="failure-artifact-storage-summary"',
+            'id="failure-artifact-cleanup-disclosure"',
+            'id="failure-artifact-cleanup-status"',
+            'id="failure-artifact-cleanup-confirm-button"',
+            'id="failure-artifact-cleanup-summary"',
+            'id="failure-artifact-select-all"',
+            'id="failure-artifact-largest-files"',
+            '<th scope="col"><input id="failure-artifact-select-all"',
+            "<th scope=\"col\">Size</th>",
+            "<th scope=\"col\">Modified</th>",
+        ):
+            self.assertIn(snippet, html)
+        self.assertIn('["failure artifacts", refreshGet("/api/failures/artifacts", refreshOptions), false]', app_source)
+        self.assertIn('window.mediaPipelineReportsView?.renderFailureArtifactSummary?.(values["failure artifacts"])', app_source)
+        self.assertIn('window.mediaPipelineOperatorToast?.showFailureArtifactWarning?.(values["failure artifacts"])', app_source)
+        self.assertIn('failureArtifacts: values["failure artifacts"] || {}', app_source)
+        self.assertIn("lastFailureArtifactSummary: {}", reports_state_source)
+        self.assertIn("selectedFailureArtifactPaths: new Set()", reports_state_source)
+        self.assertIn("lastFailureArtifactCleanupPreview: null", reports_state_source)
+        self.assertIn("failureArtifactCleanupBusy: false", reports_state_source)
+        self.assertIn("function renderFailureArtifactSummary", failure_view_source)
+        self.assertIn("function selectVisibleFailureArtifacts", failure_view_source)
+        self.assertIn("checkbox.dataset.failureArtifactPath", failure_view_source)
+        self.assertIn("reportCompactPath(file.relative_path || file.path || file.name || \"\")", failure_view_source)
+        self.assertIn("Delete policy: ${loaded ? artifactCleanupPolicyText(payload) : \"disabled\"}", failure_view_source)
+        self.assertIn("Delete route: ${payload.cleanup_route_available ? \"available\" : \"unavailable\"}", failure_view_source)
+        self.assertIn('apiPost("/api/failures/artifacts/cleanup", failureArtifactCleanupPayload(previewRequest))', failure_commands_source)
+        self.assertIn("function failureArtifactCleanupRequest", failure_commands_source)
+        self.assertIn("function updateFailureArtifactCleanupConfirmState", failure_commands_source)
+        self.assertIn("FAILURE_ARTIFACT_CLEANUP_REASON", failure_commands_source)
+        self.assertIn('mode: "selected_failure_artifacts"', failure_commands_source)
+        self.assertIn("artifact_paths: artifactPaths", failure_commands_source)
+        self.assertIn("artifact_paths: Array.isArray(request.artifact_paths) ? request.artifact_paths : []", failure_commands_source)
+        self.assertIn("dry_run_fingerprint", failure_commands_source)
+        self.assertNotIn("DELETE FAILURE ARTIFACTS", html)
+        self.assertNotIn("failure-artifact-cleanup-preview-button", html)
+        self.assertNotIn("failure-artifact-cleanup-reason", html)
+        self.assertNotIn("failure-artifact-cleanup-confirm-text", html)
+        self.assertNotIn("Delete ${plannedCount} failure artifact", failure_commands_source)
+        self.assertIn("requestFailureArtifactCleanup,", reports_source)
+        self.assertIn("renderFailureArtifactCleanupResult,", reports_source)
+        self.assertIn("renderFailureArtifactSummary,", reports_source)
+        self.assertIn("/assets/operatorToast.js", index_source)
+        self.assertIn("window.mediaPipelineOperatorToast = {", toast_source)
+        self.assertIn("showFailureArtifactWarning", toast_source)
+        self.assertIn("mediapipeline.failureArtifactWarningToastShown", toast_source)
+        self.assertIn("sessionStorage?.getItem", toast_source)
+        self.assertIn('closeLabel = "Dismiss"', toast_source)
+        self.assertIn('"Dismiss notice"', toast_source)
+        self.assertIn('window.showPage("reports")', toast_source)
+        self.assertIn('activateQuickLink?.("failure-all")', toast_source)
+        self.assertIn('document.getElementById("failure-artifact-summary-panel")', toast_source)
+        self.assertNotIn("apiPost(", toast_source)
+        self.assertNotIn("fetch(", toast_source)
+        self.assertIn(".operator-toast", styles)
+
+    def test_failure_artifact_warning_toast_is_once_per_session_and_navigates(self) -> None:
+        node = shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("Node.js is required for the operator toast behavior smoke.")
+        script = textwrap.dedent(
+            r"""
+            const fs = require("fs");
+            const vm = require("vm");
+            const source = fs.readFileSync("apps/desktop/webview/static/assets/operatorToast.js", "utf8");
+            function makeElement(tag) {
+              const node = {
+                tagName: String(tag || "").toUpperCase(),
+                children: [],
+                dataset: {},
+                className: "",
+                attributes: {},
+                parentElement: null,
+                _textContent: "",
+                appendChild(child) { child.parentElement = this; this.children.push(child); return child; },
+                append(...items) { items.forEach((item) => this.appendChild(item)); },
+                removeChild(child) {
+                  this.children = this.children.filter((item) => item !== child);
+                  child.parentElement = null;
+                  return child;
+                },
+                setAttribute(name, value) { this.attributes[name] = String(value); },
+                hasAttribute(name) { return Object.prototype.hasOwnProperty.call(this.attributes, name); },
+                focus() {},
+                scrollIntoView() {},
+                addEventListener(name, handler) { this[`on${name}`] = handler; },
+                click() { if (typeof this.onclick === "function") this.onclick({ target: this }); },
+                querySelectorAll(selector) {
+                  const results = [];
+                  const walk = (item) => {
+                    if (selector === "[data-toast-id]" && item.dataset.toastId) results.push(item);
+                    item.children.forEach(walk);
+                  };
+                  this.children.forEach(walk);
+                  return results;
+                },
+              };
+              Object.defineProperty(node, "id", {
+                get() { return this.attributes.id || ""; },
+                set(value) { this.attributes.id = String(value); },
+              });
+              Object.defineProperty(node, "textContent", {
+                get() { return this._textContent || this.children.map((child) => child.textContent || "").join(""); },
+                set(value) { this._textContent = String(value ?? ""); this.children = []; },
+              });
+              return node;
+            }
+            const body = makeElement("body");
+            const panel = makeElement("section");
+            panel.id = "failure-artifact-summary-panel";
+            body.appendChild(panel);
+            function findById(node, id) {
+              if (node.id === id) return node;
+              for (const child of node.children) {
+                const found = findById(child, id);
+                if (found) return found;
+              }
+              return null;
+            }
+            function findByClass(node, needle) {
+              if (String(node.className || "").split(/\s+/).includes(needle)) return node;
+              for (const child of node.children) {
+                const found = findByClass(child, needle);
+                if (found) return found;
+              }
+              return null;
+            }
+            const storage = new Map();
+            const calls = [];
+            const context = {
+              window: {},
+              document: {
+                body,
+                createElement: makeElement,
+                getElementById(id) { return findById(body, id); },
+              },
+              setTimeout() { return 0; },
+              sessionStorage: {
+                getItem(key) { return storage.get(key) || ""; },
+                setItem(key, value) { storage.set(key, String(value)); },
+                clear() { storage.clear(); },
+              },
+            };
+            context.window = context;
+            context.window.showPage = (page) => calls.push(["showPage", page]);
+            context.window.mediaPipelineReportsView = {
+              activateQuickLink(action) { calls.push(["activateQuickLink", action]); },
+            };
+            vm.createContext(context);
+            vm.runInContext(source, context, { filename: "operatorToast.js" });
+            const toast = context.window.mediaPipelineOperatorToast;
+            if (!toast?.showFailureArtifactWarning) throw new Error("toast namespace missing");
+            const warning = { warning: true, threshold_gb: 100, total_size_text: "101 GB" };
+            if (toast.showFailureArtifactWarning(warning) !== true) throw new Error("first warning did not show");
+            if (toast.showFailureArtifactWarning(warning) !== false) throw new Error("second warning was not suppressed");
+            const region = context.document.getElementById("operator-toast-region");
+            if (!region || region.children.length !== 1) throw new Error(`unexpected toast count ${region?.children.length}`);
+            const action = findByClass(region, "operator-toast-action");
+            if (!action) throw new Error("toast action missing");
+            action.click();
+            if (JSON.stringify(calls) !== JSON.stringify([["showPage", "reports"], ["activateQuickLink", "failure-all"]])) {
+              throw new Error(`unexpected navigation calls ${JSON.stringify(calls)}`);
+            }
+            storage.clear();
+            if (toast.showFailureArtifactWarning({ warning: true, threshold_gb: 0, total_size_text: "200 GB" }) !== false) {
+              throw new Error("disabled threshold still showed a toast");
+            }
+            """
+        )
+        result = subprocess.run(
+            [node, "-e", script],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
     def test_marker_clear_is_guided_preview_first_flow(self) -> None:
         source = REPORTS_VIEW.read_text(encoding="utf-8")
         failure_commands_source = REPORTS_FAILURE_COMMANDS.read_text(encoding="utf-8")
@@ -256,32 +456,36 @@ class ReportsViewStaticTests(unittest.TestCase):
             records_panel_html.index("failure-records-table-wrap"),
             records_panel_html.index("failure-records-actions"),
         )
-        self.assertIn("failure-lifecycle-resolve-preview-button", html)
+        self.assertNotIn("failure-lifecycle-resolve-preview-button", html)
+        self.assertNotIn("failure-lifecycle-reopen-preview-button", html)
         self.assertIn("failure-lifecycle-resolve-confirm-button", html)
         self.assertIn("failure-clear-scope", html)
-        self.assertIn("Preview marker clear", html)
-        self.assertIn("Clear markers", html)
+        self.assertNotIn("failure-clear-preview-button", html)
+        self.assertNotIn("Preview clear", html)
+        self.assertIn("Clear errors", html)
         self.assertIn('id="failure-clear-confirm-button" class="danger-button" disabled', html)
         self.assertIn('id="failure-archive-confirm-button" class="danger-button" disabled', html)
         self.assertIn("More evidence", html)
-        self.assertNotIn("Clear error", html)
+        self.assertIn("failure-evidence-links", html)
         self.assertIn('return { scope: "all_markers", marker_paths: []', failure_commands_source)
         self.assertIn("all_markers: true", failure_commands_source)
         self.assertIn("if (!request.all_markers) payload.marker_paths = request.marker_paths;", failure_commands_source)
-        self.assertIn("Preview marker clear for the current scope before confirming.", failure_commands_source)
+        self.assertIn("Clear errors for the selected scope.", failure_commands_source)
         self.assertIn("failureClearPreviewKey(request)", failure_commands_source)
         self.assertIn("journal_key: journalKey", failure_commands_source)
-        self.assertIn("Clearing all backend marker files.", failure_commands_source)
+        self.assertIn("Clearing all active errors.", failure_commands_source)
         self.assertIn("function setFailureMarkerSourceMode(enabled)", source)
         self.assertIn("setFailureMarkerSourceMode(true);", failure_commands_source)
         self.assertIn("function applyLocalFailureMarkerClear(request, result)", failure_commands_source)
+        self.assertIn('apiPost("/api/failures/open", payload)', failure_commands_source)
+        self.assertIn("requestFailureEvidenceOpen", failure_commands_source)
         self.assertIn("renderFailurePreview(nextPreview);", failure_commands_source)
         self.assertIn('apiPost("/api/failures/archive-evidence", request)', failure_commands_source)
-        self.assertIn("dry_run_fingerprint", failure_commands_source)
+        self.assertIn("Reason (optional)", html)
         self.assertIn("function updateFailureArchiveConfirmState()", failure_commands_source)
         self.assertIn("Archive evidence", html)
 
-    def test_failure_lifecycle_operator_flow_is_preview_first_for_closure(self) -> None:
+    def test_failure_lifecycle_operator_flow_is_direct_for_closure(self) -> None:
         failure_commands_source = REPORTS_FAILURE_COMMANDS.read_text(encoding="utf-8")
         failure_view_source = REPORTS_FAILURE_VIEW.read_text(encoding="utf-8")
         html = REPORTS_PAGE.read_text(encoding="utf-8")
@@ -290,9 +494,9 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn("function requestFailureLifecycleTransition", failure_commands_source)
         self.assertIn("function updateFailureLifecycleConfirmState", failure_commands_source)
         self.assertIn("failureLifecyclePreviewKey(request)", failure_commands_source)
-        self.assertIn("Preview resolve", html)
+        self.assertNotIn("Preview resolve", html)
         self.assertIn("Mark resolved", html)
-        self.assertIn("Preview reopen", html)
+        self.assertNotIn("Preview reopen", html)
         self.assertNotIn("failure-lifecycle-reason", html)
         self.assertNotIn("failure-lifecycle-note", html)
         self.assertNotIn("Required for resolve, reopen, or waive", html)
@@ -300,6 +504,7 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn("failureLifecycleBackendReason", failure_commands_source)
         self.assertIn("confirm_transition", failure_commands_source)
         self.assertIn("dry_run_fingerprint", failure_commands_source)
+        self.assertIn("confirmation_mode", failure_commands_source)
         self.assertIn("This writes only the failure resolution journal.", failure_commands_source)
         self.assertIn("handleReportsFailureKeyboard", failure_view_source)
         self.assertIn("moveFailureGroupSelection", failure_view_source)
@@ -317,8 +522,9 @@ class ReportsViewStaticTests(unittest.TestCase):
 
         self.assertNotIn("Reports remains read-only", source)
         self.assertIn("Reports triage is read-only", failure_model_source + REPORTS_TRIAGE.read_text(encoding="utf-8"))
-        self.assertIn("Marker Cleanup, which only moves marker JSON through the backend command.", failure_model_source)
-        self.assertIn("Clear ${targetText}?", failure_commands_source)
+        self.assertIn("Clear errors, then rerun after confirming logs.", failure_model_source)
+        self.assertNotIn("Clear ${targetText}?", failure_commands_source)
+        self.assertNotIn("Archive ${target}?", failure_commands_source)
 
     def test_row_keys_use_locale_invariant_lowercase(self) -> None:
         source = REPORTS_VIEW.read_text(encoding="utf-8")
@@ -399,6 +605,8 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn("function setReportAuditCommandBusy", audit_commands_source)
         self.assertIn("function reportAuditBusyResult", audit_commands_source)
         self.assertIn("function renderReportAuditRunningState", audit_commands_source)
+        self.assertIn("function reportAuditHasBackendActiveRunEvidence", audit_commands_source)
+        self.assertIn("function reportAuditStaleProgressEvidence", audit_commands_source)
         self.assertIn("function renderReportAuditSources", audit_commands_source)
         self.assertIn("function addReportAuditSourceFromForm", audit_commands_source)
         self.assertIn('renderReportAuditSources(auditSources, result?.message || "");', audit_commands_source)
@@ -418,6 +626,8 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn("Audit Running", audit_commands_source)
         self.assertIn("Stop Audit", audit_commands_source)
         self.assertIn("No active audit run is visible to stop.", audit_commands_source)
+        self.assertIn("Audit progress is stale and no active audit process is visible", audit_commands_source)
+        self.assertIn("Stop Audit is unavailable until backend active-run evidence appears.", audit_commands_source)
         self.assertIn("ETA unavailable until backend progress reports file count", audit_commands_source)
         self.assertIn("Readiness preview: informational only; this is not a backend dry-run.", audit_commands_source)
         self.assertIn('apiPost("/api/audit/score-policy", request)', audit_commands_source)

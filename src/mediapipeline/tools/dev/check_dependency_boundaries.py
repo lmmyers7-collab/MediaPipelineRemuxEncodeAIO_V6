@@ -46,6 +46,9 @@ HARD_RULE_IDS = {
     "NO_DIRECT_APP_SHARED_IMPORTS",
     "PYTHON_PARSE_ERRORS",
 }
+PERMANENTLY_ENFORCED_RULE_IDS = {
+    "NO_CORE_TO_DESKTOP",
+}
 
 @dataclass(frozen=True)
 class ImportEdge:
@@ -594,6 +597,15 @@ def load_allowlist(path: Path) -> tuple[list[AllowlistEntry], list[AllowlistErro
         if rule_id not in HARD_RULE_IDS:
             errors.append(
                 AllowlistError(path.as_posix(), line_number, f"Unknown or non-hard rule id {rule_id!r}.")
+            )
+            continue
+        if rule_id in PERMANENTLY_ENFORCED_RULE_IDS:
+            errors.append(
+                AllowlistError(
+                    path.as_posix(),
+                    line_number,
+                    f"{rule_id} is permanently enforced and cannot be allowlisted.",
+                )
             )
             continue
         entries.append(

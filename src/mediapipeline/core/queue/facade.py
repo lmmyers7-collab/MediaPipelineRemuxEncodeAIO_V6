@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -40,11 +41,13 @@ from mediapipeline.core.queue.policy import (
     queue_row_key,
     queue_source_scan_progress_payload,
 )
-from mediapipeline.desktop.models import QueueRecord, ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.queue.contracts import QueueRecord
+from mediapipeline.core.status.active_jobs import active_job_detail_rows
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
-    from mediapipeline.desktop.application.dto_inventory import QueuePreviewDto
+    from mediapipeline.core.kernel.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_inventory import QueuePreviewDto
 
 
 def _queue_manifest_bool(value: object) -> bool:
@@ -117,14 +120,158 @@ def _queue_priority_count_for_rows(rows: list[dict[str, object]]) -> int:
     return count
 
 
+def _queue_row_is_operator_runnable(row: dict[str, object]) -> bool:
+    return str(row.get("operator_status") or "").strip().casefold() in {"ready", "priority ready"}
+
+
+def _active_csv_rerun_job_present(resolved: ResolvedPaths) -> bool:
+    for row in active_job_detail_rows(resolved.active_jobs_path, max_items=20):
+        text = " ".join(
+            str(row.get(key) or "")
+            for key in ("job_kind", "mode", "status", "command_line", "stdout_log", "stderr_log")
+        ).casefold()
+        if "rerun_csv" in text or "invoke-reruncsv.ps1" in text:
+            status = str(row.get("status") or "").strip().casefold()
+            if status not in {"completed", "exited", "failed", "killed", "stopped"}:
+                return True
+    return False
+
+
+def _latest_rerun_manifest_path(resolved: ResolvedPaths) -> Path | None:
+    if resolved.local_base is None:
+        return None
+    manifest_root = resolved.local_base / "RerunManifests"
+    if not manifest_root.exists():
+        return None
+    try:
+        manifests = sorted(
+            manifest_root.glob("*.json"),
+            key=lambda item: item.stat().st_mtime,
+            reverse=True,
+        )
+    except OSError:
+        return None
+    return manifests[0] if manifests else None
+
+
+def _read_latest_rerun_manifest(resolved: ResolvedPaths) -> tuple[Path, dict[str, object]] | None:
+    manifest_path = _latest_rerun_manifest_path(resolved)
+    if manifest_path is None:
+        return None
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return manifest_path, payload
+
+
+def _rerun_manifest_text(value: object) -> str:
+    return str(value or "").strip()
+
+
+def _rerun_manifest_display_name(source_path: str, stage_path: str) -> str:
+    display_path = stage_path or source_path
+    if not display_path:
+        return "CSV rerun item"
+    return Path(display_path).name or display_path
+
+
+def _rerun_manifest_preview_rows(manifest: dict[str, object], manifest_path: Path) -> list[dict[str, object]]:
+    raw_rows = manifest.get("rows")
+    if not isinstance(raw_rows, list):
+        return []
+    total = len([row for row in raw_rows if isinstance(row, dict)])
+    rows: list[dict[str, object]] = []
+    for index, raw_row in enumerate((row for row in raw_rows if isinstance(row, dict)), start=1):
+        queue_item = raw_row.get("queue_item") if isinstance(raw_row.get("queue_item"), dict) else {}
+        metadata = queue_item.get("metadata") if isinstance(queue_item.get("metadata"), dict) else {}
+        source_path = _rerun_manifest_text(raw_row.get("source_path") or queue_item.get("source_path"))
+        stage_path = _rerun_manifest_text(raw_row.get("stage_path") or metadata.get("stage_path"))
+        planned_output_path = _rerun_manifest_text(raw_row.get("planned_output_path") or metadata.get("planned_output_path"))
+        media_kind = _rerun_manifest_text(raw_row.get("media_kind") or queue_item.get("media_kind") or "movie").casefold()
+        media_type = "TV" if media_kind == "tv" else "Movie"
+        row = {
+            "schema_version": "desktop_csv_rerun_queue_row.v1",
+            "queue_source": "csv_rerun",
+            "queue_phase": "csv_rerun",
+            "rerun_batch_id": _rerun_manifest_text(manifest.get("batch_id")),
+            "source_path": stage_path or source_path,
+            "original_source_path": source_path,
+            "stage_path": stage_path,
+            "planned_output_path": planned_output_path,
+            "destination_path": planned_output_path,
+            "media_kind": media_kind or "movie",
+            "media_type": media_type,
+            "display_name": _rerun_manifest_display_name(source_path, stage_path),
+            "relative_path": _rerun_manifest_text(queue_item.get("relative_path_sort") or stage_path or source_path),
+            "root_path": _rerun_manifest_text(queue_item.get("root_path")),
+            "source_root": _rerun_manifest_text(queue_item.get("root_path")),
+            "route_name": "CSV rerun",
+            "route_reason": "Manifest-backed CSV rerun queue; processing route is decided by the nested pipeline per item.",
+            "operator_status": "CSV rerun queued",
+            "operator_status_state": "ready",
+            "operator_severity": "ok",
+            "operator_guidance": "This row is already in the active CSV rerun queue. Monitor Home progress and Close Readiness; use Queue for read-only row evidence.",
+            "queue_index": index,
+            "queue_total": total,
+            "queue_position": f"{index}/{total}",
+            "global_order": index,
+            "phase": "CSV RERUN",
+            "status": _rerun_manifest_text(raw_row.get("status") or metadata.get("status") or "queued"),
+            "stage_mode": _rerun_manifest_text(raw_row.get("stage_mode") or metadata.get("stage_mode")),
+            "original_mode": _rerun_manifest_text(raw_row.get("original_mode") or metadata.get("original_mode")),
+            "return_mode": _rerun_manifest_text(raw_row.get("return_mode") or metadata.get("return_mode")),
+            "audit_issue_codes": _rerun_manifest_text(raw_row.get("audit_issue_codes") or metadata.get("audit_issue_codes")),
+            "manifest_path": str(manifest_path),
+            "available_open_targets": [],
+            "row_key": f"csv_rerun\x1f{manifest.get('batch_id')}\x1f{index}\x1f{stage_path or source_path}".casefold(),
+            "metadata": {
+                "source": "rerun_manifest",
+                "manifest_path": str(manifest_path),
+                "csv_path": _rerun_manifest_text(manifest.get("csv_path")),
+                "config_path": _rerun_manifest_text(manifest.get("config_path")),
+                "stage_path": stage_path,
+                "planned_output_path": planned_output_path,
+            },
+        }
+        rows.append(row)
+    return rows
+
+
+def _rerun_manifest_preview_snapshot(
+    resolved: ResolvedPaths,
+    manifest: dict[str, object],
+    rows: list[dict[str, object]],
+) -> dict[str, object]:
+    movie_count = sum(1 for row in rows if str(row.get("media_type") or "").casefold() == "movie")
+    tv_count = sum(1 for row in rows if str(row.get("media_type") or "").casefold() == "tv")
+    return {
+        "schema_version": "desktop_csv_rerun_queue_preview.v1",
+        "produced_at": _rerun_manifest_text(manifest.get("created_at")),
+        "config_path": _rerun_manifest_text(manifest.get("config_path") or resolved.config_path),
+        "local_base": _rerun_manifest_text(manifest.get("pipeline_local_base") or resolved.local_base),
+        "source_movies": "",
+        "source_tv": "",
+        "outsource": _rerun_manifest_text(manifest.get("output_root")),
+        "movie_count_total": movie_count,
+        "tv_count_total": tv_count,
+        "runnable_count": len(rows),
+        "total_row_count": len(rows),
+        "shown_row_count": len(rows),
+        "rows": rows,
+    }
+
+
 def _queue_preview_dto(**fields: object) -> "QueuePreviewDto":
-    from mediapipeline.desktop.application.dto_inventory import QueuePreviewDto
+    from mediapipeline.core.kernel.dto_inventory import QueuePreviewDto
 
     return QueuePreviewDto(**fields)
 
 
 def _command_result(**fields: object) -> "CommandResult":
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**fields)
 
@@ -132,11 +279,68 @@ def _command_result(**fields: object) -> "CommandResult":
 class QueueFacadeMixin:
     """Read-only queue snapshot adapter for the application facade."""
 
+    def _csv_rerun_manifest_preview(
+        self,
+        resolved: ResolvedPaths,
+        *,
+        queue_scan_status: dict[str, object],
+        source_inventory: dict[str, object],
+        reason: str,
+    ) -> QueuePreviewDto | None:
+        if not _active_csv_rerun_job_present(resolved):
+            return None
+        manifest_info = _read_latest_rerun_manifest(resolved)
+        if manifest_info is None:
+            return None
+        manifest_path, manifest = manifest_info
+        rows = _rerun_manifest_preview_rows(manifest, manifest_path)
+        if not rows:
+            return None
+        warnings = [
+            reason,
+            "Showing active CSV rerun manifest queue rows; this read-only view does not launch, stop, drain, publish, or mutate media.",
+        ]
+        metadata_snapshot = _rerun_manifest_preview_snapshot(resolved, manifest, rows)
+        metadata = queue_preview_metadata(
+            metadata_snapshot,
+            rows,
+            snapshot_path=manifest_path,
+            runtime_event_count=0,
+            runtime_outcome_source="",
+            runtime_outcome_warning="",
+        )
+        queue_progress = queue_source_scan_progress_payload(
+            source=str(manifest_path),
+            row_count=len(rows),
+            metadata=metadata,
+            warnings=warnings,
+            status="active",
+            detail="Active CSV rerun manifest queue is driving the current run.",
+        )
+        return _queue_preview_dto(
+            rows=rows,
+            source=str(manifest_path),
+            queue_scan_status=queue_scan_status,
+            source_inventory=source_inventory,
+            queue_progress=queue_progress,
+            progress_bars=list(queue_progress["progress_bars"]),
+            **metadata,
+            warnings=warnings,
+        )
+
     def get_queue_preview(self, resolved: ResolvedPaths) -> QueuePreviewDto:
         """Return the last queue snapshot without spawning a dry-run process."""
         queue_scan_status, source_inventory = self._queue_scan_artifacts(resolved)
         snapshot_path = resolved.queue_snapshot_path
         if not snapshot_path or not snapshot_path.exists():
+            rerun_preview = self._csv_rerun_manifest_preview(
+                resolved,
+                queue_scan_status=queue_scan_status,
+                source_inventory=source_inventory,
+                reason=NO_QUEUE_SNAPSHOT_WARNING,
+            )
+            if rerun_preview is not None:
+                return rerun_preview
             return self._queue_preview_with_progress_warning(
                 str(snapshot_path or ""),
                 NO_QUEUE_SNAPSHOT_WARNING,
@@ -205,6 +409,15 @@ class QueueFacadeMixin:
         elif resolved.event_file:
             runtime_outcome_warning = "Runtime outcome history reader is not available."
         rows = queue_apply_runtime_outcomes(rows, runtime_events)
+        if not any(_queue_row_is_operator_runnable(row) for row in rows):
+            rerun_preview = self._csv_rerun_manifest_preview(
+                resolved,
+                queue_scan_status=queue_scan_status,
+                source_inventory=source_inventory,
+                reason="Normal queue preview has no runnable rows while a CSV rerun is active.",
+            )
+            if rerun_preview is not None:
+                return rerun_preview
         warnings = queue_preview_warnings(rows)
         if runtime_outcome_warning:
             warnings.append(runtime_outcome_warning)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 
 def latest_matching_file(folder: Path | None, pattern: str) -> Path | None:

@@ -1,0 +1,30 @@
+{
+  "id": "MP-CHANGE-2026-0701-013",
+  "title": "Right-size AI safety protocol",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-07-01",
+  "date_completed": "2026-07-01",
+  "summary": "Added AGENTS.md guidance requiring AI agents to keep safety controls proportional and avoid redundant operator friction.",
+  "reason": "The agent contract had strong safety invariants but did not explicitly prevent agents from stacking extra warnings, confirmations, review queues, or checklists on already protected workflows.",
+  "affected_areas": [
+    "docs"
+  ],
+  "behavior_before": "AGENTS.md documented non-negotiable media-safety invariants without a balancing rule for usability or redundant guardrails.",
+  "behavior_after": "AGENTS.md directs agents to reuse existing backend controls, prefer the least cumbersome effective guard, avoid stacked confirmations without a demonstrated gap, and simplify obsolete safety layers.",
+  "files_touched": [
+    "AGENTS.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0701-013.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Select-String -Path AGENTS.md -Pattern 'Right-Sized Safety Protocol' -Context 0,24 - passed",
+    "mediapipeline.tools.change_control.validate_changes - passed",
+    "mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed"
+  ],
+  "rollback_plan": "Remove the Right-Sized Safety Protocol subsection from AGENTS.md and delete this unreleased change packet.",
+  "related_changes": [],
+  "notes": "Add right-sized safety protocol to prevent redundant AI-added operator friction.\nNo Python files affected."
+}

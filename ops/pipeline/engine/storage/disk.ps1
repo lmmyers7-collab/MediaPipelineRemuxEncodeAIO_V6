@@ -683,6 +683,115 @@ function Test-MediaPipelineStalePartialArtifactName {
     return $false
 }
 
+function Test-MediaPipelineLocalEncodedCleanupRoot {
+    param([string]$Root)
+
+    if ([string]::IsNullOrWhiteSpace($Root)) {
+        Write-Log "Skipping empty local encoded folder cleanup: LocalEncoded is not set" "WARN"
+        return $false
+    }
+    if (-not (Get-Command -Name Test-MediaPipelinePathBoundarySafe -ErrorAction SilentlyContinue)) {
+        Write-Log "Skipping empty local encoded folder cleanup: path boundary helper is unavailable" "ERROR"
+        return $false
+    }
+
+    $localBaseVariable = Get-Variable -Name 'LocalBase' -Scope Script -ErrorAction SilentlyContinue
+    $localBase = if ($localBaseVariable -and -not [string]::IsNullOrWhiteSpace([string]$localBaseVariable.Value)) {
+        [string]$localBaseVariable.Value
+    } else {
+        ''
+    }
+    if ([string]::IsNullOrWhiteSpace($localBase)) {
+        Write-Log "Skipping empty local encoded folder cleanup: LocalBase is not set" "ERROR"
+        return $false
+    }
+    if (-not (Test-Path -LiteralPath $Root -PathType Container -ErrorAction SilentlyContinue)) {
+        return $false
+    }
+
+    $rootBoundary = Test-MediaPipelinePathBoundarySafe -Path $Root -Root $localBase
+    if (-not $rootBoundary.Ok) {
+        Write-Log "Skipping empty local encoded folder cleanup for unsafe root ($($rootBoundary.ReasonCode)): $Root" "WARN"
+        return $false
+    }
+    return $true
+}
+
+function Clear-EmptyLocalEncodedDirectories {
+    param([string]$Root = ([string]$script:LocalEncoded))
+
+    if (-not (Test-MediaPipelineLocalEncodedCleanupRoot -Root $Root)) {
+        return [pscustomobject]@{ Scanned = 0; Removed = 0; SkippedUnsafe = 0; Errors = 0 }
+    }
+
+    $ageHours = [math]::Max(1, [int]$script:CleanupStaleAgeHours)
+    $cutoff = (Get-Date).AddHours(-1 * $ageHours)
+    $removed = 0
+    $scanned = 0
+    $skippedUnsafe = 0
+    $errors = 0
+    try {
+        $rootFull = [System.IO.Path]::GetFullPath($Root).TrimEnd('\','/')
+        $directories = @(
+            Invoke-RecursivePathScan -Path $Root -ItemType Directory -TimeoutSeconds $script:CleanupScanTimeoutSeconds -Label "empty local encoded folder cleanup" |
+                ForEach-Object { [string]$_ } |
+                Sort-Object { $_.Length } -Descending
+        )
+        foreach ($dir in $directories) {
+            if ([string]::IsNullOrWhiteSpace($dir)) { continue }
+            $scanned++
+            $dirFull = [System.IO.Path]::GetFullPath($dir).TrimEnd('\','/')
+            if ([string]::Equals($dirFull, $rootFull, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+            if ([System.IO.Path]::GetFileName($dirFull) -eq '.mediapipeline-staging') { continue }
+
+            $candidateBoundary = Test-MediaPipelinePathBoundarySafe -Path $dir -Root $Root
+            if (-not $candidateBoundary.Ok) {
+                $skippedUnsafe++
+                Write-Log "Skipping empty local encoded folder cleanup for unsafe path ($($candidateBoundary.ReasonCode)): $dir" "WARN"
+                continue
+            }
+
+            try {
+                $item = Get-Item -LiteralPath $dir -Force -ErrorAction Stop
+                if ($item.LastWriteTime -ge $cutoff) { continue }
+                $child = Get-ChildItem -LiteralPath $dir -Force -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($null -ne $child) { continue }
+                Write-Log "Removing empty local encoded folder older than $ageHours hour(s): $dir" "WARN"
+                Remove-Item -LiteralPath $dir -Force -ErrorAction Stop
+                $removed++
+            } catch {
+                $errors++
+                Write-Log "Empty local encoded folder cleanup failed for $dir : $_" "WARN"
+            }
+        }
+    } catch {
+        $errors++
+        Write-Log "Empty local encoded folder cleanup failed for $Root : $_" "WARN"
+    }
+
+    if ($removed -gt 0) {
+        Write-Log "Removed $removed empty local encoded folder(s) older than $ageHours hour(s)."
+    } else {
+        Write-Log "Empty local encoded folder cleanup found no eligible folders." "DEBUG"
+    }
+    return [pscustomobject]@{ Scanned = $scanned; Removed = $removed; SkippedUnsafe = $skippedUnsafe; Errors = $errors }
+}
+
+function Invoke-PeriodicLocalEncodedDirectoryCleanup {
+    param([switch]$Force)
+
+    $now = (Get-Date).ToUniversalTime()
+    $intervalSeconds = 3600
+    $last = Get-Variable -Name 'LastLocalEncodedDirectoryCleanupUtc' -Scope Script -ErrorAction SilentlyContinue
+    if (-not $Force -and $last -and $last.Value -is [datetime]) {
+        $elapsedSeconds = ($now - ([datetime]$last.Value).ToUniversalTime()).TotalSeconds
+        if ($elapsedSeconds -lt $intervalSeconds) { return $null }
+    }
+
+    $script:LastLocalEncodedDirectoryCleanupUtc = $now
+    return Clear-EmptyLocalEncodedDirectories
+}
+
 function Clear-StalePartialFiles {
     param([string[]]$Roots)
     $cutoff = (Get-Date).AddHours(-1 * [math]::Max(1, [int]$script:CleanupStaleAgeHours))

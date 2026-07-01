@@ -3,9 +3,9 @@ file: src/mediapipeline/core/api/commands_failures.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-06-26
+last_modified: 2026-06-30
 last_reviewed: 2026-06-04
-sha256: 481c39e840c3eb20a765f16e28675dc21894eedda8a01668dd787e99b376c05e
+sha256: c1cce9dcdb06579aff62768df07afd97abb5cad5b8efb5633db41a2eeb88ad91
 ---
 # `src/mediapipeline/core/api/commands_failures.py`
 

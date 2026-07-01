@@ -72,7 +72,7 @@ function Start-MediaPipelineLocalWorkerChild {
         -ResultPath ([string]$SlotLayout.ResultFile) `
         -ClaimId ([string]$Claim.claim_id) `
         -Reason 'slot reuse before worker child start' | Out-Null
-    foreach ($path in @($SlotLayout.ResultFile, $SlotLayout.StdoutLog, $SlotLayout.StderrLog)) {
+    foreach ($path in @($SlotLayout.ResultFile, $SlotLayout.HeartbeatFile, $SlotLayout.StdoutLog, $SlotLayout.StderrLog)) {
         Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
     }
     $metadata = [ordered]@{
@@ -82,6 +82,7 @@ function Start-MediaPipelineLocalWorkerChild {
         source_path    = [string]$Claim.source_path
         owner_run_id   = [string]$OwnerRunId
         result_path    = [string]$SlotLayout.ResultFile
+        heartbeat_path = [string]$SlotLayout.HeartbeatFile
         created_at     = Get-MediaPipelineLocalWorkerTimestamp
     }
     Write-MediaPipelineJsonAtomic -Path $SlotLayout.MetadataFile -InputObject $metadata -Depth 5 | Out-Null
@@ -97,7 +98,8 @@ function Start-MediaPipelineLocalWorkerChild {
         '-WorkerSlotId', ([string]$SlotLayout.SlotId),
         '-WorkerRunId', $OwnerRunId,
         '-WorkerClaimId', ([string]$Claim.claim_id),
-        '-WorkerResultPath', ([string]$SlotLayout.ResultFile)
+        '-WorkerResultPath', ([string]$SlotLayout.ResultFile),
+        '-WorkerHeartbeatPath', ([string]$SlotLayout.HeartbeatFile)
     )
     $argumentLine = ($arguments | ForEach-Object { Join-MediaPipelineProcessArgument -Value ([string]$_) }) -join ' '
     $process = Start-Process -FilePath $PowerShellPath `

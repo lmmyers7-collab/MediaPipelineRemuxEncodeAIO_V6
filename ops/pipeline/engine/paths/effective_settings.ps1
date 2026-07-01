@@ -39,6 +39,7 @@ function Get-MediaPipelineLibraryOverrideConfigKeys {
         'CpuEncodePreset',
         'CpuEncodeProcessPriority',
         'CpuEncodeMaxThreads',
+        'CpuEncodeMutexWaitSeconds',
         'ExtraVideoFlags',
         'SubKeepLanguages',
         'ConvertTx3gToSrt',

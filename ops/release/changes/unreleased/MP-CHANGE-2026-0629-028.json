@@ -1,0 +1,56 @@
+{
+  "id": "MP-CHANGE-2026-0629-028",
+  "title": "Phase 6 settings risk policy boundary cleanup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "medium",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Moves settings risk policy and risk-rule helper ownership from desktop application modules into core config modules, preserves desktop compatibility shims, and removes the matching config NO_CORE_TO_DESKTOP allowlist rows.",
+  "reason": "Phase 6 boundary cleanup is removing read-only settings risk helper imports from desktop while keeping settings policy decisions and public compatibility imports stable.",
+  "affected_areas": [
+    "code",
+    "docs",
+    "generated"
+  ],
+  "behavior_before": "Core settings facades imported read-only settings risk summary helpers from mediapipeline.desktop.application.settings_risk_policy, producing six allowlisted NO_CORE_TO_DESKTOP findings across two import-statement groups.",
+  "behavior_after": "Core settings facades import settings risk helpers from mediapipeline.core.config.settings_risk_policy; desktop settings_risk_policy and settings_risk_policy_rules remain compatibility shims that re-export the core helpers.",
+  "files_touched": [
+    "docs/architecture/dependency_boundary_allowlist.txt",
+    "docs/generated/summaries/src/mediapipeline/core/config/settings_facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/settings_risk_facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/settings_risk_policy.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/settings_risk_policy_rules.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/application/settings_risk_policy.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/application/settings_risk_policy_rules.py.md",
+    "docs/implementation/architecture-boundary-cleanup/EDGE_LEDGER.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-028.json",
+    "src/mediapipeline/core/config/settings_facade.py",
+    "src/mediapipeline/core/config/settings_risk_facade.py",
+    "src/mediapipeline/core/config/settings_risk_policy.py",
+    "src/mediapipeline/core/config/settings_risk_policy_rules.py",
+    "src/mediapipeline/desktop/application/settings_risk_policy.py",
+    "src/mediapipeline/desktop/application/settings_risk_policy_rules.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/config/settings_facade.py src/mediapipeline/core/config/settings_risk_facade.py src/mediapipeline/core/config/settings_risk_policy.py src/mediapipeline/core/config/settings_risk_policy_rules.py src/mediapipeline/desktop/application/settings_risk_policy.py src/mediapipeline/desktop/application/settings_risk_policy_rules.py",
+      "result": "pass - regenerated 6 summaries for the moved core settings risk helpers and desktop compatibility shims."
+    },
+    {
+      "command": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_service_config_preview tests.python.desktop.test_application_facade_settings_workspace tests.python.desktop.test_settings_risk_policy_rules tests.python.desktop.test_architecture_boundary_phase2_compatibility_imports tests.python.desktop.test_application_public_api tests.python.tooling.test_dependency_boundaries -q",
+      "result": "pass - 46 targeted settings/public API/dependency-boundary tests passed."
+    },
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --format json --report-only",
+      "result": "pass - hard_findings=20, allowlisted=20, unallowlisted=0, unused_allowlist=0; NO_CORE_TO_DESKTOP=3 across processes=2, schedule=1."
+    }
+  ],
+  "rollback_plan": "Move the settings risk policy and rules helpers back to src/mediapipeline/desktop/application, restore core imports from mediapipeline.desktop.application.settings_risk_policy, restore the removed settings risk policy allowlist rows, mark AB-CFG-007 and AB-CFG-025 open again, and refresh the affected generated summaries.",
+  "related_changes": [
+    "GitHub #23"
+  ],
+  "notes": "Import settings risk workspace helpers from core config ownership.\nImport settings patch risk helpers from core config ownership.\nMove settings risk policy helper ownership into core config.\nMove settings risk policy rule helper ownership into core config.\nKeep desktop settings risk policy as compatibility shim.\nKeep desktop settings risk policy rules as compatibility shim.\nRemove migrated settings risk policy allowlist rows.\nMark AB-CFG-007 and AB-CFG-025 migrated for settings risk policy ownership.\nRefresh generated summary after settings risk policy import move.\nGenerate summary for new core settings risk policy module.\nGenerate summary for new core settings risk policy rules module.\nRefresh generated summary for desktop settings risk policy compatibility shim.\nRefresh generated summary for desktop settings risk policy rules compatibility shim.\nNo Local API routes, WebView commands, settings persistence, settings preview/save behavior, route schemas, strict confirmation handling, media policy, publish/drain, rename, source/scratch/output movement, or filesystem mutation behavior changed."
+}

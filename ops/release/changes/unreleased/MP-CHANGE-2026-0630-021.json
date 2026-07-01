@@ -1,0 +1,57 @@
+{
+  "id": "MP-CHANGE-2026-0630-021",
+  "title": "Large library queue controls and soak design",
+  "version_target": "2026.07.01.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-06-30",
+  "date_completed": "2026-07-01",
+  "summary": "Added configuration/schema coverage for reliability controls, refreshed generated context, updated inventories, and documented a 30-day soak-test design.",
+  "reason": "The new unattended-run controls need discoverable config ownership, generated schema/context alignment, and a concrete isolated soak plan before the system should be trusted for 30 days.",
+  "affected_areas": [
+    "docs"
+  ],
+  "behavior_before": "Reliability tuning keys, runtime artifacts, state-file evidence, and soak criteria were not represented across the active inventories and generated config contract.",
+  "behavior_after": "Reliability tuning keys are reflected in config contracts and inventories, generated maps/summaries are current, and the soak design describes isolated roots, injected failures, acceptance criteria, and required instrumentation.",
+  "files_touched": [
+    "docs/DOCS_INDEX.md",
+    "docs/architecture/CONFIG_KEY_GLOSSARY.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/src/mediapipeline/core/status/runtime_health.py.md",
+    "docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md",
+    "docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md",
+    "docs/inventories/SETTINGS_KEY_OWNERSHIP_MAP.md",
+    "docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md",
+    "docs/testing/THIRTY_DAY_SOAK_TEST_DESIGN.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0630-021.json",
+    "src/mediapipeline/contracts/config.py",
+    "src/mediapipeline/contracts/schemas/config.v1.schema.json",
+    "src/mediapipeline/core/config/metadata_parts/advanced_fields.py",
+    "src/mediapipeline/core/config/metadata_parts/field_display.py",
+    "src/mediapipeline/core/config/numeric_policy.py",
+    "src/mediapipeline/core/kernel/config_key_groups.py",
+    "src/mediapipeline/core/kernel/config_key_order.py",
+    "tests/python/desktop/test_config_keys.py",
+    "tests/python/desktop/test_service_config_numeric_policy.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_config_keys.py",
+    "tests/python/desktop/test_service_config_numeric_policy.py"
+  ],
+  "manual_validation": [
+    "python -m unittest tests.python.desktop.test_config_keys tests.python.desktop.test_service_config_numeric_policy tests.python.core.contract.test_config_contract -q - passed",
+    "mediapipeline.tools.dev.generate_config_schema --check - passed",
+    "python -m json.tool for config.v1.schema.json, media_pipeline_config.schema.json, and media_pipeline_progress.schema.json - passed",
+    "mediapipeline.tools.dev.refresh_summaries --changed plus explicit runtime_health.py summary refresh - passed",
+    "mediapipeline.tools.dev.generate_project_index - passed",
+    "mediapipeline.tools.dev.generate_feature_file_map - passed",
+    "mediapipeline.tools.dev.ai_guardrail postflight - passed",
+    "mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed"
+  ],
+  "rollback_plan": "Revert the config/schema/inventory/generated-context updates and remove the soak-test document; runtime behavior rolls back with the companion code packets.",
+  "related_changes": [],
+  "notes": "Add large-library execution cap documentation, config contract coverage, and 30-day soak-test design.\nRefresh generated project index and dependency graph after reliability hardening source changes.\nRefresh generated feature map and runtime health summary after reliability hardening changes."
+}

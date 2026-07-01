@@ -20,7 +20,7 @@ from mediapipeline.core.processes.pipeline_policy import (
     pipeline_start_network_mode_label,
 )
 from mediapipeline.core.kernel.dto_commands import CommandResult
-from mediapipeline.core.kernel.models_core import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 
 NETWORK_LIFECYCLE_DRY_RUN_SCHEMA_VERSION = "desktop_network_lifecycle_dry_run.v1"

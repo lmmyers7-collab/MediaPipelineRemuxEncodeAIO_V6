@@ -23,7 +23,7 @@ from mediapipeline.core.config.settings_patch_policy import (
 from mediapipeline.core.config.identity import config_operation_block_data, config_operation_block_message
 from mediapipeline.contracts.source_media import SourceMediaInfo
 from mediapipeline.core.orchestration.planner import build_pipeline_plan_from_preset
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 
 _PIPELINE_PLAN_PREVIEW_AUTHORITY = "python_preview_legacy_execution_still_authoritative"

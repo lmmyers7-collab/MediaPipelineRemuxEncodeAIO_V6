@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/dev/check_dependency_boundaries.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-19
+last_modified: 2026-06-29
 last_reviewed: 2026-06-04
-sha256: 6316ac549db71c8e67d12bbb68006ddaa53798d4561ab97c895a8bf735d13576
+sha256: ee060105b842f4253af806b448b440b95eb3a43510a59695fa52540329d01220
 ---
 # `src/mediapipeline/tools/dev/check_dependency_boundaries.py`
 

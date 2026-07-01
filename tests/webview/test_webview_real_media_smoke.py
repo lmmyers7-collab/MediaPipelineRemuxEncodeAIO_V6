@@ -641,7 +641,7 @@ class WebViewRealMediaSmoke(unittest.TestCase):
             "Launch pilot run readiness:",
             "function renderLaunchStartDecisionSummary",
             "Launch start decision summary:",
-            "treat Start as sensible only when Launch readiness, backend preflight, Queue, Settings",
+            "treat these signals as advisory evidence for Start; backend start remains authoritative",
         ):
             self.assertIn(fragment, launch_view_js)
 

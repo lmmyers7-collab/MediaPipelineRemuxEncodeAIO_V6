@@ -14,6 +14,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
+from mediapipeline.desktop.models import Snapshot
 
 try:  # unittest discovery can import tests as top-level modules or package modules.
     from .test_application_facade import DummyWorkflowFacadeService
@@ -375,8 +376,8 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             ]);
             requireText("launch-scope-reconciliation-summary", [
               "Launch scope reconciliation:",
-              "Decision rule: the visible Queue table, selected Launch mode, cached backend preflight, Schedule posture, close-readiness, and recent command evidence must agree before starting queued work.",
-              "First action:",
+              "Decision context: these read-only signals explain launch posture; backend start remains authoritative",
+              "Suggested action:",
               "Mutation guardrail: this reconciliation is read-only",
             ]);
             requireTableText("launch-scope-reconciliation-rows", [
@@ -395,8 +396,8 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             ]);
             requireText("launch-start-decision-summary", [
               "Launch start decision summary:",
-              "Decision rule: treat Start as sensible only when Launch readiness, backend preflight, Queue, Settings, schedule/close-readiness, real-media proof, sample checklist, and recent command evidence agree.",
-              "First action:",
+              "Decision context: treat these signals as advisory evidence for Start; backend start remains authoritative",
+              "Suggested action:",
               "Mutation guardrail: this summary is read-only",
             ]);
             requireTableText("launch-start-decision-rows", [
@@ -577,7 +578,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "Launch sample execution checklist:",
               "Home's backend-authored operator sample execution checklist",
               "Execution rows:",
-              "Decision rule: before pressing Start",
+              "Pilot context: before-launch and backend-launch-boundary rows explain sample-validation evidence",
               "Mutation guardrail: this Launch checklist is read-only",
             ]);
             requireTableText("launch-sample-execution-rows", [
@@ -654,7 +655,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "Source: GET /api/launch/preflight",
               "Status scope: active targets only",
               "active requests=1",
-              "skipped inactive=3",
+              "skipped inactive=1",
               "Inactive targets skipped: CSV Rerun Start: CSV path is not staged.",
             ]);
             requireTableText("launch-backend-preflight-rows", [
@@ -671,14 +672,14 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             setInput("pipeline-start-mode", "once");
             window.mediaPipelineLaunchView.renderLaunchBackendPreflight([]);
             window.mediaPipelineLaunchView.updateLaunchCommandButtonStates(idleSnapshot, idleCloseReadiness);
-            if (!validateStartButton.disabled || !validateStartButton.title.includes("Refresh Backend Preflight")) {
-              throw new Error("Run Once should require backend preflight before start; disabled=" + validateStartButton.disabled + "; title=" + validateStartButton.title);
+            if (validateStartButton.disabled || !validateStartButton.title.includes("can submit without cached Backend Preflight")) {
+              throw new Error("Run Once should submit without cached Backend Preflight; disabled=" + validateStartButton.disabled + "; title=" + validateStartButton.title);
             }
-            requireText("pipeline-start-disabled-reason", ["Refresh Backend Preflight"]);
+            requireText("pipeline-start-disabled-reason", ["can submit without cached Backend Preflight"]);
             window.mediaPipelineLaunchView.renderLaunchCompactGate();
             requireCompactGate("pipeline-gate-backend", "unknown", ["Backend", "Needs Evidence", "Refresh"]);
             byId("pipeline-gate-backend").click();
-            requireText("pipeline-compact-gate-detail", ["Backend", "Refresh Backend Preflight"]);
+            requireText("pipeline-compact-gate-detail", ["Backend", "No cached Backend Preflight", "routine Start can still submit"]);
             setInput("pipeline-start-mode", "continuous");
             const reviewPipelinePreflight = {
               ...originalPipelinePreflight,
@@ -781,7 +782,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
                 throw new Error(id + " did not expose blocked launch gate title; disabled=" + button.disabled + "; title=" + button.title);
               }
             });
-            ["rerun-dry-run-button", "rerun-start-button"].forEach((id) => {
+            ["rerun-start-button"].forEach((id) => {
               const button = byId(id);
               if (!button) throw new Error("missing launch gate button " + id);
               if (button.title.includes("Browser smoke blocker")) {
@@ -842,7 +843,8 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             ]);
             requireText("queue-launch-decision-summary", [
               "Queue-to-Launch handoff:",
-              "Decision rule: open Launch only after backend launch preflight",
+              "Decision context: use backend launch preflight",
+              "Launch performs authoritative start checks",
               "Mutation guardrail: this handoff cannot launch",
             ]);
             requireText("queue-backend-scope-summary", [
@@ -1086,6 +1088,199 @@ def _run_browser_launch_queue_readiness_smoke(*, browser_path: str, url: str) ->
         )
 
 
+def _browser_pipeline_start_click_runner_source() -> str:
+    return browser_cdp_runner_prelude() + textwrap.dedent(
+        r"""
+        function pipelineStartClickScript() {
+          return `
+          (async () => {
+            const posts = [];
+            const originalApiPost = window.apiPost;
+            window.apiPost = async (path, body, options) => {
+              const result = await originalApiPost(path, body, options);
+              posts.push({
+                path: String(path || ""),
+                body: body || {},
+                command: result?.command || "",
+                ok: result?.ok === true,
+                severity: result?.severity || "",
+                message: result?.message || "",
+              });
+              return result;
+            };
+            function byId(id) { return document.getElementById(id); }
+            function text(id) { const node = byId(id); return node ? node.textContent || "" : ""; }
+            function setInput(id, value) {
+              const node = byId(id);
+              if (!node) throw new Error("missing input " + id);
+              node.value = value;
+              node.dispatchEvent(new Event("input", { bubbles: true }));
+              node.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            async function waitFor(predicate, label) {
+              const deadline = Date.now() + 20000;
+              let lastError = null;
+              while (Date.now() < deadline) {
+                try {
+                  if (predicate()) return;
+                } catch (error) {
+                  lastError = error;
+                }
+                await new Promise((resolve) => setTimeout(resolve, 100));
+              }
+              throw new Error("Timed out waiting for " + label + (lastError ? ": " + lastError.message : "") + "\\nState:\\n" + [
+                "launchStatus=" + text("pipeline-launch-status"),
+                "launchDetail=" + text("pipeline-launch-detail"),
+                "backendPreflight=" + text("launch-backend-preflight-summary"),
+                "disabledReason=" + text("pipeline-start-disabled-reason"),
+                "posts=" + JSON.stringify(posts),
+              ].join("\\n\\n"));
+            }
+            try {
+              window.showPage("launch");
+              window.mediaPipelineLaunchView.activateLaunchTab("pipeline", { persist: false });
+              setInput("pipeline-start-mode", "once");
+              setInput("pipeline-start-single-file", "");
+              setInput("pipeline-start-sleep", "3");
+              setInput("pipeline-start-schedule-override", "");
+              await window.mediaPipelineLaunchView.refreshLaunchBackendPreflight();
+              await waitFor(
+                () => text("launch-backend-preflight-summary").includes("Pipeline backend preflight"),
+                "pipeline backend preflight render"
+              );
+              window.mediaPipelineLaunchView.updateLaunchCommandButtonStates(
+                { pipeline_state: "idle" },
+                { safe_to_close: true, active_work: false, state: "idle" }
+              );
+              await waitFor(
+                () => {
+                  const button = byId("pipeline-start-button");
+                  return Boolean(button && !button.disabled);
+                },
+                "enabled pipeline start button"
+              );
+              byId("pipeline-start-button").click();
+              await waitFor(
+                () => posts.some((post) => post.path === "/api/pipeline/start"),
+                "pipeline start POST"
+              );
+              const launchPost = posts.find((post) => post.path === "/api/pipeline/start");
+              if (!launchPost.ok || launchPost.command !== "pipeline.start") {
+                throw new Error("pipeline start POST did not return command success: " + JSON.stringify(launchPost));
+              }
+              return {
+                ok: true,
+                posts,
+                launchPost,
+                launchStatus: text("pipeline-launch-status"),
+                launchDetail: text("pipeline-launch-detail"),
+                disabledReason: text("pipeline-start-disabled-reason"),
+              };
+            } finally {
+              window.apiPost = originalApiPost;
+            }
+          })()
+          `;
+        }
+
+        async function main() {
+          const userDataDir = fs.mkdtempSync(`${payload.tmpRoot.replace(/\\/g, "/")}/chrome-profile-`);
+          const browser = launchBrowser([
+            "--headless=new",
+            "--disable-gpu",
+            "--disable-background-networking",
+            "--disable-default-apps",
+            "--disable-extensions",
+            "--disable-sync",
+            "--metrics-recording-only",
+            "--no-first-run",
+            "--no-default-browser-check",
+            `--remote-debugging-port=${payload.port}`,
+            `--user-data-dir=${userDataDir}`,
+            payload.url,
+          ]);
+          let client = null;
+          try {
+            const wsUrl = await waitForPageWebSocket(payload.port, payload.url);
+            client = createCdpClient(wsUrl);
+            await client.send("Runtime.enable");
+            await client.send("Log.enable");
+            await client.send("Page.enable");
+            const readyExpression = `Boolean(document.getElementById("pipeline-start-button") && typeof window.apiPost === "function" && typeof window.showPage === "function" && typeof window.mediaPipelineLaunchView?.activateLaunchTab === "function" && typeof window.mediaPipelineLaunchView?.refreshLaunchBackendPreflight === "function" && typeof window.mediaPipelineLaunchView?.updateLaunchCommandButtonStates === "function")`;
+            const deadline = Date.now() + 20000;
+            while (Date.now() < deadline) {
+              const ready = await client.send("Runtime.evaluate", {
+                expression: readyExpression,
+                returnByValue: true,
+              });
+              if (ready.result?.value === true) break;
+              await sleep(150);
+            }
+            const ready = await client.send("Runtime.evaluate", {
+              expression: readyExpression,
+              returnByValue: true,
+            });
+            if (ready.result?.value !== true) throw new Error("Pipeline start WebView globals or DOM nodes did not become ready.");
+            const result = await client.send("Runtime.evaluate", {
+              expression: pipelineStartClickScript(),
+              awaitPromise: true,
+              returnByValue: true,
+            });
+            if (result.exceptionDetails) {
+              const details = result.exceptionDetails;
+              throw new Error(details.exception?.description || details.exception?.value || details.text || "browser evaluation failed");
+            }
+            await sleep(750);
+            const errorEvents = client.consoleEvents.filter((entry) => entry.startsWith("error:") || entry.startsWith("warning:"));
+            if (client.exceptions.length || errorEvents.length) {
+              throw new Error(`Browser console/exception noise: ${client.exceptions.concat(errorEvents).join("; ")}`);
+            }
+            console.log(JSON.stringify({ ok: true, result: result.result?.value || {} }));
+          } finally {
+            if (client) client.close();
+            await terminateBrowser(browser);
+          }
+        }
+
+        main().catch((error) => {
+          console.error(error.stack || error.message || String(error));
+          process.exit(1);
+        });
+        """
+    )
+
+
+def _run_browser_pipeline_start_click_smoke(*, browser_path: str, url: str) -> dict[str, object]:
+    node = shutil.which("node")
+    if not node:
+        raise unittest.SkipTest("Node.js is required for the browser-backed WebView pipeline start smoke.")
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as raw_tmp:
+        tmp = Path(raw_tmp)
+        port = _free_port()
+        payload_path = tmp / "browser-pipeline-start-click-payload.json"
+        runner_path = tmp / "browser-pipeline-start-click-runner.cjs"
+        payload_path.write_text(
+            json.dumps(
+                {
+                    "browserPath": browser_path,
+                    "port": port,
+                    "tmpRoot": str(tmp),
+                    "url": url,
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        runner_path.write_text(_browser_pipeline_start_click_runner_source(), encoding="utf-8")
+        return run_node_browser_smoke(
+            "Browser-backed WebView pipeline start click smoke",
+            node=node,
+            runner_path=runner_path,
+            payload_path=payload_path,
+            timeout_seconds=75,
+        )
+
+
 class WebViewBrowserLaunchQueueReadinessSmoke(unittest.TestCase):
     def test_real_browser_renders_launch_queue_readiness_without_mutation_posts(self) -> None:
         browser_path = _find_browser()
@@ -1176,6 +1371,62 @@ class WebViewBrowserLaunchQueueReadinessSmoke(unittest.TestCase):
             self.assertIn("Launch command review:", browser_result["commandReview"])
             for path, before in watched.items():
                 self.assertEqual(path.read_bytes(), before, path)
+            assert_media_no_mutation(self, media_snapshot)
+
+    def test_real_browser_pipeline_start_button_posts_backend_start(self) -> None:
+        browser_path = _find_browser()
+        if not browser_path:
+            raise unittest.SkipTest("Chrome or Edge is required for the browser-backed WebView pipeline start smoke.")
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved, source, output = _write_fixture_state(root)
+            resolved.pending_push_path = root / "EmptyPendingServerPush"
+            resolved.pending_push_path.mkdir(parents=True, exist_ok=True)
+            resolved.config_data = {**(resolved.config_data or {}), "NetworkRole": "standalone"}
+            command_journal_path = root / "RunLogs" / "local_api_command_history.json"
+            media_snapshot = capture_media_no_mutation_snapshot(root)
+            service = DummyWorkflowFacadeService(root)
+            service.snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="Ready.",
+                status_summary="Idle",
+                log_tail="",
+                progress={"ProgressVersion": 2, "Status": "Completed", "CurrentStage": "completed"},
+                audit_progress=None,
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+                pipeline_events=[],
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            server = LocalApiServer(
+                facade,
+                token="browser-pipeline-start-token",
+                resolved_provider=lambda: resolved,
+                audit_root_provider=lambda: str(root),
+                command_journal_path=command_journal_path,
+            )
+            try:
+                server.start()
+                result = _run_browser_pipeline_start_click_smoke(browser_path=browser_path, url=server.url)
+            finally:
+                server.stop()
+
+            self.assertTrue(result["ok"])
+            browser_result = result["result"]
+            self.assertEqual(browser_result["launchPost"]["path"], "/api/pipeline/start")
+            self.assertTrue(browser_result["launchPost"]["ok"])
+            self.assertEqual(browser_result["launchPost"]["command"], "pipeline.start")
+            self.assertEqual(browser_result["launchPost"]["body"]["mode"], "once")
+            self.assertEqual(browser_result["launchPost"]["body"]["sleep_seconds"], 3)
+            self.assertEqual(service.started_pipeline["mode"], "once")
+            self.assertEqual(service.started_pipeline["sleep_seconds"], 3)
+            self.assertIsNone(service.started_pipeline["single_file"])
+            self.assertIn("Started pipeline (once)", browser_result["launchPost"]["message"])
+            self.assertFalse(source.read_bytes() == b"")
+            self.assertFalse(output.read_bytes() == b"")
             assert_media_no_mutation(self, media_snapshot)
 
 

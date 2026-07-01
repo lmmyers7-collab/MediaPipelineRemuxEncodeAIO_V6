@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from mediapipeline.core.kernel.dto import CommandResult
+from mediapipeline.core.processes.rerun_preview import rerun_import_csv_root
 from mediapipeline.core.rename.input_classification import classify_rename_input_paths
 
 
@@ -309,7 +310,7 @@ def _target_default_initial_path(owner: Any, target_key: str) -> str:
         resolved = resolver()
     except Exception:
         return ""
-    return str(getattr(resolved, "audit_reports_path", None) or "")
+    return str(rerun_import_csv_root(resolved) or "")
 
 
 def _path_picker_initial_path(owner: Any, target_key: str, request: dict[str, Any]) -> str:

@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0630-020",
+  "title": "Process worker and SQLite durability",
+  "version_target": "2026.07.01.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-06-30",
+  "date_completed": "2026-07-01",
+  "summary": "Bounded Windows process-tree kill behavior, added local worker child heartbeats/stale-slot reclaim, and added best-effort SQLite mirror maintenance.",
+  "reason": "Unattended control paths cannot rely on external process tools, worker children, or SQLite WAL state staying healthy for 30 days without timeout evidence and recovery hooks.",
+  "affected_areas": [
+    "core"
+  ],
+  "behavior_before": "A Windows taskkill hang could block process cleanup, worker slots lacked child heartbeat evidence, and SQLite mirror maintenance was not opportunistically tracked after writes.",
+  "behavior_after": "Process cleanup returns bounded degraded evidence on taskkill timeout, worker slots can reclaim stale heartbeat children, and state DB maintenance runs best-effort on interval or WAL threshold.",
+  "files_touched": [
+    "ops/pipeline/engine/process/worker_result.ps1",
+    "ops/pipeline/engine/queue/local_worker_slots.ps1",
+    "ops/pipeline/engine/queue/worker_claim_store.ps1",
+    "ops/pipeline/engine/queue/worker_process.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline.ps1",
+    "ops/pipeline/tests/Unit/Invoke-LocalWorkerClaimLifecycleChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0630-020.json",
+    "src/mediapipeline/core/orchestration/runner.py",
+    "src/mediapipeline/core/processes/kill.py",
+    "src/mediapipeline/core/queue/dry_run_runner.py",
+    "src/mediapipeline/core/storage/db.py",
+    "src/mediapipeline/desktop/api/command_journal.py",
+    "tests/python/desktop/test_phase4_storage_observability.py",
+    "tests/python/desktop/test_service_process_kill.py"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-LocalWorkerClaimLifecycleChecks.ps1",
+    "tests/python/desktop/test_phase4_storage_observability.py",
+    "tests/python/desktop/test_service_process_kill.py"
+  ],
+  "manual_validation": [
+    "ops/pipeline/tests/Unit/Invoke-LocalWorkerClaimLifecycleChecks.ps1 - passed",
+    "python -m unittest tests.python.desktop.test_autonomy_health tests.python.desktop.test_service_process_kill tests.python.desktop.test_phase4_storage_observability -q - passed",
+    "python -m unittest tests.python.desktop.test_autonomy_health tests.python.desktop.test_service_process_kill tests.python.desktop.test_phase4_storage_observability tests.python.desktop.test_service_process_active_jobs tests.python.desktop.test_application_facade_snapshot tests.python.desktop.test_application_facade_local_api_http -q - passed",
+    "ops/scripts/smoke/Test-LocalApiMaintenanceDryRunContractSmoke.ps1 - passed",
+    "PowerShell parser check for changed process/queue/status entrypoint scripts - passed",
+    "mediapipeline.tools.dev.ai_guardrail postflight - passed",
+    "mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed"
+  ],
+  "rollback_plan": "Revert kill timeout, heartbeat, stale slot reclaim, and SQLite maintenance changes plus tests; JSON state remains authoritative and no source/output files require migration.",
+  "related_changes": [],
+  "notes": "Bound process-tree kill timeout, worker heartbeat evidence, stale slot reclaim, and SQLite maintenance."
+}

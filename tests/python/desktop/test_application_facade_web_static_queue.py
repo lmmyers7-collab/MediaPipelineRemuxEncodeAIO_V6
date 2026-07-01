@@ -232,7 +232,7 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
                 "Queue-to-Launch handoff:",
                 "Daily-use handoff: Queue evidence decides whether it is sensible to open Launch",
                 "Scope boundary: Queue filters, selected rows, review boards",
-                "open Launch only after backend launch preflight, queue payload, display filter scope, freshness, blocked rows, runtime context, completed exclusions, selected-row proof, command history, and Launch readiness agree.",
+                "use backend launch preflight, queue payload, display filter scope, freshness, blocked rows, runtime context, completed exclusions, selected-row proof, command history, and Launch readiness as advisory context",
                 "Mutation guardrail: this handoff cannot launch, reorder, drop, rewrite queue snapshots, delete files, clear completed state, override schedule, or bypass backend validation.",
             ),
         )

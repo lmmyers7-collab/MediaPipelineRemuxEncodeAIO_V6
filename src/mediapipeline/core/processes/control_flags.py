@@ -9,7 +9,7 @@ import time
 from typing import Any, Protocol
 import uuid
 
-from mediapipeline.desktop.contracts import ContractError, ControlFlagRecord
+from mediapipeline.core.kernel.contracts import ContractError, ControlFlagRecord
 from mediapipeline.core.processes.constants import CONTROL_FLAG_SCHEMA_VERSION
 from mediapipeline.core.processes.file_io import atomic_write_text, read_json_file
 

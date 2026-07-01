@@ -12,6 +12,7 @@ This package is the single source of truth for:
 - File lifecycle/state-machine documentation source (`lifecycle.py`).
 - Runtime diagnostic evidence (`runtime_evidence.py`).
 - Subtitle QA evidence (`subtitles.py`).
+- Local API route metadata (`api_routes.py`).
 - Cross-stage data shapes (jobs, manifests, events) — added in later phases.
 
 `config.py` generates `src/mediapipeline/contracts/schemas/config.v1.schema.json`. `stages.py`

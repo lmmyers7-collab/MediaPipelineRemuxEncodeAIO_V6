@@ -3,15 +3,15 @@ file: src/mediapipeline/core/completed/service.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: completed
-last_modified: 2026-06-04
+last_modified: 2026-06-29
 last_reviewed: 2026-06-04
-sha256: 54279c26c4d0facf094d3f35175c7d5e21abcb69ac4fe609615fe01ade58aa1a
+sha256: 85614856aba35ac51f980c2397268e8846882dc2397445313bc79b0cbd69fff3
 ---
 # `src/mediapipeline/core/completed/service.py`
 
 **Purpose:** (no module docstring)
 
 **Classes:** `CompletedJobsServiceMixin`
-**In-repo imports:** `mediapipeline.core.completed.backfill`, `mediapipeline.core.completed.manifest`, `mediapipeline.core.kernel.config_keys`, `mediapipeline.desktop.models`, `mediapipeline.desktop.subprocess_runner`
+**In-repo imports:** `mediapipeline.core.completed.backfill`, `mediapipeline.core.completed.contracts`, `mediapipeline.core.completed.manifest`, `mediapipeline.core.kernel.config_keys`, `mediapipeline.core.kernel.runtime.subprocess_runner`, `mediapipeline.core.paths.contracts`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/completed/service.py`._

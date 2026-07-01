@@ -41,9 +41,13 @@ def _numeric_baseline() -> dict:
         "Route4KMaxVideoBitrateMbps": 35,
         "MinFreeSpaceGB": 20,
         "OutsourceMinFreeSpaceGB": 20,
+        "FailureArtifactWarningThresholdGB": 100,
+        "FailureArtifactRetentionDays": 0,
+        "FailureArtifactCleanupTargetGB": 0,
         "VideoQuality": 22,
         "MergeThresholdMs": 100,
         "FFmpegEncodeTimeoutSeconds": 3600,
+        "CpuEncodeMutexWaitSeconds": 1800,
         "FFmpegRemuxTimeoutSeconds": 1800,
         "SubtitleExtractTimeoutSeconds": 300,
         "SubtitleProbeTimeoutSeconds": 30,
@@ -56,6 +60,7 @@ def _numeric_baseline() -> dict:
         "RobocopyTimeoutSeconds": 3600,
         "SourceScanTimeoutSeconds": 300,
         "IndexScanTimeoutSeconds": 300,
+        "WatchScanTimeoutSeconds": 300,
         "CleanupScanTimeoutSeconds": 300,
         "CleanupStaleAgeHours": 24,
         "EncodeWasteGuardMinProgressPercent": 15,
@@ -94,13 +99,18 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
             "Route4KLowerHeightTolerancePercent": {"min": 0, "max": 100, "step": 0.000001, "unit": "percent"},
             "Route4KMaxVideoBitrateMbps": {"min": 1, "max": 500, "step": 1, "unit": "Mbps"},
             "VideoQuality": {"min": 1, "max": 51, "step": 1, "unit": None},
+            "FailureArtifactWarningThresholdGB": {"min": 0, "max": None, "step": 1, "unit": "GB"},
+            "FailureArtifactRetentionDays": {"min": 0, "max": None, "step": 1, "unit": "days"},
+            "FailureArtifactCleanupTargetGB": {"min": 0, "max": None, "step": 1, "unit": "GB"},
             "AudioMaxChannels": {"min": 1, "max": 16, "step": 1, "unit": "channels"},
             "SubtitleExtractTimeoutSeconds": {"min": 30, "max": 3600, "step": 1, "unit": "seconds"},
             "SubtitleProbeTimeoutSeconds": {"min": 5, "max": 600, "step": 1, "unit": "seconds"},
             "BdpgsOcrTimeoutSeconds": {"min": 60, "max": 14400, "step": 1, "unit": "seconds"},
             "VobSubOcrTimeoutSeconds": {"min": 60, "max": 14400, "step": 1, "unit": "seconds"},
             "OutputSizeMultiplier": {"min": 0.1, "max": 2.0, "step": "any", "unit": None},
+            "CpuEncodeMutexWaitSeconds": {"min": 0, "max": 86400, "step": 1, "unit": "seconds"},
             "CpuEncodeMaxThreads": {"min": 0, "max": 256, "step": 1, "unit": "threads"},
+            "WatchScanTimeoutSeconds": {"min": 1, "max": 86400, "step": 1, "unit": "seconds"},
             "EncodeWasteGuardMinProgressPercent": {"min": 0, "max": 95, "step": 1, "unit": "percent"},
             "EncodeWasteGuardMinElapsedSeconds": {"min": 0, "max": 86400, "step": 1, "unit": "seconds"},
             "EncodeWasteGuardOversizeMarginPercent": {"min": 0, "max": 1000, "step": 1, "unit": "percent"},
@@ -141,6 +151,8 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
                 "SourceMovies": "",
                 "VideoQuality": 99,
                 "IndexScanTimeoutSeconds": 10,
+                "CpuEncodeMutexWaitSeconds": 86401,
+                "WatchScanTimeoutSeconds": 0,
                 "TransientFailureRetryLimit": 101,
                 "VobSubOcrTimeoutSeconds": 59,
                 "OutputSizeMultiplier": 3.0,
@@ -150,6 +162,9 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
                 "Route1080pMaxVideoBitrateMbps": 0,
                 "Route1440pMaxVideoBitrateMbps": 501,
                 "Route4KMaxVideoBitrateMbps": 501,
+                "FailureArtifactWarningThresholdGB": -1,
+                "FailureArtifactRetentionDays": -1,
+                "FailureArtifactCleanupTargetGB": -1,
                 "EncodeWasteGuardMinProgressPercent": 96,
                 "EncodeWasteGuardConsecutiveSamples": 0,
                 "EncodeWasteGuardPollSeconds": 0,
@@ -163,6 +178,8 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
         self.assertIn("SourceMovies is required.", errors)
         self.assertIn("VideoQuality must be <= 51.", errors)
         self.assertIn("IndexScanTimeoutSeconds must be >= 30.", errors)
+        self.assertIn("CpuEncodeMutexWaitSeconds must be <= 86400.", errors)
+        self.assertIn("WatchScanTimeoutSeconds must be >= 1.", errors)
         self.assertIn("TransientFailureRetryLimit must be <= 100.", errors)
         self.assertIn("VobSubOcrTimeoutSeconds must be >= 60.", errors)
         self.assertIn("OutputSizeMultiplier must be <= 2.0.", errors)
@@ -172,6 +189,9 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
         self.assertIn("Route1080pMaxVideoBitrateMbps must be >= 1.", errors)
         self.assertIn("Route1440pMaxVideoBitrateMbps must be <= 500.", errors)
         self.assertIn("Route4KMaxVideoBitrateMbps must be <= 500.", errors)
+        self.assertIn("FailureArtifactWarningThresholdGB must be >= 0.", errors)
+        self.assertIn("FailureArtifactRetentionDays must be >= 0.", errors)
+        self.assertIn("FailureArtifactCleanupTargetGB must be >= 0.", errors)
         self.assertIn("EncodeWasteGuardMinProgressPercent must be <= 95.", errors)
         self.assertIn("EncodeWasteGuardConsecutiveSamples must be >= 1.", errors)
         self.assertIn("EncodeWasteGuardPollSeconds must be >= 1.", errors)
@@ -202,6 +222,19 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
         self.assertIn("MovieRoute1080pTargetSizeGB must be an integer.", errors)
         self.assertIn("Route1080pUpperHeightTolerancePercent must be numeric.", errors)
         self.assertIn("OutputSizeMultiplier must be numeric.", errors)
+
+    def test_failure_artifact_warning_threshold_rejects_non_numeric_values(self) -> None:
+        values = _numeric_baseline()
+        values["FailureArtifactWarningThresholdGB"] = "large"
+        values["FailureArtifactRetentionDays"] = "many"
+        values["FailureArtifactCleanupTargetGB"] = "large"
+        errors: list[str] = []
+
+        validate_required_and_numeric_config(values, errors)
+
+        self.assertIn("FailureArtifactWarningThresholdGB must be an integer.", errors)
+        self.assertIn("FailureArtifactRetentionDays must be an integer.", errors)
+        self.assertIn("FailureArtifactCleanupTargetGB must be an integer.", errors)
 
     def test_numeric_policy_bounds_optional_cpu_fields_when_present(self) -> None:
         values = _numeric_baseline()

@@ -4,7 +4,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.models import ResolvedPaths, Snapshot
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.status.contracts import Snapshot
 from mediapipeline.core.rename.policy import rename_cleaning_policy_from_resolved
 from mediapipeline.core.status.active_jobs import format_active_job_summary
 from mediapipeline.core.status.presentation import (

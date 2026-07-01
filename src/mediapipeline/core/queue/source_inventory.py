@@ -11,7 +11,7 @@ from typing import Any
 from mediapipeline.core.config.library_profiles import effective_library_profiles_from_config
 from mediapipeline.core.files.constants import MEDIA_FILE_SUFFIXES, SIDECAR_FILE_SUFFIXES
 from mediapipeline.core.queue.file_io import atomic_write_text
-from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
 
 
 QUEUE_SCAN_STATUS_SCHEMA_VERSION = "desktop_queue_scan_status.v1"

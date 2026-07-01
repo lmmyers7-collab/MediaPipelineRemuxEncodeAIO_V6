@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_process_spawn_runner.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-06-29
 last_reviewed: 2026-06-04
-sha256: b9a50df542345c46036364f64da007672a9cda530e8b52c33ea3cd3f76e98232
+sha256: f069b1d7c8aa918c8e094f198081ba288e02611db2de41eb7cd19248fc441dab
 ---
 # `tests/python/desktop/test_service_process_spawn_runner.py`
 

@@ -7,6 +7,8 @@ from typing import Any
 
 from mediapipeline.core.failures.policy import (
     bounded_failure_limit,
+    allowed_failure_open_targets_text,
+    FAILURE_OPEN_TARGETS,
     failure_json_read_error_result,
     failure_latest_json_resolution_error_result,
     failure_loader_unavailable_result,
@@ -17,7 +19,15 @@ from mediapipeline.core.failures.policy import (
     failure_preview_from_records,
     failure_report_service_unavailable_result,
     failure_record_to_row,
+    failure_open_path,
+    failure_open_target_label,
+    normalize_failure_open_target,
     normalize_failure_source_kind,
+)
+from mediapipeline.core.failures.artifacts import failure_artifact_summary
+from mediapipeline.core.failures.constants import (
+    DEFAULT_FAILURE_ARTIFACT_CLEANUP_REASON,
+    DEFAULT_FAILURE_EVIDENCE_ARCHIVE_REASON,
 )
 from mediapipeline.core.failures.resolution_journal import (
     FAILURE_LIFECYCLE_PREVIEW_REQUIRED,
@@ -30,13 +40,18 @@ from mediapipeline.core.failures.resolution_journal import (
     failure_resolution_journal_state,
 )
 
-from mediapipeline.desktop.application.dto_commands import CommandResult
-from mediapipeline.desktop.application.dto_inventory import FailurePreviewDto
-from mediapipeline.desktop.models import FailureRecord, ResolvedPaths
+from mediapipeline.core.kernel.dto_commands import CommandResult
+from mediapipeline.core.kernel.dto_inventory import FailurePreviewDto
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.failures.contracts import FailureRecord
 
 
 class FailureFacadeMixin:
     """Read-only failure-report adapter for the application facade."""
+
+    def get_failure_artifact_summary(self, resolved: ResolvedPaths) -> dict[str, Any]:
+        """Return read-only size evidence for captured failure artifacts."""
+        return failure_artifact_summary(resolved)
 
     def get_failure_preview(self, resolved: ResolvedPaths, *, source_kind: str = "latest_json", limit: int = 100) -> FailurePreviewDto:
         """Return recent failure rows without mutating markers, reports, or priority state."""
@@ -138,6 +153,97 @@ class FailureFacadeMixin:
     @staticmethod
     def _failure_record_to_row(record: FailureRecord) -> dict[str, object]:
         return failure_record_to_row(record)
+
+    def open_failure_evidence(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
+        """Open backend-authored evidence paths from the current failure preview."""
+        raw_row_key = str(request.get("row_key") or "")
+        row_key = raw_row_key.casefold()
+        target = normalize_failure_open_target(request.get("target"))
+        source_kind = normalize_failure_source_kind(request.get("source_kind"))
+        if source_kind != "markers":
+            source_kind = "latest_json"
+        if not raw_row_key.strip():
+            return CommandResult(
+                command="failures.open",
+                ok=False,
+                severity="warning",
+                message="Failure evidence open requires a selected row.",
+                warnings=["No failure row key was provided."],
+                refresh_hint="failures",
+            )
+        if target not in FAILURE_OPEN_TARGETS:
+            return CommandResult(
+                command="failures.open",
+                ok=False,
+                severity="error",
+                message="Failure evidence open target is not allowed.",
+                errors=[f"Allowed targets: {allowed_failure_open_targets_text()}"],
+                data={"target": target, "row_key": row_key, "source_kind": source_kind},
+                refresh_hint="failures",
+            )
+
+        preview = self.get_failure_preview(resolved, source_kind=source_kind, limit=500)
+        selected = next((row for row in preview.rows if str(row.get("row_key") or "").casefold() == row_key), None)
+        if selected is None:
+            return CommandResult(
+                command="failures.open",
+                ok=False,
+                severity="warning",
+                message="The selected failure row is no longer available.",
+                warnings=["Refresh Reports and select the row again."],
+                data={"target": target, "row_key": row_key, "source_kind": source_kind},
+                refresh_hint="failures",
+            )
+        path = failure_open_path(selected, target, resolved)
+        if path is None:
+            label = failure_open_target_label(target)
+            return CommandResult(
+                command="failures.open",
+                ok=False,
+                severity="warning",
+                message=f"No backend-owned path is available for {label}.",
+                warnings=[f"No allowed evidence path is available for target '{target}'."],
+                data={"target": target, "row_key": row_key, "source_kind": source_kind},
+                refresh_hint="failures",
+            )
+        opener = getattr(self.service, "open_path", None)
+        result_data = {
+            "target": target,
+            "row_key": row_key,
+            "source_kind": source_kind,
+            "path": str(path),
+            "opened_path": str(path),
+        }
+        if not callable(opener):
+            return CommandResult(
+                command="failures.open",
+                ok=False,
+                severity="error",
+                message="Path open service is not available.",
+                errors=["Path open service is not available."],
+                data=result_data,
+                refresh_hint="failures",
+            )
+        try:
+            opener(path)
+        except Exception as exc:
+            return CommandResult(
+                command="failures.open",
+                ok=False,
+                severity="error",
+                message=f"Could not open {failure_open_target_label(target)}: {exc}",
+                errors=[str(exc)],
+                data=result_data,
+                refresh_hint="failures",
+            )
+        return CommandResult(
+            command="failures.open",
+            ok=True,
+            severity="info",
+            message=f"Opened {failure_open_target_label(target)}.",
+            data=result_data,
+            refresh_hint="failures",
+        )
 
     def clear_failure_markers(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
         """Clear backend-owned failure marker files after explicit operator confirmation."""
@@ -315,25 +421,7 @@ class FailureFacadeMixin:
                 data={"scope": scope, "dry_run": dry_run, "touches_media": False},
             )
         if not dry_run and not reason:
-            return CommandResult(
-                command=command,
-                ok=False,
-                severity="error",
-                message="Failure evidence archive requires a non-empty reason.",
-                errors=["Failure evidence archive requires a non-empty reason."],
-                refresh_hint="failures",
-                data={"scope": scope, "dry_run": dry_run, "touches_media": False},
-            )
-        if not dry_run and not fingerprint:
-            return CommandResult(
-                command=command,
-                ok=False,
-                severity="error",
-                message="Failure evidence archive requires a matching dry_run_fingerprint.",
-                errors=["Failure evidence archive requires a matching dry_run_fingerprint."],
-                refresh_hint="failures",
-                data={"scope": scope, "dry_run": dry_run, "touches_media": False},
-            )
+            reason = DEFAULT_FAILURE_EVIDENCE_ARCHIVE_REASON
         archiver = getattr(self.service, "archive_failure_evidence", None)
         if not callable(archiver):
             return CommandResult(
@@ -379,11 +467,12 @@ class FailureFacadeMixin:
         data["scope"] = scope
         data["writes_failure_evidence"] = (not dry_run) and (moved_markers + moved_reports > 0)
         data["touches_media"] = False
-        data["safe_next_action"] = (
-            "Refresh Reports. Archived evidence remains available from the clear manifest archive."
-            if ok and not dry_run
-            else "Review the preview fingerprint and reason before confirming archive."
-        )
+        if ok and not dry_run:
+            data["safe_next_action"] = "Refresh Reports. Archived evidence remains available from the clear manifest archive."
+        elif ok:
+            data["safe_next_action"] = "Archive can be confirmed from the current backend plan."
+        else:
+            data["safe_next_action"] = "Review archive errors before retrying."
         warnings = [str(item.get("reason")) for item in result.get("skipped") or [] if isinstance(item, dict) and item.get("reason")]
         if ok and not dry_run and journal_key:
             try:
@@ -392,7 +481,7 @@ class FailureFacadeMixin:
                     journal_key=journal_key,
                     transition="complete_step",
                     step_id="archive_evidence",
-                    reason=reason or "Failure evidence archived after operator confirmation.",
+                    reason=reason or DEFAULT_FAILURE_EVIDENCE_ARCHIVE_REASON,
                     operator_note="",
                     group=lifecycle_group or {"journal_key": journal_key},
                 )
@@ -409,6 +498,164 @@ class FailureFacadeMixin:
             refresh_hint="failures",
             data=data,
         )
+
+    def cleanup_failure_artifacts(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
+        """Delete backend-owned failure artifact files after preview confirmation."""
+        command = "failures.artifacts_cleanup"
+        for key in ("dry_run", "confirm_delete"):
+            if key in request and not isinstance(request.get(key), bool):
+                return CommandResult(
+                    command=command,
+                    ok=False,
+                    severity="error",
+                    message=f"'{key}' must be a JSON boolean.",
+                    errors=[f"'{key}' must be a JSON boolean."],
+                    refresh_hint="failures",
+                )
+        if "dry_run" not in request:
+            return CommandResult(
+                command=command,
+                ok=False,
+                severity="error",
+                message="'dry_run' must be a JSON boolean.",
+                errors=["'dry_run' must be a JSON boolean."],
+                refresh_hint="failures",
+            )
+        retention_days, retention_error = self._failure_artifact_cleanup_override(request, "retention_days")
+        target_gb, target_error = self._failure_artifact_cleanup_override(request, "target_gb")
+        artifact_paths, artifact_paths_error = self._failure_artifact_cleanup_paths(request)
+        override_errors = [error for error in (retention_error, target_error, artifact_paths_error) if error]
+        if override_errors:
+            return CommandResult(
+                command=command,
+                ok=False,
+                severity="error",
+                message="Failure artifact cleanup request is invalid.",
+                errors=override_errors,
+                refresh_hint="failures",
+                data={"touches_media": False, "source_media_mutation": False},
+            )
+        dry_run = request.get("dry_run") is True
+        confirm_delete = request.get("confirm_delete") is True
+        fingerprint = str(request.get("dry_run_fingerprint") or "").strip()
+        reason = str(request.get("reason") or "").strip()
+        explicit_artifact_paths = artifact_paths is not None
+        if not dry_run and not confirm_delete:
+            return CommandResult(
+                command=command,
+                ok=False,
+                severity="error",
+                message="Failure artifact cleanup requires confirm_delete: true.",
+                errors=["Failure artifact cleanup requires confirm_delete: true."],
+                refresh_hint="failures",
+                data={"dry_run": dry_run, "touches_media": False, "source_media_mutation": False},
+            )
+        if not dry_run and not reason:
+            reason = DEFAULT_FAILURE_ARTIFACT_CLEANUP_REASON
+        if not dry_run and explicit_artifact_paths and not fingerprint:
+            return CommandResult(
+                command=command,
+                ok=False,
+                severity="error",
+                message="Failure artifact cleanup for selected artifact paths requires a matching dry_run_fingerprint.",
+                errors=["Failure artifact cleanup for selected artifact paths requires a matching dry_run_fingerprint."],
+                refresh_hint="failures",
+                data={"dry_run": dry_run, "touches_media": False, "source_media_mutation": False},
+            )
+        cleaner = getattr(self.service, "cleanup_failure_artifacts", None)
+        if not callable(cleaner):
+            return CommandResult(
+                command=command,
+                ok=False,
+                severity="error",
+                message="Failure artifact cleanup service is unavailable.",
+                errors=["Failure artifact cleanup service is unavailable."],
+                refresh_hint="failures",
+            )
+        try:
+            result = cleaner(
+                resolved,
+                retention_days=retention_days,
+                target_gb=target_gb,
+                artifact_paths=artifact_paths,
+                dry_run=dry_run,
+                dry_run_fingerprint=fingerprint,
+                reason=reason,
+            )
+        except Exception as exc:
+            return CommandResult(
+                command=command,
+                ok=False,
+                severity="error",
+                message=f"Failure artifact cleanup failed: {exc}",
+                errors=[str(exc)],
+                refresh_hint="failures",
+            )
+        errors = [str(item) for item in result.get("errors") or [] if str(item).strip()]
+        planned_count = int(result.get("planned_count") or len(result.get("planned") or []))
+        deleted_count = int(result.get("deleted_count") or 0)
+        ok = not errors
+        if dry_run:
+            message = f"Failure artifact cleanup preview found {planned_count} file(s)."
+        else:
+            message = f"Failure artifact cleanup deleted {deleted_count} artifact file(s)."
+        if errors:
+            message = "Failure artifact cleanup blocked; review errors before retrying."
+        data = dict(result)
+        data["writes_failure_artifacts"] = (not dry_run) and deleted_count > 0
+        data["touches_media"] = False
+        data["source_media_mutation"] = False
+        if ok and not dry_run:
+            data["safe_next_action"] = "Refresh Reports. Deleted failure artifacts are permanently removed; marker/report evidence remains separate."
+        elif ok:
+            data["safe_next_action"] = "Policy cleanup can be confirmed from the current backend plan; selected artifact paths require the preview fingerprint."
+        else:
+            data["safe_next_action"] = "Review cleanup errors before retrying."
+        warnings = [str(item.get("reason")) for item in result.get("skipped") or [] if isinstance(item, dict) and item.get("reason")]
+        return CommandResult(
+            command=command,
+            ok=ok,
+            severity="info" if ok else "error",
+            message=message,
+            errors=errors,
+            warnings=warnings,
+            refresh_hint="failures",
+            data=data,
+        )
+
+    @staticmethod
+    def _failure_artifact_cleanup_override(request: dict[str, Any], key: str) -> tuple[float | int | None, str | None]:
+        if key not in request or request.get(key) in (None, ""):
+            return None, None
+        label = "FailureArtifactRetentionDays" if key == "retention_days" else "FailureArtifactCleanupTargetGB"
+        try:
+            value = float(request.get(key))
+        except (TypeError, ValueError):
+            return None, f"{label} override must be numeric."
+        if value < 0:
+            return None, f"{label} override must be >= 0."
+        if key == "retention_days":
+            if not float(value).is_integer():
+                return None, f"{label} override must be an integer."
+            return int(value), None
+        return value, None
+
+    @staticmethod
+    def _failure_artifact_cleanup_paths(request: dict[str, Any]) -> tuple[list[str] | None, str | None]:
+        if "artifact_paths" not in request or request.get("artifact_paths") in (None, ""):
+            return None, None
+        raw_paths = request.get("artifact_paths")
+        if not isinstance(raw_paths, list):
+            return None, "'artifact_paths' must be a JSON array of path strings."
+        paths: list[str] = []
+        for index, raw_path in enumerate(raw_paths):
+            if not isinstance(raw_path, str):
+                return None, f"'artifact_paths[{index}]' must be a string."
+            path = raw_path.strip()
+            if not path:
+                return None, f"'artifact_paths[{index}]' must not be empty."
+            paths.append(path)
+        return paths, None
 
     def _active_failure_lifecycle_group(self, resolved: ResolvedPaths, journal_key: str) -> dict[str, Any] | None:
         normalized = str(journal_key or "").strip().casefold()
@@ -532,6 +779,7 @@ class FailureFacadeMixin:
                 refresh_hint="failures",
                 data={"journal_key": journal_key, "touches_media": False},
             )
+        expected_fingerprint = supplied_fingerprint
         if transition in FAILURE_LIFECYCLE_PREVIEW_REQUIRED:
             expected_fingerprint = failure_lifecycle_fingerprint(
                 journal_key=journal_key,
@@ -540,17 +788,7 @@ class FailureFacadeMixin:
                 group=group,
                 reason=reason,
             )
-            if not supplied_fingerprint:
-                return CommandResult(
-                    command=command,
-                    ok=False,
-                    severity="error",
-                    message="Failure lifecycle transition requires a matching dry_run_fingerprint.",
-                    errors=["Failure lifecycle transition requires a matching dry_run_fingerprint."],
-                    refresh_hint="failures",
-                    data={"journal_key": journal_key, "touches_media": False},
-                )
-            if supplied_fingerprint != expected_fingerprint:
+            if supplied_fingerprint and supplied_fingerprint != expected_fingerprint:
                 return CommandResult(
                     command=command,
                     ok=False,
@@ -579,7 +817,7 @@ class FailureFacadeMixin:
                 reason=reason,
                 operator_note=operator_note,
                 group=group,
-                dry_run_fingerprint=supplied_fingerprint,
+                dry_run_fingerprint=supplied_fingerprint or expected_fingerprint,
             )
         except Exception as exc:
             return CommandResult(
@@ -600,6 +838,7 @@ class FailureFacadeMixin:
             "journal_path": str(failure_resolution_journal_path(resolved)),
             "touches_media": False,
             "writes_failure_resolution_journal": True,
+            "confirmation_mode": "dry_run_fingerprint" if supplied_fingerprint else "current_plan",
             "safe_next_action": "Refresh Reports and continue from the selected issue playbook.",
         }
         return CommandResult(

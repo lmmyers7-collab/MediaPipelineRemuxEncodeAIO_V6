@@ -150,12 +150,40 @@ try {
     Assert-True ([string]$abortResult.ErrorCode -eq 'TEST_NATIVE_POLL_ABORT') "Poll abort should preserve the requested error code; got $($abortResult.ErrorCode)."
     Assert-True ([string]$abortResult.AbortReason -eq 'unit test requested poll abort') "Poll abort should preserve the requested reason; got $($abortResult.AbortReason)."
     Assert-True (Wait-ProcessExitObserved -ProcessId $abortChildPid -TimeoutMilliseconds 5000) "Child process $abortChildPid remained alive after poll abort."
+
+    $idleChildPid = 0
+    $previousIdleAbortCount = [int]$script:NativeIdleWatchdogAbortCount
+    $idleResult = Invoke-NativeProcess `
+        -FilePath $childExe `
+        -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'Start-Sleep -Seconds 60') `
+        -TimeoutSeconds 0 `
+        -IdleTimeoutSeconds 1 `
+        -IdleTimeoutErrorCode 'TEST_NATIVE_IDLE_TIMEOUT' `
+        -StopFlagPath $stopFlag `
+        -Label 'native-idle-watchdog-regression-child' `
+        -PollMilliseconds 20 `
+        -ProcessStartedHandler {
+            param($Process)
+            $script:idleChildPid = [int]$Process.Id
+        }
+
+    Assert-True ($idleChildPid -gt 0) 'Native idle-watchdog test did not capture the child PID.'
+    Assert-True ([int]$idleResult.ExitCode -eq -1) "Expected idle watchdog abort exit code -1; got $($idleResult.ExitCode)."
+    Assert-True ([bool]$idleResult.Aborted) 'Idle watchdog result should expose Aborted=true.'
+    Assert-True ([bool]$idleResult.IdleTimedOut) 'Idle watchdog result should expose IdleTimedOut=true.'
+    Assert-True ([string]$idleResult.ErrorCode -eq 'TEST_NATIVE_IDLE_TIMEOUT') "Idle watchdog should preserve the requested error code; got $($idleResult.ErrorCode)."
+    Assert-True ([string]$idleResult.AbortReason -like '*produced no output for 1s*') "Idle watchdog should preserve a no-progress abort reason; got $($idleResult.AbortReason)."
+    Assert-True ([int]$script:NativeIdleWatchdogAbortCount -eq ($previousIdleAbortCount + 1)) 'Idle watchdog should increment the native idle abort counter.'
+    Assert-True (Wait-ProcessExitObserved -ProcessId $idleChildPid -TimeoutMilliseconds 5000) "Child process $idleChildPid remained alive after idle watchdog abort."
 } finally {
     if ($childPid -gt 0 -and (Test-ProcessAlive -ProcessId $childPid)) {
         Stop-Process -Id $childPid -Force -ErrorAction SilentlyContinue
     }
     if ($abortChildPid -gt 0 -and (Test-ProcessAlive -ProcessId $abortChildPid)) {
         Stop-Process -Id $abortChildPid -Force -ErrorAction SilentlyContinue
+    }
+    if ($idleChildPid -gt 0 -and (Test-ProcessAlive -ProcessId $idleChildPid)) {
+        Stop-Process -Id $idleChildPid -Force -ErrorAction SilentlyContinue
     }
     Remove-Item -LiteralPath $stopFlag -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $workingDirectoryRoot -Recurse -Force -ErrorAction SilentlyContinue

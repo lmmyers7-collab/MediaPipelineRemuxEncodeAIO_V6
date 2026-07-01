@@ -36,7 +36,7 @@ def start_pipeline_for_service(
     sleep_seconds: int,
     extra_args: str,
     extra_argv: list[str] | tuple[str, ...] | None = None,
-    show_console: bool,
+    show_console: bool = False,
     single_file: str | None = None,
 ) -> subprocess.Popen[Any]:
     plan = build_pipeline_launch_plan(
@@ -93,6 +93,14 @@ def start_rerun_csv_for_service(
     stage_mode: str,
     original_mode: str,
     return_mode: str,
+    execution_mode: str = "one_at_a_time",
+    destination_mode: str = "review_workspace",
+    original_policy: str = "keep",
+    collision_policy: str = "suffix",
+    window_size: int = 1,
+    confirm_replace_final: bool = False,
+    confirm_original_policy: bool = False,
+    confirm_delete_original: bool = False,
     show_console: bool,
     plan_only: bool = False,
 ) -> subprocess.Popen[Any]:
@@ -104,6 +112,14 @@ def start_rerun_csv_for_service(
         stage_mode=stage_mode,
         original_mode=original_mode,
         return_mode=return_mode,
+        execution_mode=execution_mode,
+        destination_mode=destination_mode,
+        original_policy=original_policy,
+        collision_policy=collision_policy,
+        window_size=window_size,
+        confirm_replace_final=confirm_replace_final,
+        confirm_original_policy=confirm_original_policy,
+        confirm_delete_original=confirm_delete_original,
     )
     return service._spawn(
         plan.args,

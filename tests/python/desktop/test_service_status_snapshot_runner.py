@@ -33,13 +33,11 @@ class _DummyStatusSnapshotService:
         stale: bool = False,
         activity: str = "Encoding Movie.mkv",
         fail_reconcile: bool = False,
-        active_job_messages: list[str] | None = None,
     ) -> None:
         self.logger = logging.getLogger("test_service_status_snapshot_runner")
         self.stale = stale
         self.activity = activity
         self.fail_reconcile = fail_reconcile
-        self.active_job_messages = active_job_messages or []
         self.calls: list[str] = []
         self.progress = {"Status": "Processing"}
         self.audit_progress = {"Status": "Audit"}
@@ -96,11 +94,6 @@ class _DummyStatusSnapshotService:
         self.calls.append("stale")
         return self.stale
 
-    def active_job_close_block_messages(self, resolved: ResolvedPaths, *, job_kinds=None):
-        _ = resolved, job_kinds
-        self.calls.append("active_jobs")
-        return self.active_job_messages
-
     def _build_current_activity(self, resolved: ResolvedPaths, progress, log_tail: str, pipeline_events):
         _ = resolved, progress, log_tail, pipeline_events
         self.calls.append("activity")
@@ -146,15 +139,12 @@ class ServiceStatusSnapshotRunnerTests(unittest.TestCase):
         self.assertEqual(snapshot.current_activity, "Stale progress from previous run; latest event: Queued Movie.mkv")
         self.assertIsNone(service.activity_progress)
 
-    def test_build_snapshot_keeps_stale_progress_active_when_pipeline_job_is_live(self) -> None:
+    def test_build_snapshot_keeps_stale_progress_inactive_without_active_jobs_fallback(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             resolved = _resolved(Path(temp_dir))
             service = _DummyStatusSnapshotService(
                 stale=True,
                 activity="Scanning sources.",
-                active_job_messages=[
-                    "ActiveJobs record launch.json reports pipeline once as active and PID 32044 is still running."
-                ],
             )
             service.progress = {
                 "ProgressVersion": 2,
@@ -164,9 +154,9 @@ class ServiceStatusSnapshotRunnerTests(unittest.TestCase):
 
             snapshot = build_snapshot_for_service(service, resolved, "AuditRoot")
 
-        self.assertEqual(snapshot.current_activity, "Scanning sources.")
-        self.assertEqual(service.activity_progress, service.progress)
-        self.assertIn("active_jobs", service.calls)
+        self.assertEqual(snapshot.current_activity, "Stale progress from previous run; latest event: Scanning sources.")
+        self.assertIsNone(service.activity_progress)
+        self.assertNotIn("active_jobs", service.calls)
 
     def test_build_snapshot_logs_reconcile_failure_and_continues(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

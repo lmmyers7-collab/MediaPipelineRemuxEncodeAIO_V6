@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0630-009",
+  "title": "Autonomous repo bugfix scan pass 5",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-30",
+  "date_completed": "2026-06-30",
+  "summary": "Release validation now passes after redacting a local workstation path from an older unreleased packet and refreshing generated navigation maps.",
+  "reason": "The autonomous scan found release self-test failures caused by stale generated context and a local temp screenshot path in MP-CHANGE-2026-0630-006.json, which release packaging policy rejects.",
+  "affected_areas": [
+    "generated",
+    "release"
+  ],
+  "behavior_before": "Release self-test failed on generated project/feature map drift and on a local workstation path embedded in an unreleased change packet.",
+  "behavior_after": "The older packet uses release-safe redacted screenshot evidence text, PROJECT_INDEX/DEPENDENCY_GRAPH/FEATURE_FILE_MAP are regenerated, and the release self-test passes.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0630-006.json.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0630-009.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0630-006.json",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0630-009.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.tooling.test_summary_integrity tests.python.tooling.test_risky_file_registry tests.python.tooling.test_lifecycle_map tests.python.tooling.test_ai_guardrail -q - passed.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.ai_guardrail preflight --no-run - passed.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_active_doc_references - passed.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_architecture_guardrails - passed.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_config_schema --check - passed.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_duplicate_test_name_report --check - passed.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_feature_file_map --check - failed inside release self-test before regeneration, passed after FEATURE_FILE_MAP refresh.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_lifecycle_map --check - passed.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_pipeline_map --check - passed.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_project_index --check - failed before regeneration, passed after PROJECT_INDEX/DEPENDENCY_GRAPH refresh.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check - passed.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.lint_naming - passed.",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1 - passed after redacting the local temp path.",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke - passed."
+  ],
+  "rollback_plan": "Restore MP-CHANGE-2026-0630-006.json and regenerate PROJECT_INDEX, DEPENDENCY_GRAPH, and FEATURE_FILE_MAP back to their previous content, then rerun release self-test to confirm the prior failure mode if needed.",
+  "related_changes": [],
+  "notes": "Redacted a local temp screenshot path from an older unreleased packet so release package policy validation can pass.\nRegenerated project index after new unreleased change packet drift was detected.\nRegenerated dependency graph as companion output of project index refresh.\nRegenerated feature-to-file map after release self-test detected stale indexed-file counts.\nGenerated summary for the redacted older release packet.\nGenerated summary for this change packet."
+}

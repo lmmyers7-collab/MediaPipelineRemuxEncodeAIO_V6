@@ -3,8 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.api.path_dialogs import select_windows_paths_with_dialog
-from mediapipeline.desktop.application.dto import CommandResult
+from mediapipeline.core.kernel.dto_commands import CommandResult
 
 from .command_results import (
     resolved_paths_unavailable_payload,
@@ -187,7 +186,14 @@ class LocalApiSettingsCommandPayloadMixin:
         if callable(picker):
             result = picker(setting_key=setting_key, **picker_kwargs)
         else:
-            result = select_windows_paths_with_dialog(**picker_kwargs)
+            result = {
+                "ok": False,
+                "canceled": False,
+                "selection_mode": "folder",
+                "paths": [],
+                "message": "Settings path picker backend adapter is unavailable.",
+                "errors": ["settings_path_picker_adapter_unavailable"],
+            }
         paths = [str(path).strip() for path in result.get("paths", []) if str(path).strip()]
         selected_path = paths[0] if paths else ""
         canceled = bool(result.get("canceled", False))

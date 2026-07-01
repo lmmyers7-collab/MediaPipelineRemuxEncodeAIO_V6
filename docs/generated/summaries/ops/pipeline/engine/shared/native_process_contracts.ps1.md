@@ -3,9 +3,9 @@ file: ops/pipeline/engine/shared/native_process_contracts.ps1
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: shared
-last_modified: 2026-06-04
+last_modified: 2026-06-30
 last_reviewed: 2026-06-04
-sha256: cfac870dddc3671e6d136ed264a48e00872e8b1b9a577b19aa55b2f561b57903
+sha256: eb9ef11da727f18475977bde0e0c19bf318da7541bc4a86bb312349f66a70cd0
 ---
 # `ops/pipeline/engine/shared/native_process_contracts.ps1`
 

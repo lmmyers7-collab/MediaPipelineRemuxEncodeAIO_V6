@@ -1,0 +1,54 @@
+{
+  "id": "MP-CHANGE-2026-0629-042",
+  "title": "Show CSV rerun progress on Home",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Home Live Run now shows CSV rerun rows, current import, last imported file, and processing state from the active stdout tail. Backend worker progress also prefers active-job stdout/stderr tails so CSV rerun activity is not hidden behind stale generic pipeline logs.",
+  "reason": "CSV reruns were visibly active at the process/log level but Home only showed idle or stale worker text while files were being staged. Operators needed a clear read-only window showing what is being imported, what is being processed, and what is happening.",
+  "affected_areas": [
+    "generated-context",
+    "observability",
+    "status",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Home could show idle/stale progress during a CSV rerun, and CSV staging evidence was only visible by opening raw logs or diagnostics tails.",
+  "behavior_after": "Home Live Run polls the bounded last stdout tail, surfaces CSV row count/import/last imported/processing evidence, and treats CSV stdout evidence as active work while preserving backend-owned mutation boundaries.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/progressView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/progressView.js.md",
+    "docs/generated/summaries/src/mediapipeline/core/status/active_jobs.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_status_active_jobs.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_frontend_mutation_boundary.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-042.json",
+    "src/mediapipeline/core/status/active_jobs.py",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/python/desktop/test_service_status_active_jobs.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/python/desktop/test_service_status_active_jobs.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "manual_validation": [
+    "In-app browser Home screenshot confirmed Live Run shows CSV rows/importing/last imported/processing status.",
+    "node --check apps\\\\desktop\\\\webview\\\\static\\\\assets\\\\app.js - passed",
+    "node --check apps\\\\desktop\\\\webview\\\\static\\\\assets\\\\progressView.js - passed",
+    "python -m unittest tests.python.desktop.test_application_facade_snapshot -q - passed",
+    "python -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_ui_polish_error_and_tooltip_guards_are_wired -q - passed",
+    "python -m unittest tests.python.desktop.test_service_status_active_jobs -q - passed",
+    "python -m unittest tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_live_run_progress_surfaces_are_read_only_shared_renderer -q - passed",
+    "refresh_summaries --paths src/mediapipeline/core/status/active_jobs.py tests/python/desktop/test_service_status_active_jobs.py - passed"
+  ],
+  "rollback_plan": "Revert the Home stdout-tail polling/rendering changes in app.js and progressView.js plus the matching tests; the existing diagnostics tail endpoint and raw log window remain available as fallback evidence.",
+  "related_changes": [],
+  "notes": "Use active job run logs for Home worker progress.\nCover CSV rerun active job run-log progress on Home worker payload.\nValidated CSV rerun worker payload uses active job stdout log instead of stale generic pipeline tail.\nSnapshot path still builds after worker progress log-source change.\nRefresh generated summary for worker progress payload change.\nRefresh generated summary for CSV rerun worker progress test.\nRender CSV rerun import/processing summary from stdout tail on Home live-run panel.\nHome refresh reads bounded last stdout tail for clear CSV rerun status.\nStatic app test asserts CSV rerun stdout-tail parser and route wiring.\nStatic WebView guard covers the stdout-tail live-run CSV rerun surface.\nHome Live Run now polls the active stdout tail and renders CSV rerun rows/import/processing evidence without waiting for the full dashboard refresh.\nStatus payloads now prefer the active rerun stdout log for CSV worker progress, and static tests guard the Home CSV evidence fast path.\nGenerated summaries refreshed for changed source and test files.\nCompleted after Home browser screenshot and targeted tests."
+}

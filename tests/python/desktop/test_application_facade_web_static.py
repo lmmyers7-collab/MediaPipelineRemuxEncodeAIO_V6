@@ -185,14 +185,31 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             );
             const source = fs.readFileSync(lifecyclePath, "utf8");
             const ticker = { textContent: "", title: "", dataset: {} };
+            const activity = {
+              textContent: "",
+              title: "",
+              replaceChildren(...children) {
+                this.children = children;
+                this.textContent = children.map((child) => child.textContent || "").join(" ");
+              },
+            };
             const context = {
               window: {},
               console,
+              document: {
+                createElement() {
+                  return { className: "", textContent: "", title: "", dataset: {} };
+                },
+              },
               Date,
               setTimeout,
               clearTimeout,
               lastSnapshot: { pipeline_state: "processing", recent_events: [] },
-              byId(id) { return id === "topbar-event-ticker" ? ticker : null; },
+              byId(id) {
+                if (id === "topbar-event-ticker") return ticker;
+                if (id === "activity") return activity;
+                return null;
+              },
               mediaPipelineFormatters: { formatProgressValue(value) { return value == null ? "" : String(value); } },
               homeProgressPercent(value) { return value == null || value === "" ? "" : `${value}%`; },
             };
@@ -216,6 +233,30 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               || !ticker.textContent.includes("PID 20676")
             ) {
               throw new Error(`Unexpected pending ticker: ${ticker.dataset.state} ${ticker.textContent}`);
+            }
+
+            lifecycle.setTopbarPendingLaunch({
+              label: "CSV rerun",
+              status_label: "submitted",
+              wait_label: "waiting for backend response",
+            });
+            if (
+              ticker.dataset.state !== "pending"
+              || !ticker.textContent.includes("CSV rerun submitted")
+              || !ticker.textContent.includes("waiting for backend response")
+            ) {
+              throw new Error(`Unexpected CSV rerun pending ticker: ${ticker.dataset.state} ${ticker.textContent}`);
+            }
+            lifecycle.renderTopbarActivity({ pipeline_state: "idle", activity: "None", recent_events: [] });
+            if (!activity.textContent.includes("CSV rerun submitted")) {
+              throw new Error(`Pending CSV rerun activity was overwritten: ${activity.textContent}`);
+            }
+            if (!lifecycle.clearTopbarPendingLaunch) {
+              throw new Error("clearTopbarPendingLaunch export is missing");
+            }
+            lifecycle.clearTopbarPendingLaunch({ pipeline_state: "idle", recent_events: [] });
+            if (ticker.dataset.state !== "empty" || !ticker.textContent.includes("no backend pipeline events")) {
+              throw new Error(`Unexpected cleared ticker: ${ticker.dataset.state} ${ticker.textContent}`);
             }
 
             lifecycle.renderTopbarEventTicker({
@@ -682,6 +723,116 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
+    def test_progress_csv_rerun_evidence_does_not_override_active_pipeline(self) -> None:
+        node = shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("Node.js is required for the progress CSV rerun classifier smoke.")
+        repo_root = find_repo_root(Path(__file__))
+        script = textwrap.dedent(
+            r"""
+            const fs = require("fs");
+            const vm = require("vm");
+            const path = require("path");
+            const progressPath = path.join(
+              process.cwd(),
+              "apps/desktop/webview/static/assets/progressView.js"
+            );
+            const source = fs.readFileSync(progressPath, "utf8");
+            const context = {
+              window: {},
+              console,
+              Date,
+              setText() {},
+              byId() { return null; },
+              mediaPipelineFormatters: { formatProgressValue(value) { return value == null ? "" : String(value); } },
+            };
+            context.window = context;
+            vm.createContext(context);
+            vm.runInContext(source, context, { filename: progressPath });
+            const progress = context.window.mediaPipelineProgressView;
+            if (!progress?.csvRerunTailEvidence || !progress?.csvRerunActivityEvidence || !progress?.liveRunStatus) {
+              throw new Error("Progress CSV rerun exports are missing");
+            }
+
+            const normalTail = progress.csvRerunTailEvidence({
+              text: [
+                "2026-07-01 11:43:43 [DEBUG] Copy attempt 1/3: Django Unchained.mkv",
+                "2026-07-01 11:44:00 [INFO] Copying to scratch 38.9%",
+                "2026-07-01 11:44:01 [INFO] Route: REMUX codec check pending",
+              ].join("\n"),
+            });
+            if (normalTail.hasEvidence || normalTail.latestLine) {
+              throw new Error(`Normal pipeline tail was classified as CSV rerun: ${JSON.stringify(normalTail)}`);
+            }
+
+            const staleCsvTail = {
+              text: [
+                "2026-07-01 11:40:00 [INFO] Rerun CSV rows listed: 100; enabled/planned: 100",
+                "2026-07-01 11:40:01 [INFO] STAGE COPY attempt 1/3: Old Csv Item.mkv -> scratch",
+              ].join("\n"),
+            };
+            const explicitTail = progress.csvRerunTailEvidence(staleCsvTail);
+            if (!explicitTail.hasEvidence || !explicitTail.currentImport.includes("Old Csv Item")) {
+              throw new Error(`Explicit CSV tail was not detected: ${JSON.stringify(explicitTail)}`);
+            }
+
+            const activePipelineContext = {
+              stdoutTail: staleCsvTail,
+              closeReadiness: { safe_to_close: false },
+              snapshot: {
+                pipeline_state: "processing",
+                worker_progress: {
+                  rows: [{
+                    worker_label: "Local pipeline",
+                    job_kind: "pipeline",
+                    stage: "copy_to_scratch",
+                    status: "active",
+                    status_state: "running",
+                    source: "Django Unchained (2012).mp4",
+                    last_log_line: "2026-07-01 11:44:00 [INFO] Copying to scratch 38.9%",
+                  }],
+                },
+              },
+            };
+            const suppressed = progress.csvRerunActivityEvidence(activePipelineContext);
+            if (suppressed.hasEvidence || !suppressed.tailSuppressedByPipelineWorker) {
+              throw new Error(`Stale CSV tail was not suppressed by active pipeline worker: ${JSON.stringify(suppressed)}`);
+            }
+            const liveStatus = progress.liveRunStatus(activePipelineContext);
+            if (liveStatus.label !== "Active work") {
+              throw new Error(`Active normal pipeline was labelled incorrectly: ${JSON.stringify(liveStatus)}`);
+            }
+
+            const activeRerun = progress.csvRerunActivityEvidence({
+              stdoutTail: staleCsvTail,
+              closeReadiness: { safe_to_close: false },
+              snapshot: {
+                worker_progress: {
+                  rows: [{
+                    worker_label: "Local rerun_csv",
+                    job_kind: "rerun_csv",
+                    stage: "active",
+                    status: "active",
+                    status_state: "running",
+                    last_log_line: "2026-07-01 11:40:01 [INFO] STAGE COPY attempt 1/3: Old Csv Item.mkv -> scratch",
+                  }],
+                },
+              },
+            });
+            if (!activeRerun.hasEvidence || !activeRerun.workerActive || !activeRerun.currentImport.includes("Old Csv Item")) {
+              throw new Error(`Active CSV rerun worker was not preserved: ${JSON.stringify(activeRerun)}`);
+            }
+            """
+        )
+        result = subprocess.run(
+            [node, "-e", script],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
     def test_home_next_queue_shows_first_five_runnable_rows_only(self) -> None:
         node = shutil.which("node")
         if not node:
@@ -792,6 +943,136 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             }
             if (detail.includes("Selected queue item:") || detail.includes("Safe next step:")) {
               throw new Error(`Old verbose detail text is still rendered: ${detail}`);
+            }
+            context.mediaPipelineProgressView = {
+              csvRerunTailEvidence() {
+                return {
+                  hasEvidence: true,
+                  plannedRows: "100 enabled / 100 CSV rows",
+                  currentImport: "Clueless (1995).mp4",
+                  lastImported: "Caddyshack (1980).mkv",
+                  processing: "Not processing yet; importing staged CSV files",
+                  latestLine: "STAGE COPY attempt 1/3: Clueless (1995).mp4 -> scratch",
+                };
+              },
+            };
+            home.renderHomeNextQueue({
+              stdoutTail: { text: "csv active" },
+              closeReadiness: { safe_to_close: false },
+              queue: { rows: [] },
+            });
+            const csvRendered = list.children.map((item) => item.textContent);
+            if (elements["home-next-queue-status"].textContent !== "CSV rerun active") {
+              throw new Error(`CSV rerun status did not replace queue status: ${elements["home-next-queue-status"].textContent}`);
+            }
+            for (const expected of ["Importing: Clueless (1995).mp4", "Last imported: Caddyshack (1980).mkv", "Processing: Not processing yet", "CSV rows: 100 enabled / 100 CSV rows"]) {
+              if (!csvRendered.some((line) => line.includes(expected))) throw new Error(`Missing CSV row ${expected}: ${csvRendered.join(" | ")}`);
+            }
+            const csvDetail = elements["home-next-queue-detail"].textContent;
+            for (const expected of ["Importing:", "Clueless (1995).mp4", "CSV rows:", "100 enabled / 100 CSV rows", "still importing staged files"]) {
+              if (!csvDetail.includes(expected)) throw new Error(`Missing CSV detail ${expected}: ${csvDetail}`);
+            }
+            context.mediaPipelineProgressView = {
+              csvRerunActivityEvidence(activityContext) {
+                const rows = activityContext?.snapshot?.worker_progress?.rows || [];
+                if (!rows.some((row) => String(row.worker_label || "").includes("rerun csv"))) {
+                  throw new Error("CSV activity renderer did not receive worker-progress context");
+                }
+                return {
+                  hasEvidence: true,
+                  isActive: true,
+                  workerActive: true,
+                  plannedRows: "100 enabled / 100 CSV rows",
+                  currentImport: "Jurassic World Fallen Kingdom (2018).mkv",
+                  lastImported: "Fumetsu No Anata E S02E05.mkv",
+                  processing: "Not processing yet; importing staged CSV files",
+                  latestLine: "PIPELINE SHUTDOWN CLEANLY",
+                };
+              },
+            };
+            home.renderHomeNextQueue({
+              stdoutTail: { text: "PIPELINE SHUTDOWN CLEANLY" },
+              closeReadiness: { safe_to_close: false },
+              snapshot: {
+                worker_progress: {
+                  rows: [
+                    {
+                      worker_label: "Local rerun csv",
+                      stage: "active",
+                      status_state: "running",
+                      last_log_line: "STAGE COPY attempt 1/3: Jurassic World Fallen Kingdom (2018).mkv -> scratch",
+                    },
+                  ],
+                },
+              },
+              queue: { rows: [] },
+            });
+            const workerCsvRendered = list.children.map((item) => item.textContent);
+            if (elements["home-next-queue-status"].textContent !== "CSV rerun active") {
+              throw new Error(`CSV worker status did not replace queue status: ${elements["home-next-queue-status"].textContent}`);
+            }
+            if (!workerCsvRendered.some((line) => line.includes("Importing: Jurassic World Fallen Kingdom (2018).mkv"))) {
+              throw new Error(`CSV worker row was not rendered: ${workerCsvRendered.join(" | ")}`);
+            }
+            context.mediaPipelineProgressView = {
+              csvRerunActivityEvidence(activityContext) {
+                const rows = activityContext?.snapshot?.worker_progress?.rows || [];
+                if (!rows.some((row) => String(row.worker_label || "").includes("rerun csv"))) {
+                  throw new Error("CSV queue renderer did not receive worker-progress context");
+                }
+                return {
+                  hasEvidence: true,
+                  hasWorkerEvidence: true,
+                  isActive: false,
+                  workerActive: false,
+                  processing: "[INFO] ENCODE : 55%",
+                  latestLine: "[INFO] ENCODE : 55%",
+                };
+              },
+            };
+            home.renderHomeNextQueue({
+              snapshot: {
+                worker_progress: {
+                  rows: [
+                    {
+                      worker_label: "Local rerun csv",
+                      status_state: "running",
+                      last_log_line: "[INFO] ENCODE : 55%",
+                    },
+                  ],
+                },
+              },
+              queue: {
+                rows: [
+                  {
+                    media_kind: "movie",
+                    display_name: "Paprika(2006).mkv",
+                    route_name: "ENCODE",
+                    operator_status: "Ready",
+                    queue_position: "4/100",
+                    queue_source: "csv_rerun",
+                    queue_phase: "csv_rerun",
+                  },
+                  {
+                    media_kind: "movie",
+                    display_name: "Delicatessen (1991).mkv",
+                    route_name: "REMUX",
+                    operator_status: "Ready",
+                    queue_position: "5/100",
+                  },
+                ],
+              },
+            });
+            const csvQueueRendered = list.children.map((item) => item.textContent);
+            if (elements["home-next-queue-status"].textContent !== "CSV rerun queue · 2 queued") {
+              throw new Error(`CSV rerun queue status was not shown: ${elements["home-next-queue-status"].textContent}`);
+            }
+            if (!csvQueueRendered.some((line) => line.includes("Paprika") && line.includes("CSV rerun") && line.includes("ENCODE"))) {
+              throw new Error(`CSV rerun queue row was not labelled: ${csvQueueRendered.join(" | ")}`);
+            }
+            const csvQueueDetail = elements["home-next-queue-detail"].textContent;
+            for (const expected of ["Workflow:", "CSV rerun queue", "Queue:", "4/100", "active CSV rerun queue"]) {
+              if (!csvQueueDetail.includes(expected)) throw new Error(`Missing CSV queue detail ${expected}: ${csvQueueDetail}`);
             }
             """
         )
@@ -922,7 +1203,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('id="pipeline-state" class="pipeline-state-value"', html)
         self.assertIn('class="pipeline-state-main"', html)
         self.assertIn('class="pipeline-state-detail" hidden', html)
+        self.assertIn('id="queue-count-detail" class="metric-detail"', html)
+        self.assertIn('class="panel live-run-strip-panel" data-panel-type="status"', html)
         self.assertIn("const HOME_PIPELINE_STATE_LABELS = Object.freeze({", topbar_js)
+        self.assertIn('csv_rerun_active: { main: "CSV Rerun", detail: "active" }', topbar_js)
         self.assertIn('remuxing_movie: { main: "Remuxing Movie", detail: "" }', topbar_js)
         self.assertIn('"encoding_tv_(cpu_fallback)": { main: "Encoding TV", detail: "(cpu fallback)" }', topbar_js)
         self.assertIn(
@@ -934,8 +1218,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('const readable = raw.replace(/[_-]+/g, " ")', topbar_js)
         self.assertIn("renderHomePipelineState(state);", app_js)
         self.assertIn("function renderHomePipelineQueueOutcome", app_js)
-        self.assertIn("renderHomePipelineQueueOutcome(values.snapshot || lastSnapshot, values.queue || {});", app_js)
+        self.assertIn("const latestQueue = values.queue || lastQueue || {};", app_js)
+        self.assertIn("renderHomePipelineQueueOutcome(values.snapshot || lastSnapshot, latestQueue);", app_js)
         self.assertIn(".pipeline-state-value {", components_css)
+        self.assertIn('.metric strong[data-mode="file"]', components_css)
         self.assertIn("overflow-wrap: anywhere;", components_css)
 
     def test_app_refresh_uses_schedule_namespace_export(self) -> None:
@@ -1010,7 +1296,13 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('id="home-scratch-storage-detail"', home_html)
         self.assertIn('id="home-output-storage-status"', home_html)
         self.assertIn('id="home-output-storage-detail"', home_html)
+        self.assertIn('id="home-failure-artifact-storage-status"', home_html)
+        self.assertIn('id="home-failure-artifact-storage-detail"', home_html)
         self.assertIn("function renderHomeStorageHealth", home_js)
+        self.assertIn("function setHomeFailureArtifactMetric", home_js)
+        self.assertIn("homeFailureArtifactSummary(context)", home_js)
+        self.assertIn('["failure artifacts", refreshGet("/api/failures/artifacts", refreshOptions), false]', app_js)
+        self.assertIn('failureArtifacts: values["failure artifacts"] || {}', app_js)
         self.assertIn("homeActiveOutputPath", home_js)
         self.assertIn("renderHomeStorageHealth(dashboardContext)", app_js)
         self.assertIn('id="pipeline-start-button"', html)
@@ -1174,6 +1466,24 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("desktop_worker_progress.v1", progress_js)
         self.assertIn("Worker progress", progress_js)
         self.assertIn("progressWorkerSummaryLine(snapshot, diagnostics)", progress_js)
+        self.assertIn("function csvRerunTailEvidence", progress_js)
+        self.assertIn("function csvRerunActivityEvidence", progress_js)
+        self.assertIn("workerActive", progress_js)
+        self.assertIn("CSV rerun:", progress_js)
+        self.assertIn("function refreshLiveRunTail", app_js)
+        self.assertIn("function csvRerunActivityEvidence", app_js)
+        self.assertIn("function renderCsvRerunHomeSummary", app_js)
+        self.assertIn("renderCsvRerunHomeSummary(liveRunContext)", app_js)
+        self.assertIn("let lastQueue = null;", app_js)
+        self.assertIn("renderHomeNextQueue({ ...liveRunContext, queue: lastQueue || {} })", app_js)
+        self.assertIn("lastQueue = values.queue;", app_js)
+        self.assertIn("renderHomePipelineState(\"csv_rerun_active\")", app_js)
+        home_js = (static_root / "assets" / "app" / "home.js").read_text(encoding="utf-8")
+        self.assertIn("function renderHomeCsvRerunQueue", home_js)
+        self.assertIn("function homeCsvRerunQueueContext", home_js)
+        self.assertIn("csvRerunActivityEvidence", home_js)
+        self.assertIn("void refreshLiveRunTail(refreshOptions);", app_js)
+        self.assertIn('"/api/diagnostics/tail?target=last_stdout_log&max_bytes=65536"', app_js)
         self.assertIn("function progressFfmpegPayload", progress_js)
         self.assertIn("desktop_ffmpeg_progress.v1", progress_js)
         self.assertIn("FFmpeg progress proof", progress_js)

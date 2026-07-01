@@ -1,0 +1,55 @@
+{
+  "id": "MP-CHANGE-2026-0701-001",
+  "title": "Simplify failure artifact cleanup UI",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-07-01",
+  "date_completed": "2026-07-01",
+  "summary": "Simplified the Reports failure artifact cleanup panel by removing the visible reason field, typed confirmation phrase, and cleanup browser modal while keeping the backend-owned dry-run fingerprint and confirm_delete route contract. Also classified existing Launch CSV inspect/open controls in the WebView command-boundary audit.",
+  "reason": "The cleanup panel had too many frontend-only hurdles after the backend already enforced the meaningful mutation guard: a preview fingerprint, boolean confirm_delete, backend allowlisted artifact roots, and a delete manifest.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "tooling",
+    "webview"
+  ],
+  "behavior_before": "Failure artifact cleanup required previewing, entering a reason, typing DELETE FAILURE ARTIFACTS, and accepting a browser modal before the frontend sent confirm_delete.",
+  "behavior_after": "Failure artifact cleanup is preview then delete. The frontend sends a default audit reason plus the matching dry-run fingerprint and confirm_delete: true; the backend still owns deletion scope and rejects missing or stale fingerprints.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/reports/failureCommands.js",
+    "apps/desktop/webview/static/assets/reports/failureView.js",
+    "apps/desktop/webview/static/assets/reportsView.js",
+    "apps/desktop/webview/static/partials/page-reports.html",
+    "docs/generated/WEBVIEW_COMMAND_BOUNDARY_AUDIT.json",
+    "docs/generated/WEBVIEW_DOM_ID_GAP_REPORT.json",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/reports/failureCommands.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/reports/failureView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/reportsView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-reports.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0701-001.json.md",
+    "docs/generated/summaries/ops/scripts/dev/check-webview-command-boundary.mjs.md",
+    "docs/generated/summaries/tests/python/desktop/test_reports_view_static.py.md",
+    "docs/inventories/WEBVIEW_DOM_ID_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0701-001.json",
+    "ops/scripts/dev/check-webview-command-boundary.mjs",
+    "tests/python/desktop/test_reports_view_static.py"
+  ],
+  "tests_added": [
+    "Updated tests/python/desktop/test_reports_view_static.py coverage for the simplified failure artifact cleanup UI and command-boundary classification."
+  ],
+  "manual_validation": [
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_reports_view_static -q (pass)",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_reports_view_static.ReportsViewStaticTests.test_failure_artifact_storage_panel_and_toast_are_read_only -q (pass)",
+    "npm run webview:check (pass)",
+    "npm run webview:commands:check (pass)",
+    "npm run webview:contract:check (pass)",
+    "npm run webview:dom-gaps:check (pass)"
+  ],
+  "rollback_plan": "Revert the Reports cleanup UI/JS/test/inventory changes, rerun the WebView generators, refresh generated summaries, and rerun the same Reports static and WebView checks.",
+  "related_changes": [],
+  "notes": "Removed extra reason and typed-confirm controls from the failure artifact cleanup panel.\nSimplified cleanup delete flow while preserving backend dry-run fingerprint and confirm_delete payload.\nReduced failure artifact storage summary text to the essentials.\nRemoved event wiring for the deleted cleanup reason and typed-confirm fields.\nUpdated Reports static assertions for the simplified cleanup flow and command-boundary fix.\nRemoved DOM inventory entries for the deleted cleanup inputs.\nClassified Launch CSV inspect/open buttons against existing backend-owned rerun routes.\nRegenerated WebView public contract after removing cleanup input IDs.\nRegenerated DOM ID gap report after removing cleanup input IDs.\nRegenerated command-boundary audit after classifying rerun CSV controls.\nRefreshed generated summary for changed failure command helper.\nRefreshed generated summary for changed failure view helper.\nRefreshed generated summary for changed Reports parent wiring.\nRefreshed generated summary for changed Reports partial.\nRefreshed generated summary for changed command-boundary tooling.\nRefreshed generated summary for changed Reports static tests.\nGenerated summary for this change packet."
+}

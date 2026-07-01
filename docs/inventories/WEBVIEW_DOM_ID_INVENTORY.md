@@ -4,7 +4,7 @@ Date: 2026-06-29
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `apps/desktop/webview/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 1963. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 1984. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -44,7 +44,6 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `backend-lifecycle-history` | `<div>` | Shutdown history detail |
 | `backend-lifecycle-history-rows` | `<tbody>` | Structured backend shutdown command evidence rows |
 | `backend-lifecycle-summary` | `<div>` | Lifecycle state summary |
-
 ---
 
 ## Home Page — owner: `app.js`, `crossPageContextView.js`
@@ -53,8 +52,11 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 |---|---|---|
 | `pipeline-state` | `<strong>` | Pipeline state metric |
 | `queue-count` | `<strong>` | Queue count metric |
+| `queue-count-detail` | `<span>` | Queue count detail metric |
 | `processed-count` | `<strong>` | Processed count metric |
 | `failed-count` | `<strong>` | Failed count metric |
+| `home-failure-artifact-storage-status` | `<strong>` | Failure artifact total-size metric on Home |
+| `home-failure-artifact-storage-detail` | `<span>` | Failure artifact file count, oldest-age, and threshold summary on Home |
 | `home-readiness-status` | `<strong>` | Operator readiness status badge |
 | `home-readiness-summary` | `<pre>` | Operator readiness text block |
 | `home-pending-count` | `<strong>` | Pending parked count metric chip — updated by `renderHomePendingCount` |
@@ -293,24 +295,33 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `audit-launch-detail` | `<div>` | Audit launch detail |
 | `audit-launch-status` | `<span>` | Audit launch status |
 | `audit-launch-preflight` | `<div>` | Audit preflight result |
-| `rerun-start-button` | `<button>` | Trigger `/api/rerun/start` |
-| `rerun-plan-only-button` | `<button>` | Trigger no-write `/api/rerun/start` plan-only request |
+| `rerun-start-button` | `<button>` | Trigger Review & Start `/api/rerun/start` |
 | `rerun-open-audit-tool-button` | `<button>` | Navigate to Reports Audit controls |
-| `rerun-start-stage-mode` | `<select>` | Stage-mode intent for `/api/rerun/start`; backend blocks source-mutating values |
-| `rerun-start-original-mode` | `<select>` | Original-source intent for `/api/rerun/start`; backend blocks source deletion |
-| `rerun-start-return-mode` | `<select>` | Return-mode intent for `/api/rerun/start`; backend blocks in-place replacement |
+| `rerun-start-execution-mode` | `<select>` | CSV rerun execution mode for `/api/rerun/start` |
+| `rerun-start-window-size` | `<input>` | CSV rerun bounded window size |
+| `rerun-start-destination-mode` | `<select>` | CSV rerun output destination policy |
+| `rerun-start-collision-policy` | `<select>` | CSV rerun destination collision policy |
+| `rerun-start-original-policy` | `<select>` | Original-source action after final output proof |
+| `rerun-confirm-replace-final` | `<input>` | Strict confirmation for final-output replacement |
+| `rerun-confirm-original-policy` | `<input>` | Strict confirmation for original-source rename/move/hold policies |
+| `rerun-confirm-delete-original` | `<input>` | Strict confirmation for hold-then-delete cleanup readiness |
 | `rerun-mode-policy-note` | `<p>` | CSV rerun executable policy boundary |
 | `rerun-scope-enabled-only` | `<input>` | CSV rerun preview/start scope: include enabled rows only |
 | `rerun-scope-skip-blocked` | `<input>` | CSV rerun preview/start scope: skip backend-classified blocked rows |
 | `rerun-scope-skip-warning-rows` | `<input>` | CSV rerun preview/start scope: skip warning rows |
 | `rerun-scope-first-n` | `<input>` | CSV rerun preview/start scope: first N rows |
-| `rerun-scope-issue-filter` | `<input>` | CSV rerun preview/start scope: issue-code text filter |
-| `rerun-scope-bucket-filter` | `<input>` | CSV rerun preview/start scope: bucket text filter |
+| `rerun-scope-issue-filter` | `<select>` | CSV rerun preview/start scope: issue-code multiselect |
+| `rerun-scope-bucket-filter` | `<select>` | CSV rerun preview/start scope: bucket multiselect |
 | `rerun-preview-limit` | `<input>` | CSV rerun bounded backend preview row limit |
-| `rerun-recent-csv-rows` | `<tbody>` | Recent audit and scoped CSV candidates |
+| `rerun-recent-csv-rows` | `<tbody>` | Backend-known import and scoped CSV candidates |
 | `rerun-preview-summary` | `<pre>` | Backend CSV rerun summary and scoped row counts |
+| `rerun-preview-tiles` | `<div>` | Backend-authored CSV rerun lifecycle status tiles |
 | `rerun-policy-panel` | `<div>` | CSV rerun executable/blocked policy panel |
 | `rerun-preview-rows` | `<tbody>` | Backend CSV rerun row preview |
+| `rerun-results-panel` | `<div>` | Backend CSV rerun manifests, review outputs, and promote actions |
+| `rerun-inspect-csv-button` | `<button>` | Inspect selected backend-known import/scoped CSV |
+| `rerun-open-csv-button` | `<button>` | Open selected backend-known import/scoped CSV with default CSV reader |
+| `rerun-open-csv-folder-button` | `<button>` | Open folder for selected backend-known import/scoped CSV |
 | `rerun-history-summary` | `<pre>` | Recent CSV rerun command history summary |
 | `rerun-launch-detail` | `<div>` | Rerun launch detail |
 | `rerun-launch-status` (inferred) | `<span>` | Rerun launch status |
@@ -340,19 +351,31 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `report-audit-source-rows` | `<tbody>` | Reports audit source locations and scan metrics rows |
 | `report-audit-source-selection-status` | `<p>` | Reports audit source selection and launch-scope summary |
 | `report-audit-source-status` | `<strong>` | Reports audit source table selection count |
-| `failure-archive-confirm-button` | `<button>` | Confirm advanced failure evidence archive after preview fingerprint |
+| `failure-archive-confirm-button` | `<button>` | Archive selected failure evidence after internal dry-run fingerprint |
 | `failure-archive-disclosure` | `<details>` | Advanced failure evidence archive disclosure |
 | `failure-archive-include-markers` | `<input>` | Include active failure markers in advanced archive |
 | `failure-archive-include-reports` | `<input>` | Include round failure reports in advanced archive |
-| `failure-archive-preview-button` | `<button>` | Preview advanced failure evidence archive |
-| `failure-archive-reason` | `<input>` | Required reason for confirmed failure evidence archive |
+| `failure-archive-reason` | `<input>` | Optional note for confirmed failure evidence archive |
 | `failure-archive-status` | `<strong>` | Failure evidence archive result status |
-| `failure-archive-summary` | `<pre>` | Failure evidence archive preview/result summary |
+| `failure-archive-summary` | `<pre>` | Failure evidence archive result summary |
+| `failure-artifact-cleanup-confirm-button` | `<button>` | Delete selected failure artifact rows |
+| `failure-artifact-cleanup-disclosure` | `<details>` | Failure artifact cleanup disclosure |
+| `failure-artifact-cleanup-status` | `<strong>` | Failure artifact cleanup command status |
+| `failure-artifact-cleanup-summary` | `<pre>` | Failure artifact cleanup result summary |
+| `failure-artifact-file-count` | `<strong>` | Failure artifact file count metric |
+| `failure-artifact-largest-files` | `<tbody>` | Largest captured failure artifact rows |
+| `failure-artifact-oldest` | `<strong>` | Oldest captured failure artifact timestamp |
+| `failure-artifact-select-all` | `<input>` | Select all visible failure artifact rows |
+| `failure-artifact-storage-status` | `<strong>` | Failure artifact storage status |
+| `failure-artifact-storage-summary` | `<pre>` | Failure artifact storage root, threshold, and safety summary |
+| `failure-artifact-summary-panel` | `<section>` | Reports failure artifact storage panel |
+| `failure-artifact-threshold` | `<strong>` | Failure artifact warning threshold metric |
+| `failure-artifact-total-size` | `<strong>` | Failure artifact total size metric |
 | `failure-clear-confirm-button` | `<button>` | Confirm marker clear for selected guided scope |
-| `failure-clear-preview-button` | `<button>` | Preview marker clear for selected guided scope |
 | `failure-clear-scope` | `<select>` | Guided failure marker clear scope selector |
 | `failure-clear-status` | `<strong>` | Failure marker clear result status |
-| `failure-clear-summary` | `<pre>` | Failure marker clear preview/result summary |
+| `failure-clear-summary` | `<pre>` | Failure marker clear result summary |
+| `failure-evidence-links` | `<div>` | Selected failure row artifact, repro, and record open actions |
 | `failure-filter` | `<input>` | Failure text filter |
 | `failure-lifecycle-ack-button` | `<button>` | Acknowledge selected failure group lifecycle state |
 | `failure-lifecycle-last-transition` | `<strong>` | Selected failure group last lifecycle update timestamp |
@@ -478,6 +501,9 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | ID | Element | Purpose |
 |---|---|---|
 | `settings-status` | `<span>` | Settings operation status |
+| `settings-runtime-failure-artifact-threshold` | `<input>` | Runtime builder failure artifact warning threshold in GB |
+| `settings-runtime-failure-artifact-retention` | `<input>` | Runtime builder failure artifact age-retention cleanup threshold in days |
+| `settings-runtime-failure-artifact-cleanup-target` | `<input>` | Runtime builder failure artifact cleanup target in GB |
 | `settings-patch-detail` | `<div>` | Patch detail display |
 | `settings-effective-policy-status` | `<strong>` | Effective policy trust status badge |
 | `settings-effective-policy-summary` | `<pre>` | Saved-vs-staged policy trust summary |
@@ -646,7 +672,7 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `pending-*` | `pendingPublishView.js` | Pending Publish |
 | `pipeline-launch-*`, `pipeline-start-*` | `launchView.js` | Launch |
 | `pipeline-state` | `app.js` | Home |
-| `processed-count`, `queue-count` | `app.js` | Home |
+| `processed-count`, `queue-count`, `queue-count-detail` | `app.js` | Home |
 | `publish-reconciliation-*` | `completedView.js` | Completed |
 | `queue-*` | `queueView.js` | Queue |
 | `refresh-button`, `refresh-health` | `app.js` | All (topbar) |
@@ -795,7 +821,7 @@ and rename bad-case corpus example fields. Current ID count is 1943 unique
 
 This section is generated from `apps/desktop/webview/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 1963
+Count: 1984
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 ```text
@@ -1096,17 +1122,29 @@ failure-archive-confirm-button
 failure-archive-disclosure
 failure-archive-include-markers
 failure-archive-include-reports
-failure-archive-preview-button
 failure-archive-reason
 failure-archive-status
 failure-archive-summary
+failure-artifact-cleanup-confirm-button
+failure-artifact-cleanup-disclosure
+failure-artifact-cleanup-status
+failure-artifact-cleanup-summary
+failure-artifact-file-count
+failure-artifact-largest-files
+failure-artifact-oldest
+failure-artifact-select-all
+failure-artifact-storage-status
+failure-artifact-storage-summary
+failure-artifact-summary-panel
+failure-artifact-threshold
+failure-artifact-total-size
 failure-clear-confirm-button
-failure-clear-preview-button
 failure-clear-scope
 failure-clear-status
 failure-clear-summary
 failure-detail
 failure-diagnostics-actions
+failure-evidence-links
 failure-filter
 failure-lifecycle-ack-button
 failure-lifecycle-last-transition
@@ -1256,6 +1294,8 @@ home-external-dependencies-status
 home-external-dependencies-summary
 home-failed-count
 home-failed-label
+home-failure-artifact-storage-detail
+home-failure-artifact-storage-status
 home-live-run-status
 home-live-run-strip
 home-next-queue-detail
@@ -1798,6 +1838,7 @@ queue-clear-filters-button
 queue-collision
 queue-collision-status
 queue-count
+queue-count-detail
 queue-decision-status
 queue-decision-summary
 queue-detail
@@ -2059,19 +2100,25 @@ report-warning-count
 report-warning-rows
 report-warning-status
 rerun-csv-path-picker-badge
-rerun-dry-run-button
+rerun-confirm-delete-original
+rerun-confirm-original-policy
+rerun-confirm-replace-final
 rerun-history-summary
+rerun-inspect-csv-button
 rerun-launch-detail
 rerun-launch-preflight
 rerun-launch-status
 rerun-mode-policy-note
 rerun-open-audit-tool-button
-rerun-plan-only-button
+rerun-open-csv-button
+rerun-open-csv-folder-button
 rerun-policy-panel
 rerun-preview-limit
 rerun-preview-rows
 rerun-preview-summary
+rerun-preview-tiles
 rerun-recent-csv-rows
+rerun-results-panel
 rerun-scope-bucket-filter
 rerun-scope-enabled-only
 rerun-scope-first-n
@@ -2079,11 +2126,12 @@ rerun-scope-issue-filter
 rerun-scope-skip-blocked
 rerun-scope-skip-warning-rows
 rerun-start-button
+rerun-start-collision-policy
 rerun-start-csv-path
-rerun-start-original-mode
-rerun-start-return-mode
-rerun-start-show-console
-rerun-start-stage-mode
+rerun-start-destination-mode
+rerun-start-execution-mode
+rerun-start-original-policy
+rerun-start-window-size
 reset-layout-btn
 sample-validation-acceptance-gate-detail
 sample-validation-acceptance-gate-legend
@@ -2530,6 +2578,9 @@ settings-runtime-cleanup-scan-timeout
 settings-runtime-console-log
 settings-runtime-cpu-encode-timeout
 settings-runtime-debug-mode
+settings-runtime-failure-artifact-cleanup-target
+settings-runtime-failure-artifact-retention
+settings-runtime-failure-artifact-threshold
 settings-runtime-ffmpeg-encode-timeout
 settings-runtime-ffmpeg-remux-timeout
 settings-runtime-file-log

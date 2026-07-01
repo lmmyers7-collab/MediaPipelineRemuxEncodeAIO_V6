@@ -46,6 +46,13 @@ function Get-ExternalToolFailureCode {
     if ([int]$Result.ExitCode -eq 0) { return 'OK' }
     if ([bool]$Result.TimedOut) { return "${prefix}_TIMEOUT" }
     if ([bool]$Result.Stopped) { return "${prefix}_STOPPED" }
+    $idleTimedOut = $false
+    if ($Result -is [System.Collections.IDictionary] -and $Result.Contains('IdleTimedOut')) {
+        $idleTimedOut = [bool]$Result['IdleTimedOut']
+    } elseif ($Result.PSObject.Properties['IdleTimedOut']) {
+        $idleTimedOut = [bool]$Result.IdleTimedOut
+    }
+    if ($idleTimedOut) { return "${prefix}_TIMEOUT" }
     if ([int]$Result.ExitCode -eq -2) { return "${prefix}_START_FAILED" }
     return "${prefix}_FAILED"
 }

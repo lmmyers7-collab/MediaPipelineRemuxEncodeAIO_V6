@@ -145,6 +145,9 @@
 
   .form-grid,
   .launch-form-grid,
+  .launch-rerun-setup-grid,
+  .rerun-handling-grid,
+  .rerun-handling-summary,
   .form-grid-dense,
   .pipeline-controller-status-strip,
   .pipeline-compact-gate-strip,

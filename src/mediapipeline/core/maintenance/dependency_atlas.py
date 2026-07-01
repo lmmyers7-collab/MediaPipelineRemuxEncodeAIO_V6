@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.subprocess_runner import run_capture
+from mediapipeline.core.kernel.runtime.subprocess_runner import run_capture
 
 
 class DependencyAtlasServiceMixin:

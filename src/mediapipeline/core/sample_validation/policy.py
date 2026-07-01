@@ -7,12 +7,12 @@ import json
 import os
 from typing import TYPE_CHECKING, Any
 
-from mediapipeline.desktop.models import ResolvedPaths
-from mediapipeline.desktop.application.sample_validation.evidence import (
+from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.sample_validation.evidence import (
     sample_validation_evidence_packet_payload,
     sample_validation_post_run_capture_payload,
 )
-from mediapipeline.desktop.application.sample_validation.log_payload import (
+from mediapipeline.core.sample_validation.log_payload import (
     SAMPLE_VALIDATION_LOG_SCHEMA,
     SAMPLE_VALIDATION_RECENT_LIMIT,
     SAMPLE_VALIDATION_TAIL_BYTES,
@@ -20,19 +20,19 @@ from mediapipeline.desktop.application.sample_validation.log_payload import (
     sample_validation_log_path,
     sample_validation_log_payload,
 )
-from mediapipeline.desktop.application.sample_validation.pilot_plan import (
+from mediapipeline.core.sample_validation.pilot_plan import (
     SAMPLE_VALIDATION_SAMPLE_CATEGORY_KEYS,
     sample_validation_cutover_gate_payload,
     sample_validation_pilot_plan_payload,
     sample_validation_pilot_runbook_payload,
     sample_validation_sample_set_guide_payload,
 )
-from mediapipeline.desktop.application.sample_validation.policy_alignment import (
+from mediapipeline.core.sample_validation.policy_alignment import (
     sample_validation_evidence_gap_payload,
     sample_validation_policy_alignment_payload,
     sample_validation_validation_audit_payload,
 )
-from mediapipeline.desktop.application.sample_validation.record import (
+from mediapipeline.core.sample_validation.record import (
     SAMPLE_VALIDATION_RECORD_SCHEMA,
     SAMPLE_VALIDATION_REQUEST_MAX_BYTES,
     SAMPLE_VALIDATION_TEXT_MAX_CHARS,
@@ -40,13 +40,13 @@ from mediapipeline.desktop.application.sample_validation.record import (
     _json_size,
     _normalized_sample_validation_record,
 )
-from mediapipeline.desktop.application.sample_validation.readiness import sample_validation_append_readiness_payload, sample_validation_readiness_payload
-from mediapipeline.desktop.application.sample_validation.reconciliation import (
+from mediapipeline.core.sample_validation.readiness import sample_validation_append_readiness_payload, sample_validation_readiness_payload
+from mediapipeline.core.sample_validation.reconciliation import (
     sample_validation_current_evidence_payload,
     sample_validation_reconciliation_payload,
 )
-from mediapipeline.desktop.application.sample_validation.summary import SAMPLE_VALIDATION_CHECK_KEYS, sample_validation_log_summary
-from mediapipeline.desktop.application.sample_validation.worksheet import (
+from mediapipeline.core.sample_validation.summary import SAMPLE_VALIDATION_CHECK_KEYS, sample_validation_log_summary
+from mediapipeline.core.sample_validation.worksheet import (
     SAMPLE_VALIDATION_WORKSHEET_READ_BYTES,
     SAMPLE_VALIDATION_WORKSHEET_RUN_LIMIT,
     SAMPLE_VALIDATION_WORKSHEET_RUNS_SCHEMA,
@@ -55,7 +55,7 @@ from mediapipeline.desktop.application.sample_validation.worksheet import (
 )
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
 SAMPLE_VALIDATION_PREVIEW_SCHEMA = "desktop_sample_validation_preview.v1"
 SAMPLE_VALIDATION_COMMAND = "sample_validation.append"
@@ -64,7 +64,7 @@ SAMPLE_VALIDATION_RECORD_MAX_BYTES = 32 * 1024
 
 
 def _command_result(**kwargs: Any):
-    from mediapipeline.desktop.application.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**kwargs)
 

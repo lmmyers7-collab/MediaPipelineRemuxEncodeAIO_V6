@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Any, Iterable, Mapping
 
 from mediapipeline.core.completed.policy import completed_record_key, format_bytes_compact
-from mediapipeline.desktop.models import CompletedJobRecord
+from mediapipeline.core.completed.contracts import CompletedJobRecord
 
 
 METRICS_SCHEMA_VERSION = "desktop_metrics.v1"

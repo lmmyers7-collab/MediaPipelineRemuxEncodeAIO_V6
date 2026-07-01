@@ -1,10 +1,44 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
-from mediapipeline.desktop.models_core import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
+
+
+@dataclass
+class QueueRecord:
+    source_path: Path
+    source_root: Path
+    media_type: str
+    is_priority: bool
+    priority_reasons: list[str]
+    priority_rank: float
+    sort_name: str
+    display_name: str
+    relative_path: str
+    show_folder: str
+    season_folder: str
+    season_number: int
+    episode_number: int
+    source_mtime: float
+    size_gb: float
+    route_name: str
+    route_reason: str
+    matched_show_override: str
+    queue_index: int
+    queue_total: int
+    phase: str
+    global_order: int
+    # Manifest-based priority level: "high" | "normal" | "low" | "hold"
+    # "normal" means no manifest entry (or entry explicitly set to normal).
+    manifest_priority_level: str = "normal"
+
+    @property
+    def queue_position(self) -> str:
+        return f"{self.queue_index}/{self.queue_total}"
 
 
 class QueuePreviewServiceProtocol(Protocol):

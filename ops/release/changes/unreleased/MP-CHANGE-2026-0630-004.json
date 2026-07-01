@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0630-004",
+  "title": "Bust Tauri Home summary asset cache",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-30",
+  "date_completed": "2026-06-30",
+  "summary": "Made Tauri load the corrected Home CSV rerun status code and taught Home to use worker-progress evidence when CSV staging/import is active.",
+  "reason": "The Tauri shell could show CSV rerun details in the Live Run worker tile while the Home top cards and Next 5 Videos stayed in normal queue mode because the shell could keep old JS assets and the CSV override only read stdout-tail evidence.",
+  "affected_areas": [
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Tauri could keep stale unversioned Home/progress scripts, and Home only switched to CSV rerun summary mode when stdout-tail evidence looked active.",
+  "behavior_after": "Tauri receives versioned Home/progress assets, and Home switches the top cards and Next 5 Videos into CSV staging/import mode when worker-progress rows report active CSV copy/staging evidence. Once the rerun moves into normal encode/remux processing, Home shows the normal processing progress.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/app/home.js",
+    "apps/desktop/webview/static/assets/progressView.js",
+    "apps/desktop/webview/static/index.html",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0630-004.json",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/python/desktop/test_application_facade_web_static_shell.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/python/desktop/test_application_facade_web_static_shell.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "manual_validation": [
+    "node --check apps\\\\desktop\\\\webview\\\\static\\\\assets\\\\progressView.js - passed",
+    "node --check apps\\\\desktop\\\\webview\\\\static\\\\assets\\\\app.js - passed",
+    "node --check apps\\\\desktop\\\\webview\\\\static\\\\assets\\\\app\\\\home.js - passed",
+    "python -m unittest tests.python.desktop.test_application_facade_web_static_shell.ApplicationFacadeWebStaticShellTests.test_index_cache_busts_home_summary_assets_for_tauri_webview tests.python.desktop.test_application_facade_web_static_shell.ApplicationFacadeWebStaticShellTests.test_index_references_static_assets_in_dependency_order -q - passed",
+    "python -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_home_next_queue_shows_first_five_runnable_rows_only tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_ui_polish_error_and_tooltip_guards_are_wired tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_live_run_progress_surfaces_are_read_only_shared_renderer -q - passed",
+    "python -m unittest tests.webview.test_webview_browser_home_live_state_smoke -q - passed",
+    "Live API on http://127.0.0.1:8765/ served versioned progressView, app/topbar, app/home, and app.js URLs with the worker-aware parser present.",
+    "Tauri shell was reloaded and captured showing the rerun had moved into normal Encoding progress on Home."
+  ],
+  "rollback_plan": "Remove the asset version query strings and revert the worker-aware CSV activity parser/Home call-site changes plus the related tests.",
+  "related_changes": [],
+  "notes": "Version Home/progress assets so Tauri reloads corrected CSV summary code.\nAdd worker-aware CSV rerun activity evidence used by Home.\nPass full live-run context to CSV Home summary cards.\nUse combined CSV activity evidence for Next 5 Videos override.\nCover worker-active CSV staging evidence for Home Next 5 and static guards.\nCover cache-busted Tauri WebView asset URLs.\nGuard shared CSV rerun progress parser on read-only Home surfaces."
+}

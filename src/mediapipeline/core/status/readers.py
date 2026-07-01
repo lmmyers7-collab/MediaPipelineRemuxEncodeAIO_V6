@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.contracts import ContractError, PipelineEvent, ProgressState
+from mediapipeline.core.kernel.contracts import ContractError, PipelineEvent, ProgressState
 from mediapipeline.core.status.contracts import WarningLogger
 from mediapipeline.core.status.file_io import read_json_file, tail_jsonl_file, tail_text_file
 

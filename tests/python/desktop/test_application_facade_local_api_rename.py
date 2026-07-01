@@ -389,10 +389,7 @@ class LocalApiRenameTests(LocalApiHttpTestMixin, unittest.TestCase):
             service = DummyWorkflowFacadeService(root)
             resolved = _resolved(root)
             service.cleanup_stale_launch_guards = lambda _resolved_arg: []  # type: ignore[method-assign]
-            service.find_related_pipeline_processes = lambda _resolved_arg, job_kinds=None: []  # type: ignore[method-assign]
-            service.active_job_close_block_messages = (  # type: ignore[method-assign]
-                lambda _resolved_arg, job_kinds=None: ["ActiveJobs record launch.json reports pipeline work as active."]
-            )
+            service.find_related_pipeline_processes = lambda _resolved_arg, job_kinds=None: [DummyProc(24681)]  # type: ignore[method-assign]
             facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
             server = LocalApiServer(facade, token="rename-token", resolved_provider=lambda: resolved)
             try:
@@ -423,7 +420,7 @@ class LocalApiRenameTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertEqual(result["severity"], "error")
         self.assertEqual(result["errors"], ["active_work"])
-        self.assertIn("ActiveJobs still reports active work", result["message"])
+        self.assertIn("PID(s) 24681", result["message"])
         self.assertTrue(media_still_exists)
         self.assertFalse(destination_exists)
 

@@ -15,7 +15,6 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.models import ResolvedPaths
 from mediapipeline.core.processes.active_jobs import (
-    active_job_close_block_messages,
     active_job_pid_is_alive,
     active_job_pid_matches_record,
     cleanup_stale_validate_active_jobs,
@@ -280,124 +279,7 @@ class ProcessActiveJobHelperTests(unittest.TestCase):
         self.assertIn("ActiveJobs record broken.json could not be reconciled", combined)
         self.assertIn("Expecting property name", combined)
 
-    def test_active_job_close_blocks_live_missing_and_unverifiable_records(self) -> None:
-        class FakeNoSuchProcess(Exception):
-            pass
-
-        class FakeProcess:
-            def __init__(self, pid: int) -> None:
-                self.pid = pid
-
-            def is_running(self) -> bool:
-                return True
-
-            def status(self) -> str:
-                return "running"
-
-            def cmdline(self) -> list[str]:
-                return ["pwsh", "-File", "pipeline.ps1"]
-
-            def cwd(self) -> str:
-                return str(root)
-
-        class FakePsutil:
-            NoSuchProcess = FakeNoSuchProcess
-            STATUS_ZOMBIE = "zombie"
-
-            @staticmethod
-            def Process(pid: int):
-                if pid == 200:
-                    raise FakeNoSuchProcess()
-                if pid == 300:
-                    raise RuntimeError("access denied")
-                return FakeProcess(pid)
-
-        def payload(name: str, *, status: str, pid: int | None) -> dict[str, object]:
-            return {
-                "schema_version": "desktop_active_job.v1",
-                "launch_id": name,
-                "job_kind": "pipeline",
-                "mode": "continuous",
-                "status": status,
-                "pid": pid,
-                "app_pid": 1,
-                "command_line": "pwsh",
-                "args": ["pwsh"],
-                "cwd": str(root),
-                "stdout_log": "",
-                "stderr_log": "",
-                "show_console": False,
-                "metadata": {},
-                "launched_at": "2026-05-06T12:00:00-04:00",
-                "last_update": "2026-05-06T12:00:01-04:00",
-                "return_code": None,
-            }
-
-        with tempfile.TemporaryDirectory() as td:
-            root = Path(td)
-            active_jobs = root / "ActiveJobs"
-            active_jobs.mkdir()
-            write_active_job_payload(active_jobs / "live.json", payload("live", status="active", pid=100))
-            write_active_job_payload(active_jobs / "dead.json", payload("dead", status="active", pid=200))
-            write_active_job_payload(active_jobs / "unknown.json", payload("unknown", status="active", pid=300))
-            write_active_job_payload(active_jobs / "missing.json", payload("missing", status="launching", pid=None))
-            write_active_job_payload(active_jobs / "done.json", payload("done", status="completed", pid=400))
-            (active_jobs / "bad.json").write_text("{not json", encoding="utf-8")
-
-            resolved = self._resolved(root)
-            resolved.active_jobs_path = active_jobs
-            messages = active_job_close_block_messages(resolved, psutil_module=FakePsutil)
-            combined = "\n".join(messages)
-
-        self.assertEqual(len(messages), 4)
-        self.assertIn("live.json", combined)
-        self.assertIn("PID 100 is still running", combined)
-        self.assertIn("unknown.json", combined)
-        self.assertIn("PID 300 identity could not be verified", combined)
-        self.assertIn("missing.json", combined)
-        self.assertIn("with no PID", combined)
-        self.assertIn("bad.json", combined)
-        self.assertIn("could not be verified", combined)
-        self.assertNotIn("dead.json", combined)
-        self.assertNotIn("done.json", combined)
-
-    def test_active_job_close_blocks_when_psutil_unavailable(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
-            root = Path(td)
-            active_jobs = root / "ActiveJobs"
-            active_jobs.mkdir()
-            write_active_job_payload(
-                active_jobs / "active.json",
-                {
-                    "schema_version": "desktop_active_job.v1",
-                    "launch_id": "active",
-                    "job_kind": "pipeline",
-                    "mode": "continuous",
-                    "status": "active",
-                    "pid": 54321,
-                    "app_pid": 1,
-                    "command_line": "pwsh",
-                    "args": ["pwsh", "-File", "MediaPipeline.ps1"],
-                    "cwd": str(root),
-                    "stdout_log": "",
-                    "stderr_log": "",
-                    "show_console": False,
-                    "metadata": {},
-                    "launched_at": "2026-05-06T12:00:00-04:00",
-                    "last_update": "2026-05-06T12:00:01-04:00",
-                    "return_code": None,
-                },
-            )
-
-            resolved = self._resolved(root)
-            resolved.active_jobs_path = active_jobs
-            messages = active_job_close_block_messages(resolved, psutil_module=None)
-
-        self.assertEqual(len(messages), 1)
-        self.assertIn("active.json", messages[0])
-        self.assertIn("PID 54321 identity could not be verified", messages[0])
-
-    def test_active_job_close_does_not_block_reused_pid_with_mismatched_identity(self) -> None:
+    def test_active_job_reconcile_orphans_reused_pid_with_mismatched_identity(self) -> None:
         class FakeNoSuchProcess(Exception):
             pass
 
@@ -452,11 +334,9 @@ class ProcessActiveJobHelperTests(unittest.TestCase):
 
             resolved = self._resolved(root)
             resolved.active_jobs_path = active_jobs
-            messages = active_job_close_block_messages(resolved, psutil_module=FakePsutil)
             reconcile_messages = reconcile_active_job_records(resolved, psutil_module=FakePsutil)
             updated = json.loads(record_path.read_text(encoding="utf-8"))
 
-        self.assertEqual(messages, [])
         self.assertEqual(updated["status"], "orphaned")
         self.assertIn("no longer matches the launch record", updated["reconcile_reason"])
         self.assertIn("Marked ActiveJobs record reused.json orphaned", "\n".join(reconcile_messages))

@@ -1,9 +1,26 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
-from mediapipeline.desktop.models_core import ResolvedPaths
+from mediapipeline.core.paths.contracts import ResolvedPaths
+
+
+@dataclass
+class Snapshot:
+    resolved: ResolvedPaths
+    current_activity: str
+    status_summary: str
+    log_tail: str
+    progress: dict[str, Any] | None
+    audit_progress: dict[str, Any] | None
+    latest_failure_report: Path | None
+    latest_failure_json: Path | None
+    latest_audit_csv: Path | None
+    latest_priority_csv: Path | None
+    pipeline_events: list[dict[str, Any]] = field(default_factory=list)
+    last_error: str | None = None
 
 
 class WarningLogger(Protocol):

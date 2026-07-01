@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from mediapipeline.tools.paths import find_repo_root
 
@@ -400,6 +402,43 @@ class WatchFolderManagerTests(unittest.TestCase):
         self.assertTrue(state["enabled"])
         self.assertTrue(state["derived_roots_from_library_profiles"])
         self.assertEqual(state["roots"][0]["path"], str(root.resolve()))
+
+    def test_scan_timeout_degrades_and_skips_overlapping_scan(self) -> None:
+        from mediapipeline.desktop.watch.scanner import ScanResult
+
+        release_scan = threading.Event()
+
+        def slow_scan(root: str, _extensions: frozenset[str]) -> ScanResult:
+            release_scan.wait(timeout=5.0)
+            return ScanResult(root=root, snapshot={}, errors=())
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            manager = WatchFolderManager(poll_interval_seconds=3600)
+            try:
+                with patch("mediapipeline.desktop.watch.manager.scan_root", slow_scan):
+                    manager.start(
+                        _context(
+                            settings={
+                                "EnableWatchFolders": True,
+                                "WatchFolderRoots": [str(root)],
+                                "WatchScanTimeoutSeconds": 1,
+                                "ValidExtensions": ["mkv"],
+                            }
+                        )
+                    )
+                    timed_out_state = manager.state_mapping()
+                    manager.run_single_cycle(now=10)
+                    overlapping_state = manager.state_mapping()
+            finally:
+                release_scan.set()
+                manager.stop("test cleanup")
+
+        self.assertEqual(timed_out_state["status"], "degraded")
+        self.assertEqual(timed_out_state["scan_timeout_seconds"], 1)
+        self.assertIn("timed out after 1 seconds", timed_out_state["last_error"])
+        self.assertEqual(overlapping_state["status"], "degraded")
+        self.assertIn("previous watch-folder scan is still running", overlapping_state["last_error"])
 
 
 if __name__ == "__main__":

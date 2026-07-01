@@ -84,6 +84,7 @@
         'und'
     )
     ConvertTx3gToSrt = $true
+    AllowSubtitleHelperFallback = $false
     DropTx3gAfterConversion = $false
     CreateExternalTx3gSrtSidecars = $false
     Tx3gExtractLanguages = @(
@@ -227,6 +228,7 @@
     EnableWatchFolders = $false
     WatchFolderRoots = @()
     WatchDebounceSeconds = 30
+    WatchScanTimeoutSeconds = 300
     WatchAction = 'enqueue_only'
     WatchRespectScheduleWindow = $true
     SkipStabilityCheck = $false
@@ -244,6 +246,10 @@
     )
     DebugMode = $true
     LogRetentionDays = 7
+    PipelineDebugLogMaxBytes = 104857600
+    FailureArtifactWarningThresholdGB = 100
+    FailureArtifactRetentionDays = 0
+    FailureArtifactCleanupTargetGB = 0
     ConsoleLogLevel = 'DEBUG'
     FileLogLevel = 'INFO'
     PriorityMarkers = @(
@@ -260,6 +266,7 @@
     CpuEncodeMaxThreads = 0
     FFmpegEncodeTimeoutSeconds = 21600
     FFmpegCpuEncodeTimeoutSeconds = 43200
+    CpuEncodeMutexWaitSeconds = 1800
     FFmpegRemuxTimeoutSeconds = 7200
     MkvmergeRemuxTimeoutSeconds = 7200
     SubtitleExtractTimeoutSeconds = 180
@@ -286,6 +293,18 @@
     NewPlannerCutoverApproved = $false
     RobocopyTimeoutSeconds = 14400
     TransientFailureRetryLimit = 3
+    ConsecutiveRoundFailureBlockLimit = 12
+    ConsecutiveRoundFailureProbeBackoffSeconds = 900
+    PendingPublishBacklogBlockThreshold = 100
+    PendingPublishDeferredBlockThreshold = 25
+    PendingPublishDrainBatchSize = 100
+    PauseFlagReviewSeconds = 1800
+    PauseFlagBlockSeconds = 21600
+    LocalWorkerHeartbeatGraceSeconds = 900
+    QueueExecutionMaxRunnablePerRound = 500
+    StateDbMaintenanceIntervalSeconds = 21600
+    StateDbWalReviewBytes = 33554432
+    StateDbCompletedJobsMaxRows = 250000
     SourceScanIntervalSeconds = 300
     SourceScanTimeoutSeconds = 1800
     ProcessedIndexRefreshSeconds = 900
@@ -294,6 +313,7 @@
     CleanupRemoteStaging = $false
     CleanupStaleAgeHours = 24
     DeferredPublish = $true
+    PendingPublishDrainMode = 'manual'
     PreferredDefaultAudioLanguages = @(
         'english'
     )

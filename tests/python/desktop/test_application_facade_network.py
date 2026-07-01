@@ -136,7 +136,7 @@ class ApplicationFacadeNetworkTests(unittest.TestCase):
             state_dir.mkdir(parents=True, exist_ok=True)
             (state_dir / "coordinator_inflight.json").write_text("{not valid json", encoding="utf-8")
 
-            with self.assertLogs("mediapipeline.desktop.network.registry", level="ERROR") as logs:
+            with self.assertLogs("mediapipeline.core.network.registry", level="ERROR") as logs:
                 payload = facade.get_network_workers(resolved).to_mapping()
 
         state_files = {item["key"]: item for item in payload["state_files"]}

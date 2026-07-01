@@ -48,18 +48,18 @@ from mediapipeline.core.rename.policy import (
 from mediapipeline.core.rename.input_classification import classify_rename_input_paths
 
 if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
-    from mediapipeline.desktop.application.dto_workspaces import RenamePreviewDto
+    from mediapipeline.core.kernel.dto_commands import CommandResult
+    from mediapipeline.core.kernel.dto_workspaces import RenamePreviewDto
 
 
 def _rename_preview_dto(**fields: Any) -> "RenamePreviewDto":
-    from mediapipeline.desktop.application.dto_workspaces import RenamePreviewDto
+    from mediapipeline.core.kernel.dto_workspaces import RenamePreviewDto
 
     return RenamePreviewDto(**fields)
 
 
 def _json_safe(value: Any) -> Any:
-    from mediapipeline.desktop.application.dto_base import json_safe
+    from mediapipeline.core.kernel.dto_base import json_safe
 
     return json_safe(value)
 

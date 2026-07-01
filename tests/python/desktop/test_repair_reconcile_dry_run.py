@@ -600,9 +600,9 @@ class RepairReconcileDryRunTests(unittest.TestCase):
         data = result["data"]
         _assert_startup_reconciliation_shape(self, data)
         self.assertEqual(before, after)
-        self.assertEqual(data["overall_status"], "blocked")
+        self.assertEqual(data["overall_status"], "review")
         self.assertEqual(data["categories"]["orphaned_parked_outputs"]["status"], "review")
-        self.assertEqual(data["categories"]["active_jobs"]["status"], "blocked")
+        self.assertEqual(data["categories"]["active_jobs"]["status"], "review")
         self.assertEqual(data["categories"]["sqlite_mirror"]["status"], "review")
         codes = {row["code"] for row in data["diff_summary"]["rows"]}
         self.assertIn("startup_pending_orphan_payload", codes)
