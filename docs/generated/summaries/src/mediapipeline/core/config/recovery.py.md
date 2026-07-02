@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/recovery.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-13
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: d1495242800771a857c06d446eb48baf11c7e5be6bbb57cfa2cc779b23592293
+sha256: 61500031f57a225a77fd783948d8f77318f1d4e2209df0ce2fdd06832e71504d
 ---
 # `src/mediapipeline/core/config/recovery.py`
 

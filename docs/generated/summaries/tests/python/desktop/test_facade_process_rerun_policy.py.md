@@ -3,9 +3,9 @@ file: tests/python/desktop/test_facade_process_rerun_policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-30
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 97c8553522dbafa7e3417a7ca257acc361252de5815d278bb162e99e9712a4c3
+sha256: b001f44c043f3010fb0dd2ab3f394da55552d962e8a67762c1de1bdf0d56737e
 ---
 # `tests/python/desktop/test_facade_process_rerun_policy.py`
 

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/final_library/service.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: final_library
-last_modified: 2026-06-29
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: f914fd7bc21d7af15a93118f4f28f26d581c29988ee45a5ea58263e573cdc4b0
+sha256: 4d6eeac14e74dc82b272ad02e2ef4df2722138a34f2bf96d029836f939a2f8e4
 ---
 # `src/mediapipeline/core/final_library/service.py`
 

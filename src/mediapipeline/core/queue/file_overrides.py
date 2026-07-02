@@ -55,9 +55,10 @@ import json
 import os
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Iterable, get_args
+from typing import Any, get_args
+from collections.abc import Iterable
 
 from mediapipeline.core.config.constants import ROUTE_THRESHOLD_MODE_NAMES
 from mediapipeline.contracts.config import Config
@@ -308,7 +309,7 @@ def set_file_override_entry(
         override_data,
         batch_metadata=batch_metadata,
         replace_existing=replace_existing,
-        set_at=datetime.now(timezone.utc).isoformat(),
+        set_at=datetime.now(UTC).isoformat(),
     )
 
     _write_atomic(manifest_path, manifest)
@@ -325,7 +326,7 @@ def set_file_override_entries(
     """Atomically apply multiple override updates in one manifest write."""
     manifest = read_file_overrides(manifest_path)
     entries: dict = manifest.setdefault("entries", {})
-    set_at = datetime.now(timezone.utc).isoformat()
+    set_at = datetime.now(UTC).isoformat()
     for source_path, override_data in updates:
         _apply_file_override_entry(
             entries,
@@ -790,7 +791,7 @@ def clear_file_override_fields(
     if not any(key not in {"set_at", FILE_OVERRIDE_BATCH_METADATA_KEY} for key in entry):
         entries.pop(norm, None)
     else:
-        entry["set_at"] = datetime.now(timezone.utc).isoformat()
+        entry["set_at"] = datetime.now(UTC).isoformat()
 
     _write_atomic(manifest_path, manifest)
     return manifest

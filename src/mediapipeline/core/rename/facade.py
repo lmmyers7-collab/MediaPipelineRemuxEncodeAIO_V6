@@ -52,7 +52,7 @@ if TYPE_CHECKING:
     from mediapipeline.core.kernel.dto_workspaces import RenamePreviewDto
 
 
-def _rename_preview_dto(**fields: Any) -> "RenamePreviewDto":
+def _rename_preview_dto(**fields: Any) -> RenamePreviewDto:
     from mediapipeline.core.kernel.dto_workspaces import RenamePreviewDto
 
     return RenamePreviewDto(**fields)

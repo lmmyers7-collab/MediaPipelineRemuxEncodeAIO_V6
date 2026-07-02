@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/coordinator_lifecycle.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-15
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 6a5fb5a53b8d878fede3ee4bae6f9e3e5d7eb2f8c88832a59e9f434cb161c8d4
+sha256: 3d5fbd38e18157abb9cfe2240a98ee3cc9a678867025752361916822081f43bd
 ---
 # `src/mediapipeline/desktop/network/coordinator_lifecycle.py`
 

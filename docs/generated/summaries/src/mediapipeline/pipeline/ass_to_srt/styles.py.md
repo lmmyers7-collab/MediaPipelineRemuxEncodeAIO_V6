@@ -3,9 +3,9 @@ file: src/mediapipeline/pipeline/ass_to_srt/styles.py
 pipeline_stage: subtitles
 token_priority: high
 owner_domain: subtitles
-last_modified: 2026-05-30
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: b3b6b8f5733c8046fd080b190b8b82eb8949cc4354a2c829b653c2016e1381ef
+sha256: 4b71ce5f5825b8230abe8d8f6da574655fc8a220ce314fa288509a22d93a8a8b
 ---
 # `src/mediapipeline/pipeline/ass_to_srt/styles.py`
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import redirect_stdout
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 import io
 import json
 import tempfile
@@ -138,7 +138,7 @@ class AutonomySoakTickToolTests(unittest.TestCase):
             Path(str(payload["log_file"])).unlink()
             active_jobs = Path(str(payload["active_jobs_path"]))
             active_jobs.mkdir(parents=True, exist_ok=True)
-            stale = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+            stale = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
             (active_jobs / "pipeline.json").write_text(
                 json.dumps(
                     {

@@ -1,9 +1,8 @@
 # MediaPipelineRemuxEncodeAIO V6 — pre-commit safety net
 #
-# Catches cheap, non-controversial regressions on every commit. Does NOT
-# reformat or lint code — those are intentionally separate concerns (see
-# docs/proposals/CODE_MANAGEMENT_CLEANUP_PLAN.md §3.8 for lint, §5.1 for
-# the deliberate exclusion of mass autoformat).
+# Catches cheap, non-controversial regressions on every commit. It does NOT
+# reformat code or auto-fix lint findings; the Python lint gate is Ruff check
+# only and uses the conservative rule set from pyproject.toml.
 #
 # To enable on a developer machine:
 #
@@ -29,95 +28,23 @@
 #   - Phase 4 architecture/type/PowerShell guardrails + dependency-boundary drift
 #   - Phase 5 naming lint and active-doc reference checks
 #   - Phase 6 change-packet coverage
+#   - Ruff Python lint findings for src and tests
 
 repos:
   - repo: local
     hooks:
-      # ----------------------------------------------------------------
-      # Phase 1 generated-context drift
-      # ----------------------------------------------------------------
-      - id: mediapipeline-summary-drift
-        name: MediaPipeline summary drift
-        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check
+      # Manifest-backed Python audit suite. The check definitions live in
+      # src/mediapipeline/tools/dev/audit_checks.py and are shared with
+      # GitHub drift/deep-audit jobs and the release self-test.
+      - id: mediapipeline-audit-check-suite
+        name: MediaPipeline audit check suite
+        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.audit_checks run precommit
         language: system
         pass_filenames: false
 
-      - id: mediapipeline-project-index-drift
-        name: MediaPipeline project index drift
-        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_project_index --check
-        language: system
-        pass_filenames: false
-
-      - id: mediapipeline-pipeline-map-drift
-        name: MediaPipeline pipeline map drift
-        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_pipeline_map --check
-        language: system
-        pass_filenames: false
-
-      - id: mediapipeline-lifecycle-map-drift
-        name: MediaPipeline lifecycle map drift
-        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_lifecycle_map --check
-        language: system
-        pass_filenames: false
-
-      - id: mediapipeline-config-schema-drift
-        name: MediaPipeline config schema drift
-        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_config_schema --check
-        language: system
-        pass_filenames: false
-
-      - id: mediapipeline-stage-schema-drift
-        name: MediaPipeline stage schema drift
-        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_stage_schema --check
-        language: system
-        pass_filenames: false
-
-      - id: mediapipeline-risky-file-registry
-        name: MediaPipeline risky file registry
-        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_risky_file_registry
-        language: system
-        pass_filenames: false
-
-      - id: mediapipeline-architecture-guardrails
-        name: MediaPipeline architecture guardrails
-        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_architecture_guardrails --staged
-        language: system
-        pass_filenames: false
-
-      # Same check the release self-test runs (ops/scripts/release/test.ps1). Catches new
-      # NO_CORE_TO_DESKTOP / package-cycle imports at commit time, when a new boundary entry
-      # must be added to docs/architecture/dependency_boundary_allowlist.txt, instead of only
-      # surfacing later when the deployment package fails Verify.
-      - id: mediapipeline-dependency-boundaries
-        name: MediaPipeline dependency boundaries
-        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --max-internal-imports 1
-        language: system
-        pass_filenames: false
-
-      - id: mediapipeline-naming-lint
-        name: MediaPipeline naming lint
-        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.lint_naming --staged
-        language: system
-        pass_filenames: false
-
-      - id: mediapipeline-active-doc-references
-        name: MediaPipeline active doc references
-        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_active_doc_references
-        language: system
-        pass_filenames: false
-
-      # ----------------------------------------------------------------
-      # Phase 6 change-packet coverage
-      # ----------------------------------------------------------------
-      - id: mediapipeline-change-packet-staged-coverage
-        name: MediaPipeline change packet staged coverage
-        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-staged-coverage
-        language: system
-        pass_filenames: false
-
-      - id: mediapipeline-python-typing
-        name: MediaPipeline Python typing
-        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_python_typing
+      - id: mediapipeline-python-lint
+        name: MediaPipeline Python lint
+        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_python_lint
         language: system
         pass_filenames: false
 

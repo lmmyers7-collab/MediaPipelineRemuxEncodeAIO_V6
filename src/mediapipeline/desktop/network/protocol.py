@@ -158,7 +158,7 @@ class ClaimResponse:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "ClaimResponse":
+    def from_dict(cls, d: dict[str, Any]) -> ClaimResponse:
         return cls(
             status=str(d.get("status", "empty")),
             job_id=str(d.get("job_id", "")),
@@ -173,7 +173,7 @@ class ClaimResponse:
         )
 
     @classmethod
-    def empty(cls, retry_after_seconds: int = 0) -> "ClaimResponse":
+    def empty(cls, retry_after_seconds: int = 0) -> ClaimResponse:
         return cls(status="empty", retry_after_seconds=int(retry_after_seconds or 0))
 
 
@@ -227,7 +227,7 @@ class DoneRequest:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "DoneRequest":
+    def from_dict(cls, d: dict[str, Any]) -> DoneRequest:
         return cls(
             job_id=str(d.get("job_id", "")),
             worker_id=str(d.get("worker_id", "")),
@@ -284,7 +284,7 @@ class HeartbeatRequest:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "HeartbeatRequest":
+    def from_dict(cls, d: dict[str, Any]) -> HeartbeatRequest:
         return cls(
             job_id=str(d.get("job_id", "")),
             worker_id=str(d.get("worker_id", "")),
@@ -406,7 +406,7 @@ class LogEntryRequest:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "LogEntryRequest":
+    def from_dict(cls, d: dict[str, Any]) -> LogEntryRequest:
         return cls(
             timestamp   = str(d.get("timestamp", "")),
             worker_id   = str(d.get("worker_id", "")),

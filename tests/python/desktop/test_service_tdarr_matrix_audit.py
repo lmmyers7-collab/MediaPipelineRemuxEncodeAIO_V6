@@ -7,7 +7,7 @@ import sys
 import tempfile
 import threading
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -445,7 +445,7 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
                 json.dumps({"schema_version": "tdarr_matrix_audit.v1", "selected_count": tdarr_expected_manifest_count("proof-pack")}),
                 encoding="utf-8",
             )
-            process_start = datetime.fromtimestamp(12345.0, timezone.utc).isoformat()
+            process_start = datetime.fromtimestamp(12345.0, UTC).isoformat()
             metadata_dir = runs_root / "_background"
             metadata_dir.mkdir()
             (metadata_dir / "run-existing-proof-pack.process.json").write_text(

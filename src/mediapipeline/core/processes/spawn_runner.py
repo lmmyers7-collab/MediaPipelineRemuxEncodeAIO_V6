@@ -4,7 +4,8 @@ from pathlib import Path
 import subprocess
 import threading
 import time
-from typing import Any, Mapping, Protocol
+from typing import Any, Protocol
+from collections.abc import Mapping
 
 from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.processes.constants import ACTIVE_JOB_HEARTBEAT_SECONDS

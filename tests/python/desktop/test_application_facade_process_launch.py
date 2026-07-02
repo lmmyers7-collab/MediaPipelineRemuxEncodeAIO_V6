@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 import json
 import sys
 import tempfile
@@ -24,7 +24,7 @@ from tests.python.desktop.application_facade_test_support import DummyProc, Dumm
 
 
 def _fresh_generated_at() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
@@ -379,7 +379,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
 
     def test_coordinator_lifecycle_provider_starts_and_stops_dispatcher_without_pipeline_launch(self) -> None:
         class FakeCoordinatorDispatcher:
-            instances: list["FakeCoordinatorDispatcher"] = []
+            instances: list[FakeCoordinatorDispatcher] = []
 
             def __init__(self, app: object) -> None:
                 self.app = app
@@ -474,7 +474,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                 return ProcWithWait()
 
         class FakeWorkerDispatcher:
-            instances: list["FakeWorkerDispatcher"] = []
+            instances: list[FakeWorkerDispatcher] = []
 
             def __init__(self, app: object) -> None:
                 self.app = app
@@ -653,33 +653,36 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             with self.subTest(name=name), tempfile.TemporaryDirectory() as raw_root:
                 root = Path(raw_root)
 
-                class WorkerService(DummyWorkflowFacadeService):
-                    def start_pipeline(self, *args: object, **kwargs: object) -> ProcWithWait:  # type: ignore[override]
-                        super().start_pipeline(*args, **kwargs)  # type: ignore[arg-type]
-                        extra_argv = [str(item) for item in (kwargs.get("extra_argv") or [])]
-                        result_path = Path(extra_argv[extra_argv.index("-WorkerResultPath") + 1])
-                        result_path.parent.mkdir(parents=True, exist_ok=True)
-                        run_id = extra_argv[extra_argv.index("-WorkerRunId") + 1]
-                        claim_id = extra_argv[extra_argv.index("-WorkerClaimId") + 1]
-                        if isinstance(result_payload, str):
-                            result_path.write_text(result_payload, encoding="utf-8")
-                        elif isinstance(result_payload, dict):
-                            payload = {
-                                "SchemaVersion": "local_worker_result.v1",
-                                "SourcePath": str(root / "Claimed.mkv"),
-                                "SourceName": "Claimed.mkv",
-                                "WorkerSlotId": 0,
-                                "WorkerRunId": run_id,
-                                "WorkerClaimId": claim_id,
-                                "QueueTerminal": False,
-                                "Retryable": True,
-                                "OutputSizeBytes": 0,
-                                **result_payload,
-                            }
-                            result_path.write_text(json.dumps(payload), encoding="utf-8")
-                        return ProcWithWait()
+                def make_worker_service(case_result_payload: object, case_root: Path) -> type[DummyWorkflowFacadeService]:
+                    class WorkerService(DummyWorkflowFacadeService):
+                        def start_pipeline(self, *args: object, **kwargs: object) -> ProcWithWait:  # type: ignore[override]
+                            super().start_pipeline(*args, **kwargs)  # type: ignore[arg-type]
+                            extra_argv = [str(item) for item in (kwargs.get("extra_argv") or [])]
+                            result_path = Path(extra_argv[extra_argv.index("-WorkerResultPath") + 1])
+                            result_path.parent.mkdir(parents=True, exist_ok=True)
+                            run_id = extra_argv[extra_argv.index("-WorkerRunId") + 1]
+                            claim_id = extra_argv[extra_argv.index("-WorkerClaimId") + 1]
+                            if isinstance(case_result_payload, str):
+                                result_path.write_text(case_result_payload, encoding="utf-8")
+                            elif isinstance(case_result_payload, dict):
+                                payload = {
+                                    "SchemaVersion": "local_worker_result.v1",
+                                    "SourcePath": str(case_root / "Claimed.mkv"),
+                                    "SourceName": "Claimed.mkv",
+                                    "WorkerSlotId": 0,
+                                    "WorkerRunId": run_id,
+                                    "WorkerClaimId": claim_id,
+                                    "QueueTerminal": False,
+                                    "Retryable": True,
+                                    "OutputSizeBytes": 0,
+                                    **case_result_payload,
+                                }
+                                result_path.write_text(json.dumps(payload), encoding="utf-8")
+                            return ProcWithWait()
 
-                service = WorkerService(root)
+                    return WorkerService
+
+                service = make_worker_service(result_payload, root)(root)
                 facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
                 resolved = _resolved(root)
                 app = _NetworkRuntimeApp(facade, resolved, role="worker")
@@ -1104,6 +1107,12 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             resolved = _resolved(root)
 
             result = facade.start_rerun_csv_process(resolved, {"csv_path": str(csv_path)}).to_mapping()
+            default_started = dict(service.started_rerun)
+            pending_publish = facade.start_rerun_csv_process(
+                resolved,
+                {"csv_path": str(csv_path), "destination_mode": "pending_publish", "collision_policy": "suffix"},
+            ).to_mapping()
+            pending_started = dict(service.started_rerun)
             rejected = facade.start_rerun_csv_process(
                 resolved,
                 {"csv_path": str(csv_path), "original_mode": "delete"},
@@ -1120,14 +1129,19 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertEqual(result["data"]["pid"], 24682)
         self.assertFalse(result["data"]["dry_run"])
         self.assertFalse(result["data"]["plan_only"])
-        self.assertEqual(service.started_rerun["return_mode"], "park")
-        self.assertEqual(service.started_rerun["execution_mode"], "one_at_a_time")
-        self.assertEqual(service.started_rerun["destination_mode"], "review_workspace")
+        self.assertEqual(default_started["return_mode"], "park")
+        self.assertEqual(default_started["execution_mode"], "one_at_a_time")
+        self.assertEqual(default_started["destination_mode"], "review_workspace")
         self.assertEqual(result["data"]["execution_mode"], "one_at_a_time")
         self.assertEqual(result["data"]["destination_mode"], "review_workspace")
+        self.assertTrue(pending_publish["ok"])
+        self.assertEqual(pending_publish["data"]["return_mode"], "pending_publish")
+        self.assertEqual(pending_publish["data"]["destination_mode"], "pending_publish")
+        self.assertEqual(pending_started["return_mode"], "pending_publish")
+        self.assertEqual(pending_started["destination_mode"], "pending_publish")
         self.assertFalse(rejected["ok"])
         self.assertIn("lifecycle policy", rejected["message"])
-        self.assertIn("confirm_original_policy=true", "\n".join(rejected["errors"]))
+        self.assertIn("original source policies are disabled", "\n".join(rejected["errors"]))
         self.assertFalse(conflicting_plan["ok"])
         self.assertIn("either dry_run or plan_only", conflicting_plan["message"])
         self.assertFalse(missing["ok"])
@@ -1517,8 +1531,61 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertTrue(report["detail"][0]["refresh_needed"])
         self.assertEqual(report["detail"][0]["auto_refresh"]["reason"], "missing")
         self.assertFalse(report["detail"][0]["auto_refresh"]["attempted"])
+        self.assertFalse(report["detail"][0]["auto_refresh"]["requested"])
+        self.assertEqual(report["detail"][0]["auto_refresh"]["skipped_reason"], "refresh not requested")
 
-    def test_launch_preflight_auto_refreshes_stale_encoder_capability_report(self) -> None:
+    def test_launch_preflight_skips_stale_encoder_capability_refresh_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            report_path = root / "State" / "Progress" / "encoder_capabilities.json"
+            report_path.parent.mkdir(parents=True)
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "schema": "mediapipeline.encoder_capabilities.v1",
+                        "generated_at": "2000-01-01T00:00:00Z",
+                        "video_codec": "hevc_nvenc",
+                        "encoder_backend": "auto",
+                        "selection": {"resolved": True, "reason": "old", "family": "hevc"},
+                        "encoders": [
+                            {
+                                "encoder_name": "hevc_nvenc",
+                                "family": "hevc",
+                                "backend": "nvenc",
+                                "roles": ["primary"],
+                                "descriptor_flags_active": True,
+                                "available": True,
+                                "runtime_ok": True,
+                                "runtime_probe_skipped": False,
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.state_root = root / "State"
+            resolved.config_data = {"NetworkRole": "standalone"}
+
+            with patch("mediapipeline.core.processes.preflight_facade.run_capture") as run_capture:
+                preflight = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "validate"})
+
+        rows = {row["key"]: row for row in preflight["checks"]}
+        report = rows["encoder_capability_report"]
+        run_capture.assert_not_called()
+        self.assertTrue(preflight["can_request_start"])
+        self.assertEqual(report["status"], "review")
+        self.assertIn("refresh=skipped", report["evidence"])
+        self.assertTrue(report["detail"][0]["refresh_needed"])
+        self.assertTrue(report["detail"][0]["stale"])
+        self.assertFalse(report["detail"][0]["auto_refresh"]["attempted"])
+        self.assertFalse(report["detail"][0]["auto_refresh"]["requested"])
+        self.assertEqual(report["detail"][0]["auto_refresh"]["reason"], "stale")
+        self.assertEqual(report["detail"][0]["auto_refresh"]["skipped_reason"], "refresh not requested")
+
+    def test_launch_preflight_auto_refreshes_stale_encoder_capability_report_when_requested(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             report_path = root / "State" / "Progress" / "encoder_capabilities.json"
@@ -1587,7 +1654,14 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                 return CapturedCommandResult(args=args, returncode=0, stdout="dumped", stderr="")
 
             with patch("mediapipeline.core.processes.preflight_facade.run_capture", side_effect=fake_run_capture):
-                preflight = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "validate"})
+                preflight = facade.get_launch_preflight(
+                    resolved,
+                    {
+                        "target": "pipeline",
+                        "mode": "validate",
+                        "refresh_encoder_capability_report": True,
+                    },
+                )
 
         rows = {row["key"]: row for row in preflight["checks"]}
         report = rows["encoder_capability_report"]
@@ -1598,6 +1672,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertFalse(report["detail"][0]["refresh_needed"])
         self.assertFalse(report["detail"][0]["stale"])
         self.assertTrue(report["detail"][0]["auto_refresh"]["attempted"])
+        self.assertTrue(report["detail"][0]["auto_refresh"]["requested"])
         self.assertEqual(report["detail"][0]["auto_refresh"]["reason"], "stale")
         self.assertEqual(report["detail"][0]["operator_status_state"], "ready")
         self.assertEqual(report["detail"][0]["selection"]["reason"], "refreshed")

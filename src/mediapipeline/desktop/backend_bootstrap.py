@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -10,7 +10,7 @@ STARTUP_PROGRESS_SCHEMA_VERSION = "desktop_startup_progress.v1"
 
 
 def startup_timestamp() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def startup_step(

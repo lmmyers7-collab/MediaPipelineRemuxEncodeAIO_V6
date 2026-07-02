@@ -3,9 +3,9 @@ file: src/mediapipeline/core/rename/cleaning_policy.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: rename
-last_modified: 2026-06-18
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 86c15fab3080764f98ca7f4ef7967a5012af79c422a89c02bcee4f6287146adf
+sha256: 0591ecfe68162f2d7cf8bfd18d7dd4d1be207ed87323780fe67033d3cb5f2656
 ---
 # `src/mediapipeline/core/rename/cleaning_policy.py`
 

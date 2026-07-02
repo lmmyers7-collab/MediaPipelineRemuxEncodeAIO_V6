@@ -3,9 +3,9 @@ file: tests/python/desktop/test_repair_reconcile_apply.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-02
 last_reviewed: 2026-06-19
-sha256: 7d8d856fe265d09e2cf99e478c4c2fe119fe80c6219c5f00c8f970aa93cfdf70
+sha256: 96119864552dd31a526ad95d3a219f573c8eeb669b7cad11f593922eb2ff8ff1
 ---
 # `tests/python/desktop/test_repair_reconcile_apply.py`
 

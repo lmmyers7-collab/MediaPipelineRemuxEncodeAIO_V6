@@ -455,6 +455,7 @@
   let launchBackendPreflightDetailLines = launchPreflightFallbackLines;
   let renderLaunchBackendPreflight = launchPreflightFallbackRender;
   let refreshLaunchBackendPreflight = async function () {};
+  let refreshLaunchBackendPreflightEncoderCapability = async function () {};
   let pipelineLaunchPreflightLines = launchPreflightFallbackLines;
   let rerunLaunchPreflightLines = launchPreflightFallbackLines;
   let renderLaunchPreflight = function (id, lines) { setText(id, (lines || []).join("\n")); };
@@ -758,6 +759,7 @@
   launchBackendPreflightDetailLines = typeof launchPreflight.launchBackendPreflightDetailLines === "function" ? launchPreflight.launchBackendPreflightDetailLines : launchBackendPreflightDetailLines;
   renderLaunchBackendPreflight = typeof launchPreflight.renderLaunchBackendPreflight === "function" ? launchPreflight.renderLaunchBackendPreflight : renderLaunchBackendPreflight;
   refreshLaunchBackendPreflight = typeof launchPreflight.refreshLaunchBackendPreflight === "function" ? launchPreflight.refreshLaunchBackendPreflight : refreshLaunchBackendPreflight;
+  refreshLaunchBackendPreflightEncoderCapability = typeof launchPreflight.refreshLaunchBackendPreflightEncoderCapability === "function" ? launchPreflight.refreshLaunchBackendPreflightEncoderCapability : refreshLaunchBackendPreflightEncoderCapability;
   pipelineLaunchPreflightLines = typeof launchPreflight.pipelineLaunchPreflightLines === "function" ? launchPreflight.pipelineLaunchPreflightLines : pipelineLaunchPreflightLines;
   rerunLaunchPreflightLines = typeof launchPreflight.rerunLaunchPreflightLines === "function" ? launchPreflight.rerunLaunchPreflightLines : rerunLaunchPreflightLines;
   renderLaunchPreflight = typeof launchPreflight.renderLaunchPreflight === "function" ? launchPreflight.renderLaunchPreflight : renderLaunchPreflight;
@@ -835,6 +837,14 @@
         updateLaunchCommandButtonStates();
       });
     });
+    const encoderCapabilityRefreshButton = byId("launch-encoder-capability-refresh-button");
+    if (encoderCapabilityRefreshButton) {
+      encoderCapabilityRefreshButton.addEventListener("click", async () => {
+        await refreshLaunchBackendPreflightEncoderCapability();
+        renderLaunchCompactGate();
+        updateLaunchCommandButtonStates();
+      });
+    }
     const pipelineFileBrowseButton = byId("pipeline-single-file-browse-button");
     if (pipelineFileBrowseButton) {
       pipelineFileBrowseButton.addEventListener("click", () => browsePipelineSingleFile());
@@ -2103,6 +2113,7 @@
     launchBackendPreflightDetailLines,
     renderLaunchBackendPreflight,
     refreshLaunchBackendPreflight,
+    refreshLaunchBackendPreflightEncoderCapability,
     pipelineLaunchPreflightLines,
     rerunLaunchPreflightLines,
     isLaunchCommand,

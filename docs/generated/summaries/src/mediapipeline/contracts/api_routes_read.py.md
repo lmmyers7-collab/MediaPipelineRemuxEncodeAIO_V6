@@ -3,9 +3,9 @@ file: src/mediapipeline/contracts/api_routes_read.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-06-30
+last_modified: 2026-07-02
 last_reviewed: 2026-06-29
-sha256: 3eb683a9ec2c6fe2e3c037c4b2faceae586b2d6e588177bfed14451566ce860a
+sha256: 7cd22993d8224346698d7cfe4e86535c319379534b8560c247b0b6eb13380398
 ---
 # `src/mediapipeline/contracts/api_routes_read.py`
 

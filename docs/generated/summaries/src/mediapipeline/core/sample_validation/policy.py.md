@@ -3,9 +3,9 @@ file: src/mediapipeline/core/sample_validation/policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: sample_validation
-last_modified: 2026-06-29
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: d022da576d62dd6fe82acecab01a03adc29a3310bbb74c04bcef5e4cf5cfb0b3
+sha256: fe1529da98336cb7e310c31ff57e0820e826819def7b1717a959b80383ecc64a
 ---
 # `src/mediapipeline/core/sample_validation/policy.py`
 

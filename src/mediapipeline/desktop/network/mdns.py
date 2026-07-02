@@ -18,8 +18,7 @@ import ipaddress
 import logging
 import socket
 import threading
-import time
-from typing import Callable
+from collections.abc import Callable
 
 from .local_ip import get_primary_local_ip
 
@@ -108,8 +107,8 @@ class CoordinatorAdvertiser:
         _require_zeroconf()
         self._port   = port
         self._bind_address = bind_address
-        self._zc: "Zeroconf | None"          = None
-        self._info: "ServiceInfo | None"     = None
+        self._zc: Zeroconf | None          = None
+        self._info: ServiceInfo | None     = None
         self.skipped = False
         self.skip_reason = ""
 
@@ -169,7 +168,7 @@ class CoordinatorAdvertiser:
             self._info = None
             _log.info("mDNS: coordinator advertisement stopped.")
 
-    def __enter__(self) -> "CoordinatorAdvertiser":
+    def __enter__(self) -> CoordinatorAdvertiser:
         self.start()
         return self
 
@@ -195,13 +194,13 @@ def discover_coordinators(timeout_secs: float = 5.0) -> list[str]:
     found: list[str]  = []
     found_lock        = threading.Lock()
     done_event        = threading.Event()
-    zc: "Zeroconf | None" = None
+    zc: Zeroconf | None = None
 
     def _on_change(
-        zeroconf: "Zeroconf",
+        zeroconf: Zeroconf,
         service_type: str,
         name: str,
-        state_change: "ServiceStateChange",
+        state_change: ServiceStateChange,
     ) -> None:
         if state_change is not ServiceStateChange.Added:
             return
@@ -221,7 +220,7 @@ def discover_coordinators(timeout_secs: float = 5.0) -> list[str]:
 
     try:
         zc      = Zeroconf()
-        browser = ServiceBrowser(zc, MDNS_SERVICE_TYPE, handlers=[_on_change])
+        _browser = ServiceBrowser(zc, MDNS_SERVICE_TYPE, handlers=[_on_change])
         done_event.wait(timeout=timeout_secs)
     except Exception:
         _log.exception("mDNS discovery: ServiceBrowser error.")

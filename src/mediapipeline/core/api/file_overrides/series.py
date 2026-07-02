@@ -5,7 +5,7 @@ import hashlib
 import json
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -193,7 +193,7 @@ def file_override_series_apply_payload(
         return _series_apply_error("No eligible current queue rows would be updated.")
 
     batch_id = f"series-{uuid.uuid4().hex[:12]}"
-    created_at = datetime.now(timezone.utc).isoformat()
+    created_at = datetime.now(UTC).isoformat()
     detected = _mapping(preview.get("detected"))
     batch_metadata = {
         "origin": SERIES_BATCH_ORIGIN,

@@ -59,6 +59,18 @@ if TYPE_CHECKING:
 
 _log = logging.getLogger(__name__)
 
+__all__ = [
+    "CoordinatorDispatcher",
+    "_COORDINATOR_PROTOCOL_VERSION",
+    "_CoordHandler",
+    "_CoordServer",
+    "_WORKER_ID_MAX_LEN",
+    "_WORKER_ID_PATTERN",
+    "_WORKER_NAME_MAX_LEN",
+    "_WORKER_NAME_PATTERN",
+    "_coordinator_health_heartbeat_timeout_mins",
+]
+
 
 # ---------------------------------------------------------------------------
 # CoordinatorDispatcher
@@ -89,7 +101,7 @@ class CoordinatorDispatcher(
     race over the same record.
     """
 
-    def __init__(self, app: "MediaPipelineApp") -> None:
+    def __init__(self, app: MediaPipelineApp) -> None:
         self._app          = app
         self._registry     = InFlightRegistry()
         self._claim_lock   = threading.Lock()

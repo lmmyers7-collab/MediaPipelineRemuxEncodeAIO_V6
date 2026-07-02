@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/settings_facade.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-29
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 356ab672fe8592a376b5218f556abdfde29ded3628b07a641e6b8a8d1ae48d2e
+sha256: ca1d093016ad5a0b1cf355831e9569331fc9992924f92093afdd14086c41ed91
 ---
 # `src/mediapipeline/core/config/settings_facade.py`
 

@@ -28,7 +28,7 @@ def video_encode_filter_reasons(policy: EffectiveDecisionPolicy) -> list[str]:
     reasons = list(policy.video_filter_names)
     if policy.crop_mode in {"auto", "custom"}:
         reasons.append(f"crop:{policy.crop_mode}")
-    return sorted(set(item for item in reasons if item))
+    return sorted({item for item in reasons if item})
 
 
 def audio_transcode_reason(stream: SourceAudioStream, policy: EffectiveDecisionPolicy) -> str:

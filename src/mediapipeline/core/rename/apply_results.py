@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable, Mapping
+from typing import TYPE_CHECKING, Any
+from collections.abc import Iterable, Mapping
 
 from mediapipeline.core.rename.path_authority import OUTSIDE_CONFIGURED_ROOTS_MESSAGE, UNSCOPED_OPERATOR_PATHS_MESSAGE
 from mediapipeline.core.rename.preview_policy import missing_rename_selection_warnings, rename_blocker_error_lines
@@ -28,13 +29,13 @@ RENAME_APPLY_SERVICE_UNAVAILABLE_MESSAGE = "Rename apply service is not availabl
 RENAME_APPLY_BUSY_MESSAGE = "Rename apply blocked because another rename apply command is already in progress."
 
 
-def _command_result(**fields: Any) -> "CommandResult":
+def _command_result(**fields: Any) -> CommandResult:
     from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**fields)
 
 
-def _json_safe(value: Any) -> "JsonMap":
+def _json_safe(value: Any) -> JsonMap:
     from mediapipeline.core.kernel.dto_base import json_safe
 
     return json_safe(value)

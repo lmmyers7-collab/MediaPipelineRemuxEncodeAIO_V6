@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/partials/page-diagnostics.html
 pipeline_stage: observability
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-28
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 76056fccedae6b99f3a8b2e6dc859834878c3ca307932111dad69931d64150b8
+sha256: b42fd318bfafc4ec4bac804885fcd623fcec5918554ef7ddde9532b09da94033
 ---
 # `apps/desktop/webview/static/partials/page-diagnostics.html`
 

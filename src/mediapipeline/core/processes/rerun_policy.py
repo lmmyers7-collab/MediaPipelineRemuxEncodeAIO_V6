@@ -12,8 +12,8 @@ if TYPE_CHECKING:
 CSV_RERUN_START_COMMAND = "rerun.start"
 CSV_RERUN_PATH_ERROR = "CSV path is required."
 CSV_RERUN_MODE_ERROR = (
-    "Executable CSV rerun starts require supported lifecycle fields; source mutation, "
-    "final replacement, and deletion-marking policies require strict confirmations."
+    "Executable CSV rerun starts require supported lifecycle fields; source mutation "
+    "policies are disabled, and final replacement requires strict confirmation."
 )
 CSV_RERUN_PLAN_MODE_ERROR = "dry_run and plan_only cannot both be true."
 
@@ -71,7 +71,7 @@ class RerunLifecyclePolicy:
         }
 
 
-def _command_result(**kwargs: Any) -> "CommandResult":
+def _command_result(**kwargs: Any) -> CommandResult:
     from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**kwargs)
@@ -194,7 +194,7 @@ def rerun_lifecycle_from_request(request: dict[str, Any]) -> RerunLifecyclePolic
         confirm_original_policy=rerun_bool_from_request(request, "confirm_original_policy"),
         confirm_delete_original=rerun_bool_from_request(request, "confirm_delete_original"),
         stage_mode=stage_mode,
-        original_mode=_original_mode_from_policy(original_policy),
+        original_mode="keep",
         return_mode=_return_mode_from_destination(destination_mode),
         compatibility_aliases_used=compatibility_aliases_used,
     )
@@ -214,10 +214,8 @@ def rerun_lifecycle_errors(lifecycle: RerunLifecyclePolicy) -> list[str]:
         errors.append("stage_mode compatibility alias only supports copy; source-moving staging is not accepted.")
     if lifecycle.destination_mode == "publish_replace_final" and lifecycle.confirm_replace_final is not True:
         errors.append("publish_replace_final requires confirm_replace_final=true.")
-    if lifecycle.original_policy != "keep" and lifecycle.confirm_original_policy is not True:
-        errors.append(f"{lifecycle.original_policy} requires confirm_original_policy=true.")
-    if lifecycle.original_policy == "hold_then_delete_after_publish" and lifecycle.confirm_delete_original is not True:
-        errors.append("hold_then_delete_after_publish requires confirm_delete_original=true; deletion is still a separate cleanup flow.")
+    if lifecycle.original_policy != "keep":
+        errors.append("CSV rerun original source policies are disabled until final-output proof is recorded by a separate cleanup flow.")
     return errors
 
 
@@ -297,7 +295,7 @@ def rerun_start_success_data(
     return data
 
 
-def rerun_csv_path_missing_result() -> "CommandResult":
+def rerun_csv_path_missing_result() -> CommandResult:
     return _command_result(
         command=CSV_RERUN_START_COMMAND,
         ok=False,
@@ -307,7 +305,7 @@ def rerun_csv_path_missing_result() -> "CommandResult":
     )
 
 
-def rerun_mode_error_result() -> "CommandResult":
+def rerun_mode_error_result() -> CommandResult:
     return _command_result(
         command=CSV_RERUN_START_COMMAND,
         ok=False,
@@ -317,7 +315,7 @@ def rerun_mode_error_result() -> "CommandResult":
     )
 
 
-def rerun_lifecycle_error_result(errors: list[str]) -> "CommandResult":
+def rerun_lifecycle_error_result(errors: list[str]) -> CommandResult:
     return _command_result(
         command=CSV_RERUN_START_COMMAND,
         ok=False,
@@ -327,7 +325,7 @@ def rerun_lifecycle_error_result(errors: list[str]) -> "CommandResult":
     )
 
 
-def rerun_plan_mode_error_result() -> "CommandResult":
+def rerun_plan_mode_error_result() -> CommandResult:
     return _command_result(
         command=CSV_RERUN_START_COMMAND,
         ok=False,
@@ -337,7 +335,7 @@ def rerun_plan_mode_error_result() -> "CommandResult":
     )
 
 
-def rerun_start_active_work_result(block_message: str) -> "CommandResult":
+def rerun_start_active_work_result(block_message: str) -> CommandResult:
     return _command_result(
         command=CSV_RERUN_START_COMMAND,
         ok=False,
@@ -348,7 +346,7 @@ def rerun_start_active_work_result(block_message: str) -> "CommandResult":
     )
 
 
-def rerun_start_config_blocked_result(message: str, data: dict[str, Any]) -> "CommandResult":
+def rerun_start_config_blocked_result(message: str, data: dict[str, Any]) -> CommandResult:
     return _command_result(
         command=CSV_RERUN_START_COMMAND,
         ok=False,
@@ -360,7 +358,7 @@ def rerun_start_config_blocked_result(message: str, data: dict[str, Any]) -> "Co
     )
 
 
-def rerun_start_exception_result(exc: Exception) -> "CommandResult":
+def rerun_start_exception_result(exc: Exception) -> CommandResult:
     return _command_result(
         command=CSV_RERUN_START_COMMAND,
         ok=False,
@@ -390,7 +388,7 @@ def rerun_start_success_result(
     scoped_csv_path: Path | None = None,
     scope: dict[str, Any] | None = None,
     preview_counts: dict[str, Any] | None = None,
-) -> "CommandResult":
+) -> CommandResult:
     return _command_result(
         command=CSV_RERUN_START_COMMAND,
         ok=True,

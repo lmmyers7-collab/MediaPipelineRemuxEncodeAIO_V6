@@ -5,7 +5,8 @@ import json
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
-from typing import Any, Sequence
+from typing import Any
+from collections.abc import Sequence
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 

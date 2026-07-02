@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/application/network_lifecycle_provider.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: application
-last_modified: 2026-06-15
+last_modified: 2026-07-02
 last_reviewed: 2026-06-13
-sha256: 3bfecd3c0f2cc841542023ae9e9f6ef85e9dc191dfafb9a76dacd6d30b9dd716
+sha256: 4aeee342487bdaace04f7bcb916bb045f457595c17b46e125b743a0cd123e01a
 ---
 # `src/mediapipeline/desktop/application/network_lifecycle_provider.py`
 

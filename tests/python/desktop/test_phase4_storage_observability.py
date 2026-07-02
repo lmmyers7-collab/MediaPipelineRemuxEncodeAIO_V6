@@ -7,7 +7,7 @@ import sqlite3
 import sys
 import tempfile
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
@@ -38,7 +38,7 @@ from mediapipeline.desktop.subprocess_runner import CapturedCommandResult
 
 
 def _stage_stdout() -> str:
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     return json.dumps(
         {
             "schema_version": "v1",
@@ -166,7 +166,7 @@ class Phase4StorageObservabilityTests(unittest.TestCase):
         self.assertIn("wal_size_bytes", result["health"])
 
     def test_state_db_maybe_maintenance_runs_on_interval_and_records_marker(self) -> None:
-        now = datetime(2026, 6, 30, 12, 0, tzinfo=timezone.utc)
+        now = datetime(2026, 6, 30, 12, 0, tzinfo=UTC)
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             open_state_db(root).record_command({"command": "settings.reload", "ok": True})
@@ -186,7 +186,7 @@ class Phase4StorageObservabilityTests(unittest.TestCase):
         self.assertFalse(marker["ran"])
 
     def test_state_db_maybe_maintenance_is_best_effort_on_failure(self) -> None:
-        now = datetime(2026, 6, 30, 12, 0, tzinfo=timezone.utc)
+        now = datetime(2026, 6, 30, 12, 0, tzinfo=UTC)
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             with patch("mediapipeline.core.storage.db.open_state_db", side_effect=RuntimeError("database is locked")):

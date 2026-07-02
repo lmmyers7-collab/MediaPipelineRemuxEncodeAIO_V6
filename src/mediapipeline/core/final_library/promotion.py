@@ -6,7 +6,8 @@ import hashlib
 import json
 from pathlib import Path
 import uuid
-from typing import Any, Iterable, Mapping
+from typing import Any
+from collections.abc import Iterable, Mapping
 
 from mediapipeline.core.completed.policy import completed_record_key
 from mediapipeline.core.config.library_profiles import library_profiles_from_config
@@ -27,7 +28,6 @@ from .promotion_parts.planning import (
     match_library_profile_for_source,
     match_rule_for_source,
     normalized_path_key,
-    path_within_root,
     plan_promotion_file_targets,
     relative_path_under_root,
 )
@@ -43,7 +43,6 @@ from .promotion_parts.transfer import (
     companion_sidecars,
     copy_files_transactionally,
     copy_file_with_verification,
-    sha256_file,
     verify_copy,
 )
 

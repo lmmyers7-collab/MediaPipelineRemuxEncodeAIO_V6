@@ -61,7 +61,7 @@ FAILURE_LIFECYCLE_TRANSITION_LABELS = {
 }
 
 
-def _failure_preview_dto(**kwargs: Any) -> "FailurePreviewDto":
+def _failure_preview_dto(**kwargs: Any) -> FailurePreviewDto:
     from mediapipeline.core.kernel.dto_inventory import FailurePreviewDto
 
     return FailurePreviewDto(**kwargs)

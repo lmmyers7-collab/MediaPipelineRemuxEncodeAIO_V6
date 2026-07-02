@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root, PurePosixPath
-from typing import Iterable
+from collections.abc import Iterable
 
 
 REPO_ROOT = find_repo_root(Path(__file__))

@@ -4,7 +4,8 @@ from dataclasses import dataclass
 import json
 import subprocess
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
+from collections.abc import Iterable
 
 
 COVERAGE_FAILURE_HINT = (

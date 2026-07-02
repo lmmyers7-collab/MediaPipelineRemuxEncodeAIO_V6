@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from mediapipeline.core.kernel.dto_commands import CommandResult
 from mediapipeline.core.maintenance.command_policy import (

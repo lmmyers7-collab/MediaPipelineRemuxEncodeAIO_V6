@@ -3,9 +3,9 @@ file: src/mediapipeline/core/failures/policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: failures
-last_modified: 2026-06-30
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: e3fec467e7fd81caaca8c93e6b624388cce45931cb38269ec26956d4ecf01fa6
+sha256: c9afae5af0393a571acc2c59dadc38e87d33046480345f82f4543ca20f033e2a
 ---
 # `src/mediapipeline/core/failures/policy.py`
 

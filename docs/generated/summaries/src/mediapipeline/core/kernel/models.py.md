@@ -3,9 +3,9 @@ file: src/mediapipeline/core/kernel/models.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: kernel
-last_modified: 2026-06-29
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 71beb30fe8326a49fb58145b54584412fe3da0aa83af7c48e9cc5f3b4855c7b3
+sha256: 3d617c8558bab1aae4f26ed2dabb51cb83d0ffe881061dbcf11ca4928f1eb505
 ---
 # `src/mediapipeline/core/kernel/models.py`
 

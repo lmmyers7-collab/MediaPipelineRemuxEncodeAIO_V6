@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from mediapipeline.core.status.active_jobs import active_job_detail_rows
 from mediapipeline.core.status.progress import parse_progress_datetime
@@ -35,7 +36,7 @@ def runtime_reliability_counters(
     pending_publish: Mapping[str, Any] | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any]:
-    checked_at = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    checked_at = (now or datetime.now(UTC)).astimezone(UTC)
     progress_mapping = progress if isinstance(progress, Mapping) else _read_json_mapping(getattr(resolved, "progress_file", None))
     pending_mapping = pending_publish if isinstance(pending_publish, Mapping) else None
     config_data = getattr(resolved, "config_data", {})
@@ -397,7 +398,6 @@ def _sqlite_mirror_counters(state_root: Path | None, config_data: Mapping[str, A
 
 
 def _state_db_counters(state_root: Path | None, config_data: Mapping[str, Any] | None = None) -> dict[str, Any]:
-    db_path = Path(state_root) / STATE_DB_FILENAME if state_root is not None else None
     maintenance_path = Path(state_root) / STATE_DB_MAINTENANCE_MARKER_FILENAME if state_root is not None else None
     maintenance = _read_json_mapping(maintenance_path)
     return {
@@ -490,8 +490,8 @@ def _parse_datetime(value: Any) -> datetime | None:
     if parsed is None:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _oldest_pending_age_seconds(rows: Any, now: datetime) -> int | None:
@@ -537,8 +537,8 @@ def _age_seconds(value: Any, now: datetime) -> int | None:
     if parsed is None:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return max(0, int((now - parsed.astimezone(timezone.utc)).total_seconds()))
+        parsed = parsed.replace(tzinfo=UTC)
+    return max(0, int((now - parsed.astimezone(UTC)).total_seconds()))
 
 
 def _first_text(mapping: Mapping[str, Any], *keys: str) -> str:
@@ -592,7 +592,7 @@ def _file_age_seconds(path: Path | None, now: datetime) -> int | None:
     if path is None:
         return None
     try:
-        modified = datetime.fromtimestamp(Path(path).stat().st_mtime, tz=timezone.utc)
+        modified = datetime.fromtimestamp(Path(path).stat().st_mtime, tz=UTC)
     except OSError:
         return None
     return max(0, int((now - modified).total_seconds()))

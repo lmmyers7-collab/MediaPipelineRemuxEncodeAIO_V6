@@ -3,9 +3,9 @@ file: src/mediapipeline/core/storage/db.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: storage
-last_modified: 2026-06-30
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 6ab12dd29007e709232e5582917f2fb5a71df45e4797e2d811620d952cd8b03d
+sha256: 3a8d58d05fb2739301da92fe1e7bdede9899a3faeecc13f68564b50e4a350282
 ---
 # `src/mediapipeline/core/storage/db.py`
 

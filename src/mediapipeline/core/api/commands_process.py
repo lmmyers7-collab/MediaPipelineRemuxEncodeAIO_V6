@@ -210,7 +210,11 @@ class LocalApiProcessCommandPayloadMixin:
         resolved = self._resolved()
         if resolved is None:
             return resolved_paths_unavailable_payload("rerun.promote", "snapshot")
-        return rerun_promote_to_pending_publish(resolved, request).to_mapping()
+        return rerun_promote_to_pending_publish(
+            resolved,
+            request,
+            product_version=str(getattr(self.facade, "app_version", "") or ""),
+        ).to_mapping()
 
     def _force_active_work_shutdown_cleanup(self, resolved: Any) -> list[str]:
         messages: list[str] = []

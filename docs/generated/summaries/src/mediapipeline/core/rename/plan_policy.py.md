@@ -3,9 +3,9 @@ file: src/mediapipeline/core/rename/plan_policy.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: rename
-last_modified: 2026-05-28
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 0c800f5c12b799a80f03eb71871e620cc3d7cb7ddff93e15ae442bf6cb3d1ac8
+sha256: 6fb848d9bd8fb4eb65ca94d95b8c3d3146b45a918d81eaf3170760b6d8550350
 ---
 # `src/mediapipeline/core/rename/plan_policy.py`
 

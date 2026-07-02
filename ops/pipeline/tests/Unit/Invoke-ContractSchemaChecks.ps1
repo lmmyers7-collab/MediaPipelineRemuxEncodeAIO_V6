@@ -198,6 +198,37 @@ Assert-Equal @($pendingManifest.converted_srt_sidecar_candidates).Count 1 'Pendi
 Assert-Equal @($pendingManifest.subtitle_output_reduction).Count 1 'Pending manifest MP4 subtitle reduction evidence did not round-trip.'
 Assert-True ([bool]$pendingManifest.vobsub_srt_conversion_enabled) 'Pending manifest VobSub conversion flag did not round-trip.'
 
+$rerunCsvScriptText = Get-Content -LiteralPath (Join-Path $pipelineRoot 'entrypoints\Invoke-RerunCsv.ps1') -Raw
+foreach ($field in @(
+    'product_version',
+    'pipeline_version',
+    'publish_transaction_id',
+    'manifest_state',
+    'local_file',
+    'server_out',
+    'route',
+    'source_identity_v2',
+    'source_identity_v2_algorithm',
+    'source_path',
+    'output_size',
+    'sidecar_files',
+    'tx3g_srt_tracks',
+    'tx3g_srt_failures',
+    'bdpgs_srt_failures',
+    'vobsub_srt_failures',
+    'converted_srt_sidecar_candidates',
+    'subtitle_output_reduction',
+    'tx3g_embedded_srt_tracks',
+    'bdpgs_embedded_srt_tracks',
+    'vobsub_embedded_srt_tracks'
+)) {
+    Assert-True ($rerunCsvScriptText -match "(?m)^\s*$([regex]::Escape($field))\s*=") "CSV rerun pending-publish writer missing current manifest field: $field"
+}
+Assert-True ($rerunCsvScriptText.Contains("manifest_state = 'pending_move'")) 'CSV rerun pending-publish writer must write pending_move before moving media.'
+Assert-True ($rerunCsvScriptText.Contains('$payload[''manifest_state''] = ''parked''')) 'CSV rerun pending-publish writer must update manifest to parked after moving media.'
+Assert-True ($rerunCsvScriptText.Contains('function New-RerunPendingSidecarEntries')) 'CSV rerun pending-publish writer must preserve sibling sidecar files.'
+Assert-True ($rerunCsvScriptText.Contains('CSV rerun original source policies are disabled')) 'CSV rerun must fail closed for original source mutation policies.'
+
 $completedJob = Convert-RoundTripJson ([ordered]@{
     schema_version   = 'pipeline_sidecar.v1'
     pipeline_version = '4'

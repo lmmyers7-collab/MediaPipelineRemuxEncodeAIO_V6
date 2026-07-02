@@ -103,6 +103,7 @@ class LocalApiStatusReadPayloadMixin:
                     "schedule_override": query_value(query, "schedule_override", ""),
                     "extra_args": query_value(query, "extra_args", ""),
                     "allow_extra_args": query_bool(query, "allow_extra_args", False),
+                    "refresh_encoder_capability_report": query_bool(query, "refresh_encoder_capability_report", False),
                 }
             )
         elif target == "audit":

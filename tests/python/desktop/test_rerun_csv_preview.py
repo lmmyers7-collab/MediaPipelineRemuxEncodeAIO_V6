@@ -100,6 +100,53 @@ class RerunCsvPreviewTests(unittest.TestCase):
         self.assertIn("AUDIO", [item["value"] for item in payload["filter_options"]["issue_filters"]])
         self.assertEqual(Path(payload["import_csv_root"]), root / "LocalBase" / "State" / "Rerun" / "ImportCsv")
 
+    def test_pending_publish_destination_does_not_block_rows_without_legacy_override(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            csv_path = root / "rerun.csv"
+            _write_csv(
+                csv_path,
+                [
+                    {"enabled": "true", "source_path": r"C:\Media\One.mkv", "audit_issue_codes": "AUDIO", "effective_bucket": "RERUN_PIPELINE"},
+                    {
+                        "enabled": "true",
+                        "source_path": r"C:\Media\Two.mkv",
+                        "audit_issue_codes": "SUBTITLE",
+                        "effective_bucket": "RERUN_PIPELINE",
+                        "return_mode": "replace_original",
+                    },
+                ],
+            )
+
+            payload = rerun_csv_preview_payload(
+                _resolved(root),
+                {
+                    "csv_path": str(csv_path),
+                    "destination_mode": "pending_publish",
+                    "collision_policy": "suffix",
+                    "original_policy": "keep",
+                    "scope": {
+                        "enabled_only": True,
+                        "skip_blocked": True,
+                        "preview_limit": 10,
+                    },
+                },
+            )
+
+        self.assertEqual(payload["status"], "ready")
+        self.assertTrue(payload["safe_modes"])
+        self.assertEqual(payload["destination_mode"], "pending_publish")
+        self.assertEqual(payload["return_mode"], "pending_publish")
+        self.assertEqual(payload["counts"]["total_rows"], 2)
+        self.assertEqual(payload["counts"]["blocked_rows"], 1)
+        self.assertEqual(payload["counts"]["blocked_mode_rows"], 1)
+        self.assertEqual(payload["counts"]["effective_scoped_rows"], 1)
+        self.assertEqual(payload["counts"]["blocked_scoped_rows"], 0)
+        self.assertEqual(payload["rows"][0]["status"], "ready")
+        self.assertEqual(payload["rows"][0]["return_mode"], "pending_publish")
+        self.assertEqual(payload["rows"][1]["status"], "blocked")
+        self.assertIn("blocked source-mutating", payload["rows"][1]["reason"])
+
     def test_materialize_scoped_csv_writes_only_filtered_rows_under_state(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

@@ -30,7 +30,7 @@ class PipelineEvent:
     raw: Mapping[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
-    def from_mapping(cls, payload: Mapping[str, Any] | Any) -> "PipelineEvent":
+    def from_mapping(cls, payload: Mapping[str, Any] | Any) -> PipelineEvent:
         data = require_mapping(payload, "pipeline event")
         schema_version = require_schema_version(data, PIPELINE_EVENT_SCHEMA_VERSION)
         event_type = text_field(data, "event_type").strip()

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Mapping
+from collections.abc import Mapping
 
 from ..config_keys import (
     KEY_COORDINATOR_BIND_ADDRESS,

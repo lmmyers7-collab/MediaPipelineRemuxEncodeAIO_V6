@@ -347,7 +347,7 @@ class ConfigContractTests(unittest.TestCase):
         self.assertNotIn("seconv.exe", default_path.casefold())
 
     def test_invalid_config_payload_is_rejected(self) -> None:
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             Config.model_validate(
                 {
                     "SourceMovies": "",
@@ -380,10 +380,10 @@ class ConfigContractTests(unittest.TestCase):
             ("BdpgsOcrTimeoutSeconds", 59),
             ("OutputSizeMultiplier", 2.1),
         ):
-            with self.subTest(key=key, value=value), self.assertRaises(Exception):
+            with self.subTest(key=key, value=value), self.assertRaises(ValidationError):
                 Config.model_validate({key: value})
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             Config.model_validate(
                 {
                     "Route1080pUpperHeightTolerancePercent": 0,
@@ -464,7 +464,7 @@ class ConfigContractTests(unittest.TestCase):
             "OutputSizeMultiplier",
             "ConfigSchemaVersion",
         ):
-            with self.subTest(key=key), self.assertRaises(Exception):
+            with self.subTest(key=key), self.assertRaises(ValidationError):
                 Config.model_validate({key: True})
 
 

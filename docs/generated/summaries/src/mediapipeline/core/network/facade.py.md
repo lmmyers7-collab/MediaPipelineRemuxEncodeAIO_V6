@@ -3,9 +3,9 @@ file: src/mediapipeline/core/network/facade.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-29
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 0a13b21ff15286dc50b136248012dca607605c3c7da058c23197bbd478931753
+sha256: 611e820d5d6da082dfbc93593d40a1cea6b55d03662df30e8144a2263733bbe2
 ---
 # `src/mediapipeline/core/network/facade.py`
 

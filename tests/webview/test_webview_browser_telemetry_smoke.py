@@ -6,7 +6,7 @@ import sys
 import tempfile
 import textwrap
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
@@ -371,7 +371,7 @@ def _run_browser_telemetry_smoke(*, browser_path: str, url: str) -> dict[str, ob
         port = _free_port()
         payload_path = tmp / "browser-telemetry-payload.json"
         runner_path = tmp / "browser-telemetry-runner.cjs"
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         fresh_sample = now.isoformat().replace("+00:00", "Z")
         future_sample = (now + timedelta(hours=2)).isoformat().replace("+00:00", "Z")
         payload_path.write_text(

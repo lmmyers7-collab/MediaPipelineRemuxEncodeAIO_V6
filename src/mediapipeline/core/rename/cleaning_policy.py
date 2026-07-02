@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Mapping
+from typing import Any
+from collections.abc import Callable, Mapping
 
 from mediapipeline.core.rename.constants import PLEX_RENAME_DEFAULT_REMOVE_TERMS
 from mediapipeline.core.rename.movie import normalize_movie_filter_options, normalize_movie_filter_terms, rename_movie_filter_default_terms

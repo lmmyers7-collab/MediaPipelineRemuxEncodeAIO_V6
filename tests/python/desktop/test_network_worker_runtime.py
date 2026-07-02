@@ -1303,7 +1303,7 @@ class NetworkWorkerRuntimeTests(unittest.TestCase):
             worker._active_job = None
             worker._worker_id = "worker-1"
             worker._worker_name = "Worker"
-            worker._http_get = lambda _path, _params: {  # type: ignore[method-assign]
+            worker._http_get = lambda _path, _params=None: {  # type: ignore[method-assign]
                 "status": "ok",
                 "job_id": "job-1",
                 "source_path": r"C:\Media\movie.mkv",
@@ -1343,7 +1343,7 @@ class NetworkWorkerRuntimeTests(unittest.TestCase):
                 )
                 worker._worker_id = "worker-1"
                 worker._heartbeat_stop = OneShotStop()
-                worker._http_post = lambda _path, data: posts.append(data) or {}
+                worker._http_post = lambda _path, data, posts=posts: posts.append(data) or {}
                 worker._notify_status = lambda _message: None
                 worker._job_reclaimed = False
                 job = SimpleNamespace(job_id="job-1", record=SimpleNamespace(source_path=r"C:\Media\movie.mkv"))

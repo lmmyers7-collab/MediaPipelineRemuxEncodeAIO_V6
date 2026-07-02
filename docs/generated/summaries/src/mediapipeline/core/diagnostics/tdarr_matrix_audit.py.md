@@ -3,9 +3,9 @@ file: src/mediapipeline/core/diagnostics/tdarr_matrix_audit.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: diagnostics
-last_modified: 2026-06-29
+last_modified: 2026-07-02
 last_reviewed: 2026-06-07
-sha256: 51a19f89a991787b942cf0ec791d27fcf412124d4772fd8add438081eb7964f7
+sha256: 66ccb84a885655041dd0ab959ca10997092b07c56bea8d8a930cc0e17af08d2f
 ---
 # `src/mediapipeline/core/diagnostics/tdarr_matrix_audit.py`
 

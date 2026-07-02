@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 import re
 from pathlib import Path
 from typing import Any
@@ -333,7 +333,7 @@ MAINTENANCE_HEALTH_STEP_ORDER: tuple[tuple[str, str, bool], ...] = (
 
 
 def maintenance_progress_timestamp() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def maintenance_path_status(path: Path | None, *, required: bool) -> tuple[str, str]:

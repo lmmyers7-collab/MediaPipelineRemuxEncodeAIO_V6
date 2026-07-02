@@ -41,7 +41,7 @@ class QueuePlanRow:
     raw: Mapping[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
-    def from_mapping(cls, payload: Mapping[str, Any] | Any) -> "QueuePlanRow":
+    def from_mapping(cls, payload: Mapping[str, Any] | Any) -> QueuePlanRow:
         data = require_mapping(payload, "queue plan row")
         source_path = text_field(data, "source_path").strip()
         if not source_path:
@@ -92,7 +92,7 @@ class QueuePlanExcludedRow:
     raw: Mapping[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
-    def from_mapping(cls, payload: Mapping[str, Any] | Any) -> "QueuePlanExcludedRow":
+    def from_mapping(cls, payload: Mapping[str, Any] | Any) -> QueuePlanExcludedRow:
         data = require_mapping(payload, "queue plan excluded row")
         source_path = text_field(data, "source_path").strip()
         if not source_path:
@@ -140,7 +140,7 @@ class QueuePlanSnapshot:
     raw: Mapping[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
-    def from_mapping(cls, payload: Mapping[str, Any] | Any) -> "QueuePlanSnapshot":
+    def from_mapping(cls, payload: Mapping[str, Any] | Any) -> QueuePlanSnapshot:
         data = require_mapping(payload, "queue plan snapshot")
         schema_version = require_schema_version(data, QUEUE_PLAN_SNAPSHOT_SCHEMA_VERSION)
         produced_at = text_field(data, "produced_at").strip()

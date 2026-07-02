@@ -94,7 +94,7 @@ class WindowsProcessorUtilitySampler:
             return True
         try:
             pdh = ctypes.WinDLL("pdh.dll")
-            add_counter = getattr(pdh, "PdhAddEnglishCounterW")
+            add_counter = pdh.PdhAddEnglishCounterW
         except Exception:
             self._disabled = True
             return False

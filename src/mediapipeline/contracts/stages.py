@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from typing import Any, Literal, TypeAlias, cast
 
 from pydantic import BaseModel, Field, ValidationError, model_validator
@@ -268,7 +268,7 @@ def make_stage_result(
     error: StageError | Mapping[str, Any] | None = None,
     journal_event_type: str | None = None,
 ) -> StageResult:
-    finished = finished_at or datetime.now(timezone.utc)
+    finished = finished_at or datetime.now(UTC)
     stage_text = stage.value if isinstance(stage, StageName) else str(stage)
     known_stage = stage_text in StageName._value2member_map_
     if isinstance(data, BaseModel):

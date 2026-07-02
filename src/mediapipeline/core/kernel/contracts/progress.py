@@ -73,7 +73,7 @@ class ProgressState:
     raw: Mapping[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
-    def from_mapping(cls, payload: Mapping[str, Any] | Any) -> "ProgressState":
+    def from_mapping(cls, payload: Mapping[str, Any] | Any) -> ProgressState:
         data = require_mapping(payload, "progress state")
         progress_version = _nonnegative_int_field(data, "ProgressVersion")
         if progress_version < 1:

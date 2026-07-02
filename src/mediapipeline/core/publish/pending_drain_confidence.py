@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from .pending_results import PENDING_DRAIN_CONFIDENCE_SCHEMA_VERSION, _json_safe
 from .pending_rows import (
     int_value,
-    pending_publish_row_diagnostic_status,
-    pending_publish_row_is_recovery_blocker,
-    pending_publish_row_issue_summary,
-    pending_publish_row_ready_to_drain,
 )
 
 def _pending_evidence_class(row: Mapping[str, Any]) -> str:

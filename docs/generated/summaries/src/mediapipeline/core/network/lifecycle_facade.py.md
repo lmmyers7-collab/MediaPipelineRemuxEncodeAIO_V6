@@ -3,9 +3,9 @@ file: src/mediapipeline/core/network/lifecycle_facade.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-29
+last_modified: 2026-07-02
 last_reviewed: 2026-06-13
-sha256: fc4701a769045f4548ae9d0f9fcbe6d0b328edc41123e319ac097856c3ef123b
+sha256: 454f2cda20c390ea107f789d54bca6ae91af379b017b3e1a53146aa91e1023d2
 ---
 # `src/mediapipeline/core/network/lifecycle_facade.py`
 

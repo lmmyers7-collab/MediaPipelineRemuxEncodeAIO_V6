@@ -74,7 +74,7 @@ def write_source_manifest(root: Path) -> tuple[Path, dict[str, Path]]:
         for case_id in case_ids:
             source = source_library / "files" / f"{case_id}.mkv"
             source.parent.mkdir(parents=True, exist_ok=True)
-            source.write_bytes(f"{case_id}-source".encode("utf-8"))
+            source.write_bytes(f"{case_id}-source".encode())
             source_files[case_id] = source
             sha256 = tdarr_matrix_audit.sha256_file(source)
             for view in ("movies", "tv"):

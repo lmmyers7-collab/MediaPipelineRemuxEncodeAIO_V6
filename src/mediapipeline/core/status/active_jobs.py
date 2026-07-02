@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 import re
-from typing import Any, Callable, Mapping
+from typing import Any
+from collections.abc import Callable, Mapping
 
 from mediapipeline.core.kernel.contracts import ActiveJobRecord, ContractError
 from mediapipeline.core.status.file_io import read_json_file
@@ -271,7 +272,7 @@ def _elapsed_seconds(started_at: str, updated_at: str, now: datetime | None = No
         return None
     end = parse_progress_datetime(updated_at)
     if end is None:
-        end = now or datetime.now(start.tzinfo or timezone.utc)
+        end = now or datetime.now(start.tzinfo or UTC)
     if start.tzinfo is None and end.tzinfo is not None:
         end = end.replace(tzinfo=None)
     elif start.tzinfo is not None and end.tzinfo is None:

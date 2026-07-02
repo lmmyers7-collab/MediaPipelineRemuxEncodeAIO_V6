@@ -78,7 +78,7 @@ if ($SarifWorkflow -match "gh\s+issue\s+create") {
 }
 
 $DeepAuditWorkflow = Get-Content -LiteralPath (Join-Path $RepoRoot ".github/workflows/deep-audit.yml") -Raw
-foreach ($Expected in @("ai_guardrail", "unittest discover", "webview:prework:check", "npm run check", "build.ps1")) {
+foreach ($Expected in @("ai_guardrail", "audit_checks run deep-audit", "unittest discover", "webview:prework:check", "npm run check", "build.ps1")) {
     if ($DeepAuditWorkflow -notmatch [regex]::Escape($Expected)) {
         throw "Deep audit workflow is missing expected token: $Expected"
     }
@@ -90,7 +90,7 @@ foreach ($Expected in @("permissions:", "contents: read", "Initialize-CiPythonRu
 }
 
 $Phase1Workflow = Get-Content -LiteralPath (Join-Path $RepoRoot ".github/workflows/phase1-drift.yml") -Raw
-foreach ($Expected in @("permissions:", "contents: read", "MP_GITHUB_BASE_REF", "Initialize-CiPythonRuntime.ps1")) {
+foreach ($Expected in @("permissions:", "contents: read", "MP_GITHUB_BASE_REF", "Initialize-CiPythonRuntime.ps1", "audit_checks run phase1-generated")) {
     if ($Phase1Workflow -notmatch [regex]::Escape($Expected)) {
         throw "Generated drift workflow is missing expected hardening token: $Expected"
     }

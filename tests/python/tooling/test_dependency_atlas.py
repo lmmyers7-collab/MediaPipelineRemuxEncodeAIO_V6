@@ -105,8 +105,7 @@ def test_missing_explicit_dot_reports_actionable_error(tmp_path: Path) -> None:
         [sys.executable, str(SCRIPT_PATH), "--dot", str(missing_dot)],
         cwd=REPO_ROOT,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
 
     assert result.returncode == 2

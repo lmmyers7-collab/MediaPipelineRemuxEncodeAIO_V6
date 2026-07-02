@@ -89,6 +89,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertIn("extra_args", query_keys)
         self.assertIn("allow_extra_args", query_keys)
         self.assertIn("single_file", query_keys)
+        self.assertIn("refresh_encoder_capability_report", query_keys)
         self.assertEqual(routes["/api/launch/preflight"]["effect"], "none")
 
     def test_completed_contract_advertises_query_fields(self) -> None:

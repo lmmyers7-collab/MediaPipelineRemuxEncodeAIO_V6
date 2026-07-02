@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/settings_risk_policy_rules.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-29
+last_modified: 2026-07-02
 last_reviewed: 2026-06-29
-sha256: ce72a3d6a3531d19efc92122bddc6dd2e31914d4da7fbedd68801f3a34594521
+sha256: 73acf188ea7de87eff2334dea1699a9309153e52e2b04acd7add26ceae064ca0
 ---
 # `src/mediapipeline/core/config/settings_risk_policy_rules.py`
 

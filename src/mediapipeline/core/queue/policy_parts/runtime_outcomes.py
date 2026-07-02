@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Iterable
+from typing import Any
+from collections.abc import Iterable
 
 from mediapipeline.core.observability.runtime_outcomes import runtime_outcome_index, source_identity_key
 

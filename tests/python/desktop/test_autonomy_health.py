@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 import json
 import os
 import tempfile
@@ -120,7 +120,7 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
             assert resolved.progress_file is not None
             assert resolved.active_jobs_path is not None
             assert resolved.pending_push_path is not None
-            now = datetime(2026, 6, 18, 12, 0, tzinfo=timezone.utc)
+            now = datetime(2026, 6, 18, 12, 0, tzinfo=UTC)
             started = now - timedelta(minutes=10)
             pause_created = now - timedelta(hours=7)
             for path in (
@@ -285,7 +285,7 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
             assert resolved.pending_push_path is not None
             resolved.pending_push_path.mkdir(parents=True)
             manifest = resolved.pending_push_path / "movie.manifest.json"
-            parked_at = (datetime.now(timezone.utc) - timedelta(days=4)).isoformat()
+            parked_at = (datetime.now(UTC) - timedelta(days=4)).isoformat()
             manifest.write_text(
                 json.dumps(
                     {
@@ -333,13 +333,72 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
         self.assertNotIn(str(root), alert["dedupe_key"])
         self.assertEqual(alert["recommended_poll_interval_seconds"], 300)
 
+    def test_untrusted_pending_manifest_blocker_has_specific_recovery_guidance(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            assert resolved.pending_push_path is not None
+            resolved.pending_push_path.mkdir(parents=True)
+            manifest = resolved.pending_push_path / "movie.manifest.json"
+            manifest.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "pending_push_manifest.v1",
+                        "pipeline_version": "",
+                        "local_file": str(resolved.pending_push_path / "movie.mkv"),
+                        "server_out": str(root / "Out" / "movie.mkv"),
+                    }
+                ),
+                encoding="utf-8",
+            )
+            row_error = (
+                "Current pending manifest contract invalid: "
+                "pipeline_version is required and cannot be blank."
+            )
+
+            payload = autonomy_health_payload(
+                resolved,
+                pending_publish={
+                    "rows": [
+                        {
+                            "row_key": "pending-row-1",
+                            "manifest_path": str(manifest),
+                            "state": "invalid_contract",
+                            "diagnostic_status": "invalid_manifest",
+                            "local_file": str(resolved.pending_push_path / "movie.mkv"),
+                            "server_out": str(root / "Out" / "movie.mkv"),
+                            "error": row_error,
+                        }
+                    ],
+                    "count": 1,
+                    "total_bytes": 10,
+                    "health_count": 1,
+                },
+                path_health={"operator_status": "ready", "rows": []},
+            )
+
+        self.assertEqual(payload["overall_status"], "blocked")
+        blocker = next(item for item in payload["blockers"] if item["code"] == "autonomy_pending_manifest_untrusted")
+        self.assertIn("Pending Publish manifest is not trusted", blocker["message"])
+        self.assertIn("pipeline_version is required and cannot be blank", blocker["message"])
+        self.assertIn(f"manifest={manifest}", blocker["message"])
+        self.assertIn("row_key=pending-row-1", blocker["message"])
+        self.assertEqual(blocker["row_key"], "pending-row-1")
+        self.assertEqual(blocker["diagnostic_status"], "invalid_manifest")
+        self.assertIn("Repair Manifest dry-run", blocker["next_action"])
+        self.assertIn("STATE_FILE_SCHEMA_REFERENCE.md", blocker["next_action"])
+        self.assertEqual(blocker["recovery_action"]["kind"], "pending_publish_recovery_plan")
+        self.assertEqual(blocker["recovery_action"]["route"], "/api/pending-publish/recovery-plan")
+        self.assertEqual(blocker["recovery_action"]["request"], {"scope": "selected", "row_key": "pending-row-1"})
+        self.assertIn("Pending Publish manifest is not trusted", payload["launch_gate"]["blocked_reason"])
+
     def test_old_pending_publish_review_exports_warning_alert_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             resolved = _resolved(root)
             assert resolved.pending_push_path is not None
             resolved.pending_push_path.mkdir(parents=True)
-            parked_at = (datetime.now(timezone.utc) - timedelta(hours=25)).isoformat()
+            parked_at = (datetime.now(UTC) - timedelta(hours=25)).isoformat()
             manifest = resolved.pending_push_path / "movie.manifest.json"
             manifest.write_text(
                 json.dumps(
@@ -387,7 +446,7 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
             resolved = _resolved(root)
             assert resolved.pending_push_path is not None
             resolved.pending_push_path.mkdir(parents=True)
-            parked_at = (datetime.now(timezone.utc) - timedelta(days=4)).isoformat()
+            parked_at = (datetime.now(UTC) - timedelta(days=4)).isoformat()
             manifest = resolved.pending_push_path / "movie.manifest.json"
             manifest.write_text(
                 json.dumps(
@@ -434,7 +493,7 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
             resolved = _resolved(root)
             assert resolved.active_jobs_path is not None
             resolved.active_jobs_path.mkdir(parents=True)
-            old = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+            old = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
             (resolved.active_jobs_path / "pipeline.json").write_text(
                 json.dumps(
                     {
@@ -458,13 +517,18 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
 
         workers = payload["categories"]["workers"]
         record = workers["metrics"]["active_liveness_watchdog"]["records"][0]
-        self.assertEqual(payload["overall_status"], "ready")
-        self.assertEqual(workers["status"], "ready")
+        self.assertEqual(payload["overall_status"], "review")
+        self.assertTrue(payload["launch_gate"]["can_start_new_work"])
+        self.assertEqual(workers["status"], "review")
         self.assertEqual(workers["metrics"]["active_count"], 1)
+        self.assertEqual(workers["metrics"]["stale_count"], 1)
         self.assertEqual(workers["metrics"]["active_read_first_count"], 0)
         self.assertFalse(workers["metrics"]["ambiguous_read_first"])
         self.assertEqual(record["status"], "passive_stale")
         self.assertTrue(record["blocking_disabled"])
+        self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["record_total_count"], 1)
+        self.assertFalse(workers["metrics"]["active_liveness_watchdog"]["records_truncated"])
+        self.assertIn("autonomy_active_jobs_passive_stale", {item["code"] for item in payload["review_items"]})
 
     def test_active_job_records_are_passive_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -472,7 +536,7 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
             resolved = _resolved(root)
             assert resolved.active_jobs_path is not None
             resolved.active_jobs_path.mkdir(parents=True)
-            launched = datetime.now(timezone.utc).isoformat()
+            launched = datetime.now(UTC).isoformat()
             (resolved.active_jobs_path / "pipeline.json").write_text(
                 json.dumps(
                     {
@@ -505,6 +569,32 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
         self.assertFalse(active_jobs["ambiguous_read_first"])
         self.assertEqual(record["status"], "passive_active")
         self.assertTrue(record["blocking_disabled"])
+        self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["record_total_count"], 1)
+        self.assertFalse(workers["metrics"]["active_liveness_watchdog"]["records_truncated"])
+
+    def test_malformed_active_job_record_is_review_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            assert resolved.active_jobs_path is not None
+            resolved.active_jobs_path.mkdir(parents=True)
+            (resolved.active_jobs_path / "broken.json").write_text("{not-json", encoding="utf-8")
+
+            payload = autonomy_health_payload(
+                resolved,
+                pending_publish={"rows": [], "count": 0, "total_bytes": 0, "health_count": 0},
+                path_health={"operator_status": "ready", "rows": []},
+            )
+
+        workers = payload["categories"]["workers"]
+        watchdog = workers["metrics"]["active_liveness_watchdog"]
+        self.assertEqual(payload["overall_status"], "review")
+        self.assertTrue(payload["launch_gate"]["can_start_new_work"])
+        self.assertEqual(workers["status"], "review")
+        self.assertEqual(workers["metrics"]["malformed_count"], 1)
+        self.assertEqual(watchdog["record_total_count"], 1)
+        self.assertEqual(watchdog["records"][0]["status"], "passive_malformed")
+        self.assertIn("autonomy_active_jobs_malformed", {item["code"] for item in payload["review_items"]})
 
     def test_multiple_active_job_records_do_not_block(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -512,7 +602,7 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
             resolved = _resolved(root)
             assert resolved.active_jobs_path is not None
             resolved.active_jobs_path.mkdir(parents=True)
-            launched = datetime.now(timezone.utc).isoformat()
+            launched = datetime.now(UTC).isoformat()
             for file_name, pid in (("current.json", 43210), ("previous.json", 43211)):
                 (resolved.active_jobs_path / file_name).write_text(
                     json.dumps(
@@ -544,6 +634,8 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
         self.assertEqual(active_jobs["ignored_count"], 0)
         self.assertFalse(active_jobs["ambiguous_read_first"])
         self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["record_count"], 2)
+        self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["record_total_count"], 2)
+        self.assertFalse(workers["metrics"]["active_liveness_watchdog"]["records_truncated"])
 
     def test_fresh_progress_evidence_keeps_active_job_passive(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -553,7 +645,7 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
             assert resolved.progress_file is not None
             resolved.active_jobs_path.mkdir(parents=True)
             resolved.progress_file.parent.mkdir(parents=True)
-            now = datetime(2026, 6, 18, 12, 0, tzinfo=timezone.utc)
+            now = datetime(2026, 6, 18, 12, 0, tzinfo=UTC)
             old = (now - timedelta(hours=2)).isoformat()
             fresh = (now - timedelta(minutes=5)).isoformat()
             (resolved.active_jobs_path / "pipeline.json").write_text(
@@ -598,7 +690,7 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
             resolved.config_data = {"FFmpegRemuxTimeoutSeconds": 300}
             assert resolved.active_jobs_path is not None
             resolved.active_jobs_path.mkdir(parents=True)
-            now = datetime(2026, 6, 18, 12, 0, tzinfo=timezone.utc)
+            now = datetime(2026, 6, 18, 12, 0, tzinfo=UTC)
             stale = (now - timedelta(minutes=25)).isoformat()
             (resolved.active_jobs_path / "remux.json").write_text(
                 json.dumps(
@@ -623,7 +715,9 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
             )
 
         workers = payload["categories"]["workers"]
-        self.assertEqual(payload["overall_status"], "ready")
+        self.assertEqual(payload["overall_status"], "review")
+        self.assertTrue(payload["launch_gate"]["can_start_new_work"])
+        self.assertEqual(workers["status"], "review")
         self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["records"][0]["native_timeout_seconds"], 300)
         self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["records"][0]["block_after_seconds"], 1200)
         self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["records"][0]["status"], "passive_stale")
@@ -634,7 +728,7 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
             resolved = _resolved(root)
             assert resolved.active_jobs_path is not None
             resolved.active_jobs_path.mkdir(parents=True)
-            now = datetime(2026, 6, 18, 12, 0, tzinfo=timezone.utc)
+            now = datetime(2026, 6, 18, 12, 0, tzinfo=UTC)
             stale = (now - timedelta(minutes=31)).isoformat()
             (resolved.active_jobs_path / "unknown.json").write_text(
                 json.dumps(
@@ -659,7 +753,9 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
             )
 
         workers = payload["categories"]["workers"]
-        self.assertEqual(payload["overall_status"], "ready")
+        self.assertEqual(payload["overall_status"], "review")
+        self.assertTrue(payload["launch_gate"]["can_start_new_work"])
+        self.assertEqual(workers["status"], "review")
         self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["records"][0]["native_timeout_source"], "")
         self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["records"][0]["block_after_seconds"], 1800)
         self.assertEqual(workers["metrics"]["active_liveness_watchdog"]["records"][0]["status"], "passive_stale")
@@ -672,7 +768,7 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
             assert resolved.progress_file is not None
             resolved.active_jobs_path.mkdir(parents=True)
             resolved.progress_file.parent.mkdir(parents=True)
-            now = datetime(2026, 6, 18, 12, 0, tzinfo=timezone.utc)
+            now = datetime(2026, 6, 18, 12, 0, tzinfo=UTC)
             stale = (now - timedelta(minutes=31)).isoformat()
             (resolved.active_jobs_path / "pipeline.json").write_text(
                 json.dumps(
@@ -699,7 +795,9 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
 
         workers = payload["categories"]["workers"]
         record = workers["metrics"]["active_liveness_watchdog"]["records"][0]
-        self.assertEqual(payload["overall_status"], "ready")
+        self.assertEqual(payload["overall_status"], "review")
+        self.assertTrue(payload["launch_gate"]["can_start_new_work"])
+        self.assertEqual(workers["status"], "review")
         self.assertEqual(record["latest_evidence_source"], "active_job")
         self.assertEqual(record["status"], "passive_stale")
 
@@ -904,6 +1002,15 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
         self.assertEqual(current_budget["storage_row_count"], 2)
         self.assertGreaterEqual(current_budget["journal_file_bytes"], len("event-data"))
         self.assertGreaterEqual(current_budget["observed_bytes"], current_budget["pending_publish_bytes"])
+        self.assertEqual(
+            current_budget["observed_bytes"],
+            current_budget["observed_filesystem_bytes_unique"] + current_budget["pending_publish_bytes"],
+        )
+        self.assertGreaterEqual(
+            current_budget["observed_bytes_legacy_may_overlap"],
+            current_budget["observed_filesystem_bytes_unique"],
+        )
+        self.assertFalse(current_budget["current_only_may_overlap_scanned_roots"])
         self.assertEqual(current_budget["minimum_free_bytes"], 150 * 1024**3)
         self.assertIn("process_count", current_budget)
         self.assertIn("pending_publish_oldest_age_seconds", current_budget)
@@ -920,7 +1027,7 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             resolved = _resolved(root)
-            now = datetime(2026, 6, 18, 12, 0, tzinfo=timezone.utc)
+            now = datetime(2026, 6, 18, 12, 0, tzinfo=UTC)
             mib = 1024**2
 
             payload = autonomy_health_payload(
@@ -969,7 +1076,7 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             resolved = _resolved(root)
-            now = datetime(2026, 6, 18, 12, 0, tzinfo=timezone.utc)
+            now = datetime(2026, 6, 18, 12, 0, tzinfo=UTC)
             payload = autonomy_health_payload(
                 resolved,
                 pending_publish={"rows": [], "count": 0, "total_bytes": 10, "health_count": 0},
@@ -1006,6 +1113,7 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
         self.assertFalse(third["cleanup_performed"])
         snapshot_path = Path(third["snapshot_path"])
         self.assertEqual(snapshot_path.parent, resolved.state_root / "Diagnostics")
+        self.assertEqual(Path(third["lock_path"]), snapshot_path.with_name(f"{snapshot_path.name}.lock"))
         self.assertEqual(history["schema_version"], "desktop_autonomy_growth_history.v1")
         self.assertEqual(history["snapshot_count"], 2)
         self.assertEqual(history["invalid_line_count"], 0)
@@ -1013,13 +1121,37 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
         self.assertEqual(history["snapshots"][0]["recorded_at_utc"], second["snapshot"]["recorded_at_utc"])
         self.assertEqual(history["snapshots"][1]["recorded_at_utc"], third["snapshot"]["recorded_at_utc"])
 
+    def test_record_growth_snapshot_reports_lock_contention_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            now = datetime(2026, 6, 18, 12, 0, tzinfo=UTC)
+            payload = autonomy_health_payload(
+                resolved,
+                pending_publish={"rows": [], "count": 0, "total_bytes": 10, "health_count": 0},
+                path_health={"operator_status": "ready", "rows": []},
+                now=now,
+            )
+            snapshot_path = resolved.state_root / "Diagnostics" / "autonomy_growth_snapshots.jsonl"
+            lock_path = snapshot_path.with_name(f"{snapshot_path.name}.lock")
+            lock_path.parent.mkdir(parents=True)
+            lock_path.write_text("held", encoding="utf-8")
+
+            with patch("mediapipeline.core.diagnostics.autonomy_health.AUTONOMY_GROWTH_SNAPSHOT_LOCK_TIMEOUT_SECONDS", 0.0):
+                result = record_autonomy_growth_snapshot(resolved, payload, now=now, max_snapshots=2)
+
+        self.assertFalse(result["wrote_snapshot"])
+        self.assertEqual(Path(result["lock_path"]), lock_path)
+        self.assertIn("snapshot lock unavailable", result["error"])
+        self.assertFalse(snapshot_path.exists())
+
     def test_old_operator_required_failure_blocks(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             resolved = _resolved(root)
             assert resolved.failed_markers_path is not None
             resolved.failed_markers_path.mkdir(parents=True)
-            old = (datetime.now(timezone.utc) - timedelta(days=4)).isoformat()
+            old = (datetime.now(UTC) - timedelta(days=4)).isoformat()
             report = resolved.failed_markers_path / "failure.json"
             report.write_text(
                 json.dumps(

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/final_library/promotion_parts/planning.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: final_library
-last_modified: 2026-05-30
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: cddfca79087fbf405dc5f0858af8172dcaea59ed8b0d71b4dace2ea50670e274
+sha256: bcf5e40e404ccfed7ea6937d1cda5556066cffe4083190c131f6741cbcd3f97d
 ---
 # `src/mediapipeline/core/final_library/promotion_parts/planning.py`
 

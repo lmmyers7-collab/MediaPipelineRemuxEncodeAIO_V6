@@ -300,7 +300,7 @@ class NetworkCoordinatorHttpTests(unittest.TestCase):
             ("/api/log", CoordinatorDispatcher._http_log),
         ):
             sent: list[tuple[dict[str, object], int]] = []
-            handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+            handler = SimpleNamespace(_send_json=lambda payload, status=200, sent=sent: sent.append((payload, status)))
 
             with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
                 method(dispatcher, handler, b'{"job_id": NaN}')  # type: ignore[misc]
@@ -320,7 +320,7 @@ class NetworkCoordinatorHttpTests(unittest.TestCase):
         for field_name in ("success", "queue_terminal", "released", "retry_on_failure"):
             for bad_value in ("false", "true", 0, 1, None, {}):
                 sent: list[tuple[dict[str, object], int]] = []
-                handler = SimpleNamespace(_send_json=lambda response, status=200: sent.append((response, status)))
+                handler = SimpleNamespace(_send_json=lambda response, status=200, sent=sent: sent.append((response, status)))
                 payload = {"job_id": "job-1", "worker_id": "worker-1", field_name: bad_value}
 
                 with self.subTest(field_name=field_name, bad_value=bad_value):
@@ -356,7 +356,7 @@ class NetworkCoordinatorHttpTests(unittest.TestCase):
 
         for endpoint, method, payload, expected_error, expected_log in cases:
             sent: list[tuple[dict[str, object], int]] = []
-            handler = SimpleNamespace(_send_json=lambda response, status=200: sent.append((response, status)))
+            handler = SimpleNamespace(_send_json=lambda response, status=200, sent=sent: sent.append((response, status)))
 
             with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
                 method(dispatcher, handler, json.dumps(payload).encode("utf-8"))  # type: ignore[misc]
@@ -384,7 +384,7 @@ class NetworkCoordinatorHttpTests(unittest.TestCase):
                     unclaim=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("unclaim called")),
                 )
                 sent: list[tuple[dict[str, object], int]] = []
-                handler = SimpleNamespace(_send_json=lambda response, status=200: sent.append((response, status)))
+                handler = SimpleNamespace(_send_json=lambda response, status=200, sent=sent: sent.append((response, status)))
 
                 with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
                     CoordinatorDispatcher._http_done(

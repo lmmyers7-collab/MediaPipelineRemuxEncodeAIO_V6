@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from typing import Any
 
 from mediapipeline.core.audit.contracts import AuditRecord
@@ -75,4 +75,4 @@ def apply_rerun_source_metadata(row: dict[str, str], metadata: dict[str, Any] | 
 
 
 def source_stat_to_rerun_values(st_size: int, st_mtime: float) -> tuple[str, str]:
-    return str(st_size), datetime.fromtimestamp(st_mtime, timezone.utc).isoformat()
+    return str(st_size), datetime.fromtimestamp(st_mtime, UTC).isoformat()

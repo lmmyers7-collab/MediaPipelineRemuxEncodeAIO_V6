@@ -31,7 +31,7 @@ class ProcessFileResult:
     raw: Mapping[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
-    def from_mapping(cls, payload: Mapping[str, Any] | Any) -> "ProcessFileResult":
+    def from_mapping(cls, payload: Mapping[str, Any] | Any) -> ProcessFileResult:
         data = require_mapping(payload, "process file result")
         schema_version = require_schema_version(data, PROCESS_FILE_RESULT_SCHEMA_VERSION, key="SchemaVersion")
         return cls(

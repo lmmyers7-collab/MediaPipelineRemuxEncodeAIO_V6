@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
@@ -85,7 +85,7 @@ class EtaPayloadTests(unittest.TestCase):
                 "CopyStartedAt": "2026-06-04T12:00:00+00:00",
                 "CopyUpdatedAt": "2026-06-04T12:01:00+00:00",
             },
-            now=datetime(2026, 6, 4, 12, 1, tzinfo=timezone.utc),
+            now=datetime(2026, 6, 4, 12, 1, tzinfo=UTC),
         )
 
         self.assertEqual(payload["status"], "loaded")
@@ -131,7 +131,7 @@ class EtaPayloadTests(unittest.TestCase):
                 "CopySessionBytesPerSecond": 50000000,
                 "CopySessionFilesCompleted": 3,
             },
-            now=datetime(2026, 6, 4, 12, 1, tzinfo=timezone.utc),
+            now=datetime(2026, 6, 4, 12, 1, tzinfo=UTC),
         )
 
         row = payload["rows"][0]
@@ -181,7 +181,7 @@ class EtaPayloadTests(unittest.TestCase):
                 "CopySessionBytesPerSecond": None,
                 "CopySessionFilesCompleted": 0,
             },
-            now=datetime(2026, 6, 4, 12, 1, tzinfo=timezone.utc),
+            now=datetime(2026, 6, 4, 12, 1, tzinfo=UTC),
         )
 
         row = payload["rows"][0]

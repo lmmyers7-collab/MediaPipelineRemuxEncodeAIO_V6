@@ -67,7 +67,7 @@ class ActiveJobRecord:
     raw: Mapping[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
-    def from_mapping(cls, payload: Mapping[str, Any] | Any) -> "ActiveJobRecord":
+    def from_mapping(cls, payload: Mapping[str, Any] | Any) -> ActiveJobRecord:
         data = require_mapping(payload, "active job record")
         schema_version = require_schema_version(data, ACTIVE_JOB_SCHEMA_VERSION)
         launch_id = text_field(data, "launch_id").strip()

@@ -126,7 +126,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         declared: set[str] = set()
         violations: list[str] = []
 
-        for file_name, _line_number, line in self._css_lines():
+        for _file_name, _line_number, line in self._css_lines():
             stripped = line.strip()
             if not stripped.startswith("--"):
                 continue
@@ -446,7 +446,6 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         layout = (ASSETS_ROOT / "styles.layout.css").read_text(encoding="utf-8")
         components = _read_components_css()
         controls = (ASSETS_ROOT / "styles.controls.css").read_text(encoding="utf-8")
-        launch_js = LAUNCH_VIEW_PATH.read_text(encoding="utf-8")
         launch_command_buttons_js = LAUNCH_COMMAND_BUTTONS_PATH.read_text(encoding="utf-8")
         launch_html = LAUNCH_PARTIAL_PATH.read_text(encoding="utf-8")
 

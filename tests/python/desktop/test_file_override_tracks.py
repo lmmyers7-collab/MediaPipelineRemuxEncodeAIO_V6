@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 import json
 import logging
 import sys
@@ -594,13 +594,13 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
             selected_probe = make_stage_result(
                 stage="probe",
                 ok=True,
-                started_at=datetime.now(timezone.utc),
+                started_at=datetime.now(UTC),
                 data=_probe_result(),
             )
             missing_probe = make_stage_result(
                 stage="probe",
                 ok=True,
-                started_at=datetime.now(timezone.utc),
+                started_at=datetime.now(UTC),
                 data=_probe_result_without_stream(4),
             )
 
@@ -1551,7 +1551,7 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
             stage_result = make_stage_result(
                 stage="probe",
                 ok=True,
-                started_at=datetime.now(timezone.utc),
+                started_at=datetime.now(UTC),
                 data=_probe_result(),
             )
 
@@ -1581,7 +1581,7 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
             stage_result = make_stage_result(
                 stage="probe",
                 ok=True,
-                started_at=datetime.now(timezone.utc),
+                started_at=datetime.now(UTC),
                 data=_probe_result(),
             )
 
@@ -1607,7 +1607,7 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
             stage_result = make_stage_result(
                 stage="probe",
                 ok=True,
-                started_at=datetime.now(timezone.utc),
+                started_at=datetime.now(UTC),
                 data=_probe_result(),
             )
             server = _LocalApiServer(_Facade(), token="tracks-token", resolved_provider=lambda: resolved)
@@ -1656,7 +1656,7 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
             stage_result = make_stage_result(
                 stage="probe",
                 ok=False,
-                started_at=datetime.now(timezone.utc),
+                started_at=datetime.now(UTC),
                 error={"code": "stage.timeout", "message": "Stage process exceeded timeout."},
             )
 
@@ -1681,7 +1681,7 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
             stage_result = make_stage_result(
                 stage="probe",
                 ok=True,
-                started_at=datetime.now(timezone.utc),
+                started_at=datetime.now(UTC),
                 data=_probe_result(),
             )
 
@@ -1774,7 +1774,7 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
             stage_result = make_stage_result(
                 stage="probe",
                 ok=False,
-                started_at=datetime.now(timezone.utc),
+                started_at=datetime.now(UTC),
                 error={"code": "stage.timeout", "message": "Stage process exceeded timeout."},
             )
 

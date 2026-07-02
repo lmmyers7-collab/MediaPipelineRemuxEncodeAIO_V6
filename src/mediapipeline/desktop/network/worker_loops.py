@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -203,7 +203,7 @@ class WorkerLoopMixin:
                 # hint is clamped to [1s, _poll_interval] inside
                 # _resolve_wait_seconds so it can't dilate beyond the
                 # operator-configured ceiling.
-                now = datetime.now(timezone.utc).strftime("%H:%M:%S")
+                now = datetime.now(UTC).strftime("%H:%M:%S")
                 self._notify_status(f"● Idle — coordinator queue empty (last checked {now})")
                 self._wait_interruptible(
                     self._resolve_wait_seconds(getattr(claim, "retry_after_seconds", 0))
@@ -359,7 +359,7 @@ class WorkerLoopMixin:
                 started = getattr(self, "_heartbeat_failure_started_monotonic", None)
                 if started is None:
                     self._heartbeat_failure_started_monotonic = now_monotonic
-                    self._heartbeat_failure_started_at = datetime.now(timezone.utc).isoformat()
+                    self._heartbeat_failure_started_at = datetime.now(UTC).isoformat()
                     failure_age = 0
                 else:
                     failure_age = max(0, int(now_monotonic - float(started)))

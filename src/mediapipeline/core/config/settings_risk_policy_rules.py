@@ -389,7 +389,7 @@ def quality_metric_threshold_risk_items(config: dict[str, Any]) -> list[RiskItem
 
 
 def summarize_risk_items(items: list[RiskItem]) -> tuple[dict[str, int], str]:
-    counts = {name: 0 for name in ("critical", "high", "medium", "low")}
+    counts = dict.fromkeys(("critical", "high", "medium", "low"), 0)
     highest = "none"
     for item in items:
         severity = item["severity"]

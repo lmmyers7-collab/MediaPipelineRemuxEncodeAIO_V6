@@ -1,10 +1,46 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from dataclasses import replace
+from datetime import datetime, UTC
 import json
+import os
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any
+import uuid
+from collections.abc import Iterable, Mapping
 
+from mediapipeline.core.diagnostics.autonomy_evaluators import (
+    category_evaluation_error as autonomy_category_evaluation_error,
+    evaluate_category as autonomy_evaluate_category,
+)
+from mediapipeline.core.diagnostics.autonomy_growth import (
+    acquire_growth_snapshot_lock,
+    bounded_snapshot_limit,
+    growth_snapshot_write_result,
+    minimum_present,
+    release_growth_snapshot_lock,
+)
+from mediapipeline.core.diagnostics.autonomy_policy import (
+    AutonomyPolicy,
+    autonomy_policy_from_resolved,
+)
+from mediapipeline.core.diagnostics.autonomy_recovery import (
+    journal_archive_action,
+    pending_publish_drain_action,
+    pending_publish_recovery_plan_action,
+)
+from mediapipeline.core.diagnostics.autonomy_scan import (
+    directory_size_scan,
+    limited_iter_files,
+    unique_observed_bytes,
+)
+from mediapipeline.core.diagnostics.autonomy_types import (
+    category as autonomy_category,
+    issue as autonomy_issue,
+    issue_status as autonomy_issue_status,
+    overall_status as autonomy_overall_status,
+    status_state as autonomy_status_state,
+)
 from mediapipeline.core.kernel.contracts.pending_publish import PENDING_PUSH_RETRY_LIMIT
 from mediapipeline.core.status.runtime_health import runtime_reliability_counters
 
@@ -45,6 +81,7 @@ AUTONOMY_GROWTH_PROJECTION_DAYS = 30
 AUTONOMY_GROWTH_REQUIRED_SNAPSHOTS = 2
 AUTONOMY_GROWTH_SNAPSHOT_MAX_COUNT = 64
 AUTONOMY_GROWTH_SNAPSHOT_FILE_NAME = "autonomy_growth_snapshots.jsonl"
+AUTONOMY_GROWTH_SNAPSHOT_LOCK_TIMEOUT_SECONDS = 5.0
 GIB_BYTES = 1024**3
 
 AUTONOMY_CATEGORY_LABELS: dict[str, str] = {
@@ -61,6 +98,44 @@ AUTONOMY_CATEGORY_LABELS: dict[str, str] = {
 }
 
 
+def _autonomy_policy(resolved: Any) -> AutonomyPolicy:
+    base = autonomy_policy_from_resolved(resolved)
+    config = getattr(resolved, "config_data", None)
+    data = config if isinstance(config, Mapping) else {}
+    overrides: dict[str, Any] = {}
+    if "AutonomyPendingReviewSeconds" not in data:
+        overrides["pending_review_seconds"] = PENDING_REVIEW_SECONDS
+    if "AutonomyPendingBlockSeconds" not in data:
+        overrides["pending_block_seconds"] = PENDING_BLOCK_SECONDS
+    if "AutonomyPendingRetryBlockCount" not in data:
+        overrides["pending_retry_block_count"] = PENDING_RETRY_BLOCK_COUNT
+    if "AutonomyPendingTotalReviewBytes" not in data:
+        overrides["pending_total_review_bytes"] = PENDING_TOTAL_REVIEW_BYTES
+    if "AutonomyPendingTotalBlockBytes" not in data:
+        overrides["pending_total_block_bytes"] = PENDING_TOTAL_BLOCK_BYTES
+    if "AutonomyFailureOperatorRequiredBlockSeconds" not in data:
+        overrides["failure_operator_required_block_seconds"] = FAILURE_OPERATOR_REQUIRED_BLOCK_SECONDS
+    if "AutonomyFailureOperatorRequiredBlockCount" not in data:
+        overrides["failure_operator_required_block_count"] = FAILURE_OPERATOR_REQUIRED_BLOCK_COUNT
+    if "AutonomyFailureInfrastructureBlockCount" not in data:
+        overrides["failure_infrastructure_block_count"] = FAILURE_INFRASTRUCTURE_BLOCK_COUNT
+    if "AutonomyActiveJobTimeoutGraceSeconds" not in data:
+        overrides["active_job_timeout_grace_seconds"] = ACTIVE_JOB_TIMEOUT_GRACE_SECONDS
+    if "AutonomyActiveJobNoTimeoutBlockSeconds" not in data:
+        overrides["active_job_no_timeout_block_seconds"] = ACTIVE_JOB_NO_TIMEOUT_BLOCK_SECONDS
+    if "AutonomyStorageMinFreeGB" not in data:
+        overrides["storage_min_free_gb"] = DEFAULT_STORAGE_MIN_FREE_GB
+    if "AutonomyStateFileReviewBytes" not in data:
+        overrides["state_file_review_bytes"] = STATE_FILE_REVIEW_BYTES
+    if "AutonomyStateFileBlockBytes" not in data:
+        overrides["state_file_block_bytes"] = STATE_FILE_BLOCK_BYTES
+    if "AutonomyScanLimit" not in data:
+        overrides["scan_limit"] = AUTONOMY_SCAN_LIMIT
+    if "AutonomyGrowthSnapshotMaxCount" not in data:
+        overrides["growth_snapshot_max_count"] = AUTONOMY_GROWTH_SNAPSHOT_MAX_COUNT
+    return replace(base, **overrides)
+
+
 def autonomy_health_payload(
     resolved: Any,
     *,
@@ -71,38 +146,60 @@ def autonomy_health_payload(
     growth_history: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return read-only health evidence for unattended launch gating."""
-    checked_at = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
-    failure_findings = _failure_findings(resolved, checked_at)
-    runtime_reliability = runtime_reliability_counters(
-        resolved,
-        pending_publish=pending_publish,
-        now=checked_at,
-    )
-    categories = {
-        "pending_publish": _pending_publish_category(pending_publish, checked_at),
-        "failures": _failures_category(failure_findings),
-        "workers": _workers_category(
+    checked_at = (now or datetime.now(UTC)).astimezone(UTC)
+    policy = _autonomy_policy(resolved)
+    failure_findings: list[dict[str, Any]] = []
+    failure_findings_error: Exception | None = None
+    try:
+        failure_findings = _failure_findings(resolved, checked_at, policy=policy)
+    except Exception as exc:
+        failure_findings_error = exc
+    runtime_reliability: Mapping[str, Any] = {}
+    runtime_reliability_error: Exception | None = None
+    try:
+        runtime_reliability = runtime_reliability_counters(
             resolved,
-            checked_at,
-            psutil_module=psutil_module,
+            pending_publish=pending_publish,
+            now=checked_at,
+        )
+    except Exception as exc:
+        runtime_reliability_error = exc
+    categories = {
+        "pending_publish": _evaluate_category(
+            "pending_publish",
+            lambda: _pending_publish_category(pending_publish, checked_at, policy=policy),
         ),
-        "runtime_health": _runtime_health_category(runtime_reliability),
-        "disk_state": _disk_state_category(resolved, path_health),
-        "path_health": _path_health_category(path_health),
-        "journals": _journals_category(resolved),
-        "publish_recency": _publish_recency_category(resolved, checked_at),
-        "subtitles_ocr": _topic_failure_category(
+        "failures": _category_evaluation_error("failures", failure_findings_error)
+        if failure_findings_error is not None
+        else _evaluate_category("failures", lambda: _failures_category(failure_findings, policy=policy)),
+        "workers": _evaluate_category(
+            "workers",
+            lambda: _workers_category(
+                resolved,
+                checked_at,
+                psutil_module=psutil_module,
+                policy=policy,
+            ),
+        ),
+        "runtime_health": _category_evaluation_error("runtime_health", runtime_reliability_error)
+        if runtime_reliability_error is not None
+        else _evaluate_category("runtime_health", lambda: _runtime_health_category(runtime_reliability, policy=policy)),
+        "disk_state": _evaluate_category("disk_state", lambda: _disk_state_category(resolved, path_health, policy=policy)),
+        "path_health": _evaluate_category("path_health", lambda: _path_health_category(path_health)),
+        "journals": _evaluate_category("journals", lambda: _journals_category(resolved, policy=policy)),
+        "publish_recency": _evaluate_category("publish_recency", lambda: _publish_recency_category(resolved, checked_at, policy=policy)),
+        "subtitles_ocr": _evaluate_category("subtitles_ocr", lambda: _topic_failure_category(
             "subtitles_ocr",
             "Subtitle and OCR review",
             failure_findings,
             ("subtitle", "subtitles", "ocr", "tx3g", "bdpgs", "vobsub", "ass", "ssa"),
-        ),
-        "audio_policy_reviews": _topic_failure_category(
+        )),
+        "audio_policy_reviews": _evaluate_category("audio_policy_reviews", lambda: _topic_failure_category(
             "audio_policy_reviews",
             "Audio policy review",
             failure_findings,
             ("audio", "downmix", "passthrough", "transcode", "channel"),
-        ),
+        )),
     }
     blockers = _flatten_issue(categories.values(), "blockers")
     review_items = _flatten_issue(categories.values(), "review_items")
@@ -136,6 +233,7 @@ def autonomy_health_payload(
             review_items,
             checked_at,
             growth_history,
+            policy,
         ),
         "runtime_reliability": runtime_reliability,
         "categories": categories,
@@ -154,10 +252,11 @@ def autonomy_health_is_blocked(payload: Mapping[str, Any] | None) -> bool:
 def load_autonomy_growth_history(
     resolved: Any,
     *,
-    max_snapshots: int = AUTONOMY_GROWTH_SNAPSHOT_MAX_COUNT,
+    max_snapshots: int | None = None,
 ) -> dict[str, Any]:
     snapshot_path = _growth_snapshot_path(resolved)
-    limit = _bounded_snapshot_limit(max_snapshots)
+    policy = _autonomy_policy(resolved)
+    limit = _bounded_snapshot_limit(max_snapshots, policy=policy)
     snapshots: list[dict[str, Any]] = []
     invalid_line_count = 0
     read_error = ""
@@ -199,12 +298,13 @@ def record_autonomy_growth_snapshot(
     health_payload: Mapping[str, Any],
     *,
     now: datetime | None = None,
-    max_snapshots: int = AUTONOMY_GROWTH_SNAPSHOT_MAX_COUNT,
+    max_snapshots: int | None = None,
 ) -> dict[str, Any]:
     snapshot_path = _growth_snapshot_path(resolved)
-    recorded_at = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    recorded_at = (now or datetime.now(UTC)).astimezone(UTC)
     snapshot = _growth_snapshot_from_payload(health_payload, recorded_at)
-    limit = _bounded_snapshot_limit(max_snapshots)
+    policy = _autonomy_policy(resolved)
+    limit = _bounded_snapshot_limit(max_snapshots, policy=policy)
     if snapshot_path is None:
         return _growth_snapshot_write_result(
             snapshot_path=None,
@@ -214,27 +314,42 @@ def record_autonomy_growth_snapshot(
             wrote_snapshot=False,
             error="state_root is unavailable",
         )
-    history = load_autonomy_growth_history(resolved, max_snapshots=limit)
-    snapshots = [item for item in history.get("snapshots", []) if isinstance(item, Mapping)]
-    retained = [dict(item) for item in snapshots] + [snapshot]
-    retained = retained[-limit:]
+    lock_path = snapshot_path.with_name(f"{snapshot_path.name}.lock")
+    lock_fd, lock_error = _acquire_growth_snapshot_lock(lock_path)
+    if lock_fd is None:
+        return _growth_snapshot_write_result(
+            snapshot_path=snapshot_path,
+            snapshot=snapshot,
+            retained_snapshot_count=0,
+            max_snapshots=limit,
+            wrote_snapshot=False,
+            error=lock_error or "snapshot lock unavailable",
+            lock_path=lock_path,
+        )
     try:
+        history = load_autonomy_growth_history(resolved, max_snapshots=limit)
+        snapshots = [item for item in history.get("snapshots", []) if isinstance(item, Mapping)]
+        retained = [dict(item) for item in snapshots] + [snapshot]
+        retained = retained[-limit:]
         snapshot_path.parent.mkdir(parents=True, exist_ok=True)
-        temp_path = snapshot_path.with_name(f"{snapshot_path.name}.tmp")
+        temp_path = snapshot_path.with_name(f".{snapshot_path.name}.{uuid.uuid4().hex}.tmp")
         with temp_path.open("w", encoding="utf-8", newline="\n") as handle:
             for item in retained:
                 handle.write(json.dumps(item, sort_keys=True, separators=(",", ":")))
                 handle.write("\n")
-        temp_path.replace(snapshot_path)
+        os.replace(temp_path, snapshot_path)
     except OSError as exc:
         return _growth_snapshot_write_result(
             snapshot_path=snapshot_path,
             snapshot=snapshot,
-            retained_snapshot_count=len(snapshots),
+            retained_snapshot_count=0,
             max_snapshots=limit,
             wrote_snapshot=False,
             error=str(exc),
+            lock_path=lock_path,
         )
+    finally:
+        _release_growth_snapshot_lock(lock_fd, lock_path)
     return _growth_snapshot_write_result(
         snapshot_path=snapshot_path,
         snapshot=snapshot,
@@ -242,10 +357,16 @@ def record_autonomy_growth_snapshot(
         max_snapshots=limit,
         wrote_snapshot=True,
         error="",
+        lock_path=lock_path,
     )
 
 
-def _pending_publish_category(pending_publish: Mapping[str, Any] | None, now: datetime) -> dict[str, Any]:
+def _pending_publish_category(
+    pending_publish: Mapping[str, Any] | None,
+    now: datetime,
+    *,
+    policy: AutonomyPolicy,
+) -> dict[str, Any]:
     if not isinstance(pending_publish, Mapping):
         return _category(
             "pending_publish",
@@ -283,7 +404,7 @@ def _pending_publish_category(pending_publish: Mapping[str, Any] | None, now: da
             blockers.append(
                 issue
             )
-    if total_bytes >= PENDING_TOTAL_BLOCK_BYTES:
+    if total_bytes >= policy.pending_total_block_bytes:
         blockers.append(
             _issue(
                 "autonomy_pending_bytes_over_budget",
@@ -294,7 +415,7 @@ def _pending_publish_category(pending_publish: Mapping[str, Any] | None, now: da
                 recovery_action=_pending_publish_drain_action(),
             )
         )
-    elif total_bytes >= PENDING_TOTAL_REVIEW_BYTES:
+    elif total_bytes >= policy.pending_total_review_bytes:
         review_items.append(
             _issue(
                 "autonomy_pending_bytes_review",
@@ -313,19 +434,19 @@ def _pending_publish_category(pending_publish: Mapping[str, Any] | None, now: da
         oldest_age = max(oldest_age, int(age_seconds or 0))
         retry_count = _pending_retry_count(row)
         if row_error:
-            blockers.append(
-                _issue(
-                    "autonomy_pending_manifest_untrusted",
-                    "pending_publish",
-                    "critical",
-                    f"Pending publish row needs manual recovery: {row_error}",
-                    evidence_path=evidence_path,
-                    age_seconds=age_seconds,
-                    next_action="Keep the file parked and inspect Pending Publish diagnostics; do not rerun or drain blindly.",
-                    recovery_action=_pending_publish_recovery_plan_action(row_key=str(row.get("row_key") or "")),
-                )
+            issue = _issue(
+                "autonomy_pending_manifest_untrusted",
+                "pending_publish",
+                "critical",
+                _pending_publish_untrusted_message(row, row_error, evidence_path),
+                evidence_path=evidence_path,
+                age_seconds=age_seconds,
+                next_action=_pending_publish_untrusted_next_action(),
+                recovery_action=_pending_publish_recovery_plan_action(row_key=str(row.get("row_key") or "")),
             )
-        if retry_count >= PENDING_RETRY_BLOCK_COUNT:
+            issue.update(_pending_publish_untrusted_issue_fields(row))
+            blockers.append(issue)
+        if retry_count >= policy.pending_retry_block_count:
             blockers.append(
                 _issue(
                     "autonomy_pending_retry_exhausted",
@@ -338,7 +459,7 @@ def _pending_publish_category(pending_publish: Mapping[str, Any] | None, now: da
                     recovery_action=_pending_publish_recovery_plan_action(row_key=str(row.get("row_key") or "")),
                 )
             )
-        if age_seconds is not None and age_seconds >= PENDING_BLOCK_SECONDS:
+        if age_seconds is not None and age_seconds >= policy.pending_block_seconds:
             blockers.append(
                 _issue(
                     "autonomy_pending_oldest_blocked",
@@ -351,7 +472,7 @@ def _pending_publish_category(pending_publish: Mapping[str, Any] | None, now: da
                     recovery_action=_pending_publish_drain_action(),
                 )
             )
-        elif age_seconds is not None and age_seconds >= PENDING_REVIEW_SECONDS:
+        elif age_seconds is not None and age_seconds >= policy.pending_review_seconds:
             review_items.append(
                 _issue(
                     "autonomy_pending_oldest_review",
@@ -396,12 +517,52 @@ def _pending_publish_category(pending_publish: Mapping[str, Any] | None, now: da
     )
 
 
-def _failures_category(findings: list[dict[str, Any]]) -> dict[str, Any]:
+def _pending_publish_untrusted_message(row: Mapping[str, Any], row_error: str, evidence_path: str) -> str:
+    context = _pending_publish_untrusted_context(row, evidence_path)
+    suffix = f" Evidence: {context}." if context else ""
+    return f"Pending Publish manifest is not trusted: {row_error}{suffix}"
+
+
+def _pending_publish_untrusted_next_action() -> str:
+    return (
+        "Open Pending Publish, select the blocked row, then run Recovery Plan or Repair Manifest dry-run. "
+        "Apply only a backend-authored repair candidate that validates; if none is available, inspect "
+        "Diagnostics > Pending Publish and docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md for "
+        "pending_push_manifest.v1 required fields. Keep the file parked and do not rerun or drain blindly."
+    )
+
+
+def _pending_publish_untrusted_context(row: Mapping[str, Any], evidence_path: str) -> str:
+    fields = {
+        "manifest": evidence_path,
+        "row_key": row.get("row_key"),
+        "state": row.get("state"),
+        "diagnostic_status": row.get("diagnostic_status"),
+        "local_file": row.get("local_file"),
+        "server_out": row.get("server_out"),
+    }
+    return "; ".join(
+        f"{key}={str(value).strip()}"
+        for key, value in fields.items()
+        if str(value or "").strip()
+    )
+
+
+def _pending_publish_untrusted_issue_fields(row: Mapping[str, Any]) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    for key in ("row_key", "state", "diagnostic_status", "local_file", "server_out", "source_path"):
+        text = str(row.get(key) or "").strip()
+        if text:
+            fields[key] = text
+    return fields
+
+
+def _failures_category(findings: list[dict[str, Any]], *, policy: AutonomyPolicy) -> dict[str, Any]:
     blockers: list[dict[str, Any]] = []
     review_items: list[dict[str, Any]] = []
     operator_required = [item for item in findings if item["operator_required"]]
     infrastructure = [item for item in findings if item["infrastructure"]]
-    if len(operator_required) > FAILURE_OPERATOR_REQUIRED_BLOCK_COUNT:
+    if len(operator_required) > policy.failure_operator_required_block_count:
         blockers.append(
             _issue(
                 "autonomy_failure_operator_required_count",
@@ -412,7 +573,7 @@ def _failures_category(findings: list[dict[str, Any]]) -> dict[str, Any]:
             )
         )
     old_operator_required = [
-        item for item in operator_required if item.get("age_seconds") is not None and item["age_seconds"] >= FAILURE_OPERATOR_REQUIRED_BLOCK_SECONDS
+        item for item in operator_required if item.get("age_seconds") is not None and item["age_seconds"] >= policy.failure_operator_required_block_seconds
     ]
     for item in old_operator_required[:3]:
         blockers.append(
@@ -426,7 +587,7 @@ def _failures_category(findings: list[dict[str, Any]]) -> dict[str, Any]:
                 next_action="Review the failure artifact and clear it only through backend-owned recovery.",
             )
         )
-    if len(infrastructure) >= FAILURE_INFRASTRUCTURE_BLOCK_COUNT:
+    if len(infrastructure) >= policy.failure_infrastructure_block_count:
         blockers.append(
             _issue(
                 "autonomy_failure_infrastructure_repeated",
@@ -468,11 +629,14 @@ def _workers_category(
     now: datetime,
     *,
     psutil_module: Any = None,
+    policy: AutonomyPolicy,
 ) -> dict[str, Any]:
     active_dir = resolved.active_jobs_path or (resolved.state_root / "ActiveJobs" if resolved.state_root else None)
     watchdog_records: list[dict[str, Any]] = []
+    review_items: list[dict[str, Any]] = []
     active_count = 0
     malformed_count = 0
+    stale_count = 0
     if not active_dir or not active_dir.exists():
         return _category(
             "workers",
@@ -483,11 +647,11 @@ def _workers_category(
                 "active_read_first_count": 0,
                 "active_jobs_ignored_count": 0,
                 "ambiguous_read_first": False,
-                "active_liveness_watchdog": _active_liveness_watchdog([]),
+                "active_liveness_watchdog": _active_liveness_watchdog([], policy=policy),
             },
             summary_lines=["No ActiveJobs folder is present yet, or it contains no active job evidence."],
         )
-    for path in _iter_files(active_dir, "*.json"):
+    for path in _iter_files(active_dir, "*.json", limit=policy.scan_limit):
         try:
             payload = json.loads(path.read_text(encoding="utf-8-sig"))
         except Exception as exc:
@@ -517,7 +681,7 @@ def _workers_category(
         if psutil_module is not None and _active_job_definitely_dead(payload, psutil_module):
             continue
         active_count += 1
-        evidence = _active_liveness_evidence(resolved, payload, path, now)
+        evidence = _active_liveness_evidence(resolved, payload, path, now, policy=policy)
         watchdog_records.append(evidence)
         age_seconds = evidence.get("latest_evidence_age_seconds")
         evidence["blocking_disabled"] = True
@@ -527,25 +691,51 @@ def _workers_category(
             if age_seconds is not None and age_seconds >= _safe_int(evidence.get("block_after_seconds"))
             else "passive_active"
         )
+        if evidence["status"] == "passive_stale":
+            stale_count += 1
+    if malformed_count:
+        review_items.append(
+            _issue(
+                "autonomy_active_jobs_malformed",
+                "workers",
+                "medium",
+                f"{malformed_count} ActiveJobs record(s) could not be read as trusted liveness evidence.",
+                evidence_path=str(active_dir),
+                next_action="Inspect malformed ActiveJobs evidence; it remains non-blocking but can hide stale process state.",
+            )
+        )
+    if stale_count:
+        review_items.append(
+            _issue(
+                "autonomy_active_jobs_passive_stale",
+                "workers",
+                "medium",
+                f"{stale_count} ActiveJobs record(s) have stale passive liveness evidence.",
+                evidence_path=str(active_dir),
+                next_action="Use backend-owned active-work and close-readiness controls as authority before unattended launch.",
+            )
+        )
     return _category(
         "workers",
-        "ready",
+        _issue_status([], review_items),
         metrics={
             "active_count": active_count,
             "malformed_count": malformed_count,
+            "stale_count": stale_count,
             "active_read_first_count": 0,
             "active_jobs_ignored_count": 0,
             "ambiguous_read_first": False,
-            "active_liveness_watchdog": _active_liveness_watchdog(watchdog_records),
+            "active_liveness_watchdog": _active_liveness_watchdog(watchdog_records, policy=policy),
         },
         summary_lines=[
             f"Active worker records: {active_count}; malformed records: {malformed_count}.",
-            "ActiveJobs evidence is passive and does not block launch, Shutdown Readiness, or autonomy health.",
+            "ActiveJobs evidence is passive and does not block launch, Shutdown Readiness, or autonomy health; stale or malformed records are review evidence only.",
         ],
+        review_items=review_items,
     )
 
 
-def _runtime_health_category(runtime_reliability: Mapping[str, Any]) -> dict[str, Any]:
+def _runtime_health_category(runtime_reliability: Mapping[str, Any], *, policy: AutonomyPolicy) -> dict[str, Any]:
     blockers: list[dict[str, Any]] = []
     review_items: list[dict[str, Any]] = []
     continuous_round_state = runtime_reliability.get("continuous_round_state")
@@ -678,7 +868,7 @@ def _runtime_health_category(runtime_reliability: Mapping[str, Any]) -> dict[str
     if isinstance(sqlite_mirror, Mapping):
         db_size = _safe_int(sqlite_mirror.get("db_size_bytes"))
         wal_size = _safe_int(sqlite_mirror.get("wal_size_bytes"))
-        if db_size > STATE_FILE_BLOCK_BYTES or wal_size > STATE_FILE_BLOCK_BYTES:
+        if db_size > policy.state_file_block_bytes or wal_size > policy.state_file_block_bytes:
             blockers.append(
                 _issue(
                     "autonomy_sqlite_mirror_blocked_size",
@@ -689,7 +879,7 @@ def _runtime_health_category(runtime_reliability: Mapping[str, Any]) -> dict[str
                     next_action="Run backend-owned SQLite mirror maintenance or archive planning before unattended launch.",
                 )
             )
-        elif db_size > STATE_FILE_REVIEW_BYTES or wal_size > STATE_FILE_REVIEW_BYTES:
+        elif db_size > policy.state_file_review_bytes or wal_size > policy.state_file_review_bytes:
             review_items.append(
                 _issue(
                     "autonomy_sqlite_mirror_review_size",
@@ -824,7 +1014,8 @@ def _runtime_health_metrics(runtime_reliability: Mapping[str, Any]) -> dict[str,
     }
 
 
-def _active_liveness_watchdog(records: list[dict[str, Any]]) -> dict[str, Any]:
+def _active_liveness_watchdog(records: list[dict[str, Any]], *, policy: AutonomyPolicy) -> dict[str, Any]:
+    retained = records[: policy.watchdog_record_limit]
     return {
         "schema_version": "desktop_active_liveness_watchdog.v1",
         "effect": "none",
@@ -835,14 +1026,24 @@ def _active_liveness_watchdog(records: list[dict[str, Any]]) -> dict[str, Any]:
             "Passive ActiveJobs evidence only. ActiveJobs records do not block launch, Shutdown Readiness, "
             "or autonomy health."
         ),
-        "native_timeout_grace_seconds": ACTIVE_JOB_TIMEOUT_GRACE_SECONDS,
-        "no_native_timeout_block_after_seconds": ACTIVE_JOB_NO_TIMEOUT_BLOCK_SECONDS,
-        "record_count": len(records),
-        "records": records,
+        "native_timeout_grace_seconds": policy.active_job_timeout_grace_seconds,
+        "no_native_timeout_block_after_seconds": policy.active_job_no_timeout_block_seconds,
+        "record_count": len(retained),
+        "record_total_count": len(records),
+        "records_truncated": len(records) > len(retained),
+        "record_limit": policy.watchdog_record_limit,
+        "records": retained,
     }
 
 
-def _active_liveness_evidence(resolved: Any, payload: Mapping[str, Any], active_job_path: Path, now: datetime) -> dict[str, Any]:
+def _active_liveness_evidence(
+    resolved: Any,
+    payload: Mapping[str, Any],
+    active_job_path: Path,
+    now: datetime,
+    *,
+    policy: AutonomyPolicy,
+) -> dict[str, Any]:
     heartbeat_age = _age_seconds(_first_text(payload, "last_update", "launched_at"), active_job_path, now)
     evidence_candidates = [
         {
@@ -861,9 +1062,9 @@ def _active_liveness_evidence(resolved: Any, payload: Mapping[str, Any], active_
     latest = _latest_liveness_candidate(evidence_candidates)
     native_timeout_source, native_timeout_seconds = _native_timeout_for_active_job(payload, resolved.config_data)
     block_after = (
-        native_timeout_seconds + ACTIVE_JOB_TIMEOUT_GRACE_SECONDS
+        native_timeout_seconds + policy.active_job_timeout_grace_seconds
         if native_timeout_seconds is not None
-        else ACTIVE_JOB_NO_TIMEOUT_BLOCK_SECONDS
+        else policy.active_job_no_timeout_block_seconds
     )
     return {
         "status": "ready",
@@ -878,7 +1079,7 @@ def _active_liveness_evidence(resolved: Any, payload: Mapping[str, Any], active_
         "latest_evidence_age_seconds": latest.get("age_seconds"),
         "native_timeout_source": native_timeout_source,
         "native_timeout_seconds": native_timeout_seconds,
-        "native_timeout_grace_seconds": ACTIVE_JOB_TIMEOUT_GRACE_SECONDS,
+        "native_timeout_grace_seconds": policy.active_job_timeout_grace_seconds,
         "block_after_seconds": block_after,
         "evidence_candidates": evidence_candidates,
     }
@@ -955,7 +1156,12 @@ def _native_timeout_for_active_job(payload: Mapping[str, Any], config_data: Mapp
     return "", None
 
 
-def _disk_state_category(resolved: Any, path_health: Mapping[str, Any] | None) -> dict[str, Any]:
+def _disk_state_category(
+    resolved: Any,
+    path_health: Mapping[str, Any] | None,
+    *,
+    policy: AutonomyPolicy,
+) -> dict[str, Any]:
     blockers: list[dict[str, Any]] = []
     review_items: list[dict[str, Any]] = []
     rows = path_health.get("rows") if isinstance(path_health, Mapping) else []
@@ -968,7 +1174,7 @@ def _disk_state_category(resolved: Any, path_health: Mapping[str, Any] | None) -
                 continue
             free_gb = _safe_float(row.get("free_space_gb"), row.get("free_gb"))
             reserve_gb = _safe_float(row.get("reserve_gb"))
-            threshold_gb = reserve_gb if reserve_gb and reserve_gb > 0 else DEFAULT_STORAGE_MIN_FREE_GB
+            threshold_gb = reserve_gb if reserve_gb and reserve_gb > 0 else policy.storage_min_free_gb
             storage_status = str(row.get("storage_status") or "").casefold()
             if storage_status == "low" or (free_gb is not None and free_gb < threshold_gb):
                 blockers.append(
@@ -992,16 +1198,27 @@ def _disk_state_category(resolved: Any, path_health: Mapping[str, Any] | None) -
                         next_action="Refresh path health and verify free space before unattended launch.",
                     )
                 )
-    state_scan = _directory_size_scan(resolved.state_root)
-    local_scan = _directory_size_scan(resolved.local_base, limit=AUTONOMY_SCAN_LIMIT)
+    state_scan = _directory_size_scan(resolved.state_root, limit=policy.scan_limit)
+    local_scan = _directory_size_scan(resolved.local_base, limit=policy.scan_limit)
     if bool(state_scan["truncated"]) or bool(local_scan["truncated"]):
         review_items.append(
             _issue(
                 "autonomy_scan_truncated",
                 "disk_state",
                 "medium",
-                f"Autonomy file enumeration hit the scan limit of {AUTONOMY_SCAN_LIMIT}; size metrics are lower bounds.",
+                f"Autonomy file enumeration hit the scan limit of {policy.scan_limit}; size metrics are lower bounds.",
                 next_action="Use the lower-bound sizes as soak telemetry only; raise the scan limit or inspect storage externally before trusting capacity projections.",
+            )
+        )
+    stat_error_count = _safe_int(state_scan.get("stat_error_count")) + _safe_int(local_scan.get("stat_error_count"))
+    if stat_error_count:
+        review_items.append(
+            _issue(
+                "autonomy_scan_stat_errors",
+                "disk_state",
+                "medium",
+                f"Autonomy file enumeration skipped {stat_error_count} file(s) due to stat/read errors.",
+                next_action="Inspect LocalBase/State readability before relying on growth projection.",
             )
         )
     return _category(
@@ -1016,7 +1233,9 @@ def _disk_state_category(resolved: Any, path_health: Mapping[str, Any] | None) -
             "local_base_size_lower_bound": bool(local_scan["truncated"]),
             "local_base_scan_truncated": bool(local_scan["truncated"]),
             "local_base_scanned_file_count": local_scan["scanned_file_count"],
-            "autonomy_scan_limit": AUTONOMY_SCAN_LIMIT,
+            "state_root_scan_stat_error_count": _safe_int(state_scan.get("stat_error_count")),
+            "local_base_scan_stat_error_count": _safe_int(local_scan.get("stat_error_count")),
+            "autonomy_scan_limit": policy.scan_limit,
         },
         summary_lines=[
             f"State root scanned bytes: {state_scan['size_bytes']}; lower_bound={state_scan['truncated']}.",
@@ -1078,7 +1297,7 @@ def _path_health_category(path_health: Mapping[str, Any] | None) -> dict[str, An
     )
 
 
-def _journals_category(resolved: Any) -> dict[str, Any]:
+def _journals_category(resolved: Any, *, policy: AutonomyPolicy) -> dict[str, Any]:
     blockers: list[dict[str, Any]] = []
     review_items: list[dict[str, Any]] = []
     file_count = 0
@@ -1104,7 +1323,7 @@ def _journals_category(resolved: Any) -> dict[str, Any]:
             continue
         total_size += size
         largest_file_size = max(largest_file_size, size)
-        if size > STATE_FILE_BLOCK_BYTES:
+        if size > policy.state_file_block_bytes:
             blockers.append(
                 _issue(
                     "autonomy_journal_file_blocked_size",
@@ -1116,7 +1335,7 @@ def _journals_category(resolved: Any) -> dict[str, Any]:
                     recovery_action=_journal_archive_action(path),
                 )
             )
-        elif size > STATE_FILE_REVIEW_BYTES:
+        elif size > policy.state_file_review_bytes:
             review_items.append(
                 _issue(
                     "autonomy_journal_file_review_size",
@@ -1146,7 +1365,7 @@ def _journals_category(resolved: Any) -> dict[str, Any]:
     )
 
 
-def _publish_recency_category(resolved: Any, now: datetime) -> dict[str, Any]:
+def _publish_recency_category(resolved: Any, now: datetime, *, policy: AutonomyPolicy) -> dict[str, Any]:
     runnable_count = _queue_runnable_count(resolved.queue_snapshot_path)
     manifest = resolved.completed_manifest_path
     review_items: list[dict[str, Any]] = []
@@ -1163,7 +1382,7 @@ def _publish_recency_category(resolved: Any, now: datetime) -> dict[str, Any]:
         )
     elif runnable_count > 0 and manifest is not None and manifest.exists():
         age_seconds = _age_seconds("", manifest, now)
-        if age_seconds is not None and age_seconds >= PENDING_REVIEW_SECONDS:
+        if age_seconds is not None and age_seconds >= policy.pending_review_seconds:
             review_items.append(
                 _issue(
                     "autonomy_publish_recency_stale",
@@ -1217,13 +1436,13 @@ def _topic_failure_category(
     )
 
 
-def _failure_findings(resolved: Any, now: datetime) -> list[dict[str, Any]]:
+def _failure_findings(resolved: Any, now: datetime, *, policy: AutonomyPolicy) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
     roots = [resolved.failed_markers_path]
     for root in roots:
         if root is None or not root.exists():
             continue
-        for path in _iter_files(root, "*.json"):
+        for path in _iter_files(root, "*.json", limit=policy.scan_limit):
             payload = _read_json_mapping(path)
             search_text = _failure_search_text(payload, path)
             age_seconds = _age_seconds(_first_text(payload, "recorded_at", "RecordedAt", "timestamp", "Timestamp"), path, now)
@@ -1237,7 +1456,7 @@ def _failure_findings(resolved: Any, now: datetime) -> list[dict[str, Any]]:
                     "infrastructure": _is_infrastructure_failure(payload),
                 }
             )
-    return findings[:AUTONOMY_SCAN_LIMIT]
+    return findings[: policy.scan_limit]
 
 
 def _read_json_mapping(path: Path) -> Mapping[str, Any]:
@@ -1287,16 +1506,24 @@ def _category(
     blockers: list[dict[str, Any]] | None = None,
     review_items: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    return {
-        "key": key,
-        "label": label or AUTONOMY_CATEGORY_LABELS.get(key, key.replace("_", " ").title()),
-        "status": status,
-        "status_state": _status_state(status),
-        "metrics": dict(metrics or {}),
-        "summary_lines": summary_lines or [],
-        "blockers": blockers or [],
-        "review_items": review_items or [],
-    }
+    return autonomy_category(
+        key,
+        status,
+        labels=AUTONOMY_CATEGORY_LABELS,
+        label=label,
+        metrics=metrics,
+        summary_lines=summary_lines,
+        blockers=blockers,
+        review_items=review_items,
+    )
+
+
+def _evaluate_category(key: str, factory: Any) -> dict[str, Any]:
+    return autonomy_evaluate_category(key, factory)
+
+
+def _category_evaluation_error(key: str, exc: Exception | None) -> dict[str, Any]:
+    return autonomy_category_evaluation_error(key, exc or RuntimeError("Unknown autonomy category evaluation error."))
 
 
 def _issue(
@@ -1310,46 +1537,28 @@ def _issue(
     next_action: str,
     recovery_action: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    issue = {
-        "code": code,
-        "category": category,
-        "severity": severity,
-        "message": message,
-        "evidence_path": evidence_path,
-        "age_seconds": None if age_seconds is None else int(age_seconds),
-        "next_action": next_action,
-    }
-    if isinstance(recovery_action, Mapping):
-        issue["recovery_action"] = dict(recovery_action)
-    return issue
+    return autonomy_issue(
+        code,
+        category,
+        severity,
+        message,
+        evidence_path=evidence_path,
+        age_seconds=age_seconds,
+        next_action=next_action,
+        recovery_action=recovery_action,
+    )
 
 
 def _issue_status(blockers: list[dict[str, Any]], review_items: list[dict[str, Any]]) -> str:
-    if blockers:
-        return "blocked"
-    if review_items:
-        return "review"
-    return "ready"
+    return autonomy_issue_status(blockers, review_items)
 
 
 def _overall_status(statuses: Iterable[str]) -> str:
-    normalized = {str(status or "").casefold() for status in statuses}
-    if "blocked" in normalized:
-        return "blocked"
-    if "review" in normalized or "unknown" in normalized:
-        return "review"
-    return "ready"
+    return autonomy_overall_status(statuses)
 
 
 def _status_state(status: str) -> str:
-    normalized = str(status or "").casefold()
-    if normalized == "blocked":
-        return "blocked"
-    if normalized == "review":
-        return "warning"
-    if normalized == "ready":
-        return "ready"
-    return "unknown"
+    return autonomy_status_state(status)
 
 
 def _flatten_issue(categories: Iterable[Mapping[str, Any]], key: str) -> list[dict[str, Any]]:
@@ -1424,6 +1633,7 @@ def _growth_projection_payload(
     review_items: list[Mapping[str, Any]],
     checked_at: datetime,
     growth_history: Mapping[str, Any] | None,
+    policy: AutonomyPolicy,
 ) -> dict[str, Any]:
     disk_metrics = _category_metrics(categories, "disk_state")
     journal_metrics = _category_metrics(categories, "journals")
@@ -1434,8 +1644,16 @@ def _growth_projection_payload(
     journal_bytes = _safe_int(journal_metrics.get("total_size_bytes"))
     active_jobs_count = _safe_int(runtime_metrics.get("active_jobs_total_count"))
     worker_process_count = _safe_int(runtime_metrics.get("worker_slot_active_child_count"))
-    storage_roots = _growth_storage_roots(path_health)
+    storage_roots = _growth_storage_roots(path_health, policy=policy)
     minimum_free_bytes = _minimum_present(row.get("free_bytes") for row in storage_roots)
+    unique_scanned_bytes = unique_observed_bytes(
+        [
+            (_path_or_none(getattr(resolved, "state_root", None)), state_root_bytes),
+            (_path_or_none(getattr(resolved, "local_base", None)), local_base_bytes),
+        ]
+    )
+    observed_bytes_legacy = state_root_bytes + local_base_bytes + pending_bytes
+    observed_bytes = unique_scanned_bytes + pending_bytes
     current_budget = {
         "state_root_size_bytes": state_root_bytes,
         "state_root_scan_truncated": bool(disk_metrics.get("state_root_scan_truncated")),
@@ -1462,10 +1680,13 @@ def _growth_projection_payload(
         "reclaimed_source_quarantine_oldest_age_seconds": runtime_metrics.get(
             "coordinator_reclaimed_source_quarantine_oldest_age_seconds"
         ),
-        "observed_bytes": state_root_bytes + local_base_bytes + pending_bytes,
+        "observed_filesystem_bytes_unique": unique_scanned_bytes,
+        "observed_bytes": observed_bytes,
+        "observed_bytes_legacy_may_overlap": observed_bytes_legacy,
         "minimum_free_bytes": minimum_free_bytes,
         "storage_row_count": len(storage_roots),
-        "current_only_may_overlap_scanned_roots": True,
+        "current_only_may_overlap_scanned_roots": False,
+        "autonomy_scan_limit": policy.scan_limit,
     }
     trend = _growth_projection_from_history(growth_history, current_budget, checked_at)
     blocker_codes = _issue_codes(blockers)
@@ -1513,7 +1734,7 @@ def _category_metrics(categories: Mapping[str, Mapping[str, Any]], key: str) -> 
     return {}
 
 
-def _growth_storage_roots(path_health: Mapping[str, Any] | None) -> list[dict[str, Any]]:
+def _growth_storage_roots(path_health: Mapping[str, Any] | None, *, policy: AutonomyPolicy) -> list[dict[str, Any]]:
     if not isinstance(path_health, Mapping):
         return []
     rows = path_health.get("rows")
@@ -1527,7 +1748,7 @@ def _growth_storage_roots(path_health: Mapping[str, Any] | None) -> list[dict[st
         if free_gb is None:
             continue
         reserve_gb = _safe_float(row.get("reserve_gb"))
-        threshold_gb = reserve_gb if reserve_gb and reserve_gb > 0 else DEFAULT_STORAGE_MIN_FREE_GB
+        threshold_gb = reserve_gb if reserve_gb and reserve_gb > 0 else policy.storage_min_free_gb
         storage_rows.append(
             {
                 "key": str(row.get("key") or ""),
@@ -1647,39 +1868,33 @@ def _growth_snapshot_write_result(
     max_snapshots: int,
     wrote_snapshot: bool,
     error: str,
+    lock_path: Path | None = None,
 ) -> dict[str, Any]:
-    return {
-        "schema_version": "desktop_autonomy_growth_snapshot_write.v1",
-        "effect": "diagnostics_state_snapshot_write",
-        "snapshot_path": str(snapshot_path or ""),
-        "wrote_snapshot": wrote_snapshot,
-        "retained_snapshot_count": retained_snapshot_count,
-        "max_snapshot_count": max_snapshots,
-        "snapshot": dict(snapshot),
-        "error": error,
-        "media_mutation_performed": False,
-        "cleanup_performed": False,
-        "pending_publish_mutation_performed": False,
-        "queue_mutation_performed": False,
-        "policy": (
-            "Explicit diagnostics-state snapshot write only. This helper does not touch source media, "
-            "pending publish files, queue state, cleanup targets, or final outputs."
-        ),
-    }
+    return growth_snapshot_write_result(
+        snapshot_path=snapshot_path,
+        snapshot=snapshot,
+        retained_snapshot_count=retained_snapshot_count,
+        max_snapshots=max_snapshots,
+        wrote_snapshot=wrote_snapshot,
+        error=error,
+        lock_path=lock_path,
+    )
 
 
-def _bounded_snapshot_limit(max_snapshots: int) -> int:
-    requested = _safe_int(max_snapshots)
-    if requested <= 0:
-        return AUTONOMY_GROWTH_SNAPSHOT_MAX_COUNT
-    return min(requested, AUTONOMY_GROWTH_SNAPSHOT_MAX_COUNT)
+def _acquire_growth_snapshot_lock(lock_path: Path) -> tuple[int | None, str]:
+    return acquire_growth_snapshot_lock(lock_path, timeout_seconds=AUTONOMY_GROWTH_SNAPSHOT_LOCK_TIMEOUT_SECONDS)
+
+
+def _release_growth_snapshot_lock(fd: int | None, lock_path: Path) -> None:
+    release_growth_snapshot_lock(fd, lock_path)
+
+
+def _bounded_snapshot_limit(max_snapshots: int | None, *, policy: AutonomyPolicy | None = None) -> int:
+    return bounded_snapshot_limit(max_snapshots, policy=policy)
 
 
 def _minimum_present(values: Iterable[Any]) -> int | None:
-    integers = [_safe_int(value) for value in values if value not in (None, "")]
-    if not integers:
-        return None
-    return min(integers)
+    return minimum_present(values)
 
 
 def _gb_to_bytes(value: float) -> int:
@@ -1764,64 +1979,15 @@ def _launch_gate_recovery_action(
 
 
 def _pending_publish_drain_action() -> dict[str, Any]:
-    return {
-        "schema_version": "desktop_autonomy_recovery_action.v1",
-        "kind": "drain_pending_pushes",
-        "label": "Drain Parked Outputs",
-        "method": "POST",
-        "route": "/api/pipeline/start",
-        "request": {
-            "mode": "drain_pending_pushes",
-            "sleep_seconds": 30,
-            "show_config": False,
-            "show_console": False,
-            "schedule_override": "",
-        },
-        "requires_confirmation": True,
-        "frontend_should_autorun": False,
-        "mutates_media": True,
-        "mutates_runtime_state": True,
-        "safe_next_step": "Open Pending Publish, review parked rows, then run the backend drain command only after operator confirmation.",
-    }
+    return pending_publish_drain_action()
 
 
 def _pending_publish_recovery_plan_action(*, row_key: str = "") -> dict[str, Any]:
-    request: dict[str, Any] = {"scope": "all"}
-    if row_key:
-        request = {"scope": "selected", "row_key": row_key}
-    return {
-        "schema_version": "desktop_autonomy_recovery_action.v1",
-        "kind": "pending_publish_recovery_plan",
-        "label": "Open Pending Publish Recovery Plan",
-        "method": "POST",
-        "route": "/api/pending-publish/recovery-plan",
-        "request": request,
-        "requires_confirmation": False,
-        "frontend_should_autorun": False,
-        "mutates_media": False,
-        "mutates_runtime_state": False,
-        "safe_next_step": "Review backend pending-publish recovery evidence before any drain, repair, rerun, or cleanup.",
-    }
+    return pending_publish_recovery_plan_action(row_key=row_key)
 
 
 def _journal_archive_action(path: Path | None) -> dict[str, Any]:
-    return {
-        "schema_version": "desktop_autonomy_recovery_action.v1",
-        "kind": "archive_state_journals",
-        "label": "Archive Event Journal",
-        "method": "POST",
-        "route": "/api/maintenance/archive-state-journals",
-        "request": {
-            "confirm_archive": True,
-            "reason": "launch recovery",
-        },
-        "requires_confirmation": True,
-        "frontend_should_autorun": False,
-        "mutates_media": False,
-        "mutates_runtime_state": True,
-        "evidence_path": str(path or ""),
-        "safe_next_step": "Archive only the backend-resolved runtime event journal, then refresh launch preflight.",
-    }
+    return journal_archive_action(path)
 
 
 def _pending_retry_count(row: Mapping[str, Any]) -> int:
@@ -1845,12 +2011,12 @@ def _age_seconds(text: str, path: Path | None, now: datetime) -> int | None:
     parsed = _parse_datetime(text)
     if parsed is None and path is not None:
         try:
-            parsed = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc)
+            parsed = datetime.fromtimestamp(path.stat().st_mtime, UTC)
         except OSError:
             return None
     if parsed is None:
         return None
-    return max(0, int((now - parsed.astimezone(timezone.utc)).total_seconds()))
+    return max(0, int((now - parsed.astimezone(UTC)).total_seconds()))
 
 
 def _parse_datetime(value: Any) -> datetime | None:
@@ -1862,8 +2028,8 @@ def _parse_datetime(value: Any) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _first_text(mapping: Mapping[str, Any], *keys: str) -> str:
@@ -1907,16 +2073,13 @@ def _safe_float(*values: Any) -> float | None:
     return None
 
 
-def _iter_files(root: Path, pattern: str = "*") -> list[Path]:
-    return _limited_iter_files(root, pattern)[0]
+def _iter_files(root: Path, pattern: str = "*", *, limit: int = AUTONOMY_SCAN_LIMIT) -> list[Path]:
+    return _limited_iter_files(root, pattern, limit=limit)[0]
 
 
 def _limited_iter_files(root: Path, pattern: str = "*", *, limit: int = AUTONOMY_SCAN_LIMIT) -> tuple[list[Path], bool]:
-    try:
-        paths = sorted(root.glob(pattern), key=lambda item: item.stat().st_mtime, reverse=True)
-    except OSError:
-        return [], False
-    return paths[:limit], len(paths) > limit
+    scan = limited_iter_files(root, pattern, limit=limit)
+    return scan.paths, scan.truncated
 
 
 def _directory_size(root: Path | None, *, limit: int = AUTONOMY_SCAN_LIMIT) -> int:
@@ -1924,27 +2087,7 @@ def _directory_size(root: Path | None, *, limit: int = AUTONOMY_SCAN_LIMIT) -> i
 
 
 def _directory_size_scan(root: Path | None, *, limit: int = AUTONOMY_SCAN_LIMIT) -> dict[str, Any]:
-    if root is None or not root.exists() or not root.is_dir():
-        return {"size_bytes": 0, "scanned_file_count": 0, "truncated": False, "limit": limit}
-    total = 0
-    scanned = 0
-    truncated = False
-    try:
-        iterator = root.rglob("*")
-        for path in iterator:
-            if not path.is_file():
-                continue
-            if scanned >= limit:
-                truncated = True
-                break
-            scanned += 1
-            try:
-                total += int(path.stat().st_size)
-            except OSError:
-                continue
-    except OSError:
-        return {"size_bytes": total, "scanned_file_count": scanned, "truncated": truncated, "limit": limit}
-    return {"size_bytes": total, "scanned_file_count": scanned, "truncated": truncated, "limit": limit}
+    return directory_size_scan(root, limit=limit)
 
 
 def _journal_paths(resolved: Any) -> list[Path | None]:

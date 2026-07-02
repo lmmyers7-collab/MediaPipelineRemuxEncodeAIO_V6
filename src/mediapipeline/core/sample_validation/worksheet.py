@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -119,7 +119,7 @@ def _worksheet_run_row(path: Path) -> dict[str, Any]:
     try:
         stat = path.stat()
         size_bytes = int(stat.st_size)
-        modified_at = datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat()
+        modified_at = datetime.fromtimestamp(stat.st_mtime, UTC).isoformat()
     except OSError as exc:
         size_bytes = 0
         modified_at = ""

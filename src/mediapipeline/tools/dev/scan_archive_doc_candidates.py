@@ -14,7 +14,7 @@ import sys
 from dataclasses import asdict, dataclass
 from datetime import date
 from pathlib import Path, PurePosixPath
-from typing import Iterable
+from collections.abc import Iterable
 
 from mediapipeline.tools.paths import find_repo_root
 
@@ -440,7 +440,7 @@ def scan_documents(root: Path = REPO_ROOT, *, as_of: str | None = None) -> list[
     document_rels = [normalize_path(path.relative_to(root)) for path in documents]
     reference_index = collect_reference_index(document_rels, references, root)
     results: list[DocumentScanResult] = []
-    for path, rel in zip(documents, document_rels):
+    for path, rel in zip(documents, document_rels, strict=False):
         text = _read_document_text(path)
         inbound = reference_index.get(rel, ())
         results.append(_classify_document(rel, text, inbound, as_of=scan_date))

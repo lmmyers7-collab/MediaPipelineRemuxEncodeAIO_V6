@@ -1199,28 +1199,52 @@ foreach ($suite in @(
 }
 
 Write-Section 'Generated and Tooling Guards'
-# Generated-doc freshness and active-doc lint checks compare generated artifacts against the FULL source
-# tree. A shipped release package intentionally strips parts of that tree (tests, dev docs), and is a frozen
-# snapshot taken from a possibly-in-flight working tree, so these source/CI checks cannot be guaranteed
-# against it. In a release package (release_manifest.json present) they run as advisory warnings; the checks
-# that validate the shipped code/contracts/boundaries themselves stay required. Outside a package
-# (source/CI) every check remains required.
+# Some audit checks compare generated artifacts against the FULL source tree, and the Python lint gate
+# checks both src and tests. A shipped release package intentionally strips parts of that tree (tests, dev
+# docs), and is a frozen snapshot taken from a possibly-in-flight working tree, so source-tree-only checks
+# cannot be guaranteed against it. In a release package (release_manifest.json present) they run as advisory
+# warnings; the checks that validate the shipped code/contracts/boundaries themselves stay required.
+# Outside a package (source/CI) every check remains required.
 $inReleasePackage = Test-Path -LiteralPath $releaseManifest -PathType Leaf
-foreach ($check in @(
-    @{ Label = 'summary freshness'; Module = 'mediapipeline.tools.dev.refresh_summaries'; Arguments = @('--check'); SourceTreeOnly = $true },
-    @{ Label = 'project index freshness'; Module = 'mediapipeline.tools.dev.generate_project_index'; Arguments = @('--check'); SourceTreeOnly = $true },
-    @{ Label = 'feature file map freshness'; Module = 'mediapipeline.tools.dev.generate_feature_file_map'; Arguments = @('--check'); SourceTreeOnly = $true },
-    @{ Label = 'pipeline map freshness'; Module = 'mediapipeline.tools.dev.generate_pipeline_map'; Arguments = @('--check'); SourceTreeOnly = $true },
-    @{ Label = 'lifecycle map freshness'; Module = 'mediapipeline.tools.dev.generate_lifecycle_map'; Arguments = @('--check'); SourceTreeOnly = $true },
-    @{ Label = 'smoke wrapper map freshness'; Module = 'mediapipeline.tools.dev.generate_smoke_wrapper_map'; Arguments = @('--check'); SourceTreeOnly = $true },
-    @{ Label = 'duplicate test-name report freshness'; Module = 'mediapipeline.tools.dev.generate_duplicate_test_name_report'; Arguments = @('--check'); SourceTreeOnly = $true },
-    @{ Label = 'config schema freshness'; Module = 'mediapipeline.tools.dev.generate_config_schema'; Arguments = @('--check'); SourceTreeOnly = $false },
-    @{ Label = 'active doc references'; Module = 'mediapipeline.tools.dev.check_active_doc_references'; Arguments = @(); SourceTreeOnly = $true },
-    @{ Label = 'dependency boundaries'; Module = 'mediapipeline.tools.dev.check_dependency_boundaries'; Arguments = @('--max-internal-imports', '1'); SourceTreeOnly = $false },
-    @{ Label = 'legacy removal readiness'; Module = 'mediapipeline.tools.dev.check_legacy_removal_readiness'; Arguments = @(); SourceTreeOnly = $false }
-)) {
-    $checkRequired = -not ($check.SourceTreeOnly -and $inReleasePackage)
-    Invoke-PythonModuleCheck -Label $check.Label -Module $check.Module -Arguments $check.Arguments -Required:$checkRequired
+$auditCheckManifest = $null
+if (-not (Test-Path -LiteralPath $script:Python -PathType Leaf)) {
+    Write-Fail "Audit check manifest requires bundled desktop Python: $script:Python"
+    $script:Failed = $true
+} else {
+    $previousPythonPath = $env:PYTHONPATH
+    try {
+        $env:PYTHONPATH = Join-Path $script:BundleRoot 'src'
+        Push-Location -LiteralPath $script:BundleRoot
+        $manifestOutput = & $script:Python -m mediapipeline.tools.dev.audit_checks emit release-self-test 2>&1 | ForEach-Object { [string]$_ }
+        $manifestExitCode = $LASTEXITCODE
+    } finally {
+        Pop-Location
+        $env:PYTHONPATH = $previousPythonPath
+    }
+
+    if ($manifestExitCode -ne 0) {
+        Write-Fail "Audit check manifest could not be loaded (exit $manifestExitCode)."
+        $script:Failed = $true
+        $manifestOutput | Select-Object -Last 40 | ForEach-Object { Write-Host $_ }
+    } else {
+        try {
+            $auditCheckManifest = ($manifestOutput -join "`n") | ConvertFrom-Json
+        } catch {
+            Write-Fail "Audit check manifest emitted invalid JSON: $($_.Exception.Message)"
+            $script:Failed = $true
+        }
+    }
+}
+
+if ($auditCheckManifest) {
+    foreach ($check in @($auditCheckManifest.checks)) {
+        $arguments = @()
+        if ($check.arguments) {
+            $arguments = @($check.arguments | ForEach-Object { [string]$_ })
+        }
+        $checkRequired = -not ([bool]$check.source_tree_only -and $inReleasePackage)
+        Invoke-PythonModuleCheck -Label ([string]$check.label) -Module ([string]$check.module) -Arguments $arguments -Required:$checkRequired
+    }
 }
 
 Write-Section 'Environment'

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/maintenance/dependency_atlas_facade.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: maintenance
-last_modified: 2026-06-29
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: e54f7b5f9385d892778152d874ca0750fd3979a1acb8fd0e390df2bfe8c8616c
+sha256: 8948888e224292719a2f4fb4653ca21ac5156e3a19709f9d6e40eebe39b6a798
 ---
 # `src/mediapipeline/core/maintenance/dependency_atlas_facade.py`
 

@@ -260,7 +260,7 @@ class _ImmediateCallbackRoot:
 class _NetworkRuntimeApp:
     def __init__(self, facade: object, resolved: ResolvedPaths, *, role: str) -> None:
         self.facade = facade
-        self.service = getattr(facade, "service")
+        self.service = facade.service
         self.resolved = resolved
         self.role = role
         self.root = _ImmediateCallbackRoot()
@@ -448,7 +448,7 @@ class NetworkLifecycleProviderMixin:
         runtime = getattr(self, "_network_dispatcher_runtime", None)
         if not isinstance(runtime, dict):
             runtime = {}
-            setattr(self, "_network_dispatcher_runtime", runtime)
+            self._network_dispatcher_runtime = runtime
         return runtime
 
     def _hot_apply_running_worker_settings(
@@ -930,9 +930,9 @@ class NetworkLifecycleProviderMixin:
                 single_file=source_path,
             )
             try:
-                setattr(proc, "_network_worker_result_path", str(result_path))
-                setattr(proc, "_network_worker_run_id", result_run_id)
-                setattr(proc, "_network_worker_claim_id", str(getattr(job, "job_id", "") or ""))
+                proc._network_worker_result_path = str(result_path)
+                proc._network_worker_run_id = result_run_id
+                proc._network_worker_claim_id = str(getattr(job, "job_id", "") or "")
             except Exception:
                 self._network_logger().warning("Network worker result metadata could not be attached to process object.")
             return proc

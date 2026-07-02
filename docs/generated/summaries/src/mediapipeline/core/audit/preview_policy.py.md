@@ -3,9 +3,9 @@ file: src/mediapipeline/core/audit/preview_policy.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: audit
-last_modified: 2026-06-29
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: f3002a49ee4164a66c1a656aeb9fc17e860e0b8daae09928152b4d348d453258
+sha256: 9ae39f298556c32b45448e91244e66fce1e14438605ca8e51152fd3f27d5d22b
 ---
 # `src/mediapipeline/core/audit/preview_policy.py`
 

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/queue/policy_parts/route_evidence.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-06-04
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: db18be310d6ff9a6542b61434bf8f9922a70dc85671f7b224dc6eb0e50511db9
+sha256: 5c979682b07175965fe6ed7c39548631eda4843087db60e2efd355971f0abf98
 ---
 # `src/mediapipeline/core/queue/policy_parts/route_evidence.py`
 

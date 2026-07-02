@@ -286,9 +286,11 @@ class WorkflowEnhancementTests(unittest.TestCase):
             dispatcher._inflight_state_path = lambda: Path(td) / "coordinator_inflight.json"
             dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
 
-            for attempt in range(1, 4):
+            for _attempt in range(1, 4):
                 claim_sent: list[tuple[dict, int]] = []
-                claim_handler = SimpleNamespace(_send_json=lambda payload, status=200: claim_sent.append((payload, status)))
+                claim_handler = SimpleNamespace(
+                    _send_json=lambda payload, status=200, claim_sent=claim_sent: claim_sent.append((payload, status))
+                )
                 CoordinatorDispatcher._http_claim(
                     dispatcher,
                     claim_handler,  # type: ignore[arg-type]
@@ -297,7 +299,9 @@ class WorkflowEnhancementTests(unittest.TestCase):
                 claim_payload = claim_sent[-1][0]
                 self.assertEqual(claim_payload["status"], "ok")
                 done_sent: list[tuple[dict, int]] = []
-                done_handler = SimpleNamespace(_send_json=lambda payload, status=200: done_sent.append((payload, status)))
+                done_handler = SimpleNamespace(
+                    _send_json=lambda payload, status=200, done_sent=done_sent: done_sent.append((payload, status))
+                )
                 CoordinatorDispatcher._http_done(
                     dispatcher,
                     done_handler,  # type: ignore[arg-type]
@@ -418,17 +422,17 @@ class WorkflowEnhancementTests(unittest.TestCase):
                     encode_config={},
                 )
                 saved: list[Path] = []
-                registry.save = lambda path: saved.append(path)  # type: ignore[method-assign]
+                registry.save = lambda path, saved=saved: saved.append(path)  # type: ignore[method-assign]
                 removed: list[str] = []
                 state_path = Path(tempfile.gettempdir()) / f"{job_id}.json"
                 dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
                 dispatcher._registry = registry
                 dispatcher._app = SimpleNamespace(root=Root(), queue_records=[])
-                dispatcher._remove_from_queue = lambda source_path: removed.append(source_path)  # type: ignore[assignment]
-                dispatcher._inflight_state_path = lambda: state_path
+                dispatcher._remove_from_queue = lambda source_path, removed=removed: removed.append(source_path)  # type: ignore[assignment]
+                dispatcher._inflight_state_path = lambda state_path=state_path: state_path
                 dispatcher.log_cluster_event = lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("cluster blocked"))  # type: ignore[assignment]
                 sent: list[tuple[dict, int]] = []
-                handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+                handler = SimpleNamespace(_send_json=lambda payload, status=200, sent=sent: sent.append((payload, status)))
 
                 with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
                     CoordinatorDispatcher._http_done(
@@ -1380,6 +1384,7 @@ class WorkflowEnhancementTests(unittest.TestCase):
             dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
             dispatcher._registry = registry
             dispatcher._inflight_state_path = lambda: state_path  # type: ignore[assignment]
+            dispatcher._remove_from_queue = lambda _source_path: None  # type: ignore[assignment]
             events: list[dict] = []
             dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
             sent: list[tuple[dict, int]] = []
@@ -1407,7 +1412,7 @@ class WorkflowEnhancementTests(unittest.TestCase):
         self.assertEqual(reports[0]["job_id"], "job-stale")
         self.assertEqual(reports[0]["source_path"], r"C:\Media\stale.mkv")
         self.assertEqual(reports[0]["publish_state"], "pending_publish")
-        self.assertEqual(events[0]["event"], "late_terminal_recorded")
+        self.assertEqual(events[0]["event"], "late_terminal_accepted")
         self.assertEqual(restored.active_count, 0)
 
     def test_release_report_for_unknown_job_is_logged_to_cluster(self) -> None:
@@ -1454,7 +1459,7 @@ class WorkflowEnhancementTests(unittest.TestCase):
                 dispatcher._registry = registry
                 dispatcher.log_cluster_event = lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("cluster blocked"))  # type: ignore[assignment]
                 sent: list[tuple[dict, int]] = []
-                handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+                handler = SimpleNamespace(_send_json=lambda payload, status=200, sent=sent: sent.append((payload, status)))
 
                 with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
                     CoordinatorDispatcher._http_done(
@@ -1667,7 +1672,6 @@ class WorkflowEnhancementTests(unittest.TestCase):
     # while clamping to its configured poll interval ceiling.
     # ------------------------------------------------------------------
     def test_claim_response_retry_after_seconds_round_trips(self) -> None:
-        from mediapipeline.desktop.network.protocol import ClaimResponse
         wire = ClaimResponse.empty(retry_after_seconds=7).to_dict()
         self.assertEqual(wire["status"], "empty")
         self.assertEqual(wire["retry_after_seconds"], 7)
@@ -1679,7 +1683,6 @@ class WorkflowEnhancementTests(unittest.TestCase):
         """Old coordinators that don't advertise the field must still
         deserialise cleanly into a ClaimResponse with a 0 hint, which
         the worker treats as 'use my configured interval'."""
-        from mediapipeline.desktop.network.protocol import ClaimResponse
         legacy_wire = {
             "status": "empty",
             "job_id": "",

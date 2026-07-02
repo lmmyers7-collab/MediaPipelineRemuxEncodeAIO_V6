@@ -36,13 +36,13 @@ def _json_safe(value: Any) -> Any:
     return json_safe(value)
 
 
-def _command_result(**fields: Any) -> "CommandResult":
+def _command_result(**fields: Any) -> CommandResult:
     from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**fields)
 
 
-def _pending_publish_preview_dto(**fields: Any) -> "PendingPublishPreviewDto":
+def _pending_publish_preview_dto(**fields: Any) -> PendingPublishPreviewDto:
     from mediapipeline.core.kernel.dto_inventory import PendingPublishPreviewDto
 
     return PendingPublishPreviewDto(**fields)

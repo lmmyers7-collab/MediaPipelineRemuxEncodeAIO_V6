@@ -3,9 +3,9 @@ file: tests/python/desktop/test_marketecture_guard.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-12
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 4ed5dfcb3065b5c5b8201116702f1200087746578e928b50fa57b0fe4b2c61f6
+sha256: 5b50774f598d503ca48c561f8492a8867b4a7e329f72f7130585ee13928e7fc8
 ---
 # `tests/python/desktop/test_marketecture_guard.py`
 

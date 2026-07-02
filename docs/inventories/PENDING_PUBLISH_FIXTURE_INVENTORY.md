@@ -2,7 +2,7 @@
 
 Purpose: inventory all pending-publish test files, describe what each covers and does not cover, document the fixture data patterns used, and note safety-property gaps. This is an observational document.
 
-Total pending-publish test files: 7 dedicated + 10 files with incidental pending-publish coverage, plus PowerShell transaction coverage in `ops/pipeline/tests`.
+Total pending-publish test files: 8 dedicated + 10 files with incidental pending-publish coverage, plus PowerShell transaction coverage in `ops/pipeline/tests`.
 No dedicated fixture JSON/JSONL files exist — all fixture data is generated dynamically in temporary directories or hardcoded as inline Python dicts.
 
 ---
@@ -40,6 +40,7 @@ Pending publish is a backend-owned media safety path. Future work should keep me
 | Test file | Lines | What it covers |
 |---|---|---|
 | `test_pending_publish_service.py` | 180+ | 5 core scenarios: missing payload health row; parked media-plus-sidecar row evidence; unknown state detection (`invalid_contract`); legacy manifest tolerance; duplicate manifest target detection |
+| `test_process_rerun_results.py` | 100+ | CSV rerun result promotion writes a current `pending_push_manifest.v1` contract before the row becomes drain-visible |
 | `test_repair_reconcile_dry_run.py` | 200+ | Pending Publish repair/reconcile dry-run route builders: required response schema, strict no-mutation evidence, selected-row missing behavior, invalid manifest, duplicate target, orphan payload, active-work precondition, and command-journal suppression |
 | `test_repair_reconcile_apply.py` | 320+ | Confirmed repair/reconcile apply routes: strict fingerprint and `confirm_apply=true` gating, manifest/sidecar/orphan-manifest-only writes, source/payload/output hash preservation, command journaling, frontend-path rejection, and repaired/reconciled pending manifests remaining parked/drain-ready without writing durable drain-summary evidence |
 
@@ -133,6 +134,7 @@ Service-layer tests hardcode rows directly in test methods:
 | Legacy manifest (no `schema_version`) is tolerated | `test_service_pending_publish_manifest.py`, `test_pending_publish_service.py` | Covered |
 | Orphan payload (no manifest) reported as error | `test_service_pending_publish_paths.py` | Covered at path-utility level |
 | Duplicate manifest targets detected | `test_pending_publish_service.py` | Covered |
+| CSV rerun promotion writes current pending manifest contract fields | `test_process_rerun_results.py`, `Invoke-ContractSchemaChecks.ps1` | Covered |
 | Drain does not run from WebView directly | Route contract + `test_webview_row_detail_smoke.py` (mutation guardrail filter confirms no backend drain called) | Covered — no drain route exists in command contract |
 | Parked media plus tx3g SRT sidecars are visible as one media-plus-sidecars unit before drain | `test_pending_publish_service.py` | Covered at service scan/row layer |
 | Parked media plus tx3g SRT sidecars drain together | `ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1` | Covered at PowerShell transaction layer |

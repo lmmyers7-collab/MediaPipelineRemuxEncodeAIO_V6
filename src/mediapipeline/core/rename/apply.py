@@ -4,7 +4,8 @@ import json
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from mediapipeline.core.paths.layout import ensure_path_boundary_safe_for_mutation
 from mediapipeline.core.rename.constants import RENAME_TOOL_SIDECAR_SCHEMA_VERSION

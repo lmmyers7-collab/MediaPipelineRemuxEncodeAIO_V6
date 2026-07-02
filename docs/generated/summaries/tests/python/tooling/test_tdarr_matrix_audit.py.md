@@ -3,9 +3,9 @@ file: tests/python/tooling/test_tdarr_matrix_audit.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-12
+last_modified: 2026-07-02
 last_reviewed: 2026-06-07
-sha256: b9af0b38c61fc7093fedf14e345cc01359465e1ebf52faad5ec75de7177d981d
+sha256: ed5f6769272796065bdd6888010f9caf0c0aac22446ecfd3148e73a405d26051
 ---
 # `tests/python/tooling/test_tdarr_matrix_audit.py`
 

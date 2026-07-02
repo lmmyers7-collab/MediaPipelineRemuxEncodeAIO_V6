@@ -61,8 +61,15 @@ class RerunLaunchPolicyTests(unittest.TestCase):
         self.assertEqual(lifecycle.execution_mode, "one_at_a_time")
         self.assertEqual(lifecycle.destination_mode, "review_workspace")
         self.assertEqual(lifecycle.original_policy, "keep")
+        self.assertEqual(lifecycle.original_mode, "keep")
         self.assertEqual(lifecycle.window_size, 1)
         self.assertEqual(rerun_lifecycle_errors(lifecycle), [])
+
+        pending = rerun_lifecycle_from_request({"destination_mode": "pending_publish"})
+        self.assertEqual(pending.destination_mode, "pending_publish")
+        self.assertEqual(pending.return_mode, "pending_publish")
+        self.assertEqual(pending.original_mode, "keep")
+        self.assertEqual(rerun_lifecycle_errors(pending), [])
 
         alias = rerun_lifecycle_from_request({"return_mode": "replace_original"})
         self.assertEqual(alias.destination_mode, "publish_replace_final")
@@ -75,7 +82,8 @@ class RerunLaunchPolicyTests(unittest.TestCase):
             "confirm_original_policy": True,
             "confirm_delete_original": True,
         })
-        self.assertEqual(rerun_lifecycle_errors(confirmed), [])
+        self.assertIn("original source policies are disabled", "\n".join(rerun_lifecycle_errors(confirmed)))
+        self.assertEqual(confirmed.original_mode, "keep")
 
     def test_success_message_and_payload_are_stable(self) -> None:
         csv_path = Path("C:/queue/rerun.csv")

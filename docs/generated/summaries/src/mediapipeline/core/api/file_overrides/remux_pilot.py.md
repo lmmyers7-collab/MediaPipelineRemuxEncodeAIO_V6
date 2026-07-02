@@ -3,9 +3,9 @@ file: src/mediapipeline/core/api/file_overrides/remux_pilot.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-06-19
+last_modified: 2026-07-02
 last_reviewed: 2026-06-19
-sha256: 03eb962171dc8c2fddd64286408b169325351e35fea277f2fe8aaa958cf0280e
+sha256: 248a2f9c23506915ce6afce7ed748b0eb400960960625cfcc0eb599425577e6d
 ---
 # `src/mediapipeline/core/api/file_overrides/remux_pilot.py`
 

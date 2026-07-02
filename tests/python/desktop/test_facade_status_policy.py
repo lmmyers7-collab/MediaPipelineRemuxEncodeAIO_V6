@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 import sys
 import unittest
 from pathlib import Path
@@ -114,7 +114,7 @@ class StatusPolicyTests(unittest.TestCase):
     def test_telemetry_fields_preserve_gpu_presence_and_sample_times(self) -> None:
         naive = TelemetrySnapshot(collected_at=datetime(2026, 5, 8, 12, 0, 0))
         aware = TelemetrySnapshot(
-            collected_at=datetime(2026, 5, 8, 12, 0, 0, tzinfo=timezone.utc),
+            collected_at=datetime(2026, 5, 8, 12, 0, 0, tzinfo=UTC),
             cpu_percent=12.0,
             memory_percent=44.0,
             gpu_encoder_percent=0.0,

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/telemetry/system_metrics.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-06-29
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 43426316363c3e83539719c737c35403a17a3d7b579af3ec7e4141d2479cce98
+sha256: 293e91423f7651d4e892e5c646f69ed7aa0d329778bedb74fe110bd62681fa03
 ---
 # `src/mediapipeline/core/telemetry/system_metrics.py`
 

@@ -8,7 +8,7 @@ from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
 from typing import Any
-from typing import Sequence
+from collections.abc import Sequence
 
 from mediapipeline.core.config.identity import config_identity_block_reasons
 from mediapipeline.core.config.recovery import ensure_canonical_config, restore_verified_last_good_config
@@ -407,3 +407,18 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+__all__ = [
+    "BOOTSTRAP_SCHEMA_VERSION",
+    "BackendResolvedState",
+    "StartupProgressCallback",
+    "bootstrap_payload",
+    "build_backend",
+    "default_app_root",
+    "emit_startup_progress",
+    "main",
+    "parse_args",
+    "record_startup_path_step",
+    "record_startup_step",
+]

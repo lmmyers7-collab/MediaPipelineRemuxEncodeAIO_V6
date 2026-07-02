@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_process_active_jobs.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-01
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: cc2538e1fe287747b32fe95834751330bd1f56cf7adf7e6e8ce9b9bc38f7fb10
+sha256: 7ae1f682fc125f1a453d19cb107b94a69fdea655a31175ec46489ceb22220502
 ---
 # `tests/python/desktop/test_service_process_active_jobs.py`
 

@@ -4,9 +4,10 @@ import json
 import os
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from mediapipeline.core.config.preset_migration import legacy_config_patch_from_preset_v2
 from mediapipeline.core.config.preset_policy import PresetV2, preset_v2_validation_issues
@@ -30,7 +31,7 @@ def preset_library_path(resolved: Any) -> Path:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _slug(value: object) -> str:

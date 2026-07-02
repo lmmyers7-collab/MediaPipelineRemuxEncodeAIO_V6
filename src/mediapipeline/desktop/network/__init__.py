@@ -38,7 +38,7 @@ __all__ = ["get_dispatcher", "QueueDispatcher", "ClaimedJob", "StandaloneDispatc
 _log = logging.getLogger(__name__)
 
 
-def get_dispatcher(app: "MediaPipelineApp") -> QueueDispatcher:
+def get_dispatcher(app: MediaPipelineApp) -> QueueDispatcher:
     """Return the correct ``QueueDispatcher`` for the configured network role.
 
     Role dispatch:

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -97,7 +97,7 @@ def write_active_job_launch_record(
         "return_code": None,
     }
     write_active_job_payload(record_path, payload)
-    setattr(proc, "_mediapipeline_active_job_record", str(record_path))
+    proc._mediapipeline_active_job_record = str(record_path)
     if logger is not None:
         logger.info("Wrote active job launch record: %s", record_path)
     return record_path
@@ -120,7 +120,7 @@ def _record_update_age_seconds(record: ActiveJobRecord, record_path: Path, now: 
     updated_at = _parse_record_datetime(record.last_update) or _parse_record_datetime(record.launched_at)
     if updated_at is None:
         try:
-            updated_at = datetime.fromtimestamp(record_path.stat().st_mtime, timezone.utc)
+            updated_at = datetime.fromtimestamp(record_path.stat().st_mtime, UTC)
         except OSError:
             return None
     return max(0.0, (now - updated_at.astimezone(now.tzinfo)).total_seconds())

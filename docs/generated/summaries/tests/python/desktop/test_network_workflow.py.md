@@ -3,9 +3,9 @@ file: tests/python/desktop/test_network_workflow.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-17
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 6ece1dd704a818218d95f85a0336572efdafe9223ceb503c9a73e9b4e83c2757
+sha256: 5cee88ac4ab54fda494f92f5adcec56a3ab0fcbabbbfebb9bef6302fbc618892
 ---
 # `tests/python/desktop/test_network_workflow.py`
 

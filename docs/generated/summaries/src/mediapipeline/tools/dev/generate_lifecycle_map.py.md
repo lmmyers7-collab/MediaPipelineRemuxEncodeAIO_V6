@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/dev/generate_lifecycle_map.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: f662b49b3b1adfbfff0c50e0c37c3dd12425081c2967d7f3e7f7e8c59924bf00
+sha256: 697ffe58420279e3609749600c9ccb1f109b0ad79aead6bc38179f4d56e26c30
 ---
 # `src/mediapipeline/tools/dev/generate_lifecycle_map.py`
 

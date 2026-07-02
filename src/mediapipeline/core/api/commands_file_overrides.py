@@ -630,3 +630,10 @@ class LocalApiFileOverridesCommandPayloadMixin:
             return _fo_read_error(TRACKS_COMMAND, error if path_raw else "'path' is required.")
 
         return _probe_tracks_for_source_path(source_path or "", state_db_root=getattr(resolved, "state_root", None))
+
+
+__all__ = [
+    "LocalApiFileOverridesCommandPayloadMixin",
+    "_file_override_tracks_payload_from_probe_result",
+    "run_probe_stage",
+]

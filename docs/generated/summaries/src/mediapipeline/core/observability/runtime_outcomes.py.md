@@ -3,9 +3,9 @@ file: src/mediapipeline/core/observability/runtime_outcomes.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-06-04
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: d8899c8f8bad93559203abdf013fbc4de0e539e7428fd5657ffeedc2e8cdfb44
+sha256: efc770575b4f8d2160872c3f460cffe6a2934ef050afc9ae6a0dc014f4c79d08
 ---
 # `src/mediapipeline/core/observability/runtime_outcomes.py`
 

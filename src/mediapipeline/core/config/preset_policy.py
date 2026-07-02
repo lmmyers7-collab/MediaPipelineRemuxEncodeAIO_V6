@@ -156,7 +156,7 @@ class ResolutionAwareBitratePolicy(PresetPolicyModel):
         return next_value
 
     @model_validator(mode="after")
-    def _validate_bucket_order(self) -> "ResolutionAwareBitratePolicy":
+    def _validate_bucket_order(self) -> ResolutionAwareBitratePolicy:
         height_tolerances = {
             "Route1080pUpperHeightTolerancePercent": self.bucket_1080p_upper_height_tolerance_pct,
             "Route1440pLowerHeightTolerancePercent": self.bucket_1440p_lower_height_tolerance_pct,

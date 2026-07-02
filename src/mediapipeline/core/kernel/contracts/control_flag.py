@@ -32,7 +32,7 @@ class ControlFlagRecord:
     raw: Mapping[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
-    def from_mapping(cls, payload: Mapping[str, Any] | Any) -> "ControlFlagRecord":
+    def from_mapping(cls, payload: Mapping[str, Any] | Any) -> ControlFlagRecord:
         data = require_mapping(payload, "control flag")
         schema_version = require_schema_version(data, CONTROL_FLAG_SCHEMA_VERSION)
         action = text_field(data, "action").strip().casefold()

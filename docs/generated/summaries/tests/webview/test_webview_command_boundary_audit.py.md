@@ -3,9 +3,9 @@ file: tests/webview/test_webview_command_boundary_audit.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-02
 last_reviewed: 2026-06-17
-sha256: b900b507d491aea3cd1ce57aa586b5a26ae9f7467655f782da226b8a2e16113f
+sha256: 9f6b3d92c16d4bc6b36399294f1d875b02ad8da78553ba82c01887478f2f53df
 ---
 # `tests/webview/test_webview_command_boundary_audit.py`
 

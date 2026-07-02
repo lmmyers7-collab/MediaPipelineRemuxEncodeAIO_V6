@@ -3,9 +3,9 @@ file: src/mediapipeline/core/status/runtime_health.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-07-01
+last_modified: 2026-07-02
 last_reviewed: 2026-06-30
-sha256: 7e6ff8848d8cd5d904cf32141b5b535f382404ba75fbc7be760cecb4e0aff4b6
+sha256: 20bdb11b72f60e6919809dda19ab9a151919b946cceaadfb0d4d00e7dae7b9b7
 ---
 # `src/mediapipeline/core/status/runtime_health.py`
 

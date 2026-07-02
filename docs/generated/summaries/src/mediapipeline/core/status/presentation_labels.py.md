@@ -3,9 +3,9 @@ file: src/mediapipeline/core/status/presentation_labels.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-06-04
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 16a66ca74f32de2bc698e48277684a654434e977b4497b538797f783abc5805e
+sha256: bfd285b708a3ef474b7595e381b91feee1ab92e7946a68884318b73038f2d6fd
 ---
 # `src/mediapipeline/core/status/presentation_labels.py`
 

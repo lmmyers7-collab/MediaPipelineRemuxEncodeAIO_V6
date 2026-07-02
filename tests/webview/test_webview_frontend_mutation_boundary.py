@@ -450,8 +450,6 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             "destination_folder",
             "manifest",
             "generated_path",
-            "source_path",
-            "output_path",
         }
 
         for route, (asset_name, required_keys) in specs.items():

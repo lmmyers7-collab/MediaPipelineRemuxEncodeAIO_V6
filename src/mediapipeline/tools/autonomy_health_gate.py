@@ -4,7 +4,8 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from mediapipeline.core.diagnostics.autonomy_health import autonomy_health_is_blocked, autonomy_health_payload
 from mediapipeline.core.processes.path_evidence import LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS, configured_path_health

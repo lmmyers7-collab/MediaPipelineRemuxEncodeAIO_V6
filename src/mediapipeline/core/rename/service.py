@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from mediapipeline.core.rename.apply import (
     build_rename_operations,
@@ -64,6 +64,9 @@ from mediapipeline.core.rename.utils import (
     strip_known_media_suffix,
 )
 from mediapipeline.core.kernel.runtime.subprocess_runner import run_capture
+
+if TYPE_CHECKING:
+    from mediapipeline.core.queue.contracts import QueueRecord
 
 
 class RenameServiceMixin:

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/api/file_overrides/series.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-06-26
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: f4867d005f1721f06f50221b9cbe10a95575d351d36da7203c7070eff45dcc74
+sha256: 8807d8458ceca5bf404627a438f286633bad7500c13eb82760d730c02d809932
 ---
 # `src/mediapipeline/core/api/file_overrides/series.py`
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from typing import TYPE_CHECKING, Any
 
 from mediapipeline.core.config.library_profiles import (
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from mediapipeline.core.kernel.dto_workspaces import SettingsWorkspaceDto
 
 
-def _settings_workspace_dto(**fields: Any) -> "SettingsWorkspaceDto":
+def _settings_workspace_dto(**fields: Any) -> SettingsWorkspaceDto:
     from mediapipeline.core.kernel.dto_workspaces import SettingsWorkspaceDto
 
     return SettingsWorkspaceDto(**fields)
@@ -346,7 +346,7 @@ def _path_modified_utc(path: Any) -> str:
         modified = path.stat().st_mtime
     except (AttributeError, OSError):
         return ""
-    return datetime.fromtimestamp(modified, timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.fromtimestamp(modified, UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _format_profiles(profiles: list[str]) -> str:

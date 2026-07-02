@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from .row_identity import LIBRARY_EFFECTIVE_SETTINGS_SCOPE, _bool_value, _float_value, _json_list
 

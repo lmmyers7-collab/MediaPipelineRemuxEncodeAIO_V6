@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/dev/ai_guardrail.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-11
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 6142382b3c92c738ffa4b361c6c966312f225120102dbf07ebaffcdd3f25b059
+sha256: 5753c102d52a759523f40b6f612a1e9f5f112808ceecf3235fdcfa228af41e24
 ---
 # `src/mediapipeline/tools/dev/ai_guardrail.py`
 

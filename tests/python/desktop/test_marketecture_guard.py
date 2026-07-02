@@ -77,7 +77,6 @@ def test_is_scannable_respects_globs():
 
 
 def test_paths_mode_clean_file_returns_zero(tmp_path, capsys):
-    clean = REPO_ROOT / "README.md"
     # README is real and expected clean; running --paths against it should pass.
     rc = module.main(["--paths", "README.md"])
     assert rc == 0

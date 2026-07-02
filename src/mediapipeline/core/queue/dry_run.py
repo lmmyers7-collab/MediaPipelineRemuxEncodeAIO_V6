@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Callable
+from collections.abc import Callable
 
 from mediapipeline.core.paths.contracts import ResolvedPaths
 

@@ -270,7 +270,7 @@ def _normalize_movie_title_region(title: str, remove_terms: list[str] | None) ->
 
 
 def normalize_movie_filter_options(movie_filter_options: dict[str, bool] | None = None) -> dict[str, bool]:
-    options = {key: True for key in RENAME_MOVIE_FILTER_OPTION_KEYS}
+    options = dict.fromkeys(RENAME_MOVIE_FILTER_OPTION_KEYS, True)
     for key, value in (movie_filter_options or {}).items():
         if key in options:
             options[key] = bool(value)

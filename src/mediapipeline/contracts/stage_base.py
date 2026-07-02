@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -11,7 +11,7 @@ STAGE_SCHEMA_VERSION: Literal["v1"] = "v1"
 
 MutationIntent = Literal["dry_run", "execute"]
 
-class StageName(str, Enum):
+class StageName(StrEnum):
     """Canonical stage names dispatched by ops/pipeline/engine/entrypoint.ps1."""
 
     ingest = "ingest"

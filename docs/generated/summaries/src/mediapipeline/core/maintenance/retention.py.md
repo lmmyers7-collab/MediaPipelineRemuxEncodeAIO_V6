@@ -3,9 +3,9 @@ file: src/mediapipeline/core/maintenance/retention.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: maintenance
-last_modified: 2026-06-18
+last_modified: 2026-07-02
 last_reviewed: 2026-06-18
-sha256: ec83407152113e3f3dcda4df59cf6f29b6152965838bd6e9bcbd8f5d00c45527
+sha256: 5a152f36aef6f920376ba37300bd647b979b57e7bb826fac4cea515f09371ff9
 ---
 # `src/mediapipeline/core/maintenance/retention.py`
 

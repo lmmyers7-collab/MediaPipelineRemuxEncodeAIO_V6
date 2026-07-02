@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
 
+__all__ = ["Path", "PurePosixPath", "find_repo_root"]
+
 
 def find_repo_root(start: Path | str) -> Path:
     path = Path(start).resolve()

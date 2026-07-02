@@ -119,7 +119,7 @@ def atomic_write_text(path: Path, text: str) -> None:
 def load_worker_state(path: Path) -> dict[str, Any]:
     try:
         return _load_worker_state_payload(path)
-    except Exception:
+    except Exception as exc:
         backup_path = worker_state_backup_path(path)
         if backup_path.exists():
             try:
@@ -136,7 +136,7 @@ def load_worker_state(path: Path) -> dict[str, Any]:
                 )
                 return backup_state
         quarantined = quarantine_worker_state(path, "corrupt")
-        raise ValueError(f"worker_state.json was corrupt and quarantined at {quarantined}")
+        raise ValueError(f"worker_state.json was corrupt and quarantined at {quarantined}") from exc
 
 
 def save_worker_state(

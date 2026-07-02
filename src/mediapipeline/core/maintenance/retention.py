@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 import time
-from typing import Any, Iterable, Mapping
+from typing import Any
+from collections.abc import Iterable, Mapping
 
 
 RETENTION_DRY_RUN_COMMAND = "maintenance.retention_dry_run"

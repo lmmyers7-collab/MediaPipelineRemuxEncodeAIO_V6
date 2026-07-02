@@ -98,20 +98,21 @@ These focused PowerShell checks sit outside `tests\python\desktop` and guard cro
 These repository-level Python tests sit outside `tests\python\desktop` and guard generated maps, AI pre/postflight tooling, naming/layout rules, change-control metadata, and documentation-reference scanners:
 
 ```powershell
-& $py -m unittest discover -s tests\tooling -p "test_*.py" -q
+& $py -m unittest discover -s tests\python\tooling -p "test_*.py" -q
 ```
 
 | Test file | What it covers |
 |---|---|
-| `tests/tooling/test_active_doc_references.py` | Active-doc moved-path, removed-shell-wording, absolute handoff-path, archive-exclusion, and required-doc checks |
-| `tests/tooling/test_ai_guardrail.py` | AI guardrail preflight/postflight plan contents and git-status rename/untracked path parsing |
-| `tests/tooling/test_change_control.py` | Change-control release manifest placeholder behavior, version-label validation, and missing `ops/release/metadata/VERSION` error reporting |
-| `tests/tooling/test_dependency_boundaries.py` | App import-edge collection, module/package cycle detection, hard-boundary violations, allowlist staleness, and current-repo dependency check |
-| `tests/tooling/test_godfile_guard.py` | God-file policy validation, allowlisted thresholds, new/existing oversized file warnings, growth warnings, and git-status rename parsing |
-| `tests/tooling/test_lifecycle_map.py` | Lifecycle state/transition integrity and generated lifecycle-map rendering |
-| `tests/tooling/test_lint_naming.py` | Deprecated flat facade/service/payload names, dotted `Pipeline\Modules` files, root status docs, root launcher callers, and rename-destination parsing |
-| `tests/tooling/test_risky_file_registry.py` | Risky-file registry validation and path classification into validation requirements |
-| `tests/tooling/test_summary_integrity.py` | Summary freshness orphan detection, summary pruning, and project-index orphan-summary refusal |
+| `tests/python/tooling/test_active_doc_references.py` | Active-doc moved-path, removed-shell-wording, absolute handoff-path, archive-exclusion, and required-doc checks |
+| `tests/python/tooling/test_ai_guardrail.py` | AI guardrail preflight/postflight plan contents and git-status rename/untracked path parsing |
+| `tests/python/tooling/test_audit_checks.py` | Shared audit-check manifest suites for pre-commit, generated-context CI, deep-audit, release self-test, and AI guardrail orchestration |
+| `tests/python/tooling/test_change_control.py` | Change-control release manifest placeholder behavior, version-label validation, and missing `ops/release/metadata/VERSION` error reporting |
+| `tests/python/tooling/test_dependency_boundaries.py` | App import-edge collection, module/package cycle detection, hard-boundary violations, allowlist staleness, and current-repo dependency check |
+| `tests/python/tooling/test_godfile_guard.py` | God-file policy validation, allowlisted thresholds, new/existing oversized file warnings, growth warnings, and git-status rename parsing |
+| `tests/python/tooling/test_lifecycle_map.py` | Lifecycle state/transition integrity and generated lifecycle-map rendering |
+| `tests/python/tooling/test_lint_naming.py` | Deprecated flat facade/service/payload names, dotted `Pipeline\Modules` files, root status docs, root launcher callers, and rename-destination parsing |
+| `tests/python/tooling/test_risky_file_registry.py` | Risky-file registry validation and path classification into validation requirements |
+| `tests/python/tooling/test_summary_integrity.py` | Summary freshness orphan detection, summary pruning, and project-index orphan-summary refusal |
 
 ---
 
@@ -343,6 +344,7 @@ Tests for manifest parsing, path resolution, manifest row validation, strict man
 | `test_service_pending_publish_manifest.py` | Manifest state validation, legacy no-drain visibility, and current-manifest missing proof rejection |
 | `test_service_pending_publish_manifest_rows.py` | Per-row manifest validation, legacy non-drainable rows, and unsupported current states |
 | `test_pending_publish_service.py` | General pending publish service, parked payload evidence, and legacy scan-visible/do-not-drain behavior |
+| `test_process_rerun_results.py` | CSV rerun result promotion into Pending Publish writes a current pending manifest contract and leaves source media untouched |
 | `test_application_facade_pending_publish.py` | Application-facade pending-publish preview classification, durable drain-summary evidence, publish reconciliation, final-proof path normalization, same-leaf weak evidence, row-key open allowlists, scan-failure surfacing, and recovery dry-run planning |
 
 Targeted command:

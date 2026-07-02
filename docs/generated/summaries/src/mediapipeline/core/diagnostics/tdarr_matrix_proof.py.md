@@ -3,9 +3,9 @@ file: src/mediapipeline/core/diagnostics/tdarr_matrix_proof.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: diagnostics
-last_modified: 2026-06-12
+last_modified: 2026-07-02
 last_reviewed: 2026-06-12
-sha256: 4d902b99625df3fabe4e4edc5e68aff97697c0488df9c3b70a1f070bf6fe59d1
+sha256: d4a51c5ad567b7012389815769ed1cfcd06f707e7ce737fd92b022189156b43f
 ---
 # `src/mediapipeline/core/diagnostics/tdarr_matrix_proof.py`
 

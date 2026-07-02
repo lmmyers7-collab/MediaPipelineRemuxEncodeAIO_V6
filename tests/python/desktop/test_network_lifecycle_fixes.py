@@ -103,7 +103,7 @@ class LifecycleProviderPresenceTests(unittest.TestCase):
 
     def test_worker_provider_attaches_runtime_before_polling_starts(self) -> None:
         class RaceCheckingWorkerDispatcher:
-            instances: list["RaceCheckingWorkerDispatcher"] = []
+            instances: list[RaceCheckingWorkerDispatcher] = []
 
             def __init__(self, app: object, *, start_polling: bool = True) -> None:
                 self.app = app
@@ -960,7 +960,7 @@ class StopJournalFailureCommitsStoppedTests(unittest.TestCase):
 
     def test_worker_start_polling_failure_cleans_runtime_entry(self) -> None:
         class FailingWorkerDispatcher:
-            instances: list["FailingWorkerDispatcher"] = []
+            instances: list[FailingWorkerDispatcher] = []
 
             def __init__(self, app: object, *, start_polling: bool = True) -> None:
                 self.app = app
@@ -1000,7 +1000,7 @@ class StopJournalFailureCommitsStoppedTests(unittest.TestCase):
 
     def test_coordinator_start_loop_failure_shuts_down_partial_dispatcher(self) -> None:
         class Dispatcher:
-            instances: list["Dispatcher"] = []
+            instances: list[Dispatcher] = []
 
             def __init__(self, app: object) -> None:
                 self.app = app

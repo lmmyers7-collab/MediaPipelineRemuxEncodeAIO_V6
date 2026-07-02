@@ -4,7 +4,6 @@ import argparse
 import datetime as dt
 import json
 import re
-import sys
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root

@@ -192,7 +192,7 @@ class EffectiveDecisionPolicy(DecisionPolicyModel):
         return items
 
     @model_validator(mode="after")
-    def _default_output_size_check_action(self) -> "EffectiveDecisionPolicy":
+    def _default_output_size_check_action(self) -> EffectiveDecisionPolicy:
         if self.output_size_check_action is None:
             self.output_size_check_action = output_size_check_action_from_settings(self.size_guard_mode)
         if self.output_container == "mp4":

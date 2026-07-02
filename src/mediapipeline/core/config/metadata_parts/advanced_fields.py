@@ -10,11 +10,11 @@ from .policy import LOG_LEVEL_VALUES
 
 
 def _rename_movie_filter_options_default() -> dict[str, bool]:
-    return {key: True for key in RENAME_MOVIE_FILTER_OPTION_KEYS}
+    return dict.fromkeys(RENAME_MOVIE_FILTER_OPTION_KEYS, True)
 
 
 def _rename_tv_filter_options_default() -> dict[str, bool]:
-    return {key: True for key in RENAME_TV_FILTER_OPTION_KEYS}
+    return dict.fromkeys(RENAME_TV_FILTER_OPTION_KEYS, True)
 
 
 QUALITY_METRIC_DESCRIPTIONS = {

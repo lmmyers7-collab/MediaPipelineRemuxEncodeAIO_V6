@@ -264,13 +264,13 @@ def _rerun_manifest_preview_snapshot(
     }
 
 
-def _queue_preview_dto(**fields: object) -> "QueuePreviewDto":
+def _queue_preview_dto(**fields: object) -> QueuePreviewDto:
     from mediapipeline.core.kernel.dto_inventory import QueuePreviewDto
 
     return QueuePreviewDto(**fields)
 
 
-def _command_result(**fields: object) -> "CommandResult":
+def _command_result(**fields: object) -> CommandResult:
     from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**fields)

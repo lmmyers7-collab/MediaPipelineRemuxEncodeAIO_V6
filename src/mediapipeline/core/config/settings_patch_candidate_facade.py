@@ -108,7 +108,7 @@ def _raw_change_value(raw_changes: dict[str, Any], key: str) -> Any:
 
 
 
-def _json_safe(value: Any) -> "JsonMap":
+def _json_safe(value: Any) -> JsonMap:
     from mediapipeline.core.kernel.dto_base import json_safe
 
     return json_safe(value)

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from mediapipeline.core.kernel.dto_status import CloseReadinessDto
 from mediapipeline.core.schedule.stop_watcher import schedule_stop_watcher_state_mapping
 from mediapipeline.core.paths.contracts import ResolvedPaths
@@ -11,6 +13,9 @@ from mediapipeline.core.processes.guard_policy import (
     close_readiness_fields,
     pipeline_progress_indicates_active_work,
 )
+
+if TYPE_CHECKING:
+    from mediapipeline.core.status.contracts import Snapshot
 
 
 class ProcessGuardFacadeMixin:

@@ -29,7 +29,7 @@ PIPELINE_SINGLE_FILE_BLOCK_ERROR = (
 NETWORK_ROLES = frozenset({"standalone", "coordinator", "worker"})
 
 
-def _command_result(**kwargs: Any) -> "CommandResult":
+def _command_result(**kwargs: Any) -> CommandResult:
     from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**kwargs)
@@ -133,7 +133,7 @@ def pipeline_start_success_data(
     return data
 
 
-def pipeline_start_unsupported_mode_result() -> "CommandResult":
+def pipeline_start_unsupported_mode_result() -> CommandResult:
     return _command_result(
         command=PIPELINE_START_COMMAND,
         ok=False,
@@ -143,7 +143,7 @@ def pipeline_start_unsupported_mode_result() -> "CommandResult":
     )
 
 
-def pipeline_start_sleep_error_result() -> "CommandResult":
+def pipeline_start_sleep_error_result() -> CommandResult:
     return _command_result(
         command=PIPELINE_START_COMMAND,
         ok=False,
@@ -153,7 +153,7 @@ def pipeline_start_sleep_error_result() -> "CommandResult":
     )
 
 
-def pipeline_start_extra_args_error_result() -> "CommandResult":
+def pipeline_start_extra_args_error_result() -> CommandResult:
     return _command_result(
         command=PIPELINE_START_COMMAND,
         ok=False,
@@ -163,7 +163,7 @@ def pipeline_start_extra_args_error_result() -> "CommandResult":
     )
 
 
-def pipeline_start_single_file_blocked_result(data: dict[str, Any]) -> "CommandResult":
+def pipeline_start_single_file_blocked_result(data: dict[str, Any]) -> CommandResult:
     message = str(data.get("message") or PIPELINE_SINGLE_FILE_BLOCK_ERROR)
     return _command_result(
         command=PIPELINE_START_COMMAND,
@@ -190,7 +190,7 @@ def pipeline_start_network_mode_blocked_result(
     role: str,
     *,
     coordinator_also_encode_locally: bool = False,
-) -> "CommandResult":
+) -> CommandResult:
     mode_label = (
         pipeline_start_network_mode_label(
             role,
@@ -215,7 +215,7 @@ def pipeline_start_network_mode_blocked_result(
     )
 
 
-def pipeline_start_schedule_gate_result(schedule_gate: dict[str, Any]) -> "CommandResult":
+def pipeline_start_schedule_gate_result(schedule_gate: dict[str, Any]) -> CommandResult:
     message = str(schedule_gate["message"])
     return _command_result(
         command=PIPELINE_START_COMMAND,
@@ -228,7 +228,7 @@ def pipeline_start_schedule_gate_result(schedule_gate: dict[str, Any]) -> "Comma
     )
 
 
-def pipeline_start_active_work_result(block_message: str) -> "CommandResult":
+def pipeline_start_active_work_result(block_message: str) -> CommandResult:
     return _command_result(
         command=PIPELINE_START_COMMAND,
         ok=False,
@@ -239,7 +239,7 @@ def pipeline_start_active_work_result(block_message: str) -> "CommandResult":
     )
 
 
-def pipeline_start_config_blocked_result(message: str, data: dict[str, Any]) -> "CommandResult":
+def pipeline_start_config_blocked_result(message: str, data: dict[str, Any]) -> CommandResult:
     return _command_result(
         command=PIPELINE_START_COMMAND,
         ok=False,
@@ -251,7 +251,7 @@ def pipeline_start_config_blocked_result(message: str, data: dict[str, Any]) -> 
     )
 
 
-def pipeline_start_autonomy_blocked_result(autonomy_health: Mapping[str, Any]) -> "CommandResult":
+def pipeline_start_autonomy_blocked_result(autonomy_health: Mapping[str, Any]) -> CommandResult:
     blockers = autonomy_health.get("blockers") if isinstance(autonomy_health, Mapping) else []
     first_blocker = blockers[0] if isinstance(blockers, list) and blockers and isinstance(blockers[0], Mapping) else {}
     message = str(first_blocker.get("message") or PIPELINE_AUTONOMY_HEALTH_BLOCK_ERROR)
@@ -276,7 +276,7 @@ def pipeline_start_autonomy_blocked_result(autonomy_health: Mapping[str, Any]) -
     )
 
 
-def pipeline_start_exception_result(exc: Exception) -> "CommandResult":
+def pipeline_start_exception_result(exc: Exception) -> CommandResult:
     return _command_result(
         command=PIPELINE_START_COMMAND,
         ok=False,
@@ -296,7 +296,7 @@ def pipeline_start_success_result(
     launch_prep_messages: list[str],
     launch_logs: str,
     single_file_validation: Any | None = None,
-) -> "CommandResult":
+) -> CommandResult:
     return _command_result(
         command=PIPELINE_START_COMMAND,
         ok=True,

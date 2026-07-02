@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -235,7 +235,7 @@ def failure_artifact_cleanup_plan(
     total_bytes = sum(int(item.get("size_bytes") or 0) for item in files)
     planned_by_path: dict[str, dict[str, Any]] = {}
     skipped: list[dict[str, Any]] = []
-    now_value = float(now if now is not None else datetime.now(tz=timezone.utc).timestamp())
+    now_value = float(now if now is not None else datetime.now(tz=UTC).timestamp())
     selected_paths = _selected_artifact_paths(artifact_paths)
     selected_path_keys = {_artifact_path_key(path) for path in selected_paths}
     selected_path_keys.discard("")
@@ -370,7 +370,7 @@ def _size_text(bytes_value: int) -> str:
 def _timestamp(value: float | None) -> str:
     if value is None:
         return ""
-    return datetime.fromtimestamp(value, tz=timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.fromtimestamp(value, tz=UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _relative_path(path: Path, root: Path) -> str:

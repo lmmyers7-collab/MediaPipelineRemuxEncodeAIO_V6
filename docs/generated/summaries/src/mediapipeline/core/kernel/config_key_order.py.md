@@ -3,9 +3,9 @@ file: src/mediapipeline/core/kernel/config_key_order.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: kernel
-last_modified: 2026-06-30
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 2c648bb6133cf7079c7a9289f197059d9939b4e636fd1e8802c832fb7d712067
+sha256: 33facf56bc80c4492e1d13b7b9266928903315fcd214dcb2f26249ff2f78a1b0
 ---
 # `src/mediapipeline/core/kernel/config_key_order.py`
 

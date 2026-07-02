@@ -7,8 +7,6 @@ from typing import Any
 from mediapipeline.core.rename.constants import RENAME_TV_FILTER_OPTION_KEYS
 from mediapipeline.core.rename.movie import movie_filter_term_pattern, remove_movie_filter_terms
 from mediapipeline.core.rename.tv_folder import (
-    TV_ORDINAL_WORDS,
-    TV_SPECIALS_FOLDER_PATTERN,
     resolve_tv_folder_season_info as resolve_tv_folder_season_info_with_cleaner,
 )
 from mediapipeline.core.rename.utils import normalize_plex_filename_component, remove_default_priority_markers, strip_known_media_suffix
@@ -130,7 +128,7 @@ RENAME_TV_FILTER_DEFAULT_TERMS: dict[str, tuple[str, ...]] = {
 
 
 def normalize_tv_filter_options(tv_filter_options: dict[str, bool] | None = None) -> dict[str, bool]:
-    options = {key: True for key in RENAME_TV_FILTER_OPTION_KEYS}
+    options = dict.fromkeys(RENAME_TV_FILTER_OPTION_KEYS, True)
     for key, value in (tv_filter_options or {}).items():
         if key in options:
             options[key] = bool(value)

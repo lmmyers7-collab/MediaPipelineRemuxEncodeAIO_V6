@@ -16,7 +16,7 @@ from fnmatch import fnmatchcase
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root, PurePosixPath
-from typing import Iterable
+from collections.abc import Iterable
 
 
 REPO_ROOT = find_repo_root(Path(__file__))
@@ -121,8 +121,7 @@ def git_working_tree_candidates() -> list[ChangedPath]:
         cwd=REPO_ROOT,
         check=True,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
     return creation_candidates_from_status(result.stdout)
 
@@ -133,8 +132,7 @@ def git_staged_candidates() -> list[ChangedPath]:
         cwd=REPO_ROOT,
         check=True,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
     return creation_candidates_from_name_status(result.stdout)
 
@@ -145,8 +143,7 @@ def git_diff_candidates(base_ref: str) -> list[ChangedPath]:
         cwd=REPO_ROOT,
         check=True,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
     return creation_candidates_from_name_status(result.stdout)
 

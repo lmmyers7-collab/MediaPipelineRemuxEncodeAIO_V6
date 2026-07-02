@@ -5,10 +5,13 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
-from datetime import datetime, timezone
+from copy import deepcopy
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
+from mediapipeline.core.kernel.contracts.pending_publish import PendingPushManifest
 from mediapipeline.core.kernel.dto_commands import CommandResult
 from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.processes.file_io import atomic_write_text
@@ -17,6 +20,41 @@ from mediapipeline.core.processes.rerun_preview import recent_rerun_csv_candidat
 
 RERUN_RESULTS_SCHEMA_VERSION = "desktop_rerun_results.v1"
 RERUN_PROMOTE_DRY_RUN_SCHEMA_VERSION = "desktop_rerun_promote_dry_run.v1"
+RERUN_PROMOTE_PIPELINE_VERSION = "1.0"
+PENDING_MANIFEST_ARRAY_FIELDS = (
+    "tx3g_srt_tracks",
+    "tx3g_srt_failures",
+    "bdpgs_srt_failures",
+    "vobsub_srt_failures",
+    "converted_srt_sidecar_candidates",
+    "subtitle_output_reduction",
+    "tx3g_embedded_srt_tracks",
+    "bdpgs_embedded_srt_tracks",
+    "vobsub_embedded_srt_tracks",
+)
+PENDING_MANIFEST_BOOL_FIELDS = (
+    "tx3g_srt_conversion_enabled",
+    "tx3g_external_srt_sidecars_enabled",
+    "drop_tx3g_after_conversion",
+    "bdpgs_srt_conversion_enabled",
+    "drop_bdpgs_after_conversion",
+    "vobsub_srt_conversion_enabled",
+    "drop_vobsub_after_conversion",
+)
+PENDING_MANIFEST_OPTIONAL_EVIDENCE_FIELDS = (
+    "folder_policy",
+    "route_plan",
+    "route_explanation",
+    "library_profile",
+    "dynamic_hdr",
+    "quality_verification",
+    "audio_decisions",
+    "subtitle_decisions",
+    "encode_selected_attempt",
+    "encode_selected_encoder",
+    "encode_selected_encoder_kind",
+    "encode_selected_gpu_device",
+)
 
 
 def _manifest_root(resolved: ResolvedPaths) -> Path | None:
@@ -34,6 +72,122 @@ def _read_json(path: Path) -> dict[str, Any] | None:
         return json.loads(path.read_text(encoding="utf-8-sig"))
     except Exception:
         return None
+
+
+def _pipeline_sidecar_path(output_path: Path) -> Path:
+    return output_path.with_name(f"{output_path.stem}.pipeline.json")
+
+
+def _read_pipeline_sidecar(output_path: Path) -> dict[str, Any]:
+    sidecar = _pipeline_sidecar_path(output_path)
+    data = _read_json(sidecar) if sidecar.is_file() else None
+    return data if isinstance(data, dict) else {}
+
+
+def _list_from_mapping(data: Mapping[str, Any], key: str) -> list[Any]:
+    value = data.get(key)
+    return deepcopy(value) if isinstance(value, list) else []
+
+
+def _bool_from_mapping(data: Mapping[str, Any], key: str) -> bool:
+    return data.get(key) is True
+
+
+def _first_record_path(record: Any) -> Path | None:
+    if not isinstance(record, Mapping):
+        return None
+    for key in ("local_file", "path", "Path", "srt_path", "SrtPath", "LocalPath"):
+        text = str(record.get(key) or "").strip()
+        if text:
+            return Path(text)
+    return None
+
+
+def _path_under(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except (OSError, ValueError):
+        return False
+
+
+def _non_overlapping_path(path: Path, suffix: str) -> Path:
+    if not path.exists():
+        return path
+    candidate = path.with_name(f"{path.stem}.{suffix}{path.suffix}")
+    counter = 1
+    while candidate.exists():
+        candidate = path.with_name(f"{path.stem}.{suffix}-{counter}{path.suffix}")
+        counter += 1
+    return candidate
+
+
+def _copy_sidecars_to_pending(
+    *,
+    pipeline_sidecar: Mapping[str, Any],
+    output: Path,
+    final_output: Path,
+    pending_root: Path,
+    transaction_id: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[Path]]:
+    entries: list[dict[str, Any]] = []
+    pending_records: list[dict[str, Any]] = []
+    copied: list[Path] = []
+    output_dir = output.parent
+    final_dir = final_output.parent
+    for index, record in enumerate(_list_from_mapping(pipeline_sidecar, "tx3g_srt_tracks")):
+        source = _first_record_path(record)
+        if source is None or source.suffix.casefold() != ".srt" or not source.is_file():
+            continue
+        if not _path_under(source, output_dir):
+            continue
+        try:
+            relative = source.resolve().relative_to(output_dir.resolve())
+        except (OSError, ValueError):
+            continue
+        server_out = final_dir / relative
+        parked = _non_overlapping_path(
+            pending_root / f"{transaction_id}.sidecar{index}{source.suffix}",
+            "collision",
+        )
+        parked.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            shutil.copy2(source, parked)
+        except Exception:
+            for copied_path in copied:
+                copied_path.unlink(missing_ok=True)
+            raise
+        copied.append(parked)
+        pending_record = deepcopy(record) if isinstance(record, Mapping) else {}
+        pending_record["path"] = str(server_out)
+        pending_record["file_name"] = server_out.name
+        pending_record["status"] = "pending"
+        pending_records.append(pending_record)
+        entries.append(
+            {
+                "kind": "converted_srt",
+                "local_file": str(parked),
+                "original_local_file": str(source),
+                "parked_file": str(parked),
+                "server_out": str(server_out),
+                "output_size": parked.stat().st_size,
+                "preserve_existing": bool(record.get("preserved_existing") is True) if isinstance(record, Mapping) else False,
+                "tx3g_record": pending_record,
+            }
+        )
+    return entries, pending_records, copied
+
+
+def _pending_manifest_evidence_from_sidecar(pipeline_sidecar: Mapping[str, Any]) -> dict[str, Any]:
+    evidence: dict[str, Any] = {}
+    for key in PENDING_MANIFEST_ARRAY_FIELDS:
+        evidence[key] = _list_from_mapping(pipeline_sidecar, key)
+    for key in PENDING_MANIFEST_BOOL_FIELDS:
+        evidence[key] = _bool_from_mapping(pipeline_sidecar, key)
+    for key in PENDING_MANIFEST_OPTIONAL_EVIDENCE_FIELDS:
+        if key in pipeline_sidecar:
+            evidence[key] = deepcopy(pipeline_sidecar[key])
+    return evidence
 
 
 def _row_key(manifest_path: Path, batch_id: str, row_index: int, row: Mapping[str, Any]) -> str:
@@ -154,7 +308,12 @@ def _find_row(resolved: ResolvedPaths, row_key: str) -> tuple[dict[str, Any] | N
 
 def _fingerprint(row_key: str, output_path: Path, final_output_path: str) -> str:
     stat = output_path.stat()
-    return _hash_text(f"{row_key}|{output_path}|{final_output_path}|{stat.st_size}|{stat.st_mtime_ns}", length=32)
+    sidecar = _pipeline_sidecar_path(output_path)
+    sidecar_fingerprint = ""
+    if sidecar.is_file():
+        sidecar_stat = sidecar.stat()
+        sidecar_fingerprint = f"|{sidecar}|{sidecar_stat.st_size}|{sidecar_stat.st_mtime_ns}"
+    return _hash_text(f"{row_key}|{output_path}|{final_output_path}|{stat.st_size}|{stat.st_mtime_ns}{sidecar_fingerprint}", length=32)
 
 
 def rerun_promote_dry_run(resolved: ResolvedPaths, request: Mapping[str, Any]) -> CommandResult:
@@ -188,7 +347,13 @@ def rerun_promote_dry_run(resolved: ResolvedPaths, request: Mapping[str, Any]) -
     )
 
 
-def rerun_promote_to_pending_publish(resolved: ResolvedPaths, request: Mapping[str, Any]) -> CommandResult:
+def rerun_promote_to_pending_publish(
+    resolved: ResolvedPaths,
+    request: Mapping[str, Any],
+    *,
+    product_version: str = "",
+    pipeline_version: str = RERUN_PROMOTE_PIPELINE_VERSION,
+) -> CommandResult:
     if request.get("confirm_promote") is not True:
         return CommandResult(command="rerun.promote", ok=False, severity="error", message="confirm_promote=true is required.", errors=["confirm_promote_required"])
     row_key = str(request.get("row_key") or "").strip()
@@ -210,24 +375,52 @@ def rerun_promote_to_pending_publish(resolved: ResolvedPaths, request: Mapping[s
     destination = pending_root / output.name
     if destination.exists():
         destination = pending_root / f"{output.stem}.rerun-{row_key}{output.suffix}"
-    shutil.move(str(output), str(destination))
+    destination = _non_overlapping_path(destination, f"rerun-{row_key}")
     source_identity = str(row.get("source_identity_v2") or row_key)
     source_size_raw = row.get("source_size")
     try:
         source_size = int(source_size_raw)
     except (TypeError, ValueError):
         source_size = 0
-    manifest_path = pending_root / f"{destination.stem}.manifest.json"
+    manifest_path = pending_root / f"{destination.name}.manifest.json"
+    now = datetime.now(UTC).isoformat()
+    transaction_id = f"rerun-promote-{row_key}"
+    pipeline_sidecar = _read_pipeline_sidecar(output)
+    sidecar_entries: list[dict[str, Any]] = []
+    pending_tx3g_records: list[dict[str, Any]] = []
+    copied_sidecars: list[Path] = []
+    if pipeline_sidecar:
+        try:
+            sidecar_entries, pending_tx3g_records, copied_sidecars = _copy_sidecars_to_pending(
+                pipeline_sidecar=pipeline_sidecar,
+                output=output,
+                final_output=Path(str(row.get("final_output_path") or "")),
+                pending_root=pending_root,
+                transaction_id=transaction_id,
+            )
+        except Exception as exc:
+            return CommandResult(
+                command="rerun.promote",
+                ok=False,
+                severity="error",
+                message=f"Pending Publish sidecar copy failed before moving rerun output: {exc}",
+                errors=["pending_sidecar_copy_failed"],
+                data={"row_key": row_key},
+            )
     payload = {
         "schema_version": "pending_push_manifest.v1",
-        "manifest_state": "parked",
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "parked_at": now,
+        "product_version": str(product_version or "").strip(),
+        "pipeline_version": str(pipeline_version or RERUN_PROMOTE_PIPELINE_VERSION).strip() or RERUN_PROMOTE_PIPELINE_VERSION,
+        "publish_transaction_id": transaction_id,
+        "manifest_state": "pending_move",
+        "created_at": now,
         "route": "csv_rerun",
         "route_reason_code": "rerun_existing_promote",
         "route_reason": "Existing CSV rerun review output promoted into Pending Publish.",
         "media_type": row.get("media_kind") or "",
         "local_file": str(destination),
-        "original_local_file": row.get("source_path") or "",
+        "original_local_file": str(output),
         "parked_file": str(destination),
         "server_out": row.get("final_output_path") or "",
         "source_path": row.get("source_path") or "",
@@ -236,17 +429,66 @@ def rerun_promote_to_pending_publish(resolved: ResolvedPaths, request: Mapping[s
         "source_identity": source_identity,
         "source_identity_v2": source_identity,
         "source_identity_v2_algorithm": row.get("source_identity_v2_algorithm") or "rerun_results_v1",
-        "output_size": destination.stat().st_size,
+        "output_size": output.stat().st_size,
         "publish_mode": "pending_publish",
-        "sidecars": [],
-        "subtitle_tracks": [],
-        "subtitle_failures": [],
-        "embedded_subtitle_tracks": [],
+        "sidecar_files": sidecar_entries,
+        "tx3g_srt_tracks": [],
+        "tx3g_srt_failures": [],
+        "bdpgs_srt_failures": [],
+        "vobsub_srt_failures": [],
+        "converted_srt_sidecar_candidates": [],
+        "subtitle_output_reduction": [],
+        "tx3g_embedded_srt_tracks": [],
+        "bdpgs_embedded_srt_tracks": [],
+        "vobsub_embedded_srt_tracks": [],
+        "tx3g_srt_conversion_enabled": False,
+        "tx3g_external_srt_sidecars_enabled": False,
+        "drop_tx3g_after_conversion": False,
+        "bdpgs_srt_conversion_enabled": False,
+        "drop_bdpgs_after_conversion": False,
+        "vobsub_srt_conversion_enabled": False,
+        "drop_vobsub_after_conversion": False,
         "original_subtitles_preserved": True,
         "drop_ass_after_conversion": False,
         "conversion_failed": False,
     }
-    atomic_write_text(manifest_path, json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    if pipeline_sidecar:
+        payload.update(_pending_manifest_evidence_from_sidecar(pipeline_sidecar))
+        payload["sidecar_files"] = sidecar_entries
+        if pending_tx3g_records:
+            payload["tx3g_srt_tracks"] = pending_tx3g_records
+    try:
+        PendingPushManifest.from_mapping(payload)
+    except Exception as exc:
+        for copied in copied_sidecars:
+            copied.unlink(missing_ok=True)
+        return CommandResult(
+            command="rerun.promote",
+            ok=False,
+            severity="error",
+            message=f"Pending Publish manifest contract validation failed before moving rerun output: {exc}",
+            errors=["pending_manifest_contract_invalid"],
+            data={"row_key": row_key, "pending_publish_manifest_path": str(manifest_path)},
+        )
+    try:
+        atomic_write_text(manifest_path, json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+        shutil.move(str(output), str(destination))
+        payload["manifest_state"] = "parked"
+        payload["parked_at"] = datetime.now(UTC).isoformat()
+        PendingPushManifest.from_mapping(payload)
+        atomic_write_text(manifest_path, json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    except Exception as exc:
+        if output.exists() and not manifest_path.exists():
+            for copied in copied_sidecars:
+                copied.unlink(missing_ok=True)
+        return CommandResult(
+            command="rerun.promote",
+            ok=False,
+            severity="error",
+            message=f"Rerun output promotion into Pending Publish failed: {exc}",
+            errors=["rerun_promote_pending_publish_failed"],
+            data={"row_key": row_key, "pending_publish_manifest_path": str(manifest_path), "pending_publish_payload_path": str(destination)},
+        )
     return CommandResult(
         command="rerun.promote",
         ok=True,

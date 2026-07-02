@@ -14,7 +14,7 @@ from typing import Literal
 
 
 REPO_ROOT = find_repo_root(Path(__file__))
-from mediapipeline.tools.dev import check_risky_file_registry
+from mediapipeline.tools.dev import audit_checks, check_risky_file_registry
 
 
 Mode = Literal["preflight", "postflight"]
@@ -51,20 +51,8 @@ def build_check_plan(mode: Mode) -> list[CommandCheck]:
     # Preflight and postflight run the same plan so the working tree is held to
     # one standard before and after edits.
     common = [
-        CommandCheck("summary-freshness", _python_module("mediapipeline.tools.dev.refresh_summaries", "--check")),
-        CommandCheck("project-index", _python_module("mediapipeline.tools.dev.generate_project_index", "--check")),
-        CommandCheck("pipeline-map", _python_module("mediapipeline.tools.dev.generate_pipeline_map", "--check")),
-        CommandCheck("feature-file-map", _python_module("mediapipeline.tools.dev.generate_feature_file_map", "--check")),
-        CommandCheck("lifecycle-map", _python_module("mediapipeline.tools.dev.generate_lifecycle_map", "--check")),
-        CommandCheck("config-schema", _python_module("mediapipeline.tools.dev.generate_config_schema", "--check")),
-        CommandCheck("stage-schema", _python_module("mediapipeline.tools.dev.generate_stage_schema", "--check")),
-        CommandCheck("active-doc-references", _python_module("mediapipeline.tools.dev.check_active_doc_references")),
-        CommandCheck("dependency-boundaries", _python_module("mediapipeline.tools.dev.check_dependency_boundaries")),
-        CommandCheck("architecture-guardrails", _python_module("mediapipeline.tools.dev.check_architecture_guardrails")),
-        CommandCheck("naming-lint", _python_module("mediapipeline.tools.lint_naming")),
-        CommandCheck("god-file-guard", _python_module("mediapipeline.tools.dev.check_godfiles")),
-        CommandCheck("marketecture-guard", _python_module("mediapipeline.tools.dev.check_marketecture")),
-        CommandCheck("risky-file-registry", _python_module("mediapipeline.tools.dev.check_risky_file_registry")),
+        CommandCheck(check.id, _python_module(check.module, *check.arguments))
+        for check in audit_checks.suite_checks("ai-guardrail")
     ]
     if mode == "preflight":
         return common
@@ -107,16 +95,14 @@ def git_status_summary() -> CheckResult:
             cwd=REPO_ROOT,
             check=True,
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
         ).stdout.strip()
         status = subprocess.run(
             ["git", "status", "--short"],
             cwd=REPO_ROOT,
             check=True,
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
         ).stdout.strip()
     except (OSError, subprocess.CalledProcessError) as exc:
         return CheckResult("git-status", False, 2, str(exc), required=True)
@@ -134,8 +120,7 @@ def git_status_paths() -> list[str]:
             cwd=REPO_ROOT,
             check=True,
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
         )
     except (OSError, subprocess.CalledProcessError):
         return []

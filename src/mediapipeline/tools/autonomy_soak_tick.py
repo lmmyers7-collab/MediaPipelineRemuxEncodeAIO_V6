@@ -3,9 +3,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from mediapipeline.core.diagnostics.autonomy_health import (
     autonomy_health_payload,
@@ -167,7 +168,7 @@ def record_soak_tick_history(
 ) -> dict[str, Any]:
     history_path = _tick_history_path(resolved)
     limit = _bounded_tick_record_limit(max_records)
-    recorded_at = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    recorded_at = (now or datetime.now(UTC)).astimezone(UTC)
     record = _tick_record_from_payload(tick_payload, recorded_at)
     if history_path is None:
         return _tick_history_write_result(

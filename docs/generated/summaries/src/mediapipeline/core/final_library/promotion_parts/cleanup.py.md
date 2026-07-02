@@ -3,9 +3,9 @@ file: src/mediapipeline/core/final_library/promotion_parts/cleanup.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: final_library
-last_modified: 2026-05-30
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: ec18863b0968c2cef5401a001e1752f8cdb305648251e337c8bd15fd9538c328
+sha256: f271c1205d10441813fcf4cc51791ed811864a21431d91b272ee3819055e6546
 ---
 # `src/mediapipeline/core/final_library/promotion_parts/cleanup.py`
 

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/settings_policy.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-29
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: ee1f2bda8448ccdcc281a390cfb95440f650b83e088044a338af8c970614f54e
+sha256: c1d151f19f44e1662d1e0b38e541522512bce186da5d515ca968cc5c3bee6139
 ---
 # `src/mediapipeline/core/config/settings_policy.py`
 

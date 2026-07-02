@@ -16,7 +16,7 @@ from fnmatch import fnmatchcase
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
-from typing import Callable, Iterable
+from collections.abc import Callable, Iterable
 
 
 REPO_ROOT = find_repo_root(Path(__file__))
@@ -237,8 +237,7 @@ def _git_ls_files(*, include_untracked: bool = False) -> list[str]:
             cwd=REPO_ROOT,
             check=True,
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
         )
     except FileNotFoundError:
         # git is not installed; fall back to a filesystem scan so the check still runs.

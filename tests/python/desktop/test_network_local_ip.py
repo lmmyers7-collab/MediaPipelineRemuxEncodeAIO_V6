@@ -40,7 +40,7 @@ class LocalIpPolicyTests(unittest.TestCase):
 
     def test_primary_local_ip_falls_back_when_udp_detection_fails(self) -> None:
         class FailingSocket:
-            def __enter__(self) -> "FailingSocket":
+            def __enter__(self) -> FailingSocket:
                 return self
 
             def __exit__(self, *_args: object) -> None:

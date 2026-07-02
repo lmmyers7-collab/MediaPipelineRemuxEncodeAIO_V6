@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import sys
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Literal, get_args, get_origin
 
@@ -206,7 +206,7 @@ class StageContractTests(unittest.TestCase):
         self.assertEqual(enabled_mutation_stages, [StageName.ingest])
 
     def test_stage_result_requires_data_or_structured_error(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         ok = StageResult.model_validate(
             {
                 "stage": "decide",

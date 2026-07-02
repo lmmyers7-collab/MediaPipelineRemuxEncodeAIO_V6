@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0701-024",
+  "title": "Allow rerun pending publish preview",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-01",
+  "date_completed": "2026-07-01",
+  "summary": "CSV rerun preview and start now allow the batch-level pending-publish destination when CSV rows do not explicitly request unsafe legacy row modes.",
+  "reason": "The Launch Review & Start flow was blocked for a normal audit priority CSV when Destination was pending publish, even though collision and original handling resolved to safe auto values. The backend preview incorrectly treated the batch destination as an unsafe row-level return_mode override.",
+  "affected_areas": [
+    "code",
+    "generated",
+    "tests"
+  ],
+  "behavior_before": "Selecting Destination=pending publish caused rows without return_mode columns to inherit return_mode=pending_publish and be marked blocked as source-mutating or in-place, disabling Review & Start.",
+  "behavior_after": "Rows without explicit legacy mode overrides remain executable under a pending-publish batch destination; explicit unsafe CSV row overrides still block preview/start.",
+  "files_touched": [
+    "docs/generated/summaries/src/mediapipeline/core/processes/rerun_policy.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/rerun_preview.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_process_launch.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_facade_process_rerun_policy.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_rerun_csv_preview.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0701-024.json",
+    "src/mediapipeline/core/processes/rerun_policy.py",
+    "src/mediapipeline/core/processes/rerun_preview.py",
+    "tests/python/desktop/test_application_facade_process_launch.py",
+    "tests/python/desktop/test_facade_process_rerun_policy.py",
+    "tests/python/desktop/test_rerun_csv_preview.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_rerun_csv_preview.py::RerunCsvPreviewTests.test_pending_publish_destination_does_not_block_rows_without_legacy_override",
+    "tests/python/desktop/test_application_facade_process_launch.py::ProcessLaunchTests.test_rerun_start_uses_existing_service_launch_path pending-publish assertion",
+    "tests/python/desktop/test_facade_process_rerun_policy.py::RerunLaunchPolicyTests.test_lifecycle_defaults_aliases_and_confirmations_are_explicit pending-publish assertion"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_facade_process_rerun_policy tests.python.desktop.test_rerun_csv_preview tests.python.desktop.test_application_facade_process_launch -q -> passed, 49 tests",
+    "Direct preview check for E:/Videos/Scratch/AuditReports/audit_summary_20260629_211102.priority.csv with destination_mode=pending_publish -> status=ready, safe_modes=True, blocked_rows=0, blocked_mode_rows=0, enabled_rows=943"
+  ],
+  "rollback_plan": "Revert the rerun_policy.py and rerun_preview.py changes plus the focused regression tests and refreshed summaries to restore prior preview blocking behavior.",
+  "related_changes": [],
+  "notes": "Python impact: changes are limited to CSV rerun request normalization and preview classification. No PowerShell media engine behavior changed; explicit row-level source mutation/in-place overrides remain blocked before launch."
+}

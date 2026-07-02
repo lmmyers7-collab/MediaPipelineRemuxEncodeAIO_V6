@@ -12,7 +12,6 @@ from typing import Any
 
 from .command_journal_policy import (
     COMMAND_HISTORY_SCHEMA_VERSION,
-    COMMAND_RESULT_SCHEMA_VERSION,
     command_history_mapping,
     is_command_result_payload,
     scalar_text,

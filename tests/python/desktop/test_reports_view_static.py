@@ -654,7 +654,6 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn("renderAuditControls,", source)
 
     def test_reports_ia_refresh_surface_is_discoverable_without_new_overview_tab(self) -> None:
-        source = REPORTS_VIEW.read_text(encoding="utf-8")
         triage_source = REPORTS_TRIAGE.read_text(encoding="utf-8")
         html = REPORTS_PAGE.read_text(encoding="utf-8")
         styles = _read_component_styles()
@@ -684,7 +683,6 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertNotIn('data-panel-type="evidence"', audit_progress_open_tag)
 
     def test_reports_filters_and_row_owner_context_are_static_guarded(self) -> None:
-        source = REPORTS_VIEW.read_text(encoding="utf-8")
         shared_source = REPORTS_SHARED.read_text(encoding="utf-8")
         shell_source = REPORTS_SHELL.read_text(encoding="utf-8")
         failure_model_source = REPORTS_FAILURE_MODEL.read_text(encoding="utf-8")
@@ -744,7 +742,6 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn("warningRows.length ? \"Review\" : \"Ready\"", triage_source)
 
     def test_failure_review_board_uses_tile_summary_with_detail_fallback(self) -> None:
-        source = REPORTS_VIEW.read_text(encoding="utf-8")
         failure_model_source = REPORTS_FAILURE_MODEL.read_text(encoding="utf-8")
         failure_view_source = REPORTS_FAILURE_VIEW.read_text(encoding="utf-8")
         html = REPORTS_PAGE.read_text(encoding="utf-8")

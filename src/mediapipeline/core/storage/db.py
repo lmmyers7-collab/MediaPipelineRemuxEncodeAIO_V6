@@ -14,7 +14,7 @@ import threading
 from collections.abc import Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -35,7 +35,7 @@ class StateDbIncompatibleVersion(StateDbError):
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _json_text(value: Mapping[str, Any] | list[Any] | None) -> str:
@@ -53,7 +53,7 @@ def _scalar_text(value: Any, *, limit: int = 500) -> str:
     return text[: max(0, limit - 3)] + "..."
 
 
-def open_state_db(root: Path | str) -> "StateDb":
+def open_state_db(root: Path | str) -> StateDb:
     """Open the SQLite mirror under a runtime state root."""
 
     db = StateDb(Path(root) / STATE_DB_FILENAME)
@@ -81,7 +81,7 @@ def maybe_maintain_state_db(
     wal_path = db_path.with_name(f"{db_path.name}-wal")
     shm_path = db_path.with_name(f"{db_path.name}-shm")
     marker_path = root_path / STATE_DB_MAINTENANCE_MARKER_FILENAME
-    checked_at_dt = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    checked_at_dt = (now or datetime.now(UTC)).astimezone(UTC)
     checked_at = checked_at_dt.isoformat()
     interval = max(60, int(interval_seconds or DEFAULT_STATE_DB_MAINTENANCE_INTERVAL_SECONDS))
     wal_threshold = max(1_048_576, int(wal_review_bytes or DEFAULT_STATE_DB_WAL_REVIEW_BYTES))
@@ -163,8 +163,8 @@ def _timestamp_age_seconds(value: str, now: datetime) -> int | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    age = (now - parsed.astimezone(timezone.utc)).total_seconds()
+        parsed = parsed.replace(tzinfo=UTC)
+    age = (now - parsed.astimezone(UTC)).total_seconds()
     return max(0, int(age))
 
 

@@ -50,3 +50,17 @@ def default_rerun_script_path_for_roots(app_root: Path, workspace_root: Path) ->
         workspace_root / "ops" / "pipeline" / "entrypoints" / "Invoke-RerunCsv.ps1",
         app_root / "entrypoints" / "Invoke-RerunCsv.ps1",
     )
+
+
+__all__ = [
+    "CONFIG_CANONICAL_NAME",
+    "CONFIG_LEGACY_NAME",
+    "PER_USER_APP_DIR_NAME",
+    "default_audit_script_path_for_roots",
+    "default_config_path_for_roots",
+    "default_pipeline_path_for_roots",
+    "default_rerun_script_path_for_roots",
+    "first_existing",
+    "user_config_candidates",
+    "user_config_dir",
+]

@@ -196,7 +196,7 @@ def resolve_effective_library_settings(
 def library_override_state(library_profile: Mapping[str, Any]) -> dict[str, dict[str, bool]]:
     overrides = coerce_library_overrides(library_profile)
     return {
-        group: {key: True for key in values.keys()}
+        group: dict.fromkeys(values.keys(), True)
         for group, values in overrides.items()
     }
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Literal, get_args, get_origin
 
@@ -128,7 +128,7 @@ class StageContractTests(unittest.TestCase):
         self.assertTrue(STAGE_REGISTRY[StageName.ingest].enabled_in_entrypoint)
 
     def test_stage_result_requires_structured_error_on_failure(self) -> None:
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         ok = StageResult.model_validate(
             {
                 "stage": "decide",

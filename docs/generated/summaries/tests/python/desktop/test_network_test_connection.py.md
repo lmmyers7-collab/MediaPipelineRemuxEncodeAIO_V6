@@ -3,9 +3,9 @@ file: tests/python/desktop/test_network_test_connection.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-29
+last_modified: 2026-07-02
 last_reviewed: 2026-06-14
-sha256: e3948efae8280759d6c9aa800440a59fcd615d2eae49fcaaaf9377c754c1ae84
+sha256: c89ea138e1d3bfe955bdc05a33b1c34e53b16429f4818a750015f270b40c718c
 ---
 # `tests/python/desktop/test_network_test_connection.py`
 

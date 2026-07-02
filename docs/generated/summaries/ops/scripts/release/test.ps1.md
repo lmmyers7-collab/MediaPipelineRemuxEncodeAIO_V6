@@ -3,9 +3,9 @@ file: ops/scripts/release/test.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-26
+last_modified: 2026-07-01
 last_reviewed: 2026-06-04
-sha256: d194e15ad8277674567ecb9896d3c08e8cb4cdd6fa5fe92a750498078e107249
+sha256: b5b4148f9f97b135f920d990a8dde935fcaa5924fb62c9a8f2d92fa23e583b4d
 ---
 # `ops/scripts/release/test.ps1`
 

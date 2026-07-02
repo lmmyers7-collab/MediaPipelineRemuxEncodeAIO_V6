@@ -6,7 +6,7 @@ import json
 import logging
 import traceback
 from collections.abc import Mapping, MutableMapping
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from typing import Any, TextIO
 
 REDACTED = "[redacted]"
@@ -15,7 +15,7 @@ _JSON_LOGGING_HANDLER_MARKER = "_mediapipeline_json_logging_handler"
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _redact(value: Any) -> Any:

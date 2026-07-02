@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable, Mapping
+from typing import Any
+from collections.abc import Callable, Iterable, Mapping
 
 from mediapipeline.core.queue.policy_parts.rules import EMPTY_QUEUE_SNAPSHOT_WARNING
 from mediapipeline.core.queue.policy_parts.file_override_rows import _annotate_queue_file_override

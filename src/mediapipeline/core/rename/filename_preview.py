@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import re
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Any, Callable, Mapping
+from typing import Any
+from collections.abc import Callable, Mapping
 
 from mediapipeline.core.files.constants import MEDIA_FILE_SUFFIXES
 from mediapipeline.core.rename.cleaning_policy import (

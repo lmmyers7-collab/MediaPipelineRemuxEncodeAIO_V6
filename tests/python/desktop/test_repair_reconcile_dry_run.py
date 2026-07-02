@@ -230,6 +230,67 @@ def _pending_fixture(
     }
 
 
+def _legacy_csv_rerun_pending_fixture(root: Path) -> tuple[object, dict[str, Path]]:
+    pending_root = root / "PendingServerPush"
+    source = root / "Source" / "The Crow (1994).mkv"
+    output = root / "Outsource" / "Movies" / "The Crow (1994)" / "The Crow (1994).mkv"
+    payload = pending_root / "The Crow (1994).mkv"
+    manifest = pending_root / "The Crow (1994).manifest.json"
+    pending_root.mkdir(parents=True, exist_ok=True)
+    source.parent.mkdir(parents=True, exist_ok=True)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(b"source-bytes")
+    payload.write_bytes(b"pending-payload")
+    manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": PENDING_PUSH_MANIFEST_SCHEMA_VERSION,
+                "manifest_state": "parked",
+                "created_at": "2026-07-02T00:55:27.4517875-04:00",
+                "route": "csv_rerun",
+                "route_reason_code": "rerun_csv_pending_publish",
+                "route_reason": "CSV rerun verified output promoted into Pending Publish.",
+                "media_type": "Movie",
+                "local_file": str(payload),
+                "original_local_file": str(source),
+                "parked_file": str(payload),
+                "server_out": str(output),
+                "source_path": str(source),
+                "source_size": source.stat().st_size,
+                "source_mtime_utc": "2026-04-13T17:59:14.1310830Z",
+                "source_identity": "rerun_csv:test-source",
+                "source_identity_v2": "rerun_csv:test-source",
+                "source_identity_v2_algorithm": "rerun_csv_v2",
+                "output_size": payload.stat().st_size,
+                "publish_mode": "pending_publish",
+                "sidecars": [],
+                "subtitle_tracks": [],
+                "subtitle_failures": [],
+                "embedded_subtitle_tracks": [],
+                "original_subtitles_preserved": True,
+                "drop_ass_after_conversion": False,
+                "conversion_failed": False,
+                "source": {
+                    "rerun_audit_issue_codes": "missing-sidecar",
+                    "rerun_batch_id": "rerun_20260701_200458_29425fa3",
+                },
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    resolved = _resolved(root)
+    resolved.pending_push_path = pending_root
+    resolved.state_root = root / "State"
+    return resolved, {
+        "source": source,
+        "output": output,
+        "pending_payload": payload,
+        "pending_manifest": manifest,
+        "pending_root": pending_root,
+    }
+
+
 def _write_active_job_record(path: Path, *, pid: int | None = None, status: str = "active") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -475,6 +536,40 @@ class RepairReconcileDryRunTests(unittest.TestCase):
         self.assertEqual(proposed["output_size"], payload_size)
         for field in PENDING_PUSH_MANIFEST_REQUIRED_ARRAY_FIELDS:
             self.assertIn(field, proposed)
+
+    def test_pending_manifest_repair_dry_run_normalizes_legacy_csv_rerun_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved, files = _legacy_csv_rerun_pending_fixture(root)
+            before = {name: _file_state(path) for name, path in files.items() if path.is_file()}
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+            preview = facade.get_pending_publish_preview(resolved).to_mapping()
+            target = next(row for row in preview["rows"] if row.get("diagnostic_status") == "invalid_manifest")
+
+            result = facade.plan_repair_reconcile_dry_run(
+                resolved,
+                candidate_command="pending_publish.repair_manifest",
+                request={"scope": "selected", "row_key": target["row_key"], "reason": "normalize csv rerun"},
+            ).to_mapping()
+            after = {name: _file_state(path) for name, path in files.items() if path.is_file()}
+
+        data = result["data"]
+        _assert_dry_run_shape(self, data, "pending_publish.repair_manifest")
+        self.assertEqual(before, after)
+        self.assertTrue(data["safe_to_apply"])
+        row = data["diff_summary"]["rows"][0]
+        self.assertEqual(row["status"], "candidate")
+        self.assertIn("pipeline_version", row["changed_fields"])
+        self.assertIn("publish_transaction_id", row["changed_fields"])
+        self.assertIn("parked_at", row["changed_fields"])
+        self.assertIn("sidecar_files", row["changed_fields"])
+        proposed = row["proposed_manifest"]
+        PendingPushManifest.from_mapping(proposed)
+        self.assertEqual(proposed["pipeline_version"], "csv_rerun_repair.v1")
+        self.assertTrue(proposed["publish_transaction_id"].startswith("repair-csv-rerun-"))
+        self.assertEqual(proposed["parked_at"], "2026-07-02T00:55:27.4517875-04:00")
+        self.assertEqual(proposed["sidecar_files"], [])
+        self.assertEqual(proposed["tx3g_srt_tracks"], [])
 
     def test_pending_manifest_repair_dry_run_blocks_incomplete_backend_proposal(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

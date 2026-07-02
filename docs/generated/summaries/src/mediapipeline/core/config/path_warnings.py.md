@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/path_warnings.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-12
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 05ffb5b881165ee719b5331d4d065567b3251760a60d6c335d480ad0bbb71b72
+sha256: fbe98ff2252d12798a042615b25857f3d6b5d30d170aa4d5b331935fe44cc269
 ---
 # `src/mediapipeline/core/config/path_warnings.py`
 

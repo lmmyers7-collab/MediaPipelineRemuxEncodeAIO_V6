@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -14,7 +14,6 @@ from mediapipeline.core.completed.contracts import CompletedJobRecord
 from .policy import build_metrics_payload
 from .sources import (
     load_metrics_backfill_records,
-    metrics_source_state_payload,
     run_metrics_sidecar_backfill,
     update_metrics_sources,
 )
@@ -23,7 +22,7 @@ if TYPE_CHECKING:
     from mediapipeline.core.kernel.dto_commands import CommandResult
 
 
-def _command_result(**fields: Any) -> "CommandResult":
+def _command_result(**fields: Any) -> CommandResult:
     from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**fields)
@@ -52,7 +51,7 @@ class MetricsFacadeMixin:
             warnings=warnings,
         )
 
-    def save_metrics_sources(self, resolved: ResolvedPaths, request: dict[str, Any]) -> "CommandResult":
+    def save_metrics_sources(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
         lock = getattr(self, "_metrics_state_lock", None)
         context = lock if lock is not None else nullcontext()
         with context:
@@ -68,7 +67,7 @@ class MetricsFacadeMixin:
             data=dict(result.get("data") or {}),
         )
 
-    def run_metrics_backfill(self, resolved: ResolvedPaths, request: dict[str, Any]) -> "CommandResult":
+    def run_metrics_backfill(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
         lock = getattr(self, "_metrics_state_lock", None)
         context = lock if lock is not None else nullcontext()
         with context:
@@ -97,7 +96,7 @@ class MetricsFacadeMixin:
                 continue
             seen.add(key)
             merged.append(record)
-        oldest = datetime.min.replace(tzinfo=timezone.utc)
+        oldest = datetime.min.replace(tzinfo=UTC)
         return sorted(merged, key=lambda item: item.completed_at or oldest, reverse=True)
 
     def _metrics_record_identity(self, record: CompletedJobRecord) -> tuple[str, ...]:

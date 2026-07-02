@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/dev/scan_archive_doc_candidates.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-19
+last_modified: 2026-07-02
 last_reviewed: 2026-06-16
-sha256: e192f482d672062e79e0e5ca6e30cf16f0c2f38ea6018308061ecb4637cf9106
+sha256: aaf0b5f28da2b5be6de33feb3099468f866918630bb394e8faf1ebdd71ba65fb
 ---
 # `src/mediapipeline/tools/dev/scan_archive_doc_candidates.py`
 

@@ -83,13 +83,7 @@ def render_lifecycle_map() -> str:
     lines.append("|---|---|---|---|---|")
     for transition in LIFECYCLE_TRANSITIONS:
         lines.append(
-            "| `{}` | `{}` | {} | {} | {} |".format(
-                transition.source,
-                transition.target,
-                _cell(transition.trigger),
-                _cell(transition.guard),
-                _cell(transition.evidence),
-            )
+            f"| `{transition.source}` | `{transition.target}` | {_cell(transition.trigger)} | {_cell(transition.guard)} | {_cell(transition.evidence)} |"
         )
     lines.append("")
     lines.append("## Validation")

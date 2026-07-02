@@ -52,9 +52,9 @@ graph LR
   verify["verify"]
   watch["watch"]
   webview["webview"]
-  tests -->|789| api
+  tests -->|793| api
   tests -->|63| config
-  scripts -->|45| api
+  scripts -->|47| api
   tests -->|36| processes
   observability -->|31| status
   process -->|29| processes
@@ -62,7 +62,7 @@ graph LR
   contracts -->|26| api
   tests -->|25| rename
   tests -->|24| queue
-  tests -->|20| status
+  tests -->|21| status
   tests -->|16| publish
   application -->|14| kernel
   process -->|14| kernel
@@ -94,6 +94,7 @@ graph LR
   publish -->|7| kernel
   tests -->|7| application
   tests -->|7| decide
+  tests -->|7| storage
   unknown -->|7| api
   api -->|6| config
   api -->|6| rename
@@ -106,7 +107,6 @@ graph LR
   tests -->|6| failures
   tests -->|6| final_library
   tests -->|6| folder_policy
-  tests -->|6| storage
   application -->|5| api
   completed -->|5| paths
   failures -->|5| paths
@@ -176,7 +176,6 @@ graph LR
   api -->|1| network
   api -->|1| publish
   api -->|1| repair_reconcile
-  api -->|1| status
   api -->|1| ui_preferences
   api -->|1| validation
   application -->|1| network
@@ -231,9 +230,9 @@ graph LR
 
 | From | To | Edges |
 |---|---|---|
-| tests | api | 789 |
+| tests | api | 793 |
 | tests | config | 63 |
-| scripts | api | 45 |
+| scripts | api | 47 |
 | tests | processes | 36 |
 | observability | status | 31 |
 | process | processes | 29 |
@@ -241,7 +240,7 @@ graph LR
 | contracts | api | 26 |
 | tests | rename | 25 |
 | tests | queue | 24 |
-| tests | status | 20 |
+| tests | status | 21 |
 | tests | publish | 16 |
 | application | kernel | 14 |
 | process | kernel | 14 |
@@ -273,6 +272,7 @@ graph LR
 | publish | kernel | 7 |
 | tests | application | 7 |
 | tests | decide | 7 |
+| tests | storage | 7 |
 | unknown | api | 7 |
 | api | config | 6 |
 | api | rename | 6 |
@@ -285,7 +285,6 @@ graph LR
 | tests | failures | 6 |
 | tests | final_library | 6 |
 | tests | folder_policy | 6 |
-| tests | storage | 6 |
 | application | api | 5 |
 | completed | paths | 5 |
 | failures | paths | 5 |
@@ -355,7 +354,6 @@ graph LR
 | api | network | 1 |
 | api | publish | 1 |
 | api | repair_reconcile | 1 |
-| api | status | 1 |
 | api | ui_preferences | 1 |
 | api | validation | 1 |
 | application | network | 1 |

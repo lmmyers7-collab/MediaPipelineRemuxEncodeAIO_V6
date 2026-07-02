@@ -27,7 +27,7 @@ _log = logging.getLogger("mediapipeline.desktop.network.coordinator")
 _COORDINATOR_PROTOCOL_VERSION = 2
 
 
-def _coordinator_health_heartbeat_timeout_mins(disp: "CoordinatorDispatcher") -> float:
+def _coordinator_health_heartbeat_timeout_mins(disp: CoordinatorDispatcher) -> float:
     try:
         return disp._heartbeat_timeout_mins()
     except Exception as exc:
@@ -47,7 +47,7 @@ class _CoordServer(http.server.ThreadingHTTPServer):
     allow_reuse_address = True
 
     # Set by the dispatcher after server creation.
-    dispatcher: "CoordinatorDispatcher"
+    dispatcher: CoordinatorDispatcher
 
 
 class _CoordHandler(http.server.BaseHTTPRequestHandler):
@@ -66,7 +66,7 @@ class _CoordHandler(http.server.BaseHTTPRequestHandler):
         pass
 
     @property
-    def _disp(self) -> "CoordinatorDispatcher":
+    def _disp(self) -> CoordinatorDispatcher:
         return self.server.dispatcher
 
     def _send_json(self, data: dict[str, Any], status: int = 200) -> None:

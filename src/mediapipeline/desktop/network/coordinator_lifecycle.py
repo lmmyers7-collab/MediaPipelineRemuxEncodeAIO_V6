@@ -69,7 +69,7 @@ class CoordinatorLifecycleMixin:
         manually even when mDNS is unavailable.
         """
         try:
-            from .mdns import CoordinatorAdvertiser, ZeroconfUnavailable  # noqa: PLC0415
+            from .mdns import CoordinatorAdvertiser  # noqa: PLC0415
             adv = CoordinatorAdvertiser(port=self._coord_port(), bind_address=self._coord_bind_address())
             if adv.start():
                 self._mdns = adv

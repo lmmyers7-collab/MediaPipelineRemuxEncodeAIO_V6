@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime
 import re
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 FFMPEG_PROGRESS_SCHEMA_VERSION = "desktop_ffmpeg_progress.v1"
 

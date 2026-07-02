@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/audit_policy.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-29
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 736cd263c8ecc79d2684fabf9005dfdfb7f23cbb7a9bcad7c214eeffbdca49d1
+sha256: 4077eef4e0c7c3462ccba3b08a46a8ba2fb125b7be2870d75c9733d2272fec47
 ---
 # `src/mediapipeline/core/processes/audit_policy.py`
 

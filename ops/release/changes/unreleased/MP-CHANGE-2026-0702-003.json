@@ -1,0 +1,32 @@
+{
+  "id": "MP-CHANGE-2026-0702-003",
+  "title": "Clean Ruff bugbear duplicate set audit finding",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "test",
+  "risk_level": "low",
+  "date_started": "2026-07-02",
+  "date_completed": "2026-07-02",
+  "summary": "Removed duplicate path-key literals from the WebView frontend mutation-boundary test set after the Ruff B033 candidate audit flagged them.",
+  "reason": "The duplicate set entries were a narrow, high-confidence bugbear cleanup and did not require broad lint-rule churn.",
+  "affected_areas": [
+    "generated",
+    "tests"
+  ],
+  "behavior_before": "The forbidden path-key set repeated source_path and output_path, creating Ruff B033 findings during the non-blocking bugbear audit.",
+  "behavior_after": "The set contains each forbidden path key once while preserving the same mutation-boundary assertions.",
+  "files_touched": [
+    "docs/generated/summaries/tests/webview/test_webview_frontend_mutation_boundary.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0702-003.json",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_frontend_mutation_boundary -q (passed: 23 tests)",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_python_lint (passed)",
+    "apps/desktop/runtime/Python/python.exe -m ruff check --select B,C4,UP src tests (expected audit failure remains: 486 findings)"
+  ],
+  "rollback_plan": "Restore the removed duplicate set literals and regenerate the test summary if this cleanup must be backed out.",
+  "related_changes": [],
+  "notes": "Removed duplicate forbidden path key literals reported by Ruff B033 audit.\nRefreshed generated summary after targeted test cleanup."
+}

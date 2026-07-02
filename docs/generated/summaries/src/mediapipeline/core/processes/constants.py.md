@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/constants.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-29
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 055e082fd458017b5c2273d2ee0210cc9e8102234a2d33898579441637b0284a
+sha256: da936665468ff22339a50b87631f61ebbc9637edd9c0fe4e71b3e6200cde043f
 ---
 # `src/mediapipeline/core/processes/constants.py`
 

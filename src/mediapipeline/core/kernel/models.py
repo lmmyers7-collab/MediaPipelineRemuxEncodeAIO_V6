@@ -9,3 +9,15 @@ CompletedJobRecord = import_module("mediapipeline.core.completed.contracts").Com
 FailureRecord = import_module("mediapipeline.core.failures.contracts").FailureRecord
 QueueRecord = import_module("mediapipeline.core.queue.contracts").QueueRecord
 ResolvedPaths = import_module("mediapipeline.core.paths.contracts").ResolvedPaths
+
+__all__ = [
+    "AuditRecord",
+    "CompletedJobRecord",
+    "ConfigPreview",
+    "ConfigSaveResult",
+    "FailureRecord",
+    "QueueRecord",
+    "ResolvedPaths",
+    "Snapshot",
+    "TelemetrySnapshot",
+]

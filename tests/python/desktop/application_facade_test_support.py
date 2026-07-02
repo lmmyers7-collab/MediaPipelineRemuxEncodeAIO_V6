@@ -1,46 +1,23 @@
 from __future__ import annotations
 
 import csv
-from datetime import datetime, timedelta
-import io
+from datetime import datetime
 import json
 import logging
-import os
 import re
 import sys
 import tempfile
-import threading
-import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
 from mediapipeline.tools.paths import find_repo_root
-from urllib.parse import quote
-from unittest.mock import patch
 
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.api import LocalApiServer
-from mediapipeline.desktop.api.command_journal import CommandJournal
-from mediapipeline.core.api.commands_process import LocalApiProcessCommandPayloadMixin
-from mediapipeline.desktop.api.contract import LOCAL_API_ROUTE_CONTRACT
-from mediapipeline.desktop.api.contract_command import LOCAL_API_COMMAND_ROUTE_CONTRACT
-from mediapipeline.desktop.api.contract_read import LOCAL_API_READ_ROUTE_CONTRACT
-from mediapipeline.desktop.api.handler import build_local_api_handler_class
-from mediapipeline.desktop.api.http_helpers import (
-    content_type_for,
-    query_bool,
-    query_int,
-    query_value,
-    read_json_body,
-    request_authorized,
-    resolve_asset_path,
-)
-from mediapipeline.desktop.api.routes import GET_ROUTE_HANDLERS, POST_ROUTE_HANDLERS
-from mediapipeline.desktop.api.static_files import local_api_bootstrap, read_static_asset, render_index
-from mediapipeline.desktop.application import CommandResult, MediaPipelineApplicationFacade
-from mediapipeline.desktop.local_api_main import BOOTSTRAP_SCHEMA_VERSION, bootstrap_payload, build_backend
+from mediapipeline.desktop.api.static_files import render_index
+from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import AuditRecord, ConfigSaveResult, FailureRecord, ResolvedPaths, Snapshot, TelemetrySnapshot
 from mediapipeline.core.schedule.app_state import AppStateScheduleServiceMixin
 from mediapipeline.core.completed.service import CompletedJobsServiceMixin
@@ -48,7 +25,6 @@ from mediapipeline.core.publish.pending_service import PendingPublishServiceMixi
 from mediapipeline.core.processes.lifecycle import ProcessLifecycleServiceMixin
 from mediapipeline.core.queue.service import QueueServiceMixin
 from mediapipeline.core.rename.service import RenameServiceMixin
-from mediapipeline.desktop.subprocess_runner import CapturedCommandResult
 from tests.css_import_resolver import resolve_css_imports
 
 

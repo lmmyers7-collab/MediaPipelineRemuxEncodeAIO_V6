@@ -3,9 +3,9 @@ file: src/mediapipeline/core/observability/artifact_freshness.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-05-28
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 04718810acb66acd1a642b00c43dfd6dd98efa0ceae74d9f939f28824e51e921
+sha256: a43c27b9509574ca2eaa156ce83b2f3b97d1c1ee2615902700ece3c60b0fc789
 ---
 # `src/mediapipeline/core/observability/artifact_freshness.py`
 

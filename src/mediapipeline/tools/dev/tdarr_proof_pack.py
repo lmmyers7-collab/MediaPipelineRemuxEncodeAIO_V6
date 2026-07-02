@@ -8,9 +8,10 @@ import os
 import shutil
 import stat
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any
+from collections.abc import Sequence
 
 from mediapipeline.core.diagnostics.tdarr_matrix_proof import (
     TDARR_PROOF_PACK_SCHEMA_VERSION,
@@ -35,7 +36,7 @@ ARCHIVE_MANIFEST_NAME = "full_matrix_archive_manifest.json"
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    return datetime.now(UTC).replace(microsecond=0).isoformat()
 
 
 def resolve_path(value: str | Path, *, repo_root: Path = REPO_ROOT) -> Path:

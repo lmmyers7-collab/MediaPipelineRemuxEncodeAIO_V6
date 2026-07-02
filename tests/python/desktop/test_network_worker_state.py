@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 import json
 import os
 import sys
@@ -97,7 +97,7 @@ class NetworkWorkerStateTests(unittest.TestCase):
             app_state = state_root / "App"
             queued_dir = app_state / "pending_done_reports"
             queued_dir.mkdir(parents=True)
-            now = datetime(2026, 6, 18, 12, 0, tzinfo=timezone.utc)
+            now = datetime(2026, 6, 18, 12, 0, tzinfo=UTC)
             report_path = queued_dir / "job-1.json"
             report_path.write_text(json.dumps({"job_id": "job-1", "success": True}), encoding="utf-8")
             old_mtime = (now - timedelta(hours=3)).timestamp()

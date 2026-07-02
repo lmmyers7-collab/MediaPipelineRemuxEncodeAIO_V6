@@ -145,8 +145,7 @@ def _run_launch_command_buttons_smoke() -> dict[str, object]:
         result = subprocess.run(
             [node, str(runner)],
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=20,
             check=False,
         )
@@ -216,8 +215,7 @@ def _run_launch_start_request_smoke() -> dict[str, object]:
         result = subprocess.run(
             [node, str(runner)],
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=20,
             check=False,
         )
@@ -415,6 +413,11 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
             active: item.active,
             reason: item.inactive_reason || item.scope_reason,
           }}));
+          const emptyCsvDefaultFetchUrls = emptyCsvFetchUrls.slice();
+          const encoderRefreshStart = emptyCsvFetchUrls.length;
+          await emptyCsvModule.refreshLaunchBackendPreflightEncoderCapability();
+          const encoderRefreshFetchUrls = emptyCsvFetchUrls.slice(encoderRefreshStart);
+          const encoderRefreshInfo = emptyCsvModule.getLastLaunchBackendPreflightRefreshInfo();
           const poisonPayloads = [
             {{
               target: "pipeline",
@@ -454,7 +457,24 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
               _frontend_preflight_included: true,
               status: "blocked",
               can_request_start: false,
-              checks: [{{ key: "config_identity", label: "Active config identity", status: "blocked", evidence: "config is not verified", action: "Restore a verified operator PSD1." }}],
+              checks: [{{
+                key: "autonomy_health",
+                label: "Autonomy health gate",
+                status: "blocked",
+                evidence: "overall_status=blocked; can_start_new_work=no; blocker=autonomy_pending_manifest_untrusted; reason=Pending Publish manifest is not trusted: Current pending manifest contract invalid: pipeline_version is required and cannot be blank.",
+                action: "Open Pending Publish, select the blocked row, then run Recovery Plan or Repair Manifest dry-run. If none is available, inspect docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md.",
+                detail: [
+                  "row_key=pending-row-1",
+                  "manifest=C:/LocalBase/State/PendingServerPush/movie.manifest.json",
+                  "recovery_action=pending_publish_recovery_plan: Open Pending Publish Recovery Plan",
+                ],
+                recovery_actions: [{{
+                  kind: "pending_publish_recovery_plan",
+                  label: "Open Pending Publish Recovery Plan",
+                  route: "/api/pending-publish/recovery-plan",
+                  safe_next_step: "Review backend pending-publish recovery evidence before any drain, repair, rerun, or cleanup.",
+                }}],
+              }}],
             }},
           ];
           emptyCsvModule.renderLaunchBackendPreflight(alertPayloads);
@@ -475,10 +495,12 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
             stagedSummary,
             replacementRerunPreflight,
             manualKeepRerunPreflight,
-            emptyCsvFetchUrls,
+            emptyCsvFetchUrls: emptyCsvDefaultFetchUrls,
             emptyCsvLabels: emptyCsvRows.map((row) => row.targetLabel),
             emptyCsvStatusText: emptyCsvText["launch-backend-preflight-status"],
             emptyCsvRefreshInfo,
+            encoderRefreshFetchUrls,
+            encoderRefreshInfo,
             emptyCsvSummary,
             emptyCsvCandidates,
             poisonStatus: emptyCsvModule.launchBackendPreflightOverallStatus(poisonPayloads),
@@ -503,8 +525,7 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
         result = subprocess.run(
             [node, str(runner)],
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=20,
             check=False,
         )
@@ -552,8 +573,7 @@ def _run_launch_controller_state_smoke() -> dict[str, object]:
         result = subprocess.run(
             [node, str(runner)],
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=20,
             check=False,
         )
@@ -700,8 +720,7 @@ def _run_launch_compact_gate_smoke() -> dict[str, object]:
         result = subprocess.run(
             [node, str(runner)],
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=20,
             check=False,
         )
@@ -822,8 +841,7 @@ def _run_launch_readiness_recovery_smoke() -> dict[str, object]:
         result = subprocess.run(
             [node, str(runner)],
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=20,
             check=False,
         )
@@ -897,6 +915,7 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
 
         self.assertEqual(result["renderFetchCount"], 0)
         self.assertEqual(len(result["fetchUrls"]), 2)
+        self.assertFalse(any("refresh_encoder_capability_report=true" in item for item in result["fetchUrls"]))
         self.assertFalse(any("plan_only=true" in item for item in result["fetchUrls"]))
         self.assertFalse(any("dry_run=true" in item for item in result["fetchUrls"]))
         self.assertTrue(any("dry_run=false" in item for item in result["fetchUrls"]))
@@ -911,8 +930,8 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         self.assertIn("Hardware runtime proof: verified=0; skipped=1 (av1_nvenc); active unverified=1 (av1_nvenc).", result["stagedSummary"])
         self.assertIn("Active hardware encoders without runtime proof remain review-only: av1_nvenc.", result["stagedSummary"])
         self.assertIn("WebView does not enable hardware families", result["stagedSummary"])
-        self.assertIn("Pairing note: final-output replacement is paired with old-source hold after publish.", result["replacementRerunPreflight"])
-        self.assertIn("Pairing warning: final-output replacement is usually paired with Move old source to hold after publish.", result["manualKeepRerunPreflight"])
+        self.assertIn("Pairing note: final-output replacement is paired with original hold after publish.", result["replacementRerunPreflight"])
+        self.assertIn("Pairing warning: final-output replacement is usually paired with Move to original hold after publish.", result["manualKeepRerunPreflight"])
         self.assertEqual(len(result["emptyCsvFetchUrls"]), 1)
         self.assertIn("target=pipeline", result["emptyCsvFetchUrls"][0])
         self.assertFalse(any("target=rerun" in item for item in result["emptyCsvFetchUrls"]))
@@ -924,6 +943,11 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
             [item["key"] for item in result["emptyCsvRefreshInfo"]["skipped_targets"]],
             ["rerun-live"],
         )
+        self.assertEqual(result["emptyCsvRefreshInfo"]["refresh_encoder_capability_report_requested"], False)
+        self.assertEqual(len(result["encoderRefreshFetchUrls"]), 1)
+        self.assertIn("target=pipeline", result["encoderRefreshFetchUrls"][0])
+        self.assertIn("refresh_encoder_capability_report=true", result["encoderRefreshFetchUrls"][0])
+        self.assertEqual(result["encoderRefreshInfo"]["refresh_encoder_capability_report_requested"], True)
         self.assertIn("Pipeline backend preflight", result["emptyCsvSummary"])
         self.assertIn("Inactive targets skipped: CSV Rerun Start: CSV path is not staged.", result["emptyCsvSummary"])
         self.assertIn("Encoder activation evidence: active=1 (libaom-av1); available inactive=1 (av1_nvenc); activation unknown=0.", result["emptyCsvSummary"])
@@ -937,9 +961,12 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         self.assertEqual(result["poisonScopeLabel"], "Pipeline backend preflight")
         self.assertTrue(result["activeWorkAlertSuppressed"])
         self.assertIn("Pipeline launch blocked by backend preflight", result["blockedAlertText"])
-        self.assertIn("Active config identity", result["blockedAlertText"])
-        self.assertIn("config is not verified", result["blockedAlertText"])
-        self.assertIn("Restore a verified operator PSD1.", result["blockedAlertText"])
+        self.assertIn("What is wrong: Autonomy health gate is blocked", result["blockedAlertText"])
+        self.assertIn("pipeline_version is required and cannot be blank", result["blockedAlertText"])
+        self.assertIn("How to fix: Open Pending Publish", result["blockedAlertText"])
+        self.assertIn("STATE_FILE_SCHEMA_REFERENCE.md", result["blockedAlertText"])
+        self.assertIn("Backend detail: row_key=pending-row-1", result["blockedAlertText"])
+        self.assertIn("Recovery route: Open Pending Publish Recovery Plan at /api/pending-publish/recovery-plan", result["blockedAlertText"])
         self.assertEqual(result["blockedAlertState"], "blocked")
         self.assertEqual(result["blockedAlertRole"], "alert")
         self.assertEqual(result["blockedAlertLive"], "assertive")

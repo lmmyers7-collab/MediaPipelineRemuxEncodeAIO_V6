@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from mediapipeline.core.queue.file_overrides import FILE_OVERRIDE_BATCH_METADATA_KEY, resolve_file_override_match
 

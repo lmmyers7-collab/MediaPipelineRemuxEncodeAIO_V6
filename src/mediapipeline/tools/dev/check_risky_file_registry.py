@@ -68,8 +68,7 @@ def _git_paths() -> set[str]:
             cwd=REPO_ROOT,
             check=True,
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
         )
     except (OSError, subprocess.CalledProcessError):
         return set()
@@ -206,8 +205,7 @@ def changed_paths(*, staged: bool = False) -> list[str]:
             cwd=REPO_ROOT,
             check=True,
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
         )
     except (OSError, subprocess.CalledProcessError):
         return []

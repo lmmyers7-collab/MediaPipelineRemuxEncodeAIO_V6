@@ -60,6 +60,22 @@ These keys are valid backend metadata and config-contract keys, but they do not 
 | `StateDbMaintenanceIntervalSeconds` | SQLite mirror observability | Backend best-effort mirror maintenance interval; JSON state remains authoritative |
 | `StateDbWalReviewBytes` | SQLite mirror observability | Backend WAL review/maintenance threshold; JSON state remains authoritative |
 | `StateDbCompletedJobsMaxRows` | SQLite mirror observability | Completed-job mirror row bound; JSONL completed manifests remain authoritative |
+| `AutonomyPendingReviewSeconds` | Autonomy diagnostics policy | Backend-only pending-publish review threshold; no Settings builder control in this pass |
+| `AutonomyPendingBlockSeconds` | Autonomy diagnostics policy | Backend-only pending-publish block threshold; pending publish remains manifest-backed |
+| `AutonomyPendingRetryBlockCount` | Autonomy diagnostics policy | Backend-only pending-publish retry threshold; no frontend drain policy |
+| `AutonomyPendingTotalReviewBytes` | Autonomy diagnostics policy | Backend-only pending-publish byte review threshold |
+| `AutonomyPendingTotalBlockBytes` | Autonomy diagnostics policy | Backend-only pending-publish byte block threshold |
+| `AutonomyFailureOperatorRequiredBlockSeconds` | Autonomy diagnostics policy | Backend-only failure age block threshold |
+| `AutonomyFailureOperatorRequiredBlockCount` | Autonomy diagnostics policy | Backend-only failure count block threshold |
+| `AutonomyFailureInfrastructureBlockCount` | Autonomy diagnostics policy | Backend-only infrastructure failure count block threshold |
+| `AutonomyActiveJobTimeoutGraceSeconds` | Autonomy diagnostics policy | Backend-only passive ActiveJobs stale grace; review-only liveness evidence |
+| `AutonomyActiveJobNoTimeoutBlockSeconds` | Autonomy diagnostics policy | Backend-only passive ActiveJobs stale threshold without native timeout |
+| `AutonomyStorageMinFreeGB` | Autonomy diagnostics policy | Backend-only storage floor for diagnostics budget evidence |
+| `AutonomyStateFileReviewBytes` | Autonomy diagnostics policy | Backend-only state/journal file review threshold |
+| `AutonomyStateFileBlockBytes` | Autonomy diagnostics policy | Backend-only state/journal file block threshold |
+| `AutonomyScanLimit` | Autonomy diagnostics policy | Backend-only file enumeration cap with truncation metadata |
+| `AutonomyGrowthSnapshotMaxCount` | Autonomy diagnostics policy | Backend-only retained growth snapshot count |
+| `AutonomyWatchdogRecordLimit` | Autonomy diagnostics policy | Backend-only returned passive watchdog record cap |
 | `ShowOverrides` | Per-show media policy | Direct-config mapping for show-specific routing/video/audio/subtitle overrides |
 
 `LibraryProfiles` is handled by the dedicated Library Profiles editor rather than the static builder arrays.

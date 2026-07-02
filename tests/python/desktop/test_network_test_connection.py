@@ -18,7 +18,7 @@ from mediapipeline.desktop.network.probe import NetworkProbeResult
 
 
 class _TcpConnectOk:
-    def __enter__(self) -> "_TcpConnectOk":
+    def __enter__(self) -> _TcpConnectOk:
         return self
 
     def __exit__(self, *_args: object) -> bool:

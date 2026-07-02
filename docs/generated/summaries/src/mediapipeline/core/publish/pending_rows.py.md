@@ -3,9 +3,9 @@ file: src/mediapipeline/core/publish/pending_rows.py
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
-last_modified: 2026-06-29
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: da771073da0b975a4111f2f07fe654cf4b3e0c8e19ac01108efd4e2cb7c675c2
+sha256: 55758c0eee857463be9df7d0a425291c8cbb68da63026ce901f58629ca8d551d
 ---
 # `src/mediapipeline/core/publish/pending_rows.py`
 

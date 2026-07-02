@@ -3,9 +3,9 @@ file: src/mediapipeline/core/status/ffmpeg_progress.py
 pipeline_stage: transcode
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-06-02
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 40a417df005a180088d871a52e011a67fbae947fd1092323c16a6c6c99fc4a03
+sha256: afd3d332393f1ee33302e3fd181719da2d809fd4dd49919120b28fa4b68ad251
 ---
 # `src/mediapipeline/core/status/ffmpeg_progress.py`
 

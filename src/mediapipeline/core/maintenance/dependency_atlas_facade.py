@@ -71,7 +71,7 @@ class MaintenanceDependencyAtlasFacadeMixin:
         if callable(output_dir):
             path = output_dir()
             return path if isinstance(path, Path) else Path(path)
-        return Path(getattr(self.service, "workspace_root")) / "docs/generated/dependency-atlas"
+        return Path(self.service.workspace_root) / "docs/generated/dependency-atlas"
 
 
 __all__ = [

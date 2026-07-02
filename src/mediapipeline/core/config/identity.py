@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from mediapipeline.core.kernel.config_locations import user_config_dir
 
@@ -41,7 +42,7 @@ def path_modified_utc(path: Path) -> str:
         modified = path.stat().st_mtime
     except OSError:
         return ""
-    return datetime.fromtimestamp(modified, timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.fromtimestamp(modified, UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def config_template_candidates(app_root: Path, workspace_root: Path) -> list[Path]:

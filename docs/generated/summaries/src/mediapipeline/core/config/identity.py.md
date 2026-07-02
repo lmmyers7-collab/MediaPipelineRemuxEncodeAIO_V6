@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/identity.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-04
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 89ef42ee070f38d3b677b6b1b567212085860bebff0b919a1e9d4a477d6208ac
+sha256: 5001a2681c271e4de346932c6bb73b5e6c8d4fd1fb189e8a9b1d61a39d274a1d
 ---
 # `src/mediapipeline/core/config/identity.py`
 

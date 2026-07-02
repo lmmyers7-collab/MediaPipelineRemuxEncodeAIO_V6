@@ -212,7 +212,7 @@ def merge_manual_and_auto_path_maps(
         manual_keys.add(_path_key(source_text))
     seen_auto: set[str] = set()
     ordered_auto = sorted(
-        list(auto_mappings),
+        auto_mappings,
         key=lambda item: len(_path_key(item[0] if isinstance(item, tuple) and item else "")),
         reverse=True,
     )

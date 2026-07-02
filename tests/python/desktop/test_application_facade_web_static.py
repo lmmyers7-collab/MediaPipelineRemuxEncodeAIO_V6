@@ -1133,10 +1133,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         desktop_root = find_repo_root(Path(__file__))
         static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
         html = _render_static_index_html(static_root)
-        diagnostics_html = (static_root / "partials" / "page-diagnostics.html").read_text(encoding="utf-8")
-        app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
         app_row_open_js = (static_root / "assets" / "app" / "rowOpenActions.js").read_text(encoding="utf-8")
-        reports_js = (static_root / "assets" / "reportsView.js").read_text(encoding="utf-8")
         reports_shell_js = (static_root / "assets" / "reports" / "shell.js").read_text(encoding="utf-8")
         command_routes = {str(route["path"]): route for route in LOCAL_API_COMMAND_ROUTE_CONTRACT}
 
@@ -1770,7 +1767,6 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         command_history_js = _read_command_history_asset_bundle(static_root)
         diagnostics_bridge_js = (static_root / "diagnosticsBridge.js").read_text(encoding="utf-8")
         queue_view_js = _read_queue_asset_bundle(static_root)
-        completed_view_evidence_js = _read_completed_evidence_asset_bundle(static_root)
         completed_view_js = _read_completed_asset_bundle(static_root)
         rename_view_js = _read_rename_asset_bundle(static_root)
         rename_history_view_js = (static_root / "renameHistoryView.js").read_text(encoding="utf-8")
@@ -1781,7 +1777,6 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         pending_publish_view_js = (static_root / "pendingPublishView.js").read_text(encoding="utf-8")
         launch_history_view_js = (static_root / "launchHistoryView.js").read_text(encoding="utf-8")
         launch_preflight_view_js = (static_root / "launchView.preflight.js").read_text(encoding="utf-8")
-        launch_view_js = (static_root / "launchView.js").read_text(encoding="utf-8")
         diagnostics_view_js = _read_diagnostics_asset_bundle(static_root)
         reports_view_js = (static_root / "reportsView.js").read_text(encoding="utf-8")
         reports_shell_js = (static_root / "reports" / "shell.js").read_text(encoding="utf-8")
@@ -1942,7 +1937,6 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         rename_view_js = _read_rename_asset_bundle(assets_root)
         command_history_js = _read_command_history_asset_bundle(assets_root)
         diagnostics_bridge_js = (assets_root / "diagnosticsBridge.js").read_text(encoding="utf-8")
-        reports_view_js = (assets_root / "reportsView.js").read_text(encoding="utf-8")
         reports_audit_view_js = (assets_root / "reports" / "auditView.js").read_text(encoding="utf-8")
         reports_failure_view_js = (assets_root / "reports" / "failureView.js").read_text(encoding="utf-8")
         diagnostics_view_js = _read_diagnostics_asset_bundle(assets_root)
@@ -1952,7 +1946,6 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         launch_view_risk_js = _read_launch_risk_asset_bundle(assets_root)
         launch_view_scope_js = (assets_root / "launchView.scope.js").read_text(encoding="utf-8")
         launch_view_preflight_js = (assets_root / "launchView.preflight.js").read_text(encoding="utf-8")
-        launch_view_js = (assets_root / "launchView.js").read_text(encoding="utf-8")
         app_js = (assets_root / "app.js").read_text(encoding="utf-8")
 
         for node_id in [
@@ -2337,7 +2330,6 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         assets_root = static_root / "assets"
         queue_view_js = _read_queue_file_overrides_asset_bundle(assets_root)
         queue_css = _read_queue_css(assets_root)
-        index_html = (static_root / "index.html").read_text(encoding="utf-8")
 
         field_paths = {
             "audioKeepLanguages": "audio.keepTracks",
@@ -2786,7 +2778,6 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         queue_view_js = _read_queue_asset_bundle(assets_root)
         completed_view_js = _read_completed_asset_bundle(assets_root)
         pending_view_js = _read_pending_publish_asset_bundle(assets_root)
-        reports_view_js = (assets_root / "reportsView.js").read_text(encoding="utf-8")
         reports_shell_js = (assets_root / "reports" / "shell.js").read_text(encoding="utf-8")
         reports_audit_model_js = (assets_root / "reports" / "auditModel.js").read_text(encoding="utf-8")
         reports_audit_view_js = (assets_root / "reports" / "auditView.js").read_text(encoding="utf-8")

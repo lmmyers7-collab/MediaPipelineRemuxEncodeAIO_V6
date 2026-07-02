@@ -3,9 +3,9 @@ file: src/mediapipeline/core/observability/status_policy.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-06-30
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: de0d9b9dab09e877feb8e88abc8c7239dd544cd6e185561c085d4bac0fcb593e
+sha256: e3c91c48612e5b2e802623ff602c35e648e96af03e69e8bd26f0a5ad5a68c02d
 ---
 # `src/mediapipeline/core/observability/status_policy.py`
 

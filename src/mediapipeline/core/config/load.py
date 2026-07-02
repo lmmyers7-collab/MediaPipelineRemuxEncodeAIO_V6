@@ -12,7 +12,8 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any
+from collections.abc import Callable, Mapping
 
 from mediapipeline.contracts.config import CONFIG_KEY_ORDER, Config
 from mediapipeline.tools.paths import find_repo_root

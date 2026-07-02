@@ -24,7 +24,6 @@ from __future__ import annotations
 import argparse
 import ast
 import hashlib
-import os
 import re
 import subprocess
 import sys
@@ -37,7 +36,7 @@ from mediapipeline.tools.dev.release_package_scope import (
     is_release_excluded_path,
     release_excluded_prefixes,
 )
-from typing import Iterable
+from collections.abc import Iterable
 
 REPO_ROOT = find_repo_root(Path(__file__))
 SUMMARY_ROOT = REPO_ROOT / "docs" / "generated" / "summaries"

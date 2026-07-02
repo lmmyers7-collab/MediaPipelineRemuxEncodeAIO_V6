@@ -6,9 +6,10 @@ import csv
 import hashlib
 import io
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any
+from collections.abc import Iterable, Mapping
 
 from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.processes.file_io import atomic_write_text
@@ -18,7 +19,6 @@ from mediapipeline.core.processes.rerun_policy import (
     RERUN_ORIGINAL_POLICIES,
     rerun_lifecycle_errors,
     rerun_lifecycle_from_request,
-    rerun_modes_are_supported,
 )
 
 
@@ -190,6 +190,12 @@ def _classify_rows(
     for index, row in enumerate(raw_rows):
         source_path = _row_value(row, "source_path", "Path", "SourcePath")
         enabled = _bool_from_csv(_row_value(row, "enabled", "rerun_enabled", "Enabled", default="true"), True)
+        row_stage_override = _normalize_choice(_row_value(row, "stage_mode", "StageMode", default=""), "")
+        row_original_override = _normalize_choice(
+            _row_value(row, "post_success_original", "original_mode", "OriginalMode", default=""),
+            "",
+        )
+        row_return_override = _normalize_choice(_row_value(row, "return_mode", "ReturnMode", default=""), "")
         stage_mode = _normalize_choice(_row_value(row, "stage_mode", "StageMode", default=default_stage_mode), "copy")
         original_mode = _normalize_choice(
             _row_value(row, "post_success_original", "original_mode", "OriginalMode", default=default_original_mode),
@@ -206,7 +212,11 @@ def _classify_rows(
             blockers.append("missing source_path")
         if source_path and source_counts.get(source_path.casefold(), 0) > 1:
             warnings.append("duplicate source_path")
-        if not rerun_modes_are_supported(stage_mode, original_mode, return_mode):
+        if (
+            (row_stage_override and row_stage_override != "copy")
+            or (row_original_override and row_original_override != "keep")
+            or (row_return_override and row_return_override != "park")
+        ):
             blockers.append("blocked source-mutating or in-place mode")
         classified.append(
             RerunCsvRow(
@@ -225,6 +235,10 @@ def _classify_rows(
             )
         )
     return classified
+
+
+def _safe_lifecycle_modes(lifecycle: Any, lifecycle_errors: list[str]) -> bool:
+    return lifecycle.stage_mode == "copy" and lifecycle.original_mode == "keep" and not lifecycle_errors
 
 
 def _row_in_scope(row: RerunCsvRow, scope: RerunPreviewScope) -> bool:
@@ -290,7 +304,7 @@ def _recent_csv_entry(path: Path, *, label: str, source: str) -> dict[str, Any] 
         "source": source,
         "path": str(path),
         "size_bytes": int(stat.st_size),
-        "modified_at": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+        "modified_at": datetime.fromtimestamp(stat.st_mtime, UTC).isoformat(),
     }
 
 
@@ -415,7 +429,7 @@ def rerun_csv_preview_payload(
         "message": _preview_message(status, len(scoped)),
         "csv_path": str(csv_path),
         "fieldnames": fieldnames,
-        "safe_modes": rerun_modes_are_supported(stage_mode, original_mode, return_mode),
+        "safe_modes": _safe_lifecycle_modes(lifecycle, lifecycle_errors),
         "stage_mode": stage_mode,
         "original_mode": original_mode,
         "return_mode": return_mode,
@@ -473,7 +487,7 @@ def _preview_error_payload(
         "message": message,
         "csv_path": csv_path,
         "fieldnames": [],
-        "safe_modes": rerun_modes_are_supported(lifecycle.stage_mode, lifecycle.original_mode, lifecycle.return_mode),
+        "safe_modes": _safe_lifecycle_modes(lifecycle, lifecycle_errors),
         "stage_mode": lifecycle.stage_mode,
         "original_mode": lifecycle.original_mode,
         "return_mode": lifecycle.return_mode,

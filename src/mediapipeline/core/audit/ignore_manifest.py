@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -76,7 +76,7 @@ def set_audit_ignore_entries(
 ) -> dict[str, Any]:
     manifest = read_audit_ignore_manifest(path)
     entries = manifest.setdefault("entries", {})
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     for item in items:
         source_path = str(item.get("path") or "").strip()
         key = normalize_audit_ignore_key(source_path)

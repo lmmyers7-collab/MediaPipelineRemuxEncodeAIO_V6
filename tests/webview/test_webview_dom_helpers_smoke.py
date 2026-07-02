@@ -473,8 +473,7 @@ def _run_node_dom_helper_smoke() -> dict[str, object]:
         result = subprocess.run(
             [node, str(runner)],
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=20,
             check=False,
         )

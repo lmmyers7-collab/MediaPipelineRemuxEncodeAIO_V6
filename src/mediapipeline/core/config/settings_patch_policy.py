@@ -35,7 +35,7 @@ SETTINGS_SAVE_PROGRESS_STEPS = [
     ("validate", "Validate loaded config"),
 ]
 
-def _command_result(**fields: Any) -> "CommandResult":
+def _command_result(**fields: Any) -> CommandResult:
     from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**fields)
@@ -510,7 +510,7 @@ def settings_save_exception_result(exc: Exception, warnings: list[str]) -> Comma
 
 
 def settings_save_success_result(result: object, patch: dict[str, Any], warnings: list[str]) -> CommandResult:
-    output_path = Path(getattr(result, "output_path"))
+    output_path = Path(result.output_path)
     backup_path = getattr(result, "backup_path", None)
     diff_lines = patch["diff_lines"]
     progress = settings_save_written_progress_payload(result, patch)

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/observability/logging.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-06-02
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: bd0e7b9387e166d02e37af71f00de0133afd1b98d1624fdf7944f6d41d598637
+sha256: 97d54bb8a3126913078207e6d2b0cbfb691e5a2ba79f13152a7fa2888119c33b
 ---
 # `src/mediapipeline/core/observability/logging.py`
 

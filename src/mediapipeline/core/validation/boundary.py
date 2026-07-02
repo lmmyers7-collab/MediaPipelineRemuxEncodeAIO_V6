@@ -11,7 +11,6 @@ from mediapipeline.contracts.api_commands import validate_api_command_payload
 from mediapipeline.contracts.stages import (
     StageName,
     StagePayload,
-    StageRequest,
     StageResult,
     build_stage_request,
     validate_stage_data,

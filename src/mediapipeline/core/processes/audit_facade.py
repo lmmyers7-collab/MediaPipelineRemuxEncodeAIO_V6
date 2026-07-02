@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from typing import Any
 
 from mediapipeline.core.kernel.dto_commands import CommandResult
@@ -34,7 +34,7 @@ def _coerce_int(value: Any) -> int:
 
 
 def _stopped_audit_progress_payload(existing: dict[str, Any], *, messages: list[str], reason: str) -> dict[str, Any]:
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    now = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
     processed = _coerce_int(existing.get("processed_files", existing.get("ProcessedFiles", 0)))
     total = _coerce_int(existing.get("total_files", existing.get("TotalFiles", 0)))
     raw_percent = existing.get("percent_complete", existing.get("PercentComplete", 0))

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from mediapipeline.core.rename.movie import clean_pipeline_movie_name
 from mediapipeline.core.rename.tv import clean_pipeline_tv_name_part, extract_confident_tv_episode_title

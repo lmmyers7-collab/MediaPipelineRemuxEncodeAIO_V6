@@ -6,7 +6,8 @@ import hashlib
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any
+from collections.abc import Iterable
 
 from mediapipeline.core.completed.manifest import OUTPUT_PROOF_DEFERRED, OUTPUT_PROOF_LIVE
 from mediapipeline.core.completed.trust_fields import build_completed_row_trust_fields
@@ -43,7 +44,7 @@ COMPLETED_RUNTIME_FAILURE_STATUSES = {
 COMPLETED_BENIGN_RUNTIME_ERROR_CODES = {"already_processed"}
 
 
-def _completed_preview_dto(**fields: Any) -> "CompletedPreviewDto":
+def _completed_preview_dto(**fields: Any) -> CompletedPreviewDto:
     from mediapipeline.core.kernel.dto_inventory import CompletedPreviewDto
 
     return CompletedPreviewDto(**fields)
@@ -1238,6 +1239,7 @@ def completed_preview_from_records(
     )
 
 __all__ = [
+    "COMPLETED_RUNTIME_OUTCOME_EVENT_LIMIT",
     "COMPLETED_HISTORY_SERVICE_UNAVAILABLE_MESSAGE",
     "COMPLETED_HISTORY_EMPTY_MESSAGE",
     "COMPLETED_MANIFEST_STALE_AFTER_SECONDS",

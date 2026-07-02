@@ -1,0 +1,54 @@
+{
+  "id": "MP-CHANGE-2026-0702-001",
+  "title": "Fix CSV rerun pending manifest contract",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-02",
+  "date_completed": "2026-07-02",
+  "summary": "Fixed rerun pending-publish writers so CSV/review rerun promotion emits and validates the current pending manifest contract before parked outputs are treated as drain candidates.",
+  "reason": "A live CSV rerun parked output wrote a legacy-shaped pending-publish manifest without pipeline_version, publish_transaction_id, and current subtitle/sidecar array fields. Autonomy health correctly failed closed and blocked new queue work until the manifest was manually recovered.",
+  "affected_areas": [
+    "backend",
+    "docs",
+    "pipeline",
+    "tests"
+  ],
+  "behavior_before": "CSV rerun and Python rerun promotion could create legacy pending-publish manifests that the current PendingPushManifest contract rejected, leaving autonomy health blocked on manual recovery.",
+  "behavior_after": "CSV rerun writes current pending-publish proof fields, Python rerun promotion validates PendingPushManifest before moving review outputs, and focused tests pin the manifest shape and source-preservation behavior.",
+  "files_touched": [
+    "docs/generated/summaries/docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md.md",
+    "docs/generated/summaries/docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md.md",
+    "docs/generated/summaries/docs/testing/TEST_COVERAGE_MATRIX.md.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/Invoke-RerunCsv.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0702-001.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/api/commands_process.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/rerun_results.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_process_rerun_results.py.md",
+    "docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md",
+    "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+    "docs/testing/TEST_COVERAGE_MATRIX.md",
+    "ops/pipeline/entrypoints/Invoke-RerunCsv.ps1",
+    "ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0702-001.json",
+    "src/mediapipeline/core/api/commands_process.py",
+    "src/mediapipeline/core/processes/rerun_results.py",
+    "tests/python/desktop/test_process_rerun_results.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_process_rerun_results.py"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_contracts tests.python.desktop.test_pending_publish_service tests.python.desktop.test_service_pending_publish_manifest -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_process_rerun_results -q - passed",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-ContractSchemaChecks.ps1 - passed",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-PendingPublishSafetyChecks.ps1 - passed",
+    "Live pending manifest repair validated with PendingPushManifest.from_mapping; autonomy health blocker_count=0 after rescan.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes - passed"
+  ],
+  "rollback_plan": "Revert the rerun manifest writer changes, API product-version handoff, focused tests, and coverage docs. If reverted, manually inspect pending-publish rows before rerun drain because legacy manifests may again require recovery.",
+  "related_changes": [],
+  "notes": "Write current pending-publish manifest contract fields for CSV rerun parked outputs.\nValidate rerun promotion pending-publish manifests before moving review outputs.\nPass app product version into rerun pending-publish promotion.\nCover rerun promotion manifest contract and source preservation.\nAdd static contract guard for the PowerShell CSV rerun pending manifest writer.\nDocument rerun promotion pending-publish coverage.\nIndex the rerun promotion pending-publish regression test.\nUpdate pending-publish coverage matrix with rerun manifest contract guards.\nRefresh generated summary after pending-publish fixture inventory update.\nRefresh generated summary after subsystem inventory update.\nRefresh generated summary after pending-publish coverage matrix update.\nRefresh generated summary after CSV rerun manifest writer fix.\nRefresh generated summary after contract schema static guard update.\nRefresh generated summary after rerun promote product version handoff.\nRefresh generated summary after rerun promotion manifest validation fix.\nGenerate summary for this change packet.\nGenerate summary for the new rerun promotion regression test.\nStrict worktree coverage validation was run and failed on unrelated dirty files outside this packet: src/mediapipeline/contracts/source_media.py, src/mediapipeline/core/kernel/config_keys.py, src/mediapipeline/core/paths/defaults.py, src/mediapipeline/core/validation/boundary.py, src/mediapipeline/desktop/api/static_files.py, src/mediapipeline/tools/paths.py."
+}

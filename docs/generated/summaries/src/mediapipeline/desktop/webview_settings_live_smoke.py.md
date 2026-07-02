@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/webview_settings_live_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-26
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 1b866c82169c7c326908b8e9b9bafcca8aeef1dbb2768893ffab59debf88d415
+sha256: 16a9cec629848ddecb3c5c4be4e41a21fd234e1c4c0add4b8e48d837be22c191
 ---
 # `src/mediapipeline/desktop/webview_settings_live_smoke.py`
 

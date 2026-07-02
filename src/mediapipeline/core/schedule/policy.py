@@ -22,7 +22,7 @@ SCHEDULE_TIME_RE = re.compile(
 )
 
 
-def _command_result(**kwargs: Any) -> "CommandResult":
+def _command_result(**kwargs: Any) -> CommandResult:
     from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**kwargs)
@@ -243,7 +243,7 @@ def schedule_preview_result(
     warnings: list[str],
     app_state_path: str,
     formatter: ScheduleLabelFormatter | None = None,
-) -> "CommandResult":
+) -> CommandResult:
     changed_days = schedule_grid_changed_days(current_grid, grid)
     changed_enabled = bool(enabled) != bool(current_enabled)
     return _command_result(
@@ -274,7 +274,7 @@ def schedule_preview_result(
     )
 
 
-def schedule_save_confirmation_required_result() -> "CommandResult":
+def schedule_save_confirmation_required_result() -> CommandResult:
     return _command_result(
         command=SCHEDULE_SAVE_COMMAND,
         ok=False,
@@ -285,7 +285,7 @@ def schedule_save_confirmation_required_result() -> "CommandResult":
     )
 
 
-def schedule_save_busy_result(message: str) -> "CommandResult":
+def schedule_save_busy_result(message: str) -> CommandResult:
     return _command_result(
         command=SCHEDULE_SAVE_COMMAND,
         ok=False,
@@ -296,7 +296,7 @@ def schedule_save_busy_result(message: str) -> "CommandResult":
     )
 
 
-def schedule_save_validation_error_result(errors: list[str], warnings: list[str]) -> "CommandResult":
+def schedule_save_validation_error_result(errors: list[str], warnings: list[str]) -> CommandResult:
     return _command_result(
         command=SCHEDULE_SAVE_COMMAND,
         ok=False,
@@ -308,7 +308,7 @@ def schedule_save_validation_error_result(errors: list[str], warnings: list[str]
     )
 
 
-def schedule_save_no_changes_result(warnings: list[str]) -> "CommandResult":
+def schedule_save_no_changes_result(warnings: list[str]) -> CommandResult:
     return _command_result(
         command=SCHEDULE_SAVE_COMMAND,
         ok=False,
@@ -319,7 +319,7 @@ def schedule_save_no_changes_result(warnings: list[str]) -> "CommandResult":
     )
 
 
-def schedule_save_service_unavailable_result() -> "CommandResult":
+def schedule_save_service_unavailable_result() -> CommandResult:
     return _command_result(
         command=SCHEDULE_SAVE_COMMAND,
         ok=False,
@@ -330,7 +330,7 @@ def schedule_save_service_unavailable_result() -> "CommandResult":
     )
 
 
-def schedule_save_exception_result(exc: Exception, warnings: list[str]) -> "CommandResult":
+def schedule_save_exception_result(exc: Exception, warnings: list[str]) -> CommandResult:
     return _command_result(
         command=SCHEDULE_SAVE_COMMAND,
         ok=False,
@@ -352,7 +352,7 @@ def schedule_save_success_result(
     warnings: list[str],
     app_state_path: str,
     formatter: ScheduleLabelFormatter | None = None,
-) -> "CommandResult":
+) -> CommandResult:
     changed_days = schedule_grid_changed_days(current_grid, grid)
     changed_enabled = bool(enabled) != bool(current_enabled)
     return _command_result(

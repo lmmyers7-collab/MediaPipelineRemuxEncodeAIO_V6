@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/dev/check_active_doc_references.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-05
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 59c66ead608d63de8f1b1131f82fef93e92eb696a100db110cb24d7acd79e4f1
+sha256: cdec693515639c92a2ef6f8d9897d92a17aab0371ff2fea8b6a13f8404c489ae
 ---
 # `src/mediapipeline/tools/dev/check_active_doc_references.py`
 

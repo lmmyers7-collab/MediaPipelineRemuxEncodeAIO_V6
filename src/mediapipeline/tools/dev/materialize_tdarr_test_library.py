@@ -9,9 +9,9 @@ import os
 import re
 import shutil
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Iterable
+from collections.abc import Iterable
 
 from mediapipeline.tools.paths import find_repo_root
 
@@ -68,7 +68,7 @@ class MaterializedRow:
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    return datetime.now(UTC).replace(microsecond=0).isoformat()
 
 
 def resolve_repo_path(value: str | Path, *, repo_root: Path) -> Path:

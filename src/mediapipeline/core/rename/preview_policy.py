@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any
+from collections.abc import Iterable, Mapping
 
 
 def rename_preview_counts(rows: Iterable[Mapping[str, Any]]) -> dict[str, int]:

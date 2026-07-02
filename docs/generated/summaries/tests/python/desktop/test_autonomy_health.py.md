@@ -3,9 +3,9 @@ file: tests/python/desktop/test_autonomy_health.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-01
+last_modified: 2026-07-02
 last_reviewed: 2026-06-17
-sha256: 749349216ece01be0c6335287a3a4fccbac72fc277111f4463f713ec84a2051e
+sha256: d8eb54a2fcba1f8185be509ad7e5810d007dbb55359a8375f479016881798073
 ---
 # `tests/python/desktop/test_autonomy_health.py`
 

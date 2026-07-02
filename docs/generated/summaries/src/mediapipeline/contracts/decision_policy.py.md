@@ -3,9 +3,9 @@ file: src/mediapipeline/contracts/decision_policy.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-06-15
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: ff02a546207b72ec7a258ed870e57f1e16b8dd4694e41406cd60ddf5713bb622
+sha256: 8c5589f6f5eea703c78535a90146ea399224acd92f5351b6b554216487fe66b3
 ---
 # `src/mediapipeline/contracts/decision_policy.py`
 

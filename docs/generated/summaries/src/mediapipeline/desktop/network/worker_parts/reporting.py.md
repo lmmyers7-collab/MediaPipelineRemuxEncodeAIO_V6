@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/worker_parts/reporting.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-14
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 9af644b1301f3340313e31bc175b0a4c648dd58f83479d7b1c7ff135bf379d5c
+sha256: 5dc0549f89fb9d3370c62f63de2329035a766108aabdc107a733171c99b4dd3a
 ---
 # `src/mediapipeline/desktop/network/worker_parts/reporting.py`
 

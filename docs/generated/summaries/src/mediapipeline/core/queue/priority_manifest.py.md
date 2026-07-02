@@ -3,9 +3,9 @@ file: src/mediapipeline/core/queue/priority_manifest.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-06-19
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: ad79ad911beb2b3ebfab9555627026ec8e3c75645b4d064dc056a13b41f2733b
+sha256: 479b273d0900c1b89094a50bdcbdfb40e6f5fe5ab7e40493317232c083135a32
 ---
 # `src/mediapipeline/core/queue/priority_manifest.py`
 

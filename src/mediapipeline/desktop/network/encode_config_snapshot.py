@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Mapping
+from collections.abc import Mapping
 
 from ..config_keys import (
     KEY_ALLOW_H264_REMUX_IF_PLEX_COMPATIBLE,

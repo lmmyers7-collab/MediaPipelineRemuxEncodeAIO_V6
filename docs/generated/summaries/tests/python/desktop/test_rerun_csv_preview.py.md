@@ -3,9 +3,9 @@ file: tests/python/desktop/test_rerun_csv_preview.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-30
+last_modified: 2026-07-01
 last_reviewed: 2026-06-29
-sha256: 54ac1ac95b4fb7617858025004d3090ad1653122b799be90c90ea60c39f4c9d5
+sha256: 5a7d280fe2cdb1d0c17a62ca458042a105624b33e15d14f10ef42015917ead4a
 ---
 # `tests/python/desktop/test_rerun_csv_preview.py`
 

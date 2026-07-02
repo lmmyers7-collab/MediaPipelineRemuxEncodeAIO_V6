@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +24,7 @@ def format_age_seconds(seconds: int | None) -> str:
 
 
 def iso_from_timestamp(raw: float) -> str:
-    return datetime.fromtimestamp(raw, timezone.utc).isoformat(timespec="seconds")
+    return datetime.fromtimestamp(raw, UTC).isoformat(timespec="seconds")
 
 
 def parse_iso_datetime(value: Any) -> datetime | None:
@@ -36,15 +36,15 @@ def parse_iso_datetime(value: Any) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def age_seconds_from_datetime(value: datetime, *, now: datetime | None = None) -> int:
-    current = now or datetime.now(timezone.utc)
+    current = now or datetime.now(UTC)
     if current.tzinfo is None:
-        current = current.replace(tzinfo=timezone.utc)
-    return max(0, int((current.astimezone(timezone.utc) - value.astimezone(timezone.utc)).total_seconds()))
+        current = current.replace(tzinfo=UTC)
+    return max(0, int((current.astimezone(UTC) - value.astimezone(UTC)).total_seconds()))
 
 
 def datetime_freshness_fields(
@@ -97,7 +97,7 @@ def file_freshness_fields(
         fields[f"{prefix}_freshness_status"] = "unavailable"
         fields[f"{prefix}_error"] = str(exc)
         return fields
-    modified = datetime.fromtimestamp(stat.st_mtime, timezone.utc)
+    modified = datetime.fromtimestamp(stat.st_mtime, UTC)
     age_seconds = age_seconds_from_datetime(modified, now=now)
     fields.update(
         {

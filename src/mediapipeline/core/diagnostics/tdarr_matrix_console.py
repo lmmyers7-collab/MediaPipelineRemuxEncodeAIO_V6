@@ -8,7 +8,8 @@ import re
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any
+from collections.abc import Callable, Iterable
 
 from mediapipeline.core.kernel.dto_base import json_safe
 from mediapipeline.core.diagnostics.tdarr_matrix_proof import (

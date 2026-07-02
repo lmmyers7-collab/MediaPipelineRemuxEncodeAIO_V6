@@ -41,7 +41,7 @@ class ClaimedJob:
     """
 
     job_id:        str
-    record:        "QueueRecord"
+    record:        QueueRecord
     encode_config: dict          = field(default_factory=dict)
     claimed_at:    datetime      = field(default_factory=datetime.now)
     worker_id:     str           = ""
@@ -126,3 +126,4 @@ class QueueDispatcher(ABC):
         Override to stop background threads, close sockets, etc.
         The default implementation is a no-op.
         """
+        return None

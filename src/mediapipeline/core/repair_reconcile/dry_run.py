@@ -4,7 +4,8 @@ import hashlib
 import json
 import sqlite3
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from mediapipeline.core.kernel.contracts.base import ContractError
 from mediapipeline.core.kernel.contracts.pending_publish import (
@@ -25,6 +26,7 @@ COMPLETED_RECONCILE_MANIFEST_COMMAND = "completed.reconcile_manifest"
 COMPLETED_REPAIR_SIDECAR_METADATA_COMMAND = "completed.repair_sidecar_metadata"
 PENDING_PUBLISH_REPAIR_MANIFEST_COMMAND = "pending_publish.repair_manifest"
 PENDING_PUBLISH_RECONCILE_ORPHAN_PAYLOADS_COMMAND = "pending_publish.reconcile_orphan_payloads"
+CSV_RERUN_REPAIR_PIPELINE_VERSION = "csv_rerun_repair.v1"
 
 DRY_RUN_COMMAND_BY_CANDIDATE = {
     STARTUP_RECONCILE_STATE_COMMAND: "startup.reconcile_state_dry_run",
@@ -1048,6 +1050,59 @@ def _pending_manifest_sidecar_paths(sidecar_files: list[Any]) -> list[Path]:
     return paths
 
 
+def _pending_manifest_repair_hash(manifest_path: str, proposed: Mapping[str, Any]) -> str:
+    basis = {
+        "manifest_path": manifest_path,
+        "local_file": str(proposed.get("local_file") or proposed.get("parked_file") or "").strip(),
+        "server_out": str(proposed.get("server_out") or "").strip(),
+        "source_identity_v2": str(proposed.get("source_identity_v2") or "").strip(),
+        "source_path": str(proposed.get("source_path") or "").strip(),
+        "output_size": proposed.get("output_size"),
+    }
+    encoded = json.dumps(basis, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(encoded.encode("utf-8", errors="replace")).hexdigest()[:24]
+
+
+def _pending_manifest_array_alias(proposed: Mapping[str, Any], field: str) -> list[Any]:
+    aliases = {
+        "sidecar_files": ("sidecars",),
+    }
+    for alias in aliases.get(field, ()):
+        value = proposed.get(alias)
+        if isinstance(value, list):
+            return list(value)
+    return []
+
+
+def _repair_legacy_csv_rerun_manifest(
+    *,
+    proposed: dict[str, Any],
+    changed: dict[str, dict[str, Any]],
+    reasons: list[str],
+    manifest_path: str,
+) -> None:
+    route = str(proposed.get("route") or "").strip().casefold()
+    source = proposed.get("source")
+    source_kind = str(source.get("rerun_batch_id") or source.get("rerun_audit_issue_codes") or "").strip() if isinstance(source, Mapping) else ""
+    if route != "csv_rerun" and not source_kind:
+        return
+
+    if not str(proposed.get("pipeline_version") or "").strip():
+        _set_pending_manifest_field(proposed, changed, "pipeline_version", CSV_RERUN_REPAIR_PIPELINE_VERSION)
+        reasons.append("missing_pipeline_version_from_legacy_csv_rerun")
+
+    if not str(proposed.get("publish_transaction_id") or "").strip():
+        repair_hash = _pending_manifest_repair_hash(manifest_path, proposed)
+        _set_pending_manifest_field(proposed, changed, "publish_transaction_id", f"repair-csv-rerun-{repair_hash}")
+        reasons.append("missing_publish_transaction_id_from_legacy_csv_rerun")
+
+    if not str(proposed.get("parked_at") or "").strip():
+        created_at = str(proposed.get("created_at") or "").strip()
+        if created_at:
+            _set_pending_manifest_field(proposed, changed, "parked_at", created_at)
+            reasons.append("missing_parked_at_copied_from_created_at")
+
+
 def _pending_orphan_missing_manifest_evidence(row: Mapping[str, Any]) -> list[str]:
     missing: list[str] = []
     if not str(row.get("manifest_path") or "").strip():
@@ -1274,8 +1329,15 @@ def _pending_manifest_repair_candidate_row(
     reasons: list[str] = []
     for field in PENDING_PUSH_MANIFEST_REQUIRED_ARRAY_FIELDS:
         if field not in proposed or proposed.get(field) is None:
-            _set_pending_manifest_field(proposed, changed, field, [])
+            _set_pending_manifest_field(proposed, changed, field, _pending_manifest_array_alias(proposed, field))
             reasons.append(f"missing_{field}")
+
+    _repair_legacy_csv_rerun_manifest(
+        proposed=proposed,
+        changed=changed,
+        reasons=reasons,
+        manifest_path=manifest_path,
+    )
 
     local_file = str(proposed.get("local_file") or "").strip()
     parked_file = str(proposed.get("parked_file") or "").strip()

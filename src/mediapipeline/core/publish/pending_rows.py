@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any
+from collections.abc import Mapping
 
 from mediapipeline.core.files.constants import MEDIA_FILE_SUFFIXES
 from mediapipeline.core.kernel.contracts.pending_publish import (
@@ -19,7 +20,6 @@ from .pending_policy_parts.trust_fields import build_pending_publish_row_trust_f
 from .pending_results import (
     PENDING_FILE_INVENTORY_SCHEMA_VERSION,
     PENDING_PUBLISH_INVENTORY_PROGRESS_SCHEMA_VERSION,
-    PENDING_PUBLISH_INVALID_RESULT_MESSAGE,
     _json_safe,
     _pending_publish_preview_dto,
 )

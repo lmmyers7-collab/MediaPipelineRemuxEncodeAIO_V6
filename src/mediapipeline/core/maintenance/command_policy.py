@@ -33,7 +33,7 @@ def request_bool_option(request: dict[str, Any], key: str, default: bool) -> boo
     return value if isinstance(value, bool) else default
 
 
-def _command_result(**fields: Any) -> "CommandResult":
+def _command_result(**fields: Any) -> CommandResult:
     from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**fields)

@@ -1963,7 +1963,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
   }
 
   function diagnosticsFailureMessage(failure) {
-    const message = failure?.message || failure?.reason || "request failed";
+    const message = failure?.message || failure?.reason || "Couldn't refresh diagnostics: backend request failed before error details were available (unexpected error). Try again.";
     const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     return `Refresh failed at ${time}; showing stale data if previously loaded. ${message}`;
   }

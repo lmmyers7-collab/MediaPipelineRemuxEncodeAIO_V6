@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from mediapipeline.core.kernel.dto_commands import CommandResult
 
 
-def _command_result(**fields: Any) -> "CommandResult":
+def _command_result(**fields: Any) -> CommandResult:
     from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**fields)

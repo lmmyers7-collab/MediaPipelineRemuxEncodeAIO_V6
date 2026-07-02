@@ -3,9 +3,9 @@ file: src/mediapipeline/core/maintenance/state_journal_archive.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: maintenance
-last_modified: 2026-06-18
+last_modified: 2026-07-02
 last_reviewed: 2026-06-18
-sha256: 98be38fa898978bbb289297baf7743ccc57126eecc930edfdd55110c45e6be5d
+sha256: 0d6371fe28cb725e2ae210afd1fc24595b44a58a9b3cd9f91490cd4370694b53
 ---
 # `src/mediapipeline/core/maintenance/state_journal_archive.py`
 

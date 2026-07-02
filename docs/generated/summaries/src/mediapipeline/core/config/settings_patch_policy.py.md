@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/settings_patch_policy.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-29
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 57a6776f98887d27ae329258f5deff4c414f2b840651aa45dcb7be6d6e171355
+sha256: 3e448a16ad1bfab035483a1cc0df3623855d389e6e7cfde40e15ed2eaac84ae9
 ---
 # `src/mediapipeline/core/config/settings_patch_policy.py`
 

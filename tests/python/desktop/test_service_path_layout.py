@@ -110,8 +110,7 @@ class ServicePathLayoutTests(unittest.TestCase):
             result = subprocess.run(
                 ["cmd", "/c", "mklink", "/J", str(junction), str(outside)],
                 text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
             )
             if result.returncode != 0:
                 self.skipTest(f"junction creation unavailable: {result.stdout} {result.stderr}")

@@ -1,0 +1,36 @@
+{
+  "id": "MP-CHANGE-2026-0702-006",
+  "title": "Harden CSV rerun pending publish manifests",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-02",
+  "date_completed": "2026-07-02",
+  "summary": "Backend pending-publish repair now normalizes legacy CSV rerun manifests that are missing current contract fields, then validates the repaired contract before exposing an apply candidate.",
+  "reason": "A parked CSV rerun output was launch-blocking because its pending-publish manifest lacked pipeline_version and other current required fields. The live manifest needed a backend-authored repair, and the repair path needed regression coverage for this legacy shape.",
+  "affected_areas": [
+    "code",
+    "tests"
+  ],
+  "behavior_before": "Legacy CSV rerun pending-publish manifests could be parked with valid media evidence but fail the current pending_push_manifest.v1 contract, causing autonomy health to block new work with no safe repair candidate.",
+  "behavior_after": "Repair dry-run recognizes legacy CSV rerun pending-publish manifests, fills deterministic current fields, maps legacy sidecar evidence, validates the full pending_push_manifest.v1 contract, and apply remains fingerprint-confirmed and manifest-only.",
+  "files_touched": [
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0702-006.json",
+    "src/mediapipeline/core/repair_reconcile/dry_run.py",
+    "tests/python/desktop/test_repair_reconcile_dry_run.py",
+    "tests/python/desktop/test_repair_reconcile_apply.py"
+  ],
+  "tests_added": [
+    "RepairReconcileDryRunTests.test_pending_manifest_repair_dry_run_normalizes_legacy_csv_rerun_manifest",
+    "RepairReconcileApplyTests.test_pending_manifest_repair_apply_normalizes_legacy_csv_rerun_manifest_only"
+  ],
+  "manual_validation": [
+    "Live backend pending-publish recovery dry-run for E:\\Videos\\Scratch\\State\\PendingServerPush\\The Crow (1994).manifest.json produced a safe-to-apply manifest-only candidate.",
+    "Live backend pending-publish repair apply wrote only the manifest, created backup E:\\Videos\\Scratch\\State\\RepairReconcileBackups\\repair-reconcile-20260702T051858Z-c108fa9f\\The Crow (1994).manifest.json, left source/output payloads unchanged, and returned post_diagnostic_status=ready.",
+    "Autonomy health gate rebuilt from E:\\Videos\\Scratch\\State reported overall_status=review, blocked=false, can_start_new_work=true, blocked_count=0; the remaining review item was unrelated disk scan truncation."
+  ],
+  "rollback_plan": "Revert the dry-run repair code and the two regression tests. If the live manifest repair must be reverted, restore E:\\Videos\\Scratch\\State\\PendingServerPush\\The Crow (1994).manifest.json from the recorded RepairReconcileBackups copy; no media payload bytes were moved by this change.",
+  "related_changes": [],
+  "notes": "Normalize legacy CSV rerun pending manifests into validated repair candidates.\nAdd confirmed apply regression proving legacy CSV rerun manifest repair is manifest-only.\nValidation passed for focused repair-reconcile tests, pending-publish/API suites, PowerShell contract schema checks, and changed-file summary refresh."
+}

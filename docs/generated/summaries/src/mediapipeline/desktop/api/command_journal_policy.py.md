@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/api/command_journal_policy.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-06-17
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 2f74de39a2784c1a03d8a967345cd314706c60431a83170935cba970c8bb275d
+sha256: 62efa97f9b5a68805392d7136459f16c7dff99e231644fb3ad7f0a59a6386faa
 ---
 # `src/mediapipeline/desktop/api/command_journal_policy.py`
 

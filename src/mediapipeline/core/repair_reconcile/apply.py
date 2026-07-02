@@ -5,9 +5,10 @@ import json
 import os
 import shutil
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from mediapipeline.core.completed.manifest import completed_sidecar_path_from_payload
 from mediapipeline.core.completed.policy import completed_record_key
@@ -34,7 +35,7 @@ _EFFECT_BY_COMMAND = {
 
 
 def _transaction_id() -> str:
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     return f"repair-reconcile-{stamp}-{uuid.uuid4().hex[:8]}"
 
 

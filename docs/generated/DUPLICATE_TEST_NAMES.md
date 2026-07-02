@@ -7,7 +7,7 @@ This report groups exact bare Python test function/method names that appear in m
 ## Summary
 
 - Test roots: `tests/python`, `tests/webview`
-- Python test definitions scanned: **2890**
+- Python test definitions scanned: **2940**
 - Duplicate bare names across files: **9**
 
 ## Duplicate Names
@@ -44,7 +44,7 @@ This report groups exact bare Python test function/method names that appear in m
 
 | File | Qualname | Line |
 |---|---|---:|
-| `tests/python/desktop/test_marketecture_guard.py` | `test_git_diff_candidates_uses_three_dot_merge_base_range` | 96 |
+| `tests/python/desktop/test_marketecture_guard.py` | `test_git_diff_candidates_uses_three_dot_merge_base_range` | 95 |
 | `tests/python/tooling/test_lint_naming.py` | `NamingLintTests.test_git_diff_candidates_uses_three_dot_merge_base_range` | 105 |
 
 ### `test_main_records_snapshot_and_prints_json`
@@ -74,4 +74,4 @@ This report groups exact bare Python test function/method names that appear in m
 |---|---|---:|
 | `tests/python/desktop/test_facade_process_audit_policy.py` | `AuditLaunchPolicyTests.test_success_message_and_payload_are_stable` | 38 |
 | `tests/python/desktop/test_facade_process_pipeline_policy.py` | `PipelineLaunchPolicyTests.test_success_message_and_payload_are_stable` | 55 |
-| `tests/python/desktop/test_facade_process_rerun_policy.py` | `RerunLaunchPolicyTests.test_success_message_and_payload_are_stable` | 57 |
+| `tests/python/desktop/test_facade_process_rerun_policy.py` | `RerunLaunchPolicyTests.test_success_message_and_payload_are_stable` | 88 |

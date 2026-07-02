@@ -19,7 +19,7 @@ AUDIT_LOADER_UNAVAILABLE_MESSAGE = "Audit CSV loader is not available."
 AUDIT_EMPTY_CSV_MESSAGE = "Latest audit CSV contains no rows."
 
 
-def _audit_preview_dto(**kwargs: Any) -> "AuditPreviewDto":
+def _audit_preview_dto(**kwargs: Any) -> AuditPreviewDto:
     from mediapipeline.core.kernel.dto_inventory import AuditPreviewDto
 
     return AuditPreviewDto(**kwargs)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -147,7 +147,7 @@ class FolderPolicyServiceMixin:
             validation_payload["require_uniform_stream_topology"] = require_uniform
             validation_payload["expected_topology"] = sample_signature
             validation_payload["checked_count"] = len(probed)
-            validation_payload["validated_at"] = datetime.now(timezone.utc).isoformat()
+            validation_payload["validated_at"] = datetime.now(UTC).isoformat()
             if warnings:
                 validation_payload["warnings"] = warnings
             else:

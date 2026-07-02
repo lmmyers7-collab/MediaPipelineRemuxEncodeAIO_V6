@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any
+from collections.abc import Iterable, Mapping
 
 from mediapipeline.core.observability.artifact_freshness import datetime_freshness_fields, file_freshness_fields
 from mediapipeline.core.observability.status_policy import progress_bar

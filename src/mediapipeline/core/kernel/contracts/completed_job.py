@@ -28,7 +28,7 @@ class CompletedJob:
     raw: Mapping[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
-    def from_mapping(cls, payload: Mapping[str, Any] | Any) -> "CompletedJob":
+    def from_mapping(cls, payload: Mapping[str, Any] | Any) -> CompletedJob:
         data = require_mapping(payload, "completed job")
         schema_version = require_schema_version(data, COMPLETED_JOB_SCHEMA_VERSIONS)
         return cls(

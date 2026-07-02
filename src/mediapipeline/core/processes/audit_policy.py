@@ -16,7 +16,7 @@ AUDIT_LIBRARY_ROOT_ERROR = "Audit library root is unavailable."
 AUDIT_STOP_CONFIRM_ERROR = "Audit stop requires confirm_stop=true."
 
 
-def _command_result(**kwargs: Any) -> "CommandResult":
+def _command_result(**kwargs: Any) -> CommandResult:
     from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**kwargs)
@@ -76,7 +76,7 @@ def audit_start_success_data(
     }
 
 
-def audit_missing_library_root_result() -> "CommandResult":
+def audit_missing_library_root_result() -> CommandResult:
     return _command_result(
         command=AUDIT_START_COMMAND,
         ok=False,
@@ -86,7 +86,7 @@ def audit_missing_library_root_result() -> "CommandResult":
     )
 
 
-def audit_start_active_work_result(block_message: str) -> "CommandResult":
+def audit_start_active_work_result(block_message: str) -> CommandResult:
     return _command_result(
         command=AUDIT_START_COMMAND,
         ok=False,
@@ -97,7 +97,7 @@ def audit_start_active_work_result(block_message: str) -> "CommandResult":
     )
 
 
-def audit_start_config_blocked_result(message: str, data: dict[str, Any]) -> "CommandResult":
+def audit_start_config_blocked_result(message: str, data: dict[str, Any]) -> CommandResult:
     return _command_result(
         command=AUDIT_START_COMMAND,
         ok=False,
@@ -109,7 +109,7 @@ def audit_start_config_blocked_result(message: str, data: dict[str, Any]) -> "Co
     )
 
 
-def audit_start_exception_result(exc: Exception) -> "CommandResult":
+def audit_start_exception_result(exc: Exception) -> CommandResult:
     return _command_result(
         command=AUDIT_START_COMMAND,
         ok=False,
@@ -128,7 +128,7 @@ def audit_start_success_result(
     pid: int,
     launch_prep_messages: list[str],
     launch_logs: str,
-) -> "CommandResult":
+) -> CommandResult:
     return _command_result(
         command=AUDIT_START_COMMAND,
         ok=True,
@@ -146,7 +146,7 @@ def audit_start_success_result(
     )
 
 
-def audit_stop_confirm_required_result() -> "CommandResult":
+def audit_stop_confirm_required_result() -> CommandResult:
     return _command_result(
         command=AUDIT_STOP_COMMAND,
         ok=False,
@@ -156,7 +156,7 @@ def audit_stop_confirm_required_result() -> "CommandResult":
     )
 
 
-def audit_stop_active_work_result(block_message: str) -> "CommandResult":
+def audit_stop_active_work_result(block_message: str) -> CommandResult:
     return _command_result(
         command=AUDIT_STOP_COMMAND,
         ok=False,
@@ -167,7 +167,7 @@ def audit_stop_active_work_result(block_message: str) -> "CommandResult":
     )
 
 
-def audit_stop_exception_result(exc: Exception) -> "CommandResult":
+def audit_stop_exception_result(exc: Exception) -> CommandResult:
     return _command_result(
         command=AUDIT_STOP_COMMAND,
         ok=False,
@@ -183,7 +183,7 @@ def audit_stop_success_result(
     messages: list[str],
     progress_reset: str,
     reason: str,
-) -> "CommandResult":
+) -> CommandResult:
     summary = "; ".join(messages) if messages else "No active audit process tree was found."
     return _command_result(
         command=AUDIT_STOP_COMMAND,

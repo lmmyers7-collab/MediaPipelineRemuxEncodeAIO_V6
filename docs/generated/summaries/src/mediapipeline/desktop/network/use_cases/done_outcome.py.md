@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/use_cases/done_outcome.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-15
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: c9e021a7c6257e3db6398cfbf87c29c3cf55e9920c7619234d13c23fdb7af211
+sha256: 3f3a0687e4e1fe77c2371a7fdb5f94ba0bae8376fb6f5d7f7be8724b52d93bb8
 ---
 # `src/mediapipeline/desktop/network/use_cases/done_outcome.py`
 

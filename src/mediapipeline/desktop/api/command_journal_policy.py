@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 import math
 from typing import Any
 
@@ -89,7 +89,7 @@ def bounded_command_evidence(value: Any, *, depth: int = 0) -> Any:
 
 def summarize_command_payload(payload: Mapping[str, Any], *, request: Mapping[str, Any] | None = None) -> dict[str, Any]:
     entry = {
-        "at": datetime.now(timezone.utc).isoformat(),
+        "at": datetime.now(UTC).isoformat(),
         "command": scalar_text(payload.get("command"), limit=160) or "unknown",
         "ok": bool(payload.get("ok")),
         "severity": scalar_text(payload.get("severity"), limit=40) or "info",

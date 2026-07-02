@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Mapping
+from datetime import datetime, UTC
+from typing import Any
+from collections.abc import Mapping
 
 
 def utc_now_text() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def row_promoted_fields(evidence: Mapping[str, Any] | None) -> dict[str, Any]:

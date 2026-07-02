@@ -81,7 +81,7 @@ class ProcessActiveJobHelperTests(unittest.TestCase):
             )
 
             self.assertIsNotNone(record_path)
-            self.assertEqual(Path(getattr(proc, "_mediapipeline_active_job_record")), record_path)
+            self.assertEqual(Path(proc._mediapipeline_active_job_record), record_path)
             payload = json.loads(record_path.read_text(encoding="utf-8"))
             self.assertEqual(payload["schema_version"], "desktop_active_job.v1")
             self.assertEqual(payload["job_kind"], "pipeline")
@@ -145,7 +145,7 @@ class ProcessActiveJobHelperTests(unittest.TestCase):
             record_path.parent.mkdir()
             record_path.write_text("{not json", encoding="utf-8")
             proc = FakeProc(pid=2222, returncode=1)
-            setattr(proc, "_mediapipeline_active_job_record", str(record_path))
+            proc._mediapipeline_active_job_record = str(record_path)
             logger = logging.getLogger("test_service_process_active_jobs.update")
 
             with self.assertLogs(logger.name, level="WARNING") as logs:

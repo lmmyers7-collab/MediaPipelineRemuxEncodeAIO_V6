@@ -37,7 +37,7 @@ DIAGNOSTICS_OPEN_COMMAND = "diagnostics.open"
 DIAGNOSTICS_REFRESH_HINT = "diagnostics"
 
 
-def _command_result(**kwargs: Any) -> "CommandResult":
+def _command_result(**kwargs: Any) -> CommandResult:
     from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**kwargs)

@@ -4,7 +4,8 @@ import json
 import logging
 import tempfile
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from mediapipeline.core.rename.file_io import atomic_write_text
 from mediapipeline.core.kernel.runtime.subprocess_runner import CapturedCommandResult

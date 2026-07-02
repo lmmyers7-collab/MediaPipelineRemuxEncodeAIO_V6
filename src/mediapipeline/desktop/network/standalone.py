@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 class StandaloneDispatcher(QueueDispatcher):
     """Single-machine dispatcher.  Pops from the local queue_records list."""
 
-    def __init__(self, app: "MediaPipelineApp") -> None:
+    def __init__(self, app: MediaPipelineApp) -> None:
         self._app = app
 
     # ------------------------------------------------------------------

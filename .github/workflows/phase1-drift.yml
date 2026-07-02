@@ -28,29 +28,8 @@ jobs:
       - name: Install contract dependencies
         run: python -m pip install -r requirements/dev.txt -e .
 
-      - name: Check summary freshness
-        run: python -m mediapipeline.tools.dev.refresh_summaries --check
-
-      - name: Check project index and dependency graph
-        run: python -m mediapipeline.tools.dev.generate_project_index --check
-
-      - name: Check pipeline map
-        run: python -m mediapipeline.tools.dev.generate_pipeline_map --check
-
-      - name: Check lifecycle map
-        run: python -m mediapipeline.tools.dev.generate_lifecycle_map --check
-
-      - name: Check config schema
-        run: python -m mediapipeline.tools.dev.generate_config_schema --check
-
-      - name: Check stage schema
-        run: python -m mediapipeline.tools.dev.generate_stage_schema --check
-
-      - name: Check risky file registry
-        run: python -m mediapipeline.tools.dev.check_risky_file_registry
-
-      - name: Check architecture guardrails
-        run: python -m mediapipeline.tools.dev.check_architecture_guardrails
+      - name: Run generated context and Python lint audit suite
+        run: python -m mediapipeline.tools.dev.audit_checks run phase1-generated
 
       - name: Check naming lint
         shell: pwsh
@@ -70,9 +49,6 @@ jobs:
           } else {
             python -m mediapipeline.tools.lint_naming
           }
-
-      - name: Check active doc references
-        run: python -m mediapipeline.tools.dev.check_active_doc_references
 
       - name: Check GitHub audit spine config
         shell: pwsh
@@ -96,9 +72,6 @@ jobs:
           } else {
             python -m mediapipeline.tools.change_control.validate_changes
           }
-
-      - name: Check Python typing
-        run: python -m mediapipeline.tools.dev.check_python_typing
 
       - name: Install PSScriptAnalyzer
         shell: pwsh

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/decide/encoding_rules.py
 pipeline_stage: decide
 token_priority: high
 owner_domain: decide
-last_modified: 2026-06-15
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 9468e1e2b422eb8abf9100cf9ee583e8f5b9bfe367a94d252feacc25dfb10f08
+sha256: fdd1f6e73b8c1f2c2375ef348b887f6a218658f963b2948ec1a8ec2121bebe47
 ---
 # `src/mediapipeline/core/decide/encoding_rules.py`
 

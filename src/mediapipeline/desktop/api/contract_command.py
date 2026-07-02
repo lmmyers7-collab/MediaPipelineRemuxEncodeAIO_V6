@@ -1452,7 +1452,7 @@ LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         },
         "response_schema": "desktop_command_result.v1",
         "data_schema": "desktop_rerun_scoped_csv.v1",
-        "purpose": "Launch backend-owned CSV rerun v2 with one-at-a-time execution by default. Scope filters may materialize a backend-owned scoped CSV under State\\Rerun\\ScopedCsv before dry-run or live start; legacy stage/original/return aliases are accepted but high-level lifecycle fields are authoritative.",
+        "purpose": "Launch backend-owned CSV rerun v2 with one-at-a-time execution by default. Scope filters may materialize a backend-owned scoped CSV under State\\Rerun\\ScopedCsv before dry-run or live start; legacy stage/original/return aliases are accepted but high-level lifecycle fields are authoritative. Original source mutation policies are rejected for CSV rerun; final replacement remains strict-confirmation gated.",
     },
     {
         "method": "POST",
@@ -1482,7 +1482,7 @@ LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "request_keys": ["row_key", "dry_run_fingerprint", "confirm_promote"],
         "requires_strict_boolean": ["confirm_promote"],
         "response_schema": "desktop_command_result.v1",
-        "purpose": "After matching dry-run evidence and confirm_promote=true, move an existing rerun review output into Pending Publish and write a pending-publish manifest; it does not directly publish or touch source media.",
+        "purpose": "After matching dry-run evidence and confirm_promote=true, write a pending_move manifest, move an existing rerun review output into Pending Publish, update the manifest to parked, and preserve known sidecar evidence; it does not directly publish or touch source media.",
     },
     {
         "method": "POST",

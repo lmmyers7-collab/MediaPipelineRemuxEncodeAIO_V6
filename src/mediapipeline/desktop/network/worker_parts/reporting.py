@@ -61,7 +61,7 @@ def request_abort_reclaimed_job(
     try:
         post_callback(
             "worker-abort-current-job",
-            getattr(app, "_worker_abort_current_job"),
+            app._worker_abort_current_job,
         )
     except Exception as exc:
         log.error(

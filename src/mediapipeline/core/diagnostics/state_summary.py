@@ -5,7 +5,8 @@ import heapq
 import json
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any
+from collections.abc import Iterable, Mapping
 
 
 DIAGNOSTICS_STATE_SUMMARY_SCHEMA_VERSION = "desktop_diagnostics_state_summary.v1"

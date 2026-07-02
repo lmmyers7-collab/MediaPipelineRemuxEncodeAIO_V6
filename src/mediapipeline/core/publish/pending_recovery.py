@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any
+from collections.abc import Mapping
 
 from .pending_open_policy import normalize_pending_publish_row_key
 from .pending_policy_parts.status_rules import recovery_plan_action as _recovery_plan_action
@@ -16,7 +17,6 @@ from .pending_rows import (
     int_value,
     pending_publish_row_is_recovery_blocker,
     pending_publish_row_key,
-    pending_publish_scan_exception_fields,
 )
 
 if TYPE_CHECKING:

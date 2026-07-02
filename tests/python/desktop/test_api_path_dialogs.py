@@ -35,8 +35,7 @@ class PathDialogTests(unittest.TestCase):
             cwd=REPO_ROOT,
             env=env,
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             check=False,
         )
 

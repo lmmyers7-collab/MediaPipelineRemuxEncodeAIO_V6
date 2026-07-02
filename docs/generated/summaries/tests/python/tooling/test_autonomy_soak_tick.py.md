@@ -3,9 +3,9 @@ file: tests/python/tooling/test_autonomy_soak_tick.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-18
+last_modified: 2026-07-02
 last_reviewed: 2026-06-18
-sha256: 0c0b15498a41544bbd3fa80d507d79fa4c540369eeca35b17f71e50a9a9ad859
+sha256: f4413e7c2b08165f4d91abf2c50d1ea19a36096c4477733cc731d76531a5725f
 ---
 # `tests/python/tooling/test_autonomy_soak_tick.py`
 

@@ -44,6 +44,7 @@ __all__ = [
     "SourceSubtitleStream",
     "SourceDerivedFacts",
     "SourceMediaInfo",
+    "SourceMediaModel",
     "source_media_from_mapping",
     "source_media_from_probe_result",
     "source_media_from_ffprobe",

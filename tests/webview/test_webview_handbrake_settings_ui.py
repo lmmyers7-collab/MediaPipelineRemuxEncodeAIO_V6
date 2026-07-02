@@ -1309,7 +1309,6 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
     def test_removed_static_label_fallback_cannot_create_editable_keys(self) -> None:
         backend = _backend_metadata_by_key()
-        metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
         metadata_fields_js = (STATIC_ROOT / "assets" / "settings" / "metadataFields.js").read_text(encoding="utf-8")
         builder_controls_js = (STATIC_ROOT / "assets" / "settings" / "builderControls.js").read_text(encoding="utf-8")
         review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")

@@ -5588,7 +5588,7 @@
       "normalized_route": "/api/maintenance/archive-state-journals",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1150,
+      "line": 1238,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5859,7 +5859,7 @@
       "normalized_route": "/api/pipeline/browse-file",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 880,
+      "line": 982,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5875,7 +5875,7 @@
       "normalized_route": "/api/pipeline/control",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 842,
+      "line": 944,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5891,7 +5891,7 @@
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1080,
+      "line": 1070,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5907,7 +5907,7 @@
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 982,
+      "line": 1168,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6289,7 +6289,7 @@
       "normalized_route": "/api/rerun/open",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1380,
+      "line": 1750,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6305,7 +6305,7 @@
       "normalized_route": "/api/rerun/preview",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1440,
+      "line": 1814,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6321,7 +6321,7 @@
       "normalized_route": "/api/rerun/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1577,
+      "line": 1951,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",

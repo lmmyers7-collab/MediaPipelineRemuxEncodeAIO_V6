@@ -262,8 +262,8 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             seen.add(panel)
 
     def test_nav_button_pages_and_panels_match(self) -> None:
-        button_pages = set(b["page"] for b in self.parsed.nav_buttons)
-        panel_pages = set(p["panel"] for p in self.parsed.page_panels)
+        button_pages = {b["page"] for b in self.parsed.nav_buttons}
+        panel_pages = {p["panel"] for p in self.parsed.page_panels}
         self.assertEqual(
             button_pages,
             panel_pages,

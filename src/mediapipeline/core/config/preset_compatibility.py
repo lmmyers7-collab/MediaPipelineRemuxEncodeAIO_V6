@@ -115,10 +115,7 @@ FRIENDLY_LABEL_PERSISTED_KEY_ALIASES: dict[str, str] = {
     "Direct Copy Video Codec Allowlist": "RemuxSafeVideoCodecs",
 }
 
-PERSISTED_KEY_MIGRATION_STATUS: dict[str, MigrationStatus] = {
-    key: "stable_persisted_key"
-    for key in Config.model_fields
-}
+PERSISTED_KEY_MIGRATION_STATUS: dict[str, MigrationStatus] = dict.fromkeys(Config.model_fields, "stable_persisted_key")
 
 LEGACY_COMPATIBILITY_KEY_STATUSES: dict[str, MigrationStatus] = {
     "SourceMovies": "accepted_forever",
@@ -130,10 +127,7 @@ LEGACY_COMPATIBILITY_KEY_STATUSES: dict[str, MigrationStatus] = {
     "media_overrides": "legacy_alias_accepted",
 }
 
-BLOCKED_FUTURE_PERSISTED_KEYS: dict[str, MigrationStatus] = {
-    alias: "blocked_future_key"
-    for alias in FRIENDLY_LABEL_PERSISTED_KEY_ALIASES
-}
+BLOCKED_FUTURE_PERSISTED_KEYS: dict[str, MigrationStatus] = dict.fromkeys(FRIENDLY_LABEL_PERSISTED_KEY_ALIASES, "blocked_future_key")
 
 LABEL_ONLY_RENAME_POLICIES: tuple[dict[str, object], ...] = tuple(
     {

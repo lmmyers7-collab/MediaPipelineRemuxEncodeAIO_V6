@@ -1,0 +1,57 @@
+{
+  "id": "MP-CHANGE-2026-0702-002",
+  "title": "Safe actionable backend error banners",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-02",
+  "date_completed": "2026-07-02",
+  "summary": "Centralized WebView Local API error formatting and expanded launch backend-preflight blockers so API failures and launch-stop banners render specific, actionable, sanitized user-facing messages.",
+  "reason": "Backend/API failures were thrown as plain Error messages, and launch backend-preflight startup alerts condensed blockers to a generic first-blocker/evidence sentence. Operators needed the popup itself to say what is wrong, how to fix it, and where to look when the backend cannot produce an automatic repair.",
+  "affected_areas": [
+    "backend",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "apiClient.js threw generic plain Error values for HTTP failures, timeout failures, invalid JSON, and network failures; raw backend strings could be surfaced directly in UI status rows. Launch startup alerts showed only the first blocked check name plus evidence, and autonomy pending-manifest blockers used generic manual-recovery wording.",
+  "behavior_after": "apiClient.js throws categorized user-facing errors that identify the failed action, safe endpoint label, category, HTTP status/backend code when present, and a short next step while redacting or suppressing stack traces, raw SQL, paths, tokens, internal hostnames, and sensitive payload-looking details. Launch startup alerts now show explicit What is wrong / How to fix / Backend detail / Recovery route lines, and autonomy pending-manifest blockers name the invalid manifest evidence, selected recovery-plan route, repair dry-run path, and schema-reference fallback.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/apiClient.js",
+    "apps/desktop/webview/static/assets/diagnosticsView.js",
+    "apps/desktop/webview/static/assets/launchView.preflight.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/apiClient.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/diagnosticsView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.preflight.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0702-002.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/diagnostics/autonomy_health.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_shell.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_autonomy_health.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_api_client_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_launch_command_buttons_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0702-002.json",
+    "src/mediapipeline/core/diagnostics/autonomy_health.py",
+    "tests/python/desktop/test_application_facade_web_static_shell.py",
+    "tests/python/desktop/test_autonomy_health.py",
+    "tests/webview/test_webview_api_client_smoke.py",
+    "tests/webview/test_webview_launch_command_buttons_smoke.py"
+  ],
+  "tests_added": [
+    "Expanded tests/webview/test_webview_api_client_smoke.py coverage for validation, authentication/session, permission, not found, conflict, rate limit, timeout, network unavailable, server error, database/storage error, invalid JSON, and sensitive-detail redaction.",
+    "Updated tests/python/desktop/test_application_facade_web_static_shell.py static assertions for the sanitized shared API error formatter.",
+    "Added tests/python/desktop/test_autonomy_health.py coverage for untrusted pending manifest blocker message, row evidence, repair guidance, and selected recovery-plan request.",
+    "Expanded tests/webview/test_webview_launch_command_buttons_smoke.py coverage so the startup alert must include what-is-wrong, how-to-fix, backend detail, and recovery-route text."
+  ],
+  "manual_validation": [
+    "FAIL unrelated/pre-existing: apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static_diagnostics_reports -q failed on missing active-jobs wording assertion 'active/review=' outside this error-banner change.",
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_api_client_smoke tests.python.desktop.test_application_facade_web_static_shell -q (7 tests)",
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_autonomy_health -q (25 tests)",
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_launch_command_buttons_smoke -q (7 tests)",
+    "PASS: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage",
+    "PASS: npm run webview:check"
+  ],
+  "rollback_plan": "Revert the apiClient.js formatter changes, Diagnostics fallback wording, launch startup alert formatter, autonomy pending-manifest wording, updated tests, and refreshed summaries in this packet to restore the previous plain Error and first-blocker alert behavior.",
+  "related_changes": [],
+  "notes": "Centralized sanitized API error messages with action, endpoint, category, status/code, and next-step text.\nReplaced bare Diagnostics refresh fallback with specific action, category, and next-step text.\nExpanded API client smoke coverage for categorized user-facing error messages and sensitive-detail redaction.\nUpdated WebView static assertions for the new sanitized API error formatter.\nRefreshed generated summary after API client error formatter update.\nRefreshed generated summary after Diagnostics fallback wording update.\nRefreshed generated summary after API client smoke expansion.\nRefreshed generated summary after WebView static shell assertion update.\nMake launch-blocked backend preflight startup alert include blocker action, detail, and recovery-route guidance.\nAssert launch startup alert surfaces backend detail and recovery-route guidance.\nMake autonomy pending-publish manifest blockers name the invalid manifest evidence and backend recovery path.\nRefresh summary after launch startup alert guidance update.\nRefresh summary after autonomy blocker guidance update.\nRefresh summary after autonomy health regression coverage update.\nRefresh summary after launch alert smoke update.\nGenerate summary for updated change packet.\nCover specific untrusted pending manifest recovery guidance in autonomy health."
+}

@@ -4,9 +4,14 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from mediapipeline.core.telemetry.gpu_usage import gpu_encoder_usage_payload
+
+
+_StatusSnapshot = Any
+_TelemetrySnapshot = Any
 
 
 APP_CAPABILITIES = (
@@ -673,7 +678,7 @@ def audit_progress_bars(audit_progress: Mapping[str, Any], *, stale: bool = Fals
     return bars
 
 
-def snapshot_progress_bars(snapshot: Snapshot, *, pipeline_state: str) -> list[dict[str, Any]]:
+def snapshot_progress_bars(snapshot: _StatusSnapshot, *, pipeline_state: str) -> list[dict[str, Any]]:
     progress = snapshot.progress or {}
     audit_progress = snapshot.audit_progress or {}
     stale = "stale progress" in str(snapshot.current_activity or "").lower()
@@ -688,7 +693,7 @@ def optional_path_text(path: Path | None) -> str:
     return str(path) if path else ""
 
 
-def snapshot_latest_paths(snapshot: Snapshot) -> dict[str, str]:
+def snapshot_latest_paths(snapshot: _StatusSnapshot) -> dict[str, str]:
     latest_paths = {
         "latest_failure_report": optional_path_text(snapshot.latest_failure_report),
         "latest_failure_json": optional_path_text(snapshot.latest_failure_json),
@@ -698,17 +703,17 @@ def snapshot_latest_paths(snapshot: Snapshot) -> dict[str, str]:
     return {key: value for key, value in latest_paths.items() if value}
 
 
-def snapshot_warnings(snapshot: Snapshot) -> list[str]:
+def snapshot_warnings(snapshot: _StatusSnapshot) -> list[str]:
     if snapshot.last_error:
         return [str(snapshot.last_error)]
     return []
 
 
-def snapshot_recent_events(snapshot: Snapshot, *, limit: int = 25) -> list[dict[str, Any]]:
+def snapshot_recent_events(snapshot: _StatusSnapshot, *, limit: int = 25) -> list[dict[str, Any]]:
     return [dict(item) for item in snapshot.pipeline_events[-limit:]]
 
 
-def telemetry_sampled_at(telemetry: TelemetrySnapshot) -> str:
+def telemetry_sampled_at(telemetry: _TelemetrySnapshot) -> str:
     if telemetry.collected_at is None:
         return ""
     if telemetry.collected_at.tzinfo:
@@ -716,7 +721,7 @@ def telemetry_sampled_at(telemetry: TelemetrySnapshot) -> str:
     return telemetry.collected_at.isoformat()
 
 
-def telemetry_gpu_present(telemetry: TelemetrySnapshot) -> bool:
+def telemetry_gpu_present(telemetry: _TelemetrySnapshot) -> bool:
     return (
         telemetry.gpu_count > 0
         or telemetry.gpu_encoder_percent is not None
@@ -725,7 +730,7 @@ def telemetry_gpu_present(telemetry: TelemetrySnapshot) -> bool:
     )
 
 
-def telemetry_fields(telemetry: TelemetrySnapshot) -> dict[str, Any]:
+def telemetry_fields(telemetry: _TelemetrySnapshot) -> dict[str, Any]:
     return {
         "sampled_at": telemetry_sampled_at(telemetry),
         "cpu_percent": telemetry.cpu_percent,

@@ -204,7 +204,7 @@ def worker_join_patch_from_blob(
     }
     if effective_mappings:
         changes["WorkerSourcePathMap"] = json.dumps(
-            {source: target for source, target in effective_mappings},
+            dict(effective_mappings),
             ensure_ascii=False,
         )
 

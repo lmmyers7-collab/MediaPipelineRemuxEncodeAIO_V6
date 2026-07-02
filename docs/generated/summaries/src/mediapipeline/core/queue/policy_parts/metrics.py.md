@@ -3,9 +3,9 @@ file: src/mediapipeline/core/queue/policy_parts/metrics.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-05-30
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 0c4627b871f7731e1b4ba0ef8c4830f63d1025183f3bc3a680186e09b88f83b7
+sha256: fe0405c192e776d5954b6c96d32f8fbfcc7f65893975fe7c760347187c1f50de
 ---
 # `src/mediapipeline/core/queue/policy_parts/metrics.py`
 

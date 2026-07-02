@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 import hashlib
 import ipaddress
 import logging
@@ -44,7 +44,7 @@ NETWORK_TEST_CONNECTION_SCHEMA_VERSION = "desktop_network_worker_test_connection
 NETWORK_COORDINATOR_DISCOVERY_SCHEMA_VERSION = "desktop_network_coordinator_discovery.v1"
 
 
-def _network_workers_dto(**fields: Any) -> "NetworkWorkersDto":
+def _network_workers_dto(**fields: Any) -> NetworkWorkersDto:
     from mediapipeline.core.kernel.dto_workspaces import NetworkWorkersDto
 
     return NetworkWorkersDto(**fields)
@@ -222,8 +222,8 @@ def _iso_age_seconds(value: object) -> int | None:
     try:
         parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
         if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
-        return max(0, int((datetime.now(timezone.utc) - parsed.astimezone(timezone.utc)).total_seconds()))
+            parsed = parsed.replace(tzinfo=UTC)
+        return max(0, int((datetime.now(UTC) - parsed.astimezone(UTC)).total_seconds()))
     except Exception:
         return None
 
@@ -313,7 +313,7 @@ def _network_worker_progress_bars(
             "status": mode_status,
             "detail": f"role={role}; worker_rows={len(rows)}; warnings={len(warnings)}",
             "source": "desktop_network_workers.v1",
-            "updated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+            "updated_at": datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
             "stale": False,
         }
     )
@@ -454,14 +454,14 @@ def _state_file_row(key: str, label: str, path: Path, purpose: str) -> dict[str,
         row["error"] = redact_network_secret_text(exc)
         return row
 
-    modified = datetime.fromtimestamp(stat.st_mtime, timezone.utc)
+    modified = datetime.fromtimestamp(stat.st_mtime, UTC)
     row.update(
         {
             "exists": True,
             "status": "present",
             "size_bytes": int(stat.st_size),
             "modified_at": modified.isoformat(),
-            "age_seconds": max(0, int((datetime.now(timezone.utc) - modified).total_seconds())),
+            "age_seconds": max(0, int((datetime.now(UTC) - modified).total_seconds())),
         }
     )
     return row
@@ -1521,7 +1521,7 @@ class NetworkFacadeMixin:
                 coordinator_url=coordinator_url,
                 token=token,
                 libraries=library_roots_from_config(resolved.config_data or {}),
-                created_at_utc=datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+                created_at_utc=datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
             )
         except Exception as exc:
             return CommandResult(

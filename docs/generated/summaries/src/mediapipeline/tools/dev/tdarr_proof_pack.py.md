@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/dev/tdarr_proof_pack.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-12
+last_modified: 2026-07-02
 last_reviewed: 2026-06-12
-sha256: ac6e8d10d475b6668bee07b433c3967e9f4ff4c78c4ec853a44b344b2c273ea7
+sha256: 98b4763d8d9678a96cbd7a7e101f5843699a13e86222501b22288e7717079292
 ---
 # `src/mediapipeline/tools/dev/tdarr_proof_pack.py`
 

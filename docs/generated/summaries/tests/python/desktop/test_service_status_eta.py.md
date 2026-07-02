@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_status_eta.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-08
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: e2561215099c80d8dc0743f03c22a2039ef2e4ac3ad468305aee4aa84e1f264e
+sha256: 5943c484f8d4003ebf624b296254336d9a6855479fcc707f0eb3be14fe4d2f00
 ---
 # `tests/python/desktop/test_service_status_eta.py`
 

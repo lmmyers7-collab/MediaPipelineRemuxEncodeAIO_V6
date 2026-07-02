@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import threading
 import time
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from mediapipeline.core.completed.manifest import PROOF_MODE_SUMMARY
 from mediapipeline.core.paths.contracts import ResolvedPaths
@@ -11,7 +12,6 @@ from mediapipeline.core.completed.contracts import CompletedJobRecord
 from .promotion import (
     CONSECUTIVE_FAILURE_LIMIT,
     FINAL_LIBRARY_PROMOTION_RUN_SCHEMA_VERSION,
-    build_promotion_item_rows,
     promotion_settings_from_config,
     promotion_status_payload,
     promote_item,

@@ -23,7 +23,7 @@ COMPLETED_OPEN_COMMAND = "completed.open"
 COMPLETED_REFRESH_HINT = "completed"
 
 
-def _command_result(**kwargs: Any) -> "CommandResult":
+def _command_result(**kwargs: Any) -> CommandResult:
     from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**kwargs)

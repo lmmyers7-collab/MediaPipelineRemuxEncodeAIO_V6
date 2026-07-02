@@ -3,9 +3,9 @@ file: src/mediapipeline/core/rename/tv.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: rename
-last_modified: 2026-06-18
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 01e62ca98d978bfcd37ceebca33bb0575b8ca148dc111e7280ca669d6e892b7d
+sha256: 7d9161940fa6d3087f6425585082144a4c1a18b31883bc815b41f8705bce666a
 ---
 # `src/mediapipeline/core/rename/tv.py`
 

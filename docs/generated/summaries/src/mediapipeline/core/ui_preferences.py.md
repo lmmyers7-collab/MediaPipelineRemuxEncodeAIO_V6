@@ -3,9 +3,9 @@ file: src/mediapipeline/core/ui_preferences.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-02
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 7fb718a4c2748c7db7dca315c0e5638082ec72d7766dc58eab4b7075fbaecfb8
+sha256: 745ad66b61b381187d93c579f1b217e3fdf76633869fe05274f66652ee0196d1
 ---
 # `src/mediapipeline/core/ui_preferences.py`
 

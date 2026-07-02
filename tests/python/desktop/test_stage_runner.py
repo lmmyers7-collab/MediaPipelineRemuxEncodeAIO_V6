@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import sys
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any
 
@@ -29,7 +29,7 @@ def _stage_stdout(
     data: dict[str, Any] | None = None,
     error: dict[str, Any] | None = None,
 ) -> str:
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     payload: dict[str, Any] = {
         "schema_version": "v1",
         "stage": stage,

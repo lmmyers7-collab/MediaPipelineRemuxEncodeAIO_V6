@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections import Counter
-from datetime import datetime, timezone
-from typing import Any, Iterable, Mapping
+from datetime import datetime, UTC
+from typing import Any
+from collections.abc import Iterable, Mapping
 
 from mediapipeline.core.completed.policy import completed_record_key, format_bytes_compact
 from mediapipeline.core.completed.contracts import CompletedJobRecord
@@ -21,7 +22,7 @@ TOP_STORAGE_ROW_LIMIT = 10
 
 
 def utc_now_text() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _int_or_none(value: Any) -> int | None:

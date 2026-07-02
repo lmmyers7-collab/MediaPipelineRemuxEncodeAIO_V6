@@ -482,7 +482,7 @@ class PresetPolicyContractTests(unittest.TestCase):
             self.assertNotIn(alias, patch)
 
     def test_preset_v2_legacy_patch_validation_uses_current_config_contract(self) -> None:
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             legacy_config_patch_from_preset_v2(
                 {
                     "version": 2,

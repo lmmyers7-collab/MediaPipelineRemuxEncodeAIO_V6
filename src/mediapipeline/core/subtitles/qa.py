@@ -638,7 +638,7 @@ def _summary_entry(scope: str, row: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _count_postures(rows: Iterable[Mapping[str, Any]]) -> dict[str, int]:
-    counts = {key: 0 for key in _POSTURE_RANK}
+    counts = dict.fromkeys(_POSTURE_RANK, 0)
     for row in rows:
         posture = _casefold(row.get("posture")) or "unknown"
         counts[posture if posture in counts else "unknown"] += 1

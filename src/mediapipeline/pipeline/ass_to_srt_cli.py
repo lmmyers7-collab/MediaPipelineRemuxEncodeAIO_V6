@@ -95,7 +95,7 @@ import subprocess
 import tempfile
 import atexit
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from mediapipeline.pipeline.ass_to_srt.ass_events import (
     _ass_dialogue_stats,
@@ -144,6 +144,45 @@ except ImportError:
 
 __version__ = "1.0"
 
+__all__ = [
+    "ASS_BASIC_FORMAT_TAG_RE",
+    "ASS_OVERRIDE_BLOCK_RE",
+    "ChildProcessGuard",
+    "DEFAULT_EXCLUDE_STYLES",
+    "HTML_TAG_RE",
+    "KARAOKE_TAG_RE",
+    "SENTENCE_PUNCT_RE",
+    "SRT_BASIC_FORMAT_TAG_RE",
+    "WEIRD_SPACE_RE",
+    "_DRAWING_CMD_CHARS",
+    "_KARAOKE_STYLE_HINTS",
+    "_NUMBER_RE",
+    "_ass_dialogue_stats",
+    "_join_texts",
+    "_split_style_patterns",
+    "apply_minimum_gap",
+    "ass_override_block_to_srt_markup",
+    "atomic_write_json",
+    "atomic_write_text",
+    "clean_text",
+    "collect_dialogue_cues",
+    "compile_style_matcher",
+    "fail_with_summary",
+    "is_pure_drawing_event",
+    "load_ass_with_best_encoding",
+    "looks_like_drawing_line",
+    "looks_like_karaoke_syllable",
+    "main",
+    "merge_overlapping_cues",
+    "ms_to_srt",
+    "parse_args",
+    "render_ass_text_for_srt",
+    "render_srt",
+    "run_ffmpeg_extract",
+    "sanitize_srt_markup",
+    "write_summary_json",
+]
+
 
 def atomic_write_text(path: str, text: str, *, encoding: str = "utf-8") -> None:
     target = Path(path)
@@ -161,11 +200,11 @@ def atomic_write_text(path: str, text: str, *, encoding: str = "utf-8") -> None:
         raise
 
 
-def atomic_write_json(path: str, summary_data: Dict[str, Any]) -> None:
+def atomic_write_json(path: str, summary_data: dict[str, Any]) -> None:
     atomic_write_text(path, json.dumps(summary_data, indent=2, ensure_ascii=False))
 
 
-def write_summary_json(path: Optional[str], summary_data: Dict[str, Any]) -> None:
+def write_summary_json(path: str | None, summary_data: dict[str, Any]) -> None:
     if not path:
         return
 
@@ -176,11 +215,11 @@ def write_summary_json(path: Optional[str], summary_data: Dict[str, Any]) -> Non
 
 
 def fail_with_summary(args: argparse.Namespace,
-                      summary_data: Dict[str, Any],
+                      summary_data: dict[str, Any],
                       message: str,
                       *,
-                      stage: Optional[str] = None,
-                      details: Optional[List[str]] = None,
+                      stage: str | None = None,
+                      details: list[str] | None = None,
                       exit_code: int = 1) -> None:
     emit_prefixed(f"ERROR: {message}")
     if details:

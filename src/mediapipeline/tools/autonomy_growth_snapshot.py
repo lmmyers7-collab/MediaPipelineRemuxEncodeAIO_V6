@@ -4,7 +4,8 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from mediapipeline.core.diagnostics.autonomy_health import load_autonomy_growth_history, record_autonomy_growth_snapshot
 from mediapipeline.tools.autonomy_health_gate import build_health_from_payload, resolved_paths_from_payload

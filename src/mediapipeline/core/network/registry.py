@@ -21,7 +21,7 @@ import tempfile
 import threading
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -196,7 +196,7 @@ class InFlightJob:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "InFlightJob":
+    def from_dict(cls, d: dict[str, Any]) -> InFlightJob:
         return cls(
             job_id=str(d.get("job_id", "")),
             worker_id=str(d.get("worker_id", "")),
@@ -285,7 +285,7 @@ class InFlightRegistry:
         worker beat this one to it).  The caller should scan for the next
         unclaimed record and try again.
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         safe_job_id = str(job_id or "").strip()
         safe_worker_id = str(worker_id or "").strip()
         safe_source_path = str(source_path or "").strip()
@@ -353,7 +353,7 @@ class InFlightRegistry:
         accessible_library_ids: list[str] | None = None,
     ) -> None:
         """Record that a worker reached the coordinator, even if no job is claimable."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         safe_worker_id = str(worker_id or "").strip()
         if not safe_worker_id:
             return
@@ -385,7 +385,7 @@ class InFlightRegistry:
             job = self._jobs.get(job_id)
             if job is None or job.worker_id != worker_id:
                 return "reclaimed"
-            job.last_heartbeat   = datetime.now(timezone.utc).isoformat()
+            job.last_heartbeat   = datetime.now(UTC).isoformat()
             job.progress_percent = coerce_progress_percent(progress_percent)
             job.current_stage    = current_stage
             if accessible_library_ids is not None:
@@ -411,7 +411,7 @@ class InFlightRegistry:
         output_size_bytes: int = 0,
         reason_code: str = "",
         reason: str = "",
-    ) -> "InFlightJob | None":
+    ) -> InFlightJob | None:
         """Remove *job_id* from in-flight and increment the session counter.
 
         When *success* is ``True`` and *elapsed_seconds* > 0, the
@@ -451,7 +451,7 @@ class InFlightRegistry:
             # return False (already cleared above), and re-claim the
             # same source.
             self._recent_completions[normalize_source_identity(job.source_path)] = time.monotonic()
-            now = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(UTC).isoformat()
             ledger_key = _failure_ledger_key(job.worker_id, job.source_path)
             if success:
                 self._failure_ledger.pop(ledger_key, None)
@@ -521,7 +521,7 @@ class InFlightRegistry:
                     stats["failure_streak_count"] = 1
         return job
 
-    def unclaim(self, job_id: str, worker_id: str = "") -> "InFlightJob | None":
+    def unclaim(self, job_id: str, worker_id: str = "") -> InFlightJob | None:
         """Remove *job_id* without incrementing completed or failed counters.
 
         Used when a worker is shutting down cleanly (*release* path) or
@@ -550,7 +550,7 @@ class InFlightRegistry:
             self._recent_completions[source_identity] = time.monotonic()
         return job
 
-    def rollback_claim(self, job_id: str, worker_id: str = "") -> "InFlightJob | None":
+    def rollback_claim(self, job_id: str, worker_id: str = "") -> InFlightJob | None:
         """Undo a claim that was never durably saved.
 
         Unlike :meth:`unclaim`, this does not add the source path to the
@@ -597,7 +597,7 @@ class InFlightRegistry:
         """Mark and return the quarantine entry once when its threshold is reached."""
         threshold = max(1, int(max_retries or 1))
         key = _failure_ledger_key(worker_id, source_path)
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         with self._lock:
             entry = self._failure_ledger.get(key)
             if not entry:
@@ -633,14 +633,14 @@ class InFlightRegistry:
             return []
         cutoff_secs = timeout_mins * 60
         stale: list[InFlightJob] = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         with self._lock:
             for job_id in list(self._jobs):
                 job = self._jobs[job_id]
                 try:
                     last = datetime.fromisoformat(job.last_heartbeat)
                     if last.tzinfo is None:
-                        last = last.replace(tzinfo=timezone.utc)
+                        last = last.replace(tzinfo=UTC)
                     age = (now - last).total_seconds()
                 except (ValueError, TypeError):
                     age = float("inf")
@@ -678,7 +678,7 @@ class InFlightRegistry:
         worker_id = str(getattr(request, "worker_id", "") or "").strip()
         if not job_id or not worker_id:
             return None
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         with self._lock:
             reclaim = self._reclaim_ledger.get(job_id)
             if not reclaim:
@@ -814,7 +814,7 @@ class InFlightRegistry:
         with self._lock:
             jobs = list(self._jobs.values())
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         rows: list[dict[str, Any]] = []
         for job in jobs:
             heartbeat_age_seconds: int | None = None
@@ -823,7 +823,7 @@ class InFlightRegistry:
                 try:
                     parsed = datetime.fromisoformat(last_heartbeat.replace("Z", "+00:00"))
                     if parsed.tzinfo is None:
-                        parsed = parsed.replace(tzinfo=timezone.utc)
+                        parsed = parsed.replace(tzinfo=UTC)
                     heartbeat_age_seconds = max(0, int((now - parsed).total_seconds()))
                 except Exception:
                     heartbeat_age_seconds = None

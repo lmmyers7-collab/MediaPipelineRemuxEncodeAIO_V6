@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/readiness.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-05-30
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: d0725bde85d902245d470bd6ceeb5b8279edb73ce9c37804a2f87ff9ddefbfe4
+sha256: 839a175254ecfe2d882eab361da475c9cf6a876e8544a09cd06c192da4fdab77
 ---
 # `src/mediapipeline/core/processes/readiness.py`
 

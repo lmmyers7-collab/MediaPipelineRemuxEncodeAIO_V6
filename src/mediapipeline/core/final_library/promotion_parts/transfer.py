@@ -4,7 +4,8 @@ import contextlib
 import hashlib
 from pathlib import Path
 import shutil
-from typing import Any, Iterable
+from typing import Any
+from collections.abc import Iterable
 import uuid
 
 from mediapipeline.core.files.constants import MEDIA_FILE_SUFFIXES

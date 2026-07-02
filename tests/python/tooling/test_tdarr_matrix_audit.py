@@ -546,7 +546,7 @@ class TdarrMatrixAuditTests(unittest.TestCase):
             self.assertIn("path_escaped_test_root", codes)
 
     @staticmethod
-    def _make_outcome(tmp_dir: Path, *, returncode: int | None = 0, timed_out: bool = False) -> "audit.ProcessOutcome":
+    def _make_outcome(tmp_dir: Path, *, returncode: int | None = 0, timed_out: bool = False) -> audit.ProcessOutcome:
         return audit.ProcessOutcome(
             command=["pwsh", "-File", "MediaPipeline.ps1"],
             returncode=returncode,

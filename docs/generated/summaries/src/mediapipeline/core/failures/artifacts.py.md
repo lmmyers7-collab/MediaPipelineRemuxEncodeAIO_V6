@@ -3,9 +3,9 @@ file: src/mediapipeline/core/failures/artifacts.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: failures
-last_modified: 2026-07-01
+last_modified: 2026-07-02
 last_reviewed: 2026-06-30
-sha256: 823d7fbc0ae808aa59110f17fcd911c17e846d4215441c80c32afa14c507a3de
+sha256: b711cfc81357b317730822341324d83cd55f78e843cba45bef91d32fcd0375cd
 ---
 # `src/mediapipeline/core/failures/artifacts.py`
 

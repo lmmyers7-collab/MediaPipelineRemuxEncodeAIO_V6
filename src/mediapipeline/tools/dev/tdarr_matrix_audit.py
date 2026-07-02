@@ -13,9 +13,10 @@ import subprocess
 import time
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any
+from collections.abc import Iterable, Mapping, Sequence
 
 from mediapipeline.tools.dev import materialize_tdarr_test_library as tdarr_matrix
 from mediapipeline.tools.paths import find_repo_root
@@ -102,7 +103,7 @@ WORKER_CHILD_GUARD_ERROR_CODES = {
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    return datetime.now(UTC).replace(microsecond=0).isoformat()
 
 
 def resolve_path(value: str | Path, *, repo_root: Path = REPO_ROOT) -> Path:
@@ -194,7 +195,7 @@ class ManifestRow:
     record: dict[str, str] = field(default_factory=dict)
 
     @classmethod
-    def from_record(cls, record: Mapping[str, object], *, library_root: Path) -> "ManifestRow":
+    def from_record(cls, record: Mapping[str, object], *, library_root: Path) -> ManifestRow:
         library_root = library_root.resolve(strict=False)
         generated_path, generated_abs = contained_manifest_child(
             library_root,
@@ -1597,7 +1598,7 @@ def audit_existing_library(
 
 
 def run_id_default() -> str:
-    return datetime.now(timezone.utc).strftime("run-%Y%m%d-%H%M%S")
+    return datetime.now(UTC).strftime("run-%Y%m%d-%H%M%S")
 
 
 def command_report(args: argparse.Namespace) -> int:
@@ -1630,7 +1631,7 @@ def command_report(args: argparse.Namespace) -> int:
     )
     findings = [*prepare_findings, *findings]
     if prepare_findings:
-        report = write_reports(
+        write_reports(
             library_root=library_root,
             audit_dir=audit_dir,
             rows=rows,
@@ -1709,7 +1710,7 @@ def command_run_samples(args: argparse.Namespace) -> int:
     findings.extend(audit_source_hashes(run_rows))
     findings.extend(audit_bucket_classification(run_rows))
     findings.extend(audit_path_containment(run_root))
-    report = write_reports(
+    write_reports(
         library_root=run_root,
         audit_dir=default_audit_dir(run_root),
         rows=run_rows,

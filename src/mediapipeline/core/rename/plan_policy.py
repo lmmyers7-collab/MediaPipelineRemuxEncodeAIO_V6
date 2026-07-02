@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 NormalizeComponentFunc = Callable[[str, list[str] | None], str]
 CleanMovieNameFunc = Callable[[str, list[str] | None, dict[str, bool] | None, dict[str, list[str]] | None], str]

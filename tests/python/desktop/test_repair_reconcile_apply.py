@@ -34,7 +34,13 @@ from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import CompletedJobRecord
 from tests.python.desktop.application_facade_test_support import DummyWorkflowFacadeService, _resolved
-from tests.python.desktop.test_repair_reconcile_dry_run import _completed_fixture, _file_state, _pending_fixture, _pending_manifest_payload
+from tests.python.desktop.test_repair_reconcile_dry_run import (
+    _completed_fixture,
+    _file_state,
+    _legacy_csv_rerun_pending_fixture,
+    _pending_fixture,
+    _pending_manifest_payload,
+)
 
 
 def _apply_request(dry_run_data: dict[str, object], *, reason: str = "operator confirmed test") -> dict[str, object]:
@@ -338,6 +344,53 @@ class RepairReconcileApplyTests(unittest.TestCase):
             self.assertEqual(repaired_row["drain_recommendation"], "ready_to_drain")
             self.assertTrue(repaired_preview["drain_summary"]["exists"])
             self.assertEqual(repaired_preview["drain_summary"]["path"], str(drain_summary))
+
+    def test_pending_manifest_repair_apply_normalizes_legacy_csv_rerun_manifest_only(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved, files = _legacy_csv_rerun_pending_fixture(root)
+            manifest = files["pending_manifest"]
+            source_before = _file_state(files["source"])
+            output_before = _file_state(files["output"])
+            payload_before = _file_state(files["pending_payload"])
+            manifest_before = _file_state(manifest)
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+            preview = facade.get_pending_publish_preview(resolved).to_mapping()
+            row_key = next(row["row_key"] for row in preview["rows"] if row.get("diagnostic_status") == "invalid_manifest")
+            dry_run = facade.plan_repair_reconcile_dry_run(
+                resolved,
+                candidate_command="pending_publish.repair_manifest",
+                request={"scope": "selected", "row_key": row_key, "reason": "normalize csv rerun"},
+            ).to_mapping()["data"]
+
+            result = facade.apply_repair_reconcile(
+                resolved,
+                candidate_command="pending_publish.repair_manifest",
+                request=_apply_request(dry_run),
+            ).to_mapping()
+
+            repaired = json.loads(manifest.read_text(encoding="utf-8"))
+            self.assertTrue(dry_run["safe_to_apply"])
+            self.assertTrue(result["ok"])
+            self.assertTrue(result["data"]["applied"])
+            self.assertEqual(result["data"]["written_paths"], [str(manifest)])
+            self.assertEqual(result["data"]["backup_paths"][0].split("\\")[-1], manifest.name)
+            self.assertTrue(Path(result["data"]["backup_paths"][0]).exists())
+            self.assertNotEqual(_file_state(manifest), manifest_before)
+            PendingPushManifest.from_mapping(repaired)
+            self.assertEqual(repaired["pipeline_version"], "csv_rerun_repair.v1")
+            self.assertTrue(repaired["publish_transaction_id"].startswith("repair-csv-rerun-"))
+            self.assertEqual(repaired["parked_at"], "2026-07-02T00:55:27.4517875-04:00")
+            self.assertEqual(repaired["sidecar_files"], [])
+            self.assertEqual(_file_state(files["source"]), source_before)
+            self.assertEqual(_file_state(files["output"]), output_before)
+            self.assertEqual(_file_state(files["pending_payload"]), payload_before)
+            self.assertTrue(result["data"]["source_payload_output_unchanged"])
+            repaired_preview = facade.get_pending_publish_preview(resolved).to_mapping()
+            repaired_row = repaired_preview["rows"][0]
+            self.assertEqual(repaired_row["state"], "parked")
+            self.assertEqual(repaired_row["diagnostic_status"], "ready")
+            self.assertTrue(repaired_row["ready_to_drain"])
 
     def test_orphan_payload_reconcile_apply_is_manifest_only_and_blocks_incomplete_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

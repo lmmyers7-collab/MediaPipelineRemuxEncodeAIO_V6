@@ -7,9 +7,10 @@ import hashlib
 import json
 import shutil
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any
+from collections.abc import Callable, Mapping
 
 from pydantic import ValidationError
 
@@ -57,7 +58,7 @@ class SettingsMigrationResult:
 
 
 def utc_now_text() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _json_safe(value: Any) -> Any:
@@ -305,7 +306,7 @@ def _set_service_metadata(service: object, config_path: Path, metadata: Mapping[
         current = getattr(service, "_settings_store_metadata_by_config", None)
         if not isinstance(current, dict):
             current = {}
-            setattr(service, "_settings_store_metadata_by_config", current)
+            service._settings_store_metadata_by_config = current
         current[str(config_path)] = dict(metadata)
     except Exception:
         return
@@ -655,7 +656,7 @@ def save_settings_authority_for_service(
     if migrated.errors:
         raise SettingsStoreError("Settings candidate failed JSON authority validation: " + "; ".join(migrated.errors))
     legacy_extras = {**current_legacy, **migrated.legacy_extras}
-    migrations = sorted(set([*current_migrations, *migrated.migrations_applied]))
+    migrations = sorted({*current_migrations, *migrated.migrations_applied})
     envelope = _store_envelope(
         settings=migrated.settings,
         legacy_extras=legacy_extras,

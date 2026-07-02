@@ -4,7 +4,8 @@ import json
 import shutil
 import sqlite3
 from pathlib import Path
-from typing import Any, Callable, Iterable, Mapping
+from typing import Any
+from collections.abc import Callable, Iterable, Mapping
 
 from mediapipeline.core.config.library_profiles import effective_library_profiles_from_config
 from mediapipeline.contracts.config import Config
@@ -862,7 +863,7 @@ def _coerce_final_library_rules(raw: Any) -> list[dict[str, Any]]:
 
 def runtime_state_health_rows(resolved: Any) -> list[HealthRow]:
     state_root = getattr(resolved, "state_root", None) or (
-        Path(getattr(resolved, "local_base")) / "State" if getattr(resolved, "local_base", None) else None
+        Path(resolved.local_base) / "State" if getattr(resolved, "local_base", None) else None
     )
     if state_root is None:
         return [("Runtime state files", False, "State root is not resolved.")]

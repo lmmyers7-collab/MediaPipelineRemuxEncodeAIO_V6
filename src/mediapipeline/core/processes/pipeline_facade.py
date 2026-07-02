@@ -9,13 +9,8 @@ from mediapipeline.core.schedule.stop_watcher import schedule_stop_deadline_from
 from mediapipeline.core.paths.contracts import ResolvedPaths
 
 from mediapipeline.core.processes.pipeline_policy import (
-    configured_network_role,
     coordinator_also_encode_locally_enabled,
     is_supported_pipeline_start_mode,
-    normalize_pipeline_extra_args,
-    normalize_pipeline_start_mode,
-    parse_pipeline_sleep_seconds,
-    pipeline_extra_args_error,
     pipeline_start_active_work_result,
     pipeline_start_autonomy_blocked_result,
     pipeline_start_config_blocked_result,
@@ -30,8 +25,8 @@ from mediapipeline.core.processes.pipeline_policy import (
     network_role_blocks_normal_launch,
 )
 from mediapipeline.core.config.identity import config_operation_block_data, config_operation_block_message
+from mediapipeline.core.processes.launch_intent import normalize_pipeline_launch_intent
 from mediapipeline.core.processes.schedule_policy import normalize_schedule_override
-from mediapipeline.core.processes.source_path_policy import queue_source_file_validation
 
 
 class PipelineLaunchFacadeMixin:
@@ -78,27 +73,22 @@ class PipelineLaunchFacadeMixin:
                 config_operation_block_message(config_identity, "Pipeline start"),
                 config_operation_block_data(config_identity),
             )
-        config = dict(resolved.config_data or {})
-        network_role = configured_network_role(config)
-        if network_role_blocks_normal_launch(network_role):
+        intent = normalize_pipeline_launch_intent(resolved, request)
+        if network_role_blocks_normal_launch(intent.network_role):
             return pipeline_start_network_mode_blocked_result(
-                network_role,
-                coordinator_also_encode_locally=coordinator_also_encode_locally_enabled(config),
+                intent.network_role,
+                coordinator_also_encode_locally=coordinator_also_encode_locally_enabled(intent.config),
             )
-        mode = normalize_pipeline_start_mode(request.get("mode"))
+        mode = intent.mode
         if not is_supported_pipeline_start_mode(mode):
             return pipeline_start_unsupported_mode_result()
-        sleep_seconds, sleep_error = parse_pipeline_sleep_seconds(request.get("sleep_seconds"))
-        if sleep_error is not None or sleep_seconds is None:
+        if intent.sleep_error is not None or intent.sleep_seconds is None:
             return pipeline_start_sleep_error_result()
-        extra_args = normalize_pipeline_extra_args(request.get("extra_args"))
-        extra_args_error = pipeline_extra_args_error(extra_args, False)
-        if extra_args_error is not None:
+        if intent.extra_args_error is not None:
             return pipeline_start_extra_args_error_result()
-        single_file = str(request.get("single_file") or "").strip()
-        single_file_validation: dict[str, Any] | None = None
-        if single_file:
-            single_file_validation = queue_source_file_validation(resolved, single_file, field_name="single_file")
+        single_file = intent.single_file
+        single_file_validation = intent.single_file_validation
+        if single_file_validation is not None:
             if not single_file_validation.get("ok"):
                 return pipeline_start_single_file_blocked_result(
                     {
@@ -109,7 +99,7 @@ class PipelineLaunchFacadeMixin:
                         "safe_next_action": "Choose one existing supported media file under SourceMovies, SourceTV, or enabled LibraryProfiles.",
                     }
                 )
-            single_file = str(single_file_validation.get("normalized_path") or single_file)
+            single_file = intent.start_single_file()
         schedule_gate = self._resolve_pipeline_start_schedule_gate(mode, request)
         if not schedule_gate["ok"]:
             return pipeline_start_schedule_gate_result(schedule_gate)
@@ -142,10 +132,10 @@ class PipelineLaunchFacadeMixin:
             proc = starter(
                 resolved=resolved,
                 mode=actual_mode,
-                show_config=bool(request.get("show_config", False)),
-                sleep_seconds=sleep_seconds,
-                extra_args=extra_args,
-                show_console=bool(request.get("show_console", False)),
+                show_config=intent.show_config,
+                sleep_seconds=intent.sleep_seconds,
+                extra_args=intent.extra_args,
+                show_console=intent.show_console,
                 single_file=single_file or None,
             )
             pid = int(getattr(proc, "pid", 0) or 0)

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Iterable, Mapping
+from typing import Any
+from collections.abc import Iterable, Mapping
 
 from .route_evidence import queue_row_route_decision_summary, queue_row_route_evidence_lines
 

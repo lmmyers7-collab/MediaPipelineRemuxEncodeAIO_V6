@@ -33,7 +33,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 VALID_STRATEGIES: frozenset[str] = frozenset({
@@ -120,7 +120,7 @@ def set_queue_strategy(path: Path, strategy: str) -> dict:
     state = {
         "version":  STRATEGY_FILE_VERSION,
         "strategy": strategy,
-        "set_at":   datetime.now(timezone.utc).isoformat(),
+        "set_at":   datetime.now(UTC).isoformat(),
     }
     _write_atomic(path, state)
     return {**state, "source": "state_file"}

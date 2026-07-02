@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 import uuid
-from typing import Any, Callable, Mapping
+from typing import Any
+from collections.abc import Callable, Mapping
 
 from mediapipeline.core.network.url_policy import (
     redact_network_secret_text,
@@ -29,7 +30,7 @@ NETWORK_LIFECYCLE_EFFECT_NONE = "none"
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _runtime_state_dir(resolved: ResolvedPaths, service: object) -> Path:
@@ -122,7 +123,7 @@ def _state_file_posture(resolved: ResolvedPaths, service: object) -> list[dict[s
                 "exists": True,
                 "status": "present",
                 "size_bytes": int(stat.st_size),
-                "modified_utc": datetime.fromtimestamp(stat.st_mtime, timezone.utc)
+                "modified_utc": datetime.fromtimestamp(stat.st_mtime, UTC)
                 .replace(microsecond=0)
                 .isoformat()
                 .replace("+00:00", "Z"),
@@ -169,7 +170,7 @@ class NetworkLifecycleFacadeMixin:
             state = getattr(self, "_network_lifecycle_state", None)
             if not isinstance(state, dict):
                 state = {}
-                setattr(self, "_network_lifecycle_state", state)
+                self._network_lifecycle_state = state
             previous = dict(state.get(role) or {"role": role, "status": "stopped"})
             updated = self._network_lifecycle_state_candidate(
                 previous,
@@ -210,7 +211,7 @@ class NetworkLifecycleFacadeMixin:
         state = getattr(self, "_network_lifecycle_state", None)
         if not isinstance(state, dict):
             state = {}
-            setattr(self, "_network_lifecycle_state", state)
+            self._network_lifecycle_state = state
         state[role] = dict(state_after)
 
     def _network_lifecycle_preconditions(
@@ -455,7 +456,7 @@ class NetworkLifecycleFacadeMixin:
         }
 
     def _network_lifecycle_claim_evidence(self, claim: Any) -> dict[str, Any]:
-        if hasattr(claim, "to_dict") and callable(getattr(claim, "to_dict")):
+        if hasattr(claim, "to_dict") and callable(claim.to_dict):
             try:
                 raw = dict(claim.to_dict())
             except Exception:
@@ -845,7 +846,7 @@ class NetworkLifecycleFacadeMixin:
 
 
 class _NullLock:
-    def __enter__(self) -> "_NullLock":
+    def __enter__(self) -> _NullLock:
         return self
 
     def __exit__(self, *args: Any) -> None:

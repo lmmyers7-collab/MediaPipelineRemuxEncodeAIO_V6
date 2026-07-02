@@ -3,9 +3,9 @@ file: src/mediapipeline/core/telemetry/health.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-07-01
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 6228914432d54313c0f00b01c3fa88136899bd8dffb6e7b843f7a3035bea3a3b
+sha256: 0532a532e585422fa9ba7230e6857cf679e0ee684723833a843b688ca28689cd
 ---
 # `src/mediapipeline/core/telemetry/health.py`
 

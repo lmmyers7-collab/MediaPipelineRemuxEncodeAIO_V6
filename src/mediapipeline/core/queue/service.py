@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 import threading
 from typing import Any
@@ -122,7 +122,7 @@ class QueueServiceMixin:
         return lock
 
     def _queue_scan_id(self) -> str:
-        prefix = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        prefix = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         return f"{prefix}-{uuid.uuid4().hex[:10]}"
 
     def _write_queue_scan_status(self, resolved: ResolvedPaths, status: dict[str, Any]) -> None:

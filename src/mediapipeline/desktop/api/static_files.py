@@ -62,3 +62,12 @@ def read_static_asset(
         if logger is not None:
             logger.exception("local API static asset read failed: %s", path)
         return static_error_response(exc)
+
+
+__all__ = [
+    "StaticFileResponse",
+    "default_static_root",
+    "local_api_bootstrap",
+    "read_static_asset",
+    "render_index",
+]

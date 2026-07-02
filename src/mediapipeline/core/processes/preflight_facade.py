@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -20,14 +20,10 @@ from mediapipeline.core.processes.pipeline_policy import (
     configured_network_role,
     coordinator_also_encode_locally_enabled,
     is_supported_pipeline_start_mode,
-    normalize_network_role,
-    normalize_pipeline_extra_args,
-    normalize_pipeline_start_mode,
-    parse_pipeline_sleep_seconds,
-    pipeline_extra_args_error,
     pipeline_start_network_mode_label,
     network_role_is_valid,
 )
+from mediapipeline.core.processes.launch_intent import normalize_pipeline_launch_intent
 from mediapipeline.core.processes.rerun_policy import (
     CSV_RERUN_PATH_ERROR,
     rerun_lifecycle_errors,
@@ -43,6 +39,12 @@ from mediapipeline.core.processes.path_evidence import (
 )
 from mediapipeline.core.processes.schedule_policy import continuous_schedule_stop_watcher_preflight_check
 from mediapipeline.core.processes.source_path_policy import SOURCE_ROOT_SCOPE_TEXT, queue_source_file_validation
+from mediapipeline.core.processes.preflight_types import (
+    preflight_check,
+    preflight_counts,
+    preflight_display_status,
+    preflight_status,
+)
 
 
 LAUNCH_PREFLIGHT_SCHEMA_VERSION = "desktop_launch_preflight.v1"
@@ -63,53 +65,27 @@ def _preflight_check(
     detail: list[Any] | None = None,
     recovery_actions: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    row = {
-        "key": key,
-        "label": label,
-        "status": status,
-        "evidence": evidence,
-        "action": action,
-        "detail": detail or [],
-    }
-    if recovery_actions:
-        row["recovery_actions"] = recovery_actions
-    return row
+    return preflight_check(
+        key,
+        label,
+        status,
+        evidence,
+        action,
+        detail=detail,
+        recovery_actions=recovery_actions,
+    )
 
 
 def _preflight_status(checks: list[dict[str, Any]]) -> str:
-    statuses = {str(check.get("status") or "").casefold() for check in checks}
-    if "blocked" in statuses:
-        return "blocked"
-    if "high review" in statuses:
-        return "high review"
-    if "review" in statuses:
-        return "review"
-    if "unknown" in statuses:
-        return "unknown"
-    return "ready"
+    return preflight_status(checks)
 
 
 def _preflight_counts(checks: list[dict[str, Any]]) -> dict[str, int]:
-    counts: dict[str, int] = {}
-    for check in checks:
-        status = str(check.get("status") or "unknown")
-        counts[status] = counts.get(status, 0) + 1
-    return counts
+    return preflight_counts(checks)
 
 
 def _preflight_display_status(status: str) -> str:
-    normalized = str(status or "").casefold()
-    if normalized == "blocked":
-        return "Blocked"
-    if normalized == "high review":
-        return "High review"
-    if normalized == "review":
-        return "Review"
-    if normalized == "unknown":
-        return "Evidence incomplete"
-    if normalized == "ready":
-        return "Ready"
-    return "Evidence incomplete"
+    return preflight_display_status(status)
 
 
 def _preflight_readiness_summary_lines(
@@ -211,8 +187,8 @@ def _parse_report_timestamp(value: Any) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _encoder_capability_report_age_seconds(report: dict[str, Any], now: datetime) -> int | None:
@@ -284,8 +260,13 @@ def _encoder_capability_refresh_working_directory(resolved: ResolvedPaths) -> Pa
     return None
 
 
-def _encoder_capability_refresh_attempt(resolved: ResolvedPaths, report: dict[str, Any]) -> dict[str, Any]:
-    now = datetime.now(timezone.utc)
+def _encoder_capability_refresh_attempt(
+    resolved: ResolvedPaths,
+    report: dict[str, Any],
+    *,
+    refresh_requested: bool,
+) -> dict[str, Any]:
+    now = datetime.now(UTC)
     needed, reason, age_seconds = _encoder_capability_report_refresh_reason(report, now)
     refresh: dict[str, Any] = {
         "schema_version": "encoder_capability_auto_refresh.v1",
@@ -300,8 +281,13 @@ def _encoder_capability_refresh_attempt(resolved: ResolvedPaths, report: dict[st
         "returncode": None,
         "timed_out": False,
         "message": "Encoder capability report is fresh." if not needed else "",
+        "requested": bool(refresh_requested),
     }
     if not needed:
+        return refresh
+    if not refresh_requested:
+        refresh["skipped_reason"] = "refresh not requested"
+        refresh["message"] = "Auto-refresh skipped: refresh not requested."
         return refresh
     report_path_text = str(report.get("source_path") or "").strip()
     report_path = Path(report_path_text) if report_path_text else None
@@ -344,12 +330,16 @@ def _encoder_capability_refresh_attempt(resolved: ResolvedPaths, report: dict[st
     return refresh
 
 
-def _encoder_capability_report_with_auto_refresh(resolved: ResolvedPaths) -> dict[str, Any]:
+def _encoder_capability_report_with_auto_refresh(
+    resolved: ResolvedPaths,
+    *,
+    refresh_requested: bool = False,
+) -> dict[str, Any]:
     report = settings_encoder_capability_report(resolved)
-    refresh = _encoder_capability_refresh_attempt(resolved, report)
+    refresh = _encoder_capability_refresh_attempt(resolved, report, refresh_requested=refresh_requested)
     if refresh.get("attempted") and refresh.get("ok"):
         report = settings_encoder_capability_report(resolved)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     final_needed, final_reason, final_age = _encoder_capability_report_refresh_reason(report, now)
     report["auto_refresh"] = refresh
     report["refresh_needed"] = final_needed
@@ -424,8 +414,12 @@ def _single_file_scope_preflight_check(resolved: ResolvedPaths, single_file: str
     )
 
 
-def _encoder_capability_report_preflight_check(resolved: ResolvedPaths) -> dict[str, Any]:
-    report = _encoder_capability_report_with_auto_refresh(resolved)
+def _encoder_capability_report_preflight_check(
+    resolved: ResolvedPaths,
+    *,
+    refresh_requested: bool = False,
+) -> dict[str, Any]:
+    report = _encoder_capability_report_with_auto_refresh(resolved, refresh_requested=refresh_requested)
     state = str(report.get("operator_status_state") or "unknown").casefold()
     if state == "ready":
         status = "ready"
@@ -751,35 +745,17 @@ class ProcessFacadeMixin:
         resolved: ResolvedPaths,
         request: dict[str, Any],
     ) -> tuple[list[dict[str, Any]], dict[str, Any], str]:
-        config = dict(resolved.config_data or {})
-        network_role = configured_network_role(config)
-        network_mode_label = pipeline_start_network_mode_label(
-            network_role,
-            coordinator_also_encode_locally=coordinator_also_encode_locally_enabled(config),
-        )
-        mode = normalize_pipeline_start_mode(request.get("mode"))
-        sleep_seconds, sleep_error = parse_pipeline_sleep_seconds(request.get("sleep_seconds"))
-        extra_args = normalize_pipeline_extra_args(request.get("extra_args"))
-        extra_args_error = pipeline_extra_args_error(extra_args, False)
-        normalized = {
-            "target": "pipeline",
-            "mode": mode,
-            "sleep_seconds": sleep_seconds if sleep_seconds is not None else request.get("sleep_seconds"),
-            "show_config": bool(request.get("show_config", False)),
-            "show_console": bool(request.get("show_console", False)),
-            "single_file": str(request.get("single_file") or "").strip(),
-            "schedule_override": str(request.get("schedule_override") or "").strip(),
-            "extra_args_present": bool(extra_args),
-            "allow_extra_args": False,
-            "network_role": network_role,
-            "network_mode_label": network_mode_label,
-        }
+        intent = normalize_pipeline_launch_intent(resolved, request)
+        config = intent.config
+        mode = intent.mode
+        refresh_encoder_capability_report = bool(request.get("refresh_encoder_capability_report", False))
+        normalized = intent.normalized_request()
+        normalized["sleep_seconds"] = intent.sleep_seconds if intent.sleep_seconds is not None else request.get("sleep_seconds")
+        normalized["refresh_encoder_capability_report"] = refresh_encoder_capability_report
         single_file_check = _single_file_scope_preflight_check(resolved, normalized["single_file"])
-        normalized["single_file_validation"] = single_file_check["detail"][0] if single_file_check["detail"] else {
-            "ok": True,
-            "status": "ready",
-            "message": "single_file not requested; backend launch will use normal queue scope.",
-        }
+        if intent.single_file_validation is not None:
+            single_file_check["detail"] = [json_safe(intent.single_file_validation)]
+            normalized["single_file_validation"] = intent.single_file_validation
         checks: list[dict[str, Any]] = [
             _network_role_preflight_check(config),
             _preflight_check(
@@ -793,18 +769,18 @@ class ProcessFacadeMixin:
             _preflight_check(
                 "sleep_seconds",
                 "Sleep interval",
-                "ready" if sleep_error is None else "blocked",
+                "ready" if intent.sleep_error is None else "blocked",
                 f"sleep_seconds={normalized['sleep_seconds']}",
                 "Use a whole number of seconds; backend start will clamp valid values to at least one second.",
-                detail=[] if sleep_error is None else [PIPELINE_SLEEP_SECONDS_ERROR],
+                detail=[] if intent.sleep_error is None else [PIPELINE_SLEEP_SECONDS_ERROR],
             ),
             _preflight_check(
                 "extra_args",
                 "Extra arguments",
-                "ready" if extra_args_error is None else "blocked",
-                f"extra_args_present={bool(extra_args)}; allow_extra_args=False",
+                "ready" if intent.extra_args_error is None else "blocked",
+                f"extra_args_present={bool(intent.extra_args)}; allow_extra_args=False",
                 "Keep local API launches on structured fields; extra pipeline arguments are not accepted by the Local API.",
-                detail=[] if extra_args_error is None else [PIPELINE_EXTRA_ARGS_ERROR],
+                detail=[] if intent.extra_args_error is None else [PIPELINE_EXTRA_ARGS_ERROR],
             ),
             single_file_check,
         ]
@@ -843,7 +819,12 @@ class ProcessFacadeMixin:
         path_health_check = self._configured_path_health_preflight_check(resolved, path_health=path_health)
         if path_health_check is not None:
             checks.append(path_health_check)
-        checks.append(_encoder_capability_report_preflight_check(resolved))
+        checks.append(
+            _encoder_capability_report_preflight_check(
+                resolved,
+                refresh_requested=refresh_encoder_capability_report,
+            )
+        )
         checks.append(self._autonomy_health_preflight_check(resolved, path_health=path_health))
         checks.extend(
             [

@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 import shutil
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from mediapipeline.core.diagnostics.autonomy_health import STATE_FILE_REVIEW_BYTES
 
@@ -26,7 +27,7 @@ def archive_state_journals_payload(
 ) -> dict[str, Any]:
     """Archive the configured pipeline event journal when it is oversized."""
     request = request or {}
-    checked_at = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    checked_at = (now or datetime.now(UTC)).astimezone(UTC)
     journal_path = _path(getattr(resolved, "event_file", None))
     state_root = _path(getattr(resolved, "state_root", None))
     moved: list[dict[str, Any]] = []

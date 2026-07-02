@@ -198,6 +198,22 @@ Bitrate route decisions use bitrate estimated from `file_size_bytes` and `durati
 | `StateDbMaintenanceIntervalSeconds` | Best-effort SQLite mirror maintenance interval | JSON remains authoritative; low values add maintenance overhead | Raw/Advanced |
 | `StateDbWalReviewBytes` | SQLite mirror WAL review/maintenance threshold | JSON remains authoritative; high values allow larger WAL growth before review | Raw/Advanced |
 | `StateDbCompletedJobsMaxRows` | Maximum completed-job rows retained in the SQLite mirror | JSONL completed manifests remain authoritative; too low reduces mirror history, too high increases SQLite growth | Raw/Advanced |
+| `AutonomyPendingReviewSeconds` | Pending-publish age review threshold for autonomy diagnostics | Backend-only; does not drain, repair, or mutate manifests | Raw/Advanced |
+| `AutonomyPendingBlockSeconds` | Pending-publish age block threshold for autonomy diagnostics | Backend-only; pending publish remains manifest-backed | Raw/Advanced |
+| `AutonomyPendingRetryBlockCount` | Pending-publish retry-count block threshold | Backend-only; low values may block new autonomy sooner | Raw/Advanced |
+| `AutonomyPendingTotalReviewBytes` | Pending-publish total-byte review threshold | Backend-only; byte evidence is read-only diagnostics | Raw/Advanced |
+| `AutonomyPendingTotalBlockBytes` | Pending-publish total-byte block threshold | Backend-only; does not force-drain parked output | Raw/Advanced |
+| `AutonomyFailureOperatorRequiredBlockSeconds` | Age threshold for operator-required failure blockers | Backend-only failure evidence; does not clean artifacts | Raw/Advanced |
+| `AutonomyFailureOperatorRequiredBlockCount` | Count threshold for operator-required failure blockers | Backend-only failure evidence; low values may block sooner | Raw/Advanced |
+| `AutonomyFailureInfrastructureBlockCount` | Count threshold for infrastructure failure blockers | Backend-only failure evidence; low values may block sooner | Raw/Advanced |
+| `AutonomyActiveJobTimeoutGraceSeconds` | Passive ActiveJobs stale grace after native timeout evidence | Stale ActiveJobs evidence is review-only and does not authorize process kills | Raw/Advanced |
+| `AutonomyActiveJobNoTimeoutBlockSeconds` | Passive ActiveJobs stale threshold without native timeout evidence | Stale ActiveJobs evidence is review-only and does not block launch by itself | Raw/Advanced |
+| `AutonomyStorageMinFreeGB` | Autonomy diagnostics storage floor when path health has no reserve | Backend-only read-only budget evidence | Raw/Advanced |
+| `AutonomyStateFileReviewBytes` | State/journal file size review threshold | Backend-only read-only state growth evidence | Raw/Advanced |
+| `AutonomyStateFileBlockBytes` | State/journal file size block threshold | Backend-only read-only state growth evidence | Raw/Advanced |
+| `AutonomyScanLimit` | File enumeration cap for autonomy diagnostics | Truncated scans are reported as lower bounds | Raw/Advanced |
+| `AutonomyGrowthSnapshotMaxCount` | Retained diagnostics growth snapshot count | Snapshot writes are explicit diagnostics-state writes only | Raw/Advanced |
+| `AutonomyWatchdogRecordLimit` | Returned passive ActiveJobs watchdog record cap | Total and truncation counts remain visible | Raw/Advanced |
 | `AllowSystemTools` | Allow falling back to system-PATH FFmpeg/MKVToolNix instead of bundled tools | Risky — system tools may be different versions than tested | Builder |
 | `ConsoleLogLevel` | Log level for console output (e.g., WARNING, INFO, DEBUG) | **Builder** — added to Runtime builder in settingsMetadata.js | Builder |
 | `FileLogLevel` | Log level for file-based log output | **Builder** — added to Runtime builder in settingsMetadata.js | Builder |

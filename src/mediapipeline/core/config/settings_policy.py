@@ -42,7 +42,7 @@ ENCODER_CAPABILITY_REPORT_MAX_BYTES = 1024 * 1024
 HARDWARE_ENCODER_BACKENDS = frozenset({"nvenc", "qsv", "amf"})
 
 
-def _command_result(**fields: Any) -> "CommandResult":
+def _command_result(**fields: Any) -> CommandResult:
     from mediapipeline.core.kernel.dto_commands import CommandResult
 
     return CommandResult(**fields)

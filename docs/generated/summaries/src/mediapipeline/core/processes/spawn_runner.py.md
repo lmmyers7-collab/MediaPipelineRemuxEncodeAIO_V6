@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/spawn_runner.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-29
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 5b030ce8b32a019d14b1d11e34d6bf174ff39287dfdbcf65c1ed754e3ee1ed35
+sha256: 2de808b68b0fe86d4a6f1bcbf60b216694b11be5e7b5fd90832d3e7a6bdcb309
 ---
 # `src/mediapipeline/core/processes/spawn_runner.py`
 

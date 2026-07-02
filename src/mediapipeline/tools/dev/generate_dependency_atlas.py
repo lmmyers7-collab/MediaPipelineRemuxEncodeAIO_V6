@@ -24,7 +24,7 @@ if str(SOURCE_ROOT) not in sys.path:
     sys.path.insert(0, str(SOURCE_ROOT))
 
 from mediapipeline.tools.paths import find_repo_root
-from typing import Iterable
+from collections.abc import Iterable
 
 REPO_ROOT = find_repo_root(Path(__file__))
 

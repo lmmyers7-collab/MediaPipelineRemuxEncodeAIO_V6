@@ -1,4 +1,5 @@
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from mediapipeline.pipeline.ass_to_srt.styles import is_pure_drawing_event, looks_like_karaoke_syllable
 from mediapipeline.pipeline.ass_to_srt.text import clean_text, render_ass_text_for_srt

@@ -7,7 +7,7 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -204,7 +204,7 @@ def tdarr_matrix_background_run_id(action: str, runs_root: Path) -> str:
         "proof-pack": "-proof-pack",
     }
     suffix = suffixes.get(normalize_tdarr_matrix_audit_action(action), "")
-    base = datetime.now(timezone.utc).strftime(f"run-%Y%m%d-%H%M%S{suffix}")
+    base = datetime.now(UTC).strftime(f"run-%Y%m%d-%H%M%S{suffix}")
     candidate = base
     index = 2
     while (runs_root / candidate).exists():
@@ -248,13 +248,13 @@ def _tdarr_matrix_process_start_time_text(pid: int, *, psutil_module: Any | None
         created = float(process.create_time())
     except Exception:
         return ""
-    return datetime.fromtimestamp(created, timezone.utc).isoformat()
+    return datetime.fromtimestamp(created, UTC).isoformat()
 
 
 def _tdarr_matrix_timestamp_matches(expected: Any, actual: Any, *, tolerance_seconds: float = 2.0) -> bool:
     try:
-        expected_time = datetime.fromisoformat(str(expected).replace("Z", "+00:00")).astimezone(timezone.utc)
-        actual_time = datetime.fromisoformat(str(actual).replace("Z", "+00:00")).astimezone(timezone.utc)
+        expected_time = datetime.fromisoformat(str(expected).replace("Z", "+00:00")).astimezone(UTC)
+        actual_time = datetime.fromisoformat(str(actual).replace("Z", "+00:00")).astimezone(UTC)
     except (TypeError, ValueError):
         return False
     return abs((expected_time - actual_time).total_seconds()) <= tolerance_seconds
@@ -910,7 +910,7 @@ class TdarrMatrixAuditServiceMixin:
             "run_id": run_id,
             "pid": pid,
             "process_start_time": process_start_time,
-            "started_at": datetime.now(timezone.utc).isoformat(),
+            "started_at": datetime.now(UTC).isoformat(),
             "stdout_path": str(stdout_path),
             "stderr_path": str(stderr_path),
         }

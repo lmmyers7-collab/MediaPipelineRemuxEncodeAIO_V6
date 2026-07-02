@@ -37,7 +37,7 @@ import json
 import math
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 VALID_LEVELS = frozenset({"high", "normal", "low", "hold"})
@@ -218,7 +218,7 @@ def set_manifest_entry(
         level=level,
         reason=reason,
         reason_was_supplied=True,
-        set_at=datetime.now(timezone.utc).isoformat(),
+        set_at=datetime.now(UTC).isoformat(),
         position=position,
     )
 
@@ -248,7 +248,7 @@ def set_manifest_entries_bulk(
     """
     manifest = read_priority_manifest(manifest_path, fail_closed=True)
     entries: dict = manifest.setdefault("entries", {})
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = datetime.now(UTC).isoformat()
 
     for item in items:
         level = str(item.get("level", "normal")).lower()

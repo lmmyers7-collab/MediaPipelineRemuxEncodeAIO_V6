@@ -110,7 +110,7 @@ def _scan_for_next_record_for_claim(
     max_job_retries: int,
     accessible_library_ids: list[str] | None = None,
 ) -> tuple:
-    scanner = getattr(owner, "_scan_for_next_record")
+    scanner = owner._scan_for_next_record
     try:
         return scanner(
             worker_name,

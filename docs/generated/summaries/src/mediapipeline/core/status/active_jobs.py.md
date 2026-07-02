@@ -3,9 +3,9 @@ file: src/mediapipeline/core/status/active_jobs.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-07-01
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: bc245a793975214a414d5da96952f83319c2b1eb504db735f328e9a164da9249
+sha256: a27afa7e9055a8d2357adb07fbe86654793af37d2bcb986413b8d8ba0f8becb2
 ---
 # `src/mediapipeline/core/status/active_jobs.py`
 

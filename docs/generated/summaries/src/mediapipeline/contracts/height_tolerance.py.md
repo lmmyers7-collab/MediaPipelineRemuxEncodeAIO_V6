@@ -3,9 +3,9 @@ file: src/mediapipeline/contracts/height_tolerance.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-06-04
+last_modified: 2026-07-02
 last_reviewed: 2026-06-04
-sha256: 3c184824ad276140e35bc1264725f372baecf57fa0ffa7c19170c049e6ba3346
+sha256: 5dba7657306e4125c431cdcd5eb10973889a8f5800b4182fb6982b2d5e66ec7d
 ---
 # `src/mediapipeline/contracts/height_tolerance.py`
 

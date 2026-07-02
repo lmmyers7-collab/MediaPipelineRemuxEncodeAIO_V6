@@ -24,7 +24,7 @@ from fnmatch import fnmatchcase
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
 
 
 REPO_ROOT = find_repo_root(Path(__file__))
@@ -255,8 +255,7 @@ def git_changed_candidates() -> list[CandidatePath]:
         cwd=REPO_ROOT,
         check=True,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
     return changed_candidates_from_status(result.stdout)
 
@@ -267,8 +266,7 @@ def git_staged_candidates() -> list[CandidatePath]:
         cwd=REPO_ROOT,
         check=True,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
     return staged_candidates_from_name_status(result.stdout)
 
@@ -279,8 +277,7 @@ def git_diff_candidates(base_ref: str) -> list[CandidatePath]:
         cwd=REPO_ROOT,
         check=True,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
     return staged_candidates_from_name_status(result.stdout)
 
@@ -291,8 +288,7 @@ def git_all_candidates() -> list[CandidatePath]:
         cwd=REPO_ROOT,
         check=True,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
     return [CandidatePath(path=normalize_path(line), status="ALL") for line in result.stdout.splitlines() if line.strip()]
 

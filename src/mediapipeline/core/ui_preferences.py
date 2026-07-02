@@ -7,7 +7,7 @@ import os
 import re
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -88,7 +88,7 @@ def write_ui_preferences(path: Path, storage: Any, *, source_surface: str = "") 
     payload: dict[str, Any] = {
         "schema_version": UI_PREFERENCES_SCHEMA_VERSION,
         "version": UI_PREFERENCES_FILE_VERSION,
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
         "source_surface": str(source_surface or "")[:80],
         "source": "state_file",
         "storage": cleaned,

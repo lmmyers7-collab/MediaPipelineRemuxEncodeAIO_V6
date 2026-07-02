@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/library_roots.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-15
+last_modified: 2026-07-02
 last_reviewed: 2026-06-14
-sha256: 2aa7c363c5d358cf01dabc31d9af033fc1758f49463f263894985a2fb68a113f
+sha256: 1b10a4cd5bc5c5f6a91056c767bb15e3240abf782f42fc1cd21002bd7fbea190
 ---
 # `src/mediapipeline/desktop/network/library_roots.py`
 

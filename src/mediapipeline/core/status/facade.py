@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from importlib import import_module
+from typing import TYPE_CHECKING
 
 from mediapipeline.core.observability.status_policy import (
     application_capabilities,
@@ -22,6 +23,10 @@ from mediapipeline.core.status.runtime_health import runtime_reliability_counter
 from mediapipeline.core.processes.path_evidence import configured_path_health, path_health_warning_lines
 from mediapipeline.core.kernel.dto_status import AppSnapshotDto, HealthDto, TelemetryDto
 from mediapipeline.core.paths.contracts import ResolvedPaths
+
+if TYPE_CHECKING:
+    from mediapipeline.core.status.contracts import Snapshot
+    from mediapipeline.core.telemetry.contracts import TelemetrySnapshot
 
 
 def _snapshot_type() -> type:

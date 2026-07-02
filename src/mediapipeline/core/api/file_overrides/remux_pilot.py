@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 import json
 import uuid
 from pathlib import Path
@@ -708,7 +708,7 @@ def _promotion_batch_metadata(
         "batch_detected_name": str(detected_series.get("show_name") or ""),
         "pilot_source_paths": list(pilot_paths),
         "reason": str(reason or "").strip(),
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
 
 

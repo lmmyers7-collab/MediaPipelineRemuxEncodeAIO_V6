@@ -16,7 +16,8 @@ import time
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
+from collections.abc import Callable
 
 from mediapipeline.core.network.url_policy import redact_network_secret_text
 
@@ -60,6 +61,16 @@ if TYPE_CHECKING:
     from ..app import MediaPipelineApp
 
 _log = logging.getLogger(__name__)
+
+__all__ = [
+    "WorkerDispatcher",
+    "_HTTP_MAX_RESPONSE_BYTES",
+    "_HTTP_TIMEOUT",
+    "_atomic_write_text",
+    "_http_read_capped",
+    "_is_unauthorized_http_error",
+    "_make_queue_record",
+]
 
 _HEARTBEAT_INTERVAL = 30   # seconds between heartbeats
 # HTTP timeout and response-size caps live in network.http_json and are
@@ -105,7 +116,7 @@ class WorkerDispatcher(
       coordinator, then begins polling normally.
     """
 
-    def __init__(self, app: "MediaPipelineApp", *, start_polling: bool = True) -> None:
+    def __init__(self, app: MediaPipelineApp, *, start_polling: bool = True) -> None:
         self.app = app
 
         resolved = getattr(app, "resolved", None)
@@ -175,7 +186,7 @@ class WorkerDispatcher(
         # so the Home screen notice bar stays current without tight coupling
         # between WorkerDispatcher and the app callback thread.
         # Signature: callback(msg: str) -> None  (called on the poll thread)
-        self._status_callback: "Callable[[str], None] | None" = None
+        self._status_callback: Callable[[str], None] | None = None
 
         # Crash recovery: if a previous run left worker_state.json, report
         # it as failed before entering the poll loop.
@@ -502,7 +513,7 @@ class WorkerDispatcher(
         if wakeup is not None:
             wakeup.set()
 
-    def set_status_callback(self, callback: "Callable[[str], None] | None") -> None:
+    def set_status_callback(self, callback: Callable[[str], None] | None) -> None:
         """Register a callback invoked from the poll thread after every attempt.
 
         The callback receives a single human-readable string describing the
@@ -522,7 +533,7 @@ class WorkerDispatcher(
             diagnostic_preview=_worker_diagnostic_preview,
         )
 
-    def _post_app_callback(self, name: str, callback: "Callable[[], None]") -> None:
+    def _post_app_callback(self, name: str, callback: Callable[[], None]) -> None:
         """Schedule an app callback through the configured app scheduler."""
         post_app_callback(self.app, name, callback)
 

@@ -89,6 +89,7 @@ This is the active documentation map for the current promoted tree. It reflects 
 - `implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`: repeatable real-media pilot plan.
 - `implementation/release-foundation/PHASE_7_FINALIZATION.md`: change-control and release metadata finalization plan.
 - `implementation/encoder-breadth-av1-plan.md`: active encoder breadth/AV1 implementation plan for the remaining hardware/runtime validation workstream.
+- `implementation/ruff-rule-expansion/B_C4_UP_FINDINGS_REMEDIATION.md`: work ledger for cleaning Ruff `B`, `C4`, and `UP` candidate findings before any noisy family becomes blocking.
 
 ## Removed Compatibility Redirects
 
