@@ -9,7 +9,7 @@ Operator guidance for diagnosing and resolving failure states in the Completed a
 ## Scope and Safety
 
 - All investigation uses read-only diagnostics targets and WebView read panels.
-- All repair actions use backend-owned routes (`POST /api/pipeline/start`, `POST /api/rerun/start`).
+- All repair actions use backend-owned routes. Pipeline repair uses `POST /api/pipeline/start`; CSV rerun repair is operated from Queue > CSV Rerun and remains backed by `POST /api/rerun/start`.
 - No scenario in this playbook requires manually editing manifest files, deleting failure markers, or bypassing confirmation prompts.
 - Display filters on the Completed and Pending Publish tables are display-only — they do not change backend repair, rerun, drain, or publish scope.
 - Before starting any drain investigation, read the **`Pending Backend Drain Scope Preview`** panel on the Pending Publish page. It shows how many parked rows the backend will act on versus how many are visible in the current filtered view, the backend drain route authority, the most recent durable drain summary, and recent drain command evidence. If the panel shows a filter warning (blocked or review rows are hidden by an active filter), clear the filter before proceeding so no rows are missed in your investigation.
@@ -36,7 +36,7 @@ Operator guidance for diagnosing and resolving failure states in the Completed a
 
 **Safe next actions**:
 - If the output was moved to a known path: update operator records; the manifest is append-only and will not self-repair.
-- If the output must be regenerated: use `POST /api/rerun/start` with `dry_run: true` first to verify scope; then run without dry_run using safe defaults (`stage_mode: copy`, `original_mode: keep`, `return_mode: park`).
+- If the output must be regenerated: use Queue > CSV Rerun with dry-run first to verify scope; then run without dry_run using the backend default `destination_mode=auto_replace_clean_else_pending_review` and strict `confirm_replace_final=true`. Clean outputs replace the backend-derived final target; outputs with remaining issue evidence move to Pending Publish/review. Source media remains kept unless an explicit source-overwrite confirmation is required and supplied.
 - If the output was intentionally deleted: no action required; the Completed record is historical only.
 
 ---
@@ -80,7 +80,7 @@ Operator guidance for diagnosing and resolving failure states in the Completed a
 
 **Safe next actions**:
 - Route disagreement is often expected when settings changed between runs. No immediate action needed.
-- If the route was wrong at run time and output quality is incorrect: rerun via `POST /api/rerun/start` with dry_run first.
+- If the route was wrong at run time and output quality is incorrect: rerun from Queue > CSV Rerun with dry-run first.
 - Do not treat a route difference alone as a failure — check output quality and size separately.
 
 ---
@@ -101,7 +101,7 @@ Operator guidance for diagnosing and resolving failure states in the Completed a
 4. Open Settings → check `SizeGuardMode`, `MaxEncodeGrowthPercent`, `CompatibilityEncodeGrowthPercent`.
 
 **Safe next actions**:
-- If `SizeGuardMode: strict` triggered: the output was not finalized. Use `POST /api/rerun/start` with adjusted settings after reviewing the selected per-height target size and growth tolerance.
+- If `SizeGuardMode: strict` triggered: the output was not finalized. Use Queue > CSV Rerun with adjusted settings after reviewing the selected per-height target size and growth tolerance.
 - If growth is within acceptable range but above the configured limit: adjust `MaxEncodeGrowthPercent` and rerun.
 - If the source should have been remuxed: consider adjusting the selected per-height target size, route bitrate cap, or `AllowH264RemuxIfPlexCompatible`.
 
@@ -146,7 +146,7 @@ Operator guidance for diagnosing and resolving failure states in the Completed a
 5. Open `pending_publish` folder to inspect the raw manifest JSON.
 
 **Safe next actions**:
-- `missing_payload`: the parked file was deleted externally. The manifest cannot be drained. Document in sample validation log; consider rerunning the source via `POST /api/rerun/start`.
+- `missing_payload`: the parked file was deleted externally. The manifest cannot be drained. Document in sample validation log; consider rerunning the source from Queue > CSV Rerun.
 - Retry failures: investigate the destination path for write permissions or network issues. Resolve the underlying cause, then retry drain via `POST /api/pipeline/start` with `mode: drain_pending_pushes`.
 - Destination conflict: resolve the conflict at the destination, then retry drain.
 
@@ -168,7 +168,7 @@ Operator guidance for diagnosing and resolving failure states in the Completed a
 4. Check the Completed manifest for a corresponding `completed_jobs.jsonl` entry — confirm whether the encode completed before parking.
 
 **Safe next actions**:
-- If the Completed manifest shows the encode completed: the payload was lost after encode. Rerun via `POST /api/rerun/start` (dry_run first) to regenerate the output.
+- If the Completed manifest shows the encode completed: the payload was lost after encode. Rerun from Queue > CSV Rerun (dry-run first) to regenerate the output.
 - If the Completed manifest shows no corresponding entry: the encode may have failed. Check `failed_reports` and `failed_markers`.
 
 ---
@@ -188,7 +188,7 @@ Operator guidance for diagnosing and resolving failure states in the Completed a
 
 **Safe next actions**:
 - If the payload corresponds to a known Completed row: the orphan payload can likely be safely drained after the manifest is confirmed (contact backend admin to reconstruct the manifest from the Completed row if this is needed).
-- If the payload has no corresponding Completed row: the output is of unknown provenance. Do not drain. Investigate via `POST /api/rerun/start` dry_run to understand scope.
+- If the payload has no corresponding Completed row: the output is of unknown provenance. Do not drain. Investigate with Queue > CSV Rerun dry-run to understand scope.
 
 ---
 
@@ -248,7 +248,7 @@ For any Completed or Pending Publish failure, use this investigation order befor
 5. **Run Recovery Dry-Run** (Pending Publish only) — get the backend's authoritative planned actions before any drain attempt.
 6. **`GET /api/publish-reconciliation`** — cross-reference Completed and Pending Publish state if output paths are unclear.
 7. **Tail `latest_failure_json`** — if a failure marker exists, read the raw failure record for stage and error code.
-8. **`POST /api/rerun/start` with `dry_run: true`** — verify rerun scope before any real rerun.
+8. **Queue > CSV Rerun dry-run** — verify rerun scope through the backend-owned `/api/rerun/start` path before any real rerun.
 
 Never skip the dry-run step before a rerun. Always confirm the destination is writable before retrying a drain.
 

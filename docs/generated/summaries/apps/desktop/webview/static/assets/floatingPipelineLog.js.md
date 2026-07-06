@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/floatingPipelineLog.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-29
+last_modified: 2026-07-04
 last_reviewed: 2026-06-25
-sha256: 4a90fadcf4b36767f5c1ded3d9f482e8aee2b25a15ec9064b48eb8b3625cac8e
+sha256: 4938ebd1810df4a2d270b231bbdea7d9277c2189678a385ce7d52abf8af263c4
 ---
 # `apps/desktop/webview/static/assets/floatingPipelineLog.js`
 

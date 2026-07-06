@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0703-006",
+  "title": "Stabilize Home active-work tiles",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-03",
+  "date_completed": "2026-07-03",
+  "summary": "Stabilized Home active-work tiles by routing fast stdout-tail refresh and full refresh through a shared live-work renderer before the async launch-preflight refresh point.",
+  "reason": "During CSV rerun work, the Home Pipeline and Current Item tiles could briefly fall back to idle snapshot/count values while Run Progress still had active CSV rerun evidence.",
+  "affected_areas": [
+    "docs",
+    "test",
+    "webview"
+  ],
+  "behavior_before": "Full refresh could render snapshot-derived Home tiles such as Idle and 0 / 0, then await launch preflight before applying CSV rerun/live-work evidence.",
+  "behavior_after": "Fast and full refresh both apply the same live-work Home summary before launch preflight can yield, keeping the Pipeline and Current Item tiles aligned with active CSV rerun evidence.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_home_live_state_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0703-006.json",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/webview/test_webview_browser_home_live_state_smoke.py"
+  ],
+  "tests_added": [
+    "Focused static guard that verifies Home live-work summary rendering runs in both fast-tail and full-refresh paths before launch preflight awaits.",
+    "Browser-backed Home live-state assertion that an idle/0-of-0 snapshot is overridden by active CSV rerun close-readiness/stdout evidence."
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_progress_csv_rerun_evidence_does_not_override_active_pipeline tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_home_live_work_summary_renders_before_launch_preflight_await -q -> OK",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_home_live_state_smoke.WebViewBrowserHomeLiveStateSmoke.test_real_browser_renders_home_live_state_without_mutation_posts -q -> OK"
+  ],
+  "rollback_plan": "Revert the app.js live-work renderer/order change and the matching focused test additions; no backend state, media policy, route, or filesystem mutation behavior changed.",
+  "related_changes": [],
+  "notes": "Keep Home active-work tiles and live-run progress rendering in one shared path before async preflight refresh.\nAdd focused static coverage for CSV rerun evidence and Home live-work refresh ordering.\nAssert Home Pipeline and Current Item tiles stay on active CSV rerun evidence instead of idle/0-of-0 fallback.\nRefresh generated summary for touched WebView app asset.\nRefresh generated summary for touched static test.\nRefresh generated summary for touched browser smoke."
+}

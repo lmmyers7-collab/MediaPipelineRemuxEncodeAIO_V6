@@ -11,13 +11,20 @@
     } = deps;
 
 function pendingTableRowStatus(item) {
-    const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
-    if (backendState) return backendState;
     const severity = String(item?.diagnostic_severity || "").toLowerCase();
     const recommendation = String(item?.drain_recommendation || "").toLowerCase();
+    const state = String(item?.state || item?.diagnostic_status || "").toLowerCase();
     if (recommendation === "do_not_drain" || item?.local_exists === false) return "blocked";
     if (severity === "error" || item?.error) return "failed";
-    if (severity === "warning" || item?.ready_to_drain === false || pendingReviewRowReasons(item).length) return "warning";
+    if (
+      severity === "warning"
+      || item?.ready_to_drain === false
+      || Number(item?.missing_sidecar_count || 0) > 0
+      || state.includes("orphan_payload")
+      || pendingReviewRowReasons(item).length
+    ) return "warning";
+    const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
+    if (backendState) return backendState;
     return "match";
   }
 
@@ -32,6 +39,8 @@ function pendingInvestigationFilterLabel(value) {
       evidence_missing: "evidence missing",
       orphan_payload: "orphan payload",
       ready_to_drain: "ready to drain",
+      drained: "drained",
+      failed: "failed",
     };
     return labels[normalized] || normalized.replace(/_/g, " ");
   }
@@ -40,6 +49,7 @@ function pendingMatchesInvestigationFilter(item, filter) {
     const normalized = String(filter || "all").trim().toLowerCase();
     const state = String(item?.state || item?.diagnostic_status || "").toLowerCase();
     const recommendation = String(item?.drain_recommendation || "").toLowerCase();
+    const severity = String(item?.diagnostic_severity || "").toLowerCase();
     if (!normalized || normalized === "all") return true;
     if (normalized === "do_not_drain") return recommendation === "do_not_drain" || pendingTableRowStatus(item) === "blocked";
     if (normalized === "missing_payload") return item?.local_exists === false || Number(item?.missing_local_count || 0) > 0 || state.includes("missing");
@@ -54,12 +64,22 @@ function pendingMatchesInvestigationFilter(item, filter) {
         || String(item?.error || "").toLowerCase().includes("manifest");
     }
     if (normalized === "orphan_payload") return state.includes("orphan_payload");
-    if (normalized === "ready_to_drain") return item?.ready_to_drain !== false && recommendation !== "do_not_drain" && pendingTableRowStatus(item) === "match";
+    if (normalized === "ready_to_drain") {
+      const rowStatus = pendingTableRowStatus(item);
+      return item?.ready_to_drain !== false && recommendation !== "do_not_drain" && ["match", "ready"].includes(rowStatus);
+    }
+    if (normalized === "drained") {
+      const rowStatus = pendingTableRowStatus(item);
+      return rowStatus === "completed" || ["completed", "published", "succeeded", "already_published"].some((value) => state.includes(value));
+    }
+    if (normalized === "failed") {
+      return pendingTableRowStatus(item) === "failed" || severity === "error" || Boolean(item?.error);
+    }
     return true;
   }
 
 function pendingFocusedInvestigationLabels(item) {
-    const filters = ["do_not_drain", "missing_payload", "invalid_manifest", "missing_sidecars", "orphan_payload", "ready_to_drain"];
+    const filters = ["do_not_drain", "failed", "missing_payload", "invalid_manifest", "missing_sidecars", "orphan_payload", "evidence_missing", "ready_to_drain", "drained"];
     return filters.filter((filter) => pendingMatchesInvestigationFilter(item, filter)).map(pendingInvestigationFilterLabel);
   }
 
@@ -141,8 +161,14 @@ function pendingInvestigationSignalLines(item) {
     if (pendingMatchesInvestigationFilter(item, "orphan_payload")) {
       signals.push(`- orphan payload: ${item.local_file || state || "payload exists without a valid manifest"}`);
     }
+    if (pendingMatchesInvestigationFilter(item, "failed")) {
+      signals.push(`- failed: ${item.error || item.diagnostic_severity || item.diagnostic_status || "backend reported a failed pending-publish signal"}`);
+    }
     if (pendingMatchesInvestigationFilter(item, "ready_to_drain")) {
       signals.push(`- ready to drain: ${item.drain_recommendation || "row has no focused blocker in the loaded pending scan"}`);
+    }
+    if (pendingMatchesInvestigationFilter(item, "drained")) {
+      signals.push(`- drained: ${item.diagnostic_status || item.state || "backend reported completed publish evidence"}`);
     }
     if (!signals.length) {
       signals.push("- none beyond all signals: this row is not currently included by a focused Pending Publish investigation view.");

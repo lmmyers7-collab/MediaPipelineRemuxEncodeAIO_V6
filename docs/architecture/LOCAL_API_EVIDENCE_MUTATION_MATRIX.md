@@ -2,7 +2,7 @@
 
 Companion to `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
 
-Total routes: 156 (52 read, 104 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+Total routes: 163 (53 read, 110 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
 
 ---
 
@@ -49,6 +49,7 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | `GET /api/audit-results` | `read` | No | Audit CSV preview; no rerun CSV written |
 | `GET /api/audit-controls` | `read` | No | Reads audit score policy and audit-only ignore state; no save/export/media mutation |
 | `GET /api/audit-sources` | `read` | No | Reads backend-owned Audit source registry and scan status only; no scan, save, launch, or media mutation |
+| `GET /api/rerun/results` | `read` | No | Reads completed/current CSV rerun manifests, row status counts, stop evidence, continuation eligibility, review outputs, and import/scoped CSV candidates; no media mutation |
 | `GET /api/rename/cleaning-filters` | `read` | No | Reads backend-owned movie and TV cleaning filter catalogs only |
 | `GET /api/rename/movie-cleaning-filters` | `read` | No | Reads backend-owned movie filename cleaning filter catalog only |
 | `GET /api/rename/clean-filename-preview` | `read` | No | Read-only clean-filename preview plus optional workbench comparison/suggestions; marks suggestions as already covered or stage-recommended and writes nothing |
@@ -126,6 +127,7 @@ Returns backend-authored previews. No files, manifests, config, or queue state a
 | `POST /api/queue/file-overrides/folder-preview` | `read-only-preview` | Frontend cannot scan or approve folder rules independently | Backend uses bounded known-file/cached-track evidence only; no source folder scan or state write |
 | `POST /api/subtitle-qa/preview` | `read-only-preview` | Frontend cannot probe, convert, repair, or author subtitle QA evidence | Backend reads already-loaded Queue and Completed subtitle QA evidence only; no sidecar rewrite, publish, drain, or media touch |
 | `POST /api/rerun/preview` | `read-only-preview` | Frontend cannot parse CSV scope or approve executable rows independently | Backend parses the selected CSV, classifies blocked/warning rows, returns recent candidates and scoped counts, and writes no scoped CSV or media/process state |
+| `POST /api/rerun/promote-dry-run` | `read-only-preview` | Frontend cannot decide review-output promotion safety independently | Backend computes dry-run evidence and a fingerprint for promoting an existing rerun review output into Pending Publish without moving files or writing manifests |
 
 ### failure-marker-write (medium risk, retry-blocker state)
 
@@ -149,7 +151,9 @@ Opens a file or folder in the OS shell. Backend resolves the path from its own s
 | `POST /api/pending-publish/open` | `shell-open` | Frontend cannot select the path directly | Allowed targets: `local_file`, `manifest`, `destination_folder`, `source_folder` |
 | `POST /api/diagnostics/open` | `shell-open` | Frontend cannot select arbitrary files | `target` must be one of the diagnostics allowlist keys; see `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md` |
 | `POST /api/diagnostics/tdarr-matrix/evidence/open` | `shell-open` | Frontend cannot submit arbitrary paths | Backend resolves `run_id` + `finding_key` + allowlisted evidence `target` under the selected Tdarr Matrix run root |
+| `POST /api/failures/open` | `shell-open` | Frontend cannot select failure evidence paths directly | Backend resolves the current failure preview row and opens only allowed evidence targets under backend failure-evidence roots |
 | `POST /api/maintenance/dependency-atlas/open-folder` | `shell-open` | Frontend cannot select arbitrary files | Opens fixed backend-resolved `docs/generated/dependency-atlas/`; request payload must be empty |
+| `POST /api/rerun/open` | `shell-open` | Frontend cannot select rerun paths directly | Backend opens only derived rerun review outputs, manifests, import/scoped CSVs, or folders by row/csv key; arbitrary paths are rejected |
 
 ### diagnostic-process (scratch test harness)
 
@@ -224,6 +228,7 @@ Confirmed repair/reconcile routes rerun the backend dry-run, require a matching 
 | `POST /api/completed/repair-sidecar-metadata` | `completed-sidecar-json-write` | Frontend cannot rewrite sidecar JSON directly | Updates only backend-derived sidecar metadata fields; preserves unknown fields |
 | `POST /api/pending-publish/repair-manifest` | `pending-manifest-write` | Frontend cannot repair pending manifests directly | Route is fingerprint-gated, writes only backend-validated manifest-normalization candidates, and blocks incomplete evidence |
 | `POST /api/pending-publish/reconcile-orphan-payloads` | `pending-orphan-manifest-write` | Frontend cannot reconcile orphan payloads directly | Manifest-only route is fingerprint-gated, blocks without complete backend evidence, and never moves/deletes/drains/publishes payloads |
+| `POST /api/rerun/promote` | `pending-manifest-write` | Frontend cannot promote rerun review outputs directly | Requires matching dry-run fingerprint and `confirm_promote: true`; backend moves the review output into Pending Publish and writes manifest-backed evidence |
 
 ### preset-library-state-write (low risk, settings preset library only)
 
@@ -252,6 +257,7 @@ Writes backend-owned control state or control flag files. The running pipeline o
 | `POST /api/final-library-promotion/resume` | `control-state-write` | Frontend cannot edit promotion state directly | `run_id` only; resumes a paused backend-owned promotion run |
 | `POST /api/pipeline/control` | `control-flag-write` | Frontend cannot write flag files or kill processes directly | `action`: `pause`, `stop`, `rescan`, or `kill`; backend owns flag writes and emergency cleanup |
 | `POST /api/audit/stop` | `process-control` | Frontend cannot kill audit processes or edit progress directly | Requires `confirm_stop: true`; backend stops audit process trees only and writes terminal stopped audit progress |
+| `POST /api/rerun/control` | `process-control` | Frontend cannot kill rerun work or edit manifests directly | Requires `confirm_stop: true`; backend writes only the rerun stop-after-current marker and PowerShell owns manifest updates after the current row/window completes |
 
 ### validation-log-write (low risk, evidence only)
 
@@ -271,7 +277,7 @@ Writes backend-owned audit control state or report artifacts. These routes canno
 | `POST /api/audit/ignore` | `audit-state-write` | Frontend cannot write audit ignore state directly | `action`: `add` or `remove`; row keys/paths are reconciled by backend audit state only |
 | `POST /api/audit/sources` | `audit-source-state-write` | Frontend cannot write Audit source registry state directly | Adds/removes/enables/disables backend-owned Audit roots under `State\Audit`; does not scan, launch, or touch media |
 | `POST /api/audit/sources/scan` | `audit-source-scan-state-write` | Frontend cannot scan source roots independently | Backend recursively counts media, sidecars, and folder totals for selected Audit roots and writes aggregate scan status only; no media mutation |
-| `POST /api/audit/export-rerun-csv` | `report-file-write` | Frontend cannot write rerun CSV artifacts directly | Backend exports a rerun CSV artifact only; it does not launch rerun work |
+| `POST /api/audit/export-rerun-csv` | `report-file-write` | Frontend cannot write rerun CSV artifacts directly | Backend exports a rerun CSV artifact and Queue CSV Rerun handoff metadata only; Queue still owns `/api/rerun/preview` and `/api/rerun/start` |
 
 ### config-write (high risk)
 
@@ -343,7 +349,8 @@ Spawns backend processes. The backend owns launch locks, command journal entries
 |---|---|---|---|
 | `POST /api/pipeline/start` | `process-launch` | Frontend cannot exec processes or bypass launch guards | `mode`: `once`, `continuous`, `validate`, or `drain_pending_pushes`; backend owns launch lock and process args |
 | `POST /api/audit/start` | `process-launch` | Frontend cannot exec audit scripts directly | Backend owns audit script invocation |
-| `POST /api/rerun/start` | `process-launch` | Frontend cannot exec rerun scripts directly | Media-safe defaults: `stage_mode: copy`, `original_mode: keep`, `return_mode: park` |
+| `POST /api/rerun/start` | `process-launch` | Frontend cannot exec rerun scripts directly | Backend-owned CSV rerun default: `destination_mode=auto_replace_clean_else_pending_review`, `collision_policy=replace_final`, source originals kept; strict `confirm_replace_final=true` is still required before live replacement-capable starts |
+| `POST /api/rerun/continue` | `process-launch` | Frontend cannot materialize retry CSVs or exec rerun scripts directly | Requires `confirm_continue: true`; backend accepts stopped-after-current manifests only, writes a pending-only scoped CSV, and launches through CSV rerun locks |
 
 ---
 

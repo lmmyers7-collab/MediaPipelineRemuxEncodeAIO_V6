@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0705-007",
+  "title": "Harden pending publish drain guard freshness",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-05",
+  "date_completed": "2026-07-05",
+  "summary": "Bind Pending Publish recovery dry-run rows to the current pending-publish payload signature, clear stale recovery evidence when the payload changes, and ignore mismatched recovery rows in drain guard evidence.",
+  "reason": "A stale blocked recovery dry-run could keep the WebView drain guard in a do-not-drain state after the backend returned a fresh ready-looking Pending Publish payload.",
+  "affected_areas": [
+    "generated-context",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Recovery dry-run rows were stored as unscoped WebView state and could continue influencing drain confidence, drain checklist, and drain-scope preview after Pending Publish evidence changed.",
+  "behavior_after": "Recovery dry-run rows are captured with a current-payload signature, cleared when Pending Publish evidence changes, and ignored by drain confidence/checklist/scope logic if unsigned or mismatched.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/pendingPublishView.confidence.js",
+    "apps/desktop/webview/static/assets/pendingPublishView.drain.js",
+    "apps/desktop/webview/static/assets/pendingPublishView.js",
+    "apps/desktop/webview/static/assets/pendingPublishView.recovery.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/pendingPublishView.confidence.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/pendingPublishView.drain.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/pendingPublishView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/pendingPublishView.recovery.js.md",
+    "docs/generated/summaries/docs/DOCS_INDEX.md.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_pending_publish.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_pending_drain_guard_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0705-007.json",
+    "tests/python/desktop/test_application_facade_web_static_pending_publish.py",
+    "tests/webview/test_webview_browser_pending_drain_guard_smoke.py"
+  ],
+  "tests_added": [
+    "Browser-backed Pending Publish drain guard regression for stale blocked recovery evidence clearing.",
+    "Static WebView contract coverage for pending recovery-plan freshness binding."
+  ],
+  "manual_validation": [
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static_pending_publish -q",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_pending_drain_guard_smoke -q",
+    "node --check apps/desktop/webview/static/assets/pendingPublishView.confidence.js",
+    "node --check apps/desktop/webview/static/assets/pendingPublishView.drain.js",
+    "node --check apps/desktop/webview/static/assets/pendingPublishView.js",
+    "node --check apps/desktop/webview/static/assets/pendingPublishView.recovery.js"
+  ],
+  "rollback_plan": "Revert the WebView recovery signature binding and the related static/browser test assertions if the drain guard needs to return to unscoped recovery-plan behavior.",
+  "related_changes": [],
+  "notes": "Bind recovery-plan state to the current Pending Publish payload signature and clear stale recovery evidence.\nCapture the current pending payload signature when recovery dry-run rows are loaded.\nIgnore stale or unsigned recovery dry-run rows in drain confidence and decision guard logic.\nIgnore stale recovery dry-run rows in the backend drain-scope preview.\nPin the recovery-plan freshness contract in WebView static tests.\nExercise stale blocked recovery evidence clearing in the browser-backed drain guard smoke.\nRefresh generated summary after drain confidence freshness guard changes.\nRefresh generated summary after drain-scope freshness guard changes.\nRefresh generated summary after pending recovery signature state changes.\nRefresh generated summary after recovery dry-run signature capture changes.\nRefresh generated summary after static pending-publish test coverage changes.\nRefresh generated summary after browser smoke stale-recovery regression coverage changes.\nSummary refresh also updated the generated DOCS_INDEX summary because docs/DOCS_INDEX.md was already dirty before this task."
+}

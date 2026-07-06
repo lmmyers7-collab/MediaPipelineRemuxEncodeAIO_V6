@@ -20,6 +20,13 @@ def _assert_not_contains_any(testcase: unittest.TestCase, text: str, snippets: t
             testcase.assertNotIn(snippet, text)
 
 
+def _section_opening_for_heading(html: str, heading: str) -> str:
+    heading_index = html.index(f"<h2>{heading}</h2>")
+    section_start = html.rfind("<section", 0, heading_index)
+    section_end = html.index(">", section_start)
+    return html[section_start:section_end]
+
+
 class ApplicationFacadeWebStaticPendingPublishTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -32,6 +39,7 @@ class ApplicationFacadeWebStaticPendingPublishTests(unittest.TestCase):
         live_start = html.index('data-page-panel="live"')
         pending_start = html.index('data-page-panel="pending"')
         rename_start = html.index('data-page-panel="rename"')
+        pending_html = html[pending_start:rename_start]
 
         _assert_contains_all(
             self,
@@ -97,7 +105,11 @@ class ApplicationFacadeWebStaticPendingPublishTests(unittest.TestCase):
                 "pending-drain-guard-status",
                 "pending-drain-guard-summary",
                 "<h2>Pending Publish Guard Evidence</h2>",
-                "<h2>Pending Publish Drain</h2>",
+                "<h2>Pending Publish Operations</h2>",
+                "<h2>File Inventory</h2>",
+                "<h2>Drain Progress</h2>",
+                "pending-action-failed-count",
+                "pending-action-drained-count",
                 "pending-recovery-plan-selected-button",
                 "pending-recovery-plan-all-button",
                 "pending-recovery-plan-status",
@@ -108,8 +120,29 @@ class ApplicationFacadeWebStaticPendingPublishTests(unittest.TestCase):
             ),
         )
         self.assertEqual(html.count('id="pending-drain-button"'), 1)
-        self.assertLess(html.index('id="pending-drain-button"'), html.index('id="pending-status"'))
-        self.assertLess(html.index('id="pending-drain-button"'), html.index('id="pending-rows"'))
+        self.assertLess(html.index('id="pending-action-drain-button"'), html.index('id="pending-rows"'))
+        for heading in (
+            "Pending Publish Guard Evidence",
+            "Parked Files",
+            "Drain Status",
+            "Risk Summary",
+            "Pending Publish Checklist",
+            "Next Step",
+            "Recovery Preview",
+            "Manifest Repair",
+            "Drain Confidence",
+            "Drain Scope",
+            "Drain Checklist",
+            "Drain Comparison",
+            "Post-Drain Review",
+            "Recent Events",
+            "Last Drain",
+        ):
+            with self.subTest(advanced_heading=heading):
+                self.assertIn("data-advanced", _section_opening_for_heading(pending_html, heading))
+        for heading in ("Pending Publish Operations", "Live Run", "File Inventory", "Drain Progress", "Selected Item", "Flagged Items"):
+            with self.subTest(daily_heading=heading):
+                self.assertNotIn("data-advanced", _section_opening_for_heading(pending_html, heading))
         self.assertNotIn("pending-detail", html[home_start:live_start])
         self.assertIn("pending-detail", html[pending_start:rename_start])
         _assert_contains_all(
@@ -125,6 +158,7 @@ class ApplicationFacadeWebStaticPendingPublishTests(unittest.TestCase):
                 "play_local_file",
             ),
         )
+        self.assertNotIn("Open Parked File", bundle.js)
 
     def test_pending_publish_core_review_contract_is_static_pinned(self) -> None:
         bundle = self.bundle
@@ -171,14 +205,14 @@ class ApplicationFacadeWebStaticPendingPublishTests(unittest.TestCase):
                 "Completed Manifest correlation for selected pending row:",
                 "Exact pending destination -> completed output:",
                 "Boundary: same-leaf matches are duplicate-title hints only",
-                "Mutation guardrail: this pending-row correlation",
+                "PENDING_READ_ONLY_BOUNDARY",
                 "function pendingRowTrustSummaryLines",
                 "Diagnostic statuses:",
                 "Suggested open targets:",
                 "Real-media validation checklist:",
                 "Real-media sample trace: Pending Publish",
                 "What remains unproven: final publish completion until Drain Parked Outputs succeeds",
-                "Mutation guardrail: this checklist",
+                "PENDING_READ_ONLY_BOUNDARY",
                 "Selected pending-row review checklist:",
                 "Selected pending-row quick signal:",
                 "Current filter visibility:",
@@ -187,7 +221,7 @@ class ApplicationFacadeWebStaticPendingPublishTests(unittest.TestCase):
                 "Combined pending-row drain review plan:",
                 "Pending manifest",
                 "Completed Manifest correlation",
-                "Guardrail: this combined plan is read-only and cannot drain",
+                "Mutation guardrail: read-only evidence; backend routes own pending-publish changes.",
                 "Investigation view matches:",
                 "investigation views are display filters only and do not change backend drain scope",
                 "review-before-drain",
@@ -256,7 +290,7 @@ class ApplicationFacadeWebStaticPendingPublishTests(unittest.TestCase):
                 "function renderPendingDrainCorrelation",
                 "function pendingDrainCorrelationLines",
                 "Pending Publish drain correlation:",
-                "Mutation guardrail: this correlation is read-only",
+                "PENDING_READ_ONLY_BOUNDARY",
                 "function pendingCurrentFilterScope",
                 "function renderPendingBackendDrainScopePreview",
                 "function pendingBackendDrainScopeRows",
@@ -280,7 +314,7 @@ class ApplicationFacadeWebStaticPendingPublishTests(unittest.TestCase):
                 "This is the final read-only operator handoff before Drain Parked Outputs.",
                 "Backend Drain Parked Outputs remains the only authority that can validate and move parked files.",
                 "Build a selected-row or all-rows dry-run plan before risky drains.",
-                "Mutation guardrail: this panel cannot drain, repair, rewrite, move, delete, publish, or bypass backend validation.",
+                "PENDING_READ_ONLY_BOUNDARY",
                 "Display filter / drain scope",
                 "Backend drain scope remains all loaded parked rows",
                 "Drain Parked Outputs does not drain only the visible table subset.",
@@ -291,7 +325,7 @@ class ApplicationFacadeWebStaticPendingPublishTests(unittest.TestCase):
                 "Daily-use handoff: Pending Publish evidence decides whether it is sensible to press Drain Parked Outputs",
                 "Scope boundary: Pending filters, selected rows, recovery dry-runs",
                 "drain only after current parked rows, recovery dry-run, latest drain evidence, Completed/output proof, and diagnostics order agree.",
-                "Mutation guardrail: this checklist cannot drain, repair, rewrite, move, delete, publish, accept outputs, write manifests, or bypass backend validation.",
+                "PENDING_READ_ONLY_BOUNDARY",
                 'statusNode.dataset.state = pendingDrainDecisionStatusState(decisionStatus)',
                 "function renderPendingPostDrainTrust",
                 "function pendingPostDrainTrustRows",
@@ -300,14 +334,14 @@ class ApplicationFacadeWebStaticPendingPublishTests(unittest.TestCase):
                 "a drain is trusted only when current parked rows, durable drain summary, recent drain events/logs, Completed output proof, and Sample Validation deferred-publish evidence agree.",
                 "Blocking evidence rows:",
                 "Do not trust this drain outcome yet.",
-                "Mutation guardrail: this review is read-only and cannot drain, repair, rewrite, move, delete, publish, mark outputs complete, append validation records, or touch media.",
+                "Mutation guardrail: read-only evidence; backend routes own pending-publish changes.",
                 "function pendingDrainGuardState",
                 "function renderPendingDrainGuard",
                 "Drain Parked Outputs blocked by WebView evidence",
                 "Pending table filter:",
                 "local filters do not narrow publish scope",
                 "The backend will still perform authoritative validation before moving files. Continue?",
-                "Mutation guardrail: this guard cannot drain, repair, rewrite, move, delete, publish, accept outputs, write manifests, or bypass backend validation.",
+                "backend routes own pending-publish changes",
                 "completedView.getLastCompletedRows()",
             ),
         )
@@ -324,6 +358,49 @@ class ApplicationFacadeWebStaticPendingPublishTests(unittest.TestCase):
             ),
         )
         _assert_namespace_export(self, bundle.pending_publish_view_js, "mediaPipelinePendingPublishView", "renderPendingPostDrainTrust")
+
+    def test_pending_publish_recovery_plan_evidence_is_current_payload_scoped(self) -> None:
+        bundle = self.bundle
+
+        _assert_contains_all(
+            self,
+            bundle.pending_publish_view_js,
+            (
+                "let lastPendingRecoveryPlanSignature = \"\";",
+                "function pendingRecoveryPlanSignature",
+                "function clearStalePendingRecoveryPlan",
+                "Recovery dry-run cleared because Pending Publish evidence changed. Build a fresh dry-run before drain review.",
+                "getLastPendingRecoveryPlanSignature: () => lastPendingRecoveryPlanSignature || \"\"",
+                "getCurrentPendingRecoveryPlanSignature: (pending, rows) => pendingRecoveryPlanSignature(",
+            ),
+        )
+        _assert_contains_all(
+            self,
+            bundle.pending_publish_recovery_js,
+            (
+                "getCurrentPendingRecoveryPlanSignature = function () { return \"\"; }",
+                "function getLastPendingRecoveryPlanSignature()",
+                "setLastPendingRecoveryPlanRows(rows, getCurrentPendingRecoveryPlanSignature())",
+            ),
+        )
+        _assert_contains_all(
+            self,
+            bundle.pending_publish_confidence_js,
+            (
+                "function pendingRecoveryRowsForCurrentEvidence",
+                "stale recovery dry-run ignored; planned rows=",
+                "Stale recovery dry-run rows are ignored by the drain guard until rebuilt for the current pending evidence.",
+            ),
+        )
+        _assert_contains_all(
+            self,
+            bundle.pending_publish_drain_js,
+            (
+                "function pendingRecoveryRowsForCurrentEvidence",
+                "stale recovery dry-run ignored; planned=",
+                "Build a fresh dry-run plan against the current parked rows before relying on recovery evidence.",
+            ),
+        )
 
     def test_pending_publish_diagnostics_open_and_recovery_are_backend_owned(self) -> None:
         bundle = self.bundle
@@ -342,6 +419,7 @@ class ApplicationFacadeWebStaticPendingPublishTests(unittest.TestCase):
                 "function renderPendingDiagnosticsLinks",
                 "function requestPendingDiagnosticsAction",
                 "Diagnostics actions below use backend allowlists.",
+                "Open Pending Folder",
                 "button.dataset.pendingDiagnosticsAction",
                 "openRequester(target)",
                 "tailRequester(target)",
@@ -356,6 +434,9 @@ class ApplicationFacadeWebStaticPendingPublishTests(unittest.TestCase):
                 "Another pending publish open command is already in progress.",
             ),
         )
+        self.assertNotIn("Read Last Stderr", bundle.pending_publish_diagnostics_js)
+        self.assertNotIn("appendDiagnosticsBridgeButton(container", bundle.pending_publish_diagnostics_js)
+        self.assertNotIn("Diagnostics bridge: Review in Diagnostics switches", bundle.pending_publish_diagnostics_js)
         _assert_contains_all(
             self,
             bundle.pending_publish_view_js,
@@ -381,7 +462,7 @@ class ApplicationFacadeWebStaticPendingPublishTests(unittest.TestCase):
                 "function renderPendingRecoveryPlanRows",
                 "function pendingRecoveryPlanRowDetailLines",
                 "Selected recovery-plan row:",
-                "Mutation guardrail: this drilldown is read-only",
+                "PENDING_READ_ONLY_BOUNDARY",
                 "function renderPendingRecoveryPlanHistory",
                 "function isPendingRecoveryPlanCommand",
                 "Recovery plan is dry-run only",

@@ -175,6 +175,9 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             function activeLaunchTab() {
               return document.querySelector('[data-page-panel="launch"] .settings-tab-btn[data-launch-tab][aria-selected="true"]')?.dataset.launchTab || "";
             }
+            function activeQueueTab() {
+              return document.querySelector('[data-page-panel="queue"] .settings-tab-btn[data-queue-tab][aria-selected="true"]')?.dataset.queueTab || "";
+            }
             function activeDiagnosticsTab() {
               return document.querySelector('[data-page-panel="diagnostics"] .settings-tab-btn[data-diag-tab][aria-selected="true"]')?.dataset.diagTab || "";
             }
@@ -192,6 +195,21 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               if (!button) throw new Error("missing Launch tab button " + tabId);
               window.mediaPipelineLaunchView.activateLaunchTab(tabId, { persist: false });
               requireLaunchTab(tabId);
+            }
+            function requireQueueTab(tabId) {
+              const active = activeQueueTab();
+              if (active !== tabId) throw new Error("expected Queue tab " + tabId + ", got " + active);
+              const visiblePanels = Array.from(document.querySelectorAll('[data-page-panel="queue"] > .settings-tab-pane.queue-tab-panel[data-queue-tab-panel].is-active'))
+                .map((panel) => panel.dataset.queueTabPanel);
+              if (!visiblePanels.length || visiblePanels.some((tab) => tab !== tabId)) {
+                throw new Error("Queue tab " + tabId + " has unexpected visible panels: " + JSON.stringify(visiblePanels));
+              }
+            }
+            function clickQueueTab(tabId) {
+              const button = document.querySelector('[data-page-panel="queue"] .settings-tab-btn[data-queue-tab="' + tabId + '"]');
+              if (!button) throw new Error("missing Queue tab button " + tabId);
+              window.mediaPipelineQueueView.activateQueueTab(tabId, { persist: false });
+              requireQueueTab(tabId);
             }
             function requireDiagnosticsReadinessTab() {
               const pageVisible = document.querySelector('[data-page-panel="diagnostics"]')?.classList.contains("is-visible");
@@ -261,10 +279,17 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "launchSampleExecutionRows",
               "launchPilotRunReadinessRows",
               "pipelineLaunchPreflightLines",
-              "rerunLaunchPreflightLines",
             ].forEach((name) => {
               if (typeof window.mediaPipelineLaunchView?.[name] !== "function") {
                 throw new Error("missing mediaPipelineLaunchView." + name);
+              }
+            });
+            [
+              "rerunQueuePreflightLines",
+              "renderRerunQueuePreflight",
+            ].forEach((name) => {
+              if (typeof window.mediaPipelineCsvRerunWorkflow?.[name] !== "function") {
+                throw new Error("missing mediaPipelineCsvRerunWorkflow." + name);
               }
             });
 
@@ -272,14 +297,14 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             if (typeof window.mediaPipelineLaunchView?.activateLaunchTab !== "function") throw new Error("missing mediaPipelineLaunchView.activateLaunchTab");
             const launchTabLabels = Array.from(document.querySelectorAll('[data-page-panel="launch"] .settings-tab-btn[data-launch-tab]'))
               .map((button) => button.textContent.trim());
-            const expectedLaunchTabs = ["Pipeline Processor", "CSV Rerun", "History"];
+            const expectedLaunchTabs = ["Pipeline Processor", "History"];
             if (JSON.stringify(launchTabLabels) !== JSON.stringify(expectedLaunchTabs)) {
               throw new Error("unexpected Launch tab order: " + JSON.stringify(launchTabLabels));
             }
             const launchPanelOrder = Array.from(document.querySelectorAll('[data-page-panel="launch"] > .launch-tab-panel[data-launch-tab-panel]'))
               .map((panel) => panel.dataset.launchTabPanel)
               .filter((tabId, index, all) => all.indexOf(tabId) === index);
-            const expectedPanelOrder = ["pipeline", "rerun", "history"];
+            const expectedPanelOrder = ["pipeline", "history"];
             if (JSON.stringify(launchPanelOrder) !== JSON.stringify(expectedPanelOrder)) {
               throw new Error("unexpected Launch panel DOM order: " + JSON.stringify(launchPanelOrder));
             }
@@ -655,8 +680,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "Source: GET /api/launch/preflight",
               "Status scope: active targets only",
               "active requests=1",
-              "skipped inactive=1",
-              "Inactive targets skipped: CSV Rerun Start: CSV path is not staged.",
+              "skipped inactive=0",
             ]);
             requireTableText("launch-backend-preflight-rows", [
               "Pipeline",
@@ -821,6 +845,248 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             ]);
 
             window.showPage("queue");
+            if (typeof window.mediaPipelineQueueView?.activateQueueTab !== "function") throw new Error("missing mediaPipelineQueueView.activateQueueTab");
+            const queueTabLabels = Array.from(document.querySelectorAll('[data-page-panel="queue"] .settings-tab-btn[data-queue-tab]'))
+              .map((button) => button.textContent.trim());
+            const expectedQueueTabs = ["Main Queue", "CSV Rerun"];
+            if (JSON.stringify(queueTabLabels) !== JSON.stringify(expectedQueueTabs)) {
+              throw new Error("unexpected Queue tab order: " + JSON.stringify(queueTabLabels));
+            }
+            clickQueueTab("main");
+            clickQueueTab("rerun");
+            requireText("rerun-mode-policy-note", [
+              "Backend owns output proof",
+              "Clean verified outputs use backend-derived final placement",
+              "Source-path overwrite requires the explicit checkbox.",
+            ]);
+            requireText("rerun-state-status-filter", [
+              "All statuses",
+              "Pending Publish",
+              "Replaced / Returned",
+            ]);
+            requireText("rerun-results-refresh-button", ["Refresh State"]);
+            requireText("rerun-stop-after-current-button", ["Stop After Current"]);
+            requireText("rerun-open-latest-manifest-button", ["Open Latest Manifest"]);
+            requireText("rerun-open-run-logs-button", ["Open Run Logs"]);
+            requireText("rerun-open-last-stdout-button", ["Open Last Stdout"]);
+            requireText("rerun-open-last-stderr-button", ["Open Last Stderr"]);
+            requireText("rerun-open-active-jobs-button", ["Open Active Jobs"]);
+            requireText("rerun-show-command-history-button", ["Show Rerun Commands"]);
+            await waitFor(
+              () => text("rerun-history-summary").includes("CSV rerun queue-state"),
+              "CSV rerun backend-owned queue-state summary",
+            );
+            requireText("rerun-history-summary", [
+              "CSV rerun queue-state is backend-owned",
+              "/api/rerun/results",
+              "not normal /api/pipeline/start queue rows",
+            ]);
+            requireText("rerun-state-rows", ["No CSV rerun queue-state"]);
+            const statePanel = document.querySelector(".rerun-state-panel");
+            const historyPanel = document.querySelector(".rerun-history-panel");
+            if (!statePanel || !historyPanel) throw new Error("missing rerun state/history panels");
+            if (!(statePanel.compareDocumentPosition(historyPanel) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+              throw new Error("CSV rerun state panel must render above history panel");
+            }
+            const rerunStateTable = document.querySelector(".rerun-state-table");
+            if (!rerunStateTable) throw new Error("missing CSV rerun state table");
+            if (rerunStateTable.textContent.includes("Evidence")) {
+              throw new Error("CSV rerun state table should not render a separate Evidence column");
+            }
+            if (typeof window.mediaPipelineCsvRerunWorkflow?.renderRerunPreview !== "function") {
+              throw new Error("missing mediaPipelineCsvRerunWorkflow.renderRerunPreview");
+            }
+            setInput("rerun-start-csv-path", "C:/Typed/manual-rerun.csv");
+            const rerunStartPostsBeforePreview = posts.filter((post) => post.path === "/api/rerun/start").length;
+            window.mediaPipelineCsvRerunWorkflow.renderRerunPreview({
+              status: "blocked",
+              ok: false,
+              message: "CSV rerun preview is blocked by row evidence.",
+              csv_path: "C:/Typed/manual-rerun.csv",
+              destination_mode: "auto_replace_clean_else_pending_review",
+              collision_policy: "replace_final",
+              execution_mode: "one_at_a_time",
+              counts: {
+                total_rows: 4,
+                enabled_rows: 3,
+                disabled_rows: 1,
+                effective_scoped_rows: 3,
+                blocked_rows: 1,
+                blocked_scoped_rows: 1,
+                warning_rows: 1,
+                duplicate_source_rows: 1,
+                missing_source_rows: 1,
+              },
+              rows: [
+                {
+                  row_index: 2,
+                  status: "blocked",
+                  enabled: true,
+                  in_scope: true,
+                  source_path: "Relative/Paprika (2006).mkv",
+                  lookup_title: "Paprika",
+                  relative_path: "Anime/Paprika (2006).mkv",
+                  issue: "audio-default-policy-mismatch",
+                  bucket: "rerun",
+                  reason: "duplicate source_path; source file not found",
+                  duplicate_source: true,
+                  source_missing: true,
+                  source_found: false,
+                  rerun_rule_label: "Audio Remediation Rule",
+                  rerun_rule_reason: "Audio default-policy evidence requires backend rerun policy.",
+                  rerun_rule_blocked: true,
+                },
+                {
+                  row_index: 3,
+                  status: "warning",
+                  enabled: true,
+                  in_scope: true,
+                  source_path: "C:/Media/Warning.mkv",
+                  lookup_title: "Warning Movie",
+                  relative_path: "Movies/Warning.mkv",
+                  reason: "warning row remains operator-reviewable",
+                  warning_reason: "backend warning evidence",
+                  rerun_rule_warning: true,
+                },
+                {
+                  row_index: 4,
+                  status: "skipped",
+                  enabled: false,
+                  in_scope: false,
+                  source_path: "C:/Media/Disabled.mkv",
+                  lookup_title: "Disabled Movie",
+                  relative_path: "Movies/Disabled.mkv",
+                  reason: "disabled row filtered by backend preview scope",
+                },
+                {
+                  row_index: 5,
+                  status: "ready",
+                  enabled: true,
+                  in_scope: true,
+                  source_path: "C:/Media/Ready.mkv",
+                  lookup_title: "Ready Movie",
+                  relative_path: "Movies/Ready.mkv",
+                  reason: "ready for backend rerun command",
+                },
+              ],
+              recent_csvs: [
+                { path: "C:/Backend/known-rerun.csv", csv_key: "known", label: "known-rerun.csv" },
+              ],
+            });
+            requireText("rerun-review-header", [
+              "blocked",
+              "Total Rows",
+              "4",
+              "Scoped Rows",
+              "3",
+              "Next Action",
+            ]);
+            requireText("rerun-lifecycle-summary", [
+              "Phase: Preview blocked.",
+              "CSV: C:/Typed/manual-rerun.csv.",
+              "Preview rows: total 4, scoped 3",
+            ]);
+            requireText("rerun-lifecycle-detail", [
+              "destination Auto replace clean, else Pending Publish",
+              "Scoped row count: 3",
+              "Safe next action:",
+            ]);
+            requireText("rerun-preview-rows", [
+              "Paprika",
+              "Anime/Paprika (2006).mkv",
+              "duplicate",
+              "missing source",
+              "relative source",
+              "source not found",
+              "rule blocked",
+              "rule warning",
+              "filtered/skipped",
+              "disabled",
+              "ready",
+              "Rule detail: Audio default-policy evidence",
+            ]);
+            const identityCell = document.querySelector("#rerun-preview-rows .rerun-preview-identity-cell");
+            const reasonCell = document.querySelector("#rerun-preview-rows .rerun-preview-reason-cell");
+            if (!identityCell || identityCell.dataset.label !== "Identity") throw new Error("CSV rerun identity cell is missing a responsive label");
+            if (!reasonCell || reasonCell.dataset.label !== "Reason") throw new Error("CSV rerun reason cell is missing a responsive label");
+            ["rerun-open-csv-button", "rerun-open-csv-folder-button"].forEach((id) => {
+              const button = byId(id);
+              if (!button?.disabled) throw new Error(id + " should stay disabled for typed non-candidate CSV paths");
+              if (!button.title.includes("Typed CSV paths can be previewed")) throw new Error(id + " missing typed-path open behavior title: " + button.title);
+            });
+            window.mediaPipelineCsvRerunWorkflow.renderRerunPreview({
+              status: "ready",
+              ok: true,
+              message: "CSV rerun preview parsed.",
+              csv_path: "C:/Typed/manual-rerun.csv",
+              destination_mode: "review_workspace",
+              collision_policy: "suffix",
+              execution_mode: "one_at_a_time",
+              counts: { total_rows: 1, effective_scoped_rows: 1, blocked_rows: 0, warning_rows: 0 },
+              rows: [
+                {
+                  row_index: 0,
+                  status: "ready",
+                  enabled: true,
+                  in_scope: true,
+                  source_path: "C:/Media/Ready.mkv",
+                  lookup_title: "Ready Movie",
+                  relative_path: "Movies/Ready.mkv",
+                  reason: "ready for backend rerun command",
+                },
+              ],
+              recent_csvs: [
+                { path: "C:/Typed/manual-rerun.csv", csv_key: "typed-known", label: "manual-rerun.csv" },
+              ],
+            });
+            ["rerun-open-csv-button", "rerun-open-csv-folder-button"].forEach((id) => {
+              const button = byId(id);
+              if (button?.disabled) throw new Error(id + " should enable for a backend-known CSV candidate");
+            });
+            const rerunStartPostsAfterPreview = posts.filter((post) => post.path === "/api/rerun/start").length;
+            if (rerunStartPostsAfterPreview !== rerunStartPostsBeforePreview) {
+              throw new Error("CSV rerun preview rendering posted /api/rerun/start: " + JSON.stringify(posts));
+            }
+            if (typeof window.mediaPipelineQueueView?.renderRerunResults !== "function") {
+              throw new Error("missing mediaPipelineQueueView.renderRerunResults");
+            }
+            window.mediaPipelineQueueView.renderRerunResults({
+              manifests: [],
+              queue_state: {
+                rows: [
+                  {
+                    row_key: "browser-smoke-rerun-row",
+                    queue_status: "failed",
+                    queue_status_label: "Failed",
+                    original_source_path: "Paprika(2006).mkv",
+                    output_path: "Paprika(2006).rerun.mkv",
+                    final_output_path: "\\\\SERVER\\Videos\\Paprika (2006)\\Paprika (2006).mkv",
+                    audit_issue_code_list: ["audio-default-policy-mismatch", "vobsub-subtitles-ocr-candidate"],
+                    rerun_rule_label: "Subtitle Remediation Rule",
+                    rerun_rule_reason: "Issue evidence is subtitle-focused; rerun uses backend subtitle policy.",
+                    blocking_reason: "destination policy failed: pending publish destination is already queued",
+                  },
+                ],
+                status_counts: { failed: 1 },
+              },
+            });
+            const audioChip = document.querySelector('.rerun-issue-chip[data-issue-family="audio"]');
+            const subtitleChip = document.querySelector('.rerun-issue-chip[data-issue-family="subtitle"]');
+            if (!audioChip || !subtitleChip) throw new Error("CSV rerun issue chips did not render expected families");
+            requireText("rerun-state-rows", ["Failed", "A", "default policy", "S", "ocr candidate"]);
+            const compactStateText = text("rerun-state-rows");
+            if (compactStateText.includes("Rule detail") || compactStateText.includes("Rule reason") || compactStateText.includes("destination policy failed")) {
+              throw new Error("CSV rerun details leaked into compact state rows");
+            }
+            audioChip.click();
+            requireText("rerun-queue-detail", [
+              "Issue: audio-default-policy-mismatch",
+              "Family: audio",
+              "Rule: Subtitle Remediation Rule",
+              "Rule detail: Issue evidence is subtitle-focused",
+              "Blocking detail: destination policy failed",
+            ]);
+            clickQueueTab("main");
             await waitFor(
               () => text("queue-decision-summary").includes("Queue decision header:")
                 && text("queue-launch-decision-summary").includes("Queue-to-Launch handoff:"),
@@ -1365,7 +1631,7 @@ class WebViewBrowserLaunchQueueReadinessSmoke(unittest.TestCase):
             self.assertIn("Saved policy vs Queue route evidence packet:", browser_result["pilotPolicyDetail"])
             self.assertIn("Pipeline backend preflight:", browser_result["backendPreflight"])
             self.assertIn("Status scope: active targets only", browser_result["backendPreflight"])
-            self.assertIn("Inactive targets skipped: CSV Rerun Start", browser_result["backendPreflight"])
+            self.assertNotIn("CSV Rerun Start", browser_result["backendPreflight"])
             self.assertIn("Queue-to-Launch handoff:", browser_result["queueDecision"])
             self.assertIn("Backend launch gating remains the source of truth.", browser_result["scheduleGuidance"])
             self.assertIn("Launch command review:", browser_result["commandReview"])

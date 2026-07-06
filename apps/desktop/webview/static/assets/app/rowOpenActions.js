@@ -15,7 +15,6 @@
         targetDataset: "openPending",
         actions: [
           { kind: "open", target: "play_local_file", label: "Play Parked Output", primary: true, hint: "Play the backend-selected parked output with the PC default app." },
-          { kind: "open", target: "local_file", label: "Open Parked File", hint: "Open the backend-selected parked local payload." },
           { kind: "open", target: "manifest", label: "Open Manifest", hint: "Open the backend-selected pending publish manifest." },
           { kind: "open", target: "destination_folder", label: "Open Destination Folder", hint: "Open the backend-selected destination folder." },
           { kind: "open", target: "source_folder", label: "Open Source Folder", hint: "Open the backend-selected source folder." },

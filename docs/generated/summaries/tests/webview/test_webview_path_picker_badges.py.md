@@ -3,9 +3,9 @@ file: tests/webview/test_webview_path_picker_badges.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-28
+last_modified: 2026-07-03
 last_reviewed: 2026-06-28
-sha256: b6a71c69e93ab9266599cb42d3fd78d552d5300f1b78337a4765d286ec720ecd
+sha256: 926837a3e4e4a1fa5c604fc67e0f89b5842a74fd1802a354ba97cf1269d28301
 ---
 # `tests/webview/test_webview_path_picker_badges.py`
 

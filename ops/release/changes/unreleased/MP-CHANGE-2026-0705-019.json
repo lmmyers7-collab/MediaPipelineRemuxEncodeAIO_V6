@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0705-019",
+  "title": "Separate pending byte pressure from drain readiness",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-05",
+  "date_completed": "2026-07-05",
+  "summary": "Separate autonomy pending-byte pressure from pending-publish drain readiness so high backlog size can warn or block new autonomous work without softlocking safe drain recovery.",
+  "reason": "Pending byte thresholds are a new-work launch policy, not manifest drain-safety evidence. Treating aggregate byte pressure as a hard pending-drain blocker prevented operators from draining the parked files needed to reduce the backlog.",
+  "affected_areas": [
+    "backend",
+    "generated-context",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Autonomy pending-byte blockers could block drain_pending_pushes preflight/start and page-level pending health evidence could make otherwise safe drain rows look like Do-not-drain.",
+  "behavior_after": "Normal queue/encode/autonomous starts still honor autonomy byte-pressure blocks, while pending-publish drain mode reports the pressure as review evidence and allows backend drain attempts for rows that pass manifest, payload, retry, sidecar, and path-safety readiness.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/pendingPublish/summary.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/pendingPublish/summary.js.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/pipeline_facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/preflight_facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/publish/pending_drain_confidence.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_pending_publish.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_process_launch.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_pending_drain_guard_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0705-019.json",
+    "src/mediapipeline/core/processes/pipeline_facade.py",
+    "src/mediapipeline/core/processes/preflight_facade.py",
+    "src/mediapipeline/core/publish/pending_drain_confidence.py",
+    "tests/python/desktop/test_application_facade_pending_publish.py",
+    "tests/python/desktop/test_application_facade_process_launch.py",
+    "tests/webview/test_webview_browser_pending_drain_guard_smoke.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_pending_publish.py::ApplicationFacadePendingPublishTests.test_pending_drain_confidence_allows_ready_rows_under_high_pending_pressure",
+    "tests/python/desktop/test_application_facade_process_launch.py::ApplicationFacadeProcessLaunchTests.test_pending_drain_mode_bypasses_autonomy_new_work_block",
+    "tests/webview/test_webview_browser_pending_drain_guard_smoke.py::WebViewBrowserPendingDrainGuardSmoke.test_real_browser_refreshes_guard_after_blocked_recovery_plan_and_blocks_drain_post"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m py_compile .\\src\\mediapipeline\\core\\processes\\pipeline_facade.py .\\src\\mediapipeline\\core\\processes\\preflight_facade.py .\\src\\mediapipeline\\core\\publish\\pending_drain_confidence.py - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_pending_publish tests.python.desktop.test_application_facade_process_launch tests.python.desktop.test_application_facade_web_static_pending_publish -q - passed (75 tests)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_pending_publish.ApplicationFacadePendingPublishTests.test_pending_drain_confidence_allows_ready_rows_under_high_pending_pressure -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_process_launch.ApplicationFacadeProcessLaunchTests.test_pending_drain_mode_bypasses_autonomy_new_work_block -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_pending_drain_guard_smoke -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed"
+  ],
+  "rollback_plan": "Revert the pipeline/preflight autonomy drain-mode bypass, pending drain confidence classification changes, WebView summary classification changes, generated summaries, and the associated regression tests in this packet.",
+  "related_changes": [],
+  "notes": "Allow pending-publish drain launch to bypass autonomy new-work byte pressure while preserving other launch guards.\nExpose autonomy byte pressure as review evidence for drain mode instead of a hard preflight block.\nKeep page-level health or byte-pressure evidence from turning otherwise safe drain rows into Do-not-drain.\nShow pending health pressure as review evidence without disabling drain-ready rows.\nRegress autonomy byte-pressure blocks normal starts but not pending-publish drain mode.\nRegress high pending-byte/page-health pressure does not make safe manifests Do-not-drain.\nRegress WebView drain guard allows safe rows while showing pending byte/health pressure as review.\nRefresh generated summary for pending-publish recovery softlock fix."
+}

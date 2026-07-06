@@ -22,7 +22,7 @@
       setTextState(id, message, state);
       return state || "";
     }
-    setText(id, message);
+    if (typeof setText === "function") setText(id, message);
     return state || "";
   }
 
@@ -79,6 +79,48 @@
 
   function progressBarMode(bar) {
     return String(bar?.mode || "determinate").toLowerCase();
+  }
+
+  const pendingDrainCompactLabels = {
+    publish_output: "Publish",
+    publish_copy: "Copy output",
+    pending_drain: "Drain queue",
+  };
+
+  const pendingDrainCompactStepLabels = {
+    "copy completed output": "Copy output",
+    "write sidecars": "Sidecars",
+    "reveal output": "Reveal",
+    finalize: "Finish",
+  };
+
+  function progressUsePendingDrainCompactText(options = {}) {
+    return Boolean(options && (options.compact === "pendingDrain" || options.compactPendingDrain));
+  }
+
+  function progressBarDisplayLabel(bar, options = {}) {
+    const fallback = bar?.label || bar?.id || "Progress";
+    if (!progressUsePendingDrainCompactText(options)) return fallback;
+    return pendingDrainCompactLabels[progressBarId(bar)] || fallback;
+  }
+
+  function progressStepDisplayLabel(step, options = {}) {
+    const label = String(step?.label || step?.id || "Step");
+    if (!progressUsePendingDrainCompactText(options)) return label;
+    return pendingDrainCompactStepLabels[label.toLowerCase()] || label;
+  }
+
+  function progressBarDisplayStatusLabel(bar, options = {}) {
+    if (!progressUsePendingDrainCompactText(options)) return progressBarStatusLabel(bar);
+    const value = Number(bar?.percent);
+    if (Number.isFinite(value)) {
+      const bounded = Math.max(0, Math.min(100, value));
+      return `${bounded.toFixed(bounded % 1 ? 1 : 0)}%`;
+    }
+    const status = progressBarStatus(bar);
+    if (progressBarMode(bar) === "indeterminate" && status === "active") return "running";
+    if (status === "complete") return "done";
+    return status;
   }
 
   function progressSnapshotItemKey(snapshot = null) {
@@ -303,7 +345,64 @@
     return tokens;
   }
 
-  function progressBarDetailPieces(bar, snapshot = null, diagnostics = null) {
+  function progressBarDetailTextParts(bar) {
+    return String(bar?.detail || "")
+      .split(/\s*\|\s*/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+  }
+
+  function progressCompactFractionText(text, noun) {
+    const match = String(text || "").trim().match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)(?:\s+(.+))?$/);
+    if (!match) return "";
+    return `${match[1]} of ${match[2]} ${noun || match[3] || ""}`.trim();
+  }
+
+  function progressCompactPrefixedCount(text, prefix, suffix) {
+    const match = String(text || "").trim().match(new RegExp(`^${prefix}\\s+(\\d+(?:\\.\\d+)?)$`, "i"));
+    return match ? `${match[1]} ${suffix}` : "";
+  }
+
+  function progressCompactPendingDrainDetailPieces(bar, snapshot = null, diagnostics = null) {
+    const id = progressBarId(bar);
+    const detailParts = progressBarDetailTextParts(bar);
+    const pieces = [];
+    if (id === "publish_output") {
+      const count = detailParts.find((part) => /\d+\s*\/\s*\d+\s+publish steps/i.test(part));
+      const state = detailParts.find((part) => /^(copying|writing|revealing|finalizing|complete|done|pending)$/i.test(part));
+      const compactCount = progressCompactFractionText(String(count || "").replace(/\s+publish steps/i, ""), "steps");
+      if (compactCount) pieces.push(compactCount);
+      if (state) pieces.push(state);
+    } else if (id === "publish_copy") {
+      const copied = detailParts.find((part) => /\d+(?:\.\d+)?\s+\w+\s*\/\s*\d+(?:\.\d+)?\s+\w+/i.test(part));
+      if (copied) pieces.push(copied.replace(/\s*\/\s*/, " of "));
+      const etaTokens = progressEtaTokensForBar(bar, snapshot, diagnostics).map((token) => token.text);
+      const eta = etaTokens.find((token) => /^eta\s+/i.test(token));
+      const remaining = etaTokens.find((token) => /^remaining\s+/i.test(token));
+      if (eta) pieces.push(eta.replace(/^eta\s+/i, "ETA "));
+      if (remaining) pieces.push(`${remaining.replace(/^remaining\s+/i, "")} left`);
+    } else if (id === "pending_drain") {
+      const count = detailParts.find((part) => /\d+\s*\/\s*\d+\s+manifests?/i.test(part));
+      const compactCount = progressCompactFractionText(String(count || "").replace(/\s+manifests?/i, ""), "manifests");
+      const succeeded = detailParts.map((part) => progressCompactPrefixedCount(part, "succeeded", "done")).find(Boolean);
+      const remaining = detailParts.map((part) => progressCompactPrefixedCount(part, "remaining", "left")).find(Boolean);
+      const errors = detailParts.map((part) => progressCompactPrefixedCount(part, "errors", "errors")).find(Boolean);
+      const skipped = detailParts.map((part) => progressCompactPrefixedCount(part, "skipped", "skipped")).find(Boolean);
+      if (compactCount) pieces.push(compactCount);
+      if (succeeded) pieces.push(succeeded);
+      if (remaining) pieces.push(remaining);
+      if (errors) pieces.push(errors);
+      if (skipped) pieces.push(skipped);
+    }
+    if (!pieces.length && detailParts.length) pieces.push(detailParts[0]);
+    if (bar?.stale) pieces.push("review");
+    return pieces;
+  }
+
+  function progressBarDetailPieces(bar, snapshot = null, diagnostics = null, options = {}) {
+    if (progressUsePendingDrainCompactText(options)) {
+      return progressCompactPendingDrainDetailPieces(bar, snapshot, diagnostics);
+    }
     const etaTokens = progressEtaTokensForBar(bar, snapshot, diagnostics).map((token) => token.text);
     return [
       bar.detail,
@@ -350,21 +449,21 @@
     return track;
   }
 
-  function progressStepItems(bar) {
+  function progressStepItems(bar, options = {}) {
     const steps = Array.isArray(bar?.steps) ? bar.steps.filter(Boolean) : [];
     return steps.map((step) => ({
       id: String(step?.id || ""),
-      label: String(step?.label || step?.id || "Step"),
+      label: progressStepDisplayLabel(step, options),
       status: String(step?.status || "pending").toLowerCase(),
     }));
   }
 
-  function createProgressStepList(bar) {
-    const steps = progressStepItems(bar);
+  function createProgressStepList(bar, options = {}) {
+    const steps = progressStepItems(bar, options);
     if (!steps.length) return null;
     const list = document.createElement("div");
     list.className = "progress-step-list";
-    list.setAttribute("aria-label", `${bar?.label || bar?.id || "Progress"} steps`);
+    list.setAttribute("aria-label", `${progressBarDisplayLabel(bar, options)} steps`);
     steps.forEach((step, index) => {
       const item = document.createElement("span");
       item.className = "progress-step";
@@ -421,48 +520,423 @@
     return row;
   }
 
-  function renderHomeProgressTimeline(bars = [], snapshot = null) {
+  function timelineText(...values) {
+    for (const value of values) {
+      const text = String(formatProgressValue(value)).trim();
+      if (text) return text;
+    }
+    return "";
+  }
+
+  function timelineHasMeaningfulText(value) {
+    const text = String(value || "").trim().toLowerCase();
+    return Boolean(text) && !["n/a", "none", "not reported", "unknown"].includes(text);
+  }
+
+  function timelineMeaningfulText(...values) {
+    for (const value of values) {
+      const text = timelineText(value);
+      if (timelineHasMeaningfulText(text)) return text;
+    }
+    return "";
+  }
+
+  function timelineLooksIdleWaiting(value) {
+    const text = String(value || "").trim().toLowerCase();
+    return !text
+      || /^idle\b/.test(text)
+      || text.includes("waiting for next item")
+      || text.includes("no active work");
+  }
+
+  function timelineBarById(bars = [], ...ids) {
+    const wanted = new Set(ids.map((id) => String(id || "").toLowerCase()));
+    return (Array.isArray(bars) ? bars : []).find((bar) => wanted.has(progressBarId(bar))) || null;
+  }
+
+  function timelineBarMatching(bars = [], predicate = () => false) {
+    return (Array.isArray(bars) ? bars : []).find((bar) => predicate(bar)) || null;
+  }
+
+  function runTimelineBarStatus(bar) {
+    if (!bar) return "";
+    const status = progressBarStatus(bar);
+    if (bar.stale) return "review";
+    if (["blocked", "failed", "error"].includes(status)) return "blocked";
+    if (["warning", "review", "stale"].includes(status)) return "review";
+    if (["active", "running", "processing"].includes(status)) return "active";
+    if (["complete", "completed", "ok", "success"].includes(status)) return "complete";
+    if (["pending", "idle", "empty"].includes(status)) return "pending";
+    return status || "unknown";
+  }
+
+  function normalizeRunTimelineStatus(status) {
+    const value = String(status || "").toLowerCase();
+    if (["blocked", "failed", "error"].includes(value)) return "blocked";
+    if (["warning", "review", "stale", "unknown"].includes(value)) return "review";
+    if (["active", "running", "processing"].includes(value)) return "active";
+    if (["complete", "completed", "ok", "success"].includes(value)) return "complete";
+    if (["skipped", "empty"].includes(value)) return "pending";
+    return value || "pending";
+  }
+
+  function runTimelineItem({ id, label, status = "pending", detail = "", bar = null, source = "", evidence = "" }) {
+    const normalized = normalizeRunTimelineStatus(status || runTimelineBarStatus(bar));
+    return {
+      id,
+      label,
+      status: normalized,
+      detail: String(detail || "").trim(),
+      bar,
+      source: String(source || bar?.source || "").trim(),
+      evidence: String(evidence || "").trim(),
+      current: false,
+      next: false,
+    };
+  }
+
+  function runTimelineProgressContext(context = {}) {
+    const source = context && typeof context === "object" && !Array.isArray(context) ? context : {};
+    const snapshot = source.snapshot && typeof source.snapshot === "object"
+      ? source.snapshot
+      : (source.progress || Array.isArray(source.progress_bars) ? source : null);
+    const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
+    const currentWork = snapshot?.current_work && typeof snapshot.current_work === "object" ? snapshot.current_work : {};
+    const rawBars = Array.isArray(source.bars)
+      ? source.bars
+      : (Array.isArray(snapshot?.progress_bars) ? snapshot.progress_bars : []);
+    const bars = source.stableBars === true
+      ? rawBars.filter(Boolean)
+      : progressBarsForStableDisplay(
+        progressBarsWithOperatorStop(progressBarsWithStaleDisplayHysteresis(rawBars, snapshot), snapshot),
+        snapshot,
+      );
+    const csvRerun = csvRerunActivityEvidence({
+      snapshot,
+      diagnostics: source.diagnostics || null,
+      closeReadiness: source.closeReadiness || null,
+      stdoutTail: source.stdoutTail || null,
+    });
+    const stage = timelineText(currentWork.current_stage_label, currentWork.phase_label, progress.CurrentStage, progress.Status);
+    const stageLower = stage.toLowerCase();
+    const route = timelineText(progress.CurrentRoute, progress.Route, currentWork.route_label);
+    const routeLower = route.toLowerCase();
+    const file = timelineMeaningfulText(currentWork.item_label, progress.CurrentFileDisplay, progress.CurrentFile, progress.InputFile);
+    const queueTotal = Number(progress.CurrentQueueTotal ?? snapshot?.counts?.queue_total ?? 0);
+    const queueIndex = Number(progress.CurrentQueueIndex ?? snapshot?.counts?.queue_index ?? 0);
+    const events = Array.isArray(snapshot?.recent_events) ? snapshot.recent_events : [];
+    const hasSnapshotEvidence = Boolean(
+      (snapshot && Object.keys(snapshot).length)
+      || bars.length
+      || Object.keys(progress).length
+      || csvRerun.hasEvidence
+    );
+    return {
+      ...source,
+      snapshot,
+      progress,
+      currentWork,
+      bars,
+      csvRerun,
+      stage,
+      stageLower,
+      route,
+      routeLower,
+      file,
+      queueIndex: Number.isFinite(queueIndex) ? queueIndex : 0,
+      queueTotal: Number.isFinite(queueTotal) ? queueTotal : 0,
+      events,
+      hasSnapshotEvidence,
+    };
+  }
+
+  function stageMentions(stageLower, ...needles) {
+    return needles.some((needle) => stageLower.includes(String(needle).toLowerCase()));
+  }
+
+  function publishOrParkBar(bars = []) {
+    return timelineBarMatching(bars, (bar) => {
+      const id = progressBarId(bar);
+      return id === "publish_copy" && runTimelineBarStatus(bar) === "active";
+    })
+      || timelineBarById(bars, "publish_output")
+      || timelineBarById(bars, "publish_copy")
+      || timelineBarById(bars, "pending_drain");
+  }
+
+  function runTimelinePublishStatus(bar, progress = {}) {
+    if (!bar) {
+      return timelineText(progress.PushState, progress.SidecarState) ? "active" : "pending";
+    }
+    const id = progressBarId(bar);
+    const status = runTimelineBarStatus(bar);
+    if (id === "pending_drain") return status === "blocked" ? "blocked" : "review";
+    return status;
+  }
+
+  function runTimelineCompletionStatus({ progress = {}, events = [], runTotalBar = null, publishBar = null }) {
+    const statusText = timelineText(progress.Status, progress.CurrentStage).toLowerCase();
+    const failed = /\b(failed|error|aborted)\b/.test(statusText)
+      || events.some((event) => /\b(failed|error|aborted)\b/i.test(timelineText(event?.status, event?.data?.completion_status, event?.data?.error_code)));
+    if (failed) return "blocked";
+    const stopped = /\b(stopped|stop requested)\b/.test(statusText)
+      || events.some((event) => /\b(stopped|stop_requested)\b/i.test(timelineText(event?.status, event?.data?.completion_status, event?.data?.error_code)));
+    if (stopped) return "review";
+    const completedEvent = events.some((event) => String(event?.event_type || event?.type || "").toLowerCase() === "job_completed");
+    if (completedEvent || runTimelineBarStatus(runTotalBar) === "complete" || runTimelineBarStatus(publishBar) === "complete") return "complete";
+    return "pending";
+  }
+
+  function runTimelineMarkFocus(items = [], hasSnapshotEvidence = false) {
+    items.forEach((item) => {
+      item.current = false;
+      item.next = false;
+    });
+    if (!hasSnapshotEvidence || !items.length || items.every((item) => item.status === "complete")) return items;
+    const currentIndex = items.findIndex((item) => ["blocked", "review", "active"].includes(item.status));
+    const fallbackIndex = items.findIndex((item) => item.status === "pending");
+    const index = currentIndex >= 0 ? currentIndex : fallbackIndex;
+    if (index < 0) return items;
+    items[index].current = true;
+    const nextIndex = items.findIndex((item, itemIndex) => itemIndex > index && item.status !== "complete");
+    if (nextIndex >= 0) items[nextIndex].next = true;
+    return items;
+  }
+
+  function runTimelineItems(context = {}) {
+    const source = runTimelineProgressContext(context);
+    const {
+      bars,
+      progress,
+      csvRerun,
+      stage,
+      stageLower,
+      route,
+      routeLower,
+      file,
+      queueIndex,
+      queueTotal,
+      events,
+      currentWork,
+    } = source;
+    const currentStageBar = timelineBarById(bars, "current_stage");
+    const runTotalBar = timelineBarById(bars, "run_total");
+    const audioBar = timelineBarById(bars, "audio_track") || timelineBarMatching(bars, (bar) => String(bar?.label || "").toLowerCase().includes("audio"));
+    const subtitleBar = timelineBarById(bars, "subtitle_track") || timelineBarMatching(bars, (bar) => {
+      const id = progressBarId(bar);
+      const label = String(bar?.label || "").toLowerCase();
+      return id.startsWith("subtitle") || label.includes("subtitle");
+    });
+    const publishBar = publishOrParkBar(bars);
+    const encodeActive = stageMentions(stageLower, "encode", "encoding", "remux", "transcode")
+      || stageMentions(routeLower, "encode", "remux", "transcode");
+    const hasPublishEvidence = Boolean(publishBar || timelineText(progress.PushState, progress.SidecarState));
+    const hasRoute = timelineHasMeaningfulText(route);
+    const hasFile = timelineHasMeaningfulText(file);
+    const backendWorkSummary = timelineText(currentWork.summary_label, currentWork.latest_evidence_label, currentWork.current_stage_label);
+    const backendWorkEvidence = timelineText(currentWork.latest_evidence_label, currentWork.missing_evidence_label);
+    const backendWorkLower = backendWorkSummary.toLowerCase();
+    const backendSpecificNonCsvWork = Boolean(backendWorkSummary)
+      && !backendWorkLower.includes("csv")
+      && !timelineLooksIdleWaiting(backendWorkSummary);
+    const routeDisplay = hasRoute ? formatProgressValue(route) : "";
+    const routeDecisionLabel = hasRoute ? `Route selected: ${routeDisplay}` : "Route decision pending";
+    const routeDecisionDetail = hasRoute
+      ? `${routeDisplay} route${progress.RouteReason ? ` | ${formatProgressValue(progress.RouteReason)}` : ""}`
+      : "No backend route is selected yet; waiting for encode/remux decision evidence.";
+    const routeLabel = routeLower.includes("remux") ? "Remux output" : routeLower.includes("encode") ? "Encode output" : "Encode/remux";
+    const queueDetail = queueTotal > 0
+      ? `Item ${Math.max(0, queueIndex)} of ${queueTotal}${file ? `: ${file}` : ""}`
+      : (file ? `Current item: ${file}` : "Waiting for backend queue evidence.");
+
+    const items = [];
+    if (csvRerun.hasEvidence) {
+      items.push(runTimelineItem({
+        id: "csv_import",
+        label: "CSV import",
+        status: backendSpecificNonCsvWork
+          ? "complete"
+          : csvRerun.isActive || csvRerun.currentImport ? "active" : csvRerun.latestLine && csvRerunTerminalLine(csvRerun.latestLine) ? "complete" : "review",
+        detail: csvRerunTimelineDetail(csvRerun, backendWorkEvidence),
+        evidence: csvRerunTimelineEvidenceLine(csvRerun, backendWorkEvidence),
+      }));
+    }
+    items.push(
+      runTimelineItem({
+        id: "queue_item",
+        label: "Queue item",
+        status: hasFile || queueTotal > 0 || runTimelineBarStatus(runTotalBar) === "complete" ? "complete" : runTimelineBarStatus(runTotalBar) || "pending",
+        detail: queueDetail,
+        bar: runTotalBar,
+      }),
+      runTimelineItem({
+        id: "copy_to_scratch",
+        label: "Copy to scratch",
+        status: csvRerun.currentImport || stageMentions(stageLower, "copy", "scratch", "stage copy", "staged")
+          ? "active"
+          : hasRoute || encodeActive || hasPublishEvidence ? "complete" : "pending",
+        detail: csvRerun.currentImport
+          ? `Copying staged CSV source ${csvRerun.currentImport} to scratch; source media remains unchanged.`
+          : hasRoute || encodeActive || hasPublishEvidence
+            ? "Scratch copy stage is past or backend has route/output evidence."
+            : "Waiting for backend scratch-copy evidence.",
+      }),
+      runTimelineItem({
+        id: "route_selected",
+        label: routeDecisionLabel,
+        status: hasRoute ? "complete" : hasFile ? "active" : "pending",
+        detail: routeDecisionDetail,
+      }),
+      runTimelineItem({
+        id: "audio_policy",
+        label: "Audio policy",
+        status: audioBar ? runTimelineBarStatus(audioBar) : "pending",
+        detail: audioBar?.detail || "Waiting for backend audio-policy evidence.",
+        bar: audioBar,
+      }),
+      runTimelineItem({
+        id: "subtitle_work",
+        label: "Subtitle work",
+        status: subtitleBar ? runTimelineBarStatus(subtitleBar) : backendWorkLower.includes("subtitle") ? "active" : "pending",
+        detail: backendWorkLower.includes("subtitle") ? backendWorkSummary : subtitleBar?.detail || "Waiting for backend subtitle evidence.",
+        bar: subtitleBar,
+        evidence: backendWorkLower.includes("subtitle") ? backendWorkEvidence : "",
+      }),
+      runTimelineItem({
+        id: "encode_remux",
+        label: routeLabel,
+        status: encodeActive ? "active" : hasPublishEvidence ? "complete" : hasRoute ? "pending" : "pending",
+        detail: encodeActive
+          ? [stage || routeLabel, progress.CurrentStagePercent !== undefined && progress.CurrentStagePercent !== null ? `${formatProgressValue(progress.CurrentStagePercent)}%` : ""].filter(Boolean).join(" | ")
+          : hasPublishEvidence ? "Output step is past; backend is publishing, parking, or writing sidecars." : "Waiting for encode/remux stage evidence.",
+        bar: encodeActive ? currentStageBar : null,
+      }),
+      runTimelineItem({
+        id: "publish_or_park",
+        label: "Publish or park",
+        status: runTimelinePublishStatus(publishBar, progress),
+        detail: publishBar?.detail || timelineText(progress.PushState, progress.SidecarState) || "Waiting for publish, park, or pending-drain evidence.",
+        bar: publishBar,
+      }),
+      runTimelineItem({
+        id: "run_evidence",
+        label: "Run evidence",
+        status: runTimelineCompletionStatus({ progress, events, runTotalBar, publishBar }),
+        detail: events.length
+          ? latestEventLine(null, { recent_events: events })
+          : "Waiting for backend completion, review, or close-readiness evidence.",
+      }),
+    );
+    return runTimelineMarkFocus(items, source.hasSnapshotEvidence);
+  }
+
+  function runTimelinePanelStatus(items = [], context = {}) {
+    const source = runTimelineProgressContext(context);
+    if (!source.hasSnapshotEvidence) return { message: "Waiting for backend snapshot", state: "empty" };
+    if (!items.length) return { message: "Waiting for backend snapshot", state: "empty" };
+    if (items.every((item) => item.status === "complete")) return { message: "Complete", state: "ready" };
+    const current = items.find((item) => item.current) || items.find((item) => ["blocked", "review", "active"].includes(item.status));
+    if (!current) return { message: "Waiting for backend snapshot", state: "empty" };
+    if (current.status === "blocked") return { message: `Review: ${current.label}`, state: "blocked" };
+    if (current.status === "review") return { message: `Review: ${current.label}`, state: "warning" };
+    const next = items.find((item) => item.next);
+    return { message: `Current: ${current.label}${next ? ` · Next: ${next.label}` : ""}`, state: "running" };
+  }
+
+  function createRunTimelineMeta(item, snapshot = null, diagnostics = null) {
+    const metadata = document.createElement("div");
+    metadata.className = "run-timeline-meta";
+    const tokens = item.bar ? progressTimelineTokens(item.bar, snapshot, diagnostics) : [];
+    if (item.evidence) tokens.push({ kind: "source", text: item.evidence });
+    tokens.slice(0, item.current ? 6 : 3).forEach((token) => {
+      const node = document.createElement("span");
+      node.className = `run-timeline-token run-timeline-token-${token.kind || "detail"}`;
+      node.textContent = token.text;
+      if (token.title) node.title = token.title;
+      metadata.appendChild(node);
+    });
+    return metadata;
+  }
+
+  function renderRunTimelineItem(item, index, context = {}) {
+    const row = document.createElement("li");
+    row.className = "run-timeline-item";
+    row.dataset.status = item.status;
+    row.dataset.current = item.current ? "true" : "false";
+    row.dataset.next = item.next ? "true" : "false";
+    if (item.current) row.setAttribute("aria-current", "step");
+
+    const rail = document.createElement("span");
+    rail.className = "run-timeline-rail";
+    rail.setAttribute("aria-hidden", "true");
+    const dot = document.createElement("span");
+    dot.className = "run-timeline-dot";
+    rail.appendChild(dot);
+
+    const card = document.createElement("div");
+    card.className = "run-timeline-card";
+    const header = document.createElement("div");
+    header.className = "run-timeline-header";
+    const title = document.createElement("span");
+    title.className = "run-timeline-title";
+    title.textContent = item.label;
+    const state = document.createElement("span");
+    state.className = "run-timeline-state";
+    state.textContent = item.current ? "current" : item.next ? "next" : item.status;
+    header.append(title, state);
+
+    const detail = document.createElement("p");
+    detail.className = "run-timeline-detail";
+    detail.textContent = item.detail || (item.current ? "Backend evidence is loading for this step." : "Waiting for backend evidence.");
+    card.append(header, detail);
+    if (item.current && item.bar) {
+      card.appendChild(createProgressTrack(item.bar));
+      const steps = createProgressStepList(item.bar);
+      if (steps) card.appendChild(steps);
+    }
+    const meta = createRunTimelineMeta(item, context.snapshot, context.diagnostics);
+    if (meta.children.length) card.appendChild(meta);
+    row.append(rail, card);
+    if (typeof row.style?.setProperty === "function") {
+      row.style.setProperty("--run-timeline-index", String(index + 1));
+    }
+    return row;
+  }
+
+  function renderRunTimelineEvidence(bars = [], snapshot = null) {
+    const details = document.createElement("details");
+    details.className = "run-timeline-evidence";
+    const summary = document.createElement("summary");
+    summary.textContent = `Raw backend progress (${bars.length} ${bars.length === 1 ? "bar" : "bars"})`;
+    const body = document.createElement("div");
+    body.className = "run-timeline-evidence-body";
+    details.append(summary, body);
+    renderProgressBarsInto(body, bars, snapshot, "No raw backend progress bars loaded.");
+    return details;
+  }
+
+  function renderHomeProgressTimeline(bars = [], snapshot = null, context = {}) {
     const container = byId("progress-bar-list");
     if (!container) return;
-    const items = progressBarsForStableDisplay(
+    const stableBars = progressBarsForStableDisplay(
       progressBarsWithOperatorStop(progressBarsWithStaleDisplayHysteresis(bars, snapshot), snapshot),
       snapshot,
     );
     container.classList.add("progress-timeline-list");
+    container.classList.add("run-timeline-list");
     container.replaceChildren();
-    if (!items.length) {
-      const empty = document.createElement("p");
-      empty.className = "note";
-      empty.textContent = snapshot?.progress || snapshot?.audit_progress
-        ? "No active run progress from backend yet."
-        : "Waiting for backend progress snapshot.";
-      container.appendChild(empty);
-      return;
-    }
-
-    homeProgressTimelineGroups.forEach((group) => {
-      const groupBars = sortedProgressTimelineBars(items.filter((bar) => progressTimelineGroupKey(bar) === group.key));
-      if (!groupBars.length) return;
-      const section = document.createElement("div");
-      section.className = "progress-timeline-section";
-      section.dataset.group = group.key;
-
-      const heading = document.createElement("div");
-      heading.className = "progress-timeline-section-heading";
-      const title = document.createElement("span");
-      title.className = "progress-timeline-section-title";
-      title.textContent = group.label;
-      const count = document.createElement("span");
-      count.className = "progress-timeline-section-count";
-      count.textContent = `${groupBars.length} ${groupBars.length === 1 ? "check" : "checks"}`;
-      heading.append(title, count);
-      section.appendChild(heading);
-      groupBars.forEach((bar) => section.appendChild(renderHomeProgressTimelineRow(bar, snapshot)));
-      container.appendChild(section);
-    });
+    const timelineContext = { ...context, bars: stableBars, snapshot, stableBars: true };
+    const timelineItems = runTimelineItems(timelineContext);
+    const status = runTimelinePanelStatus(timelineItems, timelineContext);
+    setProgressPanelStatus("progress-detail-status", status.message, status.state);
+    const list = document.createElement("ol");
+    list.className = "run-timeline";
+    timelineItems.forEach((item, index) => list.appendChild(renderRunTimelineItem(item, index, timelineContext)));
+    container.appendChild(list);
+    container.appendChild(renderRunTimelineEvidence(stableBars, snapshot));
   }
 
-  function renderProgressBarsInto(containerOrId, bars = [], snapshot = null, emptyText = "") {
+  function renderProgressBarsInto(containerOrId, bars = [], snapshot = null, emptyText = "", options = {}) {
     const container = typeof containerOrId === "string" ? byId(containerOrId) : containerOrId;
     if (!container) return;
     const items = progressBarsForStableDisplay(Array.isArray(bars) ? bars.filter(Boolean) : [], snapshot);
@@ -488,16 +962,16 @@
       header.className = "progress-bar-header";
       const label = document.createElement("span");
       label.className = "progress-bar-label";
-      label.textContent = bar.label || bar.id || "Progress";
+      label.textContent = progressBarDisplayLabel(bar, options);
       const value = document.createElement("span");
       value.className = "progress-bar-value";
-      value.textContent = progressBarStatusLabel(bar);
+      value.textContent = progressBarDisplayStatusLabel(bar, options);
       header.append(label, value);
 
       const track = document.createElement("div");
       track.className = "progress-track";
       track.setAttribute("role", "progressbar");
-      track.setAttribute("aria-label", bar.label || bar.id || "Progress");
+      track.setAttribute("aria-label", progressBarDisplayLabel(bar, options));
       track.setAttribute("aria-valuetext", progressBarStatusLabel(bar));
       if (mode === "determinate" || mode === "stepped") {
         const percent = progressBarPercent(bar);
@@ -512,10 +986,10 @@
 
       const detail = document.createElement("div");
       detail.className = "progress-bar-detail";
-      const pieces = progressBarDetailPieces(bar, snapshot);
+      const pieces = progressBarDetailPieces(bar, snapshot, null, options);
       detail.textContent = pieces.join(" · ") || "No progress detail reported.";
 
-      const steps = createProgressStepList(bar);
+      const steps = createProgressStepList(bar, options);
       row.append(header, track);
       if (steps) row.appendChild(steps);
       row.appendChild(detail);
@@ -523,8 +997,8 @@
     });
   }
 
-  function renderProgressBars(bars = [], snapshot = null) {
-    renderHomeProgressTimeline(bars, snapshot);
+  function renderProgressBars(bars = [], snapshot = null, context = {}) {
+    renderHomeProgressTimeline(bars, snapshot, context);
   }
 
   function auditProgressPayload(snapshot = {}) {
@@ -1172,6 +1646,14 @@
       || /\bCSV\s+rerun\b|\bRerun\s+CSV\b|RerunQueue|RerunWorkspace|RerunParked/i.test(message);
   }
 
+  function csvRerunTerminalLine(line) {
+    const message = csvRerunLineMessage(line);
+    return /^(PLAN ONLY complete|DRY RUN complete|Rerun batch complete|No CSV rows are executable)\b/i.test(message)
+      || /PIPELINE SHUTDOWN CLEANLY|ROUND COMPLETE|Single-pass mode complete/i.test(message)
+      || /\b(CSV\s+rerun|Rerun\s+CSV|Rerun batch)\b.*\b(failed|failure|error|aborted)\b/i.test(message)
+      || /\bnested pipeline\b.*\bexited with code\s*[1-9]\d*/i.test(message);
+  }
+
   function csvRerunProcessingMessage(line) {
     const message = csvRerunLineMessage(line);
     if (!message) return "";
@@ -1312,7 +1794,7 @@
     const activePipelineWorker = csvRerunActivePipelineWorkerPresent(allWorkerRows);
     const tailAllowed = Boolean(tail.hasEvidence && (!activePipelineWorker || worker.hasWorkerEvidence));
     const isActive = Boolean(worker.workerActive)
-      || (tailAllowed && !/PIPELINE SHUTDOWN CLEANLY|ROUND COMPLETE|Single-pass mode complete/i.test(String(tail.latestLine || "")));
+      || (tailAllowed && !csvRerunTerminalLine(tail.latestLine || ""));
     return {
       hasEvidence: Boolean(tailAllowed || worker.hasEvidence || worker.hasWorkerEvidence),
       plannedRows: tail.plannedRows || worker.plannedRows || "",
@@ -1325,6 +1807,66 @@
       tailSuppressedByPipelineWorker: Boolean(tail.hasEvidence && activePipelineWorker && !worker.hasWorkerEvidence),
       isActive,
     };
+  }
+
+  function csvRerunActiveFile(evidence = {}) {
+    const current = String(evidence.currentImport || "").trim();
+    if (!current || /^waiting for next copy$/i.test(current)) return "";
+    return current;
+  }
+
+  function csvRerunCompactEventLine(line) {
+    const raw = String(line || "").trim();
+    if (!raw) return "";
+    const time = raw.match(/^\d{4}-\d{2}-\d{2}\s+(\d{2}:\d{2}:\d{2})\b/)?.[1] || "";
+    let message = csvRerunLineMessage(raw).replace(/\s+/g, " ").replace(/\s*\.\.\.$/, "").trim();
+    const statusMatch = message.match(/^(ENCODE|REMUX|PUBLISH|COPY|STAGE COPY|FFMPEG)\s*:?\s*(.+)$/i);
+    if (statusMatch) {
+      const label = statusMatch[1].toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+      message = `${label} ${statusMatch[2]}`.trim();
+    }
+    if (/^Not processing yet; importing staged CSV files$/i.test(message)) message = "Importing staged files";
+    return [time, message].filter(Boolean).join(" ");
+  }
+
+  function csvRerunTimelineWaitLine(evidence = {}, backendWorkEvidence = "") {
+    const activeFile = csvRerunActiveFile(evidence);
+    if (activeFile) return "Importing staged source";
+    const activityText = [
+      backendWorkEvidence,
+      evidence.processing,
+      evidence.latestLine,
+    ].map((value) => String(value || "").toLowerCase()).join(" ");
+    if (/\bencode|transcode|ffmpeg\b/.test(activityText)) return "Waiting for encode to finish";
+    if (/\bremux|mkvmerge\b/.test(activityText)) return "Waiting for remux to finish";
+    if (/\bpublish|park|sidecar|pending\b/.test(activityText)) return "Waiting for output placement";
+    if (/\bnested pipeline\b/.test(activityText)) return "Waiting for nested pipeline";
+    if (evidence.isActive) return "Waiting for next CSV item";
+    if (evidence.latestLine && csvRerunTerminalLine(evidence.latestLine)) {
+      const terminalText = csvRerunLineMessage(evidence.latestLine).toLowerCase();
+      return /\b(failed|failure|error|aborted|exited with code\s*[1-9]\d*)\b/.test(terminalText)
+        ? "CSV rerun needs review"
+        : "CSV rerun complete";
+    }
+    if (evidence.processing) return csvRerunCompactEventLine(evidence.processing);
+    return "";
+  }
+
+  function csvRerunTimelineDetail(evidence = {}, backendWorkEvidence = "") {
+    const activeFile = csvRerunActiveFile(evidence);
+    const primary = evidence.lastImported
+      ? `Loaded ${evidence.lastImported}`
+      : activeFile
+        ? `Loading ${activeFile}`
+        : evidence.plannedRows
+          ? `CSV rows: ${evidence.plannedRows}`
+          : "CSV rerun active";
+    return [primary, csvRerunTimelineWaitLine(evidence, backendWorkEvidence)].filter(Boolean).join(". ");
+  }
+
+  function csvRerunTimelineEvidenceLine(evidence = {}, backendWorkEvidence = "") {
+    const event = csvRerunCompactEventLine(evidence.latestLine || backendWorkEvidence || evidence.processing);
+    return event ? `Last event: ${event}` : "";
   }
 
   function progressFfmpegPayload(snapshot = null, diagnostics = null) {
@@ -1953,8 +2495,13 @@
   function liveRunStatus({ snapshot = null, diagnostics = null, closeReadiness = null, stdoutTail = null } = {}) {
     const activity = String(snapshot?.activity || snapshot?.current_activity || "").toLowerCase();
     const state = String(snapshot?.pipeline_state || closeReadiness?.state || "").toLowerCase();
+    const currentWork = snapshot?.current_work && typeof snapshot.current_work === "object" ? snapshot.current_work : {};
+    const activeWorkSummary = String(currentWork.summary_label || currentWork.latest_evidence_label || currentWork.current_stage_label || "").trim();
     const csvRerun = csvRerunActivityEvidence({ snapshot, diagnostics, closeReadiness, stdoutTail });
     if (activity.includes("stale progress")) return { label: "Stale/review", state: "warning" };
+    if (activeWorkSummary && !activeWorkSummary.toLowerCase().includes("csv") && !timelineLooksIdleWaiting(activeWorkSummary)) {
+      return { label: "Active work", state: "running" };
+    }
     if (csvRerun.hasEvidence) return { label: "CSV rerun active", state: "running" };
     if (closeReadiness?.safe_to_close === false || ["processing", "running", "active", "publishing"].includes(state)) {
       return { label: "Active work", state: "running" };
@@ -2017,20 +2564,28 @@
     const ffmpegPayload = progressFfmpegPayload(snapshot, diagnostics);
     const csvRerun = csvRerunActivityEvidence({ snapshot, diagnostics, stdoutTail });
     const state = snapshot?.pipeline_state || closeReadiness?.state || progress.Status || "unknown";
-    const stage = currentWork.phase_label || progress.CurrentStage || progress.Status || "No active work";
+    const stage = currentWork.current_stage_label || currentWork.phase_label || progress.CurrentStage || progress.Status || "No active work";
     const percent = currentWork.percent_label || (progress.CurrentStagePercent !== undefined && progress.CurrentStagePercent !== null && progress.CurrentStagePercent !== "" ? `${formatProgressValue(progress.CurrentStagePercent)}%` : "");
     const file = currentWork.item_label || progress.CurrentFileDisplay || progress.CurrentFile || progress.InputFile || "";
-    const route = progress.CurrentRoute || progress.Route || "";
-    const queue = activeWorkQueueLine(progress).replace(/^Queue position:\s*/i, "");
+    const route = currentWork.route_label || progress.CurrentRoute || progress.Route || "";
+    const queue = currentWork.queue_position_label || activeWorkQueueLine(progress).replace(/^Queue position:\s*/i, "");
     const updated = compactUpdatedAgeText(progress.LastUpdate || progress.UpdatedAt || progress.updated_at);
     const eta = etaRows.find((row) => row && row.eta_seconds !== undefined && row.eta_seconds !== null);
     const activeWorker = workerRows.find((row) => ["running", "active", "warning"].includes(String(row.status_state || row.status || "").toLowerCase())) || workerRows[0];
     const reliabilitySummary = longRunReliabilitySummary(snapshot);
     const reliabilityStatus = longRunReliabilityStatus(snapshot);
+    const nowValue = currentWork.summary_label || currentWork.latest_evidence_label || stage || "No active work";
+    const nowHint = [
+      file ? `Current item: ${file}` : "",
+      currentWork.latest_event_label ? `Latest event: ${currentWork.latest_event_label}` : "",
+      currentWork.next_stage_label ? `Next: ${currentWork.next_stage_label}` : "",
+      currentWork.missing_evidence_label || "",
+    ].filter(Boolean).join(" | ");
+    const nowItem = liveRunItem("Now", nowValue, nowHint, currentWork.evidence_status === "waiting" ? "warning" : "running");
     const items = [
       liveRunItem("Stage", [formatProgressValue(stage), percent].filter(Boolean).join(" "), activeWorkFinalizingLine(progress), progressLooksFinalizing(progress) ? "warning" : "running"),
       liveRunItem("File", file || "No current file", file ? "Current backend-reported item." : "No current file evidence loaded.", file ? "running" : "empty"),
-      liveRunItem("Route", route ? `${formatProgressValue(route)} route` : "No route", progress.RouteReason || progress.CurrentRouteReason || "Backend route evidence only.", route ? "ok" : "empty"),
+      liveRunItem("Route", route ? formatProgressValue(route) : "No route", progress.RouteReason || progress.CurrentRouteReason || "Backend route evidence only.", route ? "ok" : "empty"),
       liveRunItem("Queue", queue || "No queue position", "Display filters do not define Launch scope.", queue ? "ok" : "empty"),
       liveRunItem("ETA", eta ? formatEtaSeconds(eta.eta_seconds) : "Unavailable", eta?.basis || progressEtaSummaryLine(snapshot, diagnostics), eta ? "ok" : "warning"),
       liveRunItem("Last update", updated || "Not loaded", updated ? "Runtime progress update age." : "No runtime progress timestamp loaded.", updated ? "ok" : "unknown"),
@@ -2042,11 +2597,17 @@
     if (csvRerun.hasEvidence) {
       items.unshift(
         liveRunItem("CSV rows", csvRerun.plannedRows || "CSV rerun active", "From the bounded last stdout log.", csvRerun.plannedRows ? "ok" : "running"),
-        liveRunItem("Importing", csvRerun.currentImport || "No current import line", "Current CSV staging/import line.", csvRerun.currentImport ? "running" : "empty"),
+        liveRunItem(
+          "Importing",
+          csvRerun.currentImport || currentWork.latest_evidence_label || currentWork.missing_evidence_label || "Waiting for backend evidence",
+          csvRerun.currentImport ? "Current CSV staging/import line." : "Backend active-work evidence replaces missing CSV import text.",
+          csvRerun.currentImport || currentWork.latest_evidence_label ? "running" : "warning"
+        ),
         liveRunItem("Last imported", csvRerun.lastImported || "No staged copy yet", "Most recent completed stage copy in the stdout tail.", csvRerun.lastImported ? "ok" : "empty"),
         liveRunItem("Processing", csvRerun.processing || "Waiting for processing evidence", "Processing starts after CSV staging/import completes.", csvRerun.processing && !csvRerun.processing.startsWith("Not processing yet") ? "running" : "warning"),
       );
     }
+    items.unshift(nowItem);
     const status = liveRunStatus({ snapshot, diagnostics, closeReadiness, stdoutTail });
     if (status.state === "warning") {
       items.unshift(liveRunItem("Review", "Stale progress", "No update from runtime progress. Inspect Diagnostics, ActiveJobs, Run Logs, and Last Stderr before stopping or closing.", "warning"));
@@ -2075,8 +2636,136 @@
     close: { page: "diagnostics", diagTab: "readiness", label: "Open Diagnostics readiness" },
   };
 
+  const homeLiveRunSummaryLabels = ["Review", "Now", "Stage", "Processing", "CSV rows", "File"];
+  const homeLiveRunFileLabels = ["File", "Processing", "Importing", "Last imported"];
+  const homeLiveRunDefaultFacts = ["Route", "Queue", "ETA", "Last update", "Close"];
+  const homeLiveRunCsvFacts = ["CSV rows", "Queue", "ETA", "Last update", "Close"];
+  const homeLiveRunFallbackFacts = ["Processing", "Route", "FFmpeg", "Worker", "Reliability"];
+
   function liveRunQuickLink(item) {
     return liveRunQuickLinks[String(item?.label || "").trim().toLowerCase()] || null;
+  }
+
+  function createLiveRunChipNode(item, { compact = false } = {}) {
+    const quickLink = liveRunQuickLink(item);
+    const node = document.createElement("span");
+    node.className = compact ? "live-run-chip live-run-chip-compact" : "live-run-chip";
+    node.dataset.status = item.status;
+    if (quickLink) {
+      node.setAttribute("role", "button");
+      node.setAttribute("tabindex", "0");
+      node.dataset.uiQuickLink = "";
+      node.dataset.quickLinkPage = quickLink.page;
+      if (quickLink.diagTab) node.dataset.quickLinkDiagTab = quickLink.diagTab;
+      const ariaLabel = `${quickLink.label}: ${item.label} ${item.value}`.trim();
+      node.setAttribute("aria-label", ariaLabel);
+      node.title = ariaLabel;
+    }
+    const label = document.createElement("span");
+    label.className = "live-run-chip-label";
+    label.textContent = item.label;
+    const value = document.createElement("strong");
+    value.className = "live-run-chip-value";
+    value.textContent = item.value;
+    node.append(label, value);
+    if (item.hint) {
+      const hint = document.createElement("span");
+      hint.className = "live-run-chip-hint";
+      hint.textContent = item.hint;
+      if (!quickLink) node.title = item.hint;
+      node.appendChild(hint);
+    }
+    return node;
+  }
+
+  function findLiveRunItem(items, labels) {
+    const wanted = new Set(labels.map((label) => String(label).toLowerCase()));
+    return items.find((item) => wanted.has(String(item?.label || "").toLowerCase())) || null;
+  }
+
+  function progressPercentFromText(value) {
+    const match = String(value || "").match(/(\d+(?:\.\d+)?)\s*%/);
+    if (!match) return null;
+    const number = Number(match[1]);
+    return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : null;
+  }
+
+  function homeLiveRunFactItems(items) {
+    const hasCsv = items.some((item) => item.label === "CSV rows");
+    const preferred = hasCsv ? homeLiveRunCsvFacts : homeLiveRunDefaultFacts;
+    const selected = [];
+    const addByLabel = (label) => {
+      const item = findLiveRunItem(items, [label]);
+      if (item && !selected.includes(item)) selected.push(item);
+    };
+    preferred.forEach(addByLabel);
+    homeLiveRunFallbackFacts.forEach((label) => {
+      if (selected.length < 5) addByLabel(label);
+    });
+    return selected.slice(0, 5);
+  }
+
+  function renderHomeLiveRunMonitor(body, status, items) {
+    body.classList.add("live-run-monitor");
+    const summaryItem = findLiveRunItem(items, homeLiveRunSummaryLabels) || items[0] || liveRunItem("State", status.label, "", status.state);
+    const fileItem = findLiveRunItem(items, homeLiveRunFileLabels);
+    const factItems = homeLiveRunFactItems(items);
+    const percent = progressPercentFromText(summaryItem.value) ?? progressPercentFromText(findLiveRunItem(items, ["Processing"])?.value);
+
+    const summary = document.createElement("section");
+    summary.className = "live-run-monitor-summary";
+    summary.dataset.state = status.state;
+    summary.dataset.status = summaryItem.status || status.state || "unknown";
+
+    const eyebrow = document.createElement("div");
+    eyebrow.className = "live-run-monitor-eyebrow";
+    const label = document.createElement("span");
+    label.textContent = "Now";
+    const state = document.createElement("strong");
+    state.className = "live-run-monitor-state";
+    state.dataset.state = status.state;
+    state.textContent = status.label;
+    eyebrow.append(label, state);
+
+    const title = document.createElement("strong");
+    title.className = "live-run-monitor-title";
+    title.textContent = summaryItem.value;
+
+    const subtitle = document.createElement("span");
+    subtitle.className = "live-run-monitor-subtitle";
+    subtitle.textContent = fileItem && fileItem !== summaryItem
+      ? `${fileItem.label}: ${fileItem.value}`
+      : summaryItem.hint || "Backend live-run state loaded.";
+
+    summary.append(eyebrow, title, subtitle);
+    if (percent !== null) {
+      const meter = document.createElement("div");
+      meter.className = "live-run-monitor-meter";
+      meter.setAttribute("role", "progressbar");
+      meter.setAttribute("aria-label", `${summaryItem.label} progress`);
+      meter.setAttribute("aria-valuemin", "0");
+      meter.setAttribute("aria-valuemax", "100");
+      meter.setAttribute("aria-valuenow", String(Math.round(percent)));
+      const fill = document.createElement("span");
+      fill.style.width = `${percent}%`;
+      meter.appendChild(fill);
+      summary.appendChild(meter);
+    }
+
+    const facts = document.createElement("div");
+    facts.className = "live-run-monitor-facts";
+    factItems.forEach((item) => facts.appendChild(createLiveRunChipNode(item, { compact: true })));
+
+    const details = document.createElement("details");
+    details.className = "live-run-monitor-details";
+    const detailsSummary = document.createElement("summary");
+    detailsSummary.textContent = `Evidence details (${items.length})`;
+    const detailGrid = document.createElement("div");
+    detailGrid.className = "live-run-monitor-detail-grid";
+    items.forEach((item) => detailGrid.appendChild(createLiveRunChipNode(item, { compact: true })));
+    details.append(detailsSummary, detailGrid);
+
+    body.replaceChildren(summary, facts, details);
   }
 
   function liveRunHandoffLines(context = {}, status = liveRunStatus(context), items = liveRunStripItems(context)) {
@@ -2117,38 +2806,13 @@
       }
       const body = byId(target.bodyId);
       if (!body) return;
+      body.classList.toggle("live-run-monitor", target.bodyId === "home-live-run-strip");
+      if (target.bodyId === "home-live-run-strip") {
+        renderHomeLiveRunMonitor(body, status, items);
+        return;
+      }
       body.replaceChildren();
-      items.forEach((item) => {
-        const quickLink = liveRunQuickLink(item);
-        const node = document.createElement("span");
-        node.className = "live-run-chip";
-        node.dataset.status = item.status;
-        if (quickLink) {
-          node.setAttribute("role", "button");
-          node.setAttribute("tabindex", "0");
-          node.dataset.uiQuickLink = "";
-          node.dataset.quickLinkPage = quickLink.page;
-          if (quickLink.diagTab) node.dataset.quickLinkDiagTab = quickLink.diagTab;
-          const ariaLabel = `${quickLink.label}: ${item.label} ${item.value}`.trim();
-          node.setAttribute("aria-label", ariaLabel);
-          node.title = ariaLabel;
-        }
-        const label = document.createElement("span");
-        label.className = "live-run-chip-label";
-        label.textContent = item.label;
-        const value = document.createElement("strong");
-        value.className = "live-run-chip-value";
-        value.textContent = item.value;
-        node.append(label, value);
-        if (item.hint) {
-          const hint = document.createElement("span");
-          hint.className = "live-run-chip-hint";
-          hint.textContent = item.hint;
-          if (!quickLink) node.title = item.hint;
-          node.appendChild(hint);
-        }
-        body.appendChild(node);
-      });
+      items.forEach((item) => body.appendChild(createLiveRunChipNode(item)));
     });
     setText("home-run-state-handoff", liveRunHandoffLines(context, status, items).join("\n"));
   }
@@ -2168,13 +2832,21 @@
     const activeJobs = Array.isArray(diagnostics?.active_jobs) ? diagnostics.active_jobs.filter(Boolean) : [];
     const workerRows = progressWorkerRows(snapshot, diagnostics);
     const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
+    const currentWork = snapshot?.current_work && typeof snapshot.current_work === "object" ? snapshot.current_work : {};
     const auditProgress = snapshot?.audit_progress && typeof snapshot.audit_progress === "object" ? snapshot.audit_progress : {};
     const state = snapshot?.pipeline_state || closeReadiness?.state || "unknown";
     const csvRerun = csvRerunActivityEvidence({ snapshot, diagnostics, stdoutTail });
     const stateActive = ["processing", "running", "active", "publishing"].includes(String(state || "").toLowerCase());
-    const active = activeJobs.length > 0 || closeReadiness?.safe_to_close === false || stateActive || csvRerun.hasEvidence;
+    const active = activeJobs.length > 0 || closeReadiness?.safe_to_close === false || stateActive || csvRerun.hasEvidence || Boolean(currentWork.summary_label || currentWork.latest_evidence_label);
     setProgressPanelStatus("home-active-work-status", active ? "Active work" : closeReadiness?.safe_to_close === true ? "Idle" : "Checking", active ? "running" : closeReadiness?.safe_to_close === true ? "ok" : "loading");
     const lines = [
+      currentWork.summary_label ? `Now: ${currentWork.summary_label}` : "",
+      currentWork.item_label ? `Current item: ${currentWork.item_label}` : "",
+      currentWork.current_stage_label ? `Current stage: ${currentWork.current_stage_label}` : "",
+      currentWork.latest_evidence_label ? `Latest evidence: ${currentWork.latest_evidence_label}` : "",
+      currentWork.latest_event_label ? `Latest event: ${currentWork.latest_event_label}` : "",
+      currentWork.missing_evidence_label ? `Missing evidence: ${currentWork.missing_evidence_label}` : "",
+      currentWork.next_stage_label ? `Next stage: ${currentWork.next_stage_label}` : "",
       `Pipeline state: ${state}`,
       `Close readiness: ${closeReadiness ? (closeReadiness.safe_to_close ? "safe" : "active work") : "unknown"}`,
       closeReadiness?.reason ? `Close reason: ${closeReadiness.reason}` : "",
@@ -2198,7 +2870,7 @@
       auditProgress.status || auditProgress.Status ? `Audit: ${formatProgressValue(auditProgress.status || auditProgress.Status)}` : "",
       latestEventLine(diagnostics, snapshot),
       "",
-      `Next step: ${activeWorkNextStep({ activeJobs, closeReadiness, state })}`,
+      `Next step: ${currentWork.next_stage_label || activeWorkNextStep({ activeJobs, closeReadiness, state })}`,
     ].filter((line) => line !== "");
     setText("home-active-work-summary", lines.join("\n"));
   }
@@ -2211,6 +2883,7 @@
     formatProgressUpdatedAt,
     renderProgressBarsInto,
     renderProgressBars,
+    runTimelineItems,
     auditProgressBars,
     auditProgressStatus,
     auditProgressSummaryLines,
@@ -2229,6 +2902,7 @@
     progressEtaSummaryLine,
     csvRerunTailEvidence,
     csvRerunActivityEvidence,
+    csvRerunTerminalLine,
     progressEvidenceRows,
     progressEvidenceStatus,
     progressEvidenceSummaryLines,

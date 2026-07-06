@@ -78,15 +78,16 @@ def _browser_layout_manager_runner_source() -> str:
               if (document.activeElement === done) throw new Error("closed layout editor drawer accepted focus");
             }
             function assertEmptyStateCustomizeOpenOnly() {
-              window.showPage("queue");
+              window.showPage("completed");
               openDrawer();
-              const page = document.querySelector('[data-page-panel="queue"]');
-              if (!page) throw new Error("missing queue page for empty-state customize check");
-              const panels = Array.from(page.querySelectorAll(":scope > section.panel[data-panel-key]"));
+              const page = document.querySelector('[data-page-panel="completed"]');
+              if (!page) throw new Error("missing completed page for empty-state customize check");
+              const panels = Array.from(page.querySelectorAll("section.panel[data-panel-key]"))
+                .filter((panel) => !panel.closest("[data-page-empty-state]"));
               panels.forEach((panel) => panel.setAttribute("data-panel-hidden", ""));
               window.updatePagePanelEmptyStates();
               const empty = page.querySelector('[data-page-empty-state="panel-visibility"]');
-              if (!empty || !empty.classList.contains("is-visible")) throw new Error("queue empty-state did not become visible");
+              if (!empty || !empty.classList.contains("is-visible")) throw new Error("completed empty-state did not become visible");
               const customize = Array.from(empty.querySelectorAll("button")).find((button) => text(button) === "Customize");
               if (!customize) throw new Error("missing empty-state Customize button");
               customize.click();
@@ -95,6 +96,7 @@ def _browser_layout_manager_runner_source() -> str:
               if (drawer.getAttribute("aria-hidden") !== "false" || drawer.hidden || drawer.inert) throw new Error("empty-state Customize left drawer inaccessible");
               panels.forEach((panel) => panel.removeAttribute("data-panel-hidden"));
               window.updatePagePanelEmptyStates();
+              closeDrawerAndRequireInert();
             }
             function drawerRows() {
               return Array.from(document.querySelectorAll("#layout-editor-tree .layout-editor-panel-row[data-layout-editor-panel-key]"));
@@ -297,6 +299,15 @@ def _browser_layout_manager_runner_source() -> str:
               }
             }
             function requireManagedPanel(page, heading) {
+              if (page === "queue") {
+                const tabId = heading === "CSV Rerun" ? "rerun" : "main";
+                if (window.mediaPipelineQueueView?.activateQueueTab) {
+                  window.mediaPipelineQueueView.activateQueueTab(tabId);
+                } else {
+                  const tab = document.querySelector('[data-queue-tab="' + tabId + '"]');
+                  if (tab && tab.getAttribute("aria-selected") !== "true") tab.click();
+                }
+              }
               const root = document.querySelector('[data-page-panel="' + page + '"]');
               if (!root) throw new Error("missing page " + page);
               const panels = Array.from(root.querySelectorAll("section.panel[data-panel-key]"));
@@ -323,6 +334,9 @@ def _browser_layout_manager_runner_source() -> str:
               return row;
             }
             function panelOrder(page) {
+              if (page === "queue") {
+                return Array.from(document.querySelectorAll('[data-page-panel="queue"] .settings-tab-pane[data-queue-tab-panel="main"] > section.panel[data-panel-key]')).map((panel) => headingText(panel));
+              }
               return Array.from(document.querySelectorAll('[data-page-panel="' + page + '"] > section.panel[data-panel-key]')).map((panel) => headingText(panel));
             }
             function panelOrderIn(container) {
@@ -380,11 +394,11 @@ def _browser_layout_manager_runner_source() -> str:
             await requireStaleRemoteRefreshDoesNotRevertSharedPreference();
             await requireStaleRemoteRefreshDoesNotRevertFlushedLayoutMove();
             const required = {
-              queue: ["Queue Decision", "Attention Required", "Queue Rows", "Backend Launch Scope Boundary", "Queue-to-Launch Handoff", "Queue Readiness Checklist"],
+              queue: ["CSV Rerun", "Queue Decision", "Attention Required", "Queue Rows", "Backend Launch Scope Boundary", "Queue-to-Launch Handoff", "Queue Readiness Checklist"],
               completed: ["Overview", "Output Trust Decision", "Current Output Status", "Completed History Summary", "File And Size Proof", "Publish And Pending Proof", "Integrity Check", "Diagnostics Links"],
               settings: ["Current Changes", "Active Policy", "Save Status", "Launch Impact", "Save Result"],
               diagnostics: ["Recovery Steps", "Read Order", "Impact Summary", "Related Evidence", "Contract Review"],
-              launch: ["Pipeline Processor", "Start Evidence", "Start Decision Summary", "Rerun from CSV", "Command History", "Command Review"],
+              launch: ["Pipeline Processor", "Start Evidence", "Start Decision Summary", "Command History", "Command Review"],
               reports: ["Report Triage", "Failure Resolution Center", "Audit Entries"],
             };
             const keys = {};
@@ -406,28 +420,28 @@ def _browser_layout_manager_runner_source() -> str:
             const completedPaneKeys = completedPanes.map((pane) => pane.dataset.completedTab).sort().join("|");
             if (completedPaneKeys !== "evidence|history|overview") throw new Error("Completed tab panes were not merged to one container per tab: " + completedPaneKeys);
             if (document.querySelector('[data-page-panel="completed"] section.panel.settings-tab-pane')) throw new Error("Completed tab panes should be containers, not draggable panels");
-            requireDrawerGroups("launch", ["Pipeline Processor", "CSV Rerun", "History"]);
+            requireDrawerGroups("launch", ["Pipeline Processor", "History"]);
+            requireDrawerGroups("queue", ["CSV Rerun", "Main Queue"]);
             requireDrawerGroups("reports", ["Failures", "Audit", "Locations"]);
             requireDrawerHeadings(
               "pending",
               [
                 "Pending Publish Guard Evidence",
-                "Pending Publish Drain",
                 "Drain Status",
                 "Risk Summary",
                 "Pending Publish Checklist",
                 "Flagged Items",
                 "Recovery Preview",
                 "Manifest Repair",
-                "Pending Rows",
-                "Selected Item",
                 "Diagnostics Links",
               ],
               [
-                "Pending Publish Action Center",
+                "Pending Publish Operations",
                 "Live Run",
+                "File Inventory",
+                "Drain Progress",
+                "Selected Item",
                 "Pending Refresh",
-                "Pending Items",
                 "Parked Files",
                 "Next Step",
                 "Drain Evidence",
@@ -566,7 +580,7 @@ def _browser_layout_manager_runner_source() -> str:
             let appReady = false;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {
-                expression: `Boolean(document.readyState !== "loading" && document.getElementById("customize-layout-btn") && typeof window.showPage === "function" && document.querySelectorAll("section.panel[data-panel-key]").length > 0)`,
+                expression: `Boolean(document.readyState !== "loading" && document.getElementById("customize-layout-btn") && typeof window.showPage === "function" && document.querySelector("section.panel[data-panel-key] .panel-customize-bar"))`,
                 returnByValue: true,
               });
               if (ready.result?.value === true) {

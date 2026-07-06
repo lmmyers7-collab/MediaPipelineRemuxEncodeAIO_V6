@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/pendingPublishView.diagnostics.js
 pipeline_stage: observability
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-02
+last_modified: 2026-07-03
 last_reviewed: 2026-06-04
-sha256: 30e965ca7f7f4188bee3233bcbd0169d3975e3e667c8780f6c6d55f0e6f817f6
+sha256: cced0bbf8d5c389ca30075b640d9206d1a5258c81e80a7a3bf1779735a75df6a
 ---
 # `apps/desktop/webview/static/assets/pendingPublishView.diagnostics.js`
 

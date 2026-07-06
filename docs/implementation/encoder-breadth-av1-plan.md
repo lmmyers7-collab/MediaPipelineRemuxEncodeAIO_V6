@@ -48,8 +48,9 @@ Risk class: AGENTS.md section 7 — "FFmpeg command generation and stream mappin
 Validation rung: AGENTS.md section 5 media row — release gate plus real-media validation per encoder
 Effort: L (five phases; each phase is a separately scoped, separately validated session)
 Authority: AGENTS.md overrides this plan wherever they disagree. This plan does not
-authorize anything AGENTS.md forbids. docs/SESSION.md must be updated with a scope
-block before each phase begins.
+authorize anything AGENTS.md forbids. Each implementation phase must use its own
+change packet and update canonical current-state or checklist docs only when the
+project state actually changes.
 
 ---
 
@@ -57,8 +58,8 @@ block before each phase begins.
 
 These are binding. Read AGENTS.md sections 1-3, 5, 7, 8 before any edit.
 
-1. **One phase per session/branch.** Each phase gets its own docs/SESSION.md scope
-   block, its own change packet under `ops/release/changes/unreleased/`, and its own
+1. **One phase per session/branch.** Each phase gets its own change packet
+   under `ops/release/changes/unreleased/` and its own
    operator sign-off before the next phase starts. Do not combine phases.
 2. **Never self-certify.** Every phase touches FFmpeg command generation (AGENTS.md
    section 7). Agent-side tests are necessary but not sufficient; each phase ends with
@@ -86,7 +87,7 @@ These are binding. Read AGENTS.md sections 1-3, 5, 7, 8 before any edit.
    (`.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.dev.refresh_summaries`),
    update the change packet, run
    `mediapipeline.tools.change_control.validate_changes --require-worktree-coverage`,
-   and record the handoff in docs/SESSION.md.
+   and record handoff details in the change packet.
 8. **Token budget:** the file:line citations in section 2 are pre-verified as of
    2026-06-11. Trust them for orientation; re-verify with Grep only the specific lines
    you are about to edit. Do not re-read whole files to confirm this plan.

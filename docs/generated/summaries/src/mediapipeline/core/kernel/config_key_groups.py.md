@@ -3,9 +3,9 @@ file: src/mediapipeline/core/kernel/config_key_groups.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: kernel
-last_modified: 2026-06-30
+last_modified: 2026-07-05
 last_reviewed: 2026-06-04
-sha256: 830aaca868da0701f4e48f7fff2f86f935daa4c01b535ef77f35c38a1407ce43
+sha256: 6385d2aad3b5e57f349f66d482c7809e0b00920df1003e6ee4f17e225b60219b
 ---
 # `src/mediapipeline/core/kernel/config_key_groups.py`
 

@@ -132,9 +132,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         completed_positions = [completed_html.index(token) for token in completed_tab_order]
         self.assertEqual(completed_positions, sorted(completed_positions))
         pending_tab_order = [
-            "Pending Publish Action Center",
+            "Pending Publish Operations",
+            "Live Run",
+            "File Inventory",
             "Pending Publish Guard Evidence",
-            "Pending Publish Drain",
         ]
         pending_positions = [pending_html.index(token) for token in pending_tab_order]
         self.assertEqual(pending_positions, sorted(pending_positions))
@@ -151,19 +152,25 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         pending_publish_filters_js = (assets_root / "pendingPublish" / "filters.js").read_text(encoding="utf-8")
         styles_css = _read_components_css(assets_root)
 
-        self.assertIn("<h2>Pending Publish Action Center</h2>", pending_html)
+        self.assertIn("<h2>Pending Publish Operations</h2>", pending_html)
         self.assertIn('id="pending-action-drain-button"', pending_html)
         self.assertIn('id="pending-action-refresh-button"', pending_html)
+        self.assertIn('id="pending-action-failed-count"', pending_html)
+        self.assertIn('id="pending-action-drained-count"', pending_html)
         self.assertIn('data-pending-action-filter="blocked"', pending_html)
+        self.assertIn('data-pending-action-filter="failed"', pending_html)
+        self.assertIn('data-pending-action-filter="drained"', pending_html)
         self.assertIn('<option value="evidence_missing">Evidence missing</option>', pending_html)
+        self.assertIn('<option value="failed">Failed</option>', pending_html)
+        self.assertIn('<option value="drained">Drained</option>', pending_html)
         self.assertEqual(pending_html.count('id="pending-drain-button"'), 1)
         self.assertLess(
-            pending_html.index("Pending Publish Action Center"),
+            pending_html.index("Pending Publish Operations"),
             pending_html.index("Pending Publish Guard Evidence"),
         )
         self.assertIn("function renderPendingActionCenter", pending_publish_view_js)
         self.assertIn("function applyPendingActionFilter", pending_publish_view_js)
-        self.assertIn("Mutation guardrail: this action center can only update local filters", pending_publish_view_js)
+        self.assertIn("Boundary: this action center can only update local filters", pending_publish_view_js)
         self.assertIn("drainButton.click();", pending_publish_view_js)
         self.assertIn("evidence_missing", pending_publish_filters_js)
         self.assertIn(".pending-action-filter", styles_css)
@@ -432,6 +439,76 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             const pushDetail = container.children[1]?.children[2]?.textContent || "";
             if (!pushDetail.includes("eta 1m 00s") || !pushDetail.includes("write 8.5 MB/s") || !pushDetail.includes("remaining 512.0 MB")) {
               throw new Error(`Push ETA detail did not render: ${pushDetail}`);
+            }
+            progress.renderProgressBarsInto(container, [
+              {
+                id: "publish_output",
+                label: "Publish steps",
+                status: "active",
+                mode: "stepped",
+                percent: 0,
+                detail: "0 / 4 publish steps | copying | csv_rerun | Paprika (2006).rerun_20260704_231853_ef58146f.mkv",
+                steps: [
+                  { id: "copy", label: "Copy completed output", status: "active" },
+                  { id: "sidecars", label: "Write sidecars", status: "pending" },
+                ],
+                source: "pipeline_progress.json",
+                updated_at: "2026-07-05T16:05:41Z",
+              },
+              {
+                id: "publish_copy",
+                label: "Publishing completed output",
+                status: "active",
+                percent: 15.1,
+                detail: "814.0 MB / 5.3 GB | csv_rerun | Paprika (2006).rerun_20260704_231853_ef58146f.mkv",
+                source: "pipeline_progress.json",
+                updated_at: "2026-07-05T16:05:41Z",
+              },
+              {
+                id: "pending_drain",
+                label: "Pending publish drain",
+                status: "active",
+                percent: 3.4,
+                detail: "3 / 89 manifests | succeeded 2 | remaining 86 | Paprika (2006).rerun_20260704_231853_ef58146f.manifest.json",
+                source: "pipeline_progress.json",
+                updated_at: "2026-07-05T16:05:15Z",
+              },
+            ], {
+              eta: {
+                rows: [
+                  {
+                    worker_id: "publish_copy",
+                    eta_seconds: 157,
+                    bytes_remaining: 4831838208,
+                    confidence: "low",
+                    progress_source: "pipeline_progress.json",
+                  },
+                ],
+              },
+            }, "No active pending-publish drain progress loaded.", { compact: "pendingDrain" });
+            const compactText = container.textContent;
+            for (const fragment of [
+              "Publish",
+              "Copy output",
+              "Drain queue",
+              "0 of 4 steps",
+              "Copy output",
+              "Sidecars",
+              "814.0 MB of 5.3 GB",
+              "ETA 2m 37s",
+              "4.5 GB left",
+              "3 of 89 manifests",
+              "2 done",
+              "86 left",
+            ]) {
+              if (!compactText.includes(fragment)) {
+                throw new Error(`Compact pending drain progress missing ${fragment}: ${compactText}`);
+              }
+            }
+            for (const forbidden of ["Publishing completed output", "Publish steps", "source:", "updated:", "confidence:", "csv_rerun"]) {
+              if (compactText.includes(forbidden)) {
+                throw new Error(`Compact pending drain progress kept noisy text ${forbidden}: ${compactText}`);
+              }
             }
             """
         )
@@ -750,7 +827,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             vm.createContext(context);
             vm.runInContext(source, context, { filename: progressPath });
             const progress = context.window.mediaPipelineProgressView;
-            if (!progress?.csvRerunTailEvidence || !progress?.csvRerunActivityEvidence || !progress?.liveRunStatus) {
+            if (!progress?.csvRerunTailEvidence || !progress?.csvRerunActivityEvidence || !progress?.csvRerunTerminalLine || !progress?.liveRunStatus || !progress?.liveRunStripItems || !progress?.runTimelineItems) {
               throw new Error("Progress CSV rerun exports are missing");
             }
 
@@ -822,6 +899,216 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             if (!activeRerun.hasEvidence || !activeRerun.workerActive || !activeRerun.currentImport.includes("Old Csv Item")) {
               throw new Error(`Active CSV rerun worker was not preserved: ${JSON.stringify(activeRerun)}`);
             }
+
+            const subtitleOcrWork = {
+              stdoutTail: {
+                text: "2026-07-01 11:40:00 [INFO] Rerun CSV rows listed: 100; enabled/planned: 100",
+              },
+              closeReadiness: { safe_to_close: false },
+              snapshot: {
+                pipeline_state: "processing",
+                current_work: {
+                  item_label: "Paprika (2006)",
+                  phase_label: "CSV rerun",
+                  current_stage_label: "Subtitle OCR: VobSub stream 3, 752 cues",
+                  latest_evidence_label: "Subtitle OCR: VobSub stream 3, 752 cues",
+                  summary_label: "Subtitle OCR: VobSub stream 3, 752 cues",
+                  next_stage_label: "encode/remux output evidence",
+                  route_label: "Encode route",
+                  queue_position_label: "item 4 of 100",
+                  evidence_status: "active",
+                },
+                progress: {
+                  Status: "Processing",
+                  CurrentStage: "csv_rerun",
+                  CurrentFileDisplay: "Paprika.2006.1080p.BluRay.x264.mkv",
+                  CurrentQueueIndex: 4,
+                  CurrentQueueTotal: 100,
+                  CurrentRoute: "encode",
+                },
+                progress_bars: [
+                  { id: "subtitle_track", label: "Subtitle VOBSUB stream 3", status: "active", detail: "2 / 4 | ocr | 752 cue(s)" },
+                ],
+                worker_progress: {
+                  rows: [{
+                    worker_label: "Local rerun_csv",
+                    job_kind: "rerun_csv",
+                    status_state: "running",
+                    last_log_line: "Rerun CSV rows listed: 100; enabled/planned: 100",
+                  }],
+                },
+              },
+            };
+            const liveItems = progress.liveRunStripItems(subtitleOcrWork);
+            if (liveItems[0]?.label !== "Now" || !liveItems[0]?.value.includes("Subtitle OCR: VobSub stream 3, 752 cues")) {
+              throw new Error(`Live Run did not prefer backend active-work summary: ${JSON.stringify(liveItems.slice(0, 4))}`);
+            }
+            if (liveItems.some((item) => item.label === "Importing" && item.value === "No current import line")) {
+              throw new Error(`Live Run rendered misleading import fallback despite backend OCR evidence: ${JSON.stringify(liveItems)}`);
+            }
+            const ocrTimeline = progress.runTimelineItems(subtitleOcrWork);
+            const subtitleStep = ocrTimeline.find((item) => item.id === "subtitle_work");
+            if (!subtitleStep?.current || !subtitleStep.detail.includes("Subtitle OCR: VobSub stream 3, 752 cues")) {
+              throw new Error(`Run Progress did not mark subtitle OCR as current work: ${JSON.stringify(ocrTimeline)}`);
+            }
+
+            const csvTimeline = progress.runTimelineItems({
+              stdoutTail: staleCsvTail,
+              closeReadiness: { safe_to_close: false },
+              snapshot: {
+                pipeline_state: "processing",
+                progress: {
+                  Status: "Processing",
+                  CurrentStage: "Encoding",
+                  CurrentStagePercent: 12,
+                  CurrentFileDisplay: "Old Csv Item.mkv",
+                  CurrentQueueIndex: 4,
+                  CurrentQueueTotal: 100,
+                  CurrentRoute: "encode",
+                },
+                progress_bars: [
+                  { id: "current_stage", label: "Current backend stage", status: "active", percent: 12, detail: "Encoding | Old Csv Item.mkv" },
+                ],
+                worker_progress: { rows: [] },
+              },
+            });
+            const timelineLabels = csvTimeline.map((item) => item.label);
+            for (const label of ["CSV import", "Queue item", "Copy to scratch", "Route selected: encode", "Encode output", "Publish or park", "Run evidence"]) {
+              if (!timelineLabels.includes(label)) {
+                throw new Error(`CSV timeline label missing ${label}: ${timelineLabels.join(" | ")}`);
+              }
+            }
+            if (csvTimeline[0].label !== "CSV import" || !csvTimeline[0].current || !csvTimeline.some((item) => item.next)) {
+              throw new Error(`CSV timeline did not mark current/next steps: ${JSON.stringify(csvTimeline)}`);
+            }
+            const csvLoadedTimeline = progress.runTimelineItems({
+              stdoutTail: {
+                text: [
+                  "2026-07-05 01:24:17 [INFO] Rerun CSV rows listed: 1; enabled/planned: 1",
+                  "2026-07-05 01:24:18 [INFO] STAGED copy: Breakfast at Tiffany's (1961).mkv",
+                  "2026-07-05 01:24:19 [DEBUG] ENCODE : still running...",
+                ].join("\n"),
+              },
+              snapshot: {
+                pipeline_state: "processing",
+                current_work: {
+                  latest_evidence_label: "2026-07-05 01:24:19 [DEBUG] ENCODE : still running...",
+                },
+                worker_progress: {
+                  rows: [{
+                    worker_label: "Local rerun_csv",
+                    job_kind: "rerun_csv",
+                    status_state: "running",
+                    last_log_line: "2026-07-05 01:24:19 [DEBUG] ENCODE : still running...",
+                  }],
+                },
+              },
+            });
+            const csvLoadedImport = csvLoadedTimeline[0];
+            if (!csvLoadedImport.detail.includes("Loaded Breakfast at Tiffany's (1961).mkv") || !csvLoadedImport.detail.includes("Waiting for encode to finish")) {
+              throw new Error(`CSV loaded import detail was not compact/useful: ${JSON.stringify(csvLoadedImport)}`);
+            }
+            for (const verboseText of ["CSV rerun evidence loaded", "[DEBUG]", "Backend evidence"]) {
+              if (csvLoadedImport.detail.includes(verboseText)) {
+                throw new Error(`CSV loaded import detail still includes verbose text ${verboseText}: ${csvLoadedImport.detail}`);
+              }
+            }
+            if (csvLoadedImport.evidence !== "Last event: 01:24:19 Encode still running") {
+              throw new Error(`CSV loaded import evidence was not normalized: ${JSON.stringify(csvLoadedImport)}`);
+            }
+            const csvWaitingContext = {
+              stdoutTail: {
+                text: [
+                  "2026-07-03 20:05:37 [INFO] Rerun CSV rows listed: 2; enabled/planned: 2",
+                  "2026-07-03 20:05:38 [INFO] STAGED copy: Up (2009).mkv",
+                  "2026-07-03 20:05:39 [INFO] Nested pipeline chunk 4 exited with code 0",
+                ].join("\n"),
+              },
+              closeReadiness: { safe_to_close: false, state: "running", reason: "CSV rerun active work is still running." },
+              snapshot: {
+                pipeline_state: "idle",
+                current_work: {
+                  phase_label: "Idle",
+                  current_stage_label: "Idle",
+                  latest_event_label: "tool_completed · subtitle-helper",
+                  evidence_status: "idle",
+                },
+                progress: {
+                  Status: "idle / waiting for next item",
+                  CurrentStage: "idle",
+                  CurrentFileDisplay: "None",
+                  TotalProcessed: 1,
+                  Encoded: 1,
+                  Remuxed: 0,
+                  Failed: 0,
+                },
+                progress_bars: [],
+                worker_progress: { rows: [] },
+                recent_events: [{
+                  event_type: "tool_completed",
+                  stage: "subtitle-helper",
+                  status: "stopped",
+                  data: { completion_status: "stopped" },
+                }],
+              },
+            };
+            const csvWaitingTimeline = progress.runTimelineItems(csvWaitingContext);
+            const csvWaitingCurrent = csvWaitingTimeline.find((item) => item.current);
+            if (csvWaitingCurrent?.id !== "csv_import" || csvWaitingCurrent.status !== "active") {
+              throw new Error(`CSV waiting timeline focused the wrong step: ${JSON.stringify(csvWaitingTimeline)}`);
+            }
+            const csvWaitingRunEvidence = csvWaitingTimeline.find((item) => item.id === "run_evidence");
+            if (csvWaitingRunEvidence?.current || !csvWaitingTimeline[0]?.detail.includes("Waiting for nested pipeline")) {
+              throw new Error(`CSV waiting timeline still made run evidence look current: ${JSON.stringify(csvWaitingTimeline)}`);
+            }
+            const csvWaitingStatus = progress.liveRunStatus(csvWaitingContext);
+            if (csvWaitingStatus.label !== "CSV rerun active") {
+              throw new Error(`CSV waiting status was not specific: ${JSON.stringify(csvWaitingStatus)}`);
+            }
+            const pendingRouteTimeline = progress.runTimelineItems({
+              snapshot: {
+                pipeline_state: "processing",
+                progress: {
+                  Status: "Processing",
+                  CurrentStage: "csv_rerun",
+                  CurrentFileDisplay: "Route Pending Fixture.mkv",
+                  CurrentQueueIndex: 1,
+                  CurrentQueueTotal: 2,
+                },
+                progress_bars: [],
+                worker_progress: { rows: [] },
+              },
+            });
+            const pendingRouteStep = pendingRouteTimeline.find((item) => item.id === "route_selected");
+            if (pendingRouteStep?.label !== "Route decision pending" || !pendingRouteStep?.detail.includes("No backend route is selected yet")) {
+              throw new Error(`Route-pending timeline still claimed selection: ${JSON.stringify(pendingRouteStep)}`);
+            }
+
+            const terminalLines = [
+              "PLAN ONLY complete. No manifest, temp config, stage, park, output, or source paths were written.",
+              "DRY RUN complete. Manifest: C:\\Local\\RerunManifests\\rerun.json",
+              "Rerun batch complete. Manifest: C:\\Local\\RerunManifests\\rerun.json",
+              "CSV rerun failed: source file not found",
+              "Nested pipeline exited with code 1",
+            ];
+            for (const line of terminalLines) {
+              if (!progress.csvRerunTerminalLine(line)) {
+                throw new Error(`Terminal CSV rerun line was not detected: ${line}`);
+              }
+              const terminal = progress.csvRerunActivityEvidence({
+                stdoutTail: {
+                  text: [
+                    "2026-07-01 11:40:00 [INFO] Rerun CSV rows listed: 100; enabled/planned: 100",
+                    line,
+                  ].join("\n"),
+                },
+                closeReadiness: { safe_to_close: false },
+                snapshot: { worker_progress: { rows: [] } },
+              });
+              if (!terminal.hasEvidence || terminal.isActive) {
+                throw new Error(`Terminal CSV rerun tail kept activity active: ${JSON.stringify(terminal)}`);
+              }
+            }
             """
         )
         result = subprocess.run(
@@ -832,6 +1119,29 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
+    def test_home_live_work_summary_renders_before_launch_preflight_await(self) -> None:
+        repo_root = find_repo_root(Path(__file__))
+        app_js = (
+            repo_root / "apps" / "desktop" / "webview" / "static" / "assets" / "app.js"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("function renderLiveWorkHomeSummary", app_js)
+        self.assertGreaterEqual(app_js.count("renderLiveWorkHomeSummary(liveRunContext)"), 2)
+        refresh_tail_block = app_js[
+            app_js.index("async function refreshLiveRunTail") :
+            app_js.index("async function refreshAll")
+        ]
+        full_refresh_preflight_block = app_js[
+            app_js.index("async function refreshAllNow") :
+            app_js.index("const launchPanel = document.querySelector")
+        ]
+        self.assertIn("renderLiveWorkHomeSummary(liveRunContext)", refresh_tail_block)
+        self.assertIn("renderLiveWorkHomeSummary(liveRunContext)", full_refresh_preflight_block)
+        self.assertLess(
+            app_js.rindex("renderLiveWorkHomeSummary(liveRunContext)"),
+            app_js.index("await launchView.refreshLaunchBackendPreflight();"),
+        )
 
     def test_home_next_queue_shows_first_five_runnable_rows_only(self) -> None:
         node = shutil.which("node")
@@ -943,6 +1253,45 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             }
             if (detail.includes("Selected queue item:") || detail.includes("Safe next step:")) {
               throw new Error(`Old verbose detail text is still rendered: ${detail}`);
+            }
+            home.renderHomeNextQueue({
+              snapshot: {
+                current_work: {
+                  item_label: "Paprika (2006)",
+                  current_stage_label: "Subtitle OCR: VobSub stream 3, 752 cues",
+                  latest_evidence_label: "Subtitle OCR: VobSub stream 3, 752 cues",
+                  next_stage_label: "encode/remux output evidence",
+                  route_label: "Encode route",
+                  queue_position_label: "item 4 of 100",
+                  evidence_status: "active",
+                },
+                progress: {
+                  CurrentFilePath: "C:\\Media\\Movies\\Paprika.2006.1080p.BluRay.x264.mkv",
+                  CurrentFileDisplay: "Paprika.2006.1080p.BluRay.x264.mkv",
+                  CurrentQueueIndex: 4,
+                  CurrentQueueTotal: 100,
+                  CurrentRoute: "encode",
+                },
+                counts: { queue_index: 4, processed: 3 },
+              },
+              queue: {
+                rows: [
+                  { media_kind: "movie", source_path: "C:\\Media\\Movies\\Previous.mkv", display_name: "Previous.mkv", route_name: "REMUX", operator_status: "Ready", queue_position: "3/100", global_order: 3 },
+                  { media_kind: "movie", source_path: "C:\\Media\\Movies\\Paprika.2006.1080p.BluRay.x264.mkv", display_name: "Paprika.2006.1080p.BluRay.x264.mkv", route_name: "ENCODE", operator_status: "Ready", queue_position: "4/100", global_order: 4 },
+                  { media_kind: "movie", source_path: "C:\\Media\\Movies\\Delicatessen.1991.mkv", display_name: "Delicatessen.1991.mkv", route_name: "REMUX", operator_status: "Ready", queue_position: "5/100", global_order: 5 },
+                ],
+              },
+            });
+            const activeRendered = list.children.map((item) => item.textContent);
+            if (list.children[0]?.dataset.current !== "true") {
+              throw new Error(`Current row was not marked in Next 5 Videos: ${JSON.stringify(list.children[0]?.dataset || {})}`);
+            }
+            if (!activeRendered[0]?.includes("Paprika") || !activeRendered[0]?.includes("Current") || !activeRendered[0]?.includes("Subtitle OCR: VobSub stream 3, 752 cues")) {
+              throw new Error(`Current active-work row was not rendered first: ${activeRendered.join(" | ")}`);
+            }
+            const activeDetail = elements["home-next-queue-detail"].textContent;
+            for (const expected of ["Current stage:", "Subtitle OCR: VobSub stream 3, 752 cues", "Evidence:", "Next:", "encode/remux output evidence"]) {
+              if (!activeDetail.includes(expected)) throw new Error(`Missing active row detail ${expected}: ${activeDetail}`);
             }
             context.mediaPipelineProgressView = {
               csvRerunTailEvidence() {
@@ -1335,6 +1684,12 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertNotIn('data-launch-tab="audit">Audit</button>', html)
         self.assertNotIn('data-launch-tab-panel="audit"', html)
         self.assertIn('id="rerun-open-audit-tool-button"', html)
+        self.assertIn('id="rerun-open-latest-manifest-button"', html)
+        self.assertIn('id="rerun-open-run-logs-button"', html)
+        self.assertIn('id="rerun-open-last-stdout-button"', html)
+        self.assertIn('id="rerun-open-last-stderr-button"', html)
+        self.assertIn('id="rerun-open-active-jobs-button"', html)
+        self.assertIn('id="rerun-show-command-history-button"', html)
         self.assertIn('data-cross-page-target="reports" data-cross-page-reports-tab="audit"', html)
         self.assertIn("function activateCrossPageTarget", app_lifecycle_js)
         self.assertIn("activateReportsTab?.(button.dataset.crossPageReportsTab)", app_lifecycle_js)
@@ -1470,7 +1825,6 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("function refreshLiveRunTail", app_js)
         self.assertIn("function csvRerunActivityEvidence", app_js)
         self.assertIn("function renderCsvRerunHomeSummary", app_js)
-        self.assertIn("renderCsvRerunHomeSummary(liveRunContext)", app_js)
         self.assertIn("let lastQueue = null;", app_js)
         self.assertIn("renderHomeNextQueue({ ...liveRunContext, queue: lastQueue || {} })", app_js)
         self.assertIn("lastQueue = values.queue;", app_js)

@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0705-009",
+  "title": "Network CSV rerun Phase 0 contract freeze",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "test",
+  "risk_level": "high",
+  "date_started": "2026-07-05",
+  "date_completed": "2026-07-05",
+  "summary": "Phase 0 contract-freeze prework for Network CSV rerun: documented the current local CSV rerun read model, Local API route boundary, network claim/done protocol shape, and worker result artifact shape before adding distributed CSV rerun behavior.",
+  "reason": "Network CSV rerun touches coordinator claims, worker result reduction, pending-publish evidence, command journal expectations, and close-readiness. Phase 0 freezes the existing contracts so later phases can make deliberate additive changes.",
+  "affected_areas": [
+    "change-control",
+    "generated-context",
+    "local-api-contracts",
+    "network",
+    "rerun",
+    "tests"
+  ],
+  "behavior_before": "Local CSV rerun is exposed through /api/rerun/* routes and a desktop_rerun_results.v1 read model with queue_source=csv_rerun and uses_pipeline_start=false. Network workers claim normal queue records through the coordinator /api/claim protocol and report generic DoneRequest fields through /api/done.",
+  "behavior_after": "No runtime behavior changed. Characterization tests now pin that no Local API network CSV rerun route exists yet and that current network claim/done payloads do not carry CSV rerun row identity fields.",
+  "files_touched": [
+    "docs/generated/summaries/tests/python/desktop/test_api_contract_payload.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_protocol_runtime.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0705-009.json",
+    "tests/python/desktop/test_api_contract_payload.py",
+    "tests/python/desktop/test_network_protocol_runtime.py"
+  ],
+  "tests_added": [
+    "ApiContractPayloadTests.test_csv_rerun_route_contract_exposes_lifecycle_defaults",
+    "NetworkProtocolRuntimeTests.test_network_claim_and_done_wire_shapes_are_current_normal_queue_contract"
+  ],
+  "manual_validation": [
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_network_protocol_runtime.NetworkProtocolRuntimeTests.test_network_claim_and_done_wire_shapes_are_current_normal_queue_contract tests.python.desktop.test_api_contract_payload.LocalApiContractPayloadTests.test_csv_rerun_route_contract_exposes_lifecycle_defaults -q",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_api_contract_payload tests.python.desktop.test_api_command_contracts tests.python.desktop.test_network_protocol_runtime tests.python.desktop.test_process_rerun_results -q",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths tests/python/desktop/test_network_protocol_runtime.py tests/python/desktop/test_api_contract_payload.py"
+  ],
+  "rollback_plan": "Revert the Phase 0 characterization assertions and this change packet. No runtime state, media files, queue records, pending-publish manifests, or source files are modified by this change.",
+  "related_changes": [],
+  "notes": "Phase 0 D1-D8 baseline: D1 row claim remains the preferred investigation path; current network claims are normal queue claims only. D2 existing LocalBase/RerunManifests remain local CSV rerun batch/row evidence; no network row-state file exists yet. D3 coordinator reducer or hybrid remains preferred; current workers must not mutate coordinator final destinations or pending-publish manifests for CSV rerun. D4 worker output handoff is undecided for implementation; current network worker result artifact only reports local_worker_result.v1 fields. D5 source path mapping should prefer library_id+relative_path, then coordinator source_path with worker path-map fallback, then blocked row; current ClaimResponse has library_id and relative_path but no CSV row identity. D6 stop/pause/retry/continue are not implemented for network CSV rerun; current local rerun control and network claim/release/done semantics stay separate. D7 worker result extension must be additive and backward-compatible; current DoneRequest and worker result artifact have no rerun batch, row, or CSV path fields. D8 progress rendering is not implemented for network CSV rerun; current rerun results expose queue_source=csv_rerun and uses_pipeline_start=false for local CSV rerun rows only. No PREWORK stop condition was encountered during Phase 0 inspection.\nFreeze current normal-queue network claim/done wire payload shape before network CSV rerun extensions.\nFreeze current Local API route boundary for CSV rerun and network coordinator routes before network CSV rerun routes are added.\nRefresh generated summary after Phase 0 network protocol characterization test update.\nRefresh generated summary after Phase 0 Local API contract characterization update."
+}

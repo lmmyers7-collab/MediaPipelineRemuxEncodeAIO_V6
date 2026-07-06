@@ -1065,6 +1065,76 @@
     }
   }
 
+  function auditRerunExportData(result) {
+    return result?.data && typeof result.data === "object" ? result.data : {};
+  }
+
+  function auditRerunExportHandoff(result) {
+    const data = auditRerunExportData(result);
+    return data.handoff && typeof data.handoff === "object" ? data.handoff : {};
+  }
+
+  function auditRerunExportCsvPath(result) {
+    const data = auditRerunExportData(result);
+    const handoff = auditRerunExportHandoff(result);
+    return String(handoff.csv_path || data.exported_csv_path || data.output_path || "").trim();
+  }
+
+  async function handoffAuditRerunCsvToQueue(result, request) {
+    if (!result?.ok) return false;
+    const csvPath = auditRerunExportCsvPath(result);
+    if (!csvPath) return false;
+    const data = auditRerunExportData(result);
+    const handoff = auditRerunExportHandoff(result);
+    const queueView = window.mediaPipelineQueueView || {};
+    if (typeof window.showPage === "function") window.showPage("queue");
+    if (typeof queueView.activateQueueTab === "function") queueView.activateQueueTab("rerun", { persist: true });
+    if (typeof queueView.selectRerunCsvPathForPreview !== "function") {
+      setText("report-audit-export-status", "Exported");
+      setText("report-audit-export-detail", [
+        formatReportAuditCommandDetail(result, request),
+        "",
+        `Queue CSV Rerun handoff path: ${csvPath}`,
+        "Queue preview helper is unavailable; open Queue > CSV Rerun and preview the exported CSV.",
+      ].join("\n"));
+      return false;
+    }
+    setText("report-audit-export-status", "Opening Queue");
+    setText("report-audit-export-detail", [
+      formatReportAuditCommandDetail(result, request),
+      "",
+      `Opening Queue CSV Rerun with ${csvPath}`,
+    ].join("\n"));
+    try {
+      const preview = await queueView.selectRerunCsvPathForPreview(csvPath, {
+        source: "audit_export",
+        rowCount: data.row_count,
+        handoff,
+      });
+      const previewStatus = String(preview?.status || (preview?.ok === false ? "blocked" : preview?.ok ? "ready" : "requested"));
+      setText("report-audit-export-status", preview?.ok === false ? "Preview blocked" : "Queue preview");
+      setText("report-audit-export-detail", [
+        formatReportAuditCommandDetail(result, request),
+        "",
+        `Queue CSV Rerun handoff: ${previewStatus}.`,
+        `CSV: ${csvPath}`,
+        `Preview route: ${handoff.preview_route || "/api/rerun/preview"}`,
+        "Start route remains /api/rerun/start; normal /api/pipeline/start is not used.",
+      ].join("\n"));
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setText("report-audit-export-status", "Exported");
+      setText("report-audit-export-detail", [
+        formatReportAuditCommandDetail(result, request),
+        "",
+        `Queue CSV Rerun handoff path: ${csvPath}`,
+        `Queue preview request failed: ${message}`,
+      ].join("\n"));
+      return false;
+    }
+  }
+
   async function exportAuditRerunCsv() {
     if (reportsState.reportAuditCommandBusy) {
       const result = reportAuditBusyResult("audit.export_rerun_csv");
@@ -1082,16 +1152,20 @@
     const scope = request.row_keys.length
       ? `${request.row_keys.length} selected row(s)`
       : "all loaded non-ignored rows (current filter is display-only)";
-    if (!window.confirm(`Export rerun CSV for ${scope}?`)) return;
+    if (!window.confirm(`Build CSV rerun queue for ${scope}?`)) return;
     setReportAuditCommandBusy("audit.export_rerun_csv", "report-audit-export-rerun-csv-button");
-    setText("report-audit-export-status", "Exporting...");
-    setText("report-audit-export-detail", "Exporting backend-owned rerun CSV...");
+    setText("report-audit-export-status", "Building...");
+    setText("report-audit-export-detail", "Building backend-owned rerun CSV for Queue...");
     try {
       const result = await apiPost("/api/audit/export-rerun-csv", request);
       appendReportAuditCommandResult(result);
       setText("report-audit-export-status", result.ok ? "Exported" : "Blocked");
       setText("report-audit-export-detail", formatReportAuditCommandDetail(result, request));
-      await refreshReportsAuditData();
+      if (result.ok) {
+        await handoffAuditRerunCsvToQueue(result, request);
+      } else {
+        await refreshReportsAuditData();
+      }
     } catch (error) {
       const text = error instanceof Error ? error.message : String(error);
       const result = { command: "audit.export_rerun_csv", ok: false, severity: "error", message: text };

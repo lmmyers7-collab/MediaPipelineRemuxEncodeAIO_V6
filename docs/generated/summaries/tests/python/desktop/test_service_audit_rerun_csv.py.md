@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_audit_rerun_csv.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-05
 last_reviewed: 2026-06-04
-sha256: aa25669d1f79d608a379ce86018f226fbaeabca0cce8fc958e5c3f801a9259a5
+sha256: 992977ebdccf6177913885226bf0c7a138e1102551676fc8875067b89adda372
 ---
 # `tests/python/desktop/test_service_audit_rerun_csv.py`
 

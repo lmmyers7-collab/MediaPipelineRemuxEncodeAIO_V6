@@ -90,18 +90,24 @@ def _pending_validation_status(payload: Mapping[str, Any], rows: list[dict[str, 
     invalid = [row for row in rows if str(row.get("state") or "").casefold() in {"invalid_manifest", "unreadable_manifest"}]
     missing_payload = [row for row in rows if row.get("local_exists") is False]
     missing_sidecar = [row for row in rows if int_value(row.get("missing_sidecar_count")) > 0]
+    not_ready = [row for row in rows if row.get("ready_to_drain") is False]
     if (
         do_not_drain
         or severe
         or invalid
         or missing_payload
         or missing_sidecar
-        or int_value(payload.get("health_count")) > 0
+        or not_ready
         or int_value(payload.get("missing_local_count")) > 0
     ):
         return "Do not drain"
     warnings = [item for item in payload.get("warnings") or [] if item]
-    if warnings or int_value(payload.get("issue_count")) > 0 or any(_pending_row_has_health_issue(row) for row in rows):
+    if (
+        warnings
+        or int_value(payload.get("issue_count")) > 0
+        or int_value(payload.get("health_count")) > 0
+        or any(_pending_row_has_health_issue(row) for row in rows)
+    ):
         return "Review"
     return "Ready"
 
@@ -109,6 +115,31 @@ def _pending_validation_status(payload: Mapping[str, Any], rows: list[dict[str, 
 def _pending_drain_summary_payload(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     summary = payload.get("drain_summary")
     return summary if isinstance(summary, Mapping) else {}
+
+
+def _optional_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, str) and not value.strip():
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _pending_current_row_count(payload: Mapping[str, Any], rows: list[dict[str, Any]]) -> int:
+    count = _optional_int(payload.get("count"))
+    return max(0, count) if count is not None else len(rows)
+
+
+def _pending_drain_summary_matches_current_rows(summary: Mapping[str, Any], current_row_count: int | None) -> bool:
+    if current_row_count is None:
+        return True
+    summary_count = _optional_int(summary.get("manifest_count_at_start"))
+    if summary_count is None:
+        return True
+    return summary_count == current_row_count
 
 
 def _pending_drain_summary_status(payload: Mapping[str, Any]) -> str:
@@ -132,13 +163,14 @@ def _pending_drain_summary_status(payload: Mapping[str, Any]) -> str:
     return "Last drain recorded"
 
 
-def _pending_drain_summary_issue_level(summary: Mapping[str, Any]) -> str:
+def _pending_drain_summary_issue_level(summary: Mapping[str, Any], current_row_count: int | None = None) -> str:
     if summary.get("read_error"):
         return "blocked"
     if summary.get("exists") is False or (not summary.get("started_at") and not summary.get("completed_at")):
         return "none"
+    stale_for_current_rows = not _pending_drain_summary_matches_current_rows(summary, current_row_count)
     if summary.get("stopped") or int_value(summary.get("error_count")) > 0:
-        return "blocked"
+        return "review" if stale_for_current_rows else "blocked"
     if summary.get("deferred") or int_value(summary.get("skipped_count")) > 0 or int_value(summary.get("remaining_count")) > 0:
         return "review"
     return "ok"
@@ -167,6 +199,10 @@ def pending_publish_drain_confidence_payload(payload: Mapping[str, Any], rows: l
     blocking_evidence = [entry for entry in evidence_rows if entry["evidenceClass"] in {"do-not-drain", "diagnostic-error", "missing-payload", "manifest-invalid"}]
     review_evidence = [entry for entry in evidence_rows if entry["evidenceClass"] not in {"do-not-drain", "diagnostic-error", "missing-payload", "manifest-invalid"}]
     summary = _pending_drain_summary_payload(payload)
+    current_row_count = _pending_current_row_count(payload, rows)
+    summary_level = _pending_drain_summary_issue_level(summary, current_row_count)
+    summary_matches_current = _pending_drain_summary_matches_current_rows(summary, current_row_count)
+    summary_start_count = _optional_int(summary.get("manifest_count_at_start"))
     rows_out: list[dict[str, Any]] = []
 
     def add(check: str, confidence: str, evidence: str, action: str) -> None:
@@ -214,12 +250,22 @@ def pending_publish_drain_confidence_payload(payload: Mapping[str, Any], rows: l
             f"validation={validation}; health={payload.get('health_count') or 0}; missing payloads={payload.get('missing_local_count') or 0}; missing sidecars={payload.get('missing_sidecar_count') or 0}",
             "Use the Real-media Validation Checklist as the page-level pre-drain gate; backend drain validation remains authoritative.",
         )
-        summary_level = _pending_drain_summary_issue_level(summary)
+        summary_evidence = (
+            f"status={_pending_drain_summary_status(payload)}; "
+            f"summary rows={summary_start_count if summary_start_count is not None else 'unknown'}; "
+            f"current rows={current_row_count}; attempted={summary.get('attempted_count') or 0}; "
+            f"errors={summary.get('error_count') or 0}; remaining={summary.get('remaining_count') or 0}"
+        )
+        summary_action = (
+            "The last drain summary covers a different parked-row count; review it as stale evidence while relying on current rows and backend validation."
+            if not summary_matches_current
+            else "Treat the durable summary as last-attempt evidence; the current pending rows remain the source of truth for what is still parked."
+        )
         add(
             "Durable drain summary",
             "blocked" if summary_level == "blocked" else "review" if summary_level == "review" else "ready" if summary_level == "ok" else "unknown",
-            f"status={_pending_drain_summary_status(payload)}; attempted={summary.get('attempted_count') or 0}; errors={summary.get('error_count') or 0}; remaining={summary.get('remaining_count') or 0}",
-            "Treat the durable summary as last-attempt evidence; the current pending rows remain the source of truth for what is still parked.",
+            summary_evidence,
+            summary_action,
         )
 
     counts = _pending_drain_confidence_counts(rows_out)

@@ -1223,7 +1223,7 @@ false,"$missingRerunSource",Movie,copy,keep,park
 true,"$missingRerunSource",Movie,copy,keep,park
 true,"$rerunSource",Movie,copy,keep,park
 "@ | Set-Content -LiteralPath $rerunCsv -Encoding UTF8
-    & (Get-Command pwsh).Source -NoProfile -ExecutionPolicy Bypass -File $rerun -CsvPath $rerunCsv -ConfigPath $rerunConfig -DryRun -DefaultReturnMode park | Out-Null
+    & (Get-Command pwsh).Source -NoProfile -ExecutionPolicy Bypass -File $rerun -CsvPath $rerunCsv -ConfigPath $rerunConfig -DryRun -DefaultReturnMode park -DestinationMode review_workspace -CollisionPolicy suffix | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Rerun dry-run check failed with exit $LASTEXITCODE" }
     $manifest = Get-ChildItem -LiteralPath (Join-Path $rerunDryRunRoot 'Local\RerunManifests') -Filter '*.json' -File | Select-Object -First 1
     if (-not $manifest) { throw 'Rerun dry-run did not write a manifest.' }

@@ -3,9 +3,9 @@ file: docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-30
+last_modified: 2026-07-05
 last_reviewed: 2026-06-02
-sha256: 5cf19b9e794b00a1c0608a62411b123c99627e6f5aaa0d041dc0ab17d7e53dce
+sha256: 2451250e1604fe35f4f389bf53d9e473f351cd1423054f1c5a97a1cf18eaef1b
 ---
 # `docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md`
 

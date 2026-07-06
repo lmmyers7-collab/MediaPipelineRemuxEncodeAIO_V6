@@ -20,6 +20,7 @@
       renameStatusExplanation,
       setText,
     } = deps;
+    const RENAME_READ_ONLY_BOUNDARY = "Mutation guardrail: read-only evidence; backend rename routes own filesystem changes.";
 
     function renameApplyScopeRows() {
       if (typeof getRenameApplyScopeRows === "function") {
@@ -85,7 +86,7 @@
         setText("rename-selection-audit", [
           "Apply scope: none",
           "Next step: run Preview, then check intended rows before applying.",
-          "Mutation guardrail: there is no unchecked fallback; Apply only posts checked rows as backend selected_sources.",
+          "Apply has no unchecked fallback; backend rename routes receive only checked selected_sources.",
         ].join("\n"));
         return;
       }
@@ -119,7 +120,7 @@
         lines.push("Render cap note: checked scope may include rows not currently rendered after Check Applicable; review confirmation before filesystem mutation.");
       }
       lines.push("Next step: if the audit looks correct, Apply sends these checked rows as backend selected_sources.");
-      lines.push("Mutation guardrail: no frontend filesystem mutation is performed.");
+      lines.push(RENAME_READ_ONLY_BOUNDARY);
       setText("rename-selection-audit", lines.join("\n"));
     }
 
@@ -234,7 +235,7 @@
       readinessRows.push(renameApplyReadinessRow(
         "Mutation boundary",
         "ready",
-        "Apply posts confirm_apply plus selected_sources to /api/rename/apply; the frontend does not rename files.",
+        "Apply posts confirm_apply plus selected_sources to /api/rename/apply; backend rename routes own filesystem changes.",
         "Use the browser confirmation and Last Apply Result/command history to verify backend outcome.",
       ));
       return readinessRows;

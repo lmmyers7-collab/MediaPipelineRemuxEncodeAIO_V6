@@ -321,6 +321,65 @@ def _browser_maintenance_reports_runner_source() -> str:
                   },
                 };
               }
+              if (normalizedPath.includes("/api/audit/export-rerun-csv")) {
+                const csvPath = "C:/State/Rerun/ImportCsv/audit_rerun_export_smoke.csv";
+                return {
+                  command: "audit.export_rerun_csv",
+                  ok: true,
+                  severity: "ok",
+                  message: "Exported 1 audit row(s) to rerun CSV.",
+                  data: {
+                    schema_version: "desktop_audit_rerun_export.v1",
+                    output_path: csvPath,
+                    exported_csv_path: csvPath,
+                    row_count: 1,
+                    selected_row_count: Array.isArray(body?.row_keys) ? body.row_keys.length : 0,
+                    scope: "selected",
+                    issue_summary: { subtitle_missing_srt: 1 },
+                    bucket_summary: { RERUN_PIPELINE: 1 },
+                    handoff: {
+                      schema_version: "desktop_audit_to_queue_rerun_handoff.v1",
+                      target_page: "queue",
+                      queue_tab: "rerun",
+                      action: "select_and_preview_csv",
+                      csv_path: csvPath,
+                      row_count: 1,
+                      preview_route: "/api/rerun/preview",
+                      start_route: "/api/rerun/start",
+                      uses_pipeline_start: false,
+                    },
+                    touches_media: false,
+                    writes_queue: false,
+                  },
+                };
+              }
+              if (normalizedPath.includes("/api/rerun/preview")) {
+                return {
+                  command: "rerun.preview",
+                  ok: true,
+                  status: "ready",
+                  severity: "ok",
+                  message: "CSV rerun preview ready.",
+                  counts: {
+                    total_rows: 1,
+                    effective_scoped_rows: 1,
+                    blocked_rows: 0,
+                    warning_rows: 0,
+                  },
+                  rows: [{
+                    row_key: "audit-smoke-row",
+                    source_path: "C:/Outsource/Movie.mkv",
+                    issue_codes: ["subtitle_missing_srt"],
+                    bucket: "RERUN_PIPELINE",
+                    enabled: true,
+                  }],
+                  recent_csvs: [{
+                    path: body?.csv_path || "",
+                    row_count: 1,
+                  }],
+                  uses_pipeline_start: false,
+                };
+              }
               if (normalizedPath.includes("/api/audit/sources/scan")) {
                 const requestedIds = Array.isArray(body?.source_ids) ? body.source_ids : [];
                 const targets = requestedIds.length
@@ -2127,7 +2186,7 @@ def _browser_maintenance_reports_runner_source() -> str:
             requireText("audit-preview-rows", [
               "RERUN_PIPELINE",
               "subtitle_missing_srt",
-              "Launch CSV Rerun",
+              "Queue CSV Rerun",
             ]);
             clickFirst('[data-audit-filter-chip="redownload"]', "Audit Redownload filter");
             requireText("audit-preview-status", ["1 selected hidden by filter"]);
@@ -2139,6 +2198,40 @@ def _browser_maintenance_reports_runner_source() -> str:
             }
             requireText("report-audit-export-detail", ["selected audit row", "hidden by the active filter/search"]);
             clickFirst('[data-audit-filter-chip="all"]', "Audit All filter");
+            const beforeAuditRerunExportPosts = posts.filter((entry) => entry.path.includes("/api/audit/export-rerun-csv")).length;
+            const beforeRerunPreviewPosts = posts.filter((entry) => entry.path.includes("/api/rerun/preview")).length;
+            window.confirm = () => true;
+            byId("report-audit-export-rerun-csv-button").click();
+            await waitFor(() => posts.filter((entry) => entry.path.includes("/api/audit/export-rerun-csv")).length === beforeAuditRerunExportPosts + 1, "audit rerun CSV export");
+            await waitFor(() => posts.filter((entry) => entry.path.includes("/api/rerun/preview")).length === beforeRerunPreviewPosts + 1, "Queue CSV Rerun preview handoff");
+            await waitFor(() => text("rerun-queue-detail").includes("Backend read-only CSV rerun preview"), "Queue CSV Rerun preview rendered");
+            window.confirm = originalConfirm;
+            const auditRerunExportPost = posts.filter((entry) => entry.path.includes("/api/audit/export-rerun-csv")).slice(-1)[0];
+            const rerunPreviewPost = posts.filter((entry) => entry.path.includes("/api/rerun/preview")).slice(-1)[0];
+            if (!Array.isArray(auditRerunExportPost.body?.row_keys) || auditRerunExportPost.body.row_keys.length !== 1) {
+              throw new Error("Audit rerun export did not submit the selected audit row key.");
+            }
+            if (rerunPreviewPost.body?.csv_path !== "C:/State/Rerun/ImportCsv/audit_rerun_export_smoke.csv") {
+              throw new Error("Queue CSV Rerun preview did not receive the audit-exported CSV path.");
+            }
+            if (rerunPreviewPost.body?.destination_mode !== "auto_replace_clean_else_pending_review") {
+              throw new Error("Queue CSV Rerun preview did not keep the backend-owned default return policy.");
+            }
+            if (!visiblePage("queue")) throw new Error("Audit rerun export did not navigate to Queue.");
+            if (!document.querySelector('[data-queue-tab-panel="rerun"]')?.classList.contains("is-active")) {
+              throw new Error("Audit rerun export did not activate the Queue CSV Rerun tab.");
+            }
+            if (byId("rerun-start-csv-path")?.value !== "C:/State/Rerun/ImportCsv/audit_rerun_export_smoke.csv") {
+              throw new Error("Queue CSV Rerun path input was not populated from audit export.");
+            }
+            requireText("rerun-queue-detail", ["Backend read-only CSV rerun preview"]);
+            requireText("report-audit-export-detail", [
+              "Queue CSV Rerun handoff",
+              "/api/rerun/preview",
+              "/api/rerun/start",
+              "normal /api/pipeline/start is not used",
+            ]);
+            window.showPage("reports");
             clickFirst('#audit-preview-rows tr[data-row-key]', "audit row");
             requireText("audit-preview-detail", [
               "Reports audit selected row",
@@ -2147,9 +2240,9 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Suggested action: Rerun pipeline for preferred-language SRT.",
               "Owner routing",
               "Evidence owner: Diagnostics",
-              "Action owner: Launch CSV Rerun",
+              "Action owner: Queue CSV Rerun",
             ]);
-            requireText("audit-preview-diagnostics-actions", ["Go to Launch"]);
+            requireText("audit-preview-diagnostics-actions", ["Go to Queue"]);
             clickFirst('[data-reports-tab="files"]', "Reports Locations tab");
             requireText("report-triage", [
               "Failure rows: 1",
@@ -2316,7 +2409,7 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
         browser_result = result["result"]
         posts = browser_result["posts"]
         gets = browser_result["gets"]
-        self.assertEqual(len(posts), 14)
+        self.assertEqual(len(posts), 16)
         failure_get_paths = [get["path"] for get in gets if get["path"].startswith("/api/failures")]
         self.assertIn("/api/failures?limit=100&source=markers", failure_get_paths)
         self.assertIn("/api/failures?limit=100", failure_get_paths)
@@ -2325,6 +2418,8 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
         audit_start_post = next(post for post in posts if post["path"] == "/api/audit/start")
         audit_stop_post = next(post for post in posts if post["path"] == "/api/audit/stop")
         score_policy_post = next(post for post in posts if post["path"] == "/api/audit/score-policy")
+        audit_rerun_export_post = next(post for post in posts if post["path"] == "/api/audit/export-rerun-csv")
+        rerun_preview_post = next(post for post in posts if post["path"] == "/api/rerun/preview")
         diagnostics_open_post = next(post for post in posts if post["path"] == "/api/diagnostics/open")
         lifecycle_posts = [post for post in posts if post["path"] == "/api/failures/lifecycle"]
         lifecycle_ack = next(post for post in lifecycle_posts if post["body"].get("transition") == "acknowledge")
@@ -2374,6 +2469,12 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
         self.assertFalse(audit_start_post["body"]["show_console"])
         self.assertTrue(audit_stop_post["body"]["confirm_stop"])
         self.assertEqual(audit_stop_post["body"]["reason"], "Reports Stop Audit button")
+        self.assertEqual(len(audit_rerun_export_post["body"]["row_keys"]), 1)
+        self.assertIn("audit_priority.csv", audit_rerun_export_post["body"]["row_keys"][0])
+        self.assertIn("subtitle_missing_srt", audit_rerun_export_post["body"]["row_keys"][0])
+        self.assertEqual(rerun_preview_post["body"]["csv_path"], "C:/State/Rerun/ImportCsv/audit_rerun_export_smoke.csv")
+        self.assertEqual(rerun_preview_post["body"]["destination_mode"], "auto_replace_clean_else_pending_review")
+        self.assertFalse(any(post["path"] == "/api/pipeline/start" for post in posts))
         self.assertEqual(diagnostics_open_post["body"]["target"], "latest_failure_report")
         self.assertEqual(len(lifecycle_posts), 3)
         self.assertEqual(lifecycle_ack["body"]["journal_key"], "source_locked|source-stability|manual-review|review-in-diagnostics")

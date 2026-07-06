@@ -3,9 +3,9 @@ file: ops/pipeline/config/MediaPipeline_config_template.psd1
 pipeline_stage: config
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-30
+last_modified: 2026-07-05
 last_reviewed: 2026-06-04
-sha256: 916c9c8bb2b5d99f5797b81c742951a8cb68eb0427b077ca7b7177a15ab34a46
+sha256: a8e264d1c1f3887c2ca758bfaa0d176da45a4e53a6193f5848e2d789c1217358
 ---
 # `ops/pipeline/config/MediaPipeline_config_template.psd1`
 

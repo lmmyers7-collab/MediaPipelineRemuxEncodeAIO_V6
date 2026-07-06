@@ -3,9 +3,9 @@ file: src/mediapipeline/core/publish/pending_drain_confidence.py
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
-last_modified: 2026-07-02
+last_modified: 2026-07-05
 last_reviewed: 2026-06-04
-sha256: c7bb7565533a76b25802265d2f761b819aff2dcd0ec029c597df17079f0c49b2
+sha256: d4fd29ec6081bddec7fcdc48f6d85384f1d8306460cca744c4bebb90c448055e
 ---
 # `src/mediapipeline/core/publish/pending_drain_confidence.py`
 

@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0703-005",
+  "title": "Right-sized safety protocol audit",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-07-03",
+  "date_completed": "2026-07-03",
+  "summary": "Added an audit-only review of application safety controls and right-sized friction candidates across backend, WebView/Tauri, PowerShell, config, docs, and tests.",
+  "reason": "The operator requested a repository safety-protocol audit before any implementation pass, focused on controls that may block normal workflows too aggressively.",
+  "affected_areas": [
+    "docs",
+    "release"
+  ],
+  "behavior_before": "Safety controls were distributed across source, WebView copy, docs, and tests without a single current audit classifying friction and cut eligibility.",
+  "behavior_after": "The review report inventories required controls, simplification candidates, cut candidates, and a staged follow-up implementation plan without changing runtime behavior.",
+  "files_touched": [
+    "docs/reviews/right-sized-safety-protocol-audit-2026-07-03.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0703-005.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage",
+      "result": "failed before coverage due unrelated untracked ops/release/changes/unreleased/MP-CHANGE-2026-0703-006.json status 'completed'; this packet was not the failing file."
+    },
+    {
+      "command": "Get-Content -LiteralPath 'ops\\release\\changes\\unreleased\\MP-CHANGE-2026-0703-005.json' -Raw | ConvertFrom-Json",
+      "result": "passed; audit change packet is valid JSON."
+    },
+    {
+      "command": "Test-Path -LiteralPath 'docs\\reviews\\right-sized-safety-protocol-audit-2026-07-03.md'",
+      "result": "passed; audit report exists and is readable."
+    },
+    {
+      "command": "ASCII scan for docs\\reviews\\right-sized-safety-protocol-audit-2026-07-03.md",
+      "result": "passed; no non-ASCII characters found."
+    }
+  ],
+  "rollback_plan": "Delete docs/reviews/right-sized-safety-protocol-audit-2026-07-03.md and this change packet if the audit report is not needed.",
+  "related_changes": [],
+  "notes": "Audit report for right-sized safety controls."
+}

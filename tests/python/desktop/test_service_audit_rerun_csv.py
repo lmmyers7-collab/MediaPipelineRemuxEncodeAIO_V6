@@ -140,6 +140,39 @@ class AuditRerunCsvHelperTests(unittest.TestCase):
         self.assertEqual(rows[0]["source_size"], "5")
         self.assertTrue(rows[0]["source_mtime_utc"].endswith("+00:00"))
 
+    def test_service_csv_writer_disables_duplicate_planned_output_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            correct = root / "Movies" / "Jurassic World Fallen Kingdom (2018)" / "Jurassic World Fallen Kingdom (2018).mkv"
+            typo = root / "Movies" / "Jurrasic World Fallen Kingdom (2018)" / "Jurassic World Fallen Kingdom (2018).mkv"
+            for path in (correct, typo):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"media")
+            output_csv = root / "rerun.csv"
+            records = [
+                _audit_record(Path=str(correct), MediaType="Movie", LookupTitle="Jurassic World Fallen Kingdom (2018)"),
+                _audit_record(Path=str(typo), MediaType="Movie", LookupTitle="Jurassic World Fallen Kingdom (2018)"),
+            ]
+            service = RerunCsvService()
+
+            count = service.save_rerun_records_csv(
+                output_csv,
+                records,
+                _resolved(root),
+                stage_mode="copy",
+                original_mode="keep",
+                return_mode="park",
+            )
+            with output_csv.open("r", encoding="utf-8", newline="") as handle:
+                rows = list(csv.DictReader(handle))
+
+        self.assertEqual(count, 2)
+        self.assertEqual(rows[0]["enabled"], "true")
+        self.assertEqual(rows[1]["enabled"], "false")
+        self.assertIn("disabled duplicate planned output path", rows[1]["notes"])
+        self.assertIn("kept_row_index=0", rows[1]["notes"])
+        self.assertIn("jurassic world fallen kingdom (2018)", rows[1]["notes"])
+
 
 if __name__ == "__main__":
     unittest.main()

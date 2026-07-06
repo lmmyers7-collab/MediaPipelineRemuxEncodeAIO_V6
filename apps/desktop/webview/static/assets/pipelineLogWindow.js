@@ -1,6 +1,7 @@
 (function () {
   const REFRESH_INTERVAL_MS = 2000;
   const DIAGNOSTICS_TIMEOUT_MS = 10000;
+  const RAW_PIPELINE_LOG_TAIL_ENDPOINT = "/api/diagnostics/tail?target=pipeline_log&max_bytes=262144";
   let refreshTimer = null;
   let refreshInFlight = false;
   let lastSuccessfulRefresh = 0;
@@ -8,6 +9,10 @@
 
   function byId(id) {
     return document.getElementById(id);
+  }
+
+  function displayMode() {
+    return byId("pipeline-log-window-mode")?.value === "raw" ? "raw" : "activity";
   }
 
   function setStatus(label, state) {
@@ -103,6 +108,12 @@
     return String(value || "").trim().toLowerCase();
   }
 
+  function boundedLogLine(value, maxChars = 420) {
+    const text = String(value || "").replace(/\s+/g, " ").trim();
+    if (!text) return "";
+    return text.length <= maxChars ? text : `${text.slice(0, maxChars - 3)}...`;
+  }
+
   function activeJobRowLooksRelevant(row) {
     if (!isPlainObject(row)) return false;
     const state = activeEvidenceState(row.status_state);
@@ -157,6 +168,24 @@
       .slice(0, 6);
   }
 
+  function activeProcessLogLines(diagnostics) {
+    const payload = isPlainObject(diagnostics?.worker_progress) ? diagnostics.worker_progress : {};
+    const rows = Array.isArray(payload.rows) ? payload.rows : [];
+    return Array.from(new Set(rows
+      .filter((row) => ["running", "blocked", "warning"].includes(activeEvidenceState(row?.status_state)))
+      .map((row) => {
+        const latest = boundedLogLine(row?.last_log_line);
+        if (!latest) return "";
+        const kind = String(row.job_kind || "").trim().toLowerCase();
+        const label = kind === "rerun_csv"
+          ? "CSV rerun process"
+          : String(row.worker_label || row.worker_id || row.job_kind || "Active process").trim();
+        const stage = String(row.stage || row.status || "").trim();
+        return `${label}${stage ? ` (${stage})` : ""}: ${latest}`;
+      })
+      .filter(Boolean))).slice(0, 6);
+  }
+
   function activeWorkEvidenceLines(diagnostics) {
     return Array.from(new Set([
       ...activeJobsSummaryLines(diagnostics),
@@ -198,6 +227,11 @@
     } else {
       lines.push("Active evidence: close-readiness reports active work, but no structured ActiveJobs rows are present in this diagnostics payload.");
     }
+    const processLines = activeProcessLogLines(diagnostics);
+    if (processLines.length) {
+      lines.push("Active process log:");
+      processLines.forEach((line) => lines.push(`- ${line}`));
+    }
     lines.push("Log note: the pipeline tail below may be from a previous run until the active process writes or flushes new log lines.");
     return lines;
   }
@@ -208,9 +242,9 @@
     const activeLines = activeWorkLogLines(diagnostics, closeReadiness);
     if (!activeLines.length) return logText || "No pipeline log tail loaded.";
     const tailLines = logText
-      ? ["", "--- pipeline log tail ---", logText]
-      : ["", "No pipeline log tail loaded yet."];
-    return [...activeLines, ...tailLines].join("\n");
+      ? ["--- pipeline log tail ---", logText]
+      : ["No pipeline log tail loaded yet."];
+    return [...tailLines, "", "--- current activity ---", ...activeLines].join("\n");
   }
 
   async function readCloseReadiness(apiClient) {
@@ -221,6 +255,12 @@
     } catch (_error) {
       return lastCloseReadinessPayload;
     }
+  }
+
+  async function readRawPipelineLogTail(apiClient) {
+    return apiClient.apiGet(RAW_PIPELINE_LOG_TAIL_ENDPOINT, {
+      timeoutMs: DIAGNOSTICS_TIMEOUT_MS,
+    });
   }
 
   function renderPipelineLogWindow(diagnostics, closeReadiness) {
@@ -247,6 +287,33 @@
     setDetail("Source: GET /api/diagnostics log_tail + GET /api/backend/close-readiness. This window is read-only and refreshes every 2 seconds.");
   }
 
+  function renderRawPipelineLogWindow(tailPayload) {
+    const textNode = byId("pipeline-log-window-text");
+    const follow = byId("pipeline-log-window-follow");
+    if (!textNode) return;
+
+    const ok = tailPayload?.ok === true;
+    const rawLogText = String(tailPayload?.text ?? "");
+    const fallbackLines = [
+      ...(Array.isArray(tailPayload?.warnings) ? tailPayload.warnings : []),
+      ...(Array.isArray(tailPayload?.errors) ? tailPayload.errors : []),
+    ].map((item) => String(item || "").trim()).filter(Boolean);
+    const nextLogText = ok ? rawLogText : fallbackLines.join("\n") || "Raw pipeline log tail is not available.";
+    const shouldFollow = Boolean(follow?.checked) || isNearBottom(textNode);
+    const previousScrollTop = textNode.scrollTop;
+    if (textNode.textContent !== nextLogText) textNode.textContent = nextLogText;
+    if (shouldFollow) {
+      window.requestAnimationFrame(() => scrollToBottom(textNode));
+    } else {
+      textNode.scrollTop = previousScrollTop;
+    }
+
+    lastSuccessfulRefresh = Date.now();
+    setUpdated(`Last refresh: ${localTimestamp(new Date(lastSuccessfulRefresh))}`);
+    setStatus(ok ? (rawLogText ? "Raw tail" : "Empty") : "Raw unavailable", ok ? (rawLogText ? "ok" : "empty") : "error");
+    setDetail("Source: GET /api/diagnostics/tail?target=pipeline_log. This window is read-only and refreshes every 2 seconds.");
+  }
+
   function renderRefreshError(error) {
     const message = error && error.message ? error.message : String(error || "Unknown diagnostics error");
     const stale = lastSuccessfulRefresh > 0;
@@ -265,6 +332,10 @@
       const apiClient = window.mediaPipelineApi || {};
       if (typeof apiClient.apiGet !== "function") {
         throw new Error("API client is not available.");
+      }
+      if (displayMode() === "raw") {
+        renderRawPipelineLogWindow(await readRawPipelineLogTail(apiClient));
+        return;
       }
       const [diagnostics, closeReadiness] = await Promise.all([
         apiClient.apiGet("/api/diagnostics", {
@@ -289,6 +360,8 @@
   function initPipelineLogWindow() {
     const refreshButton = byId("pipeline-log-window-refresh-button");
     if (refreshButton) refreshButton.addEventListener("click", refreshPipelineLogWindow);
+    const modeSelect = byId("pipeline-log-window-mode");
+    if (modeSelect) modeSelect.addEventListener("change", refreshPipelineLogWindow);
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") refreshPipelineLogWindow();
     });

@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0705-017",
+  "title": "Simplify pending drain progress text",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-07-05",
+  "date_completed": "2026-07-05",
+  "summary": "Simplified the Pending Publish Drain Progress panel text without changing backend drain policy or movement behavior.",
+  "reason": "The panel repeated source files, timestamps, confidence, and long safety chip labels in a cramped area. The operator-visible drain progress now keeps the key state visible with shorter labels and compact count/ETA wording.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Drain Progress showed long decision chips and full backend progress metadata, including labels such as \"Publishing completed output\", source files, updated timestamps, confidence, and raw command context.",
+  "behavior_after": "Drain Progress shows compact decision chips and concise progress rows such as Publish, Copy output, Drain queue, x of y counts, ETA, and remaining size. Raw evidence remains available in the existing detail sections.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/pendingPublishView.js",
+    "apps/desktop/webview/static/assets/progressView.js",
+    "apps/desktop/webview/static/partials/page-pending.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/pendingPublishView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/progressView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-pending.html.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_pending_drain_guard_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0705-017.json",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/webview/test_webview_browser_pending_drain_guard_smoke.py"
+  ],
+  "tests_added": [
+    "Extended tests/python/desktop/test_application_facade_web_static.py compact progress renderer coverage.",
+    "Updated tests/webview/test_webview_browser_pending_drain_guard_smoke.py chip-label expectations."
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static_pending_publish -q (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_progress_bar_updated_at_uses_date_then_time -q (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_pending_drain_guard_smoke -q (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/progressView.js apps/desktop/webview/static/assets/pendingPublishView.js apps/desktop/webview/static/partials/page-pending.html tests/python/desktop/test_application_facade_web_static.py tests/webview/test_webview_browser_pending_drain_guard_smoke.py (5 summaries written)",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\scripts\\release\\test.ps1 -SkipToolIntegration -SkipEndToEndSmoke (timed out after 184 seconds; no release-test process remained after follow-up check)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage (failed: unrelated MP-CHANGE-2026-0705-016.json invalid JSON and uncovered ops/pipeline/engine/config/getters.ps1)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes (failed: unrelated MP-CHANGE-2026-0705-016.json invalid JSON)"
+  ],
+  "rollback_plan": "Revert the compact render option in progressView.js, remove the pendingPublishView.js compact-mode call, restore the previous page-pending.html chip labels, and revert matching test and summary updates.",
+  "related_changes": [],
+  "notes": "Add Pending Drain compact progress rendering option.\nShorten static drain-progress decision chip labels.\nUse compact drain progress rendering and shorter decision chips.\nCover compact pending drain progress text.\nExpect shorter drain decision chip labels.\nRefresh summary for progress renderer compact drain text.\nRefresh summary for pending publish compact drain wiring.\nRefresh summary for pending page chip text.\nRefresh summary for compact progress static coverage.\nRefresh summary for pending drain smoke chip expectations."
+}

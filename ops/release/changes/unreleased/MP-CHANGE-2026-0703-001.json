@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0703-001",
+  "title": "Fix stale pending drain block",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-03",
+  "date_completed": "2026-07-03",
+  "summary": "Prevent CSV rerun nested pipeline runs from writing stale failed pending-publish drain evidence into operator state, and treat failed drain summaries for a different current parked-row count as review evidence instead of hard blockers.",
+  "reason": "A CSV rerun reused the operator LocalBase while rewriting Outsource to a rerun output root. The nested pipeline saw the real PendingServerPush queue, rejected existing parked manifests as outside the temporary output root, and wrote a failed pending_drain_summary.json that disabled draining even after current rows were ready-looking.",
+  "affected_areas": [
+    "backend",
+    "pipeline",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Nested CSV reruns shared operator pending-publish state and could leave failed drain summaries that blocked the WebView drain guard for later current rows.",
+  "behavior_after": "Nested CSV reruns use isolated runtime state, and stale failed drain summaries whose manifest count differs from current pending rows require review without hard-blocking otherwise ready current rows.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/pendingPublishView.confidence.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/pendingPublishView.confidence.js.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/Invoke-RerunCsv.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-RerunNestedConfigChecks.ps1.md",
+    "docs/generated/summaries/src/mediapipeline/core/publish/pending_drain_confidence.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_pending_publish.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_pending_drain_guard_smoke.py.md",
+    "ops/pipeline/entrypoints/Invoke-RerunCsv.ps1",
+    "ops/pipeline/tests/Unit/Invoke-RerunNestedConfigChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0703-001.json",
+    "src/mediapipeline/core/publish/pending_drain_confidence.py",
+    "tests/python/desktop/test_application_facade_pending_publish.py",
+    "tests/webview/test_webview_browser_pending_drain_guard_smoke.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_pending_publish.py::ApplicationFacadePendingPublishTests::test_pending_drain_confidence_downgrades_stale_failed_summary_to_review",
+    "tests/webview/test_webview_browser_pending_drain_guard_smoke.py stale failed durable summary guard scenario",
+    "ops/pipeline/tests/Unit/Invoke-RerunNestedConfigChecks.ps1 operator pending state isolation assertions"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_pending_publish.ApplicationFacadePendingPublishTests.test_pending_drain_confidence_downgrades_stale_failed_summary_to_review -q: PASS",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-RerunNestedConfigChecks.ps1: PASS",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_pending_drain_guard_smoke -q: PASS",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static_pending_publish -q: PASS",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_pending_publish -q: PASS",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths <touched source/test files>: PASS, 6 written; one backend summary refreshed again after cleanup",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check --paths <touched source/test files>: PASS, 6 current summaries",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage: FAIL, blocked by unrelated ops/release/changes/unreleased/MP-CHANGE-2026-0703-002.json high-risk packet missing notes/rollback detail"
+  ],
+  "rollback_plan": "Revert this change packet and the touched source/test files. Existing parked media remains backend-owned; no media movement behavior was changed.",
+  "related_changes": [],
+  "notes": "Real-media validation is not required for this bugfix because backend drain movement rules were not loosened or bypassed; the change prevents unrelated nested rerun state pollution and scopes stale summary evidence."
+}

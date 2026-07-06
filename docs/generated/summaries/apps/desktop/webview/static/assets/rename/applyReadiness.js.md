@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/rename/applyReadiness.js
 pipeline_stage: rename
 token_priority: high
 owner_domain: webview
-last_modified: 2026-06-18
+last_modified: 2026-07-03
 last_reviewed: 2026-06-04
-sha256: c6827826518bc33f068d0a52cb3ccafd4fadd692da639199d85f59d5b76ea48d
+sha256: 43465eb0f9a717bffab15e9288ac15510e57024f92e6a9e37bc699d4ad917ac6
 ---
 # `apps/desktop/webview/static/assets/rename/applyReadiness.js`
 

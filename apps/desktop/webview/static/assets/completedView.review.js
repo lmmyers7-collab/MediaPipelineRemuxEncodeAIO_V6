@@ -34,6 +34,7 @@
       tableStatusFilterLabel,
       updateTableStatusLegend,
     } = deps;
+    const COMPLETED_READ_ONLY_BOUNDARY = "Mutation guardrail: read-only evidence; backend routes own output and manifest changes.";
 
     const completedReviewNoop = function () {};
     let completedReviewRowReasons = completedReviewNoop;
@@ -145,7 +146,7 @@
         lines.push("Next step: completed history is coherent. Use Queue to inspect new work or Pending Publish to verify deferred output state.");
       }
       lines.push("Owning pages: Completed for output proof, Pending Publish before rerun of deferred outputs, Queue before processing new files, Diagnostics for artifacts/logs.");
-      lines.push("Mutation guardrail: this workflow panel is read-only. Repair, rerun, cleanup, and reconcile actions remain backend-owned.");
+      lines.push(COMPLETED_READ_ONLY_BOUNDARY);
       return lines;
     }
 
@@ -527,7 +528,7 @@
       } else {
         lines.push("First action: keep this as read-only supporting evidence; no size or media policy is changed here.");
       }
-      lines.push("Mutation guardrail: size-growth investigation remains read-only in WebView.");
+      lines.push(COMPLETED_READ_ONLY_BOUNDARY);
       return lines;
     }
 
@@ -536,7 +537,7 @@
         return [
           "Size growth evidence handoff:",
           "Select a checkpoint row to see proof-order detail.",
-          "Mutation guardrail: this detail panel is read-only.",
+          COMPLETED_READ_ONLY_BOUNDARY,
         ];
       }
       const completedRow = item.completedRow || null;
@@ -718,7 +719,7 @@
       } else {
         lines.push("", "Select a completed row to inspect the matching runtime status, error code, reason, publish state, and output path.");
       }
-      lines.push("Mutation guardrail: runtime history is read-only context; repair, reconcile, rerun, and cleanup remain backend-owned.");
+      lines.push(COMPLETED_READ_ONLY_BOUNDARY);
       return lines;
     }
 
@@ -764,7 +765,7 @@
       } else {
         lines.push("Next step: loaded completed rows have matching output/sidecar consistency checks.");
       }
-      lines.push("Mutation guardrail: this panel is read-only. Repair, reconcile, and backfill remain backend-owned actions.");
+      lines.push(COMPLETED_READ_ONLY_BOUNDARY);
       return lines;
     }
 
@@ -825,7 +826,7 @@
           "Validation state: completed history is unavailable.",
           `Error: ${payload.error}`,
           "Operator action: open Diagnostics > Completed Manifest, Run Logs, and Last Stderr before trusting completed-state decisions.",
-          "Mutation guardrail: this checklist is read-only and does not repair, reconcile, rerun, or delete outputs.",
+          COMPLETED_READ_ONLY_BOUNDARY,
         ];
       }
       const lines = [
@@ -923,7 +924,7 @@
         ? window.mediaPipelineDom.reviewFlagExplanationLines(reviewMarkers, {
           title: "Review flag explanations:",
           emptyMessage: "No Completed review flags or consistency issues were reported for this row.",
-          guardrail: "Mutation guardrail: review-flag explanations translate Completed history markers only; they cannot accept outputs, repair manifests, rerun jobs, reconcile sidecars, publish, or delete files.",
+          guardrail: COMPLETED_READ_ONLY_BOUNDARY,
         })
         : [];
       lines.push(...reviewFlagExplanations);
@@ -949,7 +950,7 @@
       } else {
         lines.push("Operator action: row looks internally consistent; repair, reconcile, rerun, and cleanup remain backend-owned.");
       }
-      lines.push("Mutation guardrail: selected-row detail is read-only and cannot repair manifests, rerun jobs, reconcile outputs, or delete files.");
+      lines.push(COMPLETED_READ_ONLY_BOUNDARY);
       return lines;
     }
 
@@ -1493,9 +1494,7 @@
       const authority = completedSelectedNode(
         "p",
         "completed-selected-authority",
-        item
-          ? "Authority: this summary is read-only. It cannot accept outputs, repair manifests, rerun jobs, reconcile sidecars, publish, or delete files."
-          : "Authority: this summary is read-only. Completed history is proof to inspect, not acceptance or cleanup authority.",
+        COMPLETED_READ_ONLY_BOUNDARY,
       );
 
       return [strip, diagnosis, evidenceGrid, completedSelectedSignalDetailPanel(activeSignal, item), why, gapBlock, checks, completedSelectedPaths(item), authority].filter(Boolean);
@@ -1503,19 +1502,19 @@
 
     function completedSelectedAtAGlanceLines(item) {
       const sharedSummary = window.mediaPipelineDom?.selectedRowAtAGlanceLines;
-      const authority = "Authority: this summary is read-only. It cannot accept outputs, repair manifests, rerun jobs, reconcile sidecars, publish, or delete files.";
+      const authority = COMPLETED_READ_ONLY_BOUNDARY;
       if (!item) {
         return typeof sharedSummary === "function"
           ? sharedSummary({
             title: "Selected Completed row",
             item: null,
             emptyNextStep: "Next step: select a completed row to review output, sidecar, route, size, pending-publish, and diagnostics evidence.",
-            authority: "Authority: this summary is read-only. Completed history is proof to inspect, not acceptance or cleanup authority.",
+            authority: COMPLETED_READ_ONLY_BOUNDARY,
           })
           : [
             "Selected Completed row: none",
             "Next step: select a completed row to review output, sidecar, route, size, pending-publish, and diagnostics evidence.",
-            "Authority: this summary is read-only. Completed history is proof to inspect, not acceptance or cleanup authority.",
+            COMPLETED_READ_ONLY_BOUNDARY,
           ];
       }
       const concern = completedSelectedConcern(item);
@@ -1678,7 +1677,7 @@
         lines.push("Size boundary: output growth above +5% needs route/log explanation before accepting the result.");
       }
       lines.push("Next evidence stop: check Pending Publish if output is parked or missing; read Diagnostics Last Stderr/Run Logs if route, subtitle, audio, or size evidence is surprising.");
-      lines.push("Mutation guardrail: this trace is read-only and cannot accept, delete, rerun, reconcile, drain, rewrite manifests, or mutate files.");
+      lines.push(COMPLETED_READ_ONLY_BOUNDARY);
       return lines;
     }
 
@@ -1768,7 +1767,7 @@
       }
       lines.push(
         "Post-run capture: Preview Record now includes a copyable route/output/log/publish/subtitle/audio/size checklist for this sample.",
-        "Mutation guardrail: this comparison is read-only and cannot append Sample Validation records, accept output, rerun, drain, publish, rewrite manifests/sidecars, save settings, rename, or touch media."
+        COMPLETED_READ_ONLY_BOUNDARY
       );
       return lines;
     }

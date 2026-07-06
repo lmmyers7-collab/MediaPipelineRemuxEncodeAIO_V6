@@ -69,10 +69,14 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 | `source_identity_v2` | `str` | — | Content hash of source file (required, non-empty) |
 | `source_identity_v2_algorithm` | `str` | — | Hash algorithm name (required, non-empty) |
 | `source_path` | `str` | — | Original source file path (required, non-empty) |
+| `confirm_source_overwrite` | `bool` | `False` | Explicit confirmation that pending drain may replace `source_path` when `server_out` resolves to the same path |
 | `source_size` | `int` | `0` | Source file size in bytes |
 | `source_mtime_utc` | `str` | `""` | Source file modified time at parking |
 | `output_size` | `int` | — | Output file size in bytes (required, non-negative) |
 | `publish_mode` | `str` | `""` | Publishing mode |
+| `rerun_auto_destination_policy` | `str` | `""` | CSV rerun policy that parked the output, currently `auto_replace_clean_else_pending_review` when remaining issue evidence requires Pending Publish review |
+| `rerun_auto_destination_decision` | `str` | `""` | Backend/PowerShell auto-return decision such as `pending_publish_review` |
+| `rerun_auto_review_issues` | `list[dict]` | `[]` | Backend/PowerShell issue evidence that blocked clean replacement and routed the rerun output to Pending Publish/review |
 | `sidecar_files` | `list` | — | Associated sidecar file list (required; empty list allowed) |
 | `tx3g_srt_tracks` | `list` | — | TX3G SRT sidecar evidence carried into drain (required; empty list allowed) |
 | `tx3g_srt_failures` | `list` | — | TX3G SRT publish/conversion failures (required; empty list allowed) |
@@ -108,9 +112,125 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 
 - The Pending Publish Manifest is evidence for parked outputs, not standalone mutation authority. The WebView Pending Publish page reads this via `GET /api/pending-publish`.
 - Current manifests must use `schema_version = "pending_push_manifest.v1"` and carry non-empty `pipeline_version`, `publish_transaction_id`, `manifest_state`, `local_file`, `server_out`, `route`, `source_identity_v2`, `source_identity_v2_algorithm`, and `source_path`, plus non-negative `output_size` and the required sidecar/subtitle arrays. Legacy manifests remain scan-visible for operator review but are not auto-drainable or auto-repairable.
-- Auto-drain requires a trusted manifest file under `State\PendingServerPush`, a present `local_file` and sidecar payloads under the pending root, and a `server_out` under the configured output root, not under source, local state, or pending roots.
+- Auto-drain requires a trusted manifest file under `State\PendingServerPush`, a present `local_file` and sidecar payloads under the pending root, and a `server_out` under the configured output root, not under local state or pending roots. Source-root destinations are trusted only when `confirm_source_overwrite` is boolean `true` and `server_out` resolves to the same path as `source_path`; sidecars are limited to files beside that confirmed target.
 - `do_not_drain` guidance in the Pending Publish table derives from `manifest_state` combined with backend safety analysis, not from a dedicated field.
 - The drain operation (`POST /api/pipeline/start` with `mode: drain_pending_pushes`) consumes only trusted `parked`, `parked_recovered`, `missing_payload`, or retry-state manifests with a present parked payload. `pending_move` is repair-only after strict crash-recovery proof; `complete`, `published`, blank, unknown, legacy, malformed, or outside-root manifests are blocked.
+
+---
+
+## CsvRerunManifest
+
+**Contract file**: helper-owned PowerShell/Python evidence; no formal generated JSON schema is currently emitted.
+**Artifact**: `RerunManifests\*.json` under `LocalBase`, plus temporary batch config files beside the manifest when a non-PlanOnly rerun starts.
+**Schema version**: no `schema_version` field is currently written; treat the manifest as runtime evidence, not standalone mutation authority.
+
+### Common Fields
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `batch_id` | `str` | — | Unique rerun batch identifier |
+| `created_at` | `str` | — | ISO 8601 batch creation timestamp |
+| `csv_path` | `str` | — | CSV input path used for this batch |
+| `config_path` | `str` | — | Config or generated temp config path |
+| `dry_run` / `plan_only` | `bool` | `False` | Rerun execution mode evidence |
+| `pipeline_local_base` | `str` | — | LocalBase used for rerun state |
+| `rerun_workspace_root` | `str` | — | Sibling rerun workspace root |
+| `stage_root` / `park_root` / `output_root` | `str` | — | Batch-scoped staging and parked-output roots |
+| `status` | `str` | `"planned"` | Batch status such as `planned`, `dry_run_complete`, or completed/failed runtime states |
+| `stopped_at` | `str` | — | UTC timestamp when a cooperative stop completed after the current row/window |
+| `stop_request_id` / `stop_requested_at` | `str` | — | Backend stop marker request evidence copied by the PowerShell rerun wrapper |
+| `stop_request_marker_path` | `str` | — | Backend-owned marker path observed by the wrapper |
+| `current_chunk` | `int` | — | Last processed chunk/window index when status was recorded |
+| `remaining_pending_count` | `int` | — | Count of rows still marked `pending` when the manifest was last written |
+| `safe_next_action` | `str` | — | Operator-facing continuation guidance for cooperative stops |
+| `rows` | `list[dict]` | `[]` | Per-row plan/result evidence |
+
+### Row Fields
+
+Rows commonly include `source_path`, `media_kind`, `stage_mode`, `original_mode`, `return_mode`, `stage_path`, `planned_output_path`, `final_output_path`, `status`, `reason`, `source_size`, `source_mtime_utc`, `source_identity_v2`, `audit_issue_codes`, and a nested `queue_item` record when planning succeeded. Runtime/result rows may also include `verified_output_path`, `review_output_path`, `pending_publish_manifest_path`, `pending_publish_payload_path`, `published_path`, `replaced_final_hold_path`, and `updated_at`. Scoped CSVs written by the backend may also carry `rerun_rule_id`, `rerun_rule_label`, `rerun_rule_status`, `rerun_rule_reason`, `rerun_rule_destination_behavior`, `rerun_rule_replacement_eligible`, `rerun_rule_required_confirmations`, and `rerun_rule_runtime_options`; older CSVs/manifests without these fields are classified by the backend read model for Queue display. Auto-return rows may also include `auto_destination_policy`, `auto_destination_decision`, `auto_destination_issue_count`, and `auto_destination_issues`; these are written by `Invoke-RerunCsv.ps1` only and the WebView renders them as read-only evidence.
+
+### Queue Read Model
+
+`GET /api/rerun/results` projects raw CSV rerun manifests into a backend-owned Queue read model:
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `queue_state.schema_version` | `str` | — | `desktop_rerun_queue_state.v1` |
+| `queue_state.row_schema_version` | `str` | — | `desktop_rerun_queue_state_row.v1` |
+| `queue_state.uses_pipeline_start` | `bool` | `False` | Explicit boundary marker: CSV rerun rows are not normal `/api/pipeline/start` rows |
+| `queue_state.rows[]` | `list[dict]` | `[]` | Backend-enriched rows rendered by the Queue CSV Rerun tab |
+| `rows[].queue_status` / `queue_status_label` | `str` | — | Normalized operator status, such as `pending`, `active`, `blocked`, `warning`, `failed`, `stopped`, `completed`, `awaiting_review`, `pending_publish`, `replaced_returned`, or `skipped` |
+| `rows[].rule_decision` | `dict` | `{}` | Backend-owned CSV rerun rule decision with `desktop_rerun_rule_decision.v1`; includes rule id, label, status, reason, destination behavior, replacement eligibility, required confirmations, runtime options, and evidence |
+| `rows[].rerun_rule_id` / `rerun_rule_label` / `rerun_rule_reason` | `str` | — | Flattened display fields for Queue; examples include `legacy_pipeline_standardize`, `subtitle_remediation`, `audio_language_remediation`, `container_codec_remediation`, `bad_download_full_rerun`, `manual_review_required`, and `blocked_missing_rule_input` |
+| `rows[].destination_state` | `dict` | `{}` | Backend evidence for destination mode, collision policy, pending/published/replaced paths, and auto-return decisions |
+| `rows[].attempt_evidence` | `dict` | `{}` | Manifest, batch, source identity, row index, reason, and timestamp evidence for the rerun attempt |
+| `rows[].available_actions` | `list[dict]` | `[]` | Backend-declared row actions such as open artifact/folder/manifest or promote review output to Pending Publish |
+
+### Notes
+
+- Queue/Home use the newest active CSV rerun manifest only as read-only operator evidence when no normal queue snapshot is available and an active `rerun_csv` job is present. The Queue CSV Rerun tab also reads `GET /api/rerun/results` directly so CSV rerun rows remain visible even when normal queue rows are empty.
+- Row `status` and `reason` drive operator-visible state; failed, blocked, held, completed, pending, staged, and review-workspace rows should not all render as ready. Current manifests include per-row `row_index` for the original CSV row position so continuation can exclude failed duplicate-source rows.
+- Queue-facing CSV rerun row statuses and rule decisions are normalized by the backend read model. The WebView filters and renders these labels but does not infer whether an output is clean enough to replace, should be pending-publish review, can be promoted, or is eligible for replacement.
+- `stopped_after_current` is a terminal clean-stop status for CSV rerun v1 continuation. `/api/rerun/continue` may materialize a new pending-only scoped CSV only from this status; failed/review/completed rows are not retried automatically.
+- CSV rerun start readiness is not delegated to stale manifests. `/api/rerun/preview`, `/api/launch/preflight?target=rerun`, `/api/rerun/start`, and `Invoke-RerunCsv.ps1` validate CSV rows against absolute paths, source existence, valid media extensions, and safe lifecycle modes before execution.
+
+---
+
+## NetworkCsvRerunBatch
+
+**Contract file**: backend-owned JSON evidence written by `POST /api/rerun/network/start`.
+**Artifact**: `State\Rerun\Network\network-rerun-*.json` under `LocalBase`.
+**Schema version**: `desktop_rerun_network_batch.v1`.
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `schema_version` | `str` | — | `desktop_rerun_network_batch.v1` |
+| `batch_id` | `str` | — | Backend-generated deterministic network CSV rerun batch id |
+| `status` | `str` | `claim_disabled` | Phase 3 active state blocks close-readiness while worker row claims remain disabled |
+| `phase` | `str` | — | Implementation phase evidence, currently `phase_3_batch_state_without_worker_execution` |
+| `created_at_utc` / `updated_at_utc` | `str` | — | UTC state timestamps |
+| `command_id` | `str` | — | Backend command id recorded with command journal evidence |
+| `csv_path` | `str` | — | CSV input modeled by the matching dry-run |
+| `dry_run_fingerprint` | `str` | — | Backend dry-run proof required by the confirmed start route |
+| `claim_provider_enabled` | `bool` | `False` | Must remain false until Phase 4 claim provider support |
+| `worker_execution_enabled` | `bool` | `False` | Confirms no worker execution is enabled by Phase 3 |
+| `rows_claimable` | `bool` | `False` | Confirms rows are not-yet-claimable |
+| `rows[]` | `list[dict]` | `[]` | Coordinator-owned row records derived from preview rows |
+| `rows[].schema_version` | `str` | — | `desktop_rerun_network_batch_row.v1` |
+| `rows[].row_key` / `row_index` | `str` / mixed | — | Stable row identity from the network preview |
+| `rows[].status` | `str` | — | `pending_claim_disabled`, `blocked`, or `skipped` |
+| `rows[].claimable` | `bool` | `False` | Always false in Phase 3 |
+| `rows[].claim_status` | `str` | `claim_disabled_until_phase_4` | Worker claim loops must not treat these rows as available |
+| `rows[].source_mapping` / `output_handoff` / `destination_policy` | `dict` | `{}` | Read-only planning evidence from preview |
+
+Notes:
+
+- Phase 3 writes this file and strict command journal evidence only. It does not stage sources, start workers, create claims, mutate normal queue state, mutate Pending Publish, mutate Completed manifests, publish, replace final output, or touch media files.
+- Active `desktop_rerun_network_batch.v1` files with status `claim_disabled`, `active`, `running`, `stopping`, `stopped_after_current`, or `paused` make backend close-readiness unsafe until a later safe stop/drain state exists.
+- Existing normal network queue claim/done/release protocol remains unchanged by this artifact until Phase 4 adds additive claim-provider support.
+
+---
+
+## CsvRerunStopControlMarker
+
+**Contract file**: helper-owned JSON evidence; no formal generated JSON schema is currently emitted.
+**Artifact**: `State\Rerun\Control\stop_after_current.json` under `LocalBase`.
+**Schema version**: `desktop_rerun_control.v1`.
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `schema_version` | `str` | — | `desktop_rerun_control.v1` |
+| `action` | `str` | — | `stop_after_current` |
+| `request_id` | `str` | — | Backend-generated request identifier |
+| `created_at` | `str` | — | UTC request timestamp |
+| `batch_id` | `str` | — | Active rerun batch selected by backend active-job evidence |
+| `manifest_path` | `str` | — | Latest active manifest path selected by backend evidence |
+| `csv_path` | `str` | — | CSV path selected by backend evidence |
+
+### Notes
+
+- The marker is backend-owned and not part of the rerun manifest authority. PowerShell remains the only writer of rerun manifest row/status evidence.
+- `Invoke-RerunCsv.ps1` ignores stale markers from older batches, different manifest/CSV paths, or marker timestamps predating the current rerun start window.
 
 ---
 
@@ -126,7 +246,7 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 |---|---|---|---|
 | `schema_version` | `str` | — | `"desktop_active_job.v1"` (required) |
 | `launch_id` | `str` | — | Unique launch identifier (required) |
-| `job_kind` | `str` | `"job"` | Job type: `"job"`, `"audit"`, `"rerun"`, `"drain"` |
+| `job_kind` | `str` | `"job"` | Job type: `"job"`, `"audit"`, `"rerun"`, `"rerun_csv"`, `"drain"` |
 | `status` | `str` | — | Current status (required; see valid statuses below) |
 | `mode` | `str` | `""` | Execution mode (e.g., `"once"`, `"continuous"`) |
 | `pid` | `int \| None` | `None` | OS process ID; `None` if not yet launched |

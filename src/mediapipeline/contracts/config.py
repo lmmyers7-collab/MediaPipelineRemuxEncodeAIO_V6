@@ -238,6 +238,8 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "ConsecutiveRoundFailureProbeBackoffSeconds",
     "PendingPublishBacklogBlockThreshold",
     "PendingPublishDeferredBlockThreshold",
+    "AutonomyPendingTotalReviewBytes",
+    "AutonomyPendingTotalBlockBytes",
     "PauseFlagReviewSeconds",
     "PauseFlagBlockSeconds",
     "LocalWorkerHeartbeatGraceSeconds",
@@ -428,6 +430,8 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "ConsecutiveRoundFailureProbeBackoffSeconds",
     "PendingPublishBacklogBlockThreshold",
     "PendingPublishDeferredBlockThreshold",
+    "AutonomyPendingTotalReviewBytes",
+    "AutonomyPendingTotalBlockBytes",
     "PauseFlagReviewSeconds",
     "PauseFlagBlockSeconds",
     "LocalWorkerHeartbeatGraceSeconds",
@@ -553,6 +557,8 @@ NUMERIC_CONFIG_KEYS: tuple[str, ...] = (
     "ConsecutiveRoundFailureProbeBackoffSeconds",
     "PendingPublishBacklogBlockThreshold",
     "PendingPublishDeferredBlockThreshold",
+    "AutonomyPendingTotalReviewBytes",
+    "AutonomyPendingTotalBlockBytes",
     "PauseFlagReviewSeconds",
     "PauseFlagBlockSeconds",
     "LocalWorkerHeartbeatGraceSeconds",
@@ -1080,6 +1086,8 @@ class Config(BaseModel):
     ConsecutiveRoundFailureProbeBackoffSeconds: int = Field(default=900, ge=30, le=86400)
     PendingPublishBacklogBlockThreshold: int = Field(default=100, ge=1, le=1000000)
     PendingPublishDeferredBlockThreshold: int = Field(default=25, ge=1, le=1000000)
+    AutonomyPendingTotalReviewBytes: int = Field(default=100 * 1024**3, ge=1024**2, le=10 * 1024**4)
+    AutonomyPendingTotalBlockBytes: int = Field(default=250 * 1024**3, ge=1024**2, le=10 * 1024**4)
     PauseFlagReviewSeconds: int = Field(default=1800, ge=60, le=86400)
     PauseFlagBlockSeconds: int = Field(default=21600, ge=300, le=604800)
     LocalWorkerHeartbeatGraceSeconds: int = Field(default=900, ge=60, le=86400)

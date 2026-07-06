@@ -3,9 +3,9 @@ file: tests/python/desktop/test_network_protocol_runtime.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-17
+last_modified: 2026-07-05
 last_reviewed: 2026-06-04
-sha256: 3d758d96b1d9ce46087993f61eff9933cce9398fbba43180368b00648b2ef961
+sha256: 5b550ac8a0efa586fdb5e5831e8c10ab6c3224883f78098ee57bde8c8af89779
 ---
 # `tests/python/desktop/test_network_protocol_runtime.py`
 

@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0704-001",
+  "title": "Capture CSV rerun completed replacements",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-04",
+  "date_completed": "2026-07-04",
+  "summary": "CSV rerun replace-final rows now preserve per-row completed destinations, append clean replacements to the operator completed jobs JSONL, and expose row-level destination summaries in the rerun overview.",
+  "reason": "Replace-completed reruns can span multiple final destinations from audit CSV data; the previous overview and completed output capture were centered on a single configured destination root.",
+  "affected_areas": [
+    "desktop",
+    "generated",
+    "pipeline",
+    "test",
+    "webview"
+  ],
+  "behavior_before": "CSV rerun planning computed final output paths from one configured outsource root, and replace-final rerun sidecar promotion did not mirror the replacement into State/Completed/completed_jobs.jsonl.",
+  "behavior_after": "CSV rerun planning honors row-level completed destination fields such as plex_planned_path, records the source field, appends clean replace-final results to the completed jobs manifest, and reports destination summary/sample targets in the overview.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/queueView.rerun.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queueView.rerun.js.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/Invoke-RerunCsv.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/rerun_results.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_process_rerun_results.py.md",
+    "ops/pipeline/entrypoints/Invoke-RerunCsv.ps1",
+    "ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0704-001.json",
+    "src/mediapipeline/core/processes/rerun_results.py",
+    "tests/python/desktop/test_process_rerun_results.py"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1",
+    "tests/python/desktop/test_process_rerun_results.py"
+  ],
+  "manual_validation": [
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_process_rerun_results -q - passed",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-RerunAutoDestinationChecks.ps1 - passed",
+    "node --check apps/desktop/webview/static/assets/queueView.rerun.js - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/entrypoints/Invoke-RerunCsv.ps1 src/mediapipeline/core/processes/rerun_results.py apps/desktop/webview/static/assets/queueView.rerun.js tests/python/desktop/test_process_rerun_results.py ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1 - passed"
+  ],
+  "rollback_plan": "Revert the touched rerun entrypoint, rerun results read model, WebView rerun overview, focused tests, generated summaries, and this change packet.",
+  "related_changes": [],
+  "notes": "Honor CSV completed destination paths and mirror replace-final reruns into the completed jobs manifest.\nExpose row-level rerun destination summaries and completed-manifest append evidence for overview rendering.\nRender rerun overview destination summary and sample completed targets.\nAssert rerun overview destination summary and row append evidence.\nCover CSV per-row final destinations and completed JSONL capture for replace-final reruns.\nRefresh summary for CSV rerun entrypoint changes.\nRefresh summary for rerun results read model changes.\nRefresh summary for rerun overview WebView changes.\nRefresh summary for rerun results tests.\nRefresh summary for rerun auto-destination unit checks."
+}

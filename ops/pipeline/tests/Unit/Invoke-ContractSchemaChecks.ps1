@@ -227,6 +227,11 @@ foreach ($field in @(
 Assert-True ($rerunCsvScriptText.Contains("manifest_state = 'pending_move'")) 'CSV rerun pending-publish writer must write pending_move before moving media.'
 Assert-True ($rerunCsvScriptText.Contains('$payload[''manifest_state''] = ''parked''')) 'CSV rerun pending-publish writer must update manifest to parked after moving media.'
 Assert-True ($rerunCsvScriptText.Contains('function New-RerunPendingSidecarEntries')) 'CSV rerun pending-publish writer must preserve sibling sidecar files.'
+Assert-True ($rerunCsvScriptText.Contains('function Get-RerunPendingServerDestinationSet')) 'CSV rerun pending-publish writer must inspect existing pending server destinations before parking.'
+Assert-True ($rerunCsvScriptText.Contains('return ,$set')) 'CSV rerun pending server destination set must return as a single HashSet, not an enumerated fixed-size array.'
+Assert-True ($rerunCsvScriptText.Contains('function Resolve-RerunPendingPublishServerOut')) 'CSV rerun pending-publish writer must resolve server_out collision policy before writing a manifest.'
+Assert-True ($rerunCsvScriptText.Contains('-ServerOut $serverOut')) 'CSV rerun pending-publish writer must pass the resolved server_out into manifest creation.'
+Assert-True ($rerunCsvScriptText.Contains('server_out = $ServerOut')) 'CSV rerun pending-publish manifests must store the resolved server_out, not the unadjusted planned destination.'
 Assert-True ($rerunCsvScriptText.Contains('CSV rerun original source policies are disabled')) 'CSV rerun must fail closed for original source mutation policies.'
 
 $completedJob = Convert-RoundTripJson ([ordered]@{

@@ -1127,6 +1127,104 @@ def _path_identity(value: object) -> str:
     return str(Path(text)).casefold()
 
 
+def _server_destination_key(value: object) -> str:
+    return _path_identity(value).rstrip("\\/")
+
+
+def _is_csv_rerun_manifest(proposed: Mapping[str, Any]) -> bool:
+    route = str(proposed.get("route") or "").strip().casefold()
+    reason_code = str(proposed.get("route_reason_code") or "").strip().casefold()
+    source = proposed.get("source")
+    source_kind = str(source.get("rerun_batch_id") or source.get("rerun_audit_issue_codes") or "").strip() if isinstance(source, Mapping) else ""
+    return route == "csv_rerun" or reason_code == "rerun_csv_pending_publish" or bool(source_kind)
+
+
+def _pending_manifest_server_destination_keys(rows: list[dict[str, Any]], *, exclude_row_key: str) -> set[str]:
+    excluded = exclude_row_key.casefold()
+    keys: set[str] = set()
+    for row in rows:
+        if _row_key(row).casefold() == excluded:
+            continue
+        for field in ("server_out", "output_path"):
+            key = _server_destination_key(row.get(field))
+            if key:
+                keys.add(key)
+                break
+    return keys
+
+
+def _non_overlapping_server_destination(path: Path, occupied_keys: set[str], suffix: str) -> Path:
+    if _server_destination_key(path) not in occupied_keys:
+        return path
+    candidate = path.with_name(f"{path.stem}.{suffix}{path.suffix}")
+    counter = 1
+    while _server_destination_key(candidate) in occupied_keys:
+        candidate = path.with_name(f"{path.stem}.{suffix}.{counter}{path.suffix}")
+        counter += 1
+    return candidate
+
+
+def _duplicate_rerun_server_destination(
+    *,
+    current_server_out: str,
+    local_file: str,
+    occupied_server_out_keys: set[str],
+    manifest_path: str,
+) -> tuple[str, str]:
+    current_path = Path(current_server_out)
+    local_path = Path(local_file)
+    if not current_path.name or not local_path.name:
+        return "", "Duplicate target repair requires both current server_out and local_file filenames."
+    if current_path.suffix.casefold() != local_path.suffix.casefold():
+        return "", "Duplicate target repair requires the parked payload extension to match server_out."
+    if current_path.name.casefold() == local_path.name.casefold():
+        return "", "Selected duplicate row has no rerun-suffixed parked payload name to derive a distinct destination."
+    if not local_path.stem.casefold().startswith(current_path.stem.casefold()):
+        return "", "Selected duplicate row payload name does not preserve the original destination stem."
+    repair_hash = _pending_manifest_repair_hash(manifest_path, {"local_file": local_file, "server_out": current_server_out})
+    candidate = _non_overlapping_server_destination(
+        current_path.with_name(local_path.name),
+        occupied_server_out_keys,
+        f"repair-{repair_hash}",
+    )
+    return str(candidate), ""
+
+
+def _rerun_sidecars_for_server_destination(
+    sidecar_files: Any,
+    *,
+    current_server_out: str,
+    repaired_server_out: str,
+) -> list[Any] | None:
+    if not isinstance(sidecar_files, list):
+        return None
+    current_media = Path(current_server_out)
+    repaired_media = Path(repaired_server_out)
+    current_stem = current_media.stem
+    repaired_stem = repaired_media.stem
+    if not current_stem or not repaired_stem:
+        return None
+    changed = False
+    repaired_sidecars: list[Any] = []
+    for sidecar in sidecar_files:
+        if not isinstance(sidecar, Mapping):
+            repaired_sidecars.append(sidecar)
+            continue
+        copied = dict(sidecar)
+        sidecar_out = str(copied.get("server_out") or "").strip()
+        if sidecar_out:
+            sidecar_path = Path(sidecar_out)
+            sidecar_stem = sidecar_path.stem
+            if sidecar_stem.casefold().startswith(current_stem.casefold()):
+                repaired_name = f"{repaired_stem}{sidecar_stem[len(current_stem):]}{sidecar_path.suffix}"
+                repaired_out = str(sidecar_path.with_name(repaired_name))
+                if repaired_out != sidecar_out:
+                    copied["server_out"] = repaired_out
+                    changed = True
+        repaired_sidecars.append(copied)
+    return repaired_sidecars if changed else None
+
+
 def _pending_orphan_expected_manifest_path(payload_path: Path) -> Path:
     return payload_path.with_name(f"{payload_path.name}.manifest.json")
 
@@ -1311,6 +1409,7 @@ def _pending_manifest_repair_candidate_row(
     key: str,
     manifest_path: str,
     diagnostic_status: str,
+    occupied_server_out_keys: set[str] | None = None,
 ) -> dict[str, Any]:
     manifest, read_error = _read_json_object(manifest_path)
     if manifest is None:
@@ -1338,6 +1437,45 @@ def _pending_manifest_repair_candidate_row(
         reasons=reasons,
         manifest_path=manifest_path,
     )
+
+    if diagnostic_status == "duplicate_target":
+        if not _is_csv_rerun_manifest(proposed):
+            return {
+                "row_key": key,
+                "status": "blocked",
+                "action": "pending_manifest_repair",
+                "manifest_path": manifest_path,
+                "diagnostic_status": diagnostic_status,
+                "error": "Duplicate target repair is only backend-derived for CSV rerun pending manifests.",
+                "safe_next_action": "Compare duplicate manifests manually and keep payloads parked until target ownership is unambiguous.",
+            }
+        repaired_server_out, repair_error = _duplicate_rerun_server_destination(
+            current_server_out=str(proposed.get("server_out") or "").strip(),
+            local_file=str(proposed.get("local_file") or proposed.get("parked_file") or "").strip(),
+            occupied_server_out_keys=occupied_server_out_keys or set(),
+            manifest_path=manifest_path,
+        )
+        if repair_error:
+            return {
+                "row_key": key,
+                "status": "blocked",
+                "action": "pending_manifest_repair",
+                "manifest_path": manifest_path,
+                "diagnostic_status": diagnostic_status,
+                "error": repair_error,
+                "safe_next_action": "Select the rerun-suffixed duplicate row or keep the file parked for manual duplicate review.",
+            }
+        current_server_out = str(proposed.get("server_out") or "").strip()
+        _set_pending_manifest_field(proposed, changed, "server_out", repaired_server_out)
+        reasons.append("duplicate_server_out_resolved_from_rerun_payload_name")
+        repaired_sidecars = _rerun_sidecars_for_server_destination(
+            proposed.get("sidecar_files"),
+            current_server_out=current_server_out,
+            repaired_server_out=repaired_server_out,
+        )
+        if repaired_sidecars is not None:
+            _set_pending_manifest_field(proposed, changed, "sidecar_files", repaired_sidecars)
+            reasons.append("duplicate_sidecar_server_outs_retargeted")
 
     local_file = str(proposed.get("local_file") or "").strip()
     parked_file = str(proposed.get("parked_file") or "").strip()
@@ -1408,6 +1546,32 @@ def _pending_manifest_repair_candidate_row(
             "missing_or_unsafe_fields": sorted(changed),
             "error": "Backend proposed manifest points at a missing pending payload.",
             "safe_next_action": "Restore the pending payload before confirmed manifest repair.",
+        }
+    try:
+        payload_size = payload_path.stat().st_size
+    except OSError as exc:
+        return {
+            "row_key": key,
+            "status": "blocked",
+            "action": "pending_manifest_repair",
+            "manifest_path": manifest_path,
+            "diagnostic_status": diagnostic_status,
+            "changed_fields": changed,
+            "missing_or_unsafe_fields": sorted(changed),
+            "error": f"Pending payload size could not be verified: {exc}",
+            "safe_next_action": "Refresh Pending Publish after payload access is stable.",
+        }
+    if int(validated.output_size) != int(payload_size):
+        return {
+            "row_key": key,
+            "status": "blocked",
+            "action": "pending_manifest_repair",
+            "manifest_path": manifest_path,
+            "diagnostic_status": diagnostic_status,
+            "changed_fields": changed,
+            "missing_or_unsafe_fields": sorted(changed),
+            "error": "Backend proposed manifest output_size does not match the pending payload.",
+            "safe_next_action": "Refresh backend manifest evidence before confirmed apply.",
         }
 
     missing_sidecars = [str(path) for path in _pending_manifest_sidecar_paths(validated.sidecar_files) if not path.exists()]
@@ -1483,7 +1647,7 @@ def pending_manifest_repair_dry_run(
         key = _row_key(row)
         status = str(row.get("diagnostic_status") or "").strip().casefold()
         manifest_path = str(row.get("manifest_path") or "").strip()
-        if status in {"unreadable_manifest", "duplicate_target"}:
+        if status == "unreadable_manifest":
             diff_rows.append(
                 {
                     "row_key": key,
@@ -1532,6 +1696,7 @@ def pending_manifest_repair_dry_run(
             key=key,
             manifest_path=manifest_path,
             diagnostic_status=status,
+            occupied_server_out_keys=_pending_manifest_server_destination_keys(rows, exclude_row_key=key),
         )
         diff_rows.append(candidate)
         if candidate.get("status") == "candidate":

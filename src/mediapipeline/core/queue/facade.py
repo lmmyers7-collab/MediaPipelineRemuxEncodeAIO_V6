@@ -178,6 +178,153 @@ def _rerun_manifest_display_name(source_path: str, stage_path: str) -> str:
     return Path(display_path).name or display_path
 
 
+def _rerun_manifest_row_reason(raw_row: dict[str, object], metadata: dict[str, object]) -> str:
+    for key in ("reason", "status_reason", "blocked_reason", "failure_reason", "error", "error_message"):
+        text = _rerun_manifest_text(raw_row.get(key) or metadata.get(key))
+        if text:
+            return text
+    return ""
+
+
+def _rerun_manifest_operator_fields(status: str, reason: str) -> dict[str, str]:
+    status_key = _rerun_manifest_text(status).casefold()
+    reason_key = _rerun_manifest_text(reason).casefold()
+    if status_key in {"skipped", "skip", "disabled"}:
+        return {
+            "operator_status": "CSV rerun skipped",
+            "operator_status_state": "skipped",
+            "operator_severity": "muted",
+            "operator_guidance": "This CSV rerun item was skipped by backend-owned scope or manifest evidence.",
+            "queue_status": "skipped",
+            "queue_status_label": "Skipped",
+        }
+    if status_key in {"failed", "error", "errored"}:
+        return {
+            "operator_status": "CSV rerun failed",
+            "operator_status_state": "blocked",
+            "operator_severity": "error",
+            "operator_guidance": "Review the manifest reason and rerun logs before retrying this item.",
+            "queue_status": "failed",
+            "queue_status_label": "Failed",
+        }
+    if status_key in {"blocked", "invalid", "missing"} or "source file not found" in reason_key:
+        return {
+            "operator_status": "CSV rerun blocked",
+            "operator_status_state": "blocked",
+            "operator_severity": "error",
+            "operator_guidance": "Fix the CSV row or source path before retrying this item.",
+            "queue_status": "blocked",
+            "queue_status_label": "Blocked",
+        }
+    if status_key in {"warning", "warn", "warnings"}:
+        return {
+            "operator_status": "CSV rerun warning",
+            "operator_status_state": "warning",
+            "operator_severity": "warning",
+            "operator_guidance": "Review backend warning evidence before continuing this CSV rerun item.",
+            "queue_status": "warning",
+            "queue_status_label": "Warning",
+        }
+    if status_key in {"held", "hold"}:
+        return {
+            "operator_status": "CSV rerun held",
+            "operator_status_state": "held",
+            "operator_severity": "warning",
+            "operator_guidance": "Release, reprioritize, or remove the held CSV rerun item before expecting progress.",
+            "queue_status": "blocked",
+            "queue_status_label": "Blocked",
+        }
+    if status_key in {"stopped", "stopped_after_current"}:
+        return {
+            "operator_status": "CSV rerun stopped",
+            "operator_status_state": "stopped",
+            "operator_severity": "warning",
+            "operator_guidance": "This CSV rerun item is stopped until a backend-owned continuation starts pending rows.",
+            "queue_status": "stopped",
+            "queue_status_label": "Stopped",
+        }
+    if status_key in {"complete", "completed", "done", "succeeded", "success"}:
+        return {
+            "operator_status": "CSV rerun complete",
+            "operator_status_state": "complete",
+            "operator_severity": "ok",
+            "operator_guidance": "This CSV rerun item has completed; use Completed or Pending Publish evidence for output details.",
+            "queue_status": "completed",
+            "queue_status_label": "Completed",
+        }
+    if status_key in {"published_replace_final", "published_non_overlap", "returned", "replaced"}:
+        return {
+            "operator_status": "CSV rerun returned",
+            "operator_status_state": "returned",
+            "operator_severity": "ok",
+            "operator_guidance": "Backend evidence returned this CSV rerun output to final/library placement.",
+            "queue_status": "replaced_returned",
+            "queue_status_label": "Replaced / Returned",
+        }
+    if status_key in {"pending_publish", "parked"}:
+        return {
+            "operator_status": "CSV rerun Pending Publish",
+            "operator_status_state": "pending_publish",
+            "operator_severity": "warning",
+            "operator_guidance": "Review the manifest-backed Pending Publish evidence before final placement.",
+            "queue_status": "pending_publish",
+            "queue_status_label": "Pending Publish",
+        }
+    if status_key in {"review_workspace", "awaiting_review", "review"}:
+        return {
+            "operator_status": "CSV rerun awaiting review",
+            "operator_status_state": "review",
+            "operator_severity": "warning",
+            "operator_guidance": "Review parked or pending output evidence before final placement.",
+            "queue_status": "awaiting_review",
+            "queue_status_label": "Awaiting Review",
+        }
+    if status_key in {"running", "active", "processing"}:
+        return {
+            "operator_status": "CSV rerun active",
+            "operator_status_state": "running",
+            "operator_severity": "warning",
+            "operator_guidance": "This row is active in the CSV rerun queue; monitor Home progress and Close Readiness.",
+            "queue_status": "active",
+            "queue_status_label": "Active",
+        }
+    if status_key in {"priority", "priority_ready"}:
+        return {
+            "operator_status": "CSV rerun priority pending",
+            "operator_status_state": "ready",
+            "operator_severity": "ok",
+            "operator_guidance": "This priority CSV rerun item is queued for processing.",
+            "queue_status": "pending",
+            "queue_status_label": "Pending",
+        }
+    if status_key in {"staged"}:
+        return {
+            "operator_status": "CSV rerun staged",
+            "operator_status_state": "ready",
+            "operator_severity": "ok",
+            "operator_guidance": "This row is staged in the active CSV rerun queue. Monitor Home progress and Close Readiness.",
+            "queue_status": "pending",
+            "queue_status_label": "Pending",
+        }
+    if status_key in {"pending", "queued", ""}:
+        return {
+            "operator_status": "CSV rerun pending",
+            "operator_status_state": "ready",
+            "operator_severity": "ok",
+            "operator_guidance": "This row is queued in the active CSV rerun manifest. Monitor Home progress and Close Readiness.",
+            "queue_status": "pending",
+            "queue_status_label": "Pending",
+        }
+    return {
+        "operator_status": f"CSV rerun {status_key or 'status unknown'}",
+        "operator_status_state": "review",
+        "operator_severity": "warning",
+        "operator_guidance": "Review the CSV rerun manifest status and logs before taking action.",
+        "queue_status": "warning",
+        "queue_status_label": "Warning",
+    }
+
+
 def _rerun_manifest_preview_rows(manifest: dict[str, object], manifest_path: Path) -> list[dict[str, object]]:
     raw_rows = manifest.get("rows")
     if not isinstance(raw_rows, list):
@@ -192,6 +339,14 @@ def _rerun_manifest_preview_rows(manifest: dict[str, object], manifest_path: Pat
         planned_output_path = _rerun_manifest_text(raw_row.get("planned_output_path") or metadata.get("planned_output_path"))
         media_kind = _rerun_manifest_text(raw_row.get("media_kind") or queue_item.get("media_kind") or "movie").casefold()
         media_type = "TV" if media_kind == "tv" else "Movie"
+        status = _rerun_manifest_text(raw_row.get("status") or metadata.get("status") or "queued")
+        reason = _rerun_manifest_row_reason(raw_row, metadata)
+        operator_fields = _rerun_manifest_operator_fields(status, reason)
+        route_reason = "Manifest-backed CSV rerun queue; processing route is decided by the nested pipeline per item."
+        operator_guidance = operator_fields["operator_guidance"]
+        if reason:
+            route_reason = f"{route_reason} Manifest reason: {reason}"
+            operator_guidance = f"{operator_guidance} Reason: {reason}"
         row = {
             "schema_version": "desktop_csv_rerun_queue_row.v1",
             "queue_source": "csv_rerun",
@@ -209,21 +364,32 @@ def _rerun_manifest_preview_rows(manifest: dict[str, object], manifest_path: Pat
             "root_path": _rerun_manifest_text(queue_item.get("root_path")),
             "source_root": _rerun_manifest_text(queue_item.get("root_path")),
             "route_name": "CSV rerun",
-            "route_reason": "Manifest-backed CSV rerun queue; processing route is decided by the nested pipeline per item.",
-            "operator_status": "CSV rerun queued",
-            "operator_status_state": "ready",
-            "operator_severity": "ok",
-            "operator_guidance": "This row is already in the active CSV rerun queue. Monitor Home progress and Close Readiness; use Queue for read-only row evidence.",
+            "route_reason": route_reason,
+            "operator_status": operator_fields["operator_status"],
+            "operator_status_state": operator_fields["operator_status_state"],
+            "operator_severity": operator_fields["operator_severity"],
+            "operator_guidance": operator_guidance,
+            "queue_status": operator_fields["queue_status"],
+            "queue_status_label": operator_fields["queue_status_label"],
+            "blocking_reason": reason if operator_fields["queue_status"] in {"blocked", "failed"} else "",
+            "warning_reason": reason if operator_fields["queue_status"] in {"warning", "stopped", "awaiting_review", "pending_publish"} else "",
+            "uses_pipeline_start": False,
             "queue_index": index,
             "queue_total": total,
             "queue_position": f"{index}/{total}",
             "global_order": index,
             "phase": "CSV RERUN",
-            "status": _rerun_manifest_text(raw_row.get("status") or metadata.get("status") or "queued"),
+            "status": status,
+            "reason": reason,
             "stage_mode": _rerun_manifest_text(raw_row.get("stage_mode") or metadata.get("stage_mode")),
             "original_mode": _rerun_manifest_text(raw_row.get("original_mode") or metadata.get("original_mode")),
             "return_mode": _rerun_manifest_text(raw_row.get("return_mode") or metadata.get("return_mode")),
             "audit_issue_codes": _rerun_manifest_text(raw_row.get("audit_issue_codes") or metadata.get("audit_issue_codes")),
+            "verified_output_path": _rerun_manifest_text(raw_row.get("verified_output_path") or metadata.get("verified_output_path")),
+            "pending_publish_manifest_path": _rerun_manifest_text(raw_row.get("pending_publish_manifest_path") or metadata.get("pending_publish_manifest_path")),
+            "pending_publish_payload_path": _rerun_manifest_text(raw_row.get("pending_publish_payload_path") or metadata.get("pending_publish_payload_path")),
+            "published_path": _rerun_manifest_text(raw_row.get("published_path") or metadata.get("published_path")),
+            "replaced_final_hold_path": _rerun_manifest_text(raw_row.get("replaced_final_hold_path") or metadata.get("replaced_final_hold_path")),
             "manifest_path": str(manifest_path),
             "available_open_targets": [],
             "row_key": f"csv_rerun\x1f{manifest.get('batch_id')}\x1f{index}\x1f{stage_path or source_path}".casefold(),
@@ -234,6 +400,15 @@ def _rerun_manifest_preview_rows(manifest: dict[str, object], manifest_path: Pat
                 "config_path": _rerun_manifest_text(manifest.get("config_path")),
                 "stage_path": stage_path,
                 "planned_output_path": planned_output_path,
+                "status": status,
+                "reason": reason,
+                "destination_state": {
+                    "destination_mode": _rerun_manifest_text(manifest.get("destination_mode")),
+                    "collision_policy": _rerun_manifest_text(manifest.get("collision_policy")),
+                    "auto_destination_policy": _rerun_manifest_text(raw_row.get("auto_destination_policy") or metadata.get("auto_destination_policy")),
+                    "auto_destination_decision": _rerun_manifest_text(raw_row.get("auto_destination_decision") or metadata.get("auto_destination_decision")),
+                    "auto_destination_issue_count": _rerun_manifest_text(raw_row.get("auto_destination_issue_count") or metadata.get("auto_destination_issue_count")),
+                },
             },
         }
         rows.append(row)

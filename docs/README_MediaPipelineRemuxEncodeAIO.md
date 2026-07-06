@@ -81,7 +81,7 @@ The external rollback workspace remains the external fallback for operator flows
 
 As of 2026-05-18, the source/dev bundle validation gate is green for the release self-test, bundled Python `unittest`/`pytest`, browser no-mutation smokes, and Tauri prereq/build checks. Representative real-media validation is complete by operator attestation as of 2026-05-28, and default-launcher/package-mode promotion is complete by operator confirmation on 2026-05-30.
 
-For future real-media validation or revalidation, use `implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md` with `sample-validation/REAL_MEDIA_VALIDATION_EVIDENCE_TEMPLATE.md`. The Tauri/WebView2 prerequisite, build, launch-smoke, and release self-test gates do not prove FFmpeg routing, subtitle OCR/SRT output, audio selection, size policy, Completed sidecars, or pending-publish behavior on a specific file. The WebView can append backend-owned sample-validation evidence records under `State\Validation`, but those records are notes only and do not create an acceptance path. `RealMediaValidationRuns/README.md` records the current non-sensitive operator-attested status anchor.
+For future real-media validation or revalidation, use `sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md` with `sample-validation/REAL_MEDIA_VALIDATION_EVIDENCE_TEMPLATE.md`. The Tauri/WebView2 prerequisite, build, launch-smoke, and release self-test gates do not prove FFmpeg routing, subtitle OCR/SRT output, audio selection, size policy, Completed sidecars, or pending-publish behavior on a specific file. The WebView can append backend-owned sample-validation evidence records under `State\Validation`, but those records are notes only and do not create an acceptance path. `RealMediaValidationRuns/README.md` records the current non-sensitive operator-attested status anchor.
 
 ## Local API And WebView Diagnostics
 
@@ -154,7 +154,7 @@ Clean releases omit optional tool bulk such as `ffplay.exe`, MKVToolNix GUI/diag
 - `..\README.md`: root operator entry point
 - `DOCS_INDEX.md`: all docs and what each one is for; organized by subfolder
 - `CURRENT_PROJECT_STATE.md`: current operational state, launch paths, and safety assumptions
-- `implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`: real-media pilot checklist for validating WebView/Tauri on real media
+- `sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md`: real-media pilot checklist for validating WebView/Tauri on real media
 - `sample-validation/REAL_MEDIA_VALIDATION_EVIDENCE_TEMPLATE.md`: evidence template for real-media validation runs
 - `desktop\README.md`: local API/WebView/Tauri structure and backend integration notes
 - `operator\POWERSHELL_HOST_EXPECTATIONS.md`: PowerShell host/runtime expectations

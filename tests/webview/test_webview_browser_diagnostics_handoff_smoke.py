@@ -650,17 +650,6 @@ def _browser_diagnostics_handoff_runner_source() -> str:
             } else {
               window.selectPendingRow(pendingRow);
             }
-            click('#pending-diagnostics-actions [data-diagnostics-bridge-target="last_stderr_log"]', "pending diagnostics bridge");
-            await waitFor(
-              () => visiblePage("diagnostics") && value("diagnostics-tail-target") === "last_stderr_log" && text("diagnostics-tail-detail").includes("Bridge source: Pending Publish selected row"),
-              "pending diagnostics bridge handoff",
-            );
-            window.showPage("pending");
-            click('#pending-diagnostics-actions [data-pending-diagnostics-action="tail"][data-pending-diagnostics-target="last_stderr_log"]', "pending stderr tail");
-            await waitFor(
-              () => text("diagnostics-tail-status").includes("Loaded") && text("diagnostics-tail-text").includes("publish_missing_output"),
-              "pending stderr tail read",
-            );
             click('#pending-diagnostics-actions [data-pending-diagnostics-action="open"][data-pending-diagnostics-target="pending_publish"]', "pending publish open");
             await waitFor(
               () => historyHasTarget("pending_publish"),

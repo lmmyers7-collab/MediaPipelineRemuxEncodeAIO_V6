@@ -13,6 +13,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.publish.pending_drain_confidence import pending_publish_drain_confidence_payload
 from mediapipeline.core.publish.reconciliation_policy import publish_reconciliation_from_payloads
 from tests.python.desktop.application_facade_test_support import DummyWorkflowFacadeService, _resolved
 
@@ -185,6 +186,95 @@ class ApplicationFacadePendingPublishTests(unittest.TestCase):
         self.assertEqual(summary["attempted_count"], 2)
         self.assertEqual(summary["status_counts"], {"already_published": 1, "succeeded": 1})
         self.assertEqual(summary["items"][0]["status"], "succeeded")
+
+    def test_pending_drain_confidence_downgrades_stale_failed_summary_to_review(self) -> None:
+        rows = [
+            {
+                "state": "parked",
+                "diagnostic_status": "ok",
+                "diagnostic_severity": "info",
+                "drain_recommendation": "ready",
+                "ready_to_drain": True,
+                "local_exists": True,
+                "missing_sidecar_count": 0,
+            },
+            {
+                "state": "parked",
+                "diagnostic_status": "ok",
+                "diagnostic_severity": "info",
+                "drain_recommendation": "ready",
+                "ready_to_drain": True,
+                "local_exists": True,
+                "missing_sidecar_count": 0,
+            },
+        ]
+        payload = {
+            "exists": True,
+            "count": 2,
+            "ready_count": 2,
+            "issue_count": 0,
+            "health_count": 0,
+            "missing_local_count": 0,
+            "missing_sidecar_count": 0,
+            "drain_summary": {
+                "exists": True,
+                "started_at": "2026-07-02T23:38:13-04:00",
+                "completed_at": "2026-07-02T23:38:17-04:00",
+                "manifest_count_at_start": 1,
+                "attempted_count": 1,
+                "error_count": 1,
+                "remaining_count": 1,
+                "stopped": False,
+            },
+        }
+
+        confidence = pending_publish_drain_confidence_payload(payload, rows)
+
+        checks = {row["check"]: row for row in confidence["rows"]}
+        self.assertEqual(confidence["status"], "Review first")
+        self.assertEqual(confidence["counts"].get("blocked", 0), 0)
+        self.assertEqual(checks["Current parked rows"]["confidence"], "ready")
+        self.assertEqual(checks["Blocker evidence"]["confidence"], "ready")
+        self.assertEqual(checks["Validation checklist"]["confidence"], "ready")
+        self.assertEqual(checks["Durable drain summary"]["confidence"], "review")
+        self.assertIn("summary rows=1; current rows=2", checks["Durable drain summary"]["evidence"])
+        self.assertIn("different parked-row count", checks["Durable drain summary"]["action"])
+
+    def test_pending_drain_confidence_allows_ready_rows_under_high_pending_pressure(self) -> None:
+        rows = [
+            {
+                "state": "parked",
+                "diagnostic_status": "ok",
+                "diagnostic_severity": "info",
+                "drain_recommendation": "ready",
+                "ready_to_drain": True,
+                "local_exists": True,
+                "missing_sidecar_count": 0,
+            }
+        ]
+        payload = {
+            "exists": True,
+            "count": 1,
+            "ready_count": 1,
+            "issue_count": 0,
+            "health_count": 1,
+            "missing_local_count": 0,
+            "missing_sidecar_count": 0,
+            "total_bytes": 300 * 1024**3,
+            "warnings": ["Pending publish parked bytes exceed the autonomy review budget."],
+            "drain_summary": {"exists": False},
+        }
+
+        confidence = pending_publish_drain_confidence_payload(payload, rows)
+
+        checks = {row["check"]: row for row in confidence["rows"]}
+        self.assertEqual(confidence["status"], "Review first")
+        self.assertEqual(confidence["counts"].get("blocked", 0), 0)
+        self.assertEqual(checks["Current parked rows"]["confidence"], "ready")
+        self.assertEqual(checks["Blocker evidence"]["confidence"], "ready")
+        self.assertEqual(checks["Validation checklist"]["confidence"], "review")
+        self.assertIn("validation=Review", checks["Validation checklist"]["evidence"])
+        self.assertIn("health=1", checks["Validation checklist"]["evidence"])
 
     def test_publish_reconciliation_correlates_completed_pending_and_drain_summary(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -548,6 +638,70 @@ class ApplicationFacadePendingPublishTests(unittest.TestCase):
         self.assertEqual(service.opened_paths, [payload, manifest, destination.parent])
         self.assertFalse(rejected.ok)
         self.assertIn("not allowed", rejected.message)
+
+    def test_pending_publish_open_destination_folder_uses_folder_path_when_row_destination_is_folder(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            pending_root = root / "PendingServerPush"
+            pending_root.mkdir()
+            payload = pending_root / "Movie.mkv"
+            payload.write_bytes(b"abc")
+            destination_folder = root / "Outsource" / "Movies" / "Movie (2026)"
+            destination_folder.mkdir(parents=True)
+            manifest = pending_root / "Movie.mkv.manifest.json"
+            manifest.write_text(
+                json.dumps(
+                    {
+                        "manifest_state": "parked",
+                        "local_file": str(payload),
+                        "server_out": str(destination_folder),
+                    }
+                ),
+                encoding="utf-8",
+            )
+            resolved = _resolved(root)
+            resolved.pending_push_path = pending_root
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service)
+            row_key = facade.get_pending_publish_preview(resolved).to_mapping()["rows"][0]["row_key"]
+
+            result = facade.open_pending_publish_location(resolved, {"row_key": row_key, "target": "destination_folder"})
+
+        self.assertTrue(result.ok)
+        self.assertEqual(service.opened_paths, [destination_folder])
+
+    def test_pending_publish_open_destination_folder_falls_back_to_existing_parent_for_missing_movie_folder(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            pending_root = root / "PendingServerPush"
+            pending_root.mkdir()
+            payload = pending_root / "Movie.mkv"
+            payload.write_bytes(b"abc")
+            destination_root = root / "Outsource" / "Movies"
+            destination_root.mkdir(parents=True)
+            destination = destination_root / "Movie (2026)" / "Movie (2026).mkv"
+            manifest = pending_root / "Movie.mkv.manifest.json"
+            manifest.write_text(
+                json.dumps(
+                    {
+                        "manifest_state": "parked",
+                        "local_file": str(payload),
+                        "server_out": str(destination),
+                    }
+                ),
+                encoding="utf-8",
+            )
+            resolved = _resolved(root)
+            resolved.pending_push_path = pending_root
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service)
+            row_key = facade.get_pending_publish_preview(resolved).to_mapping()["rows"][0]["row_key"]
+
+            result = facade.open_pending_publish_location(resolved, {"row_key": row_key, "target": "destination_folder"})
+
+        self.assertTrue(result.ok)
+        self.assertEqual(result.data["path"], str(destination_root))
+        self.assertEqual(service.opened_paths, [destination_root])
 
     def test_pending_publish_open_reports_scan_service_unavailable(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

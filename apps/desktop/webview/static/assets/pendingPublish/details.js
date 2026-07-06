@@ -15,6 +15,7 @@
       renderPendingDiagnosticsLinks = function () {},
       setText = function () {},
     } = deps;
+    const PENDING_READ_ONLY_BOUNDARY = "Mutation guardrail: read-only evidence; backend routes own pending-publish changes.";
 
 function pendingRowReviewChecklistLines(item) {
     if (!item) {
@@ -62,7 +63,7 @@ function pendingRowReviewChecklistLines(item) {
     } else {
       lines.push("Operator action: row looks ready, but Drain Parked Outputs remains the authoritative backend validation path.");
     }
-    lines.push("Mutation guardrail: selected-row detail is read-only and cannot drain, repair, delete, rewrite, or publish files.");
+    lines.push(PENDING_READ_ONLY_BOUNDARY);
     return lines;
   }
 
@@ -108,7 +109,7 @@ function pendingSelectedAtAGlanceLines(item) {
       return [
         "Selected Pending Publish row: none",
         "Next step: select a pending row to review parked payload, manifest, sidecars, Completed correlation, and drain guidance.",
-        "Authority: this summary is read-only. Backend Drain Parked Outputs remains the only path that can move parked files.",
+        PENDING_READ_ONLY_BOUNDARY,
       ];
     }
     const concern = item.primary_concern
@@ -129,7 +130,7 @@ function pendingSelectedAtAGlanceLines(item) {
       `Primary concern: ${concern}`,
       `Safe next step: ${safeAction}`,
       `Filter visibility: ${pendingSelectedVisibilitySummary(item) || "not evaluated"}`,
-      "Authority: this summary is read-only. It cannot drain, repair, move, delete, rewrite manifests, publish, or touch media files.",
+      PENDING_READ_ONLY_BOUNDARY,
     ];
   }
 
@@ -217,7 +218,7 @@ function pendingRowCombinedReviewPlanLines(item) {
     } else {
       lines.push("Decision: treat this row as review-needed until pending scan and drain decision both report ready.");
     }
-    lines.push("Guardrail: this combined plan is read-only and cannot drain, repair, move, delete, rewrite manifests, publish, or touch media files.");
+    lines.push(PENDING_READ_ONLY_BOUNDARY);
     return lines;
   }
 
@@ -246,7 +247,7 @@ function pendingRealMediaTraceLines(item) {
       lines.push("Drain boundary: do not drain this row until blockers are explained by pending diagnostics and logs.");
     }
     lines.push("Next evidence stop: run or review backend-owned recovery dry-run, then compare durable drain summary with Completed output proof after Drain Parked Outputs.");
-    lines.push("Mutation guardrail: this trace is read-only and cannot drain, repair, delete, rewrite, move, publish, or mutate files.");
+    lines.push(PENDING_READ_ONLY_BOUNDARY);
     return lines;
   }
 
@@ -367,7 +368,7 @@ function pendingSelectedCompletedCorrelationLines(item) {
       return [
         "Completed Manifest correlation for selected pending row:",
         "Select a pending row to compare its destination/source against the loaded Completed Manifest rows.",
-        "Mutation guardrail: this pending-row correlation is read-only and cannot mark done, drain, rerun, delete, publish, rewrite manifests, or touch media.",
+        PENDING_READ_ONLY_BOUNDARY,
       ];
     }
     const correlation = pendingSelectedCompletedCorrelationRows(item);
@@ -401,7 +402,7 @@ function pendingSelectedCompletedCorrelationLines(item) {
     if (!correlation.exactDestination.length && !correlation.exactSource.length && correlation.completedRows.length) {
       lines.push("No exact Completed proof is loaded for this pending row. Inspect Completed, Pending Publish, Run Logs, Last Stderr, and durable drain summaries before assuming publish success or data loss.");
     }
-    lines.push("Mutation guardrail: this pending-row correlation is read-only and cannot mark done, drain, rerun, delete, publish, rewrite manifests, or touch media.");
+    lines.push(PENDING_READ_ONLY_BOUNDARY);
     return lines;
   }
 
@@ -481,7 +482,7 @@ function pendingSampleValidationComparisonLines(item) {
     }
     lines.push(
       "Post-run capture: Preview Record includes pending/final-placement proof rows; use category deferred-publish for parked/drained samples.",
-      "Mutation guardrail: this comparison is read-only and cannot append Sample Validation records, drain, publish, repair, rewrite manifests/sidecars, move/delete payloads, save settings, rename, or touch media."
+      PENDING_READ_ONLY_BOUNDARY
     );
     return lines;
   }

@@ -1,6 +1,7 @@
 (function () {
   const formatters = window.mediaPipelineFormatters || {};
   const shortenPath = typeof formatters.shortenPath === "function" ? formatters.shortenPath : null;
+  const QUEUE_READ_ONLY_BOUNDARY = "Mutation guardrail: read-only evidence; backend routes own queue and launch changes.";
   let lastQueueRows = [];
   let lastQueueExcludedRows = [];
   let lastQueueHiddenSidecarRows = [];
@@ -331,6 +332,91 @@
     selectQueueLaunchDecisionRow = _queueNoop,
     renderQueueLaunchDecisionChecklist = _queueNoop,
   } = _queueLaunch;
+
+  const __queueRerunMod = window.__queueRerunModule || {};
+  delete window.__queueRerunModule;
+  const _queueRerun = typeof __queueRerunMod.createQueueRerunModule === "function"
+    ? __queueRerunMod.createQueueRerunModule({
+      byId: typeof byId === "function" ? byId : window.byId,
+      setText: typeof setText === "function" ? setText : window.setText,
+      apiGet: typeof apiGet === "function" ? apiGet : window.apiGet,
+      apiPost: typeof apiPost === "function" ? apiPost : window.apiPost,
+    })
+    : {};
+  const {
+    initQueueRerunEvents = _queueNoop,
+    refreshQueueRerunControlsForInput = _queueNoop,
+    scheduleQueueRerunPreviewRefresh = _queueNoop,
+    refreshRerunPreview = _queueNoop,
+    selectRerunCsvPathForPreview = _queueNoop,
+    refreshRerunResults = _queueNoop,
+    inspectSelectedRerunCsv = _queueNoop,
+    openSelectedRerunCsv = _queueNoop,
+    requestRerunContinue = _queueNoop,
+    startRerunFromForm = _queueNoop,
+    setQueueRerunBusy = _queueNoop,
+    updateQueueRerunButtonState = _queueNoop,
+    postRerunPreview = _queueNoop,
+    postRerunStart = _queueNoop,
+    postRerunControlStopAfterCurrent = _queueNoop,
+    postRerunContinue = _queueNoop,
+    postRerunOpen = _queueNoop,
+    postRerunPromoteDryRun = _queueNoop,
+    postRerunPromote = _queueNoop,
+    getRerunResults = _queueNoop,
+    renderRerunResults = _queueNoop,
+    renderRerunQueueStateRows = _queueNoop,
+    openRerunRowTarget = _queueNoop,
+    promoteRerunRowToPending = _queueNoop,
+    stopRerunAfterCurrent = _queueNoop,
+  } = _queueRerun;
+
+  const QUEUE_TAB_STORAGE_KEY = "mediapipeline-queue-tab";
+
+  function queueTabIds() {
+    return ["main", "rerun"];
+  }
+
+  function activateQueueTab(tabId, options = {}) {
+    const page = document.querySelector('[data-page-panel="queue"]');
+    if (!page) return;
+    const selected = queueTabIds().includes(tabId) ? tabId : "main";
+    const persist = options?.persist !== false;
+    const buttons = Array.from(page.querySelectorAll(".settings-tab-btn[data-queue-tab]"));
+    const panels = Array.from(page.querySelectorAll(":scope > .queue-tab-panel[data-queue-tab-panel]"));
+    buttons.forEach((button) => {
+      const active = button.dataset.queueTab === selected;
+      button.setAttribute("aria-selected", String(active));
+    });
+    panels.forEach((panel) => {
+      const active = panel.dataset.queueTabPanel === selected;
+      panel.classList.toggle("is-active", active);
+    });
+    if (persist) {
+      try { localStorage.setItem(QUEUE_TAB_STORAGE_KEY, selected); } catch (_) {}
+    }
+    if (typeof window.mediaPipelineAppLifecycle?.syncTabAccessibility === "function") window.mediaPipelineAppLifecycle.syncTabAccessibility();
+    if (typeof updatePagePanelEmptyStates === "function") updatePagePanelEmptyStates();
+    if (selected === "rerun") {
+      updateQueueRerunButtonState();
+      refreshRerunResults({ quiet: true }).catch(() => {});
+    }
+  }
+
+  function initQueueTabNav() {
+    const page = document.querySelector('[data-page-panel="queue"]');
+    if (!page || page.dataset.queueTabsBound === "true") return;
+    const buttons = Array.from(page.querySelectorAll(".settings-tab-btn[data-queue-tab]"));
+    const panels = Array.from(page.querySelectorAll(":scope > .queue-tab-panel[data-queue-tab-panel]"));
+    if (!buttons.length || !panels.length) return;
+    page.dataset.queueTabsBound = "true";
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => activateQueueTab(button.dataset.queueTab || "main"));
+    });
+    let stored = "main";
+    try { stored = localStorage.getItem(QUEUE_TAB_STORAGE_KEY) || "main"; } catch (_) {}
+    activateQueueTab(stored);
+  }
 
   function queueVisibleFilterScope(rows) {
     const rowList = Array.isArray(rows) ? rows : [];
@@ -1207,7 +1293,7 @@
     } else {
       lines.push("", "Select a queue row to inspect the matching runtime status, error code, reason, publish state, and output path.");
     }
-    lines.push("Mutation guardrail: runtime history is read-only context; rerun, completed reconciliation, and queue mutation remain backend-owned.");
+    lines.push(QUEUE_READ_ONLY_BOUNDARY);
     return lines;
   }
 
@@ -1239,7 +1325,7 @@
         "Validation state: queue payload is unavailable.",
         `Error: ${payload.error}`,
         "Operator action: open Diagnostics > Queue Snapshot, Run Logs, and Last Stderr before launching or reprocessing.",
-        "Mutation guardrail: this checklist is read-only and does not reconcile completed state.",
+        QUEUE_READ_ONLY_BOUNDARY,
       ];
     }
     const staleSnapshot = queueSnapshotIsStale(payload);
@@ -1276,7 +1362,7 @@
     } else {
       lines.push("Operator action: queue preview is internally consistent. Launch remains schedule-gated and backend-owned.");
     }
-    lines.push("Mutation guardrail: this checklist does not launch, remove completed markers, rewrite queue snapshots, or mutate source/output files.");
+    lines.push(QUEUE_READ_ONLY_BOUNDARY);
     return lines;
   }
 
@@ -1337,7 +1423,7 @@
       return [
         "Row-level excluded source detail is not available in this queue snapshot.",
         "Next step: refresh Queue after the updated backend has emitted a new snapshot.",
-        "Mutation guardrail: this panel is read-only and never reconciles completed state from the frontend.",
+        QUEUE_READ_ONLY_BOUNDARY,
       ];
     }
     const lines = [
@@ -1356,7 +1442,7 @@
     if (payload.excluded_rows_truncated) {
       lines.push("Refresh after narrowing the source folder if you need exact detail beyond the bounded snapshot limit.");
     }
-    lines.push("Mutation guardrail: completed reconciliation, rerun, and queue mutation remain backend-owned.");
+    lines.push(QUEUE_READ_ONLY_BOUNDARY);
     return lines;
   }
 
@@ -1612,7 +1698,7 @@
         statusOf: queueDisplayRowStatus,
         limit: renderLimit,
         decisionName: "launch",
-        guardrail: "Mutation guardrail: display filtering the Queue table does not change backend launch scope, queue state, source files, or processing commands.",
+        guardrail: QUEUE_READ_ONLY_BOUNDARY,
       });
       if (rows.length > renderLimit) {
         const first = queueTablePageStart + 1;
@@ -1692,7 +1778,7 @@
     renderQueueSourceInventoryMessage([
       "Queue source scan requested.",
       "Waiting for backend source inventory and queue curation status.",
-      "Mutation guardrail: this command does not process, rename, move, delete, publish, drain, or mutate source media.",
+      "This command is plan-only; backend routes own processing and media mutation.",
     ], "info");
     try {
       const result = await apiPost("/api/queue/scan", {
@@ -1758,6 +1844,33 @@
     queueBackendLaunchScopeRows,
     queueBackendLaunchScopeStatus,
     queueBackendLaunchScopeSummaryLines,
+    activateQueueTab,
+    initQueueTabNav,
+    initQueueRerunEvents,
+    refreshQueueRerunControlsForInput,
+    scheduleQueueRerunPreviewRefresh,
+    refreshRerunPreview,
+    selectRerunCsvPathForPreview,
+    refreshRerunResults,
+    inspectSelectedRerunCsv,
+    openSelectedRerunCsv,
+    requestRerunContinue,
+    startRerunFromForm,
+    setQueueRerunBusy,
+    updateQueueRerunButtonState,
+    postRerunPreview,
+    postRerunStart,
+    postRerunControlStopAfterCurrent,
+    postRerunContinue,
+    postRerunOpen,
+    postRerunPromoteDryRun,
+    postRerunPromote,
+    getRerunResults,
+    renderRerunResults,
+    renderRerunQueueStateRows,
+    openRerunRowTarget,
+    promoteRerunRowToPending,
+    stopRerunAfterCurrent,
     renderQueueLaunchDecisionChecklist,
     renderQueueReviewBoard,
     renderQueueCollision,
@@ -2700,9 +2813,13 @@
 
   // Wire toolbar on DOMContentLoaded (or immediately if already loaded)
   if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initQueueTabNav);
+    document.addEventListener("DOMContentLoaded", initQueueRerunEvents);
     document.addEventListener("DOMContentLoaded", initQueuePriorityToolbar);
     document.addEventListener("DOMContentLoaded", initQueueManualOrderToolbar);
   } else {
+    initQueueTabNav();
+    initQueueRerunEvents();
     initQueuePriorityToolbar();
     initQueueManualOrderToolbar();
   }

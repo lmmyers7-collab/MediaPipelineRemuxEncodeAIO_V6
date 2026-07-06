@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0702-012",
+  "title": "Home run progress timeline",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-07-02",
+  "date_completed": "2026-07-02",
+  "summary": "Replaced the Home Run Progress display with an ordered read-only run timeline that emphasizes the current step, shows the next step, includes CSV rerun import evidence when present, and keeps raw backend progress bars collapsed behind a disclosure.",
+  "reason": "The previous grouped progress-bar display made active CSV reruns hard to follow because backend checks, active work, and raw evidence had similar visual weight.",
+  "affected_areas": [
+    "docs",
+    "test",
+    "webview"
+  ],
+  "behavior_before": "Home grouped raw backend progress bars by category and set the panel status to a generic check count, so operators had to infer what was happening and what would happen next.",
+  "behavior_after": "Home renders a fixed CSV/import-to-evidence timeline with a large current step, dimmer completed/upcoming steps, panel status text such as Current/Next or Review, and collapsed raw backend progress evidence.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/progressView.js",
+    "apps/desktop/webview/static/assets/styles/components/progress-live.css",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/progressView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles/components/progress-live.css.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_home_live_state_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_frontend_mutation_boundary.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_navigation_static.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0702-012.json",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/webview/test_webview_browser_home_live_state_smoke.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py",
+    "tests/webview/test_webview_navigation_static.py"
+  ],
+  "tests_added": [
+    "Extended CSV rerun static coverage in tests/python/desktop/test_application_facade_web_static.py.",
+    "Updated Home browser smoke expectations in tests/webview/test_webview_browser_home_live_state_smoke.py.",
+    "Added WebView static assertions for the timeline renderer/export and CSS classes."
+  ],
+  "manual_validation": [
+    "node --check apps/desktop/webview/static/assets/progressView.js -> passed",
+    "node --check apps/desktop/webview/static/assets/app.js -> passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_home_progress_stale_review_requires_consecutive_snapshots tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_progress_csv_rerun_evidence_does_not_override_active_pipeline tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_live_run_progress_surfaces_are_read_only_shared_renderer tests.webview.test_webview_navigation_static.WebViewNavigationStaticTests.test_progress_detail_cards_are_quick_links -q -> passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_frontend_mutation_boundary tests.webview.test_webview_navigation_static -q -> passed",
+    "ops/scripts/smoke/Test-WebViewBrowserHomeLiveStateSmoke.ps1 -> passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static tests.webview.test_webview_frontend_mutation_boundary tests.webview.test_webview_navigation_static -q -> failed on pre-existing dirty launch-control static assertion unrelated to this packet: test_launch_controls_are_state_aware_and_topbar_kill_is_emergency_only expects Submit ${label} for ${scope} text in launch_js.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> passed"
+  ],
+  "rollback_plan": "Revert the timeline changes in apps/desktop/webview/static/assets/progressView.js, apps/desktop/webview/static/assets/app.js, apps/desktop/webview/static/assets/styles/components/progress-live.css, the matching tests, and their regenerated summaries for this packet.",
+  "related_changes": [],
+  "notes": "Add read-only ordered run timeline model and renderer.\nPass snapshot/stdout-tail context into Home progress timeline refreshes.\nStyle Home run timeline dot rail, current step, checked completed nodes, and collapsed evidence.\nCover CSV rerun timeline classification and public export.\nUpdate browser Home smoke expectations for timeline display.\nAssert timeline renderer remains shared and read-only.\nAssert timeline renderer and CSS classes are present.\nRefresh generated summary for progress timeline source.\nRefresh generated summary for Home refresh source.\nRefresh generated summary for progress timeline CSS.\nRefresh generated summary for CSV timeline test coverage.\nRefresh generated summary for Home browser smoke coverage.\nRefresh generated summary for mutation-boundary test coverage.\nRefresh generated summary for navigation static test coverage.\nNo backend route, state file, PowerShell, queue, publish, or media-policy behavior was changed."
+}

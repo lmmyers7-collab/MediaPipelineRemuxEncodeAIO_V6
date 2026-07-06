@@ -3,9 +3,9 @@ file: tests/python/desktop/application_facade_test_support.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-02
+last_modified: 2026-07-03
 last_reviewed: 2026-06-24
-sha256: 08901b4e7ffca1b49cfac9c25e08e791ebd0852149a9e67f5995d676d676ddbb
+sha256: d3979edadae9e5a8e31da39777dbccb4361cbebe094376e787f8ac52108bdd85
 ---
 # `tests/python/desktop/application_facade_test_support.py`
 

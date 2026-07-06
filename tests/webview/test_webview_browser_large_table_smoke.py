@@ -327,7 +327,7 @@ def _browser_large_table_runner_source() -> str:
             requireText("queue-progress-status", ["Complete"]);
             requireText("queue-progress-summary", ["Queue source scan progress:", "Source candidates: 260", "indeterminate until backend scanner telemetry"]);
             requireText("queue-progress-bars", ["Queue source scan", "complete", "Source candidates: 260"]);
-            requireText("queue-filter-summary", ["Display cap: only the first 250 filtered rows are rendered", "filtering the Queue table does not change backend launch scope"]);
+            requireText("queue-filter-summary", ["Display cap: only the first 250 filtered rows are rendered", "Mutation guardrail: read-only evidence", "backend routes own queue and launch changes"]);
             const queueTableLegend = byId("queue-table-legend");
             if (!queueTableLegend || !queueTableLegend.hidden || queueTableLegend.textContent.trim()) {
               throw new Error("Queue table legend should stay hidden for loaded rows: " + (queueTableLegend?.textContent || ""));
@@ -541,12 +541,19 @@ def _browser_large_table_runner_source() -> str:
             setValue("queue-filter", "");
             window.mediaPipelineQueueView.renderQueueRows();
 
+            const completedTimeCases = [
+              { display: "Jun 30 12:50 AM", sort: "2026-06-30T00:50:00-04:00" },
+              { display: "Jun 30 10:51 PM", sort: "2026-06-30T22:51:00-04:00" },
+              { display: "Jul 1 12:01 AM", sort: "2026-07-01T00:01:00-04:00" },
+            ];
             const completedRows = Array.from({ length: 260 }, (_value, index) => {
               const label = "Large Completed " + pad(index);
               const blocked = index === 259;
+              const completedTime = completedTimeCases[index] || { display: "May 14 12:00 AM", sort: "2026-05-14T00:00:00-04:00" };
               return {
                 row_key: "completed-large-" + pad(index),
-                completed_at: "2026-05-14T00:00:00Z",
+                completed_at: completedTime.display,
+                completed_at_sort_key: completedTime.sort,
                 lookup_title: label,
                 output_file: label + ".mkv",
                 output_path: "C:/Output/Large/" + label + ".mkv",
@@ -621,7 +628,15 @@ def _browser_large_table_runner_source() -> str:
             requireRenderedRows("#completed-rows tr[data-row-key]", 250);
             requireText("completed-history-status", ["260 / 260 rows"]);
             requireRenderedRows("#completed-history-rows tr[data-row-key]", 260);
-            enhancedTableState("completed-rows");
+            const completedTableState = enhancedTableState("completed-rows");
+            const completedSortButton = completedTableState.table.querySelector("thead th:nth-child(1) .table-sort-button");
+            if (!completedSortButton) throw new Error("Completed table missing Completed sort button");
+            completedSortButton.click();
+            completedSortButton.click();
+            const firstCompletedSortedRow = document.querySelector("#completed-rows tr[data-row-key]");
+            if (!String(firstCompletedSortedRow?.textContent || "").includes("Large Completed 003")) {
+              throw new Error("Completed timestamp sort did not use chronological sort key for newest row: " + (firstCompletedSortedRow?.textContent || ""));
+            }
             const completedLibrarySelect = byId("completed-library-filter");
             const tvLibraryOption = Array.from(completedLibrarySelect.options).find((option) => option.textContent === "TV Library");
             if (!tvLibraryOption) {
@@ -684,7 +699,8 @@ def _browser_large_table_runner_source() -> str:
               "What to check next",
               "Check Pending Publish and final placement proof.",
               "Paths",
-              "Authority: this summary is read-only",
+              "Mutation guardrail: read-only evidence",
+              "backend routes own output and manifest changes",
             ]);
             requireText("completed-detail", ["Large Completed 260", "Selected row visible in table: no", "not present in Current Output Status table", "text filter=\\"Large Completed 001\\"", "Mutation guardrail"]);
             requireText("completed-active-output-context", [
@@ -787,7 +803,7 @@ def _browser_large_table_runner_source() -> str:
             window.renderPendingPublish(pendingPayload, {});
             requireText("pending-status", ["250 shown / 260 filtered / 260 rows"]);
             requireText("pending-inventory-progress-bars", ["Pending inventory", "100%", "Pending publish inventory scanned 260 row(s)"]);
-            requireText("pending-filter-summary", ["Display cap: only the first 250 filtered rows are rendered", "filtering Pending Publish rows does not change drain scope"]);
+            requireText("pending-filter-summary", ["Display cap: only the first 250 filtered rows are rendered", "Mutation guardrail: read-only evidence", "backend routes own pending-publish changes"]);
             requireText("pending-table-legend", ["Pending publish rows: 250 selectable rows"]);
             requireRenderedRows("#pending-rows tr[data-row-key]", 250);
             enhancedTableState("pending-rows");
@@ -817,7 +833,7 @@ def _browser_large_table_runner_source() -> str:
               "Blocked/review/read-first/unknown",
             ]);
             window.selectPendingRow(pendingRows[259]);
-            requireText("pending-selected-summary", ["Selected Pending Publish row: C:/Scratch/Pending/Large Pending 260.mkv", "at-a-glance=Do not drain", "Filter visibility: Selected row visible in table: no", "Authority: this summary is read-only"]);
+            requireText("pending-selected-summary", ["Selected Pending Publish row: C:/Scratch/Pending/Large Pending 260.mkv", "at-a-glance=Do not drain", "Filter visibility: Selected row visible in table: no", "Mutation guardrail: read-only evidence", "backend routes own pending-publish changes"]);
             requireText("pending-detail", ["Large Pending 260", "Selected row visible in table: no", "Hidden by current filters: text filter=\\"Large Pending 001\\"", "Mutation guardrail"]);
             if (!pressShortcut("4")) throw new Error("Pending Publish shortcut should be handled");
             requireActivePage("pending");

@@ -411,7 +411,10 @@ def _pending_publish_category(
                 "pending_publish",
                 "high",
                 f"Pending publish parked bytes exceed the blocked budget ({total_bytes} bytes).",
-                next_action="Drain or review parked outputs before launching new work.",
+                next_action=(
+                    "Publish the parked outputs, or review the ones that are not ready, "
+                    "before starting more queue work."
+                ),
                 recovery_action=_pending_publish_drain_action(),
             )
         )
@@ -468,7 +471,10 @@ def _pending_publish_category(
                     "Pending publish item has been parked for at least 72 hours.",
                     evidence_path=evidence_path,
                     age_seconds=age_seconds,
-                    next_action="Drain or review old parked output before launching new work.",
+                    next_action=(
+                        "Publish the old parked output, or review it if it is not ready, "
+                        "before starting more queue work."
+                    ),
                     recovery_action=_pending_publish_drain_action(),
                 )
             )

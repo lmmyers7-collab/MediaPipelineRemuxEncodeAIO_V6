@@ -757,6 +757,8 @@ _NUMERIC_LIMITS_BY_KEY = {
     "ConsecutiveRoundFailureProbeBackoffSeconds": {"min": 30, "max": 86400, "step": 1, "unit": "seconds"},
     "PendingPublishBacklogBlockThreshold": {"min": 1, "max": 1000000, "step": 1},
     "PendingPublishDeferredBlockThreshold": {"min": 1, "max": 1000000, "step": 1},
+    "AutonomyPendingTotalReviewBytes": {"min": 1048576, "max": 10995116277760, "step": 1073741824, "unit": "bytes"},
+    "AutonomyPendingTotalBlockBytes": {"min": 1048576, "max": 10995116277760, "step": 1073741824, "unit": "bytes"},
     "PipelineDebugLogMaxBytes": {"min": 1048576, "max": 2147483647, "step": 1, "unit": "bytes"},
     "PauseFlagReviewSeconds": {"min": 60, "max": 86400, "step": 1, "unit": "seconds"},
     "PauseFlagBlockSeconds": {"min": 300, "max": 604800, "step": 1, "unit": "seconds"},

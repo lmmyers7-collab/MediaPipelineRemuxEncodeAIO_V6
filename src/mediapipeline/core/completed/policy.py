@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from collections.abc import Iterable
 
 from mediapipeline.core.completed.manifest import OUTPUT_PROOF_DEFERRED, OUTPUT_PROOF_LIVE
 from mediapipeline.core.completed.trust_fields import build_completed_row_trust_fields
@@ -32,6 +32,11 @@ COMPLETED_MANIFEST_STALE_AFTER_SECONDS = 604800
 COMPLETED_INVENTORY_PROGRESS_SCHEMA_VERSION = "desktop_completed_inventory_progress.v1"
 COMPLETED_HISTORY_ALL_LIMIT = "all"
 COMPLETED_NEUTRAL_SIZE_DELTA_PERCENT = 1.0
+COMPLETED_PENDING_PUBLISH_ROW_STATES = {
+    "parked",
+    "parked_recovered",
+    "pending_move",
+}
 COMPLETED_RUNTIME_FAILURE_STATUSES = {
     "failed",
     "skipped",
@@ -48,6 +53,20 @@ def _completed_preview_dto(**fields: Any) -> CompletedPreviewDto:
     from mediapipeline.core.kernel.dto_inventory import CompletedPreviewDto
 
     return CompletedPreviewDto(**fields)
+
+
+def _completed_at_text(value: datetime | None) -> str:
+    if not value:
+        return "Unknown"
+    day = str(value.day)
+    hour = value.strftime("%I").lstrip("0") or "12"
+    return value.strftime(f"%b {day} {hour}:%M %p")
+
+
+def _completed_at_sort_key(value: datetime | None) -> str:
+    if not value:
+        return ""
+    return value.isoformat(timespec="seconds")
 
 
 def bounded_completed_limit(value: Any, *, default: int = 100, minimum: int = 1, maximum: int = 500) -> int:
@@ -352,6 +371,7 @@ def completed_bitrate_fields(
 
 def completed_record_to_row(record: CompletedJobRecord) -> dict[str, Any]:
     deferred = _output_proof_deferred(record)
+    completed_at = record.completed_at
     # Deferred rows must not touch the filesystem: take output size from the
     # manifest payload only (skip the stat() fallback in output_size_bytes).
     output_size = _payload_output_size(record) if deferred else record.output_size_bytes
@@ -366,7 +386,8 @@ def completed_record_to_row(record: CompletedJobRecord) -> dict[str, Any]:
     subtitle_decisions = record.subtitle_decisions
     row = {
         "row_key": completed_record_key(record),
-        "completed_at": record.completed_at_text,
+        "completed_at": _completed_at_text(completed_at),
+        "completed_at_sort_key": _completed_at_sort_key(completed_at),
         "route": record.route,
         "route_label": record.route_label,
         "route_reason": route_reason,
@@ -452,6 +473,174 @@ def completed_record_to_row(record: CompletedJobRecord) -> dict[str, Any]:
         record_payload=record.payload,
     )
     return row
+
+
+def _mapping_text(mapping: Mapping[str, Any], *keys: str) -> str:
+    for key in keys:
+        value = str(mapping.get(key) or "").strip()
+        if value:
+            return value
+    return ""
+
+
+def _pending_publish_completed_payload(row: Mapping[str, Any]) -> dict[str, Any] | None:
+    pending_state = _mapping_text(row, "state").casefold()
+    if pending_state not in COMPLETED_PENDING_PUBLISH_ROW_STATES:
+        return None
+    manifest_path = _mapping_text(row, "manifest_path")
+    local_file = _mapping_text(row, "local_file")
+    server_out = _mapping_text(row, "server_out")
+    if not manifest_path or not local_file or not server_out:
+        return None
+    if row.get("local_exists") is False:
+        return None
+    return {
+        "source_path": _mapping_text(row, "source_path"),
+        "output_path": server_out,
+        "output_file": Path(server_out).name,
+        "route": _mapping_text(row, "route"),
+        "encoded_at": _mapping_text(row, "parked_at"),
+        "output_size": row.get("output_size"),
+        "publish_state": "parked",
+        "publish_mode": _mapping_text(row, "publish_mode") or "deferred",
+        "_diagnostics_output_proof": OUTPUT_PROOF_DEFERRED,
+        "_diagnostics_pending_publish": True,
+        "_diagnostics_pending_publish_manifest_path": manifest_path,
+        "_diagnostics_pending_publish_local_file": local_file,
+        "_diagnostics_pending_publish_state": pending_state,
+    }
+
+
+def completed_pending_publish_row(row: Mapping[str, Any]) -> dict[str, Any] | None:
+    payload = _pending_publish_completed_payload(row)
+    if payload is None:
+        return None
+    manifest_path = _mapping_text(row, "manifest_path")
+    pending_state = _mapping_text(row, "state").casefold()
+    record = CompletedJobRecord(sidecar_path=Path(manifest_path), payload=payload)
+    completed = completed_record_to_row(record)
+    issue_summary = _mapping_text(row, "issue_summary", "error")
+    ready_to_drain = bool(row.get("ready_to_drain"))
+    missing_sidecar_count = row.get("missing_sidecar_count")
+    review_flags = [
+        "pending_publish_parked",
+        f"pending_publish_state:{pending_state}",
+    ]
+    if issue_summary:
+        review_flags.append("pending_publish_issue")
+    try:
+        if int(missing_sidecar_count or 0) > 0:
+            review_flags.append("pending_publish_missing_sidecar")
+    except (TypeError, ValueError):
+        pass
+    completed.update(
+        {
+            "completed_source": "pending_publish",
+            "pending_publish": True,
+            "pending_publish_manifest_path": manifest_path,
+            "pending_publish_local_file": _mapping_text(row, "local_file"),
+            "pending_publish_server_out": _mapping_text(row, "server_out"),
+            "pending_publish_state": pending_state,
+            "pending_publish_row_key": _mapping_text(row, "row_key"),
+            "pending_publish_ready_to_drain": ready_to_drain,
+            "pending_publish_issue_summary": issue_summary,
+            "pending_publish_diagnostic_status": _mapping_text(row, "diagnostic_status"),
+            "pending_publish_diagnostic_status_state": _mapping_text(row, "diagnostic_status_state"),
+            "pending_publish_diagnostic_severity": _mapping_text(row, "diagnostic_severity"),
+            "pending_publish_recovery_class": _mapping_text(row, "recovery_class"),
+            "pending_publish_drain_recommendation": _mapping_text(row, "drain_recommendation"),
+            "pending_publish_sidecar_count": row.get("sidecar_count"),
+            "pending_publish_missing_sidecar_count": missing_sidecar_count,
+            "pending_publish_sidecar_paths": (
+                list(row.get("sidecar_paths") or [])
+                if isinstance(row.get("sidecar_paths"), list)
+                else []
+            ),
+            "output_exists": None,
+            "output_proof": OUTPUT_PROOF_DEFERRED,
+            "output_health": "",
+            "sidecar_exists": None,
+            "sidecar_matches_output": None,
+            "consistency_status": "Parked",
+            "consistency_severity": "warning",
+            "consistency_issues": review_flags[:],
+            "consistency_guidance": (
+                "Output is parked in Pending Publish and has not been drained to "
+                "the final destination."
+            ),
+            "operator_status": "Parked",
+            "operator_status_state": "parked",
+            "operator_severity": "warning",
+            "operator_guidance": (
+                "Use Pending Publish drain/review controls before treating this "
+                "output as published in the final library."
+            ),
+            "review_flags": review_flags,
+            "available_open_targets": [],
+        }
+    )
+    validation_state = validation_state_for_completed_row(completed)
+    completed.update(
+        {
+            "validation_status_state": validation_state["validation_status_state"],
+            "validation_failure_reason": validation_state["failure_reason"],
+            "validation_probe_ok": validation_state["probe_ok"],
+            "validation_hash_ok": validation_state["hash_ok"],
+            "validation_playback_required": validation_state["playback_required"],
+            "validation_unavailable_reasons": validation_state["unavailable_reasons"],
+            "validation_safe_next_action": validation_state["safe_next_action"],
+        }
+    )
+    completed.update(
+        {
+            "operator_trust_state": "parked-pending-publish",
+            "primary_concern": "output is parked in Pending Publish and has not been drained",
+            "safe_next_action": "Use Pending Publish drain/review controls; Completed is showing this as read-only parked evidence.",
+            "unsafe_if_ignored": "Treating parked output as published can hide outputs that still require manifest-backed drain.",
+            "recommended_diagnostics_targets": [
+                "pending_publish",
+                "completed_manifest",
+                "run_logs",
+                "last_stderr_log",
+            ],
+            "proof_summary": [
+                "status=Parked",
+                "publish=parked",
+                f"pending_state={pending_state or 'unknown'}",
+                f"output={completed.get('output_path') or 'not reported'}",
+            ],
+        }
+    )
+    evidence_lines = completed_row_route_evidence_lines(completed)
+    if manifest_path:
+        evidence_lines.append(f"Pending publish manifest: {manifest_path}")
+    if issue_summary:
+        evidence_lines.append(f"Pending publish issue: {issue_summary}")
+    completed["route_evidence_lines"] = evidence_lines
+    return completed
+
+
+def completed_pending_publish_rows(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    completed_rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for row in rows:
+        if not isinstance(row, Mapping):
+            continue
+        completed = completed_pending_publish_row(row)
+        if completed is None:
+            continue
+        identity = "|".join(
+            [
+                str(completed.get("pending_publish_manifest_path") or ""),
+                str(completed.get("pending_publish_local_file") or ""),
+                str(completed.get("output_path") or ""),
+            ]
+        ).casefold()
+        if identity in seen:
+            continue
+        seen.add(identity)
+        completed_rows.append(completed)
+    return completed_rows
 
 
 def completed_row_available_open_targets(row: dict[str, Any]) -> list[str]:
@@ -847,7 +1036,10 @@ def completed_row_route_evidence_lines(row: dict[str, Any]) -> list[str]:
     publish = str(row.get("publish") or row.get("publish_state") or "").strip()
     if publish:
         lines.append(f"Publish: {publish}")
-    health = str(row.get("output_health") or ("missing output" if row.get("output_exists") is False else "ok")).strip()
+    if bool(row.get("pending_publish")) and not str(row.get("output_health") or "").strip():
+        health = "parked pending publish"
+    else:
+        health = str(row.get("output_health") or ("missing output" if row.get("output_exists") is False else "ok")).strip()
     if health:
         lines.append(f"Output health: {health}")
     audio_preview = row.get("audio_decision_preview")
@@ -1116,6 +1308,7 @@ def completed_preview_fields(
     runtime_event_count: int = 0,
     runtime_outcome_source: str = "",
     runtime_outcome_warning: str = "",
+    warnings: Iterable[str] = (),
 ) -> dict[str, Any]:
     output_sizes = [int(row.get("output_size_bytes") or 0) for row in rows]
     total_output_bytes = sum(output_sizes)
@@ -1124,6 +1317,13 @@ def completed_preview_fields(
     subtitle_decision_total = sum(int(row.get("subtitle_decision_count") or 0) for row in rows)
     runtime_outcome_rows = [row for row in rows if str(row.get("runtime_outcome_status") or "").strip()]
     inventory_progress = completed_inventory_progress_payload(rows_loaded=len(rows), source=source)
+    warning_list = [
+        str(warning or "").strip()
+        for warning in warnings
+        if str(warning or "").strip()
+    ]
+    if not rows:
+        warning_list.insert(0, COMPLETED_HISTORY_EMPTY_MESSAGE)
     fields = {
         "rows": rows,
         "source": source,
@@ -1174,7 +1374,7 @@ def completed_preview_fields(
         "inventory_progress": inventory_progress,
         "progress_bars": inventory_progress["progress_bars"],
         "validation_state": validation_state_payload(rows, source=source),
-        "warnings": [] if rows else [COMPLETED_HISTORY_EMPTY_MESSAGE],
+        "warnings": warning_list,
     }
     fields.update(
         file_freshness_fields(
@@ -1224,9 +1424,12 @@ def completed_preview_from_records(
     runtime_event_count: int = 0,
     runtime_outcome_source: str = "",
     runtime_outcome_warning: str = "",
+    pending_publish_rows: Iterable[Mapping[str, Any]] = (),
+    warnings: Iterable[str] = (),
 ) -> CompletedPreviewDto:
     rows = completed_preview_rows(records)
     rows = completed_apply_runtime_outcomes(rows, runtime_events)
+    rows = completed_pending_publish_rows(pending_publish_rows) + rows
     return _completed_preview_dto(
         **completed_preview_fields(
             rows,
@@ -1235,6 +1438,7 @@ def completed_preview_from_records(
             runtime_event_count=runtime_event_count,
             runtime_outcome_source=runtime_outcome_source,
             runtime_outcome_warning=runtime_outcome_warning,
+            warnings=warnings,
         )
     )
 
@@ -1264,6 +1468,8 @@ __all__ = [
     "completed_row_consistency",
     "completed_row_operator_guidance",
     "completed_row_trust_fields",
+    "completed_pending_publish_row",
+    "completed_pending_publish_rows",
     "completed_row_route_decision_summary",
     "completed_row_route_evidence_lines",
     "completed_runtime_outcome_indices",

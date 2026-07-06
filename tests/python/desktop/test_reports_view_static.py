@@ -578,6 +578,15 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn("report-audit-score-policy-reset-button", html)
         self.assertIn("report-audit-ignore-selected-button", html)
         self.assertIn("report-audit-export-rerun-csv-button", html)
+        self.assertIn("Build CSV Rerun Queue", html)
+        self.assertNotIn("Selected Audit Row Actions", html)
+        self.assertIn('role="toolbar" aria-label="Selected audit row actions"', html)
+        self.assertIn('id="report-audit-export-status" class="inline-action-status"', html)
+        self.assertIn('id="report-audit-export-rerun-csv-button" class="primary-button"', html)
+        self.assertLess(
+            html.index('aria-label="Selected audit row actions"'),
+            html.index('id="audit-preview-rows"'),
+        )
         self.assertIn('data-audit-selection-action="select-visible"', html)
         self.assertIn("data-audit-score-threshold-input", html)
         self.assertIn('data-audit-selection-action="select-score-at-least"', html)
@@ -633,6 +642,11 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn('apiPost("/api/audit/score-policy", request)', audit_commands_source)
         self.assertIn('apiPost("/api/audit/ignore", request)', audit_commands_source)
         self.assertIn('apiPost("/api/audit/export-rerun-csv", request)', audit_commands_source)
+        self.assertIn("function handoffAuditRerunCsvToQueue", audit_commands_source)
+        self.assertIn('window.showPage("queue")', audit_commands_source)
+        self.assertIn('queueView.activateQueueTab("rerun", { persist: true })', audit_commands_source)
+        self.assertIn("queueView.selectRerunCsvPathForPreview", audit_commands_source)
+        self.assertIn("Start route remains /api/rerun/start; normal /api/pipeline/start is not used.", audit_commands_source)
         self.assertIn("function collectReportAuditStartRequest", audit_commands_source)
         self.assertIn("function startReportAuditFromForm", audit_commands_source)
         self.assertIn("function stopReportAuditFromForm", audit_commands_source)

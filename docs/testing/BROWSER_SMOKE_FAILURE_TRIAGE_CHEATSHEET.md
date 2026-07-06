@@ -206,7 +206,7 @@ A browser smoke failure means the WebView UI assertion failed — it does not me
 - Live telemetry (fixture payloads only)
 - Network lifecycle control (coordinator/worker start/stop)
 
-For real-media behavior, use `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`.
+For real-media behavior, use `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md`.
 
 ---
 

@@ -180,6 +180,19 @@ Path notation: `{local_base}` is the configured LocalBase (scratch root). `{stat
 
 ---
 
+### Pipeline Debug Log
+
+| Field | Value |
+|---|---|
+| **Path** | `{local_base}/pipeline_debug.log` |
+| **Format** | Plain text |
+| **Producer** | PowerShell pipeline logging |
+| **WebView access** | `GET /api/diagnostics/tail` (`pipeline_log` target); `POST /api/diagnostics/open` (`pipeline_log` target); Pipeline Log window Raw tail mode |
+| **Staleness** | The active process may not write or flush immediately. Treat timestamps as the evidence boundary for whether the tail belongs to the current run. |
+| **Safe interpretation** | Use Raw tail mode when the compacted Pipeline Log activity view hides repeated progress lines or injected active-work evidence. |
+
+---
+
 ### Cluster Log
 
 | Field | Value |

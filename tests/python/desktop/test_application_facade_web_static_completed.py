@@ -274,7 +274,7 @@ class ApplicationFacadeWebStaticCompletedTests(unittest.TestCase):
                 "Consistency statuses:",
                 "Missing sidecars:",
                 "Output/sidecar mismatches:",
-                "Mutation guardrail: this panel is read-only.",
+                "COMPLETED_READ_ONLY_BOUNDARY",
                 "Manifest age",
                 "History aged",
                 "Real-media validation checklist:",
@@ -296,8 +296,7 @@ class ApplicationFacadeWebStaticCompletedTests(unittest.TestCase):
                 "What remains unproven: final publish success when output is parked",
                 "Safe next action: inspect Completed Manifest, Pending Publish, output folder, Run Logs, and Last Stderr before rerun.",
                 "Safe next action: compare route metadata and logs before accepting this output as intentional compatibility growth.",
-                "Mutation guardrail: selected-row detail is read-only",
-                "Mutation guardrail: repair, reconcile, and rerun actions must remain backend-owned commands.",
+                "Mutation guardrail: read-only evidence; backend routes own output and manifest changes.",
                 "Select a completed row to see output, sidecar, size-growth",
                 "function completedRowTrustSummaryLines",
                 "review-before-rerun-or-cleanup",
@@ -373,6 +372,8 @@ class ApplicationFacadeWebStaticCompletedTests(unittest.TestCase):
             bundle.completed_view_table_js,
             (
                 "function renderCompletedRowsImpl",
+                "completed_at_sort_key",
+                "completedCell.dataset.sortValue = sortValue",
                 "ctx.renderCompletedOutputAcceptance(ctx.state.lastCompletedPayload, lastCompletedRows",
             ),
         )

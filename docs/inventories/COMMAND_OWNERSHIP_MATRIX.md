@@ -8,7 +8,7 @@ Source: `src/mediapipeline/desktop/api/contract_command.py`,
 `src/mediapipeline/core/api/commands.py`, and the WebView `apiPost` call
 inventory.
 
-Total command routes: 108 POST routes across 11 contract groups.
+Total command routes: 113 POST routes across 11 contract groups.
 
 Network lifecycle start/stop now has backend-owned dry-run and confirmed POST
 routes. Confirmed coordinator/worker lifecycle routes are confirmation-gated,
@@ -31,7 +31,7 @@ dry-run fingerprints and backend backups.
 | `LOCAL_API_SCHEDULE_COMMAND_ROUTE_CONTRACT` | schedule/preview, schedule/save |
 | `LOCAL_API_SAMPLE_VALIDATION_COMMAND_ROUTE_CONTRACT` | sample-validation/preview, sample-validation/append |
 | `LOCAL_API_UI_COMMAND_ROUTE_CONTRACT` | ui-preferences, path-picker/browse |
-| `LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT` | pipeline/control, pipeline/browse-file, pipeline/start, audit/start, audit/stop, audit/sources, audit/sources/scan, audit/score-policy, audit/ignore, audit/export-rerun-csv, rerun/preview, rerun/start, rerun/open, rerun/promote-dry-run, rerun/promote, backend/shutdown |
+| `LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT` | pipeline/control, pipeline/browse-file, pipeline/start, audit/start, audit/stop, audit/sources, audit/sources/scan, audit/score-policy, audit/ignore, audit/export-rerun-csv, rerun/preview, rerun/network-preview, rerun/network/start-dry-run, rerun/network/start, rerun/start, rerun/control, rerun/continue, rerun/open, rerun/promote-dry-run, rerun/promote, backend/shutdown |
 | `LOCAL_API_NETWORK_COMMAND_ROUTE_CONTRACT` | network/coordinator/start-dry-run, network/coordinator/stop-dry-run, network/coordinator/join-blob, network/worker/start-dry-run, network/worker/stop-dry-run, network/worker/test-connection, network/worker/discover-coordinators, network/worker/join-cluster, network/coordinator/start, network/coordinator/stop, network/worker/start, network/worker/stop |
 
 ---
@@ -154,7 +154,7 @@ destinations, eligibility, cleanup behavior, or media policy.
 
 | Route | Owner page | Owner JS | Mutation class | Key restriction |
 |---|---|---|---|---|
-| `POST /api/diagnostics/open` | Diagnostics | `diagnosticsView.js` | `shell-open` | `target` must be one of 20 allowlisted diagnostics keys |
+| `POST /api/diagnostics/open` | Diagnostics | `diagnosticsView.js` | `shell-open` | `target` must be one of 21 allowlisted diagnostics keys |
 | `POST /api/diagnostics/tdarr-matrix-audit` | Diagnostics | `diagnosticsView.js` | `diagnostic-process` | `action` must be one of `report`, `smoke`, `matrix`, `full`, `strict-report`; backend expands fixed Tdarr Matrix audit presets only |
 | `POST /api/diagnostics/tdarr-matrix/evidence/open` | Diagnostics | `diagnosticsView.js` | `shell-open` | `run_id`, `finding_key`, and allowlisted evidence `target`; backend resolves the path inside the selected Tdarr Matrix run root |
 | `POST /api/diagnostics/tdarr-matrix/rerun` | Diagnostics | `diagnosticsView.js` | `diagnostic-process` | `source_run_id`, `selection`, and finding keys only; backend maps findings to manifest case IDs and creates a fresh isolated run root |
@@ -229,7 +229,7 @@ Allowed targets: `run_logs`, `cluster_log`, `config`, `config_folder`,
 |---|---|---|---|---|
 | `POST /api/audit/score-policy` | Reports | `launchView.js` | `audit-state-write` | Backend normalizes score policy or resets to defaults; no queue/media mutation |
 | `POST /api/audit/ignore` | Reports | `launchView.js` | `audit-state-write` | `action`: `add` or `remove`; writes audit-only ignore state, not queue holds |
-| `POST /api/audit/export-rerun-csv` | Reports | `launchView.js` | `report-file-write` | Writes a backend-owned rerun CSV artifact; does not launch rerun work |
+| `POST /api/audit/export-rerun-csv` | Reports | `reports/auditCommands.js` | `report-file-write` | Writes a backend-owned rerun CSV artifact and returns Queue CSV Rerun handoff metadata; does not launch rerun work |
 
 Audit controls are backend-owned report helpers. They cannot apply priority,
 write file overrides, launch rerun work, save settings, or touch media files.
@@ -273,11 +273,16 @@ claims silently, or mutate source/scratch/output/pending-publish files.
 | `POST /api/audit/stop` | Reports | `reportsView.js` | `process-control` | Requires `confirm_stop: true`; backend stops audit process trees only and marks audit progress stopped |
 | `POST /api/audit/sources` | Reports | `reportsView.js` | `audit-source-state-write` | Adds/removes/enables/disables backend-owned Audit source roots in `State\Audit`; does not scan, launch, or touch media |
 | `POST /api/audit/sources/scan` | Reports | `reportsView.js` | `audit-source-scan-state-write` | Recursively counts media, sidecar, and folder totals for selected Audit roots; writes aggregate scan status only and does not mutate media |
-| `POST /api/rerun/preview` | Launch | `launchView.js` | `read-only-preview` | Backend parses the selected CSV, import/scoped candidates, lifecycle warnings, filter options, status tiles, and scoped counts without launch or media mutation |
-| `POST /api/rerun/start` | Launch | `launchView.js` | `process-launch` | Backend-owned CSV rerun v2; default one-at-a-time execution controls scratch pressure, and destination/original policies are strict-confirmation and evidence gated |
-| `POST /api/rerun/open` | Launch | `launchView.js` | `shell-open` | Opens only backend-derived review output, manifest, import/scoped CSV, or folder targets by row/csv key |
-| `POST /api/rerun/promote-dry-run` | Launch | `launchView.js` | `read-only-preview` | Builds dry-run evidence for promoting an existing rerun review output into Pending Publish |
-| `POST /api/rerun/promote` | Launch | `launchView.js` | `pending-manifest-write` | Requires matching dry-run fingerprint and `confirm_promote: true`; moves the review output into Pending Publish and writes a manifest |
+| `POST /api/rerun/preview` | Queue | `queueView.rerun.js` | `read-only-preview` | Backend parses the selected CSV, rule decisions, import/scoped candidates, lifecycle warnings, filter options, status tiles, and scoped counts without launch or media mutation |
+| `POST /api/rerun/network-preview` | Queue | Backend route only | `read-only-preview` | Backend models future network CSV rerun row claims, source mapping readiness, output handoff readiness, duplicate/blocked/skipped rows, and destination policy risk without worker claims, network state writes, queue mutation, launch, or media touch |
+| `POST /api/rerun/network/start-dry-run` | Queue | Backend route only | `none` | Backend dry-run validates coordinator role/lifecycle readiness, active-work and duplicate-batch guards, worker availability evidence, future batch state file paths, rollback expectations, and no-touch media evidence without writing network state or creating worker claims |
+| `POST /api/rerun/network/start` | Queue | Backend route only | `network-state-write` | Requires matching backend dry-run proof and `confirm_start: true`; writes one coordinator-owned `State\Rerun\Network\network-rerun-*.json` batch file plus strict command journal evidence, keeps rows claim-disabled until Phase 4, and does not start workers, create claims, mutate queue, Pending Publish, final output, or media files |
+| `POST /api/rerun/start` | Queue | `queueView.rerun.js` | `process-launch` | Backend-owned CSV rerun v2; default destination is `auto_replace_clean_else_pending_review`, so backend/PowerShell decide clean replace versus Pending Publish/review from rerun evidence; backend rule-blocked rows cannot launch; Queue may select a mode and confirmation flags but never routes CSV rows through `/api/pipeline/start`; strict boolean confirmation and evidence-gated destination/original policy are enforced server-side |
+| `POST /api/rerun/control` | Queue | `queueView.rerun.js` | `process-control` | Strict keys only: `action=stop_after_current`, `confirm_stop: true`; backend resolves exactly one active `rerun_csv` job and writes only the stop marker under `State\Rerun\Control` |
+| `POST /api/rerun/continue` | Queue | `queueView.rerun.js` | `process-launch` | Strict keys only: `manifest_key`, `confirm_continue: true`; backend accepts stopped-after-current manifests only, writes a pending-only scoped CSV, and launches through existing CSV rerun locks |
+| `POST /api/rerun/open` | Queue | `queueView.rerun.js` | `shell-open` | Opens only backend-derived review output, manifest, import/scoped CSV, or folder targets by row/csv key |
+| `POST /api/rerun/promote-dry-run` | Queue | `queueView.rerun.js` | `read-only-preview` | Builds dry-run evidence for promoting an existing rerun review output into Pending Publish |
+| `POST /api/rerun/promote` | Queue | `queueView.rerun.js` | `pending-manifest-write` | Requires matching dry-run fingerprint and `confirm_promote: true`; backend moves the existing review output into Pending Publish with `pending_move` then `parked` manifest evidence, preserving known sidecars and never publishing directly or touching source media |
 | `POST /api/backend/shutdown` | App shell | `app.js`, Tauri shell | `backend-lifecycle` | Shell must check `GET /api/backend/close-readiness`; unsafe close is rejected unless `force_active_work_shutdown` is literal boolean `true` |
 
 ---
@@ -311,14 +316,15 @@ claims silently, or mutate source/scratch/output/pending-publish files.
 | `pending-manifest-write` | 2 | pending-publish/repair-manifest, rerun/promote |
 | `control-state-write` | 2 | final-library-promotion/pause, final-library-promotion/resume |
 | `control-flag-write` | 1 | pipeline/control |
-| `process-control` | 1 | audit/stop |
+| `process-control` | 2 | audit/stop, rerun/control |
 | `process-dry-run` | 3 | queue/scan, maintenance/release-dry-run, maintenance/completed-backfill-dry-run |
 | `diagnostic-process` | 2 | diagnostics/tdarr-matrix-audit, diagnostics/tdarr-matrix/rerun |
 | `diagnostics-artifact-write` | 1 | maintenance/support-export |
 | `runtime-evidence-archive` | 1 | maintenance/archive-state-journals |
 | `tooling-artifact-write` | 1 | maintenance/dependency-atlas |
 | `deployment-write` | 1 | maintenance/release-build |
-| `process-launch` | 3 | pipeline/start, audit/start, rerun/start |
+| `process-launch` | 4 | pipeline/start, audit/start, rerun/start, rerun/continue |
+| `network-state-write` | 1 | rerun/network/start |
 | `backend-lifecycle` | 5 | backend/shutdown, network/coordinator/start, network/coordinator/stop, network/worker/start, network/worker/stop |
 
 ---
@@ -341,6 +347,7 @@ runtime evidence, or creates release deployment artifacts:
 - `audit/start`
 - `audit/stop`
 - `rerun/start`
+- `rerun/control`, `rerun/continue`, `rerun/network/start`
 - `network/coordinator/start`, `network/coordinator/stop`, `network/worker/start`, `network/worker/stop`
 - `settings/save-patch`
 - `settings/import-psd1`

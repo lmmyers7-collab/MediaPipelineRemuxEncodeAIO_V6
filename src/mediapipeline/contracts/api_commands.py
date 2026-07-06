@@ -360,6 +360,7 @@ class RerunPreviewCommandPayload(StrictApiCommandPayload):
     original_mode: Any = None
     return_mode: Any = None
     confirm_replace_final: StrictBool | None = None
+    confirm_source_overwrite: StrictBool | None = None
     confirm_original_policy: StrictBool | None = None
     confirm_delete_original: StrictBool | None = None
     scope: RerunScopePayload | None = None
@@ -379,6 +380,56 @@ class RerunStartCommandPayload(RerunPreviewCommandPayload):
     dry_run: StrictBool | None = None
     plan_only: StrictBool | None = None
     show_console: StrictBool | None = None
+
+
+class RerunNetworkStartDryRunCommandPayload(RerunPreviewCommandPayload):
+    reason: Any = None
+    minimum_worker_count: Any = None
+    min_worker_count: Any = None
+
+
+class RerunNetworkStartCommandPayload(RerunNetworkStartDryRunCommandPayload):
+    dry_run_fingerprint: Any = None
+    confirm_start: StrictBool | None = None
+
+    @model_validator(mode="after")
+    def require_start_confirmation_fields(self) -> RerunNetworkStartCommandPayload:
+        if self.confirm_start is not True:
+            raise ValueError("confirm_start must be true")
+        if self.dry_run_fingerprint is None or (
+            isinstance(self.dry_run_fingerprint, str) and not self.dry_run_fingerprint.strip()
+        ):
+            raise ValueError("dry_run_fingerprint is required")
+        return self
+
+
+class RerunControlCommandPayload(StrictApiCommandPayload):
+    action: Literal["stop_after_current", "pause"] | None = None
+    confirm_stop: StrictBool | None = None
+    confirm_pause: StrictBool | None = None
+
+    @model_validator(mode="after")
+    def require_stop_after_current_confirmation(self) -> RerunControlCommandPayload:
+        if self.action == "stop_after_current" and self.confirm_stop is not True:
+            raise ValueError("confirm_stop must be true")
+        if self.action == "pause" and self.confirm_pause is not True:
+            raise ValueError("confirm_pause must be true")
+        if self.action not in {"stop_after_current", "pause"}:
+            raise ValueError("action must be stop_after_current or pause")
+        return self
+
+
+class RerunContinueCommandPayload(StrictApiCommandPayload):
+    manifest_key: Any = None
+    confirm_continue: StrictBool | None = None
+
+    @model_validator(mode="after")
+    def require_continue_confirmation(self) -> RerunContinueCommandPayload:
+        if self.manifest_key is None or (isinstance(self.manifest_key, str) and not self.manifest_key.strip()):
+            raise ValueError("manifest_key is required")
+        if self.confirm_continue is not True:
+            raise ValueError("confirm_continue must be true")
+        return self
 
 
 class RerunOpenCommandPayload(StrictApiCommandPayload):
@@ -822,7 +873,12 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/audit/ignore": AuditIgnoreCommandPayload,
     "/api/audit/export-rerun-csv": AuditExportRerunCsvCommandPayload,
     "/api/rerun/preview": RerunPreviewCommandPayload,
+    "/api/rerun/network-preview": RerunPreviewCommandPayload,
+    "/api/rerun/network/start-dry-run": RerunNetworkStartDryRunCommandPayload,
+    "/api/rerun/network/start": RerunNetworkStartCommandPayload,
     "/api/rerun/start": RerunStartCommandPayload,
+    "/api/rerun/control": RerunControlCommandPayload,
+    "/api/rerun/continue": RerunContinueCommandPayload,
     "/api/rerun/open": RerunOpenCommandPayload,
     "/api/rerun/promote-dry-run": RerunPromoteDryRunCommandPayload,
     "/api/rerun/promote": RerunPromoteCommandPayload,

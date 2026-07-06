@@ -1,0 +1,55 @@
+{
+  "id": "MP-CHANGE-2026-0705-010",
+  "title": "Place pending publish byte budgets on visible settings tab",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-05",
+  "date_completed": "2026-07-05",
+  "summary": "Move the Pending Publish autonomy byte-budget controls onto the visible Publish & Recovery Settings builder and make the visible inputs use GiB values.",
+  "reason": "The prior exposure placed AutonomyPendingTotalReviewBytes and AutonomyPendingTotalBlockBytes on metadata page Advanced, but the current Settings UI has no Advanced tab. Operators need these launch-gate budgets in an existing visible workflow.",
+  "affected_areas": [
+    "config",
+    "docs",
+    "generated_context",
+    "settings",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The pending-publish byte-budget keys were managed config metadata but pointed at a non-visible Advanced page and were not present in the static Publish & Recovery builder inputs.",
+  "behavior_after": "The byte-budget keys now declare page Publish & Recovery / section Recovery Settings, render as GiB inputs in the visible Recovery Settings panel, convert GiB values to the byte-backed config keys when staging the Settings patch, and appear in the pending-publish builder guidance/docs/tests.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settingsMetadata.js",
+    "apps/desktop/webview/static/assets/settingsView.builders.pending.js",
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "docs/architecture/CONFIG_KEY_GLOSSARY.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsMetadata.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.builders.pending.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-settings.html.md",
+    "docs/generated/summaries/docs/architecture/CONFIG_KEY_GLOSSARY.md.md",
+    "docs/generated/summaries/docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md.md",
+    "docs/generated/summaries/docs/inventories/SETTINGS_KEY_OWNERSHIP_MAP.md.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/metadata_parts/advanced_fields.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_settings.py.md",
+    "docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md",
+    "docs/inventories/SETTINGS_KEY_OWNERSHIP_MAP.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0705-010.json",
+    "src/mediapipeline/core/config/metadata_parts/advanced_fields.py",
+    "tests/python/desktop/test_application_facade_web_static_settings.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_web_static_settings.py"
+  ],
+  "manual_validation": [
+    "CONFIG_FIELD_DEFINITIONS spot-check shows AutonomyPendingTotalReviewBytes/AutonomyPendingTotalBlockBytes page Publish & Recovery section Recovery Settings - passed",
+    "Static check found settings-pending-review-budget-gib/settings-pending-block-budget-gib controls and bytes_gib conversion - passed",
+    "mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed due unrelated empty high-risk MP-CHANGE-2026-0705-011 packet",
+    "mediapipeline.tools.dev.check_active_doc_references - passed",
+    "mediapipeline.tools.dev.refresh_summaries --paths touched files - passed",
+    "python -m unittest tests.python.desktop.test_application_facade_web_static_settings tests.python.desktop.test_metadata_contract tests.python.desktop.test_service_config_numeric_policy -q - passed"
+  ],
+  "rollback_plan": "Remove the two pending-budget controls from the Publish & Recovery static HTML and pendingPublishSettingsBuilderFields, remove the bytes_gib conversion branch from the pending builder, restore the metadata page/section if needed, and revert the docs/generated-summary/test wording changes. The underlying config keys from MP-CHANGE-2026-0705-006 can remain managed but would no longer have visible builder controls.",
+  "related_changes": [],
+  "notes": "Move pending-publish autonomy byte budget controls from hidden Advanced metadata into the visible Publish & Recovery builder."
+}

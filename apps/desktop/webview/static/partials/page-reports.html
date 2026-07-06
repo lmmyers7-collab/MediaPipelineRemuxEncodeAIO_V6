@@ -438,6 +438,13 @@
             <button type="button" class="secondary-button" data-audit-selection-action="select-score-at-least">Select Score or Higher</button>
             <button type="button" class="secondary-button" data-audit-selection-action="clear">Clear Selection</button>
           </div>
+          <div class="action-row action-row-left wrap-actions" role="toolbar" aria-label="Selected audit row actions">
+            <span class="action-group-label">Actions</span>
+            <strong id="report-audit-export-status" class="inline-action-status">No export</strong>
+            <button type="button" id="report-audit-ignore-selected-button" class="secondary-button">Ignore Selected</button>
+            <button type="button" id="report-audit-export-rerun-csv-button" class="primary-button">Build CSV Rerun Queue</button>
+          </div>
+          <pre id="report-audit-export-detail" class="prose-block">No audit rerun CSV export submitted.</pre>
           <div class="table-wrap">
             <table>
               <thead>
@@ -464,15 +471,6 @@
           <p id="audit-preview-table-legend" class="note table-legend">Audit rows: no selectable rows.</p>
           <pre id="audit-preview-detail" class="prose-block">No audit row selected.</pre>
           <div id="audit-preview-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
-          <div class="panel-heading panel-subheading">
-            <h3>Selected Audit Row Actions</h3>
-            <strong id="report-audit-export-status">No export</strong>
-          </div>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="report-audit-ignore-selected-button" class="secondary-button">Ignore Selected</button>
-            <button type="button" id="report-audit-export-rerun-csv-button" class="secondary-button">Export Rerun CSV</button>
-          </div>
-          <pre id="report-audit-export-detail" class="prose-block">No audit rerun CSV export submitted.</pre>
         </section>
 
 <section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="evidence">

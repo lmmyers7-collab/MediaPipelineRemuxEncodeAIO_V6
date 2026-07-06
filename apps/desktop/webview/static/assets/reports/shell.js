@@ -186,7 +186,8 @@
       if (value.includes("queue")) return "Queue";
       if (value.includes("completed") || value.includes("manifest") || value.includes("output")) return "Completed";
       if (value.includes("setting") || value.includes("policy") || value.includes("config")) return "Settings";
-      if (value.includes("audit") || value.includes("rerun") || value.includes("launch")) return "Launch";
+      if (value.includes("rerun")) return "Queue CSV Rerun";
+      if (value.includes("audit") || value.includes("launch")) return "Launch";
       if (value.includes("failure") || value.includes("marker") || value.includes("log") || value.includes("path")) return "Diagnostics";
       return "Reports";
     }
@@ -290,7 +291,8 @@
         : "";
       if (explicit) return explicit;
       const lower = String(message || "").toLowerCase();
-      if (owner === "Launch") return "Verify the CSV path, then use backend-owned Launch controls.";
+      if (owner === "Launch") return "Verify launch intent, then use backend-owned Launch controls.";
+      if (owner === "Queue CSV Rerun") return "Verify the CSV path, then use backend-owned Queue CSV Rerun controls.";
       if (owner === "Pending Publish") return "Compare parked output evidence before drain or rerun decisions.";
       if (owner === "Queue") return "Compare current queue snapshot before launch or rerun decisions.";
       if (owner === "Completed") return "Compare completed manifest/output evidence before accepting or rerunning.";
@@ -362,7 +364,8 @@
       if (text.includes("queue")) return { page: "queue", label: "Queue" };
       if (text.includes("settings")) return { page: "settings", label: "Settings" };
       if (text.includes("completed")) return { page: "completed", label: "Completed" };
-      if (text.includes("launch") || text.includes("rerun")) return { page: "launch", label: "Launch" };
+      if (text.includes("rerun")) return { page: "queue", label: "Queue" };
+      if (text.includes("launch")) return { page: "launch", label: "Launch" };
       if (text.includes("diagnostics") || text.includes("manual")) return { page: "diagnostics", label: "Diagnostics" };
       if (text.includes("reports")) return { page: "reports", label: "Reports" };
       return null;

@@ -1,6 +1,6 @@
 # Current Project State
 
-Last updated: 2026-06-29
+Last updated: 2026-07-04
 
 This is the fast entry point for future AI/code agents. Read this before older audits, Claude task files, or historical checklists.
 
@@ -40,6 +40,7 @@ Active WebView/Tauri refinement, documentation cleanup, tests, packaging, and op
 - 2026-05-30 active handoff docs were refreshed for the promoted state: old root launcher shims are no longer documented as available, and default-launcher promotion is closed by operator confirmation.
 - 2026-05-30 WebView split/tooling work is present for continued plain-script cleanup: generated WebView split maps, split-candidate reports, public-contract baselines, DOM-ID gap reports, route-ownership guards, ESLint warning budgets, and guardrail/runbook docs now exist. This is frontend maintainability and drift-prevention work; it does not change backend media policy.
 - 2026-06-04 completed/superseded Markdown bodies were archived out of the active docs tree under `docs/archive/docs-housekeeping/2026-06-04-completed-md-pass/`. The archived set covers historical audits, the completed dependency-refactor phase tracker, and the completed UX-001 through UX-017 remediation tracker. Redirect stubs remain where active notes still use the old audit or UX paths.
+- 2026-07-04 documentation cleanup archived completed release-foundation, Local API test-split, architecture-boundary, network hardening, queue scan proposal, documentation-cleanup prompt, and stale session-log material under `docs/archive/docs-housekeeping/2026-07-04-doc-cleanup/`. The reusable real-media pilot checklist remains active at `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md`.
 - 2026-06-04 repository layout migration moved loose backend Python into the installable `mediapipeline` namespace under `src/`, grouped desktop/web assets under `apps/desktop/`, grouped PowerShell engine, runtime, scripts, and release metadata under `ops/`, and moved generated/runtime output out of the repository root. The root is now a small project shell: VCS/tool manifests, package manifests, root onboarding docs, and the five responsibility folders `src/`, `apps/`, `ops/`, `tests/`, and `docs/`.
 
 ## Main Launchers

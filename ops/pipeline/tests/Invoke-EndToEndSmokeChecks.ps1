@@ -272,7 +272,8 @@ try {
         '-File', $rerunCsvScript,
         '-CsvPath', $csvPath,
         '-ConfigPath', $configPath,
-        '-DryRun'
+        '-DryRun',
+        '-ConfirmReplaceFinal'
     ) | Out-Null
     $rerunManifest = @(Get-ChildItem -LiteralPath (Join-Path $localBase 'RerunManifests') -Filter '*.json' -File | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1)
     Assert-True ($rerunManifest.Count -eq 1) 'CSV rerun dry-run did not write a manifest'

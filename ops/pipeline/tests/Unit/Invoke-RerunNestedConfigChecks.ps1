@@ -152,12 +152,32 @@ enabled,source_path,media_kind,stage_mode,post_success_original,return_mode
 true,"$source",Movie,copy,keep,park
 "@ | Set-Content -LiteralPath $csv -Encoding UTF8
 
+    $operatorPendingRoot = Join-Path $localBase 'State\PendingServerPush'
+    New-Item -ItemType Directory -Path $operatorPendingRoot -Force | Out-Null
+    $operatorPendingPayload = Join-Path $operatorPendingRoot 'Already Queued.mkv'
+    Set-Content -LiteralPath $operatorPendingPayload -Value 'queued' -Encoding UTF8
+    $operatorPendingManifest = Join-Path $operatorPendingRoot 'Already Queued.mkv.manifest.json'
+    @{
+        schema_version = 'pending_push_manifest.v1'
+        manifest_state = 'parked'
+        local_file = $operatorPendingPayload
+        server_out = (Join-Path $outsource 'Already Queued.mkv')
+        source_path = (Join-Path $sourceMovies 'Already Queued Source.mkv')
+        route = 'remux'
+        output_size = (Get-Item -LiteralPath $operatorPendingPayload).Length
+        sidecar_files = @()
+        tx3g_srt_tracks = @()
+    } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $operatorPendingManifest -Encoding UTF8
+
     $rerunArgs = @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass',
         '-File', $rerunScript,
         '-CsvPath', $csv,
         '-ConfigPath', $config,
-        '-DefaultReturnMode', 'park'
+        '-DefaultReturnMode', 'replace_original',
+        '-DestinationMode', 'auto_replace_clean_else_pending_review',
+        '-CollisionPolicy', 'replace_final',
+        '-ConfirmReplaceFinal'
     )
     $previousMutexSuffix = $env:MEDIA_PIPELINE_TEST_MUTEX_SUFFIX
     try {
@@ -187,10 +207,12 @@ true,"$source",Movie,copy,keep,park
     $manifest = Get-Content -LiteralPath $manifestFiles[0].FullName -Raw | ConvertFrom-Json -ErrorAction Stop
     $tempConfig = Import-PowerShellDataFile -LiteralPath $tempConfigFiles[0].FullName
     $workspaceRoot = Join-Path $root 'Local_RerunWorkspace'
+    $nestedLocalBase = Join-Path (Join-Path $workspaceRoot 'RuntimeState') ([string]$manifest.batch_id)
 
     Assert-Equal (ConvertTo-ComparablePath ([string]$manifest.pipeline_local_base)) (ConvertTo-ComparablePath $localBase) 'Manifest pipeline_local_base should preserve the operator-visible LocalBase.'
+    Assert-Equal (ConvertTo-ComparablePath ([string]$manifest.nested_pipeline_local_base)) (ConvertTo-ComparablePath $nestedLocalBase) 'Manifest nested_pipeline_local_base should point at the isolated nested runtime state.'
     Assert-Equal (ConvertTo-ComparablePath ([string]$manifest.rerun_workspace_root)) (ConvertTo-ComparablePath $workspaceRoot) 'Manifest rerun_workspace_root should point at the isolated sibling workspace.'
-    Assert-Equal (ConvertTo-ComparablePath ([string]$tempConfig['LocalBase'])) (ConvertTo-ComparablePath $localBase) 'Nested pipeline temp config should preserve the operator-visible LocalBase.'
+    Assert-Equal (ConvertTo-ComparablePath ([string]$tempConfig['LocalBase'])) (ConvertTo-ComparablePath $nestedLocalBase) 'Nested pipeline temp config should use isolated rerun runtime state.'
     Assert-True ((ConvertTo-ComparablePath ([string]$tempConfig['SourceMovies'])).StartsWith((ConvertTo-ComparablePath $workspaceRoot) + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) 'Temp SourceMovies should live under the isolated rerun workspace.'
     Assert-True ((ConvertTo-ComparablePath ([string]$tempConfig['Outsource'])).StartsWith((ConvertTo-ComparablePath $workspaceRoot) + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) 'Temp Outsource should live under the isolated rerun workspace.'
     Assert-False (Test-NestedOrSamePath ([string]$tempConfig['LocalBase']) ([string]$tempConfig['SourceMovies'])) 'Temp LocalBase and SourceMovies should not be nested or identical.'
@@ -214,10 +236,14 @@ true,"$source",Movie,copy,keep,park
     Assert-False ([bool]$movieProfile[0]['promotion_enabled']) 'Movies profile promotion should be disabled in rerun temp config.'
     Assert-False ([bool]$tvProfile[0]['promotion_enabled']) 'TV profile promotion should be disabled in rerun temp config.'
 
-    $queueSnapshot = Join-Path $localBase 'State\Progress\queue_snapshot.json'
-    Assert-True (Test-Path -LiteralPath $queueSnapshot -PathType Leaf) "Nested pipeline did not write the operator-visible queue snapshot: $queueSnapshot. Output: $output"
+    $queueSnapshot = Join-Path $nestedLocalBase 'State\Progress\queue_snapshot.json'
+    Assert-True (Test-Path -LiteralPath $queueSnapshot -PathType Leaf) "Nested pipeline did not write the isolated runtime queue snapshot: $queueSnapshot. Output: $output"
     $queueModel = Get-Content -LiteralPath $queueSnapshot -Raw | ConvertFrom-Json -ErrorAction Stop
     Assert-True ([int]$queueModel.total_row_count -ge 1) "Nested pipeline queue snapshot did not include staged rerun rows. Output: $output"
+    Assert-True (Test-Path -LiteralPath $operatorPendingManifest -PathType Leaf) 'Nested rerun should leave pre-existing operator pending manifests in place.'
+    Assert-True (Test-Path -LiteralPath $operatorPendingPayload -PathType Leaf) 'Nested rerun should leave pre-existing operator pending payloads in place.'
+    $operatorPendingSummary = Join-Path $localBase 'State\Progress\pending_drain_summary.json'
+    Assert-False (Test-Path -LiteralPath $operatorPendingSummary -PathType Leaf) "Nested rerun should not write operator pending drain summary evidence: $operatorPendingSummary. Output: $output"
 } finally {
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
 }

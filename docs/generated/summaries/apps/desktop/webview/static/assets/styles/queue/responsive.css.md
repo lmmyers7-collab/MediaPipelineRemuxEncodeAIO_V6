@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/styles/queue/responsive.css
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-26
+last_modified: 2026-07-04
 last_reviewed: 2026-06-25
-sha256: fc0153ef496761cf62c7de7e1cd160769c69e9d69c821782892df2b05cf15230
+sha256: 57d6b6aff94307c3c31e0ee8bb85c91ce7545bfa04125ac223d51a749decf71e
 ---
 # `apps/desktop/webview/static/assets/styles/queue/responsive.css`
 

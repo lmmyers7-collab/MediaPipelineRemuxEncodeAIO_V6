@@ -47,11 +47,14 @@ class LocalApiDiagnosticsTests(LocalApiHttpTestMixin, unittest.TestCase):
             service = DummyFacadeService(root)
             facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
             resolved = _resolved(root)
+            resolved.log_file = root / "pipeline_debug.log"
+            resolved.log_file.write_text("pipeline raw line\npipeline raw line\n", encoding="utf-8")
             (root / "cluster.log").write_text("coordinator started\nworker warning\n", encoding="utf-8")
             server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved)
             try:
                 server.start()
                 status, payload = self._get_json(f"{server.url}/api/diagnostics/tail?target=cluster_log&max_bytes=4096", token="test-token")
+                pipeline_status, pipeline_payload = self._get_json(f"{server.url}/api/diagnostics/tail?target=pipeline_log&max_bytes=4096", token="test-token")
                 rejected_status, rejected = self._get_json(f"{server.url}/api/diagnostics/tail?target=C%3A%5Csecret.txt", token="test-token")
             finally:
                 server.stop()
@@ -64,6 +67,10 @@ class LocalApiDiagnosticsTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertEqual(payload["evidence"]["evidence_authority"], "backend")
         self.assertEqual(payload["evidence"]["operator_status"], "review")
         self.assertEqual(payload["evidence"]["warning_count"], 1)
+        self.assertEqual(pipeline_status, 200)
+        self.assertTrue(pipeline_payload["ok"])
+        self.assertEqual(pipeline_payload["target"], "pipeline_log")
+        self.assertEqual(pipeline_payload["text"].count("pipeline raw line"), 2)
         self.assertEqual(rejected_status, 200)
         self.assertFalse(rejected["ok"])
         self.assertIn("not allowed", "\n".join(rejected["errors"]))

@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0703-003",
+  "title": "Simplify pending publish safety UI",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-07-03",
+  "date_completed": "2026-07-03",
+  "summary": "Simplified the Pending Publish default WebView workflow so the Action Center is the single visible drain entry point, while forensic guard, drain, recovery, repair, confidence, scope, and post-drain evidence panels move behind Advanced. The backend-owned drain guard and PowerShell movement path remain unchanged.",
+  "reason": "Pending Publish had accumulated too many always-visible safety and evidence panels, making the normal drain workflow feel blocked by redundant ceremony even though the hard safety belongs in backend and PowerShell validation.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Pending Publish default page showed the Action Center plus separate guard, drain, readiness, risk, checklist, recovery, repair, confidence, scope, post-drain, and history panels, and recovery dry-run results could refresh the detailed guard without directly refreshing the visible Action Center state.",
+  "behavior_after": "The default page keeps the Action Center, compact pending summary, flagged items, rows, and selected item visible. Detailed safety evidence, recovery, repair, scope, confidence, and post-drain proof remain available through Advanced. Recovery dry-run evidence refreshes the Action Center, and the visible drain button mirrors the guard state.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/pendingPublishView.confidence.js",
+    "apps/desktop/webview/static/assets/pendingPublishView.js",
+    "apps/desktop/webview/static/assets/pendingPublishView.recovery.js",
+    "apps/desktop/webview/static/partials/page-pending.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/pendingPublishView.confidence.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/pendingPublishView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/pendingPublishView.recovery.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-pending.html.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_pending_publish.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_pending_drain_guard_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0703-003.json",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/python/desktop/test_application_facade_web_static_pending_publish.py",
+    "tests/webview/test_webview_browser_pending_drain_guard_smoke.py"
+  ],
+  "tests_added": [
+    "Pinned Pending Publish daily-use versus Advanced panel placement in tests/python/desktop/test_application_facade_web_static_pending_publish.py.",
+    "Extended the browser-backed Pending Publish drain guard smoke to assert blocked recovery evidence disables the visible Action Center drain button."
+  ],
+  "manual_validation": [
+    "node --check apps/desktop/webview/static/assets/pendingPublishView.js; node --check apps/desktop/webview/static/assets/pendingPublishView.recovery.js; node --check apps/desktop/webview/static/assets/pendingPublishView.confidence.js: PASS",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_sidebar_nav_order_and_output_publish_tab tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_pending_publish_action_center_static_contract tests.python.desktop.test_application_facade_web_static_pending_publish tests.webview.test_webview_navigation_static -q: PASS, 28 tests",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_pending_drain_guard_smoke -q: PASS, 1 test",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_layout_manager_smoke -q: PASS, 1 test",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths <7 touched source/test files>: PASS, 7 written",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check --paths <7 touched source/test files>: PASS",
+    "git diff --check -- <touched Pending Publish files>: PASS, with Git line-ending warnings only",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static tests.python.desktop.test_application_facade_web_static_pending_publish tests.webview.test_webview_navigation_static -q: FAIL, blocked by unrelated dirty launch static assertion in tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_launch_controls_are_state_aware_and_topbar_kill_is_emergency_only"
+  ],
+  "rollback_plan": "Revert this change packet plus the touched Pending Publish WebView markup, JS, tests, and generated summaries. No backend route, PowerShell drain, manifest, source media, or runtime state mutation behavior was changed.",
+  "related_changes": [],
+  "notes": "Refresh the Action Center after recovery-plan evidence changes the drain guard.\nUpdate Action Center wording and wire recovery refresh support.\nMove Pending Publish forensic panels behind Advanced and keep one primary drain action.\nMirror drain guard state onto the visible Action Center drain button.\nUpdate static Action Center text assertion.\nPin the Pending Publish daily-use versus Advanced panel split.\nAssert blocked recovery evidence disables the visible Action Center drain button.\nRefresh summary for Pending Publish page markup changes.\nRefresh summary for Action Center JS changes.\nRefresh summary for recovery-plan Action Center refresh wiring.\nRefresh summary for guard button mirroring change.\nRefresh summary for static Action Center assertion update.\nRefresh summary for Pending Publish panel split assertions.\nRefresh summary for visible Action Center drain guard browser assertion."
+}

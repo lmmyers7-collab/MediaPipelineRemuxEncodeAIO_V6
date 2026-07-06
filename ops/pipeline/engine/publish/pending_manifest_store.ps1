@@ -87,6 +87,41 @@ function Get-PendingManifestText {
     return [string]$value
 }
 
+function Test-PendingManifestBoolTrue {
+    param(
+        $Object,
+        [Parameter(Mandatory)] [string] $Name
+    )
+
+    $value = Get-PendingObjectProperty -Object $Object -Name $Name
+    return ($value -is [bool] -and [bool]$value)
+}
+
+function Test-PendingManifestBoolFieldValid {
+    param(
+        $Object,
+        [Parameter(Mandatory)] [string] $Name
+    )
+
+    if (-not (Test-PendingObjectHasProperty -Object $Object -Name $Name)) { return $true }
+    $value = Get-PendingObjectProperty -Object $Object -Name $Name
+    return ($value -is [bool])
+}
+
+function Get-PendingManifestPathKey {
+    param([string] $Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path)) { return '' }
+    try {
+        if (Get-Command -Name Normalize-MediaPipelinePathForBoundary -ErrorAction SilentlyContinue) {
+            return (Normalize-MediaPipelinePathForBoundary $Path).ToLowerInvariant()
+        }
+        return ([System.IO.Path]::GetFullPath($Path).TrimEnd([char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar))).ToLowerInvariant()
+    } catch {
+        return ($Path.Trim().TrimEnd([char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar))).ToLowerInvariant()
+    }
+}
+
 function Get-PendingScriptVariableText {
     param([Parameter(Mandatory)] [string] $Name)
 
@@ -349,6 +384,9 @@ function Test-PendingManifestDestinationTrusted {
     $localFile = Get-PendingManifestText -Object $Manifest -Name 'local_file'
     $serverOut = Get-PendingManifestText -Object $Manifest -Name 'server_out'
     $sourcePath = Get-PendingManifestText -Object $Manifest -Name 'source_path'
+    if (-not (Test-PendingManifestBoolFieldValid -Object $Manifest -Name 'confirm_source_overwrite')) {
+        return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'SOURCE_OVERWRITE_CONFIRM_INVALID' -Reason 'confirm_source_overwrite must be a boolean when present.' -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
+    }
     $outputRoot = Get-PendingManifestConfiguredOutputRoot -Manifest $Manifest
     if ([string]::IsNullOrWhiteSpace($outputRoot)) {
         return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'OUTPUT_ROOT_MISSING' -Reason 'Configured output root is missing; server_out cannot be trusted.' -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
@@ -359,7 +397,15 @@ function Test-PendingManifestDestinationTrusted {
     }
 
     $forbiddenRoots = [System.Collections.Generic.List[string]]::new()
-    foreach ($root in @(Get-PendingManifestConfiguredSourceRoots)) { if ($root) { $forbiddenRoots.Add([string]$root) | Out-Null } }
+    $sourceOverwriteConfirmed = Test-PendingManifestBoolTrue -Object $Manifest -Name 'confirm_source_overwrite'
+    $sourceOverwriteTarget = (
+        $sourceOverwriteConfirmed -and
+        -not [string]::IsNullOrWhiteSpace($sourcePath) -and
+        (Get-PendingManifestPathKey -Path $serverOut) -eq (Get-PendingManifestPathKey -Path $sourcePath)
+    )
+    if (-not $sourceOverwriteTarget) {
+        foreach ($root in @(Get-PendingManifestConfiguredSourceRoots)) { if ($root) { $forbiddenRoots.Add([string]$root) | Out-Null } }
+    }
     foreach ($name in @('LocalBase', 'LocalPendingPush')) {
         $value = Get-PendingScriptVariableText -Name $name
         if (-not [string]::IsNullOrWhiteSpace($value)) { $forbiddenRoots.Add($value) | Out-Null }
@@ -381,6 +427,9 @@ function Test-PendingSidecarTrustedForPublish {
     $localFile = Get-PendingManifestText -Object $Manifest -Name 'local_file'
     $serverOut = Get-PendingManifestText -Object $Manifest -Name 'server_out'
     $sourcePath = Get-PendingManifestText -Object $Manifest -Name 'source_path'
+    if (-not (Test-PendingManifestBoolFieldValid -Object $Manifest -Name 'confirm_source_overwrite')) {
+        return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'SOURCE_OVERWRITE_CONFIRM_INVALID' -Reason 'confirm_source_overwrite must be a boolean when present.' -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
+    }
     $pendingRoot = Get-PendingScriptVariableText -Name 'LocalPendingPush'
     $sidecarLocal = Get-PendingManifestText -Object $Sidecar -Name 'local_file'
     $sidecarServer = Get-PendingManifestText -Object $Sidecar -Name 'server_out'
@@ -397,8 +446,20 @@ function Test-PendingSidecarTrustedForPublish {
     if (-not $serverBoundary.Ok) {
         return New-PendingManifestTrustResult -Ok:$false -ReasonCode "SIDECAR_SERVER_$($serverBoundary.ReasonCode)" -Reason "pending sidecar server_out is not inside the configured output root ($($serverBoundary.ReasonCode)): $sidecarServer" -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
     }
+    $sourceOverwriteTarget = (
+        (Test-PendingManifestBoolTrue -Object $Manifest -Name 'confirm_source_overwrite') -and
+        -not [string]::IsNullOrWhiteSpace($sourcePath) -and
+        (Get-PendingManifestPathKey -Path $serverOut) -eq (Get-PendingManifestPathKey -Path $sourcePath)
+    )
+    $serverDir = if ([string]::IsNullOrWhiteSpace($serverOut)) { '' } else { Split-Path -Parent $serverOut }
+    $sourceOverwriteSidecar = (
+        $sourceOverwriteTarget -and
+        -not [string]::IsNullOrWhiteSpace($serverDir) -and
+        (Test-PendingManifestPathUnderRoot -Path $sidecarServer -Root $serverDir)
+    )
+    $sourceRoots = if ($sourceOverwriteSidecar) { @() } else { @(Get-PendingManifestConfiguredSourceRoots) }
     $forbiddenRoots = @(
-        @(Get-PendingManifestConfiguredSourceRoots),
+        $sourceRoots,
         (Get-PendingScriptVariableText -Name 'LocalBase'),
         $pendingRoot
     )

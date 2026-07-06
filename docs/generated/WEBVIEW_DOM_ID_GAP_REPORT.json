@@ -24,9 +24,9 @@
   ],
   "report_note": "Pre-split report only. IDs are collected from index.html with mp-include partials expanded. Missing IDs can be legitimate when markup is generated at runtime, but every future split should keep this report stable or deliberately update it.",
   "counts": {
-    "html_ids": 1983,
-    "js_touched_ids": 632,
-    "ids_present_in_index": 592,
+    "html_ids": 2005,
+    "js_touched_ids": 636,
+    "ids_present_in_index": 596,
     "ids_missing_from_index": 40,
     "likely_dynamic_missing_ids": 0,
     "review_missing_ids": 40
@@ -148,6 +148,7 @@
     "final-library-resume-button",
     "floating-pipeline-log-close-button",
     "floating-pipeline-log-follow",
+    "floating-pipeline-log-mode",
     "floating-pipeline-log-panel",
     "floating-pipeline-log-refresh-button",
     "floating-pipeline-log-status",
@@ -213,6 +214,7 @@
     "launch-backend-preflight-status",
     "launch-command-diagnostics-actions",
     "launch-command-review-rows",
+    "launch-encoder-capability-refresh-button",
     "launch-evidence-body",
     "launch-evidence-toggle",
     "launch-history",
@@ -472,22 +474,24 @@
     "report-open-history-disclosure",
     "report-warning-rows",
     "rerun-inspect-csv-button",
-    "rerun-open-csv-button",
-    "rerun-open-csv-folder-button",
+    "rerun-lifecycle-evidence",
+    "rerun-lifecycle-phase",
     "rerun-preview-limit",
     "rerun-preview-rows",
     "rerun-preview-tiles",
     "rerun-recent-csv-rows",
+    "rerun-results-panel",
+    "rerun-review-header",
     "rerun-scope-enabled-only",
     "rerun-scope-first-n",
     "rerun-scope-skip-blocked",
     "rerun-scope-skip-warning-rows",
     "rerun-start-button",
     "rerun-start-collision-policy",
+    "rerun-start-confirm-source-overwrite",
     "rerun-start-csv-path",
     "rerun-start-destination-mode",
     "rerun-start-execution-mode",
-    "rerun-start-original-policy",
     "rerun-start-window-size",
     "reset-layout-btn",
     "sample-validation-acceptance-gate-rows",
@@ -1053,6 +1057,15 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/queueView.rerun.js",
+      "path": "apps/desktop/webview/static/assets/queueView.rerun.js",
+      "dom_ids_touched": [
+        "rerun-start-button",
+        "rerun-start-csv-path"
+      ],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/queue/selection.js",
       "path": "apps/desktop/webview/static/assets/queue/selection.js",
       "dom_ids_touched": [],
@@ -1249,6 +1262,7 @@
       "src": "/assets/pendingPublishView.confidence.js",
       "path": "apps/desktop/webview/static/assets/pendingPublishView.confidence.js",
       "dom_ids_touched": [
+        "pending-action-drain-button",
         "pending-drain-button",
         "pending-drain-confidence-rows",
         "pending-drain-decision-rows",
@@ -2150,6 +2164,7 @@
       "dom_ids_touched": [
         "floating-pipeline-log-close-button",
         "floating-pipeline-log-follow",
+        "floating-pipeline-log-mode",
         "floating-pipeline-log-panel",
         "floating-pipeline-log-refresh-button",
         "floating-pipeline-log-status",
@@ -2285,17 +2300,24 @@
         "pipeline-start-show-config",
         "pipeline-start-show-console",
         "pipeline-start-single-file",
-        "pipeline-start-sleep",
+        "pipeline-start-sleep"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/rerunRequest.js",
+      "path": "apps/desktop/webview/static/assets/queue/rerunRequest.js",
+      "dom_ids_touched": [
         "rerun-preview-limit",
         "rerun-scope-enabled-only",
         "rerun-scope-first-n",
         "rerun-scope-skip-blocked",
         "rerun-scope-skip-warning-rows",
         "rerun-start-collision-policy",
+        "rerun-start-confirm-source-overwrite",
         "rerun-start-csv-path",
         "rerun-start-destination-mode",
         "rerun-start-execution-mode",
-        "rerun-start-original-policy",
         "rerun-start-window-size"
       ],
       "missing_from_index": []
@@ -2326,19 +2348,24 @@
       "path": "apps/desktop/webview/static/assets/launchView.js",
       "dom_ids_touched": [
         "launch-backend-preflight-status",
+        "launch-encoder-capability-refresh-button",
         "pending-drain-button",
         "pipeline-single-file-browse-button",
         "pipeline-single-file-clear-button",
         "pipeline-start-button",
         "pipeline-start-single-file",
         "rerun-inspect-csv-button",
-        "rerun-open-csv-button",
-        "rerun-open-csv-folder-button",
+        "rerun-lifecycle-evidence",
+        "rerun-lifecycle-phase",
         "rerun-preview-rows",
         "rerun-preview-tiles",
         "rerun-recent-csv-rows",
+        "rerun-results-panel",
+        "rerun-review-header",
         "rerun-start-button",
-        "rerun-start-csv-path"
+        "rerun-start-collision-policy",
+        "rerun-start-csv-path",
+        "rerun-start-destination-mode"
       ],
       "missing_from_index": []
     },
@@ -2531,7 +2558,6 @@
         "rename-save-override-button",
         "rename-use-loaded-queue-button",
         "rename-use-selected-queue-button",
-        "rerun-start-button",
         "state-pill"
       ],
       "missing_from_index": [

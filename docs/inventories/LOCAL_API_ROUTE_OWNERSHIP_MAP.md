@@ -2,7 +2,7 @@
 
 Documents all Local API routes, their mutation risk, auth requirements, backend owner confirmation, and primary frontend caller. Source of truth is `contract_read.py` and `contract_command.py`; handler dispatch is in `routes_read.py` and `routes_command.py`.
 
-Total routes: 161 (53 read, 108 command).
+Total routes: 163 (53 read, 110 command).
 
 All routes that mutate state are backend-owned. The WebView never resolves filesystem paths, selects output targets, chooses encode settings, or launches processes directly — it forwards requests with allowlisted parameters and the backend validates, plans, and executes.
 
@@ -18,7 +18,7 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 |---|---|---|---|---|
 | `GET /api/health` | No | `desktop_backend_health.v1` | Tauri shell (startup) | No token required — used before WebView2 opens |
 | `GET /api/contract` | Yes | `desktop_local_api_contract.v1` | Tauri shell (startup) | Self-describing route/command contract; Tauri validates before opening WebView2 |
-| `GET /api/snapshot` | Yes | `desktop_app_snapshot.v1` | Home, all pages (refresh) | Core pipeline/audit status payload plus read-only long-run reliability counters |
+| `GET /api/snapshot` | Yes | `desktop_app_snapshot.v1` | Home, all pages (refresh) | Core pipeline/audit status payload plus read-only long-run reliability counters and backend-owned `current_work` active-work summary fields for current item, current/next stage, latest evidence/event, and missing/blocked evidence |
 | `GET /api/telemetry` | Yes | `desktop_telemetry.v1` | Home, Diagnostics | CPU/RAM/GPU sample; cached by backend |
 | `GET /api/diagnostics` | Yes | `desktop_diagnostics.v1` | Diagnostics, Home | Recent events, errors, launch-log summary, and backend-owned autonomy health evidence |
 | `GET /api/diagnostics/tail` | Yes | `desktop_diagnostics_tail.v1` | Diagnostics | Query params: `target` (allowlisted key only), `max_bytes` (1 KB–256 KB); backend rejects arbitrary paths; response evidence is marked `evidence_authority=backend` |
@@ -30,7 +30,7 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/ui-preferences` | Yes | `desktop_ui_preferences.v1` | Chrome WebView, Tauri shell | Shared UI preference state for layout/theme/tab parity; no settings, queue, or media mutation |
 | `GET /api/launch/preflight` | Yes | `desktop_launch_preflight.v1` | Launch | Backend-authored pre-launch checks from read-only start-intent query fields, including pipeline single-file intent, extra-argument posture, and encoder capability diagnostic evidence that refreshes only when `refresh_encoder_capability_report=true`; no locks reserved, no processes started, no media touched |
 | `GET /api/commands` | Yes | `desktop_command_history.v1` | Diagnostics, Home | Recent command journal entries; query param: `limit` |
-| `GET /api/rerun/results` | Yes | `desktop_rerun_results.v1` | Launch | Reads completed/current CSV rerun manifests, rerun review outputs, and backend-known import/scoped CSV candidates; no file movement or media mutation |
+| `GET /api/rerun/results` | Yes | `desktop_rerun_results.v1` + nested `desktop_rerun_queue_state.v1` | Queue | Reads completed/current CSV rerun manifests, first-class Queue-facing CSV rerun row statuses, backend-owned rule decisions, stop evidence, continuation eligibility, rerun review outputs, destination/review/publish evidence, and backend-known import/scoped CSV candidates; no file movement or media mutation |
 
 ### Inventory Group
 
@@ -156,12 +156,12 @@ Final-library promotion remains backend-owned: the backend resolves destinations
 
 | Route | Effect | Request Keys | Allowed Targets | Frontend Caller |
 |---|---|---|---|---|
-| `POST /api/diagnostics/open` | `shell-open` | `target` | 20 allowlisted keys (see below) | Diagnostics, all pages |
+| `POST /api/diagnostics/open` | `shell-open` | `target` | 21 allowlisted keys (see below) | Diagnostics, all pages |
 | `POST /api/diagnostics/tdarr-matrix-audit` | `diagnostic-process` | `action` | `report`, `smoke`, `matrix`, `full`, `strict-report` | Diagnostics |
 | `POST /api/diagnostics/tdarr-matrix/evidence/open` | `shell-open` | `run_id`, `finding_key`, `target` | `stdout`, `stderr`, `worker_result`, `source_hashes`, `failure_artifact`, `output`, `report_folder` | Diagnostics |
 | `POST /api/diagnostics/tdarr-matrix/rerun` | `diagnostic-process` | `source_run_id`, `selection`, `finding_keys` | `selected`, `latest_failures` | Diagnostics |
 
-Allowed targets for `/api/diagnostics/open`: `run_logs`, `cluster_log`, `config`, `config_folder`, `workspace`, `state`, `pending_publish`, `failed_reports`, `failed_markers`, `audit_reports`, `queue_snapshot`, `active_jobs`, `completed_manifest`, `latest_failure_report`, `latest_failure_json`, `latest_audit_csv`, `latest_priority_csv`, `last_stdout_log`, `last_stderr_log`, `sample_validation_log`.
+Allowed targets for `/api/diagnostics/open`: `run_logs`, `pipeline_log`, `cluster_log`, `config`, `config_folder`, `workspace`, `state`, `pending_publish`, `failed_reports`, `failed_markers`, `audit_reports`, `queue_snapshot`, `active_jobs`, `completed_manifest`, `latest_failure_report`, `latest_failure_json`, `latest_audit_csv`, `latest_priority_csv`, `last_stdout_log`, `last_stderr_log`, `sample_validation_log`.
 
 ### UI Preference Commands
 
@@ -269,11 +269,14 @@ Audit source commands write only backend Reports audit state under `State\Audit`
 |---|---|---|---|---|
 | `POST /api/audit/score-policy` | `audit-state-write` | `policy`, `reset` | Medium — writes backend-owned audit score policy only | Reports |
 | `POST /api/audit/ignore` | `audit-state-write` | `action`, `row_keys`, `paths`, `reason`, `priority_only`, `limit` | Medium — writes audit-only ignore state without queue holds or media mutation | Reports |
-| `POST /api/audit/export-rerun-csv` | `report-file-write` | `row_keys`, `priority_only`, `limit` | Medium — writes a backend-owned rerun CSV artifact only; does not launch rerun work | Reports |
+| `POST /api/audit/export-rerun-csv` | `report-file-write` | `row_keys`, `priority_only`, `limit` | Medium — writes a backend-owned rerun CSV artifact plus Queue CSV Rerun handoff metadata only; does not launch rerun work | Reports |
 
 Audit control commands are backend-owned report/state helpers. They do not write
 queue priority, apply holds, launch rerun work, change settings, or touch media
-files.
+files. `audit/export-rerun-csv` may return a `desktop_audit_to_queue_rerun_handoff.v1`
+block with the exported CSV path, row count, issue/bucket summaries, and
+suggested Queue CSV Rerun preview route; Queue still calls `/api/rerun/preview`
+for preview and `/api/rerun/start` for execution.
 
 ### Network Commands
 
@@ -303,14 +306,19 @@ Network lifecycle dry-runs return preconditions, active-work posture, state-file
 | `POST /api/pipeline/start` | `process-launch` | `mode`, `sleep_seconds`, `show_config`, `show_console`, `single_file`, `schedule_override` | **High** — spawns pipeline process | Launch |
 | `POST /api/audit/start` | `process-launch` | `library_root`, `library_roots`, `source_ids`, `include_sidecars`, `show_console` | **High** — spawns audit process for one or more selected audit source locations | Launch, Reports |
 | `POST /api/audit/stop` | `process-control` | `confirm_stop`, `reason` | **High** — after explicit confirmation, stops audit process trees only and marks audit progress stopped | Reports |
-| `POST /api/rerun/preview` | `read-only-preview` | `csv_path`, `execution_mode`, `destination_mode`, `original_policy`, `collision_policy`, `window_size`, confirmations, `scope` filters | None — backend parses and summarizes CSV rerun rows, import/scoped CSV candidates, lifecycle warnings, filter options, tiles, and scoped counts without launch or media mutation | Launch |
-| `POST /api/rerun/start` | `process-launch` | `csv_path`, `dry_run`, `plan_only`, `execution_mode`, `destination_mode`, `original_policy`, `collision_policy`, `window_size`, confirmations, `scope` filters | **High** — spawns backend-owned CSV rerun v2; default execution is one-at-a-time, scoped starts write under `State\Rerun\ScopedCsv`, final replacement requires strict confirmation, and original source policies are rejected | Launch |
-| `POST /api/rerun/open` | `shell-open` | `target`, `row_key`, `csv_key` | Low — opens only backend-derived rerun review outputs, manifests, import/scoped CSVs, or folders; arbitrary filesystem paths are rejected | Launch |
-| `POST /api/rerun/promote-dry-run` | `read-only-preview` | `row_key` | None — computes dry-run evidence for promoting an existing rerun review output into Pending Publish without moving files or writing manifests | Launch |
-| `POST /api/rerun/promote` | `pending-manifest-write` | `row_key`, `dry_run_fingerprint`, `confirm_promote` | Medium — after matching dry-run evidence and strict confirmation, writes a `pending_move` manifest, moves an existing rerun review output into Pending Publish, updates the manifest to `parked`, and preserves known sidecar evidence; it does not directly publish or touch source media | Launch |
+| `POST /api/rerun/preview` | `read-only-preview` | `csv_path`, `execution_mode`, `destination_mode`, `collision_policy`, `window_size`, `confirm_replace_final`, `confirm_source_overwrite`, `scope` filters | None — backend parses and summarizes CSV rerun rows, rule decisions, import/scoped CSV candidates, lifecycle warnings, filter options, tiles, and scoped counts without launch or media mutation | Queue |
+| `POST /api/rerun/network-preview` | `read-only-preview` | `csv_path`, `execution_mode`, `destination_mode`, `collision_policy`, `window_size`, `confirm_replace_final`, `confirm_source_overwrite`, `scope` filters | None — backend models future network CSV rerun row claims, source mapping readiness, output handoff readiness, duplicate/blocked/skipped rows, and destination policy risk without launch, worker claim, network state write, queue mutation, or media touch | Queue |
+| `POST /api/rerun/network/start-dry-run` | `none` | `csv_path`, `execution_mode`, `destination_mode`, `collision_policy`, `window_size`, `confirm_replace_final`, `confirm_source_overwrite`, `scope` filters, `minimum_worker_count`, `reason` | None — backend validates the future network CSV rerun batch start contract, coordinator role/lifecycle readiness, active-work and duplicate-batch guards, worker availability evidence, exact confirmed-start state file path, rollback expectations, and no-touch media evidence without writing network state or worker claims | Queue |
+| `POST /api/rerun/network/start` | `network-state-write` | `csv_path`, `dry_run_fingerprint`, `confirm_start` | High — after matching backend dry-run proof and strict confirmation, writes only coordinator-owned `State\Rerun\Network\network-rerun-*.json` batch state plus command journal evidence; rows stay claim-disabled until Phase 4 and no workers, claims, queue state, pending publish, final output, or media files are touched | Queue |
+| `POST /api/rerun/start` | `process-launch` | `csv_path`, `dry_run`, `plan_only`, `execution_mode`, `destination_mode`, `collision_policy`, `window_size`, `confirm_replace_final`, `confirm_source_overwrite`, `scope` filters | **High** — spawns backend-owned CSV rerun v2; Queue posts the default normal-remediation mode `auto_replace_clean_else_pending_review`, scoped starts write under `State\Rerun\ScopedCsv`, backend rule-blocked rows cannot launch, WebView derives final-replacement confirmation from destination/collision selection, backend/PowerShell require strict boolean confirmation, clean/problem destination decisions stay backend-owned, and source-path overwrite additionally requires `confirm_source_overwrite` | Queue |
+| `POST /api/rerun/control` | `process-control` | `action` (`stop_after_current`), `confirm_stop` | Medium — writes only the backend-owned rerun stop marker under `State\Rerun\Control`; PowerShell owns manifest mutation after the current row/window completes | Queue |
+| `POST /api/rerun/continue` | `process-launch` | `manifest_key`, `confirm_continue` | **High** — writes a pending-only scoped CSV under `State\Rerun\ScopedCsv` and launches through existing CSV rerun locks; failed/review rows are left untouched | Queue |
+| `POST /api/rerun/open` | `shell-open` | `target`, `row_key`, `csv_key` | Low — opens only backend-derived rerun review outputs, manifests, import/scoped CSVs, or folders; arbitrary filesystem paths are rejected | Queue |
+| `POST /api/rerun/promote-dry-run` | `read-only-preview` | `row_key` | None — computes dry-run evidence for promoting an existing rerun review output into Pending Publish without moving files or writing manifests | Queue |
+| `POST /api/rerun/promote` | `pending-manifest-write` | `row_key`, `dry_run_fingerprint`, `confirm_promote` | Medium — after matching dry-run evidence and strict confirmation, writes a `pending_move` manifest, moves an existing rerun review output into Pending Publish, updates the manifest to `parked`, and preserves known sidecar evidence; it does not directly publish or touch source media | Queue |
 | `POST /api/backend/shutdown` | `backend-lifecycle` | `reason`, `force_active_work_shutdown` | **Critical** — requests graceful shutdown only after safe close-readiness unless literal boolean `true` force cleanup is requested | Tauri shell (close flow) |
 
-`pipeline/start` allowed modes: `once`, `continuous`, `validate`, `drain_pending_pushes`. `schedule_override` allowed values: `""`, `run_once`, `ignore`. `rerun/preview` backs auto-preview for Review & Start and is no-write. `rerun/start` defaults are media-safe (`dry_run: false`, `execution_mode: one_at_a_time`, `destination_mode: review_workspace`, `original_policy: keep`, `collision_policy: suffix`, `enabled_only: true`); legacy `stage_mode`/`original_mode`/`return_mode` values are compatibility aliases only. Source rename/move/delete policies are rejected for CSV rerun, and final replacement remains strict-confirmation gated.
+`pipeline/start` allowed modes: `once`, `continuous`, `validate`, `drain_pending_pushes`. `schedule_override` allowed values: `""`, `run_once`, `ignore`. `rerun/preview` backs auto-preview for the Queue CSV Rerun tab and is no-write. It also applies backend-owned CSV rerun rule decisions; bad download/source-integrity rows, manual-review rows, and missing rule-input rows are blocked before launch. `rerun/results` backs the Queue CSV rerun state table with backend-owned row statuses, rule decisions, and evidence while explicitly marking those rows as `uses_pipeline_start=false`. `rerun/start` remains CSV-rerun-specific; CSV rerun rows are not converted into normal queue rows and are not submitted to `/api/pipeline/start`. The Queue UI keeps final replacement controls visible and posts the default normal-remediation selection (`destination_mode=auto_replace_clean_else_pending_review`, `collision_policy=replace_final`, `confirm_replace_final=true`) while backend/PowerShell decide whether clean outputs replace the final target or issue-bearing outputs move to Pending Publish/review. Legacy `stage_mode`/`original_mode`/`return_mode` values are compatibility aliases only. `rerun/control` requires strict `confirm_stop: true` and writes only the backend-owned stop marker. `rerun/continue` requires strict `confirm_continue: true`, accepts only stopped-after-current manifests, and launches pending rows only. Source-path overwrite is opt-in; destination and collision determine verified-output placement. Final replacement remains strict-confirmation gated: the WebView derives `confirm_replace_final: true` from `destination_mode=auto_replace_clean_else_pending_review`, `destination_mode=publish_replace_final`, or `collision_policy=replace_final`; source-path overwrite additionally requires `confirm_source_overwrite: true`, and backend/PowerShell reject missing or non-boolean confirmation.
 
 ---
 
@@ -318,9 +326,9 @@ Network lifecycle dry-runs return preconditions, active-work posture, state-file
 
 | Effect tag | Routes | Risk level |
 |---|---|---|
-| `none` | 81 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, settings/import-psd1-preview, preset library preview/export routes, Settings Wizard validation/preview routes, settings/reload, recovery-plan, repair/reconcile dry-runs, startup reconcile dry-run, maintenance retention dry-run, sample-validation/preview, schedule/preview, Network lifecycle dry-runs, worker test-connection/discovery) | None |
+| `none` | 82 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, settings/import-psd1-preview, preset library preview/export routes, Settings Wizard validation/preview routes, settings/reload, recovery-plan, repair/reconcile dry-runs, startup reconcile dry-run, maintenance retention dry-run, sample-validation/preview, schedule/preview, Network lifecycle dry-runs, network CSV rerun start dry-run, worker test-connection/discovery) | None |
 | `bounded-health-check` | `GET /api/maintenance` | Read-only probes |
-| `read-only-preview` | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/series-clear-preview`, `POST /api/queue/file-overrides/folder-preview`, `POST /api/subtitle-qa/preview`, `POST /api/rerun/preview`, `POST /api/rerun/promote-dry-run` | Advisory backend previews only |
+| `read-only-preview` | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/series-clear-preview`, `POST /api/queue/file-overrides/folder-preview`, `POST /api/subtitle-qa/preview`, `POST /api/rerun/preview`, `POST /api/rerun/network-preview`, `POST /api/rerun/promote-dry-run` | Advisory backend previews only |
 | `shell-open` | `POST /api/queue/open`, `POST /api/completed/open`, `POST /api/pending-publish/open`, `POST /api/diagnostics/open`, `POST /api/diagnostics/tdarr-matrix/evidence/open`, `POST /api/failures/open`, `POST /api/maintenance/dependency-atlas/open-folder`, `POST /api/rerun/open` | OS open only; no file mutation |
 | `shell-dialog` | `POST /api/rename/browse`, `POST /api/settings/browse-path`, `POST /api/path-picker/browse`, `POST /api/pipeline/browse-file` | Native Windows picker or already-known path resolution only; no file mutation |
 | `test-fixture-write` | `POST /api/rename/filter-cases` | Appends backend-validated JSONL rows to `tests/fixtures/rename/bad_rename_cases.jsonl` only |
@@ -338,13 +346,13 @@ Network lifecycle dry-runs return preconditions, active-work posture, state-file
 | `failure-artifact-delete` | `POST /api/failures/artifacts/cleanup` | Deletes backend-owned failure artifact files only after strict confirmation; selected `artifact_paths` limit the Reports action to checked rows and still require a dry-run fingerprint; policy cleanup can use the current backend plan |
 | `failure-resolution-journal-write` | `POST /api/failures/lifecycle` | Appends operator lifecycle evidence for active failure groups only |
 | `audit-state-write` | `POST /api/audit/score-policy`, `POST /api/audit/ignore` | Audit-only score/ignore state; no queue/media mutation |
-| `report-file-write` | `POST /api/audit/export-rerun-csv` | Writes a backend-owned report CSV artifact only |
+| `report-file-write` | `POST /api/audit/export-rerun-csv` | Writes a backend-owned report CSV artifact only and returns Queue handoff metadata |
 | `process-dry-run` | `POST /api/queue/scan`, `POST /api/maintenance/release-dry-run`, `POST /api/maintenance/completed-backfill-dry-run` | Backend dry-run/process evidence only; no media output written |
 | `tooling-artifact-write` | `POST /api/maintenance/dependency-atlas` | Generated dependency-atlas tooling artifacts under `docs/generated/dependency-atlas/` only |
 | `deployment-write` | `POST /api/maintenance/release-build` | Writes deployable release folder, manifest, and optional zip only |
 | `control-state-write` | `POST /api/final-library-promotion/pause`, `POST /api/final-library-promotion/resume` | Writes cooperative final-library promotion control state only |
 | `control-flag-write` | `POST /api/pipeline/control` | Pause/stop/rescan signal or backend-owned emergency kill cleanup only |
-| `process-control` | `POST /api/audit/stop` | Confirmation-gated audit-only process cleanup and terminal `audit_progress.json` write |
+| `process-control` | `POST /api/audit/stop`, `POST /api/rerun/control` | Confirmation-gated audit-only process cleanup or cooperative rerun stop marker write |
 | `validation-log-write` | `POST /api/sample-validation/append` | Appends to operator evidence log only |
 | `app-state-write` | `POST /api/schedule/save` | Writes desktop app schedule keys only |
 | `secret-transfer` | `POST /api/network/coordinator/join-blob` | Returns an unjournaled setup blob containing the worker auth secret; no media or lifecycle mutation |
@@ -355,7 +363,8 @@ Network lifecycle dry-runs return preconditions, active-work posture, state-file
 | `pending-manifest-write` | `POST /api/pending-publish/repair-manifest`, `POST /api/rerun/promote` | Manifest routes are fingerprint-gated, write only backend-validated pending-publish manifest evidence, and block incomplete backend evidence |
 | `pending-orphan-manifest-write` | `POST /api/pending-publish/reconcile-orphan-payloads` | Manifest-only orphan route is fingerprint-gated, creates only a missing payload-adjacent manifest from complete backend proposal evidence, and never moves/deletes/drains/publishes payloads |
 | `filesystem-mutation` | `POST /api/rename/apply`, `POST /api/rename/undo`, `POST /api/final-library-promotion/promote-queue` | Renames files, reverses backend-owned rename manifests, or promotes completed outputs through backend-owned file operations |
-| `process-launch` | `POST /api/pipeline/start`, `POST /api/audit/start`, `POST /api/rerun/start` | Spawns backend processes |
+| `process-launch` | `POST /api/pipeline/start`, `POST /api/audit/start`, `POST /api/rerun/start`, `POST /api/rerun/continue` | Spawns backend processes |
+| `network-state-write` | `POST /api/rerun/network/start` | Writes coordinator-owned Network CSV rerun batch state only after matching dry-run proof, strict confirmation, and command journal evidence |
 | `backend-lifecycle` | `POST /api/backend/shutdown`, `POST /api/network/coordinator/start`, `POST /api/network/coordinator/stop`, `POST /api/network/worker/start`, `POST /api/network/worker/stop` | Initiates guarded backend lifecycle operations; forced active-work cleanup requires literal boolean `true` for shutdown, and Network lifecycle start/stop requires confirmation plus provider preconditions |
 
 ---
@@ -382,7 +391,7 @@ Every mutation route enforces backend ownership:
 - **Rename apply**: backend rebuilds the rename plan from its own state; it does not execute the frontend-submitted plan as-is. `confirm_apply` is required.
 - **Settings save-patch/import**: backend merges or imports, validates, backs up, and atomically writes JSON-authoritative settings plus the generated PSD1 projection; the frontend cannot write either file directly.
 - **Schedule save**: backend parses and validates day windows, requires `confirm_save`, and writes only schedule app-state keys; the frontend cannot write state JSON directly.
-- **Pipeline/audit/rerun start and audit stop**: backend owns process launch/stop, locks, command journal, audit-only cleanup scope, and progress state; the frontend cannot exec or kill processes directly.
+- **Pipeline/audit/rerun start, rerun continue, and process stop/control**: backend owns process launch/control, locks, command journal, audit-only cleanup scope, rerun stop markers, scoped continuation CSVs, and progress state; the frontend cannot exec or kill processes directly.
 - **Network lifecycle start/stop**: backend owns dry-run preconditions, confirmation-gated start/stop, command journaling, and provider availability. Network mode never falls through to normal Launch or frontend queue scanning.
 - **Shutdown**: Tauri shell issues this after `GET /api/backend/close-readiness` confirms it is safe; the backend controls the shutdown sequence.
 

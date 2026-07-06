@@ -209,7 +209,7 @@ Browser smokes prove that the WebView JavaScript renders expected UI state and r
 - **Live telemetry collection**: telemetry smoke uses fixture payloads; it does not sample the local GPU or prove NVENC load under a real encode.
 - **Completed manifest correctness**: fixture data is used; no real encode output is written.
 
-For real-media validation, follow the real-media pilot checklist in `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md` against a small known batch.
+For real-media validation, follow the real-media pilot checklist in `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md` against a small known batch.
 
 ---
 

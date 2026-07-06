@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0704-004",
+  "title": "Fix CSV rerun pending destination collisions",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-04",
+  "date_completed": "2026-07-04",
+  "summary": "CSV rerun pending-publish destination resolution now suffixes already queued server_out targets for non-fail policies instead of failing auto pending-review rows.",
+  "reason": "Live CSV reruns using auto_replace_clean_else_pending_review failed when a prior pending-publish manifest already reserved the same final destination.",
+  "affected_areas": [
+    "generated",
+    "pipeline",
+    "tests"
+  ],
+  "behavior_before": "When auto_replace_clean_else_pending_review routed an issue-bearing output to Pending Publish review, the forced replace_final collision policy made an already queued pending destination fail the row.",
+  "behavior_after": "Pending-publish destination collisions still fail for collision_policy=fail, but replace_final and suffix policies resolve the new pending manifest to a non-overlapping server_out so the pending manifest set stays unique.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/entrypoints/Invoke-RerunCsv.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1.md",
+    "ops/pipeline/entrypoints/Invoke-RerunCsv.ps1",
+    "ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0704-004.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1 covers auto pending-review reruns when an existing pending manifest reserves the requested server_out."
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/entrypoints/Invoke-RerunCsv.ps1 ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1 - passed",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-ContractSchemaChecks.ps1 - passed",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-PendingPublishSafetyChecks.ps1 - passed",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-RerunAutoDestinationChecks.ps1 - passed"
+  ],
+  "rollback_plan": "Revert the touched rerun entrypoint, focused PowerShell test, generated summaries, and this change packet. Existing live pending manifests are not modified by this change.",
+  "related_changes": [],
+  "notes": "Allow non-fail CSV rerun pending-publish collisions to resolve to unique server_out destinations.\nRefresh generated summary after rerun destination policy change.\nRefresh generated summary after focused rerun test update.\nCover auto pending-review rerun with a pre-existing pending manifest that already reserves the requested server_out."
+}

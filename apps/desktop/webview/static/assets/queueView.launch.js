@@ -486,7 +486,7 @@
         "backend-authority",
         "Backend launch authority",
         "Ready - backend owned",
-        "Launch, audit, and CSV rerun start commands are backend routes with locking, schedule checks, and saved-settings validation.",
+        "Pipeline launch, audit, and Queue CSV Rerun start commands are backend routes with locking, schedule checks, and saved-settings validation.",
         "Use the Launch page for start commands; this Queue handoff cannot start, reorder, drop, or mutate work.",
         [
           "Queue is a read-only preview. Frontend launch decisions are advisory only.",

@@ -1,6 +1,6 @@
 # Archived Markdown Index
 
-Last updated: 2026-06-24
+Last updated: 2026-07-04
 
 This index reflects the current archive/quarantine layout after the housekeeping move and the operator's later manual deletion of some active docs. The old `docs/archive/admin-audits/`, `completed-audits/`, `completed-checklists/`, `historical-plans/`, `historical-reviews/`, `old-ai-directives/`, and `ui-impl-specs/` paths should no longer be treated as active archive roots. The preserved copies live under:
 
@@ -15,6 +15,11 @@ the active docs tree on 2026-06-24 live under:
 
 `docs/archive/docs-housekeeping/2026-06-24-doc-prune/`
 
+Completed plans, obsolete proposals, and stale session notes pruned from the
+active docs tree on 2026-07-04 live under:
+
+`docs/archive/docs-housekeeping/2026-07-04-doc-cleanup/`
+
 ## Archive Root Summary
 
 | Folder | Count | Meaning |
@@ -24,6 +29,7 @@ the active docs tree on 2026-06-24 live under:
 | `delete-candidates/` | 19 | Quarantine-only deletion candidates. Do not treat these as deleted unless a later review confirms removal. |
 | `../2026-06-04-completed-md-pass/` | 25 moved docs plus README | Completed/superseded historical audits, dependency-refactor tracker docs, and UX remediation tracker docs moved out of active topic folders. |
 | `../2026-06-24-doc-prune/` | Current docs cleanup archive | Completed implementation plans plus 2026-06 audit/review evidence snapshots moved out of active topic folders. |
+| `../2026-07-04-doc-cleanup/` | Current docs cleanup archive | Completed release/test-split/architecture-boundary docs, obsolete architecture proposals, and stale session notes moved out of active topic folders. |
 
 ## Historical Archive Groups
 
@@ -88,6 +94,27 @@ Under `docs/archive/docs-housekeeping/2026-06-04-completed-md-pass/`:
 - `dependency-refactor/dependency-refactor-phases/`: completed phase tracker files from `00_navigation_and_tracker.md` through `07_full_cleanup_review_and_done.md`.
 - `ui/V6_OPERATOR_UX_REMEDIATION_REMAINING_TASKS.md`
 
+## Documentation Cleanup Pass - 2026-07-04
+
+Under `docs/archive/docs-housekeeping/2026-07-04-doc-cleanup/`:
+
+- `README.md`: classification notes for this archive pass.
+- `implementation/architecture-boundary-cleanup/`: completed GitHub #23
+  dependency-boundary planning pack and edge ledger.
+- `implementation/local-api-test-split/`: executed Local API/WebView static
+  test split planning pack and assertion ledger.
+- `implementation/release-foundation/`: completed `2026.06.04.001` release
+  foundation phase plans. The reusable real-media pilot checklist remains
+  active at `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md`.
+- `implementation/documentation-cleanup-goal-prompt.md`: completed prompt-only
+  documentation cleanup plan.
+- `architecture/NETWORK_WORKER_HARDENING_PLAN.md`: completed network
+  worker/coordinator hardening plan.
+- `architecture/QUEUE_SOURCE_SCAN_AND_CURATION_PLAN.md`: historical queue scan
+  and curation proposal not listed in the current active backlog.
+- `sessions/SESSION-2026-06-02-to-2026-06-23.md`: stale session log moved out
+  of active guidance.
+
 ## Active Docs Not Archived
 
 Use `DOCS_INDEX.md` for the current active documentation map. Notable active docs include:
@@ -114,6 +141,7 @@ The following active documentation areas were present in older indexes but curre
 - `docs/active-plans/`
 - `docs/ACTIVE_FIX_CHECKLIST.md`
 - `docs/DOC_TOUCH_LOG.md`
+- `docs/SESSION.md`
 - `docs/Pipeline/`
 - `docs/proposals/`
 

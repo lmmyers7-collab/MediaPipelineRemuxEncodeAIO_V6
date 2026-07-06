@@ -64,5 +64,5 @@ validation.
 
 Synthetic matrix rows and Tdarr samples are useful regression evidence, but
 they do not replace the real-media gate described in
-`docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md` and
+`docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md` and
 `docs/sample-validation/REAL_MEDIA_VALIDATION_EVIDENCE_TEMPLATE.md`.

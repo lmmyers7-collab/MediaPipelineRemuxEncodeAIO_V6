@@ -25,11 +25,19 @@ class LocalApiInventoryReadPayloadMixin:
             limit=query_value(query, "limit", "100"),
             force_refresh=query_bool(query, "force_refresh", False),
             proof_mode=query_value(query, "proof", "bounded"),
+            include_pending_publish_overlay=True,
         ).to_mapping()
         try:
+            reconciliation_completed_payload = self.facade.get_completed_preview(
+                resolved,
+                limit=query_value(query, "limit", "100"),
+                force_refresh=query_bool(query, "force_refresh", False),
+                proof_mode=query_value(query, "proof", "bounded"),
+                include_pending_publish_overlay=False,
+            ).to_mapping()
             pending_payload = self.facade.get_pending_publish_preview(resolved).to_mapping()
             reconciliation = publish_reconciliation_from_payloads(
-                payload,
+                reconciliation_completed_payload,
                 pending_payload,
                 limit=query_int(query, "pending_proof_limit", 250),
             ).to_mapping()

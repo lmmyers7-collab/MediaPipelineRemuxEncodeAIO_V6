@@ -33,6 +33,23 @@ function Get-ConfigInt {
     }
 }
 
+function Get-ConfigInt64 {
+    param([string]$Key, [long]$Default, [long]$Min = [long]::MinValue, [long]$Max = [long]::MaxValue)
+    if (-not $config.ContainsKey($Key)) { return $Default }
+    $v = $config[$Key]
+    try {
+        $n = [long]$v
+        if ($n -lt $Min -or $n -gt $Max) {
+            Add-StartupWarning "Config key '$Key' value $n out of range [$Min..$Max]; using default $Default"
+            return $Default
+        }
+        return $n
+    } catch {
+        Add-StartupWarning "Config key '$Key' is not an integer; using default $Default"
+        return $Default
+    }
+}
+
 function Get-ConfigDouble {
     param([string]$Key, [double]$Default, [double]$Min = [double]::MinValue, [double]$Max = [double]::MaxValue)
     if (-not $config.ContainsKey($Key)) { return $Default }

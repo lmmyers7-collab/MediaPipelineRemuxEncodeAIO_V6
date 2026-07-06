@@ -63,8 +63,8 @@ These keys are valid backend metadata and config-contract keys, but they do not 
 | `AutonomyPendingReviewSeconds` | Autonomy diagnostics policy | Backend-only pending-publish review threshold; no Settings builder control in this pass |
 | `AutonomyPendingBlockSeconds` | Autonomy diagnostics policy | Backend-only pending-publish block threshold; pending publish remains manifest-backed |
 | `AutonomyPendingRetryBlockCount` | Autonomy diagnostics policy | Backend-only pending-publish retry threshold; no frontend drain policy |
-| `AutonomyPendingTotalReviewBytes` | Autonomy diagnostics policy | Backend-only pending-publish byte review threshold |
-| `AutonomyPendingTotalBlockBytes` | Autonomy diagnostics policy | Backend-only pending-publish byte block threshold |
+| `AutonomyPendingTotalReviewBytes` | Autonomy diagnostics policy | Publish & Recovery builder GiB control for pending-publish review evidence |
+| `AutonomyPendingTotalBlockBytes` | Autonomy diagnostics policy | Publish & Recovery builder GiB control for pending-publish launch blocking |
 | `AutonomyFailureOperatorRequiredBlockSeconds` | Autonomy diagnostics policy | Backend-only failure age block threshold |
 | `AutonomyFailureOperatorRequiredBlockCount` | Autonomy diagnostics policy | Backend-only failure count block threshold |
 | `AutonomyFailureInfrastructureBlockCount` | Autonomy diagnostics policy | Backend-only infrastructure failure count block threshold |

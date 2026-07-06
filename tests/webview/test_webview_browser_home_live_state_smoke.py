@@ -228,8 +228,8 @@ def _browser_home_live_state_runner_source() -> str:
                 && text("home-next-queue-list").includes("S02E01")
                 && text("home-scratch-storage-status").includes("OK")
                 && text("home-output-storage-status").includes("OK")
-                && text("progress-bar-list").includes("Current backend stage")
-                && text("progress-bar-list").includes("Publish")
+                && text("progress-bar-list").includes("Queue item")
+                && text("progress-bar-list").includes("Publish or park")
                 && text("home-readiness-summary").includes("Backend snapshot: ok")
                 && text("home-active-work-summary").includes("ActiveJobs:")
                 && text("command-summary").includes("Results: 1")
@@ -417,7 +417,7 @@ def _browser_home_live_state_runner_source() -> str:
               ["home-next-queue-status", ["ready", "warning", "empty", "neutral"]],
               ["home-recent-completed-status", ["ready", "empty", "warning", "neutral"]],
               ["home-active-work-status", ["ready", "warning", "blocked", "neutral", "running"]],
-              ["progress-detail-status", ["ready", "warning", "blocked", "empty"]],
+              ["progress-detail-status", ["ready", "warning", "blocked", "empty", "running"]],
               ["progress-evidence-status", ["ready", "warning", "blocked", "empty"]],
               ["daily-driver-status", ["ready", "warning", "blocked", "neutral"]],
               ["home-external-dependencies-status", ["ready", "warning", "blocked", "neutral"]],
@@ -428,11 +428,16 @@ def _browser_home_live_state_runner_source() -> str:
               "Mutation guardrail:",
             ]);
             requireText("progress-bar-list", [
-              "Active work",
+              "Queue item",
+              "Copy to scratch",
+              "Route selected",
+              "Encode output",
+              "Publish or park",
+              "Run evidence",
+              "Raw backend progress",
               "Current backend stage",
               "42.5%",
               "Run total",
-              "Publish",
               "Publish steps",
               "Publishing completed output",
               "50%",
@@ -464,12 +469,13 @@ def _browser_home_live_state_runner_source() -> str:
             ]);
             window.showPage("live");
             await waitFor(
-              () => text("progress-detail-status").includes("checks")
-                && text("progress-bar-list").includes("Active work")
+              () => text("progress-detail-status").includes("Current:")
+                && text("progress-detail-status").includes("Encode output")
+                && text("progress-bar-list").includes("Queue item")
                 && text("progress-bar-list").includes("Current backend stage")
                 && text("progress-bar-list").includes("42.5%")
                 && text("progress-bar-list").includes("Run total")
-                && text("progress-bar-list").includes("Publish")
+                && text("progress-bar-list").includes("Publish or park")
                 && tableText("progress-detail-rows").includes("Library")
                 && tableText("progress-detail-rows").includes("Anime Library")
                 && text("progress-evidence-summary").includes("Progress evidence board:")
@@ -483,15 +489,19 @@ def _browser_home_live_state_runner_source() -> str:
               }
             }
             requireText("progress-bar-list", [
-              "Active work",
-              "3 checks",
+              "Queue item",
+              "Copy to scratch",
+              "Route selected",
+              "Encode output",
+              "Publish or park",
+              "Run evidence",
+              "Raw backend progress",
               "Current backend stage",
               "42.5%",
               "active",
               "Run total",
               "Publishing completed output",
               "eta 1s",
-              "Publish",
               "Publish steps",
               "50%",
               "source: pipeline_progress.json",
@@ -798,6 +808,39 @@ def _browser_home_live_state_runner_source() -> str:
             const noNewPipelineState = text("pipeline-state");
             const noNewPipelineStateMain = byId("pipeline-state")?.querySelector(".pipeline-state-main")?.textContent || "";
             const noNewPipelineStateLabel = byId("pipeline-state")?.getAttribute("aria-label") || "";
+            if (typeof renderLiveWorkHomeSummary !== "function") {
+              throw new Error("renderLiveWorkHomeSummary is not available for Home live-work tile stability.");
+            }
+            window.renderSnapshot({
+              app_version: "v5-test",
+              pipeline_state: "idle",
+              status_summary: "Status OK",
+              current_work: { phase_label: "Idle", item_label: "None" },
+              counts: { queue_index: 0, queue_total: 0, processed: 1, failed: 0 },
+              progress: {},
+              progress_bars: [],
+              recent_events: [{ event_type: "tool_completed", stage: "subtitle-helper", status: "complete" }],
+            });
+            renderLiveWorkHomeSummary({
+              snapshot: window.getLastSnapshot?.(),
+              closeReadiness: { safe_to_close: false, state: "running", reason: "CSV rerun active work is still running." },
+              stdoutTail: {
+                text: [
+                  "2026-07-03 10:36:09 [INFO] Rerun CSV rows listed: 100; enabled/planned: 100",
+                  "2026-07-03 10:36:10 [INFO] STAGED copy: D:/Media/Paprika(2006).mkv",
+                  "2026-07-03 10:36:11 [DEBUG] SubtitleEdit.exe: process priority class set to BelowNormal",
+                ].join("\\n"),
+              },
+              diagnostics: null,
+            });
+            requireText("pipeline-state", ["CSV Rerun", "active"]);
+            requireText("queue-count", ["Paprika(2006).mkv"]);
+            requireText("queue-count-detail", ["CSV rerun active", "100 enabled / 100 CSV rows", "last imported Paprika(2006).mkv"]);
+            if (text("pipeline-state").includes("Idle") || text("queue-count").includes("0 / 0")) {
+              throw new Error("Home active-work tiles flashed back to idle/count fallback during CSV rerun.");
+            }
+            const csvPipelineState = text("pipeline-state");
+            const csvQueueCount = text("queue-count");
             window.renderSnapshot(activeSnapshot);
             if (text("pipeline-state").includes("_")) {
               throw new Error("Home pipeline state still contains underscores: " + text("pipeline-state"));
@@ -815,6 +858,8 @@ def _browser_home_live_state_runner_source() -> str:
               noNewPipelineState,
               noNewPipelineStateMain,
               noNewPipelineStateLabel,
+              csvPipelineState,
+              csvQueueCount,
               stoppedMetricLabel,
               stoppedMetricTitle,
               stoppedProgressBarText,
@@ -1073,6 +1118,11 @@ class WebViewBrowserHomeLiveStateSmoke(unittest.TestCase):
             self.assertIn("Daily-driver readiness checklist:", browser_result["dailyDriver"])
             self.assertIn("Anime Library", browser_result["progressDetails"])
             self.assertNotIn("Controls", browser_result["progressDetails"])
+            self.assertIn("Queue item", browser_result["progressBars"])
+            self.assertIn("Encode output", browser_result["progressBars"])
+            self.assertIn("Publish or park", browser_result["progressBars"])
+            self.assertIn("CSV Rerun", browser_result["csvPipelineState"])
+            self.assertIn("Paprika(2006).mkv", browser_result["csvQueueCount"])
             self.assertIn("Current backend stage", browser_result["progressBars"])
             self.assertIn("active", browser_result["progressBars"])
             self.assertIn("42.5%", browser_result["progressBars"])

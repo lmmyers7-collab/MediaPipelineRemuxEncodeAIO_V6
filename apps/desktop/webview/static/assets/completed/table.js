@@ -143,10 +143,23 @@
       || (evidence.includes("remux fallback") && evidence.includes("oversized encode"));
   }
 
+  function completedRouteCategoryEvidenceText(item) {
+    const evidenceLines = Array.isArray(item?.route_evidence_lines) ? item.route_evidence_lines : [];
+    return [
+      item?.route_name,
+      item?.route_decision_summary,
+      item?.route_reason_code,
+      item?.route_reason,
+      item?.size_policy_route_reason_code,
+      item?.runtime_outcome_route,
+      ...evidenceLines,
+    ].map((value) => String(value || "")).join(" ");
+  }
+
   function completedRouteChipCategory(item, routeText) {
+    if (completedUsedOversizedEncodeRemuxFallback(item)) return "remux-fallback";
     const category = completedRouteCategory(routeText);
-    if (category === "remux" && completedUsedOversizedEncodeRemuxFallback(item)) return "remux-fallback";
-    return category;
+    return category || completedRouteCategory(completedRouteCategoryEvidenceText(item));
   }
 
   function completedRouteChipTitle(item, routeText, category) {
@@ -285,6 +298,10 @@
     return `${rounded}s`;
   }
 
+  function completedTimestampSortValue(item) {
+    return String(item?.completed_at_sort_key || item?.completed_at_iso || item?.completed_at_sort || "").trim();
+  }
+
   function completedMeasureTitle(item, mode) {
     if (mode === "bitrate") {
       const lines = [
@@ -337,6 +354,9 @@
       item.publish || "",
       ctx.finalLibraryPromotionStatusText(item),
     ], [null, "completed-title-cell", "completed-route-cell", "completed-evidence-cell", "num", null, null]);
+    const completedCell = row.children?.[0] || null;
+    const sortValue = completedTimestampSortValue(item);
+    if (completedCell && sortValue) completedCell.dataset.sortValue = sortValue;
   }
 
   function renderCompletedTitleCell(cell, item, model) {

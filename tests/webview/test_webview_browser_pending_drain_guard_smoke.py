@@ -393,10 +393,10 @@ def _browser_pending_drain_guard_runner_source() -> str:
             posts.length = 0;
             confirmCalls = 0;
             requireText("pending-drain-decision-chips", [
-              "Do not drain",
-              "Review first",
-              "Evidence incomplete",
-              "Ready-looking",
+              "Blocked",
+              "Review",
+              "Need evidence",
+              "Ready",
             ]);
             requireText("pending-file-inventory-summary", [
               "Pending parked file inventory:",
@@ -445,7 +445,8 @@ def _browser_pending_drain_guard_runner_source() -> str:
             requireText("pending-post-drain-trust-summary", [
               "Pending Publish post-drain trust review:",
               "Decision rule: a drain is trusted only when current parked rows",
-              "Mutation guardrail: this review is read-only",
+              "Mutation guardrail: read-only evidence",
+              "backend routes own pending-publish changes",
             ]);
             requireText("pending-post-drain-trust-rows", [
               "Current parked state",
@@ -455,6 +456,80 @@ def _browser_pending_drain_guard_runner_source() -> str:
               "Decision boundary",
             ]);
 
+            const staleSummaryPending = JSON.parse(JSON.stringify(payload.pending));
+            const staleCurrentRows = Number(staleSummaryPending.count || (Array.isArray(staleSummaryPending.rows) ? staleSummaryPending.rows.length : 0) || 1);
+            staleSummaryPending.drain_summary = {
+              exists: true,
+              schema_version: "pending_drain_summary.v1",
+              started_at: "2026-07-02T23:38:13-04:00",
+              completed_at: "2026-07-02T23:38:17-04:00",
+              manifest_count_at_start: Math.max(0, staleCurrentRows - 1),
+              attempted_count: Math.max(1, staleCurrentRows - 1),
+              error_count: 1,
+              remaining_count: Math.max(1, staleCurrentRows - 1),
+              status_counts: { invalid_manifest: 1 },
+              items: [{ status: "invalid_manifest", error: "previous stale drain failure" }],
+            };
+            delete staleSummaryPending.drain_confidence;
+            window.renderPendingPublish(staleSummaryPending, {});
+            await waitFor(
+              () => ["Allowed", "Review confirm"].includes(text("pending-drain-guard-status"))
+                && text("pending-drain-confidence-summary").includes("Durable drain summary")
+                && text("pending-drain-confidence-summary").includes("different parked-row count")
+                && text("pending-drain-decision-summary").includes("Review first"),
+              "stale failed durable summary downgraded to review evidence",
+            );
+
+            const pressureSourceRow = Array.isArray(payload.pending.rows) && payload.pending.rows.length ? payload.pending.rows[0] : {};
+            const pressurePending = Object.assign({}, payload.pending, {
+              rows: [
+                Object.assign({}, pressureSourceRow, {
+                  row_key: "ready-row-under-pending-byte-pressure",
+                  state: "parked",
+                  diagnostic_status: "ok",
+                  diagnostic_severity: "info",
+                  drain_recommendation: "ready",
+                  ready_to_drain: true,
+                  local_exists: true,
+                  missing_sidecar_count: 0,
+                  issue_summary: "",
+                  error: "",
+                }),
+              ],
+              count: 1,
+              payload_count: 1,
+              ready_count: 1,
+              issue_count: 0,
+              health_count: 1,
+              missing_local_count: 0,
+              missing_sidecar_count: 0,
+              total_bytes: 300 * 1024 * 1024 * 1024,
+              warnings: ["Pending publish parked bytes exceed the autonomy review budget."],
+              operator_trust_state_counts: { ready: 1 },
+              recovery_class_counts: { ready_to_validate: 1 },
+              drain_confidence: undefined,
+            });
+            window.renderPendingPublish(pressurePending, {});
+            await waitFor(
+              () => text("pending-drain-guard-status") === "Review confirm"
+                && text("pending-drain-confidence-rows").includes("validation=Review; health=1")
+                && text("pending-drain-decision-summary").includes("Review first"),
+              "high pending byte pressure remains a review-only drain guard",
+            );
+            const pressureDrainButton = byId("pending-drain-button");
+            if (!pressureDrainButton || pressureDrainButton.disabled) {
+              throw new Error("pending byte pressure must not disable a drain-ready row");
+            }
+            const pressureActionDrainButton = byId("pending-action-drain-button");
+            if (!pressureActionDrainButton || pressureActionDrainButton.disabled || pressureActionDrainButton.textContent.trim() === "Drain Blocked") {
+              throw new Error("action center drain button treated pending byte pressure as a hard block");
+            }
+            requireText("pending-drain-guard-summary", [
+              "Decision: Review first",
+              "Button action: allowed after explicit review confirmation",
+            ]);
+
+            window.renderPendingPublish(payload.pending, {});
             const row = Array.isArray(payload.pending.rows) && payload.pending.rows.length ? payload.pending.rows[0] : {};
             const mixedPending = JSON.parse(JSON.stringify(payload.pending));
             mixedPending.rows = [
@@ -510,7 +585,8 @@ def _browser_pending_drain_guard_runner_source() -> str:
             requireText("pending-post-drain-trust-summary", [
               "Pending Publish post-drain trust review:",
               "First action:",
-              "Mutation guardrail: this review is read-only",
+              "Mutation guardrail: read-only evidence",
+              "backend routes own pending-publish changes",
             ]);
             requireText("pending-post-drain-trust-rows", [
               "Current parked state",
@@ -540,7 +616,7 @@ def _browser_pending_drain_guard_runner_source() -> str:
               "guard restored after filter-scope scenario",
             );
 
-            window.mediaPipelinePendingPublishView.renderPendingRecoveryPlanResult({
+            const blockedRecoveryPlanResult = {
               ok: true,
               severity: "warning",
               message: "Dry-run plan found a blocked recovery action.",
@@ -573,10 +649,57 @@ def _browser_pending_drain_guard_runner_source() -> str:
                   recommended_open_targets: ["manifest", "pending_root"],
                 }],
               },
-            });
+            };
+            window.mediaPipelinePendingPublishView.renderPendingRecoveryPlanResult(blockedRecoveryPlanResult);
             await waitFor(
               () => text("pending-drain-guard-status") === "Blocked" && text("pending-drain-guard-summary").includes("Decision: Do not drain") && text("pending-drain-decision-summary").includes("Blocked/review/read-first/unknown:"),
               "guard refresh after blocked recovery plan",
+            );
+            const staleReloadRow = Object.assign({}, row, {
+              row_key: "fresh-current-ready-row",
+              state: "ready",
+              ready_to_drain: true,
+              diagnostic_status: "ready",
+              diagnostic_severity: "info",
+              drain_recommendation: "ready",
+              operator_trust_state: "ready",
+              issue_summary: "",
+              error: "",
+              safe_next_action: "Safe next action: row looks ready, but use only the backend-owned Drain Parked Outputs command to move files.",
+            });
+            const staleReloadPending = Object.assign({}, payload.pending, {
+              rows: [staleReloadRow],
+              count: 1,
+              payload_count: 1,
+              ready_count: 1,
+              issue_count: 0,
+              health_count: 0,
+              missing_local_count: 0,
+              missing_sidecar_count: 0,
+              operator_trust_state_counts: { ready: 1 },
+              drain_confidence: undefined,
+            });
+            window.renderPendingPublish(staleReloadPending, {});
+            await waitFor(
+              () => text("pending-recovery-plan-status").includes("Recovery dry-run cleared because Pending Publish evidence changed.")
+                && ["Allowed", "Review confirm"].includes(text("pending-drain-guard-status"))
+                && !text("pending-drain-guard-summary").includes("Decision: Do not drain")
+                && text("pending-drain-decision-summary").includes("Blocked/review/read-first/unknown: 0/"),
+              "stale blocked recovery dry-run clears after changed pending payload",
+            );
+            requireText("pending-drain-decision-rows", [
+              "Recovery dry-run",
+              "no recovery dry-run plan loaded",
+            ]);
+            const staleGuardStatusAfterReload = text("pending-drain-guard-status");
+            const staleGuardSummaryAfterReload = text("pending-drain-guard-summary");
+            const staleRecoveryStatusAfterReload = text("pending-recovery-plan-status");
+            const staleDecisionSummaryAfterReload = text("pending-drain-decision-summary");
+            window.renderPendingPublish(payload.pending, {});
+            window.mediaPipelinePendingPublishView.renderPendingRecoveryPlanResult(blockedRecoveryPlanResult);
+            await waitFor(
+              () => text("pending-drain-guard-status") === "Blocked" && text("pending-drain-guard-summary").includes("Decision: Do not drain"),
+              "guard restored after stale recovery regression check",
             );
             if (typeof window.applyAdvancedModePreference === "function") {
               window.applyAdvancedModePreference(false);
@@ -587,6 +710,13 @@ def _browser_pending_drain_guard_runner_source() -> str:
             const blockedDrainButton = byId("pending-drain-button");
             if (!blockedDrainButton || blockedDrainButton.disabled !== true || blockedDrainButton.getAttribute("aria-disabled") !== "true") {
               throw new Error("blocked pending drain guard must disable the Drain Parked Outputs button");
+            }
+            const blockedActionDrainButton = byId("pending-action-drain-button");
+            if (!blockedActionDrainButton || blockedActionDrainButton.disabled !== true || blockedActionDrainButton.getAttribute("aria-disabled") !== "true") {
+              throw new Error("blocked pending drain guard must disable the visible Action Center drain button");
+            }
+            if (blockedActionDrainButton.textContent.trim() !== "Drain Blocked") {
+              throw new Error("Action Center drain button did not show the blocked label: " + blockedActionDrainButton.textContent);
             }
             const normalGuardBrief = document.querySelector("#pending-drain-guard-summary .diagnostic-callout-brief");
             const normalGuardDetails = document.querySelector("#pending-drain-guard-summary .diagnostic-callout-details");
@@ -646,18 +776,30 @@ def _browser_pending_drain_guard_runner_source() -> str:
             requireText("pending-post-drain-trust-summary", [
               "Blocked/review/read-first/unknown:",
               "First action: stop treating this drain as trusted",
-              "Mutation guardrail: this review is read-only",
+              "Mutation guardrail: read-only evidence",
+              "backend routes own pending-publish changes",
             ]);
+            const blockedGuardStatusBeforeStaleReload = text("pending-drain-guard-status");
+            const blockedGuardSummaryBeforeStaleReload = text("pending-drain-guard-summary");
+            const blockedPostDrainTrustStatusBeforeStaleReload = text("pending-post-drain-trust-status");
+            const blockedPostDrainTrustSummaryBeforeStaleReload = text("pending-post-drain-trust-summary");
+            const blockedDrainStatusBeforeStaleReload = text("pending-drain-status");
+            const blockedDrainDetailBeforeStaleReload = text("pending-drain-detail");
+            const blockedHistoryTextBeforeStaleReload = text("pending-drain-history");
             return {
               ok: true,
               initialGuardStatus,
-              guardStatus: text("pending-drain-guard-status"),
-              guardSummary: text("pending-drain-guard-summary"),
-              drainStatus: text("pending-drain-status"),
-              drainDetail: text("pending-drain-detail"),
-              postDrainTrustStatus: text("pending-post-drain-trust-status"),
-              postDrainTrustSummary: text("pending-post-drain-trust-summary"),
-              historyText: text("pending-drain-history"),
+              guardStatus: blockedGuardStatusBeforeStaleReload,
+              guardSummary: blockedGuardSummaryBeforeStaleReload,
+              drainStatus: blockedDrainStatusBeforeStaleReload,
+              drainDetail: blockedDrainDetailBeforeStaleReload,
+              postDrainTrustStatus: blockedPostDrainTrustStatusBeforeStaleReload,
+              postDrainTrustSummary: blockedPostDrainTrustSummaryBeforeStaleReload,
+              historyText: blockedHistoryTextBeforeStaleReload,
+              staleGuardStatus: staleGuardStatusAfterReload,
+              staleGuardSummary: staleGuardSummaryAfterReload,
+              staleRecoveryStatus: staleRecoveryStatusAfterReload,
+              staleDecisionSummary: staleDecisionSummaryAfterReload,
               postPaths: posts.map((entry) => entry.path),
               postCount: posts.length,
               confirmCalls,
@@ -811,6 +953,10 @@ class WebViewBrowserPendingDrainGuardSmoke(unittest.TestCase):
         self.assertIn("Decision: Do not drain", browser_result["guardSummary"])
         self.assertEqual(browser_result["drainStatus"], "Blocked")
         self.assertIn("frontend_guard", browser_result["historyText"])
+        self.assertIn(browser_result["staleGuardStatus"], {"Allowed", "Review confirm"})
+        self.assertIn("Recovery dry-run cleared because Pending Publish evidence changed.", browser_result["staleRecoveryStatus"])
+        self.assertNotIn("Decision: Do not drain", browser_result["staleGuardSummary"])
+        self.assertIn("Blocked/review/read-first/unknown: 0/", browser_result["staleDecisionSummary"])
         post_paths = browser_result["postPaths"]
         self.assertNotIn("/api/pipeline/start", post_paths)
         self.assertEqual([path for path in post_paths if path != "/api/ui-preferences"], [])

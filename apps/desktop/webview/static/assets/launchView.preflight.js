@@ -73,6 +73,7 @@
         batch_stage_all: "Batch stage all",
       },
       destination: {
+        auto_replace_clean_else_pending_review: "Auto replace clean, else Pending Publish",
         review_workspace: "Review workspace",
         pending_publish: "Pending publish",
         publish_non_overlap: "Publish with non-overlap name",
@@ -83,12 +84,6 @@
         fail: "Block on overlap",
         replace_final: "Replace final output",
       },
-      original: {
-        keep: "Keep original",
-        rename_after_publish: "Keep but rename after publish",
-        move_to_hold_after_publish: "Move to original hold after publish",
-        hold_then_delete_after_publish: "Hold then mark cleanup-ready",
-      },
     };
 
     function rerunPreflightLabel(kind, value, fallback) {
@@ -97,15 +92,14 @@
     }
 
     function rerunFinalReplacementSelected(request) {
-      return request?.destination_mode === "publish_replace_final" || request?.collision_policy === "replace_final";
+      return request?.destination_mode === "auto_replace_clean_else_pending_review" || request?.destination_mode === "publish_replace_final" || request?.collision_policy === "replace_final";
     }
 
-    function rerunOriginalPairingLine(request) {
+    function rerunOutputPairingLine(request) {
       if (!rerunFinalReplacementSelected(request)) return "";
-      if (request.original_policy === "move_to_hold_after_publish") {
-        return "Pairing note: final-output replacement is paired with original hold after publish.";
-      }
-      return "Pairing warning: final-output replacement is usually paired with Move to original hold after publish.";
+      return request && request.confirm_source_overwrite
+        ? "Pairing note: final-output replacement may overwrite the CSV source path when backend planning proves source and final output are the same file."
+        : "Pairing note: final-output replacement keeps source files untouched unless source-path overwrite is explicitly confirmed.";
     }
 
     function getLaunchRealMediaContext() {
@@ -496,7 +490,6 @@
   function launchBackendPreflightCandidateRequests() {
     return [
       { key: "pipeline", target: "pipeline", label: "Pipeline", request: collectPipelineStartRequest() },
-      { key: "rerun-live", target: "rerun", label: "CSV Rerun Start", request: collectRerunStartRequest({ dry_run: false }) },
     ].map((item) => {
       const activity = launchBackendPreflightRequestActivity(item);
       return {
@@ -1049,7 +1042,7 @@
     return lines;
   }
 
-  function rerunLaunchPreflightLines(request) {
+  function rerunQueuePreflightLines(request) {
     const csv = String(request.csv_path || "").trim();
     const scope = request.scope && typeof request.scope === "object" ? request.scope : {};
     const issueFilters = Array.isArray(scope.issue_filters) ? scope.issue_filters.join(", ") : (scope.issue_filter || "");
@@ -1057,20 +1050,17 @@
     const lines = [
       `CSV path: ${csv || "missing"}`,
       `Execution: ${rerunPreflightLabel("execution", request.execution_mode, "one_at_a_time")}; window=${request.window_size || 1}`,
-      `Destination handling: ${rerunPreflightLabel("destination", request.destination_mode, "review_workspace")}; collision=${rerunPreflightLabel("collision", request.collision_policy, "suffix")}`,
-      `Old source handling after proof: ${rerunPreflightLabel("original", request.original_policy, "keep")}`,
+      `Destination handling: ${rerunPreflightLabel("destination", request.destination_mode, "auto_replace_clean_else_pending_review")}; collision=${rerunPreflightLabel("collision", request.collision_policy, "replace_final")}`,
+      `Source handling: source overwrite ${request.confirm_source_overwrite ? "confirmed" : "not confirmed"}; destination/collision determine verified-output placement.`,
       `Scope: enabled only ${scope.enabled_only !== false ? "yes" : "no"}; skip blocked ${scope.skip_blocked ? "yes" : "no"}; skip warnings ${scope.skip_warning_rows ? "yes" : "no"}; first rows ${scope.first_n || 0}; issue "${issueFilters}"; bucket "${bucketFilters}"`,
     ];
-    const pairingLine = rerunOriginalPairingLine(request);
+    const pairingLine = rerunOutputPairingLine(request);
     if (pairingLine) lines.push(pairingLine);
     if (!csv) lines.push("Input warning: CSV path is required before CSV rerun can start.");
-    if (request.destination_mode === "publish_replace_final" && request.confirm_replace_final !== true) {
+    if (["auto_replace_clean_else_pending_review", "publish_replace_final"].includes(request.destination_mode) && request.confirm_replace_final !== true) {
       lines.push("Confirmation warning: replacing a final output requires confirm_replace_final=true.");
     }
-    if (request.original_policy && request.original_policy !== "keep" && request.confirm_original_policy !== true) {
-      lines.push("Confirmation warning: original-source policy requires confirm_original_policy=true.");
-    }
-    lines.push("Safety policy: live rerun stages bounded scratch input, verifies output, applies destination policy, then applies original-source policy only after proof.");
+    lines.push("Safety policy: live rerun stages bounded scratch input, verifies output, applies destination policy, and only overwrites a source path when explicitly confirmed.");
     lines.push("", ...launchSettingsRiskLines(request));
     lines.push(...launchRealMediaReadinessLines("CSV rerun"));
     lines.push("Backend validation and launch locking remain the source of truth.");
@@ -1084,7 +1074,7 @@
   function renderAllLaunchPreflights(options = {}) {
     const pipelineRequest = collectPipelineStartRequest();
     renderLaunchPreflight("pipeline-launch-preflight", pipelineLaunchPreflightLines(pipelineRequest));
-    renderLaunchPreflight("rerun-launch-preflight", rerunLaunchPreflightLines(collectRerunStartRequest({ dry_run: false })));
+    renderLaunchPreflight("rerun-queue-preflight", rerunQueuePreflightLines(collectRerunStartRequest({ dry_run: false })));
     renderLaunchSettingsRiskHandoff(pipelineRequest);
     renderLaunchPolicyBoundary();
     renderLaunchSettingsIntentChecklist(pipelineRequest);
@@ -1098,7 +1088,8 @@
   }
 
   function isPipelineControlCommand(entry) {
-    return String(entry?.command || "").toLowerCase().startsWith("pipeline.control.");
+    const command = String(entry?.command || "").toLowerCase();
+    return command.startsWith("pipeline.control.") || command.startsWith("rerun.control.");
   }
 
   function pipelineControlHistoryLine(entry) {
@@ -1125,15 +1116,15 @@
   function renderPipelineControlHistory(history = []) {
     const entries = Array.isArray(history) ? history.filter(isPipelineControlCommand).slice(0, 5) : [];
     if (!Array.isArray(history) || !history.length) {
-      setText("control-history", "No pipeline control command history loaded. Pause, rescan, and stop-after-current results will appear here after refresh.");
+      setText("control-history", "No pipeline or CSV rerun control command history loaded. Pause, rescan, and stop-after-current results will appear here after refresh.");
       return;
     }
     if (!entries.length) {
-      setText("control-history", "No pipeline control commands found in recent command history.");
+      setText("control-history", "No pipeline or CSV rerun control commands found in recent command history.");
       return;
     }
     setText("control-history", [
-      `Last ${entries.length} pipeline control command${entries.length === 1 ? "" : "s"}:`,
+      `Last ${entries.length} pipeline/CSV rerun control command${entries.length === 1 ? "" : "s"}:`,
       ...entries.map(pipelineControlHistoryLine),
       "Backend control-flag writes and launch locks remain the source of truth.",
     ].join("\n"));
@@ -1176,7 +1167,7 @@
       refreshLaunchBackendPreflight,
       refreshLaunchBackendPreflightEncoderCapability,
       pipelineLaunchPreflightLines,
-      rerunLaunchPreflightLines,
+      rerunQueuePreflightLines,
       renderLaunchPreflight,
       renderAllLaunchPreflights,
       isPipelineControlCommand,

@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0702-009",
+  "title": "CSV rerun keep-original launch request",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-02",
+  "date_completed": "2026-07-02",
+  "summary": "Keep executable CSV rerun original-source handling on keep-original from the WebView request builder, even when stale or manual original-action selections are present.",
+  "reason": "The Launch page could submit original_policy=hold_then_delete_after_publish for CSV rerun starts. A stale backend could pass that disabled original-source action to Invoke-RerunCsv.ps1, which then exited before pipeline events were written.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The CSV rerun policy selector exposed original-source rename/hold/delete choices, auto replacement could resolve to move_to_hold_after_publish, and stale hold/delete selections could be submitted with confirm_original_policy and confirm_delete_original.",
+  "behavior_after": "The WebView selector exposes only auto/keep for Original After Proof, request collection always resolves original_policy to keep for executable CSV reruns, and launch/preflight copy reflects that cleanup handoff is separate from CSV rerun launch.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launch/startRequest.js",
+    "apps/desktop/webview/static/assets/launchView.js",
+    "apps/desktop/webview/static/assets/launchView.preflight.js",
+    "apps/desktop/webview/static/partials/page-launch.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launch/startRequest.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.preflight.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-launch.html.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_launch.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_launch_command_buttons_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0702-009.json",
+    "tests/python/desktop/test_application_facade_web_static_launch.py",
+    "tests/webview/test_webview_launch_command_buttons_smoke.py"
+  ],
+  "tests_added": [
+    "Updated WebView launch request smoke coverage so stale hold/delete original selections resolve to original_policy=keep and do not send original/delete confirmations.",
+    "Updated WebView launch preflight/static tests for keep-original replacement copy and disabled original-source action warnings."
+  ],
+  "manual_validation": [
+    "Ran .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static_launch tests.webview.test_webview_launch_command_buttons_smoke tests.python.desktop.test_facade_process_rerun_policy tests.python.desktop.test_application_facade_process_launch -q; 60 tests passed.",
+    "Ran .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed; summaries refreshed for changed WebView/test files.",
+    "Ran .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage; coverage validation passed."
+  ],
+  "rollback_plan": "Revert the WebView request builder, launch/preflight copy, Launch partial, updated tests, and generated summaries in this packet. Backend and PowerShell keep-original guards from prior work remain the lower-level safety controls.",
+  "related_changes": [
+    "MP-CHANGE-2026-0702-008"
+  ],
+  "notes": "The running desktop backend may need a restart to load the current Python guard and refreshed WebView assets before retrying CSV rerun start."
+}

@@ -1,6 +1,7 @@
 (function () {
   const REFRESH_INTERVAL_MS = 2000;
   const DIAGNOSTICS_TIMEOUT_MS = 10000;
+  const RAW_PIPELINE_LOG_TAIL_ENDPOINT = "/api/diagnostics/tail?target=pipeline_log&max_bytes=262144";
   let refreshTimer = null;
   let refreshInFlight = false;
   let lastSuccessfulRefresh = 0;
@@ -20,6 +21,10 @@
 
   function topbarButton() {
     return byId("pipeline-log-window-button");
+  }
+
+  function displayMode() {
+    return byId("floating-pipeline-log-mode")?.value === "raw" ? "raw" : "activity";
   }
 
   function isCompactLayout() {
@@ -166,6 +171,12 @@
     return String(value || "").trim().toLowerCase();
   }
 
+  function boundedLogLine(value, maxChars = 420) {
+    const text = String(value || "").replace(/\s+/g, " ").trim();
+    if (!text) return "";
+    return text.length <= maxChars ? text : `${text.slice(0, maxChars - 3)}...`;
+  }
+
   function activeJobRowLooksRelevant(row) {
     if (!isPlainObject(row)) return false;
     const state = activeEvidenceState(row.status_state);
@@ -220,6 +231,24 @@
       .slice(0, 6);
   }
 
+  function activeProcessLogLines(diagnostics) {
+    const payload = isPlainObject(diagnostics?.worker_progress) ? diagnostics.worker_progress : {};
+    const rows = Array.isArray(payload.rows) ? payload.rows : [];
+    return Array.from(new Set(rows
+      .filter((row) => ["running", "blocked", "warning"].includes(activeEvidenceState(row?.status_state)))
+      .map((row) => {
+        const latest = boundedLogLine(row?.last_log_line);
+        if (!latest) return "";
+        const kind = String(row.job_kind || "").trim().toLowerCase();
+        const label = kind === "rerun_csv"
+          ? "CSV rerun process"
+          : String(row.worker_label || row.worker_id || row.job_kind || "Active process").trim();
+        const stage = String(row.stage || row.status || "").trim();
+        return `${label}${stage ? ` (${stage})` : ""}: ${latest}`;
+      })
+      .filter(Boolean))).slice(0, 6);
+  }
+
   function activeWorkEvidenceLines(diagnostics) {
     return Array.from(new Set([
       ...activeJobsSummaryLines(diagnostics),
@@ -261,6 +290,11 @@
     } else {
       lines.push("Active evidence: close-readiness reports active work, but no structured ActiveJobs rows are present in this diagnostics payload.");
     }
+    const processLines = activeProcessLogLines(diagnostics);
+    if (processLines.length) {
+      lines.push("Active process log:");
+      processLines.forEach((line) => lines.push(`- ${line}`));
+    }
     lines.push("Log note: the pipeline tail below may be from a previous run until the active process writes or flushes new log lines.");
     return lines;
   }
@@ -271,9 +305,9 @@
     const activeLines = activeWorkLogLines(diagnostics, closeReadiness);
     if (!activeLines.length) return logText || "No pipeline log tail loaded.";
     const tailLines = logText
-      ? ["", "--- pipeline log tail ---", logText]
-      : ["", "No pipeline log tail loaded yet."];
-    return [...activeLines, ...tailLines].join("\n");
+      ? ["--- pipeline log tail ---", logText]
+      : ["No pipeline log tail loaded yet."];
+    return [...tailLines, "", "--- current activity ---", ...activeLines].join("\n");
   }
 
   async function readCloseReadiness(apiClient) {
@@ -284,6 +318,12 @@
     } catch (_error) {
       return lastCloseReadinessPayload;
     }
+  }
+
+  async function readRawPipelineLogTail(apiClient) {
+    return apiClient.apiGet(RAW_PIPELINE_LOG_TAIL_ENDPOINT, {
+      timeoutMs: DIAGNOSTICS_TIMEOUT_MS,
+    });
   }
 
   function setButtonOpenState(open) {
@@ -332,6 +372,37 @@
     );
   }
 
+  function renderRawFloatingPipelineLog(tailPayload) {
+    const textNode = byId("floating-pipeline-log-text");
+    const follow = byId("floating-pipeline-log-follow");
+    const ok = tailPayload?.ok === true;
+    const rawLogText = String(tailPayload?.text ?? "");
+    const fallbackLines = [
+      ...(Array.isArray(tailPayload?.warnings) ? tailPayload.warnings : []),
+      ...(Array.isArray(tailPayload?.errors) ? tailPayload.errors : []),
+    ].map((item) => String(item || "").trim()).filter(Boolean);
+    const nextLogText = ok ? rawLogText : fallbackLines.join("\n") || "Raw pipeline log tail is not available.";
+
+    if (textNode) {
+      const shouldFollow = Boolean(follow?.checked) || isNearBottom(textNode);
+      const previousScrollTop = textNode.scrollTop;
+      if (textNode.textContent !== nextLogText) textNode.textContent = nextLogText;
+      if (shouldFollow) {
+        window.requestAnimationFrame(() => scrollToBottom(textNode));
+      } else {
+        textNode.scrollTop = previousScrollTop;
+      }
+    }
+
+    lastSuccessfulRefresh = Date.now();
+    setUpdated(`Last refresh: ${localTimestamp(new Date(lastSuccessfulRefresh))}`);
+    setStatus(
+      ok ? (rawLogText ? "Raw tail" : "Empty") : "Raw unavailable",
+      ok ? (rawLogText ? "ok" : "empty") : "error",
+      tailPayload?.truncated ? "Raw pipeline log tail is truncated by the selected byte limit." : ""
+    );
+  }
+
   function renderRefreshError(error) {
     const message = error && error.message ? error.message : String(error || "Unknown diagnostics error");
     const stale = lastSuccessfulRefresh > 0;
@@ -353,6 +424,10 @@
       const apiClient = window.mediaPipelineApi || {};
       if (typeof apiClient.apiGet !== "function") {
         throw new Error("API client is not available.");
+      }
+      if (displayMode() === "raw") {
+        renderRawFloatingPipelineLog(await readRawPipelineLogTail(apiClient));
+        return;
       }
       const [diagnostics, closeReadiness] = await Promise.all([
         apiClient.apiGet("/api/diagnostics", {
@@ -457,6 +532,14 @@
     if (refreshButton && refreshButton.dataset.floatingPipelineLogBound !== "true") {
       refreshButton.dataset.floatingPipelineLogBound = "true";
       refreshButton.addEventListener("click", () => refreshFloatingPipelineLog());
+    }
+
+    const modeSelect = byId("floating-pipeline-log-mode");
+    if (modeSelect && modeSelect.dataset.floatingPipelineLogBound !== "true") {
+      modeSelect.dataset.floatingPipelineLogBound = "true";
+      modeSelect.addEventListener("change", () => {
+        if (isOpen) refreshFloatingPipelineLog();
+      });
     }
 
     const closeButton = byId("floating-pipeline-log-close-button");

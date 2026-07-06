@@ -60,6 +60,13 @@
             <input id="floating-pipeline-log-follow" type="checkbox" checked>
             Follow tail
           </label>
+          <label class="floating-pipeline-log-mode-row">
+            Mode
+            <select id="floating-pipeline-log-mode" aria-label="Pipeline Log display mode">
+              <option value="activity" selected>Activity</option>
+              <option value="raw">Raw tail</option>
+            </select>
+          </label>
           <button type="button" id="floating-pipeline-log-refresh-button" class="secondary-button">Refresh</button>
           <button type="button" id="floating-pipeline-log-close-button" class="secondary-button">Close</button>
           <span id="floating-pipeline-log-updated" class="floating-pipeline-log-updated">Not refreshed yet</span>

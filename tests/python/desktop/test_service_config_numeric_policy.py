@@ -54,6 +54,8 @@ def _numeric_baseline() -> dict:
         "BdpgsOcrTimeoutSeconds": 1800,
         "VobSubOcrTimeoutSeconds": 1800,
         "TransientFailureRetryLimit": 3,
+        "AutonomyPendingTotalReviewBytes": 100 * 1024**3,
+        "AutonomyPendingTotalBlockBytes": 250 * 1024**3,
         "CoordinatorMaxJobRetries": 3,
         "SourceScanIntervalSeconds": 60,
         "ProcessedIndexRefreshSeconds": 120,
@@ -119,6 +121,8 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
             "EncodeWasteGuardPreflightSampleSeconds": {"min": 5, "max": 600, "step": 1, "unit": "seconds"},
             "EncodeWasteGuardPreflightSampleCount": {"min": 1, "max": 10, "step": 1, "unit": None},
             "EncodeWasteGuardPreflightTimeoutSeconds": {"min": 30, "max": 86400, "step": 1, "unit": "seconds"},
+            "AutonomyPendingTotalReviewBytes": {"min": 1024**2, "max": 10 * 1024**4, "step": 1024**3, "unit": "bytes"},
+            "AutonomyPendingTotalBlockBytes": {"min": 1024**2, "max": 10 * 1024**4, "step": 1024**3, "unit": "bytes"},
         }
 
         for key, expected in expected_limits.items():
@@ -169,6 +173,8 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
                 "EncodeWasteGuardConsecutiveSamples": 0,
                 "EncodeWasteGuardPollSeconds": 0,
                 "EncodeWasteGuardPreflightSampleSeconds": 4,
+                "AutonomyPendingTotalReviewBytes": 1024**2 - 1,
+                "AutonomyPendingTotalBlockBytes": 10 * 1024**4 + 1,
             }
         )
         errors: list[str] = []
@@ -196,6 +202,8 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
         self.assertIn("EncodeWasteGuardConsecutiveSamples must be >= 1.", errors)
         self.assertIn("EncodeWasteGuardPollSeconds must be >= 1.", errors)
         self.assertIn("EncodeWasteGuardPreflightSampleSeconds must be >= 5.", errors)
+        self.assertIn("AutonomyPendingTotalReviewBytes must be >= 1048576.", errors)
+        self.assertIn("AutonomyPendingTotalBlockBytes must be <= 10995116277760.", errors)
 
     def test_numeric_policy_rejects_noncontiguous_height_tolerance_percent_keys(self) -> None:
         values = _numeric_baseline()

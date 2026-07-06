@@ -1,5 +1,6 @@
 (function () {
   function createPendingPublishSettingsBuilder(deps) {
+    const GIB_BYTES = 1024 * 1024 * 1024;
     const {
       byId,
       formatSettingsListValue,
@@ -29,6 +30,11 @@
         element.value = formatSettingsListValue(value);
         return;
       }
+      if (kind === "bytes_gib") {
+        const bytes = Number(value ?? fallback ?? 0);
+        element.value = Number.isFinite(bytes) && bytes > 0 ? String(Math.round(bytes / GIB_BYTES)) : "";
+        return;
+      }
       element.value = String(value ?? "");
     }
 
@@ -40,6 +46,8 @@
       setPendingPublishBuilderControl("settings-pending-robocopy-timeout", "RobocopyTimeoutSeconds", "number_positive", 14400);
       setPendingPublishBuilderControl("settings-pending-robocopy-flags", "RobocopyFlags", "list", ["/J", "/R:3", "/W:15", "/MT:2", "/NP", "/NDL", "/NFL"]);
       setPendingPublishBuilderControl("settings-pending-outsource-min-free", "OutsourceMinFreeSpaceGB", "number", 50);
+      setPendingPublishBuilderControl("settings-pending-review-budget-gib", "AutonomyPendingTotalReviewBytes", "bytes_gib", 100 * GIB_BYTES);
+      setPendingPublishBuilderControl("settings-pending-block-budget-gib", "AutonomyPendingTotalBlockBytes", "bytes_gib", 250 * GIB_BYTES);
       setPendingPublishBuilderControl("settings-pending-output-size-multiplier", "OutputSizeMultiplier", "number_float", 0.7);
       setPendingPublishBuilderControl("settings-pending-enable-integrity", "EnableIntegrityCheck", "bool", true);
       setPendingPublishBuilderControl("settings-pending-skip-stability", "SkipStabilityCheck", "bool", false);
@@ -64,6 +72,11 @@
       if (kind === "bool") return element.checked === true;
       if (kind === "list") return parseSettingsListText(element.value);
       if (kind === "number_float") return readSettingsBuilderFloat(id, label);
+      if (kind === "bytes_gib") {
+        const value = readSettingsBuilderNumber(id, label);
+        if (value < 1) throw new Error(`${label} must be one GiB or higher.`);
+        return Math.round(value * GIB_BYTES);
+      }
       if (kind === "number_positive") {
         const value = readSettingsBuilderNumber(id, label);
         if (value < 1) throw new Error(`${label} must be one or higher.`);
@@ -125,6 +138,8 @@
           valueText = byId(id)?.checked ? "enabled" : "disabled";
         } else if (kind === "list") {
           valueText = parseSettingsListText(byId(id)?.value || "").join(", ") || "(empty)";
+        } else if (kind === "bytes_gib") {
+          valueText = `${settingsBuilderInputValue(id) || "(not set)"} GiB`;
         } else {
           valueText = settingsBuilderInputValue(id) || "(not set)";
         }

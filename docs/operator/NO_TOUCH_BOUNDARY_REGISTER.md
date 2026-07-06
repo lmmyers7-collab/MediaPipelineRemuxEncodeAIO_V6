@@ -102,7 +102,7 @@ plan, and an operator rollback decision.
 
 **Safe alternative**: Document the current no-delete invariant. Source cleanup (if ever needed) must be a separate, explicitly gated command.
 
-**Gate before touching**: Full review by operator; explicit real-media pilot evidence per `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`; separate test plan.
+**Gate before touching**: Full review by operator; explicit real-media pilot evidence per `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md`; separate test plan.
 
 ---
 

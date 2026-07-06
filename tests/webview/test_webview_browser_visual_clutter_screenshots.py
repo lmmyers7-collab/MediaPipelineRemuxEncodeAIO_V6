@@ -40,7 +40,7 @@ except ImportError:  # pragma: no cover - fallback for direct test execution
     )
 
 
-EXPECTED_DESKTOP_SCREENSHOT_COUNT = 39
+EXPECTED_DESKTOP_SCREENSHOT_COUNT = 38
 
 
 def _browser_visual_clutter_runner_source() -> str:
@@ -55,8 +55,6 @@ def _browser_visual_clutter_runner_source() -> str:
             label: "Launch",
             tabs: [
               ["pipeline", "Pipeline Processor"],
-              ["audit", "Audit"],
-              ["rerun", "CSV Rerun"],
               ["history", "History"],
             ],
           },
@@ -72,7 +70,14 @@ def _browser_visual_clutter_runner_source() -> str:
               ["workers", "Workers"],
             ],
           },
-          { page: "queue", label: "Queue" },
+          {
+            page: "queue",
+            label: "Queue",
+            tabs: [
+              ["main", "Main Queue"],
+              ["rerun", "CSV Rerun"],
+            ],
+          },
           {
             page: "completed",
             label: "Completed Output",
@@ -128,6 +133,7 @@ def _browser_visual_clutter_runner_source() -> str:
 
         const TAB_CONFIG = {
           launch: { button: "data-launch-tab", panel: "data-launch-tab-panel" },
+          queue: { button: "data-queue-tab", panel: "data-queue-tab-panel" },
           metrics: { button: "data-metrics-tab", panel: "data-metrics-tab-panel" },
           reports: { button: "data-reports-tab", panel: "data-reports-tab-panel" },
           completed: { button: "data-completed-tab", panel: "data-completed-tab" },

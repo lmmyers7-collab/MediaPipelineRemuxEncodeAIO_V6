@@ -278,7 +278,7 @@ A skip exit code of 0 must not be treated as a pass. The smoke did not execute a
 - That rename produces correct final file names on disk
 - That the backend produces the correct config after a real save
 
-For real-media proof, see `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`.
+For real-media proof, see `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md`.
 
 ---
 

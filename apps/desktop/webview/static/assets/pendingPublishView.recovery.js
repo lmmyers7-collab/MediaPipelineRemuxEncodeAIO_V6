@@ -8,6 +8,7 @@
       clearRows = function () {},
       commandHistoryCompactEvidenceLine = null,
       getCommandHistory = function () { return []; },
+      getCurrentPendingRecoveryPlanSignature = function () { return ""; },
       getLastPendingPayload = function () { return {}; },
       getLastPendingRows = function () { return []; },
       getLastPendingSnapshot = function () { return {}; },
@@ -20,17 +21,25 @@
       renderPendingDrainActionConfidence = function () {},
       renderPendingDrainDecisionChecklist = function () {},
       renderPendingDrainGuard = function () {},
+      renderPendingDrainOverview = function () {},
       setText = function () {},
       state = {},
       updateTableStatusLegend = function () {},
     } = deps;
+    const PENDING_READ_ONLY_BOUNDARY = "Mutation guardrail: read-only evidence; backend routes own pending-publish changes.";
 
     function getLastPendingRecoveryPlanRows() {
       return Array.isArray(state.lastPendingRecoveryPlanRows) ? state.lastPendingRecoveryPlanRows : [];
     }
 
-    function setLastPendingRecoveryPlanRows(rows) {
-      state.lastPendingRecoveryPlanRows = Array.isArray(rows) ? rows : [];
+    function getLastPendingRecoveryPlanSignature() {
+      return String(state.lastPendingRecoveryPlanSignature || "");
+    }
+
+    function setLastPendingRecoveryPlanRows(rows, signature = getCurrentPendingRecoveryPlanSignature()) {
+      const rowList = Array.isArray(rows) ? rows : [];
+      state.lastPendingRecoveryPlanRows = rowList;
+      state.lastPendingRecoveryPlanSignature = rowList.length ? String(signature || "") : "";
     }
 
     function getSelectedPendingRecoveryPlanKey() {
@@ -155,7 +164,7 @@
     ];
     if (evidence.length) lines.push("", "Evidence field(s):", ...evidence.slice(0, 8).map((item) => `- ${item}`));
     if (proof.length) lines.push("", "Proof:", ...proof.slice(0, 8).map((item) => `- ${item}`));
-    lines.push("", "Mutation guardrail: this drilldown is read-only. It cannot repair, drain, rewrite, move, delete, or publish files.");
+    lines.push("", PENDING_READ_ONLY_BOUNDARY);
     return lines;
   }
 
@@ -225,7 +234,7 @@
       `Actions: ${pendingFormatCounts(data.action_counts)}`,
       `Dry run only: ${data.dry_run_only === false ? "no" : "yes"}`,
       `Would mutate files: ${data.would_mutate ? "yes" : "no"}`,
-      data.mutation_guardrail || "Mutation guardrail: this plan does not move, delete, drain, repair, rewrite, or publish files.",
+      data.mutation_guardrail || PENDING_READ_ONLY_BOUNDARY,
     ];
     if (summary.length) {
       lines.push("", "Backend plan summary:");
@@ -249,7 +258,7 @@
   function renderPendingRecoveryPlanResult(result) {
     const data = pendingRecoveryPlanResultData(result || {});
     const rows = Array.isArray(data.rows) ? data.rows : [];
-    setLastPendingRecoveryPlanRows(rows);
+    setLastPendingRecoveryPlanRows(rows, getCurrentPendingRecoveryPlanSignature());
     if (getSelectedPendingRecoveryPlanKey() && !rows.some((row, index) => pendingRecoveryPlanRowKey(row, index) === getSelectedPendingRecoveryPlanKey())) {
       setSelectedPendingRecoveryPlanKey("");
     }
@@ -262,6 +271,7 @@
     renderPendingDrainActionConfidence(getLastPendingPayload(), getLastPendingRows(), getLastPendingSnapshot(), getCommandHistory());
     renderPendingBackendDrainScopePreview(getLastPendingPayload(), getLastPendingRows(), getLastPendingSnapshot(), getCommandHistory());
     renderPendingDrainDecisionChecklist(getLastPendingPayload(), getLastPendingRows(), getLastPendingSnapshot(), getCommandHistory());
+    renderPendingDrainOverview(getLastPendingPayload(), getLastPendingRows(), getLastPendingSnapshot(), getCommandHistory());
     renderPendingDrainGuard(getLastPendingPayload(), getLastPendingRows(), getLastPendingSnapshot(), getCommandHistory());
   }
 
@@ -383,6 +393,7 @@
       pendingRecoveryPlanHistoryLine,
       pendingRecoveryPlanResultData,
       pendingRecoveryPlanRowLabel,
+      getLastPendingRecoveryPlanSignature,
     };
   }
 

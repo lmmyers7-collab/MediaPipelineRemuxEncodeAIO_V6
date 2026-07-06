@@ -571,6 +571,8 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
         @{ Kind = 'int'; Key = 'ConsecutiveRoundFailureProbeBackoffSeconds'; Label = 'ConsecutiveRoundFailureProbeBackoffSeconds'; Min = 30; Max = 86400 },
         @{ Kind = 'int'; Key = 'PendingPublishBacklogBlockThreshold'; Label = 'PendingPublishBacklogBlockThreshold'; Min = 1; Max = 1000000 },
         @{ Kind = 'int'; Key = 'PendingPublishDeferredBlockThreshold'; Label = 'PendingPublishDeferredBlockThreshold'; Min = 1; Max = 1000000 },
+        @{ Kind = 'int'; Key = 'AutonomyPendingTotalReviewBytes'; Label = 'AutonomyPendingTotalReviewBytes'; Min = 1048576; Max = 10995116277760 },
+        @{ Kind = 'int'; Key = 'AutonomyPendingTotalBlockBytes'; Label = 'AutonomyPendingTotalBlockBytes'; Min = 1048576; Max = 10995116277760 },
         @{ Kind = 'int'; Key = 'PendingPublishDrainBatchSize'; Label = 'PendingPublishDrainBatchSize'; Min = 1; Max = 1000000 },
         @{ Kind = 'int'; Key = 'PauseFlagReviewSeconds'; Label = 'PauseFlagReviewSeconds'; Min = 60; Max = 86400 },
         @{ Kind = 'int'; Key = 'PauseFlagBlockSeconds'; Label = 'PauseFlagBlockSeconds'; Min = 300; Max = 604800 },

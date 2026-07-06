@@ -3,7 +3,6 @@
     const {
       apiPost = async function () { throw new Error("apiPost unavailable"); },
       appendCommandResult = function () {},
-      appendDiagnosticsBridgeButton = null,
       appendDiagnosticsBridgeGroupedButtons = null,
       byId = function () { return null; },
       commandHistoryCompactEvidenceLine = null,
@@ -70,29 +69,22 @@
     function pendingDiagnosticsActionsForRow(item) {
       const status = String(item?.diagnostic_status || "").toLowerCase();
       const actions = [];
-      pendingAddDiagnosticsAction(actions, "open", "pending_publish", "Open Pending Publish", "Inspect backend-selected parked manifests and payloads.");
+      pendingAddDiagnosticsAction(actions, "open", "pending_publish", "Open Pending Folder", "Inspect backend-selected parked manifests and payloads.");
       if (!item) {
         pendingAddDiagnosticsAction(actions, "open", "run_logs", "Open Run Logs", "Inspect recent pipeline and publish logs.");
-        pendingAddDiagnosticsAction(actions, "tail", "last_stderr_log", "Read Last Stderr", "Read the newest bounded stderr tail.");
         pendingAddDiagnosticsAction(actions, "open", "state", "Open State Folder", "Inspect runtime state only after close-readiness is safe.");
         return actions;
       }
       if (["missing_payload", "missing_sidecar", "row_error", "duplicate_target"].includes(status)) {
         pendingAddDiagnosticsAction(actions, "open", "run_logs", "Open Run Logs", "Inspect publish/copy/sidecar errors before drain.");
-        pendingAddDiagnosticsAction(actions, "tail", "last_stderr_log", "Read Last Stderr", "Read the newest bounded stderr tail for publish failures.");
         pendingAddDiagnosticsAction(actions, "tail", "latest_failure_report", "Read Latest Failure", "Review the newest failure report if one exists.");
       }
       if (["invalid_manifest", "unreadable_manifest"].includes(status)) {
         pendingAddDiagnosticsAction(actions, "open", "state", "Open State Folder", "Compare pending state with runtime artifacts.");
         pendingAddDiagnosticsAction(actions, "open", "run_logs", "Open Run Logs", "Find the writer that created the malformed manifest.");
-        pendingAddDiagnosticsAction(actions, "tail", "last_stderr_log", "Read Last Stderr", "Read bounded stderr for manifest or publish exceptions.");
       }
       if (status === "orphan_payload") {
         pendingAddDiagnosticsAction(actions, "open", "run_logs", "Open Run Logs", "Confirm whether the orphan was created by a failed park/drain cycle.");
-        pendingAddDiagnosticsAction(actions, "tail", "last_stderr_log", "Read Last Stderr", "Check for publish or manifest-write errors.");
-      }
-      if (status === "ready") {
-        pendingAddDiagnosticsAction(actions, "tail", "last_stderr_log", "Read Last Stderr", "Optional sanity check before draining a suspicious row.");
       }
       return actions;
     }
@@ -113,18 +105,17 @@
         lines.push(`Evidence fields: ${pendingListText(item.evidence_fields)}`);
         lines.push(`Recommended row open targets: ${pendingListText(item.recommended_open_targets)}`);
         if (["invalid_manifest", "unreadable_manifest"].includes(status)) {
-          lines.push("Selected-row diagnostic order: open the row manifest, read Last Stderr, then open Run Logs before another drain attempt.");
+          lines.push("Selected-row diagnostic order: open the row manifest, then open Run Logs before another drain attempt.");
         } else if (["missing_payload", "missing_sidecar"].includes(status)) {
-          lines.push("Selected-row diagnostic order: open row payload/manifest targets first, then use Run Logs and Last Stderr to confirm whether the copy or sidecar write failed.");
+          lines.push("Selected-row diagnostic order: open row payload/manifest targets first, then use Run Logs or Latest Failure to confirm whether the copy or sidecar write failed.");
         } else if (status === "orphan_payload") {
           lines.push("Selected-row diagnostic order: open the orphan payload, then inspect Run Logs before deleting or reprocessing.");
         } else if (status === "duplicate_target") {
           lines.push("Selected-row diagnostic order: inspect both pending manifests and destination folders before draining.");
         } else {
-          lines.push("Selected-row diagnostic order: inspect backend-selected row targets first, then use Run Logs or Last Stderr only when the row conflicts with disk state.");
+          lines.push("Selected-row diagnostic order: inspect backend-selected row targets first, then use Run Logs only when the row conflicts with disk state.");
         }
       }
-      lines.push("Diagnostics bridge: Review in Diagnostics switches to the Diagnostics page and selects an allowlisted target without opening or reading it.");
       return lines;
     }
 
@@ -162,9 +153,6 @@
           button.addEventListener("click", () => requestPendingDiagnosticsAction(action));
           container.appendChild(button);
         });
-      }
-      if (typeof appendDiagnosticsBridgeButton === "function") {
-        appendDiagnosticsBridgeButton(container, actions, item ? "Pending Publish selected row" : "Pending Publish page");
       }
     }
 

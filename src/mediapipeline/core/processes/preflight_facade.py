@@ -32,6 +32,7 @@ from mediapipeline.core.processes.rerun_policy import (
     rerun_dry_run_from_request,
     rerun_plan_only_from_request,
 )
+from mediapipeline.core.processes.rerun_preview import rerun_csv_preview_payload
 from mediapipeline.core.processes.path_evidence import (
     LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS,
     configured_path_health,
@@ -685,13 +686,15 @@ class ProcessFacadeMixin:
         resolved: ResolvedPaths,
         *,
         path_health: dict[str, Any] | None = None,
+        actual_mode: str = "",
     ) -> dict[str, Any]:
         health = self._autonomy_health_for_resolved(resolved, path_health=path_health)
         status = str(health.get("overall_status") or "unknown").casefold()
+        recovery_drain_mode = actual_mode == "drain_pending_pushes"
         if status == "ready":
             check_status = "ready"
         elif status == "blocked":
-            check_status = "blocked"
+            check_status = "review" if recovery_drain_mode else "blocked"
         else:
             check_status = "review"
         blockers = [item for item in health.get("blockers", []) if isinstance(item, dict)]
@@ -705,6 +708,9 @@ class ProcessFacadeMixin:
             f"overall_status={status}",
             f"can_start_new_work={'yes' if status != 'blocked' else 'no'}",
         ]
+        if recovery_drain_mode:
+            evidence.append("recovery_drain_mode=yes")
+            evidence.append("can_attempt_pending_drain=yes")
         if blockers:
             first_blocker = blockers[0]
             blocker_code = str(first_blocker.get("code") or "").strip()
@@ -733,7 +739,9 @@ class ProcessFacadeMixin:
             check_status,
             "; ".join(evidence),
             str(
-                (health.get("launch_gate") if isinstance(health.get("launch_gate"), dict) else {}).get("safe_next_action")
+                "Pending-publish drain is recovery work; autonomy byte pressure still blocks new queue/encode work but does not block drain attempts."
+                if recovery_drain_mode and status == "blocked"
+                else (health.get("launch_gate") if isinstance(health.get("launch_gate"), dict) else {}).get("safe_next_action")
                 or "Review autonomy health before unattended launch."
             ),
             detail=detail,
@@ -825,7 +833,13 @@ class ProcessFacadeMixin:
                 refresh_requested=refresh_encoder_capability_report,
             )
         )
-        checks.append(self._autonomy_health_preflight_check(resolved, path_health=path_health))
+        checks.append(
+            self._autonomy_health_preflight_check(
+                resolved,
+                path_health=path_health,
+                actual_mode=str(normalized.get("actual_mode") or mode),
+            )
+        )
         checks.extend(
             [
                 self._active_work_preflight_check(resolved, "Pipeline preflight"),
@@ -895,13 +909,66 @@ class ProcessFacadeMixin:
         resolved: ResolvedPaths,
         request: dict[str, Any],
     ) -> tuple[list[dict[str, Any]], dict[str, Any], str]:
-        _ = resolved
         csv_path = rerun_csv_path_from_request(request)
         lifecycle = rerun_lifecycle_from_request(request)
         lifecycle_errors = rerun_lifecycle_errors(lifecycle)
         dry_run = rerun_dry_run_from_request(request)
         plan_only = rerun_plan_only_from_request(request)
         evidence, details = path_evidence(csv_path)
+        preview_check: dict[str, Any]
+        if csv_path is None:
+            preview_check = _preflight_check(
+                "csv_rerun_rows",
+                "CSV rerun row scope",
+                "blocked",
+                "CSV preview unavailable; csv_path is empty.",
+                "Provide an existing CSV path before checking rerun row readiness.",
+                detail=[CSV_RERUN_PATH_ERROR],
+            )
+        else:
+            preview_request = dict(request)
+            preview_request["csv_path"] = str(csv_path)
+            try:
+                preview = rerun_csv_preview_payload(resolved, preview_request, service=self.service)
+            except Exception as exc:  # pragma: no cover - defensive preflight guard
+                preview_check = _preflight_check(
+                    "csv_rerun_rows",
+                    "CSV rerun row scope",
+                    "blocked",
+                    f"CSV preview failed: {exc}",
+                    "Fix the CSV path or row data before starting rerun.",
+                    detail=[str(exc)],
+                )
+            else:
+                preview_status = str(preview.get("status") or "blocked").casefold()
+                if preview_status == "ready":
+                    row_status = "ready"
+                elif preview_status == "review":
+                    row_status = "review"
+                else:
+                    row_status = "blocked"
+                counts = preview.get("counts") if isinstance(preview.get("counts"), dict) else {}
+                detail_items: list[Any] = []
+                if counts:
+                    detail_items.append(counts)
+                detail_items.extend(str(item) for item in preview.get("errors") or [] if str(item).strip())
+                detail_items.extend(str(item) for item in preview.get("warnings") or [] if str(item).strip())
+                preview_check = _preflight_check(
+                    "csv_rerun_rows",
+                    "CSV rerun row scope",
+                    row_status,
+                    (
+                        f"preview={preview_status}; rows={counts.get('total_rows', 0)}; "
+                        f"effective={counts.get('effective_scoped_rows', 0)}; "
+                        f"blocked={counts.get('blocked_rows', 0)}; "
+                        f"blocked_scoped={counts.get('blocked_scoped_rows', 0)}; "
+                        f"relative={counts.get('relative_source_rows', 0)}; "
+                        f"missing_files={counts.get('missing_file_rows', 0)}; "
+                        f"invalid_extensions={counts.get('invalid_extension_rows', 0)}"
+                    ),
+                    "Fix blocked CSV rows or choose a scope that excludes them before starting rerun.",
+                    detail=detail_items[:24],
+                )
         normalized = {
             "target": "rerun",
             "csv_path": str(csv_path or ""),
@@ -912,9 +979,10 @@ class ProcessFacadeMixin:
             "return_mode": lifecycle.return_mode,
             "execution_mode": lifecycle.execution_mode,
             "destination_mode": lifecycle.destination_mode,
-            "original_policy": lifecycle.original_policy,
             "collision_policy": lifecycle.collision_policy,
             "window_size": lifecycle.window_size,
+            "confirm_replace_final": lifecycle.confirm_replace_final,
+            "confirm_source_overwrite": lifecycle.confirm_source_overwrite,
             "show_console": False,
         }
         checks = [
@@ -932,15 +1000,17 @@ class ProcessFacadeMixin:
                 "ready" if not lifecycle_errors else "blocked",
                 (
                     f"execution={lifecycle.execution_mode}; destination={lifecycle.destination_mode}; "
-                    f"original_policy={lifecycle.original_policy}; collision={lifecycle.collision_policy}; "
+                    f"collision={lifecycle.collision_policy}; source_original=keep; "
+                    f"source_overwrite_confirmed={lifecycle.confirm_source_overwrite}; "
                     f"window={lifecycle.window_size}; dry_run={dry_run}; plan_only={plan_only}"
                 ),
-                "Use one-at-a-time by default; destructive original/final policies require explicit backend-validated confirmations.",
+                "Use one-at-a-time by default; destination/collision determine verified-output placement, and source-path overwrite requires explicit confirmation.",
                 detail=lifecycle_errors,
             ),
             self._process_launch_lock_preflight_check("CSV rerun preflight"),
             self._config_identity_preflight_check(resolved),
             self._active_work_preflight_check(resolved, "CSV rerun preflight"),
+            preview_check,
             _preflight_check(
                 "service_start",
                 "CSV rerun service",
@@ -953,7 +1023,7 @@ class ProcessFacadeMixin:
                 "Media safety policy",
                 "ready",
                 "execution-safe default is one-at-a-time copy to scratch, verified output, then destination policy application.",
-                "Rerun remains backend-owned; source mutation and final replacement are delayed until output proof and confirmations.",
+                "Rerun remains backend-owned; final replacement and confirmed source-path overwrite are delayed until output proof and confirmations.",
             ),
         ]
         return checks, normalized, "/api/rerun/start"

@@ -1,5 +1,242 @@
       <section class="page" data-page-panel="queue">
         <h1 class="visually-hidden">Queue</h1>
+        <div class="settings-tab-bar queue-tab-bar" role="tablist" aria-label="Queue sections">
+          <button type="button" class="settings-tab-btn" role="tab" aria-selected="true" data-queue-tab="main">Main Queue</button>
+          <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-queue-tab="rerun">CSV Rerun</button>
+        </div>
+        <section class="panel settings-tab-pane queue-tab-panel" data-panel-key="queue-rerun" data-queue-tab-panel="rerun" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>CSV Rerun</h2>
+            <strong id="rerun-queue-status">Idle</strong>
+          </div>
+          <section id="rerun-review-header" class="rerun-review-header" role="status" aria-live="polite" aria-atomic="true" aria-label="CSV rerun review summary">
+            <div class="rerun-review-primary">
+              <span class="rerun-policy-card-label">Review</span>
+              <strong id="rerun-review-status">No CSV preview loaded</strong>
+              <span id="rerun-review-csv">CSV: not selected</span>
+            </div>
+            <div id="rerun-review-counts" class="rerun-review-counts" aria-label="CSV rerun preview counts">
+              <span class="rerun-review-metric" data-state="neutral">
+                <span>Total Rows</span>
+                <strong data-rerun-review-count="total">0</strong>
+              </span>
+              <span class="rerun-review-metric" data-state="neutral">
+                <span>Scoped Rows</span>
+                <strong data-rerun-review-count="scoped">0</strong>
+              </span>
+              <span class="rerun-review-metric" data-state="blocked">
+                <span>Blocked</span>
+                <strong data-rerun-review-count="blocked">0</strong>
+              </span>
+              <span class="rerun-review-metric" data-state="warning">
+                <span>Warnings</span>
+                <strong data-rerun-review-count="warnings">0</strong>
+              </span>
+              <span class="rerun-review-metric" data-state="neutral">
+                <span>Phase</span>
+                <strong data-rerun-review-count="phase">Idle</strong>
+              </span>
+            </div>
+            <div class="rerun-review-next">
+              <span class="rerun-policy-card-label">Next Action</span>
+              <strong id="rerun-review-next-action">Select a CSV path, then inspect the backend preview.</strong>
+            </div>
+          </section>
+          <section id="rerun-lifecycle-evidence" class="rerun-lifecycle-evidence" role="region" aria-live="polite" aria-labelledby="rerun-lifecycle-title">
+            <div class="rerun-subpanel-heading">
+              <h3 id="rerun-lifecycle-title">Lifecycle Evidence</h3>
+              <span id="rerun-lifecycle-phase" class="rerun-state-badge" data-severity="info">Preview</span>
+            </div>
+            <div id="rerun-lifecycle-summary" class="rerun-lifecycle-summary">Preview has not loaded.</div>
+            <div id="rerun-lifecycle-detail" class="rerun-lifecycle-detail">Run evidence appears after backend preview or command submission.</div>
+          </section>
+          <div class="form-grid launch-form-grid queue-rerun-setup-grid">
+            <label>
+              <span class="path-picker-label-row">
+                <span class="path-picker-label-text">CSV Path</span>
+                <button type="button" id="rerun-csv-path-picker-badge" class="path-picker-badge" data-path-picker-target="queue.rerun_csv" data-path-picker-input="rerun-start-csv-path" data-path-picker-mode="files" data-path-picker-status="rerun-queue-status" title="Open a backend-owned Windows file picker for this Queue CSV rerun path.">Browse</button>
+              </span>
+              <input id="rerun-start-csv-path" type="text" autocomplete="off" aria-describedby="rerun-mode-policy-note">
+            </label>
+            <label>
+              Execution
+              <select id="rerun-start-execution-mode" title="Backend-owned rerun execution mode.">
+                <option value="one_at_a_time" selected>one at a time</option>
+                <option value="windowed">windowed</option>
+                <option value="batch_stage_all">batch stage all</option>
+              </select>
+            </label>
+            <label>
+              Window
+              <input id="rerun-start-window-size" type="number" min="1" max="100" step="1" value="1">
+            </label>
+          </div>
+          <fieldset class="rerun-handling-panel">
+            <legend>Rerun handling</legend>
+            <div class="rerun-handling-grid">
+              <label>
+                Destination
+                <select id="rerun-start-destination-mode" title="Where verified rerun outputs go after backend proof.">
+                  <option value="auto">auto destination</option>
+                  <option value="auto_replace_clean_else_pending_review" selected>auto replace clean, else Pending Publish</option>
+                  <option value="review_workspace">review workspace</option>
+                  <option value="pending_publish">pending publish</option>
+                  <option value="publish_non_overlap">publish with non-overlap name</option>
+                  <option value="publish_replace_final">publish and replace final output</option>
+                </select>
+              </label>
+              <label>
+                Destination Collision
+                <select id="rerun-start-collision-policy" title="Collision handling for publish destinations.">
+                  <option value="auto">auto collision</option>
+                  <option value="suffix">suffix when needed</option>
+                  <option value="fail">block on overlap</option>
+                  <option value="replace_final" selected>replace final output</option>
+                </select>
+              </label>
+              <label class="check-row launch-check-row" title="Allow replace-final reruns to overwrite the CSV source path when backend planning proves the final output path resolves to that exact source file.">
+                <input id="rerun-start-confirm-source-overwrite" type="checkbox">
+                Allow source-path overwrite
+              </label>
+            </div>
+            <div class="rerun-handling-summary" aria-live="polite">
+              <div class="rerun-policy-card" data-rerun-policy-card="destination" data-state="blocked">
+                <span class="rerun-policy-card-label">Destination handling</span>
+                <strong data-rerun-policy-summary="destination">Auto replace clean, else Pending Publish</strong>
+                <span data-rerun-policy-detail="destination">Backend replaces clean verified outputs with strict confirmation; outputs with issue evidence are parked for Pending Publish/review.</span>
+              </div>
+              <div class="rerun-policy-card" data-rerun-policy-card="collision" data-state="blocked">
+                <span class="rerun-policy-card-label">When output exists</span>
+                <strong data-rerun-policy-summary="collision">Replace final output</strong>
+                <span data-rerun-policy-detail="collision">Replacement is allowed only with backend confirmation and output proof.</span>
+              </div>
+            </div>
+          </fieldset>
+          <p id="rerun-mode-policy-note" class="note">Backend owns output proof, replacement, and pending publish. Clean verified outputs use backend-derived final placement; rows with remaining issues stay in pending/review flows. Source-path overwrite requires the explicit checkbox.</p>
+          <div class="form-grid launch-form-grid" aria-label="CSV rerun scope controls">
+            <label class="check-row launch-check-row"><input id="rerun-scope-enabled-only" type="checkbox" checked> Enabled Rows</label>
+            <label class="check-row launch-check-row"><input id="rerun-scope-skip-blocked" type="checkbox"> Skip Blocked</label>
+            <label class="check-row launch-check-row"><input id="rerun-scope-skip-warning-rows" type="checkbox"> Skip Warnings</label>
+            <label>
+              First Rows
+              <input id="rerun-scope-first-n" type="number" min="0" step="1" value="0">
+            </label>
+            <label>
+              Issue Filter
+              <select id="rerun-scope-issue-filter" multiple size="4" title="Backend preview issue options."></select>
+            </label>
+            <label>
+              Bucket Filter
+              <select id="rerun-scope-bucket-filter" multiple size="4" title="Backend preview bucket options."></select>
+            </label>
+            <label>
+              Preview Rows
+              <input id="rerun-preview-limit" type="number" min="1" max="200" step="1" value="50">
+            </label>
+          </div>
+          <div id="rerun-preview-tiles" class="launch-command-history" aria-label="CSV rerun status tiles">No CSV rerun status tiles loaded.</div>
+          <div class="table-wrap detail-table-wrap" aria-label="Recent CSV rerun files">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Recent CSV</th>
+                  <th scope="col">Source</th>
+                  <th scope="col">Modified</th>
+                  <th scope="col">Use</th>
+                </tr>
+              </thead>
+              <tbody id="rerun-recent-csv-rows">
+                <tr><td colspan="4">No recent CSV evidence loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <pre id="rerun-preview-summary" class="prose-block">No CSV rerun preview loaded.</pre>
+          <div id="rerun-policy-panel" class="prose-block">Executable policy: one-at-a-time / auto replace clean else Pending Publish / keep original.</div>
+          <div class="table-wrap detail-table-wrap" aria-label="CSV rerun row preview">
+            <table class="workflow-table rerun-preview-table" aria-label="CSV rerun row preview">
+              <thead>
+                <tr>
+                  <th scope="col">Row</th>
+                  <th scope="col">State</th>
+                  <th scope="col">Identity</th>
+                  <th scope="col">Categories</th>
+                  <th scope="col">Destination</th>
+                  <th scope="col">Reason</th>
+                </tr>
+              </thead>
+              <tbody id="rerun-preview-rows">
+                <tr><td colspan="6">No CSV rerun rows loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <pre id="rerun-queue-preflight" class="prose-block">No CSV rerun preflight loaded.</pre>
+          <div class="action-row action-row-left">
+            <button type="button" id="rerun-open-audit-tool-button" class="secondary-button" data-cross-page-target="reports" data-cross-page-reports-tab="audit" title="Open the Reports audit view for CSV export and rerun evidence." aria-label="Open Reports audit view for CSV rerun evidence">Open Reports Audit</button>
+            <button type="button" id="rerun-inspect-csv-button" class="secondary-button" title="Inspect CSV by loading the backend read-only preview." aria-label="Inspect selected CSV using the backend preview">Inspect CSV</button>
+            <button type="button" id="rerun-open-csv-button" class="secondary-button" title="Typed CSV paths can be previewed; Open CSV requires a backend-known import or scoped CSV." aria-label="Open backend-known CSV file" aria-disabled="true" disabled>Open CSV</button>
+            <button type="button" id="rerun-open-csv-folder-button" class="secondary-button" title="Typed CSV paths can be previewed; Open Folder requires a backend-known import or scoped CSV." aria-label="Open backend-known CSV folder" aria-disabled="true" disabled>Open Folder</button>
+            <button type="button" id="rerun-start-button" class="primary-button" title="Review backend preview and start CSV rerun." aria-label="Review backend preview and start CSV rerun">Review &amp; Start</button>
+          </div>
+          <div class="rerun-state-panel" aria-label="CSV rerun state">
+            <div class="rerun-subpanel-heading">
+              <h3>State</h3>
+            </div>
+            <div class="action-row action-row-left" aria-label="CSV rerun queue-state actions">
+              <label>
+                State
+                <select id="rerun-state-status-filter" title="Filter backend-owned CSV rerun queue-state rows.">
+                  <option value="all">All statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="active">Active</option>
+                  <option value="blocked">Blocked</option>
+                  <option value="warning">Warning</option>
+                  <option value="failed">Failed</option>
+                  <option value="stopped">Stopped</option>
+                  <option value="completed">Completed</option>
+                  <option value="awaiting_review">Awaiting Review</option>
+                  <option value="pending_publish">Pending Publish</option>
+                  <option value="replaced_returned">Replaced / Returned</option>
+                  <option value="skipped">Skipped</option>
+                </select>
+              </label>
+              <button type="button" id="rerun-results-refresh-button" class="secondary-button" title="Refresh backend-owned CSV rerun queue-state and run evidence." aria-label="Refresh CSV rerun backend state">Refresh State</button>
+              <button type="button" id="rerun-stop-after-current-button" class="secondary-button" title="Ask the backend to stop the active CSV rerun after the current row." aria-label="Stop active CSV rerun after current row">Stop After Current</button>
+            </div>
+            <div class="action-row action-row-left rerun-evidence-actions" aria-label="CSV rerun evidence quick actions">
+              <button type="button" id="rerun-open-latest-manifest-button" class="secondary-button" title="Open the latest loaded CSV rerun manifest through the backend rerun open policy." aria-label="Open latest loaded CSV rerun manifest">Open Latest Manifest</button>
+              <button type="button" id="rerun-open-run-logs-button" class="secondary-button" title="Open the run logs folder through the diagnostics allowlist." aria-label="Open CSV rerun run logs folder">Open Run Logs</button>
+              <button type="button" id="rerun-open-last-stdout-button" class="secondary-button" title="Open the latest launch stdout log through the diagnostics allowlist." aria-label="Open latest CSV rerun stdout log">Open Last Stdout</button>
+              <button type="button" id="rerun-open-last-stderr-button" class="secondary-button" title="Open the latest launch stderr log through the diagnostics allowlist." aria-label="Open latest CSV rerun stderr log">Open Last Stderr</button>
+              <button type="button" id="rerun-open-active-jobs-button" class="secondary-button" title="Open active job records through the diagnostics allowlist." aria-label="Open CSV rerun active job records">Open Active Jobs</button>
+              <button type="button" id="rerun-show-command-history-button" class="secondary-button" title="Show recent CSV rerun and diagnostics open command results in the detail panel." aria-label="Show recent CSV rerun command history">Show Rerun Commands</button>
+            </div>
+            <div class="table-wrap detail-table-wrap" aria-label="CSV rerun queue-state rows">
+              <table class="workflow-table rerun-state-table" aria-label="CSV rerun queue-state rows">
+                <thead>
+                  <tr>
+                    <th scope="col">State</th>
+                    <th scope="col">Source</th>
+                    <th scope="col">Output / Final</th>
+                    <th scope="col">Issues</th>
+                    <th scope="col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="rerun-state-rows">
+                  <tr><td colspan="5">No CSV rerun queue-state rows loaded.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <pre id="rerun-queue-detail" class="prose-block">No CSV rerun result.</pre>
+          </div>
+          <div class="rerun-history-panel" aria-label="CSV rerun history">
+            <div class="rerun-subpanel-heading">
+              <h3>History</h3>
+            </div>
+            <div id="rerun-results-panel" class="launch-command-history" aria-label="CSV rerun results">No rerun results loaded.</div>
+            <pre id="rerun-history-summary" class="prose-block">No CSV rerun history loaded.</pre>
+          </div>
+        </section>
+        <div class="settings-tab-pane is-active queue-tab-panel" data-queue-tab-panel="main">
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Queue Decision</h2>
@@ -596,4 +833,5 @@
           <div class="action-row action-row-left" data-open-target-row-actions="queue-excluded"></div>
           <p id="queue-excluded-open-status" class="note">Select a backend-excluded source row to open a backend-selected source location.</p>
         </section>
+        </div>
       </section>

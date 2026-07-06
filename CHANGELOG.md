@@ -191,7 +191,7 @@ intent is worth keeping, it goes here and/or in an ADR.
 - `docs/generated/FILE_SUMMARIES.md` — pointer to the `docs/generated/summaries/`
   directory, the per-source-file summary scheme, and the SHA-256 drift
   rule.
-- `docs/archive/sessions/docs/SESSION.md` — archived session scope notes from
+- `docs/archive/sessions/SESSION.md` — archived session scope notes from
   the structural cleanup workspace; current startup guidance lives in
   `AGENTS.md`.
 - Former `docs/adr/` seeded with `README.md`, `0000-template.md`, and

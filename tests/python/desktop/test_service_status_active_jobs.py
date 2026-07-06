@@ -286,6 +286,62 @@ class StatusActiveJobsHelperTests(unittest.TestCase):
         self.assertEqual(payload["progress_bars"][0]["mode"], "indeterminate")
         self.assertIn(f"last={current_line}", payload["progress_bars"][0]["detail"])
 
+    def test_worker_progress_payload_joins_csv_rerun_child_progress_when_launch_matches(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            folder = root / "ActiveJobs"
+            folder.mkdir()
+            (folder / "rerun.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_active_job.v1",
+                        "launch_id": "20260704_220624_184605_rerun_csv_22844_4ea5fba2",
+                        "job_kind": "rerun_csv",
+                        "mode": "process",
+                        "status": "active",
+                        "pid": 123,
+                        "app_pid": 456,
+                        "command_line": "pwsh -File Invoke-RerunCsv.ps1",
+                        "args": ["pwsh", "-File", "Invoke-RerunCsv.ps1"],
+                        "cwd": str(root),
+                        "stdout_log": str(root / "rerun.stdout.log"),
+                        "stderr_log": str(root / "rerun.stderr.log"),
+                        "show_console": False,
+                        "metadata": {"route": "rerun_csv"},
+                        "launched_at": "2026-07-04T22:06:24-04:00",
+                        "last_update": "2026-07-04T22:24:42-04:00",
+                        "return_code": None,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            payload = worker_progress_payload(
+                folder,
+                {
+                    "ProgressVersion": 2,
+                    "Status": "Encoding Movie",
+                    "LastUpdate": "2026-07-04T22:24:45-04:00",
+                    "CurrentStage": "encode",
+                    "CurrentStagePercent": 30,
+                    "CurrentFileDisplay": "Cars (2006).mkv",
+                    "CurrentItemStartedAt": "2026-07-04T22:24:00-04:00",
+                    "ActiveJobKind": "rerun_csv",
+                    "RerunParentLaunchId": "20260704_220624_184605_rerun_csv_22844_4ea5fba2",
+                },
+                "ENCODE : 30%\n",
+                now=datetime.fromisoformat("2026-07-04T22:24:46-04:00"),
+            )
+
+        self.assertEqual(payload["status"], "running")
+        self.assertEqual(payload["active_count"], 1)
+        self.assertEqual(payload["rows"][0]["worker_label"], "Local rerun_csv")
+        self.assertEqual(payload["rows"][0]["source"], "Cars (2006).mkv")
+        self.assertEqual(payload["rows"][0]["stage"], "encode")
+        self.assertEqual(payload["rows"][0]["percent"], 30.0)
+        self.assertEqual(payload["progress_bars"][0]["mode"], "determinate")
+        self.assertIn("file=Cars (2006).mkv", payload["progress_bars"][0]["detail"])
+
     def test_worker_progress_payload_treats_stop_requested_progress_as_warning(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

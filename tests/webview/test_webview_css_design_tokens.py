@@ -448,6 +448,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         controls = (ASSETS_ROOT / "styles.controls.css").read_text(encoding="utf-8")
         launch_command_buttons_js = LAUNCH_COMMAND_BUTTONS_PATH.read_text(encoding="utf-8")
         launch_html = LAUNCH_PARTIAL_PATH.read_text(encoding="utf-8")
+        queue_html = QUEUE_PARTIAL_PATH.read_text(encoding="utf-8")
 
         for token in ["--radius-xs:", "--radius-sm:", "--radius-pill:", "--amber-900:"]:
             self.assertIn(token, tokens)
@@ -468,7 +469,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertIn("background: currentColor;", controls)
         self.assertIn("padding: var(--space-3) var(--space-4);", components)
         self.assertNotIn('id="audit-start-button" class="primary-button"', launch_html)
-        self.assertIn('id="rerun-start-button" class="primary-button"', launch_html)
+        self.assertIn('id="rerun-start-button" class="primary-button"', queue_html)
         self.assertIn("This does not start a new run or touch media", launch_command_buttons_js)
         self.assertIn("source media should not be touched", launch_command_buttons_js)
 

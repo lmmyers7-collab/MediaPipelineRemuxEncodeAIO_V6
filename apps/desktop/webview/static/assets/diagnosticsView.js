@@ -987,7 +987,7 @@
       tailTarget: "last_stderr_log",
       tailName: "Last Stderr",
       patterns: [/\bpending publish\b/i, /\bpublish\b/i, /\bpark(?:ed)?\b/i, /\bdeferred\b/i, /\bdrain\b/i, /\borphan payload\b/i, /\bmissing sidecar\b/i, /\bunreadable manifest\b/i, /\binvalid manifest\b/i],
-      hint: "Open Pending Publish and read Last Stderr before rerunning work that may already be parked, orphaned, or blocked by malformed manifests.",
+      hint: "Open Pending Folder and Run Logs before rerunning work that may already be parked, orphaned, or blocked by malformed manifests.",
     },
     {
       name: "Failure reports",

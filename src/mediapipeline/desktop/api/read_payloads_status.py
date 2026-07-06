@@ -121,13 +121,11 @@ class LocalApiStatusReadPayloadMixin:
                     "dry_run": query_bool(query, "dry_run", False),
                     "plan_only": query_bool(query, "plan_only", False),
                     "execution_mode": query_value(query, "execution_mode", "one_at_a_time"),
-                    "destination_mode": query_value(query, "destination_mode", "review_workspace"),
-                    "original_policy": query_value(query, "original_policy", "keep"),
-                    "collision_policy": query_value(query, "collision_policy", "suffix"),
+                    "destination_mode": query_value(query, "destination_mode", "auto_replace_clean_else_pending_review"),
+                    "collision_policy": query_value(query, "collision_policy", "replace_final"),
                     "window_size": query_int(query, "window_size", 1),
                     "confirm_replace_final": query_bool(query, "confirm_replace_final", False),
-                    "confirm_original_policy": query_bool(query, "confirm_original_policy", False),
-                    "confirm_delete_original": query_bool(query, "confirm_delete_original", False),
+                    "confirm_source_overwrite": query_bool(query, "confirm_source_overwrite", False),
                 }
             )
             if "stage_mode" in query:

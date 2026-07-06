@@ -32,6 +32,7 @@ function Get-MediaPipelineResolvedConfigDump {
         'QualityWarnThreshold','QualityFailThreshold','QualityFailAction','QualityVerifyTimeoutSeconds',
         'SourceScanIntervalSeconds','ProcessedIndexRefreshSeconds','RobocopyTimeoutSeconds','SourceScanTimeoutSeconds',
         'CleanupScanTimeoutSeconds','CleanupRemoteStaging','CleanupStaleAgeHours','TransientFailureRetryLimit',
+        'AutonomyPendingTotalReviewBytes','AutonomyPendingTotalBlockBytes',
         'IndexScanTimeoutSeconds','OutsourceMinFreeSpaceGB',
         'ExcludeSubtitleStyles','IncludeSubtitleStyles','Tx3gExtractLanguages','BdpgsExtractLanguages','VobSubExtractLanguages',
         'PriorityMarkers','MixPriorityPhase','QueueOrderingStrategy','MaxParallelEncodes','ParallelEncodeMode',

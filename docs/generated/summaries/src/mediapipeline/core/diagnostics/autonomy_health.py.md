@@ -3,9 +3,9 @@ file: src/mediapipeline/core/diagnostics/autonomy_health.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: diagnostics
-last_modified: 2026-07-02
+last_modified: 2026-07-05
 last_reviewed: 2026-06-17
-sha256: cddc17d07c22e50614b00ac8180f28e8ee6b4bb1c8c1f0f705176366391fb1cd
+sha256: 63b1e5ebb7701667b4d1eccb0a38c326c4178a3c8ef16b3380d52fc4842f4a52
 ---
 # `src/mediapipeline/core/diagnostics/autonomy_health.py`
 

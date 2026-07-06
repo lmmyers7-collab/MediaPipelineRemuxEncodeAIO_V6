@@ -3,9 +3,9 @@ file: tests/webview/test_webview_browser_layout_manager_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-29
+last_modified: 2026-07-05
 last_reviewed: 2026-06-04
-sha256: d3e1e2cd8c0d136af1870ed17e5c3f49982f9b96dc2c219a41e68b16cc2f8be7
+sha256: e932818dd5ecfeed4c31698c73daf224fcd8f0d9448d48bc725b65dfcbaf5b45
 ---
 # `tests/webview/test_webview_browser_layout_manager_smoke.py`
 

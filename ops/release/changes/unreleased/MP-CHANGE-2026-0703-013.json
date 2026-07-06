@@ -1,0 +1,45 @@
+{
+  "id": "MP-CHANGE-2026-0703-013",
+  "title": "Clarify live route timeline label",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-03",
+  "date_completed": "2026-07-03",
+  "summary": "Clarified the live Run Progress route step so it names the backend route when reported and says the route decision is pending when no route evidence exists.",
+  "reason": "The previous route timeline label could show 'Route selected' while raw backend route evidence still read as none/not reported, which made the operator-facing state ambiguous.",
+  "affected_areas": [
+    "backend",
+    "generated",
+    "test",
+    "webview"
+  ],
+  "behavior_before": "Run Progress could render a current step labeled 'Route selected' without naming a route or having backend route evidence.",
+  "behavior_after": "Run Progress renders 'Route selected: <route>' only when a meaningful route is reported; otherwise it renders 'Route decision pending' with a no-route detail message.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/progressView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/progressView.js.md",
+    "docs/generated/summaries/src/mediapipeline/core/status/presentation_progress.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_snapshot.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0703-013.json",
+    "src/mediapipeline/core/status/presentation_progress.py",
+    "tests/python/desktop/test_application_facade_snapshot.py",
+    "tests/python/desktop/test_application_facade_web_static.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_snapshot.py",
+    "tests/python/desktop/test_application_facade_web_static.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_snapshot -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_snapshot.ApplicationFacadeSnapshotTests.test_current_work_route_pending_fallback_does_not_claim_selection tests.python.desktop.test_application_facade_snapshot.ApplicationFacadeSnapshotTests.test_snapshot_current_work_uses_saved_rename_cleaning_policy -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static -q - failed: unrelated Launch controls string expectation in test_launch_controls_are_state_aware_and_topbar_kill_is_emergency_only",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_progress_csv_rerun_evidence_does_not_override_active_pipeline -q - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserHomeLiveStateSmoke.ps1 - failed: pre-existing topbar activity assertion reports raw Current Fixture.mkv filename leak; route timeline assertions were not reached"
+  ],
+  "rollback_plan": "Revert the route-label fallback changes in progressView.js and presentation_progress.py plus the matching focused test assertions and regenerated summaries.",
+  "related_changes": [],
+  "notes": "Clarify route timeline label when backend route is present or still pending.\nCover backend current-work route-pending wording.\nCover explicit selected-route and pending-route timeline labels.\nClarify current-work fallback when route evidence has not been reported.\nRefresh summary for current-work presentation fallback change.\nRefresh summary for backend current-work fallback coverage.\nRefresh summary for WebView static route-label coverage.\nRefresh summary for route timeline label change."
+}

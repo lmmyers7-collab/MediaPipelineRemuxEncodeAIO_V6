@@ -201,8 +201,8 @@ Bitrate route decisions use bitrate estimated from `file_size_bytes` and `durati
 | `AutonomyPendingReviewSeconds` | Pending-publish age review threshold for autonomy diagnostics | Backend-only; does not drain, repair, or mutate manifests | Raw/Advanced |
 | `AutonomyPendingBlockSeconds` | Pending-publish age block threshold for autonomy diagnostics | Backend-only; pending publish remains manifest-backed | Raw/Advanced |
 | `AutonomyPendingRetryBlockCount` | Pending-publish retry-count block threshold | Backend-only; low values may block new autonomy sooner | Raw/Advanced |
-| `AutonomyPendingTotalReviewBytes` | Pending-publish total-byte review threshold | Backend-only; byte evidence is read-only diagnostics | Raw/Advanced |
-| `AutonomyPendingTotalBlockBytes` | Pending-publish total-byte block threshold | Backend-only; does not force-drain parked output | Raw/Advanced |
+| `AutonomyPendingTotalReviewBytes` | Pending-publish total-byte review threshold | Publish & Recovery builder control; UI edits in GiB and saves byte-backed config; does not drain parked output | Builder |
+| `AutonomyPendingTotalBlockBytes` | Pending-publish total-byte block threshold | Publish & Recovery builder control for the launch-block budget; UI edits in GiB and saves byte-backed config; does not force-drain parked output | Builder |
 | `AutonomyFailureOperatorRequiredBlockSeconds` | Age threshold for operator-required failure blockers | Backend-only failure evidence; does not clean artifacts | Raw/Advanced |
 | `AutonomyFailureOperatorRequiredBlockCount` | Count threshold for operator-required failure blockers | Backend-only failure evidence; low values may block sooner | Raw/Advanced |
 | `AutonomyFailureInfrastructureBlockCount` | Count threshold for infrastructure failure blockers | Backend-only failure evidence; low values may block sooner | Raw/Advanced |

@@ -52,6 +52,8 @@ These focused PowerShell checks sit outside `tests\python\desktop` and guard cro
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-EncoderRuntimeMatrixChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-NamingSupportChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PipelineQueueEngineChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RerunAutoDestinationChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RerunCooperativeStopChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RerunSourceIdentityChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-ReleasePackagePolicyChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Invoke-AdversarialForceKillEncodeChecks.ps1
@@ -90,6 +92,10 @@ These focused PowerShell checks sit outside `tests\python\desktop` and guard cro
 `Invoke-NamingSupportChecks.ps1` guards runtime naming and library identity support: shared Plex movie/TV destination planning, forced rename sidecar sanitization/evidence, TV identity keys used by the processed-library index, and source identity v2 path-independence/sample-byte sensitivity.
 
 `Invoke-RerunSourceIdentityChecks.ps1` guards CSV rerun source identity fallback behavior: when `ffprobe` is unavailable, source identity still emits a deterministic SHA-256 value and changes when source sample bytes change.
+
+`Invoke-RerunCooperativeStopChecks.ps1` guards the CSV rerun wrapper cooperative-stop contract: stop markers live under `State\Rerun\Control`, stale markers are rejected by batch/manifest/CSV/start-time evidence, marker checks happen after chunk manifest writes, and stopped manifests include continuation evidence.
+
+`Invoke-RerunAutoDestinationChecks.ps1` guards the CSV rerun auto-return contract with a mocked nested pipeline: clean verified outputs replace the existing final target through the confirmed replacement path, outputs with remaining issue evidence are parked in Pending Publish with auto-review evidence, and original source media remains present.
 
 `Invoke-ReleasePackagePolicyChecks.ps1` guards release packaging policy: rebuildable/vendor/runtime/local-state/personal-config paths remain excluded by default, release hygiene rules stay aligned with the policy manifest, and `Backup-PreOverhaul.ps1` continues to delegate release copy creation to the canonical release builder.
 
@@ -202,7 +208,7 @@ Tests for pipeline state, progress tracking, event reading, snapshot assembly, a
 | `test_service_status_events.py` | Event log reading |
 | `test_service_status_summary_sections.py` | Summary section assembly |
 | `test_service_status_snapshot_runner.py` | Snapshot runner and Protocol-typed status snapshot service boundary |
-| `test_application_facade_snapshot.py` | Application-facade snapshot assembly, progress bar presentation for publish/audit/subtitle/copy work, ActiveJobs diagnostics rows, and zero-percent GPU telemetry mapping |
+| `test_application_facade_snapshot.py` | Application-facade snapshot assembly, active-work summary fields, progress bar presentation for publish/audit/subtitle/copy work, ActiveJobs diagnostics rows, and zero-percent GPU telemetry mapping |
 | `test_service_app_schedule.py` | Schedule state service |
 | `test_telemetry_service.py` | CPU/RAM/GPU telemetry |
 
@@ -226,7 +232,7 @@ Tests for queue priority marking, snapshot reading, dry-run planning, preview bu
 | `test_service_queue_dry_run.py` | Dry-run route planning logic |
 | `test_service_queue_dry_run_runner.py` | Dry-run runner execution and Protocol-typed queue dry-run service boundary |
 | `test_service_queue_preview_builder.py` | Queue preview payload builder and Protocol-typed queue preview service boundary |
-| `test_application_facade_queue.py` | Application-facade queue preview snapshot-read behavior, stale evidence, visible blocked rows versus exclusions, runtime outcome correlation, and backend row-key queue open allowlists |
+| `test_application_facade_queue.py` | Application-facade queue preview snapshot-read behavior, stale evidence, visible blocked rows versus exclusions, runtime outcome correlation, CSV rerun manifest fallback row/status projection including empty-normal-queue visibility, and backend row-key queue open allowlists |
 
 Targeted command:
 
@@ -344,7 +350,7 @@ Tests for manifest parsing, path resolution, manifest row validation, strict man
 | `test_service_pending_publish_manifest.py` | Manifest state validation, legacy no-drain visibility, and current-manifest missing proof rejection |
 | `test_service_pending_publish_manifest_rows.py` | Per-row manifest validation, legacy non-drainable rows, and unsupported current states |
 | `test_pending_publish_service.py` | General pending publish service, parked payload evidence, and legacy scan-visible/do-not-drain behavior |
-| `test_process_rerun_results.py` | CSV rerun result promotion into Pending Publish writes a current pending manifest contract and leaves source media untouched |
+| `test_process_rerun_results.py` | CSV rerun result promotion into Pending Publish writes a current pending manifest contract and leaves source media untouched; CSV rerun results expose first-class Queue row statuses, evidence, and backend-declared actions |
 | `test_application_facade_pending_publish.py` | Application-facade pending-publish preview classification, durable drain-summary evidence, publish reconciliation, final-proof path normalization, same-leaf weak evidence, row-key open allowlists, scan-failure surfacing, and recovery dry-run planning |
 
 Targeted command:
@@ -379,7 +385,10 @@ Tests for audit record reading, CSV handling, I/O, metadata, and export.
 | `test_facade_audit_policy.py` | Facade: audit policy |
 | `test_facade_failures_policy.py` | Facade: failures policy and retry-state child payload |
 | `test_application_facade_reports.py` | Application-facade read-only failure JSON/marker preview, retry-state payload, and audit CSV preview behavior |
+| `test_process_rerun_results.py` | CSV rerun results, first-class Queue status/evidence projection, cooperative stop marker/control, stopped-manifest continuation, pending-only scoped CSV materialization, and rerun promotion behavior |
 | `ops/pipeline/tests/Unit/Invoke-PortablePathChecks.ps1` | PowerShell audit/legacy GUI parser and portable audit-root default guard |
+| `ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1` | PowerShell CSV rerun auto-return behavior for clean confirmed final replacement, remaining-issue Pending Publish review routing, and source preservation |
+| `ops/pipeline/tests/Unit/Invoke-RerunCooperativeStopChecks.ps1` | PowerShell CSV rerun cooperative stop marker and stopped-manifest contract guard |
 
 Targeted command:
 
@@ -498,7 +507,7 @@ Tests for API route payloads, command payloads, handler dispatch, command journa
 |---|---|
 | `test_api_read_payloads_policy.py` | Read route payload shapes |
 | `test_api_command_results_policy.py` | Command route result payload handling |
-| `test_api_contract_payload.py` | Route contract payload, auth/effect classification, effectful POST command-result history contract, Network lifecycle design-only dry-run/rollback/source-policy/exposure contracts, repair/reconcile design-only dry-run/rollback/source-policy/exposure contracts, and CSV rerun copy/keep/park defaults |
+| `test_api_contract_payload.py` | Route contract payload, auth/effect classification, effectful POST command-result history contract, Network lifecycle design-only dry-run/rollback/source-policy/exposure contracts, repair/reconcile design-only dry-run/rollback/source-policy/exposure contracts, CSV rerun auto-return defaults, and strict rerun control/continue command contracts |
 | `test_api_command_journal_policy.py` | Command journal recording policy |
 | `test_api_handler_policy.py` | Handler dispatch policy |
 | `test_api_static_files_policy.py` | Static file serving policy, WebView include expansion for shell/Home/Telemetry/Queue/Completed/Pending/Rename/Launch/Reports/Schedule/Maintenance/Workers/Diagnostics/Settings partials, rendered bootstrap replacement, and unsafe include rejection |
@@ -532,18 +541,18 @@ Tests for historical legacy desktop-shell controller boundaries, controller-owne
 | `test_controllers_worker_jobs.py` | Worker completion event matching, fail-closed completion reports, malformed event skipping, dispatcher completion reporting, single-file launch failure handling, start UI failure handling, and worker abort/reclaim kill coverage |
 | `test_controllers_network.py` | Coordinator status notice rendering, coordinator notice failure logging, coordinator button update failure logging, dispatcher error/shutdown failure logging, and worker status post failure logging |
 | `test_controllers_navigation.py` | View routing/refresh/sidebar behavior, Network tab lifecycle failure logging, sidebar badge rendering, shortcut overlay guards, global shortcut bindings, filter trace/sort-heading/detail-copy wiring, and detail-copy failure logging |
-| `test_controllers_queue.py` | Queue filtering/quick views, selection/detail rendering, thumbnail lookup/failure handling, priority staging/menus/marker application/commit behavior, refresh progress/watchdog behavior including backend scan-detail label updates, drag reordering, tree rendering/active-row selection, remaining-record context, ETA/preview health text, and queue file open/copy/export actions |
+| `test_application_facade_queue.py` | Queue preview snapshot-read behavior, CSV rerun manifest fallback row status/reason projection including empty-normal-queue visibility, stale evidence, blocked-vs-excluded rows, runtime outcome correlation, and row-key open allowlists |
 | `test_controllers_feedback.py` | Action-status toast display, previous-toast cancellation, auto-dismiss scheduling, toast dismissal, recent-action recording, and recent-action text propagation |
 | `test_controllers_worker_board.py` | Live worker-board snapshot row rendering, stale-row cleanup logging, snapshot failure fail-closed behavior, missing-worker-id logging, and per-row render failure isolation |
 | `test_controllers_audit.py` | Audit report filtering/detail rendering, duplicate index behavior, multi-selection summaries, quick-view filters, context menu behavior, CSV apply/report metadata handling, creation-time failure logging, selected-row copy/open/priority actions, and selected/filtered CSV export |
 | `test_controllers_failure.py` | Failure report filtering/detail/trend rendering, filter reset behavior, JSON/marker/clear-result application, selected-source open/copy/priority/audit-match actions, context menu behavior, and selected-failure re-run prioritization |
-| `test_controllers_completed.py` | Completed-tree sorting/tags/detail rendering, CPU fallback encoder display, route breakdown chart updates, encode-speed history read/write/migration behavior under `LocalBase\State\App`, refresh/backfill busy-state disabling, and backfill result handling |
+| `test_application_facade_completed.py` / `test_application_facade_web_static_completed.py` | Completed manifest policy/facade projection and backend-served Completed WebView static rendering coverage |
 | `test_controllers_settings.py` | Settings profile save/load, list/path helper behavior, dirty-state and structured-control toggles, structured-control failure logging, unsaved-start prompt handling, config form validation/preview, missing saved-config diff logging, and save-in-place reload behavior |
 | `test_controllers_file_actions.py` | Resolved log/local-base/report/config open handoffs, latest failure/audit CSV lookups, loaded audit CSV handoff, and empty path warning behavior |
 | `test_controllers_maintenance.py` | Progress-file skeleton reset, resolved progress-path updates, reset action/status recording, confirmation dialogs, environment-health background dispatch, and environment-health result formatting |
 | `test_controllers_folder_policy.py` | Folder-policy validation result status text, action-status text, command history action recording, success info dialog, and error/warning detail dialog formatting |
 | `test_controllers_release.py` | Release package success status/action handling, manifest and zip path storage, manifest summary output formatting, and timeout output without success action recording |
-| `test_controllers_rerun.py` | Rerun CSV preview handling for disabled rows, unsafe policy overrides, duplicate planned output hints, status text, preview text, and failed nested-pipeline root-cause action history |
+| `test_rerun_csv_preview.py`, `test_application_facade_process_launch.py`, `test_application_facade_web_static_queue.py`, `test_application_facade_web_static_launch.py`, `test_process_rerun_results.py` | CSV rerun preview row classification/scope, backend rule decisions and blocked/warning policy evidence, process/preflight handoff, Queue tab ownership, Launch tab removal, Queue state-table DOM/action routing, WebView terminal activity evidence, first-class result status mapping, and rerun result promotion |
 | `test_controllers_work_guard.py` | Work-guard active progress detection, stop-request handling, and related-process block messaging |
 | `test_controllers_app_state.py` | App-state controller persistence, widget failure logging, refresh-state snapshot/autoload, polling completed-manifest refresh, and apply-snapshot-to-UI behavior |
 | `test_controllers_status_server.py` | Status-server path redaction, shutdown-failure logging, pause-flag read-failure logging, and non-finite telemetry JSON safety |
@@ -552,7 +561,7 @@ Tests for historical legacy desktop-shell controller boundaries, controller-owne
 Targeted command:
 
 ```powershell
-& $py -m unittest discover -s tests\python\desktop -p "test_controllers*.py" -q
+& $py -m unittest tests.python.desktop.test_application_facade_queue tests.python.desktop.test_application_facade_completed tests.python.desktop.test_application_facade_web_static_completed tests.python.desktop.test_rerun_csv_preview tests.python.desktop.test_application_facade_process_launch tests.python.desktop.test_application_facade_web_static tests.python.desktop.test_process_rerun_results -q
 ```
 
 ---
@@ -586,14 +595,14 @@ General facade policy and desktop shell bootstrap tests not covered by subsystem
 | `test_application_facade_pending_publish.py` | Application-facade pending-publish preview classification, durable drain-summary evidence, publish reconciliation, row-key open allowlists, scan-failure surfacing, and backend-authored recovery dry-run planning |
 | `test_application_facade_process_control.py` | Application-facade pipeline control flag contract, invalid action rejection, and control-lock fail-closed behavior |
 | `test_application_facade_process_launch.py` | Application-facade pipeline/audit/rerun launch handoff, duplicate pipeline launch rejection while a prior child process is still running, launch-lock fail-closed behavior, schedule-gated launch handling, schedule-stop watcher preservation, read-only launch preflight guard coverage including encoder capability report evidence, and backend-authored Launch readiness DTO coverage |
-| `test_application_facade_queue.py` | Application-facade queue preview snapshot-read behavior, stale evidence, blocked-vs-excluded rows, runtime outcome correlation, and row-key open allowlists |
+| `test_application_facade_queue.py` | Application-facade queue preview snapshot-read behavior, stale evidence, blocked-vs-excluded rows, runtime outcome correlation, CSV rerun manifest fallback row/status projection, and row-key open allowlists |
 | `test_application_facade_rename.py` | Application-facade rename preview/apply command behavior, selected-source scoping, multiple-selection handling, undo-manifest cleanup in temp fixtures, and apply-lock guarding |
 | `test_application_facade_reports.py` | Application-facade Reports behavior for failure JSON, failure markers, lifecycle journal transitions, marker-clear confirmation handoff, evidence archive, and audit CSV rows |
 | `test_application_facade_schedule.py` | Application-facade Schedule workspace rendering, backend watcher evidence, preview/save confirmation, app-state preservation, and invalid-time rejection |
 | `test_application_facade_settings_patch.py` | Application-facade Settings Preview Patch/Save Patch behavior, risk summaries, redacted diff fallback, save-lock guard, backup/secret preservation, and no-op same-value handling |
 | `test_application_facade_settings_workspace.py` | Application-facade Settings workspace redaction, path/field metadata, validation warning surfacing, backend media-policy readiness evidence, tool-path evidence, and Validate command-result envelope coverage |
-| `test_application_facade_snapshot.py` | Application-facade snapshot assembly, progress bar shaping, active-job diagnostics rows, pending-publish copy byte progress, and zero-percent GPU telemetry presence |
-| `test_application_facade_web_static.py` | Backend-served WebView/Tauri static integration, route references, command allowlists, Dashboard command-surface ownership, evidence/read-only panel guardrails, canonical rendered page H1 titles, Settings BDPGS OCR path builder/no-path-picker guard, Settings subtitle keyword list builder wiring, Completed validation-state checklist/proof copy, table selection/accessibility helpers, diagnostics handoff, state-aware Launch command controls, emergency topbar Force Stop posture, UI tooltip/error/telemetry guards, page-scoped IDs, and headless backend bootstrap payload coverage |
+| `test_application_facade_snapshot.py` | Application-facade snapshot assembly, active-work summary fields, progress bar shaping, active-job diagnostics rows, pending-publish copy byte progress, and zero-percent GPU telemetry presence |
+| `test_application_facade_web_static.py` | Backend-served WebView/Tauri static integration, route references, command allowlists, Dashboard command-surface ownership, active-work summary mapping for Home Live Run / Run Progress / Next 5 Videos, evidence/read-only panel guardrails, canonical rendered page H1 titles, Settings BDPGS OCR path builder/no-path-picker guard, Settings subtitle keyword list builder wiring, Completed validation-state checklist/proof copy, table selection/accessibility helpers, diagnostics handoff, state-aware Launch command controls, emergency topbar Force Stop posture, UI tooltip/error/telemetry guards, page-scoped IDs, and headless backend bootstrap payload coverage |
 | `test_facade_schedule_policy.py` | Facade: schedule policy |
 | `test_facade_status_policy.py` | Facade: status policy |
 | `test_facade_diagnostics_open_policy.py` | Facade: diagnostics open policy |
@@ -666,7 +675,7 @@ Browser-backed smoke tests under `tests\python\desktop\`. Require Chrome or Edge
 | `test_webview_browser_maintenance_reports_smoke.py` | Maintenance health/dry-run result rendering, Reports triage, tab placement, retry-state display, marker-clear payload guard |
 | `test_webview_browser_sample_validation_smoke.py` | Home sample-validation pilot/readiness/reconciliation, worksheet detail, preview-only backend route |
 | `test_webview_browser_home_live_state_smoke.py` | Home Daily-Driver, Operator Readiness, active work, command history, live progress evidence, page-switch viewport reset |
-| `test_webview_browser_launch_queue_readiness_smoke.py` | Launch/Queue/Schedule readiness, scope reconciliation, sample proof handoff, no POSTs |
+| `test_webview_browser_launch_queue_readiness_smoke.py` | Launch/Queue/Schedule readiness, Queue CSV Rerun tab visibility, scope reconciliation, sample proof handoff, no POSTs |
 | `test_webview_browser_layout_manager_smoke.py` | Layout Editor drawer coverage across page tabs, subtabs, and generated subsections with no mutation posts |
 | `test_webview_browser_rename_smoke.py` | Rename row click, Apply Readiness, duplicate-target blocking does not call apply |
 | `test_webview_browser_network_smoke.py` | Read-only Network worker visibility and filter guardrails |

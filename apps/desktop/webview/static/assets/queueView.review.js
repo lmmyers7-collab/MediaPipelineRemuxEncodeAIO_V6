@@ -21,6 +21,7 @@
     setText,
     updateTableStatusLegend,
   }) {
+    const QUEUE_READ_ONLY_BOUNDARY = "Mutation guardrail: read-only evidence; backend routes own queue and launch changes.";
     appendCells = typeof appendCells === "function" ? appendCells : function () {};
     byId = typeof byId === "function" ? byId : function (id) { return document.getElementById(id); };
     clearRows = typeof clearRows === "function" ? clearRows : function () { return null; };
@@ -185,7 +186,7 @@
       } else {
         lines.push("First action: no rows are locally flagged. Select any high-priority row and verify route evidence before Launch.");
       }
-      lines.push("Mutation guardrail: this board is read-only; launch, queue mutation, rerun, and file actions remain backend-owned.");
+      lines.push(QUEUE_READ_ONLY_BOUNDARY);
       return lines;
     }
 
@@ -359,19 +360,19 @@
 
     function queueSelectedAtAGlanceLines(item) {
       const sharedSummary = window.mediaPipelineDom?.selectedRowAtAGlanceLines;
-      const authority = "Authority: this summary is read-only. It cannot launch, reorder, drop, rewrite queue entries, or touch source files.";
+      const authority = QUEUE_READ_ONLY_BOUNDARY;
       if (!item) {
         return typeof sharedSummary === "function"
           ? sharedSummary({
             title: "Selected Queue row",
             item: null,
             emptyNextStep: "Next step: select a queue row to review route, source, diagnostics, and Launch readiness evidence.",
-            authority: "Authority: this summary is read-only. Backend Launch remains the only path that can start processing.",
+            authority: QUEUE_READ_ONLY_BOUNDARY,
           })
           : [
             "Selected Queue row: none",
             "Next step: select a queue row to review route, source, diagnostics, and Launch readiness evidence.",
-            "Authority: this summary is read-only. Backend Launch remains the only path that can start processing.",
+            QUEUE_READ_ONLY_BOUNDARY,
           ];
       }
       const concern = item.primary_concern

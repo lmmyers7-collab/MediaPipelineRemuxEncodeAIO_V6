@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0704-005",
+  "title": "Improve CSV rerun review UI",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-07-04",
+  "date_completed": "2026-07-04",
+  "summary": "Upgraded the Queue CSV Rerun review UI with a compact preview header, lifecycle/run evidence card, backend-field row identity stacks, category chips, typed-path open-action copy, and responsive stacked preview rows.",
+  "reason": "Operators need the CSV rerun review surface to show selected CSV state, parse/preview counts, row identity, category blockers/warnings, run evidence, and exact next actions without shifting media policy or mutation authority into the frontend.",
+  "affected_areas": [
+    "docs",
+    "tests",
+    "ui"
+  ],
+  "behavior_before": "CSV rerun preview showed summary text and a table whose row identity was mostly source_path, with open buttons relying on backend rejection for typed non-candidate paths and narrow layouts that could hide the reason column.",
+  "behavior_after": "CSV rerun preview shows a review header, lifecycle evidence, backend-provided row identity details, category chips, explicit backend-known open-action disabled state, and stacked narrow rows that keep identity and reason visible.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launchView.js",
+    "apps/desktop/webview/static/assets/styles/queue/responsive.css",
+    "apps/desktop/webview/static/assets/styles/queue/table.css",
+    "apps/desktop/webview/static/partials/page-queue.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles/queue/responsive.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles/queue/table.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-queue.html.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_launch.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_queue.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_launch_queue_readiness_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_launch_command_buttons_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0704-005.json",
+    "tests/python/desktop/test_application_facade_web_static_launch.py",
+    "tests/python/desktop/test_application_facade_web_static_queue.py",
+    "tests/webview/test_webview_browser_launch_queue_readiness_smoke.py",
+    "tests/webview/test_webview_launch_command_buttons_smoke.py"
+  ],
+  "tests_added": [
+    "Expanded static WebView tests for CSV rerun review header, lifecycle evidence, category chips, accessible labels, and open-action copy.",
+    "Expanded browser/Node WebView smoke coverage for rendered CSV rerun counts, lifecycle evidence, row identity, category chips, open-action disabled/enabled states, and no /api/rerun/start POST during preview."
+  ],
+  "manual_validation": [
+    "node --check apps/desktop/webview/static/assets/launchView.js",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m py_compile tests/python/desktop/test_application_facade_web_static_queue.py tests/python/desktop/test_application_facade_web_static_launch.py tests/webview/test_webview_browser_launch_queue_readiness_smoke.py tests/webview/test_webview_launch_command_buttons_smoke.py",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static_queue tests.python.desktop.test_application_facade_web_static_launch -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_launch_command_buttons_smoke tests.webview.test_webview_browser_launch_queue_readiness_smoke -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage failed because 27 unrelated dirty files are not listed in any unreleased change packet."
+  ],
+  "rollback_plan": "Revert the WebView partial, launchView rerun render helpers, queue CSS, targeted tests, and matching generated summaries from this packet; no backend state, routes, schemas, or media policy are changed.",
+  "related_changes": [],
+  "notes": "Add CSV rerun review header, lifecycle evidence card, and accessible control copy.\nRender CSV rerun review summary, run evidence, row identity stacks, category chips, and backend-known open action state.\nStyle CSV rerun review header, lifecycle evidence card, identity rows, and category chips.\nStack CSV rerun preview rows below the responsive breakpoint so identity and reason remain visible.\nPin Queue CSV rerun review UI DOM, helper names, copy, and accessibility attributes.\nPin shared CSV rerun render helpers and namespace exports.\nVerify rendered CSV rerun header, evidence, identity, chips, open-action state, and no start POST during preview.\nPin CSV rerun review UI contract in the command-button smoke suite.\nRefresh generated summary for CSV rerun review UI changes."
+}

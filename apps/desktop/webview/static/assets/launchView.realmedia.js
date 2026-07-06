@@ -87,9 +87,9 @@
     const matches = launchWorksheetRunsMatchingSample(context);
     const errors = Array.isArray(payload.errors) ? payload.errors : [];
     const warnings = Array.isArray(payload.warnings) ? payload.warnings : [];
-    const blocked = payload.operator_status === "blocked" || rows.some((row) => row.operator_status === "blocked") || errors.length > 0;
-    const posture = blocked
-      ? "blocked"
+    const reviewRequired = payload.operator_status === "blocked" || rows.some((row) => row.operator_status === "blocked") || errors.length > 0;
+    const posture = reviewRequired
+      ? "warning"
       : matches.length
         ? "match"
         : rows.length
@@ -104,8 +104,8 @@
       `selected sample=${sampleLabel}`,
       `matches=${sample ? matches.length : "no sample"}`,
     ].join("; ");
-    const nextCheck = blocked
-      ? "Resolve generated worksheet read errors; worksheet evidence is not reliable for pilot decisions while errors remain."
+    const nextCheck = reviewRequired
+      ? "Review generated worksheet read errors; worksheet evidence is not reliable for pilot decisions while errors remain, but backend Launch remains authoritative."
       : matches.length
         ? "Open Home > Generated Pilot Worksheets and compare the matching worksheet sample/packet rows for pilot evidence."
         : rows.length
@@ -233,7 +233,7 @@
       return !["blocked", "missing"].includes(status) && launchQueueIntentCategoryMatch(selectedRow, row.category_key) !== "visible-route-signal";
     });
     const posture = blockedRows.length
-      ? "blocked"
+      ? "warning"
       : !policyRows.length || !selectedRow
         ? "unknown"
         : reviewRows.length
@@ -250,7 +250,7 @@
       `blocked policy rows=${blockedRows.length}`,
     ].join("; ");
     const nextCheck = blockedRows.length
-      ? "Blocked saved-policy rows mean this Queue route is not ready for real-media pilot evidence."
+      ? "Review saved-policy rows before treating this Queue route as real-media pilot evidence; backend Settings/Launch policy checks remain authoritative."
       : !policyRows.length
         ? "Load Sample Validation / saved media-policy alignment before comparing Launch intent to policy."
       : !selectedRow
@@ -293,7 +293,7 @@
     );
     return {
       posture,
-      pilotPosture: posture === "match" ? "ready" : posture === "blocked" ? "blocked" : posture === "unknown" ? "unknown" : "review",
+      pilotPosture: posture === "match" ? "ready" : posture === "unknown" ? "unknown" : "review",
       evidence,
       nextCheck,
       detail,
@@ -345,7 +345,7 @@
     const reviewRecords = rows.reduce((count, row) => count + Number(row.review_record_match_count || 0), 0);
     const reviewRows = rows.filter((row) => ["review", "planned", "needs-sample"].includes(String(row.status || "")));
     const posture = blockedRows.length
-      ? "blocked"
+      ? "warning"
       : nonReadyRequired.length
         ? "warning"
         : rows.length
@@ -353,7 +353,7 @@
           : "unknown";
     const evidence = launchSampleSetCoverageLine(context);
     const nextCheck = blockedRows.length
-      ? "Blocked Sample Validation / sample-set evidence means this WebView pilot shell is not ready."
+      ? "Review blocked Sample Validation / sample-set evidence before using it as pilot proof; it is not a backend Launch rejection."
       : nonReadyRequired.length
         ? "Open Home > Real-Media Sample Set Guide; missing required categories remain daily-driver trial coverage gaps."
         : rows.length
@@ -458,9 +458,9 @@
     const currentMatches = matchingReconciliations.filter((row) => row.status === "current").length;
     const staleMatches = matchingReconciliations.filter((row) => row.status === "stale").length;
     const reviewMatches = matchingReconciliations.filter((row) => !["current", "stale"].includes(String(row.status || ""))).length;
-    const blocked = errors.length > 0 || reconciliation.operator_status === "blocked";
-    const posture = blocked
-      ? "blocked"
+    const reviewRequired = errors.length > 0 || reconciliation.operator_status === "blocked";
+    const posture = reviewRequired
+      ? "warning"
       : staleMatches
         ? "warning"
         : currentMatches
@@ -480,8 +480,8 @@
       `stale=${staleMatches}`,
       `review=${reviewMatches}`,
     ].join("; ");
-    const nextCheck = blocked
-      ? "Resolve sample-validation log errors; validation records are not reliable Launch evidence while errors remain."
+    const nextCheck = reviewRequired
+      ? "Review sample-validation log errors; validation records are not reliable Launch evidence while errors remain, but backend Launch remains authoritative."
       : currentMatches
         ? "Open Home > Sample Validation records and compare the matching current record for pilot evidence."
         : staleMatches
@@ -544,7 +544,7 @@
     const rows = launchRealMediaProofBaseRows(context || {}).map((row, index) => ({
       key: launchRealMediaProofRowKey(row, index),
       checkpoint: row.checkpoint || "Proof checkpoint",
-      posture: row.posture || "unknown",
+      posture: launchProofOnlyPosture(row.posture || "unknown"),
       evidence: row.evidence || "No evidence loaded.",
       nextCheck: row.nextCheck || "Review owning pages before acting.",
       detail: Array.isArray(row.detail) ? row.detail : [],
@@ -553,7 +553,7 @@
     rows.splice(1, 0, {
       key: "generated-worksheet-evidence",
       checkpoint: "Generated worksheet evidence",
-      posture: worksheetEvidence.posture,
+      posture: launchProofOnlyPosture(worksheetEvidence.posture),
       evidence: worksheetEvidence.evidence,
       nextCheck: worksheetEvidence.nextCheck,
       detail: worksheetEvidence.detail,
@@ -562,7 +562,7 @@
     rows.splice(2, 0, {
       key: "sample-validation-record-evidence",
       checkpoint: "Sample Validation record evidence",
-      posture: recordEvidence.posture,
+      posture: launchProofOnlyPosture(recordEvidence.posture),
       evidence: recordEvidence.evidence,
       nextCheck: recordEvidence.nextCheck,
       detail: recordEvidence.detail,
@@ -571,7 +571,7 @@
     rows.splice(3, 0, {
       key: "pilot-category-coverage",
       checkpoint: "Pilot category coverage",
-      posture: categoryCoverage.posture,
+      posture: launchProofOnlyPosture(categoryCoverage.posture),
       evidence: categoryCoverage.evidence,
       nextCheck: categoryCoverage.nextCheck,
       detail: categoryCoverage.detail,
@@ -580,7 +580,7 @@
     rows.splice(4, 0, {
       key: "saved-policy-queue-intent",
       checkpoint: "Saved policy vs Queue route",
-      posture: policyQueueIntent.posture,
+      posture: launchProofOnlyPosture(policyQueueIntent.posture),
       evidence: policyQueueIntent.evidence,
       nextCheck: policyQueueIntent.nextCheck,
       detail: policyQueueIntent.detail,
@@ -600,16 +600,21 @@
     return rows;
   }
 
+  function launchProofOnlyPosture(posture) {
+    const normalized = String(posture || "").toLowerCase();
+    if (normalized === "blocked") return "warning";
+    return posture || "unknown";
+  }
+
   function launchRealMediaProofStatus(rows = launchRealMediaProofRows()) {
     if (!rows.length) return "No proof";
-    if (rows.some((row) => row.posture === "blocked")) return "Blocked proof";
     if (rows.some((row) => ["warning", "unknown", "changed"].includes(row.posture))) return "Needs sample proof";
     return "Evidence loaded";
   }
 
   function launchRealMediaProofRowStatus(posture) {
     const normalized = String(posture || "").toLowerCase();
-    if (normalized === "blocked") return "blocked";
+    if (normalized === "blocked") return "warning";
     if (normalized === "match") return "match";
     if (normalized === "changed") return "changed";
     if (normalized === "unknown") return "unknown";
@@ -697,7 +702,7 @@
     const status = launchRealMediaProofStatus(rows);
     setText("launch-real-media-proof-status", status);
     const statusNode = byId("launch-real-media-proof-status");
-    if (statusNode) statusNode.dataset.state = status === "Blocked proof" ? "blocked" : status === "Evidence loaded" ? "ready" : "warning";
+    if (statusNode) statusNode.dataset.state = status === "Evidence loaded" ? "ready" : "warning";
     setText("launch-real-media-proof-summary", launchRealMediaProofSummaryLines(currentLaunchRealMediaContext(), rows).join("\n"));
     setText("launch-real-media-proof-detail", launchRealMediaProofDetailLines(selected).join("\n"));
     const tbody = byId("launch-real-media-proof-rows");
@@ -762,7 +767,7 @@
     const status = String(row?.status || "").toLowerCase();
     const severity = String(row?.severity || "").toLowerCase();
     if (status === "ready" || status === "manual") return "match";
-    if (status === "blocked" || severity === "error") return "blocked";
+    if (status === "blocked" || severity === "error") return "warning";
     if (status === "review" || severity === "warning") return "warning";
     if (["needs-sample", "needs-settings", "post-run-needed", "after-proof", "optional-review"].includes(status)) return "warning";
     return status || "unknown";
@@ -770,7 +775,6 @@
 
   function launchSampleExecutionStatus(rows = launchSampleExecutionRows()) {
     if (!rows.length) return "No checklist";
-    if (rows.some((row) => launchSampleExecutionRowStatus(row) === "blocked")) return "Blocked checklist";
     if (rows.some((row) => launchSampleExecutionRowStatus(row) === "warning")) return "Needs sample proof";
     return "Checklist visible";
   }
@@ -860,7 +864,7 @@
     const status = launchSampleExecutionStatus(rows);
     setText("launch-sample-execution-status", status);
     const statusNode = byId("launch-sample-execution-status");
-    if (statusNode) statusNode.dataset.state = status === "Blocked checklist" ? "blocked" : status === "Checklist visible" ? "ready" : "warning";
+    if (statusNode) statusNode.dataset.state = status === "Checklist visible" ? "ready" : "warning";
     setText("launch-sample-execution-summary", launchSampleExecutionSummaryLines(currentLaunchRealMediaContext(), rows).join("\n"));
     setText("launch-sample-execution-detail", launchSampleExecutionDetailLines(selected).join("\n"));
     const tbody = byId("launch-sample-execution-rows");

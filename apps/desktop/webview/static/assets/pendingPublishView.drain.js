@@ -8,7 +8,9 @@
       filterRows = function (rows) { return Array.isArray(rows) ? rows : []; },
       filterRowsByInvestigation = function (rows) { return Array.isArray(rows) ? rows : []; },
       filterRowsByStatus = function (rows) { return Array.isArray(rows) ? rows : []; },
+      getCurrentPendingRecoveryPlanSignature = function () { return ""; },
       getLastPendingPayload = function () { return {}; },
+      getLastPendingRecoveryPlanSignature = function () { return ""; },
       getLastPendingRecoveryPlanRows = function () { return []; },
       getLastPendingRows = function () { return []; },
       getLastPendingSnapshot = function () { return {}; },
@@ -34,6 +36,7 @@
       tableStatusFilterLabel = function (value) { return String(value || "all"); },
       updateTableStatusLegend = function () {},
     } = deps;
+    const PENDING_READ_ONLY_BOUNDARY = "Mutation guardrail: read-only evidence; backend routes own pending-publish changes.";
 
   function pendingCurrentFilterScope(rows = getLastPendingRows()) {
     const rowList = Array.isArray(rows) ? rows : [];
@@ -75,6 +78,16 @@
     if (current.hiddenCount) return "Confirm the hidden ready-looking rows are intentionally out of view; backend drain scope is still all loaded parked rows.";
     return "Filters are active but no loaded rows are hidden.";
   }
+  function pendingRecoveryRowsForCurrentEvidence(pending, rows) {
+    const rawRows = Array.isArray(getLastPendingRecoveryPlanRows()) ? getLastPendingRecoveryPlanRows() : [];
+    if (!rawRows.length) {
+      return { rows: [], rawRows, stale: false };
+    }
+    const planSignature = String(getLastPendingRecoveryPlanSignature() || "");
+    const currentSignature = String(getCurrentPendingRecoveryPlanSignature(pending, rows) || "");
+    const stale = !planSignature || !currentSignature || planSignature !== currentSignature;
+    return { rows: stale ? [] : rawRows, rawRows, stale };
+  }
   function pendingBackendDrainScopeRows(pending = getLastPendingPayload(), rows = getLastPendingRows(), snapshot = getLastPendingSnapshot(), entries) {
     const payload = pending || {};
     const rowList = Array.isArray(rows) ? rows : [];
@@ -85,7 +98,8 @@
     const commandLevel = pendingDrainCommandIssueLevel(latest);
     const summary = pendingDrainSummaryPayload(payload);
     const summaryLevel = pendingDrainSummaryIssueLevel(summary);
-    const recoveryRows = Array.isArray(getLastPendingRecoveryPlanRows()) ? getLastPendingRecoveryPlanRows() : [];
+    const recoveryState = pendingRecoveryRowsForCurrentEvidence(payload, rowList);
+    const recoveryRows = recoveryState.rows;
     const recoveryBlocked = recoveryRows.filter((row) => pendingRecoveryPlanRowStatus(row) === "blocked").length;
     const recoveryReview = recoveryRows.filter((row) => pendingRecoveryPlanRowStatus(row) === "warning").length;
     const events = pendingDrainEventsFromSnapshot(snapshot || {});
@@ -120,8 +134,8 @@
       },
       {
         signal: "Recovery dry-run evidence",
-        evidence: recoveryRows.length ? `planned=${recoveryRows.length}; blocked=${recoveryBlocked}; review=${recoveryReview}` : "no recovery dry-run loaded",
-        meaning: recoveryRows.length ? "Use the dry-run rows to explain risky parked outputs before drain." : "Build a selected or all-rows dry-run plan before risky drains.",
+        evidence: recoveryState.stale ? `stale recovery dry-run ignored; planned=${recoveryState.rawRows.length}` : recoveryRows.length ? `planned=${recoveryRows.length}; blocked=${recoveryBlocked}; review=${recoveryReview}` : "no recovery dry-run loaded",
+        meaning: recoveryState.stale ? "Build a fresh dry-run plan against the current parked rows before relying on recovery evidence." : recoveryRows.length ? "Use the dry-run rows to explain risky parked outputs before drain." : "Build a selected or all-rows dry-run plan before risky drains.",
         boundary: "Recovery plans are backend-authored dry runs; they do not move, repair, delete, rewrite, or publish files.",
         status: recoveryBlocked ? "warning" : recoveryReview ? "changed" : recoveryRows.length ? "ready" : rowList.length ? "changed" : "ready",
       },
@@ -165,7 +179,7 @@
     } else {
       lines.push("First action: compare this scope preview with the drain decision checklist and button guard before pressing Drain Parked Outputs.");
     }
-    lines.push("Mutation guardrail: this preview cannot drain, repair, rewrite, move, delete, publish, accept outputs, write manifests, or bypass backend validation.");
+    lines.push(PENDING_READ_ONLY_BOUNDARY);
     return lines;
   }
   function renderPendingBackendDrainScopePreview(pending = getLastPendingPayload(), rows = getLastPendingRows(), snapshot = getLastPendingSnapshot(), entries) {
@@ -295,7 +309,7 @@
     } else {
       lines.push("First action: no loaded pending rows expose drain blockers. Drain Parked Outputs remains the backend-owned validation and movement path.");
     }
-    lines.push("Mutation guardrail: this board is read-only. It cannot drain, repair, rewrite, move, delete, or publish files.");
+    lines.push(PENDING_READ_ONLY_BOUNDARY);
     return lines;
   }
   function renderPendingDrainEvidence(pending, rows) {
@@ -712,7 +726,7 @@
     } else {
       lines.push("Correlation: loaded rows do not expose blockers, but Drain Parked Outputs remains the only backend-owned movement path.");
     }
-    lines.push("Mutation guardrail: this correlation is read-only. It cannot repair, drain, rewrite, move, delete, publish, or bypass backend validation.");
+    lines.push(PENDING_READ_ONLY_BOUNDARY);
     return lines;
   }
   function renderPendingDrainCorrelation(pending, rows, snapshot, entries) {

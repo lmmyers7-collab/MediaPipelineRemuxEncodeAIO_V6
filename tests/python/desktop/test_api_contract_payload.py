@@ -627,9 +627,8 @@ class LocalApiContractPayloadTests(unittest.TestCase):
                 "dry_run": False,
                 "plan_only": False,
                 "execution_mode": "one_at_a_time",
-                "destination_mode": "review_workspace",
-                "original_policy": "keep",
-                "collision_policy": "suffix",
+                "destination_mode": "auto_replace_clean_else_pending_review",
+                "collision_policy": "replace_final",
                 "window_size": 1,
                 "enabled_only": True,
                 "skip_blocked": False,
@@ -640,8 +639,49 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertEqual(routes["/api/rerun/preview"]["effect"], "read-only-preview")
         self.assertEqual(routes["/api/rerun/preview"]["response_schema"], "desktop_rerun_csv_preview.v1")
         self.assertEqual(routes["/api/rerun/results"]["response_schema"], "desktop_rerun_results.v1")
+        self.assertEqual(routes["/api/rerun/control"]["effect"], "process-control")
+        self.assertEqual(routes["/api/rerun/control"]["requires_strict_boolean"], ["confirm_stop", "confirm_pause"])
+        self.assertEqual(routes["/api/rerun/continue"]["effect"], "process-launch")
+        self.assertEqual(routes["/api/rerun/continue"]["requires_strict_boolean"], ["confirm_continue"])
         self.assertEqual(routes["/api/rerun/promote-dry-run"]["effect"], "read-only-preview")
         self.assertEqual(routes["/api/rerun/promote"]["effect"], "pending-manifest-write")
+        self.assertNotIn("/api/claim", routes)
+        self.assertNotIn("/api/done", routes)
+        network_preview = routes["/api/rerun/network-preview"]
+        self.assertEqual(network_preview["effect"], "read-only-preview")
+        self.assertEqual(network_preview["response_schema"], "desktop_rerun_network_preview.v1")
+        self.assertEqual(network_preview["effect_flags"]["writes_network_state"], False)
+        self.assertEqual(network_preview["effect_flags"]["launches_work"], False)
+        self.assertIn("source mapping readiness", network_preview["purpose"])
+        network_start_dry_run = routes["/api/rerun/network/start-dry-run"]
+        self.assertEqual(network_start_dry_run["effect"], "none")
+        self.assertEqual(network_start_dry_run["response_schema"], "desktop_command_result.v1")
+        self.assertEqual(network_start_dry_run["data_schema"], "desktop_rerun_network_start_dry_run.v1")
+        self.assertFalse(network_start_dry_run["mutation_enabled"])
+        self.assertFalse(network_start_dry_run["journaled"])
+        self.assertEqual(network_start_dry_run["effect_flags"]["writes_network_state"], False)
+        self.assertIn("coordinator lifecycle readiness", network_start_dry_run["purpose"])
+        network_start = routes["/api/rerun/network/start"]
+        self.assertEqual(network_start["effect"], "network-state-write")
+        self.assertEqual(network_start["response_schema"], "desktop_command_result.v1")
+        self.assertEqual(network_start["data_schema"], "desktop_rerun_network_start.v1")
+        self.assertTrue(network_start["requires_confirmation"])
+        self.assertEqual(network_start["requires_strict_boolean"], ["confirm_start"])
+        self.assertTrue(network_start["requires_dry_run_fingerprint"])
+        self.assertTrue(network_start["journaled"])
+        self.assertEqual(network_start["effect_flags"]["writes_network_state"], True)
+        self.assertEqual(network_start["effect_flags"]["touches_media"], False)
+        self.assertEqual(network_start["effect_flags"]["writes_queue"], False)
+        self.assertEqual(network_start["effect_flags"]["launches_work"], False)
+        self.assertIn("claim-disabled", network_start["purpose"])
+        self.assertEqual(
+            [
+                path
+                for path in sorted(routes)
+                if path.startswith("/api/rerun/network") or path.startswith("/api/network/rerun")
+            ],
+            ["/api/rerun/network-preview", "/api/rerun/network/start", "/api/rerun/network/start-dry-run"],
+        )
 
     def test_effectful_post_routes_return_command_results_for_operator_history(self) -> None:
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
@@ -658,6 +698,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
                     "/api/queue/file-overrides/route-preview": "read-only-preview",
                     "/api/queue/file-overrides/series-clear-preview": "read-only-preview",
                     "/api/queue/file-overrides/series-preview": "read-only-preview",
+                    "/api/rerun/network-preview": "read-only-preview",
                     "/api/rerun/preview": "read-only-preview",
                     "/api/subtitle-qa/preview": "read-only-preview",
                     "/api/ui-preferences": "ui-state-write",
@@ -672,6 +713,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
                 "/api/queue/file-overrides/series-clear-preview",
                 "/api/queue/file-overrides/series-preview",
                 "/api/rename/preview",
+                "/api/rerun/network-preview",
                 "/api/rerun/preview",
                 "/api/sample-validation/preview",
                 "/api/subtitle-qa/preview",
@@ -741,6 +783,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             "failure-resolution-journal-write",
             "metrics-backfill-state-write",
             "metrics-state-write",
+            "network-state-write",
             "process-dry-run",
             "process-control",
             "deployment-write",

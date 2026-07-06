@@ -43,6 +43,20 @@ from mediapipeline.core.audit.contracts import AuditRecord
 from mediapipeline.core.processes.rerun_preview import rerun_import_csv_root
 
 
+def _audit_rerun_export_summary(records: list[AuditRecord]) -> dict[str, dict[str, int]]:
+    issue_counts: dict[str, int] = {}
+    bucket_counts: dict[str, int] = {}
+    for record in records:
+        issue = str(record.primary_issue_code or "unspecified").strip() or "unspecified"
+        bucket = str(record.effective_bucket or "unspecified").strip() or "unspecified"
+        issue_counts[issue] = issue_counts.get(issue, 0) + 1
+        bucket_counts[bucket] = bucket_counts.get(bucket, 0) + 1
+    return {
+        "issue_counts": dict(sorted(issue_counts.items())),
+        "bucket_counts": dict(sorted(bucket_counts.items())),
+    }
+
+
 class AuditFacadeMixin:
     """Read-only audit-report adapter for the application facade."""
 
@@ -324,6 +338,7 @@ class AuditFacadeMixin:
                 original_mode="keep",
                 return_mode="park",
             ))
+            summary = _audit_rerun_export_summary(selected_records)
         except Exception as exc:
             return CommandResult(
                 command="audit.export_rerun_csv",
@@ -341,9 +356,25 @@ class AuditFacadeMixin:
             data={
                 "schema_version": "desktop_audit_rerun_export.v1",
                 "output_path": str(output_path),
+                "exported_csv_path": str(output_path),
                 "row_count": written,
                 "selected_row_count": len(row_keys),
                 "scope": "selected" if row_keys else "loaded",
+                "issue_summary": summary["issue_counts"],
+                "bucket_summary": summary["bucket_counts"],
+                "handoff": {
+                    "schema_version": "desktop_audit_to_queue_rerun_handoff.v1",
+                    "target_page": "queue",
+                    "queue_tab": "rerun",
+                    "action": "select_and_preview_csv",
+                    "csv_path": str(output_path),
+                    "row_count": written,
+                    "issue_summary": summary["issue_counts"],
+                    "bucket_summary": summary["bucket_counts"],
+                    "preview_route": "/api/rerun/preview",
+                    "start_route": "/api/rerun/start",
+                    "uses_pipeline_start": False,
+                },
                 "stage_mode": "copy",
                 "original_mode": "keep",
                 "return_mode": "park",

@@ -615,7 +615,7 @@
         reportAddDiagnosticsAction(actions, "open", "failed_markers", "Open Error Records", "Inspect source-level error records before rerun.");
       }
       if (String(item.stage || "").toLowerCase().includes("publish")) {
-        reportAddDiagnosticsAction(actions, "open", "pending_publish", "Open Pending Publish", "Compare failure state with parked output state.");
+        reportAddDiagnosticsAction(actions, "open", "pending_publish", "Open Pending Folder", "Compare failure state with parked output state.");
       }
       if (String(item.stage || "").toLowerCase().includes("queue")) {
         reportAddDiagnosticsAction(actions, "open", "queue_snapshot", "Open Queue Snapshot", "Compare the failure with the latest queue snapshot.");

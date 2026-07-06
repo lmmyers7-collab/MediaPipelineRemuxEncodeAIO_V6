@@ -5,7 +5,9 @@
       byId = function () { return null; },
       clearRows = function () {},
       getCommandHistory = function () { return []; },
+      getCurrentPendingRecoveryPlanSignature = function () { return ""; },
       getLastPendingPayload = function () { return {}; },
+      getLastPendingRecoveryPlanSignature = function () { return ""; },
       getLastPendingRecoveryPlanRows = function () { return []; },
       getLastPendingRows = function () { return []; },
       getLastPendingSnapshot = function () { return {}; },
@@ -47,6 +49,7 @@
       state = {},
       updateTableStatusLegend = function () {},
     } = deps;
+    const PENDING_READ_ONLY_BOUNDARY = "Mutation guardrail: read-only evidence; backend routes own pending-publish changes.";
 
     function getSelectedPendingPostDrainTrustKey() {
       return state.selectedPendingPostDrainTrustKey || "";
@@ -87,6 +90,10 @@
     const rowList = Array.isArray(rows) ? rows : [];
     const entryList = Array.isArray(entries) ? entries : [];
     const summary = pendingDrainSummaryPayload(payload);
+    const currentRowCount = pendingCurrentRowCount(payload, rowList);
+    const summaryStartCount = pendingDrainSummaryStartCount(summary);
+    const summaryMatchesCurrent = pendingDrainSummaryMatchesCurrentRows(summary, currentRowCount);
+    const summaryLevel = pendingDrainSummaryScopedIssueLevel(summary, currentRowCount);
     const latest = pendingDrainLatestCommand(entryList);
     const events = pendingDrainEventsFromSnapshot(snapshot || {});
     const completedProofRows = pendingDrainDecisionCompletedProofRows(payload);
@@ -140,24 +147,27 @@
     add(
       "durable-drain-summary",
       "Durable drain summary",
-      pendingDrainSummaryIssueLevel(summary) === "blocked"
+      summaryLevel === "blocked"
         ? "Blocked review"
-        : pendingDrainSummaryIssueLevel(summary) === "review"
+        : summaryLevel === "review"
           ? "Review"
-          : pendingDrainSummaryIssueLevel(summary) === "ok"
+          : summaryLevel === "ok"
             ? "Verified-looking"
             : "Not run",
-      `status=${pendingDrainSummaryStatus(payload)}; attempted=${summary.attempted_count || 0}; succeeded=${summary.succeeded_count || 0}; already=${summary.already_published_count || 0}; errors=${summary.error_count || 0}; remaining=${summary.remaining_count || 0}`,
+      `status=${pendingDrainSummaryStatus(payload)}; summary rows=${summaryStartCount ?? "unknown"}; current rows=${currentRowCount}; attempted=${summary.attempted_count || 0}; succeeded=${summary.succeeded_count || 0}; already=${summary.already_published_count || 0}; errors=${summary.error_count || 0}; remaining=${summary.remaining_count || 0}`,
       summary.read_error
         ? "Open Diagnostics > State and Run Logs; do not retry blindly while the durable drain summary is unreadable."
-        : pendingDrainSummaryIssueLevel(summary) === "blocked" || pendingDrainSummaryIssueLevel(summary) === "review"
+        : !summaryMatchesCurrent
+          ? "The last drain summary covers a different parked-row count; review it as stale evidence while relying on current rows and backend validation."
+        : summaryLevel === "blocked" || summaryLevel === "review"
           ? "Inspect summary items, current parked rows, and Last Stderr before accepting or retrying publish."
-          : pendingDrainSummaryIssueLevel(summary) === "ok"
+          : summaryLevel === "ok"
             ? "Use as supporting post-drain evidence, then verify Completed/output proof for the expected sample."
             : "No durable summary is loaded yet; run or review backend-owned Drain Parked Outputs before post-drain trust.",
       [
         `Summary path: ${summary.path || "not reported"}`,
         `Started/completed: ${summary.started_at || "unknown"} / ${summary.completed_at || "unknown"}`,
+        `Summary rows/current rows: ${summaryStartCount ?? "unknown"} / ${currentRowCount}`,
         `Status counts: ${pendingFormatCounts(summary.status_counts)}`,
         `Route counts: ${pendingFormatCounts(summary.route_counts)}`,
         "Latest summary items:",
@@ -230,7 +240,7 @@
           "Sample Validation handoff: Pending Publish",
           "Suggested pilot category: deferred-publish",
           "Suggested evidence decision: accepted only after Completed output proof and durable drain summary agree",
-          "Home Sample Validation can write JSONL evidence notes only; it cannot drain, publish, mark complete, accept output, rewrite manifests, or mutate media.",
+          "Home Sample Validation can write JSONL evidence notes only; backend routes own pending-publish changes.",
         ]),
       ],
       selectedRow,
@@ -262,7 +272,7 @@
       "This review explains post-drain trust; it does not publish, mark complete, or accept sample evidence.",
       "Trust a drained sample only when current pending state, durable summary, recent events/logs, Completed output proof, and playback/Sample Validation agree.",
       [
-        "Mutation guardrail: this panel cannot drain, repair, rewrite, move, delete, publish, mark outputs complete, append Sample Validation records, or touch media.",
+        PENDING_READ_ONLY_BOUNDARY,
       ],
     );
     return rowsOut;
@@ -296,7 +306,7 @@
     } else {
       lines.push("First action: evidence is ready-looking, but playback/output inspection and backend-authored records remain authoritative.");
     }
-    lines.push("Mutation guardrail: this review is read-only and cannot drain, repair, rewrite, move, delete, publish, mark outputs complete, append validation records, or touch media.");
+    lines.push(PENDING_READ_ONLY_BOUNDARY);
     return lines;
   }
 
@@ -305,7 +315,7 @@
       return [
         "Pending Publish post-drain trust review:",
         "Select a checkpoint after running or reviewing Drain Parked Outputs.",
-        "Mutation guardrail: this detail panel is read-only.",
+        PENDING_READ_ONLY_BOUNDARY,
       ];
     }
     const lines = [
@@ -366,7 +376,7 @@
     if (statusNode) statusNode.dataset.state = pendingPostDrainTrustPostureStatus(selected?.posture || pendingPostDrainTrustStatus(payload, rowList, snapshot || {}, entryList));
     setText("pending-post-drain-trust-summary", pendingPostDrainTrustSummaryLines(payload, rowList, snapshot || {}, entryList).join("\n"));
     setText("pending-post-drain-trust-detail", pendingPostDrainTrustDetailLines(selected).join("\n"));
-    setText("pending-post-drain-trust-legend", "Post-drain trust rows are read-only and do not move, publish, repair, delete, rewrite, mark outputs complete, or append validation records.");
+    setText("pending-post-drain-trust-legend", "Post-drain trust rows are read-only evidence; backend routes own pending-publish changes.");
     const tbody = byId("pending-post-drain-trust-rows");
     if (!tbody) return;
     if (!trustRows.length) {
@@ -397,6 +407,52 @@
     return 4;
   }
 
+  function pendingOptionalNumber(value) {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "string" && !value.trim()) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function pendingCurrentRowCount(payload, rowList) {
+    const reported = pendingOptionalNumber(payload?.count);
+    return reported === null ? (Array.isArray(rowList) ? rowList.length : 0) : Math.max(0, Math.round(reported));
+  }
+
+  function pendingDrainSummaryStartCount(summary) {
+    const count = pendingOptionalNumber(summary?.manifest_count_at_start);
+    return count === null ? null : Math.max(0, Math.round(count));
+  }
+
+  function pendingDrainSummaryMatchesCurrentRows(summary, currentRowCount) {
+    const startCount = pendingDrainSummaryStartCount(summary);
+    if (startCount === null || currentRowCount === null || currentRowCount === undefined) return true;
+    return startCount === currentRowCount;
+  }
+
+  function pendingDrainSummaryScopedIssueLevel(summary, currentRowCount) {
+    const level = pendingDrainSummaryIssueLevel(summary);
+    if (level !== "blocked" || summary?.read_error) return level;
+    return pendingDrainSummaryMatchesCurrentRows(summary, currentRowCount) ? level : "review";
+  }
+
+  function pendingRecoveryRowsForCurrentEvidence(pending, rows) {
+    const rawRows = Array.isArray(getLastPendingRecoveryPlanRows()) ? getLastPendingRecoveryPlanRows() : [];
+    if (!rawRows.length) {
+      return { rows: [], rawRows, stale: false, planSignature: "", currentSignature: "" };
+    }
+    const planSignature = String(getLastPendingRecoveryPlanSignature() || "");
+    const currentSignature = String(getCurrentPendingRecoveryPlanSignature(pending, rows) || "");
+    const stale = !planSignature || !currentSignature || planSignature !== currentSignature;
+    return {
+      rows: stale ? [] : rawRows,
+      rawRows,
+      stale,
+      planSignature,
+      currentSignature,
+    };
+  }
+
   function pendingDrainConfidenceBackendRows(pending) {
     const dto = pending?.drain_confidence;
     if (!dto || typeof dto !== "object" || dto.schema_version !== "desktop_pending_drain_confidence.v1") return [];
@@ -422,13 +478,18 @@
     const rowList = rowLists.reduce((largest, candidate) => candidate.length > largest.length ? candidate : largest, []);
     const entryList = Array.isArray(entries) ? entries : [];
     const summary = pendingDrainSummaryPayload(payload);
+    const currentRowCount = pendingCurrentRowCount(payload, rowList);
+    const summaryStartCount = pendingDrainSummaryStartCount(summary);
+    const summaryMatchesCurrent = pendingDrainSummaryMatchesCurrentRows(summary, currentRowCount);
+    const summaryLevel = pendingDrainSummaryScopedIssueLevel(summary, currentRowCount);
     const latest = pendingDrainLatestCommand(entryList);
     const events = pendingDrainEventsFromSnapshot(snapshot || {});
     const evidenceRows = pendingEvidenceRows(rowList);
     const blockingEvidence = evidenceRows.filter((entry) => ["do-not-drain", "diagnostic-error", "missing-payload", "manifest-invalid"].includes(entry.evidenceClass));
     const reviewEvidence = evidenceRows.filter((entry) => !["do-not-drain", "diagnostic-error", "missing-payload", "manifest-invalid"].includes(entry.evidenceClass));
     const selectedRow = getSelectedPendingRow();
-    const recoveryRows = getLastPendingRecoveryPlanRows();
+    const recoveryState = pendingRecoveryRowsForCurrentEvidence(payload, rowList);
+    const recoveryRows = recoveryState.rows;
     const recoveryBlocked = recoveryRows.filter((row) => pendingRecoveryPlanRowStatus(row) === "blocked").length;
     const recoveryReview = recoveryRows.filter((row) => pendingRecoveryPlanRowStatus(row) === "warning").length;
     const filterScope = pendingCurrentFilterScope(rowList);
@@ -483,8 +544,10 @@
     add(
       "Recovery dry-run plan",
       recoveryBlocked ? "blocked" : recoveryReview ? "review" : recoveryRows.length ? "ready" : (blockingEvidence.length || reviewEvidence.length ? "review" : "unknown"),
-      recoveryRows.length ? `planned rows=${recoveryRows.length}; blocked=${recoveryBlocked}; review=${recoveryReview}` : "no recovery plan loaded",
-      recoveryRows.length
+      recoveryState.stale ? `stale recovery dry-run ignored; planned rows=${recoveryState.rawRows.length}` : recoveryRows.length ? `planned rows=${recoveryRows.length}; blocked=${recoveryBlocked}; review=${recoveryReview}` : "no recovery plan loaded",
+      recoveryState.stale
+        ? "Build a fresh selected-row or all-rows dry-run against the current Pending Publish evidence before using recovery rows as blockers."
+        : recoveryRows.length
         ? "Use the recovery-plan row drilldown for any blocked or review planned action before drain."
         : "Build a selected-row or all-rows dry-run plan before risky drains.",
     );
@@ -498,9 +561,11 @@
     );
     add(
       "Durable drain summary",
-      pendingDrainSummaryIssueLevel(summary) === "blocked" ? "blocked" : pendingDrainSummaryIssueLevel(summary) === "review" ? "review" : pendingDrainSummaryIssueLevel(summary) === "ok" ? "ready" : "unknown",
-      `status=${pendingDrainSummaryStatus(payload)}; attempted=${summary.attempted_count || 0}; errors=${summary.error_count || 0}; remaining=${summary.remaining_count || 0}`,
-      "Treat the durable summary as last-attempt evidence; the current pending rows remain the source of truth for what is still parked.",
+      summaryLevel === "blocked" ? "blocked" : summaryLevel === "review" ? "review" : summaryLevel === "ok" ? "ready" : "unknown",
+      `status=${pendingDrainSummaryStatus(payload)}; summary rows=${summaryStartCount ?? "unknown"}; current rows=${currentRowCount}; attempted=${summary.attempted_count || 0}; errors=${summary.error_count || 0}; remaining=${summary.remaining_count || 0}`,
+      summaryMatchesCurrent
+        ? "Treat the durable summary as last-attempt evidence; the current pending rows remain the source of truth for what is still parked."
+        : "The last drain summary covers a different parked-row count; review it as stale evidence while relying on current rows and backend validation.",
     );
     add(
       "Recent backend drain events",
@@ -577,7 +642,7 @@
     } else {
       lines.push("", "No local drain blockers detected in the loaded Pending Publish data.");
     }
-    lines.push("Mutation guardrail: this panel cannot drain, repair, rewrite, move, delete, publish, or bypass backend validation.");
+    lines.push(PENDING_READ_ONLY_BOUNDARY);
     return lines;
   }
 
@@ -589,7 +654,7 @@
     const confidenceRows = pendingDrainConfidenceRows(payload, rowList, snapshotPayload, entryList);
     setText("pending-drain-confidence-status", pendingDrainConfidenceStatus(payload, rowList, snapshotPayload, entryList));
     setText("pending-drain-confidence-summary", pendingDrainConfidenceSummaryLines(payload, rowList, snapshotPayload, entryList).join("\n"));
-    setText("pending-drain-confidence-legend", "Drain confidence rows are read-only and do not move, publish, repair, delete, rewrite, or bypass backend validation.");
+    setText("pending-drain-confidence-legend", "Drain confidence rows are read-only evidence; backend routes own pending-publish changes.");
     const tbody = byId("pending-drain-confidence-rows");
     if (!tbody) return;
     if (!confidenceRows.length) {
@@ -635,9 +700,13 @@
     const reviewConfidence = confidenceRows.filter((row) => row.confidence === "review");
     const unknownConfidence = confidenceRows.filter((row) => row.confidence === "unknown");
     const summary = pendingDrainSummaryPayload(payload);
+    const currentRowCount = pendingCurrentRowCount(payload, rowList);
+    const summaryStartCount = pendingDrainSummaryStartCount(summary);
+    const summaryLevel = pendingDrainSummaryScopedIssueLevel(summary, currentRowCount);
     const latest = pendingDrainLatestCommand(entryList);
     const events = pendingDrainEventsFromSnapshot(snapshot || {});
-    const recoveryRows = getLastPendingRecoveryPlanRows();
+    const recoveryState = pendingRecoveryRowsForCurrentEvidence(payload, rowList);
+    const recoveryRows = recoveryState.rows;
     const recoveryBlocked = recoveryRows.filter((row) => pendingRecoveryPlanRowStatus(row) === "blocked").length;
     const recoveryReview = recoveryRows.filter((row) => pendingRecoveryPlanRowStatus(row) === "warning").length;
     const completedProofRows = pendingDrainDecisionCompletedProofRows(payload);
@@ -707,8 +776,10 @@
       "recovery-plan",
       "Recovery dry-run",
       recoveryBlocked ? "Blocked review" : recoveryReview ? "Review" : recoveryRows.length ? "Ready-looking" : rowList.length ? "Read-first" : "Read-only",
-      recoveryRows.length ? `planned rows=${recoveryRows.length}; blocked=${recoveryBlocked}; review=${recoveryReview}` : "no recovery dry-run plan loaded",
-      recoveryRows.length
+      recoveryState.stale ? `stale recovery dry-run ignored; planned rows=${recoveryState.rawRows.length}` : recoveryRows.length ? `planned rows=${recoveryRows.length}; blocked=${recoveryBlocked}; review=${recoveryReview}` : "no recovery dry-run plan loaded",
+      recoveryState.stale
+        ? "Build a fresh selected-row or all-rows recovery dry-run against the current Pending Publish evidence before relying on recovery-plan blockers."
+        : recoveryRows.length
         ? "Use recovery-plan row drilldown for blocked/review planned actions before drain."
         : rowList.length
           ? "Build a selected-row or all-rows recovery dry-run before risky drains."
@@ -716,23 +787,25 @@
       [
         "Recovery plan is dry-run only.",
         "It should explain what the backend would do without moving, deleting, repairing, or publishing files.",
-      ],
+        recoveryState.stale ? "Stale recovery dry-run rows are ignored by the drain guard until rebuilt for the current pending evidence." : "",
+      ].filter(Boolean),
       selectedRow,
     );
     add(
       "drain-command-summary-events",
       "Command, summary, and event agreement",
-      pendingDrainCommandIssueLevel(latest) === "blocked" || pendingDrainSummaryIssueLevel(summary) === "blocked"
+      pendingDrainCommandIssueLevel(latest) === "blocked" || summaryLevel === "blocked"
         ? "Blocked review"
-        : pendingDrainCommandIssueLevel(latest) === "review" || pendingDrainSummaryIssueLevel(summary) === "review"
+        : pendingDrainCommandIssueLevel(latest) === "review" || summaryLevel === "review"
           ? "Review"
-          : latest || pendingDrainSummaryIssueLevel(summary) === "ok" || events.length
+          : latest || summaryLevel === "ok" || events.length
             ? "Read-first"
             : "Read-only",
-      `latest=${latest ? `${latest.command || "drain"} [${pendingDrainCommandResultText(latest)}]` : "none"}; summary=${pendingDrainSummaryStatus(payload)}; events=${events.length}`,
+      `latest=${latest ? `${latest.command || "drain"} [${pendingDrainCommandResultText(latest)}]` : "none"}; summary=${pendingDrainSummaryStatus(payload)}; summary rows=${summaryStartCount ?? "unknown"}; current rows=${currentRowCount}; events=${events.length}`,
       "Compare latest drain command, durable drain summary, recent drain events, and current parked rows before another drain.",
       [
         `Latest command: ${latest ? pendingDrainHistoryLine(latest) : "none loaded"}`,
+        `Summary rows/current rows: ${summaryStartCount ?? "unknown"} / ${currentRowCount}`,
         `Summary attempted/succeeded/errors/remaining: ${summary.attempted_count || 0}/${summary.succeeded_count || 0}/${summary.error_count || 0}/${summary.remaining_count || 0}`,
         `Recent events: ${events.length}${events.length ? ` (${pendingDrainEventCounts(events, pendingDrainEventStatus)})` : ""}`,
       ],
@@ -772,7 +845,7 @@
       "This checklist is an operator handoff, not a publish action.",
       "Press Drain Parked Outputs only when the evidence is coherent enough for backend validation to run.",
       [
-        "Mutation guardrail: this checklist cannot drain, repair, rewrite, move, delete, publish, accept outputs, write manifests, or bypass backend validation.",
+        PENDING_READ_ONLY_BOUNDARY,
       ],
     );
     return rowsOut;
@@ -819,7 +892,7 @@
     } else {
       lines.push("First action: no local blocker is visible, but backend Drain Parked Outputs still performs the authoritative validation and movement.");
     }
-    lines.push("Mutation guardrail: this checklist cannot drain, repair, rewrite, move, delete, publish, accept outputs, write manifests, or bypass backend validation.");
+    lines.push(PENDING_READ_ONLY_BOUNDARY);
     return lines;
   }
 
@@ -879,7 +952,7 @@
       lines.push(`Pending table filter: ${guard.filter_scope.active ? "active" : "inactive"}; visible ${guard.filter_scope.visibleCount}/${guard.filter_scope.totalCount}; hidden blocked/review ${guard.filter_scope.hiddenBlockedCount}/${guard.filter_scope.hiddenReviewCount}.`);
       lines.push("Backend drain scope remains all loaded parked rows; local filters do not narrow publish scope.");
     }
-    lines.push("Mutation guardrail: this guard cannot drain, repair, rewrite, move, delete, publish, accept outputs, write manifests, or bypass backend validation.");
+    lines.push(PENDING_READ_ONLY_BOUNDARY);
     return lines;
   }
 
@@ -922,6 +995,16 @@
       button.title = state.allowed ? state.confirm_message : state.message;
       button.dataset.guardState = state.allowed ? (state.review_required ? "review" : "allowed") : "blocked";
     }
+    const actionButton = byId("pending-action-drain-button");
+    if (actionButton) {
+      actionButton.disabled = !state.allowed;
+      actionButton.setAttribute("aria-disabled", state.allowed ? "false" : "true");
+      actionButton.textContent = state.allowed
+        ? state.review_required ? "Drain After Review" : "Drain Parked Outputs"
+        : "Drain Blocked";
+      actionButton.title = state.allowed ? state.confirm_message : state.message;
+      actionButton.dataset.state = state.allowed ? (state.review_required ? "warning" : "ok") : "blocked";
+    }
     return state;
   }
 
@@ -930,7 +1013,7 @@
       return [
         "Pending Publish drain decision checklist:",
         "Select a checkpoint before publishing parked outputs.",
-        "Mutation guardrail: this detail panel is read-only.",
+        PENDING_READ_ONLY_BOUNDARY,
       ];
     }
     const lines = [

@@ -1,20 +1,20 @@
 # WebView Global Export Inventory
 
-Date: 2026-06-29
+Date: 2026-07-03
 
-Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.js`. Source: generated scan of `window.{name} =` assignments across all 79 JS files.
+Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.js`. Source: generated scan of `window.{name} =` assignments across all 80 JS files.
 
 ---
 
 ## Summary
 
-- **79 JS files** total in `assets/`
+- **80 JS files** total in `assets/`
 - **39 files** export a primary namespace object (`window.mediaPipeline* = { ... }`)
-- **48 files** also export flat functions directly onto `window`
-- **40 files** have no primary namespace object: `app.js`, `completedView.diagnostics.js`, `completedView.evidence.js`, `completedView.proof.js`, `completedView.repair.js`, `completedView.review.js`, `crossPageContextView.conflict.js`, `crossPageContextView.sample.js`, `crossPageContextView.sampleValidation.js`, `crossPageContextView.sampleValidation.records.js`, `crossPageContextView.sampleValidation.runbook.js`, `crossPageContextView.sampleValidation.worksheet.js`, `crossPageContextView.settings.js`, `diagnosticsView.activejobs.js`, `diagnosticsView.investigation.js`, `diagnosticsView.log.js`, `launchView.preflight.js`, `launchView.realmedia.js`, `launchView.risk.js`, `launchView.scope.js`, `pendingPublishView.confidence.js`, `pendingPublishView.diagnostics.js`, `pendingPublishView.drain.js`, `pendingPublishView.recovery.js`, `pendingPublishView.repair.js`, `queueView.detail.js`, `queueView.launch.js`, `queueView.review.js`, `queueView.summary.js`, `settingsView.builders.audio.js`, `settingsView.builders.file_safety.js`, `settingsView.builders.network.js`, `settingsView.builders.pending.js`, `settingsView.builders.quality.js`, `settingsView.builders.queue.js`, `settingsView.builders.runtime.js`, `settingsView.builders.subtitle.js`, `settingsView.builders.video.js`, `settingsView.rawTriage.js`, `settingsView.safetyLocks.js`
-- **Flat export total:** 378
+- **49 files** also export flat functions directly onto `window`
+- **41 files** have no primary namespace object: `app.js`, `completedView.diagnostics.js`, `completedView.evidence.js`, `completedView.proof.js`, `completedView.repair.js`, `completedView.review.js`, `crossPageContextView.conflict.js`, `crossPageContextView.sample.js`, `crossPageContextView.sampleValidation.js`, `crossPageContextView.sampleValidation.records.js`, `crossPageContextView.sampleValidation.runbook.js`, `crossPageContextView.sampleValidation.worksheet.js`, `crossPageContextView.settings.js`, `diagnosticsView.activejobs.js`, `diagnosticsView.investigation.js`, `diagnosticsView.log.js`, `launchView.preflight.js`, `launchView.realmedia.js`, `launchView.risk.js`, `launchView.scope.js`, `pendingPublishView.confidence.js`, `pendingPublishView.diagnostics.js`, `pendingPublishView.drain.js`, `pendingPublishView.recovery.js`, `pendingPublishView.repair.js`, `queueView.detail.js`, `queueView.launch.js`, `queueView.rerun.js`, `queueView.review.js`, `queueView.summary.js`, `settingsView.builders.audio.js`, `settingsView.builders.file_safety.js`, `settingsView.builders.network.js`, `settingsView.builders.pending.js`, `settingsView.builders.quality.js`, `settingsView.builders.queue.js`, `settingsView.builders.runtime.js`, `settingsView.builders.subtitle.js`, `settingsView.builders.video.js`, `settingsView.rawTriage.js`, `settingsView.safetyLocks.js`
+- **Flat export total:** 379
 - **1 backend-injected bootstrap global** (`window.MEDIA_PIPELINE_BOOTSTRAP`) is read by `apiClient.js`
-- **All 37 object-literal namespace objects** have adjacent `Public namespace` JSDoc boundary comments. `test_webview_inventory_docs.py` fails if a future `window.mediaPipeline* = { ... }` namespace object is added without that boundary note. (`tauriLifecycleBridge.js` exports its `mediaPipelineTauriLifecycleBridge` namespace via `Object.freeze(...)`, which is outside that JSDoc check.)
+- **All 38 object-literal namespace objects** have adjacent `Public namespace` JSDoc boundary comments. `test_webview_inventory_docs.py` fails if a future `window.mediaPipeline* = { ... }` namespace object is added without that boundary note. (`tauriLifecycleBridge.js` exports its `mediaPipelineTauriLifecycleBridge` namespace via `Object.freeze(...)`, which is outside that JSDoc check.)
 
 ---
 
@@ -51,7 +51,7 @@ Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.
 | `formatters.js` | mediaPipelineFormatters | 0 | Generated from current `window.* =` assignments |
 | `launchHistoryView.js` | mediaPipelineLaunchHistoryView | 0 | Generated from current `window.* =` assignments |
 | `launchReadinessView.js` | mediaPipelineLaunchReadinessView | 0 | Generated from current `window.* =` assignments |
-| `launchView.js` | mediaPipelineLaunchView | 0 | Generated from current `window.* =` assignments |
+| `launchView.js` | mediaPipelineCsvRerunWorkflow, mediaPipelineLaunchView | 0 | Generated from current `window.* =` assignments |
 | `launchView.preflight.js` | - | 1 | Generated from current `window.* =` assignments |
 | `launchView.realmedia.js` | - | 1 | Generated from current `window.* =` assignments |
 | `launchView.risk.js` | - | 1 | Generated from current `window.* =` assignments |
@@ -74,6 +74,7 @@ Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.
 | `queueView.detail.js` | - | 1 | Generated from current `window.* =` assignments |
 | `queueView.js` | mediaPipelineQueueView | 79 | Generated from current `window.* =` assignments |
 | `queueView.launch.js` | - | 1 | Generated from current `window.* =` assignments |
+| `queueView.rerun.js` | - | 1 | Generated from current `window.* =` assignments |
 | `queueView.review.js` | - | 1 | Generated from current `window.* =` assignments |
 | `queueView.summary.js` | - | 1 | Generated from current `window.* =` assignments |
 | `renameHistoryView.js` | mediaPipelineRenameHistoryView | 0 | Generated from current `window.* =` assignments |
@@ -121,7 +122,8 @@ Several modules call other modules' flat exports via `typeof window.X === "funct
 |---|---|
 | `crossPageContextView.js` | `queueView.js` (`getSelectedQueueRow`, `selectQueueRow`), `completedView.js` (`mediaPipelineCompletedView.getSelectedCompletedRow`, `selectCompletedRow`), `pendingPublishView.js` (`getSelectedPendingRow`, `selectPendingRow`), `settingsView.js` (`getLastSettings`), `app.js` (`showPage`) |
 | `crossPageContextView.sampleValidation.js` | `crossPageContextView.sampleValidation.worksheet.js` (`__crossPageSvWorksheetModule` nested split-child factory stash, consumed and deleted during load), `crossPageContextView.sampleValidation.runbook.js` (`__crossPageSvRunbookModule` nested split-child factory stash, consumed and deleted during load), `crossPageContextView.sampleValidation.records.js` (`__crossPageSvRecordsModule` nested split-child factory stash, consumed and deleted during load) |
-| `queueView.js` | `queueView.summary.js` (`__queueSummaryModule` split-child factory stash, consumed and deleted during load), `queueView.review.js` (`__queueReviewModule` split-child factory stash, consumed and deleted during load), `queueView.detail.js` (`__queueDetailModule` split-child factory stash, consumed and deleted during load), `queueView.launch.js` (`__queueLaunchModule` split-child factory stash, consumed and deleted during load) |
+| `queueView.js` | `queueView.summary.js` (`__queueSummaryModule` split-child factory stash, consumed and deleted during load), `queueView.review.js` (`__queueReviewModule` split-child factory stash, consumed and deleted during load), `queueView.detail.js` (`__queueDetailModule` split-child factory stash, consumed and deleted during load), `queueView.launch.js` (`__queueLaunchModule` split-child factory stash, consumed and deleted during load), `queueView.rerun.js` (`__queueRerunModule` split-child factory stash, consumed and deleted during load) |
+| `reports/auditCommands.js` | `app.js` (`showPage`) and `queueView.js` (`mediaPipelineQueueView.activateQueueTab`, `mediaPipelineQueueView.selectRerunCsvPathForPreview`) for the Audit-to-Queue CSV Rerun handoff after backend CSV export |
 | `diagnosticsView.js` | `diagnosticsView.activejobs.js` (`__diagnosticsActiveJobsModule` split-child factory stash, consumed and deleted during load), `diagnosticsView.log.js` (`__diagnosticsLogModule` split-child factory stash, consumed and deleted during load), `diagnosticsView.investigation.js` (`__diagnosticsInvestigationModule` split-child factory stash, consumed and deleted during load), `diagnosticsBridge.js` (`mediaPipelineDiagnosticsBridge` namespace helpers), `diagnosticsTailView.js` (`mediaPipelineDiagnosticsTailView` tail functions), `queueView.js` (`queueReviewRows`), `completedView.js` (`mediaPipelineCompletedView.completedReviewRows`, `mediaPipelineCompletedView.selectCompletedFinalTrustStep`), `pendingPublishView.js` (`pendingReviewRows`), `crossPageContextView.js` (`crossPageConflictRows`), `commandHistory.js` (`mediaPipelineCommandHistory.commandHistoryIssueEntries`, `mediaPipelineCommandHistory.commandHistoryOwnerPage`, `mediaPipelineCommandHistory.commandHistorySuggestedAction`), `diagnosticsStateSummaryView.js` (`mediaPipelineDiagnosticsStateSummaryView.diagnosticsStateOperatorStatus`, `mediaPipelineDiagnosticsStateSummaryView.diagnosticsStateRecommendedFirstAction`) |
 | `diagnosticsStateSummaryView.js` | `diagnosticsBridge.js` (`mediaPipelineDiagnosticsBridge` namespace helpers), `diagnosticsView.js` compatibility globals (`requestDiagnosticsTail`, `requestDiagnosticsOpen`) after full script load |
 | `settingsView.js` | `settingsView.rawTriage.js` (`__settingsRawTriageModule` split-child factory stash, consumed and deleted during load), `settingsView.safetyLocks.js` (`__settingsSafetyLocksModule` split-child factory stash, consumed and deleted during load), and builder child stashes already listed in the module inventory |
@@ -131,11 +133,12 @@ Several modules call other modules' flat exports via `typeof window.X === "funct
 
 ## Namespace Object Naming Convention
 
-All 38 namespace objects follow the `window.mediaPipeline{ModuleRole}` pattern:
+All 38 object-literal namespace objects follow the `window.mediaPipeline{ModuleRole}` pattern:
 - `window.mediaPipelineApi` — infrastructure
 - `window.mediaPipelineDom` — infrastructure
 - `window.mediaPipelineFormatters` — infrastructure
-- `window.mediaPipeline{Page}View` — page view modules (14 view modules)
+- `window.mediaPipeline{Page}View` — page view modules
+- `window.mediaPipelineCsvRerunWorkflow` — Queue-owned CSV rerun workflow helpers
 - `window.mediaPipelineCommandHistory` — cross-page shared module
 - `window.mediaPipeline{Sub}` — sub-modules (launchReadinessView, launchHistoryView, renameHistoryView, renameLabels, settingsMetadata, settingsOverview, settingsCommandHistory, diagnosticsStateSummaryView, diagnosticsTailView, diagnosticsBridge)
 
@@ -155,9 +158,9 @@ This is an object-boundary rule, not a mandate to add JSDoc to every internal he
 
 | Criterion | Status |
 |---|---|
-| All 78 JS files inventoried | Pass |
-| Namespace objects identified per file | Pass - 38 namespace-owning files; 40 no-namespace files listed in Summary |
-| Namespace object JSDoc boundary present | Pass - 36/36 namespace objects have adjacent `Public namespace` comments guarded by `test_webview_inventory_docs.py` |
+| All 80 JS files inventoried | Pass |
+| Namespace objects identified per file | Pass - 39 namespace-owning files; 41 no-namespace files listed in Summary |
+| Namespace object JSDoc boundary present | Pass - 38/38 namespace objects have adjacent `Public namespace` comments guarded by `test_webview_inventory_docs.py` |
 | Cross-module consumption documented | Pass |
 | Backend-injected globals identified | Pass — 1 (MEDIA_PIPELINE_BOOTSTRAP) |
 | No anonymous or generic window.* globals found | Pass |
@@ -664,7 +667,7 @@ Flat exports (0):
 
 ### launchView.js
 
-Namespace objects: mediaPipelineLaunchView
+Namespace objects: mediaPipelineCsvRerunWorkflow, mediaPipelineLaunchView
 
 Flat exports (0):
 ```text
@@ -1028,6 +1031,15 @@ Flat exports (1):
 __queueLaunchModule
 ```
 
+### queueView.rerun.js
+
+Namespace objects: none
+
+Flat exports (1):
+```text
+__queueRerunModule
+```
+
 ### queueView.review.js
 
 Namespace objects: none
@@ -1252,5 +1264,4 @@ Namespace objects: mediaPipelineTelemetryView
 Flat exports (0):
 ```text
 ```
-
 <!-- END GENERATED WEBVIEW GLOBAL EXPORT MANIFEST -->

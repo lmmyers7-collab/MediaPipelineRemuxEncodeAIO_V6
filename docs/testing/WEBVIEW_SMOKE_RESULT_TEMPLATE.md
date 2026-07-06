@@ -128,4 +128,4 @@ Regardless of pass or skip status, any WebView smoke run does not prove:
 - Real-media route decisions or size-guard behavior
 - Plex direct-play or streaming compatibility
 
-For real-media validation follow `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md` and record evidence in `docs/sample-validation/REAL_MEDIA_VALIDATION_EVIDENCE_TEMPLATE.md`.
+For real-media validation follow `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md` and record evidence in `docs/sample-validation/REAL_MEDIA_VALIDATION_EVIDENCE_TEMPLATE.md`.

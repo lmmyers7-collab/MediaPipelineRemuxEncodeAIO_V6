@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0705-003",
+  "title": "CSV rerun planned output collision guard",
+  "version_target": "2026.07.05.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-05",
+  "date_completed": "2026-07-05",
+  "summary": "Add backend CSV rerun planned-output collision detection so duplicate destination rows are either disabled during audit export or blocked before rerun launch.",
+  "reason": "Audit rerun exports could include multiple source rows that normalize to the same rerun workspace output path, causing the long-running PowerShell import to fail those rows late.",
+  "affected_areas": [
+    "code",
+    "generated",
+    "tests"
+  ],
+  "behavior_before": "Rerun CSV export preserved all enabled rows, and preview/start only blocked duplicate source_path values. Rows with different sources but the same computed planned output reached the PowerShell rerun planner and failed during import.",
+  "behavior_after": "Rerun CSV export keeps duplicate rows for evidence but disables later rows sharing the same planned-output key. Preview/start blocks manually supplied CSVs that still contain enabled duplicate planned-output rows before spawning the rerun process.",
+  "files_touched": [
+    "docs/generated/summaries/src/mediapipeline/core/audit/rerun_csv.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/audit/rerun_export.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/rerun_preview.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_process_launch.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_rerun_csv_preview.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_audit_rerun_csv.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0705-003.json",
+    "src/mediapipeline/core/audit/rerun_csv.py",
+    "src/mediapipeline/core/audit/rerun_export.py",
+    "src/mediapipeline/core/processes/rerun_preview.py",
+    "tests/python/desktop/test_application_facade_process_launch.py",
+    "tests/python/desktop/test_rerun_csv_preview.py",
+    "tests/python/desktop/test_service_audit_rerun_csv.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_process_launch.py::ApplicationFacadeProcessLaunchTests::test_rerun_start_blocks_duplicate_planned_output_rows_before_spawn",
+    "tests/python/desktop/test_rerun_csv_preview.py::RerunCsvPreviewTests::test_preview_blocks_duplicate_planned_output_rows",
+    "tests/python/desktop/test_service_audit_rerun_csv.py::AuditRerunCsvHelperTests::test_service_csv_writer_disables_duplicate_planned_output_rows"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_service_audit_rerun_csv tests.python.desktop.test_rerun_csv_preview tests.python.desktop.test_application_facade_process_launch -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/audit/rerun_csv.py src/mediapipeline/core/audit/rerun_export.py src/mediapipeline/core/processes/rerun_preview.py tests/python/desktop/test_service_audit_rerun_csv.py tests/python/desktop/test_rerun_csv_preview.py tests/python/desktop/test_application_facade_process_launch.py - passed",
+    "py_compile rerun CSV Python files - passed",
+    "validate_changes --require-worktree-coverage - passed"
+  ],
+  "rollback_plan": "Revert the changes to rerun_csv.py, rerun_export.py, rerun_preview.py, the three targeted tests, their generated summaries, and this change packet. Existing media, active rerun manifests, and source files are not modified by this change.",
+  "related_changes": [],
+  "notes": "Add shared planned-output key helpers and export duplicate disabling.\nDisable later duplicate planned-output rows during rerun CSV export.\nBlock enabled CSV rows that share duplicate planned-output keys before launch.\nCover export duplicate planned-output disabling.\nCover preview duplicate planned-output blocking.\nCover start-time rejection for duplicate planned-output rows.\nRefresh summary for rerun CSV helper changes.\nRefresh summary for rerun export duplicate handling.\nRefresh summary for rerun preview duplicate planned-output guard.\nRefresh summary for rerun CSV export test coverage.\nRefresh summary for rerun preview tests.\nRefresh summary for rerun start launch test coverage."
+}

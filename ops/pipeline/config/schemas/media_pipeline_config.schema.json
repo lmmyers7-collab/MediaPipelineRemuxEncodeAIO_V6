@@ -1597,6 +1597,20 @@
       "title": "Pendingpublishdeferredblockthreshold",
       "type": "integer"
     },
+    "AutonomyPendingTotalReviewBytes": {
+      "default": 107374182400,
+      "maximum": 10995116277760,
+      "minimum": 1048576,
+      "title": "Autonomypendingtotalreviewbytes",
+      "type": "integer"
+    },
+    "AutonomyPendingTotalBlockBytes": {
+      "default": 268435456000,
+      "maximum": 10995116277760,
+      "minimum": 1048576,
+      "title": "Autonomypendingtotalblockbytes",
+      "type": "integer"
+    },
     "PauseFlagReviewSeconds": {
       "default": 1800,
       "maximum": 86400,

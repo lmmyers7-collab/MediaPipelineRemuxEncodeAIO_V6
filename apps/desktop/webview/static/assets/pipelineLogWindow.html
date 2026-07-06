@@ -23,6 +23,13 @@
         <input id="pipeline-log-window-follow" type="checkbox" checked>
         Follow
       </label>
+      <label class="pipeline-log-window-mode-row">
+        Mode
+        <select id="pipeline-log-window-mode" aria-label="Pipeline Log display mode">
+          <option value="activity" selected>Activity</option>
+          <option value="raw">Raw tail</option>
+        </select>
+      </label>
       <button type="button" id="pipeline-log-window-refresh-button" class="secondary-button">Refresh Now</button>
       <span id="pipeline-log-window-updated" class="pipeline-log-window-updated">Not refreshed yet</span>
     </div>

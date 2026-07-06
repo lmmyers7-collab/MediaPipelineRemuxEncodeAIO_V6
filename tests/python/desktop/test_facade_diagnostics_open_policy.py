@@ -40,6 +40,7 @@ def _resolved(root: Path) -> ResolvedPaths:
         rerun_script_path=root / "Pipeline" / "rerun.ps1",
         powershell_host=str(root / "pwsh.exe"),
         state_root=root / "State",
+        log_file=root / "pipeline_debug.log",
         active_jobs_path=root / "State" / "ActiveJobs",
         pending_push_path=root / "PendingServerPush",
         failed_reports_path=root / "State" / "Failures" / "Reports",
@@ -57,6 +58,7 @@ class DiagnosticsOpenPolicyTests(unittest.TestCase):
         self.assertEqual(diagnostics_open_target_label("run_logs"), "Run logs folder")
         self.assertIsNone(diagnostics_open_target_label("not_allowed"))
         self.assertIn("run_logs", diagnostics_allowed_targets_error())
+        self.assertIn("pipeline_log", diagnostics_allowed_targets_error())
         self.assertIn("last_stderr_log", diagnostics_allowed_targets_error())
         self.assertIn("pending_publish", DIAGNOSTICS_OPEN_TARGETS)
         self.assertIn("latest_failure_report", DIAGNOSTICS_OPEN_TARGETS)
@@ -84,6 +86,7 @@ class DiagnosticsOpenPolicyTests(unittest.TestCase):
         latest_priority_csv = root / "State" / "Audit" / "audit_summary.priority.csv"
 
         self.assertEqual(diagnostics_open_path(resolved, "run_logs"), resolved.app_root / "RunLogs")
+        self.assertEqual(diagnostics_open_path(resolved, "pipeline_log"), resolved.log_file)
         self.assertEqual(diagnostics_open_path(resolved, "config"), resolved.config_path)
         self.assertEqual(diagnostics_open_path(resolved, "config_folder"), resolved.config_path.parent)
         self.assertEqual(diagnostics_open_path(resolved, "workspace"), resolved.workspace_root)

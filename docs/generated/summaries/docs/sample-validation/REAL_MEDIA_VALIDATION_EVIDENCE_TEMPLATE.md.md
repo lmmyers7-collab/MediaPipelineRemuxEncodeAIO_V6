@@ -3,9 +3,9 @@ file: docs/sample-validation/REAL_MEDIA_VALIDATION_EVIDENCE_TEMPLATE.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-26
+last_modified: 2026-07-04
 last_reviewed: 2026-06-04
-sha256: 56a21b898967427d6bba4f78f79e6ac98689b6c845048a23a53f5e21ab8c95b6
+sha256: 05eb47c0ec6153b7e505c244a549ef291710769337eafde11c990cecad4f9b47
 ---
 # `docs/sample-validation/REAL_MEDIA_VALIDATION_EVIDENCE_TEMPLATE.md`
 

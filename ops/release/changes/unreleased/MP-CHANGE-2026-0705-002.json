@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0705-002",
+  "title": "Trim CSV import progress copy",
+  "version_target": "2026.07.05.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-07-05",
+  "date_completed": "2026-07-05",
+  "summary": "Trimmed the populated CSV import progress row so it shows the loaded file and current wait state instead of joining row counts, backend evidence, and raw log text into one line.",
+  "reason": "The populated CSV import row was too dense for an operator progress timeline and exposed implementation-level evidence such as DEBUG log text in the primary scan line.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The CSV import timeline row displayed verbose joined copy such as CSV rerun evidence loaded, Last imported, waiting text, backend evidence, and raw latest log details.",
+  "behavior_after": "The CSV import timeline row displays compact copy such as Loaded <file>. Waiting for encode to finish, with the latest event normalized into a short Last event token.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/progressView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/progressView.js.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0705-002.json",
+    "tests/python/desktop/test_application_facade_web_static.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_web_static.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_progress_csv_rerun_evidence_does_not_override_active_pipeline -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_progress_csv_rerun_evidence_does_not_override_active_pipeline tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_home_next_queue_shows_first_five_runnable_rows_only -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_live_run_progress_surfaces_are_read_only_shared_renderer -q - passed",
+    "node --check apps/desktop/webview/static/assets/progressView.js - passed",
+    "ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke - timed out after 184 seconds",
+    "ops/scripts/smoke/Test-WebViewBrowserHomeLiveStateSmoke.ps1 - failed outside this change: Home topbar activity leaked Current Fixture.mkv",
+    "ops/scripts/smoke/Test-WebViewRowDetailSmoke.ps1 - failed outside this change: completed-filter-summary hidden review row expectation mismatch"
+  ],
+  "rollback_plan": "Revert the progressView.js CSV import timeline formatter changes and the matching WebView static test assertion updates.",
+  "related_changes": [],
+  "notes": "Trim populated CSV import timeline copy and normalize the visible latest-event token.\nCover compact populated CSV import progress copy in WebView static tests.\nRefresh generated summary for progressView.js after CSV import copy change.\nRefresh generated summary for WebView static test after targeted coverage update."
+}

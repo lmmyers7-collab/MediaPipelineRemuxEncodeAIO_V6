@@ -225,7 +225,7 @@
     if (commandHistoryIsPendingPublishCommand(item) || command.includes("drain")) {
       commandHistoryAddDiagnosticsAction(actions, "tail", "last_stderr_log", "Read Last Stderr", "Read the newest stderr context before retrying a pending publish command.");
       commandHistoryAddDiagnosticsAction(actions, "tail", "latest_failure_report", "Read Latest Failure", "Review the newest failure report for publish/copy/manifest errors.");
-      commandHistoryAddDiagnosticsAction(actions, "open", "pending_publish", "Open Pending Publish", "Compare command result against parked output state.");
+      commandHistoryAddDiagnosticsAction(actions, "open", "pending_publish", "Open Pending Folder", "Compare command result against parked output state.");
       if (Number(data.blocker_count || data.error_count || 0) > 0 || data.stopped || data.deferred) {
         commandHistoryAddDiagnosticsAction(actions, "open", "state", "Open State Folder", "Inspect pending state and drain summary artifacts after blocked or incomplete publish commands.");
       }

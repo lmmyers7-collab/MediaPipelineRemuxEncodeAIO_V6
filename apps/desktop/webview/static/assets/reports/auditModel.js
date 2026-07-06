@@ -35,7 +35,7 @@
       const bucket = String(item?.effective_bucket || "").toUpperCase();
       const text = auditRowSearchText(item);
       if (bucket === "REDOWNLOAD_CANDIDATE") return "Manual source review";
-      if (bucket === "RERUN_PIPELINE") return "Launch CSV Rerun";
+      if (bucket === "RERUN_PIPELINE") return "Queue CSV Rerun";
       if (text.includes("subtitle") || text.includes("bdpgs") || text.includes("tx3g") || text.includes("vobsub") || text.includes("ocr")) return "Settings policy review";
       if (text.includes("audio") || text.includes("commentary") || text.includes("language")) return "Settings policy review";
       if (text.includes("completed") || text.includes("manifest") || text.includes("output")) return "Completed evidence review";
@@ -119,7 +119,7 @@
           "Audit review board: unavailable.",
           `Error: ${audit.error}`,
           "First action: open Latest Audit CSV and Audit Reports, then run a fresh Audit if the CSV cannot be parsed.",
-          "Mutation guardrail: Reports triage is read-only; CSV rerun must be launched through backend-owned Launch controls.",
+          "Mutation guardrail: Reports triage is read-only; CSV rerun must be launched through the backend-owned Queue CSV Rerun tab.",
         ];
       }
       if (!reportPreviewLoaded(audit, rows)) {
@@ -165,7 +165,7 @@
       if (redownloadRows.length) {
         lines.push("Next step: redownload candidates should be checked manually; WebView does not auto-redownload or delete media.");
       } else if (rerunRows.length || highRows.length) {
-        lines.push("Next step: inspect rows, then use backend-owned Launch > CSV Rerun with the intended CSV path.");
+        lines.push("Next step: inspect rows, then use backend-owned Queue > CSV Rerun with the intended CSV path.");
       } else if (rows.length) {
         lines.push("Next step: select a row to verify the bucket, issue proof, and Diagnostics handoff.");
       } else {

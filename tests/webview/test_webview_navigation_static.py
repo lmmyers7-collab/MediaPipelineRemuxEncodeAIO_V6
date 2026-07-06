@@ -320,6 +320,8 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             'done: { page: "completed", label: "Open Completed Output" }',
             'issues: { page: "reports", reportsTab: "failures", label: "Open Reports failures" }',
             "function activateProgressDetailQuickLink",
+            "function runTimelineItems",
+            "function renderRunTimelineItem",
             "card.dataset.crossPageTarget = link.page;",
             'button.addEventListener("click", () => activateProgressDetailQuickLink(link));',
         ]:
@@ -328,6 +330,9 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             '.progress-fact[data-has-link="true"]',
             ".progress-fact-link",
             ".progress-fact-link:focus-visible",
+            ".run-timeline-item",
+            ".run-timeline-dot",
+            ".run-timeline-evidence > summary",
             "box-shadow: var(--focus-ring);",
         ]:
             self.assertIn(fragment, progress_css)
@@ -361,7 +366,7 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             'data-quick-link-reports-tab="failures"',
             'data-quick-link-metrics-tab="routes"',
             'data-quick-link-module="completed" data-quick-link-action="encode"',
-            'data-quick-link-module="pending" data-quick-link-action="manifests"',
+            'data-pending-action-filter="payloads"',
             'data-quick-link-module="reports" data-quick-link-action="failure-needs-action"',
             'data-quick-link-module="maintenance" data-quick-link-action="missing"',
             'data-quick-link-focus="[data-queue-refresh-button]"',
@@ -465,32 +470,15 @@ class WebViewNavigationStaticTests(unittest.TestCase):
         layout = _parse_panel_layout().panel_headings_by_page
         expected_by_page = {
             "queue": [
-                "Queue Decision",
-                "Source Scan And Display Filters",
-                "Attention Required",
-                "Queue Rows",
-                "Selected Row Detail (not launch scope)",
-                "Selected Row Diagnostics Links",
-                "Backend Launch Scope Boundary",
-                "Queue-to-Launch Handoff",
-                "Readiness",
-                "Queue Summary",
-                "Run History",
-                "Queue Readiness Checklist",
-                "Flagged Items",
-                "Collision Risk",
-                "Backend-Excluded Source Files",
+                "CSV Rerun",
             ],
             "pending": [
                 "Pending Publish Guard Evidence",
-                "Pending Publish Drain",
                 "Drain Status",
                 "Risk Summary",
                 "Pending Publish Checklist",
                 "Flagged Items",
                 "Recovery Preview",
-                "Pending Rows",
-                "Selected Item",
                 "Diagnostics Links",
             ],
             "completed": [

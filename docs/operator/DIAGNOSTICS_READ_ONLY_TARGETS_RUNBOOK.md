@@ -22,6 +22,7 @@ These targets back a physical file. Both `/api/diagnostics/open` and `/api/diagn
 
 | Target key | Resolves to | Primary use |
 |---|---|---|
+| `pipeline_log` | `{local_base}/pipeline_debug.log` | Main pipeline debug log; use when the Pipeline Log activity view compacts or annotates lines |
 | `last_stderr_log` | Latest launch stderr log (most recent pipeline/audit run) | First stop for FFmpeg errors, encoder failures, subtitle/audio issues |
 | `last_stdout_log` | Latest launch stdout log | Pipeline start/stop sequencing, heartbeat, signal handling |
 | `queue_snapshot` | Queue snapshot JSON file | Inspect raw queue plan, route decisions, exclusion reasons |

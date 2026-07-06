@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0703-012",
+  "title": "Keep current activity visible in pipeline log",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-03",
+  "date_completed": "2026-07-03",
+  "summary": "Kept active pipeline-work evidence visible at the follow-tail end of both Pipeline Log surfaces and added a focused refresh proof.",
+  "reason": "Follow-tail scrolled to the bottom of old log-tail text, which could hide the active-work banner that explained what was currently happening.",
+  "affected_areas": [
+    "generated-context",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Pipeline Log active-work evidence rendered before the log tail, so Follow tail could scroll it out of view and leave stale tail lines visible during active work.",
+  "behavior_after": "Pipeline Log tail text renders first and the current-activity block renders at the end, so Follow tail keeps active-work evidence visible. The proof test also verifies a changed diagnostics log tail replaces stale UI text after refresh.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/floatingPipelineLog.js",
+    "apps/desktop/webview/static/assets/pipelineLogWindow.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/floatingPipelineLog.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/pipelineLogWindow.js.md",
+    "docs/generated/summaries/tests/webview/test_webview_pipeline_log_window_static.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0703-012.json",
+    "tests/webview/test_webview_pipeline_log_window_static.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_pipeline_log_window_static.py"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_pipeline_log_window_static -q - passed, 7 tests",
+    ".\\ops\\scripts\\smoke\\Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1 - passed, 2 browser smoke tests",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check --paths apps/desktop/webview/static/assets/pipelineLogWindow.js apps/desktop/webview/static/assets/floatingPipelineLog.js tests/webview/test_webview_pipeline_log_window_static.py - passed",
+    "git diff --check for this packet's files - passed; PowerShell reported LF-to-CRLF working-copy warnings only",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed on unrelated work: MP-CHANGE-2026-0703-011.json missing notes/rollback detail and src/mediapipeline/core/processes/rerun_control.py not listed in any packet"
+  ],
+  "rollback_plan": "Restore the previous active-work-before-tail ordering in pipelineLogWindow.js and floatingPipelineLog.js, remove the refresh-proof assertions, refresh summaries, and remove this packet if the operator wants the old ordering.",
+  "related_changes": [],
+  "notes": "Kept active pipeline work evidence visible at the follow-tail end of the Pipeline Log and added refresh proof coverage.\nRefreshed summaries for Pipeline Log surfaces and proof test."
+}

@@ -454,6 +454,21 @@ th[data-table-resizable="true"] {
   line-height: 1.25;
 }
 
+[data-page-panel="completed"] .completed-table .route-chip[data-route="remux"] {
+  background: var(--semantic-success-bg);
+  color: var(--semantic-success-text);
+}
+
+[data-page-panel="completed"] .completed-table .route-chip[data-route="encode"] {
+  background: var(--semantic-info-bg);
+  color: var(--semantic-info-text);
+}
+
+[data-page-panel="completed"] .completed-table .route-chip[data-route="remux-fallback"] {
+  background: linear-gradient(90deg, var(--semantic-info-bg) 0 50%, var(--semantic-success-bg) 50% 100%);
+  color: var(--grey-50);
+}
+
 .completed-table tr[data-status="match"] td,
 .completed-table tr[data-status="ready"] td,
 .completed-table tr[data-status="completed"] td,
@@ -535,4 +550,3 @@ body.light-mode [data-page-panel="completed"] .completed-table tr[data-status="u
 body.light-mode [data-page-panel="completed"] .completed-table tr.is-selected td {
   background: var(--semantic-selected-bg);
 }
-

@@ -115,7 +115,7 @@ The frontend **never** receives an output path for the log, cannot choose a writ
 ## See Also
 
 - Payload schema reference: `docs/sample-validation/SAMPLE_VALIDATION_PAYLOAD_SCHEMA_REFERENCE.md`
-- End-to-end real-media pilot: `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`
+- End-to-end real-media pilot: `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md`
 - Payload schema reference: `docs/sample-validation/SAMPLE_VALIDATION_PAYLOAD_SCHEMA_REFERENCE.md`
 
 ---

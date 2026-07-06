@@ -41,6 +41,9 @@
       if (normalized === "blocked") return "blocked/failed";
       if (normalized === "warning") return "warning";
       if (normalized === "ready") return "ready/healthy";
+      if (normalized === "failed") return "failed";
+      if (normalized === "completed") return "completed/drained";
+      if (normalized === "skipped") return "skipped";
       return "all";
     }
 

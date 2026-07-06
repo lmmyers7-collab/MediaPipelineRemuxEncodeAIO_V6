@@ -154,7 +154,7 @@
       "backend-authority",
       "Backend authority",
       "ready",
-      "Launch, audit, CSV rerun, pipeline control, and pending-drain commands remain backend-owned.",
+      "Pipeline launch, audit, Queue CSV Rerun, pipeline control, and pending-drain commands remain backend-owned.",
       "Use this table as reconciliation only; submit starts only through backend-owned Launch buttons.",
       [
         "This panel never changes queue scope, filters, saved settings, schedule state, command history, or media files.",

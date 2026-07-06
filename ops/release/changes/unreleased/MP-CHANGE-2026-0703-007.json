@@ -1,0 +1,38 @@
+{
+  "id": "MP-CHANGE-2026-0703-007",
+  "title": "Log CSV rerun input context",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-03",
+  "date_completed": "2026-07-03",
+  "summary": "Emit selected CSV rerun input context to the PowerShell process log so the Pipeline Log window shows the requested CSV path, resolved config path, batch/workspace evidence, lifecycle fields, and completion CSV path.",
+  "reason": "Operators need the CSV rerun path and rerun context visible in the pipeline log while a CSV rerun is running or after the log has advanced past the launch panel.",
+  "affected_areas": [
+    "docs",
+    "pipeline",
+    "tests"
+  ],
+  "behavior_before": "CSV rerun stdout logged lifecycle and row plans, but did not provide a compact resolved CSV/config/batch/workspace header or include the selected CSV path in the final completion line.",
+  "behavior_after": "CSV rerun stdout starts with the requested CSV path, resolved CSV/config paths, batch/workspace/local-base evidence, lifecycle flags, and repeats the selected CSV path in the completion summary.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/entrypoints/Invoke-RerunCsv.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-RerunPlanOnlyChecks.ps1.md",
+    "ops/pipeline/entrypoints/Invoke-RerunCsv.ps1",
+    "ops/pipeline/tests/Unit/Invoke-RerunPlanOnlyChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0703-007.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-RerunPlanOnlyChecks.ps1"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-ContractSchemaChecks.ps1 - passed",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-RerunPlanOnlyChecks.ps1 - passed"
+  ],
+  "rollback_plan": "Revert the CSV rerun log-context lines and matching plan-only assertions, then rerun generated-summary refresh for the two touched files. No data migration or media cleanup is required.",
+  "related_changes": [],
+  "notes": "Log selected CSV path, resolved config, workspace, batch, lifecycle, and completion context to the rerun process log.\nAssert plan-only rerun output includes the selected CSV path and rerun evidence log header.\nRefresh generated summary after rerun log-context entrypoint update.\nRefresh generated summary after rerun plan-only log assertion update.\nPython impact: none; PowerShell logging and PowerShell test assertions only."
+}

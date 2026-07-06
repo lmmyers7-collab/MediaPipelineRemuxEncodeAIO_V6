@@ -27,7 +27,7 @@
     if (failures.error || audit.error) return "Diagnostics";
     if (reportFailureReviewCount() > 0) return "Failures";
     if (reportNumber(audit.redownload_count) > 0) return "Manual source review";
-    if (reportNumber(audit.rerun_count) > 0 || reportNumber(audit.high_priority_count) > 0) return "Launch";
+    if (reportNumber(audit.rerun_count) > 0 || reportNumber(audit.high_priority_count) > 0) return "Queue CSV Rerun";
     const warningRows = collectReportWarnings();
     if (warningRows.length) return warningRows[0].owner || "Diagnostics";
     return "Reports";
@@ -48,7 +48,8 @@
     }
     if (owner === "Failures") return "Inspect failure rows";
     if (owner === "Manual source review") return "Review redownload candidates";
-    if (owner === "Launch") return "Verify CSV rerun";
+    if (owner === "Queue CSV Rerun") return "Verify CSV rerun";
+    if (owner === "Launch") return "Verify launch intent";
     if (owner === "Diagnostics") return "Open diagnostics evidence";
     if (owner === "Reports") return "No report action";
     return `Review ${owner}`;
@@ -112,7 +113,7 @@
       return "Review redownload candidates before rerun; the WebView intentionally does not auto-redownload.";
     }
     if (reportNumber(audit.rerun_count) > 0 || reportNumber(audit.high_priority_count) > 0) {
-      return "Review priority/audit rows, then use backend-owned Launch > CSV Rerun with the intended CSV path.";
+      return "Review priority/audit rows, then use backend-owned Queue > CSV Rerun with the intended CSV path.";
     }
     if (!reportsState.lastFailureRows.length && !reportsState.lastAuditRows.length) {
       return "Run Audit from Launch or open report roots if you expected recent failure/audit rows.";
@@ -184,11 +185,11 @@
       `Latest Failure JSON | ${latestPaths.latest_failure_json ? "Ready" : "Missing"} | Diagnostics | evidence only`,
       `Latest Failure report | ${latestPaths.latest_failure_report ? "Ready" : "Missing"} | Diagnostics | evidence only`,
       `Latest Audit CSV | ${latestPaths.latest_audit_csv ? "Ready" : "Missing"} | Diagnostics | evidence only`,
-      `Latest Priority CSV | ${latestPaths.latest_priority_csv ? "Ready" : "Missing"} | Launch | verify before CSV rerun`,
+      `Latest Priority CSV | ${latestPaths.latest_priority_csv ? "Ready" : "Missing"} | Queue | verify before CSV rerun`,
       `Failure preview | ${failureLoaded ? "Loaded" : "Not loaded"} | Failures | row triage only`,
       `Audit preview | ${auditLoaded ? "Loaded" : "Not loaded"} | Audit | row triage/export only`,
       `Failure review rows | ${failureReviewCount ? "Needs review" : "Ready"} | Failures | ${failureReviewCount} row(s)`,
-      `Audit rerun/redownload rows | ${auditReviewCount ? "Needs review" : "Ready"} | Audit/Launch | ${auditReviewCount} row(s)`,
+      `Audit rerun/redownload rows | ${auditReviewCount ? "Needs review" : "Ready"} | Audit/Queue | ${auditReviewCount} row(s)`,
       `Warnings | ${warningRows.length ? "Review" : "Ready"} | ${warningRows[0]?.owner || "Reports"} | ${warningRows.length} warning(s)`,
       `Failure report root | ${workspacePaths.failed_reports ? "Configured" : "Missing"} | Locations | open through allowlist`,
       `Audit report root | ${workspacePaths.audit_reports ? "Configured" : "Missing"} | Locations | open through allowlist`,
@@ -202,7 +203,7 @@
     } else if (audit.error || auditReviewCount) {
       lines.push("1. Needs review | Audit | inspect redownload/rerun/high-priority rows.");
       lines.push("2. Evidence only | Diagnostics | compare Latest Audit CSV, Completed Manifest, Queue Snapshot, and Run Logs.");
-      lines.push("3. Action owner | Launch | use CSV Rerun only after the chosen CSV/path is verified.");
+      lines.push("3. Action owner | Queue | use CSV Rerun only after the chosen CSV/path is verified.");
     } else if (warningRows.length) {
       lines.push("1. Review | Warnings | read actionable warning rows and owner pages.");
       lines.push("2. Evidence only | Diagnostics/Locations | open state/log targets through backend allowlists.");

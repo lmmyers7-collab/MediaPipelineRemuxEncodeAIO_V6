@@ -10,6 +10,16 @@ from mediapipeline.tools.paths import find_repo_root
 
 
 class WebViewCompletedTableTitleCellTests(unittest.TestCase):
+    def test_shared_table_sort_prefers_cell_sort_value(self) -> None:
+        repo_root = find_repo_root(Path(__file__))
+        source = (repo_root / "apps" / "desktop" / "webview" / "static" / "assets" / "dom" / "table.js").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("function cellSortValue", source)
+        self.assertIn("dataset?.sortValue", source)
+        self.assertIn("compareSortableText(cellSortValue(left, state.sortColumn)", source)
+
     def test_completed_table_title_cell_omits_duplicate_meta_and_prefers_tv_episode(self) -> None:
         node = shutil.which("node")
         if not node:
@@ -115,6 +125,7 @@ class WebViewCompletedTableTitleCellTests(unittest.TestCase):
             const movieRow = {
               row_key: "row-1",
               completed_at: "Jun 4 12:58 AM",
+              completed_at_sort_key: "2026-06-04T00:58:00-04:00",
               lookup_title: "Legally Blonde (2001)",
               output_file: "Legally Blonde (2001).mkv",
               output_path: "D:/Outsource/Movies/Legally Blonde (2001)/Legally Blonde (2001).mkv",
@@ -147,11 +158,15 @@ class WebViewCompletedTableTitleCellTests(unittest.TestCase):
             if (row.children.length !== 7) {
               throw new Error(`Expected 7 completed table cells after media spacer removal, got ${row.children.length}`);
             }
+            const completedCell = row.children[0];
             const titleCell = row.children[1];
             const routeCell = row.children[2];
             const evidenceCell = row.children[3];
             const measureCell = row.children[4];
             const titleChildren = titleCell.children.map((child) => child.className);
+            if (completedCell.dataset.sortValue !== "2026-06-04T00:58:00-04:00") {
+              throw new Error(`Completed timestamp sort key was not attached: ${JSON.stringify(completedCell.dataset)}`);
+            }
             if (titleCell.textContent !== "Legally Blonde (2001)") {
               throw new Error(`Unexpected title cell text: ${titleCell.textContent}`);
             }
@@ -206,6 +221,47 @@ class WebViewCompletedTableTitleCellTests(unittest.TestCase):
             }
             if (!fallbackRouteChip.title.includes("Encode was attempted first") || !fallbackRouteChip.title.includes("Final route: REMUX.")) {
               throw new Error(`Fallback remux tooltip omitted route history: ${fallbackRouteChip.title}`);
+            }
+
+            const csvRerunEncodeRow = Object.assign({}, movieRow, {
+              row_key: "row-csv-rerun-encode",
+              route: "csv_rerun",
+              route_label: "CSV_RERUN",
+              route_decision_summary: "Encode because source bitrate exceeded the configured threshold.",
+            });
+            module.renderCompletedTableRows({
+              tbodyId: "completed-rows",
+              legendId: "completed-table-legend",
+              rows: [csvRerunEncodeRow],
+              sourceRows: [],
+              emptyMessage: "No rows",
+              legendLabel: "Current output rows",
+              rowLabel: "Current output row",
+            });
+            const csvEncodeRouteChip = tbody.children[0].children[2].children[0];
+            if (!csvEncodeRouteChip || csvEncodeRouteChip.dataset.route !== "encode") {
+              throw new Error(`CSV rerun encode route chip was not color-categorized: ${csvEncodeRouteChip && JSON.stringify(csvEncodeRouteChip.dataset)}`);
+            }
+
+            const csvRerunFallbackRow = Object.assign({}, movieRow, {
+              row_key: "row-csv-rerun-fallback",
+              route: "csv_rerun",
+              route_label: "CSV_RERUN",
+              route_reason_code: "oversized_encode_remux_fallback",
+              route_reason: "Remux fallback after oversized encode; encoded output exceeded configured growth limit.",
+            });
+            module.renderCompletedTableRows({
+              tbodyId: "completed-rows",
+              legendId: "completed-table-legend",
+              rows: [csvRerunFallbackRow],
+              sourceRows: [],
+              emptyMessage: "No rows",
+              legendLabel: "Current output rows",
+              rowLabel: "Current output row",
+            });
+            const csvFallbackRouteChip = tbody.children[0].children[2].children[0];
+            if (!csvFallbackRouteChip || csvFallbackRouteChip.dataset.route !== "remux-fallback") {
+              throw new Error(`CSV rerun fallback route chip was not split-state: ${csvFallbackRouteChip && JSON.stringify(csvFallbackRouteChip.dataset)}`);
             }
 
             state.completedSizeColumnMode = "bitrate";
@@ -268,4 +324,3 @@ class WebViewCompletedTableTitleCellTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
-

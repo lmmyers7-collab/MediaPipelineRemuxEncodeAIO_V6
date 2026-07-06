@@ -138,6 +138,8 @@ try {
             Assert-True ([int]$d.FFmpegCpuEncodeTimeoutSeconds -eq 2000) "FFmpegCpuEncodeTimeoutSeconds expected 2000, got $($d.FFmpegCpuEncodeTimeoutSeconds)"
             Assert-True ([int]$d.OutsourceMinFreeSpaceGB -eq 7) "OutsourceMinFreeSpaceGB expected 7, got $($d.OutsourceMinFreeSpaceGB)"
             Assert-True ([int]$d.FFmpegEncodeTimeoutSeconds -eq 1000) "FFmpegEncodeTimeoutSeconds expected 1000, got $($d.FFmpegEncodeTimeoutSeconds)"
+            Assert-True ([long]$d.AutonomyPendingTotalReviewBytes -eq 107374182400) "AutonomyPendingTotalReviewBytes expected 107374182400, got $($d.AutonomyPendingTotalReviewBytes)"
+            Assert-True ([long]$d.AutonomyPendingTotalBlockBytes -eq 268435456000) "AutonomyPendingTotalBlockBytes expected 268435456000, got $($d.AutonomyPendingTotalBlockBytes)"
             Assert-True (@($d.PSObject.Properties.Name).Count -ge 99) "dump field count too low: $(@($d.PSObject.Properties.Name).Count)"
             Write-Host "PASS [A] reserved-key guard + cross-key defaults"
         } catch { Write-Host "FAIL [A] $_"; $failures++ }

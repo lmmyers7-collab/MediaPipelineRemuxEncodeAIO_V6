@@ -507,6 +507,11 @@
       return normalizedTableText(row?.cells?.[index]?.textContent || "");
     }
 
+    function cellSortValue(row, index) {
+      const explicit = normalizedTableText(row?.cells?.[index]?.dataset?.sortValue || "");
+      return explicit || cellText(row, index);
+    }
+
     function sortableValue(text) {
       const raw = normalizedTableText(text);
       const lower = raw.toLowerCase();
@@ -568,7 +573,7 @@
       const rows = allTableDataRows(state.tbody);
       state.applying = true;
       rows
-        .sort((left, right) => direction * compareSortableText(cellText(left, state.sortColumn), cellText(right, state.sortColumn)))
+        .sort((left, right) => direction * compareSortableText(cellSortValue(left, state.sortColumn), cellSortValue(right, state.sortColumn)))
         .forEach((row) => state.tbody.appendChild(row));
       state.applying = false;
     }

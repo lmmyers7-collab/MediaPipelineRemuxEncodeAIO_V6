@@ -1,0 +1,56 @@
+{
+  "id": "MP-CHANGE-2026-0704-009",
+  "title": "CSV rerun destination validation",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-04",
+  "date_completed": "2026-07-04",
+  "summary": "CSV rerun final-output overrides are now validated against the effective configured output root or matching library-profile output root in backend preview/promote and PowerShell execution paths. Nested rerun temp configs force DeferredPublish=false so final placement remains under rerun destination policy.",
+  "reason": "CSV rerun destination fields could previously carry outside-root final targets into rerun planning, pending-publish manifests, or promote flows. Rerun temp configs also inherited DeferredPublish, allowing nested publish behavior to bypass the rerun wrapper's destination handling.",
+  "affected_areas": [
+    "generated",
+    "powershell",
+    "process",
+    "tests"
+  ],
+  "behavior_before": "CSV final-output override fields such as plex_planned_path and server_out were accepted without proving they were under the configured output root or library-profile output root; nested rerun configs could inherit DeferredPublish=true.",
+  "behavior_after": "Backend preview/promote and PowerShell rerun planning reject outside-root final-output and sidecar destinations unless the confirmed same-file source-overwrite exception applies. Rerun temp configs explicitly set DeferredPublish=false.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/entrypoints/Invoke-RerunCsv.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-RerunPlanOnlyChecks.ps1.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/rerun_policy.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/rerun_preview.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/rerun_results.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_process_rerun_results.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_rerun_csv_preview.py.md",
+    "ops/pipeline/entrypoints/Invoke-RerunCsv.ps1",
+    "ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-RerunPlanOnlyChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0704-009.json",
+    "src/mediapipeline/core/processes/rerun_policy.py",
+    "src/mediapipeline/core/processes/rerun_preview.py",
+    "src/mediapipeline/core/processes/rerun_results.py",
+    "tests/python/desktop/test_process_rerun_results.py",
+    "tests/python/desktop/test_rerun_csv_preview.py"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-RerunPlanOnlyChecks.ps1",
+    "tests/python/desktop/test_process_rerun_results.py",
+    "tests/python/desktop/test_rerun_csv_preview.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_rerun_csv_preview tests.python.desktop.test_process_rerun_results tests.python.desktop.test_application_facade_process_launch tests.python.desktop.test_service_process_launch_plans tests.python.desktop.test_service_process_launch_runner tests.python.desktop.test_api_command_contracts -q - passed (104 tests)",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths <touched rerun files> - passed (7 written, 1 unchanged)",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1 - passed",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1 - passed",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-RerunPlanOnlyChecks.ps1 - passed"
+  ],
+  "rollback_plan": "Revert the touched rerun policy, preview/promote, PowerShell entrypoint, tests, generated summaries, and this change packet. Re-run the targeted Python and PowerShell rerun/pending-publish validation commands before restoring release readiness.",
+  "related_changes": [],
+  "notes": "Shared backend CSV rerun destination-root validation helpers.\nCSV rerun preview blocks outside-root final-output overrides.\nRerun promote validates server_out and sidecar destinations.\nBackend preview coverage for CSV final-output override root policy.\nBackend promote coverage for outside-root server_out and sidecar non-copy.\nPowerShell rerun final destination validation and temp DeferredPublish override.\nPowerShell plan-only coverage for outside-root override and library profile destinations.\nPowerShell temp fixture coverage for sidecars and nested DeferredPublish=false.\nRefreshed generated summary for CSV rerun destination validation change."
+}

@@ -85,8 +85,7 @@
     tbody.replaceChildren();
     rows.forEach((item) => {
       const row = document.createElement("tr");
-      if (item.severity === "critical" || item.severity === "high") row.dataset.status = "blocked";
-      else if (item.severity === "medium" || item.severity === "unknown") row.dataset.status = "warning";
+      if (item.severity === "critical" || item.severity === "high" || item.severity === "medium" || item.severity === "unknown") row.dataset.status = "warning";
       else row.dataset.status = "match";
       appendCells(row, [item.label, item.current, item.status, item.action]);
       tbody.appendChild(row);

@@ -116,7 +116,10 @@ class PipelineLaunchFacadeMixin:
                 path_health_method = getattr(self, "_launch_path_health_for_resolved", None)
                 path_health = path_health_method(resolved) if callable(path_health_method) else None
                 autonomy_health = autonomy_method(resolved, path_health=path_health)
-                if str((autonomy_health or {}).get("overall_status") or "").casefold() == "blocked":
+                if (
+                    actual_mode != "drain_pending_pushes"
+                    and str((autonomy_health or {}).get("overall_status") or "").casefold() == "blocked"
+                ):
                     return pipeline_start_autonomy_blocked_result(autonomy_health)
             self._cancel_pipeline_schedule_stop_watcher("cleared before a new backend pipeline launch")
             launch_prep_messages: list[str] = []

@@ -85,12 +85,17 @@ class StatusFacadeMixin:
         stale_progress = pipeline_state == "stale"
         if stale_progress:
             warnings.append("Pipeline progress is stale from a previous run; raw progress is retained for review.")
+        progress_bars = snapshot_progress_bars(snapshot, pipeline_state=pipeline_state)
+        recent_events = snapshot_recent_events(snapshot)
         current_work = (
             build_stale_current_work()
             if stale_progress
             else build_current_work(
                 progress,
                 movie_cleaning_policy=rename_cleaning_policy_from_resolved(snapshot.resolved),
+                pipeline_events=recent_events,
+                progress_bars=progress_bars,
+                pipeline_state=pipeline_state,
             )
         )
         counts = snapshot_counts(progress)
@@ -107,8 +112,8 @@ class StatusFacadeMixin:
             worker_progress=worker_progress,
             ffmpeg_progress=ffmpeg_progress_payload(progress, snapshot.log_tail, worker_progress=worker_progress),
             eta=eta_payload(worker_progress, progress=progress),
-            progress_bars=snapshot_progress_bars(snapshot, pipeline_state=pipeline_state),
-            recent_events=snapshot_recent_events(snapshot),
+            progress_bars=progress_bars,
+            recent_events=recent_events,
             latest_paths=snapshot_latest_paths(snapshot),
             warnings=warnings,
         )

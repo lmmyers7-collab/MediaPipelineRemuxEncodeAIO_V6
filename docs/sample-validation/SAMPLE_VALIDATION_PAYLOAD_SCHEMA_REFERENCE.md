@@ -138,6 +138,6 @@ All Sample Validation routes are read-only except `POST /api/sample-validation/a
 
 - Operator guide: `docs/sample-validation/SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md`
 - Operator guide: `docs/sample-validation/SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md`
-- Real-media pilot: `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`
+- Real-media pilot: `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md`
 - Evidence anchor: `docs/RealMediaValidationRuns/README.md`
 - Source: `app/sample_validation/policy.py`

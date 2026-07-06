@@ -135,9 +135,11 @@ class ProcessLaunchRunnerTests(unittest.TestCase):
                 return_mode="park",
                 execution_mode="batch_stage_all",
                 destination_mode="review_workspace",
-                original_policy="keep",
+                original_policy="hold_then_delete_after_publish",
                 collision_policy="suffix",
                 window_size=10,
+                confirm_original_policy=True,
+                confirm_delete_original=True,
                 show_console=False,
             )
 
@@ -146,7 +148,13 @@ class ProcessLaunchRunnerTests(unittest.TestCase):
         self.assertEqual(service.spawn_call["job_kind"], "rerun_csv")
         self.assertEqual(service.spawn_call["mode"], "run")
         self.assertNotIn("-DryRun", service.spawn_call["args"])
+        self.assertNotIn("-OriginalPolicy", service.spawn_call["args"])
+        self.assertNotIn("-ConfirmOriginalPolicy", service.spawn_call["args"])
+        self.assertNotIn("-ConfirmDeleteOriginal", service.spawn_call["args"])
         self.assertEqual(service.spawn_call["metadata"]["csv_path"], str(csv_path))
+        self.assertEqual(service.spawn_call["metadata"]["original_policy"], "keep")
+        self.assertFalse(service.spawn_call["metadata"]["confirm_original_policy"])
+        self.assertFalse(service.spawn_call["metadata"]["confirm_delete_original"])
         self.assertEqual(service.spawn_call["metadata"]["default_stage_mode"], "copy")
         self.assertEqual(service.spawn_call["metadata"]["default_return_mode"], "park")
         self.assertEqual(service.spawn_call["metadata"]["execution_mode"], "batch_stage_all")

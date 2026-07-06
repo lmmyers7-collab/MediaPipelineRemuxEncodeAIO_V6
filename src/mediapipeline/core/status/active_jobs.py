@@ -310,6 +310,22 @@ def _progress_stop_requested(progress: Mapping[str, Any]) -> bool:
     return error_code == "stop_requested" or ("stop" in reason and "operator" in reason)
 
 
+def _progress_matches_active_job(row: Mapping[str, Any], progress: Mapping[str, Any] | None) -> bool:
+    if not progress:
+        return False
+    job_kind = _text_from_mapping(row, "job_kind").casefold()
+    if job_kind == "pipeline":
+        return True
+    if job_kind != "rerun_csv":
+        return False
+    progress_job_kind = _text_from_mapping(progress, "ActiveJobKind", "RerunParentJobKind").casefold()
+    if progress_job_kind != "rerun_csv":
+        return False
+    parent_launch_id = _text_from_mapping(progress, "RerunParentLaunchId")
+    row_launch_id = _text_from_mapping(row, "launch_id", "record_file")
+    return not parent_launch_id or parent_launch_id == row_launch_id
+
+
 def _progress_status_state(progress: Mapping[str, Any], *, stale: bool) -> str:
     if stale:
         return "warning"
@@ -413,11 +429,7 @@ def _active_job_worker_row(
             str(row.get("source") or ""),
         )
     )
-    merged_progress = (
-        progress
-        if progress and row_status_state == "running" and _text_from_mapping(row, "job_kind").casefold() == "pipeline"
-        else None
-    )
+    merged_progress = progress if row_status_state == "running" and _progress_matches_active_job(row, progress) else None
     progress_stale = _progress_is_stale(merged_progress or {}, stale_after_seconds=stale_after_seconds, now=now) if merged_progress else False
     row_log_tail = _active_job_log_tail(row, log_tail, read_text_file=read_text_file)
     updated_at = (

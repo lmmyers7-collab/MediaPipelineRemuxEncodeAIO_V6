@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 DIAGNOSTICS_OPEN_TARGETS = {
     "run_logs": "Run logs folder",
+    "pipeline_log": "pipeline debug log",
     "cluster_log": "cluster log file",
     "config": "active config file",
     "config_folder": "config folder",
@@ -84,6 +85,7 @@ def diagnostics_open_path(
 ) -> Path | None:
     target_paths: dict[str, Path | None] = {
         "run_logs": Path(resolved.app_root) / "RunLogs",
+        "pipeline_log": resolved.log_file,
         "cluster_log": Path(resolved.app_root) / "cluster.log",
         "config": resolved.config_path,
         "config_folder": resolved.config_path.parent if resolved.config_path else None,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 from mediapipeline.core.kernel.dto_status import CloseReadinessDto
@@ -88,6 +89,9 @@ class ProcessGuardFacadeMixin:
         queue_scan_block = self._queue_source_scan_block_message(action)
         if queue_scan_block:
             return queue_scan_block
+        network_rerun_block = self._network_csv_rerun_batch_block_message(resolved, action)
+        if network_rerun_block:
+            return network_rerun_block
         if blocking_job_kinds is None or "pipeline" in blocking_job_kinds:
             watcher_block = self._schedule_stop_watcher_close_block_message(action)
             if watcher_block:
@@ -146,6 +150,39 @@ class ProcessGuardFacadeMixin:
         except Exception as exc:
             self._log_close_guard_exception("Queue source scan close-readiness verification failed", exc)
             return f"{action} blocked because queue source scan state could not be verified: {exc}"
+
+    def _network_csv_rerun_batch_block_message(self, resolved: ResolvedPaths, action: str) -> str:
+        state_root = resolved.state_root if resolved.state_root is not None else None
+        if state_root is None and resolved.local_base is not None:
+            state_root = resolved.local_base / "State"
+        if state_root is None:
+            return ""
+        root = state_root / "Rerun" / "Network"
+        if not root.exists():
+            return ""
+        active_statuses = {"starting", "running", "active", "stopping", "stopped_after_current", "paused", "claim_disabled"}
+        try:
+            paths = sorted(root.glob("*.json"))
+        except OSError as exc:
+            self._log_close_guard_exception("Network CSV rerun close-readiness verification failed", exc)
+            return f"{action} blocked because network CSV rerun state could not be verified: {exc}"
+        for path in paths:
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8-sig"))
+            except Exception as exc:
+                self._log_close_guard_exception("Network CSV rerun state read failed", exc)
+                return f"{action} blocked because network CSV rerun state file could not be verified: {path}"
+            if not isinstance(payload, dict):
+                continue
+            if str(payload.get("schema_version") or "") != "desktop_rerun_network_batch.v1":
+                continue
+            status = str(payload.get("status") or "").strip().casefold()
+            if status not in active_statuses:
+                continue
+            batch_id = str(payload.get("batch_id") or path.stem)
+            claim_text = "claims disabled" if payload.get("claim_provider_enabled") is False else "claims may be active"
+            return f"{action} blocked because network CSV rerun batch {batch_id} is {status} ({claim_text})."
+        return ""
 
     def _progress_block_message(self, resolved: ResolvedPaths, action: str) -> str:
         read_progress = getattr(self.service, "read_progress", None)

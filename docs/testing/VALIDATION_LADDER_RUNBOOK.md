@@ -300,7 +300,7 @@ For any change that may affect FFmpeg command generation, route decisions, subti
 **No automated check fully covers this rung.** All previous rungs must pass first, then run the real-media validation playbook:
 
 ```
-docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md
+docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md
 ```
 
 Follow with the evidence template:
@@ -382,6 +382,6 @@ Risk: Low — documentation only.
 - Smoke test catalog: `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`
 - Browser smoke runbook: `docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md`
 - Browser smoke prerequisites: `docs/testing/BROWSER_SMOKE_PREREQUISITES_CHECKLIST.md`
-- Real-media pilot: `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`
+- Real-media pilot: `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md`
 - Release package inventory: `docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`
 - PowerShell host expectations: `docs/operator/POWERSHELL_HOST_EXPECTATIONS.md`

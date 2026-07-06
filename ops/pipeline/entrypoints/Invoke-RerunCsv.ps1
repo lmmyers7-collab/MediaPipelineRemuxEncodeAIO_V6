@@ -4,13 +4,14 @@ param(
     [string]$ConfigPath = '',
     [ValidateSet('copy')] [string]$DefaultStageMode = 'copy',
     [ValidateSet('keep')] [string]$DefaultOriginalMode = 'keep',
-    [ValidateSet('park','pending_publish','publish_non_overlap','replace_original')] [string]$DefaultReturnMode = 'park',
+    [ValidateSet('park','pending_publish','publish_non_overlap','replace_original')] [string]$DefaultReturnMode = 'replace_original',
     [ValidateSet('one_at_a_time','windowed','batch_stage_all')] [string]$ExecutionMode = 'one_at_a_time',
-    [ValidateSet('review_workspace','pending_publish','publish_non_overlap','publish_replace_final')] [string]$DestinationMode = 'review_workspace',
+    [ValidateSet('auto_replace_clean_else_pending_review','review_workspace','pending_publish','publish_non_overlap','publish_replace_final')] [string]$DestinationMode = 'auto_replace_clean_else_pending_review',
     [ValidateSet('keep','rename_after_publish','move_to_hold_after_publish','hold_then_delete_after_publish')] [string]$OriginalPolicy = 'keep',
-    [ValidateSet('suffix','fail','replace_final')] [string]$CollisionPolicy = 'suffix',
+    [ValidateSet('suffix','fail','replace_final')] [string]$CollisionPolicy = 'replace_final',
     [ValidateRange(1,100)] [int]$WindowSize = 1,
     [switch]$ConfirmReplaceFinal,
+    [switch]$ConfirmSourceOverwrite,
     [switch]$ConfirmOriginalPolicy,
     [switch]$ConfirmDeleteOriginal,
     [switch]$DryRun,
@@ -36,13 +37,20 @@ function DebugLog {
     Write-RerunLog -Message $Message -Level 'DEBUG'
 }
 
+Write-RerunLog "CSV rerun request: csv_path=$CsvPath config_path=$ConfigPath dry_run=$([bool]$DryRun) plan_only=$([bool]$PlanOnly)" "INFO"
 Write-RerunLog "CSV rerun lifecycle policy: execution=$ExecutionMode destination=$DestinationMode original_policy=$OriginalPolicy collision=$CollisionPolicy window_size=$WindowSize. Source row mutation aliases remain rejected during planning." "INFO"
 if ($DryRun -and $PlanOnly) {
     throw 'CSV rerun accepts either -DryRun or -PlanOnly, not both.'
 }
 if ($ExecutionMode -eq 'one_at_a_time') { $WindowSize = 1 }
-if ($DestinationMode -eq 'publish_replace_final' -and -not $ConfirmReplaceFinal) {
-    throw 'publish_replace_final requires -ConfirmReplaceFinal.'
+if ($DestinationMode -eq 'auto_replace_clean_else_pending_review' -and $CollisionPolicy -ne 'replace_final') {
+    throw 'auto_replace_clean_else_pending_review requires -CollisionPolicy replace_final.'
+}
+if ($DestinationMode -in @('auto_replace_clean_else_pending_review','publish_replace_final') -and -not $ConfirmReplaceFinal) {
+    throw "$DestinationMode requires -ConfirmReplaceFinal."
+}
+if ($ConfirmSourceOverwrite -and -not $ConfirmReplaceFinal) {
+    throw 'ConfirmSourceOverwrite requires -ConfirmReplaceFinal.'
 }
 if ($OriginalPolicy -ne 'keep') {
     throw 'CSV rerun original source policies are disabled until final-output proof is recorded by a separate cleanup flow.'
@@ -111,6 +119,46 @@ function Resolve-RerunPath {
         return [System.IO.Path]::GetFullPath($expanded)
     }
     return [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot $expanded))
+}
+
+function Resolve-RerunSourcePath {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return '' }
+    $expanded = [Environment]::ExpandEnvironmentVariables($Path)
+    if (-not (Test-RerunSourcePathFullyQualified $expanded)) { return '' }
+    return [System.IO.Path]::GetFullPath($expanded)
+}
+
+function Test-RerunSourcePathFullyQualified {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
+    $expanded = [Environment]::ExpandEnvironmentVariables($Path)
+    try {
+        return [System.IO.Path]::IsPathFullyQualified($expanded)
+    } catch {
+        if (-not [System.IO.Path]::IsPathRooted($expanded)) { return $false }
+        return ($expanded -notmatch '^[A-Za-z]:[^\\/]')
+    }
+}
+
+function Get-RerunValidExtensionSet {
+    $set = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($item in @($script:ValidExtensions)) {
+        $text = ([string]$item).Trim()
+        if ([string]::IsNullOrWhiteSpace($text)) { continue }
+        if (-not $text.StartsWith('.')) { $text = ".$text" }
+        [void]$set.Add($text.ToLowerInvariant())
+    }
+    return $set
+}
+
+function Test-RerunValidMediaExtension {
+    param([string]$Path)
+    $extension = [System.IO.Path]::GetExtension($Path)
+    if ([string]::IsNullOrWhiteSpace($extension)) { return $false }
+    $valid = Get-RerunValidExtensionSet
+    if ($valid.Count -eq 0) { return $false }
+    return $valid.Contains($extension.ToLowerInvariant())
 }
 
 function Test-RerunUncPath {
@@ -513,6 +561,82 @@ function Write-RerunManifest {
     [System.IO.File]::Move($tmp, $Path, $true)
 }
 
+function Get-RerunJsonLineMutexName {
+    param([Parameter(Mandatory)] [string]$Path)
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes([System.IO.Path]::GetFullPath($Path).ToLowerInvariant())
+        $hash = [System.BitConverter]::ToString($sha.ComputeHash($bytes)).Replace('-', '').Substring(0, 16)
+        return "Global\MediaPipelineRerunCompletedManifest_$hash"
+    } finally {
+        if ($sha) { $sha.Dispose() }
+    }
+}
+
+function Write-RerunJsonLineAppend {
+    param(
+        [Parameter(Mandatory)] [string]$Path,
+        [Parameter(Mandatory)] $Payload,
+        [int]$Depth = 10
+    )
+    $mutex = $null
+    $acquired = $false
+    try {
+        $dir = Split-Path -Parent $Path
+        if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+        $mutex = [System.Threading.Mutex]::new($false, (Get-RerunJsonLineMutexName -Path $Path))
+        $acquired = $mutex.WaitOne(2000)
+        if (-not $acquired) { return $false }
+        $line = $Payload | ConvertTo-Json -Depth $Depth -Compress
+        [System.IO.File]::AppendAllText($Path, $line + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
+        return $true
+    } catch {
+        Write-RerunLog "CSV rerun JSONL append failed for $Path : $($_.Exception.Message)" "WARN"
+        return $false
+    } finally {
+        if ($acquired -and $null -ne $mutex) {
+            try { $mutex.ReleaseMutex() } catch {}
+        }
+        if ($null -ne $mutex) { $mutex.Dispose() }
+    }
+}
+
+function Add-RerunCompletedJobsManifestEntry {
+    param(
+        [Parameter(Mandatory)] [string]$OutputPath,
+        [Parameter(Mandatory)] $Payload
+    )
+    if ([string]::IsNullOrWhiteSpace([string]$script:RerunCompletedJobsManifest)) {
+        Write-RerunLog "Completed-jobs manifest append skipped; manifest path is unavailable for $OutputPath" "WARN"
+        return $false
+    }
+    try {
+        $entry = [ordered]@{}
+        if ($Payload -is [System.Collections.IDictionary]) {
+            foreach ($k in $Payload.Keys) { $entry[[string]$k] = $Payload[$k] }
+        } else {
+            foreach ($prop in @($Payload.PSObject.Properties)) { $entry[$prop.Name] = $prop.Value }
+        }
+        if (-not $entry.Contains('schema_version')) { $entry['schema_version'] = 'completed_job.v1' }
+        $entry['output_path'] = $OutputPath
+        $entry['output_file'] = Split-Path -Leaf $OutputPath
+        if (-not $entry.Contains('job_id')) { $entry['job_id'] = '' }
+        if (-not $entry.Contains('correlation_id')) { $entry['correlation_id'] = '' }
+        $loggedAt = Get-Date -Format 'o'
+        $entry['logged_at'] = $loggedAt
+        if (-not $entry.Contains('created_at')) { $entry['created_at'] = $loggedAt }
+        $entry['completed_manifest_source'] = 'csv_rerun_replace_final'
+        $written = [bool](Write-RerunJsonLineAppend -Path ([string]$script:RerunCompletedJobsManifest) -Payload $entry -Depth 12)
+        if (-not $written) {
+            Write-RerunLog "Completed-jobs manifest append failed for $OutputPath : JSONL append lock unavailable or write failed" "WARN"
+        }
+        return $written
+    } catch {
+        Write-RerunLog "Completed-jobs manifest append failed for $OutputPath : $($_.Exception.Message)" "WARN"
+        return $false
+    }
+}
+
 function Get-RerunObjectValue {
     param($Object, [string]$Name, $Default = $null)
     if ($null -eq $Object) { return $Default }
@@ -585,6 +709,288 @@ function Test-RerunPathUnderRoot {
     }
 }
 
+function Test-RerunSamePath {
+    param([string]$Left, [string]$Right)
+    if ([string]::IsNullOrWhiteSpace($Left) -or [string]::IsNullOrWhiteSpace($Right)) { return $false }
+    try {
+        $leftFull = [System.IO.Path]::GetFullPath($Left).TrimEnd([char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar))
+        $rightFull = [System.IO.Path]::GetFullPath($Right).TrimEnd([char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar))
+        return $leftFull.Equals($rightFull, [System.StringComparison]::OrdinalIgnoreCase)
+    } catch {
+        return $Left.Trim().TrimEnd([char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)).Equals($Right.Trim().TrimEnd([char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)), [System.StringComparison]::OrdinalIgnoreCase)
+    }
+}
+
+function Get-RerunEffectiveFinalOutputRoot {
+    param(
+        [hashtable]$Config,
+        [string]$SourcePath,
+        [string]$FallbackRoot
+    )
+
+    if ($Config.ContainsKey('LibraryProfiles')) {
+        foreach ($profile in @($Config['LibraryProfiles'])) {
+            if ($null -eq $profile) { continue }
+            $enabled = ConvertTo-RerunBool (Get-RerunProfileField -Profile $profile -Name 'enabled' -Default 'true') $true
+            if (-not $enabled) { continue }
+            $profileSource = Resolve-RerunPath (Get-RerunProfileField -Profile $profile -Name 'source_path' -Default '')
+            if ([string]::IsNullOrWhiteSpace($profileSource)) { continue }
+            if (-not (Test-RerunPathUnderRoot -Path $SourcePath -Root $profileSource)) { continue }
+            $profileOutput = Resolve-RerunPath (Get-RerunProfileField -Profile $profile -Name 'output_path' -Default '')
+            if (-not [string]::IsNullOrWhiteSpace($profileOutput)) { return $profileOutput }
+            return $FallbackRoot
+        }
+    }
+    return $FallbackRoot
+}
+
+function Get-RerunFinalOutputRootViolation {
+    param(
+        [string]$FinalOutputPath,
+        [string]$SourcePath,
+        [string]$EffectiveRoot,
+        [string]$SourceField,
+        [bool]$SourceOverwriteConfirmed
+    )
+
+    if ([string]::IsNullOrWhiteSpace($FinalOutputPath)) { return 'final output path is unavailable' }
+    if ($SourceOverwriteConfirmed -and (Test-RerunSamePath -Left $FinalOutputPath -Right $SourcePath)) { return '' }
+    if ([string]::IsNullOrWhiteSpace($EffectiveRoot)) { return 'configured output root is unavailable for final output destination validation' }
+    if (Test-RerunPathUnderRoot -Path $FinalOutputPath -Root $EffectiveRoot) { return '' }
+    $fieldDetail = if ([string]::IsNullOrWhiteSpace($SourceField)) { '' } else { " from $SourceField" }
+    return "final output destination$fieldDetail resolves outside configured output root: $FinalOutputPath"
+}
+
+function Get-RerunNormalizedPathKey {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return '' }
+    try {
+        return ([System.IO.Path]::GetFullPath($Path).TrimEnd([char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar))).ToLowerInvariant()
+    } catch {
+        return ($Path.Trim().TrimEnd([char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar))).ToLowerInvariant()
+    }
+}
+
+function Add-RerunAutoReviewIssue {
+    param(
+        [Parameter(Mandatory)] $Issues,
+        [Parameter(Mandatory)] [string]$Code,
+        [Parameter(Mandatory)] [string]$Message,
+        [string]$Evidence = ''
+    )
+    $Issues.Add([pscustomobject][ordered]@{
+        code = $Code
+        message = $Message
+        evidence = $Evidence
+    }) | Out-Null
+}
+
+function Test-RerunObjectHasProperty {
+    param($Object, [string]$Name)
+    if ($null -eq $Object) { return $false }
+    if ($Object -is [System.Collections.IDictionary]) { return $Object.Contains($Name) }
+    return ($null -ne $Object.PSObject.Properties[$Name])
+}
+
+function Get-RerunAutoReviewIssues {
+    param(
+        $Plan,
+        [Parameter(Mandatory)] [string]$VerifiedOutput
+    )
+    $issues = [System.Collections.Generic.List[object]]::new()
+    $sidecarPath = Get-RerunPipelineSidecarPath -OutputPath $VerifiedOutput
+    if (-not (Test-Path -LiteralPath $sidecarPath -PathType Leaf)) {
+        Add-RerunAutoReviewIssue -Issues $issues -Code 'sidecar_missing' -Message 'Pipeline sidecar evidence is missing; output requires Pending Publish review.' -Evidence $sidecarPath
+        return @($issues)
+    }
+
+    $pipelineSidecar = Read-RerunPipelineSidecar -OutputPath $VerifiedOutput
+    if ($null -eq $pipelineSidecar) {
+        Add-RerunAutoReviewIssue -Issues $issues -Code 'sidecar_unreadable' -Message 'Pipeline sidecar evidence could not be read; output requires Pending Publish review.' -Evidence $sidecarPath
+        return @($issues)
+    }
+
+    $schema = Get-RerunObjectText -Object $pipelineSidecar -Name 'schema_version' -Default ''
+    if ($schema -ne 'pipeline_sidecar.v1') {
+        Add-RerunAutoReviewIssue -Issues $issues -Code 'sidecar_schema_untrusted' -Message 'Pipeline sidecar schema is not the expected pipeline_sidecar.v1 contract.' -Evidence $schema
+    }
+
+    $publishState = (Get-RerunObjectText -Object $pipelineSidecar -Name 'publish_state' -Default '').Trim().ToLowerInvariant()
+    if (-not [string]::IsNullOrWhiteSpace($publishState) -and $publishState -ne 'published') {
+        Add-RerunAutoReviewIssue -Issues $issues -Code 'publish_state_not_clean' -Message 'Nested pipeline publish state is not clean published evidence.' -Evidence $publishState
+    }
+    $publishMode = (Get-RerunObjectText -Object $pipelineSidecar -Name 'publish_mode' -Default '').Trim().ToLowerInvariant()
+    if ($publishMode -match 'pending|deferred|review|retry|failed') {
+        Add-RerunAutoReviewIssue -Issues $issues -Code 'publish_mode_requires_review' -Message 'Nested pipeline publish mode indicates deferred/review/retry handling.' -Evidence $publishMode
+    }
+
+    $actualSize = 0L
+    try { $actualSize = [long](Get-Item -LiteralPath $VerifiedOutput -Force).Length } catch {}
+    $sidecarSizeRaw = Get-RerunObjectValue -Object $pipelineSidecar -Name 'output_size' -Default $null
+    $sidecarSize = $null
+    try {
+        if ($null -ne $sidecarSizeRaw) { $sidecarSize = [long]$sidecarSizeRaw }
+    } catch {
+        $sidecarSize = $null
+    }
+    if ($null -eq $sidecarSize) {
+        Add-RerunAutoReviewIssue -Issues $issues -Code 'output_size_missing' -Message 'Pipeline sidecar output_size evidence is missing.' -Evidence $sidecarPath
+    } elseif ($actualSize -gt 0 -and $sidecarSize -ne $actualSize) {
+        Add-RerunAutoReviewIssue -Issues $issues -Code 'output_size_mismatch' -Message 'Pipeline sidecar output_size does not match the verified output file.' -Evidence ("sidecar={0}; actual={1}" -f $sidecarSize, $actualSize)
+    }
+
+    foreach ($failureField in @('tx3g_srt_failures','bdpgs_srt_failures','vobsub_srt_failures')) {
+        $failures = @(Get-RerunArrayField -Object $pipelineSidecar -Name $failureField)
+        if ($failures.Count -gt 0) {
+            Add-RerunAutoReviewIssue -Issues $issues -Code $failureField -Message "Subtitle conversion failure evidence remains in $failureField." -Evidence ("count={0}" -f $failures.Count)
+        }
+    }
+
+    foreach ($decision in @(Get-RerunArrayField -Object $pipelineSidecar -Name 'subtitle_decisions')) {
+        $routesToReview = Get-RerunBoolField -Object $decision -Name 'routes_to_review'
+        $reviewCode = Get-RerunObjectText -Object $decision -Name 'review_error_code' -Default ''
+        $reviewReason = Get-RerunObjectText -Object $decision -Name 'review_reason' -Default ''
+        if ($routesToReview -or -not [string]::IsNullOrWhiteSpace($reviewCode) -or -not [string]::IsNullOrWhiteSpace($reviewReason)) {
+            $evidence = if (-not [string]::IsNullOrWhiteSpace($reviewCode)) { $reviewCode } else { $reviewReason }
+            Add-RerunAutoReviewIssue -Issues $issues -Code 'subtitle_decision_requires_review' -Message 'Subtitle decision evidence requires operator review.' -Evidence $evidence
+        }
+    }
+
+    foreach ($reviewField in @('issues','warnings','errors','review_issues','validation_issues')) {
+        $fieldEvidence = @(Get-RerunArrayField -Object $pipelineSidecar -Name $reviewField)
+        if ($fieldEvidence.Count -gt 0) {
+            Add-RerunAutoReviewIssue -Issues $issues -Code ("sidecar_{0}" -f $reviewField) -Message "Pipeline sidecar contains $reviewField evidence; output requires Pending Publish review." -Evidence ("count={0}" -f $fieldEvidence.Count)
+        }
+    }
+    foreach ($reviewFlag in @('requires_review','needs_review','operator_review_required')) {
+        if (Get-RerunBoolField -Object $pipelineSidecar -Name $reviewFlag) {
+            Add-RerunAutoReviewIssue -Issues $issues -Code ("sidecar_{0}" -f $reviewFlag) -Message "Pipeline sidecar sets $reviewFlag; output requires Pending Publish review." -Evidence 'true'
+        }
+    }
+
+    $quality = Get-RerunObjectValue -Object $pipelineSidecar -Name 'quality_verification' -Default $null
+    if ($null -ne $quality -and (Test-RerunObjectHasProperty -Object $quality -Name 'attempted') -and (Get-RerunBoolField -Object $quality -Name 'attempted')) {
+        $qualityOutcome = (Get-RerunObjectText -Object $quality -Name 'outcome' -Default '').Trim().ToLowerInvariant()
+        $qualityBlocked = Get-RerunBoolField -Object $quality -Name 'block_publish'
+        if ($qualityBlocked -or $qualityOutcome -notin @('pass','passed')) {
+            Add-RerunAutoReviewIssue -Issues $issues -Code 'quality_verification_not_clean' -Message 'Quality verification did not produce clean pass evidence.' -Evidence ("outcome={0}; block_publish={1}" -f $qualityOutcome, $qualityBlocked)
+        }
+    }
+
+    $dynamicHdr = Get-RerunObjectValue -Object $pipelineSidecar -Name 'dynamic_hdr' -Default $null
+    if ($null -ne $dynamicHdr) {
+        $dynamicOutcome = (Get-RerunObjectText -Object $dynamicHdr -Name 'outcome' -Default '').Trim().ToLowerInvariant()
+        $dynamicAction = (Get-RerunObjectText -Object $dynamicHdr -Name 'policy_action' -Default (Get-RerunObjectText -Object $dynamicHdr -Name 'action' -Default '')).Trim().ToLowerInvariant()
+        $dynamicRoute = (Get-RerunObjectText -Object $dynamicHdr -Name 'recommended_route' -Default '').Trim().ToLowerInvariant()
+        $dynamicError = Get-RerunObjectText -Object $dynamicHdr -Name 'error_code' -Default ''
+        $dynamicReview = Get-RerunBoolField -Object $dynamicHdr -Name 'should_hold_review'
+        $dynamicEvidence = @($dynamicOutcome, $dynamicAction, $dynamicRoute, $dynamicError) -join ';'
+        if ($dynamicReview -or -not [string]::IsNullOrWhiteSpace($dynamicError) -or $dynamicEvidence -match 'blocked|failed|drop|warn|review|missing|unpreservable|unknown') {
+            Add-RerunAutoReviewIssue -Issues $issues -Code 'dynamic_hdr_not_clean' -Message 'Dynamic HDR evidence is not clean replacement evidence.' -Evidence $dynamicEvidence
+        }
+    }
+
+    return @($issues)
+}
+
+function Get-RerunStopAfterCurrentRequest {
+    param(
+        [string]$MarkerPath,
+        [string]$BatchId,
+        [string]$ManifestPath,
+        [string]$CsvPath,
+        [datetime]$StartedAtUtc
+    )
+    if ([string]::IsNullOrWhiteSpace($MarkerPath) -or -not (Test-Path -LiteralPath $MarkerPath -PathType Leaf)) {
+        return $null
+    }
+    try {
+        $marker = Get-Content -LiteralPath $MarkerPath -Raw | ConvertFrom-Json -ErrorAction Stop
+    } catch {
+        Write-RerunLog "Ignoring unreadable CSV rerun control marker: $MarkerPath ($($_.Exception.Message))" "WARN"
+        return $null
+    }
+    if ((Get-RerunObjectText -Object $marker -Name 'action' -Default '') -ne 'stop_after_current') {
+        return $null
+    }
+    $markerBatchId = Get-RerunObjectText -Object $marker -Name 'batch_id' -Default ''
+    if (-not [string]::IsNullOrWhiteSpace($markerBatchId) -and $markerBatchId -ne $BatchId) {
+        return $null
+    }
+    $markerManifestPath = Get-RerunObjectText -Object $marker -Name 'manifest_path' -Default ''
+    if (-not [string]::IsNullOrWhiteSpace($markerManifestPath) -and (Get-RerunNormalizedPathKey -Path $markerManifestPath) -ne (Get-RerunNormalizedPathKey -Path $ManifestPath)) {
+        return $null
+    }
+    $markerCsvPath = Get-RerunObjectText -Object $marker -Name 'csv_path' -Default ''
+    if (-not [string]::IsNullOrWhiteSpace($markerCsvPath) -and (Get-RerunNormalizedPathKey -Path $markerCsvPath) -ne (Get-RerunNormalizedPathKey -Path $CsvPath)) {
+        return $null
+    }
+    if ([string]::IsNullOrWhiteSpace($markerBatchId) -and [string]::IsNullOrWhiteSpace($markerManifestPath)) {
+        $createdText = Get-RerunObjectText -Object $marker -Name 'created_at' -Default ''
+        if (-not [string]::IsNullOrWhiteSpace($createdText)) {
+            try {
+                $createdAt = [datetimeoffset]::Parse($createdText).UtcDateTime
+                if ($createdAt -lt $StartedAtUtc.AddSeconds(-5)) {
+                    return $null
+                }
+            } catch {
+                return $null
+            }
+        }
+    }
+    return $marker
+}
+
+function Update-RerunManifestCounts {
+    param(
+        $Manifest,
+        [array]$Plans,
+        [int]$PipelineExitFailures = 0
+    )
+    $review = @($Plans | Where-Object { $_.status -eq 'review_workspace' }).Count
+    $pendingPublish = @($Plans | Where-Object { $_.status -eq 'pending_publish' }).Count
+    $published = @($Plans | Where-Object { $_.status -in @('published_non_overlap','published_replace_final') }).Count
+    $failed = @($Plans | Where-Object { $_.status -eq 'failed' }).Count
+    $pending = @($Plans | Where-Object { $_.status -eq 'pending' }).Count
+    $success = $review + $pendingPublish + $published
+    $Manifest.pipeline_exit_failures = $PipelineExitFailures
+    $Manifest.success_count = $success
+    $Manifest.review_workspace_count = $review
+    $Manifest.pending_publish_count = $pendingPublish
+    $Manifest.published_count = $published
+    $Manifest.failed_count = $failed
+    $Manifest.remaining_pending_count = $pending
+    return [pscustomobject][ordered]@{
+        review = $review
+        pending_publish = $pendingPublish
+        published = $published
+        failed = $failed
+        pending = $pending
+        success = $success
+    }
+}
+
+function Get-RerunPendingServerDestinationSet {
+    param([string]$PendingRoot)
+    $set = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    if ([string]::IsNullOrWhiteSpace($PendingRoot) -or -not (Test-Path -LiteralPath $PendingRoot)) {
+        return ,$set
+    }
+    foreach ($manifestFile in @(Get-ChildItem -LiteralPath $PendingRoot -File -Filter '*.manifest.json' -ErrorAction SilentlyContinue)) {
+        try {
+            $manifest = Get-Content -LiteralPath $manifestFile.FullName -Raw | ConvertFrom-Json -ErrorAction Stop
+            $serverOut = [string](Get-RerunObjectValue -Object $manifest -Name 'server_out' -Default '')
+            $key = Get-RerunNormalizedPathKey -Path $serverOut
+            if (-not [string]::IsNullOrWhiteSpace($key)) {
+                $set.Add($key) | Out-Null
+            }
+        } catch {
+            Write-RerunLog "CSV rerun could not read pending manifest while checking destinations $($manifestFile.FullName): $($_.Exception.Message)" "WARN"
+        }
+    }
+    return ,$set
+}
+
 function Copy-RerunRecordProperties {
     param($Record)
     $map = [ordered]@{}
@@ -601,7 +1007,8 @@ function New-RerunPendingSidecarEntries {
         [Parameter(Mandatory)] [string]$VerifiedOutput,
         [Parameter(Mandatory)] [string]$FinalOutput,
         [Parameter(Mandatory)] [string]$PendingRoot,
-        [Parameter(Mandatory)] [string]$TransactionId
+        [Parameter(Mandatory)] [string]$TransactionId,
+        [string]$FinalOutputRoot = ''
     )
     $entries = [System.Collections.Generic.List[object]]::new()
     $tracks = [System.Collections.Generic.List[object]]::new()
@@ -622,7 +1029,22 @@ function New-RerunPendingSidecarEntries {
 
         $relative = [System.IO.Path]::GetRelativePath([System.IO.Path]::GetFullPath($verifiedDir), [System.IO.Path]::GetFullPath($source))
         if ([string]::IsNullOrWhiteSpace($relative) -or $relative.StartsWith('..')) { continue }
-        $serverOut = Join-Path $finalDir $relative
+        $relativeParent = Split-Path $relative -Parent
+        $relativeLeaf = Split-Path $relative -Leaf
+        $sourceStem = [System.IO.Path]::GetFileNameWithoutExtension($relativeLeaf)
+        $verifiedStem = [System.IO.Path]::GetFileNameWithoutExtension($VerifiedOutput)
+        $finalStem = [System.IO.Path]::GetFileNameWithoutExtension($FinalOutput)
+        if (-not [string]::IsNullOrWhiteSpace($verifiedStem) -and $sourceStem.StartsWith($verifiedStem, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $relativeLeaf = $finalStem + $sourceStem.Substring($verifiedStem.Length) + [System.IO.Path]::GetExtension($relativeLeaf)
+        }
+        $relativeServerPath = if ([string]::IsNullOrWhiteSpace($relativeParent)) { $relativeLeaf } else { Join-Path $relativeParent $relativeLeaf }
+        $serverOut = Join-Path $finalDir $relativeServerPath
+        if (-not (Test-RerunPathUnderRoot -Path $serverOut -Root $finalDir)) {
+            throw "sidecar destination resolves outside final output folder: $serverOut"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($FinalOutputRoot) -and -not (Test-RerunPathUnderRoot -Path $serverOut -Root $FinalOutputRoot)) {
+            throw "sidecar destination resolves outside configured output root: $serverOut"
+        }
         $parked = Join-Path $PendingRoot ("{0}.sidecar{1}{2}" -f $TransactionId, $sidecarIndex, [System.IO.Path]::GetExtension($source))
         if (Test-Path -LiteralPath $parked) { $parked = Get-RerunNonOverlapPath -Path $parked -Suffix $TransactionId }
         try {
@@ -748,6 +1170,47 @@ function Join-RerunPathParts {
     return $path
 }
 
+function Resolve-RerunFinalOutputPathFromRow {
+    param(
+        $Row,
+        [string]$FallbackPath
+    )
+    $candidateFields = @(
+        'plex_planned_path',
+        'PlexPlannedPath',
+        'planned_final_path',
+        'PlannedFinalPath',
+        'final_output_path',
+        'FinalOutputPath',
+        'server_out',
+        'ServerOut',
+        'completed_output_path',
+        'CompletedOutputPath',
+        'completed_path',
+        'CompletedPath',
+        'PlannedOutputPath',
+        'planned_output_path',
+        'OutputPath',
+        'output_path'
+    )
+    foreach ($field in $candidateFields) {
+        $text = Get-RerunValue -Row $Row -Names @($field) -Default ''
+        if ([string]::IsNullOrWhiteSpace($text)) { continue }
+        $resolved = Resolve-RerunPath $text
+        if ([string]::IsNullOrWhiteSpace($resolved)) { continue }
+        return [pscustomobject]@{
+            Path = $resolved
+            Source = 'csv_completed_output'
+            SourceField = $field
+        }
+    }
+    return [pscustomobject]@{
+        Path = $FallbackPath
+        Source = 'computed'
+        SourceField = ''
+    }
+}
+
 function Resolve-RerunPlans {
     param(
         [array]$Rows,
@@ -763,12 +1226,14 @@ function Resolve-RerunPlans {
     $plans = [System.Collections.Generic.List[object]]::new()
     $destinationKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
+    $rowIndex = -1
     foreach ($row in $Rows) {
+        $rowIndex += 1
         $enabled = ConvertTo-RerunBool (Get-RerunValue -Row $row -Names @('enabled','rerun_enabled','Enabled') -Default 'true') $true
         if (-not $enabled) { continue }
 
         $sourceText = Get-RerunValue -Row $row -Names @('source_path','Path','SourcePath') -Default ''
-        $sourcePath = Resolve-RerunPath $sourceText
+        $sourcePath = Resolve-RerunSourcePath $sourceText
         $rowStageOverride = Normalize-RerunChoiceValue (Get-RerunValue -Row $row -Names @('stage_mode','StageMode') -Default '')
         $rowOriginalOverride = Normalize-RerunChoiceValue (Get-RerunValue -Row $row -Names @('post_success_original','original_mode','OriginalMode') -Default '')
         $rowReturnOverride = Normalize-RerunChoiceValue (Get-RerunValue -Row $row -Names @('return_mode','ReturnMode') -Default '')
@@ -777,7 +1242,8 @@ function Resolve-RerunPlans {
         $returnMode = Resolve-RerunChoice -Row $row -Names @('return_mode','ReturnMode') -Default $DefaultReturnMode -Allowed @('park','pending_publish','publish_non_overlap','replace_original')
 
         $plan = [ordered]@{
-            source_path = $sourcePath
+            row_index = $rowIndex
+            source_path = if ([string]::IsNullOrWhiteSpace($sourcePath)) { $sourceText } else { $sourcePath }
             media_kind = ''
             stage_mode = $stageMode
             original_mode = $originalMode
@@ -785,6 +1251,9 @@ function Resolve-RerunPlans {
             stage_path = ''
             planned_output_path = ''
             final_output_path = ''
+            final_output_source = 'computed'
+            final_output_source_field = ''
+            final_output_root = ''
             verified_output_path = ''
             pending_publish_payload_path = ''
             pending_publish_manifest_path = ''
@@ -793,6 +1262,17 @@ function Resolve-RerunPlans {
             original_action = ''
             original_held_path = ''
             original_cleanup_ready = $false
+            auto_destination_policy = ''
+            auto_destination_decision = ''
+            auto_destination_issue_count = 0
+            auto_destination_issues = @()
+            pipeline_sidecar_publish = ''
+            pipeline_sidecar_path = ''
+            published_sidecar_paths = @()
+            replaced_sidecar_hold_paths = @()
+            completed_manifest_path = ''
+            completed_manifest_append = ''
+            source_overwrite_confirmed = $false
             staged_input_cleanup = ''
             status = 'pending'
             reason = ''
@@ -803,6 +1283,18 @@ function Resolve-RerunPlans {
             queue_item = $null
         }
 
+        if ([string]::IsNullOrWhiteSpace($sourceText)) {
+            $plan.status = 'failed'
+            $plan.reason = 'missing source_path'
+            $plans.Add([pscustomobject]$plan)
+            continue
+        }
+        if ([string]::IsNullOrWhiteSpace($sourcePath)) {
+            $plan.status = 'failed'
+            $plan.reason = "relative source_path: $sourceText"
+            $plans.Add([pscustomobject]$plan)
+            continue
+        }
         if ([string]::IsNullOrWhiteSpace($sourcePath) -or -not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
             $plan.status = 'failed'
             $plan.reason = "source file not found: $sourceText"
@@ -839,6 +1331,14 @@ function Resolve-RerunPlans {
         }
 
         $fileInfo = Get-Item -LiteralPath $sourcePath -Force
+        if (-not (Test-RerunValidMediaExtension $fileInfo.FullName)) {
+            $extension = $fileInfo.Extension
+            if ([string]::IsNullOrWhiteSpace($extension)) { $extension = '(none)' }
+            $plan.status = 'failed'
+            $plan.reason = "invalid media extension: $extension"
+            $plans.Add([pscustomobject]$plan)
+            continue
+        }
         $plan.source_size = [long]$fileInfo.Length
         $plan.source_mtime_utc = $fileInfo.LastWriteTimeUtc.ToString('o')
         $identityFailure = Test-RerunSourceMatchesCsv -FileInfo $fileInfo -Row $row -FfprobePath $FfprobePath
@@ -852,6 +1352,8 @@ function Resolve-RerunPlans {
         $kind = Get-RerunMediaKind -Row $row -Path $sourcePath
         $plan.media_kind = $kind
         $extension = $fileInfo.Extension
+        $effectiveFinalOutputRoot = Get-RerunEffectiveFinalOutputRoot -Config $Config -SourcePath $sourcePath -FallbackRoot $FinalOutputRoot
+        $plan.final_output_root = $effectiveFinalOutputRoot
         if ($kind -eq 'TV') {
             $tvInfo = Get-TVInfoFromFile $fileInfo
             if (-not $tvInfo.IsReliable) {
@@ -864,13 +1366,46 @@ function Resolve-RerunPlans {
             $outputPlan = New-PlexDestinationPlan -MediaKind 'TV' -File $fileInfo -TvInfo $tvInfo -OriginalName $tvInfo.OriginalName -Extension ([string]$Config['OutputContainer']) -IncludeLibraryFolder:([bool]$Config['CreateTVSubfolder'])
             $plan.stage_path = Join-Path $stageTvRoot $stagePlan.RelativePath
             $plan.planned_output_path = Join-Path $OutputRoot $outputPlan.RelativePath
-            $plan.final_output_path = Join-Path $FinalOutputRoot $outputPlan.RelativePath
+            $plan.final_output_path = Join-Path $effectiveFinalOutputRoot $outputPlan.RelativePath
         } else {
             $stagePlan = New-PlexDestinationPlan -MediaKind 'Movie' -File $fileInfo -OriginalName $fileInfo.Name -Extension $extension
             $outputPlan = New-PlexDestinationPlan -MediaKind 'Movie' -File $fileInfo -OriginalName $fileInfo.Name -Extension ([string]$Config['OutputContainer'])
             $plan.stage_path = Join-Path $stageMoviesRoot $stagePlan.RelativePath
             $plan.planned_output_path = Join-Path $OutputRoot $outputPlan.RelativePath
-            $plan.final_output_path = Join-Path $FinalOutputRoot $outputPlan.RelativePath
+            $plan.final_output_path = Join-Path $effectiveFinalOutputRoot $outputPlan.RelativePath
+        }
+
+        $finalOutputResolution = Resolve-RerunFinalOutputPathFromRow -Row $row -FallbackPath ([string]$plan.final_output_path)
+        if (-not [string]::IsNullOrWhiteSpace([string]$finalOutputResolution.Path)) {
+            $plan.final_output_path = [string]$finalOutputResolution.Path
+            $plan.final_output_source = [string]$finalOutputResolution.Source
+            $plan.final_output_source_field = [string]$finalOutputResolution.SourceField
+        }
+
+        $sourceKey = Get-RerunNormalizedPathKey -Path ([string]$plan.source_path)
+        $finalKey = Get-RerunNormalizedPathKey -Path ([string]$plan.final_output_path)
+        $finalReplaceRequested = ($DestinationMode -in @('auto_replace_clean_else_pending_review','publish_replace_final') -or ($DestinationMode -eq 'pending_publish' -and $CollisionPolicy -eq 'replace_final'))
+        if ($finalReplaceRequested -and -not [string]::IsNullOrWhiteSpace($sourceKey) -and $sourceKey -eq $finalKey) {
+            if (-not $ConfirmSourceOverwrite) {
+                $plan.status = 'failed'
+                $plan.reason = 'final output resolves to source_path; set confirm_source_overwrite=true to allow CSV rerun source overwrite'
+                $plans.Add([pscustomobject]$plan)
+                continue
+            }
+            $plan.source_overwrite_confirmed = $true
+        }
+
+        $rootViolation = Get-RerunFinalOutputRootViolation `
+            -FinalOutputPath ([string]$plan.final_output_path) `
+            -SourcePath ([string]$plan.source_path) `
+            -EffectiveRoot ([string]$plan.final_output_root) `
+            -SourceField ([string]$plan.final_output_source_field) `
+            -SourceOverwriteConfirmed ([bool]$plan.source_overwrite_confirmed)
+        if (-not [string]::IsNullOrWhiteSpace($rootViolation)) {
+            $plan.status = 'failed'
+            $plan.reason = $rootViolation
+            $plans.Add([pscustomobject]$plan)
+            continue
         }
 
         $destinationKey = ([string]$plan.planned_output_path).ToLowerInvariant()
@@ -888,6 +1423,9 @@ function Resolve-RerunPlans {
                 stage_path = [string]$plan.stage_path
                 planned_output_path = [string]$plan.planned_output_path
                 final_output_path = [string]$plan.final_output_path
+                final_output_source = [string]$plan.final_output_source
+                final_output_source_field = [string]$plan.final_output_source_field
+                final_output_root = [string]$plan.final_output_root
                 stage_mode = [string]$plan.stage_mode
                 original_mode = [string]$plan.original_mode
                 return_mode = [string]$plan.return_mode
@@ -962,18 +1500,63 @@ function Remove-RerunStagedInputs {
 }
 
 function Get-RerunNonOverlapPath {
-    param([string]$Path, [string]$Suffix)
-    if (-not (Test-Path -LiteralPath $Path)) { return $Path }
+    param([string]$Path, [string]$Suffix, $ReservedKeys = $null)
+    $pathKey = Get-RerunNormalizedPathKey -Path $Path
+    $reserved = ($null -ne $ReservedKeys -and -not [string]::IsNullOrWhiteSpace($pathKey) -and $ReservedKeys.Contains($pathKey))
+    if (-not (Test-Path -LiteralPath $Path) -and -not $reserved) { return $Path }
     $dir = Split-Path -Parent $Path
     $leaf = [System.IO.Path]::GetFileNameWithoutExtension($Path)
     $ext = [System.IO.Path]::GetExtension($Path)
     $candidate = Join-Path $dir ("{0}.{1}{2}" -f $leaf, $Suffix, $ext)
     $counter = 1
-    while (Test-Path -LiteralPath $candidate) {
+    while ((Test-Path -LiteralPath $candidate) -or ($null -ne $ReservedKeys -and $ReservedKeys.Contains((Get-RerunNormalizedPathKey -Path $candidate)))) {
         $candidate = Join-Path $dir ("{0}.{1}.{2}{3}" -f $leaf, $Suffix, $counter, $ext)
         $counter++
     }
     return $candidate
+}
+
+function Resolve-RerunPendingPublishServerOut {
+    param(
+        [Parameter(Mandatory)] [string]$RequestedPath,
+        [Parameter(Mandatory)] [string]$BatchId,
+        $ReservedServerOutKeys
+    )
+    if ([string]::IsNullOrWhiteSpace($RequestedPath)) {
+        throw 'final output path is unavailable'
+    }
+    $destinationKey = Get-RerunNormalizedPathKey -Path $RequestedPath
+    $pendingDestinationInUse = ($null -ne $ReservedServerOutKeys -and $ReservedServerOutKeys.Contains($destinationKey))
+    $finalExists = Test-Path -LiteralPath $RequestedPath -PathType Leaf
+
+    if ($pendingDestinationInUse) {
+        if ($CollisionPolicy -eq 'fail') {
+            throw "pending publish destination is already queued: $RequestedPath"
+        }
+        # replace_final applies to final-file collisions. Pending queue collisions must stay unique.
+        $resolved = Get-RerunNonOverlapPath -Path $RequestedPath -Suffix $BatchId -ReservedKeys $ReservedServerOutKeys
+        $ReservedServerOutKeys.Add((Get-RerunNormalizedPathKey -Path $resolved)) | Out-Null
+        return $resolved
+    }
+
+    if ($finalExists) {
+        if ($CollisionPolicy -eq 'fail') {
+            throw "final output exists and collision_policy=fail: $RequestedPath"
+        }
+        if ($CollisionPolicy -eq 'replace_final') {
+            if (-not $ConfirmReplaceFinal) {
+                throw 'collision_policy=replace_final for pending_publish requires -ConfirmReplaceFinal.'
+            }
+            $ReservedServerOutKeys.Add($destinationKey) | Out-Null
+            return $RequestedPath
+        }
+        $resolved = Get-RerunNonOverlapPath -Path $RequestedPath -Suffix $BatchId -ReservedKeys $ReservedServerOutKeys
+        $ReservedServerOutKeys.Add((Get-RerunNormalizedPathKey -Path $resolved)) | Out-Null
+        return $resolved
+    }
+
+    $ReservedServerOutKeys.Add($destinationKey) | Out-Null
+    return $RequestedPath
 }
 
 function Move-RerunVerifiedOutput {
@@ -987,11 +1570,158 @@ function Move-RerunVerifiedOutput {
     return $Destination
 }
 
+function Backup-RerunFinalCompanionPath {
+    param(
+        [Parameter(Mandatory)] [string]$Path,
+        [Parameter(Mandatory)] [string]$BatchId,
+        [Parameter(Mandatory)] [string]$FinalHoldRoot
+    )
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return ''
+    }
+    $backupDir = Join-Path $FinalHoldRoot $BatchId
+    New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
+    $backup = Join-Path $backupDir (Split-Path -Leaf $Path)
+    if (Test-Path -LiteralPath $backup) { $backup = Get-RerunNonOverlapPath -Path $backup -Suffix $BatchId }
+    Move-Item -LiteralPath $Path -Destination $backup
+    return $backup
+}
+
+function Get-RerunFinalCompanionPath {
+    param(
+        [Parameter(Mandatory)] [string]$SourcePath,
+        [Parameter(Mandatory)] [string]$VerifiedOutput,
+        [Parameter(Mandatory)] [string]$FinalOutput
+    )
+    $verifiedDir = Split-Path -Parent $VerifiedOutput
+    $finalDir = Split-Path -Parent $FinalOutput
+    $relative = [System.IO.Path]::GetRelativePath([System.IO.Path]::GetFullPath($verifiedDir), [System.IO.Path]::GetFullPath($SourcePath))
+    if ([string]::IsNullOrWhiteSpace($relative) -or $relative.StartsWith('..')) {
+        return ''
+    }
+    $relativeParent = Split-Path $relative -Parent
+    $relativeLeaf = Split-Path $relative -Leaf
+    $sourceStem = [System.IO.Path]::GetFileNameWithoutExtension($relativeLeaf)
+    $verifiedStem = [System.IO.Path]::GetFileNameWithoutExtension($VerifiedOutput)
+    $finalStem = [System.IO.Path]::GetFileNameWithoutExtension($FinalOutput)
+    if (-not [string]::IsNullOrWhiteSpace($verifiedStem) -and $sourceStem.StartsWith($verifiedStem, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $relativeLeaf = $finalStem + $sourceStem.Substring($verifiedStem.Length) + [System.IO.Path]::GetExtension($relativeLeaf)
+    }
+    $relativeFinalPath = if ([string]::IsNullOrWhiteSpace($relativeParent)) { $relativeLeaf } else { Join-Path $relativeParent $relativeLeaf }
+    return (Join-Path $finalDir $relativeFinalPath)
+}
+
+function Copy-RerunFinalSrtSidecars {
+    param(
+        $PipelineSidecar,
+        [Parameter(Mandatory)] [string]$VerifiedOutput,
+        [Parameter(Mandatory)] [string]$FinalOutput,
+        [Parameter(Mandatory)] [string]$BatchId,
+        [Parameter(Mandatory)] [string]$FinalHoldRoot,
+        [string]$FinalOutputRoot = ''
+    )
+    $tracks = [System.Collections.Generic.List[object]]::new()
+    $backups = [System.Collections.Generic.List[string]]::new()
+    $copied = [System.Collections.Generic.List[string]]::new()
+    $verifiedDir = Split-Path -Parent $VerifiedOutput
+    foreach ($record in @(Get-RerunArrayField -Object $PipelineSidecar -Name 'tx3g_srt_tracks')) {
+        $recordMap = Copy-RerunRecordProperties -Record $record
+        $source = Get-RerunTrackSourcePath -Record $record
+        if (
+            -not [string]::IsNullOrWhiteSpace($source) -and
+            [System.IO.Path]::GetExtension($source).ToLowerInvariant() -eq '.srt' -and
+            (Test-Path -LiteralPath $source -PathType Leaf) -and
+            (Test-RerunPathUnderRoot -Path $source -Root $verifiedDir)
+        ) {
+            $destination = Get-RerunFinalCompanionPath -SourcePath $source -VerifiedOutput $VerifiedOutput -FinalOutput $FinalOutput
+            if (-not [string]::IsNullOrWhiteSpace($destination)) {
+                $finalDir = Split-Path -Parent $FinalOutput
+                if (-not (Test-RerunPathUnderRoot -Path $destination -Root $finalDir)) {
+                    throw "sidecar destination resolves outside final output folder: $destination"
+                }
+                if (-not [string]::IsNullOrWhiteSpace($FinalOutputRoot) -and -not (Test-RerunPathUnderRoot -Path $destination -Root $FinalOutputRoot)) {
+                    throw "sidecar destination resolves outside configured output root: $destination"
+                }
+                $destinationDir = Split-Path -Parent $destination
+                if (-not (Test-Path -LiteralPath $destinationDir)) { New-Item -ItemType Directory -Path $destinationDir -Force | Out-Null }
+                $backup = Backup-RerunFinalCompanionPath -Path $destination -BatchId $BatchId -FinalHoldRoot $FinalHoldRoot
+                if (-not [string]::IsNullOrWhiteSpace($backup)) { $backups.Add($backup) | Out-Null }
+                Copy-Item -LiteralPath $source -Destination $destination -Force
+                $copied.Add($destination) | Out-Null
+                $recordMap['path'] = $destination
+                $recordMap['file_name'] = Split-Path -Leaf $destination
+                $recordMap['status'] = 'written'
+            }
+        }
+        $tracks.Add([pscustomobject]$recordMap) | Out-Null
+    }
+    return [pscustomobject]@{
+        Tracks = @($tracks)
+        Backups = @($backups)
+        Copied = @($copied)
+    }
+}
+
+function Publish-RerunPipelineSidecarToFinal {
+    param(
+        $Plan,
+        [Parameter(Mandatory)] [string]$VerifiedOutput,
+        [Parameter(Mandatory)] [string]$Destination,
+        [Parameter(Mandatory)] [string]$BatchId,
+        [Parameter(Mandatory)] [string]$FinalHoldRoot
+    )
+    $sourceSidecarPath = Get-RerunPipelineSidecarPath -OutputPath $VerifiedOutput
+    if (-not (Test-Path -LiteralPath $sourceSidecarPath -PathType Leaf)) {
+        $Plan.pipeline_sidecar_publish = 'missing'
+        return
+    }
+    $pipelineSidecar = Read-RerunPipelineSidecar -OutputPath $VerifiedOutput
+    if ($null -eq $pipelineSidecar) {
+        $Plan.pipeline_sidecar_publish = 'unreadable'
+        return
+    }
+    $destinationSidecarPath = Get-RerunPipelineSidecarPath -OutputPath $Destination
+    $destinationSidecarDir = Split-Path -Parent $destinationSidecarPath
+    if (-not (Test-Path -LiteralPath $destinationSidecarDir)) { New-Item -ItemType Directory -Path $destinationSidecarDir -Force | Out-Null }
+
+    $sidecarCopy = Copy-RerunRecordProperties -Record $pipelineSidecar
+    $sidecarCopy['output_path'] = $Destination
+    $sidecarCopy['output_file'] = Split-Path -Leaf $Destination
+    $sidecarCopy['publish_state'] = 'published'
+    if ([string]::IsNullOrWhiteSpace([string]$sidecarCopy['publish_mode'])) {
+        $sidecarCopy['publish_mode'] = 'immediate'
+    }
+    $sidecarCopy['rerun_destination_policy'] = $DestinationMode
+    $sidecarCopy['rerun_batch_id'] = $BatchId
+    $sidecarCopy['rerun_source_path'] = [string]$Plan.source_path
+    $sidecarCopy['rerun_verified_output_path'] = $VerifiedOutput
+    $sidecarCopy['rerun_final_replacement'] = $true
+
+    $srtPublish = Copy-RerunFinalSrtSidecars -PipelineSidecar $pipelineSidecar -VerifiedOutput $VerifiedOutput -FinalOutput $Destination -BatchId $BatchId -FinalHoldRoot $FinalHoldRoot -FinalOutputRoot ([string]$Plan.final_output_root)
+    if (@($srtPublish.Tracks).Count -gt 0) {
+        $sidecarCopy['tx3g_srt_tracks'] = @($srtPublish.Tracks)
+    }
+    $sidecarBackup = Backup-RerunFinalCompanionPath -Path $destinationSidecarPath -BatchId $BatchId -FinalHoldRoot $FinalHoldRoot
+    $sidecarBackups = @($srtPublish.Backups)
+    if (-not [string]::IsNullOrWhiteSpace($sidecarBackup)) { $sidecarBackups += $sidecarBackup }
+    Write-RerunManifest -Path $destinationSidecarPath -Payload ([pscustomobject]$sidecarCopy)
+    $completedAppend = Add-RerunCompletedJobsManifestEntry -OutputPath $Destination -Payload $sidecarCopy
+    $Plan.pipeline_sidecar_publish = 'published'
+    $Plan.pipeline_sidecar_path = $destinationSidecarPath
+    $Plan.published_sidecar_paths = @($destinationSidecarPath) + @($srtPublish.Copied)
+    $Plan.replaced_sidecar_hold_paths = @($sidecarBackups)
+    $Plan.completed_manifest_path = [string]$script:RerunCompletedJobsManifest
+    $Plan.completed_manifest_append = if ($completedAppend) { 'appended' } else { 'append_failed' }
+}
+
 function New-RerunPendingPublishManifest {
     param(
         $Plan,
         [string]$PendingRoot,
-        [string]$BatchId
+        [string]$BatchId,
+        [string]$ServerOut = '',
+        [string]$RouteReasonCode = 'rerun_csv_pending_publish',
+        [string]$RouteReason = 'CSV rerun verified output promoted into Pending Publish.'
     )
     $verified = [string]$Plan.verified_output_path
     if ([string]::IsNullOrWhiteSpace($verified)) { $verified = [string]$Plan.planned_output_path }
@@ -1002,6 +1732,17 @@ function New-RerunPendingPublishManifest {
     }
     if ([string]::IsNullOrWhiteSpace($verified) -or -not (Test-Path -LiteralPath $verified -PathType Leaf)) {
         throw "verified output not found: $verified"
+    }
+    if ([string]::IsNullOrWhiteSpace($ServerOut)) { $ServerOut = [string]$Plan.final_output_path }
+    if ([string]::IsNullOrWhiteSpace($ServerOut)) { throw 'final output path is unavailable' }
+    $serverOutViolation = Get-RerunFinalOutputRootViolation `
+        -FinalOutputPath $ServerOut `
+        -SourcePath ([string]$Plan.source_path) `
+        -EffectiveRoot ([string]$Plan.final_output_root) `
+        -SourceField ([string]$Plan.final_output_source_field) `
+        -SourceOverwriteConfirmed ([bool]$Plan.source_overwrite_confirmed)
+    if (-not [string]::IsNullOrWhiteSpace($serverOutViolation)) {
+        throw $serverOutViolation
     }
     $verifiedOutputSize = [long](Get-Item -LiteralPath $verified -Force).Length
 
@@ -1016,7 +1757,7 @@ function New-RerunPendingPublishManifest {
     $now = Get-Date -Format 'o'
     $transactionId = ('rerun-csv-{0}-{1}' -f $BatchId, [guid]::NewGuid().ToString('N'))
     $pipelineSidecar = Read-RerunPipelineSidecar -OutputPath $verified
-    $pendingSidecars = New-RerunPendingSidecarEntries -PipelineSidecar $pipelineSidecar -VerifiedOutput $verified -FinalOutput ([string]$Plan.final_output_path) -PendingRoot $PendingRoot -TransactionId $transactionId
+    $pendingSidecars = New-RerunPendingSidecarEntries -PipelineSidecar $pipelineSidecar -VerifiedOutput $verified -FinalOutput $ServerOut -PendingRoot $PendingRoot -TransactionId $transactionId -FinalOutputRoot ([string]$Plan.final_output_root)
     $payload = [ordered]@{
         schema_version = 'pending_push_manifest.v1'
         parked_at = $now
@@ -1026,19 +1767,20 @@ function New-RerunPendingPublishManifest {
         manifest_state = 'pending_move'
         created_at = $now
         route = 'csv_rerun'
-        route_reason_code = 'rerun_csv_pending_publish'
-        route_reason = 'CSV rerun verified output promoted into Pending Publish.'
+        route_reason_code = $RouteReasonCode
+        route_reason = $RouteReason
         media_type = [string]$Plan.media_kind
         local_file = $pendingFile
         original_local_file = $verified
         parked_file = $pendingFile
-        server_out = [string]$Plan.final_output_path
+        server_out = $ServerOut
         source_path = [string]$Plan.source_path
         source_size = [long]($Plan.source_size -as [long])
         source_mtime_utc = [string]$Plan.source_mtime_utc
         source_identity = $sourceIdentity
         source_identity_v2 = $sourceIdentity
         source_identity_v2_algorithm = 'rerun_csv_v2'
+        confirm_source_overwrite = [bool]$Plan.source_overwrite_confirmed
         output_size = $verifiedOutputSize
         publish_mode = 'pending_publish'
         sidecar_files = @($pendingSidecars.Entries)
@@ -1066,6 +1808,15 @@ function New-RerunPendingPublishManifest {
             rerun_audit_issue_codes = [string]$Plan.audit_issue_codes
         }
     }
+    $autoIssues = @()
+    if ($Plan.PSObject.Properties['auto_destination_issues']) {
+        $autoIssues = @($Plan.auto_destination_issues)
+    }
+    if ($autoIssues.Count -gt 0) {
+        $payload['rerun_auto_destination_policy'] = 'auto_replace_clean_else_pending_review'
+        $payload['rerun_auto_destination_decision'] = 'pending_publish_review'
+        $payload['rerun_auto_review_issues'] = @($autoIssues)
+    }
     foreach ($evidenceKey in @('folder_policy','route_plan','route_explanation','library_profile','dynamic_hdr','quality_verification','audio_decisions','subtitle_decisions','encode_selected_attempt','encode_selected_encoder','encode_selected_encoder_kind','encode_selected_gpu_device')) {
         $evidenceValue = Get-RerunObjectValue -Object $pipelineSidecar -Name $evidenceKey -Default $null
         if ($null -ne $evidenceValue) {
@@ -1085,7 +1836,7 @@ function New-RerunPendingPublishManifest {
         Write-RerunManifest -Path $manifestPath -Payload $payload
         $manifestWritten = $true
         $roundTrip = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json -ErrorAction Stop
-        if ([string]$roundTrip.local_file -ne $pendingFile -or [string]$roundTrip.server_out -ne [string]$Plan.final_output_path -or [string]$roundTrip.manifest_state -ne 'pending_move') {
+        if ([string]$roundTrip.local_file -ne $pendingFile -or [string]$roundTrip.server_out -ne $ServerOut -or [string]$roundTrip.manifest_state -ne 'pending_move') {
             throw 'CSV rerun pending manifest validation failed before park.'
         }
         Move-RerunVerifiedOutput -Source $verified -Destination $pendingFile | Out-Null
@@ -1107,6 +1858,7 @@ function New-RerunPendingPublishManifest {
     $Plan.verified_output_path = $pendingFile
     $Plan.pending_publish_payload_path = $pendingFile
     $Plan.pending_publish_manifest_path = $manifestPath
+    $Plan.final_output_path = $ServerOut
     $Plan.status = 'pending_publish'
     $Plan.reason = 'verified output moved into Pending Publish manifest'
 }
@@ -1145,6 +1897,38 @@ function Invoke-RerunOriginalPolicy {
     }
 }
 
+function Publish-RerunReplaceFinal {
+    param(
+        $Plan,
+        [Parameter(Mandatory)] [string]$VerifiedOutput,
+        [Parameter(Mandatory)] [string]$Destination,
+        [Parameter(Mandatory)] [string]$BatchId,
+        [Parameter(Mandatory)] [string]$FinalHoldRoot,
+        [Parameter(Mandatory)] [string]$OriginalHoldRoot,
+        [string]$Reason = 'verified output replaced backend-planned final output'
+    )
+    if (-not $ConfirmReplaceFinal) { throw "$DestinationMode requires -ConfirmReplaceFinal." }
+    if (Test-Path -LiteralPath $Destination -PathType Leaf) {
+        $backupDir = Join-Path $FinalHoldRoot $BatchId
+        New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
+        $backup = Join-Path $backupDir (Split-Path -Leaf $Destination)
+        if (Test-Path -LiteralPath $backup) { $backup = Get-RerunNonOverlapPath -Path $backup -Suffix $BatchId }
+        Move-Item -LiteralPath $Destination -Destination $backup
+        $Plan.replaced_final_hold_path = $backup
+    }
+    Move-RerunVerifiedOutput -Source $VerifiedOutput -Destination $Destination | Out-Null
+    Publish-RerunPipelineSidecarToFinal -Plan $Plan -VerifiedOutput $VerifiedOutput -Destination $Destination -BatchId $BatchId -FinalHoldRoot $FinalHoldRoot
+    $Plan.status = 'published_replace_final'
+    $Plan.published_path = $Destination
+    if ([bool]$Plan.source_overwrite_confirmed) {
+        $Plan.reason = "$Reason at confirmed source path"
+        $Plan.original_action = 'source_overwritten_by_confirmed_replace_final'
+    } else {
+        $Plan.reason = $Reason
+        Invoke-RerunOriginalPolicy -Plan $Plan -BatchId $BatchId -HoldRoot $OriginalHoldRoot
+    }
+}
+
 function Invoke-RerunDestinationPolicy {
     param(
         [array]$Plans,
@@ -1153,6 +1937,7 @@ function Invoke-RerunDestinationPolicy {
         [string]$FinalHoldRoot,
         [string]$OriginalHoldRoot
     )
+    $reservedServerOutKeys = Get-RerunPendingServerDestinationSet -PendingRoot $PendingRoot
     foreach ($plan in @($Plans | Where-Object { $_.status -eq 'complete' })) {
         try {
             $verified = [string]$plan.verified_output_path
@@ -1166,8 +1951,42 @@ function Invoke-RerunDestinationPolicy {
             }
             if ($DestinationMode -eq 'pending_publish') {
                 New-Item -ItemType Directory -Path $PendingRoot -Force | Out-Null
-                New-RerunPendingPublishManifest -Plan $plan -PendingRoot $PendingRoot -BatchId $BatchId
+                $serverOut = Resolve-RerunPendingPublishServerOut -RequestedPath ([string]$plan.final_output_path) -BatchId $BatchId -ReservedServerOutKeys $reservedServerOutKeys
+                New-RerunPendingPublishManifest -Plan $plan -PendingRoot $PendingRoot -BatchId $BatchId -ServerOut $serverOut
                 $plan.original_action = 'deferred_until_pending_publish_drain'
+                continue
+            }
+            if ($DestinationMode -eq 'auto_replace_clean_else_pending_review') {
+                if (-not $ConfirmReplaceFinal) { throw 'auto_replace_clean_else_pending_review requires -ConfirmReplaceFinal.' }
+                $issues = @(Get-RerunAutoReviewIssues -Plan $plan -VerifiedOutput $verified)
+                $plan.auto_destination_policy = 'auto_replace_clean_else_pending_review'
+                $plan.auto_destination_issue_count = [int]$issues.Count
+                $plan.auto_destination_issues = @($issues)
+                if ($issues.Count -gt 0) {
+                    $plan.auto_destination_decision = 'pending_publish_review'
+                    New-Item -ItemType Directory -Path $PendingRoot -Force | Out-Null
+                    $serverOut = Resolve-RerunPendingPublishServerOut -RequestedPath ([string]$plan.final_output_path) -BatchId $BatchId -ReservedServerOutKeys $reservedServerOutKeys
+                    New-RerunPendingPublishManifest `
+                        -Plan $plan `
+                        -PendingRoot $PendingRoot `
+                        -BatchId $BatchId `
+                        -ServerOut $serverOut `
+                        -RouteReasonCode 'rerun_csv_auto_pending_review' `
+                        -RouteReason 'CSV rerun auto-return policy found remaining issue evidence; output parked for Pending Publish review.'
+                    $plan.original_action = 'deferred_until_pending_publish_review'
+                    continue
+                }
+                $plan.auto_destination_decision = 'published_replace_final'
+                $destination = [string]$plan.final_output_path
+                if ([string]::IsNullOrWhiteSpace($destination)) { throw 'final output path is unavailable' }
+                Publish-RerunReplaceFinal `
+                    -Plan $plan `
+                    -VerifiedOutput $verified `
+                    -Destination $destination `
+                    -BatchId $BatchId `
+                    -FinalHoldRoot $FinalHoldRoot `
+                    -OriginalHoldRoot $OriginalHoldRoot `
+                    -Reason 'auto policy clean output replaced backend-planned final output'
                 continue
             }
             $destination = [string]$plan.final_output_path
@@ -1187,20 +2006,14 @@ function Invoke-RerunDestinationPolicy {
                 continue
             }
             if ($DestinationMode -eq 'publish_replace_final') {
-                if (-not $ConfirmReplaceFinal) { throw 'publish_replace_final requires -ConfirmReplaceFinal.' }
-                if (Test-Path -LiteralPath $destination -PathType Leaf) {
-                    $backupDir = Join-Path $FinalHoldRoot $BatchId
-                    New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
-                    $backup = Join-Path $backupDir (Split-Path -Leaf $destination)
-                    if (Test-Path -LiteralPath $backup) { $backup = Get-RerunNonOverlapPath -Path $backup -Suffix $BatchId }
-                    Move-Item -LiteralPath $destination -Destination $backup
-                    $plan.replaced_final_hold_path = $backup
-                }
-                Move-RerunVerifiedOutput -Source $verified -Destination $destination | Out-Null
-                $plan.status = 'published_replace_final'
-                $plan.published_path = $destination
-                $plan.reason = 'verified output replaced backend-planned final output'
-                Invoke-RerunOriginalPolicy -Plan $plan -BatchId $BatchId -HoldRoot $OriginalHoldRoot
+                Publish-RerunReplaceFinal `
+                    -Plan $plan `
+                    -VerifiedOutput $verified `
+                    -Destination $destination `
+                    -BatchId $BatchId `
+                    -FinalHoldRoot $FinalHoldRoot `
+                    -OriginalHoldRoot $OriginalHoldRoot `
+                    -Reason 'verified output replaced backend-planned final output'
                 continue
             }
         } catch {
@@ -1284,7 +2097,10 @@ if (-not $pwsh) { throw 'PowerShell 7 host not found for nested pipeline run.' }
 
 $localBase = Resolve-RerunPath ([string]$config['LocalBase'])
 $mainOutsource = Resolve-RerunPath ([string]$config['Outsource'])
+$resolvedCsvPath = Resolve-RerunPath $CsvPath
+$resolvedConfigPath = Resolve-RerunPath $ConfigPath
 $batchId = 'rerun_' + (Get-Date -Format 'yyyyMMdd_HHmmss') + '_' + [guid]::NewGuid().ToString('N').Substring(0, 8)
+$rerunStartedAtUtc = [datetime]::UtcNow
 $localBaseTrimmed = $localBase.TrimEnd([char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar))
 $localBaseParent = Split-Path -Parent $localBaseTrimmed
 $localBaseLeaf = Split-Path -Leaf $localBaseTrimmed
@@ -1294,12 +2110,18 @@ if ([string]::IsNullOrWhiteSpace($localBaseParent) -or [string]::IsNullOrWhiteSp
 $rerunWorkspaceRoot = Join-Path $localBaseParent ($localBaseLeaf + '_RerunWorkspace')
 $stageRoot = Join-Path $rerunWorkspaceRoot (Join-RerunPathParts @('RerunQueue', $batchId))
 $parkRoot = Join-Path $rerunWorkspaceRoot (Join-RerunPathParts @('RerunParked', $batchId))
+$nestedLocalBase = Join-Path $rerunWorkspaceRoot (Join-RerunPathParts @('RuntimeState', $batchId))
 $manifestRoot = Join-Path $localBase 'RerunManifests'
 $manifestPath = Join-Path $manifestRoot "$batchId.json"
 $outputRoot = Join-Path $parkRoot 'Output'
 $pendingRoot = Join-Path $localBase 'State\PendingServerPush'
+$completedRoot = Join-Path $localBase 'State\Completed'
+$completedJobsManifest = Join-Path $completedRoot 'completed_jobs.jsonl'
+$script:RerunCompletedJobsManifest = $completedJobsManifest
 $finalHoldRoot = Join-Path $localBase 'State\Rerun\FinalReplaced'
 $originalHoldRoot = Join-Path $localBase 'State\Rerun\OriginalHold'
+$rerunControlRoot = Join-Path $localBase 'State\Rerun\Control'
+$rerunStopMarkerPath = Join-Path $rerunControlRoot 'stop_after_current.json'
 
 $ffprobePath = Join-Path $script:PipelineRoot 'tools\ffmpeg\bin\ffprobe.exe'
 if (-not (Test-Path -LiteralPath $ffprobePath)) { $ffprobePath = '' }
@@ -1311,8 +2133,8 @@ $plans = @(Resolve-RerunPlans -Rows $rows -Config $config -StageRoot $stageRoot 
 $manifest = [ordered]@{
     batch_id = $batchId
     created_at = (Get-Date -Format 'o')
-    csv_path = (Resolve-RerunPath $CsvPath)
-    config_path = (Resolve-RerunPath $ConfigPath)
+    csv_path = $resolvedCsvPath
+    config_path = $resolvedConfigPath
     dry_run = [bool]$DryRun
     plan_only = [bool]$PlanOnly
     default_stage_mode = $DefaultStageMode
@@ -1324,9 +2146,11 @@ $manifest = [ordered]@{
     collision_policy = $CollisionPolicy
     window_size = [int]$WindowSize
     confirm_replace_final = [bool]$ConfirmReplaceFinal
+    confirm_source_overwrite = [bool]$ConfirmSourceOverwrite
     confirm_original_policy = [bool]$ConfirmOriginalPolicy
     confirm_delete_original = [bool]$ConfirmDeleteOriginal
     pipeline_local_base = $localBase
+    nested_pipeline_local_base = $nestedLocalBase
     rerun_workspace_root = $rerunWorkspaceRoot
     library_profiles_rewritten = [bool]$config.ContainsKey('LibraryProfiles')
     stage_root = $stageRoot
@@ -1334,13 +2158,20 @@ $manifest = [ordered]@{
     output_root = $outputRoot
     final_output_root = $mainOutsource
     pending_publish_root = $pendingRoot
+    completed_jobs_manifest = $completedJobsManifest
     final_hold_root = $finalHoldRoot
     original_hold_root = $originalHoldRoot
+    nested_pipeline_deferred_publish = $false
+    nested_pipeline_deferred_publish_forced = $true
+    stop_control_marker_path = $rerunStopMarkerPath
     nested_pipeline_timeout_seconds = [int]$script:RerunNestedPipelineTimeoutSeconds
     status = 'planned'
     rows = @($plans)
 }
 
+Write-RerunLog "CSV rerun selected path: $resolvedCsvPath"
+Write-RerunLog "CSV rerun config path: $resolvedConfigPath"
+Write-RerunLog "CSV rerun evidence: batch=$batchId manifest=$manifestPath workspace=$rerunWorkspaceRoot operator_local_base=$localBase nested_local_base=$nestedLocalBase destination=$DestinationMode collision=$CollisionPolicy execution=$ExecutionMode window=$WindowSize dry_run=$([bool]$DryRun) plan_only=$([bool]$PlanOnly)"
 Write-RerunLog "Rerun CSV rows listed: $($rows.Count); enabled/planned: $($plans.Count)"
 foreach ($plan in $plans) {
     Write-RerunLog ("PLAN [{0}] {1} -> {2}" -f $plan.status, $plan.source_path, $plan.planned_output_path)
@@ -1356,6 +2187,7 @@ if ($PlanOnly) {
 
 New-Item -ItemType Directory -Path $parkRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
+New-Item -ItemType Directory -Path $nestedLocalBase -Force | Out-Null
 Write-RerunManifest -Path $manifestPath -Payload $manifest
 
 if ($DryRun) {
@@ -1392,16 +2224,37 @@ for ($offset = 0; $offset -lt $pendingPlans.Count; $offset += $chunkSize) {
     $runnable = @($chunk | Where-Object { $_.status -eq 'staged' })
     if ($runnable.Count -eq 0) {
         Write-RerunLog "Chunk $chunkIndex has no staged rows; skipping nested pipeline." "WARN"
+        $manifest.status = "chunk_${chunkIndex}_complete"
+        $manifest.current_phase = 'chunk_complete'
+        $manifest.current_chunk = $chunkIndex
+        $manifest.rows = @($plans)
+        Write-RerunManifest -Path $manifestPath -Payload $manifest
+        $stopRequest = Get-RerunStopAfterCurrentRequest -MarkerPath $rerunStopMarkerPath -BatchId $batchId -ManifestPath $manifestPath -CsvPath $resolvedCsvPath -StartedAtUtc $rerunStartedAtUtc
+        if ($null -ne $stopRequest) {
+            $counts = Update-RerunManifestCounts -Manifest $manifest -Plans $plans -PipelineExitFailures $pipelineExitFailures
+            $manifest.status = 'stopped_after_current'
+            $manifest.current_phase = 'stopped_after_current'
+            $manifest.stopped_at = (Get-Date -Format 'o')
+            $manifest.stop_request_id = Get-RerunObjectText -Object $stopRequest -Name 'request_id' -Default ''
+            $manifest.stop_requested_at = Get-RerunObjectText -Object $stopRequest -Name 'created_at' -Default ''
+            $manifest.stop_request_marker_path = $rerunStopMarkerPath
+            $manifest.safe_next_action = 'Use Continue Pending Rows to start a new CSV rerun for rows still marked pending; failed and review rows require manual review.'
+            $manifest.rows = @($plans)
+            Write-RerunManifest -Path $manifestPath -Payload $manifest
+            Write-RerunLog "CSV rerun stopped after chunk $chunkIndex before staging the next row/window. pending=$($counts.pending) success=$($counts.success) failed=$($counts.failed) stop_request=$($manifest.stop_request_id)"
+            exit 0
+        }
         continue
     }
 
     $tempConfig = [hashtable]::new($config)
-    $tempConfig['LocalBase'] = $localBase
+    $tempConfig['LocalBase'] = $nestedLocalBase
     $tempConfig['SourceMovies'] = Join-Path $stageRoot 'Movies'
     $tempConfig['SourceTV'] = Join-Path $stageRoot 'TV'
     $tempConfig['Outsource'] = $outputRoot
     $tempConfig['ReprocessAll'] = $true
     $tempConfig['SkipStabilityCheck'] = $true
+    $tempConfig['DeferredPublish'] = $false
     if ($tempConfig.ContainsKey('LibraryProfiles')) {
         $tempConfig['LibraryProfiles'] = New-RerunLibraryProfiles -Profiles $config['LibraryProfiles'] -StageRoot $stageRoot -OutputRoot $outputRoot
     }
@@ -1419,7 +2272,8 @@ for ($offset = 0; $offset -lt $pendingPlans.Count; $offset += $chunkSize) {
     if ($ShowConfig) { $args += '-ShowConfig' }
 
     Write-RerunLog "Launching nested pipeline for CSV-authoritative batch: $batchId chunk=$chunkIndex/$([math]::Ceiling($pendingPlans.Count / $chunkSize)) rows=$($runnable.Count)"
-    Write-RerunLog "Nested pipeline LocalBase: $localBase"
+    Write-RerunLog "Operator LocalBase: $localBase"
+    Write-RerunLog "Nested pipeline LocalBase: $nestedLocalBase"
     Write-RerunLog "CSV rerun workspace: $rerunWorkspaceRoot"
     if ($tempConfig.ContainsKey('LibraryProfiles')) { Write-RerunLog "CSV rerun library profiles rewritten to staged roots." }
     $pipelineRun = Invoke-RerunStreamingCommand -FilePath $pwsh -ArgumentList $args -TimeoutSeconds $script:RerunNestedPipelineTimeoutSeconds -Label "nested pipeline chunk $chunkIndex"
@@ -1438,24 +2292,34 @@ for ($offset = 0; $offset -lt $pendingPlans.Count; $offset += $chunkSize) {
     $manifest.current_chunk = $chunkIndex
     $manifest.rows = @($plans)
     Write-RerunManifest -Path $manifestPath -Payload $manifest
+    $stopRequest = Get-RerunStopAfterCurrentRequest -MarkerPath $rerunStopMarkerPath -BatchId $batchId -ManifestPath $manifestPath -CsvPath $resolvedCsvPath -StartedAtUtc $rerunStartedAtUtc
+    if ($null -ne $stopRequest) {
+        $counts = Update-RerunManifestCounts -Manifest $manifest -Plans $plans -PipelineExitFailures $pipelineExitFailures
+        $manifest.status = 'stopped_after_current'
+        $manifest.current_phase = 'stopped_after_current'
+        $manifest.stopped_at = (Get-Date -Format 'o')
+        $manifest.stop_request_id = Get-RerunObjectText -Object $stopRequest -Name 'request_id' -Default ''
+        $manifest.stop_requested_at = Get-RerunObjectText -Object $stopRequest -Name 'created_at' -Default ''
+        $manifest.stop_request_marker_path = $rerunStopMarkerPath
+        $manifest.safe_next_action = 'Use Continue Pending Rows to start a new CSV rerun for rows still marked pending; failed and review rows require manual review.'
+        $manifest.rows = @($plans)
+        Write-RerunManifest -Path $manifestPath -Payload $manifest
+        Write-RerunLog "CSV rerun stopped after chunk $chunkIndex before staging the next row/window. pending=$($counts.pending) success=$($counts.success) failed=$($counts.failed) stop_request=$($manifest.stop_request_id)"
+        exit 0
+    }
 }
 
-$review = @($plans | Where-Object { $_.status -eq 'review_workspace' }).Count
-$pendingPublish = @($plans | Where-Object { $_.status -eq 'pending_publish' }).Count
-$published = @($plans | Where-Object { $_.status -in @('published_non_overlap','published_replace_final') }).Count
-$failed = @($plans | Where-Object { $_.status -eq 'failed' }).Count
-$success = $review + $pendingPublish + $published
+$counts = Update-RerunManifestCounts -Manifest $manifest -Plans $plans -PipelineExitFailures $pipelineExitFailures
+$review = $counts.review
+$pendingPublish = $counts.pending_publish
+$published = $counts.published
+$failed = $counts.failed
+$success = $counts.success
 $manifest.status = if ($failed -gt 0 -or $pipelineExitFailures -gt 0) { 'completed_with_failed_rows' } else { 'complete' }
 $manifest.completed_at = (Get-Date -Format 'o')
-$manifest.pipeline_exit_failures = $pipelineExitFailures
-$manifest.success_count = $success
-$manifest.review_workspace_count = $review
-$manifest.pending_publish_count = $pendingPublish
-$manifest.published_count = $published
-$manifest.failed_count = $failed
 $manifest.rows = @($plans)
 Write-RerunManifest -Path $manifestPath -Payload $manifest
 
-Write-RerunLog "Rerun batch complete: success=$success review=$review pending_publish=$pendingPublish published=$published failed=$failed pipeline_exit_failures=$pipelineExitFailures manifest=$manifestPath"
+Write-RerunLog "Rerun batch complete: csv=$resolvedCsvPath batch=$batchId success=$success review=$review pending_publish=$pendingPublish published=$published failed=$failed pipeline_exit_failures=$pipelineExitFailures manifest=$manifestPath"
 if ($pipelineExitFailures -gt 0 -or $failed -gt 0) { exit 1 }
 exit 0

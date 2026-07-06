@@ -1,0 +1,38 @@
+{
+  "id": "MP-CHANGE-2026-0704-010",
+  "title": "CSV rerun ready classification",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-04",
+  "date_completed": "2026-07-04",
+  "summary": "Keep backend-remediable CSV rerun rows ready when their audit bucket is REVIEW, while preserving the bucket as evidence.",
+  "reason": "CSV rerun preview was showing warning for subtitle/audio/video remediation rows solely because the audit export bucket was REVIEW, even though the backend rule could process them safely.",
+  "affected_areas": [
+    "generated",
+    "process",
+    "tests"
+  ],
+  "files_touched": [
+    "docs/generated/summaries/src/mediapipeline/core/processes/rerun_rules.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_rerun_csv_preview.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0704-010.json",
+    "src/mediapipeline/core/processes/rerun_rules.py",
+    "tests/python/desktop/test_rerun_csv_preview.py"
+  ],
+  "behavior_before": "Subtitle/audio/video remediation rows with effective_bucket=REVIEW were marked warning because the review bucket added a non-blocking warning reason.",
+  "behavior_after": "Subtitle/audio/video remediation rows with effective_bucket=REVIEW are marked ready when source/path/mode validation passes; stale backend-generated review-bucket warnings in scoped CSVs are normalized to ready.",
+  "tests_added": [
+    "tests.python.desktop.test_rerun_csv_preview.RerunCsvPreviewTests.test_preview_keeps_review_bucket_remediation_rows_ready",
+    "tests.python.desktop.test_rerun_csv_preview.RerunCsvPreviewTests.test_preview_normalizes_legacy_review_bucket_rule_warning_to_ready"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_rerun_csv_preview -q (pass: 15 tests)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_facade_process_rerun_policy -q (pass: 6 tests)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/processes/rerun_rules.py tests/python/desktop/test_rerun_csv_preview.py (pass: 2 written)"
+  ],
+  "rollback_plan": "Revert src/mediapipeline/core/processes/rerun_rules.py and the focused test additions, then refresh the two generated summaries again.",
+  "related_changes": [],
+  "notes": "Keep backend-remediable CSV rerun REVIEW rows ready instead of warning.\nAdd regression coverage for REVIEW bucket remediation rows staying ready.\nRefresh generated summary after rerun preview regression tests."
+}

@@ -7,6 +7,7 @@
       renderProgressBarsInto,
       setText,
     } = deps;
+    const RENAME_READ_ONLY_BOUNDARY = "Mutation guardrail: read-only evidence; backend rename routes own filesystem changes.";
 
     function renameApplyResultLines(result) {
       const payload = result && typeof result === "object" ? result : {};
@@ -190,7 +191,7 @@
         renameApplyOutcomeRow(
           "Mutation boundary",
           "ready",
-          "Only /api/rename/apply and /api/rename/undo can mutate rename paths. This outcome review cannot rename, retry, delete, or touch files.",
+          RENAME_READ_ONLY_BOUNDARY,
           "For any doubt, compare preview, command history, output folders, and backend logs before another mutation.",
         ),
       ];
@@ -205,7 +206,7 @@
           "Backend rename apply outcome review:",
           "Status: No apply",
           "Next step: run Preview, check intended rows, read Apply Readiness, then use backend-owned Apply Checked / Selected Rename.",
-          "Mutation guardrail: this panel is read-only until Apply or Undo is explicitly confirmed.",
+          RENAME_READ_ONLY_BOUNDARY,
         ];
       }
       const data = payload.data && typeof payload.data === "object" ? payload.data : {};
@@ -218,7 +219,8 @@
         `Applied: selected=${data.selected ?? ""}; applied=${data.applied_count ?? ""}; renamed=${counts.renamed}; unchanged=${counts.unchanged}; skipped=${counts.skipped}; protected=${counts.protected}; failed=${counts.failed}; sidecars=${data.sidecars ?? ""}`,
         `Undo manifest: ${data.undo_manifest || "(not reported)"}`,
         "Next step: verify rows/sidecars on disk only after command result and history agree.",
-        "Mutation guardrail: use Undo Last Apply only when this backend result reports an undo manifest.",
+        RENAME_READ_ONLY_BOUNDARY,
+        "Use Undo Last Apply only when this backend result reports an undo manifest.",
       ];
     }
 
@@ -317,7 +319,7 @@
           "Backend rename apply outcome review:",
           `Status: Applying; selected=${planned}`,
           "Next step: wait for the backend rename.apply result before retrying, undoing, or changing scope.",
-          "Mutation guardrail: this in-flight progress does not prove any file was renamed.",
+          "In-flight progress is read-only evidence and does not prove any file was renamed.",
         ].join("\n"),
       );
       const tbody = byId("rename-apply-outcome-rows");

@@ -1,0 +1,35 @@
+{
+  "id": "MP-CHANGE-2026-0702-011",
+  "title": "Reduce Home live run noise",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-07-02",
+  "date_completed": "2026-07-02",
+  "summary": "Reworked the Home live-run strip into a compact run monitor with one primary current-step summary, five compact facts, and a collapsed evidence-details disclosure.",
+  "reason": "The previous Home live-run panel exposed every backend live-run fact as equally prominent cards, creating excessive noise during active CSV reruns and media processing.",
+  "affected_areas": [
+    "generated",
+    "webview"
+  ],
+  "behavior_before": "Home rendered the live-run strip as a full grid of backend facts, including CSV rows, import lines, route, queue, ETA, update age, FFmpeg, worker, reliability, and close-readiness at the same visual level.",
+  "behavior_after": "Home renders the live run as an operator monitor: current status/stage is primary, key facts stay visible, and the full evidence list remains available in a disclosure. Other live-run strips keep their existing evidence-rich rendering.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/progressView.js",
+    "apps/desktop/webview/static/assets/styles/components/progress-live.css",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/progressView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles/components/progress-live.css.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0702-011.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "npm run webview:check -> passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_progress_bar_updated_at_uses_date_then_time tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_home_progress_stale_review_requires_consecutive_snapshots tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_progress_csv_rerun_evidence_does_not_override_active_pipeline -q -> passed",
+    "ops/scripts/smoke/Test-WebViewBrowserHomeLiveStateSmoke.ps1 -> passed",
+    "node node_modules/eslint/bin/eslint.js apps/desktop/webview/static/assets/progressView.js -> passed with 0 errors and 6 existing warnings"
+  ],
+  "rollback_plan": "Revert apps/desktop/webview/static/assets/progressView.js, apps/desktop/webview/static/assets/styles/components/progress-live.css, and their regenerated summaries for this packet.",
+  "related_changes": [],
+  "notes": "Add compact Home live-run monitor layout, responsive containment, and disclosure styling.\nRefresh generated summary after Home live-run renderer update.\nRefresh generated summary after compact live-run monitor styles.\nRender Home live run as a compact monitor while keeping backend evidence available.\nFull npm run webview:lint was attempted but failed on pre-existing repo-wide lint debt outside this packet: apiClient.js no-useless-escape plus existing warnings.\nStrict change-control coverage was attempted and this packet passed its own status/coverage shape, but the global run still failed on unrelated MP-CHANGE-2026-0702-010 missing high-risk notes/rollback detail and uncovered src/mediapipeline/core/processes/rerun_state_correlation.py."
+}

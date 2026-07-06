@@ -664,6 +664,18 @@
     if (options.csvRerunQueue) {
       items.push({ label: "Workflow", value: "CSV rerun queue", state: "source" });
     }
+    const activeWork = options.activeWork && typeof options.activeWork === "object" ? options.activeWork : {};
+    if (activeWork.current_stage_label) {
+      items.push({ label: "Current stage", value: formatProgressValue(activeWork.current_stage_label), state: "running" });
+    }
+    if (activeWork.latest_evidence_label) {
+      items.push({ label: "Evidence", value: formatProgressValue(activeWork.latest_evidence_label), state: "running" });
+    } else if (activeWork.missing_evidence_label) {
+      items.push({ label: "Evidence", value: formatProgressValue(activeWork.missing_evidence_label), state: "warning" });
+    }
+    if (activeWork.next_stage_label) {
+      items.push({ label: "Next", value: formatProgressValue(activeWork.next_stage_label), state: "queue" });
+    }
     items.push(
       { label: "Route", value: homeQueueRoute(item) || "Not reported", state: "route" },
       { label: "Status", value: formatProgressValue(item.operator_status || item.status || item.decision || "Unknown"), state: "status" },
@@ -812,13 +824,23 @@
     };
   }
 
-  function homeCsvRerunRows(evidence = {}) {
-    return [
+  function homeCsvRerunRows(evidence = {}, activeWork = {}) {
+    const rows = [];
+    const activeLine = homeActiveWorkLine(activeWork);
+    if (activeLine) {
+      rows.push({
+        label: "Now",
+        value: activeLine,
+        meta: [activeWork.item_label, activeWork.next_stage_label ? `Next: ${activeWork.next_stage_label}` : ""].filter(Boolean).join(" · ") || "Backend active-work evidence",
+        state: activeWork.evidence_status === "waiting" ? "warning" : "running",
+      });
+    }
+    rows.push(
       {
         label: "Importing",
-        value: evidence.currentImport || "Waiting for next copy",
+        value: evidence.currentImport || activeWork.latest_evidence_label || activeWork.missing_evidence_label || "Waiting for next copy",
         meta: "Current CSV staging/import",
-        state: evidence.currentImport ? "running" : "warning",
+        state: evidence.currentImport || activeWork.latest_evidence_label ? "running" : "warning",
       },
       {
         label: "Last imported",
@@ -838,13 +860,14 @@
         meta: "From stdout tail",
         state: evidence.plannedRows ? "ready" : "unknown",
       },
-    ];
+    );
+    return rows;
   }
 
-  function renderHomeCsvRerunDetail(evidence = {}) {
+  function renderHomeCsvRerunDetail(evidence = {}, activeWork = {}) {
     const container = byId("home-next-queue-detail");
     if (!container) return;
-    const rows = homeCsvRerunRows(evidence);
+    const rows = homeCsvRerunRows(evidence, activeWork);
     container.classList.add("home-next-queue-detail");
     container.setAttribute(
       "aria-label",
@@ -877,17 +900,19 @@
   function renderHomeCsvRerunQueue(context = {}) {
     const evidence = homeCsvRerunEvidence(context);
     if (!homeCsvRerunActive(context, evidence)) return false;
+    const activeWork = homeActiveWork(context);
     const list = byId("home-next-queue-list");
     if (!list) return false;
     list.setAttribute("role", "listbox");
     list.replaceChildren();
     setHomePanelStatus("home-next-queue-status", "CSV rerun active", "running");
-    homeCsvRerunRows(evidence).forEach((entry, index) => {
+    homeCsvRerunRows(evidence, activeWork).forEach((entry, index) => {
       const li = document.createElement("li");
       li.tabIndex = 0;
       li.setAttribute("role", "option");
       li.setAttribute("aria-selected", index === 0 ? "true" : "false");
       li.classList.toggle("is-selected", index === 0);
+      if (entry.label === "Now") li.dataset.current = "true";
       li.dataset.status = entry.state || "";
       li.setAttribute("aria-label", `${entry.label}: ${entry.value}`);
       const title = document.createElement("span");
@@ -902,7 +927,7 @@
       li.append(title, meta);
       const activate = () => {
         selectHomeListItem(li);
-        renderHomeCsvRerunDetail(evidence);
+        renderHomeCsvRerunDetail(evidence, activeWork);
       };
       li.addEventListener("click", activate);
       li.addEventListener("keydown", (event) => {
@@ -913,7 +938,7 @@
       });
       list.appendChild(li);
     });
-    renderHomeCsvRerunDetail(evidence);
+    renderHomeCsvRerunDetail(evidence, activeWork);
     return true;
   }
 
@@ -933,6 +958,76 @@
 
   function homeQueueSourceKey(value) {
     return String(value || "").trim().replace(/[\\/]+/g, "/").toLowerCase();
+  }
+
+  function homeActiveWork(context = {}) {
+    const payload = context?.snapshot?.current_work;
+    return payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {};
+  }
+
+  function homeActiveWorkLine(activeWork = {}) {
+    return activeWork.latest_evidence_label
+      || activeWork.current_stage_label
+      || activeWork.summary_label
+      || activeWork.missing_evidence_label
+      || "";
+  }
+
+  function homeQueueItemSourceKey(item = {}) {
+    return homeQueueSourceKey(
+      item.source_path
+      || item.path
+      || item.input_path
+      || item.file
+      || item.relative_path
+      || item.display_name
+      || ""
+    );
+  }
+
+  function homeProgressCurrentSourceKey(context = {}) {
+    const progress = context?.snapshot?.progress && typeof context.snapshot.progress === "object" ? context.snapshot.progress : {};
+    return homeQueueSourceKey(
+      progress.CurrentFilePath
+      || progress.current_file_path
+      || progress.CurrentFile
+      || progress.SourcePath
+      || progress.InputPath
+      || ""
+    );
+  }
+
+  function homeTextMatchKey(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/\.[a-z0-9]{2,5}$/i, "")
+      .replace(/[^a-z0-9]+/g, "");
+  }
+
+  function homeQueueItemMatchesActiveWork(item = {}, context = {}) {
+    const activeWork = homeActiveWork(context);
+    const progressKey = homeProgressCurrentSourceKey(context);
+    const itemKey = homeQueueItemSourceKey(item);
+    if (progressKey && itemKey && (progressKey === itemKey || progressKey.endsWith(`/${homeQueueLeaf(itemKey)}`))) {
+      return true;
+    }
+    const activeText = homeTextMatchKey(activeWork.item_label);
+    if (!activeText || activeText.length < 5) return false;
+    const label = homeQueueDisplayLabel(item);
+    const candidates = [
+      label.accessibleText,
+      label.main,
+      homeQueueTitle(item),
+      item.display_name,
+      item.source_file_name,
+      item.source_path,
+      item.relative_path,
+    ].map(homeTextMatchKey).filter((value) => value.length >= 5);
+    return candidates.some((candidate) => candidate.includes(activeText) || activeText.includes(candidate));
+  }
+
+  function homeCurrentQueueRow(runnable = [], context = {}) {
+    return (Array.isArray(runnable) ? runnable : []).find((item) => homeQueueItemMatchesActiveWork(item, context)) || null;
   }
 
   // Live processing position as a 1-based global order. The queue snapshot is the
@@ -959,9 +1054,24 @@
     return Math.max(index > 0 ? index : 0, processed > 0 ? processed : 0);
   }
 
-  function homeNextQueueRows(queue = {}, currentOrder = 0) {
+  function homeNextQueueRows(queue = {}, currentOrder = 0, context = {}) {
     const rows = Array.isArray(queue.rows) ? queue.rows.filter(Boolean) : [];
     const runnable = rows.filter(homeQueueRowVisibleInNextPanel);
+    const currentRow = homeCurrentQueueRow(runnable, context);
+    if (currentRow) {
+      const currentRowOrder = homeQueueGlobalOrder(currentRow);
+      const upcoming = runnable
+        .filter((item) => item !== currentRow)
+        .filter((item) => currentRowOrder <= 0 || homeQueueGlobalOrder(item) > currentRowOrder)
+        .sort((left, right) => homeQueueGlobalOrder(left) - homeQueueGlobalOrder(right));
+      const selected = [currentRow, ...upcoming];
+      if (selected.length < 5) {
+        runnable.forEach((item) => {
+          if (!selected.includes(item)) selected.push(item);
+        });
+      }
+      return selected.slice(0, 5);
+    }
     const cutoff = Math.trunc(Number(currentOrder) || 0);
     if (cutoff > 0) {
       // Genuinely upcoming items sit after the live position in global order.
@@ -1597,7 +1707,7 @@
     if (!list) return;
     list.setAttribute("role", "listbox");
     list.replaceChildren();
-    const rows = homeNextQueueRows(queue, homeCurrentQueueOrder(context, queue.rows));
+    const rows = homeNextQueueRows(queue, homeCurrentQueueOrder(context, queue.rows), context);
     const csvRerunQueue = homeCsvRerunQueueContext(context, queue, rows);
     if (!rows.length && renderHomeCsvRerunQueue(context)) return;
     setHomePanelStatus(
@@ -1613,13 +1723,18 @@
       return;
     }
     rows.forEach((item, index) => {
+      const isCurrent = homeQueueItemMatchesActiveWork(item, context);
+      const activeWork = isCurrent ? homeActiveWork(context) : {};
+      const rowOptions = { ...csvRerunQueue, activeWork };
       const li = document.createElement("li");
       li.tabIndex = 0;
       li.setAttribute("role", "option");
       li.setAttribute("aria-selected", index === 0 ? "true" : "false");
       li.classList.toggle("is-selected", index === 0);
+      li.dataset.current = isCurrent ? "true" : "false";
+      if (isCurrent) li.dataset.status = "running";
       const label = homeQueueDisplayLabel(item);
-      li.setAttribute("aria-label", `Review queue item ${label.accessibleText || index + 1}`);
+      li.setAttribute("aria-label", `${isCurrent ? "Current queue item" : "Review queue item"} ${label.accessibleText || index + 1}`);
       const title = document.createElement("span");
       title.className = "home-next-queue-title";
       const titleMain = document.createElement("span");
@@ -1635,11 +1750,16 @@
       title.title = label.accessibleText || "";
       const meta = document.createElement("span");
       meta.className = "home-next-queue-meta";
-      meta.textContent = [csvRerunQueue.csvRerunQueue ? "CSV rerun" : "", homeQueueMeta(item) || "queued"].filter(Boolean).join(" · ");
+      meta.textContent = [
+        isCurrent ? "Current" : "",
+        csvRerunQueue.csvRerunQueue ? "CSV rerun" : "",
+        homeQueueMeta(item) || "queued",
+        isCurrent ? homeActiveWorkLine(activeWork) : "",
+      ].filter(Boolean).join(" · ");
       li.append(title, meta);
       const activate = () => {
         selectHomeListItem(li);
-        renderHomeQueueDetail(item, csvRerunQueue);
+        renderHomeQueueDetail(item, rowOptions);
       };
       li.addEventListener("click", activate);
       li.addEventListener("keydown", (event) => {
@@ -1650,7 +1770,10 @@
       });
       list.appendChild(li);
     });
-    renderHomeQueueDetail(rows[0], csvRerunQueue);
+    renderHomeQueueDetail(rows[0], {
+      ...csvRerunQueue,
+      activeWork: homeQueueItemMatchesActiveWork(rows[0], context) ? homeActiveWork(context) : {},
+    });
   }
   function renderDailyDriverReadiness(context = {}) {
     const rows = dailyDriverRows(context);

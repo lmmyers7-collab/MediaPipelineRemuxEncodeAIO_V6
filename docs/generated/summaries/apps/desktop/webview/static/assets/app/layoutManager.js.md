@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/app/layoutManager.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-30
+last_modified: 2026-07-03
 last_reviewed: 2026-06-04
-sha256: 8717e1ead53b44d4181d0215204b08d5dcf6cc8626d91666a4fd2ec5315f5288
+sha256: 85614b839c50343fe7228d3c62e275364fc327e326da0cc3609fee12b8847447
 ---
 # `apps/desktop/webview/static/assets/app/layoutManager.js`
 

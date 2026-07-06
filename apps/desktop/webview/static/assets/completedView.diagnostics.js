@@ -29,7 +29,7 @@
         completedAddDiagnosticsAction(actions, "tail", "latest_failure_report", "Read Latest Failure", "Review the newest failure report when completed history conflicts with disk state.");
       }
       if (item.output_exists === false || item.sidecar_exists === false) {
-        completedAddDiagnosticsAction(actions, "open", "pending_publish", "Open Pending Publish", "Check whether the output was parked instead of published.");
+        completedAddDiagnosticsAction(actions, "open", "pending_publish", "Open Pending Folder", "Check whether the output was parked instead of published.");
       }
       return actions;
     }

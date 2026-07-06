@@ -4,7 +4,7 @@ Copy this template when running a real sample batch through the pipeline to docu
 
 This is operator evidence. It does not automatically accept, clear failures, drain pending publish, rewrite manifests, or mark jobs complete. All pipeline decisions remain backend-owned.
 
-For the full validation procedure and sample selection guidance, see `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`.
+For the full validation procedure and sample selection guidance, see `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md`.
 
 ---
 
@@ -247,7 +247,7 @@ A new validation run is warranted after any change to FFmpeg arguments, routing 
 
 ## See Also
 
-- Full validation procedure: `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`
+- Full validation procedure: `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md`
 - Sample validation record flow: WebView Home → Validation Log
 - Runtime artifact paths: `docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md`
 - Failure triage: `docs/operator/FAILURE_TRIAGE_WORKSHEET.md`

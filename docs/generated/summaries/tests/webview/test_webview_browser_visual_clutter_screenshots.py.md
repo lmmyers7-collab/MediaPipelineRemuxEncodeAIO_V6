@@ -3,9 +3,9 @@ file: tests/webview/test_webview_browser_visual_clutter_screenshots.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-03
 last_reviewed: 2026-06-19
-sha256: f3dd80af30ef5e9994ce6c4e3f11044f9f44bcb237cf090025bb2b8b89550d40
+sha256: 4a7186b2c396c507c718aa3a574a544e73c50b6ad4425dad17b1e431d0b0fddc
 ---
 # `tests/webview/test_webview_browser_visual_clutter_screenshots.py`
 

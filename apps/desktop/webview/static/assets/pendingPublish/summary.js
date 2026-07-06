@@ -14,6 +14,7 @@
       shortenPath = function (value) { return value; },
       updateTableStatusLegend = function () {},
     } = deps;
+    const PENDING_READ_ONLY_BOUNDARY = "Mutation guardrail: read-only evidence; backend routes own pending-publish changes.";
 
 function pendingInventoryProgressBars(pending) {
     const payload = pending && typeof pending === "object" ? pending : {};
@@ -156,7 +157,7 @@ function pendingWorkflowStatus(pending, rows) {
     if (payload.exists === false) return "No pending root";
     if (!rowList.length) return "No drain";
     if (pendingValidationStatus(payload, rowList) === "Do not drain") return "Do not drain";
-    if (Number(payload.issue_count || 0) > 0 || rowList.some(pendingRowHasHealthIssue)) return "Review rows";
+    if (Number(payload.issue_count || 0) > 0 || Number(payload.health_count || 0) > 0 || rowList.some(pendingRowHasHealthIssue)) return "Review rows";
     if (warnings.length) return "Review context";
     return "Drain path clear";
   }
@@ -186,13 +187,13 @@ function pendingWorkflowLines(pending, rows) {
       lines.push("Next step: no parked outputs are waiting. If an expected output is missing, inspect Completed and Run Logs before reprocessing.");
     } else if (pendingValidationStatus(payload, rowList) === "Do not drain") {
       lines.push("Next step: do not drain. Select the issue row, use Pending Diagnostics Cross-Links, and inspect manifest/payload/sidecar/log evidence first.");
-    } else if (Number(payload.issue_count || 0) > 0 || issueRows.length || warnings.length) {
+    } else if (Number(payload.issue_count || 0) > 0 || Number(payload.health_count || 0) > 0 || issueRows.length || warnings.length) {
       lines.push("Next step: review issue/warning rows and Last Stderr before using Drain Parked Outputs.");
     } else {
       lines.push("Next step: pending publish context is coherent. Drain Parked Outputs remains the backend-owned drain command.");
     }
     lines.push("Owning pages: Pending Publish for parked output safety, Completed for output proof, Queue before rerun, Diagnostics for artifacts/logs.");
-    lines.push("Mutation guardrail: this workflow panel is read-only. Drain Parked Outputs remains backend-owned.");
+    lines.push(PENDING_READ_ONLY_BOUNDARY);
     return lines;
   }
 
@@ -281,7 +282,7 @@ function pendingReviewBoardLines(pending, rows) {
     } else {
       lines.push("First action: no pending rows are locally flagged. Drain Parked Outputs remains the backend-owned validation and drain path.");
     }
-    lines.push("Mutation guardrail: this board is read-only; drain, repair, rewrite, move, delete, and publish actions remain backend-owned.");
+    lines.push(PENDING_READ_ONLY_BOUNDARY);
     return lines;
   }
 
@@ -450,19 +451,20 @@ function pendingValidationStatus(pending, rows) {
     const invalidRows = rowList.filter((row) => ["invalid_manifest", "unreadable_manifest"].includes(String(row?.state || "").toLowerCase()));
     const missingPayloadRows = rowList.filter((row) => row?.local_exists === false);
     const missingSidecarRows = rowList.filter((row) => Number(row?.missing_sidecar_count || 0) > 0);
+    const notReadyRows = rowList.filter((row) => row?.ready_to_drain === false);
     if (
       doNotDrainRows.length ||
       severeRows.length ||
       invalidRows.length ||
       missingPayloadRows.length ||
       missingSidecarRows.length ||
-      Number(payload.health_count || 0) > 0 ||
+      notReadyRows.length ||
       Number(payload.missing_local_count || 0) > 0
     ) {
       return "Do not drain";
     }
     const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
-    if (warnings.length || Number(payload.issue_count || 0) > 0 || rowList.some(pendingRowHasHealthIssue)) return "Review";
+    if (warnings.length || Number(payload.issue_count || 0) > 0 || Number(payload.health_count || 0) > 0 || rowList.some(pendingRowHasHealthIssue)) return "Review";
     return "Ready";
   }
 
@@ -476,6 +478,7 @@ function pendingValidationChecklistLines(pending, rows) {
     const invalidRows = rowList.filter((row) => ["invalid_manifest", "unreadable_manifest"].includes(String(row?.state || "").toLowerCase()));
     const missingPayloadRows = rowList.filter((row) => row?.local_exists === false);
     const missingSidecarRows = rowList.filter((row) => Number(row?.missing_sidecar_count || 0) > 0);
+    const notReadyRows = rowList.filter((row) => row?.ready_to_drain === false);
     const existsText = payload.exists === true ? "yes" : payload.exists === false ? "no" : "unknown";
     if (payload.error) {
       return [
@@ -483,7 +486,7 @@ function pendingValidationChecklistLines(pending, rows) {
         `Status: unavailable`,
         `Error: ${payload.error}`,
         "Operator action: open Diagnostics > Pending Publish and Run Logs before another publish attempt.",
-        "Mutation guardrail: this checklist is read-only and cannot drain, repair, delete, rewrite, or publish files.",
+        PENDING_READ_ONLY_BOUNDARY,
       ];
     }
     const lines = [
@@ -519,14 +522,14 @@ function pendingValidationChecklistLines(pending, rows) {
       lines.push("Operator action: no pending-publish folder exists yet. This is normal until Deferred Publish parks an output.");
     } else if (!rowList.length) {
       lines.push("Operator action: no parked outputs are waiting. Cross-check Completed History and Run Logs before reprocessing anything.");
-    } else if (doNotDrainRows.length || severeRows.length || invalidRows.length || missingPayloadRows.length || missingSidecarRows.length) {
+    } else if (doNotDrainRows.length || severeRows.length || invalidRows.length || missingPayloadRows.length || missingSidecarRows.length || notReadyRows.length) {
       lines.push("Operator action: do not drain yet. Select issue rows and use backend-selected open/diagnostic actions to inspect manifests, payloads, sidecars, and logs.");
-    } else if (warnings.length || Number(payload.issue_count || 0) > 0 || issueRows.length) {
+    } else if (warnings.length || Number(payload.issue_count || 0) > 0 || Number(payload.health_count || 0) > 0 || issueRows.length) {
       lines.push("Operator action: review warnings and issue rows before publishing parked outputs.");
     } else {
       lines.push("Operator action: rows appear ready, but Drain Parked Outputs remains the authoritative backend validation path.");
     }
-    lines.push("Mutation guardrail: this checklist is read-only and cannot drain, repair, delete, rewrite, or publish files.");
+    lines.push(PENDING_READ_ONLY_BOUNDARY);
     return lines;
   }
 

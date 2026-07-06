@@ -118,6 +118,8 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
         self.assertEqual(preview["size_growth_count"], 0)
         self.assertEqual(preview["size_growth_over_5_count"], 0)
         self.assertEqual(preview["size_unknown_count"], 0)
+        self.assertEqual(preview["rows"][0]["completed_at"], "May 7 9:00 PM")
+        self.assertEqual(preview["rows"][0]["completed_at_sort_key"], "2026-05-07T21:00:00-04:00")
         self.assertEqual(preview["rows"][0]["route_label"], "ENCODE")
         self.assertEqual(preview["rows"][0]["route_reason_code"], "subtitle_srt_required")
         self.assertEqual(preview["rows"][0]["route_reason"], "needs preferred-language SRT")
@@ -194,6 +196,95 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
             ],
         )
         self.assertTrue(preview["rows"][0]["row_key"])
+
+    def test_completed_preview_lists_manifest_backed_pending_publish_as_parked(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            pending_root = root / "PendingServerPush"
+            pending_root.mkdir(parents=True)
+            parked_file = pending_root / "Paprika (2006).mkv"
+            parked_file.write_bytes(b"x" * 4096)
+            destination = root / "Final" / "Movies" / "Paprika (2006).mkv"
+            source = root / "Source" / "Paprika (2006).mkv"
+            manifest_path = pending_root / "Paprika (2006).mkv.manifest.json"
+            manifest_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "pending_push_manifest.v1",
+                        "parked_at": "2026-07-04T23:18:53-04:00",
+                        "pipeline_version": "test",
+                        "publish_transaction_id": "tx-paprika",
+                        "manifest_state": "parked",
+                        "local_file": str(parked_file),
+                        "server_out": str(destination),
+                        "route": "remux",
+                        "source_identity_v2": "source-id-paprika",
+                        "source_identity_v2_algorithm": "sha256",
+                        "source_path": str(source),
+                        "source_size": 8192,
+                        "output_size": parked_file.stat().st_size,
+                        "publish_mode": "deferred",
+                        "sidecar_files": [],
+                        "tx3g_srt_tracks": [],
+                        "tx3g_srt_failures": [],
+                        "bdpgs_srt_failures": [],
+                        "vobsub_srt_failures": [],
+                        "tx3g_embedded_srt_tracks": [],
+                        "bdpgs_embedded_srt_tracks": [],
+                        "vobsub_embedded_srt_tracks": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            completed_manifest = root / "State" / "Completed" / "completed_jobs.jsonl"
+            completed_manifest.parent.mkdir(parents=True)
+            completed_manifest.write_text("", encoding="utf-8")
+            resolved = _resolved(root)
+            resolved.completed_manifest_path = completed_manifest
+            resolved.pending_push_path = pending_root
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+
+            preview = facade.get_completed_preview(
+                resolved,
+                include_pending_publish_overlay=True,
+            ).to_mapping()
+
+        self.assertEqual(preview["count"], 1)
+        self.assertEqual(preview["remux_count"], 1)
+        self.assertEqual(preview["missing_output_count"], 0)
+        self.assertEqual(preview["publish_counts"], {"parked": 1})
+        self.assertEqual(preview["operator_status_counts"], {"Parked": 1})
+        self.assertEqual(preview["operator_status_state_counts"], {"parked": 1})
+        self.assertEqual(preview["operator_trust_state_counts"], {"parked-pending-publish": 1})
+        self.assertEqual(preview["consistency_status_counts"], {"Parked": 1})
+        self.assertEqual(preview["validation_status_state_counts"], {"validation-needed": 1})
+        self.assertEqual(preview["available_open_target_counts"], {})
+        self.assertEqual(preview["warnings"], [])
+        row = preview["rows"][0]
+        self.assertEqual(row["completed_source"], "pending_publish")
+        self.assertTrue(row["pending_publish"])
+        self.assertEqual(row["publish"], "Parked")
+        self.assertEqual(row["publish_state"], "parked")
+        self.assertEqual(row["publish_mode"], "deferred")
+        self.assertEqual(row["pending_publish_state"], "parked")
+        self.assertTrue(row["pending_publish_ready_to_drain"])
+        self.assertEqual(row["pending_publish_manifest_path"], str(manifest_path))
+        self.assertEqual(row["pending_publish_local_file"], str(parked_file))
+        self.assertEqual(row["pending_publish_server_out"], str(destination))
+        self.assertEqual(row["output_path"], str(destination))
+        self.assertIsNone(row["output_exists"])
+        self.assertEqual(row["output_proof"], "deferred")
+        self.assertEqual(row["operator_status"], "Parked")
+        self.assertEqual(row["operator_status_state"], "parked")
+        self.assertEqual(row["operator_severity"], "warning")
+        self.assertEqual(row["operator_trust_state"], "parked-pending-publish")
+        self.assertIn("Pending Publish", row["primary_concern"])
+        self.assertIn("pending_publish_parked", row["review_flags"])
+        self.assertEqual(row["available_open_targets"], [])
+        self.assertEqual(row["completed_at"], "Jul 4 11:18 PM")
+        self.assertEqual(row["output_size_bytes"], 4096)
+        self.assertEqual(row["output_size_text"], "4.0 KB")
+        self.assertIn("Pending publish manifest:", row["route_evidence_lines"][-1])
 
     def test_completed_preview_flags_oversized_rows_for_operator_review(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

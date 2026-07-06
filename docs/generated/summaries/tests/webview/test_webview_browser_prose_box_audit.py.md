@@ -3,9 +3,9 @@ file: tests/webview/test_webview_browser_prose_box_audit.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-03
 last_reviewed: 2026-06-19
-sha256: 0d3b60092b2b5e006858b3d5e88a745e797b5f29ff843f08e2392f8f0d8ac0a1
+sha256: 089d557d3ad4b8ee818f32105f8f9cc3dd16dda32e0194bb7e3d0a1b845aa641
 ---
 # `tests/webview/test_webview_browser_prose_box_audit.py`
 

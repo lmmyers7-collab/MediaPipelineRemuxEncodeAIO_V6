@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from collections.abc import Mapping
 
+from mediapipeline.core.files.constants import MEDIA_FILE_SUFFIXES
+
 from .pending_results import (
     PENDING_PUBLISH_OPEN_COMMAND,
     PENDING_PUBLISH_OPEN_TARGETS,
@@ -35,14 +37,23 @@ def optional_pending_publish_path(value: Any) -> Path | None:
     return Path(text) if text else None
 
 
+def pending_publish_destination_folder_path(value: Any) -> Path | None:
+    destination = optional_pending_publish_path(value)
+    if destination is None:
+        return None
+    folder = destination.parent if destination.suffix.lower() in MEDIA_FILE_SUFFIXES else destination
+    if folder.exists() or not folder.is_absolute():
+        return folder
+    return next((candidate for candidate in folder.parents if candidate.exists()), folder)
+
+
 def pending_publish_open_path(row: Mapping[str, Any], target: str) -> Path | None:
     if target in {"play_local_file", "local_file"}:
         return optional_pending_publish_path(row.get("local_file"))
     if target == "manifest":
         return optional_pending_publish_path(row.get("manifest_path"))
     if target == "destination_folder":
-        destination = optional_pending_publish_path(row.get("server_out"))
-        return destination.parent if destination else None
+        return pending_publish_destination_folder_path(row.get("server_out"))
     if target == "source_folder":
         source = optional_pending_publish_path(row.get("source_path"))
         return source.parent if source else None
@@ -164,6 +175,7 @@ __all__ = [
     "normalize_pending_publish_row_key",
     "pending_publish_open_allowed_targets_text",
     "optional_pending_publish_path",
+    "pending_publish_destination_folder_path",
     "pending_publish_open_path",
     "pending_publish_open_result_data",
     "pending_publish_open_disallowed_target_result",

@@ -177,4 +177,4 @@ When a worker finishes encoding, it parks the output for the coordinator to publ
 
 - Pending-publish command routes: `LOCAL_API_ROUTE_OWNERSHIP_MAP.md` (`POST /api/pending-publish/open`, `POST /api/pending-publish/recovery-plan`, `GET /api/pending-publish`)
 - Pending-publish diagnostics targets: `DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md` (`pending_publish`, `last_stderr_log`, `latest_failure_json`)
-- Real-media validation for drain proof: `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`
+- Real-media validation for drain proof: `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md`

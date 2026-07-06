@@ -6,32 +6,32 @@
   "ok": true,
   "violations": [],
   "summary": {
-    "scripts": 152,
-    "controls": 482,
-    "route_usages": 107,
+    "scripts": 154,
+    "controls": 494,
+    "route_usages": 104,
     "dynamic_api_posts": 1,
-    "route_contracts": 161,
-    "high_risk_route_usages": 52,
+    "route_contracts": 163,
+    "high_risk_route_usages": 51,
     "unclassified_high_risk_controls": 0,
     "controls_by_classification": {
       "backend-contract-dynamic-route": 4,
-      "backend-owned-route": 166,
+      "backend-owned-route": 173,
       "disabled-future-network-control": 5,
       "local-copy": 2,
-      "local-display-state": 70,
+      "local-display-state": 71,
       "local-form-staging": 3,
       "local-guided-setup": 8,
       "local-launch-intent-staging": 6,
       "local-navigation": 33,
       "local-network-staging": 1,
-      "local-or-read-only": 61,
+      "local-or-read-only": 62,
       "local-queue-order-staging": 1,
-      "local-read-navigation": 41,
+      "local-read-navigation": 43,
       "local-rename-staging": 6,
       "local-sample-validation-staging": 2,
       "local-schedule-staging": 3,
       "local-settings-staging": 36,
-      "local-tab-navigation": 34
+      "local-tab-navigation": 35
     }
   },
   "controls": [
@@ -681,11 +681,22 @@
       "page": "diagnostics",
       "tag": "button",
       "id": "",
-      "text": "Open Pending Publish",
+      "text": "Open Pending Folder",
       "classification": "backend-owned-route",
       "route": "/api/diagnostics/open",
       "data_attrs": {
         "data-open-diagnostics": "pending_publish"
+      }
+    },
+    {
+      "page": "diagnostics",
+      "tag": "button",
+      "id": "",
+      "text": "Open Pipeline Log",
+      "classification": "backend-owned-route",
+      "route": "/api/diagnostics/open",
+      "data_attrs": {
+        "data-open-diagnostics": "pipeline_log"
       }
     },
     {
@@ -840,6 +851,17 @@
       "route": "",
       "data_attrs": {
         "data-read-diagnostics-tail": "latest_failure_report"
+      }
+    },
+    {
+      "page": "diagnostics",
+      "tag": "button",
+      "id": "",
+      "text": "Read Pipeline Log",
+      "classification": "local-or-read-only",
+      "route": "",
+      "data_attrs": {
+        "data-read-diagnostics-tail": "pipeline_log"
       }
     },
     {
@@ -1044,6 +1066,15 @@
       "tag": "button",
       "id": "launch-backend-preflight-refresh-button",
       "text": "Refresh Backend Preflight",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "diagnostics",
+      "tag": "button",
+      "id": "launch-encoder-capability-refresh-button",
+      "text": "Refresh Encoder Evidence",
       "classification": "local-read-navigation",
       "route": "",
       "data_attrs": {}
@@ -1284,7 +1315,7 @@
       "page": "home",
       "tag": "button",
       "id": "",
-      "text": "Pending Publish",
+      "text": "Pending Folder",
       "classification": "backend-owned-route",
       "route": "/api/diagnostics/open",
       "data_attrs": {
@@ -1602,17 +1633,6 @@
     {
       "page": "launch",
       "tag": "button",
-      "id": "",
-      "text": "CSV Rerun",
-      "classification": "local-tab-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-launch-tab": "rerun"
-      }
-    },
-    {
-      "page": "launch",
-      "tag": "button",
       "id": "launch-open-pipeline-log-window-button",
       "text": "Open Log Window",
       "classification": "local-or-read-only",
@@ -1733,68 +1753,6 @@
       "text": "Start Pipeline",
       "classification": "backend-owned-route",
       "route": "/api/pipeline/start",
-      "data_attrs": {}
-    },
-    {
-      "page": "launch",
-      "tag": "button",
-      "id": "rerun-csv-path-picker-badge",
-      "text": "Browse",
-      "classification": "local-read-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-path-picker-input": "rerun-start-csv-path",
-        "data-path-picker-mode": "files",
-        "data-path-picker-status": "rerun-launch-status",
-        "data-path-picker-target": "launch.rerun_csv"
-      }
-    },
-    {
-      "page": "launch",
-      "tag": "button",
-      "id": "rerun-inspect-csv-button",
-      "text": "Inspect CSV",
-      "classification": "backend-owned-route",
-      "route": "/api/rerun/preview",
-      "data_attrs": {}
-    },
-    {
-      "page": "launch",
-      "tag": "button",
-      "id": "rerun-open-audit-tool-button",
-      "text": "Open Reports Audit",
-      "classification": "local-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-cross-page-reports-tab": "audit",
-        "data-cross-page-target": "reports"
-      }
-    },
-    {
-      "page": "launch",
-      "tag": "button",
-      "id": "rerun-open-csv-button",
-      "text": "Open CSV",
-      "classification": "backend-owned-route",
-      "route": "/api/rerun/open",
-      "data_attrs": {}
-    },
-    {
-      "page": "launch",
-      "tag": "button",
-      "id": "rerun-open-csv-folder-button",
-      "text": "Open Folder",
-      "classification": "backend-owned-route",
-      "route": "/api/rerun/open",
-      "data_attrs": {}
-    },
-    {
-      "page": "launch",
-      "tag": "button",
-      "id": "rerun-start-button",
-      "text": "Review & Start",
-      "classification": "backend-owned-route",
-      "route": "/api/rerun/start",
       "data_attrs": {}
     },
     {
@@ -2677,7 +2635,7 @@
       "page": "pending",
       "tag": "button",
       "id": "pending-action-drain-button",
-      "text": "Drain Ready Parked Outputs",
+      "text": "Drain Parked Outputs",
       "classification": "backend-owned-route",
       "route": "/api/pipeline/start",
       "data_attrs": {}
@@ -2957,6 +2915,28 @@
       "route": "",
       "data_attrs": {
         "data-fo-series-filter": "will_update"
+      }
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "",
+      "text": "Main Queue",
+      "classification": "local-tab-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-queue-tab": "main"
+      }
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "",
+      "text": "CSV Rerun",
+      "classification": "local-tab-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-queue-tab": "rerun"
       }
     },
     {
@@ -3266,6 +3246,140 @@
       "text": "Apply",
       "classification": "backend-owned-route",
       "route": "/api/queue/strategy",
+      "data_attrs": {}
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "rerun-csv-path-picker-badge",
+      "text": "Browse",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-path-picker-input": "rerun-start-csv-path",
+        "data-path-picker-mode": "files",
+        "data-path-picker-status": "rerun-queue-status",
+        "data-path-picker-target": "queue.rerun_csv"
+      }
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "rerun-inspect-csv-button",
+      "text": "Inspect CSV",
+      "classification": "backend-owned-route",
+      "route": "/api/rerun/preview",
+      "data_attrs": {}
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "rerun-open-active-jobs-button",
+      "text": "Open Active Jobs",
+      "classification": "backend-owned-route",
+      "route": "/api/diagnostics/open",
+      "data_attrs": {}
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "rerun-open-audit-tool-button",
+      "text": "Open Reports Audit",
+      "classification": "local-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-cross-page-reports-tab": "audit",
+        "data-cross-page-target": "reports"
+      }
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "rerun-open-csv-button",
+      "text": "Open CSV",
+      "classification": "backend-owned-route",
+      "route": "/api/rerun/open",
+      "data_attrs": {}
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "rerun-open-csv-folder-button",
+      "text": "Open Folder",
+      "classification": "backend-owned-route",
+      "route": "/api/rerun/open",
+      "data_attrs": {}
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "rerun-open-last-stderr-button",
+      "text": "Open Last Stderr",
+      "classification": "backend-owned-route",
+      "route": "/api/diagnostics/open",
+      "data_attrs": {}
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "rerun-open-last-stdout-button",
+      "text": "Open Last Stdout",
+      "classification": "backend-owned-route",
+      "route": "/api/diagnostics/open",
+      "data_attrs": {}
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "rerun-open-latest-manifest-button",
+      "text": "Open Latest Manifest",
+      "classification": "backend-owned-route",
+      "route": "/api/rerun/open",
+      "data_attrs": {}
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "rerun-open-run-logs-button",
+      "text": "Open Run Logs",
+      "classification": "backend-owned-route",
+      "route": "/api/diagnostics/open",
+      "data_attrs": {}
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "rerun-results-refresh-button",
+      "text": "Refresh State",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "rerun-show-command-history-button",
+      "text": "Show Rerun Commands",
+      "classification": "local-display-state",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "rerun-start-button",
+      "text": "Review & Start",
+      "classification": "backend-owned-route",
+      "route": "/api/rerun/start",
+      "data_attrs": {}
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "rerun-stop-after-current-button",
+      "text": "Stop After Current",
+      "classification": "backend-owned-route",
+      "route": "/api/rerun/control",
       "data_attrs": {}
     },
     {
@@ -3722,7 +3836,7 @@
       "page": "reports",
       "tag": "button",
       "id": "report-audit-export-rerun-csv-button",
-      "text": "Export Rerun CSV",
+      "text": "Build CSV Rerun Queue",
       "classification": "backend-owned-route",
       "route": "/api/audit/export-rerun-csv",
       "data_attrs": {}
@@ -5023,7 +5137,7 @@
       "normalized_route": "/api/audit/export-rerun-csv",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 1090,
+      "line": 1160,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5151,7 +5265,7 @@
       "normalized_route": "/api/backend/close-readiness",
       "method": "GET",
       "file": "apps/desktop/webview/static/assets/floatingPipelineLog.js",
-      "line": 281,
+      "line": 315,
       "script_owner": "Shared",
       "allowed_owners": [
         "App Shell",
@@ -5167,7 +5281,7 @@
       "normalized_route": "/api/backend/shutdown",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/app.js",
-      "line": 431,
+      "line": 474,
       "script_owner": "App Shell",
       "allowed_owners": [
         "App Shell",
@@ -5333,7 +5447,7 @@
       "normalized_route": "/api/diagnostics",
       "method": "GET",
       "file": "apps/desktop/webview/static/assets/floatingPipelineLog.js",
-      "line": 358,
+      "line": 433,
       "script_owner": "Shared",
       "allowed_owners": [
         "Shared"
@@ -5588,7 +5702,7 @@
       "normalized_route": "/api/maintenance/archive-state-journals",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1238,
+      "line": 1216,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5709,7 +5823,7 @@
       "normalized_route": "/api/pending-publish/open",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/pendingPublishView.diagnostics.js",
-      "line": 252,
+      "line": 240,
       "script_owner": "Pending Publish",
       "allowed_owners": [
         "Pending Publish"
@@ -5784,7 +5898,7 @@
       "normalized_route": "/api/pending-publish/recovery-plan",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/pendingPublishView.recovery.js",
-      "line": 348,
+      "line": 351,
       "script_owner": "Pending Publish",
       "allowed_owners": [
         "Pending Publish"
@@ -5859,7 +5973,7 @@
       "normalized_route": "/api/pipeline/browse-file",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 982,
+      "line": 959,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5875,7 +5989,7 @@
       "normalized_route": "/api/pipeline/control",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 944,
+      "line": 918,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5891,7 +6005,7 @@
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1070,
+      "line": 1047,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5907,7 +6021,7 @@
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1168,
+      "line": 1145,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6103,7 +6217,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2153,
+      "line": 2266,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6118,7 +6232,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2178,
+      "line": 2291,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6133,7 +6247,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2243,
+      "line": 2356,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6148,7 +6262,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2440,
+      "line": 2553,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6163,7 +6277,7 @@
       "normalized_route": "/api/queue/scan",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 1698,
+      "line": 1784,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6178,7 +6292,7 @@
       "normalized_route": "/api/queue/strategy",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2874,
+      "line": 2991,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6280,54 +6394,6 @@
         "Settings"
       ],
       "contract_effect": "filesystem-mutation",
-      "high_risk_effect": true,
-      "contract_found": true,
-      "owner_ok": true
-    },
-    {
-      "route": "/api/rerun/open",
-      "normalized_route": "/api/rerun/open",
-      "method": "POST",
-      "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1750,
-      "script_owner": "Launch",
-      "allowed_owners": [
-        "Launch",
-        "Reports"
-      ],
-      "contract_effect": "shell-open",
-      "high_risk_effect": false,
-      "contract_found": true,
-      "owner_ok": true
-    },
-    {
-      "route": "/api/rerun/preview",
-      "normalized_route": "/api/rerun/preview",
-      "method": "POST",
-      "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1814,
-      "script_owner": "Launch",
-      "allowed_owners": [
-        "Launch",
-        "Reports"
-      ],
-      "contract_effect": "read-only-preview",
-      "high_risk_effect": false,
-      "contract_found": true,
-      "owner_ok": true
-    },
-    {
-      "route": "/api/rerun/start",
-      "normalized_route": "/api/rerun/start",
-      "method": "POST",
-      "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1951,
-      "script_owner": "Launch",
-      "allowed_owners": [
-        "Launch",
-        "Reports"
-      ],
-      "contract_effect": "process-launch",
       "high_risk_effect": true,
       "contract_found": true,
       "owner_ok": true
@@ -6671,7 +6737,7 @@
       "normalized_route": "/api/ui-preferences",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/app.js",
-      "line": 1277,
+      "line": 1345,
       "script_owner": "App Shell",
       "allowed_owners": [
         "App Shell"
@@ -8341,6 +8407,32 @@
     },
     {
       "method": "POST",
+      "path": "/api/rerun/continue",
+      "effect": "process-launch",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "confirm_continue",
+        "manifest_key"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/rerun/control",
+      "effect": "process-control",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "action",
+        "confirm_stop"
+      ]
+    },
+    {
+      "method": "POST",
       "path": "/api/rerun/open",
       "effect": "shell-open",
       "owner": "",
@@ -8365,9 +8457,8 @@
         "bucket_filter",
         "bucket_filters",
         "collision_policy",
-        "confirm_delete_original",
-        "confirm_original_policy",
         "confirm_replace_final",
+        "confirm_source_overwrite",
         "csv_path",
         "destination_mode",
         "enabled_only",
@@ -8376,7 +8467,6 @@
         "issue_filter",
         "issue_filters",
         "original_mode",
-        "original_policy",
         "preview_limit",
         "return_mode",
         "scope",
@@ -8425,9 +8515,8 @@
         "bucket_filter",
         "bucket_filters",
         "collision_policy",
-        "confirm_delete_original",
-        "confirm_original_policy",
         "confirm_replace_final",
+        "confirm_source_overwrite",
         "csv_path",
         "destination_mode",
         "dry_run",
@@ -8437,7 +8526,6 @@
         "issue_filter",
         "issue_filters",
         "original_mode",
-        "original_policy",
         "plan_only",
         "preview_limit",
         "return_mode",

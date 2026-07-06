@@ -43,6 +43,7 @@ The SQLite mirror is additive diagnostic evidence only. Do not use it as the sou
 | Encoder capability report | `State\Progress\encoder_capabilities.json` | Pipeline (PS) | `-DumpEncoderCapabilitiesPath` diagnostic | Operator diagnostics, `/api/settings/workspace` read-only `encoder_capability_report` evidence, and `/api/launch/preflight` non-blocking encoder capability evidence | Yes when no diagnostic dump is running; regenerated on demand or by `/api/launch/preflight?refresh_encoder_capability_report=true` | N/A |
 | Run log (stdout) | `State\Progress\last_stdout.log` | Pipeline (PS) | Pipeline stdout | Desktop app, Diagnostics | No during active run | `last_stdout_log` |
 | Run log (stderr) | `State\Progress\last_stderr.log` | Pipeline (PS) | Pipeline stderr / FFmpeg output | Desktop app, Diagnostics | No during active run | `last_stderr_log` |
+| Pipeline debug log | `pipeline_debug.log` | Pipeline (PS) | Main pipeline debug log | Pipeline Log window raw mode, Diagnostics | No during active run | `pipeline_log` |
 | Run logs folder | `RunLogs\` (DesktopApp or LocalBase) | Pipeline (PS) | Per-run log files | Desktop app log-open, Diagnostics | After reviewing; old logs are safe | `run_logs` |
 
 ---
@@ -99,7 +100,7 @@ Legacy `DesktopApp\encode_speed_history.json` and `DesktopApp\MediaPipelineRemux
 | Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
 |---|---|---|---|---|---|---|
 | Pending publish root | `State\PendingServerPush\` | Pipeline (PS) | Deferred publish events | Desktop app, local API, WebView Pending Publish | No — backend drain reads these | `pending_publish` |
-| Pending publish manifests | `State\PendingServerPush\*.manifest.json` | Pipeline (PS) | Deferred publish | Drain service, recovery dry-run | No — drain service owns lifecycle | `pending_publish` |
+| Pending publish manifests | `State\PendingServerPush\*.manifest.json` | Pipeline (PS) | Deferred publish, CSV rerun auto-review routing | Drain service, recovery dry-run | No — drain service owns lifecycle | `pending_publish` |
 | Parked output payloads | `State\PendingServerPush\*` beside matching `.manifest.json` files | Pipeline (PS) | Deferred publish | Drain service | No — use recovery-plan to assess before draining | `pending_publish` |
 | Drain summary | `State\Progress\pending_drain_summary.json` | Pipeline (PS) | Drain execution | WebView Pending Publish evidence | No during ongoing drain | `pending_publish` |
 
@@ -120,6 +121,12 @@ Legacy `DesktopApp\encode_speed_history.json` and `DesktopApp\MediaPipelineRemux
 | Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
 |---|---|---|---|---|---|---|
 | Audit CSV output | Config-specified audit path | Pipeline (PS) | `POST /api/audit/start` | Reports, Rerun UI | After reviewing | `latest_audit_csv` |
+| Audit rerun import CSV | `State\Rerun\ImportCsv\audit_rerun_export_*.csv` | Desktop app (Python) | Reports audit export for CSV rerun | Rerun UI recent CSV picker, `/api/rerun/preview`, `/api/rerun/start` | After reviewing and when no rerun uses it | N/A |
+| Scoped rerun CSV | `State\Rerun\ScopedCsv\rerun_scoped_*.csv`; `State\Rerun\ScopedCsv\rerun_continue_pending_*.csv` | Desktop app (Python) | `/api/rerun/start` when CSV preview scope excludes rows; `/api/rerun/continue` for stopped-after-current pending rows only | `Invoke-RerunCsv.ps1` launch input | After the corresponding rerun completes and evidence is retained | N/A |
+| CSV rerun control marker | `State\Rerun\Control\stop_after_current.json` | Desktop app (Python) | `/api/rerun/control` | `Invoke-RerunCsv.ps1` after each completed row/window chunk | Yes after the matching rerun has written terminal manifest evidence; stale markers are ignored by batch/path/start-time checks | N/A |
+| CSV rerun manifests | `RerunManifests\*.json` and `RerunManifests\*.config.psd1` | Pipeline (PS) | `Invoke-RerunCsv.ps1` | Queue/Home manifest fallback, rerun result reconciliation, Pending Publish promotion | No during active rerun; retain as launch/result evidence | N/A |
+| CSV rerun workspace roots | Sibling of `LocalBase`: `<LocalBaseLeaf>_RerunWorkspace\RerunQueue\<batch>` and `<LocalBaseLeaf>_RerunWorkspace\RerunParked\<batch>` | Pipeline (PS) | `Invoke-RerunCsv.ps1` staging and parked output flows | Nested pipeline, rerun manifests, result reconciliation | No during active rerun; clean only after reviewing manifests and parked output state | N/A |
+| CSV rerun replaced-final hold | `State\Rerun\FinalReplaced\<batch>\*` | Pipeline (PS) | Confirmed CSV rerun final replacement | Rerun manifest evidence and operator recovery | No until the replacement manifest/sidecar and final output have been reviewed | N/A |
 | Priority CSV | Config-specified path | Pipeline (PS) | Audit run | Reports, Queue priority | After reviewing | `latest_priority_csv` |
 | Audit reports folder | Config-specified path | Pipeline (PS) | Audit run | Desktop app, Diagnostics | After reviewing | `audit_reports` |
 
@@ -164,7 +171,7 @@ Legacy `DesktopApp\encode_speed_history.json` and `DesktopApp\MediaPipelineRemux
 
 The following `POST /api/diagnostics/open` allowlisted target keys map to the artifacts above:
 
-`run_logs`, `cluster_log`, `config`, `config_folder`, `workspace`, `state`, `pending_publish`, `failed_reports`, `failed_markers`, `audit_reports`, `queue_snapshot`, `active_jobs`, `completed_manifest`, `latest_failure_report`, `latest_failure_json`, `latest_audit_csv`, `latest_priority_csv`, `last_stdout_log`, `last_stderr_log`, `sample_validation_log`
+`run_logs`, `pipeline_log`, `cluster_log`, `config`, `config_folder`, `workspace`, `state`, `pending_publish`, `failed_reports`, `failed_markers`, `audit_reports`, `queue_snapshot`, `active_jobs`, `completed_manifest`, `latest_failure_report`, `latest_failure_json`, `latest_audit_csv`, `latest_priority_csv`, `last_stdout_log`, `last_stderr_log`, `sample_validation_log`
 
 Full allowlist with mutation-safety notes: `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`.
 

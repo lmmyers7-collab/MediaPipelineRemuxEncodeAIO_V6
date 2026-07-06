@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/styles/components/settings-builders.css
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-01
+last_modified: 2026-07-03
 last_reviewed: 2026-06-25
-sha256: b86be705f2cced50aba55abe4cecde5f35655af9ef2292aeab5d27114dbb5d74
+sha256: 62ef698145cadc5a6bf3b42ac33ebd29bdeb3268b5e7179f193d7c8afd2b0999
 ---
 # `apps/desktop/webview/static/assets/styles/components/settings-builders.css`
 

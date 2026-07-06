@@ -60,7 +60,7 @@ class ApiCommandContractsTests(unittest.TestCase):
 
     def test_path_picker_payload_contract_accepts_staged_fields_only(self) -> None:
         payload = {
-            "target_key": "launch.rerun_csv",
+            "target_key": "queue.rerun_csv",
             "selection_mode": "files",
             "initial_path": r"C:\Media\runs.csv",
             "file_filter": "CSV files (*.csv)|*.csv",
@@ -297,7 +297,17 @@ class ApiCommandContractsTests(unittest.TestCase):
             "/api/network/worker/start": {"confirm_start": True, "path": r"C:\Media\Movie.mkv"},
             "/api/network/worker/stop": {"confirm_stop": True, "path": r"C:\Media\Movie.mkv"},
             "/api/rerun/preview": {"csv_path": r"C:\Media\runs.csv", "path": r"C:\Other.csv"},
+            "/api/rerun/network-preview": {"csv_path": r"C:\Media\runs.csv", "path": r"C:\Other.csv"},
+            "/api/rerun/network/start-dry-run": {"csv_path": r"C:\Media\runs.csv", "path": r"C:\Other.csv"},
+            "/api/rerun/network/start": {
+                "csv_path": r"C:\Media\runs.csv",
+                "dry_run_fingerprint": "fp",
+                "confirm_start": True,
+                "path": r"C:\Other.csv",
+            },
             "/api/rerun/start": {"csv_path": r"C:\Media\runs.csv", "dry_run": True, "path": r"C:\Other.csv"},
+            "/api/rerun/control": {"action": "stop_after_current", "confirm_stop": True, "path": r"C:\Other.csv"},
+            "/api/rerun/continue": {"manifest_key": "manifest-1", "confirm_continue": True, "path": r"C:\Other.csv"},
             "/api/final-library-promotion/promote-queue": {"confirm_promote": True, "row_key": "client-owned"},
             "/api/final-library-promotion/pause": {"run_id": "run-1", "row_key": "client-owned"},
             "/api/final-library-promotion/resume": {"run_id": "run-1", "row_key": "client-owned"},
@@ -505,16 +515,14 @@ class ApiCommandContractsTests(unittest.TestCase):
         rerun_preview_payload = {
             "csv_path": r"C:\Media\runs.csv",
             "execution_mode": "one_at_a_time",
-            "destination_mode": "review_workspace",
-            "original_policy": "keep",
-            "collision_policy": "suffix",
+            "destination_mode": "auto_replace_clean_else_pending_review",
+            "collision_policy": "replace_final",
             "window_size": 1,
             "stage_mode": "copy",
             "original_mode": "keep",
             "return_mode": "park",
-            "confirm_replace_final": False,
-            "confirm_original_policy": False,
-            "confirm_delete_original": False,
+            "confirm_replace_final": True,
+            "confirm_source_overwrite": False,
             "scope": {
                 "enabled_only": True,
                 "skip_blocked": True,
@@ -526,8 +534,25 @@ class ApiCommandContractsTests(unittest.TestCase):
             },
         }
         self.assertEqual(validate_api_payload("/api/rerun/preview", rerun_preview_payload), rerun_preview_payload)
+        self.assertEqual(validate_api_payload("/api/rerun/network-preview", rerun_preview_payload), rerun_preview_payload)
+        network_start_dry_run = {**rerun_preview_payload, "minimum_worker_count": 1, "reason": "operator review"}
+        self.assertEqual(validate_api_payload("/api/rerun/network/start-dry-run", network_start_dry_run), network_start_dry_run)
+        network_start = {**network_start_dry_run, "dry_run_fingerprint": "fp", "confirm_start": True}
+        self.assertEqual(validate_api_payload("/api/rerun/network/start", network_start), network_start)
         rerun_start_payload = {**rerun_preview_payload, "dry_run": True, "plan_only": False}
         self.assertEqual(validate_api_payload("/api/rerun/start", rerun_start_payload), rerun_start_payload)
+        self.assertEqual(
+            validate_api_payload("/api/rerun/control", {"action": "stop_after_current", "confirm_stop": True}),
+            {"action": "stop_after_current", "confirm_stop": True},
+        )
+        self.assertEqual(
+            validate_api_payload("/api/rerun/control", {"action": "pause", "confirm_pause": True}),
+            {"action": "pause", "confirm_pause": True},
+        )
+        self.assertEqual(
+            validate_api_payload("/api/rerun/continue", {"manifest_key": "manifest-1", "confirm_continue": True}),
+            {"manifest_key": "manifest-1", "confirm_continue": True},
+        )
         self.assertEqual(
             validate_api_payload("/api/rerun/promote", {"row_key": "abc", "dry_run_fingerprint": "fp", "confirm_promote": True}),
             {"row_key": "abc", "dry_run_fingerprint": "fp", "confirm_promote": True},
@@ -536,6 +561,30 @@ class ApiCommandContractsTests(unittest.TestCase):
             validate_api_payload("/api/rerun/start", {**rerun_start_payload, "dry_run": "true"})
         with self.assertRaises(ValidationFailure):
             validate_api_payload("/api/rerun/start", {**rerun_start_payload, "scope": {**rerun_preview_payload["scope"], "enabled_only": "true"}})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/rerun/network-preview", {**rerun_preview_payload, "confirm_replace_final": "true"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/rerun/network/start-dry-run", {**network_start_dry_run, "confirm_start": True})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/rerun/network/start", {**network_start, "confirm_start": "true"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/rerun/network/start", {**network_start, "dry_run_fingerprint": ""})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/rerun/network/start", {**network_start_dry_run, "confirm_start": True})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/rerun/control", {"action": "stop_after_current"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/rerun/control", {"action": "stop_after_current", "confirm_stop": "true"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/rerun/control", {"action": "pause", "confirm_stop": True})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/rerun/control", {"action": "pause", "confirm_pause": "true"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/rerun/continue", {"manifest_key": "manifest-1"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/rerun/continue", {"manifest_key": "manifest-1", "confirm_continue": "true"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/rerun/continue", {"manifest_key": "", "confirm_continue": True})
         with self.assertRaises(ValidationFailure):
             validate_api_payload("/api/rerun/promote", {"row_key": "abc", "dry_run_fingerprint": "fp", "confirm_promote": "true"})
         self.assertEqual(

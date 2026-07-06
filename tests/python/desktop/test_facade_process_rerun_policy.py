@@ -59,11 +59,20 @@ class RerunLaunchPolicyTests(unittest.TestCase):
     def test_lifecycle_defaults_aliases_and_confirmations_are_explicit(self) -> None:
         lifecycle = rerun_lifecycle_from_request({})
         self.assertEqual(lifecycle.execution_mode, "one_at_a_time")
-        self.assertEqual(lifecycle.destination_mode, "review_workspace")
+        self.assertEqual(lifecycle.destination_mode, "auto_replace_clean_else_pending_review")
+        self.assertEqual(lifecycle.collision_policy, "replace_final")
         self.assertEqual(lifecycle.original_policy, "keep")
         self.assertEqual(lifecycle.original_mode, "keep")
+        self.assertEqual(lifecycle.return_mode, "replace_original")
         self.assertEqual(lifecycle.window_size, 1)
-        self.assertEqual(rerun_lifecycle_errors(lifecycle), [])
+        self.assertFalse(lifecycle.confirm_source_overwrite)
+        self.assertIn("auto_replace_clean_else_pending_review requires confirm_replace_final=true", "\n".join(rerun_lifecycle_errors(lifecycle)))
+
+        default_confirmed = rerun_lifecycle_from_request({"confirm_replace_final": True})
+        self.assertEqual(default_confirmed.destination_mode, "auto_replace_clean_else_pending_review")
+        self.assertEqual(default_confirmed.collision_policy, "replace_final")
+        self.assertEqual(default_confirmed.return_mode, "replace_original")
+        self.assertEqual(rerun_lifecycle_errors(default_confirmed), [])
 
         pending = rerun_lifecycle_from_request({"destination_mode": "pending_publish"})
         self.assertEqual(pending.destination_mode, "pending_publish")
@@ -75,15 +84,30 @@ class RerunLaunchPolicyTests(unittest.TestCase):
         self.assertEqual(alias.destination_mode, "publish_replace_final")
         self.assertIn("confirm_replace_final=true", "\n".join(rerun_lifecycle_errors(alias)))
 
+        auto_bad_collision = rerun_lifecycle_from_request({
+            "destination_mode": "auto_replace_clean_else_pending_review",
+            "collision_policy": "suffix",
+            "confirm_replace_final": True,
+        })
+        self.assertIn("collision_policy=replace_final", "\n".join(rerun_lifecycle_errors(auto_bad_collision)))
+
+        source_only = rerun_lifecycle_from_request({"confirm_source_overwrite": True})
+        self.assertIn("confirm_source_overwrite=true requires confirm_replace_final=true", "\n".join(rerun_lifecycle_errors(source_only)))
+
         confirmed = rerun_lifecycle_from_request({
             "destination_mode": "publish_replace_final",
             "confirm_replace_final": True,
+            "confirm_source_overwrite": True,
             "original_policy": "hold_then_delete_after_publish",
             "confirm_original_policy": True,
             "confirm_delete_original": True,
         })
-        self.assertIn("original source policies are disabled", "\n".join(rerun_lifecycle_errors(confirmed)))
+        self.assertEqual(rerun_lifecycle_errors(confirmed), [])
+        self.assertEqual(confirmed.original_policy, "keep")
         self.assertEqual(confirmed.original_mode, "keep")
+        self.assertTrue(confirmed.confirm_source_overwrite)
+        self.assertFalse(confirmed.confirm_original_policy)
+        self.assertFalse(confirmed.confirm_delete_original)
 
     def test_success_message_and_payload_are_stable(self) -> None:
         csv_path = Path("C:/queue/rerun.csv")
@@ -114,8 +138,11 @@ class RerunLaunchPolicyTests(unittest.TestCase):
         self.assertEqual(payload["original_mode"], "keep")
         self.assertEqual(payload["return_mode"], "park")
         self.assertEqual(payload["execution_mode"], "one_at_a_time")
-        self.assertEqual(payload["destination_mode"], "review_workspace")
+        self.assertEqual(payload["destination_mode"], "auto_replace_clean_else_pending_review")
         self.assertEqual(payload["original_policy"], "keep")
+        self.assertEqual(payload["collision_policy"], "replace_final")
+        self.assertFalse(payload["confirm_replace_final"])
+        self.assertFalse(payload["confirm_source_overwrite"])
         self.assertEqual(payload["pid"], 24682)
         self.assertEqual(payload["logs"], "stdout: rerun.stdout.log")
 
@@ -148,6 +175,8 @@ class RerunLaunchPolicyTests(unittest.TestCase):
         self.assertEqual(success.message, "Started CSV rerun plan-only check via PID 24682.")
         self.assertEqual(success.data["csv_path"], str(csv_path))
         self.assertTrue(success.data["plan_only"])
+        self.assertFalse(success.data["confirm_replace_final"])
+        self.assertFalse(success.data["confirm_source_overwrite"])
 
     def test_plan_flags_are_strict_booleans_and_mutually_exclusive(self) -> None:
         self.assertTrue(rerun_bool_from_request({"plan_only": True}, "plan_only"))

@@ -1,6 +1,6 @@
 # MediaPipelineRemuxEncodeAIO Documentation Index
 
-Last updated: 2026-06-24
+Last updated: 2026-07-04
 
 This is the active documentation map for the current promoted tree. It reflects the quarantine move plus the operator's later manual deletion of several active doc folders. The legacy desktop shell is not part of this current folder, and WebView/Tauri is the promoted operator surface.
 
@@ -19,6 +19,9 @@ This is the active documentation map for the current promoted tree. It reflects 
 - `ARCHIVED_MD_INDEX.md`: current archive/quarantine index.
 - `archive/docs-housekeeping/2026-05-20-review/`: original housekeeping quarantine root.
 - `archive/docs-housekeeping/2026-06-04-completed-md-pass/`: completed/superseded Markdown archive pass.
+- `archive/docs-housekeeping/2026-07-04-doc-cleanup/`: completed plans,
+  stale session notes, and obsolete architecture proposals moved out of active
+  guidance.
 
 ## Active Root Docs
 
@@ -34,62 +37,25 @@ This is the active documentation map for the current promoted tree. It reflects 
 
 ## Implementation Plans
 
-- `implementation/documentation-cleanup-goal-prompt.md`: four-phase documentation cleanup goal prompt for canonical drift fixes, completed-plan archival, evidence snapshot triage, and generated navigation refresh.
-- `implementation/library-route-map/README.md`: no-plugin Library Route Map planning pack for placing backend-authored route maps, route tables, selected-file traces, profile comparison, guided existing-policy editing, and validation handoff on the Libraries tab.
-- `implementation/library-route-map/PHASE_1_READ_ONLY_LIBRARY_ROUTE_MAP.md`: read-only Libraries tab route map and decision matrix plan.
-- `implementation/library-route-map/PHASE_2_SELECTED_FILE_DRY_RUN_TRACE.md`: selected Queue/Completed/Sample Validation file dry-run trace plan.
-- `implementation/library-route-map/PHASE_3_PROFILE_COMPARE_AND_DIFF.md`: side-by-side Library Profile route and settings comparison plan.
-- `implementation/library-route-map/PHASE_4_GUIDED_POLICY_EDITING.md`: graph-node navigation into existing backend-owned Library Profile controls.
-- `implementation/library-route-map/PHASE_5_ROUTE_MAP_VALIDATION_HANDOFF.md`: Launch, Completed, Pending Publish, Diagnostics, and Sample Validation evidence handoff plan.
-- `implementation/local-api-test-split/README.md`: planning pack for splitting the oversized Local API/WebView static test god-file into troubleshooting-oriented modules.
-- `implementation/local-api-test-split/PRE_WORK_AND_BASELINE.md`: prework, baseline validation, method inventory, assertion inventory, and stop conditions before moving tests.
-- `implementation/local-api-test-split/PHASE_1_TEST_HARNESS_AND_SHARED_FIXTURES.md`: shared test support extraction plan before moving test ownership.
-- `implementation/local-api-test-split/PHASE_2_WEB_STATIC_EXTRACTION.md`: plan for extracting the giant Web prototype/static assertions into page-focused Web static modules.
-- `implementation/local-api-test-split/PHASE_3_LOCAL_API_ROUTE_DOMAIN_EXTRACTION.md`: plan for splitting Local API route tests by HTTP, lifecycle, process, queue, rename, diagnostics, network, repair, and settings ownership.
-- `implementation/local-api-test-split/PHASE_4_QUEUE_RENAME_CONTRACT_DECOMPOSITION.md`: queue/rename long-contract decomposition plan.
-- `implementation/local-api-test-split/PHASE_5_CLEANUP_DOCS_AND_DISCOVERY.md`: cleanup, docs, generated-summary, discovery, and change-packet closure plan.
-- `implementation/local-api-test-split/ASSERTION_MIGRATION_LEDGER.md`: fill-in ledger proving moved/deleted assertions are accounted for during the split.
-- `implementation/local-api-test-split/VALIDATION.md`: per-phase validation commands and docs-only planning validation for the test split.
-- `implementation/local-api-test-split/ADVERSARIAL_REVIEW.md`: failure-first review checklist for lost assertions, duplicate tests, weakened guardrails, and helper risk.
-- `implementation/local-api-test-split/EXECUTION_PROMPTS.md`: bounded prompts for executing each test-split phase with a fresh agent.
-- `implementation/css-split/README.md`: planning pack for splitting the oversized WebView CSS parents while preserving import order, test coverage, static serving, and browser-layout validation.
-- `implementation/css-split/STYLES_COMPONENTS_SPLIT.md`: one-at-a-time plan for splitting `styles.components.css` into shared component child CSS files.
-- `implementation/css-split/STYLES_PAGES_SPLIT.md`: one-at-a-time plan for splitting `styles.pages.css` into Home, Settings, Network, Reports, and responsive page CSS files.
-- `implementation/css-split/STYLES_QUEUE_SPLIT.md`: one-at-a-time plan for splitting `styles.queue.css` into Queue, priority/order, and File Override drawer CSS files.
-- `implementation/architecture-boundary-cleanup/README.md`: planning pack and prework baseline for GitHub #23 core-to-desktop dependency-boundary cleanup.
-- `implementation/architecture-boundary-cleanup/EDGE_LEDGER.md`: closed #23 edge ledger, Phase 0 baseline history, and Phase 7 permanent `NO_CORE_TO_DESKTOP` enforcement evidence.
-- `implementation/webview-large-file-refactor-prework/networkView.prework-prompt.md`: prework prompt for a troubleshooting-oriented `networkView.js` split, anchored to the existing Network planning pack and backend-owned lifecycle/setup boundaries.
-- `implementation/webview-large-file-refactor-prework/renameView.prework-prompt.md`: prework prompt for a troubleshooting-oriented `renameView.js` split, including preview/apply/undo safety, strict confirmations, path intake, workbench, and dialog ledgers.
-- `implementation/webview-large-file-refactor-prework/renameView.phase0-baseline.md`: Phase 0 prework baseline for a troubleshooting-oriented `renameView.js` split, recording the namespace export ledger, route/DOM ledgers, source-only guardrails, mutable state, seams, rollback rules, and validation gate.
-- `implementation/webview-large-file-refactor-prework/queueView.prework-prompt.md`: prework prompt for a troubleshooting-oriented `queueView.js` split, including existing child modules, queue command routes, selection/filter state, and compatibility exports.
-- `implementation/webview-large-file-refactor-prework/settingsView.prework-prompt.md`: prework prompt for a troubleshooting-oriented `settingsView.js` split, including existing builder modules, settings preview/save contracts, strict confirmations, and staged patch state.
-- `implementation/webview-large-file-refactor-prework/settingsView.baseline.md`: prework baseline for a troubleshooting-oriented `settingsView.js` split, recording facade exports, child-module boundaries, route/DOM ledgers, mutable state, future extraction seams, rollback rules, and validation evidence.
-- `implementation/webview-large-file-refactor-prework/settingsLibraries.prework-prompt.md`: prework prompt for a troubleshooting-oriented `settingsLibraries.js` split, including Library Profile inheritance, override staging, Settings preview/save delegation, and route/promotion evidence.
-- `implementation/network-view-troubleshooting-refactor/README.md`: troubleshooting-oriented plan for splitting `networkView.js` while preserving backend-owned Network lifecycle/setup routes, dry-run freshness, strict confirmations, worker/state-file evidence, and diagnostics handoffs.
-- `implementation/network-view-troubleshooting-refactor/PHASE_0_BASELINE.md`: Phase 0 export ledger, direct caller baseline, route/DOM/command-owner baseline, and parent-plus-child guardrail migration record.
-- `implementation/pipeline-processing-split/README.md`: planning pack for splitting the critical PowerShell encode/remux processing path by troubleshooting and failure boundary.
-- `implementation/pipeline-processing-split/PRE_WORK.md`: pre-work, stop conditions, behavior inventory, and baseline validation for the pipeline split.
-- `implementation/pipeline-processing-split/TARGET_ARCHITECTURE.md`: target encode/remux module boundaries, public contracts, loader rules, and troubleshooting map.
-- `implementation/pipeline-processing-split/PHASE_1_BASELINE_AND_CONTRACT_FREEZE.md`: characterization and contract-freeze phase before moving PowerShell behavior.
-- `implementation/pipeline-processing-split/PHASE_2_REMUX_EXTRACTION.md`: behavior-preserving remux extraction plan.
-- `implementation/pipeline-processing-split/PHASE_3_ENCODE_CORE_EXTRACTION.md`: encode context, preflight, attempt-plan, command-builder, and execution extraction plan.
-- `implementation/pipeline-processing-split/PHASE_4_ENCODE_FALLBACK_VERIFICATION_SIZE.md`: encode fallback, verification, size guard, and publish handoff extraction plan.
-- `implementation/pipeline-processing-split/PHASE_5_DISPATCHER_LOAD_ORDER_CLEANUP.md`: dispatcher, module loader, wrapper, generated-summary, and cleanup phase.
-- `implementation/pipeline-processing-split/VALIDATION.md`: per-phase validation ladder and real-media evidence matrix for the split.
-- `implementation/pipeline-processing-split/ADVERSARIAL_REVIEW.md`: failure-first review checklist for assuming the split broke behavior and proving otherwise.
-- `implementation/pipeline-processing-split/EXECUTION_PROMPTS.md`: bounded goal-oriented prompts for executing each split planning document with a fresh AI coding tool.
-- `implementation/reports-view-refactor/README.md`: planning pack for splitting `reportsView.js` into Reports-owned WebView child modules while preserving namespace exports, backend-owned command routes, and preview-first guardrails.
-- `implementation/release-foundation/README.md`: `2026.06.04.001` portable Tauri release-foundation planning pack.
-- `implementation/release-foundation/PHASE_0_DOCS_ONLY_PLANNING.md`: docs-only planning and validation.
-- `implementation/release-foundation/PHASE_1_RELEASE_IDENTITY.md`: `2026.06.04.001` release identity alignment plan.
-- `implementation/release-foundation/PHASE_2_FILE_LAYOUT_CLEANUP.md`: file-layout cleanup and document-placement helper plan.
-- `implementation/release-foundation/PHASE_3_DOCUMENTATION_CLEANUP.md`: active documentation cleanup plan.
-- `implementation/release-foundation/PHASE_4_TAURI_RELEASE_CANDIDATE.md`: Tauri portable release candidate build plan.
-- `implementation/release-foundation/PHASE_5_PACKAGE_OPEN_CLOSE_VALIDATION.md`: package/open/close validation plan.
-- `implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`: repeatable real-media pilot plan.
-- `implementation/release-foundation/PHASE_7_FINALIZATION.md`: change-control and release metadata finalization plan.
+- `implementation/library-route-map/`: planning pack for backend-authored
+  Library Route Map views and validation handoffs.
+- `implementation/css-split/`: planning pack for splitting large WebView CSS
+  parents while preserving plain-CSS import order.
+- `implementation/webview-large-file-refactor-prework/`: prework prompts and
+  baselines for future large WebView module splits.
+- `implementation/network-view-troubleshooting-refactor/`: planning pack for a
+  troubleshooting-oriented `networkView.js` split.
+- `implementation/network-csv-rerun/PREWORK.md`: investigation-first planning
+  source for making CSV rerun a future Network coordinator/worker workload.
+- `implementation/pipeline-processing-split/`: planning pack for splitting the
+  critical PowerShell encode/remux processing path by failure boundary.
+- `implementation/reports-view-refactor/`: planning pack for splitting
+  `reportsView.js` into Reports-owned child modules.
 - `implementation/encoder-breadth-av1-plan.md`: active encoder breadth/AV1 implementation plan for the remaining hardware/runtime validation workstream.
 - `implementation/ruff-rule-expansion/B_C4_UP_FINDINGS_REMEDIATION.md`: work ledger for cleaning Ruff `B`, `C4`, and `UP` candidate findings before any noisy family becomes blocking.
+
+Completed implementation packs moved out of active guidance are indexed under
+`archive/docs-housekeeping/2026-07-04-doc-cleanup/`.
 
 ## Removed Compatibility Redirects
 
@@ -181,6 +147,7 @@ Smoke wrappers live under `..\ops/scripts/smoke\`. Do not add new smoke wrappers
 
 ## Sample Validation
 
+- `sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md`
 - `sample-validation/REAL_MEDIA_VALIDATION_EVIDENCE_TEMPLATE.md`
 - `sample-validation/SAMPLE_VALIDATION_PAYLOAD_SCHEMA_REFERENCE.md`
 - `sample-validation/SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md`
@@ -220,5 +187,8 @@ These folders currently exist but contain no Markdown/text documentation files:
 - `archive/docs-housekeeping/2026-05-20-review/delete-candidates/`: 19 quarantine-only delete candidates.
 - `archive/docs-housekeeping/2026-06-04-completed-md-pass/`: completed or superseded historical audits, dependency-refactor tracker docs, and UX remediation tracker docs moved out of active topic folders.
 - `archive/docs-housekeeping/2026-06-24-doc-prune/`: completed implementation plans plus 2026-06 audit/review evidence snapshots pruned from the active docs tree.
+- `archive/docs-housekeeping/2026-07-04-doc-cleanup/`: completed release,
+  test-split, architecture-boundary, documentation-cleanup, network hardening,
+  queue scan, and stale session-log material moved out of active guidance.
 
 Do not use quarantined docs as active guidance unless a current doc explicitly points to one for historical evidence. Use `ARCHIVED_MD_INDEX.md` for the archive inventory.

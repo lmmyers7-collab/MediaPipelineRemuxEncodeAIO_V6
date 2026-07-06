@@ -3,9 +3,9 @@ file: docs/testing/TEST_COVERAGE_MATRIX.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-02
+last_modified: 2026-07-04
 last_reviewed: 2026-05-29
-sha256: 8dcf3ab908f503c4c013808e72fb4d3495ed1b8677a48c126d4717e6606a16a9
+sha256: ec948f2186d3636597f4abb8c56709785473f9b260151f70a75d52c0ecbb096c
 ---
 # `docs/testing/TEST_COVERAGE_MATRIX.md`
 

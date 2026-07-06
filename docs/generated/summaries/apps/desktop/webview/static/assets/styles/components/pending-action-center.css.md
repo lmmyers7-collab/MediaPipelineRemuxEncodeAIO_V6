@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/styles/components/pending-action-center
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-26
+last_modified: 2026-07-05
 last_reviewed: 2026-06-25
-sha256: bbdced06c6ae7e07c65689b68bb240792101a4a3ed2833e5e92212288943f64b
+sha256: 2022356384cc244b21c475d540d11df98a55bdfdc4ff3c7a8f1210da0b060c2c
 ---
 # `apps/desktop/webview/static/assets/styles/components/pending-action-center.css`
 

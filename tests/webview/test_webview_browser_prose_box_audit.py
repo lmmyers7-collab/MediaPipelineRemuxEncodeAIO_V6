@@ -41,7 +41,7 @@ except ImportError:  # pragma: no cover
     )
 
 
-EXPECTED_DESKTOP_SCREENSHOT_COUNT = 39
+EXPECTED_DESKTOP_SCREENSHOT_COUNT = 38
 
 
 def _browser_prose_box_audit_runner_source() -> str:
@@ -51,10 +51,10 @@ def _browser_prose_box_audit_runner_source() -> str:
 
         const CAPTURE_MATRIX = [
           { page: "home", label: "Home" },
-          { page: "launch", label: "Launch", tabs: [["pipeline", "Pipeline Processor"], ["audit", "Audit"], ["rerun", "CSV Rerun"], ["history", "History"]] },
+          { page: "launch", label: "Launch", tabs: [["pipeline", "Pipeline Processor"], ["history", "History"]] },
           { page: "live", label: "Telemetry" },
           { page: "metrics", label: "Metrics", tabs: [["overview", "Overview"], ["routes", "Remux vs Encode"], ["storage", "Storage"], ["production", "Production"], ["workers", "Workers"]] },
-          { page: "queue", label: "Queue" },
+          { page: "queue", label: "Queue", tabs: [["main", "Main Queue"], ["rerun", "CSV Rerun"]] },
           { page: "completed", label: "Completed Output", tabs: [["overview", "Overview"], ["history", "History"], ["evidence", "Evidence"]] },
           { page: "pending", label: "Pending Publish" },
           { page: "rename", label: "Rename" },
@@ -69,6 +69,7 @@ def _browser_prose_box_audit_runner_source() -> str:
 
         const TAB_CONFIG = {
           launch: { button: "data-launch-tab", panel: "data-launch-tab-panel" },
+          queue: { button: "data-queue-tab", panel: "data-queue-tab-panel" },
           metrics: { button: "data-metrics-tab", panel: "data-metrics-tab-panel" },
           reports: { button: "data-reports-tab", panel: "data-reports-tab-panel" },
           completed: { button: "data-completed-tab", panel: "data-completed-tab" },

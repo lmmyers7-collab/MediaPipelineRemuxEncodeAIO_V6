@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/launch/controllerState.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-18
+last_modified: 2026-07-03
 last_reviewed: 2026-06-04
-sha256: caf66d772276aa8f9bc8b683276e30ae4a632558121b2dda738b37ca6723c23b
+sha256: 2a0d2fac9af52fa6e8e97e1381985276630cae7b20e7b2c366168d883f3181a0
 ---
 # `apps/desktop/webview/static/assets/launch/controllerState.js`
 

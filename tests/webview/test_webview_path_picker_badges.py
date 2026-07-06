@@ -19,7 +19,7 @@ ASSETS_ROOT = WEBVIEW_ROOT / "assets"
 
 STATIC_BADGES = [
     ("pipeline-single-file-path-picker-badge", "launch.single_file", "pipeline-start-single-file", "files"),
-    ("rerun-csv-path-picker-badge", "launch.rerun_csv", "rerun-start-csv-path", "files"),
+    ("rerun-csv-path-picker-badge", "queue.rerun_csv", "rerun-start-csv-path", "files"),
     ("report-audit-library-root-picker-badge", "reports.audit_library_root", "report-audit-start-library-root", "folder"),
     ("metrics-source-path-picker-badge", "metrics.source_root", "metrics-source-path", "folder"),
     ("rename-manual-path-picker-badge", "rename.source.media_file", "rename-add-path-input", "files"),

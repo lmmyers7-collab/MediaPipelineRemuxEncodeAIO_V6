@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_status_snapshot_runner.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-01
+last_modified: 2026-07-04
 last_reviewed: 2026-06-04
-sha256: 2a382d9278bb4c81e4b44b8fc98d4052501d7358a88f9cb92daefea33d156330
+sha256: d2c76014932cd43365a323aedcef0fa019e1e55638c7d345f4c728f64ceeccf0
 ---
 # `tests/python/desktop/test_service_status_snapshot_runner.py`
 

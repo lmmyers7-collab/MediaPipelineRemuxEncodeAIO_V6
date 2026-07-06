@@ -41,6 +41,7 @@ class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
             'id="floating-pipeline-log-title"',
             'id="floating-pipeline-log-status"',
             'id="floating-pipeline-log-follow"',
+            'id="floating-pipeline-log-mode"',
             'id="floating-pipeline-log-refresh-button"',
             'id="floating-pipeline-log-close-button"',
             'id="floating-pipeline-log-updated"',
@@ -61,15 +62,22 @@ class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
             "function closeFloatingPipelineLog",
             "function refreshFloatingPipelineLog",
             "function renderFloatingPipelineLog",
+            "function renderRawFloatingPipelineLog",
             "function compactRepeatedProgressLines",
+            "/api/diagnostics/tail?target=pipeline_log&max_bytes=262144",
             "function activeWorkLogLines",
+            "function activeProcessLogLines",
             "ACTIVE WORK DETECTED",
+            "Active process log:",
+            "CSV rerun process",
+            "--- current activity ---",
             "shown once;",
             "function initFloatingPipelineLogDragEvents",
             "header.addEventListener(\"pointerdown\", startPanelDrag)",
             "window.addEventListener(\"resize\", keepPanelInsideViewport)",
             "pipeline-log-window-button",
             "floating-pipeline-log-panel",
+            "floating-pipeline-log-mode",
             "window.mediaPipelineFloatingPipelineLog",
         ):
             self.assertIn(fragment, script)
@@ -86,6 +94,7 @@ class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
         for fragment in (
             'id="pipeline-log-window-status"',
             'id="pipeline-log-window-follow"',
+            'id="pipeline-log-window-mode"',
             'id="pipeline-log-window-refresh-button"',
             'id="pipeline-log-window-updated"',
             'id="pipeline-log-window-text"',
@@ -119,13 +128,20 @@ class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
         self.assertIn('apiClient.apiGet("/api/diagnostics"', script)
         self.assertIn('apiClient.apiGet("/api/backend/close-readiness"', script)
         self.assertIn("function renderPipelineLogWindow", script)
+        self.assertIn("function renderRawPipelineLogWindow", script)
         self.assertIn("function renderRefreshError", script)
         self.assertIn("function compactRepeatedProgressLines", script)
+        self.assertIn("/api/diagnostics/tail?target=pipeline_log&max_bytes=262144", script)
         self.assertIn("function activeWorkLogLines", script)
+        self.assertIn("function activeProcessLogLines", script)
         self.assertIn("ACTIVE WORK DETECTED", script)
+        self.assertIn("Active process log:", script)
+        self.assertIn("CSV rerun process", script)
+        self.assertIn("--- current activity ---", script)
         self.assertIn("shown once;", script)
         self.assertIn("isNearBottom", script)
         self.assertIn("pipeline-log-window-follow", script)
+        self.assertIn("pipeline-log-window-mode", script)
         self.assertIn("window.mediaPipelinePipelineLogWindow", script)
         self.assertNotIn("apiPost", script)
         self.assertNotIn("fetch(", script)
@@ -171,6 +187,7 @@ class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
                 id,
                 hidden: false,
                 checked: id === "floating-pipeline-log-follow",
+                value: id === "floating-pipeline-log-mode" ? "activity" : "",
                 disabled: false,
                 dataset: {},
                 attributes: {},
@@ -229,6 +246,7 @@ class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
               "floating-pipeline-log-header",
               "floating-pipeline-log-status",
               "floating-pipeline-log-follow",
+              "floating-pipeline-log-mode",
               "floating-pipeline-log-refresh-button",
               "floating-pipeline-log-close-button",
               "floating-pipeline-log-updated",
@@ -239,6 +257,17 @@ class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
 
             let diagnosticsNavigationAttempted = false;
             let apiCalls = 0;
+            let diagnosticsTail = [
+              "2026-06-25 20:03:00 [INFO] ENCODE : 65%",
+              "2026-06-25 20:03:00 [INFO] ENCODE : 65%",
+              "2026-06-25 20:03:01 [INFO] ENCODE : 65%",
+              "2026-06-25 20:03:02 [INFO] smoke log line",
+            ].join("\n");
+            const rawTail = [
+              "2026-06-25 20:04:00 [INFO] ENCODE : 65%",
+              "2026-06-25 20:04:00 [INFO] ENCODE : 65%",
+              "2026-06-25 20:04:01 [INFO] raw tail line",
+            ].join("\n");
             const windowListeners = {};
             const context = {
               window: {},
@@ -277,12 +306,7 @@ class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
                 }
                 if (path === "/api/diagnostics") {
                   return {
-                    log_tail: [
-                      "2026-06-25 20:03:00 [INFO] ENCODE : 65%",
-                      "2026-06-25 20:03:00 [INFO] ENCODE : 65%",
-                      "2026-06-25 20:03:01 [INFO] ENCODE : 65%",
-                      "2026-06-25 20:03:02 [INFO] smoke log line",
-                    ].join("\n"),
+                    log_tail: diagnosticsTail,
                     active_jobs: ["csv rerun: active (pid 56492) launched 2026-06-29T21:36:12"],
                     active_job_rows: [{
                       launch_id: "csv-rerun-smoke",
@@ -292,6 +316,25 @@ class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
                       status_state: "running",
                       pid: 56492,
                     }],
+                    worker_progress: {
+                      rows: [{
+                        job_kind: "rerun_csv",
+                        worker_label: "Local rerun_csv",
+                        status_state: "running",
+                        stage: "active",
+                        last_log_line: "2026-06-25 20:03:02 [INFO] [Movie 1/1] SIZE: 5.45 GB | Route: ENCODE",
+                      }],
+                    },
+                  };
+                }
+                if (path === "/api/diagnostics/tail?target=pipeline_log&max_bytes=262144") {
+                  return {
+                    ok: true,
+                    target: "pipeline_log",
+                    text: rawTail,
+                    truncated: false,
+                    warnings: [],
+                    errors: [],
                   };
                 }
                 throw new Error(`Unexpected path ${path}`);
@@ -312,7 +355,36 @@ class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
             if (!nodes["floating-pipeline-log-text"].textContent.includes("ACTIVE WORK DETECTED")) throw new Error("active work banner did not render");
             if (!nodes["floating-pipeline-log-text"].textContent.includes("Shell close blocked because CSV rerun is active.")) throw new Error("close-readiness reason did not render");
             if (!nodes["floating-pipeline-log-text"].textContent.includes("smoke log line")) throw new Error("log text did not render");
+            if (!nodes["floating-pipeline-log-text"].textContent.includes("CSV rerun process (active)")) throw new Error("active rerun process log label did not render");
+            if (!nodes["floating-pipeline-log-text"].textContent.includes("Route: ENCODE")) throw new Error("active rerun encode log line did not render");
             if (!nodes["floating-pipeline-log-text"].textContent.includes("3 repeated progress updates collapsed")) throw new Error("progress repeats were not compacted");
+            const initialText = nodes["floating-pipeline-log-text"].textContent;
+            if (initialText.indexOf("smoke log line") >= initialText.indexOf("ACTIVE WORK DETECTED")) {
+              throw new Error("active work evidence should render after the tail so follow-tail keeps it visible");
+            }
+
+            diagnosticsTail = [
+              "2026-06-25 20:03:03 [INFO] COPY : 80%",
+              "2026-06-25 20:03:04 [INFO] proof refreshed tail line",
+            ].join("\n");
+            await overlay.refreshFloatingPipelineLog();
+            const refreshedText = nodes["floating-pipeline-log-text"].textContent;
+            if (apiCalls !== 4) throw new Error(`expected two diagnostics refresh cycles, got ${apiCalls} API calls`);
+            if (!refreshedText.includes("proof refreshed tail line")) throw new Error("manual refresh did not render the updated diagnostics log tail");
+            if (refreshedText.includes("smoke log line")) throw new Error("manual refresh kept stale log text after diagnostics changed");
+            if (refreshedText.indexOf("proof refreshed tail line") >= refreshedText.indexOf("ACTIVE WORK DETECTED")) {
+              throw new Error("active work evidence should remain visible at the bottom after refresh");
+            }
+
+            nodes["floating-pipeline-log-mode"].value = "raw";
+            await overlay.refreshFloatingPipelineLog();
+            const rawText = nodes["floating-pipeline-log-text"].textContent;
+            if (apiCalls !== 5) throw new Error(`expected raw mode to add one tail call, got ${apiCalls} API calls`);
+            if (rawText !== rawTail) throw new Error("raw mode did not render the unmodified backend tail");
+            if (rawText.includes("ACTIVE WORK DETECTED")) throw new Error("raw mode kept synthetic active-work evidence");
+            if (!rawText.includes("ENCODE : 65%\n2026-06-25 20:04:00 [INFO] ENCODE : 65%")) {
+              throw new Error("raw mode compacted repeated progress lines");
+            }
 
             const header = nodes["floating-pipeline-log-header"];
             const panel = nodes["floating-pipeline-log-panel"];

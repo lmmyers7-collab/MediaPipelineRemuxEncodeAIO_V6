@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -12,13 +13,14 @@ if TYPE_CHECKING:
 CSV_RERUN_START_COMMAND = "rerun.start"
 CSV_RERUN_PATH_ERROR = "CSV path is required."
 CSV_RERUN_MODE_ERROR = (
-    "Executable CSV rerun starts require supported lifecycle fields; source mutation "
-    "policies are disabled, and final replacement requires strict confirmation."
+    "Executable CSV rerun starts require supported destination/collision lifecycle fields; "
+    "source mutation policy is not part of CSV rerun launch, and final replacement requires strict confirmation."
 )
 CSV_RERUN_PLAN_MODE_ERROR = "dry_run and plan_only cannot both be true."
 
 RERUN_EXECUTION_MODES = ("one_at_a_time", "windowed", "batch_stage_all")
 RERUN_DESTINATION_MODES = (
+    "auto_replace_clean_else_pending_review",
     "review_workspace",
     "pending_publish",
     "publish_non_overlap",
@@ -26,17 +28,38 @@ RERUN_DESTINATION_MODES = (
 )
 RERUN_ORIGINAL_POLICIES = (
     "keep",
-    "rename_after_publish",
-    "move_to_hold_after_publish",
-    "hold_then_delete_after_publish",
 )
 RERUN_COLLISION_POLICIES = ("suffix", "fail", "replace_final")
 RERUN_DEFAULT_EXECUTION_MODE = "one_at_a_time"
-RERUN_DEFAULT_DESTINATION_MODE = "review_workspace"
+RERUN_DEFAULT_DESTINATION_MODE = "auto_replace_clean_else_pending_review"
 RERUN_DEFAULT_ORIGINAL_POLICY = "keep"
-RERUN_DEFAULT_COLLISION_POLICY = "suffix"
+RERUN_DEFAULT_COLLISION_POLICY = "replace_final"
 RERUN_DEFAULT_WINDOW_SIZE = 1
 RERUN_MAX_WINDOW_SIZE = 100
+RERUN_REPLACE_FINAL_DESTINATION_MODES = (
+    "auto_replace_clean_else_pending_review",
+    "publish_replace_final",
+)
+RERUN_FINAL_OUTPUT_OVERRIDE_FIELDS = (
+    "plex_planned_path",
+    "PlexPlannedPath",
+    "planned_final_path",
+    "PlannedFinalPath",
+    "final_output_path",
+    "FinalOutputPath",
+    "server_out",
+    "ServerOut",
+    "completed_output_path",
+    "CompletedOutputPath",
+    "completed_path",
+    "CompletedPath",
+    "PlannedOutputPath",
+    "planned_output_path",
+    "OutputPath",
+    "output_path",
+)
+RERUN_FINAL_OUTPUT_ROOT_ERROR = "final output destination resolves outside configured output root"
+RERUN_FINAL_OUTPUT_ROOT_UNAVAILABLE = "configured output root is unavailable for final output destination validation"
 
 
 @dataclass(frozen=True)
@@ -47,6 +70,7 @@ class RerunLifecyclePolicy:
     collision_policy: str
     window_size: int
     confirm_replace_final: bool
+    confirm_source_overwrite: bool
     confirm_original_policy: bool
     confirm_delete_original: bool
     stage_mode: str
@@ -62,6 +86,7 @@ class RerunLifecyclePolicy:
             "collision_policy": self.collision_policy,
             "window_size": self.window_size,
             "confirm_replace_final": self.confirm_replace_final,
+            "confirm_source_overwrite": self.confirm_source_overwrite,
             "confirm_original_policy": self.confirm_original_policy,
             "confirm_delete_original": self.confirm_delete_original,
             "stage_mode": self.stage_mode,
@@ -79,6 +104,147 @@ def _command_result(**kwargs: Any) -> CommandResult:
 
 def normalize_rerun_csv_path(value: Any) -> str:
     return str(value or "").strip()
+
+
+def _clean_text(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def _mapping_value(mapping: Mapping[str, Any], *names: str) -> Any:
+    lowered = {str(key).casefold(): value for key, value in mapping.items()}
+    for name in names:
+        key = name.casefold()
+        if key in lowered:
+            return lowered[key]
+    return None
+
+
+def _object_value(value: Any, *names: str) -> Any:
+    if isinstance(value, Mapping):
+        return _mapping_value(value, *names)
+    for name in names:
+        if hasattr(value, name):
+            return getattr(value, name)
+    return None
+
+
+def _object_text(value: Any, *names: str) -> str:
+    raw = _object_value(value, *names)
+    return _clean_text(raw)
+
+
+def _config_text(config: Mapping[str, Any], *names: str) -> str:
+    return _clean_text(_mapping_value(config, *names))
+
+
+def _profile_enabled(profile: Any) -> bool:
+    raw = _object_value(profile, "enabled", "Enabled")
+    if raw is None:
+        return True
+    if isinstance(raw, bool):
+        return raw
+    text = _clean_text(raw).casefold()
+    return text not in {"0", "false", "no", "off", "disabled"}
+
+
+def _library_profiles(config: Mapping[str, Any]) -> tuple[Any, ...]:
+    raw = _mapping_value(config, "LibraryProfiles", "library_profiles")
+    if raw is None:
+        return ()
+    if isinstance(raw, Mapping):
+        values = tuple(raw.values())
+        if any(isinstance(item, Mapping) for item in values):
+            return values
+        return (raw,)
+    if isinstance(raw, (list, tuple, set)):
+        return tuple(raw)
+    return ()
+
+
+def _windows_path_under(path: str, root: str) -> bool:
+    try:
+        path_obj = PureWindowsPath(path)
+        root_obj = PureWindowsPath(root)
+        path_obj.relative_to(root_obj)
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
+def rerun_path_resolves_under_root(path: Any, root: Any) -> bool:
+    path_text = _clean_text(path)
+    root_text = _clean_text(root)
+    if not path_text or not root_text:
+        return False
+    try:
+        Path(path_text).resolve(strict=False).relative_to(Path(root_text).resolve(strict=False))
+        return True
+    except (OSError, RuntimeError, ValueError):
+        return _windows_path_under(path_text, root_text)
+
+
+def rerun_paths_resolve_same(left: Any, right: Any) -> bool:
+    left_text = _clean_text(left)
+    right_text = _clean_text(right)
+    if not left_text or not right_text:
+        return False
+    try:
+        return Path(left_text).resolve(strict=False) == Path(right_text).resolve(strict=False)
+    except (OSError, RuntimeError, ValueError):
+        return str(PureWindowsPath(left_text)).rstrip("\\/").casefold() == str(PureWindowsPath(right_text)).rstrip("\\/").casefold()
+
+
+def rerun_final_output_override(row: Mapping[str, Any]) -> tuple[str, str]:
+    for field in RERUN_FINAL_OUTPUT_OVERRIDE_FIELDS:
+        text = _clean_text(_mapping_value(row, field))
+        if text:
+            return field, text
+    return "", ""
+
+
+def rerun_effective_output_root_for_source(resolved: Any, source_path: Any) -> Path | None:
+    config = getattr(resolved, "config_data", {}) if resolved is not None else {}
+    if not isinstance(config, Mapping):
+        return None
+    fallback_root = _config_text(config, "Outsource", "outsource")
+    source_text = _clean_text(source_path)
+    if source_text:
+        for profile in _library_profiles(config):
+            if not _profile_enabled(profile):
+                continue
+            profile_source = _object_text(profile, "source_path", "SourcePath", "sourceRoot", "SourceRoot")
+            profile_output = _object_text(profile, "output_path", "OutputPath", "outputRoot", "OutputRoot")
+            if not profile_source or not rerun_path_resolves_under_root(source_text, profile_source):
+                continue
+            return Path(profile_output or fallback_root) if (profile_output or fallback_root) else None
+    return Path(fallback_root) if fallback_root else None
+
+
+def rerun_final_output_root_violation(
+    resolved: Any,
+    row: Mapping[str, Any],
+    *,
+    source_path: Any = "",
+    final_output_path: Any = "",
+    final_output_field: str = "",
+    confirm_source_overwrite: bool = False,
+) -> str:
+    field = final_output_field
+    target = _clean_text(final_output_path)
+    if not target:
+        field, target = rerun_final_output_override(row)
+    if not target:
+        return ""
+    source_text = _clean_text(source_path or _mapping_value(row, "source_path", "Path", "SourcePath"))
+    if confirm_source_overwrite and source_text and rerun_paths_resolve_same(target, source_text):
+        return ""
+    root = rerun_effective_output_root_for_source(resolved, source_text)
+    if root is None:
+        return RERUN_FINAL_OUTPUT_ROOT_UNAVAILABLE
+    if rerun_path_resolves_under_root(target, root):
+        return ""
+    field_detail = f" from {field}" if field else ""
+    return f"{RERUN_FINAL_OUTPUT_ROOT_ERROR}{field_detail}: {target}"
 
 
 def rerun_csv_path_from_request(request: dict[str, Any]) -> Path | None:
@@ -117,6 +283,13 @@ def rerun_modes_from_request(request: dict[str, Any]) -> tuple[str, str, str]:
 
 
 def _destination_mode_from_alias(return_mode: str) -> str:
+    if return_mode in {
+        "auto_replace_clean_else_pending_review",
+        "auto_replace_clean",
+        "clean_replace_else_pending",
+        "normal_remediation",
+    }:
+        return "auto_replace_clean_else_pending_review"
     if return_mode in {"park", "review", "review_workspace"}:
         return "review_workspace"
     if return_mode in {"queue", "pending", "pending_publish", "publish"}:
@@ -129,6 +302,8 @@ def _destination_mode_from_alias(return_mode: str) -> str:
 
 
 def _return_mode_from_destination(destination_mode: str) -> str:
+    if destination_mode == "auto_replace_clean_else_pending_review":
+        return "replace_original"
     if destination_mode == "review_workspace":
         return "park"
     if destination_mode == "pending_publish":
@@ -164,8 +339,13 @@ def _original_mode_from_policy(original_policy: str) -> str:
     return "keep"
 
 
+def rerun_original_policy_from_destination(destination_mode: str, collision_policy: str) -> str:
+    _ = (destination_mode, collision_policy)
+    return RERUN_DEFAULT_ORIGINAL_POLICY
+
+
 def rerun_lifecycle_from_request(request: dict[str, Any]) -> RerunLifecyclePolicy:
-    stage_mode, original_mode_alias, return_mode_alias = rerun_modes_from_request(request)
+    stage_mode, _original_mode_alias, return_mode_alias = rerun_modes_from_request(request)
     compatibility_aliases_used = any(key in request for key in ("stage_mode", "original_mode", "return_mode"))
     execution_mode = normalize_rerun_lifecycle_value(
         request.get("execution_mode"),
@@ -175,14 +355,11 @@ def rerun_lifecycle_from_request(request: dict[str, Any]) -> RerunLifecyclePolic
         request.get("destination_mode"),
         _destination_mode_from_alias(return_mode_alias) if compatibility_aliases_used else RERUN_DEFAULT_DESTINATION_MODE,
     )
-    original_policy = normalize_rerun_lifecycle_value(
-        request.get("original_policy"),
-        _original_policy_from_alias(original_mode_alias) if compatibility_aliases_used else RERUN_DEFAULT_ORIGINAL_POLICY,
-    )
     collision_policy = normalize_rerun_lifecycle_value(
         request.get("collision_policy"),
-        "replace_final" if destination_mode == "publish_replace_final" else RERUN_DEFAULT_COLLISION_POLICY,
+        "replace_final" if destination_mode in RERUN_REPLACE_FINAL_DESTINATION_MODES else "suffix",
     )
+    original_policy = rerun_original_policy_from_destination(destination_mode, collision_policy)
     window_size = _bounded_window_size(request.get("window_size"), execution_mode)
     return RerunLifecyclePolicy(
         execution_mode=execution_mode,
@@ -191,8 +368,9 @@ def rerun_lifecycle_from_request(request: dict[str, Any]) -> RerunLifecyclePolic
         collision_policy=collision_policy,
         window_size=window_size,
         confirm_replace_final=rerun_bool_from_request(request, "confirm_replace_final"),
-        confirm_original_policy=rerun_bool_from_request(request, "confirm_original_policy"),
-        confirm_delete_original=rerun_bool_from_request(request, "confirm_delete_original"),
+        confirm_source_overwrite=rerun_bool_from_request(request, "confirm_source_overwrite"),
+        confirm_original_policy=False,
+        confirm_delete_original=False,
         stage_mode=stage_mode,
         original_mode="keep",
         return_mode=_return_mode_from_destination(destination_mode),
@@ -206,16 +384,19 @@ def rerun_lifecycle_errors(lifecycle: RerunLifecyclePolicy) -> list[str]:
         errors.append(f"execution_mode must be one of: {', '.join(RERUN_EXECUTION_MODES)}.")
     if lifecycle.destination_mode not in RERUN_DESTINATION_MODES:
         errors.append(f"destination_mode must be one of: {', '.join(RERUN_DESTINATION_MODES)}.")
-    if lifecycle.original_policy not in RERUN_ORIGINAL_POLICIES:
-        errors.append(f"original_policy must be one of: {', '.join(RERUN_ORIGINAL_POLICIES)}.")
     if lifecycle.collision_policy not in RERUN_COLLISION_POLICIES:
         errors.append(f"collision_policy must be one of: {', '.join(RERUN_COLLISION_POLICIES)}.")
     if lifecycle.stage_mode != "copy":
         errors.append("stage_mode compatibility alias only supports copy; source-moving staging is not accepted.")
-    if lifecycle.destination_mode == "publish_replace_final" and lifecycle.confirm_replace_final is not True:
-        errors.append("publish_replace_final requires confirm_replace_final=true.")
-    if lifecycle.original_policy != "keep":
-        errors.append("CSV rerun original source policies are disabled until final-output proof is recorded by a separate cleanup flow.")
+    if (
+        lifecycle.destination_mode in RERUN_REPLACE_FINAL_DESTINATION_MODES
+        and lifecycle.confirm_replace_final is not True
+    ):
+        errors.append(f"{lifecycle.destination_mode} requires confirm_replace_final=true.")
+    if lifecycle.destination_mode == "auto_replace_clean_else_pending_review" and lifecycle.collision_policy != "replace_final":
+        errors.append("auto_replace_clean_else_pending_review requires collision_policy=replace_final.")
+    if lifecycle.confirm_source_overwrite is True and lifecycle.confirm_replace_final is not True:
+        errors.append("confirm_source_overwrite=true requires confirm_replace_final=true.")
     return errors
 
 
@@ -264,6 +445,8 @@ def rerun_start_success_data(
     original_policy: str = RERUN_DEFAULT_ORIGINAL_POLICY,
     collision_policy: str = RERUN_DEFAULT_COLLISION_POLICY,
     window_size: int = RERUN_DEFAULT_WINDOW_SIZE,
+    confirm_replace_final: bool = False,
+    confirm_source_overwrite: bool = False,
     source_csv_path: Path | None = None,
     scoped_csv_path: Path | None = None,
     scope: dict[str, Any] | None = None,
@@ -281,6 +464,8 @@ def rerun_start_success_data(
         "original_policy": original_policy,
         "collision_policy": collision_policy,
         "window_size": window_size,
+        "confirm_replace_final": bool(confirm_replace_final),
+        "confirm_source_overwrite": bool(confirm_source_overwrite),
         "pid": pid,
         "logs": launch_logs,
     }
@@ -309,17 +494,21 @@ def rerun_mode_error_result() -> CommandResult:
     return _command_result(
         command=CSV_RERUN_START_COMMAND,
         ok=False,
-        message="CSV rerun execution is limited to copy/keep/park; source-mutating and in-place modes are blocked.",
+        message="CSV rerun execution is limited to backend-owned review, pending-publish, and confirmed replacement policies; source-mutating and in-place modes are blocked.",
         severity="error",
         errors=[CSV_RERUN_MODE_ERROR],
     )
 
 
 def rerun_lifecycle_error_result(errors: list[str]) -> CommandResult:
+    detail = "; ".join(str(error) for error in errors if str(error).strip())
+    message = "CSV rerun lifecycle policy is blocked until required confirmations and supported modes are selected."
+    if detail:
+        message = f"{message} {detail}"
     return _command_result(
         command=CSV_RERUN_START_COMMAND,
         ok=False,
-        message="CSV rerun lifecycle policy is blocked until required confirmations and supported modes are selected.",
+        message=message,
         severity="error",
         errors=list(errors) or [CSV_RERUN_MODE_ERROR],
     )
@@ -384,6 +573,8 @@ def rerun_start_success_result(
     original_policy: str = RERUN_DEFAULT_ORIGINAL_POLICY,
     collision_policy: str = RERUN_DEFAULT_COLLISION_POLICY,
     window_size: int = RERUN_DEFAULT_WINDOW_SIZE,
+    confirm_replace_final: bool = False,
+    confirm_source_overwrite: bool = False,
     source_csv_path: Path | None = None,
     scoped_csv_path: Path | None = None,
     scope: dict[str, Any] | None = None,
@@ -407,6 +598,8 @@ def rerun_start_success_result(
             original_policy=original_policy,
             collision_policy=collision_policy,
             window_size=window_size,
+            confirm_replace_final=confirm_replace_final,
+            confirm_source_overwrite=confirm_source_overwrite,
             pid=pid,
             launch_logs=launch_logs,
             source_csv_path=source_csv_path,
@@ -429,12 +622,21 @@ __all__ = [
     "RERUN_DEFAULT_DESTINATION_MODE",
     "RERUN_DEFAULT_ORIGINAL_POLICY",
     "RERUN_DEFAULT_COLLISION_POLICY",
+    "RERUN_FINAL_OUTPUT_OVERRIDE_FIELDS",
+    "RERUN_FINAL_OUTPUT_ROOT_ERROR",
+    "RERUN_FINAL_OUTPUT_ROOT_UNAVAILABLE",
     "RerunLifecyclePolicy",
     "normalize_rerun_csv_path",
+    "rerun_path_resolves_under_root",
+    "rerun_paths_resolve_same",
+    "rerun_final_output_override",
+    "rerun_effective_output_root_for_source",
+    "rerun_final_output_root_violation",
     "rerun_csv_path_from_request",
     "normalize_rerun_mode",
     "normalize_rerun_lifecycle_value",
     "rerun_modes_from_request",
+    "rerun_original_policy_from_destination",
     "rerun_lifecycle_from_request",
     "rerun_lifecycle_errors",
     "rerun_modes_are_supported",

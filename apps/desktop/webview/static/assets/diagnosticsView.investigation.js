@@ -109,7 +109,7 @@
     }
     if (pendingReviews.length) {
       diagnosticsInvestigationAddAction(actions, seen, "tail", "last_stderr_log", "Read Last Stderr", "Pending Publish review rows often need the latest drain/copy/process stderr first.");
-      diagnosticsInvestigationAddAction(actions, seen, "open", "pending_publish", "Open Pending Publish", "Inspect parked manifests, payloads, sidecars, and recovery context.");
+      diagnosticsInvestigationAddAction(actions, seen, "open", "pending_publish", "Open Pending Folder", "Inspect parked manifests, payloads, sidecars, and recovery context.");
     }
     if (queueReviews.length) {
       diagnosticsInvestigationAddAction(actions, seen, "tail", "queue_snapshot", "Read Queue Snapshot", "Queue review rows should be compared against backend-authored queue state.");
@@ -123,7 +123,7 @@
       diagnosticsInvestigationAddAction(actions, seen, "tail", "last_stderr_log", "Read Last Stderr", "Cross-page conflicts should be compared against recent process stderr before action.");
       diagnosticsInvestigationAddAction(actions, seen, "tail", "queue_snapshot", "Read Queue Snapshot", "Cross-page conflicts include queue source evidence.");
       diagnosticsInvestigationAddAction(actions, seen, "open", "completed_manifest", "Open Completed Manifest", "Cross-page conflicts include completed manifest evidence.");
-      diagnosticsInvestigationAddAction(actions, seen, "open", "pending_publish", "Open Pending Publish", "Cross-page conflicts include parked publish evidence.");
+      diagnosticsInvestigationAddAction(actions, seen, "open", "pending_publish", "Open Pending Folder", "Cross-page conflicts include parked publish evidence.");
     }
     if (commandIssues.length || malformedLines.length) {
       diagnosticsInvestigationAddAction(actions, seen, "tail", "last_stderr_log", "Read Last Stderr", "Command failures or malformed-state clues usually have bounded stderr evidence.");
@@ -438,7 +438,7 @@
       diagnosticsInvestigationAddAction(actions, seen, "tail", "completed_manifest", "Read Completed Manifest", "Completed row fallback diagnostics target.");
       diagnosticsInvestigationAddAction(actions, seen, "tail", "last_stderr_log", "Read Last Stderr", "Completed row fallback diagnostics target.");
     } else if (!actions.length && item?.owner === "Pending Publish") {
-      diagnosticsInvestigationAddAction(actions, seen, "open", "pending_publish", "Open Pending Publish", "Pending row fallback diagnostics target.");
+      diagnosticsInvestigationAddAction(actions, seen, "open", "pending_publish", "Open Pending Folder", "Pending row fallback diagnostics target.");
       diagnosticsInvestigationAddAction(actions, seen, "tail", "last_stderr_log", "Read Last Stderr", "Pending row fallback diagnostics target.");
     }
     return diagnosticsOrderedActions(actions).slice(0, 5);

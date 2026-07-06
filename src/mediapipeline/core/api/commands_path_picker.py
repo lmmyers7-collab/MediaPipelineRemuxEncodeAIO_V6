@@ -51,6 +51,12 @@ PATH_PICKER_TARGETS: dict[str, dict[str, Any]] = {
         "selection_modes": ["files"],
         "file_filter": CSV_FILE_FILTER,
     },
+    "queue.rerun_csv": {
+        "label": "Queue CSV rerun file",
+        "target_kind": "csv_file",
+        "selection_modes": ["files"],
+        "file_filter": CSV_FILE_FILTER,
+    },
     "reports.audit_library_root": {
         "label": "Reports audit source root",
         "target_kind": "folder_root",
@@ -301,7 +307,7 @@ def _validate_path_picker_selection(
 
 
 def _target_default_initial_path(owner: Any, target_key: str) -> str:
-    if target_key != "launch.rerun_csv":
+    if target_key not in {"launch.rerun_csv", "queue.rerun_csv"}:
         return ""
     resolver = getattr(owner, "_resolved", None)
     if not callable(resolver):
@@ -310,7 +316,11 @@ def _target_default_initial_path(owner: Any, target_key: str) -> str:
         resolved = resolver()
     except Exception:
         return ""
-    return str(rerun_import_csv_root(resolved) or "")
+    try:
+        import_root = rerun_import_csv_root(resolved)
+    except AttributeError:
+        import_root = None
+    return str(import_root or getattr(resolved, "audit_reports_path", None) or "")
 
 
 def _path_picker_initial_path(owner: Any, target_key: str, request: dict[str, Any]) -> str:

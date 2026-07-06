@@ -1,5 +1,6 @@
 /* global refreshAll, refreshCurrentOutputStatus */
 (function () {
+  const COMPLETED_READ_ONLY_BOUNDARY = "Mutation guardrail: read-only evidence; backend routes own output and manifest changes.";
   let lastCompletedRows = [];
   let lastCompletedPayload = {};
   let lastFinalLibraryPromotionStatus = {};
@@ -904,7 +905,7 @@
     } else {
       lines.push("First action: output appears trust-ready in the loaded evidence; acceptance remains an operator judgment and backend state remains authoritative.");
     }
-    lines.push("Mutation guardrail: this summary is read-only and cannot accept outputs, rerun jobs, drain pending publish, promote files, delete files, rewrite manifests, or touch media.");
+    lines.push(COMPLETED_READ_ONLY_BOUNDARY);
     setText("completed-trust-decision-summary", lines.join("\n"));
   }
 

@@ -188,11 +188,51 @@ class LocalApiProcessCommandPayloadMixin:
             return resolved_paths_unavailable_payload("rerun.start", "snapshot")
         return self.facade.start_rerun_csv_process(resolved, request).to_mapping()
 
+    def _rerun_control_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("rerun.control", "snapshot")
+        return self.facade.request_rerun_stop_after_current(resolved, request).to_mapping()
+
+    def _rerun_continue_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("rerun.continue", "snapshot")
+        return self.facade.continue_rerun_pending_rows(resolved, request).to_mapping()
+
     def _rerun_preview_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         resolved = self._resolved()
         if resolved is None:
             return resolved_paths_unavailable_payload("rerun.preview", "snapshot")
         return self.facade.preview_rerun_csv(resolved, request)
+
+    def _rerun_network_preview_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("rerun.network_preview", "snapshot")
+        return self.facade.preview_network_rerun_csv(resolved, request)
+
+    def _rerun_network_start_dry_run_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("rerun.network.start_dry_run", "snapshot")
+        return self.facade.dry_run_network_rerun_csv_start(resolved, request).to_mapping()
+
+    def _rerun_network_start_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("rerun.network.start", "snapshot")
+        journal_recorder = None
+        record = getattr(self, "_record_command_journal", None)
+        if callable(record):
+            def journal_recorder(payload: dict[str, Any], request_body: dict[str, Any] | None = None) -> None:
+                record(payload, request=request_body, strict=True)
+
+        return self.facade.start_network_rerun_csv_batch(
+            resolved,
+            request,
+            journal_recorder=journal_recorder,
+        ).to_mapping()
 
     def _rerun_open_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         resolved = self._resolved()

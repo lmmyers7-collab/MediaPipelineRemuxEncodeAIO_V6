@@ -111,27 +111,27 @@ function renderSnapshot(snapshot) {
   setText("status-summary", snapshot.status_summary || "No status summary.");
   const pill = byId("state-pill");
   if (pill) {
-    const phaseLabel = snapshot?.current_work?.phase_label || state;
+    const phaseLabel = snapshot?.current_work?.current_stage_label || snapshot?.current_work?.phase_label || state;
     pill.textContent = phaseLabel;
     pill.dataset.state = state;
+    pill.title = [
+      snapshot?.current_work?.summary_label,
+      snapshot?.current_work?.item_label,
+      snapshot?.current_work?.latest_evidence_label,
+      snapshot?.current_work?.next_stage_label ? `Next: ${snapshot.current_work.next_stage_label}` : "",
+    ].filter(Boolean).join("\n");
   }
   const counts = snapshot.counts || {};
-  const queueIndex = Math.max(0, Math.trunc(Number(counts.queue_index) || 0));
-  const queueTotal = Math.max(0, Math.trunc(Number(counts.queue_total) || 0));
-  setText("queue-count", `${queueIndex} / ${queueTotal}`);
-  setText("queue-count-detail", "Backend queue position.");
-  const queueCount = byId("queue-count");
-  if (queueCount) {
-    delete queueCount.dataset.mode;
-    delete queueCount.dataset.state;
-    queueCount.title = "";
-  }
+  renderDashboardCurrentWorkMetric(snapshot, counts);
   const pipelineState = byId("pipeline-state");
   if (pipelineState) delete pipelineState.dataset.state;
   setText("processed-count", String(counts.processed || 0));
   renderDashboardIssueMetric(snapshot, dashboardCount(counts.failed));
-  window.mediaPipelineProgressView?.renderProgressBars?.(Array.isArray(snapshot.progress_bars) ? snapshot.progress_bars : [], snapshot);
   window.mediaPipelineProgressView?.renderProgressDetails?.(snapshot.progress || {});
+  window.mediaPipelineProgressView?.renderProgressBars?.(Array.isArray(snapshot.progress_bars) ? snapshot.progress_bars : [], snapshot, {
+    closeReadiness: lastCloseReadiness,
+    stdoutTail: lastStdoutTail,
+  });
   window.mediaPipelineProgressView?.renderProgressEvidence?.({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, diagnostics: null });
   window.mediaPipelineProgressView?.renderDiagnosticsProgress?.(lastSnapshot);
   window.mediaPipelineProgressView?.renderLiveRunStrip?.({
@@ -147,6 +147,49 @@ function renderSnapshot(snapshot) {
   renderControlReadiness(lastSnapshot, lastCloseReadiness);
   renderLaunchReadinessPanel({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, schedule: lastSchedule, settings: getLastSettings() });
   renderBackendLifecycle(lastCloseReadiness, lastSnapshot);
+}
+
+function dashboardCurrentWork(snapshot = {}) {
+  return snapshot?.current_work && typeof snapshot.current_work === "object" ? snapshot.current_work : {};
+}
+
+function dashboardCurrentWorkDetail(currentWork = {}, counts = {}) {
+  const queueIndex = Math.max(0, Math.trunc(Number(counts.queue_index) || 0));
+  const queueTotal = Math.max(0, Math.trunc(Number(counts.queue_total) || 0));
+  return [
+    currentWork.current_stage_label ? `Stage: ${currentWork.current_stage_label}` : "",
+    currentWork.latest_evidence_label ? `Evidence: ${currentWork.latest_evidence_label}` : "",
+    currentWork.missing_evidence_label || "",
+    currentWork.route_label || "",
+    currentWork.queue_position_label || (queueTotal > 0 ? `item ${queueIndex} of ${queueTotal}` : ""),
+    currentWork.next_stage_label ? `Next: ${currentWork.next_stage_label}` : "",
+  ].filter(Boolean).join(" · ");
+}
+
+function renderDashboardCurrentWorkMetric(snapshot = {}, counts = {}) {
+  const currentWork = dashboardCurrentWork(snapshot);
+  const item = currentWork.item_label || "";
+  const summary = currentWork.summary_label || currentWork.latest_evidence_label || currentWork.current_stage_label || "";
+  const queueIndex = Math.max(0, Math.trunc(Number(counts.queue_index) || 0));
+  const queueTotal = Math.max(0, Math.trunc(Number(counts.queue_total) || 0));
+  const queueCount = byId("queue-count");
+  if (item || summary) {
+    setText("queue-count", item || summary);
+    setText("queue-count-detail", dashboardCurrentWorkDetail(currentWork, counts) || "Backend current-work summary.");
+    if (queueCount) {
+      queueCount.title = [item, summary, dashboardCurrentWorkDetail(currentWork, counts)].filter(Boolean).join("\n");
+      queueCount.dataset.mode = "file";
+      queueCount.dataset.state = currentWork.evidence_status === "waiting" ? "warning" : "running";
+    }
+    return;
+  }
+  setText("queue-count", `${queueIndex} / ${queueTotal}`);
+  setText("queue-count-detail", "Backend queue position.");
+  if (queueCount) {
+    delete queueCount.dataset.mode;
+    delete queueCount.dataset.state;
+    queueCount.title = "";
+  }
 }
 
 function dashboardText(value) {
@@ -672,7 +715,9 @@ function csvRerunHomeIsActive(csvRerun = csvRerunTailEvidence(), closeReadiness 
   if (!csvRerun?.hasEvidence) return false;
   if (closeReadiness?.safe_to_close === true) return false;
   if (csvRerun.isActive === true || csvRerun.workerActive === true) return true;
-  return !/PIPELINE SHUTDOWN CLEANLY|ROUND COMPLETE|Single-pass mode complete/i.test(String(csvRerun.latestLine || ""));
+  const terminalReader = window.mediaPipelineProgressView?.csvRerunTerminalLine;
+  if (typeof terminalReader === "function") return !terminalReader(csvRerun.latestLine || "");
+  return !/^(PLAN ONLY complete|DRY RUN complete|Rerun batch complete|No CSV rows are executable)\b|PIPELINE SHUTDOWN CLEANLY|ROUND COMPLETE|Single-pass mode complete/i.test(String(csvRerun.latestLine || ""));
 }
 
 function renderCsvRerunHomeSummary(context = { stdoutTail: lastStdoutTail, snapshot: lastSnapshot, closeReadiness: lastCloseReadiness }) {
@@ -681,16 +726,22 @@ function renderCsvRerunHomeSummary(context = { stdoutTail: lastStdoutTail, snaps
     : { stdoutTail: context || lastStdoutTail, snapshot: lastSnapshot, closeReadiness: lastCloseReadiness };
   const csvRerun = csvRerunActivityEvidence(source);
   if (!csvRerunHomeIsActive(csvRerun, source.closeReadiness || lastCloseReadiness)) return false;
-  const item = csvRerun.currentImport || csvRerun.lastImported || "CSV rerun staging";
-  const activity = csvRerun.currentImport ? `Importing ${csvRerun.currentImport}` : "CSV rerun active";
-  const stage = csvRerun.currentImport ? "Importing from CSV" : "CSV rerun";
+  const currentWork = dashboardCurrentWork(source.snapshot || {});
+  const workSummary = currentWork.summary_label || currentWork.latest_evidence_label || "";
+  const workStage = currentWork.current_stage_label || currentWork.phase_label || "";
+  const item = currentWork.item_label || csvRerun.currentImport || csvRerun.lastImported || "CSV rerun staging";
+  const activity = workSummary || (csvRerun.currentImport ? `Importing ${csvRerun.currentImport}` : "CSV rerun active");
+  const stage = workStage || (csvRerun.currentImport ? "Importing from CSV" : "CSV rerun");
   renderTopbarActivity({
     activity,
     pipeline_state: "csv_rerun_active",
     current_work: {
-      phase_label: "CSV rerun",
+      ...currentWork,
+      phase_label: currentWork.phase_label || "CSV rerun",
+      current_stage_label: stage,
+      summary_label: activity,
       item_label: item,
-      percent_label: csvRerun.plannedRows || "",
+      percent_label: currentWork.percent_label || csvRerun.plannedRows || "",
     },
     progress: {
       Status: "CSV rerun",
@@ -698,19 +749,20 @@ function renderCsvRerunHomeSummary(context = { stdoutTail: lastStdoutTail, snaps
       CurrentFileDisplay: item,
     },
   });
+  const backendEvents = Array.isArray(source.snapshot?.recent_events) ? source.snapshot.recent_events.filter(Boolean) : [];
   renderTopbarEventTicker({
-    recent_events: [{
+    recent_events: backendEvents.length ? backendEvents : [{
       event_type: "csv_rerun",
       stage: csvRerun.currentImport ? "importing" : "staging",
       status: "active",
-      data: { display_name: item },
+      data: { display_name: currentWork.latest_event_label || currentWork.latest_evidence_label || item },
     }],
   });
   const pill = byId("state-pill");
   if (pill) {
-    pill.textContent = "CSV";
+    pill.textContent = stage;
     pill.dataset.state = "running";
-    pill.title = [stage, item, csvRerun.plannedRows].filter(Boolean).join("\n");
+    pill.title = [stage, item, workSummary, currentWork.next_stage_label ? `Next: ${currentWork.next_stage_label}` : "", csvRerun.plannedRows].filter(Boolean).join("\n");
   }
   renderHomePipelineState("csv_rerun_active");
   const pipelineState = byId("pipeline-state");
@@ -726,11 +778,31 @@ function renderCsvRerunHomeSummary(context = { stdoutTail: lastStdoutTail, snaps
     "queue-count-detail",
     [
       csvRerun.currentImport ? "Importing now" : "CSV rerun active",
+      currentWork.latest_evidence_label ? `evidence ${currentWork.latest_evidence_label}` : "",
+      currentWork.missing_evidence_label || "",
+      currentWork.next_stage_label ? `next ${currentWork.next_stage_label}` : "",
       csvRerun.plannedRows,
       csvRerun.lastImported ? `last imported ${csvRerun.lastImported}` : "",
     ].filter(Boolean).join(" · ")
   );
   return true;
+}
+
+function renderLiveWorkHomeSummary(context = {}) {
+  const liveRunContext = {
+    snapshot: context?.snapshot || lastSnapshot,
+    diagnostics: context?.diagnostics || null,
+    closeReadiness: context?.closeReadiness || lastCloseReadiness,
+    stdoutTail: context?.stdoutTail || lastStdoutTail,
+  };
+  window.mediaPipelineProgressView?.renderHomeActiveWork?.(liveRunContext);
+  window.mediaPipelineProgressView?.renderLiveRunStrip?.(liveRunContext);
+  window.mediaPipelineProgressView?.renderProgressBars?.(
+    Array.isArray(liveRunContext.snapshot?.progress_bars) ? liveRunContext.snapshot.progress_bars : [],
+    liveRunContext.snapshot,
+    liveRunContext
+  );
+  return renderCsvRerunHomeSummary(liveRunContext);
 }
 
 function normalizeRefreshOptions(options = {}) {
@@ -774,9 +846,7 @@ async function refreshLiveRunTail(refreshOptions = {}) {
       closeReadiness: lastCloseReadiness,
       stdoutTail: lastStdoutTail,
     };
-    window.mediaPipelineProgressView?.renderHomeActiveWork?.(liveRunContext);
-    window.mediaPipelineProgressView?.renderLiveRunStrip?.(liveRunContext);
-    renderCsvRerunHomeSummary(liveRunContext);
+    renderLiveWorkHomeSummary(liveRunContext);
     renderHomeNextQueue({ ...liveRunContext, queue: lastQueue || {} });
   } catch (_error) {
     // The full refresh path owns route error reporting; this fast path keeps Home responsive.
@@ -1021,6 +1091,13 @@ async function refreshAllNow(options = {}) {
     settings: values.settings || getLastSettings(),
     failures,
   });
+  const liveRunContext = {
+    snapshot: values.snapshot || lastSnapshot,
+    diagnostics: values.diagnostics || null,
+    closeReadiness: values["close readiness"] || lastCloseReadiness,
+    stdoutTail: values["last stdout tail"] || lastStdoutTail,
+  };
+  renderLiveWorkHomeSummary(liveRunContext);
   const launchPanel = document.querySelector('[data-page-panel="launch"]');
   const launchVisible = Boolean(launchPanel && !launchPanel.hidden && launchPanel.getAttribute("aria-hidden") !== "true");
   const launchAlertVisible = Boolean(document.querySelector(".launch-preflight-startup-alert"));
@@ -1044,15 +1121,6 @@ async function refreshAllNow(options = {}) {
     values.snapshot || lastSnapshot,
     values["close readiness"] || lastCloseReadiness
   );
-  const liveRunContext = {
-    snapshot: values.snapshot || lastSnapshot,
-    diagnostics: values.diagnostics || null,
-    closeReadiness: values["close readiness"] || lastCloseReadiness,
-    stdoutTail: values["last stdout tail"] || lastStdoutTail,
-  };
-  window.mediaPipelineProgressView?.renderHomeActiveWork?.(liveRunContext);
-  window.mediaPipelineProgressView?.renderLiveRunStrip?.(liveRunContext);
-  renderCsvRerunHomeSummary(liveRunContext);
   window.mediaPipelineProgressView?.renderProgressEvidence?.({
     snapshot: values.snapshot || lastSnapshot,
     closeReadiness: values["close readiness"] || lastCloseReadiness,
@@ -1845,8 +1913,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (typeof initSampleValidationViewEvents === "function") initSampleValidationViewEvents();
   const pipelineStartButton = byId("pipeline-start-button");
   if (pipelineStartButton) pipelineStartButton.addEventListener("click", () => launchView.startPipelineFromForm?.());
-  const rerunStartButton = byId("rerun-start-button");
-  if (rerunStartButton) rerunStartButton.addEventListener("click", () => launchView.startRerunFromForm?.({ dry_run: false }));
   const pendingDrainButton = byId("pending-drain-button");
   if (pendingDrainButton) pendingDrainButton.addEventListener("click", () => window.mediaPipelineLaunchView?.startPendingPublishDrain?.());
   const pendingRecoveryPlanSelectedButton = byId("pending-recovery-plan-selected-button");

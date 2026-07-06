@@ -31,6 +31,10 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .pending-workbench-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .completed-active-output-context {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -145,7 +149,7 @@
 
   .form-grid,
   .launch-form-grid,
-  .launch-rerun-setup-grid,
+  .queue-rerun-setup-grid,
   .rerun-handling-grid,
   .rerun-handling-summary,
   .form-grid-dense,

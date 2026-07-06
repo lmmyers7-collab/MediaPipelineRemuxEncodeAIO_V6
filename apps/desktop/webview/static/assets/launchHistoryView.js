@@ -12,12 +12,11 @@
 
   function isLaunchCommand(entry) {
     const command = String(entry?.command || "").toLowerCase();
-    return command === "pipeline.start" || command === "rerun.start";
+    return command === "pipeline.start";
   }
 
   function launchHistoryLabel(command) {
     if (command === "pipeline.start") return "Pipeline";
-    if (command === "rerun.start") return "CSV rerun";
     return command || "Launch";
   }
 
@@ -220,7 +219,6 @@
   function launchHistoryTarget(command) {
     const normalized = String(command || "").toLowerCase();
     if (normalized === "pipeline.start") return "pipeline";
-    if (normalized === "rerun.start") return "rerun";
     return "";
   }
 
@@ -438,10 +436,6 @@
     if (target === "pipeline") {
       launchCommandDiagnosticsAdd(actions, "open", "queue_snapshot", "Open Queue Snapshot", "Compare launch rejection against queue state, blocked rows, and stale snapshot context.");
       launchCommandDiagnosticsAdd(actions, "open", "state", "Open State Folder", "Inspect launch locks, control flags, progress, and runtime state artifacts if process state disagrees.");
-    } else if (target === "rerun") {
-      launchCommandDiagnosticsAdd(actions, "tail", "latest_failure_report", "Read Latest Failure", "Review latest failure context before retrying CSV rerun.");
-      launchCommandDiagnosticsAdd(actions, "open", "audit_reports", "Open Audit Reports", "Inspect source CSV/report context before retrying CSV rerun.");
-      launchCommandDiagnosticsAdd(actions, "open", "failed_reports", "Open Failed Reports", "Compare CSV rerun intent against failure-report context.");
     }
     return actions.slice(0, 10);
   }
@@ -464,9 +458,9 @@
     if (!item) {
       return [
         "Launch diagnostics retry guidance:",
-        "Select a launch command row before retrying a failed pipeline or CSV rerun start.",
+        "Select a launch command row before retrying a failed pipeline start.",
         "Read-first order: command detail -> Last Stderr / Latest Failure -> Run Logs.",
-        "Open-next order: Active Jobs -> Queue Snapshot / Audit Reports / Failed Reports -> State Folder when needed.",
+        "Open-next order: Active Jobs -> Queue Snapshot -> State Folder when needed.",
         "Guardrail: these actions use backend allowlisted diagnostics targets only.",
       ];
     }
@@ -568,10 +562,10 @@
     } else if (rows.length) {
       lines.push("- Next step: recent launch commands have no visible warning/error result.");
     } else {
-      lines.push("- Next step: start history will appear here after pipeline or CSV rerun commands refresh.");
+      lines.push("- Next step: pipeline start history will appear here after command history refresh.");
     }
     lines.push("- Selection behavior: selecting a launch command review row selects that command in the global Command Results and Diagnostics drilldown.");
-    lines.push("- Guardrail: this panel is read-only; launch, CSV rerun, drain, and control commands remain backend-owned.");
+    lines.push("- Guardrail: this panel is read-only; pipeline launch, Queue CSV Rerun, drain, and control commands remain backend-owned.");
     return lines;
   }
 
@@ -673,11 +667,11 @@
     const entries = allLaunches.slice(0, 6);
     setText("launch-history-status", `${entries.length} launch${entries.length === 1 ? "" : "es"}`);
     if (!Array.isArray(history) || !history.length) {
-      renderLaunchHistoryEmpty(target, "No command history loaded yet. Recent pipeline and CSV rerun starts will appear here after refresh.");
+      renderLaunchHistoryEmpty(target, "No command history loaded yet. Recent pipeline starts will appear here after refresh. CSV rerun command history is reviewed from Queue > CSV Rerun.");
       return;
     }
     if (!entries.length) {
-      renderLaunchHistoryEmpty(target, "No pipeline or CSV rerun start commands found in the recent command history. Pending publish drain history remains on the Pending Publish page.");
+      renderLaunchHistoryEmpty(target, "No pipeline start commands found in the recent command history. CSV rerun command history is reviewed from Queue > CSV Rerun; Pending Publish drain history remains on the Pending Publish page.");
       return;
     }
     setText("launch-history", launchHistoryLegacyBlock(entries));

@@ -163,9 +163,13 @@ class ProcessLaunchPlanTests(unittest.TestCase):
                 return_mode="park",
                 execution_mode="windowed",
                 destination_mode="pending_publish",
-                original_policy="keep",
+                original_policy="hold_then_delete_after_publish",
                 collision_policy="suffix",
                 window_size=3,
+                confirm_replace_final=True,
+                confirm_source_overwrite=True,
+                confirm_original_policy=True,
+                confirm_delete_original=True,
             )
 
         self.assertEqual(plan.job_kind, "rerun_csv")
@@ -175,14 +179,24 @@ class ProcessLaunchPlanTests(unittest.TestCase):
         self.assertIn("windowed", plan.args)
         self.assertIn("-DestinationMode", plan.args)
         self.assertIn("pending_publish", plan.args)
+        self.assertNotIn("-OriginalPolicy", plan.args)
+        self.assertNotIn("-ConfirmOriginalPolicy", plan.args)
+        self.assertNotIn("-ConfirmDeleteOriginal", plan.args)
         self.assertIn("-WindowSize", plan.args)
         self.assertIn("3", plan.args)
+        self.assertIn("-ConfirmReplaceFinal", plan.args)
+        self.assertIn("-ConfirmSourceOverwrite", plan.args)
         self.assertEqual(plan.metadata["default_stage_mode"], "copy")
         self.assertEqual(plan.metadata["default_original_mode"], "keep")
         self.assertEqual(plan.metadata["default_return_mode"], "park")
         self.assertEqual(plan.metadata["execution_mode"], "windowed")
         self.assertEqual(plan.metadata["destination_mode"], "pending_publish")
+        self.assertEqual(plan.metadata["original_policy"], "keep")
+        self.assertFalse(plan.metadata["confirm_original_policy"])
+        self.assertFalse(plan.metadata["confirm_delete_original"])
         self.assertEqual(plan.metadata["window_size"], 3)
+        self.assertTrue(plan.metadata["confirm_replace_final"])
+        self.assertTrue(plan.metadata["confirm_source_overwrite"])
 
     def test_rerun_plan_sets_plan_only_mode_without_dry_run_flag(self) -> None:
         with tempfile.TemporaryDirectory() as td:

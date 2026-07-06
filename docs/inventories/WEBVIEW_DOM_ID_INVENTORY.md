@@ -1,10 +1,10 @@
 # WebView DOM ID Inventory
 
-Date: 2026-06-29
+Date: 2026-07-03
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `apps/desktop/webview/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 1984. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 2005. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -33,6 +33,7 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `floating-pipeline-log-title` | `<h2>` | Accessible title for the floating Pipeline Log overlay |
 | `floating-pipeline-log-status` | `<strong>` | Floating Pipeline Log refresh/status badge |
 | `floating-pipeline-log-follow` | `<input>` | Follow-tail toggle for the floating Pipeline Log text |
+| `floating-pipeline-log-mode` | `<select>` | Activity/raw-tail display mode for the floating Pipeline Log overlay |
 | `floating-pipeline-log-refresh-button` | `<button>` | Manually refresh the floating Pipeline Log overlay |
 | `floating-pipeline-log-close-button` | `<button>` | Close the floating Pipeline Log overlay |
 | `floating-pipeline-log-updated` | `<span>` | Last refresh or stale/error timestamp for the floating Pipeline Log overlay |
@@ -295,16 +296,13 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `audit-launch-detail` | `<div>` | Audit launch detail |
 | `audit-launch-status` | `<span>` | Audit launch status |
 | `audit-launch-preflight` | `<div>` | Audit preflight result |
-| `rerun-start-button` | `<button>` | Trigger Review & Start `/api/rerun/start` |
+| `rerun-start-button` | `<button>` | Queue CSV Rerun trigger for `/api/rerun/start` |
 | `rerun-open-audit-tool-button` | `<button>` | Navigate to Reports Audit controls |
 | `rerun-start-execution-mode` | `<select>` | CSV rerun execution mode for `/api/rerun/start` |
 | `rerun-start-window-size` | `<input>` | CSV rerun bounded window size |
 | `rerun-start-destination-mode` | `<select>` | CSV rerun output destination policy |
 | `rerun-start-collision-policy` | `<select>` | CSV rerun destination collision policy |
-| `rerun-start-original-policy` | `<select>` | Original-source action after final output proof |
-| `rerun-confirm-replace-final` | `<input>` | Strict confirmation for final-output replacement |
-| `rerun-confirm-original-policy` | `<input>` | Strict confirmation for original-source rename/move/hold policies |
-| `rerun-confirm-delete-original` | `<input>` | Strict confirmation for hold-then-delete cleanup readiness |
+| `rerun-start-confirm-source-overwrite` | `<input>` | CSV rerun explicit source-path overwrite confirmation |
 | `rerun-mode-policy-note` | `<p>` | CSV rerun executable policy boundary |
 | `rerun-scope-enabled-only` | `<input>` | CSV rerun preview/start scope: include enabled rows only |
 | `rerun-scope-skip-blocked` | `<input>` | CSV rerun preview/start scope: skip backend-classified blocked rows |
@@ -316,15 +314,36 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `rerun-recent-csv-rows` | `<tbody>` | Backend-known import and scoped CSV candidates |
 | `rerun-preview-summary` | `<pre>` | Backend CSV rerun summary and scoped row counts |
 | `rerun-preview-tiles` | `<div>` | Backend-authored CSV rerun lifecycle status tiles |
+| `rerun-lifecycle-evidence` | `<div>` | CSV rerun lifecycle evidence panel |
+| `rerun-lifecycle-title` | `<strong>` | CSV rerun lifecycle headline |
+| `rerun-lifecycle-phase` | `<span>` | CSV rerun lifecycle phase |
+| `rerun-lifecycle-summary` | `<span>` | CSV rerun lifecycle summary |
+| `rerun-lifecycle-detail` | `<pre>` | CSV rerun lifecycle detail |
+| `rerun-review-header` | `<div>` | CSV rerun review summary header |
+| `rerun-review-status` | `<strong>` | CSV rerun review status |
+| `rerun-review-csv` | `<span>` | Selected CSV rerun source |
+| `rerun-review-counts` | `<span>` | CSV rerun review row counts |
+| `rerun-review-next-action` | `<span>` | CSV rerun review next action |
 | `rerun-policy-panel` | `<div>` | CSV rerun executable/blocked policy panel |
 | `rerun-preview-rows` | `<tbody>` | Backend CSV rerun row preview |
 | `rerun-results-panel` | `<div>` | Backend CSV rerun manifests, review outputs, and promote actions |
+| `rerun-state-status-filter` | `<select>` | Backend CSV rerun queue-state status filter |
+| `rerun-results-refresh-button` | `<button>` | Refresh backend CSV rerun queue-state results |
+| `rerun-stop-after-current-button` | `<button>` | Request backend CSV rerun Stop After Current control |
+| `rerun-state-rows` | `<tbody>` | Backend-owned first-class CSV rerun queue-state rows |
 | `rerun-inspect-csv-button` | `<button>` | Inspect selected backend-known import/scoped CSV |
 | `rerun-open-csv-button` | `<button>` | Open selected backend-known import/scoped CSV with default CSV reader |
 | `rerun-open-csv-folder-button` | `<button>` | Open folder for selected backend-known import/scoped CSV |
+| `rerun-open-latest-manifest-button` | `<button>` | Open latest loaded CSV rerun manifest through `/api/rerun/open` |
+| `rerun-open-run-logs-button` | `<button>` | Open run logs through diagnostics open allowlist |
+| `rerun-open-last-stdout-button` | `<button>` | Open latest stdout log through diagnostics open allowlist |
+| `rerun-open-last-stderr-button` | `<button>` | Open latest stderr log through diagnostics open allowlist |
+| `rerun-open-active-jobs-button` | `<button>` | Open active job records through diagnostics open allowlist |
+| `rerun-show-command-history-button` | `<button>` | Render recent CSV rerun and diagnostics open command history |
 | `rerun-history-summary` | `<pre>` | Recent CSV rerun command history summary |
-| `rerun-launch-detail` | `<div>` | Rerun launch detail |
-| `rerun-launch-status` (inferred) | `<span>` | Rerun launch status |
+| `rerun-queue-detail` | `<pre>` | Queue CSV Rerun result/detail evidence |
+| `rerun-queue-preflight` | `<pre>` | Queue CSV Rerun local preflight summary |
+| `rerun-queue-status` | `<strong>` | Queue CSV Rerun workflow status |
 | `pending-drain-detail` | `<div>` | Pending drain launch detail |
 
 ---
@@ -678,7 +697,7 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `refresh-button`, `refresh-health` | `app.js` | All (topbar) |
 | `release-dry-run-*` | `maintenanceView.js` | Maintenance |
 | `rename-*` | `renameView.js` | Rename |
-| `rerun-*` | `launchView.js` | Launch |
+| `rerun-*` | `queueView.rerun.js` | Queue |
 | `sample-validation-*` | `crossPageContextView.js` | Home |
 | `schedule-*` | `scheduleView.js` | Schedule |
 | `settings-*` | `settingsView.js` | Settings |
@@ -804,7 +823,8 @@ stable row-specific IDs.
 
 | Area | Static badge IDs |
 |---|---|
-| Launch | `pipeline-single-file-path-picker-badge`, `rerun-csv-path-picker-badge` |
+| Launch | `pipeline-single-file-path-picker-badge` |
+| Queue | `rerun-csv-path-picker-badge` |
 | Reports / Metrics | `report-audit-library-root-picker-badge`, `metrics-source-path-picker-badge` |
 | Rename source staging | `rename-manual-path-picker-badge` |
 | Settings wizard roots/tools | `wizard-output-root-picker-badge`, `wizard-scratch-path-picker-badge`, `wizard-ffmpeg-path-picker-badge`, `wizard-ffprobe-path-picker-badge` |
@@ -817,11 +837,11 @@ and rename bad-case corpus example fields. Current ID count is 1943 unique
 
 ---
 
-## Machine-Generated Full DOM ID Manifest - 2026-06-29
+## Machine-Generated Full DOM ID Manifest - 2026-07-03
 
 This section is generated from `apps/desktop/webview/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 1984
+Count: 2005
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 ```text
@@ -1149,9 +1169,7 @@ failure-filter
 failure-lifecycle-ack-button
 failure-lifecycle-last-transition
 failure-lifecycle-reopen-confirm-button
-failure-lifecycle-reopen-preview-button
 failure-lifecycle-resolve-confirm-button
-failure-lifecycle-resolve-preview-button
 failure-lifecycle-result
 failure-lifecycle-start-button
 failure-lifecycle-state
@@ -1196,6 +1214,7 @@ final-library-promotion-summary
 final-library-resume-button
 floating-pipeline-log-close-button
 floating-pipeline-log-follow
+floating-pipeline-log-mode
 floating-pipeline-log-panel
 floating-pipeline-log-refresh-button
 floating-pipeline-log-status
@@ -1332,6 +1351,7 @@ launch-command-review-legend
 launch-command-review-rows
 launch-command-review-status
 launch-command-review-summary
+launch-encoder-capability-refresh-button
 launch-evidence-body
 launch-evidence-section
 launch-evidence-toggle
@@ -1666,8 +1686,10 @@ network-worker-view-presets
 pending-action-blocked-count
 pending-action-blockers-button
 pending-action-detail
+pending-action-drained-count
 pending-action-drain-button
 pending-action-evidence-count
+pending-action-failed-count
 pending-action-feedback
 pending-action-primary
 pending-action-ready-count
@@ -2100,38 +2122,55 @@ report-warning-count
 report-warning-rows
 report-warning-status
 rerun-csv-path-picker-badge
-rerun-confirm-delete-original
-rerun-confirm-original-policy
-rerun-confirm-replace-final
 rerun-history-summary
 rerun-inspect-csv-button
-rerun-launch-detail
-rerun-launch-preflight
-rerun-launch-status
+rerun-lifecycle-detail
+rerun-lifecycle-evidence
+rerun-lifecycle-phase
+rerun-lifecycle-summary
+rerun-lifecycle-title
 rerun-mode-policy-note
+rerun-open-active-jobs-button
 rerun-open-audit-tool-button
 rerun-open-csv-button
 rerun-open-csv-folder-button
+rerun-open-last-stderr-button
+rerun-open-last-stdout-button
+rerun-open-latest-manifest-button
+rerun-open-run-logs-button
 rerun-policy-panel
 rerun-preview-limit
 rerun-preview-rows
 rerun-preview-summary
 rerun-preview-tiles
+rerun-queue-detail
+rerun-queue-preflight
+rerun-queue-status
 rerun-recent-csv-rows
 rerun-results-panel
+rerun-results-refresh-button
+rerun-review-counts
+rerun-review-csv
+rerun-review-header
+rerun-review-next-action
+rerun-review-status
 rerun-scope-bucket-filter
 rerun-scope-enabled-only
 rerun-scope-first-n
 rerun-scope-issue-filter
 rerun-scope-skip-blocked
 rerun-scope-skip-warning-rows
+rerun-show-command-history-button
 rerun-start-button
 rerun-start-collision-policy
+rerun-start-confirm-source-overwrite
 rerun-start-csv-path
 rerun-start-destination-mode
 rerun-start-execution-mode
-rerun-start-original-policy
 rerun-start-window-size
+rerun-state-rows
+rerun-state-status-filter
+rerun-stop-after-current-button
 reset-layout-btn
 sample-validation-acceptance-gate-detail
 sample-validation-acceptance-gate-legend

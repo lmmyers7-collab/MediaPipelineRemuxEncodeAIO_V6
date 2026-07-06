@@ -173,7 +173,8 @@ function New-TestPendingManifest {
         [Parameter(Mandatory)] [string] $LocalFile,
         [Parameter(Mandatory)] [string] $ServerOut,
         [string] $State = 'parked',
-        [string] $SourcePath = ''
+        [string] $SourcePath = '',
+        [bool] $ConfirmSourceOverwrite = $false
     )
     if ([string]::IsNullOrWhiteSpace($SourcePath)) {
         $SourcePath = Join-Path $script:SourceMovies 'Movie.mkv'
@@ -193,6 +194,7 @@ function New-TestPendingManifest {
         source_identity                = 'source-v1'
         source_identity_v2             = 'source-v2'
         source_identity_v2_algorithm   = $script:SourceIdentityV2Algorithm
+        confirm_source_overwrite       = [bool]$ConfirmSourceOverwrite
         source_path                    = $SourcePath
         source_size                    = 5
         source_mtime_utc               = '2026-05-19T00:00:00Z'
@@ -577,6 +579,75 @@ Invoke-WithTempRoot {
     Assert-True (-not [bool]$trust.Ok) 'Forged server_out under a source root was trusted for drain.'
     Assert-Equal ([string]$trust.Status) 'invalid_manifest' 'Forged server_out should be an invalid_manifest drain blocker.'
     Assert-MatchText ([string]$trust.Reason) 'server_out' 'Forged server_out trust failure should name server_out.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $script:Outsource = $script:SourceMovies
+    $script:LibraryProfiles[0].output_path = $script:SourceMovies
+    $payload = Join-Path $script:LocalPendingPush 'string-confirm-source-overwrite.mkv'
+    $source = Join-Path $script:SourceMovies 'string-confirm-source-overwrite.mkv'
+    [System.IO.File]::WriteAllText($payload, 'media')
+    [System.IO.File]::WriteAllText($source, 'old-media')
+    $manifest = New-TestPendingManifest -LocalFile $payload -ServerOut $source -SourcePath $source
+    $manifest['confirm_source_overwrite'] = 'true'
+    $manifestPath = Join-Path $script:LocalPendingPush 'string-confirm-source-overwrite.manifest.json'
+    Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
+
+    $trust = Test-PendingManifestTrustedForDrain -ManifestFile (Get-Item -LiteralPath $manifestPath) -Manifest (Read-PendingManifestFile -Path $manifestPath)
+
+    Assert-True (-not [bool]$trust.Ok) 'String confirm_source_overwrite should not be trusted for pending drain.'
+    Assert-Equal ([string]$trust.ReasonCode) 'SOURCE_OVERWRITE_CONFIRM_INVALID' 'String confirm_source_overwrite should report strict bool validation failure.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $script:Outsource = $script:SourceMovies
+    $script:LibraryProfiles[0].output_path = $script:SourceMovies
+    $payload = Join-Path $script:LocalPendingPush 'confirmed-source-overwrite.mkv'
+    $source = Join-Path $script:SourceMovies 'confirmed-source-overwrite.mkv'
+    [System.IO.File]::WriteAllText($payload, 'media')
+    [System.IO.File]::WriteAllText($source, 'old-media')
+    $manifest = New-TestPendingManifest -LocalFile $payload -ServerOut $source -SourcePath $source -ConfirmSourceOverwrite $true
+    $manifestPath = Join-Path $script:LocalPendingPush 'confirmed-source-overwrite.manifest.json'
+    Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
+
+    $trust = Test-PendingManifestTrustedForDrain -ManifestFile (Get-Item -LiteralPath $manifestPath) -Manifest (Read-PendingManifestFile -Path $manifestPath)
+
+    Assert-True ([bool]$trust.Ok) 'Confirmed same-file source overwrite should be trusted for pending drain.'
+    Assert-Equal ([string]$trust.Status) 'trusted' 'Confirmed same-file source overwrite should report trusted status.'
+
+    $sidecarLocal = Join-Path $script:LocalPendingPush 'confirmed-source-overwrite.en.srt'
+    $sidecarServer = Join-Path $script:SourceMovies 'confirmed-source-overwrite.en.srt'
+    [System.IO.File]::WriteAllText($sidecarLocal, 'subtitle')
+    $sidecar = [pscustomobject]@{
+        local_file = $sidecarLocal
+        server_out = $sidecarServer
+    }
+    $sidecarTrust = Test-PendingSidecarTrustedForPublish -Manifest (Read-PendingManifestFile -Path $manifestPath) -Sidecar $sidecar -ManifestPath $manifestPath
+    Assert-True ([bool]$sidecarTrust.Ok) 'Sidecar beside a confirmed source overwrite target should be trusted for pending publish.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $script:Outsource = $script:SourceMovies
+    $script:LibraryProfiles[0].output_path = $script:SourceMovies
+    $payload = Join-Path $script:LocalPendingPush 'confirmed-other-source.mkv'
+    $source = Join-Path $script:SourceMovies 'confirmed-other-source.mkv'
+    $serverOut = Join-Path $script:SourceMovies 'other-destination.mkv'
+    [System.IO.File]::WriteAllText($payload, 'media')
+    [System.IO.File]::WriteAllText($source, 'old-media')
+    $manifest = New-TestPendingManifest -LocalFile $payload -ServerOut $serverOut -SourcePath $source -ConfirmSourceOverwrite $true
+    $manifestPath = Join-Path $script:LocalPendingPush 'confirmed-other-source.manifest.json'
+    Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
+
+    $trust = Test-PendingManifestTrustedForDrain -ManifestFile (Get-Item -LiteralPath $manifestPath) -Manifest (Read-PendingManifestFile -Path $manifestPath)
+
+    Assert-True (-not [bool]$trust.Ok) 'Confirmed source overwrite should not trust a different source-root destination.'
+    Assert-Equal ([string]$trust.Status) 'invalid_manifest' 'Different source-root destination should remain an invalid_manifest drain blocker.'
 }
 
 Invoke-WithTempRoot {

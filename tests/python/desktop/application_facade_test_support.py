@@ -492,7 +492,7 @@ def exercise_local_api_route_workflow() -> SimpleNamespace:
             rerun_csv.write_text("enabled,source_path\ntrue,C:\\Media\\Movie.mkv\n", encoding="utf-8")
             rerun_status, rerun_payload = client._post_json(
                 f"{server.url}/api/rerun/start",
-                {"csv_path": str(rerun_csv)},
+                {"csv_path": str(rerun_csv), "confirm_replace_final": True},
                 token="workflow-token",
             )
             command_history_status, command_history_payload = client._get_json(
@@ -723,6 +723,12 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
             with urlopen(f"{server.url}/assets/queueView.launch.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 queue_view_launch_js = response.read().decode("utf-8")
                 queue_view_launch_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/queueView.rerun.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                queue_view_rerun_js = response.read().decode("utf-8")
+                queue_view_rerun_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/queue/rerunRequest.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                queue_rerun_request_js = response.read().decode("utf-8")
+                queue_rerun_request_content_type = response.headers.get("Content-Type", "")
             with urlopen(f"{server.url}/assets/queue/selection.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 queue_view_selection_js = response.read().decode("utf-8")
                 queue_view_selection_content_type = response.headers.get("Content-Type", "")
@@ -1063,6 +1069,8 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
         queue_view_review_js,
         queue_view_detail_js,
         queue_view_launch_js,
+        queue_view_rerun_js,
+        queue_rerun_request_js,
         queue_view_selection_js,
         queue_view_open_actions_js,
         queue_view_table_js,
@@ -1080,6 +1088,7 @@ def _read_queue_asset_bundle(assets_root: Path) -> str:
             "queueView.review.js",
             "queueView.detail.js",
             "queueView.launch.js",
+            "queueView.rerun.js",
             "queue/selection.js",
             "queue/openActions.js",
             "queue/table.js",
@@ -1603,11 +1612,12 @@ class DummyWorkflowFacadeService(DummyFacadeService, QueueServiceMixin, RenameSe
         return_mode: str,
         show_console: bool = False,
         execution_mode: str = "one_at_a_time",
-        destination_mode: str = "review_workspace",
+        destination_mode: str = "auto_replace_clean_else_pending_review",
         original_policy: str = "keep",
-        collision_policy: str = "suffix",
+        collision_policy: str = "replace_final",
         window_size: int = 1,
         confirm_replace_final: bool = False,
+        confirm_source_overwrite: bool = False,
         confirm_original_policy: bool = False,
         confirm_delete_original: bool = False,
     ) -> DummyProc:
@@ -1626,6 +1636,7 @@ class DummyWorkflowFacadeService(DummyFacadeService, QueueServiceMixin, RenameSe
             "collision_policy": collision_policy,
             "window_size": window_size,
             "confirm_replace_final": confirm_replace_final,
+            "confirm_source_overwrite": confirm_source_overwrite,
             "confirm_original_policy": confirm_original_policy,
             "confirm_delete_original": confirm_delete_original,
         }

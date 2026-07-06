@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from mediapipeline.core.kernel.config_keys import (
+    KEY_AUTONOMY_PENDING_TOTAL_BLOCK_BYTES,
+    KEY_AUTONOMY_PENDING_TOTAL_REVIEW_BYTES,
     KEY_BDPGS_OCR_TIMEOUT_SECONDS,
     KEY_CLEANUP_SCAN_TIMEOUT_SECONDS,
     KEY_CLEANUP_STALE_AGE_HOURS,
@@ -254,6 +256,24 @@ def validate_required_and_numeric_config(values: dict[str, Any], errors: list[st
             "PendingPublishDeferredBlockThreshold",
             minimum=1,
             maximum=1000000,
+        )
+    if KEY_AUTONOMY_PENDING_TOTAL_REVIEW_BYTES in values:
+        validate_int(
+            values,
+            errors,
+            KEY_AUTONOMY_PENDING_TOTAL_REVIEW_BYTES,
+            "AutonomyPendingTotalReviewBytes",
+            minimum=1024**2,
+            maximum=10 * 1024**4,
+        )
+    if KEY_AUTONOMY_PENDING_TOTAL_BLOCK_BYTES in values:
+        validate_int(
+            values,
+            errors,
+            KEY_AUTONOMY_PENDING_TOTAL_BLOCK_BYTES,
+            "AutonomyPendingTotalBlockBytes",
+            minimum=1024**2,
+            maximum=10 * 1024**4,
         )
     if KEY_PENDING_PUBLISH_DRAIN_BATCH_SIZE in values:
         validate_int(

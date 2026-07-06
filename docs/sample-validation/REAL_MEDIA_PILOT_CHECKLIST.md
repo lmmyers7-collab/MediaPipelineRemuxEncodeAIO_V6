@@ -1,9 +1,13 @@
-# Phase 6 - Real-Media Pilot
+# Real-Media Pilot Checklist
+
+Status: active validation checklist
 
 ## Goal
 
-Rerun the repeatable real-media sample set against the named `2026.06.04.001` portable
-candidate.
+Run or rerun the repeatable real-media sample set against the current validation
+target. For release/package validation, the target is the named portable
+candidate. For a media-policy or pipeline-risk change, the target is the
+current source tree or package build named by the change packet.
 
 ## Required Sample Categories
 
@@ -26,9 +30,12 @@ residual validation risk.
 ## Prerequisites
 
 - Read the required context docs listed in `AGENTS.md`.
-- Confirm Phase 5 passed for the exact candidate folder used in this pilot.
-- Confirm Phase 5 runtime-state externalization evidence passed for the exact
-  candidate folder used in this pilot.
+- For release/package validation, confirm package/open/close validation passed
+  for the exact candidate folder used in this pilot.
+- For release/package validation, confirm runtime-state externalization evidence
+  passed for the exact candidate folder used in this pilot.
+- For source-tree validation after a high-risk media change, record the exact
+  branch/worktree, change packet, and validation launcher used for the pilot.
 - Confirm samples are controlled validation copies or otherwise approved
   operator samples.
 - Capture before-hash evidence for each source before launch.
@@ -58,7 +65,7 @@ All required categories must pass with:
 - manual playback check
 - Sample Validation record that reconciles to current backend evidence
 
-Any of these blocks `2026.06.04.001`:
+Any of these blocks acceptance of the validation target:
 
 - source mutation
 - silent subtitle conversion failure
@@ -71,8 +78,8 @@ Any of these blocks `2026.06.04.001`:
 ## Steps
 
 1. Generate or prepare a worksheet for each sample.
-2. Record candidate identity, Phase 5 evidence, before-hash, and source-safety
-   posture before launch.
+2. Record target identity, package evidence when applicable, before-hash, and
+   source-safety posture before launch.
 3. Select one sample at a time.
 4. Verify saved Settings policy and Launch readiness.
 5. Launch only through backend-owned controls.
@@ -96,7 +103,7 @@ Use:
 After evidence is recorded, run:
 
 ```powershell
-.\apps\desktop\runtime\Python\python.exe .\src\mediapipeline\tools\change_control\validate_changes.py --require-worktree-coverage
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage
 ```
 
 Detailed worksheets may contain personal paths and should stay outside clean
@@ -104,18 +111,18 @@ handoff artifacts unless explicitly sanitized.
 
 ## Exit Criteria
 
-- All required categories pass against the same named candidate, with any
+- All required categories pass against the same named target, with any
   BDPGS/OCR waiver explicitly recorded.
-- Evidence identifies candidate folder and app version.
+- Evidence identifies the source tree or candidate folder plus app version.
 - Real-media evidence does not rely on historical/stale records.
 - Any failed sample has a clear rerun or release-blocking note.
 
 ## Change Ledger And Rollback
 
 - Create or update one change packet for this phase before evidence capture.
-- Record the exact candidate folder, Phase 5 package/open/close evidence
-  reference, Phase 5 runtime-state evidence reference, sample categories,
-  sanitized evidence locations, and validation decisions.
+- Record the exact source tree or candidate folder, package/open/close evidence
+  reference when applicable, runtime-state evidence reference when applicable,
+  sample categories, sanitized evidence locations, and validation decisions.
 - Roll back by marking failed or stale sample evidence as rejected/review-only
   and rebuilding or rerunning through earlier phases as needed. Do not repair,
   publish, drain, rename, clean up, or delete source media outside backend-owned

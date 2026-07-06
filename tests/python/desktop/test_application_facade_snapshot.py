@@ -18,6 +18,7 @@ from mediapipeline.desktop.config_keys import (
     KEY_RENAME_MOVIE_FILTER_TERMS,
     KEY_RENAME_MOVIE_REMOVE_TERMS,
 )
+from mediapipeline.core.status.presentation_progress import build_current_work
 from tests.python.desktop.application_facade_test_support import DummyFacadeService, _resolved
 
 
@@ -120,6 +121,112 @@ class ApplicationFacadeSnapshotTests(unittest.TestCase):
         self.assertEqual(snapshot.current_work["route_label"], "Remux route")
         self.assertEqual(snapshot.current_work["percent_label"], "94%")
 
+    def test_current_work_route_pending_fallback_does_not_claim_selection(self) -> None:
+        current_work = build_current_work(
+            {
+                "ProgressVersion": 2,
+                "Status": "Processing",
+                "CurrentStage": "csv_rerun",
+                "CurrentFileDisplay": "Delicatessen (1991).mkv",
+            },
+            pipeline_state="processing",
+        )
+
+        self.assertEqual(
+            current_work["latest_evidence_label"],
+            "Route decision pending: encode/remux decision not reported",
+        )
+        self.assertEqual(
+            current_work["summary_label"],
+            "Route decision pending: encode/remux decision not reported",
+        )
+        self.assertNotIn("Route selected", current_work["summary_label"])
+
+    def test_current_work_idle_waiting_is_not_active_evidence(self) -> None:
+        current_work = build_current_work(
+            {
+                "ProgressVersion": 2,
+                "Status": "idle / waiting for next item",
+                "CurrentStage": "idle",
+                "CurrentFileDisplay": "None",
+                "TotalProcessed": 1,
+                "Encoded": 1,
+                "Failed": 0,
+            },
+            pipeline_state="idle",
+            pipeline_events=[{"event_type": "tool_completed", "stage": "subtitle-helper", "status": "succeeded"}],
+        )
+
+        self.assertEqual(current_work["summary_label"], "No active work reported.")
+        self.assertEqual(current_work["latest_evidence_label"], "")
+        self.assertEqual(current_work["next_stage_label"], "")
+        self.assertEqual(current_work["evidence_status"], "idle")
+        self.assertIn("tool_completed", current_work["latest_event_label"])
+
+    def test_snapshot_current_work_surfaces_subtitle_ocr_evidence_during_active_rerun(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            service = DummyFacadeService(root)
+            service.snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="CSV rerun active.",
+                status_summary="CSV rerun is processing.",
+                log_tail="",
+                progress={
+                    "ProgressVersion": 2,
+                    "LastUpdate": datetime.now().isoformat(timespec="seconds"),
+                    "Status": "Processing",
+                    "CurrentStage": "csv_rerun",
+                    "CurrentMediaType": "movie",
+                    "CurrentLibraryName": "Movies",
+                    "CurrentQueueIndex": 4,
+                    "CurrentQueueTotal": 100,
+                    "CurrentRoute": "encode",
+                    "CurrentFileDisplay": "[Movie 4/100] Paprika.2006.1080p.BluRay.x264.mkv",
+                    "SubtitleProgress": {
+                        "schema_version": "pipeline_subtitle_progress.v1",
+                        "kind": "vobsub",
+                        "stream_index": 3,
+                        "stage": "ocr",
+                        "status": "OCR running",
+                        "step_index": 2,
+                        "step_total": 4,
+                        "cue_count": 752,
+                        "updated_at": datetime.now().isoformat(timespec="seconds"),
+                    },
+                },
+                audit_progress=None,
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+                pipeline_events=[
+                    {
+                        "event_type": "tool_started",
+                        "stage": "subtitle",
+                        "route": "encode",
+                        "status": "running",
+                        "source_path": str(root / "Paprika.2006.1080p.BluRay.x264.mkv"),
+                        "data": {"tool_name": "SubtitleEdit"},
+                    }
+                ],
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            snapshot = facade.get_snapshot(resolved)
+
+        self.assertEqual(snapshot.pipeline_state, "processing")
+        self.assertEqual(snapshot.current_work["item_label"], "Paprika (2006)")
+        self.assertEqual(snapshot.current_work["current_stage_label"], "Subtitle OCR: VobSub stream 3, 752 cues")
+        self.assertEqual(snapshot.current_work["latest_evidence_label"], "Subtitle OCR: VobSub stream 3, 752 cues")
+        self.assertEqual(snapshot.current_work["summary_label"], "Subtitle OCR: VobSub stream 3, 752 cues")
+        self.assertEqual(snapshot.current_work["next_stage_label"], "encode/remux output evidence")
+        self.assertEqual(snapshot.current_work["missing_evidence_label"], "")
+        self.assertIn("SubtitleEdit", snapshot.current_work["latest_event_label"])
+        bars = {bar["id"]: bar for bar in snapshot.progress_bars}
+        self.assertEqual(bars["subtitle_track"]["status"], "active")
+        self.assertIn("752 cue(s)", bars["subtitle_track"]["detail"])
+
     def test_snapshot_current_work_uses_saved_rename_cleaning_policy(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -162,6 +269,7 @@ class ApplicationFacadeSnapshotTests(unittest.TestCase):
             snapshot = facade.get_snapshot(resolved)
 
         self.assertEqual(snapshot.current_work["item_label"], "Hoppers (2026)")
+        self.assertNotIn("Route selected", snapshot.current_work["summary_label"])
 
     def test_snapshot_marks_stale_progress_as_review_not_active_work(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

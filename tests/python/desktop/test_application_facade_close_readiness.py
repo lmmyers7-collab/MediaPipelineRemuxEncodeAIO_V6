@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import json
 import sys
 import tempfile
 import unittest
@@ -402,6 +403,46 @@ class ApplicationFacadeCloseReadinessTests(unittest.TestCase):
         self.assertFalse(readiness.safe_to_close)
         self.assertTrue(readiness.active_work)
         self.assertIn("queue source scan scan-test is running", readiness.reason)
+
+    def test_close_readiness_blocks_active_network_csv_rerun_batch_state(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+            batch_root = resolved.state_root / "Rerun" / "Network"
+            batch_root.mkdir(parents=True)
+            (batch_root / "network-rerun-test.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_rerun_network_batch.v1",
+                        "batch_id": "network-rerun-test",
+                        "status": "claim_disabled",
+                        "claim_provider_enabled": False,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            idle_snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="Ready.",
+                status_summary="Idle",
+                log_tail="",
+                progress={"ProgressVersion": 2, "Status": "Completed", "CurrentStage": "completed"},
+                audit_progress=None,
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+            )
+
+            readiness = facade.get_close_readiness(resolved, idle_snapshot)
+
+        self.assertFalse(readiness.safe_to_close)
+        self.assertTrue(readiness.active_work)
+        self.assertIn("network CSV rerun batch network-rerun-test", readiness.reason)
 
     def test_close_readiness_blocks_while_schedule_stop_watcher_is_armed(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

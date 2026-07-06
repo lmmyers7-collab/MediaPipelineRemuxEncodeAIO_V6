@@ -1,11 +1,13 @@
 (function () {
   const formatters = window.mediaPipelineFormatters || {};
   const shortenPath = typeof formatters.shortenPath === "function" ? formatters.shortenPath : null;
+  const PENDING_READ_ONLY_BOUNDARY = "Mutation guardrail: read-only evidence; backend routes own pending-publish changes.";
   let lastPendingRows = [];
   let lastPendingPayload = {};
   let lastPendingSnapshot = {};
   let selectedPendingRowKey = "";
   let lastPendingRecoveryPlanRows = [];
+  let lastPendingRecoveryPlanSignature = "";
   let selectedPendingRecoveryPlanKey = "";
   let selectedPendingDrainDecisionKey = "";
   let selectedPendingPostDrainTrustKey = "";
@@ -13,7 +15,25 @@
   let pendingOpenInFlight = false;
   let pendingRecoveryPlanInFlight = false;
   let pendingActionCenterEventsInitialized = false;
-  const PENDING_FILTER_FIELDS = ["state", "local_file", "server_out", "source_path", "error", "issue_summary", "route", "publish_mode", "diagnostic_status", "diagnostic_severity", "drain_recommendation", "operator_guidance"];
+  const PENDING_FILTER_FIELDS = [
+    "state",
+    "row_key",
+    "local_file",
+    "server_out",
+    "source_path",
+    "manifest_path",
+    "error",
+    "issue_summary",
+    "primary_concern",
+    "safe_next_action",
+    "route",
+    "publish_mode",
+    "diagnostic_status",
+    "diagnostic_severity",
+    "drain_recommendation",
+    "operator_guidance",
+    "operator_trust_state",
+  ];
 
   function clampTableScrollOffset(value, maxValue) {
     const numeric = Number(value);
@@ -236,6 +256,7 @@
     if (selectedPendingRowKey && !rows.some((row) => pendingRowKey(row) === selectedPendingRowKey)) {
       selectedPendingRowKey = "";
     }
+    clearStalePendingRecoveryPlan(pending || {}, rows);
     lastPendingEmptyMessage = pendingEmptyStateMessage(pending, rows);
     setText("pending-count", String(pending.count || 0));
     setText("pending-payload-count", String(pending.payload_count || 0));
@@ -330,6 +351,7 @@
       bars,
       snapshot,
       "No active pending-publish drain progress loaded.",
+      { compact: "pendingDrain" },
     );
   }
 
@@ -339,6 +361,51 @@
 
   function getLastPendingPublishRows() {
     return lastPendingRows.slice();
+  }
+
+  function pendingRecoverySignatureValue(value) {
+    return String(value ?? "").replace(/[\\/]+/g, "/").trim().toLowerCase();
+  }
+
+  function pendingRecoveryPlanSignature(pending = lastPendingPayload, rows = lastPendingRows) {
+    const payload = pending && typeof pending === "object" ? pending : {};
+    const rowList = Array.isArray(rows) ? rows : [];
+    const rowParts = rowList.map((row, index) => [
+      pendingRecoverySignatureValue(pendingRowKey(row) || `row-${index}`),
+      pendingRecoverySignatureValue(row?.manifest_path),
+      pendingRecoverySignatureValue(row?.local_file),
+      pendingRecoverySignatureValue(row?.server_out),
+      pendingRecoverySignatureValue(row?.source_path),
+      pendingRecoverySignatureValue(row?.state),
+      pendingRecoverySignatureValue(row?.diagnostic_status),
+      pendingRecoverySignatureValue(row?.diagnostic_severity),
+      pendingRecoverySignatureValue(row?.drain_recommendation),
+      pendingRecoverySignatureValue(row?.operator_trust_state),
+    ].join("::")).sort();
+    return [
+      pendingRecoverySignatureValue(payload.pending_root),
+      String(payload.count || rowList.length || 0),
+      String(payload.ready_count || 0),
+      String(payload.issue_count || 0),
+      String(payload.health_count || 0),
+      String(payload.missing_local_count || 0),
+      rowParts.join("||"),
+    ].join("|");
+  }
+
+  function clearStalePendingRecoveryPlan(pending, rows) {
+    const currentSignature = pendingRecoveryPlanSignature(pending, rows);
+    const hasPlanRows = Array.isArray(lastPendingRecoveryPlanRows) && lastPendingRecoveryPlanRows.length > 0;
+    const hasRecoveryState = hasPlanRows || Boolean(lastPendingRecoveryPlanSignature || selectedPendingRecoveryPlanKey);
+    if (!hasRecoveryState || (hasPlanRows && lastPendingRecoveryPlanSignature === currentSignature)) {
+      return currentSignature;
+    }
+    lastPendingRecoveryPlanRows = [];
+    lastPendingRecoveryPlanSignature = "";
+    selectedPendingRecoveryPlanKey = "";
+    setText("pending-recovery-plan-status", "Recovery dry-run cleared because Pending Publish evidence changed. Build a fresh dry-run before drain review.");
+    renderPendingRecoveryPlanRows([]);
+    return currentSignature;
   }
 
   function pendingFileInventoryPayload(pending) {
@@ -584,29 +651,130 @@
     return "unknown";
   }
 
-  function pendingActionCenterTriage(rows) {
+  function pendingRowPresentationStatus(item) {
+    const tableStatus = pendingTableRowStatus(item);
+    const evidenceClass = pendingEvidenceClass(item);
+    const severity = String(item?.diagnostic_severity || "").toLowerCase();
+    const recommendation = String(item?.drain_recommendation || "").toLowerCase();
+    if (["completed", "skipped", "running", "publishing", "queued"].includes(tableStatus)) return tableStatus;
+    if (tableStatus === "failed" || severity === "error" || item?.error) return "failed";
+    if (
+      tableStatus === "blocked"
+      || recommendation === "do_not_drain"
+      || ["do-not-drain", "diagnostic-error", "manifest-invalid", "missing-payload"].includes(evidenceClass)
+    ) {
+      return "blocked";
+    }
+    if (["missing-sidecar", "orphan-payload"].includes(evidenceClass)) return "validation-needed";
+    if (tableStatus === "warning" || evidenceClass === "review" || item?.ready_to_drain === false) return "warning";
+    if (["ready", "match"].includes(tableStatus) || item?.ready_to_drain === true || evidenceClass === "ready-evidence") return "ready";
+    return tableStatus || "unknown";
+  }
+
+  function pendingRowPresentationLabel(item) {
+    const status = pendingRowPresentationStatus(item);
+    if (status === "completed") return "Drained";
+    if (["running", "publishing", "queued"].includes(status)) return "Draining";
+    if (status === "skipped") return "Skipped";
+    if (status === "failed") return "Failed";
+    if (status === "blocked") return "Blocked";
+    if (status === "validation-needed") return "Evidence missing";
+    if (status === "warning") return "Needs review";
+    if (["ready", "match"].includes(status)) return "Ready";
+    if (status === "unavailable") return "Unavailable";
+    if (status === "empty") return "No row";
+    return "Unknown";
+  }
+
+  function pendingRowReasonText(item) {
+    const candidates = [
+      item?.issue_summary,
+      item?.primary_concern,
+      item?.error,
+      item?.operator_guidance,
+      item?.safe_next_action,
+      item?.drain_recommendation,
+      item?.diagnostic_status,
+    ];
+    const reason = candidates.map((value) => String(value || "").trim()).find(Boolean);
+    if (reason) return reason;
+    if (item?.ready_to_drain === true) return "No focused blocker in the loaded backend scan.";
+    return "";
+  }
+
+  function pendingRowUpdatedText(item) {
+    return String(
+      item?.updated_at
+      || item?.modified_at
+      || item?.last_seen_at
+      || item?.parked_at_display
+      || item?.parked_at
+      || item?.age_text
+      || ""
+    );
+  }
+
+  function pendingPathDisplay(path, limit = 44) {
+    const value = String(path || "");
+    return typeof shortenPath === "function" ? shortenPath(value, limit) : value;
+  }
+
+  function pendingDrainSummaryCounts(payload) {
+    const summary = pendingDrainSummaryPayload(payload || {});
+    const items = pendingDrainSummaryItems(summary);
+    const counts = {
+      drained: Number(summary.succeeded_count || 0) + Number(summary.already_published_count || 0),
+      failed: Number(summary.error_count || 0),
+      skipped: Number(summary.skipped_count || 0),
+    };
+    if (!items.length) return counts;
+    const itemCounts = items.reduce((acc, item) => {
+      const status = String(item?.status || item?.result || "").trim().toLowerCase();
+      if (["succeeded", "success", "already_published", "published", "completed"].includes(status)) acc.drained += 1;
+      else if (["skipped", "deferred"].includes(status)) acc.skipped += 1;
+      else if (status || item?.error) acc.failed += 1;
+      return acc;
+    }, { drained: 0, failed: 0, skipped: 0 });
+    return {
+      drained: counts.drained || itemCounts.drained,
+      failed: counts.failed || itemCounts.failed,
+      skipped: counts.skipped || itemCounts.skipped,
+    };
+  }
+
+  function pendingActionCenterTriage(rows, payload = lastPendingPayload) {
     const rowList = Array.isArray(rows) ? rows : [];
-    return rowList.reduce((counts, row) => {
-      const evidenceClass = pendingEvidenceClass(row);
-      const tableStatus = pendingTableRowStatus(row);
-      if (["do-not-drain", "diagnostic-error", "manifest-invalid"].includes(evidenceClass)) {
-        counts.blocked += 1;
-      } else if (["missing-payload", "missing-sidecar", "orphan-payload"].includes(evidenceClass)) {
-        counts.evidence += 1;
-      } else if (["blocked", "failed"].includes(tableStatus)) {
-        counts.blocked += 1;
-      } else if (evidenceClass === "review" || ["warning", "unknown", "validation-needed"].includes(tableStatus) || row?.ready_to_drain === false) {
-        counts.review += 1;
+    const counts = rowList.reduce((acc, row) => {
+      const status = pendingRowPresentationStatus(row);
+      if (status === "completed") {
+        acc.drained += 1;
+      } else if (status === "skipped") {
+        acc.skipped += 1;
+      } else if (["running", "publishing", "queued"].includes(status)) {
+        acc.draining += 1;
+      } else if (status === "failed") {
+        acc.failed += 1;
+      } else if (status === "blocked") {
+        acc.blocked += 1;
+      } else if (status === "validation-needed") {
+        acc.evidence += 1;
+      } else if (["warning", "unknown", "unavailable", "empty"].includes(status)) {
+        acc.review += 1;
       } else {
-        counts.ready += 1;
+        acc.ready += 1;
       }
-      return counts;
-    }, { ready: 0, review: 0, evidence: 0, blocked: 0 });
+      return acc;
+    }, { ready: 0, review: 0, evidence: 0, blocked: 0, failed: 0, drained: 0, skipped: 0, draining: 0 });
+    const summaryCounts = pendingDrainSummaryCounts(payload || {});
+    counts.drained += summaryCounts.drained;
+    counts.failed += summaryCounts.failed;
+    counts.skipped += summaryCounts.skipped;
+    return counts;
   }
 
   function pendingActionCenterOutcome(payload, rowList, decisionStatus, validationStatus, guard, triage) {
     const rows = Array.isArray(rowList) ? rowList : [];
-    const counts = triage || pendingActionCenterTriage(rows);
+    const counts = triage || pendingActionCenterTriage(rows, payload);
     const normalizedDecision = String(decisionStatus || "").toLowerCase();
     const warnings = Array.isArray(payload?.warnings) ? payload.warnings.filter(Boolean) : [];
     if (payload?.error) {
@@ -626,11 +794,27 @@
       };
     }
     if (!rows.length) {
+      if (counts.drained) {
+        return {
+          action: `Review ${counts.drained} drained file${counts.drained === 1 ? "" : "s"}`,
+          reason: "No current parked rows are loaded; the latest drain summary has completed evidence.",
+          detail: "Compare Last Drain and Completed proof before assuming final placement for a specific title.",
+          state: "empty",
+        };
+      }
       return {
         action: "No parked outputs",
         reason: "Pending Publish has no parked rows loaded.",
         detail: "An empty pending view is not proof of publish; compare Completed and drain-summary evidence when an output is missing.",
         state: "empty",
+      };
+    }
+    if (counts.failed) {
+      return {
+        action: `Investigate ${counts.failed} failed file${counts.failed === 1 ? "" : "s"}`,
+        reason: `${counts.failed} failed drain or row error signal${counts.failed === 1 ? "" : "s"} loaded.`,
+        detail: "Open the failed row, Last Drain, Run Logs, and Last Stderr before another drain attempt.",
+        state: "blocked",
       };
     }
     if (counts.blocked || normalizedDecision.includes("do not")) {
@@ -639,17 +823,17 @@
         reason: counts.blocked
           ? `${counts.blocked} blocked row${counts.blocked === 1 ? "" : "s"} or do-not-drain checkpoint found.`
           : "A do-not-drain checkpoint is active in the drain decision checklist.",
-        detail: "Show blockers, select the highest-risk row, and inspect backend-selected diagnostics before another drain attempt.",
+        detail: "Show blockers, select the highest-risk row, and inspect backend-selected diagnostics in Advanced before another drain attempt.",
         state: "blocked",
       };
     }
     if (counts.evidence || normalizedDecision.includes("incomplete") || normalizedDecision.includes("not evaluated")) {
       return {
-        action: "Complete evidence review",
+        action: "Review evidence gaps",
         reason: counts.evidence
           ? `${counts.evidence} row${counts.evidence === 1 ? "" : "s"} have payload, sidecar, or parked-output evidence gaps.`
           : "Drain evidence is incomplete or has not been evaluated.",
-        detail: "Show evidence gaps, build a recovery dry-run where useful, then compare drain checklist and guard evidence.",
+        detail: "Show evidence gaps, then use Advanced recovery or diagnostics only when the row evidence explains a concrete problem.",
         state: "validation-needed",
       };
     }
@@ -659,14 +843,14 @@
         reason: counts.review
           ? `${counts.review} row${counts.review === 1 ? "" : "s"} or checklist signal require read-first review.`
           : "The drain guard requires explicit read-first review before submission.",
-        detail: "Use the review filter, selected-row detail, and Diagnostics links before submitting backend drain validation.",
+        detail: "Use the review filter and selected-row detail first; open Advanced diagnostics only when a row needs deeper evidence.",
         state: "warning",
       };
     }
     return {
-      action: "Drain ready parked outputs",
-      reason: `${counts.ready} row${counts.ready === 1 ? " looks" : "s look"} ready for backend validation.`,
-      detail: "Submit the backend-owned drain only after the guard and checklist agree with the current parked rows.",
+      action: `Drain ${rows.length} parked file${rows.length === 1 ? "" : "s"}`,
+      reason: `${counts.ready} row${counts.ready === 1 ? " has" : "s have"} no focused blocker in the loaded backend scan.`,
+      detail: "Submit the backend-owned drain when the current parked rows show no local blockers; the backend still validates the full parked scope.",
       state: "ok",
     };
   }
@@ -691,7 +875,7 @@
     const validationStatus = overview.validationStatus || pendingValidationStatus(payload, rowList);
     const filterScope = overview.filterScope || pendingCurrentFilterScope(rowList);
     const guard = overview.guard || pendingDrainGuardState(payload, rowList, snapshot || {}, entryList);
-    const triage = pendingActionCenterTriage(rowList);
+    const triage = pendingActionCenterTriage(rowList, payload);
     const outcome = pendingActionCenterOutcome(payload, rowList, decisionStatus, validationStatus, guard, triage);
     const state = pendingDrainOverviewState(decisionStatus) === "unknown" ? outcome.state : pendingDrainOverviewState(decisionStatus);
 
@@ -705,12 +889,17 @@
     setPendingActionCount("pending-action-review-count", triage.review, triage.review ? "warning" : "empty", "Rows needing review");
     setPendingActionCount("pending-action-evidence-count", triage.evidence, triage.evidence ? "validation-needed" : "empty", "Rows with missing evidence");
     setPendingActionCount("pending-action-blocked-count", triage.blocked, triage.blocked ? "blocked" : "empty", "Blocked rows");
+    setPendingActionCount("pending-action-failed-count", triage.failed, triage.failed ? "blocked" : "empty", "Failed rows");
+    setPendingActionCount("pending-action-drained-count", triage.drained, triage.drained ? "completed" : "empty", "Drained rows in latest summary");
 
     const drainButton = byId("pending-action-drain-button");
     if (drainButton) {
+      const drainLabel = rowList.length
+        ? `Drain ${rowList.length} parked file${rowList.length === 1 ? "" : "s"}`
+        : "Drain Parked Outputs";
       drainButton.disabled = !guard?.allowed;
       drainButton.textContent = guard?.allowed
-        ? guard.review_required ? "Drain After Review" : "Drain Ready Parked Outputs"
+        ? guard.review_required && rowList.length ? `Drain after review (${rowList.length})` : drainLabel
         : "Drain Blocked";
       drainButton.title = guard?.allowed ? guard.confirm_message || outcome.detail : guard?.message || outcome.detail;
       drainButton.dataset.state = guard?.allowed ? guard.review_required ? "warning" : "ok" : "blocked";
@@ -720,11 +909,11 @@
       "Pending Publish action center:",
       `Next action: ${outcome.action}`,
       `Why: ${outcome.reason}`,
-      `Drain decision: ${decisionStatus || "not loaded"}; checklist: ${validationStatus || "not loaded"}; button guard: ${guard?.allowed ? guard.review_required ? "review confirmation required" : "allowed" : "blocked"}.`,
-      `Triage filters: ready=${triage.ready}; review=${triage.review}; evidence missing=${triage.evidence}; blocked=${triage.blocked}.`,
+      `Drain decision: ${decisionStatus || "not loaded"}; checklist: ${validationStatus || "not loaded"}; backend button guard: ${guard?.allowed ? guard.review_required ? "review confirmation required" : "allowed" : "blocked"}.`,
+      `Triage filters: ready=${triage.ready}; review=${triage.review}; evidence missing=${triage.evidence}; blocked=${triage.blocked}; failed=${triage.failed}; drained summary=${triage.drained}.`,
       `Visible table scope: ${filterScope.visibleCount ?? rowList.length}/${filterScope.totalCount ?? rowList.length}; hidden blocked/review=${filterScope.hiddenBlockedCount || 0}/${filterScope.hiddenReviewCount || 0}.`,
       outcome.detail,
-      "Mutation guardrail: this action center can only update local filters, refresh backend evidence, or click the existing backend-owned drain button. It cannot move, repair, rewrite, delete, publish, accept output, or bypass validation.",
+      "Boundary: this action center can only update local filters, refresh backend evidence, or submit the backend-owned drain command.",
     ].join("\n"));
   }
 
@@ -739,10 +928,10 @@
     const chips = byId("pending-drain-decision-chips");
     if (chips && window.mediaPipelineDom?.makeStatusChip) {
       chips.replaceChildren(
-        window.mediaPipelineDom.makeStatusChip("Do not drain", decisionStatus === "Do not drain" ? "blocked" : "normal"),
-        window.mediaPipelineDom.makeStatusChip("Review first", decisionStatus === "Review first" ? "warning" : "normal"),
-        window.mediaPipelineDom.makeStatusChip("Evidence incomplete", decisionStatus === "Evidence incomplete" || decisionStatus === "Not evaluated" ? "validation-needed" : "normal"),
-        window.mediaPipelineDom.makeStatusChip("Ready-looking", decisionStatus === "Ready-looking" ? "ok" : "normal"),
+        window.mediaPipelineDom.makeStatusChip("Blocked", decisionStatus === "Do not drain" ? "blocked" : "normal"),
+        window.mediaPipelineDom.makeStatusChip("Review", decisionStatus === "Review first" ? "warning" : "normal"),
+        window.mediaPipelineDom.makeStatusChip("Need evidence", decisionStatus === "Evidence incomplete" || decisionStatus === "Not evaluated" ? "validation-needed" : "normal"),
+        window.mediaPipelineDom.makeStatusChip("Ready", decisionStatus === "Ready-looking" ? "ok" : "normal"),
       );
     }
     setText("pending-drain-overview", [
@@ -770,12 +959,20 @@
       if (status) status.value = "ready";
       if (investigation) investigation.value = "ready_to_drain";
     } else if (normalized === "review") {
-      if (status) status.value = "review";
+      if (status) status.value = "warning";
     } else if (normalized === "evidence") {
       if (investigation) investigation.value = "evidence_missing";
     } else if (normalized === "blocked") {
       if (status) status.value = "blocked";
       if (investigation) investigation.value = "do_not_drain";
+    } else if (normalized === "failed") {
+      if (status) status.value = "failed";
+      if (investigation) investigation.value = "failed";
+    } else if (normalized === "drained") {
+      if (status) status.value = "completed";
+      if (investigation) investigation.value = "drained";
+    } else if (normalized === "payloads") {
+      if (filter) filter.value = "payload";
     }
     renderPendingRows();
     const labels = {
@@ -783,6 +980,9 @@
       review: "Showing pending rows that need review. Backend drain scope is unchanged.",
       evidence: "Showing pending rows with missing payload, sidecar, or manifest evidence. Backend drain scope is unchanged.",
       blocked: "Showing do-not-drain or blocked pending rows. Backend drain scope is unchanged.",
+      failed: "Showing failed pending rows and failed latest-summary entries when present. Backend drain scope is unchanged.",
+      drained: "Showing rows with drained/completed evidence when present. Current pending rows remain the backend source of truth.",
+      payloads: "Showing rows matching payload evidence. Backend drain scope is unchanged.",
     };
     setText("pending-action-feedback", labels[normalized] || "Pending Publish filters cleared. Backend drain scope is unchanged.");
   }
@@ -927,7 +1127,7 @@
     const statusFilter = byId("pending-status-filter")?.value || "all";
     const investigationFilter = byId("pending-investigation-filter")?.value || "all";
     const textRows = filterRows(lastPendingRows, filterText, PENDING_FILTER_FIELDS);
-    const statusRows = typeof filterRowsByStatus === "function" ? filterRowsByStatus(textRows, statusFilter, pendingTableRowStatus) : textRows;
+    const statusRows = typeof filterRowsByStatus === "function" ? filterRowsByStatus(textRows, statusFilter, pendingRowPresentationStatus) : textRows;
     const rows = typeof filterRowsByInvestigation === "function" ? filterRowsByInvestigation(statusRows, investigationFilter, pendingMatchesInvestigationFilter) : statusRows;
     const renderLimit = 250;
     const renderedCount = Math.min(rows.length, renderLimit);
@@ -946,16 +1146,16 @@
         statusFilter,
         investigationFilter,
         investigationLabel: pendingInvestigationFilterLabel(investigationFilter),
-        statusOf: pendingTableRowStatus,
+        statusOf: pendingRowPresentationStatus,
         limit: 250,
         decisionName: "publish/drain",
-        guardrail: "Mutation guardrail: filtering Pending Publish rows does not change drain scope, recovery plans, manifests, payloads, or publish commands.",
+        guardrail: PENDING_READ_ONLY_BOUNDARY,
       }).join("\n"));
     }
     const tbody = byId("pending-rows");
     const scrollSnapshot = tableScrollSnapshot(tbody);
     if (!rows.length) {
-      clearRows(tbody, 6, lastPendingRows.length ? "No pending publish rows match the filter." : lastPendingEmptyMessage);
+      clearRows(tbody, 7, lastPendingRows.length ? "No pending publish rows match the filter." : lastPendingEmptyMessage);
       updateTableStatusLegend("pending-table-legend", tbody, "Pending publish rows");
       if (selectedPendingRowKey) renderPendingDetail(getSelectedPendingRow());
       renderPendingDrainActionConfidence(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
@@ -973,24 +1173,26 @@
       const row = document.createElement("tr");
       const key = pendingRowKey(item);
       row.dataset.rowKey = key;
-      row.dataset.status = pendingTableRowStatus(item);
-      const localFileDisplay = typeof shortenPath === "function" ? shortenPath(item.local_file || "", 40) : item.local_file || "";
-      const serverOutDisplay = typeof shortenPath === "function" ? shortenPath(item.server_out || "", 40) : item.server_out || "";
-      const stateText = item.state || "unknown";
+      row.dataset.status = pendingRowPresentationStatus(item);
+      const localFileDisplay = pendingPathDisplay(item.local_file || item.source_path || "", 42);
+      const manifestDisplay = pendingPathDisplay(item.manifest_path || item.row_key || "", 34);
+      const serverOutDisplay = pendingPathDisplay(item.server_out || "", 42);
+      const statusText = pendingRowPresentationLabel(item);
       appendCells(row, [
-        stateText,
-        item.size_text || "",
-        item.age_text || item.parked_at_display || "",
+        statusText,
         localFileDisplay,
+        manifestDisplay,
         serverOutDisplay,
-        item.issue_summary || item.error || item.diagnostic_status || "",
-      ], [null, "num", "num", "path-cell", "path-cell", null]);
-      // Set title tooltip so full path is accessible on hover
+        item.size_text || "",
+        pendingRowUpdatedText(item),
+        pendingRowReasonText(item),
+      ], [null, "path-cell", "path-cell", "path-cell", "num", null, null]);
       const pendingCells = row.querySelectorAll("td");
       const stateCell = pendingCells[0] || row.children?.[0];
-      if (typeof setCellStatusChip === "function") setCellStatusChip(stateCell, stateText, row.dataset.status);
-      if (pendingCells[3] && item.local_file) pendingCells[3].title = item.local_file;
-      if (pendingCells[4] && item.server_out) pendingCells[4].title = item.server_out;
+      if (typeof setCellStatusChip === "function") setCellStatusChip(stateCell, statusText, row.dataset.status);
+      if (pendingCells[1] && (item.local_file || item.source_path)) pendingCells[1].title = item.local_file || item.source_path;
+      if (pendingCells[2] && item.manifest_path) pendingCells[2].title = item.manifest_path;
+      if (pendingCells[3] && item.server_out) pendingCells[3].title = item.server_out;
       makeRowSelectable(row, () => selectPendingRow(item), {
         selected: Boolean(key && key === selectedPendingRowKey),
         label: `Pending publish row ${item.local_file || item.server_out || item.manifest_path || ""}`,
@@ -1035,7 +1237,6 @@
     ? pendingDiagnosticsModule.createPendingPublishDiagnosticsModule({
       apiPost: typeof apiPost === "function" ? apiPost : window.apiPost,
       appendCommandResult: typeof appendCommandResult === "function" ? appendCommandResult : window.appendCommandResult,
-      appendDiagnosticsBridgeButton: diagnosticsBridgeApi().appendDiagnosticsBridgeButton,
       appendDiagnosticsBridgeGroupedButtons: diagnosticsBridgeApi().appendDiagnosticsBridgeGroupedButtons,
       byId: typeof byId === "function" ? byId : window.byId,
       commandHistoryCompactEvidenceLine: typeof window.commandHistoryCompactEvidenceLine === "function" ? window.commandHistoryCompactEvidenceLine : (typeof commandHistoryCompactEvidenceLine === "function" ? commandHistoryCompactEvidenceLine : null),
@@ -1074,6 +1275,8 @@
       filterRowsByStatus: typeof filterRowsByStatus === "function" ? filterRowsByStatus : window.filterRowsByStatus,
       getLastPendingPayload: () => lastPendingPayload || {},
       getLastPendingRecoveryPlanRows: () => Array.isArray(lastPendingRecoveryPlanRows) ? lastPendingRecoveryPlanRows : [],
+      getLastPendingRecoveryPlanSignature: () => lastPendingRecoveryPlanSignature || "",
+      getCurrentPendingRecoveryPlanSignature: (pending, rows) => pendingRecoveryPlanSignature(pending || lastPendingPayload, Array.isArray(rows) ? rows : lastPendingRows),
       getLastPendingRows: () => Array.isArray(lastPendingRows) ? lastPendingRows : [],
       getLastPendingSnapshot: () => lastPendingSnapshot || {},
       getSelectedPendingRow: (...args) => getSelectedPendingRow(...args),
@@ -1150,6 +1353,12 @@
     set lastPendingRecoveryPlanRows(value) {
       lastPendingRecoveryPlanRows = Array.isArray(value) ? value : [];
     },
+    get lastPendingRecoveryPlanSignature() {
+      return lastPendingRecoveryPlanSignature;
+    },
+    set lastPendingRecoveryPlanSignature(value) {
+      lastPendingRecoveryPlanSignature = value || "";
+    },
     get selectedPendingRecoveryPlanKey() {
       return selectedPendingRecoveryPlanKey;
     },
@@ -1179,6 +1388,7 @@
       getLastPendingPayload: () => lastPendingPayload || {},
       getLastPendingRows: () => Array.isArray(lastPendingRows) ? lastPendingRows : [],
       getLastPendingSnapshot: () => lastPendingSnapshot || {},
+      getCurrentPendingRecoveryPlanSignature: (pending, rows) => pendingRecoveryPlanSignature(pending || lastPendingPayload, Array.isArray(rows) ? rows : lastPendingRows),
       getSelectedPendingRow: (...args) => getSelectedPendingRow(...args),
       makeRowSelectable: typeof makeRowSelectable === "function" ? makeRowSelectable : window.makeRowSelectable,
       pendingFormatCounts: (...args) => pendingFormatCounts(...args),
@@ -1187,6 +1397,7 @@
       renderPendingDrainActionConfidence: (...args) => renderPendingDrainActionConfidence(...args),
       renderPendingDrainDecisionChecklist: (...args) => renderPendingDrainDecisionChecklist(...args),
       renderPendingDrainGuard: (...args) => renderPendingDrainGuard(...args),
+      renderPendingDrainOverview: (...args) => renderPendingDrainOverview(...args),
       setText: typeof setText === "function" ? setText : window.setText,
       state: pendingRecoveryState,
       updateTableStatusLegend: typeof updateTableStatusLegend === "function" ? updateTableStatusLegend : window.updateTableStatusLegend,
@@ -1273,6 +1484,8 @@
       getCommandHistory: typeof window.getCommandHistory === "function" ? () => window.getCommandHistory() : (typeof getCommandHistory === "function" ? () => getCommandHistory() : () => []),
       getLastPendingPayload: () => lastPendingPayload || {},
       getLastPendingRecoveryPlanRows: () => Array.isArray(lastPendingRecoveryPlanRows) ? lastPendingRecoveryPlanRows : [],
+      getLastPendingRecoveryPlanSignature: () => lastPendingRecoveryPlanSignature || "",
+      getCurrentPendingRecoveryPlanSignature: (pending, rows) => pendingRecoveryPlanSignature(pending || lastPendingPayload, Array.isArray(rows) ? rows : lastPendingRows),
       getLastPendingRows: () => Array.isArray(lastPendingRows) ? lastPendingRows : [],
       getLastPendingSnapshot: () => lastPendingSnapshot || {},
       getSelectedPendingRow: (...args) => getSelectedPendingRow(...args),

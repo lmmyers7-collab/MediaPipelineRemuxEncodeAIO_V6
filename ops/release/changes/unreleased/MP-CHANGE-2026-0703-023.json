@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0703-023",
+  "title": "Clarify CSV rerun waiting progress",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-03",
+  "date_completed": "2026-07-03",
+  "summary": "Clarified active CSV rerun waiting states so idle-between-items backend text is not promoted as active current-work evidence, and the WebView Run Progress timeline keeps focus on CSV import/waiting progress instead of final Run evidence review.",
+  "reason": "During CSV rerun gaps between nested pipeline chunks, the UI could show the pipeline as idle/waiting while marking Run evidence as current/review, making a normal wait for the next CSV item look broken or paused.",
+  "affected_areas": [
+    "backend",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "An idle/waiting progress snapshot could produce active current-work evidence, and the WebView timeline could focus Run evidence/review while CSV rerun work was still active between items.",
+  "behavior_after": "Idle/waiting current-work text is reported as idle, latest events remain available as event evidence, and active CSV rerun stdout/worker evidence keeps the Run Progress timeline focused on CSV import/waiting progress with specific CSV rerun status.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/progressView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/progressView.js.md",
+    "docs/generated/summaries/src/mediapipeline/core/status/presentation_progress.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_snapshot.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0703-023.json",
+    "src/mediapipeline/core/status/presentation_progress.py",
+    "tests/python/desktop/test_application_facade_snapshot.py",
+    "tests/python/desktop/test_application_facade_web_static.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_snapshot.py",
+    "tests/python/desktop/test_application_facade_web_static.py"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_snapshot.ApplicationFacadeSnapshotTests.test_current_work_idle_waiting_is_not_active_evidence -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_progress_csv_rerun_evidence_does_not_override_active_pipeline -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_snapshot -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static -q - failed: existing unrelated dirty-worktree static assertions for launch tab order and pending-publish local_file allowlist",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m py_compile src\\mediapipeline\\core\\status\\presentation_progress.py tests\\python\\desktop\\test_application_facade_snapshot.py tests\\python\\desktop\\test_application_facade_web_static.py - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/status/presentation_progress.py apps/desktop/webview/static/assets/progressView.js tests/python/desktop/test_application_facade_snapshot.py tests/python/desktop/test_application_facade_web_static.py - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed"
+  ],
+  "rollback_plan": "Revert the current-work presentation change, the progressView.js CSV rerun timeline/status adjustments, the two regression test additions, and the regenerated summaries listed in this packet.",
+  "related_changes": [],
+  "notes": "Suppress idle/waiting current-work text as active evidence.\nAdd WebView CSV rerun waiting timeline regression coverage.\nAdd backend idle/waiting current-work regression coverage.\nKeep active CSV rerun waiting state focused on CSV progress instead of run evidence.\nRefresh summary after current-work presentation change.\nRefresh summary after WebView progress timeline change.\nRefresh summary after backend regression test change.\nRefresh summary after WebView static regression test change."
+}

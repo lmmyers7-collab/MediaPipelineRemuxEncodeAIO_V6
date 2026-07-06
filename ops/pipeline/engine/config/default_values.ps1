@@ -418,6 +418,8 @@ function Get-MediaPipelineConfigDefaultValues {
         ConsecutiveRoundFailureProbeBackoffSeconds = 900
         PendingPublishBacklogBlockThreshold = 100
         PendingPublishDeferredBlockThreshold = 25
+        AutonomyPendingTotalReviewBytes = 107374182400
+        AutonomyPendingTotalBlockBytes = 268435456000
         PauseFlagReviewSeconds = 1800
         PauseFlagBlockSeconds = 21600
         LocalWorkerHeartbeatGraceSeconds = 900

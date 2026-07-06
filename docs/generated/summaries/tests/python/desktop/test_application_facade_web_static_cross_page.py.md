@@ -3,9 +3,9 @@ file: tests/python/desktop/test_application_facade_web_static_cross_page.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-30
+last_modified: 2026-07-03
 last_reviewed: 2026-06-24
-sha256: 89673cc23bb20fc5413d643fb44966a7a63d42047d7e701c48d686c9fb23c95e
+sha256: 3c58b9ab3b43274ed8fe975f5cca25487a296deb42c1863576700e531d7ef85d
 ---
 # `tests/python/desktop/test_application_facade_web_static_cross_page.py`
 

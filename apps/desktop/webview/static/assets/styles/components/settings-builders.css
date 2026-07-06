@@ -244,7 +244,7 @@
   align-items: end;
 }
 
-.launch-rerun-setup-grid {
+.queue-rerun-setup-grid {
   grid-template-columns: minmax(280px, 2fr) minmax(180px, 1fr) minmax(120px, 0.75fr);
 }
 

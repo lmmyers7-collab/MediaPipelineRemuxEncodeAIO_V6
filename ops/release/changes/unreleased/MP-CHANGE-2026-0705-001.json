@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0705-001",
+  "title": "Show parked pending outputs in completed",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-05",
+  "date_completed": "2026-07-05",
+  "summary": "Completed preview now overlays manifest-backed Pending Publish rows as read-only parked rows for the WebView Completed Output payload.",
+  "reason": "CSV rerun outputs parked in Pending Publish were invisible from Completed Output until drain, making current rerun results look absent even though the backend had parked-publish evidence.",
+  "affected_areas": [
+    "api",
+    "core",
+    "generated",
+    "tests"
+  ],
+  "behavior_before": "The Completed Output endpoint only returned completed-manifest rows, so parked CSV rerun outputs appeared in Pending Publish but not in Completed Output.",
+  "behavior_after": "The Completed Output endpoint opts into a read-only parked overlay for manifest-backed pending-publish rows while reconciliation and raw completed-history callers continue to use completed-manifest rows only.",
+  "files_touched": [
+    "docs/generated/summaries/src/mediapipeline/core/completed/facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/completed/policy.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/api/read_payloads_inventory.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_completed.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api_http.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0705-001.json",
+    "src/mediapipeline/core/completed/facade.py",
+    "src/mediapipeline/core/completed/policy.py",
+    "src/mediapipeline/desktop/api/read_payloads_inventory.py",
+    "tests/python/desktop/test_application_facade_completed.py",
+    "tests/python/desktop/test_application_facade_local_api_http.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_completed.py::ApplicationFacadeCompletedTests.test_completed_preview_lists_manifest_backed_pending_publish_as_parked",
+    "tests/python/desktop/test_application_facade_local_api_http.py::LocalApiHttpTests.test_completed_route_includes_parked_pending_publish_overlay"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_completed -q - passed (12 tests)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_pending_publish tests.python.desktop.test_pending_publish_service tests.python.desktop.test_service_pending_publish_manifest -q - passed (30 tests)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_local_api_http -q - passed (15 tests)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check --paths src/mediapipeline/core/completed/facade.py src/mediapipeline/core/completed/policy.py src/mediapipeline/desktop/api/read_payloads_inventory.py tests/python/desktop/test_application_facade_completed.py tests/python/desktop/test_application_facade_local_api_http.py - passed",
+    "git diff --check -- touched files - passed with CRLF normalization warnings only",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_local_api_workflow -q - failed in unrelated rerun payload assertion (KeyError: data.pid) after completed route coverage"
+  ],
+  "rollback_plan": "Remove the pending-publish overlay flag and API opt-in, remove pending-row synthesis from completed policy, and revert the added tests plus refreshed summaries.",
+  "related_changes": [],
+  "notes": "Overlay pending-publish scan rows onto Completed preview payload.\nAdd read-only parked pending-publish rows to Completed preview.\nCover parked pending-publish rows in Completed preview.\nOpt Completed API into parked overlay while keeping reconciliation proof on raw completed rows.\nCover Completed API parked pending-publish overlay.\nRefresh generated summary for Completed facade overlay flag.\nRefresh generated summary for Completed API overlay wiring.\nRefresh generated summary for parked pending-publish Completed rows.\nRefresh generated summary for Completed overlay tests.\nRefresh generated summary for Completed API route overlay test.\nPython impact: read-only DTO/API payload behavior only; no publish drain, filesystem mutation, source movement, or media policy changed. Real-media validation is not required for this read-model overlay."
+}

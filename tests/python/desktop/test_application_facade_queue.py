@@ -215,10 +215,85 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
 
         self.assertEqual(preview["source"], str(manifest_path))
         self.assertEqual(preview["rows"][0]["queue_source"], "csv_rerun")
-        self.assertEqual(preview["rows"][0]["operator_status"], "CSV rerun queued")
+        self.assertEqual(preview["rows"][0]["operator_status"], "CSV rerun staged")
         self.assertEqual(preview["rows"][0]["queue_position"], "1/1")
         self.assertEqual(preview["rows"][0]["display_name"], "Paprika (2006).mkv")
         self.assertIn("active CSV rerun manifest queue rows", "\n".join(preview["warnings"]))
+
+    def test_csv_rerun_manifest_status_and_reason_drive_operator_state(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            local_base = root / "Local"
+            manifest_root = local_base / "RerunManifests"
+            manifest_root.mkdir(parents=True)
+            manifest_path = manifest_root / "rerun_20260702_010000_abcd1234.json"
+            manifest_path.write_text(
+                json.dumps(
+                    {
+                        "batch_id": "rerun_20260702_010000_abcd1234",
+                        "created_at": "2026-07-02T01:00:00",
+                        "csv_path": str(local_base / "AuditReports" / "audit_rerun.csv"),
+                        "config_path": str(root / "config.psd1"),
+                        "pipeline_local_base": str(local_base),
+                        "output_root": str(local_base / "RerunParked"),
+                        "rows": [
+                            {"source_path": str(root / "a.mkv"), "status": "failed", "reason": "source file not found"},
+                            {"source_path": str(root / "b.mkv"), "status": "pending"},
+                            {"source_path": str(root / "c.mkv"), "status": "staged"},
+                            {"source_path": str(root / "d.mkv"), "status": "complete"},
+                            {"source_path": str(root / "e.mkv"), "status": "review_workspace", "reason": "parked output requires review"},
+                            {"source_path": str(root / "f.mkv"), "status": "pending_publish", "pending_publish_manifest_path": str(root / "Pending" / "f.manifest.json")},
+                            {"source_path": str(root / "g.mkv"), "status": "published_replace_final", "published_path": str(root / "Final" / "g.mkv")},
+                            {"source_path": str(root / "h.mkv"), "status": "warning", "reason": "audit warning"},
+                            {"source_path": str(root / "i.mkv"), "status": "stopped"},
+                            {"source_path": str(root / "j.mkv"), "status": "skipped"},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            resolved = _resolved(root)
+            resolved.local_base = local_base
+            resolved.queue_snapshot_path = root / "State" / "Progress" / "missing_queue_snapshot.json"
+            assert resolved.active_jobs_path is not None
+            resolved.active_jobs_path.mkdir(parents=True)
+            (resolved.active_jobs_path / "rerun.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_active_job.v1",
+                        "launch_id": "rerun-1",
+                        "job_kind": "rerun_csv",
+                        "mode": "rerun_csv",
+                        "status": "active",
+                        "pid": 1234,
+                        "command_line": "pwsh -File Invoke-RerunCsv.ps1",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+
+            preview = facade.get_queue_preview(resolved).to_mapping()
+
+        by_source = {Path(str(row["original_source_path"])).name: row for row in preview["rows"]}
+        self.assertEqual(by_source["a.mkv"]["operator_status"], "CSV rerun failed")
+        self.assertEqual(by_source["a.mkv"]["operator_status_state"], "blocked")
+        self.assertEqual(by_source["a.mkv"]["operator_severity"], "error")
+        self.assertIn("source file not found", by_source["a.mkv"]["operator_guidance"])
+        self.assertEqual(by_source["b.mkv"]["operator_status"], "CSV rerun pending")
+        self.assertEqual(by_source["b.mkv"]["operator_status_state"], "ready")
+        self.assertEqual(by_source["c.mkv"]["operator_status"], "CSV rerun staged")
+        self.assertEqual(by_source["d.mkv"]["operator_status"], "CSV rerun complete")
+        self.assertEqual(by_source["d.mkv"]["operator_status_state"], "complete")
+        self.assertEqual(by_source["e.mkv"]["operator_status"], "CSV rerun awaiting review")
+        self.assertEqual(by_source["e.mkv"]["operator_status_state"], "review")
+        self.assertIn("parked output requires review", by_source["e.mkv"]["route_reason"])
+        self.assertEqual(by_source["f.mkv"]["queue_status_label"], "Pending Publish")
+        self.assertEqual(by_source["g.mkv"]["queue_status_label"], "Replaced / Returned")
+        self.assertEqual(by_source["h.mkv"]["queue_status_label"], "Warning")
+        self.assertEqual(by_source["i.mkv"]["queue_status_label"], "Stopped")
+        self.assertEqual(by_source["j.mkv"]["queue_status_label"], "Skipped")
+        self.assertFalse(by_source["g.mkv"]["uses_pipeline_start"])
 
     def test_queue_preview_reads_existing_snapshot_without_dry_run(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/styles/components/data-tables.css
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-26
+last_modified: 2026-07-05
 last_reviewed: 2026-06-25
-sha256: 2c93412bed8586651f199e81091469aac0b61f163cfa380cb5894fe17d815aaf
+sha256: 1040b4380086c44b4732fa552670776bfef9ee54c035218110be0323eba8e4eb
 ---
 # `apps/desktop/webview/static/assets/styles/components/data-tables.css`
 

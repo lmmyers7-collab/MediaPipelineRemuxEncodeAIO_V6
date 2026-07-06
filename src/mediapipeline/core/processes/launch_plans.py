@@ -150,11 +150,12 @@ def build_rerun_csv_launch_plan(
     original_mode: str,
     return_mode: str,
     execution_mode: str = "one_at_a_time",
-    destination_mode: str = "review_workspace",
+    destination_mode: str = "auto_replace_clean_else_pending_review",
     original_policy: str = "keep",
-    collision_policy: str = "suffix",
+    collision_policy: str = "replace_final",
     window_size: int = 1,
     confirm_replace_final: bool = False,
+    confirm_source_overwrite: bool = False,
     confirm_original_policy: bool = False,
     confirm_delete_original: bool = False,
     plan_only: bool = False,
@@ -167,6 +168,9 @@ def build_rerun_csv_launch_plan(
         raise FileNotFoundError(f"Rerun CSV not found: {csv_path}")
     if dry_run and plan_only:
         raise ValueError("CSV rerun launch accepts either dry_run or plan_only, not both.")
+    original_policy = "keep"
+    confirm_original_policy = False
+    confirm_delete_original = False
 
     args = [
         resolved.powershell_host,
@@ -189,8 +193,6 @@ def build_rerun_csv_launch_plan(
         execution_mode,
         "-DestinationMode",
         destination_mode,
-        "-OriginalPolicy",
-        original_policy,
         "-CollisionPolicy",
         collision_policy,
         "-WindowSize",
@@ -202,10 +204,8 @@ def build_rerun_csv_launch_plan(
         args.append("-DryRun")
     if confirm_replace_final:
         args.append("-ConfirmReplaceFinal")
-    if confirm_original_policy:
-        args.append("-ConfirmOriginalPolicy")
-    if confirm_delete_original:
-        args.append("-ConfirmDeleteOriginal")
+    if confirm_source_overwrite:
+        args.append("-ConfirmSourceOverwrite")
     mode = "plan_only" if plan_only else "dry_run" if dry_run else "run"
 
     return ProcessLaunchPlan(
@@ -225,6 +225,7 @@ def build_rerun_csv_launch_plan(
             "collision_policy": collision_policy,
             "window_size": max(1, int(window_size)),
             "confirm_replace_final": bool(confirm_replace_final),
+            "confirm_source_overwrite": bool(confirm_source_overwrite),
             "confirm_original_policy": bool(confirm_original_policy),
             "confirm_delete_original": bool(confirm_delete_original),
         },

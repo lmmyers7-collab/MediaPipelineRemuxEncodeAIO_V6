@@ -3,9 +3,9 @@ file: tests/python/desktop/test_application_facade_diagnostics.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-04
 last_reviewed: 2026-06-04
-sha256: a86925ab195a809675ccc7b7ec432730db22eb3e04b5e0652293967f13f349e7
+sha256: 7abfb10bde70ec6b0d1089c1e35f0781a9b70b29895a1bc0877b61c7ef446afb
 ---
 # `tests/python/desktop/test_application_facade_diagnostics.py`
 

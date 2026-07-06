@@ -17,6 +17,7 @@ from mediapipeline.core.completed.policy import (
 )
 from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.completed.contracts import CompletedJobRecord
+from mediapipeline.core.publish.pending_rows import pending_publish_rows
 
 if TYPE_CHECKING:
     from mediapipeline.core.kernel.dto_inventory import CompletedPreviewDto
@@ -34,6 +35,7 @@ class CompletedFacadeMixin:
         *,
         force_refresh: bool = False,
         proof_mode: str = DEFAULT_COMPLETED_PROOF_MODE,
+        include_pending_publish_overlay: bool = False,
     ) -> CompletedPreviewDto:
         loader = getattr(self.service, "load_recent_completed_jobs", None)
         if not callable(loader):
@@ -58,6 +60,26 @@ class CompletedFacadeMixin:
                 runtime_outcome_warning = f"Completed runtime outcome history could not be read: {exc}"
         elif resolved.event_file:
             runtime_outcome_warning = "Completed runtime outcome history reader is not available."
+        pending_rows: list[dict[str, object]] = []
+        overlay_warnings: list[str] = []
+        scanner = getattr(self.service, "scan_pending_publish", None)
+        if include_pending_publish_overlay and callable(scanner) and resolved.pending_push_path is not None:
+            try:
+                pending_limit = requested_limit if requested_limit is not None else 500
+                pending_raw = scanner(
+                    resolved,
+                    manifest_limit=pending_limit,
+                    include_orphan_rows=False,
+                )
+                if isinstance(pending_raw, dict):
+                    pending_rows = pending_publish_rows(pending_raw.get("rows"))
+                    overlay_warnings.extend(
+                        str(item).strip()
+                        for item in (pending_raw.get("warnings") or [])
+                        if str(item).strip()
+                    )
+            except Exception as exc:
+                overlay_warnings.append(f"Completed parked-output overlay could not be read: {exc}")
         preview = completed_preview_from_records(
             records,
             source=str(resolved.completed_manifest_path or ""),
@@ -66,6 +88,8 @@ class CompletedFacadeMixin:
             runtime_event_count=len(runtime_events),
             runtime_outcome_source=str(resolved.event_file or ""),
             runtime_outcome_warning=runtime_outcome_warning,
+            pending_publish_rows=pending_rows,
+            warnings=overlay_warnings,
         )
         annotator = getattr(self.service, "annotate_final_library_promotion_rows", None)
         if not callable(annotator):

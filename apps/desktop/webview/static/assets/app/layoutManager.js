@@ -58,6 +58,7 @@
       ["diagTab", "diagnostics"],
       ["completedTab", "completed"],
       ["launchTabPanel", "launch"],
+      ["queueTabPanel", "queue"],
       ["reportsTabPanel", "reports"],
     ];
     for (const [datasetKey, label] of tabPairs) {
@@ -79,6 +80,7 @@
       ["diagTab", "diagnostics"],
       ["completedTab", "completed"],
       ["launchTabPanel", "launch"],
+      ["queueTabPanel", "queue"],
       ["reportsTabPanel", "reports"],
     ];
     for (const [datasetKey, label] of tabPairs) {
@@ -1236,6 +1238,7 @@
       ["diagTab", "diagTab"],
       ["completedTab", "completedTab"],
       ["launchTabPanel", "launchTab"],
+      ["queueTabPanel", "queueTab"],
       ["reportsTabPanel", "reportsTab"],
     ];
     for (const [paneKey, buttonKey] of pairs) {
@@ -1276,11 +1279,12 @@
   function _copyPanelContextAttributes(source, target) {
     if (!source || !target) return;
     if (source.classList?.contains("settings-tab-pane")) target.classList.add("settings-tab-pane");
-    ["launch-tab-panel", "reports-tab-panel"].forEach((className) => {
+    ["launch-tab-panel", "queue-tab-panel", "reports-tab-panel"].forEach((className) => {
       if (source.classList?.contains(className)) target.classList.add(className);
     });
     [
       "launchTabPanel",
+      "queueTabPanel",
       "reportsTabPanel",
       "evidenceToggleExempt",
       "layoutSourcePanelType",
@@ -1406,7 +1410,7 @@
         || (node.matches("div[data-advanced]") && node.querySelector(":scope > .panel-heading.panel-subheading"))
       )
     ));
-    const isKnownTabPane = container.matches?.(".settings-tab-pane[data-settings-tab], .settings-tab-pane[data-diag-tab], .settings-tab-pane[data-completed-tab], .settings-tab-pane[data-launch-tab-panel], .settings-tab-pane[data-reports-tab-panel]");
+    const isKnownTabPane = container.matches?.(".settings-tab-pane[data-settings-tab], .settings-tab-pane[data-diag-tab], .settings-tab-pane[data-completed-tab], .settings-tab-pane[data-launch-tab-panel], .settings-tab-pane[data-queue-tab-panel], .settings-tab-pane[data-reports-tab-panel]");
     if (!hasPanelishHeading && !isKnownTabPane) return;
     const defaultTitle = _layoutPaneTitle(container);
     const groups = _extractLooseGroups(nodes, defaultTitle, false, container.dataset.layoutSourcePanelType || "");
@@ -1604,7 +1608,7 @@
     }
     add(page);
     page.querySelectorAll(
-      ".settings-tab-pane:not(section.panel)[data-settings-tab], .settings-tab-pane:not(section.panel)[data-diag-tab], .settings-tab-pane:not(section.panel)[data-completed-tab], .settings-tab-pane:not(section.panel)[data-launch-tab-panel], .settings-tab-pane:not(section.panel)[data-reports-tab-panel]"
+      ".settings-tab-pane:not(section.panel)[data-settings-tab], .settings-tab-pane:not(section.panel)[data-diag-tab], .settings-tab-pane:not(section.panel)[data-completed-tab], .settings-tab-pane:not(section.panel)[data-launch-tab-panel], .settings-tab-pane:not(section.panel)[data-queue-tab-panel], .settings-tab-pane:not(section.panel)[data-reports-tab-panel]"
     ).forEach(add);
     page.querySelectorAll("section.panel > div, .settings-tab-pane > div").forEach((node) => {
       if (node.querySelector(":scope > .panel-heading.panel-subheading")) add(node);

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/partials/page-queue.html
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-28
+last_modified: 2026-07-04
 last_reviewed: 2026-06-04
-sha256: e75622402909a79daefacb0c805b96ffa157eaf008105364d2de116662c32902
+sha256: 1d88f1a8075f318dcfc40d0e789c055ccd559fec9670cf69447f81765736ba86
 ---
 # `apps/desktop/webview/static/partials/page-queue.html`
 

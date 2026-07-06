@@ -199,6 +199,90 @@ class NetworkProtocolRuntimeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "retry_after_seconds must be >= 0"):
             ClaimResponse.from_dict({"retry_after_seconds": -1})
 
+    def test_network_claim_and_done_wire_shapes_are_current_normal_queue_contract(self) -> None:
+        claim_payload = ClaimResponse(
+            status="ok",
+            job_id="job-1",
+            source_path=r"C:\Media\Movie.mkv",
+            library_id="Movies",
+            relative_path="Movie.mkv",
+            priority=True,
+            estimated_size_gb=2.5,
+            encode_config={"preset": "balanced"},
+            retry_on_failure=False,
+            retry_after_seconds=7,
+        ).to_dict()
+
+        self.assertEqual(
+            list(claim_payload),
+            [
+                "status",
+                "job_id",
+                "source_path",
+                "library_id",
+                "relative_path",
+                "priority",
+                "estimated_size_gb",
+                "encode_config",
+                "retry_on_failure",
+                "retry_after_seconds",
+            ],
+        )
+        self.assertEqual(ClaimResponse.from_dict(claim_payload).library_id, "Movies")
+        self.assertEqual(ClaimResponse.from_dict(claim_payload).relative_path, "Movie.mkv")
+
+        done_payload = DoneRequest(
+            job_id="job-1",
+            worker_id="worker-1",
+            success=True,
+            output_path=r"C:\Output\Movie.mkv",
+            elapsed_seconds=12.0,
+            output_size_bytes=123,
+            completion_status="processed",
+            publish_state="published",
+            publish_mode="direct",
+            route="remux",
+            queue_terminal=True,
+            retry_on_failure=False,
+        ).to_dict()
+
+        self.assertEqual(
+            list(done_payload),
+            [
+                "job_id",
+                "worker_id",
+                "success",
+                "output_path",
+                "elapsed_seconds",
+                "output_size_bytes",
+                "error_message",
+                "completion_status",
+                "reason_code",
+                "reason",
+                "publish_state",
+                "publish_mode",
+                "route",
+                "queue_terminal",
+                "released",
+                "retry_on_failure",
+            ],
+        )
+        self.assertEqual(DoneRequest.from_dict(done_payload).publish_state, "published")
+        self.assertTrue(DoneRequest.from_dict(done_payload).queue_terminal)
+
+        for payload in (claim_payload, done_payload):
+            for field_name in (
+                "job_kind",
+                "queue_source",
+                "queue_kind",
+                "manifest_key",
+                "row_key",
+                "rerun_batch_id",
+                "rerun_row_index",
+                "csv_path",
+            ):
+                self.assertNotIn(field_name, payload)
+
     def test_inflight_registry_heartbeat_clamps_progress_percent(self) -> None:
         registry = InFlightRegistry()
         registry.claim(

@@ -47,8 +47,13 @@
     destination: {
       auto: {
         label: "Auto destination",
-        detail: "Frontend resolves to the least destructive destination that fits the selected collision and original policy.",
+        detail: "Backend auto-return policy replaces clean outputs and parks outputs with issue evidence in Pending Publish/review.",
         state: "ok",
+      },
+      auto_replace_clean_else_pending_review: {
+        label: "Auto replace clean, else Pending Publish",
+        detail: "Backend replaces clean verified outputs with strict confirmation; outputs with issue evidence are parked for Pending Publish/review.",
+        state: "blocked",
       },
       review_workspace: {
         label: "Review workspace",
@@ -74,7 +79,7 @@
     collision: {
       auto: {
         label: "Auto collision",
-        detail: "Frontend resolves to suffix unless final replacement is required by the destination.",
+        detail: "Auto-return and final-replacement destinations resolve to replace-final collision; other destinations resolve to suffix.",
         state: "ok",
       },
       suffix: {
@@ -90,33 +95,6 @@
       replace_final: {
         label: "Replace final output",
         detail: "Replacement is allowed only with backend confirmation and output proof.",
-        state: "blocked",
-      },
-    },
-    original: {
-      auto: {
-        label: "Auto original action",
-        detail: "Frontend keeps the original unless final replacement is selected, then it holds the original after proof.",
-        state: "ok",
-      },
-      keep: {
-        label: "Keep original",
-        detail: "The original file remains untouched after output proof.",
-        state: "ok",
-      },
-      rename_after_publish: {
-        label: "Keep but rename after publish",
-        detail: "After publish proof, backend may rename the original for traceability.",
-        state: "review",
-      },
-      move_to_hold_after_publish: {
-        label: "Move to original hold after publish",
-        detail: "After publish proof, backend may move the original into cleanup hold for operator review.",
-        state: "review",
-      },
-      hold_then_delete_after_publish: {
-        label: "Hold then mark cleanup-ready",
-        detail: "After proof, backend can mark the original cleanup-ready in hold; deletion remains a separate cleanup decision.",
         state: "blocked",
       },
     },
@@ -136,8 +114,15 @@
   let lastLaunchRealMediaProofContext = {};
   let lastLaunchCommandState = { snapshot: null, closeReadiness: null };
   let lastRerunPreviewPayload = null;
+  let lastRerunResultsPayload = null;
+  let lastRerunCommandResult = null;
   let rerunPreviewRefreshTimer = null;
-  let rerunOriginalPolicyTouched = false;
+
+  function queueRerunRouteDispatcher(name) {
+    const dispatcher = window.mediaPipelineQueueView?.[name];
+    if (typeof dispatcher === "function") return dispatcher;
+    throw new Error("Queue CSV Rerun route dispatcher is unavailable.");
+  }
 
   const launchCoordinatorState = {
     get launchCommandInFlight() { return launchCommandInFlight; },
@@ -169,6 +154,8 @@
     pipelineProgressIsStuck = function () { return false; },
     pipelineProgressIsStale = function () { return false; },
     launchPauseRequested = function () { return false; },
+    launchActiveJobKind = function () { return ""; },
+    launchRerunCsvIsActive = function () { return false; },
     latestCommandEntry = function () { return null; },
     commandEntryState = function () { return ""; },
     commandEntrySummary = function () { return ""; },
@@ -186,22 +173,28 @@
   const {
     launchPreflightRequestMatches = function () { return false; },
     collectPipelineStartRequest = function () { return { mode: "validate", sleep_seconds: 30, show_config: false, show_console: false, schedule_override: "" }; },
-    collectRerunPreviewRequest = function () { return { csv_path: "", execution_mode: "one_at_a_time", destination_mode: "review_workspace", original_policy: "keep", collision_policy: "suffix", window_size: 1, scope: { enabled_only: true, skip_blocked: false, skip_warning_rows: false, first_n: 0, issue_filters: [], bucket_filters: [], preview_limit: 50 } }; },
+  } = launchStartRequest;
+  const queueRerunRequestModule = window.__queueRerunRequestModule || {};
+  delete window.__queueRerunRequestModule;
+  const queueRerunRequest = typeof queueRerunRequestModule.createQueueRerunRequestModule === "function"
+    ? queueRerunRequestModule.createQueueRerunRequestModule({
+      byId: typeof byId === "function" ? byId : window.byId,
+    })
+    : {};
+  const {
+    collectRerunPreviewRequest = function () { return { csv_path: "", execution_mode: "one_at_a_time", destination_mode: "auto_replace_clean_else_pending_review", collision_policy: "replace_final", window_size: 1, scope: { enabled_only: true, skip_blocked: false, skip_warning_rows: false, first_n: 0, issue_filters: [], bucket_filters: [], preview_limit: 50 } }; },
     collectRerunScopeRequest = function () { return { enabled_only: true, skip_blocked: false, skip_warning_rows: false, first_n: 0, issue_filter: "", bucket_filter: "", preview_limit: 50 }; },
-    collectRerunStartRequest = function (options = {}) { return { csv_path: "", dry_run: Boolean(options.dry_run), plan_only: Boolean(options.plan_only), execution_mode: "one_at_a_time", destination_mode: "review_workspace", original_policy: "keep", collision_policy: "suffix", window_size: 1, confirm_replace_final: false, confirm_original_policy: false, confirm_delete_original: false, scope: collectRerunScopeRequest() }; },
-    resolveRerunPolicySelection = function (raw = {}) {
-      const destinationMode = raw.destination_mode && raw.destination_mode !== "auto"
-        ? raw.destination_mode
-        : raw.collision_policy === "replace_final" || (raw.original_policy && raw.original_policy !== "auto" && raw.original_policy !== "keep") ? "pending_publish" : "review_workspace";
+    collectRerunStartRequest = function (options = {}) { return { csv_path: "", dry_run: Boolean(options.dry_run), plan_only: Boolean(options.plan_only), execution_mode: "one_at_a_time", destination_mode: "auto_replace_clean_else_pending_review", collision_policy: "replace_final", window_size: 1, confirm_replace_final: true, confirm_source_overwrite: false, scope: collectRerunScopeRequest() }; },
+      resolveRerunPolicySelection = function (raw = {}) {
+        const destinationMode = raw.destination_mode && raw.destination_mode !== "auto"
+          ? raw.destination_mode
+        : raw.collision_policy === "replace_final" ? "auto_replace_clean_else_pending_review" : "review_workspace";
       const collisionPolicy = raw.collision_policy && raw.collision_policy !== "auto"
         ? raw.collision_policy
-        : destinationMode === "publish_replace_final" ? "replace_final" : "suffix";
-      const originalPolicy = raw.original_policy && raw.original_policy !== "auto"
-        ? raw.original_policy
-        : destinationMode === "publish_replace_final" || collisionPolicy === "replace_final" ? "move_to_hold_after_publish" : "keep";
-      return { destination_mode: destinationMode, collision_policy: collisionPolicy, original_policy: originalPolicy };
+        : ["auto_replace_clean_else_pending_review", "publish_replace_final"].includes(destinationMode) ? "replace_final" : "suffix";
+      return { destination_mode: destinationMode, collision_policy: collisionPolicy };
     },
-  } = launchStartRequest;
+  } = queueRerunRequest;
 
   const launchStatusRenderModule = window.__launchStatusRenderModule || {};
   delete window.__launchStatusRenderModule;
@@ -217,6 +210,8 @@
       launchCommandCorrelationStatus: typeof launchCommandCorrelationStatus === "function" ? launchCommandCorrelationStatus : null,
       launchCommandDiagnosticsActions: typeof launchCommandDiagnosticsActions === "function" ? launchCommandDiagnosticsActions : null,
       launchPipelineIsActive,
+      launchActiveJobKind,
+      launchRerunCsvIsActive,
       pipelineControllerStageSummary,
       pipelineControllerState,
       pipelineProgressIsStuck,
@@ -265,12 +260,13 @@
       byId: typeof byId === "function" ? byId : window.byId,
       clearStartupBanner,
       collectPipelineStartRequest,
-      collectRerunStartRequest,
       launchBackendPreflightOverallStatus: (...args) => launchBackendPreflightOverallStatus(...args),
       launchBackendPreflightPayloadForTarget: (...args) => launchBackendPreflightPayloadForTarget(...args),
       launchBackendPreflightRows: (...args) => launchBackendPreflightRows(...args),
       launchPauseRequested,
       launchPipelineIsActive,
+      launchActiveJobKind,
+      launchRerunCsvIsActive,
       launchPreflightRequestMatches,
       launchStartDecisionPostureFromStatus: (...args) => launchStartDecisionPostureFromStatus(...args),
       launchStartDecisionRows: (...args) => launchStartDecisionRows(...args),
@@ -300,7 +296,7 @@
   } = launchCommandButtons;
 
   function launchTabIds() {
-    return ["pipeline", "rerun", "history"];
+    return ["pipeline", "history"];
   }
 
   function activateLaunchTab(tabId, options = {}) {
@@ -457,10 +453,13 @@
   let refreshLaunchBackendPreflight = async function () {};
   let refreshLaunchBackendPreflightEncoderCapability = async function () {};
   let pipelineLaunchPreflightLines = launchPreflightFallbackLines;
-  let rerunLaunchPreflightLines = launchPreflightFallbackLines;
+  let rerunQueuePreflightLines = launchPreflightFallbackLines;
   let renderLaunchPreflight = function (id, lines) { setText(id, (lines || []).join("\n")); };
   let renderAllLaunchPreflights = launchPreflightFallbackRender;
-  let isPipelineControlCommand = function (entry) { return String(entry?.command || "").toLowerCase().startsWith("pipeline.control."); };
+  let isPipelineControlCommand = function (entry) {
+    const command = String(entry?.command || "").toLowerCase();
+    return command.startsWith("pipeline.control.") || command.startsWith("rerun.control.");
+  };
   let pipelineControlHistoryLine = function (entry) { return String(entry?.message || entry?.command || "pipeline.control"); };
   let renderPipelineControlHistory = launchPreflightFallbackRender;
 
@@ -482,7 +481,7 @@
     const entries = Array.isArray(history) ? history : [];
     const latest = entries.find((entry) => isLaunchCommand(entry)) || null;
     if (!latest) {
-      setText("launch-latest-command-evidence", "No Launch command result loaded. Pipeline, CSV rerun, and Pending Publish command results will appear here immediately after submission or cancellation.");
+      setText("launch-latest-command-evidence", "No Launch command result loaded. Pipeline and Pending Publish command results appear here immediately after submission or cancellation. CSV rerun command history is reviewed from Queue > CSV Rerun.");
       return;
     }
     const line = typeof launchHistoryLine === "function"
@@ -761,7 +760,7 @@
   refreshLaunchBackendPreflight = typeof launchPreflight.refreshLaunchBackendPreflight === "function" ? launchPreflight.refreshLaunchBackendPreflight : refreshLaunchBackendPreflight;
   refreshLaunchBackendPreflightEncoderCapability = typeof launchPreflight.refreshLaunchBackendPreflightEncoderCapability === "function" ? launchPreflight.refreshLaunchBackendPreflightEncoderCapability : refreshLaunchBackendPreflightEncoderCapability;
   pipelineLaunchPreflightLines = typeof launchPreflight.pipelineLaunchPreflightLines === "function" ? launchPreflight.pipelineLaunchPreflightLines : pipelineLaunchPreflightLines;
-  rerunLaunchPreflightLines = typeof launchPreflight.rerunLaunchPreflightLines === "function" ? launchPreflight.rerunLaunchPreflightLines : rerunLaunchPreflightLines;
+  rerunQueuePreflightLines = typeof launchPreflight.rerunQueuePreflightLines === "function" ? launchPreflight.rerunQueuePreflightLines : rerunQueuePreflightLines;
   renderLaunchPreflight = typeof launchPreflight.renderLaunchPreflight === "function" ? launchPreflight.renderLaunchPreflight : renderLaunchPreflight;
   renderAllLaunchPreflights = typeof launchPreflight.renderAllLaunchPreflights === "function" ? launchPreflight.renderAllLaunchPreflights : renderAllLaunchPreflights;
   isPipelineControlCommand = typeof launchPreflight.isPipelineControlCommand === "function" ? launchPreflight.isPipelineControlCommand : isPipelineControlCommand;
@@ -782,16 +781,10 @@
   function initLaunchViewEvents() {
     initLaunchTabNav();
     const refreshLaunchControlsForInput = (event = null) => {
+      void event;
       syncPipelineModeControls();
-      applyRerunPolicySelectionRules(event);
-      syncRerunOriginalPolicyForDestination(event);
-      renderRerunHandlingSummary();
       renderAllLaunchPreflights();
       updateLaunchCommandButtonStates();
-      if (String(event?.target?.id || "").startsWith("rerun-")) {
-        scheduleRerunPreviewRefresh();
-      }
-      applyRerunPreviewButtonState();
     };
     document.querySelectorAll("[data-pipeline-mode-preset]").forEach((button) => {
       button.addEventListener("click", () => selectPipelineModePreset(button.dataset.pipelineModePreset || ""));
@@ -806,28 +799,12 @@
       "pipeline-start-schedule-override",
       "pipeline-start-show-config",
       "pipeline-start-show-console",
-      "rerun-start-csv-path",
-      "rerun-start-execution-mode",
-      "rerun-start-window-size",
-      "rerun-start-destination-mode",
-      "rerun-start-collision-policy",
-      "rerun-start-original-policy",
-      "rerun-scope-enabled-only",
-      "rerun-scope-skip-blocked",
-      "rerun-scope-skip-warning-rows",
-      "rerun-scope-first-n",
-      "rerun-scope-issue-filter",
-      "rerun-scope-bucket-filter",
-      "rerun-preview-limit",
     ].forEach((id) => {
       const element = byId(id);
       if (!element) return;
       element.addEventListener("input", refreshLaunchControlsForInput);
       element.addEventListener("change", refreshLaunchControlsForInput);
     });
-    applyRerunPolicySelectionRules();
-    syncRerunOriginalPolicyForDestination();
-    renderRerunHandlingSummary();
     ["launch-backend-preflight-refresh-button", "pipeline-compact-gate-refresh-button"].forEach((id) => {
       const backendPreflightRefresh = byId(id);
       if (!backendPreflightRefresh) return;
@@ -853,32 +830,12 @@
     if (pipelineFileClearButton) {
       pipelineFileClearButton.addEventListener("click", () => clearPipelineSingleFile());
     }
-    const inspectCsvButton = byId("rerun-inspect-csv-button");
-    if (inspectCsvButton) {
-      inspectCsvButton.addEventListener("click", () => inspectSelectedRerunCsv().catch((error) => {
-        setText("rerun-launch-detail", error instanceof Error ? error.message : String(error));
-      }));
-    }
-    const openCsvButton = byId("rerun-open-csv-button");
-    if (openCsvButton) {
-      openCsvButton.addEventListener("click", () => openSelectedRerunCsv("import_csv").catch((error) => {
-        setText("rerun-launch-detail", error instanceof Error ? error.message : String(error));
-      }));
-    }
-    const openCsvFolderButton = byId("rerun-open-csv-folder-button");
-    if (openCsvFolderButton) {
-      openCsvFolderButton.addEventListener("click", () => openSelectedRerunCsv("csv_folder").catch((error) => {
-        setText("rerun-launch-detail", error instanceof Error ? error.message : String(error));
-      }));
-    }
     initLaunchRecoveryActionEvents();
     renderAllLaunchPreflights();
-    refreshRerunPreview({ quiet: true }).catch(() => {});
     refreshLaunchBackendPreflight()
       .then(() => {
         renderLaunchCompactGate();
         updateLaunchCommandButtonStates();
-        applyRerunPreviewButtonState();
       })
       .catch((error) => {
         const message = error instanceof Error ? error.message : String(error);
@@ -931,6 +888,13 @@
       setPipelineControlMessage(result.message);
       return;
     }
+    const routeToRerunControl = (normalized === "stop" || normalized === "pause") && launchRerunCsvIsActive(
+      lastLaunchCommandState.snapshot,
+      lastLaunchCommandState.closeReadiness
+    );
+    const rerunControlCommand = normalized === "pause" ? "rerun.control.pause" : "rerun.control.stop_after_current";
+    const rerunControlDispatcher = normalized === "pause" ? "postRerunControlPause" : "postRerunControlStopAfterCurrent";
+    const commandName = routeToRerunControl ? rerunControlCommand : `pipeline.control.${normalized}`;
     setPipelineControlMessage(`Confirming ${controlActionLabels[normalized] || normalized}...`);
     document.querySelectorAll(`[data-control-action="${normalized}"]`).forEach((button) => {
       button.dataset.commandState = "confirming";
@@ -938,7 +902,7 @@
     await nextLaunchCommandFrame();
     if (!confirmControlAction(normalized)) {
       const result = {
-        command: `pipeline.control.${normalized}`,
+        command: commandName,
         ok: false,
         severity: "info",
         message: `${controlActionLabels[normalized] || normalized} canceled.`,
@@ -951,16 +915,21 @@
     setControlCommandBusy(true);
     setPipelineControlMessage(`Sending ${controlActionLabels[normalized] || normalized}...`);
     try {
-      const result = await apiPost("/api/pipeline/control", { action: normalized });
+      const result = routeToRerunControl
+        ? await queueRerunRouteDispatcher(rerunControlDispatcher)()
+        : await apiPost("/api/pipeline/control", { action: normalized });
       appendCommandResult(result);
       setPipelineControlMessage(result.message || "Control request sent.");
+      if (routeToRerunControl) {
+        await refreshRerunResults({ quiet: true });
+      }
       if ((result.refresh_hint || "") === "snapshot") {
         await refreshAll();
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       appendCommandResult({
-        command: `pipeline.control.${normalized}`,
+        command: commandName,
         ok: false,
         severity: "error",
         message,
@@ -1185,6 +1154,7 @@
       if ((result.refresh_hint || "") === "snapshot") {
         await refreshAll();
       }
+      await refreshRerunResults({ quiet: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       appendCommandResult({
@@ -1310,9 +1280,6 @@
       if (payload.collision_policy === "replace_final") {
         conflicts.push(`Destination collision is ${rerunLabelFromChoice("collision", payload.collision_policy)}`);
       }
-      if (payload.original_policy && payload.original_policy !== "keep") {
-        conflicts.push(`Original After Proof is ${rerunLabelFromChoice("original", payload.original_policy)}`);
-      }
       if (payload.stage_mode && payload.stage_mode !== "copy") {
         conflicts.push(`stage_mode=${payload.stage_mode}`);
       }
@@ -1322,8 +1289,8 @@
       if (conflicts.length) {
         lines.push(`Selected policy conflict: ${conflicts.join("; ")}.`);
       }
-      lines.push("Executable CSV rerun currently only supports scratch-copy staging, review-workspace parking, and keeping the original untouched.");
-      lines.push("Change Destination to review workspace, Destination Collision to suffix when needed, and Original After Proof to keep original, then inspect the CSV again.");
+      lines.push("Executable CSV rerun currently supports scratch-copy staging, backend-owned destination handling, and explicit source-path overwrite confirmation.");
+      lines.push("Change Destination and Destination Collision to a supported pairing, then inspect the CSV again.");
     }
 
     if (effectiveScoped > 0 && blockedScoped >= effectiveScoped) {
@@ -1362,11 +1329,181 @@
     while (element.firstChild) element.removeChild(element.firstChild);
   }
 
-  function appendCell(row, text) {
+  function appendCell(row, text, className = "") {
     const cell = document.createElement("td");
-    cell.textContent = text;
+    if (className) cell.className = className;
+    cell.textContent = text == null ? "" : String(text);
     row.appendChild(cell);
     return cell;
+  }
+
+  function appendRerunText(parent, className, text, title = "") {
+    const node = document.createElement("div");
+    node.className = className;
+    node.textContent = String(text || "");
+    if (title) node.title = title;
+    parent.appendChild(node);
+    return node;
+  }
+
+  function rerunStatusSeverity(status) {
+    const text = String(status || "").toLowerCase();
+    if (/(blocked|failed|error|missing|not_found)/.test(text)) return "high";
+    if (/(warning|review|partial|pending)/.test(text)) return "medium";
+    if (/(ready|completed|ok|success|accepted)/.test(text)) return "ok";
+    return "info";
+  }
+
+  function setRerunReviewCount(key, value, state = "") {
+    const node = document.querySelector(`[data-rerun-review-count="${key}"]`);
+    if (!node) return;
+    node.textContent = String(value ?? 0);
+    const tile = node.closest(".rerun-review-metric");
+    if (tile && state) tile.dataset.state = state;
+  }
+
+  function rerunCurrentPhase(payload = lastRerunPreviewPayload) {
+    if (launchCoordinatorState.launchCommandInFlight) return "Running";
+    if (lastRerunCommandResult) {
+      if (lastRerunCommandResult.ok) return "Submitted";
+      return lastRerunCommandResult.severity === "blocked" ? "Blocked" : "Failed";
+    }
+    if (!payload) return "Idle";
+    const status = String(payload.status || "").trim();
+    if (!status) return "Preview";
+    return status === "blocked" ? "Preview blocked" : `Preview ${status}`;
+  }
+
+  function rerunReviewNextAction(payload = lastRerunPreviewPayload) {
+    const request = collectRerunStartRequest({ dry_run: false, plan_only: false });
+    if (!String(request.csv_path || "").trim()) return "Enter or browse to a CSV path, then Inspect CSV.";
+    if (!payload) return "Inspect CSV submits a read-only backend preview. Open actions require a backend-known recent CSV.";
+    if (lastRerunCommandResult?.ok) return "Refresh State to review backend queue-state and command evidence.";
+    const reason = rerunPreviewBlockedReason(request);
+    if (reason) return `Resolve preview block: ${reason}`;
+    const counts = rerunPreviewCounts(payload);
+    return `Review & Start submits /api/rerun/start to the backend for ${rerunCount(counts.effective_scoped_rows)} scoped row(s).`;
+  }
+
+  function renderRerunReviewHeader(payload = lastRerunPreviewPayload) {
+    const header = byId("rerun-review-header");
+    if (!header) return;
+    const counts = rerunPreviewCounts(payload);
+    const request = collectRerunStartRequest({ dry_run: false, plan_only: false });
+    const csvPath = String(payload?.csv_path || request.csv_path || "").trim();
+    const phase = rerunCurrentPhase(payload);
+    header.dataset.phase = phase.toLowerCase().replace(/\s+/g, "-");
+    setText("rerun-review-status", payload ? `${payload.status || "preview"}${payload.message ? ` - ${payload.message}` : ""}` : "No CSV preview loaded");
+    setText("rerun-review-csv", `CSV: ${csvPath || "not selected"}`);
+    setRerunReviewCount("total", rerunCount(counts.total_rows), "neutral");
+    setRerunReviewCount("scoped", rerunCount(counts.effective_scoped_rows), "neutral");
+    setRerunReviewCount("blocked", rerunCount(counts.blocked_rows) || rerunCount(counts.blocked_scoped_rows), "blocked");
+    setRerunReviewCount("warnings", rerunCount(counts.warning_rows), "warning");
+    setRerunReviewCount("phase", phase, rerunStatusSeverity(phase));
+    setText("rerun-review-next-action", rerunReviewNextAction(payload));
+  }
+
+  function rerunHistoryEntries() {
+    const history = typeof window.getCommandHistory === "function"
+      ? window.getCommandHistory()
+      : typeof window.mediaPipelineCommandHistory?.getCommandHistory === "function"
+      ? window.mediaPipelineCommandHistory.getCommandHistory()
+      : [];
+    return Array.isArray(history) ? history : [];
+  }
+
+  function rerunHistoryRequestData(entry = {}) {
+    const rawRequest = entry.raw?.request && typeof entry.raw.request === "object" ? entry.raw.request : null;
+    const rawSubmitted = entry.raw?.submitted_request && typeof entry.raw.submitted_request === "object" ? entry.raw.submitted_request : null;
+    const request = entry.request && typeof entry.request === "object" ? entry.request : null;
+    const dataRequest = entry.data?.request && typeof entry.data.request === "object" ? entry.data.request : null;
+    return rawRequest || rawSubmitted || request || dataRequest || {};
+  }
+
+  function rerunHistoryData(entry = {}) {
+    if (entry.raw?.data && typeof entry.raw.data === "object") return entry.raw.data;
+    if (entry.data && typeof entry.data === "object") return entry.data;
+    return {};
+  }
+
+  function rerunLatestStartHistoryEntry() {
+    return rerunHistoryEntries().find((entry) => String(entry.command || entry.raw?.command || "") === "rerun.start") || null;
+  }
+
+  function rerunResultRequestData(result = {}) {
+    if (result.request && typeof result.request === "object") return result.request;
+    if (result.raw?.request && typeof result.raw.request === "object") return result.raw.request;
+    if (result.submitted_request && typeof result.submitted_request === "object") return result.submitted_request;
+    if (result.data?.request && typeof result.data.request === "object") return result.data.request;
+    return {};
+  }
+
+  function rerunResultData(result = {}) {
+    if (result.data && typeof result.data === "object") return result.data;
+    if (result.raw?.data && typeof result.raw.data === "object") return result.raw.data;
+    return {};
+  }
+
+  function rerunEvidencePid(result = {}) {
+    const data = rerunResultData(result);
+    const candidates = [result.pid, result.process_id, data.pid, data.process_id];
+    const found = candidates.find((value) => value !== undefined && value !== null && String(value).trim());
+    if (found !== undefined) return String(found);
+    const match = String(result.message || result.raw?.message || "").match(/\bPID\s*(\d+)\b/i);
+    return match ? match[1] : "";
+  }
+
+  function rerunSafeNextAction(payload, result, request) {
+    if (launchCoordinatorState.launchCommandInFlight) return "Wait for backend queue-state refresh, or use Stop After Current if the active rerun needs to wind down.";
+    if (result?.ok) return "Refresh State to load backend queue-state, run manifest, and command journal evidence.";
+    if (result && result.ok === false) return "Review the backend command result, adjust the request or CSV, then inspect again.";
+    const reason = rerunPreviewBlockedReason(request);
+    if (reason) return `Resolve the preview block before submitting: ${reason}`;
+    if (payload) return "Review row identity, categories, and reasons, then use Review & Start to submit the backend command.";
+    return "Inspect CSV to load the backend preview before starting work.";
+  }
+
+  function renderRerunLifecycleEvidence(payload = lastRerunPreviewPayload, commandResult = lastRerunCommandResult) {
+    const card = byId("rerun-lifecycle-evidence");
+    if (!card) return;
+    const latestEntry = rerunLatestStartHistoryEntry();
+    const historyRequest = latestEntry ? rerunHistoryRequestData(latestEntry) : {};
+    const result = commandResult || (latestEntry ? { ...latestEntry.raw, ...latestEntry } : null);
+    const resultRequest = result ? rerunResultRequestData(result) : {};
+    const request = Object.keys(resultRequest).length
+      ? resultRequest
+      : Object.keys(historyRequest).length
+      ? historyRequest
+      : collectRerunStartRequest({ dry_run: false, plan_only: false });
+    const data = result ? rerunResultData(result) : {};
+    const counts = rerunPreviewCounts(payload);
+    const phase = rerunCurrentPhase(payload);
+    const pid = result ? rerunEvidencePid(result) : "";
+    const csvPath = String(result?.request?.csv_path || request.csv_path || payload?.csv_path || data.csv_path || "").trim();
+    const destination = rerunPolicyChoice("destination", payload?.destination_mode || request.destination_mode || data.destination_mode || "auto_replace_clean_else_pending_review");
+    const collision = rerunPolicyChoice("collision", payload?.collision_policy || request.collision_policy || data.collision_policy || "suffix");
+    const execution = rerunExecutionLabel(payload?.execution_mode || request.execution_mode || data.execution_mode || "one_at_a_time");
+    const scopedRowCount = rerunCount(data.scoped_row_count ?? data.effective_scoped_rows ?? data.row_count ?? counts.effective_scoped_rows);
+    const phaseNode = byId("rerun-lifecycle-phase");
+    if (phaseNode) {
+      phaseNode.textContent = phase;
+      phaseNode.dataset.severity = rerunStatusSeverity(phase);
+    }
+    const commandStatus = result
+      ? `${result.command || latestEntry?.command || "rerun.start"} ${result.ok ? "accepted" : "not accepted"}${pid ? `; PID ${pid}` : ""}`
+      : "No submitted rerun command evidence.";
+    setText("rerun-lifecycle-summary", [
+      `Phase: ${phase}.`,
+      `CSV: ${csvPath || "not selected"}.`,
+      payload ? `Preview rows: total ${rerunCount(counts.total_rows)}, scoped ${rerunCount(counts.effective_scoped_rows)}, blocked ${rerunCount(counts.blocked_rows)}, warnings ${rerunCount(counts.warning_rows)}.` : "Preview rows: not loaded.",
+      `Command: ${commandStatus}`,
+    ].join(" "));
+    setText("rerun-lifecycle-detail", [
+      `Execution: ${execution}; destination ${destination.label}; collision ${collision.label}.`,
+      `Request CSV: ${request.csv_path || "not recorded"}.`,
+      `Scoped row count: ${scopedRowCount}.`,
+      `Safe next action: ${rerunSafeNextAction(payload, result, request)}`,
+    ].join("\n"));
   }
 
   function renderRerunRecentCsvs(payload) {
@@ -1434,14 +1571,13 @@
   }
 
   function rerunFinalReplacementSelected(request) {
-    return request?.destination_mode === "publish_replace_final" || request?.collision_policy === "replace_final";
+    return request?.destination_mode === "auto_replace_clean_else_pending_review" || request?.destination_mode === "publish_replace_final" || request?.collision_policy === "replace_final";
   }
 
   function rerunPolicySelectId(kind) {
     return {
       destination: "rerun-start-destination-mode",
       collision: "rerun-start-collision-policy",
-      original: "rerun-start-original-policy",
     }[kind] || "";
   }
 
@@ -1449,7 +1585,6 @@
     return {
       destination: "destination_mode",
       collision: "collision_policy",
-      original: "original_policy",
     }[kind] || "";
   }
 
@@ -1457,51 +1592,40 @@
     const id = String(element?.id || "");
     if (id === "rerun-start-destination-mode") return "destination";
     if (id === "rerun-start-collision-policy") return "collision";
-    if (id === "rerun-start-original-policy") return "original";
     return "";
   }
 
   function rerunRawPolicySelection() {
     return {
-      destination_mode: byId("rerun-start-destination-mode")?.value || "review_workspace",
-      collision_policy: byId("rerun-start-collision-policy")?.value || "suffix",
-      original_policy: byId("rerun-start-original-policy")?.value || "keep",
+      destination_mode: byId("rerun-start-destination-mode")?.value || "auto_replace_clean_else_pending_review",
+      collision_policy: byId("rerun-start-collision-policy")?.value || "replace_final",
     };
   }
 
   function rerunPolicyConflictReason(kind, value, raw = rerunRawPolicySelection()) {
     const selected = String(value || "");
     if (!selected || selected === "auto") return "";
-    const destination = kind === "destination" ? selected : String(raw.destination_mode || "review_workspace");
+    const destination = kind === "destination" ? selected : String(raw.destination_mode || "auto_replace_clean_else_pending_review");
     const collision = kind === "collision" ? selected : String(raw.collision_policy || "suffix");
-    const original = kind === "original" ? selected : String(raw.original_policy || "keep");
     const collisionFixed = collision !== "auto";
-    const originalFixed = original !== "auto";
     const destinationFixed = destination !== "auto";
 
     if (kind === "destination") {
-      if (selected === "review_workspace" && originalFixed && original !== "keep") {
-        return "Original-source action needs publish proof; auto will keep the original.";
-      }
       if (selected === "publish_non_overlap" && collision === "replace_final") {
         return "Non-overlap destination cannot also replace final output; auto will use suffix collision.";
       }
       if (selected === "publish_replace_final" && collisionFixed && collision !== "replace_final") {
-        return "Final replacement requires replace-final collision; auto will align collision and original handling.";
+        return "Final replacement requires replace-final collision; auto will align collision handling.";
       }
     }
 
     if (kind === "collision") {
-      if (selected === "replace_final" && destinationFixed && !["pending_publish", "publish_replace_final"].includes(destination)) {
-        return "Replace-final collision needs a publish destination; auto will use pending publish and original hold.";
+      if (selected === "replace_final" && destinationFixed && !["auto_replace_clean_else_pending_review", "pending_publish", "publish_replace_final"].includes(destination)) {
+        return "Replace-final collision needs a replacement-capable destination; auto will use the clean-replace/Pending Publish policy.";
       }
-      if (selected !== "replace_final" && destination === "publish_replace_final") {
-        return "Publish-and-replace destination requires replace-final collision; auto will align destination and original handling.";
+      if (selected !== "replace_final" && ["auto_replace_clean_else_pending_review", "publish_replace_final"].includes(destination)) {
+        return "Publish-and-replace destination requires replace-final collision; auto will align destination handling.";
       }
-    }
-
-    if (kind === "original" && selected !== "keep" && destination === "review_workspace") {
-      return "Original-source action needs publish proof; auto will use pending publish with the least destructive collision.";
     }
 
     return "";
@@ -1512,15 +1636,11 @@
     if (!select) return;
     const hasAuto = Array.from(select.options || []).some((option) => option.value === "auto");
     if (hasAuto) select.value = "auto";
-    if (kind === "original") {
-      rerunOriginalPolicyTouched = false;
-      select.dataset.rerunOriginalPolicySource = "auto";
-    }
   }
 
   function updateRerunPolicyOptionStates() {
     const raw = rerunRawPolicySelection();
-    ["destination", "collision", "original"].forEach((kind) => {
+    ["destination", "collision"].forEach((kind) => {
       const select = byId(rerunPolicySelectId(kind));
       if (!select || !select.options) return;
       let conflictCount = 0;
@@ -1548,12 +1668,8 @@
     const raw = rerunRawPolicySelection();
     const key = rerunPolicyRequestKey(kind);
     const reason = rerunPolicyConflictReason(kind, raw[key], raw);
-    if (kind === "original") {
-      rerunOriginalPolicyTouched = raw.original_policy !== "auto";
-      event.target.dataset.rerunOriginalPolicySource = raw.original_policy === "auto" ? "auto" : "manual";
-    }
     if (reason) {
-      ["destination", "collision", "original"].forEach((candidate) => {
+      ["destination", "collision"].forEach((candidate) => {
         if (candidate !== kind) setRerunPolicySelectAuto(candidate);
       });
       setText("rerun-mode-policy-note", `Auto-adjusted ${kind} pairing. ${reason} Backend still receives concrete policy values after auto resolution.`);
@@ -1561,49 +1677,29 @@
     updateRerunPolicyOptionStates();
   }
 
-  function syncRerunOriginalPolicyForDestination(event = null) {
-    const select = byId("rerun-start-original-policy");
-    if (!select) return;
-    if (String(event?.target?.id || "") === "rerun-start-original-policy") {
-      rerunOriginalPolicyTouched = select.value !== "auto";
-      select.dataset.rerunOriginalPolicySource = select.value === "auto" ? "auto" : "manual";
-      return;
-    }
-    if (select.value === "auto") {
-      rerunOriginalPolicyTouched = false;
-      select.dataset.rerunOriginalPolicySource = "auto";
-    }
-  }
-
   function rerunPolicyChoiceForSummary(kind, rawValue, resolvedValue) {
     const resolved = resolvedValue || rawValue;
     const choice = { ...rerunPolicyChoice(kind, resolved) };
     if (rawValue === "auto") {
       choice.label = `Auto: ${choice.label}`;
-      choice.detail = `${choice.detail} Auto resolved from the current destination/collision/original equation before backend submit.`;
+      choice.detail = `${choice.detail} Auto resolved from the current destination/collision policy before backend submit.`;
     }
     return choice;
   }
 
-  function rerunOriginalPolicyChoiceForSummary(request, raw = rerunRawPolicySelection()) {
-    const choice = rerunPolicyChoiceForSummary("original", raw.original_policy, request.original_policy || "keep");
-    if (!rerunFinalReplacementSelected(request)) return choice;
-    if (raw.original_policy === "auto" && request.original_policy === "move_to_hold_after_publish") {
-      choice.detail = `${choice.detail} Auto-selected because final replacement is selected.`;
-      return choice;
+  function rerunSourceHandlingLine(request) {
+    if (rerunFinalReplacementSelected(request)) {
+      return request && request.confirm_source_overwrite
+        ? "Source handling: source-path overwrite is explicitly confirmed when backend planning proves the final output path is the CSV source path."
+        : "Source handling: source files stay untouched unless source-path overwrite is explicitly confirmed.";
     }
-    if (request.original_policy !== "move_to_hold_after_publish") {
-      choice.detail = `${choice.detail} Replacement is usually paired with original hold; this manual choice will be sent as selected.`;
-      if (choice.state === "ok") choice.state = "review";
-    }
-    return choice;
+    return "Source handling: source files stay untouched; destination/collision only control verified output placement.";
   }
 
   function renderRerunHandlingSummary(request = collectRerunStartRequest()) {
     const raw = rerunRawPolicySelection();
-    renderRerunHandlingCard("destination", rerunPolicyChoiceForSummary("destination", raw.destination_mode, request.destination_mode || "review_workspace"));
+    renderRerunHandlingCard("destination", rerunPolicyChoiceForSummary("destination", raw.destination_mode, request.destination_mode || "auto_replace_clean_else_pending_review"));
     renderRerunHandlingCard("collision", rerunPolicyChoiceForSummary("collision", raw.collision_policy, request.collision_policy || "suffix"));
-    renderRerunHandlingCard("original", rerunOriginalPolicyChoiceForSummary(request, raw));
     updateRerunPolicyOptionStates();
   }
 
@@ -1611,10 +1707,9 @@
     const execution = rerunExecutionLabel(request.execution_mode);
     const windowSize = Number(request.window_size || 1);
     const raw = rerunRawPolicySelection();
-    const destination = rerunPolicyChoiceForSummary("destination", raw.destination_mode, request.destination_mode || "review_workspace");
+    const destination = rerunPolicyChoiceForSummary("destination", raw.destination_mode, request.destination_mode || "auto_replace_clean_else_pending_review");
     const collision = rerunPolicyChoiceForSummary("collision", raw.collision_policy, request.collision_policy || "suffix");
-    const original = rerunOriginalPolicyChoiceForSummary(request, raw);
-    return `${execution} (window ${Number.isFinite(windowSize) ? Math.max(1, Math.round(windowSize)) : 1}); destination: ${destination.label}; collision: ${collision.label}; original after proof: ${original.label}`;
+    return `${execution} (window ${Number.isFinite(windowSize) ? Math.max(1, Math.round(windowSize)) : 1}); destination: ${destination.label}; collision: ${collision.label}; source overwrite ${request.confirm_source_overwrite ? "confirmed" : "not confirmed"}`;
   }
 
   function selectedOptionValues(select) {
@@ -1656,8 +1751,9 @@
     tiles.forEach((tile) => {
       const item = document.createElement("div");
       item.className = "command-history-entry";
+      item.setAttribute("aria-label", `${tile.label || tile.key || "CSV rerun tile"} ${tile.value ?? ""}`);
       const label = document.createElement("strong");
-      label.textContent = `${tile.label || tile.key || "Tile"}: ${tile.value ?? ""}`;
+      label.textContent = `${tile.label || tile.key || "Tile"} · ${tile.value ?? ""}`;
       item.appendChild(label);
       if (tile.detail) {
         const detail = document.createElement("span");
@@ -1666,6 +1762,117 @@
       }
       container.appendChild(item);
     });
+  }
+
+  function rerunPreviewRowNumber(item) {
+    const parsed = Number(item?.row_index);
+    if (!Number.isFinite(parsed)) return "";
+    return String(Math.max(0, Math.round(parsed)) + 1);
+  }
+
+  function rerunPreviewRowText(item = {}) {
+    return [
+      item.status,
+      item.reason,
+      item.blocking_reason,
+      item.warning_reason,
+      item.source_path,
+      item.relative_path,
+      item.rerun_rule_label,
+      item.rerun_rule_reason,
+      item.issue,
+      item.bucket,
+    ].map((value) => String(value || "").toLowerCase()).join(" ");
+  }
+
+  function pushRerunCategory(tokens, key, label, severity = "info") {
+    if (tokens.some((item) => item.key === key)) return;
+    tokens.push({ key, label, severity });
+  }
+
+  function rerunPreviewCategoryTokens(item = {}) {
+    const tokens = [];
+    const status = String(item.status || "unknown").toLowerCase();
+    const text = rerunPreviewRowText(item);
+    const sourcePath = String(item.source_path || "").trim();
+    if (item.in_scope === false || /filtered|skipped/.test(status)) pushRerunCategory(tokens, "filtered", "filtered/skipped", "info");
+    if (item.enabled === false || text.includes("disabled")) pushRerunCategory(tokens, "disabled", "disabled", "info");
+    if (/blocked|failed|error/.test(status) || item.blocked || item.blocking_reason) pushRerunCategory(tokens, "blocked", "blocked", "high");
+    if (/warning|review/.test(status) || item.warning || item.warning_reason) pushRerunCategory(tokens, "warning", "warning", "medium");
+    if (item.duplicate_source === true || text.includes("duplicate source")) pushRerunCategory(tokens, "duplicate", "duplicate", "medium");
+    if (!sourcePath || item.missing_source === true || item.source_missing === true || text.includes("missing source")) pushRerunCategory(tokens, "missing-source", "missing source", "high");
+    if (sourcePath && !/^(?:[a-z]:[\\/]|\\\\|\/)/i.test(sourcePath)) pushRerunCategory(tokens, "relative-source", "relative source", "medium");
+    if (item.source_exists === false || item.source_found === false || text.includes("source file not found") || text.includes("source not found")) pushRerunCategory(tokens, "source-not-found", "source not found", "high");
+    if (item.already_completed === true || item.completed === true || text.includes("already completed")) pushRerunCategory(tokens, "already-completed", "already completed", "info");
+    if (item.rerun_rule_blocked === true || String(item.rerun_rule_severity || "").toLowerCase() === "blocked") pushRerunCategory(tokens, "rule-blocked", "rule blocked", "high");
+    if (item.rerun_rule_warning === true || String(item.rerun_rule_severity || "").toLowerCase() === "warning") pushRerunCategory(tokens, "rule-warning", "rule warning", "medium");
+    if (!tokens.some((token) => ["blocked", "warning", "filtered", "disabled", "missing-source", "source-not-found"].includes(token.key))) {
+      pushRerunCategory(tokens, "ready", "ready", "ok");
+    }
+    if (item.issue) pushRerunCategory(tokens, "issue", `issue: ${item.issue}`, rerunStatusSeverity(status));
+    if (item.bucket) pushRerunCategory(tokens, "bucket", `bucket: ${item.bucket}`, "info");
+    return tokens;
+  }
+
+  function renderRerunPreviewCategoryChips(cell, item = {}) {
+    const strip = document.createElement("div");
+    strip.className = "rerun-category-strip";
+    rerunPreviewCategoryTokens(item).slice(0, 10).forEach((token) => {
+      const chip = document.createElement("span");
+      chip.className = "rerun-category-chip";
+      chip.dataset.category = token.key;
+      chip.dataset.severity = token.severity;
+      chip.textContent = token.label;
+      chip.title = `Backend preview category: ${token.label}`;
+      strip.appendChild(chip);
+    });
+    cell.appendChild(strip);
+  }
+
+  function renderRerunPreviewIdentity(cell, item = {}) {
+    const rowNumber = rerunPreviewRowNumber(item);
+    const sourcePath = String(item.source_path || "").trim();
+    const title = String(item.lookup_title || item.title || rerunCsvLeaf(sourcePath) || (rowNumber ? `Row ${rowNumber}` : "CSV row")).trim();
+    const identity = document.createElement("div");
+    identity.className = "rerun-row-identity";
+    appendRerunText(identity, "rerun-row-title", title, title);
+    if (item.relative_path) appendRerunText(identity, "rerun-row-relative-path", item.relative_path, item.relative_path);
+    appendRerunText(identity, "rerun-row-source-path", sourcePath || "Source path missing", sourcePath || "Backend preview did not provide a source path.");
+    appendRerunText(identity, "rerun-row-meta", [
+      rowNumber ? `Row ${rowNumber}` : "",
+      item.in_scope === false ? "filtered out" : "in scope",
+      item.duplicate_source ? "duplicate source" : "",
+    ].filter(Boolean).join(" · "));
+    cell.appendChild(identity);
+  }
+
+  function renderRerunPreviewStatus(cell, item = {}) {
+    const badge = document.createElement("span");
+    badge.className = "rerun-state-badge";
+    badge.dataset.severity = rerunStatusSeverity(item.status);
+    badge.textContent = item.status || "unknown";
+    cell.appendChild(badge);
+    if (item.in_scope === false) {
+      const scoped = document.createElement("span");
+      scoped.className = "rerun-scope-chip";
+      scoped.textContent = "filtered";
+      cell.appendChild(scoped);
+    }
+  }
+
+  function renderRerunPreviewReason(cell, item = {}) {
+    const lines = [
+      item.reason || "",
+      item.blocking_reason ? `Blocking detail: ${item.blocking_reason}` : "",
+      item.warning_reason ? `Warning detail: ${item.warning_reason}` : "",
+      item.rerun_rule_label ? `Rule: ${item.rerun_rule_label}` : "",
+      item.rerun_rule_reason ? `Rule detail: ${item.rerun_rule_reason}` : "",
+    ].filter(Boolean);
+    if (!lines.length) {
+      cell.textContent = "No row reason from backend preview.";
+      return;
+    }
+    lines.forEach((line) => appendRerunText(cell, "rerun-row-reason-line", line, line));
   }
 
   function renderRerunPreviewRows(payload) {
@@ -1682,32 +1889,38 @@
     rows.forEach((item) => {
       const row = document.createElement("tr");
       row.dataset.rowState = item.status || "unknown";
-      appendCell(row, String((item.row_index || 0) + 1));
-      appendCell(row, `${item.status || "unknown"}${item.in_scope ? "" : " / filtered"}`);
-      appendCell(row, item.source_path || "");
-      appendCell(row, [item.issue || "", item.bucket || ""].filter(Boolean).join(" / "));
-      appendCell(row, `${rerunPolicyChoice("destination", (payload && payload.destination_mode) || "review_workspace").label} / ${rerunExecutionLabel((payload && payload.execution_mode) || "one_at_a_time")}`);
-      appendCell(row, item.reason || "");
+      const rowCell = appendCell(row, rerunPreviewRowNumber(item) || "");
+      rowCell.dataset.label = "Row";
+      const stateCell = appendCell(row, "", "rerun-preview-state-cell");
+      stateCell.dataset.label = "State";
+      renderRerunPreviewStatus(stateCell, item);
+      const identityCell = appendCell(row, "", "rerun-preview-identity-cell");
+      identityCell.dataset.label = "Identity";
+      renderRerunPreviewIdentity(identityCell, item);
+      const categoryCell = appendCell(row, "", "rerun-preview-category-cell");
+      categoryCell.dataset.label = "Categories";
+      renderRerunPreviewCategoryChips(categoryCell, item);
+      const destinationCell = appendCell(row, `${rerunPolicyChoice("destination", (payload && payload.destination_mode) || "auto_replace_clean_else_pending_review").label} / ${rerunExecutionLabel((payload && payload.execution_mode) || "one_at_a_time")}`);
+      destinationCell.dataset.label = "Destination";
+      const reasonCell = appendCell(row, "", "rerun-preview-reason-cell");
+      reasonCell.dataset.label = "Reason";
+      renderRerunPreviewReason(reasonCell, item);
       tbody.appendChild(row);
     });
   }
 
   function renderRerunHistorySummary() {
-    const history = typeof window.getCommandHistory === "function"
-      ? window.getCommandHistory()
-      : typeof window.mediaPipelineCommandHistory?.getCommandHistory === "function"
-      ? window.mediaPipelineCommandHistory.getCommandHistory()
-      : [];
-    const entries = Array.isArray(history)
-      ? history.filter((entry) => String(entry.command || "") === "rerun.start").slice(0, 6)
-      : [];
+    const entries = rerunHistoryEntries()
+      .filter((entry) => String(entry.command || entry.raw?.command || "") === "rerun.start")
+      .slice(0, 6);
     if (!entries.length) {
       setText("rerun-history-summary", "No CSV rerun history loaded.");
       return;
     }
     setText("rerun-history-summary", entries.map((entry) => {
-      const data = entry.data && typeof entry.data === "object" ? entry.data : {};
-      return `${entry.started_at || entry.completed_at || "recent"} | ${entry.ok ? "ok" : "failed"} | ${data.csv_path || data.source_csv_path || ""} | ${entry.message || ""}`;
+      const data = rerunHistoryData(entry);
+      const request = rerunHistoryRequestData(entry);
+      return `${entry.started_at || entry.completed_at || entry.at || "recent"} | ${entry.ok ? "ok" : "failed"} | ${request.csv_path || data.csv_path || data.source_csv_path || ""} | ${entry.message || entry.raw?.message || ""}`;
     }).join("\n"));
   }
 
@@ -1716,18 +1929,17 @@
     const request = collectRerunStartRequest();
     const destination = rerunPolicyChoice("destination", (payload && payload.destination_mode) || request.destination_mode);
     const collision = rerunPolicyChoice("collision", (payload && payload.collision_policy) || request.collision_policy);
-    const original = rerunOriginalPolicyChoiceForSummary({
+    const effectiveRequest = {
       ...request,
       destination_mode: (payload && payload.destination_mode) || request.destination_mode,
       collision_policy: (payload && payload.collision_policy) || request.collision_policy,
-      original_policy: (payload && payload.original_policy) || request.original_policy,
-    });
+    };
     const lines = [
       `Execution: ${rerunExecutionLabel((payload && payload.execution_mode) || request.execution_mode)}; window=${(payload && payload.window_size) || request.window_size}.`,
       `Destination handling: ${destination.label}. ${destination.detail}`,
       `When output exists: ${collision.label}. ${collision.detail}`,
-      `Old source after proof: ${original.label}. ${original.detail}`,
-      `Backend confirmations: replace final ${request.confirm_replace_final ? "included" : "not included"}; original action ${request.confirm_original_policy ? "included" : "not included"}.`,
+      rerunSourceHandlingLine(effectiveRequest),
+      `Backend confirmations: replace final ${request.confirm_replace_final ? "included" : "not included"}; source overwrite ${request.confirm_source_overwrite ? "included" : "not included"}.`,
       `Blocked rows in preview: ${counts.blocked_mode_rows || 0}.`,
     ];
     setText("rerun-policy-panel", lines.join("\n"));
@@ -1741,9 +1953,30 @@
     return candidates.find((item) => String(item.path || "").trim().toLowerCase() === current) || null;
   }
 
+  function applyRerunOpenButtonState() {
+    const selected = selectedRerunCsvCandidate();
+    const canOpen = Boolean(selected?.csv_key);
+    const typedHelp = "Typed CSV paths can be previewed, but Open CSV and Open Folder require a backend-known import or scoped CSV candidate.";
+    [
+      ["rerun-open-csv-button", canOpen ? "Open the selected backend-known CSV file." : typedHelp],
+      ["rerun-open-csv-folder-button", canOpen ? "Open the folder for the selected backend-known CSV file." : typedHelp],
+    ].forEach(([id, title]) => {
+      const button = byId(id);
+      if (!button) return;
+      button.disabled = !canOpen;
+      button.setAttribute("aria-disabled", canOpen ? "false" : "true");
+      button.title = title;
+    });
+    const inspect = byId("rerun-inspect-csv-button");
+    if (inspect) {
+      inspect.title = "Inspect CSV by loading the backend read-only preview. Typed paths are allowed for preview.";
+      inspect.setAttribute("aria-label", "Inspect selected or typed CSV using the backend preview");
+    }
+  }
+
   async function inspectSelectedRerunCsv() {
     const result = await refreshRerunPreview({ quiet: false });
-    renderJsonDetail("rerun-launch-detail", {
+    renderJsonDetail("rerun-queue-detail", {
       label: "CSV inspect",
       value: result,
       intro: "Backend read-only inspect of the selected rerun CSV.",
@@ -1753,21 +1986,162 @@
   async function openSelectedRerunCsv(target) {
     const selected = selectedRerunCsvCandidate();
     if (!selected || !selected.csv_key) {
-      setText("rerun-launch-status", "CSV not in import list");
-      setText("rerun-launch-detail", "Open CSV actions are limited to backend-known import/scoped CSV candidates.");
+      setText("rerun-queue-status", "CSV not in import list");
+      setText("rerun-queue-detail", "Typed CSV paths can still be previewed. Open CSV and Open Folder require a backend-known import/scoped CSV candidate with csv_key.");
+      applyRerunOpenButtonState();
       return;
     }
-    const result = await apiPost("/api/rerun/open", {
+    const result = await queueRerunRouteDispatcher("postRerunOpen")({
       target,
       csv_key: selected.csv_key,
     });
     appendCommandResult(result);
-    renderLaunchCommandResult("rerun-launch-status", "rerun-launch-detail", result, { target, csv_key: selected.csv_key });
+    renderLaunchCommandResult("rerun-queue-status", "rerun-queue-detail", result, { target, csv_key: selected.csv_key });
+  }
+
+  function rerunResultCountsLine(manifest = {}) {
+    const counts = manifest.row_status_counts && typeof manifest.row_status_counts === "object"
+      ? manifest.row_status_counts
+      : {};
+    const entries = Object.keys(counts)
+      .sort()
+      .map((key) => `${key} ${counts[key]}`);
+    return entries.length ? entries.join("; ") : "no row counts";
+  }
+
+  function rerunManifestTitle(manifest = {}) {
+    return [
+      manifest.batch_id || "rerun manifest",
+      manifest.status || "unknown",
+    ].filter(Boolean).join(" | ");
+  }
+
+  function renderRerunResults(payload) {
+    lastRerunResultsPayload = payload && typeof payload === "object" ? payload : null;
+    renderRerunLifecycleEvidence(lastRerunPreviewPayload, lastRerunCommandResult);
+    const container = byId("rerun-results-panel");
+    if (!container) return;
+    clearElement(container);
+    const manifests = lastRerunResultsPayload && Array.isArray(lastRerunResultsPayload.manifests)
+      ? lastRerunResultsPayload.manifests
+      : [];
+    if (!manifests.length) {
+      container.textContent = "No rerun results loaded.";
+      return;
+    }
+    manifests.slice(0, 8).forEach((manifest) => {
+      const item = document.createElement("div");
+      item.className = "command-history-entry";
+      const title = document.createElement("strong");
+      title.textContent = rerunManifestTitle(manifest);
+      item.appendChild(title);
+
+      const lines = [
+        `Rows: ${manifest.row_count || 0}; remaining pending ${manifest.remaining_pending_count || 0}; ${rerunResultCountsLine(manifest)}.`,
+        `Mode: ${rerunExecutionLabel(manifest.execution_mode || "one_at_a_time")}; window=${manifest.window_size || 1}; destination=${manifest.destination_mode || "unknown"}; collision=${manifest.collision_policy || "unknown"}.`,
+      ];
+      if (manifest.current_chunk !== undefined && manifest.current_chunk !== null && manifest.current_chunk !== "") {
+        lines.push(`Current chunk: ${manifest.current_chunk}.`);
+      }
+      if (manifest.stopped_at || manifest.stop_request_id) {
+        lines.push(`Stop evidence: ${manifest.stopped_at || "not recorded"}; request ${manifest.stop_request_id || "not recorded"}.`);
+      }
+      if (manifest.safe_next_action) lines.push(manifest.safe_next_action);
+      const detail = document.createElement("span");
+      detail.textContent = lines.join(" ");
+      item.appendChild(detail);
+
+      if (manifest.can_continue_pending) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "secondary-button rerun-continue-pending-button";
+        button.dataset.manifestKey = manifest.manifest_key || "";
+        button.textContent = "Continue Pending Rows";
+        button.title = "Start a backend-owned CSV rerun scoped to pending rows only.";
+        button.addEventListener("click", () => {
+          requestRerunContinue(manifest.manifest_key || "").catch(() => {});
+        });
+        item.appendChild(button);
+      }
+      container.appendChild(item);
+    });
+  }
+
+  async function refreshRerunResults(options = {}) {
+    try {
+      const result = await queueRerunRouteDispatcher("getRerunResults")();
+      renderRerunResults(result);
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!options.quiet) {
+        setText("rerun-results-panel", `Rerun results failed to load: ${message}`);
+      }
+      return null;
+    }
+  }
+
+  async function requestRerunContinue(manifestKey) {
+    const key = String(manifestKey || "").trim();
+    if (rejectLaunchCommandWhileBusy("rerun.continue", "rerun-queue-status", "rerun-queue-detail")) return;
+    if (!key) {
+      const result = {
+        command: "rerun.continue",
+        ok: false,
+        severity: "error",
+        message: "No stopped rerun manifest was selected.",
+      };
+      appendCommandResult(result);
+      renderLaunchCommandResult("rerun-queue-status", "rerun-queue-detail", result, {});
+      return;
+    }
+    setText("rerun-queue-status", "Confirming");
+    setText("rerun-queue-detail", "Confirm pending-only CSV continuation. Failed and review rows stay untouched.");
+    await nextLaunchCommandFrame();
+    if (!window.confirm("Continue pending CSV rerun rows only? Failed and review rows stay untouched.")) {
+      const canceled = {
+        command: "rerun.continue",
+        ok: false,
+        severity: "info",
+        message: "Continue Pending Rows canceled.",
+      };
+      appendCommandResult(canceled);
+      setText("rerun-queue-status", "Canceled");
+      setText("rerun-queue-detail", canceled.message);
+      return;
+    }
+    setLaunchCommandBusy(true);
+    setText("rerun-queue-status", "Continuing...");
+    try {
+      const request = { manifest_key: key, confirm_continue: true };
+      const result = await queueRerunRouteDispatcher("postRerunContinue")(request);
+      appendCommandResult(result);
+      renderLaunchCommandResult("rerun-queue-status", "rerun-queue-detail", result, request);
+      await refreshRerunResults({ quiet: true });
+      if ((result.refresh_hint || "") === "snapshot") {
+        await refreshAll();
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const result = {
+        command: "rerun.continue",
+        ok: false,
+        severity: "error",
+        message,
+      };
+      appendCommandResult(result);
+      renderLaunchCommandResult("rerun-queue-status", "rerun-queue-detail", result, { manifest_key: key });
+    } finally {
+      setLaunchCommandBusy(false);
+      applyRerunPreviewButtonState();
+    }
   }
 
   function renderRerunPreview(payload) {
     lastRerunPreviewPayload = payload && typeof payload === "object" ? payload : null;
     renderRerunHandlingSummary();
+    renderRerunReviewHeader(lastRerunPreviewPayload);
+    renderRerunLifecycleEvidence(lastRerunPreviewPayload, lastRerunCommandResult);
     setText("rerun-preview-summary", rerunSummaryLines(lastRerunPreviewPayload).join("\n"));
     renderRerunRecentCsvs(lastRerunPreviewPayload);
     renderRerunFilterOptions(lastRerunPreviewPayload);
@@ -1776,6 +2150,7 @@
     renderRerunPolicyPanel(lastRerunPreviewPayload);
     renderRerunHistorySummary();
     applyRerunPreviewButtonState();
+    applyRerunOpenButtonState();
   }
 
   function rerunPreviewBlockedReason(precollectedRequest = null) {
@@ -1783,14 +2158,8 @@
       ? precollectedRequest
       : collectRerunStartRequest();
     if (!String(request.csv_path || "").trim()) return "CSV path is required before dry-run or live start.";
-    if (request.destination_mode === "publish_replace_final" && request.confirm_replace_final !== true) {
+    if (["auto_replace_clean_else_pending_review", "publish_replace_final"].includes(request.destination_mode) && request.confirm_replace_final !== true) {
       return "Publish and replace requires backend confirmation.";
-    }
-    if (request.original_policy && request.original_policy !== "keep" && request.confirm_original_policy !== true) {
-      return "Old-source policy requires backend confirmation.";
-    }
-    if (request.original_policy === "hold_then_delete_after_publish" && request.confirm_delete_original !== true) {
-      return "Hold/delete intent requires confirmation; deletion remains separate cleanup.";
     }
     if (!lastRerunPreviewPayload) return "Backend CSV preview has not loaded yet.";
     const counts = rerunPreviewCounts(lastRerunPreviewPayload);
@@ -1806,26 +2175,34 @@
     const busy = Boolean(launchCoordinatorState.launchCommandInFlight);
     const reason = rerunPreviewBlockedReason();
     const button = byId("rerun-start-button");
-    if (!button) return;
+    if (!button) {
+      applyRerunOpenButtonState();
+      renderRerunReviewHeader(lastRerunPreviewPayload);
+      renderRerunLifecycleEvidence(lastRerunPreviewPayload, lastRerunCommandResult);
+      return;
+    }
     const disabled = busy || Boolean(reason);
     button.disabled = disabled;
     button.setAttribute("aria-disabled", disabled ? "true" : "false");
-    button.title = disabled ? (reason || "Launch command is already in progress.") : "Review backend preview and start CSV rerun.";
+    button.title = disabled ? (reason || "CSV rerun command is already in progress.") : "Review backend preview and start CSV rerun.";
+    applyRerunOpenButtonState();
+    renderRerunReviewHeader(lastRerunPreviewPayload);
+    renderRerunLifecycleEvidence(lastRerunPreviewPayload, lastRerunCommandResult);
   }
 
   async function refreshRerunPreview(options = {}) {
     const request = collectRerunPreviewRequest();
-    renderLaunchPreflight("rerun-launch-preflight", rerunLaunchPreflightLines(collectRerunStartRequest({ dry_run: false })));
+    renderLaunchPreflight("rerun-queue-preflight", rerunQueuePreflightLines(collectRerunStartRequest({ dry_run: false })));
     if (!options.quiet) {
-      setText("rerun-launch-status", "Reading CSV");
-      setText("rerun-launch-detail", "Reading backend CSV rerun preview.");
+      setText("rerun-queue-status", "Reading CSV");
+      setText("rerun-queue-detail", "Reading backend CSV rerun preview.");
     }
     try {
-      const result = await apiPost("/api/rerun/preview", request);
+      const result = await queueRerunRouteDispatcher("postRerunPreview")(request);
       renderRerunPreview(result);
       if (!options.quiet) {
-        setText("rerun-launch-status", result.status || (result.ok ? "Ready" : "Blocked"));
-        renderJsonDetail("rerun-launch-detail", {
+        setText("rerun-queue-status", result.status || (result.ok ? "Ready" : "Blocked"));
+        renderJsonDetail("rerun-queue-detail", {
           label: "CSV rerun preview",
           value: result,
           intro: "Backend read-only CSV rerun preview.",
@@ -1847,8 +2224,8 @@
       };
       renderRerunPreview(result);
       if (!options.quiet) {
-        setText("rerun-launch-status", "Error");
-        setText("rerun-launch-detail", message);
+        setText("rerun-queue-status", "Error");
+        setText("rerun-queue-detail", message);
       }
       return result;
     }
@@ -1895,11 +2272,11 @@
   }
 
   async function startRerunFromForm(options = {}) {
-    if (rejectLaunchCommandWhileBusy("rerun.start", "rerun-launch-status", "rerun-launch-detail")) return;
+    if (rejectLaunchCommandWhileBusy("rerun.start", "rerun-queue-status", "rerun-queue-detail")) return;
     const request = collectRerunStartRequest({ dry_run: false, plan_only: false });
     const actionLabel = "CSV rerun";
     const modeSummary = rerunStartPolicySummary(request);
-    renderLaunchPreflight("rerun-launch-preflight", rerunLaunchPreflightLines(request));
+    renderLaunchPreflight("rerun-queue-preflight", rerunQueuePreflightLines(request));
     if (!request.csv_path.trim()) {
       const missing = {
         command: "rerun.start",
@@ -1908,7 +2285,8 @@
         message: "CSV path is required.",
         frontend_guard: true,
       };
-      renderLaunchCommandResult("rerun-launch-status", "rerun-launch-detail", missing, request);
+      renderLaunchCommandResult("rerun-queue-status", "rerun-queue-detail", missing, request);
+      renderRerunLifecycleEvidence(lastRerunPreviewPayload, lastRerunCommandResult);
       applyRerunPreviewButtonState();
       return;
     }
@@ -1922,7 +2300,8 @@
         frontend_guard: true,
         data: preview || {},
       };
-      renderLaunchCommandResult("rerun-launch-status", "rerun-launch-detail", blocked, request);
+      renderLaunchCommandResult("rerun-queue-status", "rerun-queue-detail", blocked, request);
+      renderRerunLifecycleEvidence(lastRerunPreviewPayload, lastRerunCommandResult);
       applyRerunPreviewButtonState();
       return;
     }
@@ -1930,8 +2309,8 @@
     const rerunBtn = byId(rerunButtonId);
     const rerunBtnText = rerunBtn ? rerunBtn.textContent : "";
     setLaunchCommandButtonState(rerunButtonId, "confirming", "Confirming...");
-    setText("rerun-launch-status", "Confirming");
-    setText("rerun-launch-detail", `Confirm live CSV rerun with ${modeSummary} policy.`);
+    setText("rerun-queue-status", "Confirming");
+    setText("rerun-queue-detail", `Confirm live CSV rerun with ${modeSummary} policy.`);
     await nextLaunchCommandFrame();
     if (!window.confirm(`Start live CSV rerun with ${modeSummary} policy?`)) {
       const canceled = {
@@ -1940,27 +2319,33 @@
         severity: "info",
         message: `${actionLabel} canceled.`,
         data: { dry_run: Boolean(request.dry_run), plan_only: Boolean(request.plan_only) },
+        request,
       };
+      lastRerunCommandResult = canceled;
       appendCommandResult(canceled);
-      setText("rerun-launch-status", "Canceled");
-      setText("rerun-launch-detail", canceled.message);
+      setText("rerun-queue-status", "Canceled");
+      setText("rerun-queue-detail", canceled.message);
+      renderRerunLifecycleEvidence(lastRerunPreviewPayload, lastRerunCommandResult);
       if (rerunBtn) rerunBtn.textContent = rerunBtnText || "Review & Start";
       updateLaunchCommandButtonStates();
       return;
     }
     if (rerunBtn) rerunBtn.textContent = "Starting...";
     setLaunchCommandBusy(true);
-    setText("rerun-launch-status", "Starting...");
-    renderJsonDetail("rerun-launch-detail", {
+    setText("rerun-queue-status", "Starting...");
+    renderJsonDetail("rerun-queue-detail", {
       label: "Submitted request",
       value: request,
       intro: "Live CSV rerun request confirmed by the operator and about to be submitted.",
     });
     renderRerunTopbarPending(request, actionLabel, "submitted", "waiting for backend response");
     try {
-      const result = await apiPost("/api/rerun/start", request);
-      appendCommandResult(result);
-      renderLaunchCommandResult("rerun-launch-status", "rerun-launch-detail", result, request);
+      const result = await queueRerunRouteDispatcher("postRerunStart")(request);
+      const resultWithRequest = { ...result, request };
+      lastRerunCommandResult = resultWithRequest;
+      appendCommandResult(resultWithRequest);
+      renderLaunchCommandResult("rerun-queue-status", "rerun-queue-detail", resultWithRequest, request);
+      renderRerunLifecycleEvidence(lastRerunPreviewPayload, lastRerunCommandResult);
       if (result.ok) {
         const pidMatch = String(result.message || "").match(/\bPID\s*(\d+)\b/i);
         const pid = pidMatch ? pidMatch[1] : "";
@@ -1983,19 +2368,18 @@
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      const result = {
+        command: "rerun.start",
+        ok: false,
+        severity: "error",
+        message,
+        request,
+      };
+      lastRerunCommandResult = result;
       renderRerunTopbarFinished(request, actionLabel, `${actionLabel} failed: ${message}`);
-      appendCommandResult({
-        command: "rerun.start",
-        ok: false,
-        severity: "error",
-        message,
-      });
-      renderLaunchCommandResult("rerun-launch-status", "rerun-launch-detail", {
-        command: "rerun.start",
-        ok: false,
-        severity: "error",
-        message,
-      }, request);
+      appendCommandResult(result);
+      renderLaunchCommandResult("rerun-queue-status", "rerun-queue-detail", result, request);
+      renderRerunLifecycleEvidence(lastRerunPreviewPayload, lastRerunCommandResult);
     } finally {
       setLaunchCommandBusy(false);
       if (rerunBtn) rerunBtn.textContent = rerunBtnText || "Review & Start";
@@ -2003,9 +2387,44 @@
     }
   }
 
+  function renderRerunQueuePreflight() {
+    renderLaunchPreflight("rerun-queue-preflight", rerunQueuePreflightLines(collectRerunStartRequest({ dry_run: false })));
+  }
+
+  /**
+   * Public namespace for the Queue CSV rerun workflow helpers.
+   * Prefer this namespace from new code; flat window.* exports are not provided.
+   */
+  window.mediaPipelineCsvRerunWorkflow = {
+    collectRerunPreviewRequest,
+    collectRerunScopeRequest,
+    collectRerunStartRequest,
+    applyRerunPolicySelectionRules,
+    renderRerunHandlingSummary,
+    renderRerunReviewHeader,
+    renderRerunLifecycleEvidence,
+    renderRerunPreviewCategoryChips,
+    rerunPreviewBlockedReason,
+    applyRerunPreviewButtonState,
+    applyRerunOpenButtonState,
+    refreshRerunPreview,
+    scheduleRerunPreviewRefresh,
+    inspectSelectedRerunCsv,
+    openSelectedRerunCsv,
+    renderRerunPreview,
+    refreshRerunResults,
+    renderRerunResults,
+    requestRerunContinue,
+    renderRerunHistorySummary,
+    startRerunFromForm,
+    rerunQueuePreflightLines,
+    renderRerunQueuePreflight,
+  };
+
   /**
    * Public namespace for the Launch page module.
-   * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
+   * Prefer this namespace from new code over flat window.* exports; CSV rerun workflow helpers live on
+   * window.mediaPipelineCsvRerunWorkflow.
    */
   window.mediaPipelineLaunchView = {
     requestPipelineControl,
@@ -2029,15 +2448,6 @@
     startPipelineFromForm,
     startPendingPublishDrain,
     startStateJournalArchive,
-    collectRerunPreviewRequest,
-    collectRerunScopeRequest,
-    collectRerunStartRequest,
-    refreshRerunPreview,
-    inspectSelectedRerunCsv,
-    openSelectedRerunCsv,
-    renderRerunPreview,
-    renderRerunHistorySummary,
-    startRerunFromForm,
     pipelineModeLabel,
     launchCommandStatusLabel,
     launchCommandResultCorrelationLines,
@@ -2115,7 +2525,6 @@
     refreshLaunchBackendPreflight,
     refreshLaunchBackendPreflightEncoderCapability,
     pipelineLaunchPreflightLines,
-    rerunLaunchPreflightLines,
     isLaunchCommand,
     renderLaunchCommandHistory,
     launchHistoryLine,

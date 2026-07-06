@@ -835,7 +835,8 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "Matching evidence records: 1",
               "current=1",
               "Post-run capture: Preview Record now includes a copyable",
-              "Mutation guardrail: this comparison is read-only",
+              "Mutation guardrail: read-only evidence",
+              "backend routes own output and manifest changes",
             ]);
             clickCompletedTab("evidence");
             requireSelectedOutputHistoryPaneActive(false);

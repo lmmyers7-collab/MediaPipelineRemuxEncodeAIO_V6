@@ -138,13 +138,14 @@
     if (command.startsWith("network.")) return "Network";
     if (command.startsWith("sample_validation.")) return "Home / Validation";
     if (command === "backend.shutdown") return "Diagnostics";
+    if (command.startsWith("rerun.")) return "Queue";
     if (command.startsWith("pipeline.control.")) return "Launch";
     if (command === "pipeline.start") {
       const mode = String(item?.raw?.request?.mode || item?.raw?.data?.mode || item?.raw?.data?.requested_mode || "").toLowerCase();
       if (mode === "drain_pending_pushes") return "Pending Publish";
       return "Launch";
     }
-    if (command === "audit.start" || command === "rerun.start") return "Launch";
+    if (command === "audit.start") return "Launch";
     if (refresh === "pending_publish") return "Pending Publish";
     if (refresh === "queue") return "Queue";
     if (refresh === "completed") return "Completed";

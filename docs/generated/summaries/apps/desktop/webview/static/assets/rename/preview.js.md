@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/rename/preview.js
 pipeline_stage: rename
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-18
+last_modified: 2026-07-03
 last_reviewed: 2026-06-04
-sha256: 8648f1b0768ace8322694a0c71144ae5658161664a1681a2a71292988577768d
+sha256: 299dbe663b19c06e4d4fcca93e5c61ebca8ae369c9bbaa6725aadd4a833ee307
 ---
 # `apps/desktop/webview/static/assets/rename/preview.js`
 

@@ -3,9 +3,9 @@ file: docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-02
+last_modified: 2026-07-04
 last_reviewed: 2026-06-04
-sha256: dcc0186e9c0d21f0bd74da0c944def6b919fcbd853332b38da4735008266133e
+sha256: 6fe481061a6f6c98356e487d1f70d3c548b71760f121430ec876dc161bb56a6d
 ---
 # `docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md`
 

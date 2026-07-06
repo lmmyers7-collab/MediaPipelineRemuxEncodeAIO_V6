@@ -14,6 +14,7 @@
       renameSourceKey,
       setText,
     } = deps;
+    const RENAME_READ_ONLY_BOUNDARY = "Mutation guardrail: read-only evidence; backend rename routes own filesystem changes.";
 
     function renamePreviewAggregateObject(preview, aggregateKey, rowKey) {
       const aggregate = preview?.[aggregateKey];
@@ -86,7 +87,7 @@
         return [
           "No rename preview rows loaded.",
           "Next step: add one file path per line and run Preview.",
-          "Mutation guardrail: this board is read-only; Apply requires checked rows and posts only those rows through the backend selected_sources command.",
+          RENAME_READ_ONLY_BOUNDARY,
         ];
       }
       const confidenceCounts = renamePreviewAggregateObject(preview, "confidence_counts", "confidence");
@@ -102,7 +103,7 @@
       const firstTarget = rows[0]?.target_name || rows[0]?.destination || "";
       const lastTarget = rows[rows.length - 1]?.target_name || rows[rows.length - 1]?.destination || "";
       const lines = [
-        "Preview-wide review board. This is read-only; Apply requires checked rows and posts only checked selected_sources through the backend rename.apply command.",
+        "Preview-wide review board. Read-only evidence; Apply requires checked selected_sources through backend rename.apply.",
         `Template: ${renameTemplateLabel(preview, preview?.active_template || request.template_preset || "")}`,
         `Rows/status: ${counts.total || rows.length} total; ready ${counts.ready || 0}, match ${counts.match || 0}, warning ${counts.warning || 0}, blocked ${counts.blocked || 0}`,
         `Confidence mix: ${renameFormatCounts(confidenceCounts)}`,
@@ -263,7 +264,7 @@
         return [
           "No rename preview rows loaded.",
           "Run Preview to compare target names against saved pipeline routing and sidecar/force-name behavior.",
-          "Mutation guardrail: this handoff is read-only and cannot rename, save settings, launch work, remux, encode, publish, rewrite sidecars, or touch media files.",
+          RENAME_READ_ONLY_BOUNDARY,
         ];
       }
       const counts = preview?.counts || {};
@@ -310,7 +311,7 @@
       if ((confidenceCounts.low || 0) || (confidenceCounts.unknown || 0) || (confidenceCounts.medium || 0)) {
         lines.push("Confidence note: one or more rows are below high confidence. Inspect row detail before applying to avoid bad Plex naming or wrong TV numbering.");
       }
-      lines.push("Mutation guardrail: this handoff is read-only. Apply requires checked rows and mutates files only through backend rename.apply selected_sources.");
+      lines.push(RENAME_READ_ONLY_BOUNDARY);
       return lines;
     }
 

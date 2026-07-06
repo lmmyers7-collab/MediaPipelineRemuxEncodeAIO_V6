@@ -25,6 +25,9 @@ SETTINGS_PARTIAL = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "part
 API_POST_LITERAL_RE = re.compile(
     r"(?<![\w$])(?:\w+\.)?apiPost(?:Local)?\s*\(\s*(?P<quote>[\"'])(?P<route>/api/[^\"']+)(?P=quote)"
 )
+API_POST_DISPATCH_LITERAL_RE = re.compile(
+    r"\brequireApiPost\s*\([^)]*\)\s*\(\s*(?P<quote>[\"'])(?P<route>/api/[^\"']+)(?P=quote)"
+)
 API_POST_CALL_RE = re.compile(r"(?<!function\s)(?<![\w$])(?:\w+\.)?apiPost(?:Local)?\s*\(")
 NETWORK_CHILD_ASSET_NAMES = (
     "network/state.js",
@@ -60,14 +63,18 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/path-picker/browse": {"pathPicker.js"},
     "/api/audit/start": {"reports/auditCommands.js"},
     "/api/audit/stop": {"reports/auditCommands.js"},
-    "/api/rerun/preview": {"launchView.js"},
-    "/api/rerun/start": {"launchView.js"},
+    "/api/rerun/preview": {"queueView.rerun.js"},
+    "/api/rerun/start": {"queueView.rerun.js"},
+    "/api/rerun/control": {"queueView.rerun.js"},
+    "/api/rerun/continue": {"queueView.rerun.js"},
+    "/api/rerun/promote-dry-run": {"queueView.rerun.js"},
+    "/api/rerun/promote": {"queueView.rerun.js"},
     "/api/audit/score-policy": {"reports/auditCommands.js"},
     "/api/audit/ignore": {"reports/auditCommands.js"},
     "/api/audit/sources": {"reports/auditCommands.js"},
     "/api/audit/sources/scan": {"reports/auditCommands.js"},
     "/api/audit/export-rerun-csv": {"reports/auditCommands.js"},
-    "/api/rerun/open": {"launchView.js"},
+    "/api/rerun/open": {"queueView.rerun.js"},
     "/api/completed/open": {"completed/openActions.js"},
     "/api/final-library-promotion/promote-queue": {"completed/promotionCommands.js"},
     "/api/final-library-promotion/pause": {"completed/promotionCommands.js"},
@@ -80,7 +87,7 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/maintenance/archive-state-journals": {"launchView.js"},
     "/api/sample-validation/preview": {"crossPageContextView.sampleValidation.js"},
     "/api/sample-validation/append": {"crossPageContextView.sampleValidation.js"},
-    "/api/diagnostics/open": {"diagnosticsView.js"},
+    "/api/diagnostics/open": {"diagnosticsView.js", "queueView.rerun.js"},
     "/api/diagnostics/tdarr-matrix-audit": {"diagnosticsView.js"},
     "/api/diagnostics/tdarr-matrix/evidence/open": {"diagnosticsView.js"},
     "/api/diagnostics/tdarr-matrix/rerun": {"diagnosticsView.js"},
@@ -198,6 +205,8 @@ def _literal_api_post_owners() -> dict[str, set[str]]:
             continue
         for match in API_POST_LITERAL_RE.finditer(source):
             owners[match.group("route")].add(name)
+        for match in API_POST_DISPATCH_LITERAL_RE.finditer(source):
+            owners[match.group("route")].add(name)
     return dict(owners)
 
 
@@ -232,6 +241,10 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
                 unexpected.append(f"{name}: apiPost call must use a literal documented route")
                 continue
             for match in literal_matches:
+                route = match.group("route")
+                if route not in contract_post_routes:
+                    unexpected.append(f"{name}: {route} is not in LOCAL_API_ROUTE_CONTRACT")
+            for match in API_POST_DISPATCH_LITERAL_RE.finditer(source):
                 route = match.group("route")
                 if route not in contract_post_routes:
                     unexpected.append(f"{name}: {route} is not in LOCAL_API_ROUTE_CONTRACT")
@@ -360,12 +373,15 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn('id="queue-count-detail" class="metric-detail"', home_html)
         self.assertIn("function renderLiveRunStrip", progress_js)
         self.assertIn("function liveRunStripItems", progress_js)
+        self.assertIn("function runTimelineItems", progress_js)
+        self.assertIn("function renderProgressBars(bars = [], snapshot = null, context = {})", progress_js)
+        self.assertIn("runTimelineItems,", progress_js)
         self.assertIn("function csvRerunTailEvidence", progress_js)
         self.assertIn("function csvRerunActivityEvidence", progress_js)
         self.assertIn("csvRerunWorkerLooksActive", progress_js)
-        self.assertIn('liveRunItem("Importing"', progress_js)
-        self.assertIn('liveRunItem("Last imported"', progress_js)
-        self.assertIn('liveRunItem("Processing"', progress_js)
+        self.assertRegex(progress_js, r'liveRunItem\(\s*"Importing"')
+        self.assertRegex(progress_js, r'liveRunItem\(\s*"Last imported"')
+        self.assertRegex(progress_js, r'liveRunItem\(\s*"Processing"')
         self.assertIn("function refreshLiveRunTail", app_js)
         self.assertIn("function csvRerunActivityEvidence", app_js)
         self.assertIn("function renderCsvRerunHomeSummary", app_js)
@@ -491,6 +507,15 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn("const request = { confirm_promote: true };", completed_js)
         self.assertIn("if (selectedRowKeys.length) request.row_keys = selectedRowKeys;", completed_js)
         self.assertIn('apiPost("/api/final-library-promotion/promote-queue", request)', completed_js)
+        queue_rerun_js = _asset_sources()["queueView.rerun.js"]
+        launch_js = _asset_sources()["launchView.js"]
+        self.assertIn('requireApiPost(RERUN_CONTROL_ROUTE)("/api/rerun/control", { action: "stop_after_current", confirm_stop: true })', queue_rerun_js)
+        self.assertIn('requireApiPost(RERUN_CONTROL_ROUTE)("/api/rerun/control", { action: "pause", confirm_pause: true })', queue_rerun_js)
+        self.assertIn("const request = { manifest_key: key, confirm_continue: true };", launch_js)
+        self.assertIn('requireApiPost(RERUN_CONTINUE_ROUTE)("/api/rerun/continue", request)', queue_rerun_js)
+        self.assertIn('requireApiPost(RERUN_PROMOTE_DRY_RUN_ROUTE)("/api/rerun/promote-dry-run", { row_key: rowKey })', queue_rerun_js)
+        self.assertIn("const request = { row_key: key, dry_run_fingerprint: fingerprint, confirm_promote: true };", queue_rerun_js)
+        self.assertIn('requireApiPost(RERUN_PROMOTE_ROUTE)("/api/rerun/promote", request)', queue_rerun_js)
 
     def test_queue_loaded_priority_copy_does_not_imply_launch_scope(self) -> None:
         queue_html = QUEUE_PARTIAL.read_text(encoding="utf-8")

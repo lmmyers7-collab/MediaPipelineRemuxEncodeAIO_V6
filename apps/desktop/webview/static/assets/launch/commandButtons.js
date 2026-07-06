@@ -6,10 +6,11 @@
       byId = function () { return null; },
       clearStartupBanner = function () {},
       collectPipelineStartRequest = function () { return {}; },
-      collectRerunStartRequest = function () { return {}; },
       launchBackendPreflightOverallStatus = function () { return "Not loaded"; },
       launchBackendPreflightPayloadForTarget = function () { return null; },
       launchBackendPreflightRows = function () { return []; },
+      launchActiveJobKind = function () { return ""; },
+      launchRerunCsvIsActive = function () { return false; },
       launchPauseRequested = function () { return false; },
       launchPipelineIsActive = function () { return false; },
       launchPreflightRequestMatches = function () { return false; },
@@ -20,7 +21,6 @@
       pipelineProgressIsStuck = function () { return false; },
       pipelineProgressIsStale = function () { return false; },
       pipelineSingleFileValue = function () { return ""; },
-      rerunPreviewBlockedReason = function () { return ""; },
       renderPipelineControllerStatus = function () {},
       setPipelineControlMessage = function () {},
       setText = function () {},
@@ -42,14 +42,13 @@
 
   const controlConfirmMessages = {
     rescan: "Request a queue rescan flag for the running pipeline? This does not start a new run or touch media, but it can change what the active loop sees next.",
-    stop: "Request Stop After Current? The current file may finish; no new file should start. Use Force Stop only if the run is stalled.",
+    stop: "Request Stop After Current? For CSV rerun, the current row/window finishes and no next CSV row starts. For normal pipeline, the current file may finish; no new file should start. Use Force Stop only if the run is stalled.",
     kill: "Force stop immediately? This terminates related pipeline, audit, and CSV rerun PowerShell process trees and resets stuck progress state to idle. The current file may be left partial in scratch; source media should not be touched.",
   };
 
   const launchCommandButtonIds = [
     "pipeline-start-button",
     "pending-drain-button",
-    "rerun-start-button",
   ];
   const pipelineStartBoundaryNote = "Backend start still re-checks queue, schedule, settings, and process locks; Queue tab display filters and row selection are not submitted.";
 
@@ -128,21 +127,6 @@
       const decisionGate = launchStartDecisionGate(request);
       return decisionGate.blocked ? decisionGate : targetGate;
     }
-    if (id === "rerun-start-button") {
-      const request = collectRerunStartRequest({ dry_run: false, plan_only: false });
-      const previewReason = String(rerunPreviewBlockedReason(request) || "").trim();
-      if (previewReason) {
-        return launchGateResult(true, `Blocked: ${previewReason}`, { state: "blocked", reason_source: "rerun_preview" });
-      }
-      const label = "Review & Start CSV Rerun";
-      const targetGate = launchTargetGate("rerun", request, {
-        allowMissing: false,
-        matchKeys: ["csv_path", "dry_run", "plan_only", "execution_mode", "destination_mode", "original_policy", "window_size", "collision_policy"],
-        label,
-      });
-      if (targetGate.blocked) return targetGate;
-      return targetGate;
-    }
     return launchGateResult(false, "Ready-looking: backend start route will re-check queue, settings, schedule, and process locks at submission time.", { state: "ready" });
   }
 
@@ -165,12 +149,16 @@
   function updateLaunchCommandButtonStates(snapshot = state.lastLaunchCommandState.snapshot, closeReadiness = state.lastLaunchCommandState.closeReadiness) {
     state.lastLaunchCommandState = { snapshot: snapshot || null, closeReadiness: closeReadiness || null };
     const active = launchPipelineIsActive(snapshot, closeReadiness);
+    const activeKind = typeof launchActiveJobKind === "function" ? launchActiveJobKind(snapshot, closeReadiness) : "";
+    const csvRerunActive = typeof launchRerunCsvIsActive === "function"
+      ? launchRerunCsvIsActive(snapshot, closeReadiness)
+      : activeKind === "rerun_csv";
     const stuck = pipelineProgressIsStuck(snapshot);
     const stale = pipelineProgressIsStale(snapshot);
     syncPipelineScopeControls();
     if (active) clearStartupBanner();
     const startReason = active
-      ? "Disabled while backend close-readiness reports active work. Stop or wait for idle before starting another pipeline or CSV rerun command."
+      ? "Disabled while backend close-readiness reports active work. Stop or wait for idle before starting another backend command."
       : "Backend start route will re-check queue, settings, schedule, and process locks at submission time.";
     launchCommandButtonIds.forEach((id) => {
       const button = byId(id);
@@ -206,15 +194,18 @@
     document.querySelectorAll("[data-control-action]").forEach((button) => {
       const action = String(button.dataset.controlAction || "").toLowerCase();
       const killable = active || stuck;
-      const disabled = action === "kill" ? (state.controlCommandInFlight || !killable) : (state.controlCommandInFlight || !active);
+      const csvUnsupported = csvRerunActive && action === "rescan";
+      const disabled = action === "kill" ? (state.controlCommandInFlight || !killable) : (state.controlCommandInFlight || !active || csvUnsupported);
       const busyReason = "A pipeline control command is already in progress.";
+      const csvRerunPauseReason = "Pause CSV rerun after the current row/window; no next CSV row starts until Continue Pending Rows is used.";
+      const csvRescanUnsupportedReason = "CSV rerun does not support Rescan; use Pause or Stop After Current to finish the current row/window first.";
       const idleReason = action === "kill"
         ? (stale ? "Disabled: stale progress evidence needs Diagnostics review; Force Stop is available only for active or backend-stuck work." : "Disabled: no active backend work and no stuck progress state detected.")
         : "Disabled while no active backend work is reported.";
       const activeReason = {
-        pause: `${pauseLabel} the active backend pipeline.`,
-        rescan: "Request a queue rescan flag for the running backend pipeline.",
-        stop: "Request graceful Stop After Current for the active backend pipeline.",
+        pause: csvRerunActive ? csvRerunPauseReason : "Request Pause or Resume for the active backend pipeline.",
+        rescan: csvRescanUnsupportedReason,
+        stop: csvRerunActive ? "Request CSV rerun stop-after-current. The current row/window finishes; no next CSV row starts." : "Request graceful Stop After Current for the active backend pipeline.",
         kill: "Force stop: terminates related pipeline, audit, and CSV rerun process trees and resets stuck progress to idle.",
       }[action] || "Backend-owned pipeline control.";
       const effective = action === "kill" ? killable : active;

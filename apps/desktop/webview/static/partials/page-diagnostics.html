@@ -783,6 +783,7 @@
             <label>
               Target Key
               <select id="diagnostics-tail-target">
+                <option value="pipeline_log">Pipeline Log</option>
                 <option value="last_stderr_log">Last Stderr</option>
                 <option value="last_stdout_log">Last Stdout</option>
                 <option value="cluster_log">Cluster Log</option>
@@ -986,10 +987,12 @@
           <div class="diagnostics-open-target-groups">
             <div class="action-row action-row-left wrap-actions" aria-label="Log evidence targets">
               <strong>Logs</strong>
+              <button type="button" class="secondary-button" data-read-diagnostics-tail="pipeline_log">Read Pipeline Log</button>
               <button type="button" class="secondary-button" data-read-diagnostics-tail="last_stderr_log">Read Last Stderr</button>
               <button type="button" class="secondary-button" data-read-diagnostics-tail="last_stdout_log">Read Last Stdout</button>
               <button type="button" class="secondary-button" data-read-diagnostics-tail="cluster_log">Read Cluster Log</button>
               <button type="button" class="secondary-button" data-open-diagnostics="run_logs">Open Run Logs</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="pipeline_log">Open Pipeline Log</button>
               <button type="button" class="secondary-button" data-open-diagnostics="cluster_log">Open Cluster Log</button>
               <button type="button" class="secondary-button" data-open-diagnostics="last_stdout_log">Open Last Stdout</button>
               <button type="button" class="secondary-button" data-open-diagnostics="last_stderr_log">Open Last Stderr</button>
@@ -1009,7 +1012,7 @@
               <button type="button" class="secondary-button" data-open-diagnostics="active_jobs">Open Active Jobs</button>
               <button type="button" class="secondary-button" data-open-diagnostics="queue_snapshot">Open Queue Snapshot</button>
               <button type="button" class="secondary-button" data-open-diagnostics="completed_manifest">Open Completed Manifest</button>
-              <button type="button" class="secondary-button" data-open-diagnostics="pending_publish">Open Pending Publish</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="pending_publish">Open Pending Folder</button>
             </div>
             <div class="action-row action-row-left wrap-actions" aria-label="Failure evidence targets">
               <strong>Failure Evidence</strong>

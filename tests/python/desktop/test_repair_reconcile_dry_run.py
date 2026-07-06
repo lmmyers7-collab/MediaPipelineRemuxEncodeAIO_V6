@@ -291,6 +291,55 @@ def _legacy_csv_rerun_pending_fixture(root: Path) -> tuple[object, dict[str, Pat
     }
 
 
+def _csv_rerun_duplicate_pending_fixture(root: Path) -> tuple[object, dict[str, Path]]:
+    pending_root = root / "PendingServerPush"
+    source = root / "Source" / "Paprika (2006).mkv"
+    output = root / "Outsource" / "Movies" / "Paprika (2006)" / "Paprika (2006).mkv"
+    original_payload = pending_root / "Paprika (2006).mkv"
+    duplicate_payload = pending_root / "Paprika (2006).rerun_20260702_013258_65b88c7d.mkv"
+    original_manifest = pending_root / "Paprika (2006).manifest.json"
+    duplicate_manifest = pending_root / "Paprika (2006).rerun_20260702_013258_65b88c7d.manifest.json"
+    duplicate_sidecar = pending_root / "Paprika (2006).rerun_20260702_013258_65b88c7d.sidecar0.srt"
+    pending_root.mkdir(parents=True, exist_ok=True)
+    source.parent.mkdir(parents=True, exist_ok=True)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(b"source-bytes")
+    original_payload.write_bytes(b"pending-payload")
+    duplicate_payload.write_bytes(b"pending-payload")
+    duplicate_sidecar.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n", encoding="utf-8")
+
+    original = _pending_manifest_payload(original_payload, output, source)
+    duplicate = _pending_manifest_payload(duplicate_payload, output, source)
+    for payload in (original, duplicate):
+        payload["route"] = "csv_rerun"
+        payload["route_reason_code"] = "rerun_csv_pending_publish"
+        payload["publish_mode"] = "pending_publish"
+    duplicate["sidecar_files"] = [
+        {
+            "local_file": str(duplicate_sidecar),
+            "parked_file": str(duplicate_sidecar),
+            "server_out": str(output.with_name("Paprika (2006).eng.srt")),
+            "kind": "tx3g_srt",
+        }
+    ]
+    original_manifest.write_text(json.dumps(original, sort_keys=True), encoding="utf-8")
+    duplicate_manifest.write_text(json.dumps(duplicate, sort_keys=True), encoding="utf-8")
+
+    resolved = _resolved(root)
+    resolved.pending_push_path = pending_root
+    resolved.state_root = root / "State"
+    return resolved, {
+        "source": source,
+        "output": output,
+        "original_payload": original_payload,
+        "duplicate_payload": duplicate_payload,
+        "duplicate_sidecar": duplicate_sidecar,
+        "original_manifest": original_manifest,
+        "duplicate_manifest": duplicate_manifest,
+        "pending_root": pending_root,
+    }
+
+
 def _write_active_job_record(path: Path, *, pid: int | None = None, status: str = "active") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -570,6 +619,48 @@ class RepairReconcileDryRunTests(unittest.TestCase):
         self.assertEqual(proposed["parked_at"], "2026-07-02T00:55:27.4517875-04:00")
         self.assertEqual(proposed["sidecar_files"], [])
         self.assertEqual(proposed["tx3g_srt_tracks"], [])
+
+    def test_pending_manifest_repair_dry_run_resolves_csv_rerun_duplicate_server_out(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved, files = _csv_rerun_duplicate_pending_fixture(root)
+            before = {name: _file_state(path) for name, path in files.items() if path.is_file()}
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+            preview = facade.get_pending_publish_preview(resolved).to_mapping()
+            target = next(
+                row
+                for row in preview["rows"]
+                if row.get("diagnostic_status") == "duplicate_target"
+                and row.get("local_file") == str(files["duplicate_payload"])
+            )
+
+            result = facade.plan_repair_reconcile_dry_run(
+                resolved,
+                candidate_command="pending_publish.repair_manifest",
+                request={"scope": "selected", "row_key": target["row_key"], "reason": "resolve rerun duplicate"},
+            ).to_mapping()
+            after = {name: _file_state(path) for name, path in files.items() if path.is_file()}
+
+        data = result["data"]
+        _assert_dry_run_shape(self, data, "pending_publish.repair_manifest")
+        self.assertEqual(before, after)
+        self.assertTrue(data["safe_to_apply"])
+        self.assertEqual(
+            data["would_write_paths"],
+            [{"path": str(files["duplicate_manifest"]), "reason": "pending manifest repair will rewrite backend-validated manifest fields"}],
+        )
+        row = data["diff_summary"]["rows"][0]
+        self.assertEqual(row["status"], "candidate")
+        self.assertIn("server_out", row["changed_fields"])
+        self.assertIn("sidecar_files", row["changed_fields"])
+        proposed = row["proposed_manifest"]
+        PendingPushManifest.from_mapping(proposed)
+        self.assertEqual(proposed["server_out"], str(files["output"].with_name(files["duplicate_payload"].name)))
+        self.assertEqual(
+            proposed["sidecar_files"][0]["server_out"],
+            str(files["output"].with_name("Paprika (2006).rerun_20260702_013258_65b88c7d.eng.srt")),
+        )
+        self.assertEqual(proposed["local_file"], str(files["duplicate_payload"]))
 
     def test_pending_manifest_repair_dry_run_blocks_incomplete_backend_proposal(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

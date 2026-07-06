@@ -63,10 +63,18 @@ class ApplicationFacadeDiagnosticsTests(unittest.TestCase):
             resolved = _resolved(root)
             assert resolved.active_jobs_path is not None
             resolved.active_jobs_path.mkdir(parents=True)
+            resolved.log_file = root / "pipeline_debug.log"
+            resolved.log_file.write_text(
+                "2026-06-25 20:04:00 [INFO] ENCODE : 65%\n"
+                "2026-06-25 20:04:00 [INFO] ENCODE : 65%\n"
+                "2026-06-25 20:04:01 [INFO] raw tail line\n",
+                encoding="utf-8",
+            )
             cluster_log = root / "cluster.log"
             cluster_log.write_text("first line\n" + ("x" * 3000) + "\nlast line\n", encoding="utf-8")
 
             read_tail = facade.read_diagnostics_tail(resolved, {"target": "cluster_log", "max_bytes": 128})
+            raw_pipeline_tail = facade.read_diagnostics_tail(resolved, {"target": "pipeline_log", "max_bytes": 4096})
             rejected = facade.read_diagnostics_tail(resolved, {"target": str(root / "secret.txt"), "max_bytes": 128})
             folder = facade.read_diagnostics_tail(resolved, {"target": "active_jobs", "max_bytes": 128})
             missing = facade.read_diagnostics_tail(resolved, {"target": "last_stderr_log", "max_bytes": 128})
@@ -81,6 +89,10 @@ class ApplicationFacadeDiagnosticsTests(unittest.TestCase):
         self.assertEqual(read_tail["evidence"]["evidence_authority"], "backend")
         self.assertEqual(read_tail["evidence"]["operator_status"], "review")
         self.assertTrue(read_tail["evidence"]["truncated"])
+        self.assertTrue(raw_pipeline_tail["ok"])
+        self.assertEqual(raw_pipeline_tail["target"], "pipeline_log")
+        self.assertIn("raw tail line", raw_pipeline_tail["text"])
+        self.assertEqual(raw_pipeline_tail["text"].count("ENCODE : 65%"), 2)
         self.assertFalse(rejected["ok"])
         self.assertIn("not allowed", "\n".join(rejected["errors"]))
         self.assertEqual(rejected["evidence"]["operator_status"], "blocked")

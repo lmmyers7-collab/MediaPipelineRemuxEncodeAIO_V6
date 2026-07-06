@@ -188,6 +188,7 @@ function Get-MediaPipelineConfigOrderedKeys {
         'AllowSystemTools','RobocopyTimeoutSeconds','TransientFailureRetryLimit',
         'ConsecutiveRoundFailureBlockLimit','ConsecutiveRoundFailureProbeBackoffSeconds',
         'PendingPublishBacklogBlockThreshold','PendingPublishDeferredBlockThreshold',
+        'AutonomyPendingTotalReviewBytes','AutonomyPendingTotalBlockBytes',
         'PauseFlagReviewSeconds','PauseFlagBlockSeconds',
         'LocalWorkerHeartbeatGraceSeconds','QueueExecutionMaxRunnablePerRound',
         'StateDbMaintenanceIntervalSeconds','StateDbWalReviewBytes','StateDbCompletedJobsMaxRows',

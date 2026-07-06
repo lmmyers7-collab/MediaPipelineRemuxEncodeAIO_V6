@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/pipelineLogWindow.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-29
+last_modified: 2026-07-04
 last_reviewed: 2026-06-24
-sha256: b517a6b4a74499880e184627d1a95b23e54e5ef03c797e26efbe364977bca438
+sha256: f1f0891ab23f25f8467764826bc18878cc4df49b6174376d8dd024cd245b3769
 ---
 # `apps/desktop/webview/static/assets/pipelineLogWindow.js`
 

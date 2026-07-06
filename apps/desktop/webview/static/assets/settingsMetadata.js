@@ -130,6 +130,8 @@
     ["RobocopyTimeoutSeconds", "settings-pending-robocopy-timeout", "number_positive"],
     ["RobocopyFlags", "settings-pending-robocopy-flags", "list"],
     ["OutsourceMinFreeSpaceGB", "settings-pending-outsource-min-free", "number"],
+    ["AutonomyPendingTotalReviewBytes", "settings-pending-review-budget-gib", "bytes_gib"],
+    ["AutonomyPendingTotalBlockBytes", "settings-pending-block-budget-gib", "bytes_gib"],
     ["OutputSizeMultiplier", "settings-pending-output-size-multiplier", "number_float"],
     ["EnableIntegrityCheck", "settings-pending-enable-integrity", "bool"],
     ["SkipStabilityCheck", "settings-pending-skip-stability", "bool"],

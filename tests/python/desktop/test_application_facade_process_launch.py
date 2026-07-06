@@ -27,6 +27,13 @@ def _fresh_generated_at() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def _media_file(root: Path, name: str, *, suffix: str = ".mkv") -> Path:
+    path = root / "Media" / f"{name}{suffix}"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"media")
+    return path
+
+
 class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
     def test_pipeline_start_uses_existing_service_launch_path(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -150,7 +157,8 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             result = facade.start_pipeline_process(resolved, {"mode": "validate"}).to_mapping()
             audit = facade.start_audit_process(resolved, {"library_root": str(root / "Outsource")}).to_mapping()
             rerun_csv = root / "rerun.csv"
-            rerun_csv.write_text("enabled,source_path\ntrue,C:\\Media\\Movie.mkv\n", encoding="utf-8")
+            rerun_source = _media_file(root, "Movie")
+            rerun_csv.write_text(f"enabled,source_path\ntrue,{rerun_source}\n", encoding="utf-8")
             rerun = facade.start_rerun_csv_process(resolved, {"csv_path": str(rerun_csv)}).to_mapping()
             preflight = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "validate"})
             audit_preflight = facade.get_launch_preflight(resolved, {"target": "audit", "library_root": str(root / "Outsource")})
@@ -1101,60 +1109,371 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             csv_path = root / "rerun.csv"
-            csv_path.write_text("enabled,source_path\ntrue,C:\\Media\\Movie.mkv\n", encoding="utf-8")
+            movie = _media_file(root, "Movie")
+            csv_path.write_text(f"enabled,source_path\ntrue,{movie}\n", encoding="utf-8")
             service = DummyWorkflowFacadeService(root)
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             resolved = _resolved(root)
 
-            result = facade.start_rerun_csv_process(resolved, {"csv_path": str(csv_path)}).to_mapping()
+            missing_confirm = facade.start_rerun_csv_process(resolved, {"csv_path": str(csv_path)}).to_mapping()
+            result = facade.start_rerun_csv_process(
+                resolved,
+                {"csv_path": str(csv_path), "confirm_replace_final": True},
+            ).to_mapping()
             default_started = dict(service.started_rerun)
             pending_publish = facade.start_rerun_csv_process(
                 resolved,
                 {"csv_path": str(csv_path), "destination_mode": "pending_publish", "collision_policy": "suffix"},
             ).to_mapping()
             pending_started = dict(service.started_rerun)
-            rejected = facade.start_rerun_csv_process(
+            stale_original = facade.start_rerun_csv_process(
                 resolved,
                 {"csv_path": str(csv_path), "original_mode": "delete"},
             ).to_mapping()
+            stale_started = dict(service.started_rerun)
             conflicting_plan = facade.start_rerun_csv_process(
                 resolved,
-                {"csv_path": str(csv_path), "dry_run": True, "plan_only": True},
+                {"csv_path": str(csv_path), "dry_run": True, "plan_only": True, "confirm_replace_final": True},
             ).to_mapping()
             missing = facade.start_rerun_csv_process(resolved, {}).to_mapping()
 
         self.assertTrue(result["ok"])
         self.assertEqual(result["schema_version"], "desktop_command_result.v1")
         self.assertEqual(result["command"], "rerun.start")
+        self.assertFalse(missing_confirm["ok"])
+        self.assertIn("confirm_replace_final=true", missing_confirm["message"])
         self.assertEqual(result["data"]["pid"], 24682)
         self.assertFalse(result["data"]["dry_run"])
         self.assertFalse(result["data"]["plan_only"])
-        self.assertEqual(default_started["return_mode"], "park")
+        self.assertEqual(default_started["return_mode"], "replace_original")
         self.assertEqual(default_started["execution_mode"], "one_at_a_time")
-        self.assertEqual(default_started["destination_mode"], "review_workspace")
+        self.assertEqual(default_started["destination_mode"], "auto_replace_clean_else_pending_review")
+        self.assertEqual(default_started["collision_policy"], "replace_final")
+        self.assertTrue(default_started["confirm_replace_final"])
         self.assertEqual(result["data"]["execution_mode"], "one_at_a_time")
-        self.assertEqual(result["data"]["destination_mode"], "review_workspace")
+        self.assertEqual(result["data"]["destination_mode"], "auto_replace_clean_else_pending_review")
+        self.assertEqual(result["data"]["collision_policy"], "replace_final")
+        self.assertTrue(result["data"]["confirm_replace_final"])
         self.assertTrue(pending_publish["ok"])
         self.assertEqual(pending_publish["data"]["return_mode"], "pending_publish")
         self.assertEqual(pending_publish["data"]["destination_mode"], "pending_publish")
         self.assertEqual(pending_started["return_mode"], "pending_publish")
         self.assertEqual(pending_started["destination_mode"], "pending_publish")
-        self.assertFalse(rejected["ok"])
-        self.assertIn("lifecycle policy", rejected["message"])
-        self.assertIn("original source policies are disabled", "\n".join(rejected["errors"]))
+        self.assertFalse(pending_publish["data"]["confirm_source_overwrite"])
+        self.assertFalse(pending_started["confirm_source_overwrite"])
+        self.assertTrue(stale_original["ok"])
+        self.assertEqual(stale_original["data"]["original_policy"], "keep")
+        self.assertEqual(stale_started["original_policy"], "keep")
+        self.assertFalse(stale_started["confirm_original_policy"])
+        self.assertFalse(stale_started["confirm_delete_original"])
         self.assertFalse(conflicting_plan["ok"])
         self.assertIn("either dry_run or plan_only", conflicting_plan["message"])
         self.assertFalse(missing["ok"])
         self.assertIn("csv_path", missing["message"])
 
+    def test_network_rerun_start_dry_run_reports_state_files_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+            source_root = root / "ProfileSource"
+            profile_out = root / "ProfileOut"
+            movie = source_root / "Movie.mkv"
+            movie.parent.mkdir(parents=True)
+            movie.write_bytes(b"media")
+            csv_path = root / "rerun.csv"
+            csv_path.write_text(
+                f"enabled,source_path,audit_issue_codes,plex_planned_path\ntrue,{movie},AUDIO,{profile_out / 'Movie.mkv'}\n",
+                encoding="utf-8",
+            )
+            resolved.config_data = {
+                "NetworkRole": "coordinator",
+                "CoordinatorPort": 7830,
+                "CoordinatorBindAddress": "127.0.0.1",
+                "CoordinatorHeartbeatTimeoutMins": 5,
+                "Outsource": str(root / "Outsource"),
+                "LibraryProfiles": [
+                    {
+                        "id": "profile",
+                        "enabled": True,
+                        "source_path": str(source_root),
+                        "output_path": str(profile_out),
+                    }
+                ],
+            }
+            facade._network_lifecycle_state_commit("coordinator", {"role": "coordinator", "status": "running"})
+
+            result = facade.dry_run_network_rerun_csv_start(
+                resolved,
+                {"csv_path": str(csv_path), "confirm_replace_final": True, "reason": "operator review"},
+            ).to_mapping()
+
+        data = result["data"]
+        self.assertTrue(result["ok"])
+        self.assertTrue(data["safe_to_apply"])
+        self.assertTrue(data["dry_run_only"])
+        self.assertEqual(data["effect"], "none")
+        self.assertEqual(data["dry_run_writes"], [])
+        self.assertFalse(data["touches_media"])
+        self.assertFalse(data["writes_queue"])
+        self.assertFalse(data["writes_network_state"])
+        self.assertFalse(data["launches_work"])
+        self.assertEqual(data["preview"]["counts"]["claimable_rows"], 1)
+        self.assertEqual(data["state_files_would_write"][0]["schema_version"], "desktop_rerun_network_batch.v1")
+        self.assertIn("command_journal_entry", data["confirmed_route_would_write"])
+        self.assertFalse((root / "LocalBase" / "State" / "Rerun" / "Network").exists())
+        preconditions = {row["key"]: row for row in data["precondition_results"]}
+        self.assertEqual(preconditions["NetworkRole_is_coordinator"]["status"], "pass")
+        self.assertEqual(preconditions["coordinator_lifecycle_running"]["status"], "pass")
+        self.assertEqual(preconditions["backend_close_readiness_safe"]["status"], "pass")
+        self.assertEqual(preconditions["network_preview_has_claimable_rows"]["status"], "pass")
+        self.assertEqual(preconditions["worker_availability_evidence"]["status"], "review")
+        self.assertTrue(data["dry_run_fingerprint"])
+        self.assertEqual(preconditions["network_batch_state_path_available"]["status"], "pass")
+
+    def test_network_rerun_start_dry_run_blocks_without_coordinator_role_or_lifecycle(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+            movie = _media_file(root, "Movie")
+            csv_path = root / "rerun.csv"
+            csv_path.write_text(f"enabled,source_path,audit_issue_codes\ntrue,{movie},AUDIO\n", encoding="utf-8")
+            resolved.config_data = {"NetworkRole": "standalone", "Outsource": str(root / "Outsource")}
+
+            result = facade.dry_run_network_rerun_csv_start(
+                resolved,
+                {"csv_path": str(csv_path), "confirm_replace_final": True, "minimum_worker_count": 1},
+            ).to_mapping()
+
+        data = result["data"]
+        self.assertFalse(data["safe_to_apply"])
+        preconditions = {row["key"]: row for row in data["precondition_results"]}
+        self.assertEqual(preconditions["NetworkRole_is_coordinator"]["status"], "blocked")
+        self.assertEqual(preconditions["coordinator_lifecycle_running"]["status"], "blocked")
+        self.assertEqual(preconditions["worker_availability_evidence"]["status"], "blocked")
+        self.assertEqual(data["dry_run_writes"], [])
+        self.assertFalse(data["writes_network_state"])
+
+    def test_network_rerun_start_writes_claim_disabled_batch_state_and_strict_journal(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+            source_root = root / "ProfileSource"
+            profile_out = root / "ProfileOut"
+            movie = source_root / "Movie.mkv"
+            movie.parent.mkdir(parents=True)
+            movie.write_bytes(b"media")
+            csv_path = root / "rerun.csv"
+            csv_path.write_text(
+                f"enabled,source_path,audit_issue_codes,plex_planned_path\ntrue,{movie},AUDIO,{profile_out / 'Movie.mkv'}\n",
+                encoding="utf-8",
+            )
+            resolved.config_data = {
+                "NetworkRole": "coordinator",
+                "CoordinatorPort": 7830,
+                "CoordinatorBindAddress": "127.0.0.1",
+                "CoordinatorHeartbeatTimeoutMins": 5,
+                "Outsource": str(root / "Outsource"),
+                "LibraryProfiles": [
+                    {
+                        "id": "profile",
+                        "enabled": True,
+                        "source_path": str(source_root),
+                        "output_path": str(profile_out),
+                    }
+                ],
+            }
+            facade._network_lifecycle_state_commit("coordinator", {"role": "coordinator", "status": "running"})
+            request = {"csv_path": str(csv_path), "confirm_replace_final": True, "reason": "operator review"}
+            dry_run = facade.dry_run_network_rerun_csv_start(resolved, request).to_mapping()
+            journal: list[dict[str, object]] = []
+
+            result = facade.start_network_rerun_csv_batch(
+                resolved,
+                {**request, "dry_run_fingerprint": dry_run["data"]["dry_run_fingerprint"], "confirm_start": True},
+                journal_recorder=lambda payload, request_body: journal.append({"payload": payload, "request": request_body}),
+            ).to_mapping()
+
+            state_path = Path(result["data"]["state_file"]["path"])
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["command"], "rerun.network.start")
+        self.assertTrue(result["data"]["strict_command_journal_recorded"])
+        self.assertTrue(result["data"]["state_written"])
+        self.assertTrue(result["data"]["writes_network_state"])
+        self.assertFalse(result["data"]["touches_media"])
+        self.assertFalse(result["data"]["writes_queue"])
+        self.assertFalse(result["data"]["launches_work"])
+        self.assertEqual(len(journal), 1)
+        self.assertEqual(journal[0]["payload"]["command"], "rerun.network.start")
+        self.assertEqual(state["schema_version"], "desktop_rerun_network_batch.v1")
+        self.assertEqual(state["status"], "claim_disabled")
+        self.assertFalse(state["claim_provider_enabled"])
+        self.assertFalse(state["worker_execution_enabled"])
+        self.assertFalse(state["rows_claimable"])
+        self.assertEqual(state["row_count"], 1)
+        self.assertFalse(state["rows"][0]["claimable"])
+        self.assertEqual(state["rows"][0]["claim_status"], "claim_disabled_until_phase_4")
+
+    def test_network_rerun_start_rejects_stale_dry_run_fingerprint_without_writing_state(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+            movie = _media_file(root, "Movie")
+            csv_path = root / "rerun.csv"
+            csv_path.write_text(f"enabled,source_path,audit_issue_codes\ntrue,{movie},AUDIO\n", encoding="utf-8")
+            resolved.config_data = {"NetworkRole": "coordinator", "Outsource": str(root / "Outsource")}
+            facade._network_lifecycle_state_commit("coordinator", {"role": "coordinator", "status": "running"})
+
+            result = facade.start_network_rerun_csv_batch(
+                resolved,
+                {
+                    "csv_path": str(csv_path),
+                    "confirm_replace_final": True,
+                    "dry_run_fingerprint": "stale",
+                    "confirm_start": True,
+                },
+                journal_recorder=lambda _payload, _request: None,
+            ).to_mapping()
+
+        self.assertFalse(result["ok"])
+        self.assertIn("dry_run_fingerprint_mismatch", result["errors"])
+        self.assertFalse((root / "LocalBase" / "State" / "Rerun" / "Network").exists())
+
+    def test_network_rerun_start_cleans_batch_state_when_strict_journal_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+            movie = _media_file(root, "Movie")
+            csv_path = root / "rerun.csv"
+            csv_path.write_text(f"enabled,source_path,audit_issue_codes\ntrue,{movie},AUDIO\n", encoding="utf-8")
+            resolved.config_data = {"NetworkRole": "coordinator", "Outsource": str(root / "Outsource")}
+            facade._network_lifecycle_state_commit("coordinator", {"role": "coordinator", "status": "running"})
+            request = {"csv_path": str(csv_path), "confirm_replace_final": True}
+            dry_run = facade.dry_run_network_rerun_csv_start(resolved, request).to_mapping()
+
+            def failing_journal(_payload: dict[str, object], _request: dict[str, object] | None) -> None:
+                raise RuntimeError("journal unavailable")
+
+            result = facade.start_network_rerun_csv_batch(
+                resolved,
+                {**request, "dry_run_fingerprint": dry_run["data"]["dry_run_fingerprint"], "confirm_start": True},
+                journal_recorder=failing_journal,
+            ).to_mapping()
+            state_path = Path(result["data"]["state_file"]["path"])
+
+        self.assertFalse(result["ok"])
+        self.assertIn("command_journal_write_failed", result["errors"][0])
+        self.assertIn("state_cleanup_ok", result["data"]["cleanup_result"])
+        self.assertFalse(state_path.exists())
+        self.assertFalse(result["data"]["writes_network_state"])
+
+    def test_rerun_start_blocks_relative_source_rows_before_spawn(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            csv_path = root / "rerun-relative.csv"
+            csv_path.write_text("enabled,source_path\ntrue,relative-source.mkv\n", encoding="utf-8")
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+
+            result = facade.start_rerun_csv_process(
+                resolved,
+                {"csv_path": str(csv_path), "confirm_replace_final": True},
+            ).to_mapping()
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["command"], "rerun.start")
+        self.assertEqual(result["data"]["counts"]["relative_source_rows"], 1)
+        self.assertIn("relative source_path", "\n".join(result["errors"]))
+        self.assertFalse(hasattr(service, "started_rerun"))
+
+    def test_rerun_start_blocks_duplicate_source_rows_before_spawn(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            source = _media_file(root, "Duplicate")
+            csv_path = root / "rerun-duplicates.csv"
+            csv_path.write_text(
+                f"enabled,source_path\ntrue,{source}\ntrue,{source}\n",
+                encoding="utf-8",
+            )
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+
+            result = facade.start_rerun_csv_process(
+                resolved,
+                {"csv_path": str(csv_path), "confirm_replace_final": True},
+            ).to_mapping()
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["command"], "rerun.start")
+        self.assertEqual(result["data"]["status"], "blocked")
+        self.assertEqual(result["data"]["counts"]["duplicate_source_rows"], 2)
+        self.assertIn("duplicate source_path", "\n".join(result["errors"]))
+        self.assertFalse(hasattr(service, "started_rerun"))
+
+    def test_rerun_start_blocks_duplicate_planned_output_rows_before_spawn(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            correct = root / "Media" / "Hellboy II The Golden Army (2008)" / "Hellboy II The Golden Army (2008).mkv"
+            duplicate = root / "Outsource" / "Hellboy II The Golden Army (2008)" / "Hellboy II The Golden Army (2008).mkv"
+            for path in (correct, duplicate):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"media")
+            csv_path = root / "rerun-duplicate-output.csv"
+            csv_path.write_text(
+                "enabled,source_path,media_kind\n"
+                f"true,{correct},Movie\n"
+                f"true,{duplicate},Movie\n",
+                encoding="utf-8",
+            )
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+
+            result = facade.start_rerun_csv_process(
+                resolved,
+                {"csv_path": str(csv_path), "confirm_replace_final": True},
+            ).to_mapping()
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["command"], "rerun.start")
+        self.assertEqual(result["data"]["status"], "blocked")
+        self.assertEqual(result["data"]["counts"]["duplicate_planned_output_rows"], 2)
+        self.assertIn("duplicate planned output path", "\n".join(result["errors"]))
+        self.assertFalse(hasattr(service, "started_rerun"))
+
     def test_rerun_plan_launches_backend_plan_and_start_materializes_scoped_csv(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             csv_path = root / "rerun.csv"
+            movie = _media_file(root, "Movie")
+            skip = _media_file(root, "Skip")
             csv_path.write_text(
                 "enabled,source_path,primary_issue_code,effective_bucket\n"
-                "true,C:\\Media\\Movie.mkv,audio-default-policy-mismatch,movie\n"
-                "false,C:\\Media\\Skip.mkv,subtitle-missing-text,movie\n",
+                f"true,{movie},audio-default-policy-mismatch,movie\n"
+                f"false,{skip},subtitle-missing-text,movie\n",
                 encoding="utf-8",
             )
             service = DummyWorkflowFacadeService(root)
@@ -1162,15 +1481,21 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             resolved = _resolved(root)
             resolved.state_root = root / "State"
 
-            plan = facade.start_rerun_csv_process(resolved, {"csv_path": str(csv_path), "plan_only": True}).to_mapping()
+            plan = facade.start_rerun_csv_process(
+                resolved,
+                {"csv_path": str(csv_path), "plan_only": True, "confirm_replace_final": True},
+            ).to_mapping()
             scoped_dir = root / "State" / "Rerun" / "ScopedCsv"
             self.assertTrue(plan["ok"])
             self.assertEqual(plan["data"]["pid"], 24682)
             self.assertTrue(plan["data"]["plan_only"])
             self.assertEqual(service.started_rerun["plan_only"], True)
-            self.assertEqual(service.started_rerun["return_mode"], "park")
+            self.assertEqual(service.started_rerun["return_mode"], "replace_original")
 
-            result = facade.start_rerun_csv_process(resolved, {"csv_path": str(csv_path), "dry_run": True}).to_mapping()
+            result = facade.start_rerun_csv_process(
+                resolved,
+                {"csv_path": str(csv_path), "dry_run": True, "confirm_replace_final": True},
+            ).to_mapping()
 
             self.assertTrue(result["ok"])
             scoped_csv = Path(str(result["data"]["scoped_csv_path"]))
@@ -1186,7 +1511,8 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             csv_path = root / "rerun.csv"
-            csv_path.write_text("enabled,source_path\ntrue,C:\\Media\\Movie.mkv\n", encoding="utf-8")
+            movie = _media_file(root, "Movie")
+            csv_path.write_text(f"enabled,source_path\ntrue,{movie}\n", encoding="utf-8")
             service = DummyWorkflowFacadeService(root)
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             resolved = _resolved(root)
@@ -1196,7 +1522,10 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             try:
                 pipeline = facade.start_pipeline_process(resolved, {"mode": "validate"}).to_mapping()
                 audit = facade.start_audit_process(resolved, {}).to_mapping()
-                rerun = facade.start_rerun_csv_process(resolved, {"csv_path": str(csv_path)}).to_mapping()
+                rerun = facade.start_rerun_csv_process(
+                    resolved,
+                    {"csv_path": str(csv_path), "confirm_replace_final": True},
+                ).to_mapping()
             finally:
                 facade._process_launch_lock.release()  # type: ignore[attr-defined]
 
@@ -1316,6 +1645,52 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         readiness_rows = {row["key"]: row for row in preflight["operator_readiness"]["non_ready_checks"]}
         self.assertEqual(readiness_rows["autonomy_health"]["recovery_actions"][0]["kind"], "pending_publish_recovery_plan")
 
+    def test_pending_drain_mode_bypasses_autonomy_new_work_block(self) -> None:
+        blocked_autonomy = {
+            "overall_status": "blocked",
+            "launch_gate": {
+                "can_start_new_work": False,
+                "safe_next_action": "Publish parked outputs before starting more queue work.",
+            },
+            "blockers": [
+                {
+                    "code": "autonomy_pending_bytes_over_budget",
+                    "message": "Pending publish parked bytes exceed the blocked budget.",
+                    "next_action": "Publish the parked outputs before starting more queue work.",
+                    "recovery_action": {
+                        "kind": "drain_pending_pushes",
+                        "label": "Drain parked outputs",
+                        "route": "/api/pipeline/start",
+                        "request": {"mode": "drain_pending_pushes"},
+                    },
+                }
+            ],
+            "review_items": [],
+        }
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            facade._autonomy_health_for_resolved = lambda _resolved_arg, **_kwargs: blocked_autonomy  # type: ignore[method-assign]
+            resolved = _resolved(root)
+
+            normal = facade.start_pipeline_process(resolved, {"mode": "validate"}).to_mapping()
+            drain_preflight = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "drain_pending_pushes"})
+            drain = facade.start_pipeline_process(resolved, {"mode": "drain_pending_pushes"}).to_mapping()
+
+        self.assertFalse(normal["ok"])
+        self.assertEqual(normal["data"]["schema_version"], "desktop_pipeline_autonomy_launch_block.v1")
+        self.assertTrue(drain["ok"])
+        self.assertEqual(drain["data"]["mode"], "drain_pending_pushes")
+        self.assertEqual(service.started_pipeline["mode"], "drain_pending_pushes")
+        self.assertNotEqual(drain_preflight["status"], "blocked")
+        self.assertTrue(drain_preflight["can_request_start"])
+        rows = {row["key"]: row for row in drain_preflight["checks"]}
+        self.assertEqual(rows["autonomy_health"]["status"], "review")
+        self.assertIn("can_start_new_work=no", rows["autonomy_health"]["evidence"])
+        self.assertIn("can_attempt_pending_drain=yes", rows["autonomy_health"]["evidence"])
+        self.assertIn("recovery work", rows["autonomy_health"]["action"])
+
     def test_pipeline_start_blocked_by_active_work_does_not_cancel_existing_schedule_watcher(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -1343,7 +1718,8 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             csv_path = root / "rerun.csv"
-            csv_path.write_text("enabled,source_path\ntrue,C:\\Media\\Movie.mkv\n", encoding="utf-8")
+            movie = _media_file(root, "Movie")
+            csv_path.write_text(f"enabled,source_path\ntrue,{movie}\n", encoding="utf-8")
             (root / "Outsource").mkdir()
             service = DummyWorkflowFacadeService(root)
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
@@ -1369,10 +1745,13 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             )
             invalid_mode = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "bad"})
             audit = facade.get_launch_preflight(resolved, {"target": "audit", "include_sidecars": True})
-            rerun = facade.get_launch_preflight(resolved, {"target": "rerun", "csv_path": str(csv_path)})
+            rerun = facade.get_launch_preflight(
+                resolved,
+                {"target": "rerun", "csv_path": str(csv_path), "confirm_replace_final": True},
+            )
             blocked_rerun = facade.get_launch_preflight(
                 resolved,
-                {"target": "rerun", "csv_path": str(csv_path), "original_mode": "delete"},
+                {"target": "rerun", "csv_path": str(csv_path), "destination_mode": "publish_replace_final"},
             )
             has_started_side_effects = any(
                 hasattr(service, attr)
@@ -1408,10 +1787,44 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertEqual(rerun["target"], "rerun")
         self.assertEqual(rerun["start_route"], "/api/rerun/start")
         self.assertEqual(rerun["request"]["execution_mode"], "one_at_a_time")
-        self.assertEqual(rerun["request"]["destination_mode"], "review_workspace")
-        self.assertEqual(rerun["request"]["original_policy"], "keep")
+        self.assertEqual(rerun["request"]["destination_mode"], "auto_replace_clean_else_pending_review")
+        self.assertEqual(rerun["request"]["collision_policy"], "replace_final")
+        self.assertTrue(rerun["request"]["confirm_replace_final"])
+        self.assertNotIn("original_policy", rerun["request"])
+        self.assertTrue(any(row["key"] == "csv_rerun_rows" and row["status"] == "ready" for row in rerun["checks"]))
         self.assertEqual(blocked_rerun["status"], "blocked")
         self.assertTrue(any(row["key"] == "lifecycle_policy" and row["status"] == "blocked" for row in blocked_rerun["checks"]))
+        self.assertTrue(any(row["key"] == "csv_rerun_rows" and row["status"] == "blocked" for row in blocked_rerun["checks"]))
+
+    def test_rerun_launch_preflight_mirrors_csv_preview_blockers_without_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            csv_path = root / "rerun.csv"
+            invalid_extension = _media_file(root, "Notes", suffix=".txt")
+            missing = root / "Media" / "Missing.mkv"
+            csv_path.write_text(
+                "enabled,source_path\n"
+                "true,relative/movie.mkv\n"
+                f"true,{missing}\n"
+                f"true,{invalid_extension}\n",
+                encoding="utf-8",
+            )
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.state_root = root / "State"
+
+            preflight = facade.get_launch_preflight(resolved, {"target": "rerun", "csv_path": str(csv_path)})
+
+        checks = {row["key"]: row for row in preflight["checks"]}
+        self.assertEqual(preflight["status"], "blocked")
+        self.assertFalse(preflight["can_request_start"])
+        self.assertEqual(checks["csv_rerun_rows"]["status"], "blocked")
+        self.assertIn("relative=1", checks["csv_rerun_rows"]["evidence"])
+        self.assertIn("missing_files=1", checks["csv_rerun_rows"]["evidence"])
+        self.assertIn("invalid_extensions=1", checks["csv_rerun_rows"]["evidence"])
+        self.assertFalse(hasattr(service, "started_rerun"))
+        self.assertFalse((root / "State" / "Rerun" / "ScopedCsv").exists())
 
     def test_launch_preflight_surfaces_configured_path_health_warning(self) -> None:
         health = {

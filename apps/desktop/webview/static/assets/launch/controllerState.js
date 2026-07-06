@@ -11,6 +11,41 @@
     return ["processing", "running", "active", "publishing", "audit", "rerun", "stopping", "paused"].includes(state);
   }
 
+  function activeJobRows(snapshot = state.lastLaunchCommandState.snapshot, closeReadiness = state.lastLaunchCommandState.closeReadiness) {
+    const rows = [];
+    [
+      snapshot?.worker_progress?.rows,
+      snapshot?.workers,
+      snapshot?.active_jobs,
+      snapshot?.diagnostics?.active_jobs,
+      closeReadiness?.active_jobs,
+    ].forEach((source) => {
+      if (Array.isArray(source)) rows.push(...source.filter((row) => row && typeof row === "object"));
+    });
+    return rows;
+  }
+
+  function launchActiveJobKind(snapshot = state.lastLaunchCommandState.snapshot, closeReadiness = state.lastLaunchCommandState.closeReadiness) {
+    const rows = activeJobRows(snapshot, closeReadiness);
+    const activeRows = rows.filter((row) => {
+      const status = String(row.status || row.status_state || "").trim().toLowerCase();
+      return !status || ["launching", "active", "running", "processing"].includes(status);
+    });
+    const match = (activeRows.length ? activeRows : rows).find((row) => {
+      const kind = String(row.job_kind || row.kind || "").trim().replace(/-/g, "_").toLowerCase();
+      return kind === "rerun_csv" || kind === "csv_rerun";
+    });
+    if (match) return "rerun_csv";
+    const reason = String(closeReadiness?.reason || snapshot?.active_work_reason || "").trim().toLowerCase();
+    if (/\bcsv\b.*\brerun\b|\brerun\b.*\bcsv\b/.test(reason)) return "rerun_csv";
+    const first = (activeRows[0] || rows[0]) || null;
+    return String(first?.job_kind || first?.kind || "").trim().replace(/-/g, "_").toLowerCase();
+  }
+
+  function launchRerunCsvIsActive(snapshot = state.lastLaunchCommandState.snapshot, closeReadiness = state.lastLaunchCommandState.closeReadiness) {
+    return launchActiveJobKind(snapshot, closeReadiness) === "rerun_csv";
+  }
+
   function pipelineProgressIsStuck(snapshot = state.lastLaunchCommandState.snapshot) {
     const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
     const stage = String(progress.CurrentStage || progress.current_stage || "").toLowerCase().trim();
@@ -82,6 +117,9 @@
 
     return {
       launchPipelineIsActive,
+      activeJobRows,
+      launchActiveJobKind,
+      launchRerunCsvIsActive,
       pipelineProgressIsStuck,
       pipelineProgressIsStale,
       launchPauseRequested,

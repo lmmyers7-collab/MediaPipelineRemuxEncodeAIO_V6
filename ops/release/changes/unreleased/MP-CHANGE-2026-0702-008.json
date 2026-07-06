@@ -1,0 +1,57 @@
+{
+  "id": "MP-CHANGE-2026-0702-008",
+  "title": "CSV rerun pending publish destination guard",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-02",
+  "date_completed": "2026-07-02",
+  "summary": "Prevent CSV rerun pending-publish manifests from reusing an existing server_out destination and add a backend repair candidate for trusted CSV rerun duplicates.",
+  "reason": "Backend autonomy health blocked launch because a CSV rerun parked payload kept the original final-library server_out while the parked local payload was suffixed, creating duplicate pending-publish destinations.",
+  "affected_areas": [
+    "backend",
+    "generated",
+    "pipeline",
+    "tests"
+  ],
+  "behavior_before": "CSV rerun pending-publish and backend rerun promotion could suffix the parked local payload while leaving server_out pointed at an existing pending-publish destination, making the pending manifest set untrusted.",
+  "behavior_after": "CSV rerun pending-publish and backend rerun promotion reserve existing pending-publish server_out destinations before manifest creation, and repair/reconcile can propose and apply a validated manifest-only repair for trusted CSV rerun duplicate rows.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/entrypoints/Invoke-RerunCsv.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/rerun_results.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/repair_reconcile/dry_run.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_process_rerun_results.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_repair_reconcile_apply.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_repair_reconcile_dry_run.py.md",
+    "ops/pipeline/entrypoints/Invoke-RerunCsv.ps1",
+    "ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0702-008.json",
+    "src/mediapipeline/core/processes/rerun_results.py",
+    "src/mediapipeline/core/repair_reconcile/dry_run.py",
+    "tests/python/desktop/test_process_rerun_results.py",
+    "tests/python/desktop/test_repair_reconcile_apply.py",
+    "tests/python/desktop/test_repair_reconcile_dry_run.py"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1 static contract checks for CSV rerun pending server_out guards",
+    "tests/python/desktop/test_process_rerun_results.py::ProcessRerunResultsTests::test_promote_suffixes_existing_pending_server_destination",
+    "tests/python/desktop/test_repair_reconcile_apply.py::RepairReconcileApplyTests::test_pending_manifest_repair_apply_resolves_csv_rerun_duplicate_server_out_only",
+    "tests/python/desktop/test_repair_reconcile_dry_run.py::RepairReconcileDryRunTests::test_pending_manifest_repair_dry_run_resolves_csv_rerun_duplicate_server_out"
+  ],
+  "manual_validation": [
+    "Ran backend launch preflight after live repair; launch blocker cleared with can_request_start=true and overall_status=review.",
+    "Ran backend recovery-plan, repair-manifest-dry-run, and repair-manifest-apply against the live Paprika CSV rerun duplicate manifest; repaired server_out to a rerun-suffixed server destination and verified no duplicate pending-publish server_out remains.",
+    "Ran the priority CSV E:\\Videos\\Scratch\\AuditReports\\audit_summary_20260629_211102.priority.csv through the backend CSV rerun start route with scope.first_n=3, destination_mode=pending_publish, collision_policy=suffix, execution_mode=one_at_a_time; rerun batch rerun_20260702_142144_944753fe completed success=3 review=0 pending_publish=3 published=0 failed=0 pipeline_exit_failures=0.",
+    "Verified the three proof-run pending-publish manifests for Paprika (2006), Delicatessen (1991), and Cars (2006): parked payloads exist, output_size matches the local payload size, and the full PendingServerPush manifest set has duplicate server_out count 0.",
+    "Queried GET /api/launch/preflight after the proof run; CSV rerun preflight returned ready with 7 ready checks, and pipeline preflight returned review with 14 ready checks, 1 review check, 0 blocked checks, autonomy evidence overall_status=review and can_start_new_work=yes.",
+    "Ran .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_repair_reconcile_dry_run tests.python.desktop.test_repair_reconcile_apply tests.python.desktop.test_process_rerun_results tests.python.desktop.test_pending_publish_service tests.python.desktop.test_service_pending_publish_manifest -q; 44 tests passed.",
+    "Ran .\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-ContractSchemaChecks.ps1; contract schema checks passed.",
+    "Parsed ops\\pipeline\\entrypoints\\Invoke-RerunCsv.ps1 with System.Management.Automation.Language.Parser; no parser errors.",
+    "Ran change-control validate_changes --require-worktree-coverage; coverage validation passed."
+  ],
+  "rollback_plan": "Revert the changed Python and PowerShell files in this packet. For the live manifest repair, restore the backed-up manifest from E:\\Videos\\Scratch\\State\\RepairReconcileBackups\\repair-reconcile-20260702T180231Z-03b8d700 if the operator intentionally wants the previous duplicate state back for diagnosis.",
+  "related_changes": [],
+  "notes": "Resolve backend rerun promote pending-publish destinations before manifest creation.\nHonor pending-publish server_out collisions before CSV rerun parking.\nGuard CSV rerun pending-publish destination resolution contract.\nCover existing pending server_out collision during rerun promotion.\nAdd backend-authored repair candidate for duplicate CSV rerun pending-publish server destinations.\nCover dry-run repair candidate for trusted CSV rerun duplicate pending manifest.\nCover apply path for duplicate CSV rerun pending manifest repair.\nRefresh generated summary after CSV rerun destination guard changes.\nRefresh generated summary after contract check updates.\nRefresh generated summary after rerun promotion destination guard changes.\nRefresh generated summary after repair reconcile dry-run changes.\nRefresh generated summary after rerun results tests changed.\nRefresh generated summary after repair apply tests changed.\nRefresh generated summary after repair dry-run tests changed.\nFix pending server destination HashSet return so destination policy can reserve server_out values during live CSV rerun parking.\nAdd static guard for non-enumerating pending server destination set return."
+}

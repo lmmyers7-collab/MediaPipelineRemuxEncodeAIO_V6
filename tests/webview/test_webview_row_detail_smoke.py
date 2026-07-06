@@ -1187,7 +1187,8 @@ def _node_runner_source() -> str:
             "Open Completed Manifest and sidecar/output evidence.",
             "Read Run Logs or Last Stderr before rerun.",
             "Paths",
-            "Authority: this summary is read-only",
+            "Mutation guardrail: read-only evidence",
+            "backend routes own output and manifest changes",
           ]);
           const selectedSummary = context.document.getElementById("completed-selected-summary");
           const signalButtons = selectedSummary.querySelectorAll("button[data-signal-key]");
@@ -1346,7 +1347,8 @@ def _node_runner_source() -> str:
             "Review flag explanations:",
             "missing_output: expected output proof is missing.",
             "consistency:missing_sidecar: sidecar or metadata proof is missing or inconsistent.",
-            "Mutation guardrail: review-flag explanations translate Completed history markers only",
+            "Mutation guardrail: read-only evidence",
+            "backend routes own output and manifest changes",
             "Primary issue(s): output missing or unhealthy; sidecar missing or inconsistent; output grew more than 5%",
             "Combined completed-row review plan:",
             "Signals: missing output; sidecar/metadata mismatch; size growth over policy; fresh runtime failure",
@@ -1501,7 +1503,8 @@ def _node_runner_source() -> str:
             "Pending publish filter: text=\"definitely-no-pending-match\"; status=all; view=all signals; showing 0 of 1 row.",
             "Hidden review rows: 1.",
             "clear or change this filter before publish/drain decisions",
-            "Mutation guardrail: filtering Pending Publish rows does not change drain scope",
+            "Mutation guardrail: read-only evidence",
+            "backend routes own pending-publish changes",
           ]);
           requireText("pending-detail", [
             "Selected row visible in table: no",

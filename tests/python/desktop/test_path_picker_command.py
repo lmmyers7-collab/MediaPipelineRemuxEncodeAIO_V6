@@ -29,7 +29,7 @@ class PathPickerCommandTests(unittest.TestCase):
 
     def test_rejects_invalid_selection_mode_for_target(self) -> None:
         payload = PathPickerHarness()._path_picker_browse_payload(
-            {"target_key": "launch.rerun_csv", "selection_mode": "folder"}
+            {"target_key": "queue.rerun_csv", "selection_mode": "folder"}
         )
 
         self.assertFalse(payload["ok"])
@@ -73,6 +73,7 @@ class PathPickerCommandTests(unittest.TestCase):
             selected_by_target = {
                 "reports.audit_library_root": str(root),
                 "launch.rerun_csv": str(csv_path),
+                "queue.rerun_csv": str(csv_path),
                 "settings.wizard.ffmpeg_path": str(exe_path),
                 "launch.single_file": str(media_path),
             }
@@ -147,7 +148,7 @@ class PathPickerCommandTests(unittest.TestCase):
 
             harness._path_picker = _picker  # type: ignore[attr-defined]
 
-            payload = harness._path_picker_browse_payload({"target_key": "launch.rerun_csv", "initial_path": ""})
+            payload = harness._path_picker_browse_payload({"target_key": "queue.rerun_csv", "initial_path": ""})
 
             self.assertTrue(payload["ok"], payload)
             self.assertEqual(captured_kwargs["initial_path"], str(audit_reports))
@@ -180,7 +181,7 @@ class PathPickerCommandTests(unittest.TestCase):
             )
 
             payload = harness._path_picker_browse_payload(
-                {"target_key": "launch.rerun_csv", "initial_path": str(explicit_csv)}
+                {"target_key": "queue.rerun_csv", "initial_path": str(explicit_csv)}
             )
 
             self.assertTrue(payload["ok"], payload)
@@ -200,7 +201,7 @@ class PathPickerCommandTests(unittest.TestCase):
                 "errors": [],
             }
 
-            payload = harness._path_picker_browse_payload({"target_key": "launch.rerun_csv"})
+            payload = harness._path_picker_browse_payload({"target_key": "queue.rerun_csv"})
 
             self.assertFalse(payload["ok"])
             self.assertEqual(payload["severity"], "warning")

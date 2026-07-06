@@ -701,6 +701,74 @@ class LocalApiHttpTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertEqual(shutdown["data"]["state"], "processing")
         self.assertFalse(shutdown_event.wait(0.2))
 
+    def test_completed_route_includes_parked_pending_publish_overlay(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            pending_root = root / "PendingServerPush"
+            pending_root.mkdir(parents=True)
+            parked_file = pending_root / "Cars (2006).mkv"
+            parked_file.write_bytes(b"parked-output")
+            destination = root / "Final" / "Movies" / "Cars (2006).mkv"
+            source = root / "Source" / "Cars (2006).mkv"
+            manifest_path = pending_root / "Cars (2006).mkv.manifest.json"
+            manifest_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "pending_push_manifest.v1",
+                        "parked_at": "2026-07-04T23:20:00-04:00",
+                        "pipeline_version": "test",
+                        "publish_transaction_id": "tx-cars",
+                        "manifest_state": "parked",
+                        "local_file": str(parked_file),
+                        "server_out": str(destination),
+                        "route": "remux",
+                        "source_identity_v2": "source-id-cars",
+                        "source_identity_v2_algorithm": "sha256",
+                        "source_path": str(source),
+                        "source_size": 4096,
+                        "output_size": parked_file.stat().st_size,
+                        "publish_mode": "deferred",
+                        "sidecar_files": [],
+                        "tx3g_srt_tracks": [],
+                        "tx3g_srt_failures": [],
+                        "bdpgs_srt_failures": [],
+                        "vobsub_srt_failures": [],
+                        "tx3g_embedded_srt_tracks": [],
+                        "bdpgs_embedded_srt_tracks": [],
+                        "vobsub_embedded_srt_tracks": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            completed_manifest = root / "State" / "Completed" / "completed_jobs.jsonl"
+            completed_manifest.parent.mkdir(parents=True)
+            completed_manifest.write_text("", encoding="utf-8")
+            resolved = _resolved(root)
+            resolved.completed_manifest_path = completed_manifest
+            resolved.pending_push_path = pending_root
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root), app_version="v6-test")
+            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved)
+            try:
+                server.start()
+                completed_status, completed = self._get_json(
+                    f"{server.url}/api/completed",
+                    token="test-token",
+                )
+            finally:
+                server.stop()
+
+        self.assertEqual(completed_status, 200)
+        self.assertEqual(completed["schema_version"], "desktop_completed_preview.v1")
+        self.assertEqual(completed["count"], 1)
+        self.assertEqual(completed["completed_pending_proof"]["schema_version"], "desktop_completed_pending_proof.v1")
+        row = completed["rows"][0]
+        self.assertEqual(row["completed_source"], "pending_publish")
+        self.assertEqual(row["publish_state"], "parked")
+        self.assertEqual(row["operator_status_state"], "parked")
+        self.assertEqual(row["pending_publish_manifest_path"], str(manifest_path))
+        self.assertEqual(row["output_path"], str(destination))
+        self.assertEqual(row["available_open_targets"], [])
+
 
 class _FailureArtifactCleanupRouteService(DummyFacadeService, FailureCleanupServiceMixin):
     def _path_within_root(self, path: Path, root: Path) -> bool:

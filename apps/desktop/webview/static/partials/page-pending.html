@@ -1,23 +1,80 @@
       <section class="page" data-page-panel="pending">
         <h1 class="visually-hidden">Pending Publish</h1>
-        <div class="metric-grid">
-          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="pending" data-quick-link-module="pending" data-quick-link-action="manifests" aria-label="Filter Pending Publish rows by manifest evidence" title="Filter by manifest evidence">
-            <span class="metric-label">Manifests</span>
-            <strong id="pending-count">0</strong>
-          </section>
-          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="pending" data-quick-link-module="pending" data-quick-link-action="payloads" aria-label="Filter Pending Publish rows by payload evidence" title="Filter by payload evidence">
-            <span class="metric-label">Payloads</span>
-            <strong id="pending-payload-count">0</strong>
-          </section>
-          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="pending" data-quick-link-focus="#pending-summary" aria-label="Focus Pending Publish size summary" title="Focus Pending Publish summary">
-            <span class="metric-label">Size</span>
-            <strong id="pending-size">0 B</strong>
-          </section>
-          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="pending" data-quick-link-module="pending" data-quick-link-action="review" aria-label="Show Pending Publish rows needing review" title="Show rows needing review">
-            <span class="metric-label">Health</span>
-            <strong id="pending-health-count">0</strong>
-          </section>
-        </div>
+        <section class="panel pending-action-center pending-ops-band" data-layout-editor-exclude data-panel-type="interactive">
+          <div class="pending-action-center-header">
+            <div>
+              <h2>Pending Publish Operations</h2>
+              <p id="pending-action-subtitle" class="note">Load backend pending-publish evidence to see the next safe action.</p>
+            </div>
+            <strong id="pending-action-status" data-state="unknown">Not loaded</strong>
+          </div>
+          <div class="pending-action-layout pending-ops-layout" aria-live="polite">
+            <div class="pending-action-primary" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="pending" data-quick-link-focus=".pending-action-center" aria-label="Focus Pending Publish Operations" title="Focus Pending Publish Operations">
+              <span class="metric-label">Next action</span>
+              <strong id="pending-action-primary">Refresh evidence</strong>
+              <p id="pending-action-reason" class="note">Backend evidence has not been loaded yet.</p>
+              <div class="pending-action-controls action-row action-row-left wrap-actions">
+                <button type="button" id="pending-action-drain-button" class="danger-button">Drain Parked Outputs</button>
+                <button type="button" id="pending-action-refresh-button" class="secondary-button">Refresh Evidence</button>
+                <button type="button" id="pending-action-blockers-button" class="secondary-button">Show Blockers</button>
+              </div>
+              <p id="pending-action-feedback" class="note">Primary controls call backend-owned routes only; troubleshooting evidence is in Advanced.</p>
+            </div>
+            <div class="pending-action-filter-grid pending-ops-metrics" aria-label="Pending publish triage filters">
+              <button type="button" class="pending-action-filter" data-pending-action-filter="all">
+                <span>Total pending</span>
+                <strong id="pending-count" class="num">0</strong>
+                <small>manifest rows loaded</small>
+              </button>
+              <button type="button" class="pending-action-filter" data-pending-action-filter="ready">
+                <span>Ready to drain</span>
+                <strong id="pending-action-ready-count" class="num">0</strong>
+                <small>backend-ready rows</small>
+              </button>
+              <button type="button" class="pending-action-filter" data-pending-action-filter="review">
+                <span>Needs review</span>
+                <strong id="pending-action-review-count" class="num">0</strong>
+                <small>read-first rows</small>
+              </button>
+              <button type="button" class="pending-action-filter" data-pending-action-filter="evidence">
+                <span>Evidence missing</span>
+                <strong id="pending-action-evidence-count" class="num">0</strong>
+                <small>payload or sidecar gaps</small>
+              </button>
+              <button type="button" class="pending-action-filter" data-pending-action-filter="blocked">
+                <span>Blocked</span>
+                <strong id="pending-action-blocked-count" class="num">0</strong>
+                <small>do-not-drain evidence</small>
+              </button>
+              <button type="button" class="pending-action-filter" data-pending-action-filter="failed">
+                <span>Failed</span>
+                <strong id="pending-action-failed-count" class="num">0</strong>
+                <small>error severity rows</small>
+              </button>
+              <button type="button" class="pending-action-filter" data-pending-action-filter="drained">
+                <span>Drained</span>
+                <strong id="pending-action-drained-count" class="num">0</strong>
+                <small>latest summary rows</small>
+              </button>
+              <button type="button" class="pending-action-filter" data-pending-action-filter="payloads">
+                <span>Total size</span>
+                <strong id="pending-size" class="num">0 B</strong>
+                <small><span id="pending-payload-count">0</span> payloads; <span id="pending-health-count">0</span> health signals</small>
+              </button>
+            </div>
+          </div>
+          <details class="pending-compact-detail">
+            <summary>Loaded evidence summary</summary>
+            <pre id="pending-summary" class="prose-block">No pending publish data loaded.</pre>
+            <div id="pending-inventory-progress-bars" class="progress-bar-list" aria-live="polite">
+              <p class="note">No pending inventory progress loaded.</p>
+            </div>
+          </details>
+          <details class="pending-compact-detail">
+            <summary>Decision detail</summary>
+            <pre id="pending-action-detail" class="prose-block">No Pending Publish action evidence loaded.</pre>
+          </details>
+        </section>
         <section class="panel live-run-strip-panel" data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Live Run</h2>
@@ -30,55 +87,109 @@
             </span>
           </div>
         </section>
-        <section class="panel pending-action-center" data-layout-editor-exclude data-panel-type="interactive">
-          <div class="pending-action-center-header">
-            <div>
-              <h2>Pending Publish Action Center</h2>
-              <p id="pending-action-subtitle" class="note">Load backend pending-publish evidence to see the next safe action.</p>
+        <div class="pending-workbench-grid" data-layout-editor-exclude>
+          <section class="panel pending-inventory-panel" data-layout-editor-exclude data-panel-type="interactive">
+            <div class="panel-heading">
+              <h2>File Inventory</h2>
+              <strong id="pending-status">No rows</strong>
             </div>
-            <strong id="pending-action-status" data-state="unknown">Not loaded</strong>
-          </div>
-          <div class="pending-action-layout" aria-live="polite">
-            <div class="pending-action-primary" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="pending" data-quick-link-focus=".pending-action-center" aria-label="Focus Pending Publish Action Center" title="Focus Pending Publish Action Center">
-              <span class="metric-label">Next action</span>
-              <strong id="pending-action-primary">Refresh evidence</strong>
-              <p id="pending-action-reason" class="note">Backend evidence has not been loaded yet.</p>
+            <div class="form-grid launch-form-grid">
+              <label>
+                Search pending files
+                <input id="pending-filter" type="search" autocomplete="off" placeholder="File, manifest, destination, reason">
+              </label>
+              <label>
+                Status
+                <select id="pending-status-filter">
+                  <option value="all">All rows</option>
+                  <option value="ready">Ready</option>
+                  <option value="warning">Needs Review</option>
+                  <option value="blocked">Blocked</option>
+                  <option value="failed">Failed</option>
+                  <option value="completed">Drained</option>
+                  <option value="skipped">Skipped</option>
+                </select>
+              </label>
+              <label>
+                Quick filter
+                <select id="pending-investigation-filter">
+                  <option value="all">All signals</option>
+                  <option value="do_not_drain">Blocked</option>
+                  <option value="missing_payload">Missing payload</option>
+                  <option value="invalid_manifest">Invalid manifest</option>
+                  <option value="missing_sidecars">Missing sidecars</option>
+                  <option value="evidence_missing">Evidence missing</option>
+                  <option value="orphan_payload">Orphan payload</option>
+                  <option value="ready_to_drain">Ready to drain</option>
+                  <option value="drained">Drained</option>
+                  <option value="failed">Failed</option>
+                </select>
+              </label>
+              <div class="form-actions-inline">
+                <button id="pending-clear-filters-button" class="secondary-button" type="button">Clear Filters</button>
+              </div>
             </div>
-            <div class="pending-action-filter-grid" aria-label="Pending publish triage filters">
-              <button type="button" class="pending-action-filter" data-pending-action-filter="ready">
-                <span>Ready to drain</span>
-                <strong id="pending-action-ready-count" class="num">0</strong>
-                <small>backend-ready looking</small>
-              </button>
-              <button type="button" class="pending-action-filter" data-pending-action-filter="review">
-                <span>Needs review</span>
-                <strong id="pending-action-review-count" class="num">0</strong>
-                <small>warning or read-first rows</small>
-              </button>
-              <button type="button" class="pending-action-filter" data-pending-action-filter="evidence">
-                <span>Evidence missing</span>
-                <strong id="pending-action-evidence-count" class="num">0</strong>
-                <small>payload or sidecar gaps</small>
-              </button>
-              <button type="button" class="pending-action-filter" data-pending-action-filter="blocked">
-                <span>Blocked</span>
-                <strong id="pending-action-blocked-count" class="num">0</strong>
-                <small>do-not-drain evidence</small>
-              </button>
+            <pre id="pending-filter-summary" class="prose-block">Pending publish filter inactive. No rows loaded.</pre>
+            <div class="table-wrap pending-table-wrap">
+              <table class="workflow-table pending-table" aria-label="Pending publish file inventory">
+                <thead>
+                  <tr>
+                    <th scope="col">Status</th>
+                    <th scope="col">File / Payload</th>
+                    <th scope="col">Manifest</th>
+                    <th scope="col">Destination</th>
+                    <th scope="col" class="num">Size</th>
+                    <th scope="col">Updated</th>
+                    <th scope="col">Reason</th>
+                  </tr>
+                </thead>
+                <tbody id="pending-rows">
+                  <tr><td colspan="7">No pending publish rows loaded.</td></tr>
+                </tbody>
+              </table>
+              <div class="empty-state" data-empty-state="hidden" style="display:none">
+                <span class="empty-state-label">No pending items</span>
+                <span class="empty-state-hint">No pending publish items exist. Refresh rereads backend parked-output evidence.</span>
+              </div>
             </div>
+            <p id="pending-table-legend" class="note table-legend">Pending publish rows: no selectable rows.</p>
+          </section>
+          <div class="pending-side-stack">
+            <section class="panel pending-detail-panel" data-layout-editor-exclude data-panel-type="evidence">
+              <div class="panel-heading">
+                <h2>Selected Item</h2>
+                <strong id="pending-selected-status">No selection</strong>
+              </div>
+              <pre id="pending-selected-summary" class="prose-block">Select a pending publish row to see trust, drain recommendation, blocker reason, evidence, and backend authority.</pre>
+              <pre id="pending-detail" class="prose-block" data-visual-keep="copy-output">No pending publish row selected.</pre>
+            </section>
+            <section class="panel pending-drain-progress-panel" data-layout-editor-exclude data-panel-type="interactive">
+              <div class="panel-heading">
+                <h2>Drain Progress</h2>
+                <strong id="pending-drain-status">Idle</strong>
+              </div>
+              <div id="pending-drain-decision-chips" class="action-row action-row-left wrap-actions" aria-live="polite">
+                <span class="status-chip" data-status="blocked">Blocked</span>
+                <span class="status-chip" data-status="warning">Review</span>
+                <span class="status-chip" data-status="validation-needed">Need evidence</span>
+                <span class="status-chip" data-status="ok">Ready</span>
+              </div>
+              <div id="pending-drain-progress-bars" class="progress-bar-list" aria-live="polite">
+                <p class="note">No active pending-publish drain progress loaded.</p>
+              </div>
+              <div class="action-row action-row-left wrap-actions">
+                <button type="button" id="pending-drain-button" class="danger-button">Drain Parked Outputs</button>
+              </div>
+              <details class="pending-compact-detail">
+                <summary>Drain decision and latest result</summary>
+                <pre id="pending-drain-overview" class="prose-block">No pending publish drain decision summary loaded.</pre>
+                <pre id="pending-drain-detail" class="prose-block">No pending publish drain result.</pre>
+                <pre id="pending-drain-history" class="prose-block">No pending publish drain history loaded.</pre>
+              </details>
+            </section>
           </div>
-          <div class="pending-action-controls action-row action-row-left wrap-actions">
-            <button type="button" id="pending-action-drain-button" class="danger-button">Drain Ready Parked Outputs</button>
-            <button type="button" id="pending-action-refresh-button" class="secondary-button">Refresh Evidence</button>
-            <button type="button" id="pending-action-blockers-button" class="secondary-button">Show Blockers</button>
-          </div>
-          <p id="pending-action-feedback" class="note">Action Center controls use existing backend-owned Pending Publish commands and local display filters.</p>
-          <details class="pending-compact-detail">
-            <summary>Decision detail</summary>
-            <pre id="pending-action-detail" class="prose-block">No Pending Publish action evidence loaded.</pre>
-          </details>
-        </section>
-        <section class="panel" data-panel-type="evidence">
+        </div>
+        <section class="panel" data-advanced data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Pending Publish Guard Evidence</h2>
             <strong id="pending-drain-guard-status">Not evaluated</strong>
@@ -92,35 +203,6 @@
             <pre class="prose-block diagnostic-callout-body diagnostic-callout-advanced" data-advanced>No pending publish button guard loaded.</pre>
           </div>
         </section>
-        <section class="panel" data-panel-type="interactive">
-          <div class="panel-heading">
-            <h2>Pending Publish Drain</h2>
-            <strong>Backend command</strong>
-          </div>
-          <p class="note">Moves parked outputs only after backend validation. This command is related to completed files, but it is not completed-file acceptance.</p>
-          <div id="pending-drain-decision-chips" class="action-row action-row-left wrap-actions" aria-live="polite">
-            <span class="status-chip" data-status="blocked">Do not drain</span>
-            <span class="status-chip" data-status="warning">Review first</span>
-            <span class="status-chip" data-status="validation-needed">Evidence incomplete</span>
-            <span class="status-chip" data-status="ok">Ready-looking</span>
-          </div>
-          <details class="pending-compact-detail">
-            <summary>Drain decision summary</summary>
-            <pre id="pending-drain-overview" class="prose-block">No pending publish drain decision summary loaded.</pre>
-          </details>
-          <div id="pending-drain-progress-bars" class="progress-bar-list" aria-live="polite">
-            <p class="note">No active pending-publish drain progress loaded.</p>
-          </div>
-          <div class="action-row action-row-left">
-            <button type="button" id="pending-drain-button" class="danger-button">Drain Parked Outputs</button>
-            <strong id="pending-drain-status">Idle</strong>
-          </div>
-          <details class="pending-compact-detail">
-            <summary>Drain result and history</summary>
-            <pre id="pending-drain-detail" class="prose-block">No pending publish drain result.</pre>
-            <pre id="pending-drain-history" class="prose-block">No pending publish drain history loaded.</pre>
-          </details>
-        </section>
         <section class="panel" data-advanced data-layout-editor-exclude data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Pending Refresh</h2>
@@ -130,17 +212,7 @@
             <button class="secondary-button" type="button" data-page-refresh-button="pending">Refresh Pending</button>
           </div>
         </section>
-        <section class="panel" data-layout-editor-exclude data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Pending Items</h2>
-            <strong id="pending-status">No rows</strong>
-          </div>
-          <pre id="pending-summary" class="prose-block">No pending publish data loaded.</pre>
-          <div id="pending-inventory-progress-bars" class="progress-bar-list" aria-live="polite">
-            <p class="note">No pending inventory progress loaded.</p>
-          </div>
-        </section>
-        <section class="panel" data-layout-editor-exclude data-panel-type="evidence">
+        <section class="panel" data-advanced data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Parked Files</h2>
             <strong id="pending-file-inventory-status">Not loaded</strong>
@@ -169,28 +241,28 @@
           </div>
           <p id="pending-file-inventory-legend" class="note table-legend">Parked file inventory rows are read-only and do not open, move, drain, repair, delete, or publish files.</p>
         </section>
-        <section class="panel" data-panel-type="evidence">
+        <section class="panel" data-advanced data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Drain Status</h2>
             <strong id="pending-publish-readiness-status">Not loaded</strong>
           </div>
           <pre id="pending-publish-readiness" class="prose-block">No pending publish drain readiness loaded.</pre>
         </section>
-        <section class="panel" data-panel-type="evidence">
+        <section class="panel" data-advanced data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Risk Summary</h2>
             <strong id="pending-risk-status">Not loaded</strong>
           </div>
           <pre id="pending-risk" class="prose-block">No pending publish risk breakdown loaded.</pre>
         </section>
-        <section class="panel" data-panel-type="evidence">
+        <section class="panel" data-advanced data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Pending Publish Checklist</h2>
             <strong id="pending-validation-status">Not loaded</strong>
           </div>
           <pre id="pending-validation" class="prose-block">No pending publish validation checklist loaded.</pre>
         </section>
-        <section class="panel" data-layout-editor-exclude data-panel-type="evidence">
+        <section class="panel" data-advanced data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Next Step</h2>
             <strong id="pending-workflow-status">Not loaded</strong>
@@ -253,7 +325,7 @@
           </div>
           <p id="pending-evidence-legend" class="note table-legend">Pending evidence rows: no selectable rows.</p>
         </section>
-        <section class="panel" data-panel-type="interactive">
+        <section class="panel" data-advanced data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Recovery Preview</h2>
             <strong id="pending-recovery-plan-status">No plan</strong>
@@ -290,7 +362,7 @@
             <pre id="pending-recovery-plan-history" class="prose-block">No pending publish recovery plan history loaded.</pre>
           </details>
         </section>
-        <section class="panel" data-panel-type="interactive">
+        <section class="panel" data-advanced data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Manifest Repair</h2>
             <strong id="pending-repair-manifest-status">Dry-run required</strong>
@@ -367,7 +439,7 @@
           </div>
           <p id="pending-backend-scope-legend" class="note table-legend">Backend drain scope rows are read-only and do not move, publish, repair, delete, rewrite, or bypass backend validation.</p>
         </section>
-        <section class="panel" data-layout-editor-exclude data-panel-type="evidence">
+        <section class="panel" data-advanced data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Drain Checklist</h2>
             <strong id="pending-drain-decision-status">Not evaluated</strong>
@@ -430,7 +502,7 @@
           <p id="pending-post-drain-trust-legend" class="note table-legend">Post-drain trust rows are read-only and do not move, publish, repair, delete, rewrite, or mark outputs complete.</p>
           <pre id="pending-post-drain-trust-detail" class="prose-block">Select a post-drain trust checkpoint after publishing parked outputs.</pre>
         </section>
-        <section class="panel" data-layout-editor-exclude data-panel-type="evidence">
+        <section class="panel" data-advanced data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Recent Events</h2>
             <strong id="pending-drain-events-status">Not loaded</strong>
@@ -443,75 +515,6 @@
             <strong id="pending-drain-summary-status">Not loaded</strong>
           </div>
           <pre id="pending-drain-summary" class="prose-block">No pending publish drain summary loaded.</pre>
-        </section>
-        <section class="panel" data-panel-type="interactive">
-          <div class="panel-heading">
-            <h2>Pending Rows</h2>
-            <strong>Backend preview</strong>
-          </div>
-          <div class="form-grid launch-form-grid">
-            <label>
-              Filter pending publish
-              <input id="pending-filter" type="search" autocomplete="off" placeholder="State, local payload, destination, issue">
-            </label>
-            <label>
-              Pending status
-              <select id="pending-status-filter">
-                <option value="all">All rows</option>
-                <option value="review">Review only</option>
-                <option value="blocked">Do-not-drain only</option>
-                <option value="warning">Warnings only</option>
-                <option value="ready">Ready only</option>
-              </select>
-            </label>
-            <label>
-              Pending view
-              <select id="pending-investigation-filter">
-                <option value="all">All signals</option>
-                <option value="do_not_drain">Do not drain</option>
-                <option value="missing_payload">Missing payload</option>
-                <option value="invalid_manifest">Invalid manifest</option>
-                <option value="missing_sidecars">Missing sidecars</option>
-                <option value="evidence_missing">Evidence missing</option>
-                <option value="orphan_payload">Orphan payload</option>
-                <option value="ready_to_drain">Ready to drain</option>
-              </select>
-            </label>
-            <div class="form-actions-inline">
-              <button id="pending-clear-filters-button" class="secondary-button" type="button">Clear Pending Filters</button>
-            </div>
-          </div>
-          <pre id="pending-filter-summary" class="prose-block">Pending publish filter inactive. No rows loaded.</pre>
-          <div class="table-wrap">
-            <table class="workflow-table pending-table" aria-label="Pending publish rows">
-              <thead>
-                <tr>
-                  <th scope="col">State</th>
-                  <th scope="col" class="num">Size</th>
-                  <th scope="col" class="num">Age</th>
-                  <th scope="col">Local Payload</th>
-                  <th scope="col">Destination</th>
-                  <th scope="col">Issue</th>
-                </tr>
-              </thead>
-              <tbody id="pending-rows">
-                <tr><td colspan="6">No pending publish rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">No pending items</span>
-            <span class="empty-state-hint">Parked publish items appear here after the pipeline processes files.</span>
-          </div>
-          </div>
-          <p id="pending-table-legend" class="note table-legend">Pending publish rows: no selectable rows.</p>
-        </section>
-        <section class="panel" data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Selected Item</h2>
-            <strong id="pending-selected-status">No selection</strong>
-          </div>
-          <pre id="pending-selected-summary" class="prose-block">Select a pending publish row to see trust, drain recommendation, concern, safe next step, filter visibility, and backend authority.</pre>
-          <pre id="pending-detail" class="prose-block" data-visual-keep="copy-output">No pending publish row selected.</pre>
         </section>
         <section class="panel" data-advanced data-panel-type="interactive">
           <div class="panel-heading">
