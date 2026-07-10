@@ -8,8 +8,11 @@ from typing import Any
 
 from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.status.active_jobs import active_job_detail_rows
+from mediapipeline.core.status.file_io import tail_text_file
 from mediapipeline.core.status.progress import is_progress_stale
-from mediapipeline.core.status.readers import read_log_tail_file, read_pipeline_events_tail_file, read_progress_file
+from mediapipeline.core.status.readers import read_pipeline_events_tail_file, read_progress_file
+
+NO_RERUN_LOG_TAIL = "No CSV rerun log tail found yet for the active rerun child pipeline."
 
 
 @dataclass(frozen=True)
@@ -143,9 +146,32 @@ def _has_current_item(progress: Mapping[str, Any]) -> bool:
 
 def _child_log_tail(child_root: Path) -> str:
     log_file = child_root / "pipeline_debug.log"
-    if not log_file.exists():
+    return _text_file_tail(log_file, label="CSV rerun child pipeline log")
+
+
+def _text_file_tail(path: Path, *, label: str, line_count: int = 150) -> str:
+    if not path.exists() or not path.is_file():
         return ""
-    return read_log_tail_file(log_file)
+    try:
+        text = tail_text_file(path, line_count=line_count, encoding="utf-8")
+    except Exception as exc:
+        return f"Failed to read {label}.\n{exc}"
+    return text if text.strip() else ""
+
+
+def _active_rerun_process_log_tail(row: Mapping[str, Any]) -> str:
+    for key, label in (("stdout_log", "CSV rerun stdout log"), ("stderr_log", "CSV rerun stderr log")):
+        raw_path = _text_from_mapping(row, key)
+        if not raw_path:
+            continue
+        tail = _text_file_tail(Path(raw_path), label=label)
+        if tail:
+            return tail
+    return ""
+
+
+def _scoped_rerun_log_tail(row: Mapping[str, Any], child_root: Path) -> str:
+    return _child_log_tail(child_root) or _active_rerun_process_log_tail(row) or NO_RERUN_LOG_TAIL
 
 
 def _read_child_overlay(
@@ -171,7 +197,8 @@ def _read_child_overlay(
 
     event_file = child_root / "State" / "Progress" / "pipeline_events.jsonl"
     pipeline_events = read_pipeline_events_tail_file(event_file, logger=logger)
-    log_tail = _child_log_tail(child_root) or fallback_log_tail
+    _ = fallback_log_tail
+    log_tail = _scoped_rerun_log_tail(row, child_root)
     return RerunProgressOverlay(progress=enriched, pipeline_events=pipeline_events, log_tail=log_tail)
 
 

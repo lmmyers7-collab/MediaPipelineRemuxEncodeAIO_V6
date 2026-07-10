@@ -49,6 +49,7 @@ class _DummyStatusSnapshotService:
         self.progress = {"Status": "Processing"}
         self.audit_progress = {"Status": "Audit"}
         self.events = [{"event_type": "job_started"}]
+        self.log_tail = "log tail"
         self.summary_kwargs = {}
         self.activity_progress = None
 
@@ -86,7 +87,7 @@ class _DummyStatusSnapshotService:
     def read_log_tail(self, resolved: ResolvedPaths) -> str:
         _ = resolved
         self.calls.append("log_tail")
-        return "log tail"
+        return self.log_tail
 
     def read_pipeline_events_tail(self, resolved: ResolvedPaths):
         _ = resolved
@@ -260,6 +261,83 @@ class ServiceStatusSnapshotRunnerTests(unittest.TestCase):
         self.assertIn("Cars (2006).mkv", snapshot.current_activity)
         self.assertEqual(service.activity_progress["CurrentStage"], "encode")
         self.assertEqual(service.summary_kwargs["progress"]["CurrentFile"], "[Movie 1/1] Cars (2006).mkv")
+
+    def test_build_snapshot_uses_csv_rerun_process_tail_when_child_log_is_not_ready(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            resolved = _resolved(root)
+            resolved.active_jobs_path.mkdir(parents=True)
+            child_root = root / "LocalBase_RerunWorkspace" / "RuntimeState" / "rerun_20260704_220624_609aad0f"
+            child_progress_dir = child_root / "State" / "Progress"
+            child_progress_dir.mkdir(parents=True)
+            (child_progress_dir / "pipeline_progress.json").write_text(
+                json.dumps(
+                    {
+                        "ProgressVersion": 2,
+                        "LastUpdate": datetime.now().isoformat(timespec="seconds"),
+                        "Status": "Encoding Movie",
+                        "CurrentFile": "[Movie 1/1] Cars (2006).mkv",
+                        "CurrentFilePath": str(child_root / "RerunQueue" / "Movies" / "Cars (2006)" / "Cars (2006).mkv"),
+                        "CurrentMediaType": "movie",
+                        "CurrentRoute": "encode",
+                        "CurrentStage": "encode",
+                        "CurrentStagePercent": 30,
+                        "TotalProcessed": 0,
+                        "Encoded": 0,
+                        "Remuxed": 0,
+                        "Failed": 0,
+                        "Movies": 1,
+                        "TVEpisodes": 0,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            rerun_stdout = root / "rerun.stdout.log"
+            rerun_line = "2026-07-04 22:24:42 [INFO] STAGE COPY attempt 1/3: Cars (2006).mkv"
+            rerun_stdout.write_text(
+                "2026-07-04 22:06:24 [INFO] CSV rerun selected path: rerun.csv\n" + rerun_line + "\n",
+                encoding="utf-8",
+            )
+            (resolved.active_jobs_path / "rerun.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_active_job.v1",
+                        "launch_id": "20260704_220624_184605_rerun_csv_22844_4ea5fba2",
+                        "job_kind": "rerun_csv",
+                        "mode": "process",
+                        "status": "active",
+                        "pid": 22844,
+                        "app_pid": 26588,
+                        "command_line": "pwsh -File Invoke-RerunCsv.ps1",
+                        "args": ["pwsh", "-File", "Invoke-RerunCsv.ps1"],
+                        "cwd": str(root),
+                        "stdout_log": str(rerun_stdout),
+                        "stderr_log": str(root / "rerun.stderr.log"),
+                        "show_console": False,
+                        "metadata": {"route": "rerun_csv"},
+                        "launched_at": "2026-07-04T22:06:24",
+                        "last_update": datetime.now().isoformat(timespec="seconds"),
+                        "return_code": None,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            service = _DummyStatusSnapshotService(activity="No active work reported.")
+            service.log_tail = "2026-07-04 22:10:00 [INFO] SKIP (already in outsource): unrelated library item"
+            service.progress = {
+                "ProgressVersion": 2,
+                "LastUpdate": "2026-07-02T00:00:00",
+                "Status": "Idle",
+                "CurrentStage": "idle",
+                "CurrentFile": "None",
+            }
+
+            snapshot = build_snapshot_for_service(service, resolved, "AuditRoot")
+
+        self.assertIn(rerun_line, snapshot.log_tail)
+        self.assertIn("CSV rerun selected path", snapshot.log_tail)
+        self.assertNotIn("SKIP (already in outsource)", snapshot.log_tail)
+        self.assertEqual(snapshot.progress["ActiveJobKind"], "rerun_csv")
 
     def test_build_snapshot_logs_reconcile_failure_and_continues(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

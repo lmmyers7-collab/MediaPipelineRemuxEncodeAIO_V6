@@ -178,9 +178,24 @@ function Get-RelativePathSafe {
         return $FullPath
     }
 
-    $rootTrimmed = $RootPath.TrimEnd('\')
-    if ($FullPath.StartsWith($rootTrimmed, [System.StringComparison]::OrdinalIgnoreCase)) {
-        $relative = $FullPath.Substring($rootTrimmed.Length).TrimStart('\')
+    try {
+        $rootFull = [System.IO.Path]::GetFullPath($RootPath)
+        $candidateFull = [System.IO.Path]::GetFullPath($FullPath)
+    } catch {
+        return $FullPath
+    }
+
+    $rootTrimmed = $rootFull.TrimEnd('\', '/')
+    if ($rootTrimmed.EndsWith(':')) {
+        $rootTrimmed = $rootTrimmed + '\'
+    }
+    if ($candidateFull.Equals($rootTrimmed, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $FullPath
+    }
+
+    $rootPrefix = if ($rootTrimmed.EndsWith('\') -or $rootTrimmed.EndsWith('/')) { $rootTrimmed } else { $rootTrimmed + '\' }
+    if ($candidateFull.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $relative = $candidateFull.Substring($rootPrefix.Length).TrimStart('\', '/')
         if ($relative) { return $relative }
     }
     return $FullPath

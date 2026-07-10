@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-05
 last_reviewed: 2026-06-04
-sha256: 5b550ac8a0efa586fdb5e5831e8c10ab6c3224883f78098ee57bde8c8af89779
+sha256: db341e08478acf8254e331c64af5c0d78b33aa75a47481e42d885f6aaa32af70
 ---
 # `tests/python/desktop/test_network_protocol_runtime.py`
 

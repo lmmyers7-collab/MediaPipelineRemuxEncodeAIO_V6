@@ -13,6 +13,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.models import ResolvedPaths
 from mediapipeline.core.queue.dry_run_runner import run_queue_dry_run_for_service
+from mediapipeline.core.queue.service import QueueServiceMixin
 from mediapipeline.core.queue.snapshot import (
     queue_snapshot_write_path,
     read_queue_snapshot,
@@ -79,6 +80,9 @@ def _snapshot_payload(produced_at: str, rows: list[dict] | None = None) -> dict:
 
 
 class QueueDryRunRunnerTests(unittest.TestCase):
+    def test_default_queue_dry_run_timeout_allows_full_library_curation(self) -> None:
+        self.assertEqual(QueueServiceMixin.QUEUE_DRY_RUN_TIMEOUT_SECONDS, 300.0)
+
     def test_run_queue_dry_run_writes_promoted_snapshot_and_cleans_temp(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

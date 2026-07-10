@@ -134,6 +134,7 @@ def _browser_network_runner_source() -> str:
             [
               "renderNetworkView",
               "renderNetworkLifecycleHandoff",
+              "renderNetworkRerunRows",
               "networkLifecycleRows",
               "renderNetworkStateFiles",
               "initNetworkViewEvents",

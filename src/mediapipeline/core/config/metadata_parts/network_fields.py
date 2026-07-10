@@ -9,6 +9,7 @@ from ..metadata_network import (
     KEY_COORDINATOR_HEARTBEAT_TIMEOUT_MINS,
     KEY_COORDINATOR_MAX_JOB_RETRIES,
     KEY_COORDINATOR_PORT,
+    KEY_NETWORK_RERUN_HANDOFF_ROOT,
     KEY_NETWORK_ROLE,
     KEY_WORKER_AUTH_TOKEN,
     KEY_WORKER_CONFIG_OVERRIDES,
@@ -90,6 +91,19 @@ NETWORK_CONFIG_FIELD_DEFINITIONS = (
         "label": "Auth Token",
         "kind": "string",
         "help": "Shared bearer token. Leave blank for auto-generation on first coordinator-mode start. Must match WorkerAuthToken on all workers.",
+    },
+    {
+        "page": "Network",
+        "section": "Coordinator",
+        "key": KEY_NETWORK_RERUN_HANDOFF_ROOT,
+        "label": "Rerun Handoff Root",
+        "kind": "string",
+        "default": "",
+        "help": (
+            "Coordinator-readable, worker-writable root for Network CSV rerun outputs. "
+            "Remote workers require a UNC/shared path. The root must stay outside source, "
+            "final output, LocalBase, and Pending Publish state."
+        ),
     },
     {
         "page": "Network",

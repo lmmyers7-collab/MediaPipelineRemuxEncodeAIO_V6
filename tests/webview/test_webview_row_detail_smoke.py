@@ -762,18 +762,16 @@ def _node_runner_source() -> str:
         requireText("completed-filter-summary", [
           "library=Anime Library",
           "showing 1 of 2 rows",
-          "Hidden review rows: 1.",
-          "clear or change this filter before rerun, cleanup, or library decisions",
+          "Hidden review rows: 0.",
+          "this library filter is not hiding blocked/warning rows",
         ]);
         requireText("completed-current-at-a-glance", [
           "Filters",
           "1/2",
-          "1 review hidden",
         ]);
         requireText("completed-current-filter-line", [
           "Filters: library=Anime Library",
           "Showing 1 of 2 current outputs",
-          "Hidden review/blocker rows: 1",
         ]);
         const libraryScope = context.completedCurrentFilterScope(libraryFilterRows);
         if (!libraryScope.active || libraryScope.libraryLabel !== "Anime Library" || libraryScope.visibleRows !== 1 || libraryScope.totalRows !== 2) {

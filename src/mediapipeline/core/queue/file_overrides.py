@@ -154,6 +154,10 @@ class FileOverrideValidationError(ValueError):
         super().__init__("; ".join(self.errors))
 
 
+class FileOverrideManifestReadError(ValueError):
+    """Existing file-overrides state is present but cannot be trusted."""
+
+
 def _literal_choices(field_name: str) -> frozenset[str]:
     field = Config.model_fields.get(field_name)
     return frozenset(str(item) for item in get_args(field.annotation)) if field is not None else frozenset()
@@ -197,20 +201,30 @@ def normalize_file_override_path(path: str | Path) -> str:
 # ---------------------------------------------------------------------------
 
 def read_file_overrides(path: Path) -> dict:
-    """Load and validate the manifest. Returns an empty manifest on any error."""
+    """Load a manifest; absence is empty while malformed persisted state fails closed."""
+    if not path.exists():
+        return _empty_manifest()
     try:
         text = path.read_text(encoding="utf-8-sig")
         data = json.loads(text)
         if not isinstance(data, dict):
-            return _empty_manifest()
+            raise FileOverrideManifestReadError("file_overrides.json root must be an object")
         if data.get("version") != FILE_OVERRIDES_VERSION:
-            return _empty_manifest()
+            raise FileOverrideManifestReadError(
+                f"file_overrides.json version must be {FILE_OVERRIDES_VERSION}"
+            )
         entries = data.get("entries")
         if not isinstance(entries, dict):
-            return _empty_manifest()
+            raise FileOverrideManifestReadError("file_overrides.json entries must be an object")
         return {**data, "entries": _manifest_object_entries(entries)}
-    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
-        return _empty_manifest()
+    except json.JSONDecodeError as exc:
+        raise FileOverrideManifestReadError(
+            f"file_overrides.json contains invalid JSON at line {exc.lineno}, column {exc.colno}"
+        ) from exc
+    except UnicodeDecodeError as exc:
+        raise FileOverrideManifestReadError("file_overrides.json is not valid UTF-8") from exc
+    except OSError as exc:
+        raise FileOverrideManifestReadError(f"file_overrides.json could not be read: {exc}") from exc
 
 
 def _manifest_object_entries(entries: dict) -> dict:

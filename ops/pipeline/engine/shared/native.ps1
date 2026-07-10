@@ -594,7 +594,8 @@ function Invoke-ExternalToolCommand {
         [string]$ProcessPriority = 'inherit',
         [int]$IdleTimeoutSeconds = 0,
         [string]$IdleTimeoutErrorCode = 'NATIVE_IDLE_TIMEOUT',
-        [string]$WorkingDirectory = ''
+        [string]$WorkingDirectory = '',
+        [int[]]$SuccessExitCodes = @(0)
     )
 
     $startedAt = Get-Date
@@ -632,10 +633,13 @@ function Invoke-ExternalToolCommand {
     $result = Invoke-NativeCommand @nativeArgs
     $completedAt = Get-Date
     $durationSeconds = [math]::Round(($completedAt - $startedAt).TotalSeconds, 3)
-    $toolErrorCode = Get-ExternalToolFailureCode -ToolName $ToolName -Result $result
+    $successExitCodes = @($SuccessExitCodes | ForEach-Object { [int]$_ })
+    if ($successExitCodes.Count -eq 0) { $successExitCodes = @(0) }
+    $isExpectedExitCode = $successExitCodes -contains [int]$result.ExitCode
+    $toolErrorCode = if ($isExpectedExitCode) { 'OK' } else { Get-ExternalToolFailureCode -ToolName $ToolName -Result $result }
     $reproPath = $null
 
-    if ($SaveReproOnFailure -and [int]$result.ExitCode -ne 0 -and -not [string]::IsNullOrWhiteSpace($Stage)) {
+    if ($SaveReproOnFailure -and -not $isExpectedExitCode -and -not [string]::IsNullOrWhiteSpace($Stage)) {
         if (Get-Command -Name Save-ReproCommand -ErrorAction SilentlyContinue) {
             $reproPath = Save-ReproCommand -ToolName $ToolName -Executable $FilePath -ArgumentList $ArgumentList -Stage $Stage
         }
@@ -671,7 +675,7 @@ function Invoke-ExternalToolCommand {
         } elseif ($result.PSObject.Properties['WorkingDirectory']) {
             $workingDirectoryField = [string]$result.WorkingDirectory
         }
-        Write-PipelineEvent -EventType 'tool_completed' -Stage $Stage -Status $(if ([int]$result.ExitCode -eq 0) { 'succeeded' } else { 'failed' }) -Data @{
+        Write-PipelineEvent -EventType 'tool_completed' -Stage $Stage -Status $(if ($isExpectedExitCode) { 'succeeded' } else { 'failed' }) -Data @{
             tool_name           = $ToolName
             executable          = $FilePath
             command_line        = $commandLine
@@ -758,10 +762,11 @@ function Invoke-PythonToolCommand {
         [string]$Stage = 'python',
         [switch]$SaveReproOnFailure,
         [scriptblock]$ErrorHandler,
-        [string]$ProcessPriority = 'inherit'
+        [string]$ProcessPriority = 'inherit',
+        [int[]]$SuccessExitCodes = @(0)
     )
 
-    return Invoke-ExternalToolCommand -ToolName 'python' -FilePath $pythonPath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority
+    return Invoke-ExternalToolCommand -ToolName 'python' -FilePath $pythonPath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority -SuccessExitCodes $SuccessExitCodes
 }
 
 function Invoke-BdpgsOcrCommand {

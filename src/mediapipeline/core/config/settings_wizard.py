@@ -19,6 +19,8 @@ from mediapipeline.core.config.identity import (
     REQUIRED_OPERATOR_ROOT_KEYS,
     config_looks_like_template,
     config_template_candidates,
+    config_operation_block_data,
+    config_operation_block_message,
 )
 from mediapipeline.core.config.library_profiles import (
     library_profiles_from_config,
@@ -27,6 +29,7 @@ from mediapipeline.core.config.library_profiles import (
 )
 from mediapipeline.core.config.settings_patch_policy import (
     settings_save_busy_result,
+    settings_save_config_blocked_result,
     settings_save_exception_result,
     settings_save_service_unavailable_result,
     settings_save_success_result,
@@ -219,6 +222,12 @@ def save_settings_wizard(facade: object, resolved: ResolvedPaths, request: objec
             warnings=["confirm_save must be true."],
             refresh_hint=WIZARD_REFRESH_HINT,
         )
+    config_identity = dict(getattr(resolved, "config_identity", {}) or {})
+    if config_identity.get("blocks_operations") is True:
+        return settings_save_config_blocked_result(
+            config_operation_block_message(config_identity, "Settings Wizard save"),
+            config_operation_block_data(config_identity),
+        )
     raw_wizard = settings_wizard_payload_from_request(request)
     validation = validate_wizard_payload(raw_wizard)
     wizard = _wizard_mapping(raw_wizard)
@@ -249,20 +258,35 @@ def save_settings_wizard(facade: object, resolved: ResolvedPaths, request: objec
             refresh_hint=WIZARD_REFRESH_HINT,
             data={"wizard": _wizard_preview_payload(wizard, validation, {}, writes_config=False, base_config=dict(resolved.config_data or {}))},
         )
+    current_preview = preview_settings_wizard(facade, resolved, {"wizard": raw_wizard})
+    expected_confirmation = (
+        current_preview.data.get("review_confirmation")
+        if isinstance(current_preview.data, dict)
+        else None
+    )
+    submitted_confirmation = request.get("review_confirmation") if isinstance(request, dict) else None
+    if isinstance(expected_confirmation, dict) and submitted_confirmation != expected_confirmation:
+        return CommandResult(
+            command="settings.wizard.save",
+            ok=False,
+            message="Settings Wizard save requires review_confirmation from the exact latest backend preview.",
+            severity="warning",
+            warnings=["review_confirmation is missing or does not match the current wizard/config candidate."],
+            refresh_hint=WIZARD_REFRESH_HINT,
+            data={"writes_config": False, "expected_review_preview_id": expected_confirmation.get("preview_id", "")},
+        )
     base_config = _wizard_base_config(facade, resolved)
     if _is_missing_initial_config(resolved):
         saved = _save_initial_settings_wizard(facade, resolved, wizard, base_config)
     else:
         patch_request = _wizard_patch_request(wizard, base_config)
-        confirmation_builder = getattr(facade, "settings_patch_request_with_review_confirmation", None)
-        confirmed_patch_request = (
-            confirmation_builder(resolved, patch_request)
-            if callable(confirmation_builder)
-            else patch_request
-        )
         saved = facade.save_settings_patch(
             resolved,
-            {**confirmed_patch_request, "confirm_save": True},
+            {
+                **patch_request,
+                "review_confirmation": submitted_confirmation,
+                "confirm_save": True,
+            },
         )
     data = dict(saved.data)
     data["errors"] = list(saved.errors)

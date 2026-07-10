@@ -4,6 +4,7 @@ from typing import Any
 
 from mediapipeline.core.failures.artifacts import failure_artifact_summary_unavailable
 from mediapipeline.core.publish.reconciliation_policy import publish_reconciliation_from_payloads
+from mediapipeline.core.metrics.policy import utc_now_text
 
 from .http_helpers import query_bool, query_int, query_value
 from .read_payloads_policy import read_unavailable_payload
@@ -62,7 +63,28 @@ class LocalApiInventoryReadPayloadMixin:
     def _metrics_payload(self) -> dict[str, Any]:
         resolved = self._resolved()
         if resolved is None:
-            return read_unavailable_payload("metrics")
+            return {
+                "schema_version": "desktop_metrics.v1",
+                "generated_at": utc_now_text(),
+                "read_only": True,
+                "availability": "unavailable",
+                "error": "metrics unavailable because resolved paths are unavailable",
+                "completeness": {
+                    "schema_version": "desktop_metrics_completeness.v1",
+                    "complete": False,
+                    "authoritative_history_complete": False,
+                    "sidecar_discovery_complete": False,
+                    "status": "unavailable",
+                },
+                "history_authority": {
+                    "schema_version": "desktop_metrics_history_authority.v1",
+                    "authority": "completed_jobs.jsonl",
+                    "completed_manifest_record_count": 0,
+                    "sidecar_cache_discovery_count": 0,
+                    "cache_in_authoritative_totals": False,
+                },
+                "warnings": ["Resolved paths were unavailable while reading Metrics."],
+            }
         return self.facade.get_metrics(resolved)
 
     def _subtitle_qa_summary_payload(self, query: dict[str, list[str]]) -> dict[str, Any]:

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr, ValidationError, field_validator, model_validator
 
 from mediapipeline.contracts.source_media import SourceMediaInfo
 
@@ -250,6 +250,7 @@ class PresetLibraryApplyCommandPayload(StrictApiCommandPayload):
 class SettingsWizardCommandPayload(StrictApiCommandPayload):
     wizard: Any = None
     confirm_save: StrictBool | None = None
+    review_confirmation: Any = None
 
 
 class SettingsBrowsePathCommandPayload(ApiCommandPayload):
@@ -304,6 +305,14 @@ class RenameApplyCommandPayload(StrictApiCommandPayload):
     selected_sources: Any = None
     confirm_apply: StrictBool | None = None
     allow_outside_configured_roots: StrictBool | None = None
+    preview_fingerprint: StrictStr
+
+    @field_validator("preview_fingerprint")
+    @classmethod
+    def _require_preview_fingerprint(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("preview_fingerprint is required")
+        return value
 
 
 class RenameUndoCommandPayload(StrictApiCommandPayload):
@@ -561,6 +570,13 @@ class AuditStartCommandPayload(StrictApiCommandPayload):
 
 class PipelineControlCommandPayload(StrictApiCommandPayload):
     action: Any = None
+    confirm_force_stop: StrictBool | None = None
+
+    @model_validator(mode="after")
+    def require_force_stop_confirmation(self) -> PipelineControlCommandPayload:
+        if str(self.action or "").strip().casefold() == "kill" and self.confirm_force_stop is not True:
+            raise ValueError("confirm_force_stop must be true for action=kill")
+        return self
 
 
 class PipelineBrowseFileCommandPayload(StrictApiCommandPayload):
@@ -569,12 +585,12 @@ class PipelineBrowseFileCommandPayload(StrictApiCommandPayload):
 
 
 class PipelineStartCommandPayload(StrictApiCommandPayload):
-    mode: Any = None
-    sleep_seconds: Any = None
-    show_config: Any = None
-    show_console: Any = None
-    single_file: Any = None
-    schedule_override: Any = None
+    mode: Literal["once", "continuous", "validate", "drain_pending_pushes"]
+    sleep_seconds: StrictInt | None = Field(default=None, ge=1)
+    show_config: StrictBool | None = None
+    show_console: StrictBool | None = None
+    single_file: StrictStr | None = None
+    schedule_override: Literal["", "run_once", "ignore"] | None = None
 
 
 class AuditStopCommandPayload(StrictApiCommandPayload):

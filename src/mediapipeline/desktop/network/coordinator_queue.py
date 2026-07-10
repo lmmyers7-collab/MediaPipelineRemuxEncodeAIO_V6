@@ -18,6 +18,15 @@ from .failure_reasons import classify_failure_reason
 from .failure_policy import source_has_prior_failure
 from .protocol import coerce_finite_float, coerce_library_id_list
 from .registry import normalize_source_identity
+from .rerun_claims import (
+    NETWORK_RERUN_ROW_JOB_KIND,
+    claim_next_network_rerun_row,
+    rollback_network_rerun_claim,
+    update_network_rerun_row_done,
+    update_network_rerun_row_released,
+)
+from .worker_parts.tasks import build_claimed_job
+from .worker_record import make_queue_record as _make_queue_record
 from .use_cases.done_outcome import CoordinatorDoneOutcomeService, DoneOutcome
 
 _log = logging.getLogger("mediapipeline.desktop.network.coordinator")
@@ -160,28 +169,45 @@ class CoordinatorQueueMixin:
 
         # Hold the same claim lock used by the HTTP handler so local and
         # remote claims are serialised and never race on the same record.
+        network_lease = None
         with self._claim_lock:
-            record, encode_config = _scan_for_next_record_for_claim(
-                self,
-                worker_name,
-                worker_id=worker_id,
-                max_job_retries=self._coordinator_max_job_retries(),
-            )
-            if record is None:
-                return None
-
-            job_id      = str(uuid.uuid4())
-            source_path = str(getattr(record, "source_path", ""))
-
-            ok = self._registry.claim(
-                job_id=job_id,
+            network_lease = claim_next_network_rerun_row(
+                app=self._app,
+                registry=self._registry,
                 worker_id=worker_id,
                 worker_name=worker_name,
-                source_path=source_path,
-                encode_config=encode_config,
-                priority=_coerce_record_priority(record),
-                estimated_size_gb=_coerce_record_estimated_size_gb(record, source_path),
+                accessible_library_ids=None,
+                encode_config_for_row=lambda record: self._snapshot_encode_config(worker_name, record),
+                allow_local_handoff=True,
             )
+            if network_lease is not None:
+                job_id = network_lease.response.job_id
+                source_path = network_lease.response.source_path
+                record = None
+                encode_config = dict(network_lease.response.encode_config)
+                ok = True
+            else:
+                record, encode_config = _scan_for_next_record_for_claim(
+                    self,
+                    worker_name,
+                    worker_id=worker_id,
+                    max_job_retries=self._coordinator_max_job_retries(),
+                )
+                if record is None:
+                    return None
+
+                job_id      = str(uuid.uuid4())
+                source_path = str(getattr(record, "source_path", ""))
+
+                ok = self._registry.claim(
+                    job_id=job_id,
+                    worker_id=worker_id,
+                    worker_name=worker_name,
+                    source_path=source_path,
+                    encode_config=encode_config,
+                    priority=_coerce_record_priority(record),
+                    estimated_size_gb=_coerce_record_estimated_size_gb(record, source_path),
+                )
 
         if not ok:
             # Another worker claimed it between scan and claim.
@@ -194,7 +220,9 @@ class CoordinatorQueueMixin:
             _log.warning("Failed to save inflight state after local claim %s: %s", job_id[:8], safe_exc)
             try:
                 rollback = getattr(self._registry, "rollback_claim", None)
-                if callable(rollback):
+                if network_lease is not None:
+                    rollback_network_rerun_claim(network_lease, self._registry, reason=f"inflight save failed: {safe_exc}")
+                elif callable(rollback):
                     rollback(job_id, worker_id)
                 else:
                     self._registry.unclaim(job_id, worker_id)
@@ -216,6 +244,12 @@ class CoordinatorQueueMixin:
                 source_path=source_path,
             )
             return None
+        if network_lease is not None:
+            return build_claimed_job(
+                network_lease.response,
+                worker_id,
+                record_builder=_make_queue_record,
+            )
         return ClaimedJob(
             job_id=job_id,
             record=record,
@@ -294,7 +328,57 @@ class CoordinatorQueueMixin:
                     role="coordinator",
                     job_id=job.job_id,
                     source_path=source_path,
+            )
+            return
+
+        if getattr(completed, "job_kind", "") == NETWORK_RERUN_ROW_JOB_KIND:
+            request = type(
+                "NetworkRerunLocalDoneRequest",
+                (),
+                {
+                    "job_id": job.job_id,
+                    "worker_id": job.worker_id,
+                    "success": bool(success),
+                    "output_path": output_path or "",
+                    "output_size_bytes": int(output_size_bytes or 0),
+                    "completion_status": completion_status or "",
+                    "publish_state": publish_state or "",
+                    "publish_mode": publish_mode or "",
+                    "route": route or "",
+                    "reason_code": final_reason_code,
+                    "reason": final_reason,
+                    "error_message": error or "",
+                },
+            )()
+            update_network_rerun_row_done(app=self._app, job=completed, request=request)
+            try:
+                self._registry.save(self._inflight_state_path())
+            except Exception as exc:
+                safe_exc = redact_network_secret_text(exc)
+                _log.warning("Failed to save inflight state after local Network CSV rerun done %s: %s", job.job_id[:8], safe_exc)
+                self._safe_log_cluster_event(
+                    "inflight-save-failed",
+                    level="WARN",
+                    event="inflight_save_failed",
+                    message=f"Failed to save in-flight registry after local Network CSV rerun done: {safe_exc}",
+                    worker_id=job.worker_id,
+                    worker_name="coordinator",
+                    role="coordinator",
+                    job_id=job.job_id,
+                    source_path=source_path,
                 )
+                raise RuntimeError(f"registry save failed after local Network CSV rerun done: {safe_exc}") from exc
+            self._safe_log_cluster_event(
+                "network-rerun-row-pending-reduction",
+                level="INFO" if success else "ERROR",
+                event="network_rerun_row_pending_reduction",
+                message="Network CSV rerun row completed by coordinator-local worker and is pending coordinator reduction.",
+                worker_id=job.worker_id,
+                worker_name="coordinator",
+                role="coordinator",
+                job_id=job.job_id,
+                source_path=source_path,
+            )
             return
 
         self._emit_done_outcome(
@@ -318,7 +402,14 @@ class CoordinatorQueueMixin:
         # N3 — pass the local worker_id so the registry's ownership
         # check accepts the release. Local-encode jobs are owned by
         # the coordinator process, identified by job.worker_id.
-        self._registry.unclaim(job.job_id, job.worker_id)
+        released = self._registry.unclaim(job.job_id, job.worker_id)
+        if getattr(released, "job_kind", "") == NETWORK_RERUN_ROW_JOB_KIND:
+            update_network_rerun_row_released(
+                app=self._app,
+                job=released,
+                worker_id=job.worker_id,
+                reason="coordinator-local release",
+            )
         try:
             self._registry.save(self._inflight_state_path())
         except Exception as exc:

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/metadata_network.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-14
+last_modified: 2026-07-05
 last_reviewed: 2026-06-04
-sha256: 6bc96b2ae1aea4241e85444afc273522acd5e207316c9f3d2b0088c35819eb98
+sha256: f88520a2c5c8293ad4d369223d32be6808bb32233260bb176416040f137baff6
 ---
 # `src/mediapipeline/core/config/metadata_network.py`
 

@@ -292,6 +292,35 @@
     return Boolean(statuses.length) && statuses.every((item) => item === "complete");
   }
 
+  function reportAuditProgressSucceeded(snapshot = {}) {
+    const auditProgress = reportAuditProgressPayload(snapshot);
+    if (auditProgress.failed === true || auditProgress.Failed === true) return false;
+    if (auditProgress.completed === true || auditProgress.Completed === true) return true;
+    const status = String(auditProgress.status || auditProgress.Status || "").toLowerCase();
+    return status === "completed" || status === "complete";
+  }
+
+  function reportAuditPriorityCsvPath(snapshot = {}) {
+    const auditProgress = reportAuditProgressPayload(snapshot);
+    return String(auditProgress.latest_priority_csv_path || auditProgress.LatestPriorityCsvPath || "").trim();
+  }
+
+  function selectReportAuditPriorityTable(snapshot = {}) {
+    if (!reportAuditProgressSucceeded(snapshot)) return false;
+    const priorityCsvPath = reportAuditPriorityCsvPath(snapshot);
+    if (!priorityCsvPath) return false;
+    if (reportsState.reportAuditAutoPriorityCsvPath === priorityCsvPath) return false;
+    reportsState.reportAuditAutoPriorityCsvPath = priorityCsvPath;
+    const priorityOnly = byId("audit-preview-priority-only");
+    if (!priorityOnly || priorityOnly.checked) return false;
+    priorityOnly.checked = true;
+    window.setTimeout(() => {
+      const refresh = typeof window.refreshAll === "function" ? window.refreshAll : refreshAll;
+      if (typeof refresh === "function") refresh({ automatic: true });
+    }, 0);
+    return true;
+  }
+
   function reportAuditProgressIsActive(snapshot = {}) {
     if (reportAuditProgressIsTerminal(snapshot)) return false;
     const auditProgress = reportAuditProgressPayload(snapshot);
@@ -513,8 +542,21 @@
 
   function renderReportAuditRunningState(snapshot = reportsState.lastReportSnapshot) {
     if (reportAuditProgressIsTerminal(snapshot || {}) && reportAuditSnapshotCoversAcceptedRun(snapshot || {})) {
+      const priorityTableSelected = selectReportAuditPriorityTable(snapshot || {});
       reportsState.reportAuditAcceptedRun = null;
       clearReportAuditRefreshTimers();
+      if (reportAuditProgressSucceeded(snapshot || {})) {
+        const priorityCsvPath = reportAuditPriorityCsvPath(snapshot || {});
+        setText("report-audit-launch-status", "Completed");
+        setText(
+          "report-audit-launch-detail",
+          priorityCsvPath
+            ? (priorityTableSelected
+              ? `Audit completed. Loaded priority table from ${priorityCsvPath}.`
+              : `Audit completed. Priority table is already selected from ${priorityCsvPath}.`)
+            : "Audit completed. No priority table was generated for this audit.",
+        );
+      }
     }
     const evidence = reportAuditCurrentRunEvidence(snapshot || {});
     if (evidence) {
@@ -583,9 +625,13 @@
     };
   }
   function reportAuditReviewCount() {
+    const actionableCount = reportsState.lastAuditPreviewPayload?.actionable_count;
+    if (actionableCount !== undefined && actionableCount !== null) {
+      return reportNumber(actionableCount);
+    }
     return reportNumber(reportsState.lastAuditPreviewPayload?.redownload_count)
       + reportNumber(reportsState.lastAuditPreviewPayload?.rerun_count)
-      + reportNumber(reportsState.lastAuditPreviewPayload?.high_priority_count);
+      + reportNumber(reportsState.lastAuditPreviewPayload?.priority_count ?? reportsState.lastAuditPreviewPayload?.high_priority_count);
   }
 
   function collectReportAuditScorePolicyForm() {
@@ -869,6 +915,7 @@
       return;
     }
     reportsState.reportAuditStartBusy = true;
+    reportsState.reportAuditAutoPriorityCsvPath = "";
     setReportAuditCommandBusy("audit.start", "report-audit-start-button");
     setText("report-audit-launch-status", "Starting...");
     setText("report-audit-launch-detail", formatReportAuditCommandDetail({
@@ -1151,7 +1198,7 @@
     }
     const scope = request.row_keys.length
       ? `${request.row_keys.length} selected row(s)`
-      : "all loaded non-ignored rows (current filter is display-only)";
+      : "all non-ignored rows in the latest audit CSV (current filter is display-only)";
     if (!window.confirm(`Build CSV rerun queue for ${scope}?`)) return;
     setReportAuditCommandBusy("audit.export_rerun_csv", "report-audit-export-rerun-csv-button");
     setText("report-audit-export-status", "Building...");

@@ -447,6 +447,10 @@ function Invoke-RetryPendingPushes {
     param([switch]$Force)
 
     if (-not (Test-Path -LiteralPath $LocalPendingPush)) { return 0 }
+    $recoveryEvidence = Invoke-PendingPublishRecovery -Reason $(if ($Force) { 'forced-drain-preflight' } else { 'retry-preflight' })
+    if ([int]$recoveryEvidence.failed_count -gt 0 -or [int]$recoveryEvidence.blocked_count -gt 0) {
+        Write-Log "Pending publish recovery preflight found blocked=$($recoveryEvidence.blocked_count), failed=$($recoveryEvidence.failed_count); affected manifests remain queued." 'WARN'
+    }
     $allManifests = @(Get-ChildItem -LiteralPath $LocalPendingPush -File -Filter '*.manifest.json' -ErrorAction SilentlyContinue | Sort-Object LastWriteTimeUtc, Name)
     $manifests = @($allManifests)
     if ($manifests.Count -eq 0) { return 0 }

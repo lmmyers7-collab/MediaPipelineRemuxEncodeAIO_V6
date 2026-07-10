@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from mediapipeline.core.repair_reconcile.dry_run import (
@@ -113,6 +114,7 @@ class RepairReconcileDryRunFacadeMixin:
         *,
         candidate_command: str,
         request: dict[str, Any],
+        journal_recorder: Callable[[dict[str, Any], dict[str, Any] | None], None] | None = None,
     ) -> CommandResult:
         dry_run_request = {
             "scope": request.get("scope"),
@@ -131,6 +133,7 @@ class RepairReconcileDryRunFacadeMixin:
             candidate_command=candidate_command,
             request=request,
             dry_run=dry_run,
+            journal_recorder=journal_recorder,
         )
 
     def plan_startup_reconciliation_dry_run(

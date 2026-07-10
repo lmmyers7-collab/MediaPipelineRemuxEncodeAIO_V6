@@ -18,6 +18,7 @@ $pipelineRoot = Split-Path -Parent (Split-Path -Parent $testsRoot)
 $repoRoot = Split-Path -Parent (Split-Path -Parent $pipelineRoot)
 
 . (Join-Path $repoRoot 'ops\pipeline\engine\audit\policy.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\entrypoints\Audit-MediaLibrary\path_utilities.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\audit\reports.ps1')
 
 function Assert-True {
@@ -48,6 +49,9 @@ function Assert-SequenceEqual {
         }
     }
 }
+
+Assert-Equal (Get-RelativePathSafe -RootPath 'C:\Media' -FullPath 'C:\Media\Movie.mkv') 'Movie.mkv' 'Relative path did not trim a real child path.'
+Assert-Equal (Get-RelativePathSafe -RootPath 'C:\Media' -FullPath 'C:\MediaBackup\Movie.mkv') 'C:\MediaBackup\Movie.mkv' 'Relative path crossed a sibling root with the same string prefix.'
 
 function New-AuditIssue {
     param(
@@ -218,6 +222,19 @@ try {
     Assert-Equal $importedPolicy['issue_code_weights']['audio-default-policy-mismatch'] 77 'Imported v2 policy did not use saved high issue-code weight.'
     Assert-Equal $importedPolicy['issue_code_weights']['audio-track-titles-missing'] 1000 'Imported v2 policy did not clamp medium issue-code weight.'
     Assert-True (-not $importedPolicy['issue_code_weights'].ContainsKey('unknown-code')) 'Imported v2 policy did not ignore unknown issue-code weight.'
+
+    $missingPolicy = Import-AuditScorePolicy -Path (Join-Path $tempRoot 'missing_score_policy.json')
+    Assert-Equal $missingPolicy['high_issue'] 90 'Missing score policy did not import defaults.'
+
+    Set-Content -LiteralPath $policyPath -Value '{not-json' -Encoding UTF8
+    $invalidScorePolicyThrew = $false
+    try {
+        Import-AuditScorePolicy -Path $policyPath | Out-Null
+    } catch {
+        $invalidScorePolicyThrew = $true
+        Assert-True ($_.Exception.Message -match 'Audit score policy is invalid') 'Invalid score policy error message was unclear.'
+    }
+    Assert-True $invalidScorePolicyThrew 'Invalid audit score policy did not fail loudly.'
 } finally {
     if (Test-Path -LiteralPath $tempRoot) {
         Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
@@ -242,5 +259,60 @@ Assert-Equal $ignoredResult.AuditIgnoreReason 'operator audit-only ignore' 'Igno
 $activeResult = Convert-ResultForSerialization -Result (New-AuditResult -Path 'C:\Media\Active.mkv' -Title 'Active' -Bucket 'RERUN_PIPELINE' -Issues @($highRerunIssue))
 $priorityRows = @(New-AuditCsvRows -Entries @($ignoredResult, $activeResult) | Where-Object { $_.PriorityFixLevel -in @('HIGH', 'MEDIUM') })
 Assert-SequenceEqual @($priorityRows | ForEach-Object { $_.LookupTitle }) @('Active') 'Ignored audit row was not suppressed from priority rows.'
+
+$reportModel = New-AuditReportModel -Results @(
+    (New-AuditResult -Path $ignoredPath -Title 'Ignored' -Bucket 'RERUN_PIPELINE' -Issues @($highRerunIssue)),
+    (New-AuditResult -Path 'C:\Media\Active.mkv' -Title 'Active' -Bucket 'RERUN_PIPELINE' -Issues @($highRerunIssue))
+)
+Assert-Equal $reportModel.BucketCounts.IGNORED 1 'Ignored audit row should count under IGNORED.'
+Assert-Equal $reportModel.BucketCounts.RERUN_PIPELINE 1 'Ignored audit row should not inflate RERUN_PIPELINE totals.'
+$highRerunIssueRows = @($reportModel.IssueCountRows | Where-Object { $_.Code -eq $highRerunIssue.Code })
+Assert-Equal $highRerunIssueRows.Count 1 'Active issue count row was not present exactly once.'
+Assert-Equal $highRerunIssueRows[0].Count 1 'Ignored audit row should not inflate active issue-code summaries.'
+
+$reportTempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("audit-score-policy-" + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $reportTempRoot -Force | Out-Null
+try {
+    $script:AuditVersion = 'test'
+    $script:LibraryRootsResolved = @('C:\Media')
+    $script:ReportRootResolved = $reportTempRoot
+    $script:ConfigPathResolved = ''
+    $script:FfprobePath = 'ffprobe'
+    $script:MinPipelineVersion = 'test'
+    $script:IncludeSidecars = $false
+    $textReportPath = Join-Path $reportTempRoot 'audit.txt'
+    Write-TextReport -Path $textReportPath -Entries $reportModel.Entries -BucketCounts $reportModel.BucketCounts -IssueCountRows @()
+    $textReport = Get-Content -LiteralPath $textReportPath -Raw
+    Assert-True ($textReport -match 'IGNORED\s*: 1') 'Text report did not include ignored effective total.'
+    Assert-True ($textReport -notmatch [regex]::Escape($ignoredPath)) 'Ignored audit row was listed as an active problem.'
+    Assert-True ($textReport -match [regex]::Escape('C:\Media\Active.mkv')) 'Active audit row was missing from problem listing.'
+} finally {
+    if (Test-Path -LiteralPath $reportTempRoot) {
+        Remove-Item -LiteralPath $reportTempRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+$manifestTempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("audit-ignore-manifest-" + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $manifestTempRoot -Force | Out-Null
+try {
+    $missingManifest = Join-Path $manifestTempRoot 'missing.json'
+    $missingEntries = Import-AuditIgnoreManifest -Path $missingManifest
+    Assert-Equal $missingEntries.Count 0 'Missing audit ignore manifest should import as empty.'
+
+    $invalidManifest = Join-Path $manifestTempRoot 'invalid.json'
+    Set-Content -LiteralPath $invalidManifest -Value '{not-json' -Encoding UTF8
+    $invalidThrew = $false
+    try {
+        Import-AuditIgnoreManifest -Path $invalidManifest | Out-Null
+    } catch {
+        $invalidThrew = $true
+        Assert-True ($_.Exception.Message -match 'Audit ignore manifest is invalid') 'Invalid manifest error message was unclear.'
+    }
+    Assert-True $invalidThrew 'Invalid audit ignore manifest did not fail loudly.'
+} finally {
+    if (Test-Path -LiteralPath $manifestTempRoot) {
+        Remove-Item -LiteralPath $manifestTempRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
 
 Write-Host 'Audit score policy checks passed.'

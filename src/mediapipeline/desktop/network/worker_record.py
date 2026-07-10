@@ -38,4 +38,17 @@ def make_queue_record(claim: ClaimResponse):
         global_order=0,
     )
     record.library_id = claim.library_id
+    record.job_kind = claim.job_kind or "pipeline_queue"
+    record.rerun_batch_id = claim.rerun_batch_id
+    record.rerun_row_key = claim.rerun_row_key
+    record.rerun_row_index = claim.rerun_row_index
+    record.planned_output_path = claim.planned_output_path
+    record.output_handoff = dict(claim.output_handoff)
+    record.source_identity = dict(claim.source_identity)
+    record.coordinator_source_path = claim.coordinator_source_path or claim.source_path
+    record.worker_source_path = claim.worker_source_path or claim.source_path
+    record.handoff_probe = dict(claim.handoff_probe)
+    if record.job_kind == "csv_rerun_row":
+        record.route_name = "network_csv_rerun_row"
+        record.route_reason = "Coordinator-assigned Network CSV rerun row"
     return record

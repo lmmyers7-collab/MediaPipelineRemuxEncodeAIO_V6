@@ -73,7 +73,7 @@ HELD_PROGRESS_STATES = ("stopped",)
 
 REVIEW_PROGRESS_STATES = ("deferred", "parked", "pending publish", "review")
 
-FAILED_PROGRESS_STATES = ("failed", "error", "blocked")
+FAILED_PROGRESS_STATES = ("failed", "error", "blocked", "cancelled", "canceled", "orphaned")
 
 
 def application_capabilities() -> list[str]:
@@ -204,11 +204,11 @@ def _audit_progress_is_stale(audit_progress: Mapping[str, Any] | None, *, stale_
 
 
 def progress_state_status(*values: str, stale: bool = False) -> str:
-    if stale:
-        return "warning"
     text = " ".join(str(value or "").lower() for value in values)
     if any(token in text for token in FAILED_PROGRESS_STATES):
         return "blocked"
+    if stale:
+        return "warning"
     if any(token in text for token in REVIEW_PROGRESS_STATES):
         return "warning"
     if any(token in text for token in HELD_PROGRESS_STATES):

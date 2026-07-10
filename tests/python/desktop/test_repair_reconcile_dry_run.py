@@ -396,6 +396,31 @@ def _write_empty_state_db(state_root: Path) -> Path:
 
 
 class RepairReconcileDryRunTests(unittest.TestCase):
+    def test_completed_manifest_parse_loss_is_visible_and_blocks_reconcile_dry_run(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved, files = _completed_fixture(root)
+            valid_line = files["completed_manifest"].read_text(encoding="utf-8").strip()
+            files["completed_manifest"].write_text(
+                valid_line + "\n{malformed-json\n" + valid_line + "\n",
+                encoding="utf-8",
+            )
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+            preview = facade.get_completed_preview(resolved, force_refresh=True).to_mapping()
+            row_key = preview["rows"][0]["row_key"]
+
+            result = facade.plan_repair_reconcile_dry_run(
+                resolved,
+                candidate_command="completed.reconcile_manifest",
+                request={"scope": "selected", "row_key": row_key},
+            ).to_mapping()
+
+        self.assertEqual(preview["parse_health"]["skipped_count"], 1)
+        self.assertIn("tail-recent:", preview["parse_health"]["recent_errors"][0]["line_identifier"])
+        statuses = {row["key"]: row["status"] for row in result["data"]["precondition_results"]}
+        self.assertEqual(statuses["completed_manifest_parse_health"], "blocked")
+        self.assertFalse(result["data"]["safe_to_apply"])
+
     def test_completed_dry_runs_return_required_schema_and_do_not_mutate_files(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

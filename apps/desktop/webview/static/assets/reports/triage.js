@@ -27,7 +27,7 @@
     if (failures.error || audit.error) return "Diagnostics";
     if (reportFailureReviewCount() > 0) return "Failures";
     if (reportNumber(audit.redownload_count) > 0) return "Manual source review";
-    if (reportNumber(audit.rerun_count) > 0 || reportNumber(audit.high_priority_count) > 0) return "Queue CSV Rerun";
+    if (reportNumber(audit.rerun_count) > 0 || reportNumber(audit.priority_count ?? audit.high_priority_count) > 0) return "Queue CSV Rerun";
     const warningRows = collectReportWarnings();
     if (warningRows.length) return warningRows[0].owner || "Diagnostics";
     return "Reports";
@@ -74,7 +74,7 @@
       `Next action: ${nextAction}`,
       `Action owner: ${owner}`,
       `Failure rows needing operator/permanent review: ${failureCount}`,
-      `Audit rerun/redownload/high-priority candidates: ${auditCount}`,
+      `Audit rerun/redownload/priority candidates: ${auditCount}`,
       `Warnings needing review: ${warningCount}`,
       `Latest reports: ${reportLatestState(latestPaths)}`,
       "Boundary: Reports points to evidence and owner pages; backend commands remain authoritative for launch, rerun, publish/drain, repair, rename, settings save, and file movement.",
@@ -91,7 +91,7 @@
       reportNumber(failures.permanent_count) > 0 ||
       reportNumber(audit.redownload_count) > 0 ||
       reportNumber(audit.rerun_count) > 0 ||
-      reportNumber(audit.high_priority_count) > 0
+      reportNumber(audit.priority_count ?? audit.high_priority_count) > 0
     ) {
       return "Action needed";
     }
@@ -112,7 +112,7 @@
     if (reportNumber(audit.redownload_count) > 0) {
       return "Review redownload candidates before rerun; the WebView intentionally does not auto-redownload.";
     }
-    if (reportNumber(audit.rerun_count) > 0 || reportNumber(audit.high_priority_count) > 0) {
+    if (reportNumber(audit.rerun_count) > 0 || reportNumber(audit.priority_count ?? audit.high_priority_count) > 0) {
       return "Review priority/audit rows, then use backend-owned Queue > CSV Rerun with the intended CSV path.";
     }
     if (!reportsState.lastFailureRows.length && !reportsState.lastAuditRows.length) {
@@ -133,7 +133,7 @@
       `Priority CSV: ${latestPaths.latest_priority_csv ? "present" : "missing"}`,
       `Actionable warnings: ${warningRows.length}`,
       `Failure rows: ${reportNumber(failures.count || reportsState.lastFailureRows.length)} (operator=${reportNumber(failures.operator_required_count)}, permanent=${reportNumber(failures.permanent_count)}, transient=${reportNumber(failures.transient_count)})`,
-      `Audit rows: ${reportNumber(audit.count || reportsState.lastAuditRows.length)} (high=${reportNumber(audit.high_priority_count)}, rerun=${reportNumber(audit.rerun_count)}, redownload=${reportNumber(audit.redownload_count)}, review=${reportNumber(audit.review_count)})`,
+      `Audit rows: ${reportNumber(audit.count || reportsState.lastAuditRows.length)} (priority=${reportNumber(audit.priority_count ?? audit.high_priority_count)}, high=${reportNumber(audit.high_priority_count)}, medium=${reportNumber(audit.medium_priority_count)}, rerun=${reportNumber(audit.rerun_count)}, redownload=${reportNumber(audit.redownload_count)}, review=${reportNumber(audit.review_count)})`,
       `Duplicate groups: ${reportNumber(audit.duplicate_group_count)}`,
     ];
     const failureWarnings = Array.isArray(failures.warnings) ? failures.warnings.filter(Boolean) : [];
@@ -179,7 +179,7 @@
     const failureLoaded = reportPreviewLoaded(failures, reportsState.lastFailureRows);
     const auditLoaded = reportPreviewLoaded(audit, reportsState.lastAuditRows);
     const failureReviewCount = reportNumber(failures.operator_required_count) + reportNumber(failures.permanent_count);
-    const auditReviewCount = reportNumber(audit.rerun_count) + reportNumber(audit.redownload_count) + reportNumber(audit.high_priority_count);
+    const auditReviewCount = reportAuditReviewCount();
     const lines = [
       "Reports investigation checklist:",
       `Latest Failure JSON | ${latestPaths.latest_failure_json ? "Ready" : "Missing"} | Diagnostics | evidence only`,
@@ -189,7 +189,7 @@
       `Failure preview | ${failureLoaded ? "Loaded" : "Not loaded"} | Failures | row triage only`,
       `Audit preview | ${auditLoaded ? "Loaded" : "Not loaded"} | Audit | row triage/export only`,
       `Failure review rows | ${failureReviewCount ? "Needs review" : "Ready"} | Failures | ${failureReviewCount} row(s)`,
-      `Audit rerun/redownload rows | ${auditReviewCount ? "Needs review" : "Ready"} | Audit/Queue | ${auditReviewCount} row(s)`,
+      `Audit rerun/redownload/priority rows | ${auditReviewCount ? "Needs review" : "Ready"} | Audit/Queue | ${auditReviewCount} row(s)`,
       `Warnings | ${warningRows.length ? "Review" : "Ready"} | ${warningRows[0]?.owner || "Reports"} | ${warningRows.length} warning(s)`,
       `Failure report root | ${workspacePaths.failed_reports ? "Configured" : "Missing"} | Locations | open through allowlist`,
       `Audit report root | ${workspacePaths.audit_reports ? "Configured" : "Missing"} | Locations | open through allowlist`,
@@ -201,7 +201,7 @@
       lines.push("2. Evidence only | Diagnostics | compare Failure Markers and Run Logs before rerun or cleanup.");
       lines.push("3. Action owner | Queue/Pending Publish | confirm the source is not still blocked or parked.");
     } else if (audit.error || auditReviewCount) {
-      lines.push("1. Needs review | Audit | inspect redownload/rerun/high-priority rows.");
+      lines.push("1. Needs review | Audit | inspect redownload/rerun/priority rows.");
       lines.push("2. Evidence only | Diagnostics | compare Latest Audit CSV, Completed Manifest, Queue Snapshot, and Run Logs.");
       lines.push("3. Action owner | Queue | use CSV Rerun only after the chosen CSV/path is verified.");
     } else if (warningRows.length) {

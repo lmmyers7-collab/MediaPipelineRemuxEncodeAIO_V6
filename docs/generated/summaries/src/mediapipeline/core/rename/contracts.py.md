@@ -3,9 +3,9 @@ file: src/mediapipeline/core/rename/contracts.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: rename
-last_modified: 2026-06-29
+last_modified: 2026-07-07
 last_reviewed: 2026-06-04
-sha256: 547d08c988b190baf922ddb5f1a617b5411e037bb83711fbaf99c282569e89bd
+sha256: 56564f1816aae57ab1cd1443d2d5ccd1791b9565758aff7719b9edc7c0c5f811
 ---
 # `src/mediapipeline/core/rename/contracts.py`
 

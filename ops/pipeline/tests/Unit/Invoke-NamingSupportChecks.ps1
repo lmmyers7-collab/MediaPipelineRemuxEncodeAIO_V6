@@ -157,6 +157,36 @@ try {
     Assert-Equal $bookwormInfo.Episode 1 'TV parser should read episode from S03E01 source file.'
     Assert-Equal $bookwormPlan.RelativePath (Join-Path 'TV\Ascendance of a Bookworm\Season 03' 'Ascendance of a Bookworm - S03E01 - The Beginning of Winter.mkv') 'TV destination planner should keep release metadata out of Bookworm output paths.'
 
+    $rootTvFolder = Join-Path $tempRoot 'TV'
+    New-Item -ItemType Directory -Path $rootTvFolder -Force | Out-Null
+    $reZeroName = '[Erai-raws] Re Zero kara Hajimeru Isekai Seikatsu 4th Season - 01 [1080p CR WEBRip HEVC AAC][MultiSub][C86350AC].mkv'
+    $reZeroPath = Join-Path $rootTvFolder $reZeroName
+    [System.IO.File]::WriteAllBytes($reZeroPath, [System.Text.Encoding]::UTF8.GetBytes('rezero-bytes'))
+    $reZeroInfo = Get-TVInfoFromFile -file (Get-Item -LiteralPath $reZeroPath) -SourceRootPath $rootTvFolder -LibraryName 'TV' -LibraryId 'tv' -LibraryDesignation 'tv'
+    $reZeroPlan = New-PlexDestinationPlan -MediaKind TV -File (Get-Item -LiteralPath $reZeroPath) -TvInfo $reZeroInfo -OriginalName $reZeroInfo.OriginalName -Extension 'mkv' -IncludeLibraryFolder
+    Assert-Equal $reZeroInfo.ShowName 'Re Zero kara Hajimeru Isekai Seikatsu' 'Root-level ordinal-season TV parser should extract the show title before falling back to the TV source folder.'
+    Assert-Equal $reZeroInfo.Season 4 'Root-level ordinal-season TV parser should read numeric ordinal seasons.'
+    Assert-Equal $reZeroInfo.Episode 1 'Root-level ordinal-season TV parser should read bare episode numbers after the season token.'
+    Assert-Equal $reZeroInfo.ParseMode 'ordinal-season' 'Root-level ordinal-season TV parser should keep the explicit ordinal parse mode.'
+    Assert-Equal $reZeroPlan.RelativePath (Join-Path 'TV\Re Zero kara Hajimeru Isekai Seikatsu\Season 04' 'Re Zero kara Hajimeru Isekai Seikatsu - S04E01.mkv') 'TV destination planner should not create TV\TV for root-level ordinal-season fansub files.'
+
+    $libraryFallbackPath = Join-Path $rootTvFolder 'S01E01.mkv'
+    [System.IO.File]::WriteAllBytes($libraryFallbackPath, [System.Text.Encoding]::UTF8.GetBytes('library-fallback-bytes'))
+    $libraryFallbackInfo = Get-TVInfoFromFile -file (Get-Item -LiteralPath $libraryFallbackPath) -SourceRootPath $rootTvFolder -LibraryName 'TV' -LibraryId 'tv' -LibraryDesignation 'tv'
+    Assert-True (-not $libraryFallbackInfo.IsReliable) 'Root-level TV files must not use the TV library/root name as a show name.'
+    Assert-Equal $libraryFallbackInfo.ParseMode 'library-fallback-blocked' 'Library/root fallback should be blocked with an explicit parse mode.'
+    Assert-True ($libraryFallbackInfo.ParseError -match 'library/root label') 'Library/root fallback should explain why the TV parse was blocked.'
+
+    $validShowRoot = Join-Path $rootTvFolder 'Valid Show'
+    New-Item -ItemType Directory -Path $validShowRoot -Force | Out-Null
+    $validShowPath = Join-Path $validShowRoot 'S01E01.mkv'
+    [System.IO.File]::WriteAllBytes($validShowPath, [System.Text.Encoding]::UTF8.GetBytes('valid-show-bytes'))
+    $validShowInfo = Get-TVInfoFromFile -file (Get-Item -LiteralPath $validShowPath) -SourceRootPath $rootTvFolder -LibraryName 'TV' -LibraryId 'tv' -LibraryDesignation 'tv'
+    Assert-True ([bool]$validShowInfo.IsReliable) 'TV files under a show folder should remain reliable when the library root is TV.'
+    Assert-Equal $validShowInfo.ShowName 'Valid Show' 'Show-folder fallback should still provide the show name.'
+    Assert-Equal $validShowInfo.Season 1 'Show-folder fallback should preserve SxxEyy season.'
+    Assert-Equal $validShowInfo.Episode 1 'Show-folder fallback should preserve SxxEyy episode.'
+
     $sourceA = Join-Path $tempRoot 'IdentityA.mkv'
     $sourceB = Join-Path $tempRoot 'IdentityB.mkv'
     [System.IO.File]::WriteAllBytes($sourceA, [System.Text.Encoding]::UTF8.GetBytes('same-size-a'))

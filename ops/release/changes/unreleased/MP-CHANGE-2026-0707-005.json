@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0707-005",
+  "title": "Queue parked row state labels",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-07",
+  "date_completed": "2026-07-08",
+  "summary": "Stop labeling normal parked CSV rerun rows as Review in the Queue table and selected-row status surfaces.",
+  "reason": "Parked review-workspace and Pending Publish CSV rerun rows are normal parked-output states, not per-file problem rows. Showing every parked row as Review made the Queue table noisy and hid the rows that actually need operator review.",
+  "affected_areas": [
+    "change_control",
+    "generated_docs",
+    "queue",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "CSV rerun review-workspace rows were exported with operator_status_state=review/operator_severity=warning, Pending Publish rows were warning-like, and the WebView table collapsed parked states into a Review chip. Normal parked rows could also be counted as hidden review rows in WebView filter guidance.",
+  "behavior_after": "CSV rerun review-workspace and Pending Publish rows are exported as operator_status_state=parked/operator_severity=ok. The Queue table renders parked/review-workspace rows as Parked and pending-publish rows as Pending Publish, while true warning/review/blocked rows still render as Review or Blocked.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/queue/table.js",
+    "apps/desktop/webview/static/assets/queueView.review.js",
+    "apps/desktop/webview/static/assets/styles/queue/light-mode.css",
+    "apps/desktop/webview/static/assets/styles/queue/table.css",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queue/table.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queueView.review.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles/queue/light-mode.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles/queue/table.css.md",
+    "docs/generated/summaries/src/mediapipeline/core/queue/facade.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_queue.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_queue_table_state_chips.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_row_detail_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0707-005.json",
+    "src/mediapipeline/core/queue/facade.py",
+    "tests/python/desktop/test_application_facade_queue.py",
+    "tests/webview/test_webview_queue_table_state_chips.py",
+    "tests/webview/test_webview_row_detail_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_queue_table_state_chips.py"
+  ],
+  "manual_validation": [
+    "BLOCKED: $env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_queue tests.webview.test_webview_queue_table_state_chips tests.webview.test_webview_row_detail_smoke -q failed in tests.webview.test_webview_row_detail_smoke because pending-diagnostics-guidance expected a Diagnostics bridge line that the current ready pending row does not render; the queue facade and state-chip tests passed in the same run.",
+    "BLOCKED: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage failed because unrelated MP-CHANGE-2026-0707-001.json is invalid JSON and git status fails with malformed .git/packed-refs.",
+    "BLOCKED: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes failed because unrelated MP-CHANGE-2026-0707-001.json is invalid JSON.",
+    "PASS: $env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_queue tests.webview.test_webview_queue_table_state_chips -q",
+    "PASS: $env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_queue.ApplicationFacadeQueueTests.test_csv_rerun_manifest_status_and_reason_drive_operator_state tests.webview.test_webview_queue_table_state_chips -q"
+  ],
+  "rollback_plan": "Revert the CSV rerun parked-state mapping, queue table chip mapping, parked chip styles, and associated test expectation changes in this packet.",
+  "related_changes": [],
+  "notes": "Keep selected-row at-a-glance parked status out of the review label path.\nStyle parked queue state chips.\nClassify normal CSV rerun parked and review-workspace outputs as parked instead of review.\nRender parked and pending publish queue table states distinctly from review.\nStyle parked queue state chips in light mode.\nPin CSV rerun review-workspace and pending-publish rows as parked read-model states.\nAdd WebView smoke coverage for parked state chip labels.\nUpdate parked completed-row filter expectation so hidden parked rows are not counted as hidden review rows.\nRefresh generated summaries for changed source, WebView, style, and test files.\nKeep raw CSV rerun review status on the review path while treating review-workspace parked outputs as parked."
+}

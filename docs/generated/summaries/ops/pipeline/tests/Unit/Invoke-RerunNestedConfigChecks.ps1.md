@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-RerunNestedConfigChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-03
+last_modified: 2026-07-09
 last_reviewed: 2026-06-29
-sha256: dc7e1e81f261ce57b6c98d7b54367fca832d8b25051da606f0d7b1f4daf259ad
+sha256: 718f7ab3d81f6396ae03405b44bb5f595f7954aa95eda952b4187297fe666e48
 ---
 # `ops/pipeline/tests/Unit/Invoke-RerunNestedConfigChecks.ps1`
 

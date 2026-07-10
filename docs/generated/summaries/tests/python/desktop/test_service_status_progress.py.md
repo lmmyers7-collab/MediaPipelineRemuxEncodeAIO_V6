@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_status_progress.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-12
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: 3d600e72e5280a21de0c0f6fe11a15b5dacf819536bc517545bdc955ce38a9e0
+sha256: 460724c77d0d65934f7ef903db4873ad9f79b8bf2c6890eaf1e45cd05e329237
 ---
 # `tests/python/desktop/test_service_status_progress.py`
 

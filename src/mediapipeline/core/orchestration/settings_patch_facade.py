@@ -16,9 +16,11 @@ from mediapipeline.core.config.settings_patch_policy import (
     settings_save_exception_result,
     settings_save_no_changes_result,
     settings_save_review_confirmation_error,
+    settings_save_review_confirmation_required_result,
     settings_save_service_unavailable_result,
     settings_save_success_result,
     settings_save_validation_error_result,
+    settings_config_digest,
 )
 from mediapipeline.core.config.identity import config_operation_block_data, config_operation_block_message
 from mediapipeline.contracts.source_media import SourceMediaInfo
@@ -52,6 +54,14 @@ class SettingsPatchFacadeMixin:
         patch = self._settings_patch_candidate(resolved, request, command="settings.preview_patch")
         if patch["fatal_result"] is not None:
             return patch["fatal_result"]
+        authority_loader = getattr(self.service, "load_settings_authority", None)
+        if callable(authority_loader):
+            try:
+                authority = authority_loader(resolved.config_path, resolved.powershell_host)
+            except Exception:
+                authority = None
+            if isinstance(authority, dict):
+                patch["authority_config_digest"] = settings_config_digest(authority)
         return settings_patch_preview_result(resolved, patch)
 
     def settings_patch_request_with_review_confirmation(
@@ -189,7 +199,29 @@ class SettingsPatchFacadeMixin:
             return settings_save_busy_result(block_message)
         warnings: list[str] = []
         try:
+            authority_loader = getattr(self.service, "load_settings_authority", None)
+            submitted_confirmation = request.get("review_confirmation")
+            submitted_authority_digest = (
+                str(submitted_confirmation.get("authority_config_digest") or "")
+                if isinstance(submitted_confirmation, dict)
+                else ""
+            )
+            if callable(authority_loader) and submitted_authority_digest:
+                current_authority = authority_loader(resolved.config_path, resolved.powershell_host)
+                if not isinstance(current_authority, dict):
+                    return settings_save_review_confirmation_required_result(
+                        submitted=submitted_confirmation,
+                        reason="Settings authority could not be verified at commit time; save was blocked.",
+                    )
+                current_digest = settings_config_digest(current_authority)
+                if current_digest != submitted_authority_digest:
+                    return settings_save_review_confirmation_required_result(
+                        submitted=submitted_confirmation,
+                        reason="Settings authority changed after preview; refresh and review the new candidate before saving.",
+                    )
             patch = self._settings_patch_candidate(resolved, request, command="settings.save_patch")
+            if submitted_authority_digest:
+                patch["authority_config_digest"] = submitted_authority_digest
             if patch["fatal_result"] is not None:
                 return patch["fatal_result"]
             errors = patch["errors"]

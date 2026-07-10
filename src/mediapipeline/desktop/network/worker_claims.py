@@ -228,6 +228,7 @@ class WorkerClaimMixin:
         retry_on_failure: bool | None = None,
         reason_code: str | None = None,
         reason: str | None = None,
+        worker_result_artifact_path: str | None = None,
     ) -> None:
         """Report job completion to the coordinator and clean up local state."""
         self._stop_heartbeat()
@@ -249,6 +250,7 @@ class WorkerClaimMixin:
             retry_on_failure=retry_on_failure,
             reason_code=reason_code,
             reason=reason,
+            worker_result_artifact_path=worker_result_artifact_path,
         ).to_dict()
         report_accepted = False
         pending_report_saved = False

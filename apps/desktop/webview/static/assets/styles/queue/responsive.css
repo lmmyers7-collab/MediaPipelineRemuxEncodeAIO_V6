@@ -68,6 +68,7 @@
   }
 
   [data-page-panel="queue"] .rerun-preview-table .rerun-preview-identity-cell,
+  [data-page-panel="queue"] .rerun-preview-table .rerun-preview-destination-cell,
   [data-page-panel="queue"] .rerun-preview-table .rerun-preview-reason-cell {
     grid-template-columns: minmax(0, 1fr);
   }

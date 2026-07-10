@@ -55,10 +55,12 @@ class CompletedManifestHelperTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
+            parse_health: dict[str, object] = {}
             rows = read_completed_manifest_records(
                 manifest,
                 limit=10,
                 logger=self._logger(),
+                parse_health=parse_health,
             )
 
         self.assertEqual(len(rows), 3)
@@ -70,6 +72,14 @@ class CompletedManifestHelperTests(unittest.TestCase):
         self.assertEqual(rows[2].output_path, first_output)
         self.assertEqual(rows[2].payload["_diagnostics_output_exists"], True)
         self.assertEqual(rows[2].payload["_diagnostics_output_health"], "ok")
+        self.assertEqual(parse_health["schema_version"], "completed_manifest_parse_health.v1")
+        self.assertEqual(parse_health["skipped_count"], 2)
+        self.assertFalse(parse_health["complete"])
+        self.assertEqual(
+            {entry["error_class"] for entry in parse_health["recent_errors"]},
+            {"JSONDecodeError", "NonObjectJSON"},
+        )
+        self.assertTrue(all(entry["line_identifier"] for entry in parse_health["recent_errors"]))
 
     def test_read_completed_manifest_records_honors_limit_after_recent_first_ordering(self) -> None:
         with tempfile.TemporaryDirectory() as td:

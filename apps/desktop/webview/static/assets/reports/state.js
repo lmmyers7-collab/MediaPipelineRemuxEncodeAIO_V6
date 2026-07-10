@@ -31,6 +31,7 @@
       reportAuditStartBusy: false,
       reportAuditCommandBusy: "",
       reportAuditAcceptedRun: null,
+      reportAuditAutoPriorityCsvPath: "",
       reportAuditTimerId: 0,
       reportAuditRefreshTimerIds: [],
       failureClearBusy: false,
@@ -43,6 +44,7 @@
       lastFailureLifecyclePreview: null,
       reportsTabNavInitialized: false,
       reportsViewEventsInitialized: false,
+      componentFreshAt: {},
     };
   }
 

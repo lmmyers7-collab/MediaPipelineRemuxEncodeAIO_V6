@@ -1,0 +1,43 @@
+{
+  "id": "MP-CHANGE-2026-0709-006",
+  "title": "Auto-open priority audit table",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-07-09",
+  "date_completed": "2026-07-09",
+  "summary": "A successful audit launched from Reports now automatically selects and refreshes the generated priority CSV table when the backend completion record names that file.",
+  "reason": "Operators should reach the priority results immediately after a full audit completes, without manually enabling the priority-CSV mode.",
+  "affected_areas": [
+    "generated-context",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "A completed audit could write a priority CSV while Reports remained on the full audit CSV until the operator manually selected Use latest priority CSV.",
+  "behavior_after": "When a successful Reports-launched audit completes with a latest_priority_csv_path, Reports selects the priority table once and refreshes it. The full audit CSV remains available, and manual table-mode changes are preserved.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/reports/auditCommands.js",
+    "apps/desktop/webview/static/assets/reports/state.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/reports/auditCommands.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/reports/state.js.md",
+    "docs/generated/summaries/tests/python/desktop/test_reports_view_static.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_maintenance_reports_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0709-006.json",
+    "tests/python/desktop/test_reports_view_static.py",
+    "tests/webview/test_webview_browser_maintenance_reports_smoke.py"
+  ],
+  "tests_added": [
+    "Extended the browser Reports smoke to launch a fixture audit, emit a completed priority-CSV signal, and verify the priority table is selected and refreshed once."
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_reports_view_static -q - passed (16 tests).",
+    "node --check apps/desktop/webview/static/assets/reports/auditCommands.js - passed.",
+    "node --check apps/desktop/webview/static/assets/reports/state.js - passed.",
+    "ops/scripts/smoke/Test-WebViewBrowserMaintenanceReportsSmoke.ps1 - passed (1 browser-backed test).",
+    "git diff --check for all change-packet paths - passed."
+  ],
+  "rollback_plan": "Remove the completed-audit priority-table selector and its per-report selection state; Reports will retain the operator-selected CSV mode after an audit completes.",
+  "related_changes": [],
+  "notes": "Select the generated priority CSV table after a successful Reports-launched audit completes.\nTrack the automatically selected priority CSV so an operator can later change the table mode without it being reselected.\nAssert the auto-priority table state and completion selection logic remain present.\nExercise automatic priority-table selection after a successful audit completion signal.\nRefresh audit command navigation summary after automatic priority-table selection.\nRefresh Reports state navigation summary after adding automatic priority-table selection state.\nRefresh Reports static test navigation summary.\nRefresh browser Reports smoke navigation summary."
+}

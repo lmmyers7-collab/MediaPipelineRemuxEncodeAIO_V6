@@ -611,6 +611,24 @@ def _browser_completed_pending_proof_runner_source() -> str:
             restoreSampleValidationContext();
 
             window.renderPendingPublish(payload.pending, {});
+            const parseLossCompleted = JSON.parse(JSON.stringify(payload.completed));
+            parseLossCompleted.parse_health = {
+              schema_version: "completed_manifest_parse_health.v1",
+              available: true,
+              scope: "recent_tail",
+              complete: false,
+              scanned_line_count: 3,
+              parsed_count: 2,
+              skipped_count: 1,
+              error_count: 1,
+              recent_errors: [{ line_identifier: "tail-recent:2", error_class: "JSONDecodeError", message: "fixture" }],
+            };
+            parseLossCompleted.warnings = ["Completed manifest parse health is degraded: 1 malformed row was omitted."];
+            const parseLossStatus = window.mediaPipelineCompletedView.completedIntegrityStatus(parseLossCompleted, parseLossCompleted.rows);
+            const parseLossLines = window.mediaPipelineCompletedView.completedIntegrityLines(parseLossCompleted, parseLossCompleted.rows).join("\\n");
+            if (parseLossStatus !== "Parse loss" || !parseLossLines.includes("skipped=1") || !parseLossLines.includes("tail-recent:2: JSONDecodeError")) {
+              throw new Error("completed parse-loss evidence was not surfaced: " + parseLossStatus + "\\n" + parseLossLines);
+            }
             window.mediaPipelineCompletedView.renderCompleted(payload.completed);
             const selectedCompleted = window.mediaPipelineCompletedView.getSelectedCompletedRow();
             if (!selectedCompleted) throw new Error("missing completed row for repair controls");

@@ -4,7 +4,7 @@ Date: 2026-07-03
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `apps/desktop/webview/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 2005. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 2017. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -297,7 +297,10 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `audit-launch-status` | `<span>` | Audit launch status |
 | `audit-launch-preflight` | `<div>` | Audit preflight result |
 | `rerun-start-button` | `<button>` | Queue CSV Rerun trigger for `/api/rerun/start` |
+| `rerun-network-start-dry-run-button` | `<button>` | Queue Network CSV Rerun backend start dry-run trigger |
 | `rerun-open-audit-tool-button` | `<button>` | Navigate to Reports Audit controls |
+| `rerun-start-target-mode` | `<select>` | Queue CSV Rerun local vs Network backend command target |
+| `rerun-network-minimum-workers` | `<input>` | Network CSV Rerun minimum worker count for backend dry-run/start |
 | `rerun-start-execution-mode` | `<select>` | CSV rerun execution mode for `/api/rerun/start` |
 | `rerun-start-window-size` | `<input>` | CSV rerun bounded window size |
 | `rerun-start-destination-mode` | `<select>` | CSV rerun output destination policy |
@@ -841,7 +844,7 @@ and rename bad-case corpus example fields. Current ID count is 1943 unique
 
 This section is generated from `apps/desktop/webview/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 2005
+Count: 2017
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 ```text
@@ -1599,6 +1602,11 @@ network-open-history
 network-open-history-status
 network-readiness-status
 network-readiness-summary
+network-rerun-board-title
+network-rerun-detail
+network-rerun-rows
+network-rerun-status
+network-rerun-summary
 network-role
 network-role-coordinator-setup-button
 network-role-dashboards
@@ -1686,8 +1694,8 @@ network-worker-view-presets
 pending-action-blocked-count
 pending-action-blockers-button
 pending-action-detail
-pending-action-drained-count
 pending-action-drain-button
+pending-action-drained-count
 pending-action-evidence-count
 pending-action-failed-count
 pending-action-feedback
@@ -2130,6 +2138,8 @@ rerun-lifecycle-phase
 rerun-lifecycle-summary
 rerun-lifecycle-title
 rerun-mode-policy-note
+rerun-network-minimum-workers
+rerun-network-start-dry-run-button
 rerun-open-active-jobs-button
 rerun-open-audit-tool-button
 rerun-open-csv-button
@@ -2167,6 +2177,7 @@ rerun-start-confirm-source-overwrite
 rerun-start-csv-path
 rerun-start-destination-mode
 rerun-start-execution-mode
+rerun-start-target-mode
 rerun-start-window-size
 rerun-state-rows
 rerun-state-status-filter
@@ -2514,6 +2525,7 @@ settings-patch-summary-rows
 settings-patch-summary-status
 settings-paths
 settings-pending-apply-button
+settings-pending-block-budget-gib
 settings-pending-builder-status
 settings-pending-cleanup-age
 settings-pending-cleanup-remote
@@ -2523,6 +2535,7 @@ settings-pending-guidance
 settings-pending-output-size-multiplier
 settings-pending-outsource-min-free
 settings-pending-reset-button
+settings-pending-review-budget-gib
 settings-pending-robocopy-flags
 settings-pending-robocopy-timeout
 settings-pending-skip-stability

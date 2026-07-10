@@ -178,6 +178,31 @@
             <pre id="network-worker-progress-summary" class="prose-block">No last reported worker progress loaded.</pre>
           </details>
         </section>
+        <section class="panel network-rerun-board" data-panel-type="evidence" aria-labelledby="network-rerun-board-title">
+          <div class="panel-heading">
+            <h2 id="network-rerun-board-title">Network CSV Rerun</h2>
+            <strong id="network-rerun-status">Not loaded</strong>
+          </div>
+          <p id="network-rerun-summary" class="note">No Network CSV rerun backend read model loaded.</p>
+          <div class="table-wrap detail-table-wrap network-rerun-table-wrap">
+            <table class="workflow-table" aria-label="Network CSV rerun batch rows">
+              <thead>
+                <tr>
+                  <th scope="col">Batch</th>
+                  <th scope="col">Row</th>
+                  <th scope="col">State</th>
+                  <th scope="col">Source</th>
+                  <th scope="col">Output</th>
+                  <th scope="col">Evidence</th>
+                </tr>
+              </thead>
+              <tbody id="network-rerun-rows">
+                <tr><td colspan="6">No Network CSV rerun rows loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <pre id="network-rerun-detail" class="prose-block">Select Queue CSV Rerun for start controls. This Network page shows backend-authored batch, worker, reducer, and destination-policy evidence only.</pre>
+        </section>
         <div id="network-role-dashboards" class="network-role-dashboard-stack" aria-label="Saved network role dashboard">
           <div class="settings-tab-pane network-tab-panel" data-network-role-panel="coordinator" hidden>
           <section class="panel network-overview-panel" data-panel-type="evidence">

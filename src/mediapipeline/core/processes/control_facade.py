@@ -105,7 +105,13 @@ def _write_idle_progress_file(progress_file: Path | None, logger: Any = None) ->
 class ProcessControlFacadeMixin:
     """Control-flag commands for the active PowerShell pipeline."""
 
-    def request_pipeline_control(self, resolved: ResolvedPaths, action: str) -> CommandResult:
+    def request_pipeline_control(
+        self,
+        resolved: ResolvedPaths,
+        action: str,
+        *,
+        confirm_force_stop: bool = False,
+    ) -> CommandResult:
         normalized = normalize_pipeline_control_action(action)
         command = pipeline_control_command(normalized)
         lock: object | None = None
@@ -118,6 +124,14 @@ class ProcessControlFacadeMixin:
                     message="Unsupported pipeline control action.",
                     severity="error",
                     errors=[PIPELINE_CONTROL_ACTION_ERROR],
+                )
+            if normalized == "kill" and confirm_force_stop is not True:
+                return CommandResult(
+                    command=command,
+                    ok=False,
+                    message="Force stop requires explicit backend confirmation.",
+                    severity="error",
+                    errors=["confirm_force_stop=true is required for action=kill."],
                 )
             lock, block_message = self._acquire_process_control_lock(command)
             if block_message:

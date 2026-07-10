@@ -1409,6 +1409,8 @@ class NetworkFacadeMixin:
         }
         dispatcher = self._network_dispatcher_for_role("coordinator")
         config_token = str((resolved.config_data or {}).get("CoordinatorAuthToken", "") or "").strip()
+        getter = getattr(dispatcher, "get_auth_token", None)
+        running_token = str(getter() or "").strip() if callable(getter) else ""
 
         if rotate:
             token = generate_token()
@@ -1432,7 +1434,30 @@ class NetworkFacadeMixin:
 
             updater = getattr(dispatcher, "update_auth_token", None)
             if callable(updater):
-                updater(token)
+                try:
+                    updater(token)
+                except Exception as exc:
+                    rollback_errors: list[str] = []
+                    if write_evidence["writes_config"] and config_token:
+                        rollback_request = self.settings_patch_request_with_review_confirmation(
+                            resolved,
+                            {"changes": {"CoordinatorAuthToken": config_token}},
+                        )
+                        rollback_result = self.save_settings_patch(
+                            resolved,
+                            {**rollback_request, "confirm_save": True},
+                        )
+                        if not rollback_result.ok:
+                            rollback_errors.append("config token rollback failed")
+                    if running_token:
+                        try:
+                            updater(running_token)
+                        except Exception:
+                            rollback_errors.append("running coordinator token rollback failed")
+                    rollback_detail = "; ".join(rollback_errors) if rollback_errors else "previous token restored"
+                    raise RuntimeError(
+                        f"running coordinator token update failed; {rollback_detail}: {redact_network_secret_text(exc)}"
+                    ) from exc
                 write_evidence["running_coordinator_updated"] = True
                 write_evidence["writes_app_state"] = True
                 return token, "rotated_running_coordinator", warnings, write_evidence
@@ -1446,9 +1471,8 @@ class NetworkFacadeMixin:
 
             return token, "rotated_config", warnings, write_evidence
 
-        getter = getattr(dispatcher, "get_auth_token", None)
         if callable(getter):
-            token = str(getter() or "").strip()
+            token = running_token
             if token:
                 return token, "running_coordinator", warnings, write_evidence
         if config_token:
@@ -1513,6 +1537,16 @@ class NetworkFacadeMixin:
             )
 
         try:
+            libraries = library_roots_from_config(resolved.config_data or {})
+            created_at_utc = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+            # Validate every non-secret blob field before a requested rotation can
+            # mutate config, app state, or a running coordinator token.
+            encode_network_join_blob(
+                coordinator_url=coordinator_url,
+                token="preflight-token-0123456789",
+                libraries=libraries,
+                created_at_utc=created_at_utc,
+            )
             token, token_source, warnings, write_evidence = self._coordinator_join_token(
                 resolved,
                 rotate=rotate,
@@ -1520,8 +1554,8 @@ class NetworkFacadeMixin:
             blob, payload = encode_network_join_blob(
                 coordinator_url=coordinator_url,
                 token=token,
-                libraries=library_roots_from_config(resolved.config_data or {}),
-                created_at_utc=datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+                libraries=libraries,
+                created_at_utc=created_at_utc,
             )
         except Exception as exc:
             return CommandResult(
@@ -1571,7 +1605,7 @@ class NetworkFacadeMixin:
         request = dict(request or {})
         data_base = {
             "schema_version": NETWORK_JOIN_IMPORT_RESULT_SCHEMA_VERSION,
-            "effect": "config-write-and-read-only-test",
+            "effect": "config-write",
             "suppress_command_journal": True,
             "would_not_touch": {
                 "source_media": "no write/delete/rename/move",

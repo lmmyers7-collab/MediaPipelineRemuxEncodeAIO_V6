@@ -3,9 +3,9 @@ file: tests/webview/test_webview_browser_rename_smoke.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: 14ee4109af0e39cc88957eb895f2097ffd3b1ae560f0bd652b67c98c847a2585
+sha256: bf8c97192fd1a43604546dc70ac720745805ef7503cc253912fd8a6937d6db02
 ---
 # `tests/webview/test_webview_browser_rename_smoke.py`
 

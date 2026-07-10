@@ -30,6 +30,7 @@ from mediapipeline.core.diagnostics.tdarr_matrix_audit import (  # noqa: E402
     tdarr_matrix_audit_runner_timeout,
     tdarr_matrix_incomplete_full_run_evidence,
     tdarr_matrix_incomplete_full_run,
+    tdarr_matrix_background_close_evidence,
 )
 from mediapipeline.core.diagnostics.tdarr_matrix_audit_facade import (  # noqa: E402
     DiagnosticsTdarrMatrixAuditFacadeMixin,
@@ -235,6 +236,58 @@ def _finding(
 
 
 class TdarrMatrixAuditServiceTests(unittest.TestCase):
+    def test_background_close_evidence_is_active_and_unreadable_metadata_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_root = tdarr_matrix_runs_root(root)
+            metadata_root = runs_root / "_background"
+            metadata_root.mkdir(parents=True)
+            process_start = datetime.fromtimestamp(12345.0, UTC).isoformat()
+            metadata_path = metadata_root / "run-proof.process.json"
+            metadata_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "tdarr_matrix_background_process.v1",
+                        "run_id": "run-proof",
+                        "pid": 4321,
+                        "process_start_time": process_start,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            class FakeProcess:
+                def is_running(self) -> bool:
+                    return True
+
+                def status(self) -> str:
+                    return "running"
+
+                def create_time(self) -> float:
+                    return 12345.0
+
+            class FakePsutil:
+                STATUS_ZOMBIE = "zombie"
+
+                class NoSuchProcess(Exception):
+                    pass
+
+                @staticmethod
+                def Process(pid: int) -> FakeProcess:
+                    if pid != 4321:
+                        raise FakePsutil.NoSuchProcess(pid)
+                    return FakeProcess()
+
+            active = tdarr_matrix_background_close_evidence(root, psutil_module=FakePsutil)
+            metadata_path.write_text("{not-json", encoding="utf-8")
+            invalid = tdarr_matrix_background_close_evidence(root, psutil_module=FakePsutil)
+
+        self.assertEqual(active["status"], "active")
+        self.assertTrue(active["active_work"])
+        self.assertEqual(active["pid"], 4321)
+        self.assertEqual(invalid["status"], "unavailable")
+        self.assertTrue(invalid["active_work"])
+
     def test_argument_presets_are_backend_owned(self) -> None:
         library_root = Path("C:/Repo/LocalBase/Scratch/TestLibraries/TdarrProofPack")
         runs_root = Path("C:/Repo/LocalBase/Scratch/TestLibraries/TdarrProofPack/runs")

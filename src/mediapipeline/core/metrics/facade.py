@@ -35,13 +35,13 @@ class MetricsFacadeMixin:
 
     def get_metrics(self, resolved: ResolvedPaths) -> dict[str, Any]:
         warnings: list[str] = []
-        completed_records = self._metrics_completed_records(resolved, warnings)
+        completed_records, history_health = self._metrics_completed_records(resolved, warnings)
         backfill_records, source_backfill = load_metrics_backfill_records(resolved, warnings)
-        records = self._metrics_merged_records(completed_records, backfill_records)
+        records = list(completed_records)
         pending_payload = self._metrics_pending_publish(resolved, warnings)
         workers_payload = self._metrics_network_workers(resolved, warnings)
         final_library_payload = self._metrics_final_library(resolved, records, warnings)
-        return build_metrics_payload(
+        payload = build_metrics_payload(
             records,
             pending_publish=pending_payload,
             network_workers=workers_payload,
@@ -50,6 +50,26 @@ class MetricsFacadeMixin:
             completed_source=str(resolved.completed_manifest_path or ""),
             warnings=warnings,
         )
+        discovery_complete = bool((source_backfill.get("completeness") or {}).get("complete", True))
+        history_available = history_health.get("available") is True
+        payload["availability"] = "available" if history_available else "unavailable"
+        payload["error"] = str(history_health.get("error") or "")
+        payload["history_authority"] = {
+            "schema_version": "desktop_metrics_history_authority.v1",
+            "authority": "completed_jobs.jsonl",
+            "completed_manifest_record_count": len(completed_records),
+            "sidecar_cache_discovery_count": len(backfill_records),
+            "cache_in_authoritative_totals": False,
+            "deduplicated_authoritative_count": len(completed_records),
+        }
+        payload["completeness"] = {
+            "schema_version": "desktop_metrics_completeness.v1",
+            "complete": history_available and discovery_complete,
+            "authoritative_history_complete": history_available,
+            "sidecar_discovery_complete": discovery_complete,
+            "status": "complete" if history_available and discovery_complete else "incomplete",
+        }
+        return payload
 
     def save_metrics_sources(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
         lock = getattr(self, "_metrics_state_lock", None)
@@ -115,13 +135,17 @@ class MetricsFacadeMixin:
             )
         return ("sidecar", str(record.sidecar_path).casefold())
 
-    def _metrics_completed_records(self, resolved: ResolvedPaths, warnings: list[str]) -> list[CompletedJobRecord]:
+    def _metrics_completed_records(
+        self,
+        resolved: ResolvedPaths,
+        warnings: list[str],
+    ) -> tuple[list[CompletedJobRecord], dict[str, Any]]:
         loader = getattr(self.service, "load_recent_completed_jobs", None)
         if not callable(loader):
             warnings.append("Completed metrics unavailable: completed history service is not available.")
-            return []
+            return [], {"available": False, "status": "unavailable", "error": warnings[-1]}
         try:
-            return list(
+            records = list(
                 loader(
                     resolved,
                     limit=None,
@@ -129,15 +153,17 @@ class MetricsFacadeMixin:
                     proof_mode=PROOF_MODE_SUMMARY,
                 )
             )
+            return records, {"available": True, "status": "available", "error": ""}
         except TypeError:
             try:
-                return list(loader(resolved, limit=None, force_refresh=False))
+                records = list(loader(resolved, limit=None, force_refresh=False))
+                return records, {"available": True, "status": "available", "error": ""}
             except Exception as exc:
                 warnings.append(f"Completed metrics unavailable: {exc}")
-                return []
+                return [], {"available": False, "status": "unavailable", "error": str(exc)}
         except Exception as exc:
             warnings.append(f"Completed metrics unavailable: {exc}")
-            return []
+            return [], {"available": False, "status": "unavailable", "error": str(exc)}
 
     def _metrics_pending_publish(self, resolved: ResolvedPaths, warnings: list[str]) -> dict[str, Any]:
         try:

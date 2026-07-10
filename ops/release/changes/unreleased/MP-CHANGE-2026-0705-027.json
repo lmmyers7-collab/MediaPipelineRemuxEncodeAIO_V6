@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0705-027",
+  "title": "Network CSV rerun end-to-end validation",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "test",
+  "risk_level": "high",
+  "date_started": "2026-07-06",
+  "date_completed": "2026-07-06",
+  "summary": "Phase 8 validates the Network CSV rerun coordinator-to-worker-to-reducer flow end to end with isolated state and representative real-media evidence.",
+  "reason": "Phases 4A through 7 built Network CSV rerun state, claim execution, reduction, destination policy, and WebView surfaces. The feature now needs an end-to-end safety gate proving coordinator authority, worker-only claims, restart/duplicate-claim behavior, destination evidence, and unchanged source hashes before release hardening.",
+  "affected_areas": [
+    "change-control",
+    "docs",
+    "generated-context",
+    "network",
+    "rerun",
+    "tests",
+    "validation"
+  ],
+  "behavior_before": "Network CSV rerun phases have targeted unit, route, WebView, and representative per-phase real-media evidence, but no single Phase 8 gate ties coordinator start, worker claim/execution, reducer, destination policy, restart behavior, and source preservation together.",
+  "behavior_after": "A documented Phase 8 validation gate proves or records gaps for the full Network CSV rerun flow using backend-owned state and isolated media roots, with any required fixes covered by focused tests and evidence.",
+  "files_touched": [
+    "docs/RealMediaValidationRuns/network-csv-rerun-phase8-2026-07-06.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_process_launch.py.md",
+    "docs/implementation/network-csv-rerun/PREWORK.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0705-027.json",
+    "tests/python/desktop/test_application_facade_process_launch.py"
+  ],
+  "tests_added": [
+    "tests.python.desktop.test_application_facade_process_launch: Phase 8 full Network CSV rerun state flow from confirmed batch start through claim, duplicate block, release/reclaim, done, Pending Publish destination policy, source-hash preservation, terminal no-reclaim, and read-model projection"
+  ],
+  "manual_validation": [
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_application_facade_process_launch.ApplicationFacadeProcessLaunchTests.test_network_rerun_phase8_start_claim_done_destination_and_read_model -q (1 test)",
+    "PASS: Phase 8 retained real-media validation using Phase 4B source and real worker output; evidence in docs/RealMediaValidationRuns/network-csv-rerun-phase8-2026-07-06.md and retained summary C:\\Users\\lmmye\\AppData\\Local\\Temp\\mp-phase8-realmedia-retained-07ur8msa\\phase8-realmedia-summary.json",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_application_facade_process_launch tests.python.desktop.test_network_rerun_claims tests.python.desktop.test_process_rerun_results -q (78 tests)",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_network_protocol_runtime tests.python.desktop.test_network_done_release tests.python.desktop.test_rerun_csv_preview -q (63 tests)",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed (1 written, 61 unchanged)",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage (964 packets valid)"
+  ],
+  "rollback_plan": "Remove Phase 8 validation-only docs/tests/harness changes or revert any focused fixes introduced by this packet. Preserve all real-media evidence records and do not delete source media, handoff outputs, Pending Publish payloads, or final-library outputs during rollback.",
+  "related_changes": [],
+  "notes": "Phase 8 scope: validation and release-gate hardening for the already built Network CSV rerun path. Prefer isolated temporary LocalBase, handoff, scratch, output, and final roots; do not use operator library roots for destructive checks.\nD1 proof target: exercise coordinator-owned Network CSV rerun batch start, worker claim, worker execution/handoff, worker done, coordinator reducer, destination-policy application, read-model projection, and WebView-readable evidence in one trace where feasible.\nD2 coordinator-only proof: lifecycle start and network batch start must not process local files unless local-worker mode is explicitly configured; confirmed start writes only backend-authorized network rerun state.\nD3 worker-only proof: workers claim only coordinator-assigned csv_rerun_row work, use job-scoped config rewrites, write only to NetworkRerunHandoffRoot row folders, and never write final library destinations or accepted Pending Publish ownership.\nD4 source safety proof: capture source hashes before and after worker/reducer/destination steps; fail the phase if any source media changes, moves, or disappears.\nD5 restart/duplicate proof: simulate stop-after-current or crash/restart at state level where possible and prove rows do not duplicate claims, can continue pending work, and preserve row evidence.\nD6 remote/path-map proof: validate path mapping and UNC/shared-root assumptions with fixture-backed remote-worker mapping when no second physical worker is available; call out any remaining physical remote-worker gap explicitly.\nD7 destination proof: verify Pending Publish/final replacement/review evidence matches local CSV rerun trust standards, including destination_policy_result, manifest paths, sidecar/hash/size evidence, and backend read-model projection.\nD8 validation rung: targeted unit/integration tests plus real-media evidence document under docs/RealMediaValidationRuns/. Stop if proof requires workers to write source/final roots, frontend-authored policy, broad SMB writes outside NetworkRerunHandoffRoot, unstable source identity, unpreventable duplicate claims, or reinterpreting -DryRun.\nAdd Phase 8 end-to-end Network CSV rerun start/claim/release/done/destination/read-model integration test.\nRefresh generated summary for Phase 8 integration test change.\nRecord Phase 8 retained real-media end-to-end validation evidence.\nRecord Phase 8 completion status, evidence, validation, and physical remote-worker limitation.\nTrack Phase 8 design, touched paths, validation, real-media evidence, and completion state."
+}

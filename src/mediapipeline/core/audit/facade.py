@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from mediapipeline.core.audit.ignore_manifest import (
+    AuditIgnoreManifestError,
     audit_ignore_manifest_payload,
     read_audit_ignore_manifest,
     remove_audit_ignore_entries,
@@ -81,7 +82,16 @@ class AuditFacadeMixin:
             records = loader(Path(csv_path))
         except Exception as exc:
             return audit_csv_read_error_result(csv_path, priority_only, exc)
-        ignore_manifest = read_audit_ignore_manifest(getattr(resolved, "audit_ignore_manifest_path", None))
+        try:
+            ignore_manifest = read_audit_ignore_manifest(getattr(resolved, "audit_ignore_manifest_path", None), strict=True)
+        except AuditIgnoreManifestError as exc:
+            message = f"Audit preview unavailable: {exc}"
+            return AuditPreviewDto(
+                source=str(csv_path),
+                priority_only=bool(priority_only),
+                warnings=[message],
+                error=str(exc),
+            )
         return self._audit_preview_from_records(
             records,
             source=str(csv_path),
@@ -121,11 +131,10 @@ class AuditFacadeMixin:
     def get_audit_controls(self, resolved: ResolvedPaths) -> dict[str, Any]:
         score_path = getattr(resolved, "audit_score_policy_path", None)
         ignore_path = getattr(resolved, "audit_ignore_manifest_path", None)
-        ignore_manifest = read_audit_ignore_manifest(ignore_path)
         return {
             "schema_version": "desktop_audit_controls.v1",
             "score_policy": audit_score_policy_payload(score_path),
-            "ignore_manifest": audit_ignore_manifest_payload(ignore_path, ignore_manifest),
+            "ignore_manifest": audit_ignore_manifest_payload(ignore_path),
             "boundaries": [
                 "Audit score policy affects audit reporting and future priority CSV generation only.",
                 "Audit ignore entries do not hold queue items, write file overrides, save settings, rename, publish, drain, delete, or touch media.",
@@ -229,18 +238,17 @@ class AuditFacadeMixin:
                 errors=["invalid_audit_ignore_action"],
             )
         priority_only = bool(request.get("priority_only", False))
-        limit = bounded_audit_limit(request.get("limit", 100))
         row_keys = [str(key).strip() for key in request.get("row_keys") or [] if str(key).strip()]
         explicit_paths = [str(path).strip() for path in request.get("paths") or [] if str(path).strip()]
         reason = str(request.get("reason") or "Ignored from audit triage by operator.").strip()
         try:
             records = self._load_current_audit_records(resolved, priority_only=priority_only)
-            ignore_manifest = read_audit_ignore_manifest(ignore_path)
+            ignore_manifest = read_audit_ignore_manifest(ignore_path, strict=True)
             selected = audit_records_for_row_keys(
                 records,
                 row_keys,
                 ignore_manifest=ignore_manifest if action == "add" else None,
-                limit=limit,
+                limit=None,
             ) if row_keys else []
             paths = explicit_paths + [str(record.path or "") for record in selected if record.path]
             if not paths:
@@ -306,16 +314,15 @@ class AuditFacadeMixin:
                 errors=["rerun_import_csv_root_unavailable"],
             )
         priority_only = bool(request.get("priority_only", False))
-        limit = bounded_audit_limit(request.get("limit", 100))
         row_keys = [str(key).strip() for key in request.get("row_keys") or [] if str(key).strip()]
-        ignore_manifest = read_audit_ignore_manifest(getattr(resolved, "audit_ignore_manifest_path", None))
         try:
+            ignore_manifest = read_audit_ignore_manifest(getattr(resolved, "audit_ignore_manifest_path", None), strict=True)
             records = self._load_current_audit_records(resolved, priority_only=priority_only)
             selected_records = audit_records_for_row_keys(
                 records,
                 row_keys,
                 ignore_manifest=ignore_manifest,
-                limit=limit,
+                limit=None,
             )
             if not selected_records:
                 return CommandResult(
@@ -359,7 +366,7 @@ class AuditFacadeMixin:
                 "exported_csv_path": str(output_path),
                 "row_count": written,
                 "selected_row_count": len(row_keys),
-                "scope": "selected" if row_keys else "loaded",
+                "scope": "selected" if row_keys else "all_non_ignored",
                 "issue_summary": summary["issue_counts"],
                 "bucket_summary": summary["bucket_counts"],
                 "handoff": {

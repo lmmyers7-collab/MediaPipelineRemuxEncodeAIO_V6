@@ -30,6 +30,7 @@ class AppSnapshotDto:
     current_work: JsonMap = field(default_factory=dict)
     counts: JsonMap = field(default_factory=dict)
     progress: JsonMap = field(default_factory=dict)
+    progress_health: JsonMap = field(default_factory=dict)
     audit_progress: JsonMap = field(default_factory=dict)
     worker_progress: JsonMap = field(default_factory=dict)
     ffmpeg_progress: JsonMap = field(default_factory=dict)
@@ -38,6 +39,7 @@ class AppSnapshotDto:
     recent_events: list[JsonMap] = field(default_factory=list)
     latest_paths: dict[str, str] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
+    csv_rerun_summary: JsonMap = field(default_factory=dict)
     schema_version: str = "desktop_app_snapshot.v1"
 
     def to_mapping(self) -> JsonMap:

@@ -391,6 +391,8 @@ class ApplicationFacadeWebStaticRenameTests(unittest.TestCase):
                 "Windows file browser",
                 "Rename path browser route is not available in the running backend",
                 "function renderRenamePreview",
+                "lastRenamePreviewFingerprint",
+                "request.preview_fingerprint = lastRenamePreviewFingerprint",
                 "function renderRenameSummary",
                 "Preview source:",
                 "Confidence reason(s):",

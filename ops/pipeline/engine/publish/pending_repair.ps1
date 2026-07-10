@@ -88,3 +88,126 @@ function Repair-PendingManifestState {
         return $Manifest
     }
 }
+
+# Explicit mutation-stage crash recovery. Read/index refreshes must never call
+# this function or Repair-PendingManifestState. The intent and result events
+# provide durable evidence that recovery, rather than inventory refresh, moved
+# a payload/sidecar or rewrote a manifest.
+function Invoke-PendingPublishRecovery {
+    param([string] $Reason = 'pending-drain-preflight')
+
+    $summary = [ordered]@{
+        schema_version = 'pending_publish_recovery.v1'
+        reason = [string]$Reason
+        started_at = Get-Date -Format 'o'
+        completed_at = ''
+        inspected_count = 0
+        candidate_count = 0
+        recovered_count = 0
+        blocked_count = 0
+        failed_count = 0
+        rows = @()
+    }
+    if (-not (Test-Path -LiteralPath $LocalPendingPush -PathType Container)) {
+        $summary['completed_at'] = Get-Date -Format 'o'
+        return [pscustomobject]$summary
+    }
+
+    $rows = [System.Collections.Generic.List[object]]::new()
+    foreach ($manifestFile in @(Get-ChildItem -LiteralPath $LocalPendingPush -File -Filter '*.manifest.json' -ErrorAction SilentlyContinue | Sort-Object Name)) {
+        $summary['inspected_count'] = [int]$summary['inspected_count'] + 1
+        try {
+            $manifest = Read-PendingManifestFile -Path $manifestFile.FullName
+            $stateBefore = [string]$manifest.manifest_state
+            $sidecarCandidates = @(Get-PendingSidecarEntries -Manifest $manifest | Where-Object {
+                $local = [string](Get-PendingObjectProperty -Object $_ -Name 'local_file')
+                $original = [string](Get-PendingObjectProperty -Object $_ -Name 'original_local_file')
+                -not [string]::IsNullOrWhiteSpace($local) -and
+                -not (Test-Path -LiteralPath $local -ErrorAction SilentlyContinue) -and
+                -not [string]::IsNullOrWhiteSpace($original) -and
+                (Test-Path -LiteralPath $original -PathType Leaf -ErrorAction SilentlyContinue)
+            })
+            $candidate = $stateBefore -eq 'pending_move' -or $sidecarCandidates.Count -gt 0
+            if (-not $candidate) { continue }
+            $summary['candidate_count'] = [int]$summary['candidate_count'] + 1
+
+            $trust = if ($stateBefore -eq 'pending_move') {
+                Test-PendingManifestTrustedForRepair -ManifestFile $manifestFile -Manifest $manifest
+            } else {
+                $failedSidecarTrust = $null
+                foreach ($sidecar in $sidecarCandidates) {
+                    $sidecarTrust = Test-PendingSidecarTrustedForPublish -Manifest $manifest -Sidecar $sidecar -ManifestPath $manifestFile.FullName -AllowMissingLocal
+                    if (-not $sidecarTrust.Ok) { $failedSidecarTrust = $sidecarTrust; break }
+                }
+                if ($failedSidecarTrust) { $failedSidecarTrust } else { [pscustomobject]@{ Ok = $true; Reason = 'ok' } }
+            }
+            if (-not $trust.Ok) {
+                $summary['blocked_count'] = [int]$summary['blocked_count'] + 1
+                $row = [pscustomobject]@{
+                    manifest_path = [string]$manifestFile.FullName
+                    status = 'blocked'
+                    reason = [string]$trust.Reason
+                    state_before = $stateBefore
+                    state_after = $stateBefore
+                }
+                $rows.Add($row) | Out-Null
+                if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+                    Write-PipelineEvent -EventType 'pending_publish_recovery' -Stage 'pending-publish-recovery' -Status 'blocked' -Data @{
+                        phase = 'result'; reason = [string]$Reason; manifest_path = [string]$manifestFile.FullName
+                        state_before = $stateBefore; state_after = $stateBefore; error = [string]$trust.Reason
+                    } | Out-Null
+                }
+                continue
+            }
+
+            if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+                Write-PipelineEvent -EventType 'pending_publish_recovery' -Stage 'pending-publish-recovery' -Status 'started' -Data @{
+                    phase = 'intent'; reason = [string]$Reason; manifest_path = [string]$manifestFile.FullName
+                    state_before = $stateBefore; sidecar_candidate_count = [int]$sidecarCandidates.Count
+                } | Out-Null
+            }
+            $repaired = if ($stateBefore -eq 'pending_move') {
+                Repair-PendingManifestState -ManifestFile $manifestFile -Manifest $manifest
+            } else {
+                Repair-PendingSidecarArtifacts -ManifestFile $manifestFile -Manifest $manifest
+            }
+            $stateAfter = [string]$repaired.manifest_state
+            $wasRecovered = $stateAfter -eq 'parked_recovered' -or $sidecarCandidates.Count -gt 0
+            if ($wasRecovered) {
+                $summary['recovered_count'] = [int]$summary['recovered_count'] + 1
+            }
+            $row = [pscustomobject]@{
+                manifest_path = [string]$manifestFile.FullName
+                status = if ($wasRecovered) { 'recovered' } else { 'unchanged' }
+                reason = ''
+                state_before = $stateBefore
+                state_after = $stateAfter
+            }
+            $rows.Add($row) | Out-Null
+            if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+                Write-PipelineEvent -EventType 'pending_publish_recovery' -Stage 'pending-publish-recovery' -Status ([string]$row.status) -Data @{
+                    phase = 'result'; reason = [string]$Reason; manifest_path = [string]$manifestFile.FullName
+                    state_before = $stateBefore; state_after = $stateAfter; sidecar_candidate_count = [int]$sidecarCandidates.Count
+                } | Out-Null
+            }
+        } catch {
+            $summary['failed_count'] = [int]$summary['failed_count'] + 1
+            $rows.Add([pscustomobject]@{
+                manifest_path = [string]$manifestFile.FullName
+                status = 'failed'
+                reason = [string]$_
+                state_before = ''
+                state_after = ''
+            }) | Out-Null
+            Write-Log "Pending publish recovery failed for $($manifestFile.Name): $_" 'ERROR'
+            if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+                Write-PipelineEvent -EventType 'pending_publish_recovery' -Stage 'pending-publish-recovery' -Status 'failed' -Data @{
+                    phase = 'result'; reason = [string]$Reason; manifest_path = [string]$manifestFile.FullName; error = [string]$_
+                } | Out-Null
+            }
+        }
+    }
+    $summary['rows'] = @($rows)
+    $summary['completed_at'] = Get-Date -Format 'o'
+    return [pscustomobject]$summary
+}

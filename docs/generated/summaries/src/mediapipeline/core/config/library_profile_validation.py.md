@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/library_profile_validation.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-09
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: 7dca15e157a23413d700687438c4ebb4879c42d549a4d0583f333de33219bbf5
+sha256: 8aca8d8ef0687e5703950db1d1d35e7ad2233c98697ac3d265e6365f306e6397
 ---
 # `src/mediapipeline/core/config/library_profile_validation.py`
 

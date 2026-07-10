@@ -97,6 +97,7 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
             [
                 "Network Command Board",
                 "Worker Board",
+                "Network CSV Rerun",
                 "Coordinator At A Glance",
                 "Worker At A Glance",
                 "Join Worker to Cluster",
@@ -129,6 +130,7 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
 
     def test_workers_page_distinguishes_saved_and_persisted_state_labels(self) -> None:
         network_html = _network_page_html()
+        network_view_js = NETWORK_JS.read_text(encoding="utf-8")
 
         for expected in (
             "Network Command Board",
@@ -143,6 +145,10 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
             'id="network-diagnostic-rail"',
             'id="network-action-readiness-gates"',
             "Worker Board",
+            "Network CSV Rerun",
+            'id="network-rerun-status"',
+            'id="network-rerun-rows"',
+            'id="network-rerun-detail"',
             'id="network-worker-view-presets"',
             "Selected Worker Inspector",
             "Coordinator At A Glance",
@@ -173,6 +179,13 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
             'id="network-role-setup-worker-url-error"',
         ):
             self.assertIn(expected, network_html)
+        for expected in (
+            "function renderNetworkRerunRows",
+            "Network CSV rerun read model: backend-owned /api/rerun/results.",
+            "WebView does not author claims, row status, destination policy, Pending Publish paths, or final output paths.",
+            "renderNetworkRerunRows(payload.rerunResults || {})",
+        ):
+            self.assertIn(expected, network_view_js)
 
     def test_workers_api_contract_detail_is_advanced_only(self) -> None:
         network_html = _network_page_html()

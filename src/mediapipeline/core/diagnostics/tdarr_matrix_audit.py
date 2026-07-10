@@ -372,6 +372,80 @@ def tdarr_matrix_incomplete_full_run_evidence(
     return {"active": None, "stale": None}
 
 
+def tdarr_matrix_background_close_evidence(
+    workspace_root: Path,
+    *,
+    psutil_module: Any | None = None,
+) -> dict[str, Any]:
+    """Return fail-closed close evidence for persisted background proof processes."""
+    if psutil_module is None:
+        psutil_module = psutil
+    runs_root = tdarr_matrix_default_runs_root(Path(workspace_root))
+    metadata_root = runs_root / "_background"
+    if not metadata_root.exists():
+        return {"status": "inactive", "active_work": False, "pid": 0, "run_id": "", "reason": ""}
+    try:
+        metadata_paths = sorted(metadata_root.glob("*.process.json"))
+    except OSError as exc:
+        return {"status": "unavailable", "active_work": True, "pid": 0, "run_id": "", "reason": str(exc)}
+    for metadata_path in metadata_paths:
+        try:
+            raw = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            return {
+                "status": "unavailable",
+                "active_work": True,
+                "pid": 0,
+                "run_id": metadata_path.name.removesuffix(".process.json"),
+                "reason": f"background metadata is unreadable: {exc}",
+                "metadata_path": str(metadata_path),
+            }
+        if not isinstance(raw, dict) or str(raw.get("schema_version") or "") != "tdarr_matrix_background_process.v1":
+            return {
+                "status": "unavailable",
+                "active_work": True,
+                "pid": 0,
+                "run_id": "",
+                "reason": "background metadata schema is invalid",
+                "metadata_path": str(metadata_path),
+            }
+        run_id = str(raw.get("run_id") or "").strip()
+        if not run_id or metadata_path != _tdarr_matrix_background_process_metadata_path(runs_root, run_id):
+            return {
+                "status": "unavailable",
+                "active_work": True,
+                "pid": _int_value(raw.get("pid")),
+                "run_id": run_id,
+                "reason": "background metadata run identity is invalid",
+                "metadata_path": str(metadata_path),
+            }
+        process_state = _tdarr_matrix_background_process_state(
+            runs_root,
+            run_id,
+            psutil_module=psutil_module,
+        )
+        if process_state.get("live") is True:
+            return {
+                "status": "active",
+                "active_work": True,
+                "pid": _int_value(process_state.get("pid")),
+                "run_id": run_id,
+                "reason": "",
+                "metadata_path": str(metadata_path),
+            }
+        reason = str(process_state.get("reason") or "")
+        if reason not in {"process_not_found", "process_not_running", "pid_identity_mismatch"}:
+            return {
+                "status": "unavailable",
+                "active_work": True,
+                "pid": _int_value(process_state.get("pid")),
+                "run_id": run_id,
+                "reason": reason or "background process identity is unavailable",
+                "metadata_path": str(metadata_path),
+            }
+    return {"status": "inactive", "active_work": False, "pid": 0, "run_id": "", "reason": ""}
+
+
 def tdarr_matrix_incomplete_full_run(runs_root: Path, *, selected_count: int) -> Path | None:
     evidence = tdarr_matrix_incomplete_full_run_evidence(runs_root, selected_count=selected_count)
     active = evidence.get("active")
@@ -739,6 +813,10 @@ def tdarr_matrix_audit_result(result: dict[str, Any]) -> Any:
 
 
 class TdarrMatrixAuditServiceMixin:
+    def tdarr_matrix_background_close_evidence(self, workspace_root: Path) -> dict[str, Any]:
+        """Expose background-process close evidence through the diagnostics service boundary."""
+        return tdarr_matrix_background_close_evidence(Path(workspace_root))
+
     """Runs the Tdarr Matrix developer audit tool through the stable tool wrapper."""
 
     def tdarr_matrix_audit_python_path(self) -> Path:
@@ -1076,6 +1154,7 @@ __all__ = [
     "TdarrMatrixAuditServiceMixin",
     "tdarr_matrix_background_run_id",
     "tdarr_matrix_incomplete_full_run_evidence",
+    "tdarr_matrix_background_close_evidence",
     "tdarr_matrix_incomplete_full_run",
     "normalize_tdarr_matrix_audit_action",
     "tdarr_matrix_audit_arguments",

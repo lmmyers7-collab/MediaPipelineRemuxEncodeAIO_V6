@@ -348,7 +348,9 @@ function renderHomePipelineQueueOutcome(snapshot = lastSnapshot, queue = {}) {
 }
 
 function renderCloseReadiness(closeReadiness) {
-  lastCloseReadiness = closeReadiness || null;
+  const normalized = window.mediaPipelineAppCloseReadiness?.normalizeCloseReadiness?.(closeReadiness);
+  closeReadiness = normalized || null;
+  lastCloseReadiness = closeReadiness;
   const node = byId("close-readiness");
   if (!closeReadiness) {
     if (node) {
@@ -363,7 +365,7 @@ function renderCloseReadiness(closeReadiness) {
     renderBackendLifecycle(lastCloseReadiness, lastSnapshot);
     return;
   }
-  const safe = Boolean(closeReadiness.safe_to_close);
+  const safe = closeReadiness.safe_to_close === true;
   const state = closeReadiness.state || "unknown";
   if (node) {
     node.textContent = safe ? "Close: safe" : "Close: active work";
@@ -375,6 +377,17 @@ function renderCloseReadiness(closeReadiness) {
   renderControlReadiness(lastSnapshot, lastCloseReadiness);
   renderLaunchReadinessPanel({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, schedule: lastSchedule, settings: getLastSettings() });
   renderBackendLifecycle(lastCloseReadiness, lastSnapshot);
+}
+
+function renderCloseReadinessUnavailable(reason) {
+  const unavailable = window.mediaPipelineAppCloseReadiness?.unavailableCloseReadiness?.(reason) || {
+    safe_to_close: false,
+    active_work: true,
+    state: "unavailable",
+    operator_status: "unavailable",
+    reason: String(reason || "Close-readiness is unavailable."),
+  };
+  renderCloseReadiness(unavailable);
 }
 
 
@@ -720,10 +733,47 @@ function csvRerunHomeIsActive(csvRerun = csvRerunTailEvidence(), closeReadiness 
   return !/^(PLAN ONLY complete|DRY RUN complete|Rerun batch complete|No CSV rows are executable)\b|PIPELINE SHUTDOWN CLEANLY|ROUND COMPLETE|Single-pass mode complete/i.test(String(csvRerun.latestLine || ""));
 }
 
+function renderCsvRerunHomeCompletionSummary(source = {}) {
+  const summary = window.mediaPipelineProgressView?.csvRerunCompletionSummary?.(source.snapshot || lastSnapshot);
+  if (!summary) return false;
+  const label = summary.display_label || "CSV rerun complete";
+  const detail = summary.detail || "Backend manifest terminal state.";
+  renderTopbarActivity({
+    activity: label,
+    pipeline_state: "csv_rerun_complete",
+    current_work: {
+      phase_label: "CSV rerun",
+      current_stage_label: label,
+      summary_label: label,
+      item_label: summary.csv_name || summary.batch_id || "Current CSV",
+    },
+  });
+  const pill = byId("state-pill");
+  if (pill) {
+    pill.textContent = label;
+    pill.dataset.state = summary.display_state || "ok";
+    pill.title = detail;
+  }
+  renderHomePipelineState("csv_rerun_complete");
+  const pipelineState = byId("pipeline-state");
+  if (pipelineState) pipelineState.dataset.state = summary.display_state || "ok";
+  const currentItem = byId("queue-count");
+  if (currentItem) {
+    const totals = summary.totals || {};
+    currentItem.textContent = `${totals.processed || 0} / ${totals.total || 0}`;
+    currentItem.title = detail;
+    currentItem.dataset.mode = "count";
+    currentItem.dataset.state = summary.display_state || "ok";
+  }
+  setText("queue-count-detail", detail);
+  return true;
+}
+
 function renderCsvRerunHomeSummary(context = { stdoutTail: lastStdoutTail, snapshot: lastSnapshot, closeReadiness: lastCloseReadiness }) {
   const source = context && typeof context === "object" && ("stdoutTail" in context || "snapshot" in context || "diagnostics" in context)
     ? context
     : { stdoutTail: context || lastStdoutTail, snapshot: lastSnapshot, closeReadiness: lastCloseReadiness };
+  if (renderCsvRerunHomeCompletionSummary(source)) return true;
   const csvRerun = csvRerunActivityEvidence(source);
   if (!csvRerunHomeIsActive(csvRerun, source.closeReadiness || lastCloseReadiness)) return false;
   const currentWork = dashboardCurrentWork(source.snapshot || {});
@@ -908,6 +958,7 @@ async function refreshAllNow(options = {}) {
     ["last stdout tail", refreshGet("/api/diagnostics/tail?target=last_stdout_log&max_bytes=65536", refreshOptions), false],
     ["diagnostics state summary", refreshGet("/api/diagnostics/state-summary", refreshOptions), false],
     ["commands", refreshGet("/api/commands?limit=20", refreshOptions), false],
+    ["rerun results", refreshGet("/api/rerun/results?limit=24", refreshOptions), false],
     ["metrics", refreshGet("/api/metrics", refreshOptions), false],
     ["queue", refreshGet("/api/queue", refreshOptions), false],
     ["completed", refreshGet("/api/completed?limit=500", refreshOptions), false],
@@ -972,7 +1023,18 @@ async function refreshAllNow(options = {}) {
   if (values.health?.startup_progress) {
     lastStartupProgress = values.health.startup_progress;
   }
-  if (values["close readiness"]) renderCloseReadiness(values["close readiness"]);
+  const snapshotFailure = failures.find((item) => item.name === "snapshot");
+  const closeReadinessFailure = failures.find((item) => item.name === "close readiness");
+  if (snapshotFailure || closeReadinessFailure) {
+    const policyFailure = closeReadinessFailure || snapshotFailure;
+    renderCloseReadinessUnavailable(
+      `Current close policy is unavailable because ${policyFailure.name} failed: ${policyFailure.message}`,
+    );
+  } else if (values["close readiness"]) {
+    renderCloseReadiness(values["close readiness"]);
+  } else {
+    renderCloseReadinessUnavailable("Current close-readiness response was missing.");
+  }
   const telemetryOptions = {
     snapshot: values.snapshot || lastSnapshot,
     refreshIntervalMs: AUTOMATIC_REFRESH_INTERVAL_MS,
@@ -994,7 +1056,15 @@ async function refreshAllNow(options = {}) {
     renderDiagnosticsStateSummaryFn(values["diagnostics state summary"]);
   }
   if (values.commands) window.mediaPipelineCommandHistory?.renderCommandHistoryPayload?.(values.commands);
-  if (values.metrics) window.mediaPipelineMetricsView?.renderMetrics?.(values.metrics);
+  if (values["rerun results"]) window.mediaPipelineQueueView?.renderRerunResults?.(values["rerun results"]);
+  const metricsFailure = failures.find((item) => item.name === "metrics");
+  if (values.metrics) {
+    window.mediaPipelineMetricsView?.renderMetrics?.(values.metrics);
+  } else {
+    window.mediaPipelineMetricsView?.renderMetricsUnavailable?.(
+      metricsFailure?.message || "Metrics route returned no current payload.",
+    );
+  }
   if (values.queue) {
     lastQueue = values.queue;
     renderQueue(values.queue);
@@ -1013,19 +1083,53 @@ async function refreshAllNow(options = {}) {
   if (finalLibraryPromotion) window.mediaPipelineCompletedView?.renderFinalLibraryPromotion?.(finalLibraryPromotion);
   renderHomePromotionEntry(finalLibraryPromotion || {});
   renderHomeRecentCompleted(values.completed || {});
-  if (values.failures) window.mediaPipelineReportsView?.renderFailurePreview?.(values.failures);
+  const reportsView = window.mediaPipelineReportsView;
+  const failureReadFailure = failures.find((item) => item.name === "failures");
+  if (values.failures && values.failures.availability !== "unavailable" && !values.failures.error) {
+    reportsView?.renderFailurePreview?.(values.failures);
+    reportsView?.markReportsComponentFresh?.("failures", values.failures);
+  } else {
+    reportsView?.renderReportsUnavailable?.(
+      "failures",
+      values.failures?.error || failureReadFailure?.message || "Failure evidence read returned no current payload.",
+    );
+  }
   if (values["failure artifacts"]) {
     window.mediaPipelineReportsView?.renderFailureArtifactSummary?.(values["failure artifacts"]);
     window.mediaPipelineOperatorToast?.showFailureArtifactWarning?.(values["failure artifacts"]);
+    reportsView?.markReportsComponentFresh?.("artifacts", values["failure artifacts"]);
+  } else {
+    reportsView?.renderReportsUnavailable?.(
+      "artifacts",
+      failures.find((item) => item.name === "failure artifacts")?.message || "Failure artifact evidence is unavailable.",
+    );
   }
-  if (values["audit results"]) {
+  if (values["audit results"] && !values["audit results"].error) {
     window.mediaPipelineReportsView?.renderAuditPreview?.(values["audit results"]);
+    reportsView?.markReportsComponentFresh?.("audit", values["audit results"]);
+  } else {
+    reportsView?.renderReportsUnavailable?.(
+      "audit",
+      values["audit results"]?.error || failures.find((item) => item.name === "audit results")?.message || "Audit results are unavailable.",
+    );
   }
   if (values["audit controls"]) {
     window.mediaPipelineReportsView?.renderAuditControls?.(values["audit controls"]);
+    reportsView?.markReportsComponentFresh?.("controls", values["audit controls"]);
+  } else {
+    reportsView?.renderReportsUnavailable?.(
+      "controls",
+      failures.find((item) => item.name === "audit controls")?.message || "Audit controls are unavailable.",
+    );
   }
   if (values["audit sources"]) {
     window.mediaPipelineReportsView?.renderReportAuditSources?.(values["audit sources"]);
+    reportsView?.markReportsComponentFresh?.("sources", values["audit sources"]);
+  } else {
+    reportsView?.renderReportsUnavailable?.(
+      "sources",
+      failures.find((item) => item.name === "audit sources")?.message || "Audit sources are unavailable.",
+    );
   }
   if (values["pending publish"] || pendingPublishFailure) renderPendingPublish(pendingPublishPayload, values.snapshot || lastSnapshot);
   renderHomePendingCount(pendingPublishPayload);
@@ -1069,6 +1173,7 @@ async function refreshAllNow(options = {}) {
       snapshot: values.snapshot || lastSnapshot,
       queue: latestQueue,
       networkWorkers: values["network workers"] || null,
+      rerunResults: values["rerun results"] || {},
       bootstrap,
     });
   }

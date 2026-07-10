@@ -279,7 +279,10 @@ class FailureFacadePolicyTests(unittest.TestCase):
         self.assertEqual(len(fields["rows"]), 2)
         self.assertEqual(fields["operator_required_count"], 1)
         self.assertEqual(fields["permanent_count"], 1)
-        self.assertEqual(fields["transient_count"], 0)
+        self.assertEqual(fields["transient_count"], 1)
+        self.assertEqual(fields["visible_count"], 2)
+        self.assertEqual(fields["hidden_count"], 1)
+        self.assertFalse(fields["details_complete"])
         self.assertEqual(fields["retry_state"]["schema_version"], "desktop_retry_state.v1")
         self.assertEqual(fields["retry_state"]["row_count"], 2)
         self.assertEqual(fields["retry_state"]["blocked_count"], 2)
@@ -406,6 +409,38 @@ class FailureFacadePolicyTests(unittest.TestCase):
         self.assertEqual(no_report.warnings, [FAILURE_NO_JSON_REPORT_MESSAGE])
         self.assertEqual(loader_missing.warnings, [FAILURE_LOADER_UNAVAILABLE_MESSAGE])
         self.assertEqual(json_read_error.warnings, ["Failure JSON could not be read: bad json"])
+        for unavailable in (
+            marker_service_missing,
+            markers_read_error,
+            report_service_missing,
+            latest_json_error,
+            loader_missing,
+            json_read_error,
+        ):
+            self.assertEqual(unavailable.availability, "unavailable")
+            self.assertTrue(unavailable.error)
+        self.assertEqual(no_report.availability, "absent")
+        self.assertEqual(no_report.error, "")
+
+    def test_failure_preview_full_set_posture_keeps_hidden_blocker_after_cap(self) -> None:
+        records = [_record(classification="transient", error_code=f"TRANSIENT_{index}") for index in range(100)]
+        records.append(_record(classification="operator_required", error_code="HIDDEN_BLOCKER"))
+
+        fields = failure_preview_fields(
+            records,
+            source="latest_failures.json",
+            source_kind="latest_json",
+            limit=100,
+            empty_warning="No rows.",
+        )
+
+        self.assertEqual(len(fields["rows"]), 100)
+        self.assertEqual(fields["count"], 101)
+        self.assertEqual(fields["hidden_count"], 1)
+        self.assertEqual(fields["hidden_blocker_count"], 1)
+        self.assertEqual(fields["operator_required_count"], 1)
+        self.assertEqual(fields["resolution_summary"]["status"], "blocked")
+        self.assertFalse(fields["details_complete"])
 
     def test_failure_preview_from_records_wraps_fields_in_dto(self) -> None:
         preview = failure_preview_from_records(

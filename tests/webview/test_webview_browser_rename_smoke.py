@@ -525,6 +525,7 @@ def _browser_rename_runner_source() -> str:
             requireText("rename-file-source-summary", ["Source paths staged: 2", "Media paths eligible for preview/apply: 1", "Ignored by preview/apply: 1 (1 sidecar"]);
             window.mediaPipelineRenameView.renderRenamePreview({
               rows: [first],
+              preview_fingerprint: "rename-preview-fp",
               counts: { total: 1, ready: 1 },
               input_counts: { raw: 2, media: 1, ignored: 1, ignored_sidecar: 1 },
               confidence_counts: { high: 1 },
@@ -535,7 +536,7 @@ def _browser_rename_runner_source() -> str:
             requireText("rename-summary", ["Rows: 1", "Preview warnings: Ignored 1 staged rename sidecar path"]);
             requireTextAbsent("rename-rows", ["pipeline.json"]);
             setValue("rename-paths", "C:/TV/Season 02/Serial Experiments Lain E01 Weird.mkv");
-            window.mediaPipelineRenameView.renderRenamePreview({ rows: [first], counts: { total: 1, ready: 1 }, confidence_counts: { high: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { rename: 1 } });
+            window.mediaPipelineRenameView.renderRenamePreview({ rows: [first], preview_fingerprint: "rename-preview-fp", counts: { total: 1, ready: 1 }, confidence_counts: { high: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { rename: 1 } });
             requireText("rename-apply-button", ["Check rows before apply"]);
             requireText("rename-apply-status-hint", ["No rows checked", "Check Applicable"]);
             if (!byId("rename-apply-button").disabled) {
@@ -552,7 +553,7 @@ def _browser_rename_runner_source() -> str:
               throw new Error("stale preview did not disable Apply");
             }
             setValue("rename-show", "Serial Experiments Lain");
-            window.mediaPipelineRenameView.renderRenamePreview({ rows: [first], counts: { total: 1, ready: 1 }, confidence_counts: { high: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { rename: 1 } });
+            window.mediaPipelineRenameView.renderRenamePreview({ rows: [first], preview_fingerprint: "rename-preview-fp", counts: { total: 1, ready: 1 }, confidence_counts: { high: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { rename: 1 } });
             click('#rename-rows tr[data-selectable-row="true"]', "rename preview row");
             requireText("rename-detail", ["Serial Experiments Lain - S02E01 - Weird.mkv", "Confidence reason(s): folder season 02 | episode token E01"]);
             requireText("rename-apply-readiness-status", ["Ready"]);
@@ -583,7 +584,7 @@ def _browser_rename_runner_source() -> str:
               confidence: "review",
               warnings: ["Manual review needed"],
             };
-            window.mediaPipelineRenameView.renderRenamePreview({ rows: [first, warningSecond], counts: { total: 2, ready: 1, warning: 1 }, confidence_counts: { high: 1, review: 1 }, preview_source_counts: { auto_tv_heuristic: 2 }, change_kind_counts: { rename: 2 } });
+            window.mediaPipelineRenameView.renderRenamePreview({ rows: [first, warningSecond], preview_fingerprint: "rename-preview-fp", counts: { total: 2, ready: 1, warning: 1 }, confidence_counts: { high: 1, review: 1 }, preview_source_counts: { auto_tv_heuristic: 2 }, change_kind_counts: { rename: 2 } });
             window.mediaPipelineRenameView.clearCheckedRenameRows();
             click('#rename-rows tr[data-selectable-row="true"] input[type="checkbox"]', "first rename checkbox");
             requireText("rename-selected-count", ["1 checked"]);
@@ -772,7 +773,7 @@ def _browser_rename_runner_source() -> str:
               };
             });
             setValue("rename-paths", largeRows.map((row) => row.source).join("\\n"));
-            window.mediaPipelineRenameView.renderRenamePreview({ rows: largeRows, counts: { total: 260, ready: 260 }, confidence_counts: { high: 260 }, preview_source_counts: { auto_tv_heuristic: 260 }, change_kind_counts: { rename: 260 } });
+            window.mediaPipelineRenameView.renderRenamePreview({ rows: largeRows, preview_fingerprint: "rename-preview-fp", counts: { total: 260, ready: 260 }, confidence_counts: { high: 260 }, preview_source_counts: { auto_tv_heuristic: 260 }, change_kind_counts: { rename: 260 } });
             requireText("rename-status", ["260 ready", "250 shown / 260 preview rows"]);
             requireText("rename-table-legend", ["Display cap: 250 shown / 260 preview rows rendered", "not visible in the table"]);
             requireRenameScrollPreservedOnSelection("S02E240");
@@ -784,7 +785,7 @@ def _browser_rename_runner_source() -> str:
             requireReadiness(["Render cap visibility", "250 of 260 preview row(s) are rendered", "unrendered backend preview rows"]);
 
             const blockedExisting = { ...first, status: "blocked", errors: ["destination already exists"], warnings: [] };
-            window.mediaPipelineRenameView.renderRenamePreview({ rows: [blockedExisting], counts: { total: 1, blocked: 1 }, confidence_counts: { blocked: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { blocked: 1 } });
+            window.mediaPipelineRenameView.renderRenamePreview({ rows: [blockedExisting], preview_fingerprint: "rename-preview-fp", counts: { total: 1, blocked: 1 }, confidence_counts: { blocked: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { blocked: 1 } });
             if (!previewCells().includes("Blocked: destination already exists")) {
               throw new Error("preview table did not expose blocked destination reason\\nActual:\\n" + previewCells());
             }
@@ -792,7 +793,7 @@ def _browser_rename_runner_source() -> str:
             const duplicateA = { ...first, source: "C:/TV/S02/E01.mkv", source_name: "E01.mkv" };
             const duplicateB = { ...first, source: "C:/TV/S02/E02.mkv", source_name: "E02.mkv" };
             setValue("rename-paths", "C:/TV/S02/E01.mkv\\nC:/TV/S02/E02.mkv");
-            window.mediaPipelineRenameView.renderRenamePreview({ rows: [duplicateA, duplicateB], counts: { total: 2, ready: 2 }, confidence_counts: { high: 2 }, preview_source_counts: { auto_tv_heuristic: 2 }, change_kind_counts: { rename: 2 } });
+            window.mediaPipelineRenameView.renderRenamePreview({ rows: [duplicateA, duplicateB], preview_fingerprint: "rename-preview-fp", counts: { total: 2, ready: 2 }, confidence_counts: { high: 2 }, preview_source_counts: { auto_tv_heuristic: 2 }, change_kind_counts: { rename: 2 } });
             click("#rename-check-applicable-button", "check applicable rename rows");
             requireText("rename-selected-count", ["0 checked"]);
             requireText("rename-apply-readiness-status", ["Blocked"]);

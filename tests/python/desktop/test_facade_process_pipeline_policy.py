@@ -31,7 +31,7 @@ from mediapipeline.core.processes.pipeline_policy import (
 
 class PipelineLaunchPolicyTests(unittest.TestCase):
     def test_mode_normalization_and_allowlist_match_launch_contract(self) -> None:
-        self.assertEqual(normalize_pipeline_start_mode(None), "once")
+        self.assertEqual(normalize_pipeline_start_mode(None), "")
         self.assertEqual(normalize_pipeline_start_mode(" Validate "), "validate")
         self.assertTrue(is_supported_pipeline_start_mode("continuous"))
         self.assertTrue(is_supported_pipeline_start_mode("drain_pending_pushes"))

@@ -1050,7 +1050,11 @@
       return;
     }
     const result = await runWizardCommand("settings.wizard.save", "settings-wizard-save-result", () => (
-      apiPostLocal("/api/settings/wizard/save", { wizard: collectWizardPayload(), confirm_save: true })
+      apiPostLocal("/api/settings/wizard/save", {
+        wizard: collectWizardPayload(),
+        confirm_save: true,
+        review_confirmation: state.lastPreview?.data?.review_confirmation || null,
+      })
     ));
     if (result) {
       const data = result.data || {};

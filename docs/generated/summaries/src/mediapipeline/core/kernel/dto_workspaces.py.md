@@ -3,9 +3,9 @@ file: src/mediapipeline/core/kernel/dto_workspaces.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: kernel
-last_modified: 2026-06-24
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: f7364193ffb20339adc32484407c48b3e0cbf9e022540abd304f5a90b37af368
+sha256: bf78a26ae6607cea66bc747c03f241a58413251c87a32d24cb0281c1247c870f
 ---
 # `src/mediapipeline/core/kernel/dto_workspaces.py`
 

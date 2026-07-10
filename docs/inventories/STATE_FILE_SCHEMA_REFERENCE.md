@@ -151,7 +151,7 @@ Rows commonly include `source_path`, `media_kind`, `stage_mode`, `original_mode`
 
 ### Queue Read Model
 
-`GET /api/rerun/results` projects raw CSV rerun manifests into a backend-owned Queue read model:
+`GET /api/rerun/results` projects raw CSV rerun manifests and Network CSV rerun batch manifests into a backend-owned Queue read model:
 
 | Field | Type | Default | Notes |
 |---|---|---|---|
@@ -159,16 +159,21 @@ Rows commonly include `source_path`, `media_kind`, `stage_mode`, `original_mode`
 | `queue_state.row_schema_version` | `str` | — | `desktop_rerun_queue_state_row.v1` |
 | `queue_state.uses_pipeline_start` | `bool` | `False` | Explicit boundary marker: CSV rerun rows are not normal `/api/pipeline/start` rows |
 | `queue_state.rows[]` | `list[dict]` | `[]` | Backend-enriched rows rendered by the Queue CSV Rerun tab |
-| `rows[].queue_status` / `queue_status_label` | `str` | — | Normalized operator status, such as `pending`, `active`, `blocked`, `warning`, `failed`, `stopped`, `completed`, `awaiting_review`, `pending_publish`, `replaced_returned`, or `skipped` |
+| `rows[].queue_source` / `queue_kind` | `str` | — | Distinguishes local CSV rerun rows from Network CSV rerun reducer rows; network rows use `network_csv_rerun` and `network_csv_rerun_row` |
+| `rows[].queue_status` / `queue_status_label` | `str` | — | Normalized operator status, such as `pending`, `active`, `pending_reduction`, `blocked`, `warning`, `failed`, `stopped`, `completed`, `awaiting_review`, `pending_publish`, `replaced_returned`, or `skipped`; Network CSV rerun destination policy application is rendered as `active`, and destination-policy failures render as `failed` |
 | `rows[].rule_decision` | `dict` | `{}` | Backend-owned CSV rerun rule decision with `desktop_rerun_rule_decision.v1`; includes rule id, label, status, reason, destination behavior, replacement eligibility, required confirmations, runtime options, and evidence |
 | `rows[].rerun_rule_id` / `rerun_rule_label` / `rerun_rule_reason` | `str` | — | Flattened display fields for Queue; examples include `legacy_pipeline_standardize`, `subtitle_remediation`, `audio_language_remediation`, `container_codec_remediation`, `bad_download_full_rerun`, `manual_review_required`, and `blocked_missing_rule_input` |
-| `rows[].destination_state` | `dict` | `{}` | Backend evidence for destination mode, collision policy, pending/published/replaced paths, and auto-return decisions |
+| `rows[].destination_state` | `dict` | `{}` | Backend evidence for destination mode, collision policy, pending/published/replaced paths, auto-return decisions, and Network CSV rerun destination-policy result/action/status |
 | `rows[].attempt_evidence` | `dict` | `{}` | Manifest, batch, source identity, row index, reason, and timestamp evidence for the rerun attempt |
+| `rows[].network_reducer_result` / `network_worker_result` | `dict` | `{}` | Read-only Network CSV rerun reducer and worker evidence when projected from `NetworkCsvRerunBatch` |
+| `rows[].network_destination_policy_result` | `dict` | `{}` | Read-only Network CSV rerun Phase 6 destination-policy evidence, including action, terminal status, review output, Pending Publish manifest/payload, published path, hashes, transaction data, or failure reason |
+| `rows[].network_output_artifact` | `str` | `""` | Verified handoff output path for network reducer rows, when present |
 | `rows[].available_actions` | `list[dict]` | `[]` | Backend-declared row actions such as open artifact/folder/manifest or promote review output to Pending Publish |
 
 ### Notes
 
 - Queue/Home use the newest active CSV rerun manifest only as read-only operator evidence when no normal queue snapshot is available and an active `rerun_csv` job is present. The Queue CSV Rerun tab also reads `GET /api/rerun/results` directly so CSV rerun rows remain visible even when normal queue rows are empty.
+- Network CSV rerun rows are projected from `State\Rerun\Network\*.json` as read-only Queue evidence with `network_manifest_root`, `network_manifests`, `network_row_count`, and `queue_state.contains_network_csv_rerun`. Phase 5 exposes reducer status and pending destination-policy evidence; Phase 6 may expose coordinator-applied review workspace, Pending Publish, final publish, or destination-policy failure evidence after a worker done report has been reduced.
 - Row `status` and `reason` drive operator-visible state; failed, blocked, held, completed, pending, staged, and review-workspace rows should not all render as ready. Current manifests include per-row `row_index` for the original CSV row position so continuation can exclude failed duplicate-source rows.
 - Queue-facing CSV rerun row statuses and rule decisions are normalized by the backend read model. The WebView filters and renders these labels but does not infer whether an output is clean enough to replace, should be pending-publish review, can be promoted, or is eligible for replacement.
 - `stopped_after_current` is a terminal clean-stop status for CSV rerun v1 continuation. `/api/rerun/continue` may materialize a new pending-only scoped CSV only from this status; failed/review/completed rows are not retried automatically.
@@ -186,28 +191,42 @@ Rows commonly include `source_path`, `media_kind`, `stage_mode`, `original_mode`
 |---|---|---|---|
 | `schema_version` | `str` | — | `desktop_rerun_network_batch.v1` |
 | `batch_id` | `str` | — | Backend-generated deterministic network CSV rerun batch id |
-| `status` | `str` | `claim_disabled` | Phase 3 active state blocks close-readiness while worker row claims remain disabled |
-| `phase` | `str` | — | Implementation phase evidence, currently `phase_3_batch_state_without_worker_execution` |
+| `status` | `str` | `active` | Phase 4B active state blocks close-readiness while worker row claims may be active |
+| `phase` | `str` | — | Confirmed-start phase evidence; row-level reducer evidence carries `reducer_phase=phase_5_coordinator_result_reducer`, and row-level destination evidence carries `phase=phase_6_destination_policy_integration` |
 | `created_at_utc` / `updated_at_utc` | `str` | — | UTC state timestamps |
 | `command_id` | `str` | — | Backend command id recorded with command journal evidence |
 | `csv_path` | `str` | — | CSV input modeled by the matching dry-run |
 | `dry_run_fingerprint` | `str` | — | Backend dry-run proof required by the confirmed start route |
-| `claim_provider_enabled` | `bool` | `False` | Must remain false until Phase 4 claim provider support |
-| `worker_execution_enabled` | `bool` | `False` | Confirms no worker execution is enabled by Phase 3 |
-| `rows_claimable` | `bool` | `False` | Confirms rows are not-yet-claimable |
+| `claim_provider_enabled` | `bool` | `True` | Coordinator may expose claimable rows as additive `csv_rerun_row` worker claims |
+| `worker_execution_enabled` | `bool` | `True` | Workers may execute one claimed source into its planned handoff folder |
+| `rows_claimable` | `bool` | `True` when any row is pending claim | Confirms at least one row may be claimed by the coordinator provider |
+| `output_handoff` | `dict` | `{}` | Validated `NetworkRerunHandoffRoot` evidence, including local-vs-UNC compatibility and coordinator cleanup ownership |
+| `handoff_probe` | `dict` | `{}` | Confirmed-start coordinator create/write/read/list/delete probe evidence for the configured handoff root |
 | `rows[]` | `list[dict]` | `[]` | Coordinator-owned row records derived from preview rows |
 | `rows[].schema_version` | `str` | — | `desktop_rerun_network_batch_row.v1` |
 | `rows[].row_key` / `row_index` | `str` / mixed | — | Stable row identity from the network preview |
-| `rows[].status` | `str` | — | `pending_claim_disabled`, `blocked`, or `skipped` |
-| `rows[].claimable` | `bool` | `False` | Always false in Phase 3 |
-| `rows[].claim_status` | `str` | `claim_disabled_until_phase_4` | Worker claim loops must not treat these rows as available |
-| `rows[].source_mapping` / `output_handoff` / `destination_policy` | `dict` | `{}` | Read-only planning evidence from preview |
+| `rows[].status` | `str` | — | `pending_claim`, `claimed`, `worker_completed_pending_reduction`, `destination_policy_applying`, `review_workspace`, `pending_publish`, `published_non_overlap`, `published_replace_final`, `destination_policy_failed`, `worker_failed_pending_reduction`, `worker_review_pending_reduction`, `blocked`, or `skipped` |
+| `rows[].claimable` | `bool` | `True` only for pending start-ready rows | Coordinator claim provider may hand the row to one worker when true |
+| `rows[].claim_status` | `str` | `pending_claim` | Worker claim lifecycle evidence such as `pending_claim`, `claimed`, `released`, or `done_reported` |
+| `rows[].planned_output_path` | `str` | `""` | Planned per-row handoff folder path under `<NetworkRerunHandoffRoot>/<batch_id>/<row_key>/` |
+| `rows[].source_mapping` / `output_handoff` / `destination_policy` | `dict` | `{}` | Read-only planning evidence from preview, with actual per-row handoff paths materialized during confirmed start |
+| `rows[].active_claim` | `dict` | absent | Current worker claim identity while a row is in flight |
+| `rows[].worker_result` | `dict` | absent | Phase 5 worker result snapshot copied from the done request and optional worker artifact; `schema_version=desktop_rerun_network_worker_result_snapshot.v1` |
+| `rows[].reducer_result` | `dict` | absent | Phase 5 coordinator result reduction; `schema_version=desktop_rerun_network_result_reduction.v1`, with classification, retryability, output evidence, identity checks, and destination-policy deferral |
+| `rows[].destination_policy_result` | `dict` | absent | Phase 6 coordinator destination-policy result; `schema_version=desktop_rerun_network_destination_policy_result.v1`, with action, terminal status, source/output/final path evidence, Pending Publish manifest/payload paths, final publish transaction evidence, or failure details |
+| `rows[].verified_output_path` | `str` | `""` | Handoff output accepted by the reducer as present and under the planned row handoff folder |
+| `rows[].pending_publish_manifest_path` / `pending_publish_payload_path` | `str` | `""` | Manifest-backed Pending Publish evidence when coordinator policy parks a network rerun output |
+| `rows[].published_path` / `server_out` / `review_output_path` | `str` | `""` | Coordinator-authored final publish, requested server output, or handoff review workspace evidence |
+| `rows[].duplicate_done_count` / `late_done_count` | `int` | `0` | Idempotency counters for duplicate and late done reports |
+| `rows[].reducer_events[]` / `late_worker_results[]` | `list[dict]` | `[]` | Bounded evidence history for duplicate, late, and terminal-after-release reports |
 
 Notes:
 
-- Phase 3 writes this file and strict command journal evidence only. It does not stage sources, start workers, create claims, mutate normal queue state, mutate Pending Publish, mutate Completed manifests, publish, replace final output, or touch media files.
+- Phase 4B writes this file and strict command journal evidence only after a transient coordinator handoff-root probe succeeds. Workers may claim one row at a time and write to the planned handoff folder only.
+- Phase 5 reduces done reports by verifying batch id, row key, claim id, worker id, source identity, worker artifact metadata, output presence, and handoff boundary. Success initially records `pending_destination_policy=true`; review, output-missing, corrupt, retryable failure, terminal failure, duplicate, and late reports are persisted as evidence without media movement.
+- Phase 6 applies destination policy only on the coordinator after Phase 5 acceptance. Workers still write only to row handoff folders. Coordinator policy may leave the verified output in review workspace, move it into manifest-backed Pending Publish, copy it to a non-overlapping final path, replace a final path only with confirmed replacement evidence, or fail closed with the source and handoff output preserved. Source media remains read-only.
 - Active `desktop_rerun_network_batch.v1` files with status `claim_disabled`, `active`, `running`, `stopping`, `stopped_after_current`, or `paused` make backend close-readiness unsafe until a later safe stop/drain state exists.
-- Existing normal network queue claim/done/release protocol remains unchanged by this artifact until Phase 4 adds additive claim-provider support.
+- Existing normal network queue claim/done/release protocol remains compatible; `csv_rerun_row` metadata is additive and source-identity duplicate prevention still shares the normal in-flight registry.
 
 ---
 

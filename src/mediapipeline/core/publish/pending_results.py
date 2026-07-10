@@ -1,51 +1,21 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    from mediapipeline.core.kernel.dto_commands import CommandResult
-    from mediapipeline.core.kernel.dto_inventory import PendingPublishPreviewDto
-
-PENDING_PUBLISH_SERVICE_UNAVAILABLE_MESSAGE = "Pending publish service is not available."
-
-PENDING_PUBLISH_INVALID_RESULT_MESSAGE = "Pending publish service returned an invalid result."
-
-PENDING_PUBLISH_OPEN_COMMAND = "pending_publish.open"
-
-PENDING_PUBLISH_RECOVERY_PLAN_COMMAND = "pending_publish.recovery_plan_dry_run"
-
-PENDING_PUBLISH_RECOVERY_PLAN_SCHEMA_VERSION = "pending_publish_recovery_plan.v1"
-
-PENDING_PUBLISH_INVENTORY_PROGRESS_SCHEMA_VERSION = "desktop_pending_publish_inventory_progress.v1"
-
-PENDING_DRAIN_CONFIDENCE_SCHEMA_VERSION = "desktop_pending_drain_confidence.v1"
-
-PENDING_FILE_INVENTORY_SCHEMA_VERSION = "desktop_pending_publish_file_inventory.v1"
-
-PENDING_PUBLISH_OPEN_TARGETS = {
-    "play_local_file": "parked output playback",
-    "local_file": "parked local payload",
-    "manifest": "pending manifest",
-    "destination_folder": "destination folder",
-    "source_folder": "source folder",
-}
-
-def _json_safe(value: Any) -> Any:
-    from mediapipeline.core.kernel.dto_base import json_safe
-
-    return json_safe(value)
-
-
-def _command_result(**fields: Any) -> CommandResult:
-    from mediapipeline.core.kernel.dto_commands import CommandResult
-
-    return CommandResult(**fields)
-
-
-def _pending_publish_preview_dto(**fields: Any) -> PendingPublishPreviewDto:
-    from mediapipeline.core.kernel.dto_inventory import PendingPublishPreviewDto
-
-    return PendingPublishPreviewDto(**fields)
+from .pending_contracts import (
+    PENDING_DRAIN_CONFIDENCE_SCHEMA_VERSION,
+    PENDING_FILE_INVENTORY_SCHEMA_VERSION,
+    PENDING_PUBLISH_INVALID_RESULT_MESSAGE,
+    PENDING_PUBLISH_INVENTORY_PROGRESS_SCHEMA_VERSION,
+    PENDING_PUBLISH_OPEN_COMMAND,
+    PENDING_PUBLISH_OPEN_TARGETS,
+    PENDING_PUBLISH_RECOVERY_PLAN_COMMAND,
+    PENDING_PUBLISH_RECOVERY_PLAN_SCHEMA_VERSION,
+    PENDING_PUBLISH_SERVICE_UNAVAILABLE_MESSAGE,
+    _command_result,
+    _json_safe,
+    _pending_publish_preview_dto,
+)
 
 
 def pending_publish_service_unavailable_result() -> PendingPublishPreviewDto:

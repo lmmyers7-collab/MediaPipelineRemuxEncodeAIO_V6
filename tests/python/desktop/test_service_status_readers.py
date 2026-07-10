@@ -103,11 +103,14 @@ class StatusReaderHelperTests(unittest.TestCase):
             path.write_text(json.dumps(_progress_payload(CurrentStagePercent=150)), encoding="utf-8")
             logger = CaptureLogger()
 
-            self.assertIsNone(read_progress_file(path, logger))
+            progress = read_progress_file(path, logger)
 
         combined = "\n".join(logger.messages)
         self.assertIn("Progress contract invalid", combined)
         self.assertIn(str(path), combined)
+        self.assertEqual(progress["Status"], "Unavailable")
+        self.assertEqual(progress["ReadHealth"]["status"], "invalid")
+        self.assertFalse(progress["ReadHealth"]["available"])
 
     def test_read_progress_file_logs_malformed_json_with_path(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -115,11 +118,13 @@ class StatusReaderHelperTests(unittest.TestCase):
             path.write_text("{not json", encoding="utf-8")
             logger = CaptureLogger()
 
-            self.assertIsNone(read_progress_file(path, logger))
+            progress = read_progress_file(path, logger)
 
         combined = "\n".join(logger.messages)
         self.assertIn("Progress read failed", combined)
         self.assertIn(str(path), combined)
+        self.assertEqual(progress["Status"], "Unavailable")
+        self.assertEqual(progress["ReadHealth"]["status"], "invalid")
 
     def test_read_audit_progress_file_returns_raw_payload(self) -> None:
         with tempfile.TemporaryDirectory() as td:

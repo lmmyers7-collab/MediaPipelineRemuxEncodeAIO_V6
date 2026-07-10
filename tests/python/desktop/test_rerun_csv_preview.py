@@ -20,6 +20,10 @@ from mediapipeline.core.processes.rerun_preview import (  # noqa: E402
     rerun_csv_preview_payload,
     rerun_network_csv_preview_payload,
 )
+from mediapipeline.core.network.rerun_handoff import (  # noqa: E402
+    network_rerun_handoff_root_evidence,
+    probe_network_rerun_handoff_root,
+)
 from mediapipeline.core.processes.rerun_rules import (  # noqa: E402
     AUDIO_LANGUAGE_REMEDIATION,
     BAD_DOWNLOAD_FULL_RERUN,
@@ -251,8 +255,88 @@ class RerunCsvPreviewTests(unittest.TestCase):
         self.assertEqual(claimable["source_mapping"]["relative_path"], "Movie.mkv")
         self.assertEqual(claimable["output_handoff"]["status"], "not_configured")
         self.assertFalse(claimable["start_ready"])
-        self.assertIn("output_handoff_not_configured", claimable["start_blockers"])
+        self.assertIn("network_rerun_handoff_root_missing", claimable["start_blockers"])
         self.assertIn("destination_behavior:auto_replace_clean_else_pending_review", claimable["destination_policy"]["risk_codes"])
+
+    def test_network_preview_uses_handoff_root_for_start_ready_rows_without_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            csv_path = root / "rerun.csv"
+            source_root = root / "ProfileSource"
+            profile_out = root / "ProfileOut"
+            handoff_root = root / "NetworkRerunHandoff"
+            handoff_root.mkdir()
+            source = source_root / "Movie.mkv"
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b"media")
+            _write_csv(
+                csv_path,
+                [
+                    {
+                        "enabled": "true",
+                        "source_path": str(source),
+                        "audit_issue_codes": "AUDIO",
+                        "plex_planned_path": str(profile_out / "Movie.mkv"),
+                    }
+                ],
+            )
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "Outsource": str(root / "Outsource"),
+                "NetworkRerunHandoffRoot": str(handoff_root),
+                "LibraryProfiles": [
+                    {
+                        "id": "profile",
+                        "enabled": True,
+                        "source_path": str(source_root),
+                        "output_path": str(profile_out),
+                    }
+                ],
+            }
+
+            payload = rerun_network_csv_preview_payload(
+                resolved,
+                {"csv_path": str(csv_path), "confirm_replace_final": True},
+            )
+            handoff_entries = list(handoff_root.iterdir())
+
+        self.assertEqual(payload["status"], "ready")
+        self.assertTrue(payload["can_start_network_batch"])
+        self.assertEqual(payload["start_blockers"], [])
+        self.assertEqual(payload["counts"]["claimable_rows"], 1)
+        self.assertEqual(payload["counts"]["start_ready_rows"], 1)
+        self.assertEqual(payload["counts"]["output_handoff_ready_rows"], 1)
+        self.assertEqual(payload["output_handoff"]["status"], "ready")
+        row = payload["rows"][0]
+        self.assertTrue(row["start_ready"])
+        self.assertEqual(row["output_handoff"]["status"], "ready")
+        self.assertEqual(row["output_handoff"]["cleanup_owner"], "coordinator")
+        self.assertIn("{batch_id}", row["output_handoff"]["planned_batch_relative_path"])
+        self.assertTrue(row["output_handoff"]["planned_row_handoff_path_template"].endswith(row["row_key"]))
+        self.assertEqual(row["output_handoff"]["planned_row_handoff_path"], "")
+        self.assertEqual(handoff_entries, [])
+
+    def test_network_handoff_probe_creates_reads_lists_and_deletes_temp_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            handoff_root = root / "NetworkRerunHandoff"
+            handoff_root.mkdir()
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "Outsource": str(root / "Outsource"),
+                "NetworkRerunHandoffRoot": str(handoff_root),
+            }
+
+            evidence = network_rerun_handoff_root_evidence(resolved)
+            probe = probe_network_rerun_handoff_root(evidence)
+            handoff_entries = list(handoff_root.iterdir())
+
+        self.assertTrue(evidence["ready"])
+        self.assertTrue(probe["ok"])
+        self.assertEqual(probe["status"], "pass")
+        self.assertEqual(probe["cleanup_result"], "probe_removed")
+        self.assertEqual(probe["operations"], ["create", "write", "read", "list", "delete"])
+        self.assertEqual(handoff_entries, [])
 
     def test_preview_allows_confirmed_same_file_source_overwrite_override(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -284,6 +368,58 @@ class RerunCsvPreviewTests(unittest.TestCase):
 
         self.assertEqual(payload["status"], "ready")
         self.assertEqual(payload["rows"][0]["status"], "ready")
+        self.assertNotIn("outside configured output root", payload["rows"][0]["reason"])
+
+    def test_preview_confirmed_source_overwrite_targets_source_path_before_csv_final(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            csv_path = root / "rerun.csv"
+            source_root = root / "OriginalDrive"
+            publish_root = root / "ConfiguredPublish"
+            source = source_root / "Movie.mkv"
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b"media")
+            csv_final = publish_root / "Movie.mkv"
+            _write_csv(
+                csv_path,
+                [
+                    {
+                        "enabled": "true",
+                        "source_path": str(source),
+                        "audit_issue_codes": "AUDIO",
+                        "plex_planned_path": str(csv_final),
+                    }
+                ],
+            )
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "Outsource": str(publish_root),
+                "LibraryProfiles": [
+                    {
+                        "id": "movies",
+                        "enabled": True,
+                        "source_path": str(source_root),
+                        "output_path": str(publish_root),
+                    }
+                ],
+            }
+
+            payload = rerun_csv_preview_payload(
+                resolved,
+                {
+                    "csv_path": str(csv_path),
+                    "destination_mode": "pending_publish",
+                    "collision_policy": "replace_final",
+                    "confirm_replace_final": True,
+                    "confirm_source_overwrite": True,
+                },
+            )
+
+        self.assertEqual(payload["status"], "ready")
+        self.assertEqual(payload["rows"][0]["status"], "ready")
+        self.assertEqual(payload["rows"][0]["final_output_path"], str(source))
+        self.assertEqual(payload["rows"][0]["final_output_source"], "source_path")
+        self.assertEqual(payload["rows"][0]["final_output_source_field"], "source_path")
         self.assertNotIn("outside configured output root", payload["rows"][0]["reason"])
 
     def test_preview_counts_blocked_disabled_duplicate_and_scoped_rows(self) -> None:

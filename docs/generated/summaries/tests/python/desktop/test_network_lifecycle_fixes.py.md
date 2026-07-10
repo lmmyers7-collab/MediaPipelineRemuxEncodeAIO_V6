@@ -3,9 +3,9 @@ file: tests/python/desktop/test_network_lifecycle_fixes.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-02
+last_modified: 2026-07-09
 last_reviewed: 2026-06-13
-sha256: 04a5a6bcb33637c2883f955b5a078968e24612656a49e7f6b0f11d92094ac351
+sha256: 40fe86c7536b2a15bf36b0ea3774f0c082a917d091c62a62a2f258a1f6940af8
 ---
 # `tests/python/desktop/test_network_lifecycle_fixes.py`
 

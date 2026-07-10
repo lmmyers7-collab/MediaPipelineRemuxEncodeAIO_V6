@@ -61,6 +61,16 @@ def _coerce_strict_nonnegative_int_field(d: dict[str, Any], field_name: str, *, 
     return value
 
 
+def _coerce_mapping_field(d: dict[str, Any], field_name: str) -> dict[str, Any]:
+    """Read an optional wire object without accepting scalar coercions."""
+    raw = d.get(field_name, {})
+    if raw in (None, ""):
+        return {}
+    if not isinstance(raw, dict):
+        raise ValueError(f"{field_name} must be an object")
+    return dict(raw)
+
+
 def coerce_library_id_list(value: Any) -> list[str]:
     """Return a bounded, deduped list of library IDs from wire data."""
     if value is None:
@@ -142,6 +152,17 @@ class ClaimResponse:
     # missing means "use the worker's default poll interval" — old workers
     # ignore the field entirely so the protocol remains backward-compatible.
     retry_after_seconds: int  = 0
+    job_kind:           str   = "pipeline_queue"
+    rerun_batch_id:     str   = ""
+    rerun_row_key:      str   = ""
+    rerun_row_index:    int   = 0
+    planned_output_path: str  = ""
+    output_handoff:     dict  = field(default_factory=dict)
+    source_identity:    dict  = field(default_factory=dict)
+    coordinator_source_path: str = ""
+    worker_source_path: str = ""
+    handoff_probe:      dict  = field(default_factory=dict)
+    destination_policy_applied: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -155,6 +176,17 @@ class ClaimResponse:
             "encode_config":       self.encode_config,
             "retry_on_failure":    self.retry_on_failure,
             "retry_after_seconds": self.retry_after_seconds,
+            "job_kind":            self.job_kind,
+            "rerun_batch_id":      self.rerun_batch_id,
+            "rerun_row_key":       self.rerun_row_key,
+            "rerun_row_index":     self.rerun_row_index,
+            "planned_output_path": self.planned_output_path,
+            "output_handoff":      self.output_handoff,
+            "source_identity":     self.source_identity,
+            "coordinator_source_path": self.coordinator_source_path,
+            "worker_source_path":  self.worker_source_path,
+            "handoff_probe":       self.handoff_probe,
+            "destination_policy_applied": self.destination_policy_applied,
         }
 
     @classmethod
@@ -170,6 +202,17 @@ class ClaimResponse:
             encode_config=dict(d.get("encode_config", {})),
             retry_on_failure=coerce_optional_bool(d, "retry_on_failure", default=True),
             retry_after_seconds=_coerce_strict_nonnegative_int_field(d, "retry_after_seconds", default=0),
+            job_kind=str(d.get("job_kind", "pipeline_queue") or "pipeline_queue"),
+            rerun_batch_id=str(d.get("rerun_batch_id", "")),
+            rerun_row_key=str(d.get("rerun_row_key", "")),
+            rerun_row_index=_coerce_strict_nonnegative_int_field(d, "rerun_row_index", default=0),
+            planned_output_path=str(d.get("planned_output_path", "")),
+            output_handoff=_coerce_mapping_field(d, "output_handoff"),
+            source_identity=_coerce_mapping_field(d, "source_identity"),
+            coordinator_source_path=str(d.get("coordinator_source_path", "")),
+            worker_source_path=str(d.get("worker_source_path", "")),
+            handoff_probe=_coerce_mapping_field(d, "handoff_probe"),
+            destination_policy_applied=coerce_optional_bool(d, "destination_policy_applied", default=False),
         )
 
     @classmethod
@@ -205,6 +248,18 @@ class DoneRequest:
     # Echo of ClaimResponse.retry_on_failure.  When False, the coordinator
     # should remove this file from the queue on failure rather than re-queueing.
     retry_on_failure:  bool  = True
+    job_kind:          str   = "pipeline_queue"
+    rerun_batch_id:    str   = ""
+    rerun_row_key:     str   = ""
+    rerun_row_index:   int   = 0
+    planned_output_path: str = ""
+    output_handoff:    dict  = field(default_factory=dict)
+    source_identity:   dict  = field(default_factory=dict)
+    coordinator_source_path: str = ""
+    worker_source_path: str = ""
+    handoff_probe:     dict  = field(default_factory=dict)
+    destination_policy_applied: bool = False
+    worker_result_artifact_path: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -224,6 +279,18 @@ class DoneRequest:
             "queue_terminal":    self.queue_terminal,
             "released":          self.released,
             "retry_on_failure":  self.retry_on_failure,
+            "job_kind":          self.job_kind,
+            "rerun_batch_id":    self.rerun_batch_id,
+            "rerun_row_key":     self.rerun_row_key,
+            "rerun_row_index":   self.rerun_row_index,
+            "planned_output_path": self.planned_output_path,
+            "output_handoff":    self.output_handoff,
+            "source_identity":   self.source_identity,
+            "coordinator_source_path": self.coordinator_source_path,
+            "worker_source_path": self.worker_source_path,
+            "handoff_probe":     self.handoff_probe,
+            "destination_policy_applied": self.destination_policy_applied,
+            "worker_result_artifact_path": self.worker_result_artifact_path,
         }
 
     @classmethod
@@ -245,6 +312,18 @@ class DoneRequest:
             queue_terminal=coerce_optional_bool(d, "queue_terminal", default=False),
             released=coerce_optional_bool(d, "released", default=False),
             retry_on_failure=coerce_optional_bool(d, "retry_on_failure", default=True),
+            job_kind=str(d.get("job_kind", "pipeline_queue") or "pipeline_queue"),
+            rerun_batch_id=str(d.get("rerun_batch_id", "")),
+            rerun_row_key=str(d.get("rerun_row_key", "")),
+            rerun_row_index=_coerce_strict_nonnegative_int_field(d, "rerun_row_index", default=0),
+            planned_output_path=str(d.get("planned_output_path", "")),
+            output_handoff=_coerce_mapping_field(d, "output_handoff"),
+            source_identity=_coerce_mapping_field(d, "source_identity"),
+            coordinator_source_path=str(d.get("coordinator_source_path", "")),
+            worker_source_path=str(d.get("worker_source_path", "")),
+            handoff_probe=_coerce_mapping_field(d, "handoff_probe"),
+            destination_policy_applied=coerce_optional_bool(d, "destination_policy_applied", default=False),
+            worker_result_artifact_path=str(d.get("worker_result_artifact_path", "")),
         )
 
 

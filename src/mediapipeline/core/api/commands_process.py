@@ -85,7 +85,11 @@ class LocalApiProcessCommandPayloadMixin:
         resolved = self._resolved()
         if resolved is None:
             return resolved_paths_unavailable_payload("pipeline.control", "snapshot")
-        return self.facade.request_pipeline_control(resolved, str(request.get("action") or "")).to_mapping()
+        return self.facade.request_pipeline_control(
+            resolved,
+            str(request.get("action") or ""),
+            confirm_force_stop=request.get("confirm_force_stop") is True,
+        ).to_mapping()
 
     def _pipeline_browse_file_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         requested_mode = str(request.get("selection_mode") or "files").strip().lower()

@@ -3,10 +3,7 @@ from __future__ import annotations
 from typing import Any
 from collections.abc import Mapping
 
-from .pending_results import PENDING_DRAIN_CONFIDENCE_SCHEMA_VERSION, _json_safe
-from .pending_rows import (
-    int_value,
-)
+from .pending_contracts import PENDING_DRAIN_CONFIDENCE_SCHEMA_VERSION, _json_safe, int_value
 
 def _pending_evidence_class(row: Mapping[str, Any]) -> str:
     recommendation = str(row.get("drain_recommendation") or "").casefold()

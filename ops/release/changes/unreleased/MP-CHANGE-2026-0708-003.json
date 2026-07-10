@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0708-003",
+  "title": "Audit current data plan",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-08",
+  "date_completed": "2026-07-09",
+  "summary": "Added the Audit current-data implementation plan, made latest audit CSV resolution prefer completed audit progress evidence and timestamped report names, and promoted active probe-cache replacement-file coverage.",
+  "reason": "Reports Audit needed an explicit plan for all audit-owned features plus stronger guards against stale report selection and stale probe-cache reuse for replaced video files.",
+  "affected_areas": [
+    "backend",
+    "docs",
+    "generated",
+    "tests"
+  ],
+  "behavior_before": "The Reports audit preview selected the newest audit CSV by filesystem mtime, so an older report touched later could become the displayed latest audit. Active PowerShell guard coverage did not directly assert same-path replacement files get a different audit probe-cache identity.",
+  "behavior_after": "The latest audit CSV resolver prefers completed audit_progress.json report pointers inside the audit report root, falls back to audit_summary timestamp ordering before mtime, and active PowerShell tests assert a same-path, same-size, same-mtime fixture with different sampled content produces a different probe-cache identity. The plan records that fallback completion proof and exhaustive replacement identity remain open work.",
+  "files_touched": [
+    "docs/DOCS_INDEX.md",
+    "docs/generated/summaries/docs/DOCS_INDEX.md.md",
+    "docs/generated/summaries/docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1.md",
+    "docs/generated/summaries/src/mediapipeline/core/observability/status_files.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_status_files.py.md",
+    "docs/implementation/audit-tool-current-data-plan.md",
+    "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+    "ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0708-003.json",
+    "src/mediapipeline/core/observability/status_files.py",
+    "tests/python/desktop/test_service_status_files.py"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1",
+    "tests/python/desktop/test_service_status_files.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_facade_audit_policy tests.python.desktop.test_application_facade_reports tests.python.desktop.test_service_audit_rerun_io -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_service_status_files -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_service_status_files tests.python.desktop.test_audit_sources tests.python.desktop.test_application_facade_reports -q - passed (37 tests)",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -File ops/pipeline/tests/Unit/Invoke-ActiveDocsReferenceChecks.ps1 - passed",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -File ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1 - passed"
+  ],
+  "rollback_plan": "Revert the status_files.py resolver changes and the added test assertions/docs plan; the previous mtime-only CSV selection and existing probe-cache implementation would be restored without media mutation.",
+  "related_changes": [],
+  "notes": "Prefer completed audit progress pointers and timestamped report names for latest audit CSV selection.\nPromote active probe-cache replacement-file identity coverage.\nAdd repo plan for Audit latest-report authority, stale-data, source registry, and rerun handoff features.\nCover audit progress pointer, unsafe pointer fallback, and timestamp-first latest audit CSV resolution.\nList the active Audit current-data implementation plan.\nDocument active path-boundary guard coverage for audit probe-cache replacement identity.\nRefresh generated summary for latest audit CSV resolver changes.\nRefresh generated summary for audit latest CSV tests.\nRefresh generated summary for path-boundary audit probe guard update.\nRefresh generated summary for docs index update.\nRefresh generated summary for test inventory update.\nRe-scan the plan against active routes, source, and tests; distinguish implemented behavior from target acceptance and document the sampled-hash and fallback-completion limits."
+}

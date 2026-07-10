@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/partials/page-network.html
 pipeline_stage: network
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-26
+last_modified: 2026-07-05
 last_reviewed: 2026-06-04
-sha256: ef6092826263a8e91aeb07e7cd4b568b86433605228753356c5a2158bcd8c563
+sha256: a1ff4c59f5ad2e8c11c3271077ad13f489331c872235e0c411d1cc47f0d45815
 ---
 # `apps/desktop/webview/static/partials/page-network.html`
 

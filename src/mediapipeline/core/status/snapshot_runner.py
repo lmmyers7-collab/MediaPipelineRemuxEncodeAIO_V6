@@ -46,6 +46,9 @@ def build_snapshot_for_service(service: StatusSnapshotServiceProtocol, resolved:
         log_tail,
         pipeline_events,
     )
+    progress_health = progress.get("ReadHealth") if isinstance(progress, dict) else None
+    if isinstance(progress_health, dict) and progress_health.get("available") is False:
+        current_activity = "Pipeline progress is unavailable or invalid; current work requires review."
     if progress_is_stale:
         if current_activity == "No active work reported.":
             current_activity = "Stale progress from previous run; no active pipeline process reported."

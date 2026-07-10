@@ -33,6 +33,7 @@ class RenamePreviewDto:
     active_template: str = ""
     template_catalog: list[JsonMap] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    preview_fingerprint: str = ""
     schema_version: str = "desktop_rename_preview.v1"
 
     def to_mapping(self) -> JsonMap:

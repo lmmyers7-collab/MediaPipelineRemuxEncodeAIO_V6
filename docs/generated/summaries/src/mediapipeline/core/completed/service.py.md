@@ -3,9 +3,9 @@ file: src/mediapipeline/core/completed/service.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: completed
-last_modified: 2026-06-29
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: 85614856aba35ac51f980c2397268e8846882dc2397445313bc79b0cbd69fff3
+sha256: 1abd212500c55ebdf9604d75dd692ea1ea1558aafc4ed1a4300bd809d0582b90
 ---
 # `src/mediapipeline/core/completed/service.py`
 

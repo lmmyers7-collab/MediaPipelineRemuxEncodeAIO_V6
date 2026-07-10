@@ -74,7 +74,9 @@
     const items = Array.isArray(failures) ? failures : [];
     const requiredFailures = items.filter((item) => item.required);
     const optionalFailures = items.filter((item) => !item.required);
-    const safe = closeReadiness ? Boolean(closeReadiness.safe_to_close) : null;
+    const safe = closeReadiness && typeof closeReadiness.safe_to_close === "boolean"
+      ? closeReadiness.safe_to_close === true
+      : null;
     const state = snapshot?.pipeline_state || closeReadiness?.state || "unknown";
     const status = requiredFailures.length
       ? "Backend issue"
@@ -942,6 +944,35 @@
     return true;
   }
 
+  function renderHomeCsvRerunCompletion(context = {}) {
+    const summary = window.mediaPipelineProgressView?.csvRerunCompletionSummary?.(context?.snapshot);
+    if (!summary) return false;
+    const list = byId("home-next-queue-list");
+    if (!list) return false;
+    const label = summary.display_label || "CSV rerun complete";
+    const detail = summary.detail || "Backend manifest terminal state.";
+    list.setAttribute("role", "listbox");
+    list.replaceChildren();
+    setHomePanelStatus("home-next-queue-status", label, summary.display_state || "ok");
+    const item = document.createElement("li");
+    item.tabIndex = 0;
+    item.setAttribute("role", "option");
+    item.setAttribute("aria-selected", "true");
+    item.classList.add("is-selected");
+    item.dataset.status = summary.display_state || "ok";
+    item.setAttribute("aria-label", `${label}: ${detail}`);
+    const title = document.createElement("span");
+    title.className = "home-next-queue-title";
+    title.textContent = summary.csv_name || summary.batch_id || "Current CSV";
+    const meta = document.createElement("span");
+    meta.className = "home-next-queue-meta";
+    meta.textContent = detail;
+    item.append(title, meta);
+    list.appendChild(item);
+    renderHomeQueueDetailMessage(`${detail}\n${summary.historical_evidence_note || "Historical progress evidence is available in Telemetry and Diagnostics."}`);
+    return true;
+  }
+
   function homeQueueRowIsRunnable(item = {}) {
     const status = String(item.operator_status || "").trim().toLowerCase();
     return status === "ready" || status === "priority ready";
@@ -1707,6 +1738,7 @@
     if (!list) return;
     list.setAttribute("role", "listbox");
     list.replaceChildren();
+    if (renderHomeCsvRerunCompletion(context)) return;
     const rows = homeNextQueueRows(queue, homeCurrentQueueOrder(context, queue.rows), context);
     const csvRerunQueue = homeCsvRerunQueueContext(context, queue, rows);
     if (!rows.length && renderHomeCsvRerunQueue(context)) return;
@@ -1828,6 +1860,7 @@
     homeCsvRerunQueueContext,
     homeCsvRerunRows,
     renderHomeCsvRerunQueue,
+    renderHomeCsvRerunCompletion,
     renderHomePendingCount,
     renderHomeNetworkRole,
     renderHomeStorageHealth,

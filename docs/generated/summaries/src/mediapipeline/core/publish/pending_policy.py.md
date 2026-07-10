@@ -3,9 +3,9 @@ file: src/mediapipeline/core/publish/pending_policy.py
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
-last_modified: 2026-06-19
+last_modified: 2026-07-05
 last_reviewed: 2026-06-04
-sha256: e5bbea338d5b6ffcd556d110a5aade1afd156373fc2324bb230d2b670095a201
+sha256: 7bf3e043ba64d6994635ec4ec3ce0cce2cd8c5bc10bd9ed6ee26a1172e0ef9d2
 ---
 # `src/mediapipeline/core/publish/pending_policy.py`
 

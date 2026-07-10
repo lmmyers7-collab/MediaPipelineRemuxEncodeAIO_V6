@@ -52,7 +52,7 @@ def _json_safe(value: Any) -> Any:
 
 
 def normalize_pipeline_start_mode(value: Any) -> str:
-    return str(value or "once").strip().casefold()
+    return str(value or "").strip().casefold()
 
 
 def is_supported_pipeline_start_mode(mode: str) -> bool:

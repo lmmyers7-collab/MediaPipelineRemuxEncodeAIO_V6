@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0705-022",
+  "title": "Fix root-level ordinal TV show naming",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-05",
+  "date_completed": "2026-07-05",
+  "summary": "Root-level TV filenames with embedded ordinal season markers now extract the show title from the filename before falling back to the source folder name.",
+  "reason": "Live Re Zero files under the configured TV source root planned and published as TV\\Season 04\\TV - S04E## because the ordinal-season parser kept the root folder fallback show name.",
+  "affected_areas": [
+    "generated",
+    "pipeline",
+    "tests"
+  ],
+  "behavior_before": "A file such as [Erai-raws] Re Zero kara Hajimeru Isekai Seikatsu 4th Season - 01 [...] under the TV source root parsed season/episode correctly but used ShowName=TV, producing TV\\Season 04\\TV - S04E01.mkv.",
+  "behavior_after": "The same filename parses ShowName=Re Zero kara Hajimeru Isekai Seikatsu, Season=4, Episode=1, and plans TV\\Re Zero kara Hajimeru Isekai Seikatsu\\Season 04\\Re Zero kara Hajimeru Isekai Seikatsu - S04E01.mkv.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/naming/naming.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/naming/tv_parsing.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-NamingSupportChecks.ps1.md",
+    "ops/pipeline/engine/naming/naming.ps1",
+    "ops/pipeline/engine/naming/tv_parsing.ps1",
+    "ops/pipeline/tests/Unit/Invoke-NamingSupportChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0705-022.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-NamingSupportChecks.ps1 adds a root-level Re Zero ordinal-season regression case."
+  ],
+  "manual_validation": [
+    ".\\ops\\pipeline\\tests\\Unit\\Invoke-NamingSupportChecks.ps1 - passed",
+    "Read-only live shared-file parser plan for Re Zero S04E01 - passed",
+    "targeted naming support check and live read-only parser plan - passed"
+  ],
+  "rollback_plan": "Revert the tv_parsing.ps1 helper/use-site and the naming support regression test; future root-level ordinal-season TV files would again require folder placement or manual rename/override to avoid TV\\TV output paths.",
+  "related_changes": [],
+  "notes": "Extract show titles from root-level TV filenames with ordinal season markers before using folder fallback.\nExpose the new TV ordinal-season parser helper in the naming module function list.\nAdd Re Zero root-level ordinal-season regression coverage for TV output folder naming.\nRefresh generated summary after TV parser change.\nRefresh generated summary after naming module comment update.\nRefresh generated summary after naming support regression test update.\nNo Python runtime impact; this is a PowerShell naming parser and focused PowerShell test change."
+}

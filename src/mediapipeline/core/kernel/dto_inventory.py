@@ -144,6 +144,7 @@ class CompletedPreviewDto:
     completed_pending_proof: JsonMap = field(default_factory=dict)
     final_library_promotion: JsonMap = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
+    parse_health: JsonMap = field(default_factory=dict)
     schema_version: str = "desktop_completed_preview.v1"
 
     def to_mapping(self) -> JsonMap:
@@ -228,6 +229,10 @@ class FailurePreviewDto:
     source: str = ""
     source_kind: str = "latest_json"
     count: int = 0
+    visible_count: int = 0
+    hidden_count: int = 0
+    hidden_blocker_count: int = 0
+    details_complete: bool = True
     operator_required_count: int = 0
     permanent_count: int = 0
     transient_count: int = 0
@@ -235,6 +240,8 @@ class FailurePreviewDto:
     resolution_summary: JsonMap = field(default_factory=dict)
     resolution_groups: list[JsonMap] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    availability: str = "available"
+    error: str = ""
     schema_version: str = "desktop_failure_preview.v1"
 
     def to_mapping(self) -> JsonMap:
@@ -250,11 +257,15 @@ class AuditPreviewDto:
     total_count: int = 0
     ignored_count: int = 0
     high_priority_count: int = 0
+    medium_priority_count: int = 0
+    priority_count: int = 0
     rerun_count: int = 0
     redownload_count: int = 0
     review_count: int = 0
     duplicate_group_count: int = 0
+    actionable_count: int = 0
     warnings: list[str] = field(default_factory=list)
+    error: str = ""
     schema_version: str = "desktop_audit_preview.v1"
 
     def to_mapping(self) -> JsonMap:

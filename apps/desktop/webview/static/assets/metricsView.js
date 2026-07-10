@@ -1,5 +1,6 @@
 (function () {
   let lastMetricsPayload = {};
+  let lastMetricsSuccessfulAt = "";
   let metricsTabNavInitialized = false;
   let metricsSourceEventsInitialized = false;
   let metricsSourceCommandInFlight = false;
@@ -110,6 +111,49 @@
 
   function timeText(value) {
     return textValue(value, "not available");
+  }
+
+  function metricsPayloadError(payload) {
+    if (!payload || typeof payload !== "object") return "Metrics response is missing.";
+    if (payload.schema_version !== "desktop_metrics.v1") return "Metrics schema is invalid or unavailable.";
+    if (payload.read_only !== true) return "Metrics read-only contract is invalid.";
+    if (!String(payload.generated_at || "").trim()) return "Metrics generation timestamp is missing.";
+    if (payload.availability === "unavailable" || payload.error) return String(payload.error || "Metrics history is unavailable.");
+    for (const key of ["overview", "route_mix", "storage", "production", "workers", "completeness", "history_authority"]) {
+      if (!payload[key] || typeof payload[key] !== "object") return `Metrics ${key} evidence is missing.`;
+    }
+    return "";
+  }
+
+  function setMetricsCommandAvailability(enabled) {
+    ["metrics-source-add-button", "metrics-backfill-button"].forEach((id) => {
+      const button = byId(id);
+      if (button) button.disabled = !enabled;
+    });
+    document.querySelectorAll("[data-metrics-source-action]").forEach((button) => {
+      button.disabled = !enabled;
+    });
+  }
+
+  function renderMetricsUnavailable(reason = "Metrics are unavailable.") {
+    const historical = lastMetricsSuccessfulAt
+      ? ` Historical values remain visible from ${lastMetricsSuccessfulAt}; they are not current evidence.`
+      : " No current metrics evidence is available.";
+    const message = `${reason}${historical}`;
+    [
+      "metrics-overview-status", "metrics-attention-status", "metrics-coverage-status", "metrics-evidence-status",
+      "metrics-sources-status", "metrics-route-status", "metrics-reason-group-status", "metrics-storage-status",
+      "metrics-top-savings-status", "metrics-top-growth-status", "metrics-production-status", "metrics-throughput-status",
+      "metrics-pending-status", "metrics-final-library-status", "metrics-worker-status",
+    ].forEach((id) => setText(id, "Unavailable — historical only"));
+    setText("metrics-summary", message);
+    setMetricsCommandAvailability(false);
+    const page = document.querySelector('[data-page-panel="metrics"]');
+    if (page) {
+      page.dataset.availability = "unavailable";
+      page.dataset.unavailableReason = reason;
+    }
+    return false;
   }
 
   function postMetricsCommand(path, payload, options = {}) {
@@ -735,12 +779,26 @@
   function renderMetrics(metrics) {
     initMetricsTabNav();
     const payload = metrics && typeof metrics === "object" ? metrics : {};
+    const validationError = metricsPayloadError(payload);
+    if (validationError) return renderMetricsUnavailable(validationError);
     lastMetricsPayload = payload;
+    lastMetricsSuccessfulAt = String(payload.generated_at || "");
+    setMetricsCommandAvailability(true);
+    const page = document.querySelector('[data-page-panel="metrics"]');
+    if (page) {
+      page.dataset.availability = "available";
+      page.dataset.unavailableReason = "";
+    }
     renderOverview(payload);
     renderRoutes(payload);
     renderStorage(payload);
     renderProduction(payload);
     renderWorkers(payload);
+    if (payload.completeness?.complete !== true) {
+      setText("metrics-overview-status", "Incomplete evidence");
+      setText("metrics-coverage-status", "Incomplete evidence");
+    }
+    return true;
   }
 
   /**
@@ -755,6 +813,7 @@
     requestMetricsBackfill,
     requestMetricsSourceAction,
     renderMetrics,
+    renderMetricsUnavailable,
     lastMetricsPayload: () => lastMetricsPayload,
   };
 })();

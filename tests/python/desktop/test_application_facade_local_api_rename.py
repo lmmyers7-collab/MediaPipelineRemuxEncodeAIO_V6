@@ -342,6 +342,7 @@ class LocalApiRenameTests(LocalApiHttpTestMixin, unittest.TestCase):
                 "start_episode": "E01",
                 "selected_sources": [str(media)],
                 "use_pipeline_naming_preview": False,
+                "preview_fingerprint": "not-reached-without-confirmation",
             }
             try:
                 server.start()
@@ -405,6 +406,7 @@ class LocalApiRenameTests(LocalApiHttpTestMixin, unittest.TestCase):
                         "selected_sources": [str(media)],
                         "use_pipeline_naming_preview": False,
                         "confirm_apply": True,
+                        "preview_fingerprint": "not-reached-during-active-work",
                     },
                     token="rename-token",
                 )
@@ -471,6 +473,8 @@ class LocalApiRenameTests(LocalApiHttpTestMixin, unittest.TestCase):
                     },
                     token="rename-token",
                 )
+                apply_payload["preview_fingerprint"] = preview["preview_fingerprint"]
+                spoofed_apply_payload["preview_fingerprint"] = preview["preview_fingerprint"]
                 spoofed_apply_status, spoofed_apply = self._post_json(
                     f"{server.url}/api/rename/apply",
                     spoofed_apply_payload,
@@ -603,6 +607,13 @@ class LocalApiRenameTests(LocalApiHttpTestMixin, unittest.TestCase):
             }
             try:
                 server.start()
+                preview_status, preview = self._post_json(
+                    f"{server.url}/api/rename/preview",
+                    {key: value for key, value in apply_payload.items() if key not in {"selected_sources", "confirm_apply"}},
+                    token="rename-token",
+                )
+                self.assertEqual(preview_status, 200)
+                apply_payload["preview_fingerprint"] = preview["preview_fingerprint"]
                 apply_status, applied = self._post_json(
                     f"{server.url}/api/rename/apply",
                     apply_payload,

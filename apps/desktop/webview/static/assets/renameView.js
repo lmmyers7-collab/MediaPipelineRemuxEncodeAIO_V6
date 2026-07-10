@@ -48,6 +48,7 @@
   let renameCommandActivityState = null;
   let renameCleaningFilterEventsBound = false;
   let lastRenamePreviewSignature = "";
+  let lastRenamePreviewFingerprint = "";
   let renamePreviewStale = false;
   let renameCleaningFilterSaveMessage = "";
   let renameCleaningFilterSaveMessageUntil = 0;
@@ -2468,6 +2469,7 @@
     const rows = Array.isArray(preview.rows) ? preview.rows : [];
     lastRenameRows = rows;
     lastRenamePreviewSignature = rows.length ? (requestSignature || renameCurrentRequestSignature()) : "";
+    lastRenamePreviewFingerprint = rows.length ? String(preview.preview_fingerprint || "").trim() : "";
     renamePreviewStale = false;
     lastRenameEmptyMessage = (preview.warnings || []).join(" | ") || "No rename rows available.";
     if (selectedRenameSourceKey && !rows.some((row) => renameSourceKey(row) === selectedRenameSourceKey)) {
@@ -3354,6 +3356,14 @@
       syncRenameCommandButtons();
       return;
     }
+    if (!lastRenamePreviewFingerprint) {
+      const message = "Backend preview fingerprint is unavailable. Run Preview again before applying.";
+      const hint = byId("rename-apply-status-hint");
+      if (hint) hint.textContent = message;
+      setText("rename-detail", message);
+      syncRenameCommandButtons();
+      return;
+    }
     const rowsToApply = renameApplicablePreviewRows();
     if (!rowsToApply.length) {
       const message = lastRenameRows.length
@@ -3382,6 +3392,7 @@
       request.selected_sources = rowsToApply.map((row) => row.source);
       request.confirm_apply = true;
       request.allow_outside_configured_roots = outsideRootRows.length > 0;
+      request.preview_fingerprint = lastRenamePreviewFingerprint;
       renderRenameApplyInFlight(rowsToApply.length);
       startRenameCommandActivity("apply", rowsToApply.length);
       const result = await apiPost("/api/rename/apply", request);

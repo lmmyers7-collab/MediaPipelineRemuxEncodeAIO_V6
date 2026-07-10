@@ -3,9 +3,9 @@ file: ops/pipeline/entrypoints/Audit-MediaLibrary.ps1
 pipeline_stage: observability
 token_priority: medium
 owner_domain: audit
-last_modified: 2026-06-28
+last_modified: 2026-07-08
 last_reviewed: 2026-06-04
-sha256: d7cd9841e2cd6d5946122f841045f4286cf9c11e06958e568da9632231e8ccee
+sha256: 62fb96aebbbd34b9ed0715cafdf90cadb420b8a2d4c1363ed6794bbac03cb637
 ---
 # `ops/pipeline/entrypoints/Audit-MediaLibrary.ps1`
 

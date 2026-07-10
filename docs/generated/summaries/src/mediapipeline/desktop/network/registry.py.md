@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/registry.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-07-02
+last_modified: 2026-07-05
 last_reviewed: 2026-06-04
-sha256: bf1fa8b02f42f19b13b0572d0d56b034531dba39f6828ae4470b3d7c178d25ab
+sha256: 88cb172aa0574943474b7d4fe9da3c79e7a1f48557f479eeaef1b71907227b94
 ---
 # `src/mediapipeline/desktop/network/registry.py`
 

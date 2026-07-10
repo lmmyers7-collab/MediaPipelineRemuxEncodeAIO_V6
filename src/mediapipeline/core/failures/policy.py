@@ -1342,17 +1342,18 @@ def failure_preview_fields(
     resolution_journal: dict[str, object] | None = None,
 ) -> dict[str, object]:
     valid_records = [record for record in records or [] if isinstance(record, FailureRecord)]
-    rows = [
+    all_rows = [
         failure_record_to_row(record, source_kind=source_kind, marker_lookup=marker_lookup)
-        for record in valid_records[:limit]
+        for record in valid_records
     ]
-    classifications = [str(row.get("classification") or "").casefold() for row in rows]
+    rows = all_rows[:limit]
+    classifications = [str(row.get("classification") or "").casefold() for row in all_rows]
     warnings = [] if rows else [empty_warning]
     if len(valid_records) > len(rows):
         warnings.append(f"Showing {len(rows)} of {len(valid_records)} failure row(s).")
-    resolution_groups = _failure_resolution_groups(rows, journal_state=resolution_journal)
+    resolution_groups = _failure_resolution_groups(all_rows, journal_state=resolution_journal)
     resolution_summary = _failure_resolution_summary(
-        rows=rows,
+        rows=all_rows,
         groups=resolution_groups,
         source=source,
         source_kind=source_kind,
@@ -1363,6 +1364,15 @@ def failure_preview_fields(
         "source": source,
         "source_kind": source_kind,
         "count": len(valid_records),
+        "visible_count": len(rows),
+        "hidden_count": max(0, len(all_rows) - len(rows)),
+        "hidden_blocker_count": sum(
+            1
+            for row in all_rows[len(rows) :]
+            if str(row.get("classification") or "").casefold() in {"operator_required", "permanent"}
+            or str((row.get("triage") or {}).get("severity") or "").casefold() == "blocked"
+        ),
+        "details_complete": len(rows) == len(all_rows),
         "operator_required_count": sum(1 for item in classifications if item == "operator_required"),
         "permanent_count": sum(1 for item in classifications if item == "permanent"),
         "transient_count": sum(1 for item in classifications if item == "transient"),
@@ -1374,43 +1384,59 @@ def failure_preview_fields(
 
 
 def failure_marker_service_unavailable_result() -> FailurePreviewDto:
+    message = FAILURE_MARKER_SERVICE_UNAVAILABLE_MESSAGE
     return _failure_preview_dto(
         source_kind="markers",
-        warnings=[FAILURE_MARKER_SERVICE_UNAVAILABLE_MESSAGE],
+        warnings=[message],
+        availability="unavailable",
+        error=message,
     )
 
 
 def failure_markers_read_error_result(markers_path: Path | str | None, exc: Exception) -> FailurePreviewDto:
+    message = f"Failure markers could not be read: {exc}"
     return _failure_preview_dto(
         source=str(markers_path or ""),
         source_kind="markers",
-        warnings=[f"Failure markers could not be read: {exc}"],
+        warnings=[message],
+        availability="unavailable",
+        error=message,
     )
 
 
 def failure_report_service_unavailable_result() -> FailurePreviewDto:
-    return _failure_preview_dto(warnings=[FAILURE_REPORT_SERVICE_UNAVAILABLE_MESSAGE])
+    return _failure_preview_dto(
+        warnings=[FAILURE_REPORT_SERVICE_UNAVAILABLE_MESSAGE],
+        availability="unavailable",
+        error=FAILURE_REPORT_SERVICE_UNAVAILABLE_MESSAGE,
+    )
 
 
 def failure_latest_json_resolution_error_result(exc: Exception) -> FailurePreviewDto:
-    return _failure_preview_dto(warnings=[f"Latest failure JSON could not be resolved: {exc}"])
+    message = f"Latest failure JSON could not be resolved: {exc}"
+    return _failure_preview_dto(warnings=[message], availability="unavailable", error=message)
 
 
 def failure_no_json_report_result() -> FailurePreviewDto:
-    return _failure_preview_dto(warnings=[FAILURE_NO_JSON_REPORT_MESSAGE])
+    return _failure_preview_dto(warnings=[FAILURE_NO_JSON_REPORT_MESSAGE], availability="absent")
 
 
 def failure_loader_unavailable_result(report_path: Path | str) -> FailurePreviewDto:
     return _failure_preview_dto(
         source=str(report_path),
         warnings=[FAILURE_LOADER_UNAVAILABLE_MESSAGE],
+        availability="unavailable",
+        error=FAILURE_LOADER_UNAVAILABLE_MESSAGE,
     )
 
 
 def failure_json_read_error_result(report_path: Path | str, exc: Exception) -> FailurePreviewDto:
+    message = f"Failure JSON could not be read: {exc}"
     return _failure_preview_dto(
         source=str(report_path),
-        warnings=[f"Failure JSON could not be read: {exc}"],
+        warnings=[message],
+        availability="unavailable",
+        error=message,
     )
 
 

@@ -191,6 +191,8 @@ class InFlightJob:
     priority:          bool  = False
     estimated_size_gb: float = 0.0
     accessible_library_ids: list[str] = field(default_factory=list)
+    job_kind:          str   = "pipeline_queue"
+    claim_metadata:    dict  = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -206,10 +208,14 @@ class InFlightJob:
             "priority":          self.priority,
             "estimated_size_gb": self.estimated_size_gb,
             "accessible_library_ids": coerce_library_id_list(self.accessible_library_ids),
+            "job_kind":          self.job_kind,
+            "claim_metadata":    self.claim_metadata,
         }
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> InFlightJob:
+        raw_metadata = d.get("claim_metadata", {})
+        claim_metadata = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
         return cls(
             job_id=str(d.get("job_id", "")),
             worker_id=str(d.get("worker_id", "")),
@@ -223,6 +229,8 @@ class InFlightJob:
             priority=bool(d.get("priority", False)),
             estimated_size_gb=coerce_finite_float(d.get("estimated_size_gb", 0.0), "estimated_size_gb", minimum=0.0),
             accessible_library_ids=coerce_library_id_list(d.get("accessible_library_ids", [])),
+            job_kind=str(d.get("job_kind", "pipeline_queue") or "pipeline_queue"),
+            claim_metadata=claim_metadata,
         )
 
 
@@ -373,6 +381,8 @@ class InFlightRegistry:
         priority: bool = False,
         estimated_size_gb: float = 0.0,
         accessible_library_ids: list[str] | None = None,
+        job_kind: str = "pipeline_queue",
+        claim_metadata: dict | None = None,
     ) -> bool:
         """Atomically claim *source_path* for *worker_id*.
 
@@ -417,6 +427,8 @@ class InFlightRegistry:
                 )
                 safe_estimated_size_gb = 0.0
             safe_library_ids = coerce_library_id_list(accessible_library_ids or [])
+            safe_job_kind = str(job_kind or "pipeline_queue").strip() or "pipeline_queue"
+            safe_claim_metadata = dict(claim_metadata or {})
             job = InFlightJob(
                 job_id=safe_job_id,
                 worker_id=safe_worker_id,
@@ -428,6 +440,8 @@ class InFlightRegistry:
                 priority=priority,
                 estimated_size_gb=safe_estimated_size_gb,
                 accessible_library_ids=safe_library_ids,
+                job_kind=safe_job_kind,
+                claim_metadata=safe_claim_metadata,
             )
             self._jobs[safe_job_id] = job
             self._claimed_paths[source_identity] = safe_job_id

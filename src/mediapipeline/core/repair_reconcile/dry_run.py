@@ -815,6 +815,8 @@ def completed_manifest_reconcile_dry_run(
     preconditions = [*base_preconditions, backend_path_authority_precondition("completed"), *selection_preconditions]
     manifest_path = str(getattr(resolved, "completed_manifest_path", "") or preview.get("source") or "")
     manifest_error = str(preview.get("manifest_error") or "").strip()
+    parse_health = preview.get("parse_health") if isinstance(preview.get("parse_health"), Mapping) else {}
+    skipped_manifest_rows = max(0, int(parse_health.get("skipped_count") or 0))
     if manifest_error:
         preconditions.append(
             _precondition(
@@ -831,6 +833,29 @@ def completed_manifest_reconcile_dry_run(
                 "ok" if manifest_path else "review",
                 manifest_path or "completed manifest path is not reported",
                 "Use backend-resolved completed manifest evidence only.",
+            )
+        )
+    if skipped_manifest_rows:
+        recent_errors = [
+            str(row.get("line_identifier") or "unknown")
+            for row in parse_health.get("recent_errors") or []
+            if isinstance(row, Mapping)
+        ]
+        preconditions.append(
+            _precondition(
+                "completed_manifest_parse_health",
+                "blocked",
+                f"{skipped_manifest_rows} malformed completed manifest row(s) were omitted; recent identifiers: {', '.join(recent_errors) or 'not reported'}.",
+                "Repair or restore the append-only manifest before designing a reconcile mutation.",
+            )
+        )
+    else:
+        preconditions.append(
+            _precondition(
+                "completed_manifest_parse_health",
+                "ok",
+                "No malformed rows were reported in the loaded completed-manifest scope.",
+                "Continue to treat row caps and parse-health scope as explicit evidence limits.",
             )
         )
     payload = _base_payload(

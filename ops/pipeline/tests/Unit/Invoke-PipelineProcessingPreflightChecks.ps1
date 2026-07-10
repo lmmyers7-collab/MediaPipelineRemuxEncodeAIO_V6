@@ -104,10 +104,35 @@ Assert-Equal $transientFailure.Effects[1].Kind 'log' 'Transient failure should l
 Assert-True ($transientFailure.Effects[1].Message -match 'SOURCE_TEMPORARY_LOCK') 'Transient failure log should carry computed failure code.'
 
 function Get-TVInfoFromFile {
-    param($File)
+    param(
+        $File,
+        [string] $SourceRootPath = '',
+        [string] $LibraryName = '',
+        [string] $LibraryId = '',
+        [string] $LibraryDesignation = ''
+    )
+    $script:LastTvParserArgs = [pscustomobject]@{
+        SourceRootPath     = $SourceRootPath
+        LibraryName        = $LibraryName
+        LibraryId          = $LibraryId
+        LibraryDesignation = $LibraryDesignation
+    }
     return [pscustomobject]@{
         IsReliable = $false
         ParseError = 'ambiguous season episode'
+    }
+}
+function Get-MediaPipelineLibraryProfileEvidenceForPath {
+    param([string] $SourcePath, [string] $LibraryProfileId = '')
+    $script:LastLibraryEvidenceRequest = [pscustomobject]@{
+        SourcePath       = $SourcePath
+        LibraryProfileId = $LibraryProfileId
+    }
+    return [ordered]@{
+        source_root = 'C:\Media\TV'
+        library_name = 'TV'
+        library_id = 'tv'
+        designation = 'tv'
     }
 }
 function Get-TVParseRenameSuggestion {
@@ -115,12 +140,17 @@ function Get-TVParseRenameSuggestion {
     return 'Sample.S01E01.mkv'
 }
 
-$tvFailure = Get-MediaPipelineTvParsePreflight -File (New-TestFile -Name 'Ambiguous.mkv') -IsTV:$true
+$tvFailure = Get-MediaPipelineTvParsePreflight -File (New-TestFile -Name 'Ambiguous.mkv' -FullName 'C:\Media\TV\Ambiguous.mkv') -IsTV:$true -LibraryProfileId 'tv'
 Assert-True ([bool]$tvFailure.Terminal) 'Unreliable TV parse should terminally skip.'
 Assert-Equal $tvFailure.ErrorCode 'TV_PARSE_UNRELIABLE' 'TV parse error code mismatch.'
 Assert-Equal $tvFailure.Effects[0].Kind 'register_failure' 'TV parse should register failure before skip stat.'
 Assert-Equal $tvFailure.Effects[0].FailureRegistration.SuggestedRename 'Sample.S01E01.mkv' 'TV parse suggested rename mismatch.'
 Assert-Equal $tvFailure.Effects[1].SkipStat 'AmbiguousTV' 'TV parse skip stat mismatch.'
+Assert-Equal $script:LastLibraryEvidenceRequest.LibraryProfileId 'tv' 'TV parse should resolve evidence for the selected library profile.'
+Assert-Equal $script:LastTvParserArgs.SourceRootPath 'C:\Media\TV' 'TV parser should receive the active TV source root.'
+Assert-Equal $script:LastTvParserArgs.LibraryName 'TV' 'TV parser should receive the active library name.'
+Assert-Equal $script:LastTvParserArgs.LibraryId 'tv' 'TV parser should receive the active library id.'
+Assert-Equal $script:LastTvParserArgs.LibraryDesignation 'tv' 'TV parser should receive the active library designation.'
 
 function Resolve-ShowOverrides {
     param([string] $ShowName)

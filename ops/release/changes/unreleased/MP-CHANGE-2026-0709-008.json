@@ -1,0 +1,40 @@
+{
+  "id": "MP-CHANGE-2026-0709-008",
+  "title": "Make idle shell close readiness reliable",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-09",
+  "date_completed": "2026-07-09",
+  "summary": "The Tauri shell retries one transient loopback close-readiness transport failure before showing the force-close prompt.",
+  "reason": "An idle shell could show a force-close prompt after a temporary local backend connection failure even though the backend had no active work.",
+  "affected_areas": [
+    "generated-context",
+    "process-lifecycle",
+    "shell",
+    "tests"
+  ],
+  "behavior_before": "One failed GET /api/backend/close-readiness request immediately showed the unsafe-close confirmation dialog.",
+  "behavior_after": "The shell waits 150 ms and retries the close-readiness transport request once; a verified unsafe payload or malformed payload is never retried or treated as safe.",
+  "files_touched": [
+    "apps/desktop/tauri/src-tauri/src/close_readiness.rs",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/close_readiness.rs.md",
+    "docs/generated/summaries/tests/python/desktop/test_tauri_shell_scaffold.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0709-008.json",
+    "tests/python/desktop/test_tauri_shell_scaffold.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_tauri_shell_scaffold.py"
+  ],
+  "manual_validation": [
+    "cargo test --manifest-path apps/desktop/tauri/src-tauri/Cargo.toml request_close_readiness_recovers_from_one_transient_transport_failure --lib - passed",
+    "git diff --check on change packet paths - passed",
+    "ops/scripts/dev/start-tauri-preview.bat -CheckOnly - passed",
+    "ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke - timed out after 64 seconds without output",
+    "python -m unittest tests.python.desktop.test_tauri_shell_scaffold.TauriShellScaffoldTests.test_tauri_shell_retries_one_transient_close_readiness_transport_failure -v - passed"
+  ],
+  "rollback_plan": "Revert the close_readiness.rs retry constants, retry loop, and associated focused tests to restore one-attempt close-readiness behavior.",
+  "related_changes": [],
+  "notes": "Retry one transient loopback close-readiness transport failure before showing the unsafe-close prompt; unsafe backend payloads remain authoritative.\nRust unit coverage for one transient close-readiness transport failure is embedded with the shell close-readiness module; scaffold remains the affected Tauri lifecycle coverage entry point.\nFocused Rust transport-retry and static shell-structure checks pass. Full existing Tauri test groups have unrelated WebView fixture and route-contract drift failures in the dirty workspace.\nRepository-level release self-test was started but did not complete within the bounded 64-second window; it was terminated without output.\nStrict worktree coverage remains blocked by the unrelated invalid MP-CHANGE-2026-0707-001.json and an unrelated uncovered test file."
+}

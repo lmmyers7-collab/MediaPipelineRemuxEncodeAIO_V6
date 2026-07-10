@@ -20,6 +20,8 @@ from mediapipeline.core.status.eta import eta_payload
 from mediapipeline.core.status.ffmpeg_progress import ffmpeg_progress_payload
 from mediapipeline.core.status.presentation import build_current_work, build_stale_current_work
 from mediapipeline.core.status.runtime_health import runtime_reliability_counters
+from mediapipeline.core.status.rerun_completion import csv_rerun_completion_summary
+from mediapipeline.core.status.progress import TERMINAL_PROGRESS_STAGES, datetime_is_stale
 from mediapipeline.core.processes.path_evidence import configured_path_health, path_health_warning_lines
 from mediapipeline.core.kernel.dto_status import AppSnapshotDto, HealthDto, TelemetryDto
 from mediapipeline.core.paths.contracts import ResolvedPaths
@@ -83,6 +85,25 @@ class StatusFacadeMixin:
         warnings = snapshot_warnings(snapshot)
         warnings.extend(path_health_warning_lines(configured_path_health(snapshot.resolved)))
         stale_progress = pipeline_state == "stale"
+        read_health = progress.get("ReadHealth") if isinstance(progress.get("ReadHealth"), dict) else None
+        stage = str(progress.get("CurrentStage") or "").strip().casefold()
+        progress_health = dict(read_health or {})
+        if not progress_health:
+            progress_health = {
+                "schema_version": "desktop_progress_read_health.v1",
+                "status": "available" if progress else "absent",
+                "available": bool(progress),
+                "source_present": bool(progress),
+            }
+        progress_health["terminal"] = stage in TERMINAL_PROGRESS_STAGES
+        progress_health["terminal_evidence_stale"] = bool(
+            progress_health["terminal"]
+            and datetime_is_stale(str(progress.get("LastUpdate") or ""), 5.0)
+        )
+        if progress_health.get("available") is False:
+            warnings.append(
+                "Pipeline progress is unavailable or invalid; idle/current work cannot be inferred from this evidence."
+            )
         if stale_progress:
             warnings.append("Pipeline progress is stale from a previous run; raw progress is retained for review.")
         progress_bars = snapshot_progress_bars(snapshot, pipeline_state=pipeline_state)
@@ -108,6 +129,7 @@ class StatusFacadeMixin:
             current_work=current_work,
             counts=counts,
             progress=progress,
+            progress_health=progress_health,
             audit_progress=audit_progress,
             worker_progress=worker_progress,
             ffmpeg_progress=ffmpeg_progress_payload(progress, snapshot.log_tail, worker_progress=worker_progress),
@@ -116,6 +138,7 @@ class StatusFacadeMixin:
             recent_events=recent_events,
             latest_paths=snapshot_latest_paths(snapshot),
             warnings=warnings,
+            csv_rerun_summary=csv_rerun_completion_summary(snapshot.resolved),
         )
 
     def get_cached_telemetry(self) -> TelemetryDto:

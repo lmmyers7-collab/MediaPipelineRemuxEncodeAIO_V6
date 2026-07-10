@@ -1103,6 +1103,45 @@ class LibraryProfileTests(unittest.TestCase):
         self.assertEqual(rules[0]["designation"], "auto")
         self.assertEqual(rules[1]["source_root"], r"F:\Legacy")
 
+    def test_profile_promotion_rules_remove_derived_rule_when_profile_is_disabled_or_deleted(self) -> None:
+        derived = {
+            "id": "library-profile-concerts",
+            "source_root": r"F:\Concerts",
+            "output_root": r"G:\ConcertsProcessed",
+            "destination_root": r"H:\Concerts",
+            "library_id": "concerts",
+            "derived_from_library_profile": True,
+        }
+        manual = {
+            "id": "manual-archive",
+            "source_root": r"F:\Archive",
+            "output_root": r"G:\Archive",
+            "destination_root": r"H:\Archive",
+        }
+        for profiles in (
+            [{"id": "concerts", "enabled": False, "designation": "auto", "source_path": r"F:\Concerts", "output_path": r"G:\ConcertsProcessed", "promotion_enabled": True, "promotion_destination": r"H:\Concerts"}],
+            [],
+        ):
+            with self.subTest(profiles=profiles):
+                values = {**_base_config(), "LibraryProfiles": profiles, "FinalLibraryPromotionRules": [derived, manual]}
+
+                normalized = normalize_library_profile_config_values(values, require_profiles=True)
+
+                self.assertEqual([rule["id"] for rule in normalized["FinalLibraryPromotionRules"]], ["manual-archive"])
+
+    def test_profile_promotion_rules_remove_legacy_derived_id_without_provenance(self) -> None:
+        values = {
+            **_base_config(),
+            "LibraryProfiles": [],
+            "FinalLibraryPromotionRules": [
+                {"id": "library-profile-concerts", "source_root": r"F:\Concerts", "destination_root": r"H:\Concerts"}
+            ],
+        }
+
+        normalized = normalize_library_profile_config_values(values, require_profiles=True)
+
+        self.assertEqual(normalized["FinalLibraryPromotionRules"], [])
+
     def test_psd1_round_trip_preserves_backend_patch_shape_and_legacy_mirroring(self) -> None:
         values = _base_config()
         values["LibraryProfiles"] = [
@@ -1456,6 +1495,46 @@ class LibraryProfileTests(unittest.TestCase):
         )
 
         self.assertIn("Library profile Anime source_path is required.", errors)
+
+    def test_validation_rejects_relative_and_nested_enabled_library_paths(self) -> None:
+        values = _base_config()
+        values["LibraryProfiles"] = [
+            {
+                "id": "concerts",
+                "name": "Concerts",
+                "designation": "auto",
+                "source_path": "relative-source",
+                "output_path": "relative-output",
+                "promotion_enabled": True,
+                "promotion_destination": "relative-final",
+            },
+            {
+                "id": "extras",
+                "name": "Extras",
+                "designation": "auto",
+                "source_path": r"F:\Library",
+                "output_path": r"F:\Library\Processed",
+                "promotion_enabled": True,
+                "promotion_destination": r"F:\Library\Final",
+            },
+        ]
+        errors: list[str] = []
+        warnings: list[str] = []
+
+        validate_library_profiles(
+            values,
+            errors,
+            warnings,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        self.assertIn("Library profile Concerts source_path must be an absolute path.", errors)
+        self.assertIn("Library profile Concerts output_path must be an absolute path.", errors)
+        self.assertIn("Library profile Concerts promotion_destination must be an absolute path.", errors)
+        self.assertTrue(any("Extras source_path" in error and "Extras output_path" in error for error in errors))
+        self.assertTrue(any("Extras source_path" in error and "Extras promotion_destination" in error for error in errors))
+        self.assertFalse(any("Keep library source" in warning for warning in warnings))
 
     def test_validation_rejects_unknown_designation_with_auto_wording(self) -> None:
         values = _base_config()

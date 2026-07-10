@@ -102,12 +102,15 @@
 
   function queueStateFromItem(item, status) {
     const normalized = String(status || "").toLowerCase();
+    const normalizedState = normalized.replace(/[_\s]+/g, "-");
     if (item?.blocked_reason || item?.blocked_reason_code) return { label: "Blocked", state: "blocked" };
-    if (normalized === "blocked" || normalized === "failed") return { label: "Blocked", state: "blocked" };
-    if (normalized === "completed" || normalized === "skipped") return { label: "Done", state: "done" };
-    if (normalized === "launch-check") return { label: "Launch Check", state: "launch-check" };
+    if (normalizedState === "blocked" || normalizedState === "failed") return { label: "Blocked", state: "blocked" };
+    if (normalizedState === "completed" || normalizedState === "skipped") return { label: "Done", state: "done" };
+    if (normalizedState === "pending-publish") return { label: "Pending Publish", state: "parked" };
+    if (normalizedState === "parked" || normalizedState === "review-workspace") return { label: "Parked", state: "parked" };
+    if (normalizedState === "launch-check") return { label: "Launch Check", state: "launch-check" };
     if (queueIsRunnableWarning(item, normalized)) return { label: "Review", state: "review" };
-    if (["warning", "changed", "validation-needed", "health-check", "parked", "paused", "retrying", "unknown", "empty"].includes(normalized)) {
+    if (["warning", "review", "changed", "validation-needed", "health-check", "paused", "retrying", "unknown", "empty"].includes(normalizedState)) {
       return { label: "Review", state: "review" };
     }
     return { label: "Queued", state: "queued" };

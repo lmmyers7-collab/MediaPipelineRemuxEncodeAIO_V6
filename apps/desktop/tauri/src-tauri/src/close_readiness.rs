@@ -1,8 +1,16 @@
 use serde::Deserialize;
+use std::{thread, time::Duration};
 
 use crate::dialogs::shell_error;
 use crate::http_helpers::{bounded_text, request_backend_json};
 use crate::{ShellResult, MAX_CLOSE_READINESS_WARNINGS, MAX_CLOSE_READINESS_WARNING_CHARS};
+
+// A just-started or briefly busy loopback server can reject one connection even
+// though the managed backend is healthy. Retry only the transport request; an
+// unsafe payload or an invalid payload is still handled immediately and never
+// treated as safe by the shell.
+const CLOSE_READINESS_REQUEST_ATTEMPTS: usize = 2;
+const CLOSE_READINESS_RETRY_DELAY: Duration = Duration::from_millis(150);
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct CloseReadiness {
@@ -38,13 +46,31 @@ pub(crate) fn request_close_readiness(
     backend_url: &str,
     token: &str,
 ) -> ShellResult<CloseReadiness> {
-    let response = request_backend_json(
-        backend_url,
-        "GET",
-        "/api/backend/close-readiness",
-        token,
-        "",
-    )?;
+    let mut response = None;
+    let mut transport_error = None;
+    for attempt in 0..CLOSE_READINESS_REQUEST_ATTEMPTS {
+        match request_backend_json(
+            backend_url,
+            "GET",
+            "/api/backend/close-readiness",
+            token,
+            "",
+        ) {
+            Ok(value) => {
+                response = Some(value);
+                break;
+            }
+            Err(error) => {
+                transport_error = Some(error);
+                if attempt + 1 < CLOSE_READINESS_REQUEST_ATTEMPTS {
+                    thread::sleep(CLOSE_READINESS_RETRY_DELAY);
+                }
+            }
+        }
+    }
+    let response = response.ok_or_else(|| {
+        transport_error.expect("close-readiness retry loop records a transport error")
+    })?;
     let readiness: CloseReadiness = serde_json::from_str(&response)
         .map_err(|error| shell_error(format!("Close-readiness response was not JSON: {error}")))?;
     if readiness.schema_version != "desktop_close_readiness.v1" {
@@ -131,4 +157,47 @@ pub(crate) fn close_readiness_watcher_lines(watcher: &ContinuousWatcher) -> Vec<
         );
     }
     lines
+}
+
+#[cfg(test)]
+mod tests {
+    use super::request_close_readiness;
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+        thread,
+        time::Duration,
+    };
+
+    #[test]
+    fn request_close_readiness_recovers_from_one_transient_transport_failure() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind test backend");
+        let address = listener.local_addr().expect("test backend address");
+        thread::spawn(move || {
+            for response in [
+                None,
+                Some(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"schema_version\":\"desktop_close_readiness.v1\",\"safe_to_close\":true,\"state\":\"idle\",\"reason\":\"no active work\"}",
+                ),
+            ] {
+                let (mut stream, _) = listener.accept().expect("accept test backend request");
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(2)))
+                    .expect("set test backend read timeout");
+                let mut request = [0_u8; 4096];
+                let _ = stream.read(&mut request);
+                if let Some(response) = response {
+                    stream
+                        .write_all(response.as_bytes())
+                        .expect("write test backend response");
+                }
+            }
+        });
+
+        let readiness = request_close_readiness(&format!("http://{address}"), "test-token")
+            .expect("second close-readiness attempt should succeed");
+
+        assert!(readiness.safe_to_close);
+        assert_eq!(readiness.state, "idle");
+    }
 }

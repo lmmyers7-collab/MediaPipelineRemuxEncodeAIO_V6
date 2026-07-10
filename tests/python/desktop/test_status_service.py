@@ -84,7 +84,11 @@ class StatusServiceContractTests(unittest.TestCase):
 
             result = service.read_progress(resolved)
 
-        self.assertIsNone(result)
+        self.assertEqual(result["Status"], "Unavailable")
+        self.assertEqual(result["CurrentStage"], "unavailable")
+        self.assertFalse(result["ReadHealth"]["available"])
+        self.assertEqual(result["ReadHealth"]["status"], "invalid")
+        self.assertIn("CurrentStagePercent", result["ReadHealth"]["error"])
 
     def test_read_pipeline_events_tail_skips_invalid_contract_records(self) -> None:
         service = DummyStatusService()

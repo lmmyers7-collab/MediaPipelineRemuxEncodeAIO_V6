@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/completedView.diagnostics.js
 pipeline_stage: observability
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-03
+last_modified: 2026-07-05
 last_reviewed: 2026-06-04
-sha256: 77a09f5eed91932f8f1f2eb42745adf3d8fb6a8d9db10e881d95dfd1562e4dcd
+sha256: c0c809364964d5e1d3d145b8496411cdfa1ecb2e9de784ab5e175a883f051710
 ---
 # `apps/desktop/webview/static/assets/completedView.diagnostics.js`
 

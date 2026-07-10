@@ -162,13 +162,26 @@ def _save_registry(registry_path: Path, registry: Mapping[str, Any]) -> None:
     _json_dump(registry_path, payload)
 
 
-def _iter_cache_entries(cache_path: Path) -> Iterable[dict[str, Any]]:
+def _read_cache_entries_with_health(cache_path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    health: dict[str, Any] = {
+        "schema_version": "desktop_metrics_cache_health.v1",
+        "status": "absent",
+        "available": True,
+        "complete": True,
+        "source_present": False,
+        "record_count": 0,
+        "invalid_record_count": 0,
+        "error": "",
+    }
     if not cache_path.exists():
-        return
+        return [], health
     try:
         handle = cache_path.open("r", encoding="utf-8-sig", errors="replace")
-    except OSError:
-        return
+    except OSError as exc:
+        health.update({"status": "invalid", "available": False, "complete": False, "source_present": True, "error": str(exc)})
+        return [], health
+    entries: list[dict[str, Any]] = []
+    health.update({"status": "available", "source_present": True})
     with handle:
         for line in handle:
             line = line.strip()
@@ -177,13 +190,26 @@ def _iter_cache_entries(cache_path: Path) -> Iterable[dict[str, Any]]:
             try:
                 parsed = json.loads(line)
             except json.JSONDecodeError:
+                health["invalid_record_count"] = int(health["invalid_record_count"]) + 1
                 continue
             if isinstance(parsed, dict):
-                yield parsed
+                entries.append(parsed)
+            else:
+                health["invalid_record_count"] = int(health["invalid_record_count"]) + 1
+    health["record_count"] = len(entries)
+    if health["invalid_record_count"]:
+        health.update({"status": "partial", "complete": False})
+    return entries, health
+
+
+def _iter_cache_entries(cache_path: Path) -> Iterable[dict[str, Any]]:
+    entries, _health = _read_cache_entries_with_health(cache_path)
+    yield from entries
 
 
 def _read_cache_entries(cache_path: Path) -> list[dict[str, Any]]:
-    return list(_iter_cache_entries(cache_path))
+    entries, _health = _read_cache_entries_with_health(cache_path)
+    return entries
 
 
 def _count_cache_entries(cache_path: Path) -> int:
@@ -242,8 +268,12 @@ def _source_state_from_registry(
         if isinstance(item, Mapping)
     ]
     enabled_ids = {str(item.get("source_id") or "") for item in roots if _bool_value(item.get("enabled"), default=True)}
-    cache_record_count, enabled_cache_count = _cache_record_counts(paths["cache"], enabled_ids)
+    cache_entries, cache_health = _read_cache_entries_with_health(paths["cache"])
+    cache_record_count = len(cache_entries)
+    enabled_cache_count = sum(1 for entry in cache_entries if str(entry.get("source_id") or "") in enabled_ids)
     status_payload = _json_load(paths["status"])
+    last_status = _text(status_payload.get("status")) or "not_run"
+    discovery_complete = bool(cache_health.get("complete")) and last_status not in {"partial", "warning", "blocked", "unreachable"}
     return {
         "schema_version": METRICS_SOURCE_REGISTRY_SCHEMA_VERSION,
         "available": True,
@@ -257,6 +287,13 @@ def _source_state_from_registry(
         "enabled_source_count": len(enabled_ids),
         "cache_record_count": cache_record_count,
         "enabled_cache_record_count": enabled_cache_count,
+        "cache_health": cache_health,
+        "completeness": {
+            "schema_version": "desktop_metrics_source_completeness.v1",
+            "complete": discovery_complete,
+            "status": "complete" if discovery_complete else "incomplete",
+            "last_backfill_status": last_status,
+        },
         "roots": roots,
         "last_backfill": status_payload,
         "warnings": [],
@@ -606,19 +643,30 @@ def run_metrics_sidecar_backfill(resolved: ResolvedPaths, request: Mapping[str, 
 
     scanned_at = utc_now_text()
     max_sidecars = _optional_positive_int(request.get("max_sidecars"))
-    scanned_source_ids: set[str] = set()
     scanned_entries: list[dict[str, Any]] = []
     root_results: list[dict[str, Any]] = []
     for entry in entries:
         source_id = _source_lookup_key(entry)
-        scanned_source_ids.add(source_id)
         stats, cache_entries = _scan_source_entry(entry, max_sidecars=max_sidecars, scanned_at=scanned_at)
         root_results.append(stats)
         scanned_entries.extend(cache_entries)
 
     prior_cache = _read_cache_entries(paths["cache"])
-    kept_cache = [item for item in prior_cache if str(item.get("source_id") or "") not in scanned_source_ids]
-    _write_jsonl(paths["cache"], [*kept_cache, *scanned_entries])
+    complete_source_ids = {
+        str(item.get("source_id") or "")
+        for item in root_results
+        if str(item.get("status") or "") == "complete"
+    }
+    incomplete_source_ids = {
+        str(item.get("source_id") or "")
+        for item in root_results
+        if str(item.get("status") or "") != "complete"
+    }
+    kept_cache = [item for item in prior_cache if str(item.get("source_id") or "") not in complete_source_ids]
+    accepted_scanned_entries = [item for item in scanned_entries if str(item.get("source_id") or "") in complete_source_ids]
+    cache_preserved_count = sum(1 for item in prior_cache if str(item.get("source_id") or "") in incomplete_source_ids)
+    cache_replaced_count = sum(1 for item in prior_cache if str(item.get("source_id") or "") in complete_source_ids)
+    _write_jsonl(paths["cache"], [*kept_cache, *accepted_scanned_entries])
 
     roots = [dict(item) for item in registry.get("roots") or [] if isinstance(item, Mapping)]
     stats_by_id = {str(item.get("source_id") or ""): item for item in root_results}
@@ -634,6 +682,9 @@ def run_metrics_sidecar_backfill(resolved: ResolvedPaths, request: Mapping[str, 
         updated["last_scan_sidecar_count"] = int(stats.get("sidecar_count") or 0)
         updated["last_scan_loaded_count"] = int(stats.get("loaded_count") or 0)
         updated["last_scan_error_count"] = int(stats.get("error_count") or 0)
+        updated["last_scan_limit"] = max_sidecars
+        if str(stats.get("status") or "") == "complete":
+            updated["last_successful_full_scan_at"] = scanned_at
         updated["updated_at"] = scanned_at
         roots[index] = _refresh_source_entry(updated)
     registry = {"schema_version": METRICS_SOURCE_REGISTRY_SCHEMA_VERSION, "updated_at": scanned_at, "roots": roots}
@@ -643,9 +694,11 @@ def run_metrics_sidecar_backfill(resolved: ResolvedPaths, request: Mapping[str, 
     total_loaded = sum(int(item.get("loaded_count") or 0) for item in root_results)
     total_errors = sum(int(item.get("error_count") or 0) for item in root_results)
     total_oversized = sum(int(item.get("skipped_oversized_count") or 0) for item in root_results)
+    root_statuses = {str(item.get("status") or "") for item in root_results}
+    aggregate_status = "partial" if "partial" in root_statuses else "warning" if total_errors or total_oversized or root_statuses.intersection({"warning", "blocked", "unreachable"}) else "complete"
     status_payload = {
         "schema_version": METRICS_BACKFILL_SCHEMA_VERSION,
-        "status": "warning" if total_errors or total_oversized else "complete",
+        "status": aggregate_status,
         "started_at": scanned_at,
         "completed_at": utc_now_text(),
         "source_count": len(root_results),
@@ -653,6 +706,9 @@ def run_metrics_sidecar_backfill(resolved: ResolvedPaths, request: Mapping[str, 
         "loaded_count": total_loaded,
         "error_count": total_errors,
         "skipped_oversized_count": total_oversized,
+        "max_sidecars": max_sidecars,
+        "cache_preserved_count": cache_preserved_count,
+        "cache_replaced_count": cache_replaced_count,
         "cache_path": str(paths["cache"]),
         "roots": root_results,
     }
@@ -662,7 +718,7 @@ def run_metrics_sidecar_backfill(resolved: ResolvedPaths, request: Mapping[str, 
     return {
         "ok": True,
         "message": message,
-        "severity": "warning" if total_errors or total_oversized else "info",
+        "severity": "warning" if aggregate_status != "complete" else "info",
         "warnings": [
             warning
             for item in root_results
@@ -692,7 +748,8 @@ def load_metrics_backfill_records(
     }
     records: list[CompletedJobRecord] = []
     skipped = 0
-    for entry in _iter_cache_entries(paths["cache"]):
+    cache_entries, cache_health = _read_cache_entries_with_health(paths["cache"])
+    for entry in cache_entries:
         source_id = _text(entry.get("source_id"))
         if source_id not in enabled_ids:
             skipped += 1
@@ -712,8 +769,13 @@ def load_metrics_backfill_records(
     state["cache_record_count"] = _count_cache_entries(paths["cache"])
     state["enabled_cache_record_count"] = len(records)
     state["skipped_cache_record_count"] = skipped
+    state["cache_health"] = cache_health
     if skipped and warnings is not None:
         warnings.append(f"Metrics sidecar backfill skipped {skipped} cached record(s) from disabled or invalid sources.")
+    if cache_health.get("complete") is False and warnings is not None:
+        warnings.append(
+            f"Metrics sidecar cache is {cache_health.get('status')}; {cache_health.get('invalid_record_count') or 0} invalid record(s) were excluded."
+        )
     return records, state
 
 

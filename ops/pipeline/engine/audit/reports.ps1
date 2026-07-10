@@ -125,7 +125,7 @@ function Write-TextReport {
     $lines.Add('')
     $lines.Add('Bucket counts')
     $lines.Add('-------------')
-    foreach ($bucket in @('OK','REVIEW','RERUN_PIPELINE','REDOWNLOAD_CANDIDATE')) {
+    foreach ($bucket in @('OK','REVIEW','RERUN_PIPELINE','REDOWNLOAD_CANDIDATE','IGNORED')) {
         $lines.Add(('{0,-22}: {1}' -f $bucket, $BucketCounts[$bucket]))
     }
 
@@ -138,7 +138,11 @@ function Write-TextReport {
         }
     }
 
-    $problemEntries = @($Entries | Where-Object { $_.Bucket -ne 'OK' } | Sort-Object @{ Expression = { Get-BucketRank $_.Bucket }; Descending = $true }, RelativePath)
+    $problemEntries = @(
+        $Entries |
+            Where-Object { $_.EffectiveBucket -notin @('OK', 'IGNORED') } |
+            Sort-Object @{ Expression = { Get-BucketRank $_.EffectiveBucket }; Descending = $true }, RelativePath
+    )
     if ($problemEntries.Count -eq 0) {
         $lines.Add('')
         $lines.Add('No REVIEW / RERUN_PIPELINE / REDOWNLOAD_CANDIDATE items were found.')
@@ -153,6 +157,7 @@ function Write-TextReport {
             $lines.Add('')
             $lines.Add(('{0}. {1}' -f $index, $entry.Path))
             $lines.Add(('{0,-15}: {1}' -f 'Bucket', $entry.Bucket))
+            $lines.Add(('{0,-15}: {1}' -f 'Effective bucket', $entry.EffectiveBucket))
             $lines.Add(('{0,-15}: {1}' -f 'Duration', $durationText))
             $lines.Add(('{0,-15}: {1}' -f 'Video', $videoText))
             $lines.Add(('{0,-15}: {1}/{2}' -f 'Default audio', $entry.DefaultAudioLanguage, $entry.DefaultAudioCodec))
@@ -255,14 +260,16 @@ function New-AuditReportModel {
 
     $serializedResults = @($Results | ForEach-Object { Convert-ResultForSerialization -Result $_ })
     $bucketCounts = @{
-        OK                    = @($serializedResults | Where-Object { $_.Bucket -eq 'OK' }).Count
-        REVIEW                = @($serializedResults | Where-Object { $_.Bucket -eq 'REVIEW' }).Count
-        RERUN_PIPELINE        = @($serializedResults | Where-Object { $_.Bucket -eq 'RERUN_PIPELINE' }).Count
-        REDOWNLOAD_CANDIDATE  = @($serializedResults | Where-Object { $_.Bucket -eq 'REDOWNLOAD_CANDIDATE' }).Count
+        OK                    = @($serializedResults | Where-Object { $_.EffectiveBucket -eq 'OK' }).Count
+        REVIEW                = @($serializedResults | Where-Object { $_.EffectiveBucket -eq 'REVIEW' }).Count
+        RERUN_PIPELINE        = @($serializedResults | Where-Object { $_.EffectiveBucket -eq 'RERUN_PIPELINE' }).Count
+        REDOWNLOAD_CANDIDATE  = @($serializedResults | Where-Object { $_.EffectiveBucket -eq 'REDOWNLOAD_CANDIDATE' }).Count
+        IGNORED               = @($serializedResults | Where-Object { $_.EffectiveBucket -eq 'IGNORED' }).Count
     }
 
     $issueCountRows = @(
         $serializedResults |
+            Where-Object { $_.EffectiveBucket -ne 'IGNORED' } |
             ForEach-Object { $_.Issues } |
             Group-Object Code |
             Sort-Object -Property @{ Expression = { $_.Count }; Descending = $true }, @{ Expression = { $_.Name }; Descending = $false } |
@@ -402,6 +409,7 @@ function Write-AuditReportBundle {
                 review               = $model.BucketCounts.REVIEW
                 rerun_pipeline       = $model.BucketCounts.RERUN_PIPELINE
                 redownload_candidate = $model.BucketCounts.REDOWNLOAD_CANDIDATE
+                ignored              = $model.BucketCounts.IGNORED
             }
             issue_counts         = $model.IssueCountRows
             entries              = $model.Entries

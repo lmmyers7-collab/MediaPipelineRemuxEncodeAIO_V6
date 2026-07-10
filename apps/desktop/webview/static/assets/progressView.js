@@ -703,7 +703,27 @@
     return items;
   }
 
+  function csvRerunCompletionSummary(snapshot = null) {
+    const summary = snapshot?.csv_rerun_summary;
+    if (!summary || typeof summary !== "object" || Array.isArray(summary)) return null;
+    if (summary.evidence_authority !== "backend_manifest" || summary.terminal !== true) return null;
+    return summary;
+  }
+
+  function csvRerunCompletionTimelineItems(summary = {}) {
+    const complete = summary.display_state === "ok";
+    return [runTimelineItem({
+      id: "csv_rerun_completion",
+      label: String(summary.display_label || "CSV rerun complete"),
+      status: complete ? "complete" : "review",
+      detail: String(summary.detail || "Backend manifest reports this CSV rerun has reached a terminal state."),
+      evidence: String(summary.historical_evidence_note || "Historical progress evidence is available for review."),
+    })];
+  }
+
   function runTimelineItems(context = {}) {
+    const completion = csvRerunCompletionSummary(context?.snapshot);
+    if (completion) return csvRerunCompletionTimelineItems(completion);
     const source = runTimelineProgressContext(context);
     const {
       bars,
@@ -2493,6 +2513,13 @@
   }
 
   function liveRunStatus({ snapshot = null, diagnostics = null, closeReadiness = null, stdoutTail = null } = {}) {
+    const completion = csvRerunCompletionSummary(snapshot);
+    if (completion) {
+      return {
+        label: String(completion.display_label || "CSV rerun complete"),
+        state: String(completion.display_state || "ok"),
+      };
+    }
     const activity = String(snapshot?.activity || snapshot?.current_activity || "").toLowerCase();
     const state = String(snapshot?.pipeline_state || closeReadiness?.state || "").toLowerCase();
     const currentWork = snapshot?.current_work && typeof snapshot.current_work === "object" ? snapshot.current_work : {};
@@ -2557,6 +2584,22 @@
   }
 
   function liveRunStripItems({ snapshot = null, diagnostics = null, closeReadiness = null, stdoutTail = null } = {}) {
+    const completion = csvRerunCompletionSummary(snapshot);
+    if (completion) {
+      const totals = completion.totals && typeof completion.totals === "object" ? completion.totals : {};
+      const state = String(completion.display_state || "ok");
+      return [
+        liveRunItem("CSV rerun", completion.display_label || "CSV rerun complete", completion.detail || "Backend manifest terminal state.", state),
+        liveRunItem("CSV", completion.csv_name || completion.batch_id || "Current CSV", "Backend-owned CSV rerun identity.", "ok"),
+        liveRunItem("Processed", `${totals.processed || 0} / ${totals.total || 0}`, "Backend-owned terminal row count.", state),
+        liveRunItem("Completed", totals.completed || 0, "Completed or returned rows.", "ok"),
+        liveRunItem("Failed", totals.failed || 0, "Failed rows remain available for review.", totals.failed ? "warning" : "ok"),
+        liveRunItem("Skipped / held", `${totals.skipped || 0} / ${totals.held || 0}`, "Skipped and review-held rows.", totals.held ? "warning" : "ok"),
+        liveRunItem("Pending", totals.pending || 0, "Rows not terminal at the manifest boundary.", totals.pending ? "warning" : "ok"),
+        liveRunItem("Pending publish", totals.pending_publish || 0, "Outputs parked for manifest-backed publish drain.", totals.pending_publish ? "warning" : "ok"),
+        liveRunItem("Evidence", completion.historical_evidence_note || "Historical progress evidence is available for review.", "This terminal summary is backend manifest evidence.", "ok"),
+      ];
+    }
     const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
     const currentWork = snapshot?.current_work && typeof snapshot.current_work === "object" ? snapshot.current_work : {};
     const workerRows = progressWorkerRows(snapshot, diagnostics);
@@ -2769,6 +2812,17 @@
   }
 
   function liveRunHandoffLines(context = {}, status = liveRunStatus(context), items = liveRunStripItems(context)) {
+    const completion = csvRerunCompletionSummary(context?.snapshot);
+    if (completion) {
+      return [
+        `Run state: ${status.label}.`,
+        `CSV: ${completion.csv_name || completion.batch_id || "current CSV"}.`,
+        `Summary: ${completion.detail || "Backend manifest reports a terminal CSV rerun state."}`,
+        completion.historical_evidence_note || "Historical progress evidence is available for review.",
+        "Safe next step: open Queue for row evidence, Pending Publish for parked outputs, or Reports for failures as indicated by the terminal totals.",
+        "Mutation guardrail: this handoff is read-only and cannot start, stop, drain, publish, rename, or touch media.",
+      ];
+    }
     const active = status.state === "running";
     const review = status.state === "warning";
     const stage = items.find((item) => item.label === "Stage")?.value || "No stage";
@@ -2829,6 +2883,21 @@
   }
 
   function renderHomeActiveWork({ snapshot = null, diagnostics = null, closeReadiness = null, stdoutTail = null } = {}) {
+    const completion = csvRerunCompletionSummary(snapshot);
+    if (completion) {
+      const state = String(completion.display_state || "ok");
+      setProgressPanelStatus("home-active-work-status", completion.display_label || "CSV rerun complete", state);
+      setText(
+        "home-active-work-summary",
+        [
+          `CSV rerun: ${completion.display_label || "complete"}`,
+          `CSV: ${completion.csv_name || completion.batch_id || "current CSV"}`,
+          completion.detail || "Backend manifest reports a terminal CSV rerun state.",
+          completion.historical_evidence_note || "Historical progress evidence is available for review.",
+        ].join("\n"),
+      );
+      return;
+    }
     const activeJobs = Array.isArray(diagnostics?.active_jobs) ? diagnostics.active_jobs.filter(Boolean) : [];
     const workerRows = progressWorkerRows(snapshot, diagnostics);
     const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
@@ -2902,6 +2971,7 @@
     progressEtaSummaryLine,
     csvRerunTailEvidence,
     csvRerunActivityEvidence,
+    csvRerunCompletionSummary,
     csvRerunTerminalLine,
     progressEvidenceRows,
     progressEvidenceStatus,

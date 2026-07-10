@@ -48,6 +48,22 @@ function Assert-ThrowsContains {
     throw "$Message Expected an error containing '$ExpectedText'."
 }
 
+function Write-Log { param($Message, $Level) }
+
+$invalidManifestRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("mp-file-overrides-" + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $invalidManifestRoot -Force | Out-Null
+$invalidManifestPath = Join-Path $invalidManifestRoot 'file_overrides.json'
+[System.IO.File]::WriteAllText($invalidManifestPath, '{not-json', [System.Text.Encoding]::UTF8)
+$script:LocalStateLayout = [pscustomobject]@{ Paths = [pscustomobject]@{ FileOverrides = $invalidManifestPath } }
+$script:CachedFileOverridesManifest = $null
+try {
+    Assert-ThrowsContains -ScriptBlock { Get-FileOverridesManifest } -ExpectedText 'file_overrides.json is malformed' -Message 'Malformed persisted overrides must fail closed.'
+} finally {
+    $script:LocalStateLayout = $null
+    $script:CachedFileOverridesManifest = $null
+    Remove-Item -LiteralPath $invalidManifestRoot -Recurse -Force
+}
+
 $burnSelector = [pscustomobject]@{
     streamIndex = 4
     language = 'eng'

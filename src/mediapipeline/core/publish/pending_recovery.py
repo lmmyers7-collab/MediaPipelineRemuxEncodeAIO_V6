@@ -5,7 +5,7 @@ from collections.abc import Mapping
 
 from .pending_open_policy import normalize_pending_publish_row_key
 from .pending_policy_parts.status_rules import recovery_plan_action as _recovery_plan_action
-from .pending_results import (
+from .pending_contracts import (
     PENDING_PUBLISH_INVALID_RESULT_MESSAGE,
     PENDING_PUBLISH_RECOVERY_PLAN_COMMAND,
     PENDING_PUBLISH_RECOVERY_PLAN_SCHEMA_VERSION,

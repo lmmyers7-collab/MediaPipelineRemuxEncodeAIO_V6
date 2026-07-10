@@ -1151,15 +1151,31 @@ def _browser_maintenance_reports_runner_source() -> str:
               rows: [reportFailureRow],
             };
             window.mediaPipelineReportsView.renderFailurePreview(reportFailurePreview);
+            window.mediaPipelineReportsView.markReportsComponentFresh("failures", { generated_at: "2026-07-09T12:00:00Z" });
+            window.mediaPipelineReportsView.renderReportsUnavailable("failures", "fixture backend timeout");
+            if (text("failure-status") !== "Unavailable — historical only") {
+              throw new Error("Reports failure state did not become unavailable");
+            }
+            if (!text("failure-summary").includes("Historical rows remain visible from 2026-07-09T12:00:00Z") || !byId("failure-clear-confirm-button").disabled) {
+              throw new Error("Reports unavailable state did not preserve timestamped historical-only evidence and disable commands");
+            }
+            window.mediaPipelineReportsView.markReportsComponentFresh("failures", { generated_at: "2026-07-09T12:01:00Z" });
+            window.mediaPipelineReportsView.renderFailurePreview(reportFailurePreview);
+            if (document.querySelector('[data-page-panel="reports"]').dataset.availability !== "available" || text("failure-status") === "Unavailable — historical only") {
+              throw new Error("Reports failure state did not recover after fresh backend evidence");
+            }
             const reportAuditPreview = {
-              source: "C:/Reports/audit_priority.csv",
+              source: "C:/Reports/audit_summary_20260709_000311.priority.csv",
               priority_only: true,
               count: 1,
               high_priority_count: 1,
+              medium_priority_count: 0,
+              priority_count: 1,
               rerun_count: 1,
               redownload_count: 0,
               review_count: 0,
               duplicate_group_count: 0,
+              actionable_count: 1,
               warnings: ["fixture audit warning"],
               rows: [{
                 source_csv: "C:/Reports/audit_priority.csv",
@@ -1303,6 +1319,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Audit CSV: present",
               "Failure rows: 1",
               "Audit rows: 1",
+              "priority=1",
               "Mutation guardrail:",
             ]);
             requireText("report-investigation-checklist", [
@@ -1320,7 +1337,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Next action:",
               "Action owner:",
               "Failure rows needing operator/permanent review: 1",
-              "Audit rerun/redownload/high-priority candidates: 2",
+              "Audit rerun/redownload/priority candidates: 1",
             ]);
             requireText("failure-review-board", [
               "Review State",
@@ -1340,12 +1357,17 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Boundary:",
             ]);
             requireText("audit-preview-summary", [
+              "Audit completed:",
               "Rows: 1",
+              "Priority rows: 1",
               "High priority: 1",
+              "Medium priority: 0",
               "Rerun: 1",
             ]);
             requireText("audit-review-board", [
               "Audit review board:",
+              "Loaded bucket counts:",
+              "Loaded priority counts:",
               "Rerun rows: 1",
               "subtitle_missing_srt",
               "Mutation guardrail:",
@@ -2114,6 +2136,48 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Audit stop recorded",
               "confirm_stop",
             ]);
+            const originalRefreshAllForPriorityTable = window.refreshAll;
+            let priorityTableRefreshCount = 0;
+            window.refreshAll = () => {
+              priorityTableRefreshCount += 1;
+              return Promise.resolve();
+            };
+            try {
+              byId("audit-preview-priority-only").checked = false;
+              await window.mediaPipelineReportsView.startReportAuditFromForm();
+              await waitFor(() => posts.filter((entry) => entry.path.includes("/api/audit/start")).length === beforeAuditStartPosts + 2, "reports priority audit start");
+              const completedAt = new Date().toISOString();
+              window.mediaPipelineReportsView.renderReports(
+                {
+                  latest_paths: {
+                    latest_audit_csv: "C:/Reports/audit_summary.csv",
+                    latest_priority_csv: "C:/Reports/audit_summary_20260709_000311.priority.csv",
+                  },
+                  audit_progress: {
+                    status: "completed",
+                    completed: true,
+                    latest_priority_csv_path: "C:/Reports/audit_summary_20260709_000311.priority.csv",
+                    last_update: completedAt,
+                  },
+                  progress_bars: [{
+                    id: "audit_progress",
+                    label: "Audit progress",
+                    status: "complete",
+                    source: "audit_progress.json",
+                    updated_at: completedAt,
+                  }],
+                },
+                { paths: {} }
+              );
+              await waitFor(() => byId("audit-preview-priority-only").checked, "reports priority table selected after audit completion");
+              await waitFor(() => priorityTableRefreshCount === 1, "reports priority table refresh");
+              requireText("report-audit-launch-detail", [
+                "Audit completed.",
+                "Loaded priority table from C:/Reports/audit_summary_20260709_000311.priority.csv",
+              ]);
+            } finally {
+              window.refreshAll = originalRefreshAllForPriorityTable;
+            }
             window.confirm = () => true;
             await waitFor(() => !byId("report-audit-score-policy-save-button").disabled, "reports audit score policy save enabled after stop");
             const refreshedScoreDisclosure = byId("report-audit-score-redownload-bucket")?.closest("details");
@@ -2247,6 +2311,7 @@ def _browser_maintenance_reports_runner_source() -> str:
             requireText("report-triage", [
               "Failure rows: 1",
               "Audit rows: 1",
+              "priority=1",
               "Mutation guardrail:",
             ]);
             if (byId("report-launch-handoff") || byId("report-go-rerun-button") || document.querySelector('[data-reports-tab="overview"]')) {
@@ -2409,13 +2474,15 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
         browser_result = result["result"]
         posts = browser_result["posts"]
         gets = browser_result["gets"]
-        self.assertEqual(len(posts), 16)
+        self.assertEqual(len(posts), 17)
         failure_get_paths = [get["path"] for get in gets if get["path"].startswith("/api/failures")]
         self.assertIn("/api/failures?limit=100&source=markers", failure_get_paths)
         self.assertIn("/api/failures?limit=100", failure_get_paths)
         audit_source_posts = [post for post in posts if post["path"] == "/api/audit/sources"]
         audit_source_scan_post = next(post for post in posts if post["path"] == "/api/audit/sources/scan")
-        audit_start_post = next(post for post in posts if post["path"] == "/api/audit/start")
+        audit_start_posts = [post for post in posts if post["path"] == "/api/audit/start"]
+        self.assertEqual(len(audit_start_posts), 2)
+        audit_start_post = audit_start_posts[0]
         audit_stop_post = next(post for post in posts if post["path"] == "/api/audit/stop")
         score_policy_post = next(post for post in posts if post["path"] == "/api/audit/score-policy")
         audit_rerun_export_post = next(post for post in posts if post["path"] == "/api/audit/export-rerun-csv")

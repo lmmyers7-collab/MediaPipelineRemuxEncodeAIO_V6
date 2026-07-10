@@ -3,9 +3,9 @@ file: tests/python/desktop/test_config_keys.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-17
+last_modified: 2026-07-05
 last_reviewed: 2026-06-04
-sha256: ad3db30276dee8e44e7f66dcc003452ea4c46f4d2e7a6b94c9344d8d7f3d5a52
+sha256: 3a4a42271ee475eeb7359536f68d28141f3eedd9c499d2e67e26113d3715287a
 ---
 # `tests/python/desktop/test_config_keys.py`
 

@@ -3,9 +3,9 @@ file: docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-03
+last_modified: 2026-07-05
 last_reviewed: 2026-06-02
-sha256: 855e7684ca65f4f3ed063a9878cd8082c7cd75f7fb79099ef6eb09bbab97c5d5
+sha256: fc8f2aa6bb2a2282fa41608c8136ed1d1e91bd061f83a1c90f744441cf85dd89
 ---
 # `docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md`
 

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/repair_reconcile/facade.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-19
+last_modified: 2026-07-09
 last_reviewed: 2026-06-17
-sha256: a18d6b7bb4dc86a515083de5ff5bc310b659318b71629207cf2923e25282d804
+sha256: 04970d6f1b9548496fe2927407b3956c0ce053e0a2c99978d0c8bb4cbd007337
 ---
 # `src/mediapipeline/core/repair_reconcile/facade.py`
 

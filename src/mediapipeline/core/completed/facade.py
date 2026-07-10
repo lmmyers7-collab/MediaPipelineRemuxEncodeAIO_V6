@@ -90,6 +90,7 @@ class CompletedFacadeMixin:
             runtime_outcome_warning=runtime_outcome_warning,
             pending_publish_rows=pending_rows,
             warnings=overlay_warnings,
+            parse_health=getattr(self.service, "_completed_history_parse_health", {}),
         )
         annotator = getattr(self.service, "annotate_final_library_promotion_rows", None)
         if not callable(annotator):

@@ -7,6 +7,7 @@ from typing import Any
 PUBLISH_COPY_PROGRESS_STALE_AFTER_SECONDS = 30.0
 PUBLISH_COPY_STAGES = {"push", "retry_pending_push"}
 PUBLISH_COPY_STATES = {"copying"}
+TERMINAL_PROGRESS_STAGES = {"failed", "error", "blocked", "cancelled", "canceled", "orphaned"}
 
 
 def parse_progress_datetime(raw: str) -> datetime | None:
@@ -59,7 +60,7 @@ def is_progress_stale(progress: dict[str, Any] | None, *, stale_after_seconds: f
     if not progress:
         return False
     stage = str(progress.get("CurrentStage", "") or "").strip().lower()
-    if stage in {"", "idle", "sleeping", "paused", "stopped", "completed"}:
+    if stage in {"", "idle", "sleeping", "paused", "stopped", "completed", *TERMINAL_PROGRESS_STAGES}:
         return False
     if _is_publish_copy_progress(progress):
         return _publish_copy_progress_is_stale(

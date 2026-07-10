@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-05
 last_reviewed: 2026-06-25
-sha256: 1040b4380086c44b4732fa552670776bfef9ee54c035218110be0323eba8e4eb
+sha256: 86e69400a31922ec6d444fefc03634927b714fa8bd2bc0954e0c0eee517b8941
 ---
 # `apps/desktop/webview/static/assets/styles/components/data-tables.css`
 

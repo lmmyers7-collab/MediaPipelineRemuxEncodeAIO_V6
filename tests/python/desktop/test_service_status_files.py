@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import sys
 import tempfile
@@ -98,6 +99,71 @@ class StatusFileHelperTests(unittest.TestCase):
             self.assertEqual(latest_audit_csv(resolved, priority_only=False), standard_new)
             self.assertNotEqual(latest_audit_csv(resolved, priority_only=False), standard_old)
             self.assertEqual(latest_audit_csv(resolved, priority_only=True), priority_new)
+
+    def test_latest_audit_csv_prefers_completed_progress_pointer(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            audit = root / "AuditReports"
+            audit.mkdir()
+            newer_by_mtime = _touch(audit / "audit_summary_20260509.csv", 3000)
+            pointed = _touch(audit / "audit_summary_20260508.csv", 1000)
+            priority = _touch(audit / "audit_summary_20260508.priority.csv", 1000)
+            (audit / "audit_progress.json").write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "completed": True,
+                        "failed": False,
+                        "latest_csv_path": str(pointed),
+                        "latest_priority_csv_path": str(priority),
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            resolved = _resolved(root, audit_reports_path=audit)
+
+            self.assertEqual(latest_audit_csv(resolved, priority_only=False), pointed)
+            self.assertNotEqual(latest_audit_csv(resolved, priority_only=False), newer_by_mtime)
+            self.assertEqual(latest_audit_csv(resolved, priority_only=True), priority)
+
+    def test_latest_audit_csv_ignores_unsafe_progress_pointer(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            audit = root / "AuditReports"
+            outside = root / "Outside"
+            audit.mkdir()
+            outside.mkdir()
+            expected = _touch(audit / "audit_summary_20260508.csv", 1000)
+            unsafe = _touch(outside / "audit_summary_20260509.csv", 5000)
+            (audit / "audit_progress.json").write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "completed": True,
+                        "failed": False,
+                        "latest_csv_path": str(unsafe),
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            resolved = _resolved(root, audit_reports_path=audit)
+
+            self.assertEqual(latest_audit_csv(resolved, priority_only=False), expected)
+
+    def test_latest_audit_csv_uses_report_stamp_before_mtime_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            audit = root / "AuditReports"
+            audit.mkdir()
+            older_stamp_touched_later = _touch(audit / "audit_summary_20260507_010000.csv", 4000)
+            newer_stamp = _touch(audit / "audit_summary_20260508_010000.csv", 1000)
+
+            resolved = _resolved(root, audit_reports_path=audit)
+
+            self.assertEqual(latest_audit_csv(resolved, priority_only=False), newer_stamp)
+            self.assertNotEqual(latest_audit_csv(resolved, priority_only=False), older_stamp_touched_later)
 
     def test_latest_failure_json_selects_latest_round_failure_json(self) -> None:
         with tempfile.TemporaryDirectory() as td:

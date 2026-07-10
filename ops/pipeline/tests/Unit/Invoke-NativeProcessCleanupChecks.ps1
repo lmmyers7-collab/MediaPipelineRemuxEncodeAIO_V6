@@ -54,6 +54,23 @@ function Set-ProgressStage {
     )
 }
 
+$script:CapturedPipelineEvents = @()
+function Write-PipelineEvent {
+    param(
+        [string]$EventType,
+        [string]$Stage,
+        [string]$Status,
+        [hashtable]$Data
+    )
+    $script:CapturedPipelineEvents += [pscustomobject]@{
+        EventType = $EventType
+        Stage = $Stage
+        Status = $Status
+        Data = $Data
+    }
+    return $true
+}
+
 function Test-ProcessAlive {
     param([int]$ProcessId)
     try {
@@ -91,6 +108,20 @@ New-Item -ItemType Directory -Path $workingDirectoryRoot | Out-Null
 $resolvedWorkingDirectoryRoot = (Resolve-Path -LiteralPath $workingDirectoryRoot).ProviderPath
 
 try {
+    $expectedExitResult = Invoke-ExternalToolCommand `
+        -ToolName 'expected-exit-test' `
+        -FilePath $childExe `
+        -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'exit 2') `
+        -TimeoutSeconds 10 `
+        -Stage 'expected-exit-telemetry' `
+        -SuccessExitCodes @(0, 2)
+    $expectedExitEvent = @($script:CapturedPipelineEvents | Where-Object {
+        $_.EventType -eq 'tool_completed' -and $_.Stage -eq 'expected-exit-telemetry'
+    })[-1]
+    Assert-True ([int]$expectedExitResult.ExitCode -eq 2) "Expected exit-code test child to return 2; got $($expectedExitResult.ExitCode)."
+    Assert-True ([string]$expectedExitEvent.Status -eq 'succeeded') 'Configured expected exit code should emit successful tool telemetry.'
+    Assert-True ([string]$expectedExitEvent.Data.error_code -eq 'OK') 'Configured expected exit code should retain the OK telemetry error code.'
+
     $workingDirectoryResult = Invoke-NativeProcess `
         -FilePath $childExe `
         -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', '[Console]::Out.Write((Get-Location).ProviderPath)') `

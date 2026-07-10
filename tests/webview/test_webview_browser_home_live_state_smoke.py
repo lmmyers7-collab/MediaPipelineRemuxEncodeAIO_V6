@@ -211,6 +211,8 @@ def _browser_home_live_state_runner_source() -> str:
               "refreshAllNow",
               "renderExternalDependencyDigest",
               "updatePagePanelEmptyStates",
+              "renderCloseReadiness",
+              "renderCloseReadinessUnavailable",
             ].forEach(requireFunction);
             [
               "renderHomeActiveWork",
@@ -219,6 +221,18 @@ def _browser_home_live_state_runner_source() -> str:
               "renderProgressEvidence",
               "renderDiagnosticsProgress",
             ].forEach((name) => requireNamespaceFunction("mediaPipelineProgressView", name));
+
+            window.renderCloseReadiness({ safe_to_close: true, active_work: false, state: "idle", reason: "fixture idle" });
+            if (!text("close-readiness").includes("safe")) throw new Error("safe close-readiness fixture did not render safe");
+            window.renderCloseReadinessUnavailable("fixture route timeout");
+            if (!text("close-readiness").includes("active work")) throw new Error("unavailable close-readiness did not fail closed");
+            if (!text("diagnostics-close-readiness").includes("fixture route timeout")) throw new Error("unavailable reason was not rendered");
+            const invalidClose = window.mediaPipelineAppCloseReadiness.normalizeCloseReadiness({ safe_to_close: "false" });
+            if (invalidClose.safe_to_close !== false || invalidClose.operator_status !== "unavailable") {
+              throw new Error("non-boolean close-readiness did not normalize unavailable");
+            }
+            window.renderCloseReadiness({ safe_to_close: true, active_work: false, state: "idle", reason: "fixture recovered" });
+            if (!text("close-readiness").includes("safe")) throw new Error("recovered close-readiness did not render safe");
 
             window.showPage("home");
             await waitFor(

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/completed/review/integrity.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-04
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: d684403bbdc24992a79f2cd6e0df08fb9c87874795b95d9efc6ab51b455a2bec
+sha256: 9dd0bf985542d8750af2df01692b353d6a5a178d59ef233e199f520c348eb70d
 ---
 # `apps/desktop/webview/static/assets/completed/review/integrity.js`
 

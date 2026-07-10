@@ -202,6 +202,28 @@ def rerun_final_output_override(row: Mapping[str, Any]) -> tuple[str, str]:
     return "", ""
 
 
+def rerun_final_output_for_row(
+    row: Mapping[str, Any],
+    *,
+    source_path: Any = "",
+    source_path_destination: bool = False,
+    planned_output_path: Any = "",
+) -> tuple[str, str]:
+    """Return the explicit final-output override, falling back to planned output."""
+    if source_path_destination and _clean_text(source_path):
+        return "source_path", _clean_text(source_path)
+    field, value = rerun_final_output_override(row)
+    return (field, value) if value else ("planned_output_path", _clean_text(planned_output_path))
+
+
+def rerun_destination_replaces_final(destination_mode: str, collision_policy: str) -> bool:
+    return destination_mode in {"auto_replace_clean_else_pending_review", "publish_replace_final"} and collision_policy == "replace_final"
+
+
+def rerun_source_path_destination_requested(lifecycle: RerunLifecyclePolicy) -> bool:
+    return lifecycle.confirm_source_overwrite is True
+
+
 def rerun_effective_output_root_for_source(resolved: Any, source_path: Any) -> Path | None:
     config = getattr(resolved, "config_data", {}) if resolved is not None else {}
     if not isinstance(config, Mapping):

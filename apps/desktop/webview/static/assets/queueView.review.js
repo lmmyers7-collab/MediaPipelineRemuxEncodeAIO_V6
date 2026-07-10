@@ -326,7 +326,8 @@
         const severity = String(item.operator_severity || "").toLowerCase();
         if (severity === "warning" || item.is_priority || queueReviewRowReasons(item).length) return "warning";
       }
-      if (["running", "completed", "skipped", "parked", "publishing", "health-check"].includes(backendState)) return "warning";
+      if (backendState === "parked") return "parked";
+      if (["running", "completed", "skipped", "publishing", "health-check"].includes(backendState)) return "warning";
       if (["ready", "match"].includes(backendState)) return "ready";
       const runtimeStatus = String(item.runtime_outcome_status || "").toLowerCase();
       const runtimeFreshness = String(item.runtime_outcome_freshness_status || "").toLowerCase();
@@ -344,6 +345,7 @@
       const state = queueSelectedAtAGlanceState(item);
       if (state === "blocked") return "Blocked";
       if (state === "warning") return "Review";
+      if (state === "parked") return "Parked";
       if (state === "changed") return "Launch-check needed";
       if (state === "ready") return "Ready-looking";
       return "No selection";

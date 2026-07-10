@@ -3,9 +3,9 @@ file: src/mediapipeline/core/repair_reconcile/apply.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-02
+last_modified: 2026-07-09
 last_reviewed: 2026-06-19
-sha256: 4c3ebcbb4f70d0938f60bd5ba171a99681d97b9bedc4c5dc28deea235594adff
+sha256: 02d2b5af7ed2eb19056353136d875a6a299938089c1ff7a606f325cb2b29103b
 ---
 # `src/mediapipeline/core/repair_reconcile/apply.py`
 

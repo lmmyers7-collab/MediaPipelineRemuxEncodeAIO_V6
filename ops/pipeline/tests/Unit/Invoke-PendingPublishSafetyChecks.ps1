@@ -48,6 +48,24 @@ function Write-Log {
     )
 }
 
+$script:PipelineEvents = @()
+function Write-PipelineEvent {
+    param(
+        [string] $EventType,
+        [string] $Stage,
+        [string] $Route,
+        [string] $Status,
+        [string] $SourcePath,
+        [hashtable] $Data
+    )
+    $script:PipelineEvents += [pscustomobject]@{
+        EventType = $EventType
+        Stage = $Stage
+        Status = $Status
+        Data = $Data
+    }
+}
+
 function Assert-True {
     param(
         [bool] $Condition,
@@ -331,6 +349,40 @@ Invoke-WithTempRoot {
     Assert-Equal @($manifest.sidecar_files).Count 1 'Pending manifest did not preserve sidecar entry.'
     $parkedSidecar = [string]$manifest.sidecar_files[0].local_file
     Assert-True (Test-Path -LiteralPath $parkedSidecar -PathType Leaf) 'Parked sidecar file is missing.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $script:PipelineEvents = @()
+    $original = Join-Path $script:LocalEncoded 'read-refresh-must-not-recover.mkv'
+    $pendingLocal = Join-Path $script:LocalPendingPush 'read-refresh-must-not-recover.mkv'
+    $serverOut = Join-Path $script:Outsource 'read-refresh-must-not-recover.mkv'
+    [System.IO.File]::WriteAllText($original, 'media')
+    $manifest = New-TestPendingManifest -LocalFile $pendingLocal -ServerOut $serverOut -State 'pending_move'
+    $manifest['original_local_file'] = $original
+    $manifest['parked_file'] = $pendingLocal
+    $manifestPath = Join-Path $script:LocalPendingPush 'read-refresh-must-not-recover.manifest.json'
+    Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
+
+    $index = Refresh-PendingPublishIndex
+
+    Assert-Equal ([int]$index.Count) 0 'Read-only index should not expose pending_move as drainable.'
+    Assert-True (Test-Path -LiteralPath $original -PathType Leaf) 'Read-only index refresh moved the original encoded payload.'
+    Assert-True (-not (Test-Path -LiteralPath $pendingLocal -PathType Leaf)) 'Read-only index refresh created a parked payload.'
+    Assert-Equal ([string](Read-PendingManifestFile -Path $manifestPath).manifest_state) 'pending_move' 'Read-only index refresh rewrote the manifest state.'
+    Assert-Equal @($script:PipelineEvents).Count 0 'Read-only index refresh emitted mutation recovery journal events.'
+
+    $recovery = Invoke-PendingPublishRecovery -Reason 'unit-test-explicit-recovery'
+
+    Assert-Equal ([int]$recovery.recovered_count) 1 'Explicit recovery should recover one trusted pending_move manifest.'
+    Assert-True (-not (Test-Path -LiteralPath $original -PathType Leaf)) 'Explicit recovery left the original encoded payload behind.'
+    Assert-True (Test-Path -LiteralPath $pendingLocal -PathType Leaf) 'Explicit recovery did not move the payload into PendingServerPush.'
+    Assert-Equal ([string](Read-PendingManifestFile -Path $manifestPath).manifest_state) 'parked_recovered' 'Explicit recovery did not persist parked_recovered state.'
+    $recoveryEvents = @($script:PipelineEvents | Where-Object { $_.EventType -eq 'pending_publish_recovery' })
+    Assert-True ($recoveryEvents.Count -ge 2) 'Explicit recovery must journal intent and result events.'
+    Assert-True (@($recoveryEvents | Where-Object { $_.Data.phase -eq 'intent' }).Count -eq 1) 'Explicit recovery intent evidence is missing.'
+    Assert-True (@($recoveryEvents | Where-Object { $_.Data.phase -eq 'result' -and $_.Status -eq 'recovered' }).Count -eq 1) 'Explicit recovery result evidence is missing.'
 }
 
 Invoke-WithTempRoot {
@@ -628,6 +680,33 @@ Invoke-WithTempRoot {
     }
     $sidecarTrust = Test-PendingSidecarTrustedForPublish -Manifest (Read-PendingManifestFile -Path $manifestPath) -Sidecar $sidecar -ManifestPath $manifestPath
     Assert-True ([bool]$sidecarTrust.Ok) 'Sidecar beside a confirmed source overwrite target should be trusted for pending publish.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $payload = Join-Path $script:LocalPendingPush 'confirmed-source-outside-output-root.mkv'
+    $source = Join-Path $script:SourceMovies 'confirmed-source-outside-output-root.mkv'
+    [System.IO.File]::WriteAllText($payload, 'media')
+    [System.IO.File]::WriteAllText($source, 'old-media')
+    $manifest = New-TestPendingManifest -LocalFile $payload -ServerOut $source -SourcePath $source -ConfirmSourceOverwrite $true
+    $manifestPath = Join-Path $script:LocalPendingPush 'confirmed-source-outside-output-root.manifest.json'
+    Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
+
+    $trust = Test-PendingManifestTrustedForDrain -ManifestFile (Get-Item -LiteralPath $manifestPath) -Manifest (Read-PendingManifestFile -Path $manifestPath)
+
+    Assert-True ([bool]$trust.Ok) "Confirmed same-file source overwrite outside the configured output root should be trusted: $($trust.Reason)"
+    Assert-Equal ([string]$trust.Status) 'trusted' 'Confirmed source overwrite outside output root should report trusted status.'
+
+    $sidecarLocal = Join-Path $script:LocalPendingPush 'confirmed-source-outside-output-root.en.srt'
+    $sidecarServer = Join-Path $script:SourceMovies 'confirmed-source-outside-output-root.en.srt'
+    [System.IO.File]::WriteAllText($sidecarLocal, 'subtitle')
+    $sidecar = [pscustomobject]@{
+        local_file = $sidecarLocal
+        server_out = $sidecarServer
+    }
+    $sidecarTrust = Test-PendingSidecarTrustedForPublish -Manifest (Read-PendingManifestFile -Path $manifestPath) -Sidecar $sidecar -ManifestPath $manifestPath
+    Assert-True ([bool]$sidecarTrust.Ok) "Sidecar beside a confirmed source overwrite target outside the output root should be trusted: $($sidecarTrust.Reason)"
 }
 
 Invoke-WithTempRoot {

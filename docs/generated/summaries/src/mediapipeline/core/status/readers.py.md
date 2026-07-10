@@ -3,9 +3,9 @@ file: src/mediapipeline/core/status/readers.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-06-29
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: 4c39cda65f70b21de8adade164954e09804a61b692e8fd2db765e93210a6f3ec
+sha256: 14b1841733445f3900169e801b445179ec05098045491a86eb608212bcdc0486
 ---
 # `src/mediapipeline/core/status/readers.py`
 

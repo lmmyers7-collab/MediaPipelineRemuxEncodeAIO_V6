@@ -3,9 +3,9 @@
 # ==============================================================================
 # In-memory index and health report for PendingServerPush manifests.
 #
-# Dot-sourced after PendingTransactions.ps1/PendingPush.ps1. Crash-recovery
-# mechanics live in the transaction module, while index refresh owns when
-# repaired manifests become visible to duplicate-detection and diagnostics.
+# Dot-sourced after PendingTransactions.ps1/PendingPush.ps1. This module is
+# read-only with respect to manifests and payloads. Crash recovery is invoked
+# explicitly by the drain lifecycle before this index is refreshed.
 # ==============================================================================
 
 # Empty index template used by Refresh-PendingPublishIndex. The four maps index
@@ -65,17 +65,6 @@ function Refresh-PendingPublishIndex {
     foreach ($manifestFile in $manifests) {
         try {
             $manifest = Read-PendingManifestFile -Path $manifestFile.FullName
-            $preRepairState = [string]$manifest.manifest_state
-            if ($preRepairState -eq 'pending_move') {
-                $repairTrust = Test-PendingManifestTrustedForRepair -ManifestFile $manifestFile -Manifest $manifest
-                if (-not $repairTrust.Ok) {
-                    $index.UnreadableManifestCount++
-                    Add-PendingPublishHealthRow -Index $index -Code $repairTrust.Status -Severity 'error' -ManifestPath $manifestFile.FullName -LocalFile $repairTrust.LocalFile -ServerOut $repairTrust.ServerOut -SourcePath $repairTrust.SourcePath -Message $repairTrust.Reason
-                    Write-Log "Pending publish index: refusing repair/index for untrusted manifest $($manifestFile.Name): $($repairTrust.Reason)" "ERROR"
-                    continue
-                }
-            }
-            $manifest = Repair-PendingManifestState -ManifestFile $manifestFile -Manifest $manifest
             $drainTrust = Test-PendingManifestTrustedForDrain -ManifestFile $manifestFile -Manifest $manifest
             if (-not $drainTrust.Ok) {
                 if ($drainTrust.Status -eq 'missing_payload') {

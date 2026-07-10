@@ -49,9 +49,10 @@ def _manifest_operations(manifest: dict[str, Any]) -> list[dict[str, str]]:
         kind = str(raw_operation.get("kind") or "").strip()
         source = str(raw_operation.get("source") or "").strip()
         destination = str(raw_operation.get("destination") or "").strip()
+        boundary_root = str(raw_operation.get("boundary_root") or "").strip()
         if not kind or not source or not destination:
             raise RuntimeError(f"Rename undo operation {index} is missing kind, source, or destination.")
-        operations.append({"kind": kind, "source": source, "destination": destination})
+        operations.append({"kind": kind, "source": source, "destination": destination, "boundary_root": boundary_root})
     return operations
 
 
@@ -73,9 +74,11 @@ def _preflight_undo_operations(service: Any, operations: list[dict[str, str]]) -
     for operation in operations:
         original = Path(operation["source"])
         current = Path(operation["destination"])
+        boundary_root_text = str(operation.get("boundary_root") or "").strip()
+        boundary_root = Path(boundary_root_text) if boundary_root_text else original.parent
         try:
-            ensure_path_boundary_safe_for_mutation(current, original.parent, allow_missing_leaf=True)
-            ensure_path_boundary_safe_for_mutation(original, original.parent, allow_missing_leaf=True)
+            ensure_path_boundary_safe_for_mutation(current, boundary_root, allow_missing_leaf=True)
+            ensure_path_boundary_safe_for_mutation(original, boundary_root, allow_missing_leaf=True)
         except Exception as exc:
             errors.append(f"{current} -> {original}: {exc}")
             continue
@@ -90,20 +93,83 @@ def _preflight_undo_operations(service: Any, operations: list[dict[str, str]]) -
     return errors
 
 
+def _metadata_backup_operation(
+    backup: dict[str, Any],
+    operations: list[dict[str, str]],
+) -> dict[str, str] | None:
+    paired_destination = str(backup.get("operation_destination") or "").strip()
+    if paired_destination:
+        paired_key = _path_key(Path(paired_destination))
+        return next(
+            (operation for operation in operations if _path_key(Path(operation["destination"])) == paired_key),
+            None,
+        )
+    backup_path = Path(str(backup.get("path") or ""))
+    backup_key = _path_key(backup_path)
+    for operation in operations:
+        destination = Path(operation["destination"])
+        if backup_key == _path_key(destination):
+            return operation
+        if _path_key(backup_path.parent) == _path_key(destination.parent) and backup_path.name.casefold().startswith(
+            destination.stem.casefold() + "."
+        ):
+            return operation
+    return None
+
+
+def _metadata_restore_path(backup: dict[str, Any], operation: dict[str, str]) -> Path:
+    backup_path = Path(str(backup.get("path") or ""))
+    destination = Path(operation["destination"])
+    source = Path(operation["source"])
+    if _path_key(backup_path) == _path_key(destination):
+        return source
+    if _path_key(backup_path.parent) == _path_key(destination.parent):
+        destination_prefix = destination.stem
+        if backup_path.name.casefold().startswith(destination_prefix.casefold() + "."):
+            suffix = backup_path.name[len(destination_prefix) :]
+            return source.parent / f"{source.stem}{suffix}"
+    return backup_path
+
+
+def _preflight_metadata_backups(
+    manifest: dict[str, Any],
+    operations: list[dict[str, str]],
+) -> list[str]:
+    errors: list[str] = []
+    for backup in _manifest_metadata_backups(manifest):
+        operation = _metadata_backup_operation(backup, operations)
+        if operation is None:
+            errors.append(f"metadata backup is not paired with an undo operation: {backup.get('path') or ''}")
+            continue
+        boundary_text = str(operation.get("boundary_root") or "").strip()
+        boundary_root = Path(boundary_text) if boundary_text else Path(operation["source"]).parent
+        backup_path = Path(str(backup.get("path") or ""))
+        restore_path = _metadata_restore_path(backup, operation)
+        try:
+            ensure_path_boundary_safe_for_mutation(backup_path, boundary_root, allow_missing_leaf=True)
+            ensure_path_boundary_safe_for_mutation(restore_path, boundary_root, allow_missing_leaf=True)
+        except Exception as exc:
+            errors.append(f"metadata backup boundary check failed for {backup_path}: {exc}")
+    return errors
+
+
 def _restore_metadata_backups(
     manifest: dict[str, Any],
     operations: list[dict[str, str]],
 ) -> list[str]:
     warnings: list[str] = []
-    destination_to_source = {
-        _path_key(Path(operation["destination"])): Path(operation["source"])
-        for operation in operations
-    }
     for backup in _manifest_metadata_backups(manifest):
         backup_path = Path(str(backup.get("path") or ""))
-        restore_path = destination_to_source.get(_path_key(backup_path), backup_path)
+        operation = _metadata_backup_operation(backup, operations)
+        if operation is None:
+            raise RuntimeError(f"Rename undo metadata backup is not paired with an operation: {backup_path}")
+        boundary_text = str(operation.get("boundary_root") or "").strip()
+        boundary_root = Path(boundary_text) if boundary_text else Path(operation["source"]).parent
+        restore_path = _metadata_restore_path(backup, operation)
         content = backup.get("content")
         try:
+            ensure_path_boundary_safe_for_mutation(backup_path, boundary_root, allow_missing_leaf=True)
+            ensure_path_boundary_safe_for_mutation(restore_path, boundary_root, allow_missing_leaf=True)
             if content is None:
                 if restore_path.exists():
                     restore_path.unlink()
@@ -134,6 +200,7 @@ def undo_rename_manifest_for_service(
         raise RuntimeError("This rename manifest has already been undone.")
     operations = _manifest_operations(manifest)
     preflight_errors = _preflight_undo_operations(service, operations)
+    preflight_errors.extend(_preflight_metadata_backups(manifest, operations))
     if preflight_errors:
         raise RuntimeError("Rename undo blocked: " + " | ".join(preflight_errors[:6]))
 
@@ -148,10 +215,12 @@ def undo_rename_manifest_for_service(
         for operation in reversed(operations):
             original = Path(operation["source"])
             current = Path(operation["destination"])
+            boundary_root_text = str(operation.get("boundary_root") or "").strip()
+            boundary_root = Path(boundary_root_text) if boundary_root_text else original.parent
             if original.exists() and current.exists() and service._resolve_same_file(original, current):
                 status = "skipped"
             else:
-                service._rename_path_case_safe(current, original)
+                service._rename_path_case_safe(current, original, boundary_root=boundary_root)
                 status = "undone"
             rows.append(
                 {

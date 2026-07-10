@@ -12,7 +12,10 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.core.rename.service import RenameServiceMixin
 from mediapipeline.core.rename.planner import plan_rename_paths_for_service
-from mediapipeline.core.rename.path_authority import rename_authority_fields_for_source
+from mediapipeline.core.rename.path_authority import (
+    annotate_rename_plan_path_authority,
+    rename_authority_fields_for_source,
+)
 
 
 class DummyRenamePlannerService(RenameServiceMixin):
@@ -105,6 +108,40 @@ class RenamePlannerTests(unittest.TestCase):
             all("two selected files would produce the same destination" in row["errors"] for row in plan)
         )
 
+    def test_manual_tv_template_aligns_series_and_season_folder_destination(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source_folder = root / "Last of Us" / "Season 1"
+            source_folder.mkdir(parents=True)
+            first = source_folder / "TLOU.S01E01.When.Youre.Lost.in.the.Dark.1080p.WEB-DL.mkv"
+            second = source_folder / "TLOU.S01E02.Infected.1080p.WEB-DL.mkv"
+            first.write_text("a", encoding="utf-8")
+            second.write_text("b", encoding="utf-8")
+
+            plan = plan_rename_paths_for_service(
+                self.service,
+                [first, second],
+                mode="tv",
+                show_name="The Last of Us",
+                season_value="S01",
+                start_episode_value="E01",
+                use_pipeline_naming_preview=False,
+            )
+
+        expected_parent = root / "The Last of Us" / "Season 01"
+        self.assertEqual([row["destination_parent"] for row in plan], [str(expected_parent), str(expected_parent)])
+        self.assertEqual([row["series_folder"] for row in plan], [str(root / "The Last of Us")] * 2)
+        self.assertEqual([row["season_folder"] for row in plan], [str(expected_parent), str(expected_parent)])
+        self.assertEqual([row["hierarchy_aligned"] for row in plan], [True, True])
+        self.assertEqual([row["mutation_root"] for row in plan], [str(root), str(root)])
+        self.assertEqual(
+            [row["target_name"] for row in plan],
+            [
+                "The Last of Us - S01E01 - When Youre Lost in the Dark.mkv",
+                "The Last of Us - S01E02 - Infected.mkv",
+            ],
+        )
+
     def test_sidecar_inputs_do_not_consume_manual_tv_episode_numbers(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -130,10 +167,12 @@ class RenamePlannerTests(unittest.TestCase):
         self.assertEqual([row["source"] for row in plan], [first, second])
         self.assertEqual([row["target_name"] for row in plan], ["Ranma - S02E01.mkv", "Ranma - S02E02.mkv"])
         self.assertEqual([row["sidecar_count"] for row in plan], [1, 1])
+        aligned_parent = root / "Ranma" / "Season 02"
+        self.assertEqual([row["destination_parent"] for row in plan], [str(aligned_parent), str(aligned_parent)])
         self.assertEqual(plan[0]["sidecar_moves"][0]["source"], str(first_sidecar))
-        self.assertEqual(plan[0]["sidecar_moves"][0]["destination"], str(root / "Ranma - S02E01.pipeline.json"))
+        self.assertEqual(plan[0]["sidecar_moves"][0]["destination"], str(aligned_parent / "Ranma - S02E01.pipeline.json"))
         self.assertEqual(plan[1]["sidecar_moves"][0]["source"], str(second_sidecar))
-        self.assertEqual(plan[1]["sidecar_moves"][0]["destination"], str(root / "Ranma - S02E02.pipeline.json"))
+        self.assertEqual(plan[1]["sidecar_moves"][0]["destination"], str(aligned_parent / "Ranma - S02E02.pipeline.json"))
 
     def test_unc_configured_media_root_marks_unc_child_ready_without_share_mutation(self) -> None:
         fields = rename_authority_fields_for_source(
@@ -143,6 +182,24 @@ class RenamePlannerTests(unittest.TestCase):
 
         self.assertEqual(fields["path_authority"], "configured_media_root")
         self.assertEqual(fields["path_authority_status"], "ready")
+
+    def test_destination_outside_source_configured_root_requires_outside_authority(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            configured_season = root / "Original Show" / "Season 01"
+            configured_season.mkdir(parents=True)
+            source = configured_season / "Episode 01.mkv"
+            source.write_text("media", encoding="utf-8")
+            destination = root / "Renamed Show" / "Season 01" / "Renamed Show - S01E01.mkv"
+
+            rows = annotate_rename_plan_path_authority(
+                [{"source": source, "destination": destination, "sidecar_moves": []}],
+                [configured_season],
+            )
+
+        self.assertEqual(rows[0]["path_authority"], "outside_configured_roots")
+        self.assertEqual(rows[0]["path_authority_status"], "review")
+        self.assertIn(str(destination), rows[0]["path_authority_outside_paths"])
 
 
 if __name__ == "__main__":

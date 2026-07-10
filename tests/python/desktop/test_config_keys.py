@@ -215,6 +215,7 @@ class ConfigKeyRegistryTests(unittest.TestCase):
             config_keys.KEY_COORDINATOR_BIND_ADDRESS,
             config_keys.KEY_COORDINATOR_HEARTBEAT_TIMEOUT_MINS,
             config_keys.KEY_COORDINATOR_AUTH_TOKEN,
+            config_keys.KEY_NETWORK_RERUN_HANDOFF_ROOT,
             config_keys.KEY_WORKER_COORDINATOR_URL,
             config_keys.KEY_WORKER_NAME,
             config_keys.KEY_WORKER_AUTH_TOKEN,

@@ -974,12 +974,75 @@
     if (exportAuditRowsButton) exportAuditRowsButton.addEventListener("click", () => exportAuditRerunCsv());
   }
 
+  function reportsComponentCommandSelectors(component) {
+    const selectorsByComponent = {
+      failures: ["#failure-primary-action-button", "#failure-clear-confirm-button", "#failure-archive-confirm-button", "#failure-lifecycle-ack-button", "#failure-lifecycle-start-button", "#failure-lifecycle-resolve-confirm-button", "#failure-lifecycle-reopen-confirm-button"],
+      artifacts: ["#failure-artifact-cleanup-confirm-button"],
+      audit: ["#report-audit-ignore-selected-button", "#report-audit-export-rerun-csv-button"],
+      controls: ["#report-audit-start-button", "#report-audit-stop-button"],
+      sources: ["#report-audit-scan-selected-button", "#report-audit-scan-all-button", "#report-audit-start-button"],
+    };
+    return selectorsByComponent[component] || [];
+  }
+
+  function markReportsComponentFresh(component, payload = {}) {
+    const timestamp = String(payload.generated_at || payload._refresh?.completed_at || new Date().toISOString());
+    reportsState.componentFreshAt[component] = timestamp;
+    reportsComponentCommandSelectors(component).forEach((selector) => {
+      const button = document.querySelector(selector);
+      if (!button || button.dataset.reportsUnavailableDisabled !== "true") return;
+      button.disabled = false;
+      delete button.dataset.reportsUnavailableDisabled;
+    });
+    const page = document.querySelector('[data-page-panel="reports"]');
+    if (page) page.dataset.availability = "available";
+  }
+
+  function renderReportsUnavailable(component, reason = "Reports evidence is unavailable.") {
+    const lastFresh = String(reportsState.componentFreshAt[component] || "");
+    const historical = lastFresh
+      ? ` Historical rows remain visible from ${lastFresh}; they are not current evidence.`
+      : " No current evidence is available.";
+    const message = `${reason}${historical}`;
+    const statusIdsByComponent = {
+      failures: ["failure-status", "failure-resolution-group-status", "failure-resolution-detail-status", "failure-clear-status", "failure-archive-status", "failure-review-status", "report-triage-band-status"],
+      artifacts: ["failure-artifact-storage-status", "failure-artifact-cleanup-status"],
+      audit: ["audit-preview-status", "audit-review-status", "report-audit-export-status"],
+      controls: ["report-audit-launch-status", "report-progress-status"],
+      sources: ["report-audit-source-status", "report-audit-source-selection-status"],
+    };
+    (statusIdsByComponent[component] || ["report-triage-band-status"]).forEach((id) => setText(id, "Unavailable — historical only"));
+    if (component === "failures") {
+      reportsState.selectedFailureRowKey = "";
+      reportsState.selectedFailureRowKeys.clear();
+      reportsState.selectedFailureGroupKey = "";
+      setText("failure-summary", message);
+    } else if (component === "audit") {
+      reportsState.selectedAuditRowKey = "";
+      reportsState.selectedAuditRowKeys.clear();
+      setText("audit-summary", message);
+    }
+    reportsComponentCommandSelectors(component).forEach((selector) => {
+      const button = document.querySelector(selector);
+      if (!button) return;
+      if (!button.disabled) button.dataset.reportsUnavailableDisabled = "true";
+      button.disabled = true;
+    });
+    const page = document.querySelector('[data-page-panel="reports"]');
+    if (page) {
+      page.dataset.availability = "unavailable";
+      page.dataset.unavailableComponent = component;
+    }
+  }
+
   /**
    * Public namespace for the Reports page module.
    * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
    */
   window.mediaPipelineReportsView = {
     renderReports,
+    markReportsComponentFresh,
+    renderReportsUnavailable,
     renderReportTriage,
     renderReportInvestigation,
     activateQuickLink,

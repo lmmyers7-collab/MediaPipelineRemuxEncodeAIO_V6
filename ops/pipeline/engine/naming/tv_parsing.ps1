@@ -297,6 +297,111 @@ function Get-TVShowNameBeforeSeasonEpisodeTokens {
     return $show
 }
 
+function Get-TVShowNameBeforeOrdinalSeasonToken {
+    param([string]$BaseName)
+
+    if ([string]::IsNullOrWhiteSpace($BaseName)) { return "" }
+    $base = Remove-PriorityMarkersFromName ([System.IO.Path]::GetFileNameWithoutExtension($BaseName))
+    $wordPat = 'first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|\d+(?:st|nd|rd|th)'
+    $pattern = '(?i)^(?<show>.+?)(?<![A-Za-z0-9])(?:' + $wordPat + ')\s+(?:Season|Cour)\b'
+    $match = [regex]::Match($base, $pattern)
+    if (-not $match.Success) { return "" }
+    $show = Get-CleanTVOutputNamePart $match.Groups['show'].Value
+    if ([string]::IsNullOrWhiteSpace($show)) { return "" }
+    return $show
+}
+
+function Get-TVShowNameComparisonKey {
+    param([string]$Name)
+
+    if ([string]::IsNullOrWhiteSpace($Name)) { return "" }
+    $clean = Get-CleanTVOutputNamePart $Name
+    if ([string]::IsNullOrWhiteSpace($clean)) {
+        $clean = Remove-PriorityMarkersFromName $Name
+    }
+    $clean = $clean -replace '(?i)\blibrary\b', ' '
+    $clean = $clean -replace '[^A-Za-z0-9]+', ' '
+    $clean = ($clean -replace '\s+', ' ').Trim().ToLowerInvariant()
+    return $clean
+}
+
+function Add-TVDisallowedShowNameLabel {
+    param(
+        [hashtable]$Keys,
+        [string]$Label
+    )
+
+    if ($null -eq $Keys -or [string]::IsNullOrWhiteSpace($Label)) { return }
+    foreach ($candidate in @($Label, ($Label -replace '(?i)\blibrary\b', ' '))) {
+        $key = Get-TVShowNameComparisonKey $candidate
+        if (-not [string]::IsNullOrWhiteSpace($key)) {
+            $Keys[$key] = $true
+        }
+    }
+}
+
+function Get-TVDisallowedLibraryFallbackShowNameKeys {
+    param(
+        [string]$SourceRootPath = '',
+        [string]$LibraryName = '',
+        [string]$LibraryId = '',
+        [string]$LibraryDesignation = ''
+    )
+
+    $keys = @{}
+    foreach ($label in @('TV', 'Television', 'TV Shows', 'Shows', 'Series')) {
+        Add-TVDisallowedShowNameLabel -Keys $keys -Label $label
+    }
+
+    $isTvLibrary = [string]::Equals($LibraryDesignation, 'tv', [System.StringComparison]::OrdinalIgnoreCase)
+    if ($isTvLibrary -or -not [string]::IsNullOrWhiteSpace($SourceRootPath)) {
+        Add-TVDisallowedShowNameLabel -Keys $keys -Label $LibraryName
+        Add-TVDisallowedShowNameLabel -Keys $keys -Label $LibraryId
+        if (-not [string]::IsNullOrWhiteSpace($SourceRootPath)) {
+            Add-TVDisallowedShowNameLabel -Keys $keys -Label (Split-Path $SourceRootPath -Leaf)
+        }
+    }
+    return $keys
+}
+
+function Test-TVShowNameMatchesDisallowedLibraryFallback {
+    param(
+        [string]$ShowName,
+        [hashtable]$DisallowedShowNameKeys
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ShowName) -or $null -eq $DisallowedShowNameKeys) { return $false }
+    $key = Get-TVShowNameComparisonKey $ShowName
+    return (-not [string]::IsNullOrWhiteSpace($key) -and $DisallowedShowNameKeys.ContainsKey($key))
+}
+
+function Set-TVInfoLibraryFallbackParseError {
+    param(
+        $Info,
+        [string]$OriginalName
+    )
+
+    if ($null -eq $Info) { return $Info }
+    $showName = [string](Get-TVInfoField -TvInfo $Info -Name 'ShowName' -Default '')
+    $Info.IsReliable = $false
+    $Info.ParseMode = 'library-fallback-blocked'
+    $Info.ParseError = "TV show name resolved to library/root label '$showName' for '$OriginalName'. Put the file under a show folder or include the show title before the season/episode token."
+    return $Info
+}
+
+function Confirm-TVInfoShowNameAllowed {
+    param(
+        $Info,
+        [hashtable]$DisallowedShowNameKeys,
+        [string]$OriginalName
+    )
+
+    if ($Info -and $Info.IsReliable -and (Test-TVShowNameMatchesDisallowedLibraryFallback -ShowName ([string]$Info.ShowName) -DisallowedShowNameKeys $DisallowedShowNameKeys)) {
+        return (Set-TVInfoLibraryFallbackParseError -Info $Info -OriginalName $OriginalName)
+    }
+    return $Info
+}
+
 function Test-TVFolderEpisodeSequenceSupportsCandidate {
     param(
         $File,
@@ -352,7 +457,13 @@ function Get-TVAggressiveEpisodeFromName {
 }
 
 function Get-TVInfoFromFile {
-    param($file)
+    param(
+        $file,
+        [string]$SourceRootPath = '',
+        [string]$LibraryName = '',
+        [string]$LibraryId = '',
+        [string]$LibraryDesignation = ''
+    )
     $name     = Remove-PriorityMarkersFromName $file.Name
     $baseName = [System.IO.Path]::GetFileNameWithoutExtension($name)
     $folderSeasonInfo = Get-TVFolderSeasonInfo $file.DirectoryName
@@ -376,6 +487,7 @@ function Get-TVInfoFromFile {
         Normalize-TVShowFolderName (Split-Path $showFolder -Leaf)
     }
     if (-not $fallbackShow) { $fallbackShow = "Unknown Show" }
+    $disallowedShowNameKeys = Get-TVDisallowedLibraryFallbackShowNameKeys -SourceRootPath $SourceRootPath -LibraryName $LibraryName -LibraryId $LibraryId -LibraryDesignation $LibraryDesignation
     $info = @{
         ShowName     = $fallbackShow
         Season       = 0
@@ -407,7 +519,7 @@ function Get-TVInfoFromFile {
         }
         $info.IsReliable = $true
         $info.ParseMode  = if ($info.EpisodeEnd) { "sxxexx-multi" } else { "sxxexx" }
-        return $info
+        return (Confirm-TVInfoShowNameAllowed -Info $info -DisallowedShowNameKeys $disallowedShowNameKeys -OriginalName $name)
     }
     if ($name -match '(?i)(?<!\d)(\d{1,2})x(\d{1,3})(?!\d)') {
         $info.Season  = [int]$Matches[1]; $info.Episode = [int]$Matches[2]
@@ -424,7 +536,7 @@ function Get-TVInfoFromFile {
         }
         $info.IsReliable = $true
         $info.ParseMode  = "nxm"
-        return $info
+        return (Confirm-TVInfoShowNameAllowed -Info $info -DisallowedShowNameKeys $disallowedShowNameKeys -OriginalName $name)
     }
 
     $filenameSeasonEpisode = Get-TVLooseSeasonEpisodeFromName $baseName
@@ -441,7 +553,7 @@ function Get-TVInfoFromFile {
         }
         $info.IsReliable = $true
         $info.ParseMode  = "filename-$($filenameSeasonEpisode.Mode)"
-        return $info
+        return (Confirm-TVInfoShowNameAllowed -Info $info -DisallowedShowNameKeys $disallowedShowNameKeys -OriginalName $name)
     }
 
     if ($folderSeasonInfo) {
@@ -465,7 +577,7 @@ function Get-TVInfoFromFile {
             }
             $info.IsReliable = $true
             $info.ParseMode  = $epMode
-            return $info
+            return (Confirm-TVInfoShowNameAllowed -Info $info -DisallowedShowNameKeys $disallowedShowNameKeys -OriginalName $name)
         }
 
         if ($script:AggressiveEpisodeParsing) {
@@ -474,7 +586,7 @@ function Get-TVInfoFromFile {
                 $info.Episode    = [int]$looseSeasonEpisode.Episode
                 $info.IsReliable = $true
                 $info.ParseMode  = "aggressive-folder-season+$($looseSeasonEpisode.Mode)"
-                return $info
+                return (Confirm-TVInfoShowNameAllowed -Info $info -DisallowedShowNameKeys $disallowedShowNameKeys -OriginalName $name)
             }
 
             $looseEpisode = Get-TVAggressiveEpisodeFromName -BaseName $baseName -File $file
@@ -482,7 +594,7 @@ function Get-TVInfoFromFile {
                 $info.Episode    = [int]$looseEpisode.Episode
                 $info.IsReliable = $true
                 $info.ParseMode  = "aggressive-folder-season+$($looseEpisode.Mode)"
-                return $info
+                return (Confirm-TVInfoShowNameAllowed -Info $info -DisallowedShowNameKeys $disallowedShowNameKeys -OriginalName $name)
             }
         }
 
@@ -518,7 +630,7 @@ function Get-TVInfoFromFile {
         $info.ShowName   = $fallbackShow
         $info.IsReliable = $true
         $info.ParseMode  = 'filename-season-prefix'
-        return $info
+        return (Confirm-TVInfoShowNameAllowed -Info $info -DisallowedShowNameKeys $disallowedShowNameKeys -OriginalName $name)
     }
 
     # ② Ordinal season embedded in filename with no season folder above,
@@ -531,13 +643,21 @@ function Get-TVInfoFromFile {
         if ($null -ne $episode) {
             $info.Season     = $ordinalSeason
             $info.Episode    = [int]$episode
+            $explicitShow = Get-TVShowNameBeforeOrdinalSeasonToken $baseName
+            if (-not [string]::IsNullOrWhiteSpace($explicitShow)) {
+                $info.ShowName = $explicitShow
+            }
             $info.IsReliable = $true
             $info.ParseMode  = 'ordinal-season'
-            return $info
+            return (Confirm-TVInfoShowNameAllowed -Info $info -DisallowedShowNameKeys $disallowedShowNameKeys -OriginalName $name)
         }
         # Season resolved but episode unknown — record season so the error
         # message can give a targeted hint.
         $info.Season     = $ordinalSeason
+        $explicitShow = Get-TVShowNameBeforeOrdinalSeasonToken $baseName
+        if (-not [string]::IsNullOrWhiteSpace($explicitShow)) {
+            $info.ShowName = $explicitShow
+        }
         $info.ParseError = "Ordinal season ($ordinalSeason) found in '$name' but no episode number could be extracted. Add an Episode N, Ep N, E01, or bare trailing number (e.g. '- 03') to the filename."
         return $info
     }
@@ -550,7 +670,7 @@ function Get-TVInfoFromFile {
             $info.ShowName   = $fallbackShow
             $info.IsReliable = $true
             $info.ParseMode  = "aggressive-$($looseSeasonEpisode.Mode)"
-            return $info
+            return (Confirm-TVInfoShowNameAllowed -Info $info -DisallowedShowNameKeys $disallowedShowNameKeys -OriginalName $name)
         }
 
         $looseEpisode = Get-TVAggressiveEpisodeFromName -BaseName $baseName -File $file
@@ -572,7 +692,7 @@ function Get-TVInfoFromFile {
             }
             $info.IsReliable = $true
             $info.ParseMode  = "aggressive-default-season+$($looseEpisode.Mode)"
-            return $info
+            return (Confirm-TVInfoShowNameAllowed -Info $info -DisallowedShowNameKeys $disallowedShowNameKeys -OriginalName $name)
         }
     }
 

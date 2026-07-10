@@ -104,6 +104,51 @@ class AuditSourcesTests(LocalApiHttpTestMixin, unittest.TestCase):
             self.assertEqual(by_path[str(source_a)]["sidecar_file_count"], 2)
             self.assertEqual(by_path[str(source_b)]["folder_count"], 3)
 
+    def test_audit_source_registry_corruption_blocks_writes_and_scans(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            source = root / "Library"
+            source.mkdir()
+            resolved = _resolved(root)
+            registry_path = root / "State" / "Audit" / "audit_sources.json"
+            registry_path.parent.mkdir(parents=True, exist_ok=True)
+            registry_path.write_text("{not json", encoding="utf-8")
+            original_registry = registry_path.read_text(encoding="utf-8")
+
+            payload = audit_source_state_payload(resolved)
+            add_result = update_audit_sources(resolved, {"action": "add", "path": str(source)})
+            scan_result = scan_audit_sources(resolved, {"scope": "all"})
+            persisted_registry = registry_path.read_text(encoding="utf-8")
+
+        self.assertTrue(payload["available"])
+        self.assertFalse(payload["registry_valid"])
+        self.assertIn("Audit source registry is invalid", payload["registry_error"])
+        self.assertFalse(add_result["ok"])
+        self.assertEqual(add_result["severity"], "error")
+        self.assertFalse(scan_result["ok"])
+        self.assertEqual(scan_result["severity"], "error")
+        self.assertEqual(persisted_registry, original_registry)
+
+    def test_audit_source_scan_max_entries_counts_non_media_files(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            source = root / "Library"
+            source.mkdir()
+            for name in ["a.txt", "b.txt", "c.txt"]:
+                (source / name).write_text("not media", encoding="utf-8")
+            resolved = _resolved(root)
+
+            add_result = update_audit_sources(resolved, {"action": "add", "path": str(source)})
+            scan_result = scan_audit_sources(resolved, {"scope": "all", "max_entries": 2})
+
+        self.assertTrue(add_result["ok"])
+        self.assertTrue(scan_result["ok"])
+        self.assertEqual(scan_result["severity"], "warning")
+        scan = scan_result["data"]["scan"]
+        self.assertEqual(scan["status"], "partial")
+        self.assertTrue(scan["counts_truncated"])
+        self.assertIn("Stopped after max_entries=2.", scan_result["warnings"])
+
     def test_completed_audit_sync_updates_selected_source_metrics(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

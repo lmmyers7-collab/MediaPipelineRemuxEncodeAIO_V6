@@ -214,7 +214,12 @@ function Get-MediaPipelineFailureStatePreflight {
 function Get-MediaPipelineTvParsePreflight {
     param(
         [Parameter(Mandatory)] $File,
-        [bool] $IsTV = $false
+        [bool] $IsTV = $false,
+        [string] $LibraryProfileId = '',
+        [string] $SourceRootPath = '',
+        [string] $LibraryName = '',
+        [string] $LibraryId = '',
+        [string] $LibraryDesignation = ''
     )
 
     if (-not $IsTV) {
@@ -222,7 +227,32 @@ function Get-MediaPipelineTvParsePreflight {
         return New-MediaPipelineProcessPreflightDecision -Checks @($check)
     }
 
-    $tvInfo = Get-TVInfoFromFile $File
+    $effectiveSourceRootPath = [string]$SourceRootPath
+    $effectiveLibraryName = [string]$LibraryName
+    $effectiveLibraryId = [string]$LibraryId
+    $effectiveLibraryDesignation = [string]$LibraryDesignation
+    if (([string]::IsNullOrWhiteSpace($effectiveSourceRootPath) -or
+            [string]::IsNullOrWhiteSpace($effectiveLibraryName) -or
+            [string]::IsNullOrWhiteSpace($effectiveLibraryId) -or
+            [string]::IsNullOrWhiteSpace($effectiveLibraryDesignation)) -and
+        (Get-Command -Name Get-MediaPipelineLibraryProfileEvidenceForPath -ErrorAction SilentlyContinue)) {
+        try {
+            $libraryEvidence = Get-MediaPipelineLibraryProfileEvidenceForPath -SourcePath ([string]$File.FullName) -LibraryProfileId ([string]$LibraryProfileId)
+            if ($libraryEvidence) {
+                if ([string]::IsNullOrWhiteSpace($effectiveSourceRootPath)) { $effectiveSourceRootPath = [string]$libraryEvidence['source_root'] }
+                if ([string]::IsNullOrWhiteSpace($effectiveLibraryName)) { $effectiveLibraryName = [string]$libraryEvidence['library_name'] }
+                if ([string]::IsNullOrWhiteSpace($effectiveLibraryId)) { $effectiveLibraryId = [string]$libraryEvidence['library_id'] }
+                if ([string]::IsNullOrWhiteSpace($effectiveLibraryDesignation)) { $effectiveLibraryDesignation = [string]$libraryEvidence['designation'] }
+            }
+        } catch {}
+    }
+
+    $tvInfo = Get-TVInfoFromFile `
+        -file $File `
+        -SourceRootPath $effectiveSourceRootPath `
+        -LibraryName $effectiveLibraryName `
+        -LibraryId $effectiveLibraryId `
+        -LibraryDesignation $effectiveLibraryDesignation
     if ($tvInfo -and -not $tvInfo.IsReliable) {
         $renameSuggestion = Get-TVParseRenameSuggestion -File $File -TvInfo $tvInfo
         $registration = New-MediaPipelinePreflightFailureRegistration -Classification 'permanent' -Reason ([string]$tvInfo.ParseError) -Stage 'tv-parse' -SuggestedRename $renameSuggestion

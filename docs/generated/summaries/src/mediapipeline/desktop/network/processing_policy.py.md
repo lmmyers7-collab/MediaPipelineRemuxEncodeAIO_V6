@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/processing_policy.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-07-02
+last_modified: 2026-07-05
 last_reviewed: 2026-06-14
-sha256: 39948afc1eda3088d31891302bf7e4c02c3f0739e8e5fdb23e3c6134165c8761
+sha256: 281c25e5881408521873c78a9d4abf8132fa2155c73902381f233ac0ae8e6b46
 ---
 # `src/mediapipeline/desktop/network/processing_policy.py`
 

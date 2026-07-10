@@ -227,7 +227,8 @@ class WebViewCompletedTableTitleCellTests(unittest.TestCase):
               row_key: "row-csv-rerun-encode",
               route: "csv_rerun",
               route_label: "CSV_RERUN",
-              route_decision_summary: "Encode because source bitrate exceeded the configured threshold.",
+              route_display_category: "encode",
+              route_display_final_route_label: "ENCODE",
             });
             module.renderCompletedTableRows({
               tbodyId: "completed-rows",
@@ -242,13 +243,37 @@ class WebViewCompletedTableTitleCellTests(unittest.TestCase):
             if (!csvEncodeRouteChip || csvEncodeRouteChip.dataset.route !== "encode") {
               throw new Error(`CSV rerun encode route chip was not color-categorized: ${csvEncodeRouteChip && JSON.stringify(csvEncodeRouteChip.dataset)}`);
             }
+            if (!csvEncodeRouteChip.title.includes("Final route: ENCODE.")) {
+              throw new Error(`CSV rerun encode route chip omitted final route tooltip: ${csvEncodeRouteChip.title}`);
+            }
+
+            const csvRerunRemuxRow = Object.assign({}, movieRow, {
+              row_key: "row-csv-rerun-remux",
+              route: "csv_rerun",
+              route_label: "CSV_RERUN",
+              route_display_category: "remux",
+              route_display_final_route_label: "REMUX",
+            });
+            module.renderCompletedTableRows({
+              tbodyId: "completed-rows",
+              legendId: "completed-table-legend",
+              rows: [csvRerunRemuxRow],
+              sourceRows: [],
+              emptyMessage: "No rows",
+              legendLabel: "Current output rows",
+              rowLabel: "Current output row",
+            });
+            const csvRemuxRouteChip = tbody.children[0].children[2].children[0];
+            if (!csvRemuxRouteChip || csvRemuxRouteChip.dataset.route !== "remux") {
+              throw new Error(`CSV rerun remux route chip was not color-categorized: ${csvRemuxRouteChip && JSON.stringify(csvRemuxRouteChip.dataset)}`);
+            }
 
             const csvRerunFallbackRow = Object.assign({}, movieRow, {
               row_key: "row-csv-rerun-fallback",
               route: "csv_rerun",
               route_label: "CSV_RERUN",
-              route_reason_code: "oversized_encode_remux_fallback",
-              route_reason: "Remux fallback after oversized encode; encoded output exceeded configured growth limit.",
+              route_display_category: "remux-fallback",
+              route_display_final_route_label: "REMUX",
             });
             module.renderCompletedTableRows({
               tbodyId: "completed-rows",
@@ -262,6 +287,9 @@ class WebViewCompletedTableTitleCellTests(unittest.TestCase):
             const csvFallbackRouteChip = tbody.children[0].children[2].children[0];
             if (!csvFallbackRouteChip || csvFallbackRouteChip.dataset.route !== "remux-fallback") {
               throw new Error(`CSV rerun fallback route chip was not split-state: ${csvFallbackRouteChip && JSON.stringify(csvFallbackRouteChip.dataset)}`);
+            }
+            if (!csvFallbackRouteChip.title.includes("Final route: REMUX.")) {
+              throw new Error(`CSV rerun fallback route chip omitted final route tooltip: ${csvFallbackRouteChip.title}`);
             }
 
             state.completedSizeColumnMode = "bitrate";

@@ -1,5 +1,8 @@
 (function () {
   const RERUN_PREVIEW_ROUTE = "/api/rerun/preview";
+  const RERUN_NETWORK_PREVIEW_ROUTE = "/api/rerun/network-preview";
+  const RERUN_NETWORK_START_DRY_RUN_ROUTE = "/api/rerun/network/start-dry-run";
+  const RERUN_NETWORK_START_ROUTE = "/api/rerun/network/start";
   const RERUN_START_ROUTE = "/api/rerun/start";
   const RERUN_RESULTS_ROUTE = "/api/rerun/results?limit=24";
   const RERUN_CONTROL_ROUTE = "/api/rerun/control";
@@ -81,6 +84,18 @@
 
     async function postRerunPreview(request) {
       return requireApiPost(RERUN_PREVIEW_ROUTE)("/api/rerun/preview", request);
+    }
+
+    async function postRerunNetworkPreview(request) {
+      return requireApiPost(RERUN_NETWORK_PREVIEW_ROUTE)("/api/rerun/network-preview", request);
+    }
+
+    async function postRerunNetworkStartDryRun(request) {
+      return requireApiPost(RERUN_NETWORK_START_DRY_RUN_ROUTE)("/api/rerun/network/start-dry-run", request);
+    }
+
+    async function postRerunNetworkStart(request) {
+      return requireApiPost(RERUN_NETWORK_START_ROUTE)("/api/rerun/network/start", request);
     }
 
     async function postRerunStart(request) {
@@ -246,11 +261,26 @@
     function rerunIssueDetailLines(item = {}, issue = "") {
       const family = rerunIssueFamily(issue);
       const severity = rerunSeverity(item);
+      const destination = item.destination_state && typeof item.destination_state === "object" ? item.destination_state : {};
+      const destinationResult = item.network_destination_policy_result && typeof item.network_destination_policy_result === "object"
+        ? item.network_destination_policy_result
+        : destination.destination_policy_result && typeof destination.destination_policy_result === "object"
+        ? destination.destination_policy_result
+        : {};
+      const reducer = item.network_reducer_result && typeof item.network_reducer_result === "object" ? item.network_reducer_result : {};
+      const worker = item.network_worker_result && typeof item.network_worker_result === "object" ? item.network_worker_result : {};
       return [
         `Issue: ${issue || "uncategorized"}`,
         `Label: ${rerunIssueLabel(issue)}`,
         `Family: ${family}`,
         `Severity: ${severity}`,
+        item.queue_source === "network_csv_rerun" ? `Network batch: ${item.batch_id || item.manifest_status || "unknown"}` : "",
+        item.queue_source === "network_csv_rerun" ? `Worker: ${worker.worker_id || worker.worker_name || item.active_claim?.worker_id || "not recorded"}` : "",
+        item.queue_source === "network_csv_rerun" ? `Reducer: ${reducer.classification || item.queue_status || "not reduced"}` : "",
+        destinationResult.status || destinationResult.action
+          ? `Destination policy: ${[destinationResult.status, destinationResult.action].filter(Boolean).join(" / ")}`
+          : "",
+        destinationResult.message ? `Destination detail: ${destinationResult.message}` : "",
         item.rerun_rule_label ? `Rule: ${item.rerun_rule_label}` : "",
         item.rerun_rule_reason ? `Rule detail: ${item.rerun_rule_reason}` : "",
         item.blocking_reason ? `Blocking detail: ${item.blocking_reason}` : "",
@@ -262,6 +292,8 @@
         item.original_source_path || item.source_path ? `Source: ${item.original_source_path || item.source_path}` : "",
         item.output_path || item.verified_output_path || item.stage_path ? `Output: ${item.output_path || item.verified_output_path || item.stage_path}` : "",
         item.final_output_path || item.destination_path ? `Final: ${item.final_output_path || item.destination_path}` : "",
+        item.pending_publish_manifest_path ? `Pending manifest: ${item.pending_publish_manifest_path}` : "",
+        item.published_path ? `Published: ${item.published_path}` : "",
       ].filter(Boolean);
     }
 
@@ -380,6 +412,45 @@
       const rows = Array.isArray(manifest?.rows) ? manifest.rows : [];
       const row = rows.find((item) => String(item?.row_key || "").trim());
       return String(row?.row_key || "").trim();
+    }
+
+    function queueRowSourceLines(item = {}) {
+      const lines = [compactPath(item.original_source_path || item.source_path)];
+      if (item.queue_source === "network_csv_rerun") {
+        lines.push(
+          [
+            "Network CSV rerun",
+            item.batch_id ? `batch ${item.batch_id}` : "",
+            item.network_rerun_row_key ? `row ${item.network_rerun_row_key}` : "",
+          ].filter(Boolean).join(" | ")
+        );
+      }
+      return lines.filter(Boolean).join("\n");
+    }
+
+    function queueRowOutputLines(item = {}) {
+      const destination = item.destination_state && typeof item.destination_state === "object" ? item.destination_state : {};
+      const destinationResult = item.network_destination_policy_result && typeof item.network_destination_policy_result === "object"
+        ? item.network_destination_policy_result
+        : destination.destination_policy_result && typeof destination.destination_policy_result === "object"
+        ? destination.destination_policy_result
+        : {};
+      const lines = [
+        compactPath(item.output_path || item.verified_output_path || item.stage_path),
+        compactPath(item.final_output_path || item.destination_path),
+      ];
+      if (item.queue_source === "network_csv_rerun") {
+        const policy = [destinationResult.status, destinationResult.action].filter(Boolean).join(" / ");
+        if (policy) lines.push(`Destination policy: ${policy}`);
+        if (destinationResult.message) lines.push(destinationResult.message);
+        if (item.pending_publish_manifest_path || destinationResult.pending_publish_manifest_path) {
+          lines.push(`Pending manifest: ${compactPath(item.pending_publish_manifest_path || destinationResult.pending_publish_manifest_path)}`);
+        }
+        if (item.published_path || destinationResult.published_path) {
+          lines.push(`Published: ${compactPath(item.published_path || destinationResult.published_path)}`);
+        }
+      }
+      return lines.filter(Boolean).join("\n\n");
     }
 
     function latestManifestRowKey(payload = lastRerunResultsPayload) {
@@ -534,16 +605,13 @@
       }
       rows.slice(0, 200).forEach((item) => {
         const row = document.createElement("tr");
-        row.dataset.queueSource = "csv_rerun";
+        row.dataset.queueSource = String(item.queue_source || "csv_rerun");
         row.dataset.rerunStatus = String(item.queue_status || "");
         row.dataset.rerunSeverity = rerunSeverity(item);
         row.dataset.status = rerunStatusKey(item);
         renderRerunStateBadge(appendCell(row, ""), item);
-        appendCell(row, compactPath(item.original_source_path || item.source_path));
-        appendCell(row, [
-          compactPath(item.output_path || item.verified_output_path || item.stage_path),
-          compactPath(item.final_output_path || item.destination_path),
-        ].filter(Boolean).join("\n\n"));
+        appendCell(row, queueRowSourceLines(item));
+        appendCell(row, queueRowOutputLines(item));
         const issueCell = document.createElement("td");
         renderRerunIssueChips(issueCell, item);
         row.appendChild(issueCell);
@@ -563,8 +631,9 @@
       const countText = Object.keys(counts).sort().map((key) => `${key} ${counts[key]}`).join("; ");
       statusText("rerun-history-summary", [
         "CSV rerun queue-state is backend-owned and rendered from /api/rerun/results.",
-        "Rows shown here are not normal /api/pipeline/start queue rows.",
+        "Local and Network CSV rerun rows shown here are not normal /api/pipeline/start queue rows.",
         countText ? `Status counts: ${countText}.` : "No CSV rerun rows loaded.",
+        lastRerunResultsPayload?.queue_state?.contains_network_csv_rerun ? "Network CSV rerun reducer and destination-policy evidence is backend-authored." : "",
       ].join("\n"));
     }
 
@@ -818,6 +887,10 @@
       }
     }
 
+    async function checkNetworkRerunStartDryRun() {
+      return callRerunWorkflowHelper("checkNetworkRerunStartDryRunFromForm", RERUN_NETWORK_START_DRY_RUN_ROUTE);
+    }
+
     async function startRerunFromForm(options = {}) {
       if (queueRerunBusy) {
         statusText("rerun-queue-status", "Busy");
@@ -845,6 +918,8 @@
       document.__queueRerunEventsBound = true;
       [
         "rerun-start-csv-path",
+        "rerun-start-target-mode",
+        "rerun-network-minimum-workers",
         "rerun-start-execution-mode",
         "rerun-start-window-size",
         "rerun-start-destination-mode",
@@ -891,6 +966,9 @@
         statusText("rerun-queue-detail", error instanceof Error ? error.message : String(error));
       }));
       wireClick("rerun-start-button", () => startRerunFromForm({ dry_run: false }));
+      wireClick("rerun-network-start-dry-run-button", () => checkNetworkRerunStartDryRun().catch((error) => {
+        statusText("rerun-queue-detail", error instanceof Error ? error.message : String(error));
+      }));
       wireClick("rerun-results-refresh-button", () => refreshRerunResults().catch((error) => {
         statusText("rerun-queue-detail", error instanceof Error ? error.message : String(error));
       }));
@@ -912,6 +990,9 @@
 
     return {
       RERUN_PREVIEW_ROUTE,
+      RERUN_NETWORK_PREVIEW_ROUTE,
+      RERUN_NETWORK_START_DRY_RUN_ROUTE,
+      RERUN_NETWORK_START_ROUTE,
       RERUN_START_ROUTE,
       RERUN_RESULTS_ROUTE,
       RERUN_CONTROL_ROUTE,
@@ -922,6 +1003,9 @@
       DIAGNOSTICS_OPEN_ROUTE,
       COMMAND_HISTORY_ROUTE,
       postRerunPreview,
+      postRerunNetworkPreview,
+      postRerunNetworkStartDryRun,
+      postRerunNetworkStart,
       postRerunStart,
       postRerunControlStopAfterCurrent,
       postRerunControlPause,
@@ -949,6 +1033,7 @@
       promoteRerunRowToPending,
       requestRerunContinue,
       stopRerunAfterCurrent,
+      checkNetworkRerunStartDryRun,
       startRerunFromForm,
       setQueueRerunBusy,
       updateQueueRerunButtonState,

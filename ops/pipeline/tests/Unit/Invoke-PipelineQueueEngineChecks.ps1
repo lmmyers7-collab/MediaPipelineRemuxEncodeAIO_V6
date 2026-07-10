@@ -218,7 +218,13 @@ function Already-Processed {
     return ([string]$File.Name -eq 'Already.mkv')
 }
 function Get-TVInfoFromFile {
-    param($File)
+    param(
+        $File,
+        [string] $SourceRootPath = '',
+        [string] $LibraryName = '',
+        [string] $LibraryId = '',
+        [string] $LibraryDesignation = ''
+    )
     return [pscustomobject]@{
         IsReliable = $true
         ShowName = 'Show'
@@ -1010,6 +1016,7 @@ function Invoke-PerRoundUnexpectedExceptionContinuousRetryCheck {
 Invoke-PerRoundUnexpectedExceptionContinuousRetryCheck
 
 $mainScriptText = Get-Content -LiteralPath (Join-Path $pipelineRoot 'entrypoints\MediaPipeline.ps1') -Raw
+$nativeScriptText = Get-Content -LiteralPath (Join-Path $pipelineRoot 'engine\shared\native.ps1') -Raw
 $workerResultText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\process\worker_result.ps1') -Raw
 Assert-True ($mainScriptText -match '\[string\]\$WorkerResultPath\s*=\s*""') 'Worker-child startup should expose WorkerResultPath.'
 Assert-True ($mainScriptText -match 'function Write-MediaPipelineEarlyWorkerChildFailureResult') 'Worker-child startup should define an early result writer for config/bootstrap failures.'
@@ -1017,6 +1024,8 @@ Assert-True ($mainScriptText -match 'CONFIG_SCHEMA_INVALID') 'Config schema fail
 Assert-True ($mainScriptText -match '(?i)worker_result\.ps1') 'Main script should load the worker-child result writer module.'
 Assert-True ($mainScriptText -match 'AllowSubtitleHelperFallback') 'ASS helper self-check should be gated by AllowSubtitleHelperFallback.'
 Assert-True ($mainScriptText -match 'Subtitle helper self-check failed[\s\S]+exit 76') 'ASS helper self-check failure should block startup with exit code 76 when fallback is disabled.'
+Assert-True ($mainScriptText -match 'Invoke-PythonToolCommand\s+-ArgumentList @\(\$assToSrtScript\)\s+-TimeoutSeconds 15\s+-Stage ''subtitle-helper-selfcheck''\s+-SuccessExitCodes @\(0, 2\)') 'ASS helper self-check should classify the intentional no-argument exit code as successful telemetry.'
+Assert-True ($nativeScriptText -match 'SuccessExitCodes' -and $nativeScriptText -match '\$isExpectedExitCode' -and $nativeScriptText -match 'Status \$\(if \(\$isExpectedExitCode\) \{ ''succeeded'' \} else \{ ''failed'' \}\)') 'Native tool events should report configured expected exit codes as succeeded.'
 Assert-True ($workerResultText -match 'function Write-MediaPipelineWorkerChildResult') 'Worker result module should define the worker-child result writer.'
 Assert-True ($workerResultText -match 'if \(-not \$WorkerChild -or \[string\]::IsNullOrWhiteSpace\(\$WorkerResultPath\)\)') 'Worker result writer should require WorkerResultPath before writing child results.'
 Assert-True ($workerResultText -match 'SchemaVersion\s+=\s+''local_worker_result\.v1''') 'Worker-child result should have a versioned schema.'

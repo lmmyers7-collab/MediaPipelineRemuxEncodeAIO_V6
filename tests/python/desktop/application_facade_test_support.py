@@ -440,6 +440,7 @@ def exercise_local_api_route_workflow() -> SimpleNamespace:
                     "use_pipeline_naming_preview": False,
                     "selected_sources": [str(media)],
                     "confirm_apply": True,
+                    "preview_fingerprint": rename_payload["preview_fingerprint"],
                 },
                 token="workflow-token",
             )

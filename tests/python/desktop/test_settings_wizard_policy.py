@@ -635,8 +635,20 @@ class SettingsWizardPolicyTests(unittest.TestCase):
             self.assertFalse(tv_output.exists())
             self.assertFalse(scratch.exists())
 
-            result = save_settings_wizard(facade, resolved, {"wizard": wizard, "confirm_save": True})
+            preview = preview_settings_wizard(facade, resolved, {"wizard": wizard})
+            missing_confirmation = save_settings_wizard(facade, resolved, {"wizard": wizard, "confirm_save": True})
+            result = save_settings_wizard(
+                facade,
+                resolved,
+                {
+                    "wizard": wizard,
+                    "confirm_save": True,
+                    "review_confirmation": preview.data["review_confirmation"],
+                },
+            )
 
+            self.assertFalse(missing_confirmation.ok)
+            self.assertIn("review_confirmation", missing_confirmation.message)
             self.assertTrue(result.ok, "\n".join(result.errors))
             self.assertTrue(resolved.config_path.exists())
             self.assertTrue(output_root.is_dir())
@@ -739,6 +751,18 @@ class SettingsWizardPolicyTests(unittest.TestCase):
             def __init__(self) -> None:
                 self.requests: list[dict[str, object]] = []
 
+            def preview_settings_patch(self, _resolved: ResolvedPaths, request: dict[str, object]) -> CommandResult:
+                return CommandResult(
+                    command="settings.preview_patch",
+                    ok=True,
+                    message="previewed",
+                    severity="info",
+                    data={
+                        "changed_keys": sorted(request["changes"]),
+                        "review_confirmation": {"preview_id": "wizard-preview-1"},
+                    },
+                )
+
             def save_settings_patch(self, _resolved: ResolvedPaths, request: dict[str, object]) -> CommandResult:
                 self.requests.append(request)
                 return CommandResult(
@@ -767,6 +791,7 @@ class SettingsWizardPolicyTests(unittest.TestCase):
                     },
                 },
                 "confirm_save": True,
+                "review_confirmation": {"preview_id": "wizard-preview-1"},
             }
             result = save_settings_wizard(facade, resolved, request)
 

@@ -18,6 +18,7 @@ from mediapipeline.core.validation.boundary import ValidationFailure, validate_a
 from mediapipeline.desktop.api.command_journal_policy import bounded_command_evidence  # noqa: E402
 from mediapipeline.desktop.api.handler_policy import should_record_validation_failure_journal  # noqa: E402
 from mediapipeline.desktop.api.routes_command import POST_ROUTE_HANDLERS  # noqa: E402
+from mediapipeline.desktop.api.contract import LOCAL_API_ROUTE_CONTRACT  # noqa: E402
 
 
 FIXTURE_ROOT = REPO_ROOT / "tests" / "fixtures" / "source_media"
@@ -31,6 +32,16 @@ def _source_media_payload() -> dict:
 
 
 class ApiCommandContractsTests(unittest.TestCase):
+    def test_queue_priority_position_is_in_canonical_route_contract(self) -> None:
+        route = next(
+            item
+            for item in LOCAL_API_ROUTE_CONTRACT
+            if item.get("method") == "POST" and item.get("path") == "/api/queue/priority"
+        )
+
+        self.assertIn("position", route["request_keys"])
+        self.assertEqual(validate_api_payload("/api/queue/priority", {"path": "C:/Media/Movie.mkv", "position": 2})["position"], 2)
+
     def test_every_post_command_route_has_a_contract_model(self) -> None:
         self.assertEqual(sorted(COMMAND_ROUTE_PAYLOAD_MODELS), sorted(POST_ROUTE_HANDLERS))
         self.assertEqual(sorted(COMMAND_ROUTE_METHODS), sorted(POST_ROUTE_HANDLERS))
@@ -236,7 +247,7 @@ class ApiCommandContractsTests(unittest.TestCase):
                 "future_rule": True,
             },
             "/api/backend/shutdown": {"force_active_work_shutdown": True, "token": "client-owned"},
-            "/api/rename/apply": {"paths": [], "selected_sources": [], "confirm_apply": True, "selected_ids": ["1"]},
+            "/api/rename/apply": {"paths": [], "selected_sources": [], "confirm_apply": True, "preview_fingerprint": "fp", "selected_ids": ["1"]},
             "/api/rename/undo": {
                 "undo_manifest": r"C:\State\RenameUndo\rename-undo.json",
                 "confirm_undo": True,
@@ -253,7 +264,7 @@ class ApiCommandContractsTests(unittest.TestCase):
             "/api/settings/save-patch": {"changes": {}, "confirm_save": True, "values": {}},
             "/api/settings/import-psd1-preview": {"path": r"C:\Media\Movie.mkv"},
             "/api/settings/import-psd1": {"confirm_import": True, "path": r"C:\Media\Movie.mkv"},
-            "/api/settings/wizard/save": {"wizard": {}, "confirm_save": True, "values": {}},
+            "/api/settings/wizard/save": {"wizard": {}, "confirm_save": True, "review_confirmation": {}, "values": {}},
             "/api/schedule/preview": {"enabled": True, "values": {}},
             "/api/schedule/save": {"enabled": True, "confirm_save": True, "values": {}},
             "/api/maintenance/release-dry-run": {"destination_root": "C:/Deploy", "output_root": "C:/Other"},
@@ -320,6 +331,20 @@ class ApiCommandContractsTests(unittest.TestCase):
 
     def test_high_risk_mutation_routes_accept_known_fields_only(self) -> None:
         self.assertEqual(validate_api_payload("/api/pipeline/start", {"mode": "once"}), {"mode": "once"})
+        for payload in ({}, {"mode": None}, {"mode": ""}, {"mode": "unsupported"}):
+            with self.subTest(pipeline_start=payload), self.assertRaises(ValidationFailure):
+                validate_api_payload("/api/pipeline/start", payload)
+        for confirm in (None, False, "true", 1):
+            payload = {"action": "kill"}
+            if confirm is not None:
+                payload["confirm_force_stop"] = confirm
+            with self.subTest(confirm_force_stop=confirm), self.assertRaises(ValidationFailure):
+                validate_api_payload("/api/pipeline/control", payload)
+        self.assertEqual(
+            validate_api_payload("/api/pipeline/control", {"action": "kill", "confirm_force_stop": True}),
+            {"action": "kill", "confirm_force_stop": True},
+        )
+        self.assertEqual(validate_api_payload("/api/pipeline/control", {"action": "pause"}), {"action": "pause"})
         self.assertEqual(
             validate_api_payload("/api/audit/stop", {"confirm_stop": True, "reason": "operator stop"}),
             {"confirm_stop": True, "reason": "operator stop"},
@@ -633,9 +658,9 @@ class ApiCommandContractsTests(unittest.TestCase):
         self.assertEqual(
             validate_api_payload(
                 "/api/rename/apply",
-                {"paths": [], "selected_sources": [], "confirm_apply": True, "allow_outside_configured_roots": False},
+                {"paths": [], "selected_sources": [], "confirm_apply": True, "allow_outside_configured_roots": False, "preview_fingerprint": "fp"},
             ),
-            {"paths": [], "selected_sources": [], "confirm_apply": True, "allow_outside_configured_roots": False},
+            {"paths": [], "selected_sources": [], "confirm_apply": True, "allow_outside_configured_roots": False, "preview_fingerprint": "fp"},
         )
         self.assertEqual(
             validate_api_payload(
@@ -675,6 +700,7 @@ class ApiCommandContractsTests(unittest.TestCase):
                     "force_pipeline_name": True,
                     "force_pipeline_name_overrides": {"C:/Media/Show E01.mkv": False},
                     "use_pipeline_naming_preview": False,
+                    "preview_fingerprint": "fp",
                 },
             ),
             {
@@ -685,6 +711,7 @@ class ApiCommandContractsTests(unittest.TestCase):
                 "force_pipeline_name": True,
                 "force_pipeline_name_overrides": {"C:/Media/Show E01.mkv": False},
                 "use_pipeline_naming_preview": False,
+                "preview_fingerprint": "fp",
             },
         )
         self.assertEqual(
@@ -855,14 +882,14 @@ class ApiCommandContractsTests(unittest.TestCase):
 
     def test_rename_and_final_library_confirmations_require_strict_boolean(self) -> None:
         cases = [
-            ("/api/rename/apply", "confirm_apply", {"paths": [], "selected_sources": []}),
-            ("/api/rename/apply", "rename_sidecars", {"paths": [], "selected_sources": [], "confirm_apply": True}),
-            ("/api/rename/apply", "force_pipeline_name", {"paths": [], "selected_sources": [], "confirm_apply": True}),
-            ("/api/rename/apply", "use_pipeline_naming_preview", {"paths": [], "selected_sources": [], "confirm_apply": True}),
+            ("/api/rename/apply", "confirm_apply", {"paths": [], "selected_sources": [], "preview_fingerprint": "fp"}),
+            ("/api/rename/apply", "rename_sidecars", {"paths": [], "selected_sources": [], "confirm_apply": True, "preview_fingerprint": "fp"}),
+            ("/api/rename/apply", "force_pipeline_name", {"paths": [], "selected_sources": [], "confirm_apply": True, "preview_fingerprint": "fp"}),
+            ("/api/rename/apply", "use_pipeline_naming_preview", {"paths": [], "selected_sources": [], "confirm_apply": True, "preview_fingerprint": "fp"}),
             (
                 "/api/rename/apply",
                 "allow_outside_configured_roots",
-                {"paths": [], "selected_sources": [], "confirm_apply": True},
+                {"paths": [], "selected_sources": [], "confirm_apply": True, "preview_fingerprint": "fp"},
             ),
             (
                 "/api/rename/filter-cases",
@@ -896,6 +923,7 @@ class ApiCommandContractsTests(unittest.TestCase):
                             "paths": [],
                             "selected_sources": [],
                             "confirm_apply": True,
+                            "preview_fingerprint": "fp",
                             "force_pipeline_name_overrides": {"C:/Media/Show E01.mkv": value},
                         },
                     )

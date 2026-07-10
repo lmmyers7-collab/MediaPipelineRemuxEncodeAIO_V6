@@ -89,6 +89,37 @@ LIBRARY_PROFILE_ROUND_TRIP_FIXTURE = (
 
 
 class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
+    def test_settings_save_rejects_stale_preview_when_authority_generation_changed(self) -> None:
+        class CasService(DummyFacadeService):
+            def __init__(self, root: Path) -> None:
+                super().__init__(root)
+                self.authority_reads = 0
+
+            def load_settings_authority(self, config_path, powershell_host):
+                _ = (config_path, powershell_host)
+                self.authority_reads += 1
+                if self.authority_reads == 1:
+                    return {"RoutingProfile": "plex_direct_stream"}
+                return {"RoutingProfile": "external_new_value"}
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = CasService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            resolved = _resolved(root)
+            resolved.config_data = {"RoutingProfile": "plex_direct_stream"}
+            request = _confirmed_patch_request(
+                facade,
+                resolved,
+                {"changes": {"RoutingProfile": "plex_direct_play"}},
+            )
+
+            result = facade.save_settings_patch(resolved, request)
+
+        self.assertFalse(result.ok)
+        self.assertIn("authority changed after preview", result.message)
+        self.assertEqual(service.saved_config_calls, [])
+
     def test_settings_patch_coerces_coordinator_local_string_true_to_real_bool(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

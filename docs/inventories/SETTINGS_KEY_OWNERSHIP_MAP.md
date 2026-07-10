@@ -183,6 +183,7 @@ These keys have no structured WebView builder panel because they are auth secret
 | `CoordinatorPort` | Medium | HTTP listen port for coordinator (default 7830). Firewall must allow this port. | Not surfaced | `test_network_coordinator_source_policy.py` |
 | `CoordinatorBindAddress` | Medium | `0.0.0.0` exposes coordinator on all interfaces; `127.0.0.1` restricts to localhost only. | Not surfaced | `test_network_coordinator_source_policy.py` |
 | `CoordinatorAuthToken` | **Critical** | (Raw-only/hidden) Shared auth secret between coordinator and workers. | Not surfaced | Excluded from WebView by design |
+| `NetworkRerunHandoffRoot` | **High** | Coordinator-readable, worker-writable root for Network CSV rerun handoff outputs. Must not overlap source roots, final output roots, LocalBase, or Pending Publish state; remote workers require UNC/shared paths. | Network CSV rerun preview/start-dry-run/start handoff readiness | `test_rerun_csv_preview.py`, `test_application_facade_process_launch.py`, `test_service_config_validation.py` |
 | `WorkerCoordinatorUrl` | Medium | `http://host:port` of the coordinator. Must be reachable from this machine. | Not surfaced | `test_network_worker_source_policy.py` |
 | `WorkerSourcePathMap` | Medium | Network builder JSON text field for worker path remapping. Misconfiguration causes workers to pick up wrong source locations. | Not surfaced | `test_network_worker_source_policy.py` |
 | `WorkerConfigOverrides` | Medium | Network builder JSON text field for per-worker encode/routing overrides. Misconfiguration silently applies wrong policy to claimed jobs. | Not surfaced | `test_network_coordinator_source_policy.py` |
@@ -206,6 +207,7 @@ The Launch and Schedule pages read these config values (via `GET /api/launch/pre
 | Size guard posture | `SizeGuardMode`, `MaxEncodeGrowthPercent` |
 | System tool warnings | `AllowSystemTools`, `ExtraVideoFlags`, `ReprocessAll`, `AllowNoAudio` |
 | Network role | `NetworkRole` |
+| Network CSV rerun handoff | `NetworkRerunHandoffRoot` |
 
 All handoff rows are read-only. The Launch page cannot modify settings — changes must go through `POST /api/settings/save-patch`.
 

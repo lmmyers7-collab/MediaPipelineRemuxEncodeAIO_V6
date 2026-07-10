@@ -327,19 +327,9 @@ $script:DynamicHdrPolicy = if ($config.ContainsKey('DynamicHdrPolicy')) {
 } else {
     Get-MediaPipelineDynamicHdrPolicyDefault
 }
-$removedRoutingFallbackConfigKeys = @(
-    'EncodeThresholdGB',
-    'TVEncodeThresholdGB',
-    'MovieRouteMaxVideoBitrateMbps',
-    'TVRouteMaxVideoBitrateMbps',
-    'Route1080pBucketMaxHeight',
-    'Route4KBucketMinHeight'
-)
-foreach ($removedKey in $removedRoutingFallbackConfigKeys) {
-    if ($config.ContainsKey($removedKey)) {
-        Add-StartupWarning "$removedKey is obsolete and ignored; use per-height target sizes, bitrate caps, and tolerance percents."
-    }
-}
+# Legacy routing fallback keys may still be present in older PSD1 projections.
+# They are intentionally ignored without startup warnings so routine launches
+# only surface actionable runtime problems.
 $script:MovieRoute1080pTargetSizeGB = Get-ConfigDouble 'MovieRoute1080pTargetSizeGB' 8 1 1000000
 $script:MovieRoute1440pTargetSizeGB = Get-ConfigDouble 'MovieRoute1440pTargetSizeGB' 8 1 1000000
 $script:MovieRoute4KTargetSizeGB = Get-ConfigDouble 'MovieRoute4KTargetSizeGB' 8 1 1000000

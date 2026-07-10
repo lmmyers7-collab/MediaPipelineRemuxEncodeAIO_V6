@@ -43,6 +43,7 @@ from mediapipeline.core.config.path_warnings import (
 )
 from mediapipeline.core.config.numeric_policy import validate_required_and_numeric_config
 from mediapipeline.core.config.preset_migration import FRIENDLY_LABEL_PERSISTED_KEY_ALIASES
+from mediapipeline.core.network.rerun_handoff import network_rerun_handoff_config_errors
 from mediapipeline.core.validation.strict_json import loads_strict_json
 
 EVIDENCE_ONLY_CONFIG_KEYS = {
@@ -295,6 +296,7 @@ def validate_config_values(
     validate_required_and_numeric_config(values, errors)
     validate_option_config(values, errors, warnings)
     validate_final_library_promotion_config(values, errors, warnings)
+    errors.extend(network_rerun_handoff_config_errors(values))
     validate_library_profiles(
         values,
         errors,

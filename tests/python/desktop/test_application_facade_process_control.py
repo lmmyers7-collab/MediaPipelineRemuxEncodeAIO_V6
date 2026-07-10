@@ -27,7 +27,7 @@ class ApplicationFacadeProcessControlTests(unittest.TestCase):
             service.kill_related_pipeline_processes = lambda _resolved: [  # type: ignore[method-assign]
                 "Force-killed related MediaPipeline process tree (PID 1234)."
             ]
-            kill = facade.request_pipeline_control(resolved, "kill").to_mapping()
+            kill = facade.request_pipeline_control(resolved, "kill", confirm_force_stop=True).to_mapping()
             invalid = facade.request_pipeline_control(resolved, "launch-everything").to_mapping()
             pause_payload = json.loads(resolved.pause_flag.read_text(encoding="utf-8"))  # type: ignore[union-attr]
             rescan_payload = json.loads(resolved.rescan_flag.read_text(encoding="utf-8"))  # type: ignore[union-attr]
@@ -67,13 +67,30 @@ class ApplicationFacadeProcessControlTests(unittest.TestCase):
             )
             service.kill_related_pipeline_processes = lambda _resolved: []  # type: ignore[method-assign]
 
-            kill = facade.request_pipeline_control(resolved, "kill").to_mapping()
+            kill = facade.request_pipeline_control(resolved, "kill", confirm_force_stop=True).to_mapping()
             progress = json.loads(resolved.progress_file.read_text(encoding="utf-8"))
 
         self.assertTrue(kill["ok"])
         self.assertEqual(progress["CurrentStage"], "idle")
         self.assertEqual(progress["Status"], "Idle")
         self.assertIn("status='autonomy health blocked'", kill["data"]["progress_reset"])
+
+    def test_kill_requires_literal_backend_confirmation_before_service_call(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            calls: list[str] = []
+            service.kill_related_pipeline_processes = lambda _resolved: calls.append("kill") or []  # type: ignore[method-assign]
+
+            missing = facade.request_pipeline_control(resolved, "kill").to_mapping()
+            false = facade.request_pipeline_control(resolved, "kill", confirm_force_stop=False).to_mapping()
+
+        self.assertFalse(missing["ok"])
+        self.assertFalse(false["ok"])
+        self.assertEqual(calls, [])
+        self.assertIn("confirm_force_stop=true", missing["errors"][0])
 
     def test_pipeline_control_commands_share_backend_control_lock(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

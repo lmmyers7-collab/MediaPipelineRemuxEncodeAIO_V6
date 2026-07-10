@@ -1006,9 +1006,36 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "Rule detail: Audio default-policy evidence",
             ]);
             const identityCell = document.querySelector("#rerun-preview-rows .rerun-preview-identity-cell");
+            const categoryCell = document.querySelector("#rerun-preview-rows .rerun-preview-category-cell");
+            const destinationCell = document.querySelector("#rerun-preview-rows .rerun-preview-destination-cell");
             const reasonCell = document.querySelector("#rerun-preview-rows .rerun-preview-reason-cell");
             if (!identityCell || identityCell.dataset.label !== "Identity") throw new Error("CSV rerun identity cell is missing a responsive label");
+            if (!destinationCell || destinationCell.dataset.label !== "Destination") throw new Error("CSV rerun destination cell is missing a responsive label");
             if (!reasonCell || reasonCell.dataset.label !== "Reason") throw new Error("CSV rerun reason cell is missing a responsive label");
+            const previewTable = document.querySelector(".rerun-preview-table");
+            const previewPanel = previewTable.closest("[data-queue-tab-panel]");
+            const reasonRect = reasonCell.getBoundingClientRect();
+            if (reasonRect.width < 220) {
+              const tableRect = previewTable.getBoundingClientRect();
+              const panelRect = previewPanel.getBoundingClientRect();
+              throw new Error("CSV rerun reason column is too narrow: " + JSON.stringify({
+                reasonWidth: reasonRect.width,
+                tableWidth: tableRect.width,
+                panelWidth: panelRect.width,
+                innerWidth: window.innerWidth,
+                cellWidths: Array.from(reasonCell.parentElement.children).map((cell) => cell.getBoundingClientRect().width),
+                cellComputedWidths: Array.from(reasonCell.parentElement.children).map((cell) => getComputedStyle(cell).width),
+                cellDisplays: Array.from(reasonCell.parentElement.children).map((cell) => getComputedStyle(cell).display),
+                tableDisplay: getComputedStyle(previewTable).display,
+                tableMinWidth: getComputedStyle(previewTable).minWidth,
+                tableLayout: getComputedStyle(previewTable).tableLayout,
+              }));
+            }
+            if (destinationCell.textContent.includes(" / ")) throw new Error("CSV rerun destination cell should render wrapped destination/execution lines");
+            const categoryRight = categoryCell.getBoundingClientRect().right;
+            const overflowingCategoryChip = Array.from(categoryCell.querySelectorAll(".rerun-category-chip"))
+              .find((chip) => chip.getBoundingClientRect().right > categoryRight + 1);
+            if (overflowingCategoryChip) throw new Error("CSV rerun category chip overflowed its table cell: " + overflowingCategoryChip.textContent);
             ["rerun-open-csv-button", "rerun-open-csv-folder-button"].forEach((id) => {
               const button = byId(id);
               if (!button?.disabled) throw new Error(id + " should stay disabled for typed non-candidate CSV paths");
@@ -1269,6 +1296,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             "--metrics-recording-only",
             "--no-first-run",
             "--no-default-browser-check",
+            "--window-size=1600,1000",
             `--remote-debugging-port=${payload.port}`,
             `--user-data-dir=${userDataDir}`,
             payload.url,
@@ -1280,6 +1308,12 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             await client.send("Runtime.enable");
             await client.send("Log.enable");
             await client.send("Page.enable");
+            await client.send("Emulation.setDeviceMetricsOverride", {
+              width: 1600,
+              height: 1000,
+              deviceScaleFactor: 1,
+              mobile: false,
+            });
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {

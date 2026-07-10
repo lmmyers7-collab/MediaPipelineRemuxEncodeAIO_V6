@@ -912,13 +912,14 @@
     const latest = pendingDrainLatestCommand(entryList);
     const filterScope = pendingCurrentFilterScope(rowList);
     const message = blocked
-      ? `Drain Parked Outputs blocked by WebView evidence: ${decision}.`
+      ? `WebView evidence advises against draining: ${decision}. The backend will make the authoritative decision.`
       : review
         ? `Drain Parked Outputs requires operator review: ${decision}.`
         : "Drain Parked Outputs can be submitted to backend validation.";
     return {
-      allowed: !blocked,
-      review_required: review,
+      allowed: true,
+      advisory_blocked: blocked,
+      review_required: blocked || review,
       decision_status: decision,
       message,
       confirm_message: [
@@ -940,13 +941,12 @@
     const lines = [
       "Pending Publish button guard:",
       `Decision: ${guard.decision_status || "unknown"}`,
-      `Button action: ${guard.allowed ? (guard.review_required ? "allowed after explicit review confirmation" : "allowed") : "blocked locally"}`,
+      `Button action: ${guard.review_required ? "submit after explicit review confirmation" : "submit to backend validation"}`,
       guard.message || "",
     ].filter(Boolean);
-    if (guard.allowed) {
-      lines.push("The click still uses /api/pipeline/start with mode=drain_pending_pushes; frontend evidence does not move files.");
-    } else {
-      lines.push("First action: select blocked/review checklist rows, build a recovery dry-run if parked rows exist, and read Pending Publish diagnostics before retrying.");
+    lines.push("The click uses /api/pipeline/start with mode=drain_pending_pushes; only backend validation can allow or refuse drain work.");
+    if (guard.advisory_blocked) {
+      lines.push("Advisory first action: review blocked checklist rows and recovery evidence before submitting; this WebView evidence does not decide eligibility.");
     }
     if (guard.filter_scope) {
       lines.push(`Pending table filter: ${guard.filter_scope.active ? "active" : "inactive"}; visible ${guard.filter_scope.visibleCount}/${guard.filter_scope.totalCount}; hidden blocked/review ${guard.filter_scope.hiddenBlockedCount}/${guard.filter_scope.hiddenReviewCount}.`);
@@ -984,26 +984,24 @@
 
   function renderPendingDrainGuard(pending = getLastPendingPayload(), rows = getLastPendingRows(), snapshot = getLastPendingSnapshot(), entries) {
     const state = pendingDrainGuardState(pending, rows, snapshot, entries);
-    setText("pending-drain-guard-status", state.allowed ? (state.review_required ? "Review confirm" : "Allowed") : "Blocked");
+    setText("pending-drain-guard-status", state.review_required ? "Review confirm" : "Backend check");
     const statusNode = byId("pending-drain-guard-status");
-    if (statusNode) statusNode.dataset.state = state.allowed ? (state.review_required ? "warning" : "ready") : "blocked";
+    if (statusNode) statusNode.dataset.state = state.review_required ? "warning" : "ready";
     renderDiagnosticCallout("pending-drain-guard-summary", pendingDrainGuardLines(state));
     const button = byId("pending-drain-button");
     if (button) {
-      button.disabled = !state.allowed;
-      button.setAttribute("aria-disabled", state.allowed ? "false" : "true");
-      button.title = state.allowed ? state.confirm_message : state.message;
-      button.dataset.guardState = state.allowed ? (state.review_required ? "review" : "allowed") : "blocked";
+      button.disabled = false;
+      button.setAttribute("aria-disabled", "false");
+      button.title = state.confirm_message;
+      button.dataset.guardState = state.review_required ? "review" : "backend-check";
     }
     const actionButton = byId("pending-action-drain-button");
     if (actionButton) {
-      actionButton.disabled = !state.allowed;
-      actionButton.setAttribute("aria-disabled", state.allowed ? "false" : "true");
-      actionButton.textContent = state.allowed
-        ? state.review_required ? "Drain After Review" : "Drain Parked Outputs"
-        : "Drain Blocked";
-      actionButton.title = state.allowed ? state.confirm_message : state.message;
-      actionButton.dataset.state = state.allowed ? (state.review_required ? "warning" : "ok") : "blocked";
+      actionButton.disabled = false;
+      actionButton.setAttribute("aria-disabled", "false");
+      actionButton.textContent = state.review_required ? "Submit Drain After Review" : "Drain Parked Outputs";
+      actionButton.title = state.confirm_message;
+      actionButton.dataset.state = state.review_required ? "warning" : "ok";
     }
     return state;
   }

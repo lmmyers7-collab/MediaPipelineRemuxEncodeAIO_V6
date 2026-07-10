@@ -11,29 +11,22 @@ from mediapipeline.core.kernel.contracts.pending_publish import (
     PENDING_PUSH_RETRY_LIMIT,
     PENDING_PUSH_MANIFEST_SCHEMA_VERSION,
 )
+from .pending_contracts import (
+    PENDING_FILE_INVENTORY_SCHEMA_VERSION,
+    PENDING_PUBLISH_INVENTORY_PROGRESS_SCHEMA_VERSION,
+    _json_safe,
+    _pending_publish_preview_dto,
+    int_value,
+)
 from .pending_policy_parts.status_rules import (
     row_operator_guidance as _row_operator_guidance,
     row_recovery_action as _row_recovery_action,
     row_recovery_class as _row_recovery_class,
 )
 from .pending_policy_parts.trust_fields import build_pending_publish_row_trust_fields
-from .pending_results import (
-    PENDING_FILE_INVENTORY_SCHEMA_VERSION,
-    PENDING_PUBLISH_INVENTORY_PROGRESS_SCHEMA_VERSION,
-    _json_safe,
-    _pending_publish_preview_dto,
-)
 
 if TYPE_CHECKING:
     from mediapipeline.core.kernel.dto_inventory import PendingPublishPreviewDto
-
-def int_value(value: Any) -> int:
-    try:
-        if value not in (None, ""):
-            return int(float(value))
-    except (TypeError, ValueError):
-        return 0
-    return 0
 
 
 def pending_publish_error_warning(error: str) -> list[str]:

@@ -267,19 +267,7 @@ CSV rerun currently rewrites nested pipeline `Outsource` to a local rerun
 workspace output root. Distributed execution needs a coordinator-readable output
 handoff.
 
-Investigate:
-
-- Worker writes output to worker-local rerun workspace, then copies output back
-  to coordinator review/pending workspace.
-- Worker writes output directly to a shared coordinator-accessible rerun output
-  root.
-- Worker returns only evidence and leaves the output in final/pending path.
-
-This decision controls bandwidth, failure recovery, path mapping, and pending
-publish correctness. It must be validated with Windows local paths and UNC
-paths.
-
-Recommended decision:
+Adopted decision:
 
 Use a first-class Network Rerun Handoff model. Add an explicit
 `NetworkRerunHandoffRoot` setting for a coordinator-readable, worker-writable
@@ -287,14 +275,41 @@ review/handoff area that is separate from source roots and final library
 destinations. For each network CSV rerun row, the coordinator assigns a
 per-row handoff folder under that root and gives the worker a job-scoped
 effective config that rewrites `Outsource` and `LibraryProfiles.output_path`
-to that handoff folder. If needed, the job-scoped config may also rewrite
-`LocalBase` to a per-row worker runtime root.
+to that handoff folder. The worker also rewrites `LocalBase` to an isolated
+worker-local runtime root under its existing configured `LocalBase` for the
+batch, row, worker, and claim.
+
+Contract:
+
+- Setting name: `NetworkRerunHandoffRoot`.
+- Handoff path shape: `<NetworkRerunHandoffRoot>/<batch_id>/<row_key>/`.
+- Remote workers require a UNC/shared path, not a coordinator-local drive path.
+  Local drive handoff roots are valid only for coordinator-local workers.
+- The handoff root must not overlap any configured source root, `Outsource`,
+  `LibraryProfiles.output_path`, `LocalBase`, or pending-publish state root.
+- The coordinator must be able to create, list, read, and later clean up the
+  batch/row handoff folder.
+- A worker must prove it can create, write, read, and delete a small probe file
+  in its assigned row handoff folder before it can claim that row.
+- If handoff validation fails before claim, the row is blocked and remains
+  unclaimable.
+- If handoff write fails during execution, the worker reports a failed or
+  retryable row result with handoff-failure evidence.
+- Handoff outputs remain in place until the coordinator reducer accepts,
+  rejects, or explicitly cleans them up.
+- Cleanup is coordinator-owned. Workers may clean only probe files and their
+  own worker-local runtime files.
 
 Workers may write only handoff output and result evidence for CSV rerun jobs.
 They must not write directly to final library destinations, create final
 pending-publish manifests, or apply CSV destination policy. The coordinator
 reducer remains the owner of final promotion, pending publish, replacement,
 review, and rejection decisions.
+
+If the normal pipeline would otherwise park a failed handoff copy into
+worker-owned `PendingServerPush`, Phase 4B must add a rerun handoff execution
+mode that reports the row as a handoff failure instead. Worker-owned
+pending-publish manifests are not an accepted Network CSV rerun handoff result.
 
 This is the preferred permanent model because it reuses the normal pipeline
 engine while preserving source safety, backend authority, coordinator-owned
@@ -525,13 +540,13 @@ CSV rerun row can be claimed by a worker.
 
 Required behavior:
 
-- Add a first-class `NetworkRerunHandoffRoot` setting or equivalent config
-  surface.
-- Validate the handoff root is outside source roots and final library roots,
-  unless a documented review-only exception is intentionally configured and
-  separately guarded.
-- Validate coordinator readability and worker writability as evidence.
+- Add a first-class `NetworkRerunHandoffRoot` setting.
+- Validate the handoff root is outside source roots, `Outsource`,
+  `LibraryProfiles.output_path`, `LocalBase`, and pending-publish state.
+- Validate coordinator create/list/read/delete capability as evidence.
+- Add worker handoff probe evidence before row claims are enabled.
 - Validate path boundaries for local drive paths and UNC paths.
+- Reject remote-worker handoff plans that use coordinator-local drive paths.
 - Extend network preview and start dry-run evidence with handoff readiness.
 - Block confirmed network CSV rerun start when enabled rows lack a safe
   handoff target.
@@ -541,11 +556,13 @@ Required behavior:
 
 Validation:
 
-- Settings/config validation tests for missing, unsafe, source-overlapping, and
-  final-output-overlapping handoff roots.
+- Settings/config validation tests for missing, unsafe, source-overlapping,
+  final-output-overlapping, `LocalBase`-overlapping, and pending-state-
+  overlapping handoff roots.
 - Preview and start dry-run tests that report handoff readiness and blockers.
 - Confirmed-start tests that write planned handoff paths into batch state
   without enabling row claims.
+- Worker probe tests for writable and non-writable handoff folders.
 - Path-boundary tests for local paths, UNC paths, and traversal attempts.
 - No real-media validation required if this phase remains config/state only.
 
@@ -566,6 +583,10 @@ Required design:
 - Materialize a job-scoped effective worker config for CSV rerun rows that
   rewrites `Outsource` and `LibraryProfiles.output_path` to the planned
   handoff folder.
+- Materialize an isolated worker-local `LocalBase` for the batch, row, worker,
+  and claim.
+- Ensure worker-owned pending-publish manifests are not treated as successful
+  Network CSV rerun handoff results.
 - Ensure coordinator in-flight registry understands rerun row identity and
   source identity.
 - Ensure duplicate claims cannot occur across normal queue records and CSV
@@ -617,6 +638,26 @@ Validation:
 - Corrupt worker result artifact tests.
 - UI read-model tests for row status.
 
+Status (2026-07-06):
+
+- Implemented under `MP-CHANGE-2026-0705-023`.
+- The reducer stores worker-result snapshots, verifies batch/row/claim/worker
+  and source identity, classifies success/failure/review/output-missing/corrupt
+  results, records output evidence, and preserves duplicate/late done reports
+  idempotently.
+- `/api/rerun/results` now projects Network CSV rerun reducer rows as read-only
+  Queue evidence with `pending_reduction` status and pending destination-policy
+  state.
+- Validation passed for Phase 5 compile and targeted reducer/read-model/network
+  protocol tests. Strict change-packet coverage passed with
+  `validate_changes --require-worktree-coverage`. A broader optional
+  `test_network*.py` sweep exposed one existing worker crash-recovery assertion
+  around corrupt `worker_state.json` quarantine behavior outside the Phase 5
+  reducer path.
+- No additional real-media validation was required beyond the Phase 4B worker
+  gate because Phase 5 does not start new worker media processing or move media
+  into final destinations.
+
 ### Phase 6: Destination Policy Integration
 
 Goal: make network CSV rerun results land in the same daily-use destinations as
@@ -651,6 +692,26 @@ Validation:
   - one failed row
   - one worker crash/retry row
 
+Status (2026-07-06):
+
+- Implementation is complete under `MP-CHANGE-2026-0705-024`.
+- Coordinator reduction now applies destination policy only after Phase 5 accepts
+  a verified handoff output. Workers still write only to
+  `<NetworkRerunHandoffRoot>/<batch_id>/<row_key>/`; WebView remains
+  read-only/caller-only for this policy.
+- Implemented policy outcomes include review workspace, manifest-backed Pending
+  Publish, non-overlapping final copy, confirmed final replacement, and
+  fail-closed destination-policy failure with source and handoff preservation.
+- Network batch rows now carry `destination_policy_result` evidence, and
+  `/api/rerun/results` projects destination-policy status, Pending Publish
+  paths, published paths, and failure state as backend-owned read-model data.
+- Backend validation passed for compile, reducer/read-model tests, destination
+  policy branch tests, pending-publish contracts, and network/facade regression
+  tests.
+- Representative real-media validation passed on 2026-07-06 using the Phase 4B
+  real worker output as the Phase 6 destination-policy input. Evidence:
+  `docs/RealMediaValidationRuns/network-csv-rerun-phase6-2026-07-06.md`.
+
 ### Phase 7: WebView Operator Surface
 
 Goal: expose the feature as an option without making the frontend authoritative.
@@ -679,6 +740,26 @@ Validation:
 - Route inventory and DOM/export inventory updates.
 - Network page smoke if controls are visible there.
 
+Status (2026-07-06):
+
+- Implementation is complete under `MP-CHANGE-2026-0705-025`.
+- Queue CSV Rerun now exposes a local vs Network execution selector, Network
+  minimum-worker input, backend Network preview routing, backend start dry-run,
+  and confirmed Network start through `/api/rerun/network/start` with backend
+  dry-run fingerprint and `confirm_start`.
+- Network page now includes a read-only Network CSV Rerun evidence panel backed
+  by `/api/rerun/results`, showing backend-authored batch, row, worker,
+  reducer, destination-policy, Pending Publish, review, and published-output
+  evidence without authoring network state.
+- Command history and lifecycle evidence distinguish local CSV rerun,
+  `rerun.network.start_dry_run`, and `rerun.network.start`.
+- Inventories and generated summaries were refreshed for the new WebView DOM
+  IDs, route ownership, and changed source/test/docs files.
+- Validation passed for JavaScript syntax checks, targeted WebView static
+  route/DOM/mutation-boundary tests, DOM inventory checks, and browser-backed
+  Queue/Network smokes. Phase 7 did not require new real-media execution
+  because it changed WebView caller/read surfaces only.
+
 ### Phase 8: End-To-End And Real-Media Gate
 
 Goal: prove the feature works with real worker/coordinator flows and real media.
@@ -700,6 +781,63 @@ Required proof:
 Validation should include real media because this phase touches source movement,
 scratch, output movement, publish, and possibly FFmpeg execution in a new
 coordination mode.
+
+Status (2026-07-06):
+
+- Implementation and validation are complete under `MP-CHANGE-2026-0705-027`.
+- Added an executable Phase 8 integration test that starts a confirmed Network
+  CSV rerun batch, claims a `csv_rerun_row`, proves duplicate-claim blocking,
+  releases and reclaims the row, reports worker done, applies coordinator-owned
+  Pending Publish destination policy, blocks terminal reclaim, preserves the
+  source hash, and projects the result through `/api/rerun/results`.
+- Real-media validation passed using the Phase 4B real source and real
+  worker-produced MKV in a fresh isolated Phase 8 root. Evidence:
+  `docs/RealMediaValidationRuns/network-csv-rerun-phase8-2026-07-06.md`.
+- Physical remote-worker execution over SMB was not available in this
+  environment. Remote-worker safety is covered by automated path/claim gating
+  tests, and the remaining physical remote-worker run is site-specific to a real
+  shared `NetworkRerunHandoffRoot` and deployed path mapping.
+- Validation passed for the Phase 8 integration test, network claim/reducer
+  destination tests, rerun results read model tests, network protocol/done
+  tests, and Network CSV preview tests.
+
+### Phase 9: Release Hardening
+
+Goal: close the Network CSV Rerun implementation with aggregate route,
+contract, WebView, generated-context, dependency-boundary, change-packet, and
+real-media evidence checks.
+
+Status (2026-07-06):
+
+- Implementation and validation are complete under `MP-CHANGE-2026-0705-028`.
+- Phase 9 did not add operator-facing Network CSV Rerun behavior. It hardened
+  the release posture after Phases 4A through 8 and patched validation drift
+  exposed by aggregate postflight.
+- Aggregate route/contract tests passed for API payloads, command contracts,
+  process launch, Network CSV claim/done/release flows, reducer read models,
+  protocol runtime, and CSV preview.
+- Aggregate WebView tests passed for Queue, Network, frontend mutation
+  boundary, DOM/inventory coverage, diagnostics reports, and browser-backed
+  Queue/Network smokes.
+- AI guardrail postflight initially exposed stale generated context and a
+  publish dependency-boundary cycle. Generated summaries/maps were refreshed,
+  and the module-level publish cycle was removed by introducing
+  `src/mediapipeline/core/publish/pending_contracts.py` as the neutral owner
+  for shared Pending Publish schema constants and DTO/json helpers.
+- The dependency-boundary checker now reports zero module-level cycles, no
+  unused allowlist entries, and no unallowlisted hard findings. A pre-existing
+  broad package-level cycle remains visible as an explicitly listed temporary
+  package-cycle baseline in `docs/architecture/dependency_boundary_allowlist.txt`
+  for future architecture cleanup; it was not introduced by Network CSV Rerun.
+- Pending Publish focused tests passed after the publish dependency cleanup.
+  No final publish, drain, source movement, sidecar, or media policy behavior
+  changed in Phase 9, so no additional real-media run was required beyond the
+  Phase 8 gate.
+- Remaining deployment-specific limitation: no physical remote SMB worker was
+  available in this environment. The release posture remains that physical
+  remote validation should be run against the operator's real shared
+  `NetworkRerunHandoffRoot` and worker path mapping before relying on a remote
+  production worker.
 
 ## Route And Contract Sketch
 
@@ -833,7 +971,8 @@ Before implementation, a future agent must answer these in its change packet:
 - Which distributed unit is being implemented: row, chunk, or whole CSV?
 - Which state file is the batch authority?
 - Who applies destination policy?
-- Where do worker outputs land?
+- How does the implementation enforce `NetworkRerunHandoffRoot` and per-row
+  handoff folders?
 - How does source path mapping prove safety?
 - How does stop-after-current work?
 - How are retryable worker failures represented?
@@ -882,8 +1021,9 @@ Stop and ask for operator direction if any investigation discovers that:
   or should early phases require at least one remote worker?
 - Should rows with unsupported source path mapping be blocked or allowed only
   for coordinator-local execution?
-- Should destination policy run immediately after each worker result, or after
-  the whole batch reaches a reducer phase?
+- For Phase 6, should coordinator-owned destination policy reduce rows
+  incrementally as handoff results arrive, or only after the whole batch reaches
+  a reducer phase?
 - Should a network CSV rerun batch pause normal queue claims until complete, or
   should normal queue and rerun rows share one prioritized claim stream?
 - Should CSV row priority be derived from CSV order, existing priority markers,

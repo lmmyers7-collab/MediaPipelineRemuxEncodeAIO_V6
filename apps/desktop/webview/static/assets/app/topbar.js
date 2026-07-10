@@ -21,6 +21,7 @@
     stopped: { main: "Stopped", detail: "" },
     completed: { main: "Completed", detail: "" },
     csv_rerun_active: { main: "CSV Rerun", detail: "active" },
+    csv_rerun_complete: { main: "CSV Rerun", detail: "complete" },
     no_new_sources: { main: "No New Sources", detail: "" },
     failed: { main: "Failed", detail: "" },
     error: { main: "Error", detail: "" },

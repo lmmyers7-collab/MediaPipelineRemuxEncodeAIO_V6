@@ -29,6 +29,8 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from mediapipeline.core.completed.policy import completed_record_key
 from mediapipeline.core.kernel.contracts.pending_publish import PendingPushManifest
+from mediapipeline.core.repair_reconcile.apply import apply_repair_reconcile_from_dry_run
+from mediapipeline.core.repair_reconcile.dry_run import COMPLETED_REPAIR_SIDECAR_METADATA_COMMAND
 from mediapipeline.core.validation.boundary import ValidationFailure, validate_api_payload
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
@@ -139,6 +141,41 @@ def _run_pending_drain(config_path: Path) -> subprocess.CompletedProcess[str]:
 
 
 class RepairReconcileApplyTests(unittest.TestCase):
+    def test_completed_apply_rolls_back_when_strict_journal_persistence_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            sidecar = root / "State" / "Completed" / "Movie.mkv.json"
+            sidecar.parent.mkdir(parents=True, exist_ok=True)
+            original = {"source_path": "C:/Source/Movie.mkv", "output_path": "C:/Old/Movie.mkv", "output_file": "Movie.mkv"}
+            sidecar.write_text(json.dumps(original), encoding="utf-8")
+            dry_run = {
+                "dry_run_fingerprint": "fingerprint-1",
+                "safe_to_apply": True,
+                "diff_summary": {
+                    "rows": [{
+                        "status": "candidate",
+                        "row_key": "row-1",
+                        "sidecar_path": str(sidecar),
+                        "changed_fields": {"output_path": {"proposed": "C:/New/Movie.mkv"}},
+                    }],
+                },
+            }
+
+            result = apply_repair_reconcile_from_dry_run(
+                resolved=resolved,
+                candidate_command=COMPLETED_REPAIR_SIDECAR_METADATA_COMMAND,
+                request={"confirm_apply": True, "dry_run_fingerprint": "fingerprint-1"},
+                dry_run=dry_run,
+                journal_recorder=lambda _payload, _request: (_ for _ in ()).throw(OSError("journal unavailable")),
+            ).to_mapping()
+
+            restored = json.loads(sidecar.read_text(encoding="utf-8"))
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["data"]["rollback_status"], "restored", result)
+        self.assertFalse(result["data"]["strict_command_journal_recorded"])
+        self.assertEqual(restored, original)
     def test_completed_sidecar_repair_apply_writes_only_selected_sidecar_with_backup(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -580,7 +617,7 @@ class RepairReconcileApplyTests(unittest.TestCase):
             sidecar_before = _file_state(sidecar)
             facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root), app_version="v6-test")
             row_key = facade.get_completed_preview(resolved).to_mapping()["rows"][0]["row_key"]
-            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved)
+            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved, command_journal_path=root / "State" / "command_history.json")
             try:
                 server.start()
                 dry_run_request = Request(
@@ -669,7 +706,7 @@ class RepairReconcileApplyTests(unittest.TestCase):
             sidecar_before = _file_state(files["sidecar"])
             original_get_completed_preview = facade.get_completed_preview
             facade.get_completed_preview = lambda _resolved, **_kwargs: SimpleNamespace(to_mapping=lambda: preview)  # type: ignore[method-assign]
-            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved)
+            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved, command_journal_path=root / "State" / "command_history.json")
             try:
                 server.start()
                 dry_run_request = Request(
@@ -756,7 +793,7 @@ class RepairReconcileApplyTests(unittest.TestCase):
             facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root), app_version="v6-test")
             preview = facade.get_pending_publish_preview(resolved).to_mapping()
             row_key = next(row["row_key"] for row in preview["rows"] if row.get("diagnostic_status") == "invalid_manifest")
-            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved)
+            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved, command_journal_path=root / "State" / "command_history.json")
             try:
                 server.start()
                 dry_run_request = Request(
@@ -858,7 +895,7 @@ class RepairReconcileApplyTests(unittest.TestCase):
             row = preview["rows"][0]
             row["backend_manifest_proposal"] = _pending_manifest_payload(files["pending_payload"], files["output"], files["source"])
             facade.get_pending_publish_preview = lambda _resolved: SimpleNamespace(to_mapping=lambda: preview)  # type: ignore[method-assign]
-            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved)
+            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved, command_journal_path=root / "State" / "command_history.json")
             try:
                 server.start()
                 dry_run_request = Request(
@@ -969,7 +1006,7 @@ class RepairReconcileApplyTests(unittest.TestCase):
             row = preview["rows"][0]
             row["backend_manifest_proposal"] = _pending_manifest_payload(payload, output, source)
             facade.get_pending_publish_preview = lambda _resolved: SimpleNamespace(to_mapping=lambda: preview)  # type: ignore[method-assign]
-            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved)
+            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved, command_journal_path=root / "State" / "command_history.json")
             try:
                 server.start()
                 dry_run_request = Request(
@@ -1040,7 +1077,7 @@ class RepairReconcileApplyTests(unittest.TestCase):
             root = Path(raw_root)
             resolved, _files = _completed_fixture(root)
             facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root), app_version="v6-test")
-            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved)
+            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved, command_journal_path=root / "State" / "command_history.json")
             try:
                 server.start()
                 request = Request(

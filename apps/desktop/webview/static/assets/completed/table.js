@@ -115,7 +115,8 @@
   }
 
   function completedRouteCategory(routeText) {
-    const normalized = String(routeText || "").toLowerCase();
+    const normalized = String(routeText || "").toLowerCase().replace(/_/g, "-");
+    if (normalized === "remux-fallback") return "remux-fallback";
     if (normalized.includes("remux")) return "remux";
     if (normalized.includes("encode") || normalized.includes("transcode")) return "encode";
     if (normalized.includes("skip")) return "skip";
@@ -158,16 +159,22 @@
 
   function completedRouteChipCategory(item, routeText) {
     if (completedUsedOversizedEncodeRemuxFallback(item)) return "remux-fallback";
+    const displayCategory = completedRouteCategory(item?.route_display_category);
+    if (displayCategory) return displayCategory;
     const category = completedRouteCategory(routeText);
     return category || completedRouteCategory(completedRouteCategoryEvidenceText(item));
   }
 
   function completedRouteChipTitle(item, routeText, category) {
     const label = routeText || "Pending";
-    if (category !== "remux-fallback") return routeText || "Route pending";
+    const finalRouteLabel = String(item?.route_display_final_route_label || "").trim();
+    if (category !== "remux-fallback") {
+      if (finalRouteLabel && finalRouteLabel !== label) return `${label}\nFinal route: ${finalRouteLabel}.`;
+      return routeText || "Route pending";
+    }
     const reason = String(item?.route_reason || item?.route_decision_summary || "").trim();
     return [
-      `Final route: ${label}.`,
+      `Final route: ${finalRouteLabel || label}.`,
       "Encode was attempted first and remux fallback was published after the encode exceeded size policy.",
       reason,
     ].filter(Boolean).join("\n");

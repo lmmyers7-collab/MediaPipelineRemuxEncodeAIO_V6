@@ -1527,7 +1527,7 @@ try {
         -LatestPriorityCsvPath $reportBundle.PriorityCsvPath `
         -LatestJsonPath $reportBundle.JsonPath `
         -LatestTextPath $reportBundle.TextPath
-    Write-AuditLog ("Scan complete: OK={0}, REVIEW={1}, RERUN_PIPELINE={2}, REDOWNLOAD_CANDIDATE={3}" -f $bucketCounts.OK, $bucketCounts.REVIEW, $bucketCounts.RERUN_PIPELINE, $bucketCounts.REDOWNLOAD_CANDIDATE)
+    Write-AuditLog ("Scan complete: OK={0}, REVIEW={1}, RERUN_PIPELINE={2}, REDOWNLOAD_CANDIDATE={3}, IGNORED={4}" -f $bucketCounts.OK, $bucketCounts.REVIEW, $bucketCounts.RERUN_PIPELINE, $bucketCounts.REDOWNLOAD_CANDIDATE, $bucketCounts.IGNORED)
     Write-AuditLog "===== LIBRARY AUDIT END ====="
 } catch {
     Complete-AuditConsoleProgress

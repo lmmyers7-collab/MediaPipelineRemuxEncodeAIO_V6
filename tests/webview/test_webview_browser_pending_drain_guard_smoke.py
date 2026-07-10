@@ -293,13 +293,10 @@ def _browser_pending_drain_guard_runner_source() -> str:
 
             window.renderPendingPublish(payload.pending, {});
             await waitFor(
-              () => ["Allowed", "Review confirm", "Blocked"].includes(text("pending-drain-guard-status")),
+              () => ["Backend check", "Review confirm"].includes(text("pending-drain-guard-status")),
               "initial guard render",
             );
             const initialGuardStatus = text("pending-drain-guard-status");
-            if (initialGuardStatus === "Blocked") {
-              throw new Error("fixture unexpectedly started blocked; cannot prove recovery-plan guard refresh");
-            }
             requireText("pending-drain-overview", [
               "Pending Publish drain decision:",
               "Operator outcome:",
@@ -473,7 +470,7 @@ def _browser_pending_drain_guard_runner_source() -> str:
             delete staleSummaryPending.drain_confidence;
             window.renderPendingPublish(staleSummaryPending, {});
             await waitFor(
-              () => ["Allowed", "Review confirm"].includes(text("pending-drain-guard-status"))
+              () => ["Backend check", "Review confirm"].includes(text("pending-drain-guard-status"))
                 && text("pending-drain-confidence-summary").includes("Durable drain summary")
                 && text("pending-drain-confidence-summary").includes("different parked-row count")
                 && text("pending-drain-decision-summary").includes("Review first"),
@@ -526,7 +523,7 @@ def _browser_pending_drain_guard_runner_source() -> str:
             }
             requireText("pending-drain-guard-summary", [
               "Decision: Review first",
-              "Button action: allowed after explicit review confirmation",
+              "Button action: submit after explicit review confirmation",
             ]);
 
             window.renderPendingPublish(payload.pending, {});
@@ -562,7 +559,7 @@ def _browser_pending_drain_guard_runner_source() -> str:
             window.renderPendingPublish(mixedPending, {});
             window.mediaPipelinePendingPublishView.renderPendingRows();
             await waitFor(
-              () => text("pending-drain-guard-status") === "Blocked"
+              () => text("pending-drain-guard-status") === "Review confirm"
                 && text("pending-drain-guard-summary").includes("Pending table filter: active;")
                 && text("pending-drain-guard-summary").includes("Backend drain scope remains all loaded parked rows")
                 && text("pending-drain-confidence-summary").includes("Display filter / drain scope"),
@@ -612,7 +609,7 @@ def _browser_pending_drain_guard_runner_source() -> str:
             window.renderPendingPublish(payload.pending, {});
             window.mediaPipelinePendingPublishView.resetPendingFilters();
             await waitFor(
-              () => ["Allowed", "Review confirm"].includes(text("pending-drain-guard-status")),
+              () => ["Backend check", "Review confirm"].includes(text("pending-drain-guard-status")),
               "guard restored after filter-scope scenario",
             );
 
@@ -652,7 +649,7 @@ def _browser_pending_drain_guard_runner_source() -> str:
             };
             window.mediaPipelinePendingPublishView.renderPendingRecoveryPlanResult(blockedRecoveryPlanResult);
             await waitFor(
-              () => text("pending-drain-guard-status") === "Blocked" && text("pending-drain-guard-summary").includes("Decision: Do not drain") && text("pending-drain-decision-summary").includes("Blocked/review/read-first/unknown:"),
+              () => text("pending-drain-guard-status") === "Review confirm" && text("pending-drain-guard-summary").includes("Decision: Do not drain") && text("pending-drain-decision-summary").includes("Blocked/review/read-first/unknown:"),
               "guard refresh after blocked recovery plan",
             );
             const staleReloadRow = Object.assign({}, row, {
@@ -682,7 +679,7 @@ def _browser_pending_drain_guard_runner_source() -> str:
             window.renderPendingPublish(staleReloadPending, {});
             await waitFor(
               () => text("pending-recovery-plan-status").includes("Recovery dry-run cleared because Pending Publish evidence changed.")
-                && ["Allowed", "Review confirm"].includes(text("pending-drain-guard-status"))
+                && ["Backend check", "Review confirm"].includes(text("pending-drain-guard-status"))
                 && !text("pending-drain-guard-summary").includes("Decision: Do not drain")
                 && text("pending-drain-decision-summary").includes("Blocked/review/read-first/unknown: 0/"),
               "stale blocked recovery dry-run clears after changed pending payload",
@@ -698,7 +695,7 @@ def _browser_pending_drain_guard_runner_source() -> str:
             window.renderPendingPublish(payload.pending, {});
             window.mediaPipelinePendingPublishView.renderPendingRecoveryPlanResult(blockedRecoveryPlanResult);
             await waitFor(
-              () => text("pending-drain-guard-status") === "Blocked" && text("pending-drain-guard-summary").includes("Decision: Do not drain"),
+              () => text("pending-drain-guard-status") === "Review confirm" && text("pending-drain-guard-summary").includes("Decision: Do not drain"),
               "guard restored after stale recovery regression check",
             );
             if (typeof window.applyAdvancedModePreference === "function") {
@@ -708,15 +705,15 @@ def _browser_pending_drain_guard_runner_source() -> str:
               localStorage.setItem("mediapipeline-advanced-mode", "0");
             }
             const blockedDrainButton = byId("pending-drain-button");
-            if (!blockedDrainButton || blockedDrainButton.disabled !== true || blockedDrainButton.getAttribute("aria-disabled") !== "true") {
-              throw new Error("blocked pending drain guard must disable the Drain Parked Outputs button");
+            if (!blockedDrainButton || blockedDrainButton.disabled || blockedDrainButton.getAttribute("aria-disabled") !== "false") {
+              throw new Error("advisory evidence must leave the backend Drain Parked Outputs submission enabled");
             }
             const blockedActionDrainButton = byId("pending-action-drain-button");
-            if (!blockedActionDrainButton || blockedActionDrainButton.disabled !== true || blockedActionDrainButton.getAttribute("aria-disabled") !== "true") {
-              throw new Error("blocked pending drain guard must disable the visible Action Center drain button");
+            if (!blockedActionDrainButton || blockedActionDrainButton.disabled || blockedActionDrainButton.getAttribute("aria-disabled") !== "false") {
+              throw new Error("advisory evidence must leave the visible Action Center drain submission enabled");
             }
-            if (blockedActionDrainButton.textContent.trim() !== "Drain Blocked") {
-              throw new Error("Action Center drain button did not show the blocked label: " + blockedActionDrainButton.textContent);
+            if (blockedActionDrainButton.textContent.trim() !== "Submit Drain After Review") {
+              throw new Error("Action Center drain button did not show the advisory review label: " + blockedActionDrainButton.textContent);
             }
             const normalGuardBrief = document.querySelector("#pending-drain-guard-summary .diagnostic-callout-brief");
             const normalGuardDetails = document.querySelector("#pending-drain-guard-summary .diagnostic-callout-details");
@@ -740,8 +737,8 @@ def _browser_pending_drain_guard_runner_source() -> str:
               throw new Error("normal mode exposed diagnostic callouts across pages/tabs:\\n" + visibleDiagnosticFindings.join("\\n"));
             }
             requireText("pending-drain-guard-summary", [
-              "Drain Parked Outputs blocked by WebView evidence: Do not drain.",
-              "First action: select blocked/review checklist rows",
+              "WebView evidence advises against draining: Do not drain.",
+              "only backend validation can allow or refuse drain work",
               "Mutation guardrail",
             ]);
             byId("advanced-toggle").click();
@@ -755,23 +752,21 @@ def _browser_pending_drain_guard_runner_source() -> str:
 
             await window.mediaPipelineLaunchView.startPendingPublishDrain();
             await waitFor(
-              () => text("pending-drain-status") === "Blocked" && text("pending-drain-detail").includes("Drain Parked Outputs blocked by WebView evidence: Do not drain."),
-              "blocked drain click handled locally",
+              () => text("pending-drain-status") !== "Confirming" && posts.some((entry) => entry.path === "/api/pipeline/start"),
+              "advisory drain submitted to backend",
             );
             const history = window.getCommandHistory().filter((entry) => entry.command === "pending_publish.drain");
-            if (!history.length) throw new Error("blocked drain click did not append local command result");
-            if (!history.some((entry) => entry.local && entry.raw?.data?.frontend_guard === true)) {
-              throw new Error("blocked drain command history did not include frontend_guard evidence: " + JSON.stringify(history));
+            if (!history.length) throw new Error("backend drain result was not added to command history");
+            const drainPost = posts.find((entry) => entry.path === "/api/pipeline/start");
+            if (!drainPost || drainPost.body?.mode !== "drain_pending_pushes") {
+              throw new Error("advisory drain did not submit the unchanged all-scope backend mode: " + JSON.stringify(posts));
             }
-            if (posts.some((entry) => entry.path === "/api/pipeline/start")) {
-              throw new Error("blocked drain attempted /api/pipeline/start: " + JSON.stringify(posts));
-            }
-            if (confirmCalls !== 0) {
-              throw new Error("blocked drain should not ask for confirmation; confirm calls=" + confirmCalls);
+            if (confirmCalls !== 1) {
+              throw new Error("advisory drain should ask for one operator confirmation; confirm calls=" + confirmCalls);
             }
             requireText("pending-drain-history", [
               "pending_publish.drain",
-              "frontend_guard",
+              "pending_publish.drain",
             ]);
             requireText("pending-post-drain-trust-summary", [
               "Blocked/review/read-first/unknown:",
@@ -915,7 +910,7 @@ def _run_browser_pending_drain_guard_smoke(
 
 
 class WebViewBrowserPendingDrainGuardSmoke(unittest.TestCase):
-    def test_real_browser_refreshes_guard_after_blocked_recovery_plan_and_blocks_drain_post(self) -> None:
+    def test_real_browser_refreshes_advisory_and_submits_drain_to_backend(self) -> None:
         browser_path = _find_browser()
         if not browser_path:
             raise unittest.SkipTest("Chrome or Edge is required for the browser-backed Pending Publish drain guard smoke.")
@@ -948,19 +943,18 @@ class WebViewBrowserPendingDrainGuardSmoke(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         browser_result = result["result"]
-        self.assertIn(browser_result["initialGuardStatus"], {"Allowed", "Review confirm"})
-        self.assertEqual(browser_result["guardStatus"], "Blocked")
+        self.assertIn(browser_result["initialGuardStatus"], {"Backend check", "Review confirm"})
+        self.assertEqual(browser_result["guardStatus"], "Review confirm")
         self.assertIn("Decision: Do not drain", browser_result["guardSummary"])
-        self.assertEqual(browser_result["drainStatus"], "Blocked")
-        self.assertIn("frontend_guard", browser_result["historyText"])
-        self.assertIn(browser_result["staleGuardStatus"], {"Allowed", "Review confirm"})
+        self.assertNotEqual(browser_result["drainStatus"], "Blocked")
+        self.assertIn("pending_publish.drain", browser_result["historyText"])
+        self.assertIn(browser_result["staleGuardStatus"], {"Backend check", "Review confirm"})
         self.assertIn("Recovery dry-run cleared because Pending Publish evidence changed.", browser_result["staleRecoveryStatus"])
         self.assertNotIn("Decision: Do not drain", browser_result["staleGuardSummary"])
         self.assertIn("Blocked/review/read-first/unknown: 0/", browser_result["staleDecisionSummary"])
         post_paths = browser_result["postPaths"]
-        self.assertNotIn("/api/pipeline/start", post_paths)
-        self.assertEqual([path for path in post_paths if path != "/api/ui-preferences"], [])
-        self.assertEqual(browser_result["confirmCalls"], 0)
+        self.assertEqual(post_paths.count("/api/pipeline/start"), 1)
+        self.assertEqual(browser_result["confirmCalls"], 1)
 
 
 if __name__ == "__main__":

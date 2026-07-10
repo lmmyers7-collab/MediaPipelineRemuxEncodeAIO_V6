@@ -3,9 +3,9 @@ file: tests/python/desktop/test_close_readiness_static.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-09
 last_reviewed: 2026-06-26
-sha256: 7cd33c0bbe148d5d5ee97b701892fb23540b3c51d30b2ddefced1718005f3008
+sha256: 9080738a1e39fd108c0f3660a4d2922a66dc808c2fbaa6be05648751c6b7de54
 ---
 # `tests/python/desktop/test_close_readiness_static.py`
 

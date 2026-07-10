@@ -20,6 +20,7 @@ $repoRoot = Split-Path -Parent (Split-Path -Parent $pipelineRoot)
 . (Join-Path $repoRoot 'ops\pipeline\engine\shared\path_helpers.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\paths\output_path_planning.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\storage\disk.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\audit\policy.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\audit\probe.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\shared\temp_cleanup.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\storage\scratch_copy.ps1')
@@ -435,6 +436,27 @@ Invoke-WithTempRoot {
     Assert-True (Test-Path -LiteralPath $outsideEntry -PathType Leaf) 'Clear-ProbeCache must not remove cache children outside the configured report root.'
     Remove-Variable -Name ReportRootResolved -Scope Script -ErrorAction SilentlyContinue
     Remove-Variable -Name ProbeCacheRoot -Scope Script -ErrorAction SilentlyContinue
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    $path = Join-Path $Root.FullName 'same-size-replaced.mkv'
+    [System.IO.File]::WriteAllBytes($path, [byte[]](1, 2, 3, 4, 5, 6, 7, 8))
+    $firstFile = Get-Item -LiteralPath $path
+    $stableMtime = $firstFile.LastWriteTimeUtc
+    $firstIdentity = Get-ProbeCacheIdentity $firstFile
+
+    Assert-True (-not [string]::IsNullOrWhiteSpace($firstIdentity)) 'Probe cache identity should be available for a readable source file.'
+    Assert-True ($firstIdentity -match 'sample_sha256=') 'Probe cache identity must include sample content hash evidence.'
+
+    [System.IO.File]::WriteAllBytes($path, [byte[]](8, 7, 6, 5, 4, 3, 2, 1))
+    (Get-Item -LiteralPath $path).LastWriteTimeUtc = $stableMtime
+    $secondFile = Get-Item -LiteralPath $path
+
+    Assert-Equal ([int64]$secondFile.Length) ([int64]$firstFile.Length) 'Test fixture should preserve byte length for same-size replacement.'
+    Assert-Equal ($secondFile.LastWriteTimeUtc.ToString('o')) ($stableMtime.ToString('o')) 'Test fixture should preserve last-write time for same-mtime replacement.'
+    $secondIdentity = Get-ProbeCacheIdentity $secondFile
+    Assert-True ($firstIdentity -ne $secondIdentity) 'Same-path, same-size, same-mtime content replacement must not reuse probe cache identity.'
 }
 
 Invoke-WithTempRoot {

@@ -45,6 +45,7 @@ class ClaimedJob:
     encode_config: dict          = field(default_factory=dict)
     claimed_at:    datetime      = field(default_factory=datetime.now)
     worker_id:     str           = ""
+    claim_metadata: dict         = field(default_factory=dict)
 
 
 class QueueDispatcher(ABC):

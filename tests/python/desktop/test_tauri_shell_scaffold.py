@@ -605,6 +605,19 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("FORCE_CLOSE_RECOVERY_WARNING", source)
         self.assertIn("The backend will be asked to stop app-owned pipeline work before shutdown", source)
 
+    def test_tauri_shell_retries_one_transient_close_readiness_transport_failure(self) -> None:
+        source = (TAURI_SRC_ROOT / "close_readiness.rs").read_text(encoding="utf-8")
+
+        self.assertIn("const CLOSE_READINESS_REQUEST_ATTEMPTS: usize = 2", source)
+        self.assertIn("const CLOSE_READINESS_RETRY_DELAY", source)
+        self.assertIn("for attempt in 0..CLOSE_READINESS_REQUEST_ATTEMPTS", source)
+        self.assertIn("if attempt + 1 < CLOSE_READINESS_REQUEST_ATTEMPTS", source)
+        self.assertIn("thread::sleep(CLOSE_READINESS_RETRY_DELAY)", source)
+        self.assertIn(
+            "request_close_readiness_recovers_from_one_transient_transport_failure",
+            source,
+        )
+
     def test_tauri_shell_close_readiness_prompt_includes_bounded_backend_warnings_and_watcher_evidence(self) -> None:
         source = _tauri_rust_source()
 
@@ -1566,18 +1579,18 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
 
-    def test_webview_browser_pending_drain_guard_smoke_blocks_pipeline_post(self) -> None:
+    def test_webview_browser_pending_drain_advisory_submits_backend_pipeline_post(self) -> None:
         source = (PROJECT_ROOT / "tests" / "webview" / "test_webview_browser_pending_drain_guard_smoke.py").read_text(encoding="utf-8")
 
         self.assertIn("remote-debugging-port", source)
         self.assertIn("WebSocket", source)
         self.assertIn("Chrome or Edge is required", source)
-        self.assertIn("test_real_browser_refreshes_guard_after_blocked_recovery_plan_and_blocks_drain_post", source)
+        self.assertIn("test_real_browser_refreshes_advisory_and_submits_drain_to_backend", source)
         self.assertIn("renderPendingRecoveryPlanResult", source)
         self.assertIn("startPendingPublishDrain", source)
         self.assertIn("pendingDrainGuardState", source)
-        self.assertIn("frontend_guard", source)
-        self.assertIn("blocked drain attempted /api/pipeline/start", source)
+        self.assertIn('drainPost.body?.mode !== "drain_pending_pushes"', source)
+        self.assertIn('post_paths.count("/api/pipeline/start")', source)
         self.assertIn("confirmCalls", source)
         self.assertIn("Decision: Do not drain", source)
         self.assertNotIn("playwright", source.casefold())

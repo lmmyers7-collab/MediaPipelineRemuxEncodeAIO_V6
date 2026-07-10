@@ -1,0 +1,57 @@
+{
+  "id": "MP-CHANGE-2026-0705-026",
+  "title": "Block TV library fallback show names",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-05",
+  "date_completed": "2026-07-05",
+  "summary": "TV naming now fails closed when the parser would use a TV library/root label as the show name.",
+  "reason": "Root-level TV files with weak season/episode names could fall back to labels like TV or a TV library name, producing output paths such as TV/TV/Season 04.",
+  "affected_areas": [
+    "generated",
+    "pipeline",
+    "tests"
+  ],
+  "behavior_before": "TV parsing could accept the active TV root or library label as a reliable show name when no better show title was found.",
+  "behavior_after": "TV parsing rejects generic TV labels and active TV library/root labels as show names, while explicit show titles and show-folder fallbacks remain valid.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/naming/naming.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/naming/tv_parsing.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/process/pipeline_processing.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/process/pipeline_processing/preflight.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/queue/queue_entries.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/queue/snapshot_rows.ps1.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/Invoke-RerunCsv.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-NamingSupportChecks.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-PipelineProcessingPreflightChecks.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1.md",
+    "ops/pipeline/engine/naming/naming.ps1",
+    "ops/pipeline/engine/naming/tv_parsing.ps1",
+    "ops/pipeline/engine/process/pipeline_processing.ps1",
+    "ops/pipeline/engine/process/pipeline_processing/preflight.ps1",
+    "ops/pipeline/engine/queue/queue_entries.ps1",
+    "ops/pipeline/engine/queue/snapshot_rows.ps1",
+    "ops/pipeline/entrypoints/Invoke-RerunCsv.ps1",
+    "ops/pipeline/tests/Unit/Invoke-NamingSupportChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-PipelineProcessingPreflightChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0705-026.json"
+  ],
+  "tests_added": [
+    "Invoke-NamingSupportChecks.ps1 covers root-level Re:Zero ordinal-season parsing, blocked TV-root fallback, and valid show-folder fallback.",
+    "Invoke-PipelineProcessingPreflightChecks.ps1 asserts runtime TV parse preflight forwards library evidence into Get-TVInfoFromFile."
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths <touched paths> - wrote 10 summaries",
+    ".\\ops\\pipeline\\tests\\Unit\\Invoke-NamingSupportChecks.ps1 - passed",
+    ".\\ops\\pipeline\\tests\\Unit\\Invoke-PipelineProcessingPreflightChecks.ps1 - passed",
+    ".\\ops\\pipeline\\tests\\Unit\\Invoke-PipelineQueueEngineChecks.ps1 - passed",
+    ".\\ops\\pipeline\\tests\\Unit\\Invoke-RerunPlanOnlyChecks.ps1 - passed",
+    "validate_changes --require-worktree-coverage - passed"
+  ],
+  "rollback_plan": "Revert the TV parser fallback guard, context plumbing, rerun planning helper, tests, generated summaries, and this change packet.",
+  "related_changes": [],
+  "notes": "Block TV parser show names that resolve to TV library/root labels.\nExpose new TV parser helper names through naming loader documentation.\nPass TV source-root and library profile context into queue sort parsing.\nPass TV source-root and library profile context into queue preview preflight parsing.\nResolve library evidence before runtime TV parse preflight.\nPass selected library profile id into runtime TV parse preflight.\nPass TV library context into CSV rerun TV destination planning.\nAdd regressions for root-level Re:Zero, blocked TV-root fallback, and valid show-folder fallback.\nAssert runtime TV preflight forwards library evidence into parser.\nUpdate queue parser stub for library-context parser parameters.\nRefresh generated summary after parser changes.\nRefresh generated summary after naming loader comment changes.\nRefresh generated summary after queue entry changes.\nRefresh generated summary after queue snapshot changes.\nRefresh generated summary after process preflight changes.\nRefresh generated summary after process orchestration changes.\nRefresh generated summary after rerun planning changes.\nRefresh generated summary after naming test changes.\nRefresh generated summary after preflight test changes.\nRefresh generated summary after queue test changes."
+}

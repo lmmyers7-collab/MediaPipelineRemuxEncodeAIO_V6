@@ -130,6 +130,23 @@ def rename_apply_blockers_result(blockers: Iterable[Mapping[str, Any]]) -> Comma
     )
 
 
+def rename_apply_stale_preview_result(*, missing: bool = False) -> CommandResult:
+    message = (
+        "Rename apply requires a fresh backend preview fingerprint."
+        if missing
+        else "Rename apply blocked because the backend preview is stale. Run Preview again and review the current destinations."
+    )
+    return _command_result(
+        command=RENAME_APPLY_COMMAND,
+        ok=False,
+        message=message,
+        severity="warning",
+        warnings=[message],
+        refresh_hint=RENAME_REFRESH_HINT,
+        data={"stale_preview": True, "preview_fingerprint_required": True},
+    )
+
+
 def rename_apply_outside_configured_roots_result(rows: Iterable[Mapping[str, Any]]) -> CommandResult:
     row_list = list(rows)
     warnings = [OUTSIDE_CONFIGURED_ROOTS_MESSAGE]
@@ -356,6 +373,7 @@ __all__ = [
     "rename_plan_build_exception_result",
     "rename_apply_missing_selection_result",
     "rename_apply_blockers_result",
+    "rename_apply_stale_preview_result",
     "rename_apply_outside_configured_roots_result",
     "rename_apply_unscoped_operator_paths_result",
     "rename_apply_exception_result",

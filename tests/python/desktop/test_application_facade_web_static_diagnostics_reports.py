@@ -395,6 +395,8 @@ NETWORK_ASSERTIONS: tuple[AssertionRow, ...] = (('in', 'network_view_js', 'windo
  ('in', 'network_view_js', 'This checklist cannot abort, reclaim, release'),
  ('not_in', 'network_view_js', 'not exposed through the local WebView API yet'),
  ('in', 'network_view_js', 'function renderNetworkWorkers'),
+ ('in', 'network_view_js', 'function renderNetworkRerunRows'),
+ ('in', 'network_view_js', 'Network CSV rerun read model: backend-owned /api/rerun/results.'),
  ('in', 'network_view_js', 'function renderNetworkWorkerRows'),
  ('in', 'network_view_js', 'function networkWorkerRowKey'),
  ('in', 'network_view_js', 'function filteredNetworkWorkerRows'),
@@ -419,7 +421,9 @@ NETWORK_ASSERTIONS: tuple[AssertionRow, ...] = (('in', 'network_view_js', 'windo
  ('in', 'network_view_js', 'network-settings-rows'),
  ('in', 'network_view_js', 'network-api-summary'),
  ('in', 'js', '/api/network/workers'),
+ ('in', 'js', '/api/rerun/results?limit=24'),
  ('in', 'js', 'networkWorkers: values["network workers"]'),
+ ('in', 'js', 'rerunResults: values["rerun results"]'),
  ('in', 'js', 'queue: latestQueue'))
 
 DIAGNOSTICS_ASSERTIONS: tuple[AssertionRow, ...] = (('in', 'diagnostics_view_active_jobs_js', 'function createDiagnosticsActiveJobsModule'),
@@ -514,7 +518,7 @@ DIAGNOSTICS_ASSERTIONS: tuple[AssertionRow, ...] = (('in', 'diagnostics_view_act
  ('in', 'diagnostics_view_js', 'function renderActiveJobDetail'),
  ('in', 'diagnostics_view_js', 'function activeJobRowPosture'),
  ('in', 'diagnostics_view_js', 'function activeJobRowsStatusText'),
- ('in', 'diagnostics_view_js', 'active/review='),
+ ('in', 'diagnostics_view_js', 'review=${counts.review}; completed=${counts.completed}; unknown=${counts.unknown}.'),
  ('in', 'diagnostics_view_js', 'function diagnosticsActiveJobRealMediaTraceLines'),
  ('in', 'diagnostics_view_js', 'Real-media sample trace: ActiveJobs'),
  ('in', 'diagnostics_view_js', 'function activeJobRowKey'),

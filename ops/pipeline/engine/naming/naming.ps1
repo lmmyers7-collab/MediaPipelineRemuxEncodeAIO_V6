@@ -29,6 +29,9 @@
 #   Get-TVLooseSeasonEpisodeFromName
 #   Get-TVLooseBareEpisodeNumber
 #   Get-TVShowNameBeforeSeasonEpisodeTokens
+#   Get-TVShowNameBeforeOrdinalSeasonToken
+#   Get-TVDisallowedLibraryFallbackShowNameKeys
+#   Test-TVShowNameMatchesDisallowedLibraryFallback
 #   Test-TVFolderEpisodeSequenceSupportsCandidate
 #   Get-TVAggressiveEpisodeFromName
 #   Get-TVInfoFromFile

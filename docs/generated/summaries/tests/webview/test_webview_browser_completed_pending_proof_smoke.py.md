@@ -3,9 +3,9 @@ file: tests/webview/test_webview_browser_completed_pending_proof_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-03
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: 6b0c3704bbde8dd9fdc0d05820990efe6ac4b58d7634386a7299f25d2506de3e
+sha256: d61b4822fe7f26b2a2334e6fc431ac3964dc44093fb026fcdcd152d849935f20
 ---
 # `tests/webview/test_webview_browser_completed_pending_proof_smoke.py`
 

@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0707-007",
+  "title": "CSV rerun preview table layout",
+  "version_target": "2026.07.08.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-07",
+  "date_completed": "2026-07-08",
+  "summary": "Fixed the Queue CSV Rerun preview table layout by keeping preview row cells as table cells, moving stack layout into child wrappers, using explicit desktop column tracks, and rendering destination policy/execution on wrapped lines.",
+  "reason": "Long CSV rerun category and destination text could collapse or crowd the destination and reason columns in the preview table.",
+  "affected_areas": [
+    "generated-context",
+    "test",
+    "webview"
+  ],
+  "behavior_before": "CSV rerun preview rows used percentage tracks and table cells with flex/grid display, allowing category and destination content to collapse the destination and reason columns.",
+  "behavior_after": "CSV rerun preview rows use fixed 1280px desktop tracks, table-cell semantics, wrapped destination lines, and responsive card handling for narrow screens.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launchView.js",
+    "apps/desktop/webview/static/assets/styles/queue/responsive.css",
+    "apps/desktop/webview/static/assets/styles/queue/table.css",
+    "apps/desktop/webview/static/partials/page-queue.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles/queue/responsive.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles/queue/table.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-queue.html.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_launch_queue_readiness_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0707-007.json",
+    "tests/webview/test_webview_browser_launch_queue_readiness_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_launch_queue_readiness_smoke.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_launch_queue_readiness_smoke.WebViewBrowserLaunchQueueReadinessSmoke.test_real_browser_renders_launch_queue_readiness_without_mutation_posts -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_launch_command_buttons_smoke -q - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths <touched webview/test files> - passed",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke - failed on pre-existing NUL-byte files, orphan summaries, duplicate-test report drift, and older change-packet local path"
+  ],
+  "rollback_plan": "Revert the CSV rerun preview table markup, CSS, renderer, browser-smoke assertion, and generated-summary changes in this packet. Backend CSV rerun behavior is untouched.",
+  "related_changes": [],
+  "notes": "Add explicit CSV rerun preview table column classes for stable layout.\nRebalance CSV rerun preview table columns and wrapping.\nRender CSV rerun destination as wrapped structured lines instead of one long cell string.\nKeep CSV rerun destination cell readable in responsive card layout.\nRefresh generated summary for CSV rerun queue partial.\nRefresh generated summary for CSV rerun preview renderer.\nRefresh generated summary for CSV rerun table CSS.\nRefresh generated summary for CSV rerun responsive CSS.\nAdd desktop-width CSV rerun preview table layout assertions.\nRefresh generated summary for browser launch/queue readiness smoke.\nRelease self-test first timed out at 184s with no output; rerun completed and failed on unrelated repository guardrails."
+}

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-07-05
 last_reviewed: 2026-06-04
-sha256: 32cf05742cdb7e882e2bc5389a1581995dd604990c090605f532a4af252c09bf
+sha256: d02275e110e8fa13d3254b51b037f658acba7f80a3a5216f389fc0f65b9dc4c3
 ---
 # `src/mediapipeline/contracts/schemas/config.v1.schema.json`
 

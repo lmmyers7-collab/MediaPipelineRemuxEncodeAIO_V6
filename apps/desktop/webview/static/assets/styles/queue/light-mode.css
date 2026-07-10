@@ -35,6 +35,11 @@ body.light-mode .queue-state-chip[data-state="queued"] {
   color: var(--semantic-pending-text);
 }
 
+body.light-mode .queue-state-chip[data-state="parked"] {
+  background: var(--semantic-pending-bg);
+  color: var(--semantic-pending-text);
+}
+
 body.light-mode .queue-state-chip[data-state="launch-check"] {
   background: var(--semantic-info-bg);
   color: var(--semantic-info-text);

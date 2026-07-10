@@ -387,22 +387,24 @@ function Test-PendingManifestDestinationTrusted {
     if (-not (Test-PendingManifestBoolFieldValid -Object $Manifest -Name 'confirm_source_overwrite')) {
         return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'SOURCE_OVERWRITE_CONFIRM_INVALID' -Reason 'confirm_source_overwrite must be a boolean when present.' -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
     }
-    $outputRoot = Get-PendingManifestConfiguredOutputRoot -Manifest $Manifest
-    if ([string]::IsNullOrWhiteSpace($outputRoot)) {
-        return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'OUTPUT_ROOT_MISSING' -Reason 'Configured output root is missing; server_out cannot be trusted.' -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
-    }
-    $serverBoundary = Test-PendingManifestPathBoundary -Path $serverOut -Root $outputRoot -AllowMissingLeaf
-    if (-not $serverBoundary.Ok) {
-        return New-PendingManifestTrustResult -Ok:$false -ReasonCode "SERVER_OUT_$($serverBoundary.ReasonCode)" -Reason "server_out is not inside the configured output root ($($serverBoundary.ReasonCode)): $serverOut" -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
-    }
-
-    $forbiddenRoots = [System.Collections.Generic.List[string]]::new()
     $sourceOverwriteConfirmed = Test-PendingManifestBoolTrue -Object $Manifest -Name 'confirm_source_overwrite'
     $sourceOverwriteTarget = (
         $sourceOverwriteConfirmed -and
         -not [string]::IsNullOrWhiteSpace($sourcePath) -and
         (Get-PendingManifestPathKey -Path $serverOut) -eq (Get-PendingManifestPathKey -Path $sourcePath)
     )
+    if (-not $sourceOverwriteTarget) {
+        $outputRoot = Get-PendingManifestConfiguredOutputRoot -Manifest $Manifest
+        if ([string]::IsNullOrWhiteSpace($outputRoot)) {
+            return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'OUTPUT_ROOT_MISSING' -Reason 'Configured output root is missing; server_out cannot be trusted.' -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
+        }
+        $serverBoundary = Test-PendingManifestPathBoundary -Path $serverOut -Root $outputRoot -AllowMissingLeaf
+        if (-not $serverBoundary.Ok) {
+            return New-PendingManifestTrustResult -Ok:$false -ReasonCode "SERVER_OUT_$($serverBoundary.ReasonCode)" -Reason "server_out is not inside the configured output root ($($serverBoundary.ReasonCode)): $serverOut" -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
+        }
+    }
+
+    $forbiddenRoots = [System.Collections.Generic.List[string]]::new()
     if (-not $sourceOverwriteTarget) {
         foreach ($root in @(Get-PendingManifestConfiguredSourceRoots)) { if ($root) { $forbiddenRoots.Add([string]$root) | Out-Null } }
     }
@@ -441,11 +443,6 @@ function Test-PendingSidecarTrustedForPublish {
         return New-PendingManifestTrustResult -Ok:$false -ReasonCode "SIDECAR_LOCAL_$($localBoundary.ReasonCode)" -Reason "pending sidecar local_file is not a trusted PendingServerPush payload ($($localBoundary.ReasonCode)): $sidecarLocal" -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
     }
 
-    $outputRoot = Get-PendingManifestConfiguredOutputRoot -Manifest $Manifest
-    $serverBoundary = Test-PendingManifestPathBoundary -Path $sidecarServer -Root $outputRoot -AllowMissingLeaf
-    if (-not $serverBoundary.Ok) {
-        return New-PendingManifestTrustResult -Ok:$false -ReasonCode "SIDECAR_SERVER_$($serverBoundary.ReasonCode)" -Reason "pending sidecar server_out is not inside the configured output root ($($serverBoundary.ReasonCode)): $sidecarServer" -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
-    }
     $sourceOverwriteTarget = (
         (Test-PendingManifestBoolTrue -Object $Manifest -Name 'confirm_source_overwrite') -and
         -not [string]::IsNullOrWhiteSpace($sourcePath) -and
@@ -457,6 +454,13 @@ function Test-PendingSidecarTrustedForPublish {
         -not [string]::IsNullOrWhiteSpace($serverDir) -and
         (Test-PendingManifestPathUnderRoot -Path $sidecarServer -Root $serverDir)
     )
+    if (-not $sourceOverwriteSidecar) {
+        $outputRoot = Get-PendingManifestConfiguredOutputRoot -Manifest $Manifest
+        $serverBoundary = Test-PendingManifestPathBoundary -Path $sidecarServer -Root $outputRoot -AllowMissingLeaf
+        if (-not $serverBoundary.Ok) {
+            return New-PendingManifestTrustResult -Ok:$false -ReasonCode "SIDECAR_SERVER_$($serverBoundary.ReasonCode)" -Reason "pending sidecar server_out is not inside the configured output root ($($serverBoundary.ReasonCode)): $sidecarServer" -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
+        }
+    }
     $sourceRoots = if ($sourceOverwriteSidecar) { @() } else { @(Get-PendingManifestConfiguredSourceRoots) }
     $forbiddenRoots = @(
         $sourceRoots,

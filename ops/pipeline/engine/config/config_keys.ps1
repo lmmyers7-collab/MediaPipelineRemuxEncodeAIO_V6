@@ -202,6 +202,7 @@ $script:MediaPipelineConfigKeyRegistry = [ordered]@{
     CoordinatorHeartbeatTimeoutMins = 'CoordinatorHeartbeatTimeoutMins'
     CoordinatorMaxJobRetries = 'CoordinatorMaxJobRetries'
     CoordinatorAuthToken = 'CoordinatorAuthToken'
+    NetworkRerunHandoffRoot = 'NetworkRerunHandoffRoot'
     WorkerCoordinatorUrl = 'WorkerCoordinatorUrl'
     WorkerName = 'WorkerName'
     WorkerAuthToken = 'WorkerAuthToken'
@@ -220,6 +221,7 @@ $script:MediaPipelineNetworkConfigKeys = @(
     'CoordinatorHeartbeatTimeoutMins',
     'CoordinatorMaxJobRetries',
     'CoordinatorAuthToken',
+    'NetworkRerunHandoffRoot',
     'WorkerCoordinatorUrl',
     'WorkerName',
     'WorkerAuthToken',

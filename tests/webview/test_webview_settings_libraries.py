@@ -504,8 +504,10 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertIn("settings-library-summary-detail", libraries_html)
         self.assertIn("settings-library-summary-rows", libraries_html)
         self.assertIn("settings-library-summary-warning", libraries_html)
-        for heading in ("Library", "Path", "Type", "Status", "Media Files", "Sidecars", "Last Scan", "Actions"):
-            self.assertIn(f"<th>{heading}</th>", libraries_html)
+        self.assertIn("Saved library tiles", libraries_html)
+        self.assertIn("settings-library-summary-grid", libraries_html)
+        self.assertNotIn("<th>Path</th>", libraries_html)
+        self.assertNotIn("settings-library-summary-table", libraries_html)
         self.assertNotIn("Movie and TV are always present.", libraries_html)
         self.assertNotIn("Movie and TV cannot be deleted.", libraries_html)
         self.assertIn("settings-library-editor-status", libraries_html)
@@ -570,8 +572,9 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "lastLibrarySummary",
             "function renderLibrarySummary(payload = lastLibrarySummary)",
             "data-library-summary-row",
-            "data-library-summary-edit",
-            'activateLibraryProfile(libraryId, { source: "summary-table" })',
+            "data-library-summary-inspect",
+            "function librarySummaryStatusSymbol(value)",
+            'activateLibraryProfile(libraryId, { source: "summary-tiles" })',
             "function requestLibrarySummaryScan()",
             "window.mediaPipelineQueueView?.requestQueueScan",
             "renderLibrarySummary,",
@@ -581,10 +584,14 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         for token in (
             "settings-library-summary-panel",
             "settings-library-summary-toolbar",
-            "settings-library-summary-table",
-            "settings-library-summary-row.is-active",
+            "settings-library-summary-grid",
+            "settings-library-summary-tile.is-active",
+            "settings-library-status-symbol",
+            "settings-library-summary-inspect-body",
         ):
             self.assertIn(token, css)
+
+        self.assertNotIn("row.source_path", libraries_js)
 
         self.assertIn('["libraries summary", refreshGet("/api/libraries/summary", refreshOptions), false]', app_js)
         self.assertIn('window.mediaPipelineSettingsLibraries?.renderLibrarySummary?.(values["libraries summary"]);', app_js)

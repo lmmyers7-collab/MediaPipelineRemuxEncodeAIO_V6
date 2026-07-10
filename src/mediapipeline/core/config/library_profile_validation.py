@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import ntpath
 from collections.abc import Mapping
 from typing import Any
 
@@ -37,6 +38,10 @@ def _path_key(path: str, normalized_path_key: Any) -> str:
             return os.path.normcase(os.path.abspath(path))
         except (OSError, ValueError):
             return path.strip().casefold()
+
+
+def _path_is_absolute(path: str) -> bool:
+    return os.path.isabs(path) or ntpath.isabs(path)
 
 def _overlap_warning(
     left_label: str,
@@ -264,6 +269,12 @@ def validate_library_profiles(
             errors.append(f"Library profile {label} output_path is required.")
         if enabled and promotion_enabled and not promotion_destination:
             errors.append(f"Library profile {label} promotion_destination is required when promotion is enabled.")
+        if enabled and source_path and not _path_is_absolute(source_path):
+            errors.append(f"Library profile {label} source_path must be an absolute path.")
+        if enabled and output_path and not _path_is_absolute(output_path):
+            errors.append(f"Library profile {label} output_path must be an absolute path.")
+        if enabled and promotion_enabled and promotion_destination and not _path_is_absolute(promotion_destination):
+            errors.append(f"Library profile {label} promotion_destination must be an absolute path.")
 
         if enabled and source_path:
             source_key = _path_key(source_path, normalized_path_key)
@@ -283,7 +294,7 @@ def validate_library_profiles(
                 seen_sources[source_key] = label
                 enabled_sources.append((label, source_path))
 
-        for warning in (
+        overlap_messages = (
             _overlap_warning(
                 f"Library profile {label} source_path",
                 source_path,
@@ -308,9 +319,12 @@ def validate_library_profiles(
                 normalized_path_key=normalized_path_key,
                 path_within_root=path_within_root,
             ),
-        ):
-            if warning:
-                warnings.append(warning)
+        )
+        if enabled:
+            for index, overlap_message in enumerate(overlap_messages):
+                if not overlap_message or (index > 0 and not promotion_enabled):
+                    continue
+                errors.append(overlap_message)
 
         errors.extend(_profile_override_errors(profile))
         _validate_profile_effective_settings(values, profile, errors, warnings)

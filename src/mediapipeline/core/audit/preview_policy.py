@@ -51,8 +51,10 @@ def audit_record_to_row(
     *,
     row_index: int = 0,
     ignore_entry: dict[str, Any] | None = None,
+    duplicate_info: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     path = record.path
+    duplicate = duplicate_info or {}
     return {
         "row_key": audit_record_key(record, row_index),
         "row_index": row_index,
@@ -71,16 +73,60 @@ def audit_record_to_row(
         "ignored": ignore_entry is not None,
         "ignore_reason": str((ignore_entry or {}).get("reason") or ""),
         "ignore_set_at": str((ignore_entry or {}).get("set_at") or ""),
+        "duplicate_group": bool(duplicate),
+        "duplicate_group_key": str(duplicate.get("key") or ""),
+        "duplicate_group_size": int(duplicate.get("size") or 0),
+        "duplicate_group_type": str(duplicate.get("type") or ""),
+        "duplicate_group_label": str(duplicate.get("label") or ""),
     }
 
 
-def audit_duplicate_group_count(records: list[AuditRecord]) -> int:
-    counts: dict[str, int] = {}
+def _path_leaf_key(record: AuditRecord) -> str:
+    raw = str(record.path or record.relative_path or "").strip()
+    if not raw:
+        return ""
+    return raw.replace("\\", "/").rsplit("/", 1)[-1].casefold().strip()
+
+
+def _duplicate_group_candidates(record: AuditRecord) -> list[tuple[str, str, str]]:
+    candidates: list[tuple[str, str, str]] = []
+    leaf = _path_leaf_key(record)
+    if leaf:
+        candidates.append(("same_leaf", f"leaf:{leaf}", f"Same file name: {leaf}"))
+    if record.media_type.casefold() == "movie":
+        title = record.normalized_lookup_title
+        if title:
+            candidates.append(("movie_title", f"movie-title:{title}", f"Movie title: {title}"))
+    return candidates
+
+
+def audit_duplicate_group_metadata(records: list[AuditRecord]) -> dict[int, dict[str, Any]]:
+    candidate_counts: dict[str, int] = {}
+    per_record_candidates: list[list[tuple[str, str, str]]] = []
     for record in records:
-        key = record.normalized_lookup_title
-        if key:
-            counts[key] = counts.get(key, 0) + 1
-    return sum(1 for count in counts.values() if count > 1)
+        candidates = _duplicate_group_candidates(record)
+        per_record_candidates.append(candidates)
+        for _kind, key, _label in candidates:
+            candidate_counts[key] = candidate_counts.get(key, 0) + 1
+
+    duplicate_rows: dict[int, dict[str, Any]] = {}
+    for index, candidates in enumerate(per_record_candidates):
+        for kind, key, label in candidates:
+            size = candidate_counts.get(key, 0)
+            if size > 1:
+                duplicate_rows[index] = {
+                    "key": key,
+                    "size": size,
+                    "type": kind,
+                    "label": label,
+                }
+                break
+    return duplicate_rows
+
+
+def audit_duplicate_group_count(records: list[AuditRecord]) -> int:
+    duplicate_rows = audit_duplicate_group_metadata(records)
+    return len({str(info.get("key") or "") for info in duplicate_rows.values() if info.get("key")})
 
 
 def audit_preview_fields(
@@ -100,12 +146,19 @@ def audit_preview_fields(
             ignored_count += 1
             continue
         visible_records.append((index, record))
+    visible_record_list = [record for _index, record in visible_records]
+    duplicate_rows = audit_duplicate_group_metadata(visible_record_list)
     rows = [
-        audit_record_to_row(record, row_index=index)
-        for index, record in visible_records[:limit]
+        audit_record_to_row(record, row_index=index, duplicate_info=duplicate_rows.get(visible_index))
+        for visible_index, (index, record) in enumerate(visible_records[:limit])
     ]
-    buckets = [str(row.get("effective_bucket") or "").upper() for row in rows]
-    priority_levels = [str(row.get("priority_fix_level") or "").upper() for row in rows]
+    buckets = [str(record.effective_bucket or "").upper() for record in visible_record_list]
+    priority_levels = [str(record.priority_fix_level or "").upper() for record in visible_record_list]
+    actionable_count = sum(
+        1
+        for bucket, priority_level in zip(buckets, priority_levels, strict=False)
+        if bucket in {"RERUN_PIPELINE", "REDOWNLOAD_CANDIDATE"} or priority_level in {"HIGH", "MEDIUM"}
+    )
     warnings = [] if rows else [empty_warning]
     if len(visible_records) > len(rows):
         warnings.append(f"Showing {len(rows)} of {len(visible_records)} audit row(s).")
@@ -119,10 +172,13 @@ def audit_preview_fields(
         "total_count": len(valid_records),
         "ignored_count": ignored_count,
         "high_priority_count": sum(1 for item in priority_levels if item == "HIGH"),
+        "medium_priority_count": sum(1 for item in priority_levels if item == "MEDIUM"),
+        "priority_count": sum(1 for item in priority_levels if item in {"HIGH", "MEDIUM"}),
         "rerun_count": sum(1 for item in buckets if item == "RERUN_PIPELINE"),
         "redownload_count": sum(1 for item in buckets if item == "REDOWNLOAD_CANDIDATE"),
         "review_count": sum(1 for item in buckets if item == "REVIEW"),
-        "duplicate_group_count": audit_duplicate_group_count(valid_records),
+        "duplicate_group_count": len({str(info.get("key") or "") for info in duplicate_rows.values() if info.get("key")}),
+        "actionable_count": actionable_count,
         "warnings": warnings,
     }
 
@@ -163,16 +219,20 @@ def audit_records_for_row_keys(
 
 
 def audit_report_service_unavailable_result(priority_only: bool) -> AuditPreviewDto:
+    message = AUDIT_REPORT_SERVICE_UNAVAILABLE_MESSAGE
     return _audit_preview_dto(
         priority_only=bool(priority_only),
-        warnings=[AUDIT_REPORT_SERVICE_UNAVAILABLE_MESSAGE],
+        warnings=[message],
+        error=message,
     )
 
 
 def audit_latest_csv_resolution_error_result(priority_only: bool, exc: Exception) -> AuditPreviewDto:
+    message = f"Latest audit CSV could not be resolved: {exc}"
     return _audit_preview_dto(
         priority_only=bool(priority_only),
-        warnings=[f"Latest audit CSV could not be resolved: {exc}"],
+        warnings=[message],
+        error=message,
     )
 
 
@@ -184,18 +244,22 @@ def audit_no_csv_report_result(priority_only: bool) -> AuditPreviewDto:
 
 
 def audit_loader_unavailable_result(csv_path: Path | str, priority_only: bool) -> AuditPreviewDto:
+    message = AUDIT_LOADER_UNAVAILABLE_MESSAGE
     return _audit_preview_dto(
         source=str(csv_path),
         priority_only=bool(priority_only),
-        warnings=[AUDIT_LOADER_UNAVAILABLE_MESSAGE],
+        warnings=[message],
+        error=message,
     )
 
 
 def audit_csv_read_error_result(csv_path: Path | str, priority_only: bool, exc: Exception) -> AuditPreviewDto:
+    message = f"Audit CSV could not be read: {exc}"
     return _audit_preview_dto(
         source=str(csv_path),
         priority_only=bool(priority_only),
-        warnings=[f"Audit CSV could not be read: {exc}"],
+        warnings=[message],
+        error=message,
     )
 
 
@@ -230,6 +294,7 @@ __all__ = [
     "audit_visible_records",
     "bounded_audit_limit",
     "audit_record_to_row",
+    "audit_duplicate_group_metadata",
     "audit_duplicate_group_count",
     "audit_preview_fields",
     "audit_report_service_unavailable_result",

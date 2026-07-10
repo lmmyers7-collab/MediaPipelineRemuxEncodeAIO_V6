@@ -175,7 +175,8 @@ function Get-FileOverridesManifest {
     <#
     .SYNOPSIS
         Load file_overrides.json from the state root.
-        Returns an empty manifest hashtable on any error.
+        Returns an empty manifest only when no persisted manifest exists.
+        Existing malformed state fails closed.
     .DESCRIPTION
         The manifest is loaded once per use; the caller is responsible for
         clearing $script:CachedFileOverridesManifest between pipeline rounds
@@ -206,8 +207,7 @@ function Get-FileOverridesManifest {
         $text = [System.IO.File]::ReadAllText($manifestPath, [System.Text.Encoding]::UTF8)
         $obj  = $text | ConvertFrom-Json
         if (-not $obj -or $obj.version -ne 1 -or -not $obj.entries) {
-            $script:CachedFileOverridesManifest = $empty
-            return $empty
+            throw 'file_overrides.json is malformed: expected version 1 with an entries object.'
         }
         # Convert PSObject entries to a plain hashtable for fast lookup
         $ht = @{}
@@ -219,8 +219,7 @@ function Get-FileOverridesManifest {
         return $result
     } catch {
         Write-Log "Get-FileOverridesManifest: failed to read manifest: $_" "WARN"
-        $script:CachedFileOverridesManifest = $empty
-        return $empty
+        throw "file_overrides.json is malformed or unreadable; processing is blocked until repaired: $($_.Exception.Message)"
     }
 }
 

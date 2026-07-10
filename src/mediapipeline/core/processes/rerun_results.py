@@ -12,6 +12,12 @@ from pathlib import Path
 from typing import Any
 from collections.abc import Mapping
 
+from mediapipeline.core.final_library.promotion_parts.planning import PromotionFileTarget
+from mediapipeline.core.final_library.promotion_parts.transfer import (
+    companion_sidecars,
+    copy_files_transactionally,
+    sha256_file,
+)
 from mediapipeline.core.kernel.contracts.pending_publish import PendingPushManifest
 from mediapipeline.core.kernel.dto_commands import CommandResult
 from mediapipeline.core.paths.contracts import ResolvedPaths
@@ -34,6 +40,7 @@ RERUN_QUEUE_STATE_SCHEMA_VERSION = "desktop_rerun_queue_state.v1"
 RERUN_QUEUE_STATE_ROW_SCHEMA_VERSION = "desktop_rerun_queue_state_row.v1"
 RERUN_PROMOTE_DRY_RUN_SCHEMA_VERSION = "desktop_rerun_promote_dry_run.v1"
 RERUN_PROMOTE_PIPELINE_VERSION = "1.0"
+NETWORK_RERUN_DESTINATION_POLICY_RESULT_SCHEMA_VERSION = "desktop_rerun_network_destination_policy_result.v1"
 PENDING_MANIFEST_ARRAY_FIELDS = (
     "tx3g_srt_tracks",
     "tx3g_srt_failures",
@@ -74,6 +81,14 @@ def _manifest_root(resolved: ResolvedPaths) -> Path | None:
     if resolved.local_base is None:
         return None
     return resolved.local_base / "RerunManifests"
+
+
+def _network_manifest_root(resolved: ResolvedPaths) -> Path | None:
+    if resolved.state_root is not None:
+        return resolved.state_root / "Rerun" / "Network"
+    if resolved.local_base is not None:
+        return resolved.local_base / "State" / "Rerun" / "Network"
+    return None
 
 
 def _hash_text(text: str, length: int = 20) -> str:
@@ -333,7 +348,7 @@ def _queue_status_for_row(row: Mapping[str, Any], *, manifest_status: str) -> di
 
     if raw_status in {"skipped", "skip", "disabled"}:
         status_key, label, severity, terminal = "skipped", "Skipped", "muted", True
-    elif raw_status in {"failed", "error", "errored"}:
+    elif raw_status in {"failed", "error", "errored", "destination_policy_failed"}:
         status_key, label, severity, terminal = "failed", "Failed", "error", True
     elif raw_status in {"blocked", "invalid", "missing"}:
         status_key, label, severity, terminal = "blocked", "Blocked", "error", False
@@ -341,8 +356,18 @@ def _queue_status_for_row(row: Mapping[str, Any], *, manifest_status: str) -> di
         status_key, label, severity, terminal = "warning", "Warning", "warning", False
     elif raw_status in {"stopped", "stopped_after_current"}:
         status_key, label, severity, terminal = "stopped", "Stopped", "warning", False
-    elif raw_status in {"running", "active", "processing"}:
+    elif raw_status in {"running", "active", "processing", "destination_policy_applying"}:
         status_key, label, severity, terminal = "active", "Active", "warning", False
+    elif raw_status in {"pending_claim", "retryable"}:
+        status_key, label, severity, terminal = "pending", "Pending", "ok", False
+    elif raw_status in {"claimed"}:
+        status_key, label, severity, terminal = "active", "Active", "warning", False
+    elif raw_status in {"worker_completed_pending_reduction", "reduced_ready_for_destination_policy"}:
+        status_key, label, severity, terminal = "pending_reduction", "Pending Reduction", "warning", False
+    elif raw_status in {"worker_failed_pending_reduction"}:
+        status_key, label, severity, terminal = "failed", "Failed", "error", False
+    elif raw_status in {"worker_review_pending_reduction"}:
+        status_key, label, severity, terminal = "awaiting_review", "Awaiting Review", "warning", False
     elif raw_status in {"pending_publish", "parked"} or pending_manifest_path or pending_payload_path or auto_decision == "pending_publish_review":
         status_key, label, severity, terminal = "pending_publish", "Pending Publish", "warning", True
     elif raw_status in {"review_workspace", "awaiting_review", "review"}:
@@ -684,23 +709,229 @@ def _manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> list[dict[
     return manifests
 
 
+def _network_row_key(batch_id: str, row_key: str, state_path: Path) -> str:
+    raw = str(row_key or "").strip()
+    if raw:
+        return f"network:{batch_id}:{raw}"
+    return f"network:{batch_id}:{_hash_text(str(state_path))}"
+
+
+def _network_reducer_result(row: Mapping[str, Any]) -> dict[str, Any]:
+    raw = row.get("reducer_result")
+    return deepcopy(raw) if isinstance(raw, Mapping) else {}
+
+
+def _network_worker_result(row: Mapping[str, Any]) -> dict[str, Any]:
+    raw = row.get("worker_result")
+    return deepcopy(raw) if isinstance(raw, Mapping) else {}
+
+
+def _network_verified_output(row: Mapping[str, Any], worker_result: Mapping[str, Any], reducer_result: Mapping[str, Any]) -> str:
+    text = _first_text(row, "verified_output_path", "review_output_path")
+    if text:
+        return text
+    output = reducer_result.get("output_artifact") if isinstance(reducer_result, Mapping) else None
+    if isinstance(output, Mapping):
+        text = _clean_text(output.get("path"))
+        if text:
+            return text
+    return _clean_text(worker_result.get("output_path"))
+
+
+def _network_batch_queue_rows(state_path: Path, data: Mapping[str, Any]) -> list[dict[str, Any]]:
+    batch_id = str(data.get("batch_id") or state_path.stem)
+    manifest_status = _clean_text(data.get("status"))
+    rows: list[dict[str, Any]] = []
+    for index, raw_row in enumerate(data.get("rows") or []):
+        if not isinstance(raw_row, Mapping):
+            continue
+        raw_row_key = _clean_text(raw_row.get("row_key"))
+        status = _clean_text(raw_row.get("status"))
+        status_model = _queue_status_for_row(raw_row, manifest_status=manifest_status)
+        try:
+            row_index = int(raw_row.get("row_index"))
+        except (TypeError, ValueError):
+            row_index = index
+        reducer_result = _network_reducer_result(raw_row)
+        worker_result = _network_worker_result(raw_row)
+        raw_destination_result = raw_row.get("destination_policy_result")
+        destination_result = deepcopy(raw_destination_result) if isinstance(raw_destination_result, Mapping) else {}
+        destination_applied = raw_row.get("destination_policy_applied") is True or destination_result.get("ok") is True
+        destination_terminal = destination_result.get("terminal") is True
+        pending_destination_policy = (
+            reducer_result.get("pending_destination_policy") is True
+            and not destination_applied
+            and not destination_terminal
+        )
+        verified_output = _network_verified_output(raw_row, worker_result, reducer_result)
+        output_artifact = reducer_result.get("output_artifact") if isinstance(reducer_result, Mapping) else {}
+        destination_policy = raw_row.get("destination_policy")
+        pending_manifest_path = (
+            _clean_text(raw_row.get("pending_publish_manifest_path"))
+            or _clean_text(destination_result.get("pending_publish_manifest_path"))
+        )
+        pending_payload_path = (
+            _clean_text(raw_row.get("pending_publish_payload_path"))
+            or _clean_text(destination_result.get("pending_publish_payload_path"))
+        )
+        published_path = _clean_text(raw_row.get("published_path")) or _clean_text(destination_result.get("published_path"))
+        row = {
+            "schema_version": RERUN_QUEUE_STATE_ROW_SCHEMA_VERSION,
+            "row_key": _network_row_key(batch_id, raw_row_key, state_path),
+            "network_rerun_row_key": raw_row_key,
+            "row_index": row_index,
+            "queue_source": "network_csv_rerun",
+            "queue_kind": "network_csv_rerun_row",
+            "uses_pipeline_start": False,
+            "status": status,
+            "queue_status": status_model["status_key"],
+            "queue_status_label": status_model["label"],
+            "operator_status": f"Network CSV rerun {status_model['label']}",
+            "operator_status_state": status_model["status_key"],
+            "operator_severity": status_model["severity"],
+            "operator_guidance": (
+                status_model["reason"]
+                or status_model["warning_reason"]
+                or status_model["blocking_reason"]
+                or _clean_text(reducer_result.get("reason"))
+            ),
+            "is_terminal": bool(status_model["terminal"]),
+            "source_path": _clean_text(raw_row.get("source_path")),
+            "original_source_path": _clean_text(raw_row.get("source_path")),
+            "stage_path": "",
+            "planned_output_path": _clean_text(raw_row.get("planned_output_path")),
+            "verified_output_path": verified_output,
+            "review_output_path": verified_output,
+            "output_path": verified_output,
+            "final_output_path": _first_text(raw_row, "final_output_path", "server_out", "published_path"),
+            "destination_path": _first_text(raw_row, "final_output_path", "server_out", "published_path"),
+            "pending_publish_manifest_path": pending_manifest_path,
+            "pending_publish_payload_path": pending_payload_path,
+            "published_path": published_path,
+            "source_size": raw_row.get("source_size"),
+            "source_mtime_utc": _clean_text(raw_row.get("source_mtime_utc")),
+            "source_identity_v2": _clean_text(raw_row.get("source_identity_v2")),
+            "source_identity_v2_algorithm": _clean_text(raw_row.get("source_identity_v2_algorithm")),
+            "reason": status_model["reason"] or _clean_text(reducer_result.get("reason")),
+            "blocking_reason": status_model["blocking_reason"],
+            "warning_reason": status_model["warning_reason"] or _clean_text(reducer_result.get("reason")),
+            "audit_issue_codes": _clean_text(raw_row.get("audit_issue_codes")),
+            "audit_issue_code_list": _string_list(raw_row.get("audit_issue_codes")),
+            "media_kind": _clean_text(raw_row.get("media_kind")),
+            "can_open_output": _path_exists(verified_output),
+            "can_promote_to_pending_publish": False,
+            "manifest_key": _hash_text(str(state_path)),
+            "manifest_path": str(state_path),
+            "batch_id": batch_id,
+            "manifest_status": manifest_status,
+            "created_at": _clean_text(data.get("created_at_utc") or data.get("created_at")),
+            "completed_at": _clean_text(raw_row.get("completed_at")),
+            "stopped_at": _clean_text(data.get("stopped_at")),
+            "claim_status": _clean_text(raw_row.get("claim_status")),
+            "claimable": raw_row.get("claimable") is True,
+            "active_claim": deepcopy(raw_row.get("active_claim")) if isinstance(raw_row.get("active_claim"), Mapping) else {},
+            "network_reducer_result": reducer_result,
+            "network_worker_result": worker_result,
+            "network_output_artifact": deepcopy(output_artifact) if isinstance(output_artifact, Mapping) else {},
+            "network_destination_policy": deepcopy(destination_policy) if isinstance(destination_policy, Mapping) else {},
+            "network_destination_policy_result": destination_result,
+            "destination_state": {
+                "destination_mode": _clean_text(data.get("destination_mode")),
+                "collision_policy": _clean_text(data.get("collision_policy")),
+                "pending_destination_policy": pending_destination_policy,
+                "destination_policy_applied": destination_applied,
+                "destination_policy_terminal": destination_terminal,
+                "destination_policy_status": _clean_text(destination_result.get("status")),
+                "destination_policy_action": _clean_text(destination_result.get("action")),
+                "destination_policy_result": destination_result,
+                "pending_publish_manifest_path": pending_manifest_path,
+                "pending_publish_payload_path": pending_payload_path,
+                "published_path": published_path,
+                "reducer_classification": _clean_text(reducer_result.get("classification")),
+                "reducer_accepted": reducer_result.get("accepted") is True,
+                "final_output_source": _clean_text(raw_row.get("final_output_source")),
+                "final_output_source_field": _clean_text(raw_row.get("final_output_source_field")),
+            },
+            "attempt_evidence": {
+                "row_index": row_index,
+                "manifest_path": str(state_path),
+                "network_batch_state": True,
+                "claim_status": _clean_text(raw_row.get("claim_status")),
+                "reducer_result": reducer_result,
+                "worker_result": worker_result,
+                "destination_policy_result": destination_result,
+            },
+            "available_actions": [],
+        }
+        rows.append(row)
+    return rows
+
+
+def _network_manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> list[dict[str, Any]]:
+    root = _network_manifest_root(resolved)
+    if root is None or not root.exists():
+        return []
+    try:
+        paths = sorted(root.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+    except OSError:
+        return []
+    manifests: list[dict[str, Any]] = []
+    for path in paths[:limit]:
+        data = _read_json(path)
+        if not isinstance(data, dict):
+            continue
+        if str(data.get("schema_version") or "") != "desktop_rerun_network_batch.v1":
+            continue
+        rows = _network_batch_queue_rows(path, data)
+        batch_id = str(data.get("batch_id") or path.stem)
+        manifests.append(
+            {
+                "manifest_key": _hash_text(str(path)),
+                "manifest_path": str(path),
+                "batch_id": batch_id,
+                "status": str(data.get("status") or ""),
+                "schema_version": str(data.get("schema_version") or ""),
+                "phase": str(data.get("phase") or ""),
+                "created_at": str(data.get("created_at_utc") or data.get("created_at") or ""),
+                "updated_at": str(data.get("updated_at_utc") or ""),
+                "queue_source": "network_csv_rerun",
+                "uses_pipeline_start": False,
+                "claim_provider_enabled": data.get("claim_provider_enabled") is True,
+                "worker_execution_enabled": data.get("worker_execution_enabled") is True,
+                "rows_claimable": data.get("rows_claimable") is True,
+                "row_status_counts": _row_status_counts(rows),
+                "queue_status_counts": _row_queue_status_counts(rows),
+                "row_count": len(rows),
+                "rows": rows,
+            }
+        )
+    return manifests
+
+
 def rerun_results_payload(resolved: ResolvedPaths, *, service: Any | None = None, limit: int = 24) -> dict[str, Any]:
     manifests = _manifest_entries(resolved, limit=limit)
+    network_manifests = _network_manifest_entries(resolved, limit=limit)
     csvs = recent_rerun_csv_candidates(resolved, service, limit=limit)
     for item in csvs:
         item["csv_key"] = _hash_text(str(item.get("path") or ""))
-    row_count = sum(len(item.get("rows") or []) for item in manifests)
+    local_row_count = sum(len(item.get("rows") or []) for item in manifests)
+    network_row_count = sum(len(item.get("rows") or []) for item in network_manifests)
+    row_count = local_row_count + network_row_count
     rows = [row for manifest in manifests for row in manifest.get("rows", [])]
+    rows.extend(row for manifest in network_manifests for row in manifest.get("rows", []))
     queue_status_counts = _row_queue_status_counts(rows)
     return {
         "schema_version": RERUN_RESULTS_SCHEMA_VERSION,
         "manifest_root": str(_manifest_root(resolved) or ""),
+        "network_manifest_root": str(_network_manifest_root(resolved) or ""),
         "manifests": manifests,
+        "network_manifests": network_manifests,
         "rows": rows,
         "queue_state": {
             "schema_version": RERUN_QUEUE_STATE_SCHEMA_VERSION,
             "row_schema_version": RERUN_QUEUE_STATE_ROW_SCHEMA_VERSION,
             "queue_source": "csv_rerun",
+            "contains_network_csv_rerun": bool(network_manifests),
             "uses_pipeline_start": False,
             "rows": rows,
             "row_count": row_count,
@@ -712,6 +943,7 @@ def rerun_results_payload(resolved: ResolvedPaths, *, service: Any | None = None
                 {"key": "warning", "label": "Warning"},
                 {"key": "failed", "label": "Failed"},
                 {"key": "stopped", "label": "Stopped"},
+                {"key": "pending_reduction", "label": "Pending Reduction"},
                 {"key": "completed", "label": "Completed"},
                 {"key": "awaiting_review", "label": "Awaiting Review"},
                 {"key": "pending_publish", "label": "Pending Publish"},
@@ -722,7 +954,10 @@ def rerun_results_payload(resolved: ResolvedPaths, *, service: Any | None = None
         "recent_csvs": csvs,
         "counts": {
             "manifest_count": len(manifests),
+            "network_manifest_count": len(network_manifests),
             "row_count": row_count,
+            "local_row_count": local_row_count,
+            "network_row_count": network_row_count,
             "promotable_rows": sum(1 for manifest in manifests for row in manifest.get("rows", []) if row.get("can_promote_to_pending_publish")),
             "csv_candidate_count": len(csvs),
             "queue_status_counts": queue_status_counts,
@@ -756,6 +991,442 @@ def _source_overwrite_confirmed(row: Mapping[str, Any]) -> bool:
         return True
     attempt = row.get("attempt_evidence")
     return isinstance(attempt, Mapping) and attempt.get("source_overwrite_confirmed") is True
+
+
+def _batch_bool(batch: Mapping[str, Any], key: str) -> bool:
+    if batch.get(key) is True:
+        return True
+    request = batch.get("request_summary")
+    if isinstance(request, Mapping) and request.get(key) is True:
+        return True
+    lifecycle = batch.get("lifecycle")
+    return isinstance(lifecycle, Mapping) and lifecycle.get(key) is True
+
+
+def _network_destination_behavior(batch: Mapping[str, Any], row: Mapping[str, Any]) -> str:
+    destination_mode = _clean_text(batch.get("destination_mode") or "auto_replace_clean_else_pending_review")
+    policy = row.get("destination_policy")
+    policy_behavior = ""
+    if isinstance(policy, Mapping):
+        policy_behavior = _clean_text(policy.get("destination_behavior"))
+    behavior = _clean_text(row.get("rerun_rule_destination_behavior") or policy_behavior)
+    if destination_mode and destination_mode != "auto_replace_clean_else_pending_review":
+        return destination_mode
+    if behavior == "blocked_manual_review":
+        return "review_workspace"
+    if behavior in {"review_workspace", "pending_publish", "publish_non_overlap", "publish_replace_final"}:
+        return behavior
+    replacement_eligible = row.get("rerun_rule_replacement_eligible") is True
+    if isinstance(policy, Mapping):
+        replacement_eligible = replacement_eligible or policy.get("replacement_eligible") is True
+    return "publish_replace_final" if replacement_eligible else "pending_publish"
+
+
+def _network_destination_result_base(
+    *,
+    batch: Mapping[str, Any],
+    row: Mapping[str, Any],
+    action: str,
+    status: str,
+) -> dict[str, Any]:
+    return {
+        "schema_version": NETWORK_RERUN_DESTINATION_POLICY_RESULT_SCHEMA_VERSION,
+        "phase": "phase_6_destination_policy_integration",
+        "batch_id": _clean_text(batch.get("batch_id")),
+        "row_key": _clean_text(row.get("row_key")),
+        "action": action,
+        "status": status,
+        "ok": False,
+        "terminal": False,
+        "started_at_utc": datetime.now(UTC).isoformat(),
+        "source_path": _clean_text(row.get("source_path")),
+        "verified_output_path": _clean_text(row.get("verified_output_path")),
+        "final_output_path": _first_text(row, "final_output_path", "server_out", "published_path"),
+        "errors": [],
+        "warnings": [],
+        "touches_source": False,
+    }
+
+
+def _network_terminal_destination_result(row: Mapping[str, Any]) -> dict[str, Any] | None:
+    existing = row.get("destination_policy_result")
+    if not isinstance(existing, Mapping) or existing.get("terminal") is not True:
+        return None
+    result = dict(existing)
+    result["duplicate_apply"] = True
+    result["duplicate_apply_at_utc"] = datetime.now(UTC).isoformat()
+    return result
+
+
+def _network_output_hash_evidence(path: Path) -> dict[str, Any]:
+    evidence: dict[str, Any] = {"path": str(path), "exists": path.exists()}
+    if not path.exists():
+        return evidence
+    try:
+        evidence["size_bytes"] = path.stat().st_size
+        evidence["sha256"] = sha256_file(path)
+    except OSError as exc:
+        evidence["error"] = str(exc)
+    return evidence
+
+
+def _network_destination_root(resolved: ResolvedPaths, row: Mapping[str, Any]) -> Path | None:
+    return rerun_effective_output_root_for_source(resolved, _clean_text(row.get("source_path")))
+
+
+def _network_sidecar_targets(
+    *,
+    output: Path,
+    final_output: Path,
+    destination_root: Path,
+) -> tuple[list[PromotionFileTarget], list[str]]:
+    targets: list[PromotionFileTarget] = []
+    errors: list[str] = []
+    for sidecar in companion_sidecars(output):
+        if not sidecar.is_file():
+            continue
+        server_out = _sidecar_server_path(sidecar, output, final_output)
+        if not rerun_path_resolves_under_root(server_out, destination_root):
+            errors.append(f"sidecar destination resolves outside configured output root: {server_out}")
+            continue
+        try:
+            relative = server_out.resolve(strict=False).relative_to(destination_root.resolve(strict=False))
+        except (OSError, ValueError):
+            relative = Path(server_out.name)
+        targets.append(PromotionFileTarget(source_path=sidecar, destination_path=server_out, relative_path=relative))
+    return targets, errors
+
+
+def _apply_network_review_workspace(
+    result: dict[str, Any],
+    *,
+    output: Path,
+) -> dict[str, Any]:
+    result.update(
+        {
+            "ok": True,
+            "terminal": True,
+            "status": "review_workspace",
+            "review_output_path": str(output),
+            "message": "Network CSV rerun output left in the coordinator-owned handoff review workspace.",
+            "completed_at_utc": datetime.now(UTC).isoformat(),
+        }
+    )
+    return result
+
+
+def _apply_network_pending_publish(
+    result: dict[str, Any],
+    *,
+    resolved: ResolvedPaths,
+    batch: Mapping[str, Any],
+    row: Mapping[str, Any],
+    output: Path,
+    final_output: Path,
+    product_version: str,
+    pipeline_version: str,
+) -> dict[str, Any]:
+    pending_root = resolved.pending_push_path or (resolved.state_root / "PendingServerPush" if resolved.state_root else None)
+    if pending_root is None:
+        result["errors"].append("pending_publish_root_unavailable")
+        result["message"] = "Pending Publish root is unavailable."
+        result["completed_at_utc"] = datetime.now(UTC).isoformat()
+        return result
+    pending_root.mkdir(parents=True, exist_ok=True)
+    row_key = _clean_text(row.get("row_key")) or _hash_text(str(output))
+    server_out = _resolve_promote_server_out(final_output, pending_root, row_key)
+    source_overwrite_row = dict(row)
+    source_overwrite_row["source_overwrite_confirmed"] = _batch_bool(batch, "confirm_source_overwrite")
+    violation = _promote_destination_violation(resolved, source_overwrite_row, final_output=str(final_output), server_out=server_out)
+    if violation:
+        result["errors"].append(_destination_error_code(violation))
+        result["message"] = violation
+        result["server_out"] = str(server_out)
+        result["completed_at_utc"] = datetime.now(UTC).isoformat()
+        return result
+
+    destination = _non_overlapping_path(pending_root / output.name, f"network-rerun-{row_key}")
+    manifest_path = pending_root / f"{destination.name}.manifest.json"
+    now = datetime.now(UTC).isoformat()
+    transaction_id = f"network-rerun-promote-{row_key}"
+    pipeline_sidecar = _read_pipeline_sidecar(output)
+    sidecar_entries: list[dict[str, Any]] = []
+    pending_tx3g_records: list[dict[str, Any]] = []
+    copied_sidecars: list[Path] = []
+    final_output_root = _network_destination_root(resolved, row)
+    if pipeline_sidecar:
+        try:
+            sidecar_entries, pending_tx3g_records, copied_sidecars = _copy_sidecars_to_pending(
+                pipeline_sidecar=pipeline_sidecar,
+                output=output,
+                final_output=server_out,
+                pending_root=pending_root,
+                transaction_id=transaction_id,
+                final_output_root=final_output_root,
+            )
+        except Exception as exc:
+            result["errors"].append("pending_sidecar_copy_failed")
+            result["message"] = f"Pending Publish sidecar copy failed before moving network rerun output: {exc}"
+            result["completed_at_utc"] = datetime.now(UTC).isoformat()
+            return result
+
+    output_before = _network_output_hash_evidence(output)
+    source_size_raw = row.get("source_size")
+    try:
+        source_size = int(source_size_raw)
+    except (TypeError, ValueError):
+        source_size = 0
+    source_identity = _clean_text(row.get("source_identity_v2")) or row_key
+    payload = {
+        "schema_version": "pending_push_manifest.v1",
+        "parked_at": now,
+        "product_version": _clean_text(product_version),
+        "pipeline_version": _clean_text(pipeline_version) or RERUN_PROMOTE_PIPELINE_VERSION,
+        "publish_transaction_id": transaction_id,
+        "manifest_state": "pending_move",
+        "created_at": now,
+        "route": "network_csv_rerun",
+        "route_reason_code": "network_rerun_destination_policy",
+        "route_reason": "Network CSV rerun handoff output promoted into Pending Publish by coordinator policy.",
+        "media_type": row.get("media_kind") or "",
+        "local_file": str(destination),
+        "original_local_file": str(output),
+        "parked_file": str(destination),
+        "server_out": str(server_out),
+        "source_path": row.get("source_path") or "",
+        "source_size": source_size,
+        "source_mtime_utc": row.get("source_mtime_utc") or "",
+        "source_identity": source_identity,
+        "source_identity_v2": source_identity,
+        "source_identity_v2_algorithm": row.get("source_identity_v2_algorithm") or "network_rerun_destination_v1",
+        "output_size": output.stat().st_size,
+        "publish_mode": "pending_publish",
+        "sidecar_files": sidecar_entries,
+        "tx3g_srt_tracks": [],
+        "tx3g_srt_failures": [],
+        "bdpgs_srt_failures": [],
+        "vobsub_srt_failures": [],
+        "converted_srt_sidecar_candidates": [],
+        "subtitle_output_reduction": [],
+        "tx3g_embedded_srt_tracks": [],
+        "bdpgs_embedded_srt_tracks": [],
+        "vobsub_embedded_srt_tracks": [],
+        "tx3g_srt_conversion_enabled": False,
+        "tx3g_external_srt_sidecars_enabled": False,
+        "drop_tx3g_after_conversion": False,
+        "bdpgs_srt_conversion_enabled": False,
+        "drop_bdpgs_after_conversion": False,
+        "vobsub_srt_conversion_enabled": False,
+        "drop_vobsub_after_conversion": False,
+        "original_subtitles_preserved": True,
+        "drop_ass_after_conversion": False,
+        "conversion_failed": False,
+    }
+    if pipeline_sidecar:
+        payload.update(_pending_manifest_evidence_from_sidecar(pipeline_sidecar))
+        payload["sidecar_files"] = sidecar_entries
+        if pending_tx3g_records:
+            payload["tx3g_srt_tracks"] = pending_tx3g_records
+    try:
+        PendingPushManifest.from_mapping(payload)
+    except Exception as exc:
+        for copied in copied_sidecars:
+            copied.unlink(missing_ok=True)
+        result["errors"].append("pending_manifest_contract_invalid")
+        result["message"] = f"Pending Publish manifest contract validation failed before moving network rerun output: {exc}"
+        result["pending_publish_manifest_path"] = str(manifest_path)
+        result["completed_at_utc"] = datetime.now(UTC).isoformat()
+        return result
+    try:
+        atomic_write_text(manifest_path, json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+        shutil.move(str(output), str(destination))
+        payload["manifest_state"] = "parked"
+        payload["parked_at"] = datetime.now(UTC).isoformat()
+        PendingPushManifest.from_mapping(payload)
+        atomic_write_text(manifest_path, json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    except Exception as exc:
+        if output.exists() and not manifest_path.exists():
+            for copied in copied_sidecars:
+                copied.unlink(missing_ok=True)
+        result["errors"].append("network_rerun_pending_publish_failed")
+        result["message"] = f"Network rerun output promotion into Pending Publish failed: {exc}"
+        result["pending_publish_manifest_path"] = str(manifest_path)
+        result["pending_publish_payload_path"] = str(destination)
+        result["completed_at_utc"] = datetime.now(UTC).isoformat()
+        return result
+
+    result.update(
+        {
+            "ok": True,
+            "terminal": True,
+            "status": "pending_publish",
+            "message": "Network rerun output promoted into Pending Publish.",
+            "pending_publish_payload_path": str(destination),
+            "pending_publish_manifest_path": str(manifest_path),
+            "server_out": str(server_out),
+            "requested_server_out": str(final_output),
+            "output_before": output_before,
+            "output_after": _network_output_hash_evidence(destination),
+            "sidecar_files": sidecar_entries,
+            "completed_at_utc": datetime.now(UTC).isoformat(),
+        }
+    )
+    return result
+
+
+def _apply_network_final_publish(
+    result: dict[str, Any],
+    *,
+    resolved: ResolvedPaths,
+    batch: Mapping[str, Any],
+    row: Mapping[str, Any],
+    output: Path,
+    final_output: Path,
+    replace_final: bool,
+) -> dict[str, Any]:
+    destination_root = _network_destination_root(resolved, row)
+    if destination_root is None:
+        result["errors"].append("rerun_final_output_root_unavailable")
+        result["message"] = "Configured output root is unavailable for final placement."
+        result["completed_at_utc"] = datetime.now(UTC).isoformat()
+        return result
+    if replace_final and not _batch_bool(batch, "confirm_replace_final"):
+        result["errors"].append("confirm_replace_final_required")
+        result["message"] = "publish_replace_final requires confirm_replace_final=true from the network rerun start proof."
+        result["completed_at_utc"] = datetime.now(UTC).isoformat()
+        return result
+    row_for_policy = dict(row)
+    row_for_policy["source_overwrite_confirmed"] = _batch_bool(batch, "confirm_source_overwrite")
+    target = final_output if replace_final else _non_overlapping_path(final_output, f"network-rerun-{_clean_text(row.get('row_key')) or 'row'}")
+    violation = _promote_destination_violation(resolved, row_for_policy, final_output=str(final_output), server_out=target)
+    if violation:
+        result["errors"].append(_destination_error_code(violation))
+        result["message"] = violation
+        result["published_path"] = str(target)
+        result["completed_at_utc"] = datetime.now(UTC).isoformat()
+        return result
+
+    try:
+        relative = target.resolve(strict=False).relative_to(destination_root.resolve(strict=False))
+    except (OSError, ValueError):
+        relative = Path(target.name)
+    targets: list[PromotionFileTarget] = [
+        PromotionFileTarget(source_path=output, destination_path=target, relative_path=relative)
+    ]
+    sidecar_targets, sidecar_errors = _network_sidecar_targets(
+        output=output,
+        final_output=target,
+        destination_root=destination_root,
+    )
+    if sidecar_errors:
+        result["errors"].extend(sidecar_errors)
+        result["message"] = "; ".join(sidecar_errors)
+        result["completed_at_utc"] = datetime.now(UTC).isoformat()
+        return result
+    targets.extend(sidecar_targets)
+    transaction = copy_files_transactionally(
+        targets,
+        destination_root=destination_root,
+        verification_mode="cautious",
+        overwrite_existing=replace_final,
+    )
+    result["transaction"] = transaction
+    if not transaction.get("ok"):
+        result["errors"].append("network_rerun_final_publish_failed")
+        result["message"] = "Network rerun final placement failed."
+        result["completed_at_utc"] = datetime.now(UTC).isoformat()
+        return result
+    result.update(
+        {
+            "ok": True,
+            "terminal": True,
+            "status": "published_replace_final" if replace_final else "published_non_overlap",
+            "message": "Network rerun output copied into final placement with verification.",
+            "published_path": str(target),
+            "requested_final_output_path": str(final_output),
+            "server_out_collision_policy": "none" if target == final_output else "suffix",
+            "sidecar_target_count": len(sidecar_targets),
+            "completed_at_utc": datetime.now(UTC).isoformat(),
+        }
+    )
+    if transaction.get("overwritten_files"):
+        result["overwritten_files"] = list(transaction.get("overwritten_files") or [])
+    return result
+
+
+def apply_network_rerun_destination_policy(
+    resolved: ResolvedPaths,
+    batch: Mapping[str, Any],
+    row: Mapping[str, Any],
+    *,
+    product_version: str = "",
+    pipeline_version: str = RERUN_PROMOTE_PIPELINE_VERSION,
+) -> dict[str, Any]:
+    """Apply coordinator-owned destination policy for one reduced Network CSV rerun row."""
+
+    existing = _network_terminal_destination_result(row)
+    if existing is not None:
+        return existing
+    action = _network_destination_behavior(batch, row)
+    result = _network_destination_result_base(batch=batch, row=row, action=action, status="applying")
+    reducer = row.get("reducer_result")
+    if not isinstance(reducer, Mapping) or reducer.get("accepted") is not True:
+        result["errors"].append("network_reducer_result_not_accepted")
+        result["message"] = "Network row has no accepted Phase 5 reducer result."
+        result["completed_at_utc"] = datetime.now(UTC).isoformat()
+        return result
+    output = Path(_clean_text(row.get("verified_output_path")))
+    if not output.is_file():
+        result["errors"].append("verified_handoff_output_missing")
+        result["message"] = "Verified handoff output is missing before destination policy."
+        result["completed_at_utc"] = datetime.now(UTC).isoformat()
+        return result
+    final_output_text = _first_text(row, "final_output_path", "server_out", "published_path")
+    if action != "review_workspace" and not final_output_text:
+        result["errors"].append("final_output_path_missing")
+        result["message"] = "Network row is missing final output path evidence."
+        result["completed_at_utc"] = datetime.now(UTC).isoformat()
+        return result
+    final_output = Path(final_output_text) if final_output_text else output
+    result["output_before"] = _network_output_hash_evidence(output)
+    result["final_output_path"] = str(final_output)
+    if action == "review_workspace":
+        return _apply_network_review_workspace(result, output=output)
+    if action == "pending_publish":
+        return _apply_network_pending_publish(
+            result,
+            resolved=resolved,
+            batch=batch,
+            row=row,
+            output=output,
+            final_output=final_output,
+            product_version=product_version,
+            pipeline_version=pipeline_version,
+        )
+    if action == "publish_non_overlap":
+        return _apply_network_final_publish(
+            result,
+            resolved=resolved,
+            batch=batch,
+            row=row,
+            output=output,
+            final_output=final_output,
+            replace_final=False,
+        )
+    if action == "publish_replace_final":
+        return _apply_network_final_publish(
+            result,
+            resolved=resolved,
+            batch=batch,
+            row=row,
+            output=output,
+            final_output=final_output,
+            replace_final=True,
+        )
+    result["errors"].append("unsupported_destination_policy")
+    result["message"] = f"Unsupported Network CSV rerun destination policy: {action}"
+    result["completed_at_utc"] = datetime.now(UTC).isoformat()
+    return result
 
 
 def _destination_error_code(message: str) -> str:

@@ -69,8 +69,9 @@ class QueueServiceMixin:
     QUEUE_SNAPSHOT_FRESH_SECONDS = 60.0
     # Upper bound for the synchronous dry-run subprocess. The pipeline's own
     # SourceScanTimeoutSeconds / IndexScanTimeoutSeconds clamp internally;
-    # this is an outer ceiling so a hung child can't pin the backend refresh path.
-    QUEUE_DRY_RUN_TIMEOUT_SECONDS = 120.0
+    # this outer ceiling still terminates a hung child while allowing a normal
+    # full-library plan to finish its bounded network metadata probes.
+    QUEUE_DRY_RUN_TIMEOUT_SECONDS = 300.0
     QUEUE_DRY_RUN_OUTPUT_TAIL_LINES = 8
     QUEUE_SCAN_MODES = {"inventory_then_curate", "inventory_only", "curate_only"}
 

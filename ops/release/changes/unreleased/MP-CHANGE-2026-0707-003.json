@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0707-003",
+  "title": "Condense library summary tiles",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-07-07",
+  "date_completed": "2026-07-07",
+  "summary": "Condensed the Libraries page saved-library summary from a wide path-heavy table into compact Movies/TV-style tiles with per-tile media counts and status inspection.",
+  "reason": "The previous Saved Libraries banner/table duplicated summary counts, consumed vertical space, and exposed source paths that are not useful in the daily Libraries workflow.",
+  "affected_areas": [
+    "docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Libraries page showed a visible Saved Libraries heading, aggregate status chips, explanatory scan text, and a wide table with Library, Path, Type, Status, Media Files, Sidecars, Last Scan, and Actions columns.",
+  "behavior_after": "The Libraries page shows compact saved-library tiles. Each tile keeps the library name/type, enabled state, media-file count, sidecar count, and a focusable status symbol that opens scan/status details; source paths are no longer rendered in the summary.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settingsLibraries.js",
+    "apps/desktop/webview/static/assets/styles/pages/settings-library-profiles.css",
+    "apps/desktop/webview/static/partials/page-libraries.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsLibraries.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles/pages/settings-library-profiles.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-libraries.html.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_library_profiles_save_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_settings_libraries.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0707-003.json",
+    "tests/webview/test_webview_browser_library_profiles_save_smoke.py",
+    "tests/webview/test_webview_settings_libraries.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_settings_libraries -q - failed before/after this change due unrelated missing CpuEncodeMutexWaitSeconds library override metadata/layout coverage",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_settings_libraries.WebViewSettingsLibrariesStaticTests.test_libraries_page_is_main_nav_surface tests.webview.test_webview_settings_libraries.WebViewSettingsLibrariesStaticTests.test_libraries_scan_summary_table_is_backend_evidence_only -q - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths [5 touched files] - passed; 5 summaries written",
+    "change_control.validate_changes --require-worktree-coverage - failed due unrelated invalid MP-CHANGE-2026-0707-001.json and git packed-refs parse error",
+    "npm run webview:check - passed",
+    "npm run webview:lint:budget:check - failed due global lint-budget drift outside the touched settingsLibraries.js file",
+    "npx eslint apps/desktop/webview/static/assets/settingsLibraries.js - passed with existing complexity warnings only",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -File ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke - failed due unrelated null bytes in rerun files, existing generated-summary/orphan drift, dependency guardrail parse error, and release package policy tag check"
+  ],
+  "rollback_plan": "Restore the previous page-libraries table markup, settingsLibraries.js row renderer/event source, settings-library-profiles.css table styles, and matching WebView test expectations from the prior revision.",
+  "related_changes": [],
+  "notes": "Replace the visible Libraries summary table/banner with compact tiles.\nRender saved libraries as compact tiles with per-tile status inspection.\nStyle the compact library tiles and status inspect popover.\nUpdate static Libraries page expectations from table to tile summary.\nUpdate browser smoke probe to count summary tiles instead of table rows.\nRefresh generated summary for the Libraries page partial.\nRefresh generated summary for the Libraries renderer.\nRefresh generated summary for Libraries page CSS.\nRefresh generated summary for Libraries static tests.\nRefresh generated summary for the LibraryProfiles browser smoke.\nNo Python/backend behavior impact; this change only affects backend-served WebView display and its tests."
+}

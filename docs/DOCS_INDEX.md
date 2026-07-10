@@ -51,6 +51,9 @@ This is the active documentation map for the current promoted tree. It reflects 
   critical PowerShell encode/remux processing path by failure boundary.
 - `implementation/reports-view-refactor/`: planning pack for splitting
   `reportsView.js` into Reports-owned child modules.
+- `implementation/audit-tool-current-data-plan.md`: implementation plan for
+  Audit latest-report authority, replaced-file rescan evidence, row-level
+  freshness, source-count consistency, and audit-to-rerun freshness gates.
 - `implementation/encoder-breadth-av1-plan.md`: active encoder breadth/AV1 implementation plan for the remaining hardware/runtime validation workstream.
 - `implementation/ruff-rule-expansion/B_C4_UP_FINDINGS_REMEDIATION.md`: work ledger for cleaning Ruff `B`, `C4`, and `UP` candidate findings before any noisy family becomes blocking.
 

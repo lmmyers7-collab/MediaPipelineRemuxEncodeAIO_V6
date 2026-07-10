@@ -3,9 +3,9 @@ file: src/mediapipeline/core/kernel/dto_inventory.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: kernel
-last_modified: 2026-06-26
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: 90ccf07de02da66618c7dc547be9fa567c7341885afe9012eeb4348347de147e
+sha256: 33d92fc1c39c91dcfa9c3672bc4ce911c47671fbed5f92fd370f97fdf63d0269
 ---
 # `src/mediapipeline/core/kernel/dto_inventory.py`
 

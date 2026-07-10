@@ -19,6 +19,7 @@ from mediapipeline.core.completed.policy import (
     completed_preview_fields,
     completed_preview_from_records,
     completed_preview_rows,
+    completed_pending_publish_row,
     completed_quality_fields,
     completed_record_key,
     completed_record_to_row,
@@ -105,6 +106,9 @@ class CompletedFacadePolicyTests(unittest.TestCase):
         self.assertEqual(len(row["row_key"]), 24)
         self.assertEqual(row["route"], "encode")
         self.assertEqual(row["route_label"], "ENCODE")
+        self.assertEqual(row["route_display_category"], "encode")
+        self.assertEqual(row["route_display_final_route"], "encode")
+        self.assertEqual(row["route_display_final_route_label"], "ENCODE")
         self.assertEqual(row["elapsed"], "1m 5s")
         self.assertEqual(row["publish"], "Published")
         self.assertEqual(row["output_file"], "Movie (2024).mkv")
@@ -125,6 +129,71 @@ class CompletedFacadePolicyTests(unittest.TestCase):
         self.assertTrue(row["validation_playback_required"])
         self.assertIn("ffprobe output proof not reported", row["validation_unavailable_reasons"])
         self.assertEqual(row["available_open_targets"], ["play_output_file", "output_file", "output_folder", "sidecar", "source_folder"])
+
+    def test_completed_row_colors_csv_rerun_from_nested_route_evidence(self) -> None:
+        remux_record = _record(route="csv_rerun")
+        remux_record.payload.update(
+            {
+                "route_plan": {"route": "remux"},
+                "route_explanation": {"route": "remux"},
+                "route_actions": {"video": "copy"},
+            }
+        )
+        encode_record = _record(route="csv_rerun")
+        encode_record.payload.update(
+            {
+                "route_plan": {"route": "encode"},
+                "route_explanation": {"route": "encode"},
+                "route_actions": {"video": "encode_hardware"},
+            }
+        )
+        fallback_record = _record(route="csv_rerun")
+        fallback_record.payload.update(
+            {
+                "route_plan": {"route": "remux"},
+                "route_explanation": {
+                    "route": "remux",
+                    "remux_fallback": {"attempted": True, "accepted": True},
+                },
+                "route_actions": {"video": "copy"},
+            }
+        )
+
+        remux_row = completed_record_to_row(remux_record)
+        encode_row = completed_record_to_row(encode_record)
+        fallback_row = completed_record_to_row(fallback_record)
+
+        self.assertEqual(remux_row["route_label"], "CSV_RERUN")
+        self.assertEqual(remux_row["route_display_category"], "remux")
+        self.assertEqual(remux_row["route_display_final_route_label"], "REMUX")
+        self.assertEqual(encode_row["route_display_category"], "encode")
+        self.assertEqual(encode_row["route_display_final_route_label"], "ENCODE")
+        self.assertEqual(fallback_row["route_display_category"], "remux-fallback")
+        self.assertEqual(fallback_row["route_display_final_route"], "remux")
+        self.assertEqual(fallback_row["route_display_final_route_label"], "REMUX")
+
+    def test_pending_publish_overlay_preserves_csv_rerun_display_route_evidence(self) -> None:
+        pending_row = {
+            "state": "parked",
+            "manifest_path": "C:/Pending/Movie.manifest.json",
+            "local_file": "C:/Pending/Movie.mkv",
+            "server_out": "C:/Final/Movie.mkv",
+            "route": "csv_rerun",
+            "parked_at": "2026-07-04T23:18:53-04:00",
+            "output_size": 2048,
+            "local_exists": True,
+            "route_plan": {"route": "encode"},
+            "route_explanation": {"route": "encode"},
+            "route_actions": {"video": "encode_hardware"},
+        }
+        completed = completed_pending_publish_row(pending_row)
+
+        self.assertIsNotNone(completed)
+        assert completed is not None
+        self.assertEqual(completed["route"], "csv_rerun")
+        self.assertEqual(completed["route_label"], "CSV_RERUN")
+        self.assertEqual(completed["route_display_category"], "encode")
+        self.assertEqual(completed["route_display_final_route_label"], "ENCODE")
 
     def test_completed_row_preserves_library_metadata_for_display_filters(self) -> None:
         row = completed_record_to_row(

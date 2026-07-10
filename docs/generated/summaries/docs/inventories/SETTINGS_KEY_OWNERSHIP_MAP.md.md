@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-05
 last_reviewed: 2026-06-02
-sha256: ea68e287adb82c9d694094dbf63d05e5c6bf5bff8438ce3db263f1012aaa8760
+sha256: 22bdb1d442661d46eb83ed8c597c023672c88c43ea7e3a948406f600d96a08f4
 ---
 # `docs/inventories/SETTINGS_KEY_OWNERSHIP_MAP.md`
 

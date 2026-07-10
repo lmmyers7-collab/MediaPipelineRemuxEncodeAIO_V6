@@ -272,6 +272,7 @@ NETWORK_CONFIG_KEYS: tuple[str, ...] = (
     "CoordinatorHeartbeatTimeoutMins",
     "CoordinatorMaxJobRetries",
     "CoordinatorAuthToken",
+    "NetworkRerunHandoffRoot",
     "WorkerCoordinatorUrl",
     "WorkerName",
     "WorkerAuthToken",
@@ -1125,6 +1126,7 @@ class Config(BaseModel):
     CoordinatorHeartbeatTimeoutMins: int = Field(default=5, ge=1)
     CoordinatorMaxJobRetries: int = Field(default=3, ge=1, le=100)
     CoordinatorAuthToken: str = ""
+    NetworkRerunHandoffRoot: str = ""
     WorkerCoordinatorUrl: str = ""
     WorkerName: str = ""
     WorkerAuthToken: str = ""

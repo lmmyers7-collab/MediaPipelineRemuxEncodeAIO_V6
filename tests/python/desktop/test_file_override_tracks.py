@@ -25,7 +25,11 @@ from mediapipeline.core.api.file_overrides.remux_pilot import (  # noqa: E402
     file_override_remux_pilot_auto_promote_payload,
 )
 from mediapipeline.contracts.stages import ProbeResult, make_stage_result  # noqa: E402
-from mediapipeline.core.queue.file_overrides import FILE_OVERRIDE_BATCH_METADATA_KEY, FileOverrideValidationError  # noqa: E402
+from mediapipeline.core.queue.file_overrides import (  # noqa: E402
+    FILE_OVERRIDE_BATCH_METADATA_KEY,
+    FileOverrideManifestReadError,
+    FileOverrideValidationError,
+)
 from mediapipeline.core.queue.file_overrides import normalize_file_override_path, read_file_overrides, resolve_file_override_match  # noqa: E402
 from mediapipeline.core.queue.file_overrides import set_file_override_entry  # noqa: E402
 from mediapipeline.core.queue.remux_pilot_auto_service import RemuxPilotAutoPromotionServiceMixin  # noqa: E402
@@ -640,7 +644,7 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
         self.assertFalse(applied["ok"])
         self.assertEqual(manifest["entries"], {})
 
-    def test_malformed_file_overrides_fall_back_and_next_write_recreates_valid_manifest(self) -> None:
+    def test_malformed_file_overrides_fail_closed_and_are_not_overwritten(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             resolved = _resolved(root)
@@ -651,18 +655,15 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
             manifest_path.parent.mkdir(parents=True, exist_ok=True)
             manifest_path.write_text("{not-json", encoding="utf-8")
 
-            self.assertEqual(read_file_overrides(manifest_path)["entries"], {})
-            manifest = set_file_override_entry(
-                manifest_path,
-                source,
-                {"audio": {"maxChannels": 2}},
-            )
-            written = json.loads(manifest_path.read_text(encoding="utf-8"))
-
-        key = normalize_file_override_path(source)
-        self.assertEqual(manifest["entries"][key]["audio"]["maxChannels"], 2)
-        self.assertEqual(written["version"], 1)
-        self.assertEqual(written["entries"][key]["audio"]["maxChannels"], 2)
+            with self.assertRaisesRegex(FileOverrideManifestReadError, "invalid JSON"):
+                read_file_overrides(manifest_path)
+            with self.assertRaises(FileOverrideManifestReadError):
+                set_file_override_entry(
+                    manifest_path,
+                    source,
+                    {"audio": {"maxChannels": 2}},
+                )
+            self.assertEqual(manifest_path.read_text(encoding="utf-8"), "{not-json")
 
     def test_series_apply_write_failure_does_not_partially_update_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

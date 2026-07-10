@@ -1,0 +1,55 @@
+{
+  "id": "MP-CHANGE-2026-0707-009",
+  "title": "Fix audit ignored reporting and manifest validation",
+  "version_target": "2026.07.08.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-07",
+  "date_completed": "2026-07-07",
+  "summary": "Fixed audit ignore handling so ignored rows are counted as ignored, preview summaries reflect all visible rows, and invalid ignore manifests fail clearly instead of being treated as empty.",
+  "reason": "Audit review found false-positive report totals, false-negative preview counts, and silent ignore-manifest loss risk.",
+  "affected_areas": [
+    "code",
+    "generated",
+    "powershell",
+    "tests"
+  ],
+  "behavior_before": "Ignored audit rows could remain in report problem totals, preview summary counts only reflected the returned row slice, and malformed ignore manifests were silently treated as empty.",
+  "behavior_after": "Audit reports use effective bucket totals, preview counts are based on all non-ignored rows, and malformed ignore manifests block preview/write paths with clear diagnostics.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/audit/policy.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/audit/reports.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-AuditScorePolicyChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0707-009.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/audit/facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/audit/ignore_manifest.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/audit/preview_policy.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_reports.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_facade_audit_policy.py.md",
+    "ops/pipeline/engine/audit/policy.ps1",
+    "ops/pipeline/engine/audit/reports.ps1",
+    "ops/pipeline/tests/Unit/Invoke-AuditScorePolicyChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0707-009.json",
+    "src/mediapipeline/core/audit/facade.py",
+    "src/mediapipeline/core/audit/ignore_manifest.py",
+    "src/mediapipeline/core/audit/preview_policy.py",
+    "tests/python/desktop/test_application_facade_reports.py",
+    "tests/python/desktop/test_facade_audit_policy.py"
+  ],
+  "tests_added": [
+    "Corrupt audit ignore manifests block preview and ignore add/remove writes without overwriting the manifest.",
+    "Ignored records do not drive preview counts or duplicate groups.",
+    "PowerShell audit ignore import treats missing manifests as empty and invalid manifests as errors.",
+    "PowerShell audit reports count ignored rows under IGNORED and omit them from text problem listings.",
+    "Preview summary counts include rows beyond the rendered limit."
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_facade_audit_policy tests.python.desktop.test_application_facade_reports -q",
+    "PowerShell sanity check: Import-AuditIgnoreManifest accepts a valid v1 manifest with one entry.",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-AuditScorePolicyChecks.ps1"
+  ],
+  "rollback_plan": "Revert this packet's changes to audit ignore manifest handling, preview summary counting, PowerShell audit report counting, and the matching tests.",
+  "related_changes": [],
+  "notes": "Make audit ignore manifest reads strict for mutation and preview paths.\nReturn clear audit preview/control errors when ignore manifest is invalid.\nCount audit preview summaries and duplicates from non-ignored visible records.\nFail loudly on invalid audit ignore manifests in the PowerShell audit runner.\nBase audit report totals and text problem listings on effective buckets.\nCover preview-wide counts and ignored-row duplicate suppression.\nCover corrupt audit ignore manifest facade behavior.\nCover effective bucket report totals and invalid ignore manifest imports.\nRefresh generated summary for audit ignored reporting fix.\nAdd generated summary for the audit fix change packet."
+}

@@ -380,8 +380,14 @@ class RenameServiceMixin:
             force_pipeline_name=False,
         )
 
-    def _rename_path_case_safe(self, source: Path, destination: Path) -> None:
-        rename_path_case_safe(source, destination, same_file=self._resolve_same_file)
+    def _rename_path_case_safe(
+        self,
+        source: Path,
+        destination: Path,
+        *,
+        boundary_root: Path | None = None,
+    ) -> None:
+        rename_path_case_safe(source, destination, same_file=self._resolve_same_file, boundary_root=boundary_root)
 
     def _read_json_dict_for_rename(self, path: Path) -> dict[str, Any]:
         return read_json_dict_for_rename(path)

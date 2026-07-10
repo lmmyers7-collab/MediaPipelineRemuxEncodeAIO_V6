@@ -76,7 +76,11 @@ function Get-QueuePlanPreflightBlock {
     param(
         [Parameter(Mandatory)] $File,
         [bool] $IsTV = $false,
-        $TvInfo = $null
+        $TvInfo = $null,
+        [string] $SourceRootPath = '',
+        [string] $LibraryName = '',
+        [string] $LibraryId = '',
+        [string] $LibraryDesignation = ''
     )
 
     $extension = ''
@@ -115,7 +119,14 @@ function Get-QueuePlanPreflightBlock {
     }
 
     if ($IsTV) {
-        if (-not $TvInfo) { $TvInfo = Get-TVInfoFromFile $File }
+        if (-not $TvInfo) {
+            $TvInfo = Get-TVInfoFromFile `
+                -file $File `
+                -SourceRootPath $SourceRootPath `
+                -LibraryName $LibraryName `
+                -LibraryId $LibraryId `
+                -LibraryDesignation $LibraryDesignation
+        }
         if ($TvInfo -and -not $TvInfo.IsReliable) {
             return [pscustomobject]@{
                 Code   = 'tv_parse_unreliable'
@@ -166,11 +177,25 @@ function Build-QueuePlanSnapshotRows {
         $isTV  = [bool]$entry.IsTV
         $tvInfo = $null
         if ($isTV) {
-            try { $tvInfo = Get-TVInfoFromFile $file } catch {}
+            try {
+                $tvInfo = Get-TVInfoFromFile `
+                    -file $file `
+                    -SourceRootPath ([string]$entry.RootPath) `
+                    -LibraryName ([string]$entry.LibraryName) `
+                    -LibraryId ([string]$entry.LibraryId) `
+                    -LibraryDesignation ([string]$entry.LibraryDesignation)
+            } catch {}
         }
         $blocked = $null
         $blockedCode = ''
-        $blockInfo = Get-QueuePlanPreflightBlock -File $file -IsTV:$isTV -TvInfo $tvInfo
+        $blockInfo = Get-QueuePlanPreflightBlock `
+            -File $file `
+            -IsTV:$isTV `
+            -TvInfo $tvInfo `
+            -SourceRootPath ([string]$entry.RootPath) `
+            -LibraryName ([string]$entry.LibraryName) `
+            -LibraryId ([string]$entry.LibraryId) `
+            -LibraryDesignation ([string]$entry.LibraryDesignation)
         if ($blockInfo) {
             $blocked = [string]$blockInfo.Reason
             $blockedCode = [string]$blockInfo.Code

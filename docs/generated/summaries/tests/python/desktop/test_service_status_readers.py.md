@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_status_readers.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: 7557113a27773bef05a62a086f419fb9bed95c3214a4f0482cc2ce64c94068d3
+sha256: 8adfa9a2501e357d39e4658f615a1226dade6502815cf55a203217331ff4a76b
 ---
 # `tests/python/desktop/test_service_status_readers.py`
 

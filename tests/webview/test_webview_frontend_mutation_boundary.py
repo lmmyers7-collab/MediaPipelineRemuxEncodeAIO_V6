@@ -64,6 +64,9 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/audit/start": {"reports/auditCommands.js"},
     "/api/audit/stop": {"reports/auditCommands.js"},
     "/api/rerun/preview": {"queueView.rerun.js"},
+    "/api/rerun/network-preview": {"queueView.rerun.js"},
+    "/api/rerun/network/start-dry-run": {"queueView.rerun.js"},
+    "/api/rerun/network/start": {"queueView.rerun.js"},
     "/api/rerun/start": {"queueView.rerun.js"},
     "/api/rerun/control": {"queueView.rerun.js"},
     "/api/rerun/continue": {"queueView.rerun.js"},
@@ -508,10 +511,15 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn("if (selectedRowKeys.length) request.row_keys = selectedRowKeys;", completed_js)
         self.assertIn('apiPost("/api/final-library-promotion/promote-queue", request)', completed_js)
         queue_rerun_js = _asset_sources()["queueView.rerun.js"]
+        queue_rerun_request_js = _asset_sources()["queue/rerunRequest.js"]
         launch_js = _asset_sources()["launchView.js"]
         self.assertIn('requireApiPost(RERUN_CONTROL_ROUTE)("/api/rerun/control", { action: "stop_after_current", confirm_stop: true })', queue_rerun_js)
         self.assertIn('requireApiPost(RERUN_CONTROL_ROUTE)("/api/rerun/control", { action: "pause", confirm_pause: true })', queue_rerun_js)
+        self.assertIn('requireApiPost(RERUN_NETWORK_START_DRY_RUN_ROUTE)("/api/rerun/network/start-dry-run", request)', queue_rerun_js)
+        self.assertIn('requireApiPost(RERUN_NETWORK_START_ROUTE)("/api/rerun/network/start", request)', queue_rerun_js)
         self.assertIn("const request = { manifest_key: key, confirm_continue: true };", launch_js)
+        self.assertIn("confirm_start: true", queue_rerun_request_js)
+        self.assertIn("dry_run_fingerprint: fingerprint", queue_rerun_request_js)
         self.assertIn('requireApiPost(RERUN_CONTINUE_ROUTE)("/api/rerun/continue", request)', queue_rerun_js)
         self.assertIn('requireApiPost(RERUN_PROMOTE_DRY_RUN_ROUTE)("/api/rerun/promote-dry-run", { row_key: rowKey })', queue_rerun_js)
         self.assertIn("const request = { row_key: key, dry_run_fingerprint: fingerprint, confirm_promote: true };", queue_rerun_js)

@@ -104,7 +104,7 @@
       if (audit.error) return "Unavailable";
       if (!reportPreviewLoaded(audit, reportsState.lastAuditRows)) return "Not loaded";
       if (reportNumber(audit.redownload_count) > 0) return "Redownload review";
-      if (reportNumber(audit.rerun_count) > 0 || reportNumber(audit.high_priority_count) > 0) return "Rerun review";
+      if (reportNumber(audit.rerun_count) > 0 || reportNumber(audit.priority_count ?? audit.high_priority_count) > 0) return "Rerun review";
       if (reportNumber(audit.review_count) > 0 || reportNumber(audit.duplicate_group_count) > 0) return "Review";
       if (reportsState.lastAuditRows.length) return "Loaded";
       return "No rows";
@@ -132,18 +132,22 @@
       const redownloadRows = rows.filter((row) => String(row.effective_bucket || "").toUpperCase() === "REDOWNLOAD_CANDIDATE");
       const rerunRows = rows.filter((row) => String(row.effective_bucket || "").toUpperCase() === "RERUN_PIPELINE");
       const highRows = rows.filter((row) => String(row.priority_fix_level || "").toUpperCase() === "HIGH");
-      const reviewRows = [...redownloadRows, ...rerunRows, ...highRows.filter((row) => !redownloadRows.includes(row) && !rerunRows.includes(row)), ...rows.filter((row) => !redownloadRows.includes(row) && !rerunRows.includes(row) && !highRows.includes(row))];
+      const mediumRows = rows.filter((row) => String(row.priority_fix_level || "").toUpperCase() === "MEDIUM");
+      const priorityRows = [...highRows, ...mediumRows.filter((row) => !highRows.includes(row))];
+      const reviewRows = [...redownloadRows, ...rerunRows, ...priorityRows.filter((row) => !redownloadRows.includes(row) && !rerunRows.includes(row)), ...rows.filter((row) => !redownloadRows.includes(row) && !rerunRows.includes(row) && !priorityRows.includes(row))];
       const lines = [
         "Audit review board:",
         `Rows: ${reportNumber(audit.count || rows.length)}`,
+        `Loaded rows shown: ${rows.length}`,
         `Priority CSV mode: ${audit.priority_only ? "yes" : "no"}`,
-        `Bucket counts: ${reportFormatCounts(reportCountBy(rows, "effective_bucket"))}`,
-        `Priority counts: ${reportFormatCounts(reportCountBy(rows, "priority_fix_level"))}`,
-        `Issue-code counts: ${reportFormatCounts(reportCountBy(rows, "primary_issue_code"))}`,
-        `Media counts: ${reportFormatCounts(reportCountBy(rows, "media_type"))}`,
+        `Loaded bucket counts: ${reportFormatCounts(reportCountBy(rows, "effective_bucket"))}`,
+        `Loaded priority counts: ${reportFormatCounts(reportCountBy(rows, "priority_fix_level"))}`,
+        `Loaded issue-code counts: ${reportFormatCounts(reportCountBy(rows, "primary_issue_code"))}`,
+        `Loaded media counts: ${reportFormatCounts(reportCountBy(rows, "media_type"))}`,
         `Redownload rows: ${redownloadRows.length}`,
         `Rerun rows: ${rerunRows.length}`,
         `High-priority rows: ${highRows.length}`,
+        `Medium-priority rows: ${mediumRows.length}`,
         `Duplicate groups: ${reportNumber(audit.duplicate_group_count)}`,
       ];
       if (warnings.length) {

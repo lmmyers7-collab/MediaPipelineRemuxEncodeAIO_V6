@@ -3,9 +3,9 @@ file: tests/python/desktop/test_facade_failures_policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: 2ccf290a896f12c341c3bda474e27f18c1f4f5e0d4c763f7f52a51df8aadcdd7
+sha256: f9c03a12e4fe14902bd3b0cef199fe35c738beb1a669b725c8b24d912ba4db4a
 ---
 # `tests/python/desktop/test_facade_failures_policy.py`
 

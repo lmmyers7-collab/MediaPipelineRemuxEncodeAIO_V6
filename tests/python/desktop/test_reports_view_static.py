@@ -148,6 +148,18 @@ def _read_component_styles() -> str:
 
 
 class ReportsViewStaticTests(unittest.TestCase):
+    def test_reports_failed_reads_render_local_historical_only_state_and_disable_commands(self) -> None:
+        source = REPORTS_VIEW.read_text(encoding="utf-8")
+        app_source = APP_JS.read_text(encoding="utf-8")
+
+        self.assertIn("function renderReportsUnavailable", source)
+        self.assertIn("Historical rows remain visible", source)
+        self.assertIn('page.dataset.availability = "unavailable"', source)
+        self.assertIn("selectedFailureRowKeys.clear()", source)
+        self.assertIn("selectedAuditRowKeys.clear()", source)
+        self.assertIn('values.failures.availability !== "unavailable"', app_source)
+        self.assertIn('renderReportsUnavailable?.(', app_source)
+
     def test_reports_split_children_load_before_parent_and_are_private(self) -> None:
         html = INDEX_HTML.read_text(encoding="utf-8")
         source = REPORTS_VIEW.read_text(encoding="utf-8")
@@ -538,7 +550,9 @@ class ReportsViewStaticTests(unittest.TestCase):
         source = REPORTS_VIEW.read_text(encoding="utf-8")
         state_source = REPORTS_STATE.read_text(encoding="utf-8")
         audit_view_source = REPORTS_AUDIT_VIEW.read_text(encoding="utf-8")
+        audit_model_source = REPORTS_AUDIT_MODEL.read_text(encoding="utf-8")
         audit_commands_source = REPORTS_AUDIT_COMMANDS.read_text(encoding="utf-8")
+        triage_source = REPORTS_TRIAGE.read_text(encoding="utf-8")
         html = REPORTS_PAGE.read_text(encoding="utf-8")
 
         self.assertIn("report-audit-start-library-root", html)
@@ -608,6 +622,7 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn("selectedAuditRowKeys: new Set(),", state_source)
         self.assertIn("reportAuditCommandBusy: \"\",", state_source)
         self.assertIn("reportAuditAcceptedRun: null,", state_source)
+        self.assertIn("reportAuditAutoPriorityCsvPath: \"\",", state_source)
         self.assertIn("lastReportAuditSources: {},", state_source)
         self.assertIn("selectedReportAuditSourceIds: new Set(),", state_source)
         self.assertIn("REPORT_AUDIT_POST_START_REFRESH_DELAYS_MS", audit_commands_source)
@@ -659,6 +674,21 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn("data-audit-score-issue-code", audit_commands_source)
         self.assertIn('renderReportAuditIssueRows(score, "high", "rerun_bucket")', audit_view_source)
         self.assertIn('renderReportAuditIssueRows(score, "medium", "review_bucket")', audit_view_source)
+        self.assertIn("function auditCompletionTimestamp", audit_view_source)
+        self.assertIn("Audit completed:", audit_view_source)
+        self.assertIn("audit_summary_(\\d{8})_(\\d{6})", audit_view_source)
+        self.assertIn("function selectReportAuditPriorityTable", audit_commands_source)
+        self.assertIn("latest_priority_csv_path", audit_commands_source)
+        self.assertIn("Loaded priority table from", audit_commands_source)
+        self.assertIn("Priority rows:", audit_view_source)
+        self.assertIn("Medium priority:", audit_view_source)
+        self.assertIn("Audit score policy error:", audit_view_source)
+        self.assertIn("Audit ignore manifest error:", audit_view_source)
+        self.assertIn("Loaded bucket counts:", audit_model_source)
+        self.assertIn("Loaded priority counts:", audit_model_source)
+        self.assertIn("priority_count ?? audit.high_priority_count", triage_source)
+        self.assertIn("actionable_count", audit_commands_source)
+        self.assertIn("all non-ignored rows in the latest audit CSV", audit_commands_source)
         self.assertIn("function selectVisibleAuditRows", audit_view_source)
         self.assertIn("function selectAuditRowsAtOrAboveScore", audit_view_source)
         self.assertIn("auditScoreValue(row) >= threshold", audit_view_source)

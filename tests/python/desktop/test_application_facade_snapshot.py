@@ -23,6 +23,41 @@ from tests.python.desktop.application_facade_test_support import DummyFacadeServ
 
 
 class ApplicationFacadeSnapshotTests(unittest.TestCase):
+    def test_snapshot_surfaces_invalid_progress_as_unavailable_not_idle(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            service = DummyFacadeService(root)
+            service.snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="Pipeline progress is unavailable.",
+                status_summary="Progress evidence unavailable",
+                log_tail="",
+                progress={
+                    "Status": "Unavailable",
+                    "CurrentStage": "unavailable",
+                    "ReadHealth": {
+                        "schema_version": "desktop_progress_read_health.v1",
+                        "status": "invalid",
+                        "available": False,
+                        "error": "malformed JSON",
+                    },
+                },
+                audit_progress=None,
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+
+            snapshot = facade.get_snapshot(resolved)
+
+        self.assertEqual(snapshot.pipeline_state, "unavailable")
+        self.assertEqual(snapshot.progress_health["status"], "invalid")
+        self.assertFalse(snapshot.progress_health["available"])
+        self.assertTrue(any("unavailable" in warning.casefold() for warning in snapshot.warnings))
+
     def test_facade_snapshot_and_diagnostics_do_not_require_tk_root(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

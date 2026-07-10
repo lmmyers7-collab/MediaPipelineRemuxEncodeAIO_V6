@@ -247,6 +247,7 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
                             {"source_path": str(root / "h.mkv"), "status": "warning", "reason": "audit warning"},
                             {"source_path": str(root / "i.mkv"), "status": "stopped"},
                             {"source_path": str(root / "j.mkv"), "status": "skipped"},
+                            {"source_path": str(root / "k.mkv"), "status": "review", "reason": "manual status review"},
                         ],
                     }
                 ),
@@ -285,14 +286,21 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
         self.assertEqual(by_source["c.mkv"]["operator_status"], "CSV rerun staged")
         self.assertEqual(by_source["d.mkv"]["operator_status"], "CSV rerun complete")
         self.assertEqual(by_source["d.mkv"]["operator_status_state"], "complete")
-        self.assertEqual(by_source["e.mkv"]["operator_status"], "CSV rerun awaiting review")
-        self.assertEqual(by_source["e.mkv"]["operator_status_state"], "review")
+        self.assertEqual(by_source["e.mkv"]["operator_status"], "CSV rerun review workspace")
+        self.assertEqual(by_source["e.mkv"]["operator_status_state"], "parked")
+        self.assertEqual(by_source["e.mkv"]["operator_severity"], "ok")
+        self.assertEqual(by_source["e.mkv"]["queue_status_label"], "Review Workspace")
         self.assertIn("parked output requires review", by_source["e.mkv"]["route_reason"])
         self.assertEqual(by_source["f.mkv"]["queue_status_label"], "Pending Publish")
+        self.assertEqual(by_source["f.mkv"]["operator_status_state"], "parked")
+        self.assertEqual(by_source["f.mkv"]["operator_severity"], "ok")
         self.assertEqual(by_source["g.mkv"]["queue_status_label"], "Replaced / Returned")
         self.assertEqual(by_source["h.mkv"]["queue_status_label"], "Warning")
         self.assertEqual(by_source["i.mkv"]["queue_status_label"], "Stopped")
         self.assertEqual(by_source["j.mkv"]["queue_status_label"], "Skipped")
+        self.assertEqual(by_source["k.mkv"]["operator_status_state"], "review")
+        self.assertEqual(by_source["k.mkv"]["operator_severity"], "warning")
+        self.assertEqual(by_source["k.mkv"]["queue_status_label"], "Review")
         self.assertFalse(by_source["g.mkv"]["uses_pipeline_start"])
 
     def test_queue_preview_reads_existing_snapshot_without_dry_run(self) -> None:

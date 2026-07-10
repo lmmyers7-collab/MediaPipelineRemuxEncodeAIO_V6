@@ -26,14 +26,14 @@
 
 .settings-library-summary-panel {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .settings-library-summary-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-3);
 }
 
@@ -79,67 +79,197 @@
   color: var(--semantic-danger-text);
 }
 
-.settings-library-summary-table-wrap {
-  max-height: min(38vh, 24rem);
+.settings-library-summary-strip[hidden],
+.settings-library-summary-status[hidden],
+#settings-library-summary-detail[hidden] {
+  display: none;
 }
 
-.settings-library-summary-table {
-  min-width: 980px;
+.settings-library-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-3);
 }
 
-.settings-library-summary-table th:nth-child(1),
-.settings-library-summary-table td:nth-child(1) {
-  width: 15%;
-}
-
-.settings-library-summary-table th:nth-child(2),
-.settings-library-summary-table td:nth-child(2) {
-  width: 30%;
-}
-
-.settings-library-summary-table th:nth-child(5),
-.settings-library-summary-table td:nth-child(5),
-.settings-library-summary-table th:nth-child(6),
-.settings-library-summary-table td:nth-child(6) {
-  width: 7rem;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.settings-library-summary-row {
+.settings-library-summary-tile {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--grey-700);
+  border-radius: var(--radius-sm);
+  background: var(--grey-850, var(--grey-800));
   cursor: pointer;
 }
 
-.settings-library-summary-row:hover,
-.settings-library-summary-row:focus-visible,
-.settings-library-summary-row.is-active {
+.settings-library-summary-tile:hover,
+.settings-library-summary-tile:focus-visible,
+.settings-library-summary-tile.is-active {
   outline: 1px solid var(--semantic-info-border);
   outline-offset: -1px;
   background: var(--semantic-interactive-panel-bg);
 }
 
-.settings-library-summary-row td[data-state] {
+.settings-library-summary-tile[data-state="error"] {
+  border-color: var(--semantic-danger-border);
+}
+
+.settings-library-summary-tile[data-state="partial"],
+.settings-library-summary-tile[data-state="scanning"],
+.settings-library-summary-tile[data-state="not_scanned"] {
+  border-color: var(--semantic-warning-border);
+}
+
+.settings-library-summary-tile-heading,
+.settings-library-summary-counts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.settings-library-summary-type,
+.settings-library-summary-enabled,
+.settings-library-summary-counts span {
+  color: var(--grey-400);
+  font-size: var(--text-xs);
+}
+
+.settings-library-summary-type {
+  text-transform: uppercase;
   font-weight: 700;
 }
 
-.settings-library-summary-row td[data-state="complete"] {
+.settings-library-summary-name {
+  overflow-wrap: anywhere;
+  font-size: var(--text-md);
+}
+
+.settings-library-summary-counts {
+  align-items: stretch;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--grey-700);
+}
+
+.settings-library-summary-counts div {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.settings-library-summary-counts strong {
+  font-size: var(--text-xl);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-library-summary-inspect {
+  position: relative;
+}
+
+.settings-library-summary-inspect summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  list-style: none;
+  cursor: pointer;
+}
+
+.settings-library-summary-inspect summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-library-summary-inspect summary:hover .settings-library-status-symbol,
+.settings-library-summary-inspect summary:focus-visible .settings-library-status-symbol,
+.settings-library-summary-inspect[open] .settings-library-status-symbol {
+  outline: 2px solid var(--semantic-info-border);
+  outline-offset: 2px;
+}
+
+.settings-library-status-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid var(--grey-700);
+  border-radius: 50%;
+  color: var(--grey-300);
+  background: var(--grey-900);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.settings-library-status-symbol[data-state="complete"] {
+  border-color: var(--semantic-success-border);
   color: var(--semantic-success-text);
 }
 
-.settings-library-summary-row td[data-state="scanning"],
-.settings-library-summary-row td[data-state="partial"],
-.settings-library-summary-row td[data-state="not_scanned"] {
+.settings-library-status-symbol[data-state="scanning"],
+.settings-library-status-symbol[data-state="partial"],
+.settings-library-status-symbol[data-state="not_scanned"] {
+  border-color: var(--semantic-warning-border);
   color: var(--semantic-warning-text);
 }
 
-.settings-library-summary-row td[data-state="error"] {
+.settings-library-status-symbol[data-state="error"] {
+  border-color: var(--semantic-danger-border);
   color: var(--semantic-danger-text);
 }
 
-.settings-library-summary-row .secondary-button {
-  min-width: 0;
-  padding: var(--space-1) var(--space-2);
+.settings-library-summary-inspect-body {
+  position: absolute;
+  right: 0;
+  z-index: 8;
+  display: grid;
+  gap: var(--space-2);
+  width: min(22rem, 80vw);
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--grey-700);
+  border-radius: var(--radius-sm);
+  background: var(--grey-900);
+  box-shadow: var(--shadow-lg);
   font-size: var(--text-xs);
+}
+
+.settings-library-summary-inspect-body ul {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+.settings-library-summary-inspect-body p,
+.settings-library-summary-inspect-body dl {
+  margin: 0;
+}
+
+.settings-library-summary-inspect-body dl {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.settings-library-summary-inspect-body dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.settings-library-summary-inspect-body dt {
+  color: var(--grey-400);
+}
+
+.settings-library-summary-inspect-body dd {
+  margin: 0;
+  text-align: right;
+}
+
+.settings-library-summary-empty {
+  padding: var(--space-3);
+  border: 1px dashed var(--grey-700);
+  border-radius: var(--radius-sm);
+  color: var(--grey-400);
 }
 
 .settings-library-command-heading {

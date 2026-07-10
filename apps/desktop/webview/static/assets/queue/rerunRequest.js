@@ -55,6 +55,16 @@
       };
     }
 
+    function collectRerunExecutionTarget() {
+      const value = String(byId("rerun-start-target-mode")?.value || "local").trim().toLowerCase();
+      return value === "network" ? "network" : "local";
+    }
+
+    function collectRerunMinimumWorkerCount() {
+      const value = Number(byId("rerun-network-minimum-workers")?.value || 1);
+      return Number.isFinite(value) ? Math.max(0, Math.round(value)) : 1;
+    }
+
     function collectRerunStartRequest(options = {}) {
       const planOnly = typeof options === "object" && Boolean(options.plan_only);
       const dryRun = planOnly ? false : typeof options === "boolean" ? options : Boolean(options.dry_run);
@@ -88,7 +98,29 @@
       return request;
     }
 
+    function collectRerunNetworkStartDryRunRequest() {
+      return {
+        ...collectRerunPreviewRequest(),
+        minimum_worker_count: collectRerunMinimumWorkerCount(),
+        reason: "WebView Network CSV rerun operator review",
+      };
+    }
+
+    function collectRerunNetworkStartRequest(dryRunResult = {}) {
+      const data = dryRunResult && typeof dryRunResult.data === "object" ? dryRunResult.data : dryRunResult;
+      const fingerprint = String(data?.dry_run_fingerprint || "").trim();
+      return {
+        ...collectRerunNetworkStartDryRunRequest(),
+        dry_run_fingerprint: fingerprint,
+        confirm_start: true,
+      };
+    }
+
     return {
+      collectRerunExecutionTarget,
+      collectRerunMinimumWorkerCount,
+      collectRerunNetworkStartDryRunRequest,
+      collectRerunNetworkStartRequest,
       collectRerunPreviewRequest,
       collectRerunScopeRequest,
       collectRerunStartRequest,

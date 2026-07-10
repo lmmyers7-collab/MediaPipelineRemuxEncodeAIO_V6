@@ -31,6 +31,7 @@ TV_RELEASE_GROUP_SUFFIX_PATTERN = re.compile(
     r"kametsu|db|kawaiika|tlacatlc6|ttga))+$"
 )
 TV_FORMATTED_TITLE_PATTERN = re.compile(r"(?i)^(?P<prefix>.+\s+-\s+S\d{2}E\d{2,3})(?:\s+-\s+.+)$")
+TV_TARGET_NAME_PATTERN = re.compile(r"(?i)^(?P<show>.+?)\s+-\s+S(?P<season>\d{2})E(?P<episode>\d{2,3})(?:\s+-\s+.*)?$")
 RENAME_TV_FILTER_DEFAULT_TERMS: dict[str, tuple[str, ...]] = {
     "video_source": (
         "2160p",
@@ -212,6 +213,88 @@ def build_tv_rename_name(
         episode_title = ""
     title_part = f" - {episode_title}" if episode_title else ""
     return f"{cleaned_show} - S{season_number:02d}E{episode_number:02d}{title_part}{source.suffix.lower()}"
+
+
+def _parent_or_self(path: Path) -> Path:
+    return path.parent if path.parent != path else path
+
+
+def _title_tokens(value: str) -> set[str]:
+    return {token.casefold() for token in re.findall(r"[A-Za-z0-9]+", value) if len(token) > 2}
+
+
+def _titles_overlap(left: str, right: str) -> bool:
+    left_tokens = _title_tokens(left)
+    right_tokens = _title_tokens(right)
+    if not left_tokens or not right_tokens:
+        return False
+    shared = left_tokens.intersection(right_tokens)
+    return len(shared) >= min(2, len(left_tokens), len(right_tokens))
+
+
+def _manual_tv_hierarchy_root(
+    source: Path,
+    *,
+    show_folder_name: str,
+    remove_terms: list[str] | None,
+    tv_filter_options: dict[str, bool] | None,
+    tv_filter_terms: dict[str, list[str]] | None,
+) -> Path:
+    folder_info = resolve_tv_folder_season_info(source, remove_terms, tv_filter_options, tv_filter_terms)
+    if folder_info is not None:
+        source_kind = str(folder_info.get("source") or "")
+        if source_kind in {"season-folder", "s-folder", "specials-folder"}:
+            show_folder = _parent_or_self(source.parent)
+            return _parent_or_self(show_folder)
+        return _parent_or_self(source.parent)
+
+    parent_show = clean_pipeline_tv_name_part(
+        source.parent.name,
+        remove_terms,
+        tv_filter_options,
+        tv_filter_terms,
+        preserve_title_terms=True,
+    )
+    if parent_show.casefold() == show_folder_name.casefold() or _titles_overlap(parent_show, show_folder_name):
+        return _parent_or_self(source.parent)
+    return source.parent
+
+
+def build_manual_tv_hierarchy_destination(
+    source: Path,
+    *,
+    target_name: str,
+    show_name: str,
+    season_number: int,
+    remove_terms: list[str] | None,
+    tv_filter_options: dict[str, bool] | None = None,
+    tv_filter_terms: dict[str, list[str]] | None = None,
+) -> dict[str, Any] | None:
+    show_folder_name = normalize_plex_filename_component(show_name, remove_terms)
+    if not show_folder_name:
+        return None
+
+    target_match = TV_TARGET_NAME_PATTERN.match(Path(target_name).stem)
+    target_season = int(target_match.group("season")) if target_match else season_number
+    season_folder_name = "Specials" if target_season == 0 else f"Season {target_season:02d}"
+    mutation_root = _manual_tv_hierarchy_root(
+        source,
+        show_folder_name=show_folder_name,
+        remove_terms=remove_terms,
+        tv_filter_options=tv_filter_options,
+        tv_filter_terms=tv_filter_terms,
+    )
+    series_folder = mutation_root / show_folder_name
+    season_folder = series_folder / season_folder_name
+    destination = season_folder / target_name
+    return {
+        "destination": destination,
+        "mutation_root": mutation_root,
+        "series_folder": series_folder,
+        "season_folder": season_folder,
+        "season_folder_name": season_folder_name,
+        "show_folder_name": show_folder_name,
+    }
 
 
 def clean_pipeline_tv_name_part(

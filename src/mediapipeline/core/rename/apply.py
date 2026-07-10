@@ -13,13 +13,32 @@ from mediapipeline.core.rename.file_io import atomic_write_text
 
 SameFileFunc = Callable[[Path, Path], bool]
 PathKeyFunc = Callable[[Path], str]
-RenamePathFunc = Callable[[Path, Path], None]
+RenamePathFunc = Callable[..., None]
 PipelineSidecarPathFunc = Callable[[Path], Path]
 
 
-def rename_path_case_safe(source: Path, destination: Path, *, same_file: SameFileFunc) -> None:
-    ensure_path_boundary_safe_for_mutation(source, source.parent)
-    ensure_path_boundary_safe_for_mutation(destination, source.parent, allow_missing_leaf=True)
+def _operation_boundary_root(row: dict[str, Any], source: Path) -> Path:
+    root = str(row.get("mutation_root") or "").strip()
+    return Path(root) if root else source.parent
+
+
+def rename_path_case_safe(
+    source: Path,
+    destination: Path,
+    *,
+    same_file: SameFileFunc,
+    boundary_root: Path | None = None,
+) -> None:
+    root = Path(boundary_root) if boundary_root is not None else source.parent
+    ensure_path_boundary_safe_for_mutation(source, root)
+    ensure_path_boundary_safe_for_mutation(destination, root, allow_missing_leaf=True)
+    ensure_path_boundary_safe_for_mutation(
+        destination.parent,
+        root,
+        allow_missing_leaf=True,
+        allow_root_target=True,
+    )
+    destination.parent.mkdir(parents=True, exist_ok=True)
     if same_file(source, destination) and source.name == destination.name:
         return
     if destination.exists() and not same_file(source, destination):
@@ -128,10 +147,11 @@ def build_rename_operations(
     for row in plan:
         source = Path(row["source"])
         destination = Path(row["destination"])
+        boundary_root = _operation_boundary_root(row, source)
         if not source.exists():
             raise FileNotFoundError(f"Source disappeared before rename: {source}")
-        ensure_path_boundary_safe_for_mutation(source, source.parent)
-        ensure_path_boundary_safe_for_mutation(destination, source.parent, allow_missing_leaf=True)
+        ensure_path_boundary_safe_for_mutation(source, boundary_root)
+        ensure_path_boundary_safe_for_mutation(destination, boundary_root, allow_missing_leaf=True)
         if not same_file(source, destination) or source.name != destination.name:
             key = casefold_path(destination)
             if key in destination_keys:
@@ -139,22 +159,22 @@ def build_rename_operations(
             destination_keys.add(key)
             if destination.exists() and not same_file(source, destination):
                 raise FileExistsError(f"Destination already exists: {destination}")
-            operations.append({"kind": "media", "source": source, "destination": destination})
+            operations.append({"kind": "media", "source": source, "destination": destination, "boundary_root": boundary_root})
         if row.get("rename_sidecars"):
             for move in row.get("sidecar_moves") or []:
                 sidecar_source = Path(str(move["source"]))
                 sidecar_destination = Path(str(move["destination"]))
                 if not sidecar_source.exists():
                     continue
-                ensure_path_boundary_safe_for_mutation(sidecar_source, sidecar_source.parent)
-                ensure_path_boundary_safe_for_mutation(sidecar_destination, sidecar_source.parent, allow_missing_leaf=True)
+                ensure_path_boundary_safe_for_mutation(sidecar_source, boundary_root)
+                ensure_path_boundary_safe_for_mutation(sidecar_destination, boundary_root, allow_missing_leaf=True)
                 key = casefold_path(sidecar_destination)
                 if key in destination_keys:
                     raise RuntimeError(f"Two rename operations target the same sidecar path: {sidecar_destination}")
                 destination_keys.add(key)
                 if sidecar_destination.exists() and not same_file(sidecar_source, sidecar_destination):
                     raise FileExistsError(f"Sidecar destination already exists: {sidecar_destination}")
-                operations.append({"kind": "sidecar", "source": sidecar_source, "destination": sidecar_destination})
+                operations.append({"kind": "sidecar", "source": sidecar_source, "destination": sidecar_destination, "boundary_root": boundary_root})
     return operations
 
 
@@ -168,9 +188,10 @@ def rollback_rename_operations(
     for operation in reversed(completed_ops):
         source = Path(operation["source"])
         destination = Path(operation["destination"])
+        boundary_root = Path(operation["boundary_root"]) if operation.get("boundary_root") else None
         try:
             if destination.exists() and not source.exists():
-                rename_path(destination, source)
+                rename_path(destination, source, boundary_root=boundary_root)
             elif destination.exists() and source.exists() and same_file(source, destination):
                 continue
             else:

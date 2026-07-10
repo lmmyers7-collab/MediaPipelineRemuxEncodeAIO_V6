@@ -3,9 +3,9 @@ file: src/mediapipeline/core/api/commands_process.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-07-05
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: a0560fd80f6b3208ddd2d387e5dee17a129dcfbad0c2b9fa7d3bcc3d88cd18b0
+sha256: 2784b0a55f93f6d0d187c7e0e97569a57eb1d3d984f7efb59f12a1fc6da1e589
 ---
 # `src/mediapipeline/core/api/commands_process.py`
 

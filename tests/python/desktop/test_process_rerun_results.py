@@ -278,6 +278,160 @@ class RerunResultsTests(unittest.TestCase):
         self.assertEqual(payload["counts"]["queue_status_counts"]["stopped"], 2)
         self.assertEqual(payload["counts"]["queue_status_counts"]["replaced_returned"], 1)
 
+    def test_rerun_results_exposes_network_reducer_rows_read_only(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            source = root / "Source" / "Movie.mkv"
+            output = root / "NetworkRerunHandoff" / "batch-1" / "row-1" / "Movie.mkv"
+            source.parent.mkdir(parents=True)
+            output.parent.mkdir(parents=True)
+            source.write_bytes(b"source")
+            output.write_bytes(b"handoff-output")
+            network_root = resolved.state_root / "Rerun" / "Network"
+            network_root.mkdir(parents=True)
+            (network_root / "batch-1.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_rerun_network_batch.v1",
+                        "batch_id": "batch-1",
+                        "status": "active",
+                        "phase": "phase_5_coordinator_result_reducer",
+                        "claim_provider_enabled": True,
+                        "worker_execution_enabled": True,
+                        "rows_claimable": False,
+                        "created_at_utc": "2026-07-06T00:00:00Z",
+                        "updated_at_utc": "2026-07-06T00:01:00Z",
+                        "rows": [
+                            {
+                                "schema_version": "desktop_rerun_network_batch_row.v1",
+                                "row_key": "row-1",
+                                "row_index": 0,
+                                "status": "worker_completed_pending_reduction",
+                                "claim_status": "done_reported",
+                                "claimable": False,
+                                "source_path": str(source),
+                                "planned_output_path": str(output.parent),
+                                "verified_output_path": str(output),
+                                "worker_result": {
+                                    "schema_version": "desktop_rerun_network_worker_result_snapshot.v1",
+                                    "job_id": "job-1",
+                                    "worker_id": "worker-1",
+                                    "success": True,
+                                    "output_path": str(output),
+                                    "pending_reduction": True,
+                                },
+                                "reducer_result": {
+                                    "schema_version": "desktop_rerun_network_result_reduction.v1",
+                                    "classification": "success",
+                                    "accepted": True,
+                                    "pending_destination_policy": True,
+                                    "output_artifact": {
+                                        "path": str(output),
+                                        "exists": True,
+                                        "under_planned_handoff": True,
+                                    },
+                                },
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            payload = rerun_results_payload(resolved)
+
+        self.assertTrue(payload["queue_state"]["contains_network_csv_rerun"])
+        self.assertEqual(payload["counts"]["network_manifest_count"], 1)
+        self.assertEqual(payload["counts"]["network_row_count"], 1)
+        network_rows = [row for row in payload["queue_state"]["rows"] if row["queue_source"] == "network_csv_rerun"]
+        self.assertEqual(len(network_rows), 1)
+        row = network_rows[0]
+        self.assertEqual(row["queue_kind"], "network_csv_rerun_row")
+        self.assertEqual(row["queue_status"], "pending_reduction")
+        self.assertEqual(row["queue_status_label"], "Pending Reduction")
+        self.assertEqual(row["network_reducer_result"]["classification"], "success")
+        self.assertTrue(row["destination_state"]["pending_destination_policy"])
+        self.assertFalse(row["can_promote_to_pending_publish"])
+        self.assertTrue(row["can_open_output"])
+
+    def test_rerun_results_exposes_network_destination_policy_results(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            source = root / "Source" / "Movie.mkv"
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b"source")
+            pending_payload = resolved.pending_push_path / "Movie.mkv"
+            pending_manifest = resolved.pending_push_path / "Movie.mkv.manifest.json"
+            final_output = root / "Outsource" / "Movie.mkv"
+            resolved.pending_push_path.mkdir(parents=True)
+            pending_payload.write_bytes(b"handoff-output")
+            pending_manifest.write_text(json.dumps({"server_out": str(final_output)}), encoding="utf-8")
+            network_root = resolved.state_root / "Rerun" / "Network"
+            network_root.mkdir(parents=True)
+            (network_root / "batch-1.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_rerun_network_batch.v1",
+                        "batch_id": "batch-1",
+                        "status": "active",
+                        "phase": "phase_6_destination_policy_integration",
+                        "destination_mode": "pending_publish",
+                        "collision_policy": "suffix",
+                        "rows": [
+                            {
+                                "schema_version": "desktop_rerun_network_batch_row.v1",
+                                "row_key": "row-1",
+                                "row_index": 0,
+                                "status": "pending_publish",
+                                "source_path": str(source),
+                                "planned_output_path": str(root / "NetworkRerunHandoff" / "batch-1" / "row-1"),
+                                "verified_output_path": str(root / "NetworkRerunHandoff" / "batch-1" / "row-1" / "Movie.mkv"),
+                                "final_output_path": str(final_output),
+                                "pending_publish_manifest_path": str(pending_manifest),
+                                "pending_publish_payload_path": str(pending_payload),
+                                "server_out": str(final_output),
+                                "destination_policy_applied": True,
+                                "reducer_result": {
+                                    "schema_version": "desktop_rerun_network_result_reduction.v1",
+                                    "classification": "success",
+                                    "accepted": True,
+                                    "pending_destination_policy": False,
+                                    "destination_policy_applied": True,
+                                },
+                                "destination_policy_result": {
+                                    "schema_version": "desktop_rerun_network_destination_policy_result.v1",
+                                    "phase": "phase_6_destination_policy_integration",
+                                    "action": "pending_publish",
+                                    "status": "pending_publish",
+                                    "ok": True,
+                                    "terminal": True,
+                                    "pending_publish_manifest_path": str(pending_manifest),
+                                    "pending_publish_payload_path": str(pending_payload),
+                                    "server_out": str(final_output),
+                                },
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            payload = rerun_results_payload(resolved)
+
+        network_rows = [row for row in payload["queue_state"]["rows"] if row["queue_source"] == "network_csv_rerun"]
+        self.assertEqual(len(network_rows), 1)
+        row = network_rows[0]
+        self.assertEqual(row["queue_status"], "pending_publish")
+        self.assertEqual(row["pending_publish_manifest_path"], str(pending_manifest))
+        self.assertEqual(row["pending_publish_payload_path"], str(pending_payload))
+        self.assertEqual(row["network_destination_policy_result"]["status"], "pending_publish")
+        self.assertFalse(row["destination_state"]["pending_destination_policy"])
+        self.assertTrue(row["destination_state"]["destination_policy_applied"])
+        self.assertTrue(row["destination_state"]["destination_policy_terminal"])
+        self.assertEqual(row["destination_state"]["destination_policy_action"], "pending_publish")
+
     def test_continue_pending_rows_materializes_only_pending_source_rows(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

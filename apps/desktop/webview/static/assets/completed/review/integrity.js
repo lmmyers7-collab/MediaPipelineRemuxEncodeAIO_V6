@@ -23,6 +23,7 @@
     function completedIntegrityStatus(completed, rows) {
       const rowList = Array.isArray(rows) ? rows : [];
       if (completed?.error) return "Unavailable";
+      if (Number(completed?.parse_health?.skipped_count || 0) > 0) return "Parse loss";
       if (!rowList.length) return "No history";
       if (Number(completed?.size_growth_over_5_count || 0) > 0) return "Review growth";
       if (Number(completed?.missing_output_count || 0) > 0 || rowList.some(completedRowHasIntegrityIssue)) return "Review needed";
@@ -36,6 +37,7 @@
       const payload = completed || {};
       const rowList = Array.isArray(rows) ? rows : [];
       const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
+      const parseHealth = payload.parse_health || {};
       const issueRows = rowList.filter(completedRowHasIntegrityIssue);
       const audioDecisionTotal = rowList.reduce((total, row) => total + Number(row.audio_decision_count || 0), 0);
       const subtitleDecisionTotal = rowList.reduce((total, row) => total + Number(row.subtitle_decision_count || 0), 0);
@@ -50,6 +52,7 @@
         `Manifest: ${payload.source || "not reported"}`,
         completedFreshnessLine("Manifest age", payload.manifest_age_text, payload.manifest_freshness_status, payload.manifest_mtime_utc),
         `Rows: ${payload.count || rowList.length || 0}`,
+        `Manifest parse health: skipped=${parseHealth.skipped_count || 0}; scanned=${parseHealth.scanned_line_count || 0}; scope=${parseHealth.scope || "unknown"}; complete=${parseHealth.complete === true ? "yes" : "no"}`,
         `Encode/remux: ${payload.encode_count || 0} / ${payload.remux_count || 0}`,
         `Missing outputs: ${payload.missing_output_count || 0}`,
         `Size growth rows: ${payload.size_growth_count || 0}`,
@@ -66,6 +69,12 @@
       if (warnings.length) {
         lines.push("", "Warning(s):");
         warnings.slice(0, 5).forEach((warning) => lines.push(`- ${warning}`));
+      }
+      if (Number(parseHealth.skipped_count || 0) > 0) {
+        lines.push("", "Parse error evidence:");
+        (Array.isArray(parseHealth.recent_errors) ? parseHealth.recent_errors : []).slice(0, 5).forEach((entry) => {
+          lines.push(`- ${entry.line_identifier || "unknown"}: ${entry.error_class || "parse error"}`);
+        });
       }
       lines.push("");
       if (!rowList.length) {

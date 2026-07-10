@@ -1,4 +1,34 @@
 (function () {
+  function unavailableCloseReadiness(reason) {
+    const message = String(reason || "Close-readiness is unavailable.");
+    return {
+      schema_version: "desktop_close_readiness.v1",
+      safe_to_close: false,
+      active_work: true,
+      state: "unavailable",
+      operator_status: "unavailable",
+      reason: message,
+      warnings: [message],
+      evidence_authority: "frontend-fail-closed-sentinel",
+    };
+  }
+
+  function normalizeCloseReadiness(payload, unavailableReason = "Close-readiness payload is invalid.") {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return unavailableCloseReadiness(unavailableReason);
+    }
+    if (typeof payload.safe_to_close !== "boolean") {
+      return unavailableCloseReadiness(unavailableReason);
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, "active_work") && typeof payload.active_work !== "boolean") {
+      return unavailableCloseReadiness(unavailableReason);
+    }
+    return {
+      ...payload,
+      active_work: typeof payload.active_work === "boolean" ? payload.active_work : !payload.safe_to_close,
+    };
+  }
+
   function formatCloseReadiness(closeReadiness) {
     return window.mediaPipelineAppLifecycle?.formatCloseReadiness?.(closeReadiness) || "Close readiness has not loaded yet.";
   }
@@ -35,6 +65,8 @@
   }
 
   window.mediaPipelineAppCloseReadiness = {
+    unavailableCloseReadiness,
+    normalizeCloseReadiness,
     formatCloseReadiness,
     closeReadinessWatcherData,
     closeReadinessWatcherSummary,

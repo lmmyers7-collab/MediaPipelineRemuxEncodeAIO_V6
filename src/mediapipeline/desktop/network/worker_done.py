@@ -9,6 +9,15 @@ from .failure_reasons import (
 from .protocol import DoneRequest
 
 
+def _claim_metadata(job: Any) -> dict[str, Any]:
+    metadata = getattr(job, "claim_metadata", None)
+    if isinstance(metadata, dict):
+        return dict(metadata)
+    encode_config = getattr(job, "encode_config", {}) or {}
+    embedded = encode_config.get("__claim_metadata") if isinstance(encode_config, dict) else None
+    return dict(embedded) if isinstance(embedded, dict) else {}
+
+
 def build_crash_recovery_done_request(job_id: str, worker_id: str) -> DoneRequest:
     return DoneRequest(
         job_id=str(job_id or ""),
@@ -46,6 +55,7 @@ def build_completion_done_request(
     retry_on_failure: bool | None = None,
     reason_code: str | None = None,
     reason: str | None = None,
+    worker_result_artifact_path: str | None = None,
 ) -> DoneRequest:
     if retry_on_failure is None:
         retry = bool(getattr(job, "encode_config", {}).get("__retry_on_failure", True))
@@ -54,6 +64,7 @@ def build_completion_done_request(
     retry = retry and not bool(queue_terminal)
     record = getattr(job, "record", None)
     source_path = str(getattr(record, "source_path", "") or "")
+    metadata = _claim_metadata(job)
     final_reason_code, final_reason = classify_failure_reason(
         success=bool(success),
         reason_code=reason_code or "",
@@ -80,4 +91,15 @@ def build_completion_done_request(
         route=route or "",
         queue_terminal=bool(queue_terminal),
         retry_on_failure=retry,
+        job_kind=str(metadata.get("job_kind") or "pipeline_queue"),
+        rerun_batch_id=str(metadata.get("rerun_batch_id") or ""),
+        rerun_row_key=str(metadata.get("rerun_row_key") or ""),
+        rerun_row_index=int(metadata.get("rerun_row_index") or 0),
+        planned_output_path=str(metadata.get("planned_output_path") or ""),
+        output_handoff=dict(metadata.get("output_handoff") or {}),
+        source_identity=dict(metadata.get("source_identity") or {}),
+        coordinator_source_path=str(metadata.get("coordinator_source_path") or ""),
+        worker_source_path=str(metadata.get("worker_source_path") or source_path),
+        destination_policy_applied=bool(metadata.get("destination_policy_applied") is True),
+        worker_result_artifact_path=worker_result_artifact_path or "",
     )

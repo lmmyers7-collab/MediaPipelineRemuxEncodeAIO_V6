@@ -43,6 +43,7 @@ These focused PowerShell checks sit outside `tests\python\desktop` and guard cro
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PendingPublishOwnershipChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PendingPublishSafetyChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-ContractSchemaChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PathBoundaryGuardChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-ConfigKeyRegistryChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-FailureCodeRegistryChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-DynamicHdrDetectionChecks.ps1
@@ -68,6 +69,8 @@ These focused PowerShell checks sit outside `tests\python\desktop` and guard cro
 `Invoke-PortablePathChecks.ps1` parses audit/config/profile scripts and blocks local operator path defaults such as `\\LAYNE-SERVER\Video` from returning to active audit or profile templates.
 
 `Invoke-ContractSchemaChecks.ps1` guards pipeline contract schema presence and representative round-trip payloads for events, process results, queue snapshots, pending-publish manifests, completed-job sidecars, publish results, publish partial paths, and folder-policy topology shapes.
+
+`Invoke-PathBoundaryGuardChecks.ps1` guards path-boundary helper behavior, output capability preflights, scratch-copy traversal rejection, stale temp cleanup, and audit probe-cache identity for same-path replacement files.
 
 `Invoke-AdversarialForceKillEncodeChecks.ps1` is a runtime adversarial smoke rather than a static guard. It creates generated media in `%TEMP%`, starts the real backend in `-Once`, force-kills a live CPU fallback encode after an `encode_temp_cpu_*.mkv` artifact exists, then proves the partial was not accepted as completed output/pending publish and the source remains queued.
 
@@ -209,6 +212,8 @@ Tests for pipeline state, progress tracking, event reading, snapshot assembly, a
 | `test_service_status_summary_sections.py` | Summary section assembly |
 | `test_service_status_snapshot_runner.py` | Snapshot runner and Protocol-typed status snapshot service boundary |
 | `test_application_facade_snapshot.py` | Application-facade snapshot assembly, active-work summary fields, progress bar presentation for publish/audit/subtitle/copy work, ActiveJobs diagnostics rows, and zero-percent GPU telemetry mapping |
+| `test_status_rerun_completion.py` | Backend-manifest CSV rerun completion projection for success, failed, empty, pending-publish, active, and stale-progress contexts |
+| `test_webview_csv_rerun_completion.py` | WebView terminal-summary rendering that suppresses stale CSV route-progress in the live status and timeline |
 | `test_service_app_schedule.py` | Schedule state service |
 | `test_telemetry_service.py` | CPU/RAM/GPU telemetry |
 
@@ -350,7 +355,7 @@ Tests for manifest parsing, path resolution, manifest row validation, strict man
 | `test_service_pending_publish_manifest.py` | Manifest state validation, legacy no-drain visibility, and current-manifest missing proof rejection |
 | `test_service_pending_publish_manifest_rows.py` | Per-row manifest validation, legacy non-drainable rows, and unsupported current states |
 | `test_pending_publish_service.py` | General pending publish service, parked payload evidence, and legacy scan-visible/do-not-drain behavior |
-| `test_process_rerun_results.py` | CSV rerun result promotion into Pending Publish writes a current pending manifest contract and leaves source media untouched; CSV rerun results expose first-class Queue row statuses, evidence, and backend-declared actions |
+| `test_process_rerun_results.py` | CSV rerun result promotion into Pending Publish writes a current pending manifest contract and leaves source media untouched; CSV rerun results expose first-class Queue row statuses, evidence, backend-declared actions, and Network CSV rerun destination-policy read-model evidence |
 | `test_application_facade_pending_publish.py` | Application-facade pending-publish preview classification, durable drain-summary evidence, publish reconciliation, final-proof path normalization, same-leaf weak evidence, row-key open allowlists, scan-failure surfacing, and recovery dry-run planning |
 
 Targeted command:
@@ -385,7 +390,7 @@ Tests for audit record reading, CSV handling, I/O, metadata, and export.
 | `test_facade_audit_policy.py` | Facade: audit policy |
 | `test_facade_failures_policy.py` | Facade: failures policy and retry-state child payload |
 | `test_application_facade_reports.py` | Application-facade read-only failure JSON/marker preview, retry-state payload, and audit CSV preview behavior |
-| `test_process_rerun_results.py` | CSV rerun results, first-class Queue status/evidence projection, cooperative stop marker/control, stopped-manifest continuation, pending-only scoped CSV materialization, and rerun promotion behavior |
+| `test_process_rerun_results.py` | CSV rerun results, first-class Queue status/evidence projection, Network CSV rerun reducer/destination-policy projection, cooperative stop marker/control, stopped-manifest continuation, pending-only scoped CSV materialization, and rerun promotion behavior |
 | `ops/pipeline/tests/Unit/Invoke-PortablePathChecks.ps1` | PowerShell audit/legacy GUI parser and portable audit-root default guard |
 | `ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1` | PowerShell CSV rerun auto-return behavior for clean confirmed final replacement, remaining-issue Pending Publish review routing, and source preservation |
 | `ops/pipeline/tests/Unit/Invoke-RerunCooperativeStopChecks.ps1` | PowerShell CSV rerun cooperative stop marker and stopped-manifest contract guard |
@@ -482,6 +487,7 @@ Tests for coordinator/worker state, persistence, auth, source policy, mDNS, loca
 | `test_network_inflight_registry.py` | In-flight registry persistence, concurrent save safety, registry save-failure diagnostics, non-finite value sanitization, config JSON rejection, and malformed row loading |
 | `test_network_crash_recovery.py` | Worker crash recovery, pending done-report retry, bounded failure diagnostics, malformed worker-state handling, cluster-log failure handling, and accepted-report cleanup failures |
 | `test_network_done_release.py` | Worker done/release reporting, pending done-report save failure handling, accepted-report cleanup, bounded diagnostics, unstartable-claim release reporting, and `DoneRequest` terminal fields |
+| `test_network_rerun_claims.py` | Network CSV rerun row claim/release/done reduction, worker handoff probes, worker config rewrite isolation, and coordinator-owned destination-policy outcomes for review workspace, Pending Publish, non-overlap final copy, confirmed final replacement, and fail-closed policy errors |
 | `test_network_coordinator_startup.py` | Coordinator startup behavior |
 | `test_network_coordinator_source_policy.py` | Coordinator source policy and path handling |
 | `test_network_worker_source_policy.py` | Worker source policy, path handling, and worker poll interval handoff through the named config key plus shared policy helper |

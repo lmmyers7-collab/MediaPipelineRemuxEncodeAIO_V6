@@ -17,6 +17,10 @@ from mediapipeline.core.audit.rerun_csv import (
     rerun_output_container_from_config,
 )
 from mediapipeline.core.network.library_roots import claim_library_fields_for_record
+from mediapipeline.core.network.rerun_handoff import (
+    network_rerun_handoff_for_row,
+    network_rerun_handoff_root_evidence,
+)
 from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.paths.layout import valid_extensions_from_config
 from mediapipeline.core.processes.file_io import atomic_write_text
@@ -26,10 +30,12 @@ from mediapipeline.core.processes.rerun_policy import (
     RERUN_ORIGINAL_POLICIES,
     RERUN_FINAL_OUTPUT_ROOT_ERROR,
     RERUN_FINAL_OUTPUT_ROOT_UNAVAILABLE,
-    rerun_final_output_override,
+    rerun_destination_replaces_final,
+    rerun_final_output_for_row,
     rerun_final_output_root_violation,
     rerun_lifecycle_errors,
     rerun_lifecycle_from_request,
+    rerun_source_path_destination_requested,
 )
 from mediapipeline.core.processes.rerun_rules import (
     RERUN_RULE_CSV_COLUMNS,
@@ -74,6 +80,8 @@ class RerunCsvRow:
     rule_decision: RerunRuleDecision
     duplicate_source: bool = False
     planned_output_key: str = ""
+    final_output_path: str = ""
+    final_output_source_field: str = ""
     duplicate_planned_output: bool = False
     duplicate_planned_output_first_row_index: int | None = None
 
@@ -283,7 +291,7 @@ def _classify_rows(
     default_return_mode: str,
     valid_extensions: set[str] | None = None,
     resolved: ResolvedPaths | None = None,
-    confirm_source_overwrite: bool = False,
+    source_path_destination: bool = False,
 ) -> list[RerunCsvRow]:
     source_counts: dict[str, int] = {}
     raw_rows = list(rows)
@@ -392,8 +400,12 @@ def _classify_rows(
         for reason in rule_decision.warning_reasons:
             if reason not in warnings:
                 warnings.append(reason)
+        final_output_field, final_output_path = rerun_final_output_for_row(
+            row,
+            source_path=source_path,
+            source_path_destination=source_path_destination,
+        )
         if resolved is not None:
-            final_output_field, final_output_path = rerun_final_output_override(row)
             if final_output_path:
                 violation = rerun_final_output_root_violation(
                     resolved,
@@ -401,7 +413,7 @@ def _classify_rows(
                     source_path=source_path,
                     final_output_path=final_output_path,
                     final_output_field=final_output_field,
-                    confirm_source_overwrite=confirm_source_overwrite,
+                    confirm_source_overwrite=source_path_destination,
                 )
                 if violation and violation not in blockers:
                     blockers.append(violation)
@@ -421,6 +433,8 @@ def _classify_rows(
                 rule_decision=rule_decision,
                 duplicate_source=duplicate_source,
                 planned_output_key=planned_output_key,
+                final_output_path=final_output_path,
+                final_output_source_field=final_output_field,
                 duplicate_planned_output=duplicate_planned_output,
                 duplicate_planned_output_first_row_index=planned_output_first_index.get(planned_output_key),
             )
@@ -463,6 +477,19 @@ def _row_status(row: RerunCsvRow, in_scope: bool) -> str:
     return "ready"
 
 
+def _source_stat_fields(source_path: str) -> dict[str, Any]:
+    if not source_path:
+        return {"source_size": 0, "source_mtime_utc": ""}
+    try:
+        stat = Path(source_path).stat()
+    except OSError:
+        return {"source_size": 0, "source_mtime_utc": ""}
+    return {
+        "source_size": stat.st_size,
+        "source_mtime_utc": datetime.fromtimestamp(stat.st_mtime, UTC).isoformat(),
+    }
+
+
 def _preview_row(
     row: RerunCsvRow,
     *,
@@ -472,13 +499,20 @@ def _preview_row(
     reasons = list(row.blocked_reasons) + list(row.warning_reasons)
     state = dict(state_match or {})
     rule = row.rule_decision.to_mapping()
+    final_output_field = row.final_output_source_field
+    final_output_path = row.final_output_path
     return {
         "row_index": row.row_index,
         "enabled": row.enabled,
         "status": _row_status(row, in_scope),
         "in_scope": in_scope,
         "source_path": row.source_path,
+        **_source_stat_fields(row.source_path),
+        "source_identity_v2": _row_value(row.row, "source_identity_v2", "SourceIdentityV2"),
+        "source_identity_v2_algorithm": _row_value(row.row, "source_identity_v2_algorithm", "SourceIdentityV2Algorithm"),
         "library_id": _row_value(row.row, "library_id", "LibraryId"),
+        "media_kind": _row_value(row.row, "media_kind", "MediaKind", "MediaType"),
+        "audit_issue_codes": _row_value(row.row, "audit_issue_codes", "IssueCodes", "PrimaryIssueCode"),
         "issue": row.issue_text,
         "bucket": row.bucket_text,
         "stage_mode": row.stage_mode,
@@ -487,6 +521,15 @@ def _preview_row(
         "lookup_title": _row_value(row.row, "lookup_title", "LookupTitle"),
         "relative_path": _row_value(row.row, "relative_path", "RelativePath"),
         "planned_output_key": row.planned_output_key,
+        "final_output_path": final_output_path,
+        "final_output_source": (
+            "source_path"
+            if final_output_field == "source_path"
+            else "csv_completed_output"
+            if final_output_path
+            else ""
+        ),
+        "final_output_source_field": final_output_field,
         "duplicate_planned_output": row.duplicate_planned_output,
         "duplicate_planned_output_first_row_index": row.duplicate_planned_output_first_row_index,
         "reason": "; ".join(reasons),
@@ -621,6 +664,7 @@ def rerun_csv_preview_payload(
         rows=raw_rows,
         read_errors=list(csv_result.get("errors") or []),
     )
+    source_path_destination = rerun_source_path_destination_requested(lifecycle)
     rows = _classify_rows(
         raw_rows,
         default_stage_mode=stage_mode,
@@ -628,7 +672,7 @@ def rerun_csv_preview_payload(
         default_return_mode=return_mode,
         valid_extensions=_valid_extension_set(resolved),
         resolved=resolved,
-        confirm_source_overwrite=lifecycle.confirm_source_overwrite,
+        source_path_destination=source_path_destination,
     )
     scoped = scoped_rerun_rows(rows, scope)
     scoped_keys = {row.row_index for row in scoped}
@@ -787,14 +831,16 @@ def _network_source_mapping(resolved: ResolvedPaths, row: Mapping[str, Any]) -> 
     }
 
 
-def _network_output_handoff(row: Mapping[str, Any]) -> dict[str, Any]:
-    return {
-        "status": "not_configured",
-        "ready": False,
-        "strategy": "phase_1_preview_only",
-        "planned_output_key": _clean_text(row.get("planned_output_key")),
-        "reason": "Phase 1 preview does not select or write a coordinator-readable output handoff root.",
-    }
+def _network_output_handoff(
+    row: Mapping[str, Any],
+    root_evidence: Mapping[str, Any],
+    row_key: str,
+) -> dict[str, Any]:
+    return network_rerun_handoff_for_row(
+        root_evidence,
+        row_key=row_key,
+        planned_output_key=_clean_text(row.get("planned_output_key")),
+    )
 
 
 def _network_destination_policy(row: Mapping[str, Any]) -> dict[str, Any]:
@@ -827,6 +873,7 @@ def _network_preview_row(
     csv_path: str,
     resolved: ResolvedPaths,
     row: Mapping[str, Any],
+    root_evidence: Mapping[str, Any],
 ) -> dict[str, Any]:
     local_status = _clean_text(row.get("status"))
     in_scope = row.get("in_scope") is True
@@ -836,8 +883,9 @@ def _network_preview_row(
     reasons = _network_reason_parts(row)
     duplicate_source = any("duplicate source_path" in reason for reason in reasons)
     duplicate_planned = row.get("duplicate_planned_output") is True
+    row_key = _network_preview_row_key(csv_path, row)
     source_mapping = _network_source_mapping(resolved, row)
-    output_handoff = _network_output_handoff(row)
+    output_handoff = _network_output_handoff(row, root_evidence, row_key)
     destination_policy = _network_destination_policy(row)
     claim_blockers: list[str] = []
     if blocked:
@@ -849,10 +897,12 @@ def _network_preview_row(
     claimable = local_status in {"ready", "warning"} and not skipped and source_mapping.get("ready") is True
     start_blockers = list(claim_blockers)
     if output_handoff.get("ready") is not True:
-        start_blockers.append("output_handoff_not_configured")
+        start_blockers.extend(str(item) for item in output_handoff.get("blockers") or [])
+        if not output_handoff.get("blockers"):
+            start_blockers.append("output_handoff_not_ready")
     return {
         "schema_version": RERUN_NETWORK_CSV_PREVIEW_ROW_SCHEMA_VERSION,
-        "row_key": _network_preview_row_key(csv_path, row),
+        "row_key": row_key,
         "row_index": row.get("row_index"),
         "source_path": _clean_text(row.get("source_path")),
         "enabled": enabled,
@@ -873,8 +923,26 @@ def _network_preview_row(
         "destination_policy": destination_policy,
         "rule_decision": row.get("rule_decision") or {},
         "rerun_rule_id": _clean_text(row.get("rerun_rule_id")),
+        "rerun_rule_label": _clean_text(row.get("rerun_rule_label")),
         "rerun_rule_status": _clean_text(row.get("rerun_rule_status")),
+        "rerun_rule_reason": _clean_text(row.get("rerun_rule_reason")),
         "rerun_rule_destination_behavior": _clean_text(row.get("rerun_rule_destination_behavior")),
+        "rerun_rule_replacement_eligible": row.get("rerun_rule_replacement_eligible") is True,
+        "rerun_rule_required_confirmations": [
+            _clean_text(item)
+            for item in (row.get("rerun_rule_required_confirmations") or [])
+            if _clean_text(item)
+        ],
+        "rerun_rule_runtime_options": dict(row.get("rerun_rule_runtime_options") or {}),
+        "source_size": row.get("source_size") or 0,
+        "source_mtime_utc": _clean_text(row.get("source_mtime_utc")),
+        "source_identity_v2": _clean_text(row.get("source_identity_v2")),
+        "source_identity_v2_algorithm": _clean_text(row.get("source_identity_v2_algorithm")),
+        "media_kind": _clean_text(row.get("media_kind")),
+        "audit_issue_codes": _clean_text(row.get("audit_issue_codes")),
+        "final_output_path": _clean_text(row.get("final_output_path")),
+        "final_output_source": _clean_text(row.get("final_output_source")),
+        "final_output_source_field": _clean_text(row.get("final_output_source_field")),
         "reason": "; ".join(reasons),
     }
 
@@ -887,12 +955,14 @@ def rerun_network_csv_preview_payload(
 ) -> dict[str, Any]:
     local_preview = rerun_csv_preview_payload(resolved, request, service=service)
     csv_path = _clean_text(local_preview.get("csv_path") or request.get("csv_path"))
+    handoff_root = network_rerun_handoff_root_evidence(resolved)
     rows = [
-        _network_preview_row(csv_path, resolved, row)
+        _network_preview_row(csv_path, resolved, row, handoff_root)
         for row in local_preview.get("rows") or []
         if isinstance(row, Mapping)
     ]
     claimable_rows = sum(1 for row in rows if row.get("claimable") is True)
+    start_ready_rows = sum(1 for row in rows if row.get("start_ready") is True)
     blocked_rows = sum(1 for row in rows if row.get("blocked") is True)
     skipped_rows = sum(1 for row in rows if row.get("skipped") is True)
     duplicate_rows = sum(1 for row in rows if row.get("duplicate") is True)
@@ -908,10 +978,19 @@ def rerun_network_csv_preview_payload(
         if (row.get("destination_policy") or {}).get("status") in {"review", "blocked"}
     )
     output_handoff_ready_rows = sum(1 for row in rows if (row.get("output_handoff") or {}).get("ready") is True)
-    status = "blocked" if local_preview.get("status") == "blocked" else "ready" if claimable_rows else "review"
+    status = "blocked" if local_preview.get("status") == "blocked" else "ready" if start_ready_rows else "review"
     warnings = [str(item) for item in local_preview.get("warnings") or []]
-    if rows and output_handoff_ready_rows < len(rows):
-        warnings.append("Network CSV rerun output handoff is not configured in Phase 1 preview.")
+    if claimable_rows and output_handoff_ready_rows < claimable_rows:
+        warnings.append("Network CSV rerun output handoff is not ready for every claimable row.")
+    if handoff_root.get("coordinator_local_only") is True:
+        warnings.append("NetworkRerunHandoffRoot is local-drive only; remote workers require a UNC/shared root.")
+    start_blockers: list[str] = []
+    if local_preview.get("status") == "blocked":
+        start_blockers.append("local_preview_blocked")
+    if claimable_rows <= 0:
+        start_blockers.append("network_preview_has_no_claimable_rows")
+    if start_ready_rows < claimable_rows:
+        start_blockers.append("network_rerun_handoff_not_ready")
     return {
         "ok": bool(local_preview.get("ok")) and claimable_rows > 0,
         "command": RERUN_NETWORK_PREVIEW_COMMAND,
@@ -932,6 +1011,7 @@ def rerun_network_csv_preview_payload(
         "counts": {
             "preview_rows": len(rows),
             "claimable_rows": claimable_rows,
+            "start_ready_rows": start_ready_rows,
             "blocked_rows": blocked_rows,
             "skipped_rows": skipped_rows,
             "duplicate_rows": duplicate_rows,
@@ -941,10 +1021,11 @@ def rerun_network_csv_preview_payload(
             "destination_policy_risk_rows": destination_policy_risk_rows,
         },
         "rows": rows,
+        "output_handoff": handoff_root,
         "warnings": warnings,
         "errors": [str(item) for item in local_preview.get("errors") or []],
-        "can_start_network_batch": False,
-        "start_blockers": ["network_csv_rerun_start_not_implemented"],
+        "can_start_network_batch": status != "blocked" and start_ready_rows > 0 and not start_blockers,
+        "start_blockers": start_blockers,
         "state_files_would_write": [],
         "touches_media": False,
         "writes_queue": False,
@@ -1302,7 +1383,11 @@ def materialize_scoped_rerun_csv(
         default_return_mode=str(payload.get("return_mode") or "park"),
         valid_extensions=_valid_extension_set(resolved),
         resolved=resolved,
-        confirm_source_overwrite=bool((payload.get("lifecycle") or {}).get("confirm_source_overwrite")),
+        source_path_destination=bool((payload.get("lifecycle") or {}).get("confirm_source_overwrite"))
+        and rerun_destination_replaces_final(
+            str(payload.get("destination_mode") or ""),
+            str(payload.get("collision_policy") or ""),
+        ),
     )
     scoped = scoped_rerun_rows(rows, rerun_preview_scope_from_request(request))
     if not scoped:

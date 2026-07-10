@@ -1798,6 +1798,11 @@
       "title": "Coordinatorauthtoken",
       "type": "string"
     },
+    "NetworkRerunHandoffRoot": {
+      "default": "",
+      "title": "Networkrerunhandoffroot",
+      "type": "string"
+    },
     "WorkerCoordinatorUrl": {
       "default": "",
       "title": "Workercoordinatorurl",

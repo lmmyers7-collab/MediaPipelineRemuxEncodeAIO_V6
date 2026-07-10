@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from mediapipeline.tools.paths import find_repo_root
@@ -86,6 +87,69 @@ def _get_json(url: str, token: str) -> tuple[int, dict]:
 
 
 class NetworkJoinTests(unittest.TestCase):
+    def test_invalid_join_blob_input_is_rejected_before_token_rotation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            resolved = _resolved(root, {"NetworkRole": "coordinator", "CoordinatorAuthToken": "existing-token-0123456789"})
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+
+            with patch.object(facade, "_coordinator_join_token") as rotate_token:
+                result = facade.request_network_coordinator_join_blob(
+                    resolved,
+                    {
+                        "confirm_create": True,
+                        "coordinator_url": "not-a-valid-url",
+                        "rotate_token": True,
+                        "confirm_rotate": True,
+                    },
+                ).to_mapping()
+
+        self.assertFalse(result["ok"])
+        rotate_token.assert_not_called()
+        self.assertEqual(service.saved_config_calls, [])
+
+    def test_running_coordinator_rotation_failure_restores_previous_config_token(self) -> None:
+        class Dispatcher:
+            def __init__(self) -> None:
+                self.updates: list[str] = []
+
+            def get_auth_token(self) -> str:
+                return "existing-token-0123456789"
+
+            def update_auth_token(self, value: str) -> None:
+                self.updates.append(value)
+                if value != "existing-token-0123456789":
+                    raise RuntimeError("runtime update failed")
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            resolved = _resolved(root, {"NetworkRole": "coordinator", "CoordinatorAuthToken": "existing-token-0123456789"})
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            dispatcher = Dispatcher()
+            saved_tokens: list[str] = []
+
+            def save_patch(_resolved_paths, request):
+                saved_tokens.append(request["changes"]["CoordinatorAuthToken"])
+                return SimpleNamespace(ok=True, errors=[], message="saved")
+
+            with patch.object(facade, "_network_dispatcher_for_role", return_value=dispatcher), patch.object(
+                facade, "save_settings_patch", side_effect=save_patch
+            ):
+                result = facade.request_network_coordinator_join_blob(
+                    resolved,
+                    {
+                        "confirm_create": True,
+                        "coordinator_url": "http://coordinator.test:7830",
+                        "rotate_token": True,
+                        "confirm_rotate": True,
+                    },
+                ).to_mapping()
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(saved_tokens[-1], "existing-token-0123456789")
+        self.assertEqual(dispatcher.updates[-1], "existing-token-0123456789")
     def test_decode_join_blob_rejects_malformed_schema_and_short_token_without_leaking_secret(self) -> None:
         with self.assertRaisesRegex(ValueError, "base64url encoded JSON object"):
             decode_network_join_blob("not a blob!!!")
@@ -299,6 +363,7 @@ class NetworkJoinTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual(result["command"], "network.worker.join_cluster")
         self.assertEqual(result["data"]["schema_version"], "desktop_network_join_import_result.v1")
+        self.assertEqual(result["data"]["effect"], "config-write")
         self.assertTrue(result["data"]["suppress_command_journal"])
         self.assertEqual(result["data"]["settings_save"]["status"], "saved")
         self.assertTrue(result["data"]["test_connection"]["ok"])

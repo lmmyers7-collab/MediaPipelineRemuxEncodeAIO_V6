@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-05
 last_reviewed: 2026-07-02
-sha256: 3645624fe1f6c7d3e640ac3fdd1ee10a0b794c687a59d30fef1125cb619592d0
+sha256: 7e1a14198d1f0851e830526b36cf2488b9e65142c758b231ced5b4fc3e9c945a
 ---
 # `tests/python/desktop/test_process_rerun_results.py`
 

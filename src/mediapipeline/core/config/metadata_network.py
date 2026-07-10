@@ -10,6 +10,7 @@ KEY_COORDINATOR_ALSO_ENCODE_LOCALLY = "CoordinatorAlsoEncodeLocally"
 KEY_COORDINATOR_HEARTBEAT_TIMEOUT_MINS = "CoordinatorHeartbeatTimeoutMins"
 KEY_COORDINATOR_MAX_JOB_RETRIES = "CoordinatorMaxJobRetries"
 KEY_COORDINATOR_AUTH_TOKEN = "CoordinatorAuthToken"
+KEY_NETWORK_RERUN_HANDOFF_ROOT = "NetworkRerunHandoffRoot"
 KEY_WORKER_COORDINATOR_URL = "WorkerCoordinatorUrl"
 KEY_WORKER_NAME = "WorkerName"
 KEY_WORKER_AUTH_TOKEN = "WorkerAuthToken"
@@ -46,6 +47,9 @@ NETWORK_CONFIG_DEFAULTS: dict[str, object] = {
     # Shared bearer token. Empty string means auto-generated on first
     # coordinator-mode start and persisted to app state.
     KEY_COORDINATOR_AUTH_TOKEN: "",
+    # Coordinator-readable, worker-writable root for Network CSV rerun row
+    # handoff outputs. Required only when starting Network CSV rerun batches.
+    KEY_NETWORK_RERUN_HANDOFF_ROOT: "",
 
     # --- Worker settings (ignored unless NetworkRole == "worker") ---
     # Full URL of the coordinator, e.g. "http://192.168.1.50:7830".

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/queue/service.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-07-02
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: ca21c9b430b2f46db5a9799335c92d25f8145c6f7d42da673995e505051591b0
+sha256: 1339cabd26d175416f922756ab15352348a74fc5cb94b311e56a13a4f5418cac
 ---
 # `src/mediapipeline/core/queue/service.py`
 

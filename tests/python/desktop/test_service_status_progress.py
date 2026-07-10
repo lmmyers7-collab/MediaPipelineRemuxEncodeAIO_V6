@@ -54,6 +54,13 @@ class StatusProgressHelperTests(unittest.TestCase):
 
         self.assertFalse(is_progress_stale({"CurrentStage": "paused", "LastUpdate": old}, stale_after_seconds=5))
 
+    def test_terminal_failure_states_remain_terminal_even_when_old(self) -> None:
+        old = (datetime.now() - timedelta(hours=2)).isoformat(timespec="seconds")
+
+        for stage in ("failed", "blocked", "cancelled", "orphaned"):
+            with self.subTest(stage=stage):
+                self.assertFalse(is_progress_stale({"CurrentStage": stage, "Status": stage, "LastUpdate": old}))
+
     def test_encode_progress_uses_default_five_second_stale_window(self) -> None:
         old = self._timestamp_seconds_ago(30)
 

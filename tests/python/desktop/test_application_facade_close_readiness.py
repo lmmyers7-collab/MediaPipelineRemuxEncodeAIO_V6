@@ -18,6 +18,42 @@ from tests.python.desktop.application_facade_test_support import DummyFacadeServ
 
 
 class ApplicationFacadeCloseReadinessTests(unittest.TestCase):
+    def test_close_readiness_blocks_active_or_unverifiable_tdarr_background_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            service.find_related_pipeline_processes = lambda _resolved, job_kinds=None: []  # type: ignore[method-assign]
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            idle_snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="Ready.",
+                status_summary="Idle",
+                log_tail="",
+                progress={"ProgressVersion": 2, "Status": "Completed", "CurrentStage": "completed"},
+                audit_progress=None,
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+            )
+
+            with patch(
+                "mediapipeline.core.processes.guard_facade.tdarr_matrix_background_close_evidence",
+                return_value={"status": "active", "active_work": True, "pid": 4321, "run_id": "run-proof", "reason": ""},
+            ):
+                active = facade.get_close_readiness(resolved, idle_snapshot)
+            with patch(
+                "mediapipeline.core.processes.guard_facade.tdarr_matrix_background_close_evidence",
+                return_value={"status": "unavailable", "active_work": True, "pid": 0, "run_id": "", "reason": "metadata invalid"},
+            ):
+                unavailable = facade.get_close_readiness(resolved, idle_snapshot)
+
+        self.assertFalse(active.safe_to_close)
+        self.assertIn("Tdarr Matrix", active.reason)
+        self.assertIn("PID 4321", active.reason)
+        self.assertFalse(unavailable.safe_to_close)
+        self.assertIn("could not be verified", unavailable.reason)
     def test_close_readiness_blocks_active_and_unknown_runtime_state(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

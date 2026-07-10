@@ -127,7 +127,7 @@ Service-layer tests hardcode rows directly in test methods:
 
 | Safety property | Where tested | Coverage assessment |
 |---|---|---|
-| `do_not_drain` recommendation blocks drain in WebView | `test_webview_row_detail_smoke.py`, `test_webview_browser_high_risk_smoke.py` | Covered at UI layer (Node VM and real browser) |
+| `do_not_drain` recommendation is rendered as advisory evidence while the backend decides drain eligibility | `test_webview_row_detail_smoke.py`, `test_webview_browser_high_risk_smoke.py`, `test_webview_browser_pending_drain_guard_smoke.py` | Covered at UI layer (Node VM and real browser); the WebView does not make the safety decision |
 | Unreadable manifest triggers `do_not_drain` | `test_service_pending_publish_manifest.py`, `test_pending_publish_service.py` | Covered at service layer |
 | Missing payload triggers health row | `test_pending_publish_service.py` | Covered |
 | Invalid manifest schema triggers `invalid_contract` | `test_pending_publish_service.py` | Covered |
@@ -135,7 +135,7 @@ Service-layer tests hardcode rows directly in test methods:
 | Orphan payload (no manifest) reported as error | `test_service_pending_publish_paths.py` | Covered at path-utility level |
 | Duplicate manifest targets detected | `test_pending_publish_service.py` | Covered |
 | CSV rerun promotion writes current pending manifest contract fields | `test_process_rerun_results.py`, `Invoke-ContractSchemaChecks.ps1` | Covered |
-| Drain does not run from WebView directly | Route contract + `test_webview_row_detail_smoke.py` (mutation guardrail filter confirms no backend drain called) | Covered — no drain route exists in command contract |
+| WebView submits the documented pipeline-start drain mode without applying frontend drain policy | Route contract + `test_webview_browser_pending_drain_guard_smoke.py` | Covered — the backend/PowerShell preflight and drain implementation remain authoritative |
 | Parked media plus tx3g SRT sidecars are visible as one media-plus-sidecars unit before drain | `test_pending_publish_service.py` | Covered at service scan/row layer |
 | Parked media plus tx3g SRT sidecars drain together | `ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1` | Covered at PowerShell transaction layer |
 | Drain summary records media-plus-sidecar success and retryable failures | `ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1` | Covered at PowerShell transaction layer |

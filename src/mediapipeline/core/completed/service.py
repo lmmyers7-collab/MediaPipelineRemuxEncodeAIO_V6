@@ -53,6 +53,17 @@ class CompletedJobsServiceMixin:
             self._completed_history_cache_proof_key = ""
             self._completed_history_cached_at = 0.0
             self._completed_history_records = []
+            self._completed_history_parse_health = {
+                "schema_version": "completed_manifest_parse_health.v1",
+                "available": True,
+                "scope": "absent",
+                "complete": True,
+                "scanned_line_count": 0,
+                "parsed_count": 0,
+                "skipped_count": 0,
+                "error_count": 0,
+                "recent_errors": [],
+            }
             return []
 
         cache_key = str(manifest_path).casefold()
@@ -85,12 +96,15 @@ class CompletedJobsServiceMixin:
             # the most recent job is first — the UI applies its own sort but
             # this keeps the default view chronological-descending.
             try:
+                parse_health: dict[str, object] = {}
                 records = read_completed_manifest_records(
                     manifest_path,
                     limit=limit,
                     logger=self.logger,
                     proof_mode=proof_mode,
+                    parse_health=parse_health,
                 )
+                self._completed_history_parse_health = parse_health
             except OSError as exc:
                 # Persist the mtime sentinel even on a read failure so the
                 # auto-poll in _apply_poll does not hammer a transiently
@@ -101,6 +115,19 @@ class CompletedJobsServiceMixin:
                 raise RuntimeError(
                     f"Unable to read completed-jobs manifest: {manifest_path} ({exc})"
                 ) from exc
+        else:
+            self._completed_history_parse_health = {
+                "schema_version": "completed_manifest_parse_health.v1",
+                "available": True,
+                "manifest_path": str(manifest_path),
+                "scope": "absent",
+                "complete": True,
+                "scanned_line_count": 0,
+                "parsed_count": 0,
+                "skipped_count": 0,
+                "error_count": 0,
+                "recent_errors": [],
+            }
 
         self._completed_history_cache_key = cache_key
         self._completed_history_cache_limit_key = cache_limit_key

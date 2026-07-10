@@ -1,0 +1,59 @@
+{
+  "id": "MP-CHANGE-2026-0709-005",
+  "title": "Show definitive CSV rerun completion",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-09",
+  "date_completed": "2026-07-09",
+  "summary": "Adds a backend-manifest CSV rerun completion projection to the snapshot and renders its terminal state on Home/Live ahead of stale progress evidence.",
+  "reason": "A completed CSV rerun could be shown as stale route progress, leaving the operator unable to tell whether the current CSV had actually finished.",
+  "affected_areas": [
+    "code",
+    "docs",
+    "generated",
+    "release",
+    "tests"
+  ],
+  "behavior_before": "After a CSV rerun ended, stale pipeline progress could remain the primary Home/Live display, including a false current route-decision stage with no current CSV totals or terminal outcome.",
+  "behavior_after": "The snapshot exposes a read-only backend-manifest summary for the current CSV rerun. Terminal success, failure, empty, stopped, held, and pending-publish outcomes carry the CSV identity and row totals; Home/Live gives that summary precedence over stale progress while retaining historical evidence in its review surfaces.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/app/home.js",
+    "apps/desktop/webview/static/assets/app/topbar.js",
+    "apps/desktop/webview/static/assets/progressView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/home.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/topbar.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/progressView.js.md",
+    "docs/generated/summaries/docs/inventories/API_ROUTE_INVENTORY.md.md",
+    "docs/generated/summaries/docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0709-005.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/kernel/dto_status.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/status/facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/status/rerun_completion.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_status_rerun_completion.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_csv_rerun_completion.py.md",
+    "docs/inventories/API_ROUTE_INVENTORY.md",
+    "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0709-005.json",
+    "src/mediapipeline/core/kernel/dto_status.py",
+    "src/mediapipeline/core/status/facade.py",
+    "src/mediapipeline/core/status/rerun_completion.py",
+    "tests/python/desktop/test_status_rerun_completion.py",
+    "tests/webview/test_webview_csv_rerun_completion.py"
+  ],
+  "tests_added": [
+    "Backend completion summary coverage for complete, failed, empty, pending-publish, active, and stale-progress CSV reruns.",
+    "WebView terminal-summary coverage proving backend completion suppresses stale current-stage and route-pending display."
+  ],
+  "manual_validation": [
+    "Focused CSV completion suite passed (55 tests); JS syntax checks passed; strict global coverage is blocked by unrelated invalid MP-CHANGE-2026-0707-001 packet.",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_status_rerun_completion tests.python.desktop.test_application_facade_snapshot tests.python.desktop.test_api_contract_payload tests.webview.test_webview_csv_rerun_completion tests.webview.test_webview_inventory_docs -q - passed (54 tests).",
+    "node --check apps/desktop/webview/static/assets/progressView.js; node --check apps/desktop/webview/static/assets/app.js; node --check apps/desktop/webview/static/assets/app/home.js; node --check apps/desktop/webview/static/assets/app/topbar.js - passed."
+  ],
+  "rollback_plan": "Revert the additive snapshot csv_rerun_summary projection and its Home/Live renderer precedence. This change is read-only and does not alter rerun manifests, source media, scratch content, pending-publish manifests, or final outputs.",
+  "related_changes": [],
+  "notes": "Add RED coverage for backend-authored CSV rerun terminal summaries.\nTrack definitive CSV rerun completion change.\nExpose and render backend-authored CSV rerun terminal state.\nDocument CSV rerun completion snapshot contract and focused coverage.\nRegenerated targeted summaries. Full PROJECT_INDEX regeneration remains blocked by seven pre-existing orphan summaries; do not prune unrelated generated context."
+}

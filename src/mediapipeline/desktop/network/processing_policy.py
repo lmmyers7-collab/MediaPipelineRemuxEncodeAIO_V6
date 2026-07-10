@@ -43,10 +43,13 @@ from ..config_keys import (
     KEY_H264_REMUX_MAX_HEIGHT,
     KEY_INCLUDE_SUBTITLE_STYLES,
     KEY_KEEP_SIGNS_AND_SONGS,
+    KEY_LIBRARY_PROFILES,
+    KEY_LOCAL_BASE,
     KEY_MAX_ENCODE_GROWTH_PERCENT,
     KEY_MERGE_ADJACENT,
     KEY_MERGE_THRESHOLD_MS,
     KEY_OUTPUT_CONTAINER,
+    KEY_OUTSOURCE,
     KEY_PREFERRED_DEFAULT_AUDIO_LANGUAGES,
     KEY_REMOVE_KARAOKE,
     KEY_REMUX_SAFE_VIDEO_CODECS,
@@ -402,16 +405,110 @@ def _safe_job_id(value: object) -> str:
     return text[:80] or "network-job"
 
 
+def _claim_metadata(job: object) -> dict[str, Any]:
+    metadata = getattr(job, "claim_metadata", None)
+    if isinstance(metadata, Mapping):
+        return dict(metadata)
+    encode_config = getattr(job, "encode_config", {}) or {}
+    embedded = encode_config.get("__claim_metadata") if isinstance(encode_config, Mapping) else None
+    return dict(embedded) if isinstance(embedded, Mapping) else {}
+
+
+def _rewrite_library_profile_outputs(raw_profiles: Any, output_path: str) -> list[Any]:
+    if not isinstance(raw_profiles, list):
+        return raw_profiles if raw_profiles is not None else []
+    profiles: list[Any] = []
+    for raw_profile in raw_profiles:
+        if not isinstance(raw_profile, Mapping):
+            profiles.append(raw_profile)
+            continue
+        profile = dict(raw_profile)
+        profile["output_path"] = output_path
+        profiles.append(profile)
+    return profiles
+
+
+def _csv_rerun_isolated_local_base(resolved: ResolvedPaths, metadata: Mapping[str, Any], job: object) -> str:
+    config = getattr(resolved, "config_data", {}) or {}
+    base = (
+        str(config.get(KEY_LOCAL_BASE) or "").strip()
+        or str(getattr(resolved, "local_base", "") or "").strip()
+        or str(getattr(resolved, "state_root", "") or "").strip()
+        or str(getattr(resolved, "config_path", Path.cwd()).parent)
+    )
+    worker_id = _safe_job_id(getattr(job, "worker_id", "") or "worker")
+    return str(
+        Path(base)
+        / "NetworkCsvRerun"
+        / _safe_job_id(metadata.get("rerun_batch_id"))
+        / _safe_job_id(metadata.get("rerun_row_key"))
+        / worker_id
+        / _safe_job_id(getattr(job, "job_id", ""))
+    )
+
+
+def _apply_csv_rerun_worker_rewrites(
+    resolved: ResolvedPaths,
+    effective: dict[str, Any],
+    evidence: dict[str, Any],
+    *,
+    job: object,
+    metadata: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    planned_output_path = str(metadata.get("planned_output_path") or "").strip()
+    if not planned_output_path:
+        return effective, {
+            **evidence,
+            "status": "blocked",
+            "reason": "csv_rerun_row claim is missing planned_output_path",
+        }
+    isolated_local_base = _csv_rerun_isolated_local_base(resolved, metadata, job)
+    effective[KEY_OUTSOURCE] = planned_output_path
+    effective[KEY_LOCAL_BASE] = isolated_local_base
+    effective[KEY_LIBRARY_PROFILES] = _rewrite_library_profile_outputs(
+        effective.get(KEY_LIBRARY_PROFILES),
+        planned_output_path,
+    )
+    return effective, {
+        **evidence,
+        "status": "applied",
+        "job_kind": "csv_rerun_row",
+        "csv_rerun_handoff": {
+            "batch_id": str(metadata.get("rerun_batch_id") or ""),
+            "row_key": str(metadata.get("rerun_row_key") or ""),
+            "planned_output_path": planned_output_path,
+            "outsource_rewritten": True,
+            "library_profile_outputs_rewritten": True,
+            "isolated_local_base": isolated_local_base,
+            "destination_policy_applied": False,
+        },
+    }
+
+
 def materialize_worker_effective_config(
     resolved: ResolvedPaths,
     *,
     job: object,
 ) -> tuple[ResolvedPaths, dict[str, Any]]:
     worker_config = dict(getattr(resolved, "config_data", {}) or {})
-    if not worker_honor_coordinator_policy_enabled(worker_config):
+    metadata = _claim_metadata(job)
+    is_csv_rerun = str(metadata.get("job_kind") or "") == "csv_rerun_row"
+    honor_policy = worker_honor_coordinator_policy_enabled(worker_config)
+    if not honor_policy and not is_csv_rerun:
         return resolved, {"status": "disabled"}
     claim_encode_config = getattr(job, "encode_config", {}) or {}
-    effective, evidence = build_worker_effective_config(worker_config, claim_encode_config)
+    if honor_policy:
+        effective, evidence = build_worker_effective_config(worker_config, claim_encode_config)
+    else:
+        effective, evidence = dict(worker_config), {"status": "applied", "coordinator_policy_status": "disabled"}
+    if is_csv_rerun:
+        effective, evidence = _apply_csv_rerun_worker_rewrites(
+            resolved,
+            effective,
+            evidence,
+            job=job,
+            metadata=metadata,
+        )
     if evidence.get("status") != "applied":
         return resolved, evidence
     state_root = Path(resolved.state_root or resolved.local_base or resolved.config_path.parent)

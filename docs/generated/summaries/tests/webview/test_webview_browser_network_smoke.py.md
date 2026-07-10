@@ -3,9 +3,9 @@ file: tests/webview/test_webview_browser_network_smoke.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-05
 last_reviewed: 2026-06-04
-sha256: 4911173b786ab8ae1a5fef5e051f02ffa7506324fe6f3d79dcf6349caa931f89
+sha256: f9e1670f167d98b15d5c1f43a9c31c058053219644858c231eb7c58935820c09
 ---
 # `tests/webview/test_webview_browser_network_smoke.py`
 

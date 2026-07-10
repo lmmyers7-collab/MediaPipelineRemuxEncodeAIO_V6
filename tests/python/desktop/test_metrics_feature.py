@@ -13,6 +13,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from mediapipeline.core.metrics.policy import METRICS_SCHEMA_VERSION, build_metrics_payload
 from mediapipeline.core.metrics.sources import (
     metrics_source_state_payload,
+    metrics_state_paths,
     run_metrics_sidecar_backfill,
     update_metrics_sources,
 )
@@ -306,8 +307,67 @@ class MetricsFeatureTests(unittest.TestCase):
         self.assertEqual(result["data"]["backfill"]["loaded_count"], 1)
         self.assertEqual(result["data"]["backfill"]["skipped_oversized_count"], 1)
         self.assertIn("skipped oversized sidecar", "\n".join(result["warnings"]))
-        self.assertEqual(state["cache_record_count"], 1)
-        self.assertEqual(state["enabled_cache_record_count"], 1)
+        self.assertEqual(state["cache_record_count"], 0)
+        self.assertEqual(result["data"]["backfill"]["cache_preserved_count"], 0)
+        self.assertEqual(result["data"]["backfill"]["cache_replaced_count"], 0)
+        self.assertEqual(state["enabled_cache_record_count"], 0)
+
+    def test_partial_metrics_backfill_preserves_last_complete_cache_and_reports_incomplete(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            drive = root / "Drive"
+            for index in range(2):
+                path = drive / f"Movie{index}.pipeline.json"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(
+                    json.dumps({"source_path": f"movie-{index}.mkv", "output_path": f"out-{index}.mkv", "route": "remux"}),
+                    encoding="utf-8",
+                )
+            resolved = _resolved(root)
+            resolved.state_root = root / "State"
+            update_metrics_sources(resolved, {"action": "add", "path": str(drive), "enabled": True})
+            complete = run_metrics_sidecar_backfill(resolved, {"scope": "enabled"})
+            partial = run_metrics_sidecar_backfill(resolved, {"scope": "enabled", "max_sidecars": 1})
+            state = metrics_source_state_payload(resolved)
+
+        self.assertEqual(complete["data"]["backfill"]["status"], "complete")
+        self.assertEqual(partial["data"]["backfill"]["status"], "partial")
+        self.assertEqual(partial["data"]["backfill"]["cache_preserved_count"], 2)
+        self.assertEqual(state["enabled_cache_record_count"], 2)
+        self.assertFalse(state["completeness"]["complete"])
+
+    def test_corrupt_metrics_cache_reports_parse_health_without_entering_authoritative_totals(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            resolved.state_root = root / "State"
+            drive = root / "Drive"
+            drive.mkdir()
+            update_metrics_sources(resolved, {"action": "add", "path": str(drive), "enabled": True})
+            paths = metrics_state_paths(resolved)
+            assert paths is not None
+            source_id = metrics_source_state_payload(resolved)["roots"][0]["source_id"]
+            paths["cache"].parent.mkdir(parents=True, exist_ok=True)
+            paths["cache"].write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_metrics_sidecar_backfill.v1",
+                        "source_id": source_id,
+                        "sidecar_path": str(drive / "Movie.pipeline.json"),
+                        "payload": {"source_path": "Movie.mkv", "output_path": "Out.mkv", "route": "remux"},
+                    }
+                )
+                + "\n{not-json\n",
+                encoding="utf-8",
+            )
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root), app_version="v6-test")
+            metrics = facade.get_metrics(resolved)
+
+        self.assertEqual(metrics["overview"]["total_jobs"], 0)
+        self.assertEqual(metrics["history_authority"]["sidecar_cache_discovery_count"], 1)
+        self.assertEqual(metrics["source_backfill"]["cache_health"]["status"], "partial")
+        self.assertEqual(metrics["source_backfill"]["cache_health"]["invalid_record_count"], 1)
+        self.assertFalse(metrics["completeness"]["complete"])
 
     def test_local_api_metrics_sources_backfill_multiple_recursive_roots(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -385,11 +445,14 @@ class MetricsFeatureTests(unittest.TestCase):
         self.assertTrue(backfill["ok"])
         self.assertEqual(backfill["data"]["backfill"]["loaded_count"], 2)
         self.assertEqual(metrics_status, 200)
-        self.assertEqual(metrics["overview"]["total_jobs"], 2)
-        self.assertEqual(metrics["route_mix"]["remux_count"], 1)
-        self.assertEqual(metrics["route_mix"]["encode_count"], 1)
-        self.assertEqual(metrics["storage"]["total_data_produced_bytes"], 2000)
-        self.assertEqual(metrics["storage"]["net_storage_saved_bytes"], 2000)
+        self.assertEqual(metrics["overview"]["total_jobs"], 0)
+        self.assertEqual(metrics["route_mix"]["remux_count"], 0)
+        self.assertEqual(metrics["route_mix"]["encode_count"], 0)
+        self.assertEqual(metrics["storage"]["total_data_produced_bytes"], 0)
+        self.assertEqual(metrics["storage"]["net_storage_saved_bytes"], 0)
+        self.assertEqual(metrics["history_authority"]["completed_manifest_record_count"], 0)
+        self.assertEqual(metrics["history_authority"]["sidecar_cache_discovery_count"], 2)
+        self.assertFalse(metrics["history_authority"]["cache_in_authoritative_totals"])
         self.assertEqual(metrics["coverage"]["source_count"], 2)
         self.assertEqual(metrics["coverage"]["enabled_source_count"], 2)
         self.assertEqual(metrics["coverage"]["cached_backfill_count"], 2)
@@ -461,6 +524,11 @@ class MetricsFeatureTests(unittest.TestCase):
             self.assertIn(f'data-metrics-tab-panel="{tab}"', page)
         self.assertNotIn('data-metrics-tab="review"', page.lower())
         self.assertIn("window.mediaPipelineMetricsView = {", metrics_js)
+        self.assertIn("function metricsPayloadError", metrics_js)
+        self.assertIn("function renderMetricsUnavailable", metrics_js)
+        self.assertIn('payload.schema_version !== "desktop_metrics.v1"', metrics_js)
+        self.assertIn("Historical values remain visible", metrics_js)
+        self.assertIn("renderMetricsUnavailable?.(", app_js)
 
 
 if __name__ == "__main__":

@@ -64,6 +64,10 @@ AUDIT_SCORE_MIN = 0
 AUDIT_SCORE_MAX = 1000
 
 
+class AuditScorePolicyError(ValueError):
+    """Raised when an existing audit score policy cannot be trusted."""
+
+
 def _clamped_score(value: Any, default: int) -> int:
     try:
         number = int(value)
@@ -199,11 +203,22 @@ def read_audit_score_policy(path: Path | None) -> dict[str, Any]:
         return normalize_audit_score_policy()
     try:
         payload = json.loads(path.read_text(encoding="utf-8-sig"))
-    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
-        return normalize_audit_score_policy()
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise AuditScorePolicyError(f"Audit score policy is invalid at {path}: {exc}") from exc
     if not isinstance(payload, dict):
-        return normalize_audit_score_policy()
-    return normalize_audit_score_policy(payload.get("policy", payload))
+        raise AuditScorePolicyError(f"Audit score policy is invalid at {path}: expected a JSON object")
+    version = payload.get("version")
+    if version is not None:
+        try:
+            version = int(version)
+        except (TypeError, ValueError) as exc:
+            raise AuditScorePolicyError(f"Audit score policy is invalid at {path}: expected version 1 or {AUDIT_SCORE_POLICY_VERSION}") from exc
+    if version not in (None, 1, AUDIT_SCORE_POLICY_VERSION):
+        raise AuditScorePolicyError(f"Audit score policy is invalid at {path}: expected version 1 or {AUDIT_SCORE_POLICY_VERSION}")
+    policy = payload.get("policy", payload)
+    if not isinstance(policy, dict):
+        raise AuditScorePolicyError(f"Audit score policy is invalid at {path}: expected policy object")
+    return normalize_audit_score_policy(policy)
 
 
 def write_audit_score_policy(path: Path, policy: dict[str, Any]) -> dict[str, Any]:
@@ -221,7 +236,14 @@ def reset_audit_score_policy(path: Path) -> dict[str, Any]:
 
 
 def audit_score_policy_payload(path: Path | None) -> dict[str, Any]:
-    policy = read_audit_score_policy(path)
+    valid = True
+    error = ""
+    try:
+        policy = read_audit_score_policy(path)
+    except AuditScorePolicyError as exc:
+        policy = normalize_audit_score_policy()
+        valid = False
+        error = str(exc)
     return {
         "schema_version": "desktop_audit_score_policy.v2",
         "path": str(path or ""),
@@ -231,6 +253,8 @@ def audit_score_policy_payload(path: Path | None) -> dict[str, Any]:
         "min": AUDIT_SCORE_MIN,
         "max": AUDIT_SCORE_MAX,
         "persisted": bool(path and path.exists()),
+        "valid": valid,
+        "error": error,
     }
 
 
@@ -238,6 +262,7 @@ __all__ = [
     "AUDIT_SCORE_MAX",
     "AUDIT_SCORE_MIN",
     "AUDIT_SCORE_POLICY_VERSION",
+    "AuditScorePolicyError",
     "DEFAULT_AUDIT_SCORE_BASE_POLICY",
     "DEFAULT_AUDIT_SCORE_POLICY",
     "HIGH_AUDIT_SCORE_MARKERS",

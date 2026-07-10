@@ -3,9 +3,9 @@ file: src/mediapipeline/core/status/snapshot_runner.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-07-04
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: 3a30a2133dd48e0a9f78cb7a96a75b091411493f9672c5c0099e1d258f883b7b
+sha256: 8ef52ff9f103ec0058c2f9e4334bb1f31ac5098e9779fccfb003be8d2930cda2
 ---
 # `src/mediapipeline/core/status/snapshot_runner.py`
 

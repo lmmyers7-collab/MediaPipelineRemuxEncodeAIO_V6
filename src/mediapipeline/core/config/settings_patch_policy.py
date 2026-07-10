@@ -93,6 +93,7 @@ def settings_save_review_confirmation(patch: dict[str, Any]) -> dict[str, Any]:
     removed_keys = sorted_patch_keys(list(patch.get("removed_keys", [])))
     request_digest = settings_review_digest(patch.get("request_evidence", {}))
     base_config_digest = settings_config_digest(patch.get("base_config", {}))
+    authority_config_digest = str(patch.get("authority_config_digest") or base_config_digest)
     candidate_config_digest = settings_config_digest(patch.get("merged", {}))
     review_entries_digest = settings_review_digest(
         {
@@ -105,6 +106,7 @@ def settings_save_review_confirmation(patch: dict[str, Any]) -> dict[str, Any]:
             "schema_version": SETTINGS_SAVE_REVIEW_CONFIRMATION_SCHEMA_VERSION,
             "request_digest": request_digest,
             "base_config_digest": base_config_digest,
+            "authority_config_digest": authority_config_digest,
             "candidate_config_digest": candidate_config_digest,
             "review_entries_digest": review_entries_digest,
             "changed_keys": changed_keys,
@@ -116,6 +118,7 @@ def settings_save_review_confirmation(patch: dict[str, Any]) -> dict[str, Any]:
         "preview_id": preview_id,
         "request_digest": request_digest,
         "base_config_digest": base_config_digest,
+        "authority_config_digest": authority_config_digest,
         "candidate_config_digest": candidate_config_digest,
         "review_entries_digest": review_entries_digest,
         "changed_keys": changed_keys,
@@ -174,6 +177,7 @@ def settings_save_review_confirmation_error(
         "preview_id",
         "request_digest",
         "base_config_digest",
+        "authority_config_digest",
         "candidate_config_digest",
         "review_entries_digest",
     ):

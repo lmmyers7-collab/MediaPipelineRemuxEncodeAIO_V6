@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 from mediapipeline.core.completed.manifest import completed_sidecar_path_from_payload
 from mediapipeline.core.completed.policy import completed_record_key
@@ -353,6 +353,7 @@ def apply_repair_reconcile_from_dry_run(
     candidate_command: str,
     request: Mapping[str, Any],
     dry_run: Mapping[str, Any],
+    journal_recorder: Callable[[dict[str, Any], dict[str, Any] | None], None] | None = None,
 ) -> CommandResult:
     requested_fingerprint = str(request.get("dry_run_fingerprint") or "").strip()
     expected_fingerprint = str(dry_run.get("dry_run_fingerprint") or "").strip()
@@ -467,7 +468,7 @@ def apply_repair_reconcile_from_dry_run(
             "source_payload_output_unchanged": _unchanged(protected_paths, written_set, protected_before),
         }
     )
-    return CommandResult(
+    success = CommandResult(
         command=candidate_command,
         ok=True,
         severity="info",
@@ -475,6 +476,36 @@ def apply_repair_reconcile_from_dry_run(
         refresh_hint=_refresh_hint(candidate_command),
         data=data,
     )
+    if journal_recorder is None:
+        return success
+    try:
+        journal_recorder(success.to_mapping(), dict(request))
+    except Exception as exc:
+        rollback_status = "not_started"
+        for index, original in enumerate(written):
+            try:
+                if index < len(backups) and backups[index].exists():
+                    shutil.copy2(backups[index], original)
+                elif original.exists():
+                    original.unlink()
+                rollback_status = "restored"
+            except Exception:
+                rollback_status = "failed"
+        data["applied"] = False
+        data["blocked"] = True
+        data["rollback_status"] = rollback_status
+        data["strict_command_journal_recorded"] = False
+        return CommandResult(
+            command=candidate_command,
+            ok=False,
+            severity="error",
+            message=f"Repair/reconcile apply rolled back because strict command journal persistence failed: {exc}",
+            errors=[f"strict command journal persistence failed: {exc}"],
+            refresh_hint=_refresh_hint(candidate_command),
+            data=data,
+        )
+    data["strict_command_journal_recorded"] = True
+    return success
 
 
 __all__ = [

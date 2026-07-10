@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0707-002",
+  "title": "Color CSV rerun route badges",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-07",
+  "date_completed": "2026-07-07",
+  "summary": "Completed rows now expose a backend-authored route display category so CSV rerun badges can use the final remux, encode, or remux-fallback color.",
+  "reason": "CSV rerun rows can keep route=csv_rerun while nested route evidence records the actual final route. The Completed WebView badge previously saw only CSV_RERUN and fell back to the neutral grey chip.",
+  "affected_areas": [
+    "completed",
+    "webview",
+    "tests"
+  ],
+  "behavior_before": "Some Completed CSV_RERUN route chips rendered grey when their flattened row did not include remux/encode/fallback text.",
+  "behavior_after": "Completed CSV_RERUN route chips use backend route display categories and render green for remux, blue for encode, and split green/blue for remux fallback.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/completed/table.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/completed/table.js.md",
+    "docs/generated/summaries/src/mediapipeline/core/completed/policy.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_facade_completed_policy.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_completed_table_title_cell.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0707-002.json",
+    "src/mediapipeline/core/completed/policy.py",
+    "tests/python/desktop/test_facade_completed_policy.py",
+    "tests/webview/test_webview_completed_table_title_cell.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_facade_completed_policy.py::CompletedFacadePolicyTests.test_completed_row_colors_csv_rerun_from_nested_route_evidence",
+    "tests/python/desktop/test_facade_completed_policy.py::CompletedFacadePolicyTests.test_pending_publish_overlay_preserves_csv_rerun_display_route_evidence",
+    "tests/webview/test_webview_completed_table_title_cell.py::WebViewCompletedTableTitleCellTests.test_completed_table_title_cell_omits_duplicate_meta_and_prefers_tv_episode"
+  ],
+  "manual_validation": [
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_facade_completed_policy.CompletedFacadePolicyTests.test_completed_row_colors_csv_rerun_from_nested_route_evidence tests.python.desktop.test_facade_completed_policy.CompletedFacadePolicyTests.test_pending_publish_overlay_preserves_csv_rerun_display_route_evidence -q",
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_completed_table_title_cell.WebViewCompletedTableTitleCellTests.test_completed_table_title_cell_omits_duplicate_meta_and_prefers_tv_episode -q",
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_facade_completed_policy -q",
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_completed_table_title_cell -q",
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_completed -q",
+    "PASS: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/completed/policy.py apps/desktop/webview/static/assets/completed/table.js tests/python/desktop/test_facade_completed_policy.py tests/webview/test_webview_completed_table_title_cell.py",
+    "PASS: read-only local manifest sanity check classified 89 CSV rerun rows as encode=42, remux=25, remux-fallback=22, missing=0",
+    "BLOCKED: change_control.validate_changes --require-worktree-coverage could not complete because unrelated MP-CHANGE-2026-0707-001.json is invalid JSON and local git status fails with malformed .git/packed-refs",
+    "FAIL unrelated: ops/scripts/smoke/Test-WebViewRowDetailSmoke.ps1 failed on an existing hidden-review library-filter expectation, not route-chip classification.",
+    "TIMEOUT: ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke did not finish within the 120 second command timeout."
+  ],
+  "rollback_plan": "Revert the route_display_* row fields and the WebView route-chip preference; Completed route labels remain unchanged.",
+  "related_changes": [],
+  "notes": "Scope is read-only DTO/display behavior. No route policy, media movement, pending-publish drain, or manifest mutation logic changed."
+}

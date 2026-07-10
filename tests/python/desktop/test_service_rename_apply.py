@@ -58,6 +58,20 @@ class RenameApplyHelperTests(unittest.TestCase):
             self.assertEqual(source.read_text(encoding="utf-8"), "media")
             self.assertEqual(list(Path(td).glob(".mediapipeline-rename-*.mkv")), [])
 
+    def test_rename_path_case_safe_creates_destination_parent_inside_boundary_root(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / "Show Source" / "Season 1" / "Episode.mkv"
+            destination = root / "Show" / "Season 01" / "Show - S01E01.mkv"
+            source.parent.mkdir(parents=True)
+            source.write_text("media", encoding="utf-8")
+
+            rename_path_case_safe(source, destination, same_file=resolve_same_file, boundary_root=root)
+
+            self.assertTrue(destination.exists())
+            self.assertEqual(destination.read_text(encoding="utf-8"), "media")
+            self.assertFalse(source.exists())
+
     def test_read_json_dict_for_rename_marks_invalid_sidecar_json(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             sidecar = Path(td) / "bad.json"
@@ -202,6 +216,20 @@ class RenameApplyHelperTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "OUTSIDE_ALLOWED_ROOT"):
                 build_rename_operations(plan, same_file=resolve_same_file, casefold_path=casefold_path)
 
+    def test_build_rename_operations_accepts_hierarchy_destination_inside_mutation_root(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / "source" / "one.mkv"
+            destination = root / "Show" / "Season 01" / "Show - S01E01.mkv"
+            source.parent.mkdir()
+            source.write_text("x", encoding="utf-8")
+            plan = [{"source": source, "destination": destination, "mutation_root": root, "rename_sidecars": False}]
+
+            operations = build_rename_operations(plan, same_file=resolve_same_file, casefold_path=casefold_path)
+
+        self.assertEqual(len(operations), 1)
+        self.assertEqual(operations[0]["boundary_root"], root)
+
     def test_build_rename_operations_detects_duplicate_sidecar_destination(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             first = Path(td) / "one.mkv"
@@ -247,7 +275,12 @@ class RenameApplyHelperTests(unittest.TestCase):
 
             errors = rollback_rename_operations(
                 operations,
-                rename_path=lambda source, destination: rename_path_case_safe(source, destination, same_file=resolve_same_file),
+                rename_path=lambda source, destination, boundary_root=None: rename_path_case_safe(
+                    source,
+                    destination,
+                    same_file=resolve_same_file,
+                    boundary_root=boundary_root,
+                ),
                 same_file=resolve_same_file,
             )
 

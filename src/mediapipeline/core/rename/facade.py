@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 from typing import TYPE_CHECKING, Any
 
 from mediapipeline.core.rename.policy import (
@@ -14,6 +15,7 @@ from mediapipeline.core.rename.policy import (
     rename_apply_no_selection_result,
     rename_apply_outside_configured_roots_result,
     rename_apply_service_unavailable_result,
+    rename_apply_stale_preview_result,
     rename_apply_success_result,
     rename_apply_unscoped_operator_paths_result,
     rename_undo_confirmation_required_result,
@@ -36,6 +38,7 @@ from mediapipeline.core.rename.policy import (
     rename_preview_change_kind_counts,
     rename_preview_confidence_counts,
     rename_preview_counts,
+    rename_preview_fingerprint,
     rename_preview_source_counts,
     rename_preview_warnings,
     rename_request_paths,
@@ -84,6 +87,7 @@ class RenameFacadeMixin:
             active_template=active_template,
             template_catalog=rename_template_catalog(mode),
             warnings=warnings,
+            preview_fingerprint=rename_preview_fingerprint(rows),
         )
 
     def get_rename_clean_filename_preview(self, request: dict[str, Any]) -> dict[str, Any]:
@@ -138,6 +142,12 @@ class RenameFacadeMixin:
                 plan = self._build_rename_plan_from_request(request)
             except Exception as exc:
                 return rename_plan_build_exception_result(exc)
+            submitted_fingerprint = str(request.get("preview_fingerprint") or "").strip()
+            if not submitted_fingerprint:
+                return rename_apply_stale_preview_result(missing=True)
+            current_fingerprint = rename_preview_fingerprint(plan)
+            if not hmac.compare_digest(submitted_fingerprint, current_fingerprint):
+                return rename_apply_stale_preview_result()
             selected_plan, missing = select_rename_plan_rows(plan, selected_sources)
             if missing:
                 return rename_apply_missing_selection_result(missing)

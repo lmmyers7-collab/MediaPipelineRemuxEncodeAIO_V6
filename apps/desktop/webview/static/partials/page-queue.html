@@ -59,6 +59,13 @@
               <input id="rerun-start-csv-path" type="text" autocomplete="off" aria-describedby="rerun-mode-policy-note">
             </label>
             <label>
+              Target
+              <select id="rerun-start-target-mode" title="Choose the backend CSV rerun command surface.">
+                <option value="local" selected>local CSV rerun</option>
+                <option value="network">Network CSV rerun</option>
+              </select>
+            </label>
+            <label>
               Execution
               <select id="rerun-start-execution-mode" title="Backend-owned rerun execution mode.">
                 <option value="one_at_a_time" selected>one at a time</option>
@@ -69,6 +76,10 @@
             <label>
               Window
               <input id="rerun-start-window-size" type="number" min="1" max="100" step="1" value="1">
+            </label>
+            <label>
+              Min Workers
+              <input id="rerun-network-minimum-workers" type="number" min="0" max="100" step="1" value="1">
             </label>
           </div>
           <fieldset class="rerun-handling-panel">
@@ -94,7 +105,7 @@
                   <option value="replace_final" selected>replace final output</option>
                 </select>
               </label>
-              <label class="check-row launch-check-row" title="Allow replace-final reruns to overwrite the CSV source path when backend planning proves the final output path resolves to that exact source file.">
+              <label class="check-row launch-check-row" title="Use the CSV source_path as the replace-final destination. Pending publish/drain still requires backend manifest proof and this explicit confirmation.">
                 <input id="rerun-start-confirm-source-overwrite" type="checkbox">
                 Allow source-path overwrite
               </label>
@@ -112,7 +123,7 @@
               </div>
             </div>
           </fieldset>
-          <p id="rerun-mode-policy-note" class="note">Backend owns output proof, replacement, and pending publish. Clean verified outputs use backend-derived final placement; rows with remaining issues stay in pending/review flows. Source-path overwrite requires the explicit checkbox.</p>
+          <p id="rerun-mode-policy-note" class="note">Backend owns output proof, replacement, and pending publish. Clean verified outputs use backend-derived final placement unless source-path overwrite is explicitly confirmed. Source-path overwrite requires the explicit checkbox. Rows with remaining issues stay in pending/review flows.</p>
           <div class="form-grid launch-form-grid" aria-label="CSV rerun scope controls">
             <label class="check-row launch-check-row"><input id="rerun-scope-enabled-only" type="checkbox" checked> Enabled Rows</label>
             <label class="check-row launch-check-row"><input id="rerun-scope-skip-blocked" type="checkbox"> Skip Blocked</label>
@@ -154,6 +165,14 @@
           <div id="rerun-policy-panel" class="prose-block">Executable policy: one-at-a-time / auto replace clean else Pending Publish / keep original.</div>
           <div class="table-wrap detail-table-wrap" aria-label="CSV rerun row preview">
             <table class="workflow-table rerun-preview-table" aria-label="CSV rerun row preview">
+              <colgroup>
+                <col class="rerun-preview-col-row">
+                <col class="rerun-preview-col-state">
+                <col class="rerun-preview-col-identity">
+                <col class="rerun-preview-col-categories">
+                <col class="rerun-preview-col-destination">
+                <col class="rerun-preview-col-reason">
+              </colgroup>
               <thead>
                 <tr>
                   <th scope="col">Row</th>
@@ -175,6 +194,7 @@
             <button type="button" id="rerun-inspect-csv-button" class="secondary-button" title="Inspect CSV by loading the backend read-only preview." aria-label="Inspect selected CSV using the backend preview">Inspect CSV</button>
             <button type="button" id="rerun-open-csv-button" class="secondary-button" title="Typed CSV paths can be previewed; Open CSV requires a backend-known import or scoped CSV." aria-label="Open backend-known CSV file" aria-disabled="true" disabled>Open CSV</button>
             <button type="button" id="rerun-open-csv-folder-button" class="secondary-button" title="Typed CSV paths can be previewed; Open Folder requires a backend-known import or scoped CSV." aria-label="Open backend-known CSV folder" aria-disabled="true" disabled>Open Folder</button>
+            <button type="button" id="rerun-network-start-dry-run-button" class="secondary-button" title="Run the backend Network CSV rerun start dry-run." aria-label="Check Network CSV rerun start">Check Network Start</button>
             <button type="button" id="rerun-start-button" class="primary-button" title="Review backend preview and start CSV rerun." aria-label="Review backend preview and start CSV rerun">Review &amp; Start</button>
           </div>
           <div class="rerun-state-panel" aria-label="CSV rerun state">

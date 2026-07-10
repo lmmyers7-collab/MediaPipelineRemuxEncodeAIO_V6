@@ -155,6 +155,7 @@ class LifecycleProviderPresenceTests(unittest.TestCase):
                 ).to_mapping()
 
         self.assertTrue(started["ok"])
+        self.assertEqual(started["data"]["effect"], "backend-lifecycle")
         dispatcher = RaceCheckingWorkerDispatcher.instances[0]
         self.assertFalse(dispatcher.start_polling_requested)
         self.assertTrue(dispatcher.status_callback_attached)

@@ -357,6 +357,9 @@
     setQueueRerunBusy = _queueNoop,
     updateQueueRerunButtonState = _queueNoop,
     postRerunPreview = _queueNoop,
+    postRerunNetworkPreview = _queueNoop,
+    postRerunNetworkStartDryRun = _queueNoop,
+    postRerunNetworkStart = _queueNoop,
     postRerunStart = _queueNoop,
     postRerunControlStopAfterCurrent = _queueNoop,
     postRerunContinue = _queueNoop,
@@ -369,6 +372,7 @@
     openRerunRowTarget = _queueNoop,
     promoteRerunRowToPending = _queueNoop,
     stopRerunAfterCurrent = _queueNoop,
+    checkNetworkRerunStartDryRun = _queueNoop,
   } = _queueRerun;
 
   const QUEUE_TAB_STORAGE_KEY = "mediapipeline-queue-tab";
@@ -1859,6 +1863,9 @@
     setQueueRerunBusy,
     updateQueueRerunButtonState,
     postRerunPreview,
+    postRerunNetworkPreview,
+    postRerunNetworkStartDryRun,
+    postRerunNetworkStart,
     postRerunStart,
     postRerunControlStopAfterCurrent,
     postRerunContinue,
@@ -1871,6 +1878,7 @@
     openRerunRowTarget,
     promoteRerunRowToPending,
     stopRerunAfterCurrent,
+    checkNetworkRerunStartDryRun,
     renderQueueLaunchDecisionChecklist,
     renderQueueReviewBoard,
     renderQueueCollision,

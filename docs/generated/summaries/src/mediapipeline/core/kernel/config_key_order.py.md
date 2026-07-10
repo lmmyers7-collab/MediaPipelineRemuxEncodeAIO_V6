@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: kernel
 last_modified: 2026-07-05
 last_reviewed: 2026-06-04
-sha256: 7588ce2af6ea317eb419bf08bdc9e96f00973e8594da2bc10ba4043d25908504
+sha256: 7adc14d6ce1c365f2ab1de9521029bdbd272bbe6ebf1b7971dcc742301c957ee
 ---
 # `src/mediapipeline/core/kernel/config_key_order.py`
 

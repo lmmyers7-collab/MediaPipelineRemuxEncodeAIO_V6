@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_completed_manifest.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: 0ab971c20942e646dfee2996cc0f020c105fc16e9c8ea05c46199b40bf181c54
+sha256: 439b88ce8d287ef437ff1d4ef6b356e08ce65fb30b7bcba705d2fb1c9df7fff0
 ---
 # `tests/python/desktop/test_service_completed_manifest.py`
 

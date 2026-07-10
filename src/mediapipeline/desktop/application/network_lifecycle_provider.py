@@ -119,6 +119,43 @@ def _network_worker_result_identity(proc: Any) -> tuple[Path | None, str, str]:
     return (Path(raw_path) if raw_path else None), run_id, claim_id
 
 
+def _network_job_metadata(job: Any) -> dict[str, Any]:
+    metadata = getattr(job, "claim_metadata", None)
+    if isinstance(metadata, dict):
+        return dict(metadata)
+    encode_config = getattr(job, "encode_config", {}) or {}
+    embedded = encode_config.get("__claim_metadata") if isinstance(encode_config, dict) else None
+    return dict(embedded) if isinstance(embedded, dict) else {}
+
+
+def _augment_network_worker_result(payload: dict[str, Any], job: Any) -> dict[str, Any]:
+    metadata = _network_job_metadata(job)
+    if str(metadata.get("job_kind") or "") != "csv_rerun_row":
+        return payload
+    augmented = dict(payload)
+    augmented["JobKind"] = "csv_rerun_row"
+    augmented["RerunBatchId"] = str(metadata.get("rerun_batch_id") or "")
+    augmented["RerunRowKey"] = str(metadata.get("rerun_row_key") or "")
+    augmented["RerunRowIndex"] = int(metadata.get("rerun_row_index") or 0)
+    augmented["PlannedOutputPath"] = str(metadata.get("planned_output_path") or "")
+    augmented["CoordinatorSourcePath"] = str(metadata.get("coordinator_source_path") or "")
+    augmented["WorkerSourcePath"] = str(metadata.get("worker_source_path") or "")
+    augmented["DestinationPolicyApplied"] = False
+    augmented["NetworkRerun"] = {
+        "batch_id": augmented["RerunBatchId"],
+        "row_key": augmented["RerunRowKey"],
+        "row_index": augmented["RerunRowIndex"],
+        "planned_output_path": augmented["PlannedOutputPath"],
+        "output_handoff": dict(metadata.get("output_handoff") or {}),
+        "source_identity": dict(metadata.get("source_identity") or {}),
+        "coordinator_source_path": augmented["CoordinatorSourcePath"],
+        "worker_source_path": augmented["WorkerSourcePath"],
+        "handoff_probe": dict(metadata.get("handoff_probe") or {}),
+        "destination_policy_applied": False,
+    }
+    return augmented
+
+
 def _read_network_worker_result(proc: Any, job: Any) -> tuple[dict[str, Any] | None, str]:
     result_path, expected_run_id, expected_claim_id = _network_worker_result_identity(proc)
     if result_path is None:
@@ -147,7 +184,13 @@ def _read_network_worker_result(proc: Any, job: Any) -> tuple[dict[str, Any] | N
         _nonnegative_int_field(payload, "OutputSizeBytes", default=0)
     except ValueError as exc:
         return None, str(exc)
-    return payload, ""
+    augmented = _augment_network_worker_result(payload, job)
+    if augmented is not payload:
+        try:
+            result_path.write_text(json.dumps(augmented, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        except Exception as exc:
+            return None, f"network worker result artifact could not be extended with rerun metadata: {_bounded_result_error(exc)}"
+    return augmented, ""
 
 
 def _network_done_kwargs_from_result(
@@ -158,6 +201,8 @@ def _network_done_kwargs_from_result(
     wait_error: str,
     elapsed_seconds: float,
 ) -> dict[str, Any]:
+    result_path, _expected_run_id, _expected_claim_id = _network_worker_result_identity(proc)
+    artifact_path = str(result_path or "")
     result, result_error = _read_network_worker_result(proc, job)
     process_error = wait_error
     if return_code != 0 and not process_error:
@@ -174,6 +219,7 @@ def _network_done_kwargs_from_result(
             "retry_on_failure": True,
             "reason_code": REASON_ENCODE_ERROR,
             "reason": detail,
+            "worker_result_artifact_path": artifact_path,
         }
 
     artifact_success = _strict_bool_field(result, "Success")
@@ -182,6 +228,18 @@ def _network_done_kwargs_from_result(
     status = str(result.get("Status") or "").strip()
     reason = str(result.get("Reason") or "").strip()
     success = artifact_success and not process_error
+    metadata = _network_job_metadata(job)
+    job_kind = str(metadata.get("job_kind") or "pipeline_queue")
+    publish_state = str(result.get("PublishState") or "")
+    if job_kind == "csv_rerun_row" and success and "pending" in publish_state.casefold():
+        success = False
+        reason = (
+            "Network CSV rerun worker produced worker-owned pending publish state; "
+            "only handoff output is accepted before coordinator reduction."
+        )
+        status = "failed_worker_pending_publish_not_accepted"
+        queue_terminal = False
+        retryable = True
     if not success and not reason:
         reason = process_error or status or "network worker process failed"
     return {
@@ -191,13 +249,14 @@ def _network_done_kwargs_from_result(
         "elapsed_seconds": elapsed_seconds,
         "output_size_bytes": _nonnegative_int_field(result, "OutputSizeBytes", default=0),
         "completion_status": status or ("processed" if success else "failed"),
-        "publish_state": str(result.get("PublishState") or ""),
+        "publish_state": publish_state,
         "publish_mode": str(result.get("PublishMode") or ""),
         "route": str(result.get("Route") or "network_lifecycle_single_file"),
         "queue_terminal": queue_terminal,
         "retry_on_failure": retryable,
         "reason_code": str(result.get("ErrorCode") or ("" if success else REASON_ENCODE_ERROR)),
         "reason": "" if success else reason,
+        "worker_result_artifact_path": artifact_path,
     }
 
 
@@ -904,6 +963,11 @@ class NetworkLifecycleProviderMixin:
                     policy_evidence.get("local_encoder"),
                     policy_evidence.get("quality_value"),
                     policy_evidence.get("config_path"),
+                )
+            elif _network_job_metadata(job).get("job_kind") == "csv_rerun_row":
+                raise RuntimeError(
+                    "Network CSV rerun worker job cannot start without applied handoff config: "
+                    f"{policy_evidence.get('reason') or policy_evidence.get('status') or 'unknown'}"
                 )
             result_run_id = uuid.uuid4().hex
             result_path = _network_worker_result_path(launch_resolved, job, result_run_id)

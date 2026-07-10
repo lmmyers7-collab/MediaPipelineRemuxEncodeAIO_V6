@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/app/topbar.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-29
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: 34ebde731a55f7799030d50070adc0e5baf4c34cf070a0251e75d70a2572223f
+sha256: 15bd0bf6dc8d5bc07e75826a8c2534ef4aded3ac5950deecca8ec1d36678bb80
 ---
 # `apps/desktop/webview/static/assets/app/topbar.js`
 

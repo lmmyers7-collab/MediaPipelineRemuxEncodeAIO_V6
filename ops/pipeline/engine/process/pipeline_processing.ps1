@@ -279,7 +279,7 @@ function Invoke-MediaPipelineProcessFile {
     $result = Invoke-MediaPipelineProcessPreflightDecision -Decision $failureDecision -File $file -CollectedChecks $preflightChecks
     if ($result) { return $result }
 
-    $tvDecision = Get-MediaPipelineTvParsePreflight -File $file -IsTV:$isTV
+    $tvDecision = Get-MediaPipelineTvParsePreflight -File $file -IsTV:$isTV -LibraryProfileId ([string]$LibraryProfileId)
     $result = Invoke-MediaPipelineProcessPreflightDecision -Decision $tvDecision -File $file -CollectedChecks $preflightChecks
     if ($result) { return $result }
     $tvInfo = $tvDecision.TvInfo

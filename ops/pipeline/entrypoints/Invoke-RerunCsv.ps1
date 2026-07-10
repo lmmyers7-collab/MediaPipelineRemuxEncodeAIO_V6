@@ -52,6 +52,12 @@ if ($DestinationMode -in @('auto_replace_clean_else_pending_review','publish_rep
 if ($ConfirmSourceOverwrite -and -not $ConfirmReplaceFinal) {
     throw 'ConfirmSourceOverwrite requires -ConfirmReplaceFinal.'
 }
+if ($ConfirmSourceOverwrite -and -not (
+    $DestinationMode -in @('auto_replace_clean_else_pending_review','publish_replace_final') -or
+    ($DestinationMode -eq 'pending_publish' -and $CollisionPolicy -eq 'replace_final')
+)) {
+    throw 'ConfirmSourceOverwrite requires replace-final destination behavior.'
+}
 if ($OriginalPolicy -ne 'keep') {
     throw 'CSV rerun original source policies are disabled until final-output proof is recorded by a separate cleanup flow.'
 }
@@ -529,6 +535,27 @@ function New-RerunLibraryProfiles {
     return @($rewritten)
 }
 
+function Move-RerunFileReplaceWithRetry {
+    param(
+        [Parameter(Mandatory)] [string]$Source,
+        [Parameter(Mandatory)] [string]$Destination,
+        [string]$Label = 'file replace',
+        [int]$Attempts = 20,
+        [int]$DelayMilliseconds = 250
+    )
+    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+        try {
+            [System.IO.File]::Move($Source, $Destination, $true)
+            return
+        } catch {
+            if ($attempt -ge $Attempts) { throw }
+            $message = if ($_.Exception -and $_.Exception.Message) { [string]$_.Exception.Message } else { [string]$_ }
+            Write-RerunLog "$Label replace attempt $attempt/$Attempts failed; retrying: $message" "WARN"
+            Start-Sleep -Milliseconds $DelayMilliseconds
+        }
+    }
+}
+
 function Write-RerunTempConfig {
     param(
         [hashtable]$Config,
@@ -546,7 +573,7 @@ function Write-RerunTempConfig {
     if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     $tmp = Join-Path $dir ('.' + (Split-Path -Leaf $Path) + '.' + [guid]::NewGuid().ToString('N') + '.tmp')
     [System.IO.File]::WriteAllText($tmp, ($lines -join [Environment]::NewLine), [System.Text.UTF8Encoding]::new($false))
-    [System.IO.File]::Move($tmp, $Path, $true)
+    Move-RerunFileReplaceWithRetry -Source $tmp -Destination $Path -Label 'CSV rerun temp config'
 }
 
 function Write-RerunManifest {
@@ -557,8 +584,9 @@ function Write-RerunManifest {
     $dir = Split-Path -Parent $Path
     if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     $tmp = Join-Path $dir ('.' + (Split-Path -Leaf $Path) + '.' + [guid]::NewGuid().ToString('N') + '.tmp')
-    $Payload | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $tmp -Encoding UTF8
-    [System.IO.File]::Move($tmp, $Path, $true)
+    $json = $Payload | ConvertTo-Json -Depth 12
+    [System.IO.File]::WriteAllText($tmp, $json, [System.Text.UTF8Encoding]::new($false))
+    Move-RerunFileReplaceWithRetry -Source $tmp -Destination $Path -Label 'CSV rerun manifest'
 }
 
 function Get-RerunJsonLineMutexName {
@@ -644,6 +672,21 @@ function Get-RerunObjectValue {
     $prop = $Object.PSObject.Properties[$Name]
     if ($prop) { return $prop.Value }
     return $Default
+}
+
+function Set-RerunObjectValue {
+    param($Object, [string]$Name, $Value)
+    if ($null -eq $Object) { return }
+    if ($Object -is [System.Collections.IDictionary]) {
+        $Object[$Name] = $Value
+        return
+    }
+    $prop = $Object.PSObject.Properties[$Name]
+    if ($prop) {
+        $prop.Value = $Value
+        return
+    }
+    $Object | Add-Member -NotePropertyName $Name -NotePropertyValue $Value -Force
 }
 
 function Get-RerunObjectText {
@@ -742,6 +785,74 @@ function Get-RerunEffectiveFinalOutputRoot {
         }
     }
     return $FallbackRoot
+}
+
+function Get-RerunLibraryProfileEvidenceForPath {
+    param(
+        [hashtable]$Config,
+        [string]$SourcePath,
+        [string]$MediaKind = ''
+    )
+
+    $fallback = [ordered]@{
+        library_id = ''
+        library_name = ''
+        designation = ''
+        source_root = ''
+    }
+    $tvFallbackSource = ''
+    if ($Config.ContainsKey('SourceTV')) {
+        $tvFallbackSource = Resolve-RerunPath ([string]$Config['SourceTV'])
+    }
+    if ($Config.ContainsKey('LibraryProfiles')) {
+        $enabledProfiles = @($Config['LibraryProfiles'] | Where-Object {
+            $null -ne $_ -and (ConvertTo-RerunBool (Get-RerunProfileField -Profile $_ -Name 'enabled' -Default 'true') $true)
+        })
+        $matches = @()
+        foreach ($profile in $enabledProfiles) {
+            $profileSource = Resolve-RerunPath (Get-RerunProfileField -Profile $profile -Name 'source_path' -Default '')
+            if ([string]::IsNullOrWhiteSpace($profileSource)) { continue }
+            if (Test-RerunPathUnderRoot -Path $SourcePath -Root $profileSource) {
+                $matches += [pscustomobject]@{
+                    Profile = $profile
+                    SourceRoot = $profileSource
+                }
+            }
+        }
+        if (@($matches).Count -gt 0) {
+            $selected = @($matches | Sort-Object @{ Expression = { ([string]$_.SourceRoot).Length }; Descending = $true } | Select-Object -First 1)[0]
+            $profile = $selected.Profile
+            return [ordered]@{
+                library_id = Get-RerunProfileField -Profile $profile -Name 'id' -Default ''
+                library_name = Get-RerunProfileField -Profile $profile -Name 'name' -Default ''
+                designation = Get-RerunProfileField -Profile $profile -Name 'designation' -Default ''
+                source_root = [string]$selected.SourceRoot
+            }
+        }
+
+        $tvProfiles = @($enabledProfiles | Where-Object {
+            $designation = (Get-RerunProfileField -Profile $_ -Name 'designation' -Default '').Trim().ToLowerInvariant()
+            $id = (Get-RerunProfileField -Profile $_ -Name 'id' -Default '').Trim().ToLowerInvariant()
+            $designation -eq 'tv' -or $id -eq 'tv'
+        })
+        if (([string]$MediaKind) -eq 'TV' -and @($tvProfiles).Count -eq 1) {
+            $profile = $tvProfiles[0]
+            return [ordered]@{
+                library_id = Get-RerunProfileField -Profile $profile -Name 'id' -Default ''
+                library_name = Get-RerunProfileField -Profile $profile -Name 'name' -Default ''
+                designation = Get-RerunProfileField -Profile $profile -Name 'designation' -Default 'tv'
+                source_root = Resolve-RerunPath (Get-RerunProfileField -Profile $profile -Name 'source_path' -Default $tvFallbackSource)
+            }
+        }
+    }
+
+    if (([string]$MediaKind) -eq 'TV') {
+        $fallback['library_id'] = 'tv'
+        $fallback['library_name'] = 'TV'
+        $fallback['designation'] = 'tv'
+        $fallback['source_root'] = $tvFallbackSource
+    }
+    return $fallback
 }
 
 function Get-RerunFinalOutputRootViolation {
@@ -1008,7 +1119,8 @@ function New-RerunPendingSidecarEntries {
         [Parameter(Mandatory)] [string]$FinalOutput,
         [Parameter(Mandatory)] [string]$PendingRoot,
         [Parameter(Mandatory)] [string]$TransactionId,
-        [string]$FinalOutputRoot = ''
+        [string]$FinalOutputRoot = '',
+        [switch]$AllowSourceOutputRoot
     )
     $entries = [System.Collections.Generic.List[object]]::new()
     $tracks = [System.Collections.Generic.List[object]]::new()
@@ -1042,7 +1154,7 @@ function New-RerunPendingSidecarEntries {
         if (-not (Test-RerunPathUnderRoot -Path $serverOut -Root $finalDir)) {
             throw "sidecar destination resolves outside final output folder: $serverOut"
         }
-        if (-not [string]::IsNullOrWhiteSpace($FinalOutputRoot) -and -not (Test-RerunPathUnderRoot -Path $serverOut -Root $FinalOutputRoot)) {
+        if (-not $AllowSourceOutputRoot -and -not [string]::IsNullOrWhiteSpace($FinalOutputRoot) -and -not (Test-RerunPathUnderRoot -Path $serverOut -Root $FinalOutputRoot)) {
             throw "sidecar destination resolves outside configured output root: $serverOut"
         }
         $parked = Join-Path $PendingRoot ("{0}.sidecar{1}{2}" -f $TransactionId, $sidecarIndex, [System.IO.Path]::GetExtension($source))
@@ -1173,8 +1285,17 @@ function Join-RerunPathParts {
 function Resolve-RerunFinalOutputPathFromRow {
     param(
         $Row,
-        [string]$FallbackPath
+        [string]$FallbackPath,
+        [string]$SourcePath = '',
+        [switch]$UseSourcePathDestination
     )
+    if ($UseSourcePathDestination) {
+        return [pscustomobject]@{
+            Path = $SourcePath
+            Source = 'source_path'
+            SourceField = 'source_path'
+        }
+    }
     $candidateFields = @(
         'plex_planned_path',
         'PlexPlannedPath',
@@ -1355,7 +1476,13 @@ function Resolve-RerunPlans {
         $effectiveFinalOutputRoot = Get-RerunEffectiveFinalOutputRoot -Config $Config -SourcePath $sourcePath -FallbackRoot $FinalOutputRoot
         $plan.final_output_root = $effectiveFinalOutputRoot
         if ($kind -eq 'TV') {
-            $tvInfo = Get-TVInfoFromFile $fileInfo
+            $libraryEvidence = Get-RerunLibraryProfileEvidenceForPath -Config $Config -SourcePath $sourcePath -MediaKind $kind
+            $tvInfo = Get-TVInfoFromFile `
+                -file $fileInfo `
+                -SourceRootPath ([string]$libraryEvidence['source_root']) `
+                -LibraryName ([string]$libraryEvidence['library_name']) `
+                -LibraryId ([string]$libraryEvidence['library_id']) `
+                -LibraryDesignation ([string]$libraryEvidence['designation'])
             if (-not $tvInfo.IsReliable) {
                 $plan.status = 'failed'
                 $plan.reason = "TV parse failed: $($tvInfo.ParseError)"
@@ -1375,7 +1502,18 @@ function Resolve-RerunPlans {
             $plan.final_output_path = Join-Path $effectiveFinalOutputRoot $outputPlan.RelativePath
         }
 
-        $finalOutputResolution = Resolve-RerunFinalOutputPathFromRow -Row $row -FallbackPath ([string]$plan.final_output_path)
+        $sourcePathDestinationRequested = (
+            $ConfirmSourceOverwrite -and
+            (
+                $DestinationMode -in @('auto_replace_clean_else_pending_review','publish_replace_final') -or
+                ($DestinationMode -eq 'pending_publish' -and $CollisionPolicy -eq 'replace_final')
+            )
+        )
+        $finalOutputResolution = Resolve-RerunFinalOutputPathFromRow `
+            -Row $row `
+            -FallbackPath ([string]$plan.final_output_path) `
+            -SourcePath ([string]$plan.source_path) `
+            -UseSourcePathDestination:$sourcePathDestinationRequested
         if (-not [string]::IsNullOrWhiteSpace([string]$finalOutputResolution.Path)) {
             $plan.final_output_path = [string]$finalOutputResolution.Path
             $plan.final_output_source = [string]$finalOutputResolution.Source
@@ -1618,7 +1756,8 @@ function Copy-RerunFinalSrtSidecars {
         [Parameter(Mandatory)] [string]$FinalOutput,
         [Parameter(Mandatory)] [string]$BatchId,
         [Parameter(Mandatory)] [string]$FinalHoldRoot,
-        [string]$FinalOutputRoot = ''
+        [string]$FinalOutputRoot = '',
+        [switch]$AllowSourceOutputRoot
     )
     $tracks = [System.Collections.Generic.List[object]]::new()
     $backups = [System.Collections.Generic.List[string]]::new()
@@ -1639,7 +1778,7 @@ function Copy-RerunFinalSrtSidecars {
                 if (-not (Test-RerunPathUnderRoot -Path $destination -Root $finalDir)) {
                     throw "sidecar destination resolves outside final output folder: $destination"
                 }
-                if (-not [string]::IsNullOrWhiteSpace($FinalOutputRoot) -and -not (Test-RerunPathUnderRoot -Path $destination -Root $FinalOutputRoot)) {
+                if (-not $AllowSourceOutputRoot -and -not [string]::IsNullOrWhiteSpace($FinalOutputRoot) -and -not (Test-RerunPathUnderRoot -Path $destination -Root $FinalOutputRoot)) {
                     throw "sidecar destination resolves outside configured output root: $destination"
                 }
                 $destinationDir = Split-Path -Parent $destination
@@ -1697,7 +1836,15 @@ function Publish-RerunPipelineSidecarToFinal {
     $sidecarCopy['rerun_verified_output_path'] = $VerifiedOutput
     $sidecarCopy['rerun_final_replacement'] = $true
 
-    $srtPublish = Copy-RerunFinalSrtSidecars -PipelineSidecar $pipelineSidecar -VerifiedOutput $VerifiedOutput -FinalOutput $Destination -BatchId $BatchId -FinalHoldRoot $FinalHoldRoot -FinalOutputRoot ([string]$Plan.final_output_root)
+    $allowSourceOutputRoot = ([bool]$Plan.source_overwrite_confirmed -and (Test-RerunSamePath -Left $Destination -Right ([string]$Plan.source_path)))
+    $srtPublish = Copy-RerunFinalSrtSidecars `
+        -PipelineSidecar $pipelineSidecar `
+        -VerifiedOutput $VerifiedOutput `
+        -FinalOutput $Destination `
+        -BatchId $BatchId `
+        -FinalHoldRoot $FinalHoldRoot `
+        -FinalOutputRoot ([string]$Plan.final_output_root) `
+        -AllowSourceOutputRoot:$allowSourceOutputRoot
     if (@($srtPublish.Tracks).Count -gt 0) {
         $sidecarCopy['tx3g_srt_tracks'] = @($srtPublish.Tracks)
     }
@@ -1757,7 +1904,15 @@ function New-RerunPendingPublishManifest {
     $now = Get-Date -Format 'o'
     $transactionId = ('rerun-csv-{0}-{1}' -f $BatchId, [guid]::NewGuid().ToString('N'))
     $pipelineSidecar = Read-RerunPipelineSidecar -OutputPath $verified
-    $pendingSidecars = New-RerunPendingSidecarEntries -PipelineSidecar $pipelineSidecar -VerifiedOutput $verified -FinalOutput $ServerOut -PendingRoot $PendingRoot -TransactionId $transactionId -FinalOutputRoot ([string]$Plan.final_output_root)
+    $allowSourceOutputRoot = ([bool]$Plan.source_overwrite_confirmed -and (Test-RerunSamePath -Left $ServerOut -Right ([string]$Plan.source_path)))
+    $pendingSidecars = New-RerunPendingSidecarEntries `
+        -PipelineSidecar $pipelineSidecar `
+        -VerifiedOutput $verified `
+        -FinalOutput $ServerOut `
+        -PendingRoot $PendingRoot `
+        -TransactionId $transactionId `
+        -FinalOutputRoot ([string]$Plan.final_output_root) `
+        -AllowSourceOutputRoot:$allowSourceOutputRoot
     $payload = [ordered]@{
         schema_version = 'pending_push_manifest.v1'
         parked_at = $now
@@ -2110,7 +2265,7 @@ if ([string]::IsNullOrWhiteSpace($localBaseParent) -or [string]::IsNullOrWhiteSp
 $rerunWorkspaceRoot = Join-Path $localBaseParent ($localBaseLeaf + '_RerunWorkspace')
 $stageRoot = Join-Path $rerunWorkspaceRoot (Join-RerunPathParts @('RerunQueue', $batchId))
 $parkRoot = Join-Path $rerunWorkspaceRoot (Join-RerunPathParts @('RerunParked', $batchId))
-$nestedLocalBase = Join-Path $rerunWorkspaceRoot (Join-RerunPathParts @('RuntimeState', $batchId))
+$nestedRuntimeRoot = Join-Path $rerunWorkspaceRoot 'RuntimeState'
 $manifestRoot = Join-Path $localBase 'RerunManifests'
 $manifestPath = Join-Path $manifestRoot "$batchId.json"
 $outputRoot = Join-Path $parkRoot 'Output'
@@ -2150,7 +2305,9 @@ $manifest = [ordered]@{
     confirm_original_policy = [bool]$ConfirmOriginalPolicy
     confirm_delete_original = [bool]$ConfirmDeleteOriginal
     pipeline_local_base = $localBase
-    nested_pipeline_local_base = $nestedLocalBase
+    nested_pipeline_local_base = $nestedRuntimeRoot
+    nested_pipeline_local_base_mode = 'per_chunk_children'
+    nested_pipeline_runtime_root = $nestedRuntimeRoot
     rerun_workspace_root = $rerunWorkspaceRoot
     library_profiles_rewritten = [bool]$config.ContainsKey('LibraryProfiles')
     stage_root = $stageRoot
@@ -2171,7 +2328,7 @@ $manifest = [ordered]@{
 
 Write-RerunLog "CSV rerun selected path: $resolvedCsvPath"
 Write-RerunLog "CSV rerun config path: $resolvedConfigPath"
-Write-RerunLog "CSV rerun evidence: batch=$batchId manifest=$manifestPath workspace=$rerunWorkspaceRoot operator_local_base=$localBase nested_local_base=$nestedLocalBase destination=$DestinationMode collision=$CollisionPolicy execution=$ExecutionMode window=$WindowSize dry_run=$([bool]$DryRun) plan_only=$([bool]$PlanOnly)"
+Write-RerunLog "CSV rerun evidence: batch=$batchId manifest=$manifestPath workspace=$rerunWorkspaceRoot operator_local_base=$localBase nested_runtime_root=$nestedRuntimeRoot destination=$DestinationMode collision=$CollisionPolicy execution=$ExecutionMode window=$WindowSize dry_run=$([bool]$DryRun) plan_only=$([bool]$PlanOnly)"
 Write-RerunLog "Rerun CSV rows listed: $($rows.Count); enabled/planned: $($plans.Count)"
 foreach ($plan in $plans) {
     Write-RerunLog ("PLAN [{0}] {1} -> {2}" -f $plan.status, $plan.source_path, $plan.planned_output_path)
@@ -2187,7 +2344,7 @@ if ($PlanOnly) {
 
 New-Item -ItemType Directory -Path $parkRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
-New-Item -ItemType Directory -Path $nestedLocalBase -Force | Out-Null
+New-Item -ItemType Directory -Path $nestedRuntimeRoot -Force | Out-Null
 Write-RerunManifest -Path $manifestPath -Payload $manifest
 
 if ($DryRun) {
@@ -2247,8 +2404,17 @@ for ($offset = 0; $offset -lt $pendingPlans.Count; $offset += $chunkSize) {
         continue
     }
 
+    $chunkLocalBase = Join-Path $nestedRuntimeRoot ("{0}.chunk_{1:D4}" -f $batchId, $chunkIndex)
+    New-Item -ItemType Directory -Path $chunkLocalBase -Force | Out-Null
+    foreach ($plan in $runnable) {
+        Set-RerunObjectValue -Object $plan -Name 'nested_pipeline_local_base' -Value $chunkLocalBase
+        Set-RerunObjectValue -Object $plan -Name 'nested_pipeline_runtime_root' -Value $nestedRuntimeRoot
+        Set-RerunObjectValue -Object $plan -Name 'rerun_workspace_root' -Value $rerunWorkspaceRoot
+        Set-RerunObjectValue -Object $plan -Name 'rerun_chunk_index' -Value $chunkIndex
+    }
+
     $tempConfig = [hashtable]::new($config)
-    $tempConfig['LocalBase'] = $nestedLocalBase
+    $tempConfig['LocalBase'] = $chunkLocalBase
     $tempConfig['SourceMovies'] = Join-Path $stageRoot 'Movies'
     $tempConfig['SourceTV'] = Join-Path $stageRoot 'TV'
     $tempConfig['Outsource'] = $outputRoot
@@ -2273,7 +2439,8 @@ for ($offset = 0; $offset -lt $pendingPlans.Count; $offset += $chunkSize) {
 
     Write-RerunLog "Launching nested pipeline for CSV-authoritative batch: $batchId chunk=$chunkIndex/$([math]::Ceiling($pendingPlans.Count / $chunkSize)) rows=$($runnable.Count)"
     Write-RerunLog "Operator LocalBase: $localBase"
-    Write-RerunLog "Nested pipeline LocalBase: $nestedLocalBase"
+    Write-RerunLog "Nested pipeline LocalBase: $chunkLocalBase"
+    Write-RerunLog "Nested runtime root: $nestedRuntimeRoot"
     Write-RerunLog "CSV rerun workspace: $rerunWorkspaceRoot"
     if ($tempConfig.ContainsKey('LibraryProfiles')) { Write-RerunLog "CSV rerun library profiles rewritten to staged roots." }
     $pipelineRun = Invoke-RerunStreamingCommand -FilePath $pwsh -ArgumentList $args -TimeoutSeconds $script:RerunNestedPipelineTimeoutSeconds -Label "nested pipeline chunk $chunkIndex"

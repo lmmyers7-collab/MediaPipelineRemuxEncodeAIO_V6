@@ -1,0 +1,40 @@
+{
+  "id": "MP-CHANGE-2026-0707-006",
+  "title": "Fix audit duplicate row metadata",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-07",
+  "date_completed": "2026-07-07",
+  "summary": "Audit preview rows now carry backend-authored duplicate-group metadata so the Reports Duplicates filter can match returned duplicate rows from the latest audit CSV.",
+  "reason": "The Reports audit table displayed the latest CSV path but duplicate rows were not marked in the row DTO, leaving the Duplicates chip with no concrete duplicate fields to match.",
+  "affected_areas": [
+    "code",
+    "generated-context",
+    "tests"
+  ],
+  "behavior_before": "The backend counted duplicate groups separately but returned audit rows without duplicate_group metadata; the WebView Duplicates chip could show no rows unless duplicate text happened to appear in an issue field.",
+  "behavior_after": "The backend marks same-leaf duplicate rows and movie-title duplicate rows with duplicate_group, duplicate_group_key, duplicate_group_size, duplicate_group_type, and duplicate_group_label while avoiding false duplicate flags for ordinary TV episode sets.",
+  "files_touched": [
+    "docs/generated/summaries/src/mediapipeline/core/audit/preview_policy.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_facade_audit_policy.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0707-006.json",
+    "src/mediapipeline/core/audit/preview_policy.py",
+    "tests/python/desktop/test_facade_audit_policy.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_facade_audit_policy.py::AuditFacadePolicyTests::test_duplicate_group_metadata_marks_same_leaf_duplicate_rows",
+    "tests/python/desktop/test_facade_audit_policy.py::AuditFacadePolicyTests::test_tv_episode_sets_are_not_title_duplicate_groups"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_facade_audit_policy -q - passed, 9 tests",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_reports.ApplicationFacadeReportsTests.test_audit_preview_reads_latest_csv_without_mutation -q - passed, 1 test",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_reports -q - passed, 15 tests",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_local_api_workflow.LocalApiWorkflowRouteTests.test_completed_failure_audit_and_pending_publish_previews_are_contracted -q - passed, 1 test",
+    "Live audit CSV policy check for E:\\Videos\\Scratch\\AuditReports\\audit_summary_20260707_232423.csv - passed: 3350 visible rows, 214 duplicate groups, 19 duplicate rows in the first 100 returned rows"
+  ],
+  "rollback_plan": "Revert src/mediapipeline/core/audit/preview_policy.py and tests/python/desktop/test_facade_audit_policy.py, refresh their generated summaries, and remove this change packet if the duplicate metadata behavior is not wanted.",
+  "related_changes": [],
+  "notes": "Cover duplicate audit row metadata and TV episode false-positive guard.\nRefresh generated summary for audit policy tests.\nAdd backend-authored duplicate metadata to audit preview rows.\nRefresh generated summary for audit preview policy changes.\nPython impact: read-only audit preview DTO shaping only; no queue writes, rerun launch, media mutation, scanner behavior, source movement, FFmpeg policy, subtitle policy, audio policy, or publish behavior changed.\nA full run of tests.python.desktop.test_application_facade_local_api_workflow was attempted and hit an unrelated diagnostics/rerun process assertion expecting workflow.rerun_payload.data.pid; the targeted audit-preview workflow test passed."
+}

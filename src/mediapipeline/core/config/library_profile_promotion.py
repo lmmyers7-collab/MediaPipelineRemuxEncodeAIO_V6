@@ -40,6 +40,7 @@ def promotion_rules_from_library_profiles(
                 "destination_root": destination_root,
                 "library_id": profile_id,
                 "designation": str(profile.get("designation") or ""),
+                "derived_from_library_profile": True,
             }
         )
 
@@ -56,6 +57,9 @@ def promotion_rules_from_library_profiles(
         }
         for rule in existing_rules if isinstance(existing_rules, list) else []:
             if not isinstance(rule, Mapping):
+                continue
+            rule_id = _text(rule.get("id")).casefold()
+            if rule.get("derived_from_library_profile") is True or rule_id.startswith("library-profile-"):
                 continue
             source_root_key = _text(rule.get("source_root")).rstrip("\\/").casefold()
             if source_root_key and source_root_key in profile_source_roots:
@@ -106,6 +110,6 @@ def mirror_legacy_keys_from_library_profiles(
         mirrored[KEY_OUTSOURCE] = _text(output_profile.get("output_path"))
 
     profile_rules = promotion_rules_from_library_profiles(mirrored, include_existing=True)
-    if profile_rules:
+    if profile_rules or KEY_FINAL_LIBRARY_PROMOTION_RULES in mirrored:
         mirrored[KEY_FINAL_LIBRARY_PROMOTION_RULES] = profile_rules
     return mirrored

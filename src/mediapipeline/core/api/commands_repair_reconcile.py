@@ -30,10 +30,16 @@ class LocalApiRepairReconcileCommandPayloadMixin:
         resolved = self._resolved()
         if resolved is None:
             return resolved_paths_unavailable_payload(candidate_command, refresh_hint)
+        journal_recorder = None
+        record = getattr(self, "_record_command_journal", None)
+        if callable(record):
+            def journal_recorder(payload: dict[str, Any], request_body: dict[str, Any] | None = None) -> None:
+                record(payload, request=request_body, strict=True)
         return self.facade.apply_repair_reconcile(
             resolved,
             candidate_command=candidate_command,
             request=request,
+            journal_recorder=journal_recorder,
         ).to_mapping()
 
     def _completed_reconcile_manifest_dry_run_payload(self, request: dict[str, Any]) -> dict[str, Any]:

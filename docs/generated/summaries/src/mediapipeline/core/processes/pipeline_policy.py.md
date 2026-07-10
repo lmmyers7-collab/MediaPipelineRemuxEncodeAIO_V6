@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/pipeline_policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-07-02
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: c6d3d2544833afbc784db99168e3293a8f6e9bd56376ed028629e0faba49a227
+sha256: cfd335dc81ede4f60581592fb39335e5960298e11f0630a978f3e1edc36ab50b
 ---
 # `src/mediapipeline/core/processes/pipeline_policy.py`
 

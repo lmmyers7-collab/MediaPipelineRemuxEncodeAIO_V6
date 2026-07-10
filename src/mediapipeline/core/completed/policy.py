@@ -227,6 +227,93 @@ def _completed_payload_path_value(payload: dict[str, Any], *path: str) -> Any:
     return current
 
 
+def _completed_route_category(value: Any) -> str:
+    normalized = str(value or "").strip().casefold().replace("_", "-")
+    if normalized == "remux-fallback":
+        return "remux-fallback"
+    if "remux" in normalized:
+        return "remux"
+    if "encode" in normalized or "transcode" in normalized:
+        return "encode"
+    if "skip" in normalized:
+        return "skip"
+    if "review" in normalized or "blocked" in normalized:
+        return "review"
+    if normalized == "copy":
+        return "remux"
+    if normalized.startswith("encode-"):
+        return "encode"
+    return ""
+
+
+def _completed_first_route_category(payload: dict[str, Any], paths: Iterable[tuple[str, ...]]) -> str:
+    for path in paths:
+        category = _completed_route_category(_completed_payload_path_value(payload, *path))
+        if category:
+            return category
+    return ""
+
+
+def _completed_used_remux_fallback(payload: dict[str, Any]) -> bool:
+    evidence = " ".join(
+        str(value or "")
+        for value in (
+            payload.get("route_reason_code"),
+            payload.get("route_reason"),
+            _completed_payload_path_value(payload, "size_policy", "route_reason_code"),
+            _completed_payload_path_value(payload, "route_explanation", "remux_fallback", "blocked_reason_code"),
+            _completed_payload_path_value(payload, "route_explanation", "remux_fallback", "blocked_reason"),
+        )
+    ).casefold()
+    if "oversized_encode_remux_fallback" in evidence:
+        return True
+    if "remux fallback" in evidence and "oversized encode" in evidence:
+        return True
+    return any(
+        _completed_first_bool(payload, (path,)) is True
+        for path in (
+            ("route_explanation", "remux_fallback", "attempted"),
+            ("route_explanation", "remux_fallback", "accepted"),
+            ("route_explanation", "size_guard", "should_fallback_remux"),
+        )
+    )
+
+
+def completed_route_display_fields(payload: dict[str, Any]) -> dict[str, str]:
+    if not isinstance(payload, dict):
+        payload = {}
+    category = _completed_route_category(payload.get("route"))
+    if category == "remux" and _completed_used_remux_fallback(payload):
+        category = "remux-fallback"
+    if str(payload.get("route") or "").strip().casefold() == "csv_rerun":
+        nested_category = _completed_first_route_category(
+            payload,
+            (
+                ("route_plan", "route"),
+                ("route_explanation", "route"),
+                ("encode_selected_attempt", "route"),
+                ("runtime_outcome_route",),
+                ("route_actions", "video"),
+            ),
+        )
+        if nested_category:
+            category = nested_category
+        if category == "remux" and _completed_used_remux_fallback(payload):
+            category = "remux-fallback"
+    final_route = "remux" if category == "remux-fallback" else category
+    final_route_label = {
+        "remux": "REMUX",
+        "encode": "ENCODE",
+        "skip": "SKIP",
+        "review": "REVIEW",
+    }.get(final_route, final_route.upper() if final_route else "")
+    return {
+        "route_display_category": category,
+        "route_display_final_route": final_route,
+        "route_display_final_route_label": final_route_label,
+    }
+
+
 def _completed_first_positive_number(
     payload: dict[str, Any],
     paths: Iterable[tuple[str, ...]],
@@ -390,6 +477,7 @@ def completed_record_to_row(record: CompletedJobRecord) -> dict[str, Any]:
         "completed_at_sort_key": _completed_at_sort_key(completed_at),
         "route": record.route,
         "route_label": record.route_label,
+        **completed_route_display_fields(record.payload),
         "route_reason": route_reason,
         "route_reason_code": route_reason_code,
         "elapsed": record.elapsed_text,
@@ -494,7 +582,7 @@ def _pending_publish_completed_payload(row: Mapping[str, Any]) -> dict[str, Any]
         return None
     if row.get("local_exists") is False:
         return None
-    return {
+    payload = {
         "source_path": _mapping_text(row, "source_path"),
         "output_path": server_out,
         "output_file": Path(server_out).name,
@@ -509,6 +597,20 @@ def _pending_publish_completed_payload(row: Mapping[str, Any]) -> dict[str, Any]
         "_diagnostics_pending_publish_local_file": local_file,
         "_diagnostics_pending_publish_state": pending_state,
     }
+    for key in (
+        "route_plan",
+        "route_explanation",
+        "route_actions",
+        "encode_selected_attempt",
+        "runtime_outcome_route",
+        "size_policy",
+    ):
+        value = row.get(key)
+        if isinstance(value, dict):
+            payload[key] = value
+        elif isinstance(value, str) and value.strip():
+            payload[key] = value
+    return payload
 
 
 def completed_pending_publish_row(row: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -1309,6 +1411,7 @@ def completed_preview_fields(
     runtime_outcome_source: str = "",
     runtime_outcome_warning: str = "",
     warnings: Iterable[str] = (),
+    parse_health: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     output_sizes = [int(row.get("output_size_bytes") or 0) for row in rows]
     total_output_bytes = sum(output_sizes)
@@ -1322,6 +1425,13 @@ def completed_preview_fields(
         for warning in warnings
         if str(warning or "").strip()
     ]
+    completed_parse_health = dict(parse_health or {})
+    skipped_manifest_rows = max(0, int(completed_parse_health.get("skipped_count") or 0))
+    if skipped_manifest_rows:
+        warning_list.insert(
+            0,
+            f"Completed manifest parse health is degraded: {skipped_manifest_rows} malformed row(s) were omitted from this preview.",
+        )
     if not rows:
         warning_list.insert(0, COMPLETED_HISTORY_EMPTY_MESSAGE)
     fields = {
@@ -1375,6 +1485,7 @@ def completed_preview_fields(
         "progress_bars": inventory_progress["progress_bars"],
         "validation_state": validation_state_payload(rows, source=source),
         "warnings": warning_list,
+        "parse_health": completed_parse_health,
     }
     fields.update(
         file_freshness_fields(
@@ -1426,6 +1537,7 @@ def completed_preview_from_records(
     runtime_outcome_warning: str = "",
     pending_publish_rows: Iterable[Mapping[str, Any]] = (),
     warnings: Iterable[str] = (),
+    parse_health: Mapping[str, Any] | None = None,
 ) -> CompletedPreviewDto:
     rows = completed_preview_rows(records)
     rows = completed_apply_runtime_outcomes(rows, runtime_events)
@@ -1439,6 +1551,7 @@ def completed_preview_from_records(
             runtime_outcome_source=runtime_outcome_source,
             runtime_outcome_warning=runtime_outcome_warning,
             warnings=warnings,
+            parse_health=parse_health,
         )
     )
 
@@ -1475,6 +1588,7 @@ __all__ = [
     "completed_runtime_outcome_indices",
     "completed_apply_runtime_outcomes",
     "completed_preview_rows",
+    "completed_route_display_fields",
     "completed_size_delta_percent",
     "completed_size_delta_label",
     "completed_size_policy_fields",

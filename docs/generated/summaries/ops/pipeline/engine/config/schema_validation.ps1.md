@@ -3,9 +3,9 @@ file: ops/pipeline/engine/config/schema_validation.ps1
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-07-05
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: c50fb720794586ba020ee666a2bba5ceb50bc385e35922a7b3a5687da38f40ea
+sha256: 3cf0e0a39f614e2e97390b9802682f3897a653a8e50f091fee8ca69e2bce3f14
 ---
 # `ops/pipeline/engine/config/schema_validation.ps1`
 

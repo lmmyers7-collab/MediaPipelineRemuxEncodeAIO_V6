@@ -186,7 +186,34 @@ def annotate_rename_plan_path_authority(
     roots = list(configured_roots)
     for raw_row in rows:
         row = dict(raw_row)
-        fields = rename_authority_fields_for_source(row.get("source"), roots)
+        source = Path(str(row.get("source") or ""))
+        fields = rename_authority_fields_for_source(source, roots)
+        source_roots = [root for root in roots if path_within_root(source, root)]
+        if source_roots:
+            derived_paths = [Path(str(row.get("destination") or ""))]
+            derived_paths.extend(
+                Path(str(move.get("destination") or ""))
+                for move in row.get("sidecar_moves") or []
+                if isinstance(move, Mapping) and str(move.get("destination") or "").strip()
+            )
+            outside_paths = [
+                str(path)
+                for path in derived_paths
+                if str(path).strip() and not any(path_within_root(path, root) for root in source_roots)
+            ]
+            fields["path_authority_source_roots"] = [str(root) for root in source_roots]
+            fields["path_authority_outside_paths"] = outside_paths
+            if outside_paths:
+                fields.update(
+                    {
+                        "path_authority": "outside_configured_roots",
+                        "path_authority_status": "review",
+                        "path_authority_message": (
+                            "A derived destination leaves the configured media root that authorizes its source; "
+                            "standalone rename requires explicit outside-root confirmation."
+                        ),
+                    }
+                )
         row.update(fields)
         annotated.append(row)
     return annotated

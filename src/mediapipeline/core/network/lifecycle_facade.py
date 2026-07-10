@@ -27,6 +27,7 @@ from mediapipeline.core.paths.contracts import ResolvedPaths
 NETWORK_LIFECYCLE_DRY_RUN_SCHEMA_VERSION = "desktop_network_lifecycle_dry_run.v1"
 NETWORK_LIFECYCLE_RESULT_SCHEMA_VERSION = "desktop_network_lifecycle_result.v1"
 NETWORK_LIFECYCLE_EFFECT_NONE = "none"
+NETWORK_LIFECYCLE_EFFECT_CONFIRMED = "backend-lifecycle"
 
 
 def _utc_now() -> str:
@@ -650,6 +651,7 @@ class NetworkLifecycleFacadeMixin:
                     refresh_hint="network",
                     data=data,
                 )
+            data = {**data, "effect": NETWORK_LIFECYCLE_EFFECT_CONFIRMED}
             confirmation_key = "confirm_start" if normalized_action == "start" else "confirm_stop"
             if request.get(confirmation_key) is not True:
                 result_data = {

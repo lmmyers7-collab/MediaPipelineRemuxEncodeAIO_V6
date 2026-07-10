@@ -79,6 +79,7 @@ from mediapipeline.desktop.network.worker_done import (
     build_crash_recovery_done_request,
     build_release_done_request,
 )
+from mediapipeline.desktop.network.worker_parts.tasks import parse_claim_response_payload
 from mediapipeline.desktop.network.worker_record import make_queue_record
 
 
@@ -174,6 +175,8 @@ class NetworkProtocolRuntimeTests(unittest.TestCase):
         self.assertFalse(defaults.priority)
         self.assertTrue(defaults.retry_on_failure)
         self.assertEqual(defaults.retry_after_seconds, 0)
+        self.assertEqual(defaults.job_kind, "pipeline_queue")
+        self.assertFalse(defaults.destination_policy_applied)
 
         valid = ClaimResponse.from_dict(
             {
@@ -198,6 +201,10 @@ class NetworkProtocolRuntimeTests(unittest.TestCase):
                     ClaimResponse.from_dict({"retry_after_seconds": bad_value})
         with self.assertRaisesRegex(ValueError, "retry_after_seconds must be >= 0"):
             ClaimResponse.from_dict({"retry_after_seconds": -1})
+        with self.assertRaisesRegex(ValueError, "destination_policy_applied must be a boolean"):
+            ClaimResponse.from_dict({"destination_policy_applied": "false"})
+        with self.assertRaisesRegex(ValueError, "output_handoff must be an object"):
+            ClaimResponse.from_dict({"output_handoff": []})
 
     def test_network_claim_and_done_wire_shapes_are_current_normal_queue_contract(self) -> None:
         claim_payload = ClaimResponse(
@@ -226,10 +233,22 @@ class NetworkProtocolRuntimeTests(unittest.TestCase):
                 "encode_config",
                 "retry_on_failure",
                 "retry_after_seconds",
+                "job_kind",
+                "rerun_batch_id",
+                "rerun_row_key",
+                "rerun_row_index",
+                "planned_output_path",
+                "output_handoff",
+                "source_identity",
+                "coordinator_source_path",
+                "worker_source_path",
+                "handoff_probe",
+                "destination_policy_applied",
             ],
         )
         self.assertEqual(ClaimResponse.from_dict(claim_payload).library_id, "Movies")
         self.assertEqual(ClaimResponse.from_dict(claim_payload).relative_path, "Movie.mkv")
+        self.assertEqual(ClaimResponse.from_dict(claim_payload).job_kind, "pipeline_queue")
 
         done_payload = DoneRequest(
             job_id="job-1",
@@ -265,23 +284,101 @@ class NetworkProtocolRuntimeTests(unittest.TestCase):
                 "queue_terminal",
                 "released",
                 "retry_on_failure",
+                "job_kind",
+                "rerun_batch_id",
+                "rerun_row_key",
+                "rerun_row_index",
+                "planned_output_path",
+                "output_handoff",
+                "source_identity",
+                "coordinator_source_path",
+                "worker_source_path",
+                "handoff_probe",
+                "destination_policy_applied",
+                "worker_result_artifact_path",
             ],
         )
         self.assertEqual(DoneRequest.from_dict(done_payload).publish_state, "published")
         self.assertTrue(DoneRequest.from_dict(done_payload).queue_terminal)
+        self.assertEqual(DoneRequest.from_dict(done_payload).job_kind, "pipeline_queue")
 
-        for payload in (claim_payload, done_payload):
-            for field_name in (
-                "job_kind",
-                "queue_source",
-                "queue_kind",
-                "manifest_key",
-                "row_key",
-                "rerun_batch_id",
-                "rerun_row_index",
-                "csv_path",
-            ):
-                self.assertNotIn(field_name, payload)
+    def test_network_csv_rerun_claim_and_done_fields_round_trip_additively(self) -> None:
+        claim = ClaimResponse(
+            status="ok",
+            job_id="job-rerun",
+            source_path=r"C:\Media\Movie.mkv",
+            job_kind="csv_rerun_row",
+            rerun_batch_id="batch-1",
+            rerun_row_key="row-1",
+            rerun_row_index=3,
+            planned_output_path=r"\\server\handoff\batch-1\row-1",
+            output_handoff={"ready": True},
+            source_identity={"source_identity": "c:/media/movie.mkv"},
+            coordinator_source_path=r"C:\Media\Movie.mkv",
+            handoff_probe={"ok": True},
+            destination_policy_applied=False,
+        )
+        rebuilt_claim = ClaimResponse.from_dict(claim.to_dict())
+        self.assertEqual(rebuilt_claim.job_kind, "csv_rerun_row")
+        self.assertEqual(rebuilt_claim.rerun_batch_id, "batch-1")
+        self.assertEqual(rebuilt_claim.rerun_row_key, "row-1")
+        self.assertEqual(rebuilt_claim.rerun_row_index, 3)
+        self.assertEqual(rebuilt_claim.output_handoff["ready"], True)
+        self.assertFalse(rebuilt_claim.destination_policy_applied)
+
+        done = DoneRequest(
+            job_id="job-rerun",
+            worker_id="worker-1",
+            success=True,
+            job_kind="csv_rerun_row",
+            rerun_batch_id="batch-1",
+            rerun_row_key="row-1",
+            rerun_row_index=3,
+            planned_output_path=r"\\server\handoff\batch-1\row-1",
+            output_handoff={"ready": True},
+            source_identity={"source_identity": "c:/media/movie.mkv"},
+            coordinator_source_path=r"C:\Media\Movie.mkv",
+            worker_source_path=r"D:\Mapped\Movie.mkv",
+            handoff_probe={"ok": True},
+            destination_policy_applied=False,
+        )
+        rebuilt_done = DoneRequest.from_dict(done.to_dict())
+        self.assertEqual(rebuilt_done.job_kind, "csv_rerun_row")
+        self.assertEqual(rebuilt_done.rerun_row_key, "row-1")
+        self.assertEqual(rebuilt_done.worker_source_path, r"D:\Mapped\Movie.mkv")
+        self.assertEqual(rebuilt_done.handoff_probe["ok"], True)
+
+    def test_worker_rejects_unknown_or_incomplete_csv_rerun_claim_kind(self) -> None:
+        with self.assertRaisesRegex(ValueError, "unsupported claim job_kind"):
+            parse_claim_response_payload(
+                {
+                    "status": "ok",
+                    "job_id": "job-1",
+                    "source_path": r"C:\Media\Movie.mkv",
+                    "job_kind": "whole_csv",
+                }
+            )
+        with self.assertRaisesRegex(ValueError, "requires rerun_batch_id and rerun_row_key"):
+            parse_claim_response_payload(
+                {
+                    "status": "ok",
+                    "job_id": "job-1",
+                    "source_path": r"C:\Media\Movie.mkv",
+                    "job_kind": "csv_rerun_row",
+                    "planned_output_path": r"\\server\handoff\batch\row",
+                }
+            )
+        with self.assertRaisesRegex(ValueError, "requires planned_output_path"):
+            parse_claim_response_payload(
+                {
+                    "status": "ok",
+                    "job_id": "job-1",
+                    "source_path": r"C:\Media\Movie.mkv",
+                    "job_kind": "csv_rerun_row",
+                    "rerun_batch_id": "batch",
+                    "rerun_row_key": "row",
+                }
+            )
 
     def test_inflight_registry_heartbeat_clamps_progress_percent(self) -> None:
         registry = InFlightRegistry()

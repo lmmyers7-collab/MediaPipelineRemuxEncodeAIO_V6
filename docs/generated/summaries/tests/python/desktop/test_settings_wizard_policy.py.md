@@ -3,9 +3,9 @@ file: tests/python/desktop/test_settings_wizard_policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-21
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: 608579c1f1bb8dd8682fdd636f91d0bc6e729cd3c1e89addb0147df64bd8a076
+sha256: 38f09c309fe38ddeb3e3d9e3008a03f8787ecfb5532e449038ac9ffdd7dc7259
 ---
 # `tests/python/desktop/test_settings_wizard_policy.py`
 

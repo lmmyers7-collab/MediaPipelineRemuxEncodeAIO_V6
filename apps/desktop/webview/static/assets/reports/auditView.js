@@ -75,6 +75,29 @@
       return Number.isInteger(value) ? String(value) : String(value);
     }
 
+    function auditCompletionTimestamp(source) {
+      const match = String(source || "").match(/audit_summary_(\d{8})_(\d{6})(?:\.priority)?\.csv$/i);
+      if (!match) return "";
+      const [, datePart, timePart] = match;
+      const completedAt = new Date(
+        Number(datePart.slice(0, 4)),
+        Number(datePart.slice(4, 6)) - 1,
+        Number(datePart.slice(6, 8)),
+        Number(timePart.slice(0, 2)),
+        Number(timePart.slice(2, 4)),
+        Number(timePart.slice(4, 6)),
+      );
+      if (Number.isNaN(completedAt.getTime())) return "";
+      return completedAt.toLocaleString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+    }
+
     function updateAuditSelectionControls(rows = visibleAuditRows()) {
       const visibleCount = Array.isArray(rows) ? rows.length : 0;
       document.querySelectorAll("[data-audit-selection-action]").forEach((button) => {
@@ -147,12 +170,16 @@
       const availableKeys = new Set(rows.map((row) => auditRowKey(row)).filter(Boolean));
       reportsState.selectedAuditRowKeys = new Set(Array.from(reportsState.selectedAuditRowKeys).filter((key) => availableKeys.has(key)));
       reportsState.lastAuditEmptyMessage = auditEmptyStateMessage(payload, rows);
+      const completedAt = auditCompletionTimestamp(payload.source);
       const summary = [
+        completedAt ? `Audit completed: ${completedAt}` : "",
         payload.source ? `Source: ${payload.source}` : "",
         `Priority CSV mode: ${payload.priority_only ? "yes" : "no"}`,
         `Rows: ${payload.count || rows.length || 0}`,
         `Ignored rows hidden: ${payload.ignored_count || 0}`,
+        `Priority rows: ${payload.priority_count ?? payload.high_priority_count ?? 0}`,
         `High priority: ${payload.high_priority_count || 0}`,
+        `Medium priority: ${payload.medium_priority_count || 0}`,
         `Rerun: ${payload.rerun_count || 0}`,
         `Redownload: ${payload.redownload_count || 0}`,
         `Review: ${payload.review_count || 0}`,
@@ -281,11 +308,18 @@
       bindReportAuditScoreGroupInputs();
       renderReportAuditIssueRows(score, "high", "rerun_bucket");
       renderReportAuditIssueRows(score, "medium", "review_bucket");
-      const ignoredCount = Number(reportsState.lastAuditControls.ignore_manifest?.entry_count || 0);
-      setText("report-audit-score-policy-status", score.persisted ? "Saved" : "Defaults");
+      const ignoreManifest = reportsState.lastAuditControls.ignore_manifest && typeof reportsState.lastAuditControls.ignore_manifest === "object"
+        ? reportsState.lastAuditControls.ignore_manifest
+        : {};
+      const ignoredCount = Number(ignoreManifest.entry_count || 0);
+      const scoreValid = score.valid !== false;
+      const ignoreValid = ignoreManifest.valid !== false;
+      setText("report-audit-score-policy-status", scoreValid ? (score.persisted ? "Saved" : "Defaults") : "Invalid");
       setText("report-audit-score-policy-summary", [
-        `Score policy source: ${score.persisted ? "saved state" : "defaults"}`,
-        `Audit ignore entries: ${ignoredCount}`,
+        `Score policy source: ${score.persisted ? "saved state" : "defaults"}${scoreValid ? "" : " (invalid policy)"}`,
+        ...(!scoreValid && score.error ? [`Audit score policy error: ${score.error}`] : []),
+        `Audit ignore entries: ${ignoredCount}${ignoreValid ? "" : " (invalid manifest)"}`,
+        ...(!ignoreValid && ignoreManifest.error ? [`Audit ignore manifest error: ${ignoreManifest.error}`] : []),
         `Policy path: ${score.path || "not configured"}`,
         "Advanced score controls: enable Advanced mode, then open Advanced score controls to edit point issues.",
         "Boundary: score and ignore controls affect audit reporting/export only; they do not write queue priority, file overrides, settings, or media files.",

@@ -98,7 +98,7 @@
     function rerunOutputPairingLine(request) {
       if (!rerunFinalReplacementSelected(request)) return "";
       return request && request.confirm_source_overwrite
-        ? "Pairing note: final-output replacement may overwrite the CSV source path when backend planning proves source and final output are the same file."
+        ? "Pairing note: final-output replacement may use the CSV source path as the destination when source-path overwrite is explicitly confirmed."
         : "Pairing note: final-output replacement keeps source files untouched unless source-path overwrite is explicitly confirmed.";
     }
 
@@ -1051,7 +1051,7 @@
       `CSV path: ${csv || "missing"}`,
       `Execution: ${rerunPreflightLabel("execution", request.execution_mode, "one_at_a_time")}; window=${request.window_size || 1}`,
       `Destination handling: ${rerunPreflightLabel("destination", request.destination_mode, "auto_replace_clean_else_pending_review")}; collision=${rerunPreflightLabel("collision", request.collision_policy, "replace_final")}`,
-      `Source handling: source overwrite ${request.confirm_source_overwrite ? "confirmed" : "not confirmed"}; destination/collision determine verified-output placement.`,
+      `Source handling: source overwrite ${request.confirm_source_overwrite ? "confirmed" : "not confirmed"}; confirmed source overwrite uses CSV source_path as the replacement destination.`,
       `Scope: enabled only ${scope.enabled_only !== false ? "yes" : "no"}; skip blocked ${scope.skip_blocked ? "yes" : "no"}; skip warnings ${scope.skip_warning_rows ? "yes" : "no"}; first rows ${scope.first_n || 0}; issue "${issueFilters}"; bucket "${bucketFilters}"`,
     ];
     const pairingLine = rerunOutputPairingLine(request);

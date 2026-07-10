@@ -52,6 +52,34 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
         self.assertEqual(preview["change_kind_counts"], {"rename": 1})
         self.assertEqual(preview["active_template"], "tv_standard")
         self.assertTrue(any(item["key"] == "tv_no_episode_title" for item in preview["template_catalog"]))
+        self.assertTrue(preview["preview_fingerprint"])
+
+    def test_rename_apply_rejects_missing_or_stale_backend_preview_fingerprint_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            media = root / "Noisy Movie 2024.mkv"
+            media.write_text("media", encoding="utf-8")
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+            request = {
+                "paths": [str(media)],
+                "_configured_media_roots": [str(root)],
+                "mode": "movie",
+                "movie_title": "Clean Movie",
+                "movie_year": "2024",
+                "selected_sources": [str(media)],
+                "confirm_apply": True,
+                "use_pipeline_naming_preview": False,
+            }
+
+            missing = facade.apply_rename_selection(dict(request))
+            stale = facade.apply_rename_selection({**request, "preview_fingerprint": "stale"})
+
+            self.assertFalse(missing.ok)
+            self.assertFalse(stale.ok)
+            self.assertIn("preview", missing.message.casefold())
+            self.assertIn("stale", stale.message.casefold())
+            self.assertTrue(media.exists())
+            self.assertFalse((root / "Clean Movie (2024).mkv").exists())
 
     def test_rename_apply_requires_confirmation_and_applies_selected_only(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -70,12 +98,14 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
                 "start_episode": "E01",
                 "selected_sources": [str(first)],
             }
+            request["preview_fingerprint"] = facade.get_rename_preview(request).preview_fingerprint
 
             rejected = facade.apply_rename_selection(dict(request))
             string_rejected = facade.apply_rename_selection({**request, "confirm_apply": "false"})
             applied = facade.apply_rename_selection({**request, "confirm_apply": True})
-            renamed_first = root / "Serial Experiments Lain - S01E01 - Weird.mkv"
-            renamed_second = root / "Serial Experiments Lain - S01E02 - Girls.mkv"
+            hierarchy_parent = root / "Serial Experiments Lain" / "Season 01"
+            renamed_first = hierarchy_parent / "Serial Experiments Lain - S01E01 - Weird.mkv"
+            renamed_second = hierarchy_parent / "Serial Experiments Lain - S01E02 - Girls.mkv"
 
             self.assertFalse(rejected.ok)
             self.assertIn("confirmation", rejected.message)
@@ -120,9 +150,12 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
             }
 
             preview = facade.get_rename_preview(request).to_mapping()
-            applied = facade.apply_rename_selection({**request, "confirm_apply": True})
-            renamed_media = root / "Ranma - S02E01.mkv"
-            renamed_sidecar = root / "Ranma - S02E01.pipeline.json"
+            applied = facade.apply_rename_selection(
+                {**request, "confirm_apply": True, "preview_fingerprint": preview["preview_fingerprint"]}
+            )
+            hierarchy_parent = root / "Ranma" / "Season 02"
+            renamed_media = hierarchy_parent / "Ranma - S02E01.mkv"
+            renamed_sidecar = hierarchy_parent / "Ranma - S02E01.pipeline.json"
 
             self.assertEqual(preview["counts"]["total"], 1)
             self.assertEqual(preview["input_counts"]["raw"], 2)
@@ -317,6 +350,7 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
                 "confirm_apply": True,
                 "use_pipeline_naming_preview": False,
             }
+            request["preview_fingerprint"] = facade.get_rename_preview(request).preview_fingerprint
 
             rejected = facade.apply_rename_selection(dict(request))
             string_rejected = facade.apply_rename_selection({**request, "allow_outside_configured_roots": "false"})
@@ -348,6 +382,7 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
                 "confirm_apply": True,
                 "use_pipeline_naming_preview": False,
             }
+            request["preview_fingerprint"] = facade.get_rename_preview(request).preview_fingerprint
 
             rejected = facade.apply_rename_selection(dict(request))
             outside_confirmation_rejected = facade.apply_rename_selection(
@@ -374,8 +409,7 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
             third.write_text("c", encoding="utf-8")
             facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
 
-            applied = facade.apply_rename_selection(
-                {
+            request = {
                     "paths": [str(first), str(second), str(third)],
                     "_configured_media_roots": [str(root)],
                     "mode": "tv",
@@ -385,11 +419,13 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
                     "selected_sources": [str(first), str(third)],
                     "confirm_apply": True,
                 }
-            )
+            request["preview_fingerprint"] = facade.get_rename_preview(request).preview_fingerprint
+            applied = facade.apply_rename_selection(request)
 
-            renamed_first = root / "Serial Experiments Lain - S01E01 - Weird.mkv"
-            renamed_second = root / "Serial Experiments Lain - S01E02 - Girls.mkv"
-            renamed_third = root / "Serial Experiments Lain - S01E03 - Psyche.mkv"
+            hierarchy_parent = root / "Serial Experiments Lain" / "Season 01"
+            renamed_first = hierarchy_parent / "Serial Experiments Lain - S01E01 - Weird.mkv"
+            renamed_second = hierarchy_parent / "Serial Experiments Lain - S01E02 - Girls.mkv"
+            renamed_third = hierarchy_parent / "Serial Experiments Lain - S01E03 - Psyche.mkv"
             self.assertTrue(applied.ok)
             self.assertEqual(applied.data["selected"], 2)
             self.assertEqual(applied.data["renamed"], 2)

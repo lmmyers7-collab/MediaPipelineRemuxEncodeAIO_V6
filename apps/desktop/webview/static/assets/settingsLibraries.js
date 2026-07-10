@@ -1661,6 +1661,52 @@
     return `<span data-state="${escapeHtml(state)}">${escapeHtml(label)}: ${escapeHtml(librarySummaryCount(value))}</span>`;
   }
 
+  function librarySummaryDesignationLabel(value) {
+    const designation = text(value || "auto").toLowerCase();
+    const labels = {
+      movie: "Movie",
+      movies: "Movie",
+      tv: "TV",
+      television: "TV",
+      auto: "Auto",
+    };
+    return labels[designation] || text(value || "Auto").replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  function librarySummaryStatusSymbol(value) {
+    const tone = librarySummaryTone(value);
+    if (tone === "complete") return "OK";
+    if (tone === "error") return "!";
+    if (tone === "scanning") return "...";
+    if (tone === "partial") return "~";
+    return "?";
+  }
+
+  function renderLibrarySummaryInspect(row, warnings, statusValue) {
+    const statusLabel = librarySummaryStatusLabel(row.scan_status);
+    const libraryName = text(row.name || row.library_id || "Library");
+    const warningItems = warnings.length
+      ? `<ul>${warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join("")}</ul>`
+      : '<p class="muted">No scan warnings reported.</p>';
+    const partialNote = row.counts_truncated ? '<p class="muted">Counts are partial.</p>' : "";
+    return `
+      <details class="settings-library-summary-inspect" data-library-summary-inspect>
+        <summary title="Inspect ${escapeHtml(libraryName)} status" aria-label="${escapeHtml(`${libraryName} status: ${statusLabel}. Activate to inspect.`)}">
+          <span class="settings-library-status-symbol" data-state="${escapeHtml(statusValue)}" aria-hidden="true">${escapeHtml(librarySummaryStatusSymbol(row.scan_status))}</span>
+          <span class="visually-hidden">${escapeHtml(statusLabel)}</span>
+        </summary>
+        <div class="settings-library-summary-inspect-body">
+          <strong>${escapeHtml(statusLabel)}</strong>
+          ${warningItems}
+          ${partialNote}
+          <dl>
+            <div><dt>Last scan</dt><dd>${escapeHtml(formatLibrarySummaryTimestamp(row.last_scan_utc))}</dd></div>
+            <div><dt>Sidecars</dt><dd>${escapeHtml(librarySummaryCount(row.sidecar_file_count))}</dd></div>
+          </dl>
+        </div>
+      </details>`;
+  }
+
   function formatLibrarySummaryTimestamp(value) {
     const raw = text(value);
     if (!raw) return "-";
@@ -1696,8 +1742,8 @@
   function renderLibrarySummary(payload = lastLibrarySummary) {
     if (payload && typeof payload === "object") lastLibrarySummary = payload;
     const effectivePayload = lastLibrarySummary;
-    const tbody = byId("settings-library-summary-rows");
-    if (!tbody) return;
+    const container = byId("settings-library-summary-rows");
+    if (!container) return;
     const rows = librarySummaryRows(effectivePayload);
     const totals = librarySummaryTotals(effectivePayload);
     const status = byId("settings-library-summary-status");
@@ -1734,32 +1780,42 @@
     }
 
     if (payloadError) {
-      tbody.innerHTML = `<tr><td colspan="8">${escapeHtml(payloadError)}</td></tr>`;
+      container.innerHTML = `<div class="settings-library-summary-empty" role="status">${escapeHtml(payloadError)}</div>`;
       setLibrarySummaryWarning(payloadError);
       return;
     }
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="8">No saved LibraryProfiles loaded. Add Library remains available in the editor controls.</td></tr>';
+      container.innerHTML = '<div class="settings-library-summary-empty" role="status">No saved LibraryProfiles loaded. Add Library remains available in the editor controls.</div>';
       setLibrarySummaryWarning("");
       return;
     }
 
-    tbody.innerHTML = rows.map((row) => {
+    container.innerHTML = rows.map((row) => {
       const libraryId = text(row.library_id);
       const statusValue = librarySummaryTone(row.scan_status);
       const warnings = Array.isArray(row.warnings) ? row.warnings.map((item) => text(item)).filter(Boolean) : [];
-      const countSuffix = row.counts_truncated ? " partial" : "";
+      const countSuffix = row.counts_truncated ? " (partial)" : "";
+      const enabledLabel = row.enabled === false ? "Disabled" : "Enabled";
+      const libraryName = row.name || libraryId || "Library";
       return `
-        <tr class="settings-library-summary-row${libraryId === activeLibraryTabId ? " is-active" : ""}" data-library-summary-row="${escapeHtml(libraryId)}" tabindex="0" aria-selected="${libraryId === activeLibraryTabId ? "true" : "false"}">
-          <td data-label="Library"><strong>${escapeHtml(row.name || libraryId || "Library")}</strong><br><span class="muted">${row.enabled === false ? "Disabled" : "Enabled"}</span></td>
-          <td data-label="Path" class="path-cell">${escapeHtml(row.source_path || "-")}</td>
-          <td data-label="Type">${escapeHtml(text(row.designation || "auto"))}</td>
-          <td data-label="Status" data-state="${escapeHtml(statusValue)}">${escapeHtml(librarySummaryStatusLabel(row.scan_status))}${warnings.length ? `<br><span class="muted">${escapeHtml(warnings[0])}</span>` : ""}</td>
-          <td data-label="Media Files">${escapeHtml(librarySummaryCount(row.media_file_count))}${escapeHtml(countSuffix)}</td>
-          <td data-label="Sidecars">${escapeHtml(librarySummaryCount(row.sidecar_file_count))}${escapeHtml(countSuffix)}</td>
-          <td data-label="Last Scan">${escapeHtml(formatLibrarySummaryTimestamp(row.last_scan_utc))}</td>
-          <td data-label="Actions"><button type="button" class="secondary-button" data-library-summary-edit="${escapeHtml(libraryId)}">Edit</button></td>
-        </tr>`;
+        <article class="settings-library-summary-tile${libraryId === activeLibraryTabId ? " is-active" : ""}" data-library-summary-row="${escapeHtml(libraryId)}" data-state="${escapeHtml(statusValue)}" tabindex="0" role="listitem" aria-selected="${libraryId === activeLibraryTabId ? "true" : "false"}" aria-label="${escapeHtml(`${libraryName}, ${enabledLabel}, ${librarySummaryCount(row.media_file_count)} media files`)}">
+          <div class="settings-library-summary-tile-heading">
+            <span class="settings-library-summary-type">${escapeHtml(librarySummaryDesignationLabel(row.designation))}</span>
+            ${renderLibrarySummaryInspect(row, warnings, statusValue)}
+          </div>
+          <strong class="settings-library-summary-name">${escapeHtml(libraryName)}</strong>
+          <span class="settings-library-summary-enabled">${escapeHtml(enabledLabel)}</span>
+          <div class="settings-library-summary-counts">
+            <div>
+              <strong>${escapeHtml(librarySummaryCount(row.media_file_count))}</strong>
+              <span>Media files${escapeHtml(countSuffix)}</span>
+            </div>
+            <div>
+              <strong>${escapeHtml(librarySummaryCount(row.sidecar_file_count))}</strong>
+              <span>Sidecars${escapeHtml(countSuffix)}</span>
+            </div>
+          </div>
+        </article>`;
     }).join("");
     setLibrarySummaryWarning((Array.isArray(effectivePayload?.warnings) ? effectivePayload.warnings : []).join("\n"));
     updateLibrarySummarySelection();
@@ -2526,19 +2582,21 @@
       summaryRows.addEventListener("click", (event) => {
         const target = event.target;
         if (!(target instanceof Element)) return;
+        if (target.closest?.("[data-library-summary-inspect]")) return;
         const row = target.closest?.("[data-library-summary-row]");
-        const libraryId = target.getAttribute?.("data-library-summary-edit") || row?.getAttribute("data-library-summary-row") || "";
-        if (libraryId) activateLibraryProfile(libraryId, { source: "summary-table" });
+        const libraryId = row?.getAttribute("data-library-summary-row") || "";
+        if (libraryId) activateLibraryProfile(libraryId, { source: "summary-tiles" });
       });
       summaryRows.addEventListener("keydown", (event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
         const target = event.target;
         if (!(target instanceof Element)) return;
+        if (target.closest?.("[data-library-summary-inspect]")) return;
         const row = target.closest?.("[data-library-summary-row]");
         const libraryId = row?.getAttribute("data-library-summary-row") || "";
         if (!libraryId) return;
         event.preventDefault();
-        activateLibraryProfile(libraryId, { source: "summary-table" });
+        activateLibraryProfile(libraryId, { source: "summary-tiles" });
       });
     }
     const list = byId("settings-library-profile-list");

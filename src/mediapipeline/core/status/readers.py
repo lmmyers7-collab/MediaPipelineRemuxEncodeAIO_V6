@@ -13,6 +13,21 @@ def _warning(logger: WarningLogger | None, message: str, *args: object) -> None:
         logger.warning(message, *args)
 
 
+def _unavailable_progress(progress_file: Path, error: Exception) -> dict[str, Any]:
+    return {
+        "Status": "Unavailable",
+        "CurrentStage": "unavailable",
+        "ReadHealth": {
+            "schema_version": "desktop_progress_read_health.v1",
+            "status": "invalid",
+            "available": False,
+            "source_present": True,
+            "source": str(progress_file),
+            "error": str(error),
+        },
+    }
+
+
 def read_progress_file(progress_file: Path | None, logger: WarningLogger | None = None) -> dict[str, Any] | None:
     if not progress_file or not progress_file.exists():
         return None
@@ -21,10 +36,10 @@ def read_progress_file(progress_file: Path | None, logger: WarningLogger | None 
         return ProgressState.from_mapping(payload).to_mapping()
     except ContractError as exc:
         _warning(logger, "Progress contract invalid for %s: %s", progress_file, exc)
-        return None
+        return _unavailable_progress(progress_file, exc)
     except Exception as exc:
         _warning(logger, "Progress read failed for %s: %s", progress_file, exc)
-        return None
+        return _unavailable_progress(progress_file, exc)
 
 
 def read_audit_progress_file(audit_reports_path: Path | None, logger: WarningLogger | None = None) -> dict[str, Any] | None:

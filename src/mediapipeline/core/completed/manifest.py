@@ -107,6 +107,7 @@ def read_completed_manifest_records(
     logger: logging.Logger,
     proof_mode: str = DEFAULT_COMPLETED_PROOF_MODE,
     bounded_proof_limit: int = COMPLETED_BOUNDED_PROOF_LIMIT,
+    parse_health: dict[str, object] | None = None,
 ) -> list[CompletedJobRecord]:
     proof_mode = normalize_proof_mode(proof_mode)
     parsed: list[CompletedJobRecord] = []
@@ -117,19 +118,50 @@ def read_completed_manifest_records(
     else:
         lines = _recent_manifest_lines(manifest_path, limit)
         recent_first = True
+    health: dict[str, object] = {
+        "schema_version": "completed_manifest_parse_health.v1",
+        "available": True,
+        "manifest_path": str(manifest_path),
+        "scope": "full" if limit is None else "recent_tail",
+        "complete": limit is None,
+        "scanned_line_count": 0,
+        "parsed_count": 0,
+        "skipped_count": 0,
+        "recent_errors": [],
+    }
+    errors: list[dict[str, str]] = []
     for line_no, line in enumerate(lines, start=1):
         if not line:
             continue
+        health["scanned_line_count"] = int(health["scanned_line_count"]) + 1
+        line_identifier = f"line:{line_no}" if limit is None else f"tail-recent:{line_no}"
         try:
             payload = json.loads(line)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as exc:
             logger.warning("Skipping malformed manifest line %d in %s", line_no, manifest_path)
+            health["skipped_count"] = int(health["skipped_count"]) + 1
+            errors.append(
+                {
+                    "line_identifier": line_identifier,
+                    "error_class": type(exc).__name__,
+                    "message": str(exc),
+                }
+            )
             continue
         if not isinstance(payload, dict):
+            health["skipped_count"] = int(health["skipped_count"]) + 1
+            errors.append(
+                {
+                    "line_identifier": line_identifier,
+                    "error_class": "NonObjectJSON",
+                    "message": f"Expected JSON object, got {type(payload).__name__}.",
+                }
+            )
             continue
         sidecar_path = completed_sidecar_path_from_payload(manifest_path, payload)
         record = CompletedJobRecord(sidecar_path=sidecar_path, payload=payload)
         parsed.append(record)
+        health["parsed_count"] = int(health["parsed_count"]) + 1
     if not recent_first:
         parsed.reverse()
     if limit is not None and len(parsed) > limit:
@@ -144,4 +176,9 @@ def read_completed_manifest_records(
             record.payload["_diagnostics_output_proof"] = OUTPUT_PROOF_LIVE
         else:
             record.payload["_diagnostics_output_proof"] = OUTPUT_PROOF_DEFERRED
+    health["recent_errors"] = errors[-10:]
+    health["error_count"] = int(health["skipped_count"])
+    if parse_health is not None:
+        parse_health.clear()
+        parse_health.update(health)
     return parsed

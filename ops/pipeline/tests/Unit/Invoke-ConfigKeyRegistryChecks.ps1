@@ -416,6 +416,27 @@ if ([bool]$promotionDestinationCheck.Ok -or $promotionDestinationErrors -notmatc
     throw 'PowerShell schema must still require explicit promotion_destination when promotion is enabled.'
 }
 
+$unsafeProfileRootsConfig = Get-MediaPipelineConfigDefaultValues
+$unsafeProfileRootsConfig['LibraryProfiles'] = @(
+    [ordered]@{ id = 'movies'; name = 'Movies'; enabled = $true; designation = 'movie'; source_path = 'C:\Incoming\Movies'; output_path = 'D:\Processed'; overrides = [ordered]@{} },
+    [ordered]@{ id = 'tv'; name = 'TV'; enabled = $true; designation = 'tv'; source_path = 'C:\Incoming\TV'; output_path = 'D:\Processed'; overrides = [ordered]@{} },
+    [ordered]@{ id = 'concerts'; name = 'Concerts'; enabled = $true; designation = 'auto'; source_path = 'relative-source'; output_path = 'relative-output'; promotion_enabled = $true; promotion_destination = 'relative-final'; overrides = [ordered]@{} },
+    [ordered]@{ id = 'extras'; name = 'Extras'; enabled = $true; designation = 'auto'; source_path = 'F:\Library'; output_path = 'F:\Library\Processed'; promotion_enabled = $true; promotion_destination = 'F:\Library\Final'; overrides = [ordered]@{} }
+)
+$unsafeProfileRootsCheck = Test-MediaPipelineConfigSchema -Config $unsafeProfileRootsConfig
+$unsafeProfileRootsErrors = @($unsafeProfileRootsCheck.Errors) -join "`n"
+foreach ($expectedProfileRootError in @(
+    'Concerts source_path must be an absolute path.',
+    'Concerts output_path must be an absolute path.',
+    'Concerts promotion_destination must be an absolute path.',
+    'Extras source_path and Extras output_path must not be nested inside each other.',
+    'Extras source_path and Extras promotion_destination must not be nested inside each other.'
+)) {
+    if ([bool]$unsafeProfileRootsCheck.Ok -or $unsafeProfileRootsErrors -notmatch [regex]::Escape($expectedProfileRootError)) {
+        throw "PowerShell schema must reject unsafe LibraryProfiles roots: $expectedProfileRootError"
+    }
+}
+
 $friendlyOverrideConfig = Get-MediaPipelineConfigDefaultValues
 $friendlyOverrideConfig['LibraryProfiles'] = @(
     [ordered]@{

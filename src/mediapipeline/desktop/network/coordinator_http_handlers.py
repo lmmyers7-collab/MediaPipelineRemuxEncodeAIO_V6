@@ -21,6 +21,14 @@ from .library_roots import claim_library_fields_for_record
 from .library_roots import libraries_response_from_config
 from .protocol import ClaimResponse, DoneRequest, HeartbeatRequest, PingResponse, coerce_library_id_list
 from .protocol import HeartbeatResponse, LogEntryRequest, WorkersResponse
+from .rerun_claims import (
+    NETWORK_RERUN_ROW_JOB_KIND,
+    claim_next_network_rerun_row,
+    record_late_network_rerun_row_done,
+    rollback_network_rerun_claim,
+    update_network_rerun_row_done,
+    update_network_rerun_row_released,
+)
 
 if TYPE_CHECKING:
     from .coordinator_parts.http_server import _CoordHandler
@@ -125,47 +133,69 @@ class CoordinatorHttpHandlersMixin:
 
         # Scan-and-claim must be atomic — hold the claim lock for the whole
         # find-then-claim sequence so two concurrent workers don't race.
+        network_lease = None
         try:
             with self._claim_lock:
-                record, encode_config = _scan_for_next_record_for_claim(
-                    self,
-                    worker_name,
-                    worker_id=worker_id,
-                    max_job_retries=self._coordinator_max_job_retries(),
-                    accessible_library_ids=accessible_library_ids,
-                )
-
-                if record is None:
-                    # W4 — choose a backoff hint that reflects whether other
-                    # workers are still encoding (a job may free up soon) or
-                    # the cluster is genuinely idle (back off harder).
-                    handler._send_json(
-                        ClaimResponse.empty(
-                            retry_after_seconds=self._compute_retry_after_seconds()
-                        ).to_dict()
-                    )
-                    return
-
-                job_id      = str(uuid.uuid4())
-                source_path = str(getattr(record, "source_path", ""))
-                try:
-                    config = self._config()
-                except Exception:
-                    config = {}
-                library_id, relative_path = claim_library_fields_for_record(record, config)
-                priority    = _coerce_record_priority(record)
-                size_gb     = _coerce_record_estimated_size_gb(record, source_path)
-
-                ok = self._registry.claim(
-                    job_id=job_id,
+                network_lease = claim_next_network_rerun_row(
+                    app=getattr(self, "_app", None),
+                    registry=self._registry,
                     worker_id=worker_id,
                     worker_name=worker_name,
-                    source_path=source_path,
-                    encode_config=encode_config,
-                    priority=priority,
-                    estimated_size_gb=size_gb,
                     accessible_library_ids=accessible_library_ids,
+                    encode_config_for_row=lambda record: self._snapshot_encode_config(worker_name, record),
+                    allow_local_handoff=False,
                 )
+
+                if network_lease is not None:
+                    response = network_lease.response
+                    job_id = response.job_id
+                    source_path = response.source_path
+                    library_id = response.library_id
+                    relative_path = response.relative_path
+                    priority = response.priority
+                    size_gb = response.estimated_size_gb
+                    encode_config = response.encode_config
+                    ok = True
+                else:
+                    record, encode_config = _scan_for_next_record_for_claim(
+                        self,
+                        worker_name,
+                        worker_id=worker_id,
+                        max_job_retries=self._coordinator_max_job_retries(),
+                        accessible_library_ids=accessible_library_ids,
+                    )
+
+                    if record is None:
+                        # W4 — choose a backoff hint that reflects whether other
+                        # workers are still encoding (a job may free up soon) or
+                        # the cluster is genuinely idle (back off harder).
+                        handler._send_json(
+                            ClaimResponse.empty(
+                                retry_after_seconds=self._compute_retry_after_seconds()
+                            ).to_dict()
+                        )
+                        return
+
+                    job_id      = str(uuid.uuid4())
+                    source_path = str(getattr(record, "source_path", ""))
+                    try:
+                        config = self._config()
+                    except Exception:
+                        config = {}
+                    library_id, relative_path = claim_library_fields_for_record(record, config)
+                    priority    = _coerce_record_priority(record)
+                    size_gb     = _coerce_record_estimated_size_gb(record, source_path)
+
+                    ok = self._registry.claim(
+                        job_id=job_id,
+                        worker_id=worker_id,
+                        worker_name=worker_name,
+                        source_path=source_path,
+                        encode_config=encode_config,
+                        priority=priority,
+                        estimated_size_gb=size_gb,
+                        accessible_library_ids=accessible_library_ids,
+                    )
         except Exception as exc:
             _log.exception("Failed to process /api/claim for worker %s: %s", worker_id, exc)
             handler._send_json({"error": "claim unavailable"}, 500)
@@ -184,37 +214,40 @@ class CoordinatorHttpHandlersMixin:
 
         # Retry policy: if this file already has a failure record, tell the
         # worker not to re-queue it if the encode fails again.
-        try:
-            retry_on_failure = not self._source_has_prior_failure(source_path)
-        except Exception as exc:
-            _log.exception(
-                "Failed to evaluate retry policy after claim %s for worker %s: %s",
-                job_id[:8],
-                worker_id,
-                exc,
-            )
+        if network_lease is None:
             try:
-                self._registry.unclaim(job_id, worker_id)
-            except Exception as release_exc:
-                _log.warning(
-                    "Failed to release claim %s after retry-policy failure: %s",
+                retry_on_failure = not self._source_has_prior_failure(source_path)
+            except Exception as exc:
+                _log.exception(
+                    "Failed to evaluate retry policy after claim %s for worker %s: %s",
                     job_id[:8],
-                    release_exc,
+                    worker_id,
+                    exc,
                 )
-            handler._send_json({"error": "claim unavailable"}, 500)
-            return
+                try:
+                    self._registry.unclaim(job_id, worker_id)
+                except Exception as release_exc:
+                    _log.warning(
+                        "Failed to release claim %s after retry-policy failure: %s",
+                        job_id[:8],
+                        release_exc,
+                    )
+                handler._send_json({"error": "claim unavailable"}, 500)
+                return
 
-        response = ClaimResponse(
-            status            = "ok",
-            job_id            = job_id,
-            source_path       = source_path,
-            library_id         = library_id,
-            relative_path      = relative_path,
-            priority          = priority,
-            estimated_size_gb = size_gb,
-            encode_config     = encode_config,
-            retry_on_failure  = retry_on_failure,
-        )
+            response = ClaimResponse(
+                status            = "ok",
+                job_id            = job_id,
+                source_path       = source_path,
+                library_id         = library_id,
+                relative_path      = relative_path,
+                priority          = priority,
+                estimated_size_gb = size_gb,
+                encode_config     = encode_config,
+                retry_on_failure  = retry_on_failure,
+            )
+        else:
+            retry_on_failure = response.retry_on_failure
         try:
             response_payload = response.to_dict()
             json.dumps(response_payload, allow_nan=False)
@@ -222,7 +255,10 @@ class CoordinatorHttpHandlersMixin:
             safe_exc = redact_network_secret_text(exc)
             _log.warning("Claim response for job %s could not be serialized; rolling back claim: %s", job_id[:8], safe_exc)
             try:
-                self._registry.rollback_claim(job_id, worker_id)
+                if network_lease is not None:
+                    rollback_network_rerun_claim(network_lease, self._registry, reason=f"response serialization failed: {safe_exc}")
+                else:
+                    self._registry.rollback_claim(job_id, worker_id)
             except Exception as release_exc:
                 _log.warning(
                     "Failed to rollback claim %s after response serialization failure: %s",
@@ -239,7 +275,9 @@ class CoordinatorHttpHandlersMixin:
             _log.warning("Failed to save registry after claim: %s", safe_exc)
             try:
                 rollback = getattr(self._registry, "rollback_claim", None)
-                if callable(rollback):
+                if network_lease is not None:
+                    rollback_network_rerun_claim(network_lease, self._registry, reason=f"inflight save failed: {safe_exc}")
+                elif callable(rollback):
                     rollback(job_id, worker_id)
                 else:
                     self._registry.unclaim(job_id, worker_id)
@@ -264,15 +302,20 @@ class CoordinatorHttpHandlersMixin:
             return
 
         _log.info(
-            "Claimed job %s (%s) for worker '%s' (retry=%s, %.2f GB, priority=%s)",
+            "Claimed job %s (%s) for worker '%s' (kind=%s, retry=%s, %.2f GB, priority=%s)",
             job_id[:8], Path(source_path).name, worker_name,
-            retry_on_failure, size_gb, priority,
+            response.job_kind, retry_on_failure, size_gb, priority,
         )
         self._safe_log_cluster_event(
             "claim-handed",
             level="INFO",
-            event="claim_handed",
-            message=f"{Path(source_path).name} (retry={retry_on_failure}, {size_gb:.2f} GB)",
+            event="network_rerun_claim_handed" if response.job_kind == NETWORK_RERUN_ROW_JOB_KIND else "claim_handed",
+            message=(
+                f"Network CSV rerun row {response.rerun_batch_id}/{response.rerun_row_key} "
+                f"{Path(source_path).name}"
+                if response.job_kind == NETWORK_RERUN_ROW_JOB_KIND
+                else f"{Path(source_path).name} (retry={retry_on_failure}, {size_gb:.2f} GB)"
+            ),
             worker_id=worker_id,
             worker_name=worker_name,
             role="coordinator",
@@ -283,7 +326,10 @@ class CoordinatorHttpHandlersMixin:
             handler._send_json(response_payload)
         except Exception:
             try:
-                self._registry.rollback_claim(job_id, worker_id)
+                if network_lease is not None:
+                    rollback_network_rerun_claim(network_lease, self._registry, reason="claim response delivery failed")
+                else:
+                    self._registry.rollback_claim(job_id, worker_id)
                 self._registry.save(self._inflight_state_path())
             except Exception as rollback_exc:
                 _log.warning(
@@ -359,6 +405,26 @@ class CoordinatorHttpHandlersMixin:
                 "Worker '%s' released job %s (%s).",
                 req.worker_id[:8], req.job_id[:8], Path(job.source_path).name,
             )
+            if getattr(job, "job_kind", "") == NETWORK_RERUN_ROW_JOB_KIND:
+                try:
+                    update_network_rerun_row_released(
+                        app=self._app,
+                        job=job,
+                        worker_id=req.worker_id,
+                        reason="worker release",
+                    )
+                except Exception as exc:
+                    if rollback_snapshot is not None:
+                        restorer = getattr(self._registry, "restore_rollback_snapshot", None)
+                        if callable(restorer):
+                            restorer(rollback_snapshot)
+                    _log.warning(
+                        "Failed to update Network CSV rerun row release state for job %s: %s",
+                        req.job_id[:8],
+                        redact_network_secret_text(exc),
+                    )
+                    handler._send_json({"error": "done state unavailable"}, 503)
+                    return
             try:
                 self._registry.save(self._inflight_state_path())
             except Exception as exc:
@@ -406,6 +472,17 @@ class CoordinatorHttpHandlersMixin:
                 output_path=req.output_path,
                 route=req.route,
             )
+            if _existing is not None and getattr(_existing, "job_kind", "") == NETWORK_RERUN_ROW_JOB_KIND:
+                metadata = dict(getattr(_existing, "claim_metadata", {}) or {})
+                if req.job_kind not in {"", NETWORK_RERUN_ROW_JOB_KIND}:
+                    handler._send_json({"error": "job_kind does not match active Network CSV rerun claim"}, 400)
+                    return
+                if req.rerun_batch_id and req.rerun_batch_id != str(metadata.get("rerun_batch_id") or ""):
+                    handler._send_json({"error": "rerun_batch_id does not match active claim"}, 400)
+                    return
+                if req.rerun_row_key and req.rerun_row_key != str(metadata.get("rerun_row_key") or ""):
+                    handler._send_json({"error": "rerun_row_key does not match active claim"}, 400)
+                    return
             job = self._registry.complete(
                 req.job_id,
                 req.worker_id,
@@ -422,11 +499,82 @@ class CoordinatorHttpHandlersMixin:
 
         if job is None:
             if _existing is None:
+                if req.job_kind == NETWORK_RERUN_ROW_JOB_KIND or (req.rerun_batch_id and req.rerun_row_key):
+                    try:
+                        if record_late_network_rerun_row_done(
+                            app=self._app,
+                            request=req,
+                            only_duplicate=True,
+                        ):
+                            self._registry.save(self._inflight_state_path())
+                            self._safe_log_cluster_event(
+                                "network-rerun-duplicate-done-recorded",
+                                level="WARN",
+                                event="network_rerun_duplicate_done_recorded",
+                                message="Duplicate Network CSV rerun done report was recorded on coordinator row state.",
+                                worker_id=req.worker_id,
+                                role="coordinator",
+                                job_id=req.job_id,
+                            )
+                            handler._send_json(
+                                {
+                                    "status": "duplicate_recorded",
+                                    "job_id": req.job_id,
+                                    "row_status": "duplicate_done",
+                                }
+                            )
+                            return
+                    except Exception as exc:
+                        if rollback_snapshot is not None:
+                            restorer = getattr(self._registry, "restore_rollback_snapshot", None)
+                            if callable(restorer):
+                                restorer(rollback_snapshot)
+                        _log.warning(
+                            "Duplicate Network CSV rerun done report for job %s could not be recorded: %s",
+                            req.job_id[:8],
+                            redact_network_secret_text(exc),
+                        )
+                        handler._send_json({"error": "done state unavailable"}, 503)
+                        return
                 recorder = getattr(self._registry, "record_late_terminal_report", None)
                 late_report = None
                 if callable(recorder):
                     late_report = recorder(req)
                 if late_report is not None:
+                    if req.job_kind == NETWORK_RERUN_ROW_JOB_KIND or (req.rerun_batch_id and req.rerun_row_key):
+                        try:
+                            if record_late_network_rerun_row_done(app=self._app, request=req, late_report=late_report):
+                                self._registry.save(self._inflight_state_path())
+                                self._safe_log_cluster_event(
+                                    "network-rerun-late-terminal-recorded",
+                                    level="WARN",
+                                    event="network_rerun_late_terminal_recorded",
+                                    message="Late Network CSV rerun done report was recorded on coordinator row state.",
+                                    worker_id=req.worker_id,
+                                    role="coordinator",
+                                    job_id=req.job_id,
+                                    source_path=str(late_report.get("source_path", "") or ""),
+                                )
+                                handler._send_json(
+                                    {
+                                        "status": "late_recorded",
+                                        "job_id": req.job_id,
+                                        "row_status": "late_recorded",
+                                    }
+                                )
+                                return
+                        except Exception as exc:
+                            if rollback_snapshot is not None:
+                                restorer = getattr(self._registry, "restore_rollback_snapshot", None)
+                                if callable(restorer):
+                                    restorer(rollback_snapshot)
+                            _log.warning(
+                                "Late Network CSV rerun done report for job %s could not be recorded: %s",
+                                req.job_id[:8],
+                                redact_network_secret_text(exc),
+                            )
+                            handler._send_json({"error": "done state unavailable"}, 503)
+                            return
                     if late_report.get("removes_queue_record"):
                         source_path = str(late_report.get("source_path", "") or "")
                         try:
@@ -514,6 +662,38 @@ class CoordinatorHttpHandlersMixin:
                     job_id=req.job_id,
                 )
                 handler._send_json({"status": "forbidden", "reason": "worker_id does not match job owner", "job_id": req.job_id}, 403)
+            return
+
+        if getattr(job, "job_kind", "") == NETWORK_RERUN_ROW_JOB_KIND:
+            try:
+                update_network_rerun_row_done(app=self._app, job=job, request=req)
+                self._registry.save(self._inflight_state_path())
+            except Exception as exc:
+                restorer = getattr(self._registry, "restore_rollback_snapshot", None)
+                if rollback_snapshot is not None and callable(restorer):
+                    restorer(rollback_snapshot)
+                _log.warning(
+                    "Done report for Network CSV rerun job %s from worker %s was not accepted because row state persistence failed: %s",
+                    req.job_id[:8],
+                    req.worker_id[:32],
+                    redact_network_secret_text(exc),
+                )
+                handler._send_json({"error": "done state unavailable"}, 503)
+                return
+            self._safe_log_cluster_event(
+                "network-rerun-row-pending-reduction",
+                level="INFO" if req.success else "ERROR",
+                event="network_rerun_row_pending_reduction",
+                message=(
+                    f"Network CSV rerun row {req.rerun_batch_id}/{req.rerun_row_key} "
+                    f"{'completed' if req.success else 'failed'} and is pending coordinator reduction."
+                ),
+                worker_id=req.worker_id,
+                role="coordinator",
+                job_id=req.job_id,
+                source_path=job.source_path,
+            )
+            handler._send_json({"status": "ok", "row_status": "pending_reduction"})
             return
 
         # W1 — both paths (HTTP and local mark_done) share this helper so

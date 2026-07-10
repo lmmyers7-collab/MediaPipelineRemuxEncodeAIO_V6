@@ -13,11 +13,20 @@ from types import SimpleNamespace
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.network.protocol import ClaimResponse, DoneRequest
-from mediapipeline.desktop.network.worker_state import load_worker_state
+from mediapipeline.desktop.network.worker_state import (
+    load_pending_done_report,
+    load_worker_state,
+    pending_done_reports_dir,
+)
 from mediapipeline.desktop.network.worker import WorkerDispatcher
 
 
 class NetworkDoneReleaseTests(unittest.TestCase):
+    def _single_pending_report(self, state_path: Path) -> dict:
+        reports = list(pending_done_reports_dir(state_path).glob("*.json"))
+        self.assertEqual(len(reports), 1)
+        return load_pending_done_report(reports[0])
+
     def test_worker_mark_done_posts_terminal_payload_and_clears_active_job(self) -> None:
         posts: list[tuple[str, dict]] = []
         events: list[dict] = []
@@ -128,10 +137,10 @@ class NetworkDoneReleaseTests(unittest.TestCase):
             self.assertIsNone(worker._active_job)
             self.assertEqual(statuses, ["⚠ Done report failed: coordinator offline"])
             self.assertEqual(events[0]["event"], "encode_done")
-            self.assertEqual(clears, [])
-            state = load_worker_state(state_path)
-            self.assertEqual(state["job_id"], "job-1")
-            self.assertTrue(state["pending_done_report"]["success"])
+            self.assertEqual(clears, [True])
+            report = self._single_pending_report(state_path)
+            self.assertEqual(report["job_id"], "job-1")
+            self.assertTrue(report["success"])
             joined_logs = "\n".join(logs.output)
             self.assertIn("Job job-1 completion report pending retry after coordinator POST failure.", joined_logs)
             self.assertNotIn("Job job-1 reported done.", joined_logs)
@@ -229,10 +238,10 @@ class NetworkDoneReleaseTests(unittest.TestCase):
             self.assertIsNone(worker._active_job)
             self.assertEqual(statuses, ["⚠ Release report failed: coordinator offline"])
             self.assertEqual(events[0]["event"], "job_released")
-            self.assertEqual(clears, [])
-            state = load_worker_state(state_path)
-            self.assertEqual(state["job_id"], "job-2")
-            self.assertTrue(state["pending_done_report"]["released"])
+            self.assertEqual(clears, [True])
+            report = self._single_pending_report(state_path)
+            self.assertEqual(report["job_id"], "job-2")
+            self.assertTrue(report["released"])
             joined_logs = "\n".join(logs.output)
             self.assertIn("Job job-2 release report pending retry after coordinator POST failure.", joined_logs)
             self.assertNotIn("Job job-2 released.", joined_logs)
@@ -291,10 +300,10 @@ class NetworkDoneReleaseTests(unittest.TestCase):
 
             self.assertIsNone(worker._active_job)
             self.assertEqual(statuses, ["⚠ Release report failed: coordinator offline"])
-            self.assertEqual(clears, [])
-            state = load_worker_state(state_path)
-            self.assertEqual(state["job_id"], "job-3")
-            self.assertTrue(state["pending_done_report"]["released"])
+            self.assertEqual(clears, [True])
+            report = self._single_pending_report(state_path)
+            self.assertEqual(report["job_id"], "job-3")
+            self.assertTrue(report["released"])
             text = "\n".join(logs.output)
             self.assertIn("POST /api/done (internal release) failed", text)
             self.assertIn("Job job-3 internal release report pending retry after coordinator POST failure.", text)

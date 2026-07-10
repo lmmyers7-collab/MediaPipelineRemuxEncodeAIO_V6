@@ -3,9 +3,9 @@ file: src/mediapipeline/core/rename/undo_runner.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: rename
-last_modified: 2026-06-23
+last_modified: 2026-07-09
 last_reviewed: 2026-06-23
-sha256: 67f7fdd7f93b2bad494baf286b9de1e5c2c003e8893aba131f22f7662f557f4e
+sha256: a4b2784befc568637f7de7f8e059ea0c11222396c218e80ce03f9fa4790c9029
 ---
 # `src/mediapipeline/core/rename/undo_runner.py`
 

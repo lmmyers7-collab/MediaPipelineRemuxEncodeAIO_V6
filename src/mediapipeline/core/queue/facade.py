@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from mediapipeline.core.queue.file_overrides import read_file_overrides
+from mediapipeline.core.queue.file_overrides import FileOverrideManifestReadError, read_file_overrides
 from mediapipeline.core.queue.priority_manifest import (
     PriorityManifestReadError,
     get_manifest_entry,
@@ -264,20 +264,29 @@ def _rerun_manifest_operator_fields(status: str, reason: str) -> dict[str, str]:
     if status_key in {"pending_publish", "parked"}:
         return {
             "operator_status": "CSV rerun Pending Publish",
-            "operator_status_state": "pending_publish",
-            "operator_severity": "warning",
-            "operator_guidance": "Review the manifest-backed Pending Publish evidence before final placement.",
+            "operator_status_state": "parked",
+            "operator_severity": "ok",
+            "operator_guidance": "This CSV rerun output is parked in Pending Publish; final placement remains owned by Pending Publish drain evidence.",
             "queue_status": "pending_publish",
             "queue_status_label": "Pending Publish",
         }
-    if status_key in {"review_workspace", "awaiting_review", "review"}:
+    if status_key in {"review_workspace", "awaiting_review"}:
         return {
-            "operator_status": "CSV rerun awaiting review",
+            "operator_status": "CSV rerun review workspace",
+            "operator_status_state": "parked",
+            "operator_severity": "ok",
+            "operator_guidance": "This CSV rerun output is parked in the review workspace; promote it only after checking output evidence.",
+            "queue_status": "review_workspace",
+            "queue_status_label": "Review Workspace",
+        }
+    if status_key == "review":
+        return {
+            "operator_status": "CSV rerun review",
             "operator_status_state": "review",
             "operator_severity": "warning",
-            "operator_guidance": "Review parked or pending output evidence before final placement.",
-            "queue_status": "awaiting_review",
-            "queue_status_label": "Awaiting Review",
+            "operator_guidance": "Review the CSV rerun manifest status and logs before taking action.",
+            "queue_status": "warning",
+            "queue_status_label": "Review",
         }
     if status_key in {"running", "active", "processing"}:
         return {
@@ -562,7 +571,16 @@ class QueueFacadeMixin:
                 )
         file_override_manifest = None
         if resolved.file_overrides_path is not None:
-            file_override_manifest = read_file_overrides(resolved.file_overrides_path)
+            try:
+                file_override_manifest = read_file_overrides(resolved.file_overrides_path)
+            except FileOverrideManifestReadError as exc:
+                return self._queue_preview_with_progress_warning(
+                    str(snapshot_path),
+                    f"Queue file overrides could not be read; queue preview is blocked until repaired: {exc}",
+                    status="blocked",
+                    queue_scan_status=queue_scan_status,
+                    source_inventory=source_inventory,
+                )
         raw_rows = (
             _queue_rows_with_priority_manifest(snapshot.get("rows") or [], priority_manifest)
             if priority_manifest is not None

@@ -1,0 +1,40 @@
+{
+  "id": "MP-CHANGE-2026-0709-004",
+  "title": "Show audit completion timestamp",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-07-09",
+  "date_completed": "2026-07-09",
+  "summary": "The Reports audit preview now displays the local completion date and time encoded in timestamped audit CSV filenames alongside the source path.",
+  "reason": "Operators need to identify when the displayed audit completed without manually decoding the audit report filename.",
+  "affected_areas": [
+    "generated-context",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The audit summary showed only the source CSV path, which required operators to decode the filename to determine the audit completion time.",
+  "behavior_after": "Timestamped audit summary and priority CSV filenames render an Audit completed date-and-time field before the source path; older filenames without a timestamp remain readable without a fabricated time.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/reports/auditView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/reports/auditView.js.md",
+    "docs/generated/summaries/tests/python/desktop/test_reports_view_static.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_maintenance_reports_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0709-004.json",
+    "tests/python/desktop/test_reports_view_static.py",
+    "tests/webview/test_webview_browser_maintenance_reports_smoke.py"
+  ],
+  "tests_added": [
+    "Extended the Reports static test and browser Maintenance/Reports smoke fixture to require the audit completion field for timestamped reports."
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_reports_view_static -q - passed (16 tests).",
+    "node --check apps/desktop/webview/static/assets/reports/auditView.js - passed.",
+    "git diff --check for all change-packet paths - passed.",
+    "Test-WebViewBrowserMaintenanceReportsSmoke.ps1 was attempted but blocked before browser launch by an unrelated existing ImportError: rerun_preview imports missing rerun_destination_replaces_final from rerun_policy."
+  ],
+  "rollback_plan": "Remove the auditCompletionTimestamp renderer and its Audit completed summary line; audit source display returns to the prior path-only form.",
+  "related_changes": [],
+  "notes": "Display the completion timestamp encoded in timestamped audit report names.\nAssert the audit completion timestamp renderer remains present.\nVerify the Reports audit preview displays completion time for a timestamped report.\nRefresh audit view navigation summary after the display-only timestamp update.\nRefresh the static Reports test navigation summary.\nRefresh the browser Reports smoke navigation summary."
+}

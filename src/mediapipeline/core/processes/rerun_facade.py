@@ -39,6 +39,10 @@ from mediapipeline.core.processes.rerun_preview import (
     rerun_csv_preview_payload,
     rerun_network_csv_preview_payload,
 )
+from mediapipeline.core.network.rerun_handoff import (
+    network_rerun_assign_batch_handoff_paths,
+    probe_network_rerun_handoff_root,
+)
 from mediapipeline.core.processes.rerun_control import (
     build_rerun_continue_pending_request,
     request_rerun_stop_after_current,
@@ -168,28 +172,51 @@ def _network_rerun_batch_rows(preview: dict[str, Any]) -> list[dict[str, Any]]:
         original_claimable = row.get("claimable") is True
         preview_status = str(row.get("status") or ("claimable" if original_claimable else "blocked"))
         if original_claimable:
-            status = "pending_claim_disabled"
+            status = "pending_claim"
         elif preview_status == "skipped":
             status = "skipped"
         else:
             status = "blocked"
+        row_claimable = original_claimable and row.get("start_ready") is True
         rows.append(
             {
                 "schema_version": "desktop_rerun_network_batch_row.v1",
                 "row_key": str(row.get("row_key") or ""),
                 "row_index": row.get("row_index"),
                 "source_path": str(row.get("source_path") or ""),
+                "source_size": row.get("source_size") or 0,
+                "source_mtime_utc": str(row.get("source_mtime_utc") or ""),
+                "source_identity_v2": str(row.get("source_identity_v2") or ""),
+                "source_identity_v2_algorithm": str(row.get("source_identity_v2_algorithm") or ""),
                 "planned_output_path": str(row.get("planned_output_path") or ""),
                 "library_id": str(row.get("library_id") or ""),
+                "media_kind": str(row.get("media_kind") or ""),
+                "audit_issue_codes": str(row.get("audit_issue_codes") or ""),
+                "final_output_path": str(row.get("final_output_path") or ""),
+                "final_output_source": str(row.get("final_output_source") or ""),
+                "final_output_source_field": str(row.get("final_output_source_field") or ""),
                 "status": status,
                 "preview_status": preview_status,
                 "preview_claimable": original_claimable,
-                "claimable": False,
-                "claim_status": "claim_disabled_until_phase_4",
-                "claim_disabled_reason": "Phase 3 creates coordinator batch state only; row claims are enabled in Phase 4.",
+                "claimable": row_claimable,
+                "claim_status": "pending_claim" if row_claimable else "blocked_before_claim",
+                "claim_disabled_reason": "" if row_claimable else "Row is not start-ready for Network CSV rerun worker claims.",
                 "source_mapping": dict(row.get("source_mapping") or {}),
                 "output_handoff": dict(row.get("output_handoff") or {}),
                 "destination_policy": dict(row.get("destination_policy") or {}),
+                "rule_decision": dict(row.get("rule_decision") or {}),
+                "rerun_rule_id": str(row.get("rerun_rule_id") or ""),
+                "rerun_rule_label": str(row.get("rerun_rule_label") or ""),
+                "rerun_rule_status": str(row.get("rerun_rule_status") or ""),
+                "rerun_rule_reason": str(row.get("rerun_rule_reason") or ""),
+                "rerun_rule_destination_behavior": str(row.get("rerun_rule_destination_behavior") or ""),
+                "rerun_rule_replacement_eligible": row.get("rerun_rule_replacement_eligible") is True,
+                "rerun_rule_required_confirmations": [
+                    str(item)
+                    for item in row.get("rerun_rule_required_confirmations") or []
+                    if str(item or "").strip()
+                ],
+                "rerun_rule_runtime_options": dict(row.get("rerun_rule_runtime_options") or {}),
                 "blockers": [str(item) for item in row.get("blockers") or []],
                 "warnings": [str(item) for item in row.get("warnings") or []],
             }
@@ -209,29 +236,42 @@ def _network_rerun_batch_payload(
     return {
         "schema_version": RERUN_NETWORK_BATCH_SCHEMA_VERSION,
         "batch_id": str(dry_run_data.get("batch_id") or ""),
-        "status": "claim_disabled",
-        "phase": "phase_3_batch_state_without_worker_execution",
+        "status": "active",
+        "phase": "phase_4b_csv_row_claim_execution",
         "created_at_utc": created_at_utc,
         "updated_at_utc": created_at_utc,
         "command_id": command_id,
         "command": RERUN_NETWORK_START_COMMAND,
         "csv_path": str(preview.get("csv_path") or request.get("csv_path") or ""),
         "dry_run_fingerprint": str(dry_run_data.get("dry_run_fingerprint") or ""),
-        "claim_provider_enabled": False,
-        "claim_provider_status": "disabled_until_phase_4",
-        "worker_execution_enabled": False,
-        "destination_policy_application_enabled": False,
-        "rows_claimable": False,
+        "execution_mode": str(preview.get("execution_mode") or request.get("execution_mode") or ""),
+        "destination_mode": str(preview.get("destination_mode") or request.get("destination_mode") or ""),
+        "collision_policy": str(preview.get("collision_policy") or request.get("collision_policy") or ""),
+        "lifecycle": dict(preview.get("lifecycle") or {}),
+        "request_summary": {
+            "reason_present": bool(str(request.get("reason") or "").strip()),
+            "minimum_worker_count": _coerce_minimum_worker_count(request),
+            "confirm_replace_final": request.get("confirm_replace_final") is True,
+            "confirm_source_overwrite": request.get("confirm_source_overwrite") is True,
+        },
+        "claim_provider_enabled": True,
+        "claim_provider_status": "enabled_csv_rerun_row_claims",
+        "worker_execution_enabled": True,
+        "destination_policy_application_enabled": True,
+        "rows_claimable": any(row.get("claimable") is True for row in rows),
+        "output_handoff": dict(dry_run_data.get("output_handoff") or preview.get("output_handoff") or {}),
+        "handoff_probe": dict(dry_run_data.get("handoff_probe") or {}),
         "rows": rows,
         "counts": dict(preview.get("counts") or {}),
         "row_count": len(rows),
-        "claim_disabled_row_count": sum(1 for row in rows if row.get("preview_claimable") is True),
+        "claimable_row_count": sum(1 for row in rows if row.get("claimable") is True),
+        "claim_disabled_row_count": 0,
         "precondition_results": list(dry_run_data.get("precondition_results") or []),
         "state_files": list(dry_run_data.get("state_files_would_write") or []),
         "would_not_touch": dict(dry_run_data.get("would_not_touch") or {}),
         "rollback_expectations": list(dry_run_data.get("rollback_expectations") or []),
         "operator_controls": {
-            "stop_after_current": "not_applicable_until_phase_4_claims",
+            "stop_after_current": "future_control_route",
             "cancel_not_started": "future_control_route",
             "continue_pending": "future_control_route",
         },
@@ -322,10 +362,12 @@ class RerunLaunchFacadeMixin:
                 "Stop or continue the existing network CSV rerun batch before starting another one.",
             )
         )
-        preview_counts = dict(preview.get("counts") or {})
-        claimable_rows = int(preview_counts.get("claimable_rows") or 0)
         row_keys = [str(row.get("row_key") or "") for row in preview.get("rows") or [] if row.get("claimable") is True]
         batch_id = _network_rerun_batch_id(str(preview.get("csv_path") or ""), row_keys)
+        preview = network_rerun_assign_batch_handoff_paths(preview, batch_id)
+        preview_counts = dict(preview.get("counts") or {})
+        claimable_rows = int(preview_counts.get("claimable_rows") or 0)
+        start_ready_rows = int(preview_counts.get("start_ready_rows") or 0)
         state_files = _network_rerun_state_files(resolved, batch_id)
         preconditions.append(
             _network_rerun_precondition(
@@ -337,6 +379,18 @@ class RerunLaunchFacadeMixin:
                     f"destination_policy_risk_rows={preview_counts.get('destination_policy_risk_rows') or 0}"
                 ),
                 "Resolve CSV row, lifecycle, confirmation, collision, and destination policy blockers before starting.",
+            )
+        )
+        preconditions.append(
+            _network_rerun_precondition(
+                "network_rerun_handoff_ready",
+                "pass" if claimable_rows > 0 and start_ready_rows == claimable_rows else "blocked",
+                (
+                    f"handoff_status={(preview.get('output_handoff') or {}).get('status') or 'unknown'}; "
+                    f"claimable_rows={claimable_rows}; start_ready_rows={start_ready_rows}; "
+                    f"output_handoff_ready_rows={preview_counts.get('output_handoff_ready_rows') or 0}"
+                ),
+                "Configure NetworkRerunHandoffRoot outside source/output/LocalBase/Pending Publish roots before starting.",
             )
         )
         state_path_available, state_path_evidence = _network_rerun_state_path_evidence(state_files)
@@ -366,6 +420,25 @@ class RerunLaunchFacadeMixin:
                 "Workers are advisory unless minimum_worker_count is requested; verify workers are polling before confirmed execution phases.",
             )
         )
+        handoff_root = dict(preview.get("output_handoff") or {})
+        remote_worker_required = minimum_workers > 0 or observed_workers > 0
+        remote_handoff_status = "pass"
+        if remote_worker_required and handoff_root.get("remote_worker_compatible") is not True:
+            remote_handoff_status = "blocked"
+        elif handoff_root.get("coordinator_local_only") is True:
+            remote_handoff_status = "review"
+        preconditions.append(
+            _network_rerun_precondition(
+                "network_rerun_handoff_remote_worker_compatible",
+                remote_handoff_status,
+                (
+                    f"path_kind={handoff_root.get('path_kind') or 'missing'}; "
+                    f"remote_worker_compatible={'yes' if handoff_root.get('remote_worker_compatible') is True else 'no'}; "
+                    f"observed_workers={observed_workers}; minimum_requested={minimum_workers}"
+                ),
+                "Use a UNC/shared NetworkRerunHandoffRoot before allowing remote workers to claim CSV rerun rows.",
+            )
+        )
         blocked = [row for row in preconditions if row.get("status") == "blocked"]
         data = {
             "schema_version": RERUN_NETWORK_START_DRY_RUN_SCHEMA_VERSION,
@@ -378,6 +451,7 @@ class RerunLaunchFacadeMixin:
             "safe_to_apply": not blocked,
             "precondition_results": preconditions,
             "preview": preview,
+            "output_handoff": handoff_root,
             "worker_availability": {
                 "minimum_requested": minimum_workers,
                 "observed_total": observed_workers,
@@ -556,6 +630,23 @@ class RerunLaunchFacadeMixin:
                     refresh_hint="snapshot",
                     data={**base_data, "cleanup_result": "not_started_preconditions_blocked"},
                 )
+            handoff_probe = probe_network_rerun_handoff_root(dict(dry_run_data.get("output_handoff") or {}))
+            if handoff_probe.get("ok") is not True:
+                return CommandResult(
+                    command=RERUN_NETWORK_START_COMMAND,
+                    ok=False,
+                    severity="error",
+                    message="Network CSV rerun start could not prove coordinator handoff create/list/read/delete access.",
+                    errors=["network_rerun_handoff_probe_failed"],
+                    refresh_hint="snapshot",
+                    data={
+                        **base_data,
+                        "handoff_probe": handoff_probe,
+                        "cleanup_result": "not_started_handoff_probe_failed",
+                    },
+                )
+            dry_run_data["handoff_probe"] = handoff_probe
+            base_data["handoff_probe"] = handoff_probe
             state_path = _network_rerun_state_path(list(dry_run_data.get("state_files_would_write") or []))
             if state_path is None:
                 return CommandResult(
@@ -600,8 +691,9 @@ class RerunLaunchFacadeMixin:
                 "state_after": {
                     "batch_id": state_payload["batch_id"],
                     "status": state_payload["status"],
-                    "claim_provider_enabled": False,
-                    "rows_claimable": False,
+                    "claim_provider_enabled": True,
+                    "worker_execution_enabled": True,
+                    "rows_claimable": state_payload["rows_claimable"],
                     "row_count": state_payload["row_count"],
                 },
                 "cleanup_result": "ok",
@@ -612,7 +704,7 @@ class RerunLaunchFacadeMixin:
                 command=RERUN_NETWORK_START_COMMAND,
                 ok=True,
                 severity="info",
-                message="Network CSV rerun batch state created with row claims disabled until Phase 4.",
+                message="Network CSV rerun batch state created with handoff evidence and CSV row claims enabled.",
                 refresh_hint="snapshot",
                 data=result_data,
             )

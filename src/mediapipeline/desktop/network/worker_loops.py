@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import time
+import uuid
 from datetime import datetime, UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -22,6 +23,52 @@ if TYPE_CHECKING:
 _log = logging.getLogger("mediapipeline.desktop.network.worker")
 
 _HEARTBEAT_INTERVAL = 30
+
+
+def _probe_csv_rerun_handoff(claim: Any) -> dict[str, Any]:
+    if str(getattr(claim, "job_kind", "") or "") != "csv_rerun_row":
+        return {}
+    planned_path = str(
+        getattr(claim, "planned_output_path", "")
+        or (getattr(claim, "output_handoff", {}) or {}).get("planned_row_handoff_path")
+        or ""
+    ).strip()
+    result: dict[str, Any] = {
+        "schema_version": "desktop_rerun_network_worker_handoff_probe.v1",
+        "status": "not_run",
+        "ok": False,
+        "planned_output_path": planned_path,
+        "operations": [],
+        "cleanup_result": "not_started",
+    }
+    if not planned_path:
+        result.update({"status": "blocked", "error": "csv_rerun_row claim is missing planned_output_path"})
+        raise RuntimeError(result["error"])
+    handoff_dir = Path(planned_path)
+    probe_file = handoff_dir / f".worker-handoff-probe-{uuid.uuid4().hex}.txt"
+    try:
+        handoff_dir.mkdir(parents=True, exist_ok=True)
+        result["operations"].append("create_dir")
+        probe_file.write_text("network csv rerun worker handoff probe\n", encoding="utf-8")
+        result["operations"].append("write")
+        if probe_file.read_text(encoding="utf-8") != "network csv rerun worker handoff probe\n":
+            raise RuntimeError("probe read did not match written content")
+        result["operations"].append("read")
+        _ = list(handoff_dir.iterdir())
+        result["operations"].append("list")
+        probe_file.unlink()
+        result["operations"].append("delete_probe")
+        result["status"] = "ok"
+        result["ok"] = True
+        result["cleanup_result"] = "probe_file_deleted"
+        return result
+    except Exception as exc:
+        result.update({"status": "failed", "error": str(exc), "cleanup_result": "cleanup_attempted"})
+        try:
+            probe_file.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise RuntimeError(f"csv rerun handoff probe failed: {exc}") from exc
 
 
 class WorkerLoopMixin:
@@ -257,6 +304,23 @@ class WorkerLoopMixin:
                 # code (heartbeat, mark_done, _make_queue_record) sees the local form.
                 # The coordinator still tracks the original path internally.
                 claim = claim_with_source_path(claim, mapped_path)
+
+            try:
+                claim.handoff_probe = _probe_csv_rerun_handoff(claim)
+            except Exception as exc:
+                reason_preview = _worker_diagnostic_preview(exc)
+                _log.error("Handoff probe failed for claimed job %s: %s", claim.job_id, reason_preview)
+                self._safe_log_cluster_event(
+                    "handoff-probe-failed",
+                    level="ERROR",
+                    event="handoff_probe_failed",
+                    message=f"Worker handoff probe failed for claimed job: {reason_preview}",
+                    job_id=claim.job_id,
+                    source_path=claim.source_path,
+                )
+                self._release_unstartable_claim(claim, reason_preview)
+                self._wait_interruptible()
+                continue
 
             # Build a synthetic QueueRecord for the claimed path.
             try:

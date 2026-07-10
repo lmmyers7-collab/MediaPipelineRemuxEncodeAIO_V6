@@ -200,7 +200,7 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
                 "duplicate_source",
                 "entry.raw?.request",
                 "Typed CSV paths can be previewed, but Open CSV and Open Folder require",
-                "Review & Start submits /api/rerun/start to the backend",
+                "Review & Start submits ${route} to the backend",
             ),
         )
         self.assertLess(bundle.html.index('data-queue-refresh-button'), bundle.html.index('id="queue-rows"'))
@@ -221,12 +221,18 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
                 "function initQueueRerunEvents",
                 "startRerunFromForm",
                 "refreshRerunPreview",
+                "collectRerunExecutionTarget",
+                "collectRerunNetworkStartDryRunRequest",
+                "collectRerunNetworkStartRequest",
+                "confirm_start: true",
                 "selectRerunCsvPathForPreview",
                 "refreshRerunResults",
                 "getRerunResults",
                 "requestRerunContinue",
+                "checkNetworkRerunStartDryRun",
                 'refreshRerunResults({ quiet: true }).catch(() => {})',
                 "wireClick(\"rerun-start-button\", () => startRerunFromForm({ dry_run: false }))",
+                "wireClick(\"rerun-network-start-dry-run-button\", () => checkNetworkRerunStartDryRun()",
                 "mediaPipelineCsvRerunWorkflow",
             ),
         )
@@ -235,6 +241,9 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
             bundle.queue_view_rerun_js,
             (
                 'const RERUN_PREVIEW_ROUTE = "/api/rerun/preview"',
+                'const RERUN_NETWORK_PREVIEW_ROUTE = "/api/rerun/network-preview"',
+                'const RERUN_NETWORK_START_DRY_RUN_ROUTE = "/api/rerun/network/start-dry-run"',
+                'const RERUN_NETWORK_START_ROUTE = "/api/rerun/network/start"',
                 'const RERUN_START_ROUTE = "/api/rerun/start"',
                 'const RERUN_RESULTS_ROUTE = "/api/rerun/results?limit=24"',
                 'const RERUN_CONTROL_ROUTE = "/api/rerun/control"',
@@ -247,6 +256,9 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
                 "function currentApiPost",
                 "function currentApiGet",
                 'requireApiPost(RERUN_PREVIEW_ROUTE)("/api/rerun/preview", request)',
+                'requireApiPost(RERUN_NETWORK_PREVIEW_ROUTE)("/api/rerun/network-preview", request)',
+                'requireApiPost(RERUN_NETWORK_START_DRY_RUN_ROUTE)("/api/rerun/network/start-dry-run", request)',
+                'requireApiPost(RERUN_NETWORK_START_ROUTE)("/api/rerun/network/start", request)',
                 'requireApiPost(RERUN_START_ROUTE)("/api/rerun/start", request)',
                 'requireApiPost(RERUN_CONTROL_ROUTE)("/api/rerun/control", { action: "stop_after_current", confirm_stop: true })',
                 'requireApiPost(RERUN_CONTROL_ROUTE)("/api/rerun/control", { action: "pause", confirm_pause: true })',
@@ -268,8 +280,10 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
                 "function promoteRerunRowToPending",
                 "uses_pipeline_start: false",
                 "Normal pipeline start route is not used for CSV rerun rows.",
-                "Rows shown here are not normal /api/pipeline/start queue rows.",
+                "Local and Network CSV rerun rows shown here are not normal /api/pipeline/start queue rows.",
+                "Network CSV rerun reducer and destination-policy evidence is backend-authored.",
                 "function startRerunFromForm",
+                "function checkNetworkRerunStartDryRun",
                 "function refreshRerunPreview",
                 "function selectRerunCsvPathForPreview",
                 "function openLatestRerunManifest",
@@ -281,6 +295,18 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
                 "Audit export selected",
                 "Backend preview route: ${RERUN_PREVIEW_ROUTE}",
                 "function requestRerunContinue",
+            ),
+        )
+        _assert_contains_all(
+            self,
+            bundle.html,
+            (
+                'id="rerun-start-target-mode"',
+                '<option value="local" selected>local CSV rerun</option>',
+                '<option value="network">Network CSV rerun</option>',
+                'id="rerun-network-minimum-workers"',
+                'id="rerun-network-start-dry-run-button"',
+                "Check Network Start",
             ),
         )
         self.assertNotIn('apiPost("/api/pipeline/start"', bundle.queue_view_rerun_js)

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mediapipeline.core.kernel.dto_status import CloseReadinessDto
 from mediapipeline.core.schedule.stop_watcher import schedule_stop_watcher_state_mapping
 from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.processes.tdarr_background import tdarr_matrix_background_close_evidence
 
 from mediapipeline.core.processes.guard_policy import (
     audit_progress_indicates_active_work,
@@ -83,6 +85,10 @@ class ProcessGuardFacadeMixin:
                 pids = sorted(str(getattr(proc, "pid", "?")) for proc in related_processes if str(getattr(proc, "pid", "?")).strip())
                 pid_text = ", ".join(pids) if pids else "unknown"
                 return f"{action} blocked because MediaPipeline process PID(s) {pid_text} are still running from this bundle."
+        if str(action or "").strip().casefold().startswith("shell close"):
+            tdarr_block = self._tdarr_matrix_background_block_message(resolved, action)
+            if tdarr_block:
+                return tdarr_block
         promotion_block = self._final_library_promotion_block_message(action)
         if promotion_block:
             return promotion_block
@@ -104,6 +110,23 @@ class ProcessGuardFacadeMixin:
             audit_block = self._audit_progress_block_message(resolved, action)
             if audit_block:
                 return audit_block
+        return ""
+
+    def _tdarr_matrix_background_block_message(self, resolved: ResolvedPaths, action: str) -> str:
+        try:
+            evidence = tdarr_matrix_background_close_evidence(Path(resolved.workspace_root))
+        except Exception as exc:
+            self._log_close_guard_exception("Tdarr Matrix close-readiness verification failed", exc)
+            return f"{action} blocked because Tdarr Matrix background state could not be verified: {exc}"
+        status = str(evidence.get("status") or "").casefold()
+        if status == "active":
+            pid = int(evidence.get("pid") or 0)
+            run_id = str(evidence.get("run_id") or "unknown run")
+            pid_text = f" PID {pid}" if pid > 0 else ""
+            return f"{action} blocked because Tdarr Matrix background run {run_id}{pid_text} is still active."
+        if status == "unavailable":
+            reason = str(evidence.get("reason") or "unknown state")
+            return f"{action} blocked because Tdarr Matrix background state could not be verified: {reason}"
         return ""
 
     def _related_processes_for_action(
@@ -191,6 +214,9 @@ class ProcessGuardFacadeMixin:
             return ""
         try:
             progress = read_progress(resolved)
+            read_health = progress.get("ReadHealth") if isinstance(progress, dict) else None
+            if isinstance(read_health, dict) and read_health.get("available") is False:
+                return f"{action} blocked because pipeline progress is unavailable or invalid."
             if not progress or is_stale(progress):
                 return ""
         except Exception as exc:

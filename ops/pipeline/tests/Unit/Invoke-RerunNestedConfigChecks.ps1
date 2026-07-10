@@ -207,12 +207,15 @@ true,"$source",Movie,copy,keep,park
     $manifest = Get-Content -LiteralPath $manifestFiles[0].FullName -Raw | ConvertFrom-Json -ErrorAction Stop
     $tempConfig = Import-PowerShellDataFile -LiteralPath $tempConfigFiles[0].FullName
     $workspaceRoot = Join-Path $root 'Local_RerunWorkspace'
-    $nestedLocalBase = Join-Path (Join-Path $workspaceRoot 'RuntimeState') ([string]$manifest.batch_id)
+    $nestedRuntimeRoot = Join-Path $workspaceRoot 'RuntimeState'
+    $chunkLocalBase = Join-Path $nestedRuntimeRoot ("{0}.chunk_0001" -f [string]$manifest.batch_id)
 
     Assert-Equal (ConvertTo-ComparablePath ([string]$manifest.pipeline_local_base)) (ConvertTo-ComparablePath $localBase) 'Manifest pipeline_local_base should preserve the operator-visible LocalBase.'
-    Assert-Equal (ConvertTo-ComparablePath ([string]$manifest.nested_pipeline_local_base)) (ConvertTo-ComparablePath $nestedLocalBase) 'Manifest nested_pipeline_local_base should point at the isolated nested runtime state.'
+    Assert-Equal (ConvertTo-ComparablePath ([string]$manifest.nested_pipeline_local_base)) (ConvertTo-ComparablePath $nestedRuntimeRoot) 'Manifest nested_pipeline_local_base should point at the isolated nested runtime root.'
+    Assert-Equal ([string]$manifest.nested_pipeline_local_base_mode) 'per_chunk_children' 'Manifest should identify that nested pipeline LocalBase values are per-chunk children.'
+    Assert-Equal (ConvertTo-ComparablePath ([string]$manifest.nested_pipeline_runtime_root)) (ConvertTo-ComparablePath $nestedRuntimeRoot) 'Manifest nested_pipeline_runtime_root should point at the isolated nested runtime root.'
     Assert-Equal (ConvertTo-ComparablePath ([string]$manifest.rerun_workspace_root)) (ConvertTo-ComparablePath $workspaceRoot) 'Manifest rerun_workspace_root should point at the isolated sibling workspace.'
-    Assert-Equal (ConvertTo-ComparablePath ([string]$tempConfig['LocalBase'])) (ConvertTo-ComparablePath $nestedLocalBase) 'Nested pipeline temp config should use isolated rerun runtime state.'
+    Assert-Equal (ConvertTo-ComparablePath ([string]$tempConfig['LocalBase'])) (ConvertTo-ComparablePath $chunkLocalBase) 'Nested pipeline temp config should use an isolated per-chunk rerun runtime state.'
     Assert-True ((ConvertTo-ComparablePath ([string]$tempConfig['SourceMovies'])).StartsWith((ConvertTo-ComparablePath $workspaceRoot) + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) 'Temp SourceMovies should live under the isolated rerun workspace.'
     Assert-True ((ConvertTo-ComparablePath ([string]$tempConfig['Outsource'])).StartsWith((ConvertTo-ComparablePath $workspaceRoot) + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) 'Temp Outsource should live under the isolated rerun workspace.'
     Assert-False (Test-NestedOrSamePath ([string]$tempConfig['LocalBase']) ([string]$tempConfig['SourceMovies'])) 'Temp LocalBase and SourceMovies should not be nested or identical.'
@@ -236,7 +239,13 @@ true,"$source",Movie,copy,keep,park
     Assert-False ([bool]$movieProfile[0]['promotion_enabled']) 'Movies profile promotion should be disabled in rerun temp config.'
     Assert-False ([bool]$tvProfile[0]['promotion_enabled']) 'TV profile promotion should be disabled in rerun temp config.'
 
-    $queueSnapshot = Join-Path $nestedLocalBase 'State\Progress\queue_snapshot.json'
+    $manifestRows = @($manifest.rows)
+    Assert-True ($manifestRows.Count -ge 1) 'Manifest should include at least one rerun row.'
+    Assert-Equal (ConvertTo-ComparablePath ([string]$manifestRows[0].nested_pipeline_local_base)) (ConvertTo-ComparablePath $chunkLocalBase) 'Manifest row should record the actual per-chunk nested LocalBase.'
+    Assert-Equal (ConvertTo-ComparablePath ([string]$manifestRows[0].nested_pipeline_runtime_root)) (ConvertTo-ComparablePath $nestedRuntimeRoot) 'Manifest row should record the batch nested runtime root.'
+    Assert-Equal ([string]$manifestRows[0].rerun_chunk_index) '1' 'Manifest row should record its rerun chunk index.'
+
+    $queueSnapshot = Join-Path $chunkLocalBase 'State\Progress\queue_snapshot.json'
     Assert-True (Test-Path -LiteralPath $queueSnapshot -PathType Leaf) "Nested pipeline did not write the isolated runtime queue snapshot: $queueSnapshot. Output: $output"
     $queueModel = Get-Content -LiteralPath $queueSnapshot -Raw | ConvertFrom-Json -ErrorAction Stop
     Assert-True ([int]$queueModel.total_row_count -ge 1) "Nested pipeline queue snapshot did not include staged rerun rows. Output: $output"

@@ -559,7 +559,7 @@ if (-not (Test-ProgressPersistence)) {
 if ($DrainPendingPushes) {
     Write-Log "DRAIN PENDING PUSHES: skipping subtitle helper self-check; parked sidecars are already materialized."
 } else {
-    $_assCheck = Invoke-PythonToolCommand -ArgumentList @($assToSrtScript) -TimeoutSeconds 15 -Stage 'subtitle-helper-selfcheck'
+    $_assCheck = Invoke-PythonToolCommand -ArgumentList @($assToSrtScript) -TimeoutSeconds 15 -Stage 'subtitle-helper-selfcheck' -SuccessExitCodes @(0, 2)
     if ($_assCheck.ExitCode -ne 2) {
         $assHelperMessage = "STARTUP: ass_to_srt import check FAILED (exit $($_assCheck.ExitCode))"
         if ([bool]$script:AllowSubtitleHelperFallback) {

@@ -116,6 +116,59 @@ class ServiceConfigValidationTests(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertEqual(warnings, [])
 
+    def test_validate_config_values_rejects_unsafe_network_rerun_handoff_roots(self) -> None:
+        relative_values = _valid_config_values()
+        relative_values["NetworkRerunHandoffRoot"] = "relative\\handoff"
+
+        relative_errors, _warnings = validate_config_values(
+            relative_values,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        source_overlap_values = _valid_config_values()
+        source_overlap_values["NetworkRerunHandoffRoot"] = r"C:\Media\Movies\NetworkRerun"
+
+        source_overlap_errors, _warnings = validate_config_values(
+            source_overlap_values,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        library_overlap_values = _valid_config_values()
+        library_overlap_values["NetworkRerunHandoffRoot"] = r"F:\Shows\Handoff"
+        library_overlap_values["LibraryProfiles"] = [
+            {
+                "id": "shows",
+                "enabled": True,
+                "source_path": r"F:\Sources\Shows",
+                "output_path": r"F:\Shows",
+            }
+        ]
+
+        library_overlap_errors, _warnings = validate_config_values(
+            library_overlap_values,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        localbase_overlap_values = _valid_config_values()
+        localbase_overlap_values["NetworkRerunHandoffRoot"] = r"E:\MediaScratch\State\PendingServerPush\NetworkRerun"
+
+        localbase_overlap_errors, _warnings = validate_config_values(
+            localbase_overlap_values,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        self.assertIn("NetworkRerunHandoffRoot must be an absolute path.", relative_errors)
+        self.assertTrue(any("NetworkRerunHandoffRoot must not overlap SourceMovies" in error for error in source_overlap_errors))
+        self.assertTrue(
+            any("NetworkRerunHandoffRoot must not overlap LibraryProfiles[" in error and ".output_path" in error for error in library_overlap_errors)
+        )
+        self.assertTrue(any("NetworkRerunHandoffRoot must not overlap LocalBase" in error for error in localbase_overlap_errors))
+        self.assertTrue(any("NetworkRerunHandoffRoot must not overlap PendingServerPush" in error for error in localbase_overlap_errors))
+
     def test_validate_config_values_rejects_case_variant_canonical_keys(self) -> None:
         values = _valid_config_values()
         values["routingprofile"] = "not-a-real-choice"

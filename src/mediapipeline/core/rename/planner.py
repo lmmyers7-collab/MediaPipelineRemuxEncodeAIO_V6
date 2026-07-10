@@ -13,6 +13,7 @@ from mediapipeline.core.rename.plan_policy import (
 )
 from mediapipeline.core.rename.contracts import RenamePlannerServiceProtocol
 from mediapipeline.core.rename.input_classification import classify_rename_input_paths
+from mediapipeline.core.rename.tv import build_manual_tv_hierarchy_destination
 
 
 def plan_rename_paths_for_service(
@@ -105,7 +106,9 @@ def plan_rename_paths_for_service(
         pipeline_guess = ""
         preview_source = ""
         target_name = ""
+        hierarchy_destination: dict[str, Any] | None = None
         destination = source
+        mutation_root = source.parent
         matches_target = False
 
         try:
@@ -174,7 +177,22 @@ def plan_rename_paths_for_service(
             if manual_name:
                 target_name = service._normalise_manual_final_name(source, manual_name)
                 confidence_reasons.append("Selected final-name override is staged for this row.")
-            destination = source.with_name(target_name)
+            if media_mode == "tv" and manual_tv_template and target_name:
+                hierarchy_destination = build_manual_tv_hierarchy_destination(
+                    source,
+                    target_name=target_name,
+                    show_name=show_name,
+                    season_number=season_number,
+                    remove_terms=remove_terms,
+                    tv_filter_options=tv_filter_options,
+                    tv_filter_terms=tv_filter_terms,
+                )
+            if hierarchy_destination:
+                destination = Path(hierarchy_destination["destination"])
+                mutation_root = Path(hierarchy_destination["mutation_root"])
+                confidence_reasons.append("TV hierarchy aligns the show folder, season folder, and episode filename.")
+            else:
+                destination = source.with_name(target_name)
         except Exception as exc:
             preview_source = preview_source or "error"
             errors.append(str(exc))
@@ -185,7 +203,7 @@ def plan_rename_paths_for_service(
             errors.append("source path is not a file")
         if source.suffix.lower() not in MEDIA_FILE_SUFFIXES:
             warnings.append(f"extension {source.suffix or '(none)'} is not a configured media extension")
-        if source.name == target_name:
+        if service._casefold_path(source) == service._casefold_path(destination) and source.name == target_name:
             matches_target = True
         if target_name:
             key = service._casefold_path(destination)
@@ -214,7 +232,10 @@ def plan_rename_paths_for_service(
         if status != "blocked":
             if matches_target:
                 change_kind = "unchanged"
-            elif source.name.casefold() == target_name.casefold():
+            elif (
+                service._casefold_path(source.parent) == service._casefold_path(destination.parent)
+                and source.name.casefold() == target_name.casefold()
+            ):
                 change_kind = "case_only"
             else:
                 change_kind = "rename"
@@ -237,6 +258,10 @@ def plan_rename_paths_for_service(
             "source_name": source.name,
             "source_parent": str(source.parent),
             "destination_parent": str(destination.parent),
+            "mutation_root": str(mutation_root),
+            "hierarchy_aligned": bool(hierarchy_destination),
+            "series_folder": str(hierarchy_destination.get("series_folder", "")) if hierarchy_destination else "",
+            "season_folder": str(hierarchy_destination.get("season_folder", "")) if hierarchy_destination else "",
             "pipeline_guess": pipeline_guess,
             "target_name": target_name,
             "change_kind": change_kind,

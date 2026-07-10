@@ -3,15 +3,15 @@ file: src/mediapipeline/core/queue/file_overrides.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-07-02
+last_modified: 2026-07-09
 last_reviewed: 2026-06-04
-sha256: 52e8eb2ea7e8b09e742e293a6ea9eca458c86b47e0c78a4e2f55063984e6ed67
+sha256: c786dde33ed10deadd8530c67a36382e5d4e999c1a059aacec50450af9dc4e9a
 ---
 # `src/mediapipeline/core/queue/file_overrides.py`
 
 **Purpose:** (no module docstring)
 
-**Classes:** `FileOverrideValidationError`
+**Classes:** `FileOverrideManifestReadError`, `FileOverrideValidationError`
 **Public functions:** `clear_file_override_entry()`, `clear_file_override_fields()`, `file_override_payload_warnings()`, `file_overrides_path()`, `file_overrides_to_api_payload()`, `get_file_override_entry()`, `list_override_entries()`, `normalize_file_override_path()`, `read_file_overrides()`, `resolve_file_override_match()`, `set_file_override_entries()`, `set_file_override_entry()`, `validate_file_override_payload()`
 **In-repo imports:** `mediapipeline.contracts.config`, `mediapipeline.core.config.constants`
 

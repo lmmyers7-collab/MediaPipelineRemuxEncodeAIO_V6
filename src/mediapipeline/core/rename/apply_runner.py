@@ -20,7 +20,7 @@ def apply_rename_path_plan_for_service(
 
     applied: list[dict[str, Any]] = []
     completed_ops: list[dict[str, Path | str]] = []
-    metadata_backups: dict[str, str | None] = {}
+    metadata_backups: dict[str, dict[str, str | None]] = {}
     operations = service._build_rename_operations(plan)
     undo_manifest = {
         "schema_version": "rename_undo.v1",
@@ -32,6 +32,7 @@ def apply_rename_path_plan_for_service(
                 "kind": str(operation["kind"]),
                 "source": str(operation["source"]),
                 "destination": str(operation["destination"]),
+                "boundary_root": str(operation.get("boundary_root") or ""),
             }
             for operation in operations
         ],
@@ -52,7 +53,11 @@ def apply_rename_path_plan_for_service(
         undo_manifest["status"] = "applying"
         write_undo_manifest()
         for operation in operations:
-            service._rename_path_case_safe(Path(operation["source"]), Path(operation["destination"]))
+            service._rename_path_case_safe(
+                Path(operation["source"]),
+                Path(operation["destination"]),
+                boundary_root=Path(operation["boundary_root"]) if operation.get("boundary_root") else None,
+            )
             completed_ops.append(operation)
 
         for row in plan:
@@ -83,13 +88,22 @@ def apply_rename_path_plan_for_service(
             }
             for pipeline_sidecar in service._pipeline_sidecar_paths_for_destination(destination):
                 if pipeline_sidecar.exists():
-                    metadata_backups.setdefault(str(pipeline_sidecar), pipeline_sidecar.read_text(encoding="utf-8"))
+                    metadata_backups.setdefault(
+                        str(pipeline_sidecar),
+                        {
+                            "content": pipeline_sidecar.read_text(encoding="utf-8"),
+                            "operation_destination": str(destination),
+                        },
+                    )
                     service._update_pipeline_sidecar_after_rename(pipeline_sidecar, metadata_payload, destination)
             if force_pipeline_name:
                 override_sidecar = service.rename_override_sidecar_path(destination)
                 metadata_backups.setdefault(
                     str(override_sidecar),
-                    override_sidecar.read_text(encoding="utf-8") if override_sidecar.exists() else None,
+                    {
+                        "content": override_sidecar.read_text(encoding="utf-8") if override_sidecar.exists() else None,
+                        "operation_destination": str(destination),
+                    },
                 )
                 service._update_rename_sidecar_metadata(override_sidecar, metadata_payload)
 
@@ -105,8 +119,13 @@ def apply_rename_path_plan_for_service(
                 }
             )
         undo_manifest["metadata_backups"] = [
-            {"path": path_text, "content": original_text, "existed": original_text is not None}
-            for path_text, original_text in sorted(metadata_backups.items())
+            {
+                "path": path_text,
+                "content": backup["content"],
+                "existed": backup["content"] is not None,
+                "operation_destination": backup["operation_destination"],
+            }
+            for path_text, backup in sorted(metadata_backups.items())
         ]
         undo_manifest["status"] = "completed"
         undo_manifest["completed_at"] = datetime.now().isoformat(timespec="seconds")
@@ -116,8 +135,9 @@ def apply_rename_path_plan_for_service(
         undo_manifest["status"] = "rollback_started"
         undo_manifest["failed_at"] = datetime.now().isoformat(timespec="seconds")
         best_effort_write_undo_manifest("rollback start")
-        for path_text, original_text in metadata_backups.items():
+        for path_text, backup in metadata_backups.items():
             path = Path(path_text)
+            original_text = backup["content"]
             try:
                 if original_text is None:
                     if path.exists():

@@ -22,6 +22,10 @@ AUDIT_SOURCE_SCAN_DEFAULT_MAX_ENTRIES = 750_000
 AUDIT_SOURCE_PIPELINE_SIDECAR_SUFFIX = ".pipeline.json"
 
 
+class AuditSourceRegistryError(ValueError):
+    """Raised when an existing audit source registry cannot be trusted."""
+
+
 def _utc_now_text() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -52,6 +56,18 @@ def _json_load(path: Path) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError):
         return {}
     return payload if isinstance(payload, dict) else {}
+
+
+def _json_load_existing_object(path: Path, *, label: str) -> dict[str, Any]:
+    try:
+        if not path.exists():
+            return {}
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise AuditSourceRegistryError(f"{label} is invalid at {path}: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise AuditSourceRegistryError(f"{label} is invalid at {path}: expected a JSON object")
+    return payload
 
 
 def _json_dump(path: Path, payload: Mapping[str, Any]) -> None:
@@ -132,12 +148,24 @@ def _refresh_source_entry(entry: Mapping[str, Any], *, now: str | None = None) -
 
 
 def _load_registry(registry_path: Path) -> dict[str, Any]:
-    payload = _json_load(registry_path)
-    roots = [item for item in payload.get("roots") or [] if isinstance(item, Mapping)]
+    payload = _json_load_existing_object(registry_path, label="Audit source registry")
+    schema_version = _text(payload.get("schema_version") or AUDIT_SOURCE_REGISTRY_SCHEMA_VERSION)
+    if schema_version != AUDIT_SOURCE_REGISTRY_SCHEMA_VERSION:
+        raise AuditSourceRegistryError(
+            f"Audit source registry is invalid at {registry_path}: expected schema_version {AUDIT_SOURCE_REGISTRY_SCHEMA_VERSION}"
+        )
+    roots_raw = payload.get("roots") or []
+    if not isinstance(roots_raw, list):
+        raise AuditSourceRegistryError(f"Audit source registry is invalid at {registry_path}: expected roots list")
+    roots: list[dict[str, Any]] = []
+    for index, item in enumerate(roots_raw):
+        if not isinstance(item, Mapping):
+            raise AuditSourceRegistryError(f"Audit source registry is invalid at {registry_path}: root {index} is not an object")
+        roots.append(dict(item))
     return {
         "schema_version": AUDIT_SOURCE_REGISTRY_SCHEMA_VERSION,
         "updated_at": _text(payload.get("updated_at")),
-        "roots": [dict(item) for item in roots],
+        "roots": roots,
     }
 
 
@@ -214,9 +242,21 @@ def _source_state_from_registry(
             "counts_truncated": False,
             "roots": [],
             "last_scan": {},
+            "registry_valid": False,
+            "registry_error": "Audit source state is unavailable because state_root is not configured.",
             "warnings": ["Audit source state is unavailable because state_root is not configured."],
         }
-    loaded = dict(registry or _load_registry(paths["registry"]))
+    registry_valid = True
+    registry_error = ""
+    if registry is None:
+        try:
+            loaded = dict(_load_registry(paths["registry"]))
+        except AuditSourceRegistryError as exc:
+            loaded = {"schema_version": AUDIT_SOURCE_REGISTRY_SCHEMA_VERSION, "updated_at": "", "roots": []}
+            registry_valid = False
+            registry_error = str(exc)
+    else:
+        loaded = dict(registry)
     now = _utc_now_text()
     roots = [
         _refresh_source_entry(item, now=now)
@@ -242,7 +282,9 @@ def _source_state_from_registry(
         "counts_truncated": any(bool(item.get("counts_truncated")) for item in roots),
         "roots": roots,
         "last_scan": status_payload,
-        "warnings": [],
+        "registry_valid": registry_valid,
+        "registry_error": registry_error,
+        "warnings": [registry_error] if registry_error else [],
     }
 
 
@@ -270,6 +312,18 @@ def _registry_command_result(
     }
 
 
+def _registry_load_error_result(resolved: ResolvedPaths, exc: AuditSourceRegistryError) -> dict[str, Any]:
+    message = str(exc)
+    return {
+        "ok": False,
+        "message": message,
+        "severity": "error",
+        "warnings": [],
+        "errors": [message],
+        "data": {"audit_sources": _source_state_from_registry(resolved)},
+    }
+
+
 def update_audit_sources(resolved: ResolvedPaths, request: Mapping[str, Any]) -> dict[str, Any]:
     paths = audit_source_state_paths(resolved)
     if paths is None:
@@ -282,7 +336,10 @@ def update_audit_sources(resolved: ResolvedPaths, request: Mapping[str, Any]) ->
             "errors": [message],
             "data": {"audit_sources": audit_source_state_payload(resolved)},
         }
-    registry = _load_registry(paths["registry"])
+    try:
+        registry = _load_registry(paths["registry"])
+    except AuditSourceRegistryError as exc:
+        return _registry_load_error_result(resolved, exc)
     roots = [dict(item) for item in registry.get("roots") or [] if isinstance(item, Mapping)]
     action = _text(request.get("action")).casefold() or "add"
     now = _utc_now_text()
@@ -478,15 +535,13 @@ def _scan_source_entry(entry: Mapping[str, Any], *, max_entries: int, scanned_at
             stats["warnings"].append(f"Stopped after max_entries={max_entries}.")
             return stats
         for filename in filenames:
+            observed_entries += 1
             filename_key = filename.casefold()
             suffix = Path(filename).suffix.casefold()
             if suffix in MEDIA_FILE_SUFFIXES:
                 stats["media_file_count"] = int(stats["media_file_count"]) + 1
             elif suffix in SIDECAR_FILE_SUFFIXES or filename_key.endswith(AUDIT_SOURCE_PIPELINE_SIDECAR_SUFFIX):
                 stats["sidecar_file_count"] = int(stats["sidecar_file_count"]) + 1
-            else:
-                continue
-            observed_entries += 1
             if observed_entries >= max_entries:
                 stats["counts_truncated"] = True
                 stats["status"] = "partial"
@@ -532,7 +587,10 @@ def scan_audit_sources(resolved: ResolvedPaths, request: Mapping[str, Any]) -> d
             "errors": [message],
             "data": {"audit_sources": audit_source_state_payload(resolved)},
         }
-    registry = _load_registry(paths["registry"])
+    try:
+        registry = _load_registry(paths["registry"])
+    except AuditSourceRegistryError as exc:
+        return _registry_load_error_result(resolved, exc)
     entries, selection_errors = _selected_source_entries(registry, request)
     if selection_errors:
         message = selection_errors[0]
@@ -694,7 +752,10 @@ def sync_audit_sources_from_completed_audit(
             "errors": [message],
             "data": {"audit_sources": audit_source_state_payload(resolved)},
         }
-    registry = _load_registry(paths["registry"])
+    try:
+        registry = _load_registry(paths["registry"])
+    except AuditSourceRegistryError as exc:
+        return _registry_load_error_result(resolved, exc)
     roots = _dedupe_text_values(library_roots or [])
     if not roots and metadata is not None:
         roots = _library_roots_from_metadata(metadata)
@@ -746,6 +807,7 @@ class AuditSourceMetricsServiceMixin:
 
 
 __all__ = [
+    "AuditSourceRegistryError",
     "AuditSourceMetricsServiceMixin",
     "AUDIT_SOURCE_REGISTRY_SCHEMA_VERSION",
     "AUDIT_SOURCE_SCAN_SCHEMA_VERSION",

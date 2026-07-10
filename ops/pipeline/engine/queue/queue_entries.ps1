@@ -291,7 +291,12 @@ function Get-QueuedEntries {
             }
             $episodeSortOrder = Get-QueueEpisodeNumber $file.BaseName
             if ($seasonSortOrder -le 0 -or $episodeSortOrder -le 0) {
-                $tvInfo = Get-TVInfoFromFile $file
+                $tvInfo = Get-TVInfoFromFile `
+                    -file $file `
+                    -SourceRootPath $RootPath `
+                    -LibraryName ([string]($LibraryProfileMetadata['library_name'])) `
+                    -LibraryId ([string]($LibraryProfileMetadata['library_id'])) `
+                    -LibraryDesignation ([string]($LibraryProfileMetadata['designation']))
                 if ($tvInfo -and $tvInfo.IsReliable) {
                     if ($seasonSortOrder -le 0) { $seasonSortOrder = [int]$tvInfo.Season }
                     if ($episodeSortOrder -le 0) { $episodeSortOrder = [int]$tvInfo.Episode }

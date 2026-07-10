@@ -3,9 +3,9 @@ file: docs/inventories/API_ROUTE_INVENTORY.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-05
+last_modified: 2026-07-09
 last_reviewed: 2026-05-29
-sha256: 7b68482d3e48e7fb8c79ef1948203923a47b9f4219105095122d01e2f6997e84
+sha256: ec132346b48cef7843a1a5bb38fd4030ff5c2f00ddb1880d1e405032762c4c75
 ---
 # `docs/inventories/API_ROUTE_INVENTORY.md`
 

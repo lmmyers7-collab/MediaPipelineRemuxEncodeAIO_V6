@@ -2,8 +2,8 @@
 
 Maps every known `CONFIG_FIELD_DEFINITIONS` key to its WebView settings builder coverage, as of the current state. This is a read-only audit document. It does not implement builder changes.
 
-Total backend metadata keys: 171 (from `CONFIG_FIELD_DEFINITIONS` and the config contract).
-Covered by structured WebView builder arrays: 140.
+Total backend metadata keys: 172 (from `CONFIG_FIELD_DEFINITIONS` and the config contract).
+Covered by structured WebView builder arrays: 141.
 Handled by the dedicated Library Profiles editor: 1 (`LibraryProfiles`).
 Known advanced/direct-config metadata without a routine structured builder: 28.
 Intentionally hidden auth secrets: 2.
@@ -23,7 +23,7 @@ Intentionally hidden auth secrets: 2.
 | Subtitle | `SubKeepLanguages`, `AllowSubtitleHelperFallback`, `Tx3gExtractLanguages`, `BdpgsExtractLanguages`, `MergeThresholdMs`, `SubtitleExtractTimeoutSeconds`, `SubtitleProbeTimeoutSeconds`, `BdpgsOcrTimeoutSeconds`, `BdpgsOcrToolPath`, `BdpgsOcrTessdataPath`, `SubSDHTitleKeywords`, `SubSupplementalKeywords`, `ExcludeSubtitleStyles`, `IncludeSubtitleStyles`, `ConvertTx3gToSrt`, `DropTx3gAfterConversion`, `CreateExternalTx3gSrtSidecars`, `Tx3gPreserveExistingSrt`, `Tx3gTreatForcedAsSeparate`, `TreatTx3gSignsSongsAsForced`, `ConvertBdpgsToSrt`, `DropBdpgsAfterConversion`, `TreatBdpgsSignsSongsAsForced`, `DropAssAfterConversion`, `RemoveKaraoke`, `StripFormatting`, `MergeAdjacent`, `KeepSignsAndSongs`, `TreatAssSignsSongsAsForced` | TX3G, BDPGS OCR, ASS/SSA drop/convert/preserve, SDH/supplemental keyword classification inputs |
 | Runtime / Diagnostics | `DebugMode`, `ConsoleLogLevel`, `FileLogLevel`, `LogRetentionDays`, `PipelineDebugLogMaxBytes`, `FailureArtifactWarningThresholdGB`, `FailureArtifactRetentionDays`, `FailureArtifactCleanupTargetGB`, `FFmpegEncodeTimeoutSeconds`, `FFmpegRemuxTimeoutSeconds`, `FFmpegCpuEncodeTimeoutSeconds`, `RobocopyTimeoutSeconds`, `SourceScanIntervalSeconds`, `SourceScanTimeoutSeconds`, `IndexScanTimeoutSeconds`, `CleanupScanTimeoutSeconds`, `TransientFailureRetryLimit`, `AllowSystemTools`, `MkvmergeRemuxTimeoutSeconds` | Logging, scan cadence, timeout, retry, PATH fallback, failure-artifact warning and cleanup thresholds |
 | Queue / Reprocess | `PriorityMarkers`, `ProcessedIndexRefreshSeconds`, `MinPipelineVersion`, `ReprocessAll` | Priority markers, index refresh, reprocess mode |
-| Network | `NetworkRole`, `CoordinatorPort`, `CoordinatorBindAddress`, `CoordinatorAlsoEncodeLocally`, `CoordinatorHeartbeatTimeoutMins`, `WorkerCoordinatorUrl`, `WorkerName`, `WorkerPollIntervalSecs`, `WorkerSourcePathMap`, `WorkerConfigOverrides` | Non-secret network role/coordinator/worker settings |
+| Network | `NetworkRole`, `CoordinatorPort`, `CoordinatorBindAddress`, `CoordinatorAlsoEncodeLocally`, `CoordinatorHeartbeatTimeoutMins`, `NetworkRerunHandoffRoot`, `WorkerCoordinatorUrl`, `WorkerName`, `WorkerPollIntervalSecs`, `WorkerSourcePathMap`, `WorkerConfigOverrides` | Non-secret network role/coordinator/worker settings |
 
 ---
 

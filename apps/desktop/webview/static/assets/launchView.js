@@ -182,6 +182,13 @@
     })
     : {};
   const {
+    collectRerunExecutionTarget = function () { return "local"; },
+    collectRerunMinimumWorkerCount = function () { return 1; },
+    collectRerunNetworkStartDryRunRequest = function () { return { csv_path: "", execution_mode: "one_at_a_time", destination_mode: "auto_replace_clean_else_pending_review", collision_policy: "replace_final", window_size: 1, scope: collectRerunScopeRequest(), minimum_worker_count: 1, reason: "WebView Network CSV rerun operator review" }; },
+    collectRerunNetworkStartRequest = function (dryRunResult = {}) {
+      const data = dryRunResult && typeof dryRunResult.data === "object" ? dryRunResult.data : dryRunResult;
+      return { ...collectRerunNetworkStartDryRunRequest(), dry_run_fingerprint: String(data?.dry_run_fingerprint || ""), confirm_start: true };
+    },
     collectRerunPreviewRequest = function () { return { csv_path: "", execution_mode: "one_at_a_time", destination_mode: "auto_replace_clean_else_pending_review", collision_policy: "replace_final", window_size: 1, scope: { enabled_only: true, skip_blocked: false, skip_warning_rows: false, first_n: 0, issue_filters: [], bucket_filters: [], preview_limit: 50 } }; },
     collectRerunScopeRequest = function () { return { enabled_only: true, skip_blocked: false, skip_warning_rows: false, first_n: 0, issue_filter: "", bucket_filter: "", preview_limit: 50 }; },
     collectRerunStartRequest = function (options = {}) { return { csv_path: "", dry_run: Boolean(options.dry_run), plan_only: Boolean(options.plan_only), execution_mode: "one_at_a_time", destination_mode: "auto_replace_clean_else_pending_review", collision_policy: "replace_final", window_size: 1, confirm_replace_final: true, confirm_source_overwrite: false, scope: collectRerunScopeRequest() }; },
@@ -195,6 +202,26 @@
       return { destination_mode: destinationMode, collision_policy: collisionPolicy };
     },
   } = queueRerunRequest;
+
+  function rerunExecutionTarget() {
+    return collectRerunExecutionTarget() === "network" ? "network" : "local";
+  }
+
+  function rerunIsNetworkMode() {
+    return rerunExecutionTarget() === "network";
+  }
+
+  function rerunPreviewRouteName() {
+    return rerunIsNetworkMode() ? "/api/rerun/network-preview" : "/api/rerun/preview";
+  }
+
+  function rerunStartRouteName() {
+    return rerunIsNetworkMode() ? "/api/rerun/network/start" : "/api/rerun/start";
+  }
+
+  function rerunExecutionTargetLabel() {
+    return rerunIsNetworkMode() ? "Network CSV rerun" : "Local CSV rerun";
+  }
 
   const launchStatusRenderModule = window.__launchStatusRenderModule || {};
   delete window.__launchStatusRenderModule;
@@ -917,7 +944,10 @@
     try {
       const result = routeToRerunControl
         ? await queueRerunRouteDispatcher(rerunControlDispatcher)()
-        : await apiPost("/api/pipeline/control", { action: normalized });
+        : await apiPost("/api/pipeline/control", {
+          action: normalized,
+          ...(normalized === "kill" ? { confirm_force_stop: true } : {}),
+        });
       appendCommandResult(result);
       setPipelineControlMessage(result.message || "Control request sent.");
       if (routeToRerunControl) {
@@ -1090,23 +1120,6 @@
   async function startPendingPublishDrain() {
     if (rejectLaunchCommandWhileBusy("pending_publish.drain", "pending-drain-status", "pending-drain-detail")) return;
     const guard = typeof pendingDrainGuardState === "function" ? pendingDrainGuardState() : null;
-    if (guard && guard.allowed === false) {
-      const rejected = {
-        command: "pending_publish.drain",
-        ok: false,
-        severity: "warning",
-        message: guard.message || "Pending publish drain blocked by WebView evidence.",
-        data: {
-          frontend_guard: true,
-          decision_status: guard.decision_status || "unknown",
-        },
-      };
-      appendCommandResult(rejected);
-      setText("pending-drain-status", "Blocked");
-      setText("pending-drain-detail", typeof pendingDrainGuardLines === "function" ? pendingDrainGuardLines(guard).join("\n") : rejected.message);
-      if (typeof renderPendingDrainGuard === "function") renderPendingDrainGuard();
-      return;
-    }
     const request = {
       mode: "drain_pending_pushes",
       sleep_seconds: 30,
@@ -1382,7 +1395,8 @@
     const reason = rerunPreviewBlockedReason(request);
     if (reason) return `Resolve preview block: ${reason}`;
     const counts = rerunPreviewCounts(payload);
-    return `Review & Start submits /api/rerun/start to the backend for ${rerunCount(counts.effective_scoped_rows)} scoped row(s).`;
+    const route = rerunStartRouteName();
+    return `Review & Start submits ${route} to the backend for ${rerunCount(counts.effective_scoped_rows)} scoped row(s).`;
   }
 
   function renderRerunReviewHeader(payload = lastRerunPreviewPayload) {
@@ -1427,7 +1441,10 @@
   }
 
   function rerunLatestStartHistoryEntry() {
-    return rerunHistoryEntries().find((entry) => String(entry.command || entry.raw?.command || "") === "rerun.start") || null;
+    return rerunHistoryEntries().find((entry) => {
+      const command = String(entry.command || entry.raw?.command || "");
+      return command === "rerun.start" || command === "rerun.network.start";
+    }) || null;
   }
 
   function rerunResultRequestData(result = {}) {
@@ -1483,6 +1500,7 @@
     const destination = rerunPolicyChoice("destination", payload?.destination_mode || request.destination_mode || data.destination_mode || "auto_replace_clean_else_pending_review");
     const collision = rerunPolicyChoice("collision", payload?.collision_policy || request.collision_policy || data.collision_policy || "suffix");
     const execution = rerunExecutionLabel(payload?.execution_mode || request.execution_mode || data.execution_mode || "one_at_a_time");
+    const targetLabel = data.candidate_command === "rerun.network.start" || result?.command === "rerun.network.start" ? "Network CSV rerun" : rerunExecutionTargetLabel();
     const scopedRowCount = rerunCount(data.scoped_row_count ?? data.effective_scoped_rows ?? data.row_count ?? counts.effective_scoped_rows);
     const phaseNode = byId("rerun-lifecycle-phase");
     if (phaseNode) {
@@ -1496,6 +1514,7 @@
       `Phase: ${phase}.`,
       `CSV: ${csvPath || "not selected"}.`,
       payload ? `Preview rows: total ${rerunCount(counts.total_rows)}, scoped ${rerunCount(counts.effective_scoped_rows)}, blocked ${rerunCount(counts.blocked_rows)}, warnings ${rerunCount(counts.warning_rows)}.` : "Preview rows: not loaded.",
+      `Target: ${targetLabel}.`,
       `Command: ${commandStatus}`,
     ].join(" "));
     setText("rerun-lifecycle-detail", [
@@ -1690,7 +1709,7 @@
   function rerunSourceHandlingLine(request) {
     if (rerunFinalReplacementSelected(request)) {
       return request && request.confirm_source_overwrite
-        ? "Source handling: source-path overwrite is explicitly confirmed when backend planning proves the final output path is the CSV source path."
+        ? "Source handling: source-path overwrite is explicitly confirmed; replace-final destinations use the CSV source path."
         : "Source handling: source files stay untouched unless source-path overwrite is explicitly confirmed.";
     }
     return "Source handling: source files stay untouched; destination/collision only control verified output placement.";
@@ -1847,17 +1866,20 @@
   }
 
   function renderRerunPreviewStatus(cell, item = {}) {
+    const stack = document.createElement("div");
+    stack.className = "rerun-preview-state-stack";
     const badge = document.createElement("span");
     badge.className = "rerun-state-badge";
     badge.dataset.severity = rerunStatusSeverity(item.status);
     badge.textContent = item.status || "unknown";
-    cell.appendChild(badge);
+    stack.appendChild(badge);
     if (item.in_scope === false) {
       const scoped = document.createElement("span");
       scoped.className = "rerun-scope-chip";
       scoped.textContent = "filtered";
-      cell.appendChild(scoped);
+      stack.appendChild(scoped);
     }
+    cell.appendChild(stack);
   }
 
   function renderRerunPreviewReason(cell, item = {}) {
@@ -1873,6 +1895,16 @@
       return;
     }
     lines.forEach((line) => appendRerunText(cell, "rerun-row-reason-line", line, line));
+  }
+
+  function renderRerunPreviewDestination(cell, payload) {
+    const stack = document.createElement("div");
+    stack.className = "rerun-preview-destination-stack";
+    const destination = rerunPolicyChoice("destination", (payload && payload.destination_mode) || "auto_replace_clean_else_pending_review").label;
+    const execution = rerunExecutionLabel((payload && payload.execution_mode) || "one_at_a_time");
+    appendRerunText(stack, "rerun-row-destination-line", destination, `Destination handling: ${destination}`);
+    appendRerunText(stack, "rerun-row-meta", execution, `Execution: ${execution}`);
+    cell.appendChild(stack);
   }
 
   function renderRerunPreviewRows(payload) {
@@ -1900,8 +1932,9 @@
       const categoryCell = appendCell(row, "", "rerun-preview-category-cell");
       categoryCell.dataset.label = "Categories";
       renderRerunPreviewCategoryChips(categoryCell, item);
-      const destinationCell = appendCell(row, `${rerunPolicyChoice("destination", (payload && payload.destination_mode) || "auto_replace_clean_else_pending_review").label} / ${rerunExecutionLabel((payload && payload.execution_mode) || "one_at_a_time")}`);
+      const destinationCell = appendCell(row, "", "rerun-preview-destination-cell");
       destinationCell.dataset.label = "Destination";
+      renderRerunPreviewDestination(destinationCell, payload);
       const reasonCell = appendCell(row, "", "rerun-preview-reason-cell");
       reasonCell.dataset.label = "Reason";
       renderRerunPreviewReason(reasonCell, item);
@@ -1911,7 +1944,10 @@
 
   function renderRerunHistorySummary() {
     const entries = rerunHistoryEntries()
-      .filter((entry) => String(entry.command || entry.raw?.command || "") === "rerun.start")
+      .filter((entry) => {
+        const command = String(entry.command || entry.raw?.command || "");
+        return command === "rerun.start" || command === "rerun.network.start" || command === "rerun.network.start_dry_run";
+      })
       .slice(0, 6);
     if (!entries.length) {
       setText("rerun-history-summary", "No CSV rerun history loaded.");
@@ -2184,7 +2220,8 @@
     const disabled = busy || Boolean(reason);
     button.disabled = disabled;
     button.setAttribute("aria-disabled", disabled ? "true" : "false");
-    button.title = disabled ? (reason || "CSV rerun command is already in progress.") : "Review backend preview and start CSV rerun.";
+    button.title = disabled ? (reason || "CSV rerun command is already in progress.") : `Review backend preview and start ${rerunExecutionTargetLabel()}.`;
+    button.textContent = rerunIsNetworkMode() ? "Start Network Batch" : "Review & Start";
     applyRerunOpenButtonState();
     renderRerunReviewHeader(lastRerunPreviewPayload);
     renderRerunLifecycleEvidence(lastRerunPreviewPayload, lastRerunCommandResult);
@@ -2195,17 +2232,18 @@
     renderLaunchPreflight("rerun-queue-preflight", rerunQueuePreflightLines(collectRerunStartRequest({ dry_run: false })));
     if (!options.quiet) {
       setText("rerun-queue-status", "Reading CSV");
-      setText("rerun-queue-detail", "Reading backend CSV rerun preview.");
+      setText("rerun-queue-detail", `Reading backend ${rerunExecutionTargetLabel()} preview.`);
     }
     try {
-      const result = await queueRerunRouteDispatcher("postRerunPreview")(request);
+      const dispatcher = rerunIsNetworkMode() ? "postRerunNetworkPreview" : "postRerunPreview";
+      const result = await queueRerunRouteDispatcher(dispatcher)(request);
       renderRerunPreview(result);
       if (!options.quiet) {
         setText("rerun-queue-status", result.status || (result.ok ? "Ready" : "Blocked"));
         renderJsonDetail("rerun-queue-detail", {
           label: "CSV rerun preview",
           value: result,
-          intro: "Backend read-only CSV rerun preview.",
+          intro: `Backend read-only CSV rerun preview from ${rerunPreviewRouteName()}.`,
         });
       }
       return result;
@@ -2271,7 +2309,203 @@
     });
   }
 
+  function networkDryRunFingerprint(result = {}) {
+    const data = result && typeof result.data === "object" ? result.data : {};
+    return String(data.dry_run_fingerprint || result.dry_run_fingerprint || "").trim();
+  }
+
+  function networkDryRunSafeToApply(result = {}) {
+    const data = result && typeof result.data === "object" ? result.data : {};
+    return result.ok !== false && data.safe_to_apply === true && Boolean(networkDryRunFingerprint(result));
+  }
+
+  async function checkNetworkRerunStartDryRunFromForm() {
+    if (rejectLaunchCommandWhileBusy("rerun.network.start_dry_run", "rerun-queue-status", "rerun-queue-detail")) return;
+    const request = collectRerunNetworkStartDryRunRequest();
+    renderLaunchPreflight("rerun-queue-preflight", rerunQueuePreflightLines(collectRerunStartRequest({ dry_run: false })));
+    if (!String(request.csv_path || "").trim()) {
+      const missing = {
+        command: "rerun.network.start_dry_run",
+        ok: false,
+        severity: "blocked",
+        message: "CSV path is required.",
+        frontend_guard: true,
+      };
+      renderLaunchCommandResult("rerun-queue-status", "rerun-queue-detail", missing, request);
+      return missing;
+    }
+    setLaunchCommandBusy(true);
+    setText("rerun-queue-status", "Checking network start");
+    renderJsonDetail("rerun-queue-detail", {
+      label: "Network CSV rerun start dry-run",
+      value: request,
+      intro: "Backend dry-run checks coordinator readiness, worker evidence, handoff root, and planned state writes.",
+    });
+    try {
+      const result = await queueRerunRouteDispatcher("postRerunNetworkStartDryRun")(request);
+      const resultWithRequest = { ...result, request };
+      lastRerunCommandResult = resultWithRequest;
+      appendCommandResult(resultWithRequest);
+      renderLaunchCommandResult("rerun-queue-status", "rerun-queue-detail", resultWithRequest, request);
+      renderRerunLifecycleEvidence(lastRerunPreviewPayload, lastRerunCommandResult);
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const result = {
+        command: "rerun.network.start_dry_run",
+        ok: false,
+        severity: "error",
+        message,
+        request,
+      };
+      lastRerunCommandResult = result;
+      appendCommandResult(result);
+      renderLaunchCommandResult("rerun-queue-status", "rerun-queue-detail", result, request);
+      renderRerunLifecycleEvidence(lastRerunPreviewPayload, lastRerunCommandResult);
+      return result;
+    } finally {
+      setLaunchCommandBusy(false);
+      applyRerunPreviewButtonState();
+    }
+  }
+
+  async function startNetworkRerunFromForm(options = {}) {
+    if (rejectLaunchCommandWhileBusy("rerun.network.start", "rerun-queue-status", "rerun-queue-detail")) return;
+    const dryRunRequest = collectRerunNetworkStartDryRunRequest();
+    const previewRequest = collectRerunStartRequest({ dry_run: false, plan_only: false });
+    const actionLabel = "Network CSV rerun";
+    const modeSummary = `${rerunStartPolicySummary(previewRequest)}; minimum workers ${collectRerunMinimumWorkerCount()}`;
+    renderLaunchPreflight("rerun-queue-preflight", rerunQueuePreflightLines(previewRequest));
+    if (!String(dryRunRequest.csv_path || "").trim()) {
+      const missing = {
+        command: "rerun.network.start",
+        ok: false,
+        severity: "blocked",
+        message: "CSV path is required.",
+        frontend_guard: true,
+      };
+      renderLaunchCommandResult("rerun-queue-status", "rerun-queue-detail", missing, dryRunRequest);
+      renderRerunLifecycleEvidence(lastRerunPreviewPayload, missing);
+      applyRerunPreviewButtonState();
+      return;
+    }
+    const preview = await refreshRerunPreview({ quiet: true });
+    if (!preview || preview.status === "blocked") {
+      const blocked = {
+        command: "rerun.network.start",
+        ok: false,
+        severity: "blocked",
+        message: preview?.message || "Network CSV rerun preview is blocked.",
+        frontend_guard: true,
+        data: preview || {},
+      };
+      renderLaunchCommandResult("rerun-queue-status", "rerun-queue-detail", blocked, dryRunRequest);
+      renderRerunLifecycleEvidence(lastRerunPreviewPayload, blocked);
+      applyRerunPreviewButtonState();
+      return;
+    }
+    const rerunButtonId = "rerun-start-button";
+    const rerunBtn = byId(rerunButtonId);
+    const rerunBtnText = rerunBtn ? rerunBtn.textContent : "";
+    if (rerunBtn) rerunBtn.textContent = "Checking...";
+    setLaunchCommandBusy(true);
+    setText("rerun-queue-status", "Checking network start");
+    renderJsonDetail("rerun-queue-detail", {
+      label: "Network CSV rerun start dry-run",
+      value: dryRunRequest,
+      intro: "Backend start dry-run request before confirmed Network CSV rerun start.",
+    });
+    renderRerunTopbarPending(dryRunRequest, actionLabel, "dry-run", "waiting for backend proof");
+    try {
+      const dryRun = await queueRerunRouteDispatcher("postRerunNetworkStartDryRun")(dryRunRequest);
+      const dryRunWithRequest = { ...dryRun, request: dryRunRequest };
+      lastRerunCommandResult = dryRunWithRequest;
+      appendCommandResult(dryRunWithRequest);
+      renderLaunchCommandResult("rerun-queue-status", "rerun-queue-detail", dryRunWithRequest, dryRunRequest);
+      renderRerunLifecycleEvidence(lastRerunPreviewPayload, lastRerunCommandResult);
+      if (!networkDryRunSafeToApply(dryRun)) {
+        renderRerunTopbarFinished(dryRunRequest, actionLabel, `${actionLabel} dry-run blocked`);
+        applyRerunPreviewButtonState();
+        return dryRun;
+      }
+      if (rerunBtn) rerunBtn.textContent = "Confirming...";
+      setText("rerun-queue-status", "Confirming");
+      setText("rerun-queue-detail", `Confirm Network CSV rerun batch start with ${modeSummary} policy.`);
+      await nextLaunchCommandFrame();
+      if (!window.confirm(`Start Network CSV rerun batch after backend dry-run proof with ${modeSummary} policy?`)) {
+        const canceled = {
+          command: "rerun.network.start",
+          ok: false,
+          severity: "info",
+          message: `${actionLabel} canceled.`,
+          data: { dry_run_fingerprint: networkDryRunFingerprint(dryRun) },
+          request: dryRunRequest,
+        };
+        lastRerunCommandResult = canceled;
+        appendCommandResult(canceled);
+        renderRerunTopbarFinished(dryRunRequest, actionLabel, canceled.message);
+        setText("rerun-queue-status", "Canceled");
+        setText("rerun-queue-detail", canceled.message);
+        renderRerunLifecycleEvidence(lastRerunPreviewPayload, lastRerunCommandResult);
+        return canceled;
+      }
+      const startRequest = collectRerunNetworkStartRequest(dryRun);
+      if (rerunBtn) rerunBtn.textContent = "Starting...";
+      setText("rerun-queue-status", "Starting network batch");
+      renderJsonDetail("rerun-queue-detail", {
+        label: "Submitted request",
+        value: startRequest,
+        intro: "Confirmed Network CSV rerun request is about to be submitted to the backend.",
+      });
+      renderRerunTopbarPending(startRequest, actionLabel, "submitted", "waiting for backend response");
+      const result = await queueRerunRouteDispatcher("postRerunNetworkStart")(startRequest);
+      const resultWithRequest = { ...result, request: startRequest };
+      lastRerunCommandResult = resultWithRequest;
+      appendCommandResult(resultWithRequest);
+      renderLaunchCommandResult("rerun-queue-status", "rerun-queue-detail", resultWithRequest, startRequest);
+      renderRerunLifecycleEvidence(lastRerunPreviewPayload, lastRerunCommandResult);
+      if (result.ok) {
+        window.setTopbarPendingLaunch?.({
+          label: actionLabel,
+          status_label: "accepted",
+          wait_label: "waiting for worker claim evidence",
+        });
+        window.mediaPipelineAppTopbar?.renderTopbarActivity?.({
+          activity: `${actionLabel} accepted${rerunCsvLeaf(startRequest.csv_path) ? `: ${rerunCsvLeaf(startRequest.csv_path)}` : ""}`,
+          current_work: { phase_label: actionLabel },
+          progress: { CurrentStage: "Network CSV rerun" },
+        });
+      } else {
+        renderRerunTopbarFinished(startRequest, actionLabel, `${actionLabel} did not start`);
+      }
+      if ((result.refresh_hint || "") === "snapshot") {
+        await refreshAll();
+      }
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const result = {
+        command: "rerun.network.start",
+        ok: false,
+        severity: "error",
+        message,
+        request: dryRunRequest,
+      };
+      lastRerunCommandResult = result;
+      renderRerunTopbarFinished(dryRunRequest, actionLabel, `${actionLabel} failed: ${message}`);
+      appendCommandResult(result);
+      renderLaunchCommandResult("rerun-queue-status", "rerun-queue-detail", result, dryRunRequest);
+      renderRerunLifecycleEvidence(lastRerunPreviewPayload, lastRerunCommandResult);
+      return result;
+    } finally {
+      setLaunchCommandBusy(false);
+      if (rerunBtn) rerunBtn.textContent = rerunBtnText || "Start Network Batch";
+      applyRerunPreviewButtonState();
+    }
+  }
+
   async function startRerunFromForm(options = {}) {
+    if (rerunIsNetworkMode()) return startNetworkRerunFromForm(options);
     if (rejectLaunchCommandWhileBusy("rerun.start", "rerun-queue-status", "rerun-queue-detail")) return;
     const request = collectRerunStartRequest({ dry_run: false, plan_only: false });
     const actionLabel = "CSV rerun";
@@ -2396,6 +2630,10 @@
    * Prefer this namespace from new code; flat window.* exports are not provided.
    */
   window.mediaPipelineCsvRerunWorkflow = {
+    collectRerunExecutionTarget,
+    collectRerunMinimumWorkerCount,
+    collectRerunNetworkStartDryRunRequest,
+    collectRerunNetworkStartRequest,
     collectRerunPreviewRequest,
     collectRerunScopeRequest,
     collectRerunStartRequest,
@@ -2416,6 +2654,8 @@
     renderRerunResults,
     requestRerunContinue,
     renderRerunHistorySummary,
+    checkNetworkRerunStartDryRunFromForm,
+    startNetworkRerunFromForm,
     startRerunFromForm,
     rerunQueuePreflightLines,
     renderRerunQueuePreflight,

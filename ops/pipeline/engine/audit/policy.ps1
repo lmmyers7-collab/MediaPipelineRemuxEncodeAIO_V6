@@ -142,13 +142,29 @@ function Import-AuditScorePolicy {
     }
     try {
         $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
-        if ($null -ne $raw -and $raw.PSObject.Properties.Name -contains 'policy') {
-            return ConvertTo-AuditScorePolicy -Policy $raw.policy
-        }
-        return ConvertTo-AuditScorePolicy -Policy $raw
     } catch {
-        return $defaults
+        throw "Audit score policy is invalid at '$Path': $($_.Exception.Message)"
     }
+    if ($null -eq $raw -or $raw -is [array] -or $raw -isnot [pscustomobject]) {
+        throw "Audit score policy is invalid at '$Path': expected JSON object."
+    }
+    if ($raw.PSObject.Properties.Name -contains 'version') {
+        try {
+            $version = [int]$raw.version
+        } catch {
+            throw "Audit score policy is invalid at '$Path': expected version 1 or 2."
+        }
+        if ($version -notin @(1, 2)) {
+            throw "Audit score policy is invalid at '$Path': expected version 1 or 2."
+        }
+    }
+    if ($raw.PSObject.Properties.Name -contains 'policy') {
+        if ($null -eq $raw.policy -or $raw.policy -is [array] -or $raw.policy -isnot [pscustomobject]) {
+            throw "Audit score policy is invalid at '$Path': expected policy object."
+        }
+        return ConvertTo-AuditScorePolicy -Policy $raw.policy
+    }
+    return ConvertTo-AuditScorePolicy -Policy $raw
 }
 
 function Get-AuditScorePolicyValue {
@@ -200,16 +216,22 @@ function Import-AuditIgnoreManifest {
     if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) {
         return $entries
     }
+
     try {
         $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
-        if ($null -eq $raw -or -not ($raw.PSObject.Properties.Name -contains 'entries')) {
-            return $entries
-        }
-        foreach ($property in $raw.entries.PSObject.Properties) {
-            $key = ConvertTo-AuditIgnoreKey -Path $property.Name
-            if ($key) { $entries[$key] = $property.Value }
-        }
-    } catch {}
+    } catch {
+        throw "Audit ignore manifest is invalid at '$Path': $($_.Exception.Message)"
+    }
+    if ($null -eq $raw -or -not ($raw.PSObject.Properties.Name -contains 'version') -or [int]$raw.version -ne 1) {
+        throw "Audit ignore manifest is invalid at '$Path': expected version 1."
+    }
+    if (-not ($raw.PSObject.Properties.Name -contains 'entries') -or $null -eq $raw.entries -or $raw.entries -isnot [pscustomobject]) {
+        throw "Audit ignore manifest is invalid at '$Path': expected entries object."
+    }
+    foreach ($property in $raw.entries.PSObject.Properties) {
+        $key = ConvertTo-AuditIgnoreKey -Path $property.Name
+        if ($key) { $entries[$key] = $property.Value }
+    }
     return $entries
 }
 

@@ -251,6 +251,36 @@ function Test-MediaPipelineConfigPathShape {
             if ($enabled -and $promotionEnabled -and [string]::IsNullOrWhiteSpace($promotionDestination)) {
                 $Errors.Add("$label promotion_destination cannot be empty when promotion is enabled.")
             }
+            foreach ($profilePath in @(
+                @{ Name = 'source_path'; Value = $sourcePath; Required = $enabled },
+                @{ Name = 'output_path'; Value = $outputPath; Required = $enabled -and -not [string]::IsNullOrWhiteSpace($outputPath) },
+                @{ Name = 'promotion_destination'; Value = $promotionDestination; Required = $enabled -and $promotionEnabled }
+            )) {
+                if (-not [bool]$profilePath.Required -or [string]::IsNullOrWhiteSpace([string]$profilePath.Value)) { continue }
+                if (-not (Test-MediaPipelineConfigPathIsFullyQualified -Path ([string]$profilePath.Value))) {
+                    $Errors.Add("$label $($profilePath.Name) must be an absolute path.")
+                }
+            }
+            if ($enabled) {
+                foreach ($profilePathPair in @(
+                    @{ LeftName = 'source_path'; Left = $sourcePath; RightName = 'output_path'; Right = $outputPath; Enabled = $true },
+                    @{ LeftName = 'source_path'; Left = $sourcePath; RightName = 'promotion_destination'; Right = $promotionDestination; Enabled = $promotionEnabled },
+                    @{ LeftName = 'output_path'; Left = $outputPath; RightName = 'promotion_destination'; Right = $promotionDestination; Enabled = $promotionEnabled }
+                )) {
+                    if (-not [bool]$profilePathPair.Enabled) { continue }
+                    $leftProfilePath = [string]$profilePathPair.Left
+                    $rightProfilePath = [string]$profilePathPair.Right
+                    if ([string]::IsNullOrWhiteSpace($leftProfilePath) -or [string]::IsNullOrWhiteSpace($rightProfilePath)) { continue }
+                    if (-not (Test-MediaPipelineConfigPathIsFullyQualified -Path $leftProfilePath) -or -not (Test-MediaPipelineConfigPathIsFullyQualified -Path $rightProfilePath)) { continue }
+                    $leftProfileRoot = Normalize-MediaPipelineConfigPathForCompare -Path $leftProfilePath
+                    $rightProfileRoot = Normalize-MediaPipelineConfigPathForCompare -Path $rightProfilePath
+                    if ($leftProfileRoot -eq $rightProfileRoot -or
+                        $leftProfileRoot.StartsWith($rightProfileRoot + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase) -or
+                        $rightProfileRoot.StartsWith($leftProfileRoot + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) {
+                        $Errors.Add("$label $($profilePathPair.LeftName) and $label $($profilePathPair.RightName) must not be nested inside each other.")
+                    }
+                }
+            }
             if ($enabled -and -not [string]::IsNullOrWhiteSpace($sourcePath)) {
                 $sourceKey = Normalize-MediaPipelineConfigPathForCompare -Path $sourcePath
                 if (-not [string]::IsNullOrWhiteSpace($sourceKey)) {

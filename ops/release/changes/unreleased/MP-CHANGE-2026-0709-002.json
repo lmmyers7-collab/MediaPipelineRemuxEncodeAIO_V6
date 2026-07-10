@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0709-002",
+  "title": "Coordinate full code sweep review",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-07-09",
+  "date_completed": "2026-07-09",
+  "summary": "Reconcile all 15 full-code-sweep worker reports into one evidence-led coordinator review without changing product behavior.",
+  "reason": "The sweep requires one documentation-owned evidence ledger that deduplicates worker leads, independently verifies high-severity and disputed findings, and records remediation and validation requirements without changing product behavior.",
+  "affected_areas": [
+    "docs",
+    "documentation",
+    "release-change-control"
+  ],
+  "behavior_before": "No coordinator review record exists for the requested 2026-07-09 sweep; the expected worker-report directory is absent in this workspace.",
+  "behavior_after": "A coordinator review records all 15 worker reports, verified root-cause findings, unresolved leads, remediation order, no-touch boundaries, and validation requirements.",
+  "files_touched": [
+    "docs/reviews/full-code-sweep-2026-07-09/COORDINATOR_REVIEW.md",
+    "docs/reviews/full-code-sweep-2026-07-09/completed-output-review.md",
+    "docs/reviews/full-code-sweep-2026-07-09/diagnostics-review.md",
+    "docs/reviews/full-code-sweep-2026-07-09/home-review.md",
+    "docs/reviews/full-code-sweep-2026-07-09/launch-review.md",
+    "docs/reviews/full-code-sweep-2026-07-09/libraries-review.md",
+    "docs/reviews/full-code-sweep-2026-07-09/maintenance-review.md",
+    "docs/reviews/full-code-sweep-2026-07-09/metrics-review.md",
+    "docs/reviews/full-code-sweep-2026-07-09/network-workers-review.md",
+    "docs/reviews/full-code-sweep-2026-07-09/pending-publish-review.md",
+    "docs/reviews/full-code-sweep-2026-07-09/queue-review.md",
+    "docs/reviews/full-code-sweep-2026-07-09/rename-review.md",
+    "docs/reviews/full-code-sweep-2026-07-09/reports-review.md",
+    "docs/reviews/full-code-sweep-2026-07-09/schedule-review.md",
+    "docs/reviews/full-code-sweep-2026-07-09/settings-review.md",
+    "docs/reviews/full-code-sweep-2026-07-09/telemetry-review.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0709-002.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Read and reconciled all 15 worker reports; recorded each path in files_touched.",
+    "Independently reopened cited P0/P1 and material P2 source evidence for the coordinator ledger.",
+    "git diff --check passed for the coordinator review and change packet.",
+    "Change-packet JSON parsed successfully."
+  ],
+  "rollback_plan": "Remove the coordinator review record and this change packet if the documentation intake must be withdrawn; no production behavior or runtime state is affected.",
+  "related_changes": [],
+  "notes": "All 15 report paths are recorded as coordinator evidence and were not modified. The only coordinator-authored review is COORDINATOR_REVIEW.md. `git diff --check` passed. Documentation release self-test exceeded the available 60-second execution window. Strict worktree coverage validation was attempted but is blocked by unrelated malformed MP-CHANGE-2026-0707-001.json and unrelated uncovered worktree changes."
+}
