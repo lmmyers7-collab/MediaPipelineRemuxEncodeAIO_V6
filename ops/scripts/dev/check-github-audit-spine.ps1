@@ -56,14 +56,26 @@ if ($DependabotConfig -notmatch "package-ecosystem:\s+pip[\s\S]*?directory:\s+/r
 }
 
 $CodeqlWorkflow = Get-Content -LiteralPath (Join-Path $RepoRoot ".github/workflows/codeql.yml") -Raw
-foreach ($Expected in @("python", "javascript-typescript", "rust", "actions", "security-events: write", "CODEQL_UPLOAD_MODE", "codeql-results", "upload-artifact", "GITHUB_STEP_SUMMARY")) {
+foreach ($Expected in @("python", "javascript-typescript", "rust", "actions", "security-events: write", "CODEQL_UPLOAD_MODE: always", "upload: always", "codeql-results", "upload-artifact", "GITHUB_STEP_SUMMARY")) {
     if ($CodeqlWorkflow -notmatch [regex]::Escape($Expected)) {
         throw "CodeQL workflow is missing expected token: $Expected"
     }
 }
-foreach ($Forbidden in @('Path(''${{ matrix.language }}'')', 'upload mode: ${{ vars.CODEQL_UPLOAD_MODE')) {
+foreach ($Forbidden in @('Path(''${{ matrix.language }}'')', 'upload mode: ${{ vars.CODEQL_UPLOAD_MODE', 'vars.CODEQL_UPLOAD_MODE', 'upload: never')) {
     if ($CodeqlWorkflow -match [regex]::Escape($Forbidden)) {
         throw "CodeQL workflow still interpolates GitHub expressions inside a run block: $Forbidden"
+    }
+}
+
+foreach ($WorkflowPath in @(".github/workflows/phase1-drift.yml", ".github/workflows/deep-audit.yml")) {
+    $Workflow = Get-Content -LiteralPath (Join-Path $RepoRoot $WorkflowPath) -Raw
+    if ($Workflow -match [regex]::Escape('${{ runner.temp }}')) {
+        throw "Workflow must not use runner.temp at job scope: $WorkflowPath"
+    }
+    foreach ($Expected in @("Use runner temporary directory", 'TMP=$env:RUNNER_TEMP', 'TEMP=$env:RUNNER_TEMP', '$env:GITHUB_ENV')) {
+        if ($Workflow -notmatch [regex]::Escape($Expected)) {
+            throw "Workflow is missing runtime runner-temp setup token '$Expected': $WorkflowPath"
+        }
     }
 }
 
@@ -83,14 +95,14 @@ foreach ($Expected in @("ai_guardrail", "audit_checks run deep-audit", "unittest
         throw "Deep audit workflow is missing expected token: $Expected"
     }
 }
-foreach ($Expected in @("permissions:", "contents: read", "Initialize-CiPythonRuntime.ps1 -InstallDependencies", "Initialize-CiMediaTools.ps1 -InstallMissing", 'TMP: ${{ runner.temp }}', 'TEMP: ${{ runner.temp }}', "timeout-minutes: 60", "timeout-minutes: 90")) {
+foreach ($Expected in @("permissions:", "contents: read", "Initialize-CiPythonRuntime.ps1 -InstallDependencies", "Initialize-CiMediaTools.ps1 -InstallMissing", "Use runner temporary directory", 'TMP=$env:RUNNER_TEMP', 'TEMP=$env:RUNNER_TEMP', '$env:GITHUB_ENV', "timeout-minutes: 60", "timeout-minutes: 90")) {
     if ($DeepAuditWorkflow -notmatch [regex]::Escape($Expected)) {
         throw "Deep audit workflow is missing expected hardening token: $Expected"
     }
 }
 
 $Phase1Workflow = Get-Content -LiteralPath (Join-Path $RepoRoot ".github/workflows/phase1-drift.yml") -Raw
-foreach ($Expected in @("permissions:", "contents: read", "MP_GITHUB_BASE_REF", "Initialize-CiPythonRuntime.ps1 -InstallDependencies", "Initialize-CiMediaTools.ps1 -InstallMissing", 'TMP: ${{ runner.temp }}', 'TEMP: ${{ runner.temp }}', "timeout-minutes: 60", "timeout-minutes: 90", "audit_checks run phase1-generated")) {
+foreach ($Expected in @("permissions:", "contents: read", "MP_GITHUB_BASE_REF", "Initialize-CiPythonRuntime.ps1 -InstallDependencies", "Initialize-CiMediaTools.ps1 -InstallMissing", "Use runner temporary directory", 'TMP=$env:RUNNER_TEMP', 'TEMP=$env:RUNNER_TEMP', '$env:GITHUB_ENV', "timeout-minutes: 60", "timeout-minutes: 90", "audit_checks run phase1-generated")) {
     if ($Phase1Workflow -notmatch [regex]::Escape($Expected)) {
         throw "Generated drift workflow is missing expected hardening token: $Expected"
     }

@@ -51,13 +51,13 @@ jobs:
         with:
           category: /language:${{ matrix.language }}
           output: codeql-results
-          upload: ${{ vars.CODEQL_UPLOAD_MODE || 'never' }}
+          upload: always
 
       - name: Summarize CodeQL SARIF
         if: always() && hashFiles('codeql-results/*.sarif') != ''
         env:
           CODEQL_LANGUAGE: ${{ matrix.language }}
-          CODEQL_UPLOAD_MODE: ${{ vars.CODEQL_UPLOAD_MODE || 'never' }}
+          CODEQL_UPLOAD_MODE: always
         run: |
           python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json
@@ -73,7 +73,7 @@ jobs:
           print(f"### CodeQL {Path(os.environ.get('CODEQL_LANGUAGE', 'unknown')).name}")
           print(f"SARIF files: {len(sarif_files)}")
           print(f"Findings: {count}")
-          print(f"Code Scanning upload mode: {os.environ.get('CODEQL_UPLOAD_MODE', 'never')}")
+          print(f"Code Scanning upload mode: {os.environ['CODEQL_UPLOAD_MODE']}")
           PY
 
       - name: Upload CodeQL SARIF artifact

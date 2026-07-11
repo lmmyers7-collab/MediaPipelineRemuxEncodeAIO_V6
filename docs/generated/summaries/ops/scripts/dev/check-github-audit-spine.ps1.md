@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-26
-sha256: 17f50e2db0fbd3a630d49d62f06cc0a8865b676bf854358c49df7052956c0a7b
+sha256: 9384bd47e51283ef1d28cdbb19e1024e7295393784dad0c45582514a66f4809e
 ---
 # `ops/scripts/dev/check-github-audit-spine.ps1`
 

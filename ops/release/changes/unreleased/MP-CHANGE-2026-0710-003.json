@@ -1,0 +1,43 @@
+{
+  "id": "MP-CHANGE-2026-0710-003",
+  "title": "Fix CI runner temporary-directory contexts",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-10",
+  "date_completed": null,
+  "summary": "Replace invalid job-level runner.temp expressions with runtime RUNNER_TEMP setup for the Windows CI workflows.",
+  "reason": "GitHub rejected Generated Drift and Deep Audit before creating jobs because runner context is unavailable at job-level env evaluation. The workflows must set temporary directories after a runner is assigned.",
+  "affected_areas": [
+    "ci",
+    "docs",
+    "release",
+    "tooling"
+  ],
+  "behavior_before": "Windows CI jobs declared TMP and TEMP from ${{ runner.temp }} at job scope, causing GitHub Actions workflow validation to fail before jobs started.",
+  "behavior_after": "Each Windows CI job writes TMP and TEMP from RUNNER_TEMP to GITHUB_ENV in a PowerShell step, preserving runner-temp isolation after runner allocation.",
+  "files_touched": [
+    ".github/workflows/deep-audit.yml",
+    ".github/workflows/phase1-drift.yml",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/.github/workflows/phase1-drift.yml.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0710-003.json.md",
+    "docs/generated/summaries/ops/scripts/dev/check-github-audit-spine.ps1.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-003.json",
+    "ops/scripts/dev/check-github-audit-spine.ps1"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "GitHub audit-spine guard rejects job-level runner.temp and requires runtime runner-temp setup.",
+    "Phase1 generated audit suite and local YAML parsing passed after the workflow repair.",
+    "The deep-audit suite passed after the workflow-context repair."
+  ],
+  "rollback_plan": "Revert the runtime GITHUB_ENV setup and restore only a GitHub-supported runner-context placement; rerun GitHub workflow parsing, the audit spine, and phase-one generated checks before publishing.",
+  "related_changes": [
+    "MP-CHANGE-2026-0710-001"
+  ],
+  "notes": "Move runner-temp use to runtime PowerShell steps.\nGuard workflows against invalid job-level runner context.\nRefresh the phase-one workflow summary after moving runner temp setup to runtime.\nRefresh the audit-spine summary after guarding runner-context placement.\nRecord the generated summary for this workflow-context change packet.\nRegenerate project index after adding the follow-up change packet.\nRegenerate dependency graph after adding the follow-up change packet.\nRegenerate feature map after adding the follow-up change packet."
+}

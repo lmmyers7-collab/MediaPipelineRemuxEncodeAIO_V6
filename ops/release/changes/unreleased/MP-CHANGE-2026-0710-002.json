@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0710-002",
+  "title": "Require CodeQL SARIF uploads",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-10",
+  "date_completed": null,
+  "summary": "Require the advanced CodeQL workflow to upload SARIF findings to GitHub Code Scanning instead of retaining artifact-only results.",
+  "reason": "The repository is now public and Code Scanning is available, but the prior opt-in upload fallback could let checks pass without publishing findings. The strict CI baseline must preserve actual scanning evidence.",
+  "affected_areas": [
+    "ci",
+    "docs",
+    "release",
+    "tooling"
+  ],
+  "behavior_before": "CodeQL wrote SARIF artifacts but defaulted the upload input to never unless a repository variable opted in.",
+  "behavior_after": "CodeQL always uploads SARIF to Code Scanning, retains the artifact evidence, and the audit spine rejects the former opt-out fallback.",
+  "files_touched": [
+    ".github/workflows/codeql.yml",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0710-002.json.md",
+    "docs/generated/summaries/ops/scripts/dev/check-github-audit-spine.ps1.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-002.json",
+    "ops/scripts/dev/check-github-audit-spine.ps1"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "GitHub audit-spine guard and YAML parsing passed with CodeQL upload set to always.",
+    "The deep-audit suite passed with the strict CodeQL upload contract.",
+    "The phase1 generated audit suite passed after refreshing affected summaries."
+  ],
+  "rollback_plan": "Restore the prior CodeQL artifact-only upload fallback only if repository Code Scanning becomes unavailable and an explicit security decision approves that reduced assurance; rerun the audit spine and workflow validation.",
+  "related_changes": [
+    "MP-CHANGE-2026-0625-019",
+    "MP-CHANGE-2026-0710-001"
+  ],
+  "notes": "Require CodeQL SARIF uploads on the public repository.\nGuard strict CodeQL upload behavior.\nRefresh the audit-spine summary after enforcing CodeQL uploads.\nRecord the generated summary for this CodeQL change packet.\nRegenerate project index after adding the follow-up change packet.\nRegenerate dependency graph after adding the follow-up change packet.\nRegenerate feature map after adding the follow-up change packet."
+}
