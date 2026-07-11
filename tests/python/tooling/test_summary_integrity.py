@@ -192,6 +192,19 @@ class SummaryIntegrityTests(unittest.TestCase):
             "docs/generated/FILE_SUMMARIES.md.md",
         )
 
+    def test_summary_fingerprint_normalizes_windows_and_unix_line_endings(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            unix_source = root / "unix.py"
+            windows_source = root / "windows.py"
+            unix_source.write_bytes(b"value = 1\nvalue += 1\n")
+            windows_source.write_bytes(b"value = 1\r\nvalue += 1\r\n")
+
+            self.assertEqual(
+                refresh_summaries.sha256_of(unix_source),
+                refresh_summaries.sha256_of(windows_source),
+            )
+
     def test_existing_nonstandard_extension_summary_can_be_refreshed_explicitly(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
