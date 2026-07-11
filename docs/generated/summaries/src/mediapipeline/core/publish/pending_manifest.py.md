@@ -3,9 +3,9 @@ file: src/mediapipeline/core/publish/pending_manifest.py
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: d6f9d0ea395f970ba6ab3b2cbf82c54b11e85113b67738fbdc220ab020d057fe
+sha256: e60cd022bfede997dbc1869a32a1ef5b100aa4f744d5192e0d09540d90a9a7f3
 ---
 # `src/mediapipeline/core/publish/pending_manifest.py`
 

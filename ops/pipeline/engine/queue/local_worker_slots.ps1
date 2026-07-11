@@ -202,6 +202,8 @@ function Invoke-MediaQueuePhasePlanLocalWorkerSlots {
                             $metadata | Add-Member -NotePropertyName worker_pid -NotePropertyValue ([int]$proc.Id) -Force
                             $metadata | Add-Member -NotePropertyName worker_start_time -NotePropertyValue $workerStartTime -Force
                             $metadata | Add-Member -NotePropertyName started_at -NotePropertyValue (Get-MediaPipelineLocalWorkerTimestamp) -Force
+                            $metadata | Add-Member -NotePropertyName spawn_requested_at -NotePropertyValue ([string]$proc.MediaPipelineSpawnRequestedAt) -Force
+                            $metadata | Add-Member -NotePropertyName spawn_duration_ms -NotePropertyValue ([double]$proc.MediaPipelineSpawnDurationMs) -Force
                             $metadata | Add-Member -NotePropertyName heartbeat_path -NotePropertyValue ([string]$slotLayout.HeartbeatFile) -Force
                             Write-MediaPipelineJsonAtomic -Path $slotLayout.MetadataFile -InputObject $metadata -Depth 5 | Out-Null
                         }
@@ -209,7 +211,7 @@ function Invoke-MediaQueuePhasePlanLocalWorkerSlots {
                         Write-Log "Local worker slot $slotId metadata update failed after launch: $_" 'WARN'
                     }
                 }
-                Update-MediaPipelineLocalWorkerClaim -ClaimStorePath $claimStorePath -ClaimId ([string]$claim.claim_id) -Updates @{ status = 'running'; worker_pid = [int]$proc.Id; worker_start_time = $workerStartTime; worker_metadata_path = [string]$slotLayout.MetadataFile; worker_heartbeat_path = [string]$slotLayout.HeartbeatFile; started_at = Get-MediaPipelineLocalWorkerTimestamp } | Out-Null
+                Update-MediaPipelineLocalWorkerClaim -ClaimStorePath $claimStorePath -ClaimId ([string]$claim.claim_id) -Updates @{ status = 'running'; worker_pid = [int]$proc.Id; worker_start_time = $workerStartTime; worker_metadata_path = [string]$slotLayout.MetadataFile; worker_heartbeat_path = [string]$slotLayout.HeartbeatFile; started_at = Get-MediaPipelineLocalWorkerTimestamp; spawn_requested_at = [string]$proc.MediaPipelineSpawnRequestedAt; spawn_duration_ms = [double]$proc.MediaPipelineSpawnDurationMs } | Out-Null
                 $claim | Add-Member -NotePropertyName worker_pid -NotePropertyValue ([int]$proc.Id) -Force
                 $claim | Add-Member -NotePropertyName worker_start_time -NotePropertyValue $workerStartTime -Force
                 $claim | Add-Member -NotePropertyName worker_metadata_path -NotePropertyValue ([string]$slotLayout.MetadataFile) -Force

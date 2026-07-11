@@ -153,35 +153,38 @@
     const csvRerunActive = typeof launchRerunCsvIsActive === "function"
       ? launchRerunCsvIsActive(snapshot, closeReadiness)
       : activeKind === "rerun_csv";
+    const initializing = String(snapshot?.pipeline_state || "").trim().toLowerCase() === "initializing";
     const stuck = pipelineProgressIsStuck(snapshot);
     const stale = pipelineProgressIsStale(snapshot);
     syncPipelineScopeControls();
     if (active) clearStartupBanner();
-    const startReason = active
+    const startReason = initializing
+      ? "Disabled until the backend finishes loading its first status snapshot."
+      : active
       ? "Disabled while backend close-readiness reports active work. Stop or wait for idle before starting another backend command."
       : "Backend start route will re-check queue, settings, schedule, and process locks at submission time.";
     launchCommandButtonIds.forEach((id) => {
       const button = byId(id);
-      const gate = active || state.launchCommandInFlight ? launchGateResult(false, "") : launchButtonGate(id);
+      const gate = active || initializing || state.launchCommandInFlight ? launchGateResult(false, "") : launchButtonGate(id);
       setButtonDisabledWithReason(
         button,
-        state.launchCommandInFlight || active || gate.blocked,
-        state.launchCommandInFlight ? "A launch command is already in progress." : (active ? startReason : (gate.reason || startReason))
+        state.launchCommandInFlight || active || initializing || gate.blocked,
+        state.launchCommandInFlight ? "A launch command is already in progress." : ((active || initializing) ? startReason : (gate.reason || startReason))
       );
-      if (button) button.dataset.commandState = state.launchCommandInFlight ? "running" : active ? "blocked" : (gate.state || (gate.blocked ? "blocked" : "ready"));
+      if (button) button.dataset.commandState = state.launchCommandInFlight ? "running" : (active || initializing) ? "blocked" : (gate.state || (gate.blocked ? "blocked" : "ready"));
     });
 
     const singleFile = String(byId("pipeline-start-single-file")?.value || "").trim();
     setButtonDisabledWithReason(
       byId("pipeline-single-file-browse-button"),
-      state.pipelineFileBrowseInFlight || state.launchCommandInFlight || active,
+      state.pipelineFileBrowseInFlight || state.launchCommandInFlight || active || initializing,
       state.pipelineFileBrowseInFlight
         ? "Windows file browser is already open."
-        : (state.launchCommandInFlight || active ? startReason : "Open the backend-owned Windows file browser for single-file staging.")
+        : (state.launchCommandInFlight || active || initializing ? startReason : "Open the backend-owned Windows file browser for single-file staging.")
     );
     setButtonDisabledWithReason(
       byId("pipeline-single-file-clear-button"),
-      state.pipelineFileBrowseInFlight || state.launchCommandInFlight || active || !singleFile,
+      state.pipelineFileBrowseInFlight || state.launchCommandInFlight || active || initializing || !singleFile,
       state.pipelineFileBrowseInFlight
         ? "Windows file browser is already open."
         : (singleFile ? "Clear the staged single-file path." : "No single-file path is staged.")

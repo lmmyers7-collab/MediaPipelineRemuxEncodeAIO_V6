@@ -3,9 +3,9 @@ file: tests/python/desktop/test_stage_runner.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 0adb99ea33d9f7c47da17fdc63afd130c078d2d9370795200b5d7afefcf5a88c
+sha256: b7f860d19d1e69bcf2d920f5df8844fc872ee65440804c595b123d70cd7e7054
 ---
 # `tests/python/desktop/test_stage_runner.py`
 

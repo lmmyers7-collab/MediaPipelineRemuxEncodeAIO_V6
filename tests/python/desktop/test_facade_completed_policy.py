@@ -97,6 +97,14 @@ class CompletedFacadePolicyTests(unittest.TestCase):
 
     def test_completed_record_key_and_row_are_stable(self) -> None:
         record = _record()
+        record.payload["media_track_verification"] = {
+            "schema_version": "media_track_verification_result.v1",
+            "allowed": True,
+            "error_code": "",
+            "reason": "output audio/subtitle topology matches the resolved policy plan",
+            "mismatches": [],
+        }
+        record.payload["subtitle_conversion_results"] = [{"source_stream_index": 3, "action": "bdpgs_to_srt", "generated_cue_count": 48}]
         repeated = _record()
         changed_route = _record(route="remux")
         row = completed_record_to_row(record)
@@ -123,6 +131,9 @@ class CompletedFacadePolicyTests(unittest.TestCase):
         self.assertEqual(row["gpu_device"], "NVIDIA")
         self.assertEqual(row["audio_decision_count"], 1)
         self.assertEqual(row["subtitle_decision_count"], 1)
+        self.assertEqual(row["subtitle_conversion_result_count"], 1)
+        self.assertEqual(row["media_track_verification_status"], "pass")
+        self.assertEqual(row["media_track_verification_mismatches"], [])
         self.assertEqual(row["validation_status_state"], "validation-needed")
         self.assertIsNone(row["validation_probe_ok"])
         self.assertIsNone(row["validation_hash_ok"])

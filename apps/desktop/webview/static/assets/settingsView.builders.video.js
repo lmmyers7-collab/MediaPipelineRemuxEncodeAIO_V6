@@ -303,6 +303,11 @@
       if (counts) lines.push(`Backend availability: ${counts}.`);
       settingsEncoderCapabilityActivationLines(report).forEach((line) => lines.push(line));
       settingsEncoderCapabilityHardwareRuntimeLines(report).forEach((line) => lines.push(line));
+      const evidence = report.evidence && typeof report.evidence === "object" ? report.evidence : {};
+      const metadataProof = String(evidence.metadata_proof_state || "not collected");
+      const playbackProof = String(evidence.playback_proof_state || "not collected");
+      lines.push(`Evidence scope: availability/activation/runtime probe only; metadata proof=${metadataProof}; playback proof=${playbackProof}.`);
+      lines.push("An available encoder is not a safe-output or daily-driver claim; output metadata verification and named-client playback proof are separate backend evidence.");
       lines.push("Read-only annotation: dropdown choices stay visible; backend Save and encode planning remain authoritative.");
       return lines;
     }
@@ -359,7 +364,7 @@
           tbody.appendChild(row);
         });
       }
-      setText("settings-encoder-capability-legend", "Encoder capability rows are read-only annotations from backend diagnostic evidence; unavailable rows do not remove saved choices.");
+      setText("settings-encoder-capability-legend", "Encoder capability rows are read-only availability, activation, and runtime-probe evidence; they do not certify metadata preservation or playback. Unavailable rows do not remove saved choices.");
     }
 
     function collectVideoDetailSettingsBuilderPatch() {

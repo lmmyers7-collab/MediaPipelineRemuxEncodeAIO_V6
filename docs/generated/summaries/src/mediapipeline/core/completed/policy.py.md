@@ -3,15 +3,14 @@ file: src/mediapipeline/core/completed/policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: completed
-last_modified: 2026-07-09
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: b96ef0d36319e633ae5e04f37955d92dfcb21434f2be839cc243daf12e7ee5a8
+sha256: 78b9d28a55afabd54cb7126f10cc6017b2c46a8f536afea69aa730508ce9ab3f
 ---
 # `src/mediapipeline/core/completed/policy.py`
 
-**Purpose:** Completed-job preview DTO policy.
+**Purpose:** Completed-job preview DTO policy façade.
 
-**Public functions:** `bounded_completed_limit()`, `completed_apply_runtime_outcomes()`, `completed_audio_decision_preview()`, `completed_bitrate_display()`, `completed_bitrate_fields()`, `completed_decision_detail_rows()`, `completed_decision_value()`, `completed_history_read_error_result()`, `completed_history_service_unavailable_result()`, `completed_inventory_progress_payload()`, `completed_path_exists()`, `completed_path_mtime()`, `completed_pending_publish_row()`, `completed_pending_publish_rows()`, `completed_preview_fields()`, `completed_preview_from_records()`, `completed_preview_limit()`, `completed_preview_rows()`, `completed_quality_fields()`, `completed_quality_number_label()`
-**In-repo imports:** `mediapipeline.core.completed.contracts`, `mediapipeline.core.completed.manifest`, `mediapipeline.core.completed.trust_fields`, `mediapipeline.core.completed.validation_state`, `mediapipeline.core.files.constants`, `mediapipeline.core.observability.artifact_freshness`, `mediapipeline.core.observability.runtime_outcomes`, `mediapipeline.core.subtitles.qa`
+**In-repo imports:** `mediapipeline.core.completed.policy_evidence`, `mediapipeline.core.completed.policy_guidance`, `mediapipeline.core.completed.policy_orchestration`, `mediapipeline.core.completed.policy_projection`, `mediapipeline.core.completed.policy_quality`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/completed/policy.py`._

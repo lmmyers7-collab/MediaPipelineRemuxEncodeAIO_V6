@@ -7,13 +7,6 @@ from mediapipeline.core.status.rerun_progress import active_rerun_progress_overl
 
 
 def build_snapshot_for_service(service: StatusSnapshotServiceProtocol, resolved: ResolvedPaths, audit_root: str) -> Snapshot:
-    reconcile = getattr(service, "reconcile_active_job_records", None)
-    if callable(reconcile):
-        try:
-            reconcile(resolved)
-        except Exception as exc:
-            service.logger.warning("ActiveJobs reconciliation failed: %s", exc)
-
     progress = service.read_progress(resolved)
     audit_progress = service.read_audit_progress(resolved)
     latest_failure_report = service.latest_matching_file(resolved.failed_reports_path, "round_failures_*.txt")

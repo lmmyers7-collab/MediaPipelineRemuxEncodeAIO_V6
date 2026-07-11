@@ -29,2519 +29,381 @@
   let lastNetworkLifecyclePayload = {};
   const networkLifecycleDryRunEvidence = new Map();
 
-  function settingsConfig(settings) {
-    return settings && typeof settings === "object" && settings.config && typeof settings.config === "object"
-      ? settings.config
-      : {};
-  }
+  const __networkConfigDiagnosticsMod = window.__networkConfigDiagnosticsModule || {};
+  delete window.__networkConfigDiagnosticsModule;
+  const _networkConfigDiagnostics = typeof __networkConfigDiagnosticsMod.createNetworkConfigDiagnosticsModule === "function"
+    ? __networkConfigDiagnosticsMod.createNetworkConfigDiagnosticsModule({
+      byId: typeof byId === "function" ? byId : window.byId,
+      configValue,
+      fallbackNetworkKeys,
+    })
+    : {};
+  const {
+    coordinatorTarget = function () { return ""; },
+    displayConfigValue = function (_config, _key, fallback = "") { return fallback; },
+    isNetworkSecretSettingKey = function () { return false; },
+    networkCoordinatorBindEndpoint = function () { return ""; },
+    networkCoordinatorConnectivityLines = function () { return []; },
+    networkDiagnosticLayerByKey = function () { return null; },
+    networkDiagnosticLayers = function () { return {}; },
+    networkDiagnosticLayerLines = function () { return []; },
+    networkDiagnosticLayerPosture = function () { return "unknown"; },
+    networkRows = function () { return []; },
+    networkRuntimeStatus = function () { return { label: "Unknown", severity: "unknown" }; },
+    networkStateFilesDiagnosticStatus = function () { return "unknown"; },
+    networkStatusTone = function () { return "unknown"; },
+    networkTokenPostureLines = function () { return []; },
+    networkLifecycleStateFor = function (_payload, role) { return { role, status: "unknown", raw: {} }; },
+    rawConfigValue = function (_config, _key, fallback = "") { return fallback; },
+    redactedNetworkUrl = function () { return ""; },
+    renderNetworkDiagnosticRail = function () {},
+    settingsConfig = function () { return {}; },
+    visibleNetworkMode = function () { return "standalone"; },
+    visibleNetworkModeLabel = function () { return "Standalone"; },
+  } = _networkConfigDiagnostics;
+
+  const __networkStatusMod = window.__networkStatusModule || {};
+  delete window.__networkStatusModule;
+  const _networkStatus = typeof __networkStatusMod.createNetworkStatusModule === "function"
+    ? __networkStatusMod.createNetworkStatusModule({
+      byId,
+      closeReadinessIsSafe: (...args) => closeReadinessIsSafe(...args),
+      coordinatorTarget,
+      documentRef: document,
+      networkDiagnosticLayerByKey,
+      networkDiagnosticLayerPosture,
+      networkDiagnosticLayers,
+      networkLifecycleDryRunRecord: (...args) => networkLifecycleDryRunRecord(...args),
+      networkLifecycleRelevantRoles: (...args) => networkLifecycleRelevantRoles(...args),
+      networkRuntimeStatus,
+      networkStateFileCompactLines: (...args) => networkStateFileCompactLines(...args),
+      networkStateFileRows: (...args) => networkStateFileRows(...args),
+      networkStateFileStatus: (...args) => networkStateFileStatus(...args),
+      networkStateFilesDiagnosticStatus,
+      networkStatusTone,
+      networkWorkerStatusState: (...args) => networkWorkerStatusState(...args),
+      renderNetworkDiagnosticRail,
+      setText,
+      visibleNetworkMode,
+      visibleNetworkModeLabel,
+      workerHeartbeatText: (...args) => workerHeartbeatText(...args),
+    })
+    : {};
+  const {
+    networkAttentionItems = function () { return []; },
+    renderNetworkAttentionStack = function () {},
+    networkTopologyNodes = function () { return []; },
+    renderNetworkTopologyStrip = function () {},
+    setNetworkGate = function () {},
+    renderNetworkActionReadinessGates = function () {},
+    networkWorkerDriftPayload = function () { return {}; },
+    networkWorkerDriftFieldText = function () { return "none"; },
+    networkWorkerDriftStatusText = function () { return "Not loaded"; },
+    networkWorkerDriftSummaryLines = function () { return []; },
+    networkWorkerPolicyDivergencePayload = function () { return {}; },
+    networkWorkerPolicyDivergenceText = function () { return "ready"; },
+    networkWorkerPolicyDivergenceStatusText = function () { return "Not loaded"; },
+    networkWorkerPolicyDivergenceActive = function () { return false; },
+    networkWorkerPolicyDivergenceSummaryLines = function () { return []; },
+    renderNetworkStatusBanner = function () {},
+  } = _networkStatus;
+
+
+
+  const __networkConfigMod = window.__networkConfigModule || {};
+  delete window.__networkConfigModule;
+  const _networkConfig = typeof __networkConfigMod.createNetworkConfigModule === "function"
+    ? __networkConfigMod.createNetworkConfigModule({
+      byId,
+      documentRef: document,
+      networkCoordinatorConnectivityLines,
+      updatePagePanelEmptyStates: (...args) => {
+        if (typeof updatePagePanelEmptyStates === "function") updatePagePanelEmptyStates(...args);
+      },
+      visibleNetworkMode,
+    })
+    : {};
+  const {
+    obviousWorkerCoordinatorUrlIssue = function () { return ""; },
+    networkGuidance = function () { return []; },
+    networkModeModelLines = function () { return []; },
+    renderNetworkSummaryRows = function () {},
+    networkRolePanelIds = function () { return []; },
+    syncNetworkRoleDashboards = function () {},
+  } = _networkConfig;
+
+
+
+  const __networkQueueProjectionMod = window.__networkQueueProjectionModule || {};
+  delete window.__networkQueueProjectionModule;
+  const _networkQueueProjection = typeof __networkQueueProjectionMod.createNetworkQueueProjectionModule === "function"
+    ? __networkQueueProjectionMod.createNetworkQueueProjectionModule()
+    : {};
+  const {
+    networkBasename = function () { return ""; },
+    networkClaimedKeySet = function () { return new Set(); },
+    networkClaimIsActive = function () { return false; },
+    networkDisplayValue = function (_value, fallback = "-") { return fallback; },
+    networkMatchedQueueRow = function () { return null; },
+    networkNumber = function (_value, fallback = 0) { return fallback; },
+    networkPriorityText = function () { return "normal"; },
+    networkQueueFileLabel = function () { return "Unknown file"; },
+    networkQueueMatchMaps = function () { return { byPath: new Map() }; },
+    networkQueueOrder = function (_row, index) { return index + 1; },
+    networkQueueRowClaimed = function () { return false; },
+    networkQueueRows = function () { return []; },
+    networkQueueStatus = function () { return "Not loaded"; },
+    networkReviewTile = function (label, value, detail = "", tone = "") { return { label, value, detail, tone }; },
+    networkRouteEvidence = function () { return ""; },
+    networkRouteLabel = function () { return ""; },
+    networkRouteTone = function () { return "review"; },
+    networkSizeText = function () { return "-"; },
+    networkWorkerHasClaimEvidence = function () { return false; },
+    networkWorkerLooksCompleteOrIdle = function () { return false; },
+  } = _networkQueueProjection;
+
+  const __networkLifecycleContractMod = window.__networkLifecycleContractModule || {};
+  delete window.__networkLifecycleContractModule;
+  const _networkLifecycleContract = typeof __networkLifecycleContractMod.createNetworkLifecycleContractModule === "function"
+    ? __networkLifecycleContractMod.createNetworkLifecycleContractModule({
+      closeReadinessLine: (...args) => closeReadinessLine(...args),
+      networkCoordinatorJoinBlobRoute: (...args) => networkCoordinatorJoinBlobRoute(...args),
+      networkWorkerDiscoverCoordinatorsRoute: (...args) => networkWorkerDiscoverCoordinatorsRoute(...args),
+      networkWorkerJoinClusterRoute: (...args) => networkWorkerJoinClusterRoute(...args),
+      networkWorkerTestConnectionRoute: (...args) => networkWorkerTestConnectionRoute(...args),
+      rawConfigValue,
+    })
+    : {};
+  const {
+    contractSummary = function () { return ""; },
+    configFlagText = function (_config, _key, fallback = "not configured") { return fallback; },
+    configuredStatus = function () { return "not configured"; },
+    networkPathMapStatus = function () { return "not configured"; },
+    routeExists = function () { return false; },
+    networkLifecycleBoundaryLines = function () { return []; },
+    networkLifecycleBoundaryStatus = function () { return "Not loaded"; },
+    networkLifecycleContractSummary = function () { return "Not loaded"; },
+    networkLifecycleContracts = function () { return []; },
+    networkLifecycleDryRunRouteCount = function () { return 0; },
+    networkLifecycleMutationRouteCount = function () { return 0; },
+    networkLifecycleRouteAvailable = function () { return false; },
+    networkLifecycleRoutePath = function () { return ""; },
+    networkLifecycleRouteRow = function () { return null; },
+    networkRouteSummaryLines = function () { return []; },
+    networkRouteSummaryStatus = function () { return "Not loaded"; },
+    networkSetupMutationRouteRows = function () { return []; },
+    networkSetupMutationRouteSummary = function () { return "none"; },
+  } = _networkLifecycleContract;
+
+  const __networkOverviewModelMod = window.__networkOverviewModelModule || {};
+  delete window.__networkOverviewModelModule;
+  const _networkOverviewModel = typeof __networkOverviewModelMod.createNetworkOverviewModelModule === "function"
+    ? __networkOverviewModelMod.createNetworkOverviewModelModule({
+      coordinatorTarget, displayConfigValue, networkBasename, networkClaimedKeySet, networkClaimIsActive,
+      networkLifecycleRouteAvailable, networkMatchedQueueRow, networkNumber, networkPriorityText,
+      networkQueueFileLabel, networkQueueMatchMaps, networkQueueOrder, networkQueueRowClaimed,
+      networkQueueRows, networkQueueStatus, networkReviewTile, networkRouteEvidence, networkRouteLabel,
+      networkRouteTone, networkSizeText, networkStateFileStatus: (...args) => networkStateFileStatus(...args),
+      networkWorkerDriftFieldText: (...args) => networkWorkerDriftFieldText(...args),
+      networkWorkerDriftPayload: (...args) => networkWorkerDriftPayload(...args),
+      networkWorkerDriftStatusText: (...args) => networkWorkerDriftStatusText(...args),
+      networkWorkerPolicyDivergenceActive: (...args) => networkWorkerPolicyDivergenceActive(...args),
+      networkWorkerPolicyDivergenceStatusText: (...args) => networkWorkerPolicyDivergenceStatusText(...args),
+      networkWorkerPolicyDivergenceText: (...args) => networkWorkerPolicyDivergenceText(...args),
+      networkWorkerProgressStatus: (...args) => networkWorkerProgressStatus(...args),
+      networkWorkerStatusState: (...args) => networkWorkerStatusState(...args),
+      rawConfigValue, visibleNetworkModeLabel, workerHeartbeatText: (...args) => workerHeartbeatText(...args),
+      workerProgressText: (...args) => workerProgressText(...args),
+    })
+    : {};
+  const {
+    networkCoordinatorOverviewModel = function () { return { status: "Unknown", activeRows: [], onDeckRows: [], tiles: [], summaryLines: [] }; },
+    networkWorkerOverviewModel = function () { return { status: "Unknown", claimRows: [], tiles: [], summaryLines: [], remoteQueueSummary: "" }; },
+  } = _networkOverviewModel;
+
+  const __networkRoleDashboardMod = window.__networkRoleDashboardModule || {};
+  delete window.__networkRoleDashboardModule;
+  const _networkRoleDashboard = typeof __networkRoleDashboardMod.createNetworkRoleDashboardModule === "function"
+    ? __networkRoleDashboardMod.createNetworkRoleDashboardModule({
+      byId,
+      clearRows,
+      documentRef: document,
+      networkCoordinatorOverviewModel,
+      networkWorkerOverviewModel,
+      renderOverviewTiles: typeof renderOverviewTiles === "function" ? renderOverviewTiles : function () {},
+      renderNetworkWorkerRows: (...args) => renderNetworkWorkerRows(...args),
+      setText,
+      state: {
+        get workerViewPreset() { return networkWorkerViewPreset; },
+        set workerViewPreset(value) { networkWorkerViewPreset = String(value || ""); },
+        get workersPayload() { return lastNetworkWorkersPayload; },
+      },
+      syncNetworkWorkerViewPresetButtons: (...args) => syncNetworkWorkerViewPresetButtons(...args),
+    })
+    : {};
+  const {
+    focusNetworkQuickLink = function () { return false; },
+    activateQuickLink = function () { return true; },
+    networkTileTone = function () { return "muted"; },
+    networkStatusChip = function () { return null; },
+    networkRouteChip = function () { return null; },
+    networkAppendCell = function () { return null; },
+    renderCoordinatorActiveRows = function () {},
+    renderCoordinatorQueueRows = function () {},
+    renderWorkerClaimRows = function () {},
+    renderNetworkRoleDashboards = function () {},
+  } = _networkRoleDashboard;
+
+
+
+
+  const __networkLifecycleViewMod = window.__networkLifecycleViewModule || {};
+  delete window.__networkLifecycleViewModule;
+  const _networkLifecycleView = typeof __networkLifecycleViewMod.createNetworkLifecycleViewModule === "function"
+    ? __networkLifecycleViewMod.createNetworkLifecycleViewModule({
+      byId,
+      coordinatorTarget,
+      documentRef: document,
+      networkLifecycleRouteAvailable,
+      networkLifecycleRoutePath,
+      networkLifecycleStateFor,
+      networkRuntimeStatus,
+      networkTokenPostureLines,
+      obviousWorkerCoordinatorUrlIssue,
+      renderNetworkDiagnosticRail,
+      setText,
+      state: {
+        get dryRunEvidence() { return networkLifecycleDryRunEvidence; },
+        get lifecyclePayload() { return lastNetworkLifecyclePayload; },
+        set lifecyclePayload(value) { lastNetworkLifecyclePayload = value && typeof value === "object" ? value : {}; },
+      },
+      visibleNetworkMode,
+      visibleNetworkModeLabel,
+    })
+    : {};
+  const {
+    networkLifecycleDryRunKey = function () { return ""; },
+    closeReadinessIsSafe = function () { return false; },
+    networkLifecycleFingerprint = function () { return ""; },
+    networkLifecycleDryRunRecord = function () { return null; },
+    pruneNetworkLifecycleDryRunEvidence = function () {},
+    networkLifecycleDryRunAllowsConfirmed = function () { return false; },
+    networkLifecycleDryRunRequirementLine = function () { return "Matching dry-run required."; },
+    rememberNetworkLifecycleDryRun = function () {},
+    networkWorkerTestConnectionRoute = function () { return ""; },
+    networkCommandRouteByDataSchema = function () { return ""; },
+    networkCoordinatorJoinBlobRoute = function () { return ""; },
+    networkWorkerJoinClusterRoute = function () { return ""; },
+    networkWorkerDiscoverCoordinatorsRoute = function () { return ""; },
+    networkLifecycleRelevantRole = function () { return ""; },
+    networkLifecycleRelevantRoles = function () { return []; },
+    networkLifecycleControlLines = function () { return []; },
+    setNetworkSetupRouteStatus = function () {},
+    renderNetworkJoinControls = function () {},
+    renderNetworkLifecycleControls = function () {},
+  } = _networkLifecycleView;
+
+
+
+  const __networkLifecycleResultsMod = window.__networkLifecycleResultsModule || {};
+  delete window.__networkLifecycleResultsModule;
+  const _networkLifecycleResults = typeof __networkLifecycleResultsMod.createNetworkLifecycleResultsModule === "function"
+    ? __networkLifecycleResultsMod.createNetworkLifecycleResultsModule({
+      byId,
+      documentRef: document,
+      renderNetworkJoinControls,
+      setText,
+      settingsConfig,
+      state: {
+        get lifecyclePayload() { return lastNetworkLifecyclePayload; },
+      },
+      windowRef: window,
+    })
+    : {};
+  const {
+    networkLifecycleCommandResultLines = function () { return []; },
+    networkTestConnectionResultLines = function () { return []; },
+    networkCoordinatorDiscoveryResultLines = function () { return []; },
+    renderNetworkCoordinatorDiscoveryList = function () {},
+    stageDiscoveredCoordinatorUrl = function () { return false; },
+    networkJoinBlobResultLines = function () { return []; },
+    networkJoinImportResultLines = function () { return []; },
+  } = _networkLifecycleResults;
+
+
+
+  const __networkSetupCommandsMod = window.__networkSetupCommandsModule || {};
+  delete window.__networkSetupCommandsModule;
+  const _networkSetupCommands = typeof __networkSetupCommandsMod.createNetworkSetupCommandsModule === "function"
+    ? __networkSetupCommandsMod.createNetworkSetupCommandsModule({
+      byId,
+      confirmNetworkSetupCommand: (...args) => confirmNetworkSetupCommand(...args),
+      networkCoordinatorDiscoveryResultLines,
+      networkCoordinatorJoinBlobRoute,
+      networkJoinBlobResultLines,
+      networkJoinImportResultLines,
+      networkWorkerDiscoverCoordinatorsRoute,
+      networkWorkerJoinClusterRoute,
+      postNetworkRoute: (...args) => postNetworkRoute(...args),
+      refreshAll: (...args) => { if (typeof refreshAll === "function") refreshAll(...args); },
+      renderNetworkCoordinatorDiscoveryList,
+      renderNetworkJoinControls,
+      setText,
+      settingsConfig,
+      state: {
+        get lifecyclePayload() { return lastNetworkLifecyclePayload; },
+      },
+    })
+    : {};
+  const {
+    createNetworkJoinBlob = async function () { return null; },
+    copyNetworkJoinBlob = async function () { return false; },
+    importNetworkJoinBlob = async function () { return null; },
+    discoverNetworkCoordinators = async function () { return null; },
+  } = _networkSetupCommands;
+
+
+
+  const __networkLifecycleCommandsMod = window.__networkLifecycleCommandsModule || {};
+  delete window.__networkLifecycleCommandsModule;
+  const _networkLifecycleCommands = typeof __networkLifecycleCommandsMod.createNetworkLifecycleCommandsModule === "function"
+    ? __networkLifecycleCommandsMod.createNetworkLifecycleCommandsModule({
+      apiPost: (...args) => window.apiPost.apply(window, args),
+      byId,
+      coordinatorTarget,
+      networkLifecycleCommandResultLines,
+      networkLifecycleDryRunAllowsConfirmed,
+      networkLifecycleDryRunRequirementLine,
+      networkLifecycleRoutePath,
+      networkLifecycleStateFor,
+      networkTestConnectionResultLines,
+      networkTokenPostureLines,
+      networkWorkerTestConnectionRoute,
+      obviousWorkerCoordinatorUrlIssue,
+      rememberNetworkLifecycleDryRun,
+      renderNetworkActionReadinessGates,
+      renderNetworkLifecycleControls,
+      refreshAll: (...args) => { if (typeof refreshAll === "function") refreshAll(...args); },
+      setText,
+      settingsConfig,
+      state: {
+        get lifecyclePayload() { return lastNetworkLifecyclePayload; },
+      },
+      visibleNetworkModeLabel,
+    })
+    : {};
+  const {
+    networkLifecycleConfirmationLines = function () { return []; },
+    confirmNetworkLifecycleCommand = async function () { return false; },
+    confirmNetworkSetupCommand = async function () { return false; },
+    postNetworkRoute = async function () { throw new Error("Unsupported Network route."); },
+    postNetworkLifecycleRoute = async function () { throw new Error("Unsupported Network route."); },
+    runGuidedNetworkLifecycleCommand = async function () {},
+    runNetworkLifecycleCommand = async function () {},
+    runNetworkWorkerTestConnection = async function () { return null; },
+  } = _networkLifecycleCommands;
 
-  function rawConfigValue(config, key, fallback = "") {
-    if (!config || typeof config !== "object") return fallback;
-    if (Object.prototype.hasOwnProperty.call(config, key)) return config[key];
-    const match = Object.keys(config).find((item) => item.toLowerCase() === String(key).toLowerCase());
-    return match ? config[match] : fallback;
-  }
 
-  function isNetworkSecretSettingKey(key) {
-    const normalized = String(key || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
-    return normalized.includes("authtoken");
-  }
-
-  function isNetworkUrlSettingKey(key) {
-    return String(key || "").toLowerCase().replace(/[^a-z0-9]+/g, "") === "workercoordinatorurl";
-  }
-
-  function redactedNetworkUrl(value) {
-    const text = String(value || "").trim();
-    if (!text) return "";
-    try {
-      const parsed = new URL(text);
-      parsed.username = "";
-      parsed.password = "";
-      parsed.search = "";
-      parsed.hash = "";
-      return parsed.toString().replace(/\/$/, "");
-    } catch (_error) {
-      const clipped = text.split(/[?#]/)[0].trim();
-      return clipped || "present redacted";
-    }
-  }
-
-  function displayConfigValue(config, key, fallback = "(not set)") {
-    if (isNetworkSecretSettingKey(key)) return "(secret not displayed)";
-    const value = rawConfigValue(config, key, "");
-    if (isNetworkUrlSettingKey(key)) {
-      return value === "" || value === undefined || value === null ? fallback : redactedNetworkUrl(value);
-    }
-    if (typeof configValue === "function") return configValue(config, key, fallback);
-    if (value === "" || value === undefined || value === null) return fallback;
-    return String(value);
-  }
-
-  function networkSettingDefinitions(settings) {
-    const definitions = Array.isArray(settings?.field_definitions) ? settings.field_definitions : [];
-    const networkDefinitions = definitions
-      .filter((field) => String(field?.page || "").toLowerCase() === "network")
-      .filter((field) => !isNetworkSecretSettingKey(field?.key))
-      .map((field) => [
-        field.section || "Network",
-        field.key || "",
-        field.label || field.key || "",
-        field.help || "",
-      ])
-      .filter((field) => field[1]);
-    return networkDefinitions.length ? networkDefinitions : fallbackNetworkKeys;
-  }
-
-  function networkRows(settings) {
-    const config = settingsConfig(settings);
-    return networkSettingDefinitions(settings)
-      .filter(([_section, key]) => !isNetworkSecretSettingKey(key))
-      .map(([section, key, label, purpose]) => ({
-        section,
-        key,
-        label,
-        value: displayConfigValue(config, key),
-        purpose,
-      }));
-  }
-
-  function networkCoordinatorConnectivity(networkWorkers) {
-    const payload = networkWorkers && typeof networkWorkers === "object" ? networkWorkers : {};
-    return payload.coordinator_connectivity && typeof payload.coordinator_connectivity === "object"
-      ? payload.coordinator_connectivity
-      : {};
-  }
-
-  function networkCoordinatorConnectivityLines(networkWorkers) {
-    const connectivity = networkCoordinatorConnectivity(networkWorkers);
-    return Array.isArray(connectivity.summary_lines)
-      ? connectivity.summary_lines.map((line) => String(line || "").trim()).filter(Boolean)
-      : [];
-  }
-
-  function networkCoordinatorBindEndpoint(config, networkWorkers) {
-    const connectivity = networkCoordinatorConnectivity(networkWorkers);
-    if (connectivity.bind_endpoint) return String(connectivity.bind_endpoint);
-    const bind = displayConfigValue(config, "CoordinatorBindAddress", "0.0.0.0");
-    const port = displayConfigValue(config, "CoordinatorPort", "7830");
-    return `${bind}:${port}`;
-  }
-
-  function coordinatorTarget(config, networkWorkers, { raw = false } = {}) {
-    const role = String(rawConfigValue(config, "NetworkRole", "") || "").toLowerCase();
-    const connectivity = networkCoordinatorConnectivity(networkWorkers);
-    if (role === "worker") {
-      const savedTarget = rawConfigValue(config, "WorkerCoordinatorUrl", "");
-      const target = savedTarget || connectivity.worker_coordinator_url || "not configured";
-      return raw ? String(target) : redactedNetworkUrl(target);
-    }
-    if (connectivity.worker_coordinator_url) {
-      return String(connectivity.worker_coordinator_url);
-    }
-    const bind = displayConfigValue(config, "CoordinatorBindAddress", "0.0.0.0");
-    const port = displayConfigValue(config, "CoordinatorPort", "7830");
-    return `${bind}:${port}`;
-  }
-
-  function visibleNetworkMode(config) {
-    const role = String(rawConfigValue(config, "NetworkRole", "") || "").toLowerCase();
-    const localEncode = rawConfigValue(config, "CoordinatorAlsoEncodeLocally", false);
-    const localEnabled = localEncode === true;
-    return role === "coordinator" && localEnabled ? "coordinator_local" : role;
-  }
-
-  function visibleNetworkModeLabel(config) {
-    const mode = visibleNetworkMode(config);
-    if (mode === "coordinator_local") return "Coordinator + local worker";
-    if (mode === "coordinator") return "Coordinator only";
-    if (mode === "worker") return "Worker only";
-    if (mode === "standalone") return "Standalone";
-    return `Unknown (${mode || "missing"})`;
-  }
-
-  function networkLifecycleStatePayload(networkWorkers) {
-    const payload = networkWorkers && typeof networkWorkers === "object" ? networkWorkers : {};
-    return payload.lifecycle_state && typeof payload.lifecycle_state === "object"
-      ? payload.lifecycle_state
-      : {};
-  }
-
-  function networkLifecycleStateFor(networkWorkers, role) {
-    const state = networkLifecycleStatePayload(networkWorkers);
-    const roleState = state[role] && typeof state[role] === "object" ? state[role] : {};
-    return {
-      role,
-      status: String(roleState.status || "unknown").toLowerCase(),
-      raw: roleState,
-    };
-  }
-
-  function networkRuntimeStatus(networkWorkers, config) {
-    const payload = networkWorkers && typeof networkWorkers === "object" ? networkWorkers : {};
-    const label = String(payload.runtime_status_label || "").trim();
-    const severity = String(payload.runtime_status_severity || "").trim().toLowerCase();
-    if (label) return { label, severity: severity || "unknown" };
-    const mode = visibleNetworkMode(config);
-    if (mode === "standalone") return { label: "Standalone", severity: "match" };
-    const role = mode === "worker" ? "worker" : "coordinator";
-    const state = networkLifecycleStateFor(networkWorkers, role);
-    if (state.status === "running") return { label: "Running", severity: "match" };
-    if (state.status === "stopped") return { label: "Stopped", severity: "match" };
-    if (state.status === "blocked" || state.status === "failed" || state.status === "error") {
-      return { label: "Blocked", severity: "blocked" };
-    }
-    return { label: state.status === "unknown" ? "Unknown" : state.status, severity: "warning" };
-  }
-
-  function networkTokenPostureLines(networkWorkers) {
-    const posture = networkWorkers?.token_posture && typeof networkWorkers.token_posture === "object"
-      ? networkWorkers.token_posture
-      : {};
-    if (Array.isArray(posture.summary_lines)) {
-      return posture.summary_lines.map((line) => String(line || "").trim()).filter(Boolean);
-    }
-    return ["Coordinator token: unknown, hidden.", "Worker token: unknown, hidden."];
-  }
-
-  function networkDiagnosticLayers(networkWorkers) {
-    const payload = networkWorkers?.diagnostic_layers;
-    return payload && typeof payload === "object" ? payload : {};
-  }
-
-  function networkDiagnosticLayerLines(networkWorkers) {
-    const diagnostic = networkDiagnosticLayers(networkWorkers);
-    const layers = Array.isArray(diagnostic.layers) ? diagnostic.layers : [];
-    if (layers.length) {
-      return layers.map((layer) => `${layer.key || layer.label || "layer"}: ${layer.status || "unknown"} - ${layer.detail || ""}`);
-    }
-    return [
-      `url_reachable: ${diagnostic.url_reachable || "unknown"}`,
-      `auth_ok: ${diagnostic.auth_ok || "unknown"}`,
-      `paths_ok: ${diagnostic.paths_ok || "unknown"}`,
-      `queue_fresh: ${diagnostic.queue_fresh || "unknown"}`,
-      `last_claim_result: ${diagnostic.last_claim_result || "unknown"}`,
-    ];
-  }
-
-  function networkDiagnosticLayerPosture(networkWorkers) {
-    const layers = Array.isArray(networkDiagnosticLayers(networkWorkers).layers)
-      ? networkDiagnosticLayers(networkWorkers).layers
-      : [];
-    const statuses = layers.map((layer) => String(layer.status || "").toLowerCase());
-    if (statuses.some((status) => status === "blocked")) return "blocked";
-    if (statuses.some((status) => status === "review" || status === "warning")) return "review";
-    if (statuses.length && statuses.every((status) => status === "ready" || status === "not_applicable")) return "ready";
-    return "unknown";
-  }
-
-  function networkStatusTone(status) {
-    const value = String(status || "").trim().toLowerCase();
-    if (["ready", "match", "pass", "passed", "present", "running", "active", "encoding", "success"].includes(value)) return "match";
-    if (["review", "warning", "missing", "stale", "not_running", "not_applicable"].includes(value)) return "warning";
-    if (["blocked", "error", "failed", "unreadable", "fatal"].includes(value)) return "blocked";
-    return "unknown";
-  }
-
-  function networkDiagnosticLayerByKey(networkWorkers, key) {
-    const diagnostic = networkDiagnosticLayers(networkWorkers);
-    const layers = Array.isArray(diagnostic.layers) ? diagnostic.layers : [];
-    const requested = String(key || "").trim().toLowerCase();
-    const row = layers.find((layer) => String(layer?.key || "").trim().toLowerCase() === requested);
-    if (row) return row;
-    const status = diagnostic[requested];
-    return status ? { key: requested, label: requested, status } : null;
-  }
-
-  function networkStateFilesDiagnosticStatus(networkWorkers) {
-    const rows = networkStateFileRows(networkWorkers);
-    if (!rows.length) return "unknown";
-    const statuses = rows.map((row) => networkStateFileStatus(row));
-    if (statuses.some((status) => status === "blocked")) return "blocked";
-    if (statuses.some((status) => status === "warning")) return "review";
-    if (statuses.every((status) => status === "match")) return "ready";
-    return "unknown";
-  }
-
-  function setNetworkDiagnosticChip(id, label, status, detail = "") {
-    const node = byId(id);
-    if (!node) return;
-    const value = String(status || "").trim() || "unknown";
-    node.textContent = `${label}: ${value}`;
-    node.dataset.status = networkStatusTone(value);
-    node.title = detail || `${label} diagnostic status: ${value}`;
-  }
-
-  function renderNetworkDiagnosticRail(networkWorkers = {}) {
-    const layers = {
-      tcp: networkDiagnosticLayerByKey(networkWorkers, "url_reachable"),
-      auth: networkDiagnosticLayerByKey(networkWorkers, "auth_ok"),
-      paths: networkDiagnosticLayerByKey(networkWorkers, "paths_ok"),
-      queue: networkDiagnosticLayerByKey(networkWorkers, "queue_fresh"),
-      claim: networkDiagnosticLayerByKey(networkWorkers, "last_claim_result"),
-    };
-    setNetworkDiagnosticChip("network-diagnostic-tcp", "TCP", layers.tcp?.status, layers.tcp?.detail);
-    setNetworkDiagnosticChip("network-diagnostic-auth", "Auth", layers.auth?.status, layers.auth?.detail);
-    setNetworkDiagnosticChip("network-diagnostic-paths", "Paths", layers.paths?.status, layers.paths?.detail);
-    setNetworkDiagnosticChip("network-diagnostic-queue", "Queue", layers.queue?.status, layers.queue?.detail);
-    setNetworkDiagnosticChip("network-diagnostic-claim", "Claim", layers.claim?.status, layers.claim?.detail);
-    setNetworkDiagnosticChip(
-      "network-diagnostic-state-files",
-      "State files",
-      networkStateFilesDiagnosticStatus(networkWorkers),
-      networkStateFileCompactLines(networkStateFileRows(networkWorkers)).join("\n")
-    );
-  }
-
-  function networkAttentionItems(networkWorkers = {}) {
-    const items = [];
-    const workerState = networkWorkers?.worker_state && typeof networkWorkers.worker_state === "object" ? networkWorkers.worker_state : {};
-    if (workerState.pending_done_report) {
-      items.push({
-        key: "pending-done-report",
-        label: "Pending done report",
-        detail: `Local worker has pending_done_report for job ${workerState.job_id || "unknown"}.`,
-        status: "blocked",
-        source: "worker_state",
-      });
-    }
-    const rows = Array.isArray(networkWorkers?.rows) ? networkWorkers.rows : [];
-    rows.forEach((row) => {
-      const status = networkWorkerStatusState(row);
-      if (status === "blocked" || status === "warning") {
-        const name = row.worker_name || row.worker_id || "Worker";
-        items.push({
-          key: `worker-${name}`,
-          label: `${name}: ${status === "blocked" ? "blocked" : "review"}`,
-          detail: row.last_failure_reason || row.last_failure_reason_code || row.error || row.current_stage || "Worker row needs review.",
-          status,
-          source: "worker row",
-        });
-      }
-    });
-    const drift = networkWorkerDriftPayload(networkWorkers);
-    if (String(drift.status || "").toLowerCase() === "drift") {
-      items.push({
-        key: "running-vs-saved-drift",
-        label: "Worker settings drift",
-        detail: networkWorkerDriftSummaryLines(drift).join(" ") || "Running worker settings differ from saved config.",
-        status: "warning",
-        source: "running_vs_saved",
-      });
-    }
-    networkStateFileRows(networkWorkers).forEach((row) => {
-      const status = networkStateFileStatus(row);
-      if (status === "blocked" || status === "warning") {
-        items.push({
-          key: `state-file-${row.key || row.label}`,
-          label: `${row.label || row.key || "State file"}: ${row.status || "review"}`,
-          detail: row.error || row.purpose || "State-file evidence needs review.",
-          status,
-          source: "state_files",
-        });
-      }
-    });
-    const warnings = Array.isArray(networkWorkers?.warnings) ? networkWorkers.warnings : [];
-    warnings.slice(0, 6).forEach((warning, index) => {
-      items.push({
-        key: `warning-${index}`,
-        label: "Network warning",
-        detail: String(warning || ""),
-        status: "warning",
-        source: "warnings",
-      });
-    });
-    const diagnostic = networkDiagnosticLayers(networkWorkers);
-    (Array.isArray(diagnostic.layers) ? diagnostic.layers : []).forEach((layer) => {
-      if (["blocked", "review", "warning"].includes(String(layer?.status || "").toLowerCase())) {
-        items.push({
-          key: `diagnostic-${layer.key || layer.label}`,
-          label: layer.label || layer.key || "Diagnostic",
-          detail: layer.detail || "Diagnostic layer needs review.",
-          status: layer.status || "warning",
-          source: "diagnostic_layers",
-        });
-      }
-    });
-    return items;
-  }
-
-  function renderNetworkAttentionStack(networkWorkers = {}) {
-    const target = byId("network-attention-stack");
-    if (!target) return;
-    const items = networkAttentionItems(networkWorkers);
-    target.replaceChildren();
-    if (!items.length) {
-      const item = document.createElement("div");
-      item.className = "network-attention-item";
-      item.dataset.status = "match";
-      item.innerHTML = "<strong>No attention items</strong><span>Worker state, diagnostics, drift, and state files have no loaded blockers.</span>";
-      target.appendChild(item);
-      return;
-    }
-    items.slice(0, 3).forEach((entry) => {
-      const item = document.createElement("div");
-      item.className = "network-attention-item";
-      item.dataset.status = networkStatusTone(entry.status);
-      const heading = document.createElement("strong");
-      heading.textContent = entry.label || entry.key || "Attention item";
-      const detail = document.createElement("span");
-      detail.textContent = entry.detail || entry.action_hint || "Inspect Network evidence before lifecycle action.";
-      item.title = [entry.source, entry.action_hint].filter(Boolean).join(" - ");
-      item.append(heading, detail);
-      target.appendChild(item);
-    });
-    if (items.length > 3) {
-      const overflow = document.createElement("div");
-      overflow.className = "network-attention-overflow";
-      overflow.textContent = `+${items.length - 3} more in Advanced Evidence`;
-      target.appendChild(overflow);
-    }
-  }
-
-  function networkTopologyNodes(config = {}, networkWorkers = {}) {
-    const nodes = [];
-    const mode = visibleNetworkMode(config);
-    const runtime = networkRuntimeStatus(networkWorkers, config);
-    nodes.push({
-      label: "Coordinator",
-      value: coordinatorTarget(config, networkWorkers) || "not configured",
-      status: mode === "standalone" ? "not_applicable" : runtime.severity || "unknown",
-      detail: networkWorkers.cluster_log_path || "cluster log not resolved",
-    });
-    const workerState = networkWorkers?.worker_state && typeof networkWorkers.worker_state === "object" ? networkWorkers.worker_state : {};
-    if (mode === "worker" || mode === "coordinator_local" || workerState.job_id || workerState.pending_done_report) {
-      nodes.push({
-        label: mode === "coordinator_local" ? "Local worker" : "Worker",
-        value: workerState.job_id || workerState.source_file || "idle",
-        status: workerState.pending_done_report ? "blocked" : workerState.job_id ? "running" : "ready",
-        detail: workerState.source_file || networkWorkers.worker_state_path || "",
-      });
-    }
-    const rows = Array.isArray(networkWorkers?.rows) ? networkWorkers.rows : [];
-    rows.slice(0, 6).forEach((row) => {
-      nodes.push({
-        label: row.worker_name || row.worker_id || "Worker",
-        value: row.current_file_name || row.current_stage || row.status || "idle",
-        status: networkWorkerStatusState(row),
-        detail: workerHeartbeatText(row),
-      });
-    });
-    if (rows.length > 6) {
-      nodes.push({ label: "More workers", value: `+${rows.length - 6}`, status: "unknown", detail: "Additional workers are visible in the Worker Board." });
-    }
-    return nodes;
-  }
-
-  function renderNetworkTopologyStrip(config = {}, networkWorkers = {}) {
-    const target = byId("network-topology-strip");
-    if (!target) return;
-    target.replaceChildren();
-    networkTopologyNodes(config, networkWorkers).forEach((entry) => {
-      const node = document.createElement("div");
-      node.className = "network-topology-node";
-      node.dataset.status = networkStatusTone(entry.status);
-      node.title = entry.detail || "";
-      const label = document.createElement("span");
-      label.textContent = entry.label || "Node";
-      const value = document.createElement("strong");
-      value.textContent = entry.value || "-";
-      node.append(label, value);
-      target.appendChild(node);
-    });
-  }
-
-  function setNetworkGate(label, status, detail = "") {
-    const target = byId("network-action-readiness-gates");
-    if (!target) return;
-    const chip = document.createElement("span");
-    chip.dataset.status = networkStatusTone(status);
-    chip.textContent = `${label}: ${status || "unknown"}`;
-    chip.title = detail || `${label} readiness: ${status || "unknown"}`;
-    target.appendChild(chip);
-  }
-
-  function renderNetworkActionReadinessGates(payload = {}, config = {}) {
-    const target = byId("network-action-readiness-gates");
-    if (!target) return;
-    target.replaceChildren();
-    const networkWorkers = payload.networkWorkers || {};
-    const tcp = networkDiagnosticLayerByKey(networkWorkers, "url_reachable");
-    const auth = networkDiagnosticLayerByKey(networkWorkers, "auth_ok");
-    const paths = networkDiagnosticLayerByKey(networkWorkers, "paths_ok");
-    const queue = networkDiagnosticLayerByKey(networkWorkers, "queue_fresh");
-    setNetworkGate("TCP", tcp?.status || "unknown", tcp?.detail);
-    setNetworkGate("Auth", auth?.status || "unknown", auth?.detail);
-    setNetworkGate("Paths", paths?.status || "unknown", paths?.detail);
-    setNetworkGate("State", networkStateFilesDiagnosticStatus(networkWorkers), networkStateFileCompactLines(networkStateFileRows(networkWorkers)).join("\n"));
-    setNetworkGate("Queue", queue?.status || "unknown", queue?.detail);
-    setNetworkGate("Close", closeReadinessIsSafe(payload.closeReadiness) ? "ready" : "blocked", payload.closeReadiness?.reason || payload.closeReadiness?.message || "");
-    const roles = networkLifecycleRelevantRoles(config);
-    const hasDryRun = roles.some((role) => ["start", "stop"].some((action) => networkLifecycleDryRunRecord(role, action)?.safeToApply === true));
-    setNetworkGate("Dry-run", hasDryRun ? "ready" : "review", hasDryRun ? "A matching dry-run is cached for this session." : "Run Check & Start or Request Stop to cache backend dry-run evidence.");
-  }
-
-  function networkWorkerDriftPayload(networkWorkers) {
-    const drift = networkWorkers?.running_vs_saved;
-    return drift && typeof drift === "object" ? drift : {};
-  }
-
-  function networkWorkerDriftFieldText(drift) {
-    const labels = Array.isArray(drift?.drift_field_labels) ? drift.drift_field_labels : [];
-    const fields = Array.isArray(drift?.drift_fields) ? drift.drift_fields : [];
-    const values = (labels.length ? labels : fields)
-      .map((item) => String(item || "").trim())
-      .filter(Boolean);
-    return values.length ? values.join(", ") : "none";
-  }
-
-  function networkWorkerDriftStatusText(drift) {
-    const status = String(drift?.status || "").trim().toLowerCase();
-    if (status === "drift") return `Drift (${networkWorkerDriftFieldText(drift)})`;
-    if (status === "match") return "Matches saved settings";
-    if (status === "not_running") return "Worker not running";
-    if (status === "unknown") return "Unknown";
-    return status || "Not loaded";
-  }
-
-  function networkWorkerDriftSummaryLines(drift) {
-    if (Array.isArray(drift?.summary_lines) && drift.summary_lines.length) {
-      return drift.summary_lines.map((line) => String(line || "").trim()).filter(Boolean);
-    }
-    return [networkWorkerDriftStatusText(drift)];
-  }
-
-  function networkWorkerPolicyDivergencePayload(drift) {
-    const payload = drift?.policy_divergence;
-    return payload && typeof payload === "object" ? payload : {};
-  }
-
-  function networkWorkerPolicyDivergenceText(drift) {
-    const payload = networkWorkerPolicyDivergencePayload(drift);
-    const labels = Array.isArray(payload.field_labels) ? payload.field_labels : [];
-    const fields = Array.isArray(payload.fields) ? payload.fields : [];
-    const values = (labels.length ? labels : fields)
-      .map((item) => String(item || "").trim())
-      .filter(Boolean);
-    return values.length ? values.join(", ") : "ready";
-  }
-
-  function networkWorkerPolicyDivergenceStatusText(drift) {
-    const payload = networkWorkerPolicyDivergencePayload(drift);
-    const status = String(payload.status || "").trim().toLowerCase();
-    if (status === "review") return `Review (${networkWorkerPolicyDivergenceText(drift)})`;
-    if (status === "ready") return "Ready";
-    return status || "Not loaded";
-  }
-
-  function networkWorkerPolicyDivergenceActive(drift) {
-    const status = String(networkWorkerPolicyDivergencePayload(drift).status || "").trim().toLowerCase();
-    return status === "review" || status === "warning" || status === "blocked";
-  }
-
-  function networkWorkerPolicyDivergenceSummaryLines(drift) {
-    const payload = networkWorkerPolicyDivergencePayload(drift);
-    if (Array.isArray(payload.summary_lines) && payload.summary_lines.length) {
-      return payload.summary_lines.map((line) => String(line || "").trim()).filter(Boolean);
-    }
-    return [networkWorkerPolicyDivergenceStatusText(drift)];
-  }
-
-  function renderNetworkStatusBanner(payload = {}, config = {}) {
-    const networkWorkers = payload.networkWorkers || {};
-    const runtime = networkRuntimeStatus(networkWorkers, config);
-    const drift = networkWorkerDriftPayload(networkWorkers);
-    const driftActive = String(drift.status || "").toLowerCase() === "drift";
-    const policyReviewActive = networkWorkerPolicyDivergenceActive(drift);
-    const modeLabel = visibleNetworkModeLabel(config);
-    const target = coordinatorTarget(config, networkWorkers);
-    const mode = visibleNetworkMode(config);
-    const warnings = Array.isArray(networkWorkers.warnings) ? networkWorkers.warnings : [];
-    const diagnosticPosture = networkDiagnosticLayerPosture(networkWorkers);
-    const activeCount = Number(networkWorkers.active_count || 0);
-    const idleCount = Number(networkWorkers.idle_count || 0);
-    const launchReason = mode === "standalone"
-      ? "Normal Launch available"
-      : "Normal Launch blocked; use Network Lifecycle";
-    const banner = byId("network-health-strip");
-    const stripStatus = runtime.severity === "blocked" || diagnosticPosture === "blocked"
-      ? "blocked"
-      : (driftActive || policyReviewActive || diagnosticPosture === "review") ? "warning" : (runtime.severity || "unknown");
-    if (banner) banner.dataset.status = stripStatus;
-    const bannerStatus = driftActive ? "Running settings drift" : policyReviewActive ? "Coordinator policy review" : runtime.label;
-    setText("network-status-banner-title", `${modeLabel} - ${bannerStatus}`);
-    setText("network-health-drift", driftActive ? networkWorkerDriftStatusText(drift) : networkWorkerPolicyDivergenceStatusText(drift));
-    setText("network-health-workers", `${Number.isFinite(activeCount) ? activeCount : 0} active / ${Number.isFinite(idleCount) ? idleCount : 0} idle`);
-    const attentionCount = networkAttentionItems(networkWorkers).length;
-    const alertCount = attentionCount || warnings.length
-      + (driftActive ? 1 : 0)
-      + (policyReviewActive ? 1 : 0)
-      + (["review", "blocked"].includes(diagnosticPosture) ? 1 : 0);
-    setText("network-health-alerts", alertCount ? `${alertCount} review` : "0");
-    setText(
-      "network-status-banner-detail",
-      driftActive
-        ? `${launchReason}. Running worker differs from saved: ${networkWorkerDriftFieldText(drift)}.`
-        : policyReviewActive
-          ? `${launchReason}. Coordinator policy authority needs review: ${networkWorkerPolicyDivergenceText(drift)}.`
-        : `${launchReason}. Coordinator target: ${target || "not configured"}.`
-    );
-    const summaryLines = Array.isArray(networkWorkers.operator_summary_lines)
-      ? networkWorkers.operator_summary_lines.map((line) => String(line || "").trim()).filter(Boolean)
-      : [
-          `Mode: ${modeLabel}.`,
-          `Runtime: ${runtime.label}.`,
-          `${launchReason}.`,
-          `Coordinator target: ${target || "not configured"}.`,
-        ];
-    if (driftActive && !summaryLines.some((line) => line.toLowerCase().includes("worker settings drift"))) {
-      summaryLines.push(...networkWorkerDriftSummaryLines(drift));
-    }
-    if (policyReviewActive && !summaryLines.some((line) => line.toLowerCase().includes("coordinator policy authority"))) {
-      summaryLines.push(...networkWorkerPolicyDivergenceSummaryLines(drift));
-    }
-    setText("network-status-banner-lines", summaryLines.join("\n"));
-    renderNetworkDiagnosticRail(networkWorkers);
-    renderNetworkAttentionStack(networkWorkers);
-  }
-
-  function obviousWorkerCoordinatorUrlIssue(value, { required = true } = {}) {
-    const text = String(value || "").trim();
-    if (!text) return required ? "Worker coordinator URL is required in Worker mode." : "";
-    let parsed;
-    try {
-      parsed = new URL(text);
-    } catch (_error) {
-      return "Worker coordinator URL must include http:// or https:// and a reachable coordinator host.";
-    }
-    if (!["http:", "https:"].includes(parsed.protocol)) {
-      return "Worker coordinator URL must start with http:// or https://.";
-    }
-    const host = String(parsed.hostname || "").replace(/^\[|\]$/g, "").toLowerCase();
-    if (!host) return "Worker coordinator URL must include a coordinator host.";
-    if (host === "0.0.0.0" || host === "::") {
-      return "Use the coordinator machine name or LAN IP. 0.0.0.0 and :: are listen addresses, not worker targets.";
-    }
-    if (!parsed.port) {
-      return "Worker coordinator URL must include the coordinator TCP port, for example http://coordinator-host:7830.";
-    }
-    const port = Number(parsed.port);
-    if (!Number.isInteger(port) || port < 1 || port > 65535) {
-      return "Worker coordinator URL port must be in 1..65535.";
-    }
-    if (parsed.pathname && parsed.pathname !== "/") {
-      return "Worker coordinator URL must be the coordinator base URL only, without a path.";
-    }
-    if (parsed.search || parsed.hash) {
-      return "Worker coordinator URL must not include query strings or fragments.";
-    }
-    if (parsed.username || parsed.password) {
-      return "Worker coordinator URL must not embed userinfo; use the shared worker token instead.";
-    }
-    return "";
-  }
-
-  function networkGuidance(role, networkWorkers) {
-    if (role === "coordinator") {
-      return [
-        "Saved role: coordinator",
-        ...networkCoordinatorConnectivityLines(networkWorkers).slice(0, 3),
-        "Saved coordinator config is controlled from Saved Distributed Mode Settings on this tab.",
-        "Runtime lifecycle commands must be started from Network Lifecycle controls, not normal Launch.",
-        "Worker claim evidence is read from persisted worker state after the coordinator queue is populated.",
-      ];
-    }
-    if (role === "worker") {
-      return [
-        "Saved role: worker",
-        "This worker polls the configured coordinator URL and launches backend-owned single-file pipeline jobs.",
-        "Worker URL, name, poll interval, and path map are controlled from Saved Distributed Mode Settings on this tab; worker config overrides are backend-disabled.",
-        "Use Diagnostics to inspect RunLogs and ActiveJobs when worker claims fail or are reclaimed.",
-      ];
-    }
-    return [
-      `Saved role: ${role || "standalone"}`,
-      "Standalone mode keeps all processing local to this workstation.",
-      "Use Saved Distributed Mode Settings on this tab to stage role changes through backend Settings Save.",
-    ];
-  }
-
-  function networkModeModelLines(role) {
-    return [
-      `Current saved role: ${role || "standalone"}`,
-      "Standalone: local queue work only on this workstation.",
-      "Coordinator only: owns queue claims and worker registry state but does not process local files.",
-      "Worker only: polls a coordinator and runs one claimed file at a time.",
-      "Coordinator + local worker: coordinator mode with local worker processing enabled through Network lifecycle only.",
-      "Runtime authority: backend routes own lifecycle commands; normal Launch is blocked in network modes.",
-    ];
-  }
-
-  function renderNetworkSummaryRows(elementId, lines) {
-    const target = document.getElementById(elementId);
-    if (!target) return;
-    target.textContent = "";
-    const normalizedLines = (Array.isArray(lines) ? lines : [lines])
-      .map((line) => String(line || "").trim())
-      .filter(Boolean);
-    const displayLines = normalizedLines.length ? normalizedLines : ["No network summary loaded."];
-    displayLines.forEach((line) => {
-      const row = document.createElement("div");
-      row.className = "network-summary-row";
-      row.setAttribute("role", "listitem");
-      const separatorIndex = line.indexOf(":");
-      if (separatorIndex > 0 && separatorIndex <= 36) {
-        if (separatorIndex === line.length - 1) {
-          const section = document.createElement("span");
-          section.className = "network-summary-row-section";
-          section.textContent = line;
-          row.appendChild(section);
-          target.appendChild(row);
-          return;
-        }
-        const label = document.createElement("span");
-        label.className = "network-summary-row-label";
-        label.textContent = `${line.slice(0, separatorIndex)}: `;
-        const value = document.createElement("span");
-        value.className = "network-summary-row-value";
-        value.textContent = line.slice(separatorIndex + 1).trim();
-        row.append(label, value);
-      } else {
-        const body = document.createElement("span");
-        body.className = "network-summary-row-body";
-        body.textContent = line;
-        row.appendChild(body);
-      }
-      target.appendChild(row);
-    });
-  }
-
-  function networkRolePanelIds(config) {
-    const mode = visibleNetworkMode(config);
-    if (mode === "worker") return ["worker"];
-    if (mode === "coordinator") return ["coordinator"];
-    if (mode === "coordinator_local") return ["coordinator", "worker"];
-    return [];
-  }
-
-  function syncNetworkRoleDashboards(config) {
-    const visiblePanels = new Set(networkRolePanelIds(config));
-    document.querySelectorAll("[data-network-role-panel]").forEach((panel) => {
-      const selected = visiblePanels.has(panel.dataset.networkRolePanel || "");
-      panel.classList.toggle("is-active", selected);
-      panel.hidden = !selected;
-    });
-    const container = byId("network-role-dashboards");
-    if (container) {
-      const hasVisiblePanels = visiblePanels.size > 0;
-      container.hidden = !hasVisiblePanels;
-      container.setAttribute("aria-hidden", hasVisiblePanels ? "false" : "true");
-    }
-    if (typeof updatePagePanelEmptyStates === "function") updatePagePanelEmptyStates();
-  }
-
-  function networkDisplayValue(value, fallback = "-") {
-    if (value === undefined || value === null || value === "") return fallback;
-    if (typeof value === "object") {
-      try {
-        return JSON.stringify(value);
-      } catch (_error) {
-        return fallback;
-      }
-    }
-    return String(value);
-  }
-
-  function networkNumber(value, fallback = 0) {
-    const numeric = Number(value);
-    return Number.isFinite(numeric) ? numeric : fallback;
-  }
-
-  function networkNormalizePathKey(value) {
-    return String(value || "")
-      .trim()
-      .replace(/\\/g, "/")
-      .replace(/\/+/g, "/")
-      .toLowerCase();
-  }
-
-  function networkBasename(value) {
-    const normalized = String(value || "").trim().replace(/\\/g, "/");
-    const parts = normalized.split("/").filter(Boolean);
-    return parts.length ? parts[parts.length - 1] : normalized;
-  }
-
-  function networkAddSourceKey(keys, value) {
-    const normalized = networkNormalizePathKey(value);
-    if (!normalized) return;
-    keys.add(normalized);
-    const leaf = networkNormalizePathKey(networkBasename(normalized));
-    if (leaf) keys.add(leaf);
-  }
-
-  function networkSourceKeysFromRow(row) {
-    const keys = new Set();
-    if (!row || typeof row !== "object") return keys;
-    [
-      row.source_path,
-      row.source_file,
-      row.source,
-      row.current_file,
-      row.current_file_name,
-      row.file,
-      row.file_name,
-      row.path,
-      row.display_name,
-      row.name,
-      row.input_path,
-      row.media_path,
-    ].forEach((value) => networkAddSourceKey(keys, value));
-    return keys;
-  }
-
-  function networkSourcePathKeysFromRow(row) {
-    const keys = new Set();
-    if (!row || typeof row !== "object") return keys;
-    [
-      row.source_path,
-      row.source_file,
-      row.source,
-      row.current_file,
-      row.path,
-      row.input_path,
-      row.media_path,
-    ].forEach((value) => {
-      const normalized = networkNormalizePathKey(value);
-      if (normalized && normalized.includes("/")) keys.add(normalized);
-    });
-    return keys;
-  }
-
-  function networkQueueRows(queue) {
-    if (Array.isArray(queue?.rows)) return queue.rows;
-    if (Array.isArray(queue?.queue_rows)) return queue.queue_rows;
-    if (Array.isArray(queue?.items)) return queue.items;
-    return [];
-  }
-
-  function networkQueueMatchMaps(queueRows) {
-    const byPath = new Map();
-    (Array.isArray(queueRows) ? queueRows : []).forEach((row) => {
-      networkSourcePathKeysFromRow(row).forEach((key) => {
-        if (!key) return;
-        if (!byPath.has(key)) byPath.set(key, row);
-      });
-    });
-    return { byPath };
-  }
-
-  function networkMatchedQueueRow(row, maps) {
-    if (!row || !maps) return null;
-    const keys = Array.from(networkSourcePathKeysFromRow(row));
-    for (const key of keys) {
-      if (key.includes("/") && maps.byPath?.has(key)) return maps.byPath.get(key);
-    }
-    return null;
-  }
-
-  function networkQueueFileLabel(row) {
-    return networkDisplayValue(
-      row?.display_name || row?.current_file_name || row?.file_name || networkBasename(row?.source_path || row?.source_file || row?.current_file || row?.path || row?.name),
-      "Unknown file"
-    );
-  }
-
-  function networkRouteName(row) {
-    const route = row?.route_name || row?.route || row?.route_action || row?.action || row?.decision || row?.operation;
-    return String(route || "").trim();
-  }
-
-  function networkRouteLabel(row) {
-    const route = networkRouteName(row);
-    if (!route) return "";
-    return route.replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-  }
-
-  function networkRouteTone(row) {
-    const route = networkRouteName(row).toLowerCase();
-    if (route.includes("remux")) return "remux";
-    if (route.includes("encode") || route.includes("transcode")) return "encode";
-    if (route.includes("skip") || route.includes("copy")) return "skip";
-    return "review";
-  }
-
-  function networkRouteEvidence(row) {
-    return networkDisplayValue(row?.route_reason_code || row?.route_decision_summary || row?.reason || row?.decision_reason || row?.operator_status, "queue row");
-  }
-
-  function networkPriorityText(row) {
-    if (row?.manifest_priority_level !== undefined && row.manifest_priority_level !== null && row.manifest_priority_level !== "") return String(row.manifest_priority_level);
-    if (row?.priority !== undefined && row.priority !== null && row.priority !== "") return String(row.priority);
-    if (row?.manual_order !== undefined && row.manual_order !== null && row.manual_order !== "") return `manual ${row.manual_order}`;
-    if (row?.is_priority === true || row?.priority_flag === true) return "priority";
-    return "normal";
-  }
-
-  function networkSizeText(row) {
-    const gb = Number(row?.size_gb ?? row?.source_size_gb ?? row?.file_size_gb);
-    if (Number.isFinite(gb) && gb > 0) return `${gb.toFixed(gb >= 10 ? 1 : 2)} GB`;
-    const bytes = Number(row?.size_bytes ?? row?.source_size_bytes ?? row?.file_size_bytes);
-    if (Number.isFinite(bytes) && bytes > 0) return `${(bytes / (1024 ** 3)).toFixed(2)} GB`;
-    return "-";
-  }
-
-  function networkQueueOrder(row, index) {
-    const value = row?.global_order ?? row?.queue_index ?? row?.order ?? row?.index;
-    const numeric = Number(value);
-    return Number.isFinite(numeric) && numeric > 0 ? Math.round(numeric) : index + 1;
-  }
-
-  function networkQueueStatus(queue, queueRows) {
-    const status = String(queue?.produced_freshness_status || queue?.snapshot_file_freshness_status || queue?.freshness_status || queue?.status || "").trim();
-    if (status) return status.charAt(0).toUpperCase() + status.slice(1);
-    return queueRows.length ? "Loaded" : "Not loaded";
-  }
-
-  function networkWorkerHasClaimEvidence(row) {
-    if (!row || typeof row !== "object") return false;
-    return Boolean(row.job_id || row.current_file || row.current_file_name || row.source_file || row.source_path || row.pending_done_report);
-  }
-
-  function networkWorkerLooksCompleteOrIdle(row) {
-    const status = String(row?.status || "").toLowerCase();
-    const stage = String(row?.current_stage || "").toLowerCase();
-    return status.includes("idle")
-      || status.includes("done")
-      || status.includes("complete")
-      || status.includes("ready")
-      || stage.includes("idle")
-      || stage.includes("done")
-      || stage.includes("complete");
-  }
-
-  function networkClaimIsActive(row) {
-    if (!networkWorkerHasClaimEvidence(row)) return false;
-    if (row?.pending_done_report) return true;
-    const status = String(row?.status || "").toLowerCase();
-    const stage = String(row?.current_stage || "").toLowerCase();
-    if (status.includes("fail") || status.includes("error") || status.includes("offline") || status.includes("stale") || stage.includes("fail")) {
-      return false;
-    }
-    return !networkWorkerLooksCompleteOrIdle(row);
-  }
-
-  function networkClaimedKeySet(networkWorkers) {
-    const keys = new Set();
-    const rows = Array.isArray(networkWorkers?.rows) ? networkWorkers.rows : [];
-    rows.filter(networkClaimIsActive).forEach((row) => {
-      networkSourcePathKeysFromRow(row).forEach((key) => keys.add(key));
-    });
-    const workerState = networkWorkers?.worker_state && typeof networkWorkers.worker_state === "object" ? networkWorkers.worker_state : {};
-    if (workerState.job_id || workerState.source_file || workerState.source_path || workerState.current_file || workerState.pending_done_report) {
-      networkSourcePathKeysFromRow(workerState).forEach((key) => keys.add(key));
-    }
-    return keys;
-  }
-
-  function networkQueueRowClaimed(row, claimedKeys) {
-    for (const key of networkSourcePathKeysFromRow(row)) {
-      if (claimedKeys.has(key)) return true;
-    }
-    return false;
-  }
-
-  function networkReviewTile(label, value, detail = "", tone = "") {
-    return { label, value, detail, tone };
-  }
-
-  function networkCoordinatorOverviewModel({ queue, networkWorkers } = {}) {
-    const payload = networkWorkers && typeof networkWorkers === "object" ? networkWorkers : {};
-    const rows = Array.isArray(payload.rows) ? payload.rows : [];
-    const queueRows = networkQueueRows(queue);
-    const queueMaps = networkQueueMatchMaps(queueRows);
-    const activeRows = rows.filter(networkClaimIsActive).map((row) => {
-      const queueRow = networkMatchedQueueRow(row, queueMaps);
-      return {
-        row,
-        worker: row.worker_name || row.worker_id || "worker",
-        file: row.current_file_name || row.current_file || row.source_file || networkQueueFileLabel(queueRow || row),
-        route: queueRow ? networkRouteLabel(queueRow) : "",
-        routeTone: queueRow ? networkRouteTone(queueRow) : "warning",
-        routeEvidence: queueRow ? networkRouteEvidence(queueRow) : "backend evidence missing",
-        stage: row.current_stage || row.status || "unknown",
-        progress: workerProgressText(row),
-        heartbeat: workerHeartbeatText(row),
-        status: networkWorkerStatusState(row) || "warning",
-      };
-    });
-    const claimedKeys = networkClaimedKeySet(payload);
-    const onDeckRows = queueRows
-      .filter((row) => !networkQueueRowClaimed(row, claimedKeys))
-      .map((row, index) => ({
-        row,
-        order: networkQueueOrder(row, index),
-        file: networkQueueFileLabel(row),
-        route: networkRouteLabel(row) || "Unknown",
-        routeTone: networkRouteTone(row),
-        priority: networkPriorityText(row),
-        size: networkSizeText(row),
-        evidence: networkRouteEvidence(row),
-      }))
-      .sort((left, right) => left.order - right.order)
-      .slice(0, 10);
-    const warnings = Array.isArray(payload.warnings) ? payload.warnings : [];
-    const reviewRows = rows.filter((row) => ["blocked", "warning"].includes(networkWorkerStatusState(row)));
-    const blockedCount = reviewRows.filter((row) => networkWorkerStatusState(row) === "blocked").length;
-    const issueCount = warnings.length + reviewRows.length;
-    const runnableCount = networkNumber(queue?.runnable_count ?? queue?.queue_depth ?? queueRows.length, queueRows.length);
-    const priorityCount = networkNumber(queue?.priority_count ?? queueRows.filter((row) => networkPriorityText(row).toLowerCase() !== "normal").length, 0);
-    const status = blockedCount ? "Blocked review" : activeRows.length ? "Active" : onDeckRows.length ? "Queued" : issueCount ? "Review" : "Idle";
-    return {
-      status,
-      activeRows,
-      onDeckRows,
-      tiles: [
-        networkReviewTile("Active Claims", String(activeRows.length), `${reviewRows.length} worker rows need review`, blockedCount ? "blocked" : activeRows.length ? "warning" : "match"),
-        networkReviewTile("Queue On Deck", String(onDeckRows.length), `${runnableCount} runnable in queue payload`, onDeckRows.length ? "warning" : "match"),
-        networkReviewTile("Priority", String(priorityCount), "from queue evidence", priorityCount ? "warning" : "match"),
-        networkReviewTile("Session Done", String(payload.session_completed || 0), `${payload.session_failed || 0} failed`, payload.session_failed ? "blocked" : "match"),
-        networkReviewTile("Freshness", networkQueueStatus(queue, queueRows), "queue and state-file evidence", String(networkQueueStatus(queue, queueRows)).toLowerCase().includes("stale") ? "warning" : "match"),
-        networkReviewTile("Issues", String(issueCount), "worker warnings or blocked claims", issueCount ? "blocked" : "match"),
-      ],
-      summaryLines: [
-        "Coordinator overview:",
-        `Active claimed work: ${activeRows.length}; worker rows needing review=${reviewRows.length}; blocked=${blockedCount}; worker warnings=${warnings.length}.`,
-        `Queue on deck: ${onDeckRows.length}; total queue rows=${queueRows.length}; runnable=${runnableCount}; priority=${priorityCount}.`,
-        `Session completed/failed: ${payload.session_completed || 0}/${payload.session_failed || 0}.`,
-        `State freshness: workers=${payload.source || "runtime_state_files"}; queue=${networkQueueStatus(queue, queueRows)}.`,
-        "Mutation guardrail: this dashboard reads queue and worker evidence only; it cannot claim, reclaim, release, retry, drain, publish, rename, save settings, or touch media files.",
-      ],
-    };
-  }
-
-  function networkLifecycleRouteSummary(contract, role) {
-    if (!role) return "not applicable";
-    const dryRunReady = ["start", "stop"].every((action) => networkLifecycleRouteAvailable(contract, role, action, true));
-    const confirmedReady = ["start", "stop"].every((action) => networkLifecycleRouteAvailable(contract, role, action, false));
-    if (dryRunReady && confirmedReady) return "dry-run and confirmed routes available";
-    if (dryRunReady) return "dry-run routes available";
-    return "routes missing";
-  }
-
-  function networkWorkerCurrentFile(workerState) {
-    return workerState?.source_file || workerState?.source_path || workerState?.current_file || workerState?.current_file_name || "";
-  }
-
-  function networkWorkerOverviewModel({ config, contract, networkWorkers, queue } = {}) {
-    const payload = networkWorkers && typeof networkWorkers === "object" ? networkWorkers : {};
-    const workerState = payload.worker_state && typeof payload.worker_state === "object" ? payload.worker_state : {};
-    const progress = payload.worker_progress && typeof payload.worker_progress === "object" ? payload.worker_progress : {};
-    const drift = networkWorkerDriftPayload(payload);
-    const driftActive = String(drift.status || "").toLowerCase() === "drift";
-    const queueMaps = networkQueueMatchMaps(networkQueueRows(queue));
-    const routeRow = networkMatchedQueueRow(workerState, queueMaps);
-    const currentFile = networkWorkerCurrentFile(workerState);
-    const pendingDone = Boolean(workerState.pending_done_report);
-    const hasClaim = Boolean(workerState.job_id || currentFile || pendingDone);
-    const role = String(rawConfigValue(config, "NetworkRole", "standalone") || "standalone").toLowerCase();
-    const routeStatus = networkLifecycleRouteSummary(contract || {}, role === "coordinator" ? "coordinator" : "worker");
-    const blockedProgress = String(progress.status || "").toLowerCase().includes("block") || pendingDone;
-    const status = pendingDone ? "Pending done report" : blockedProgress ? "Blocked review" : hasClaim ? "Active" : role === "worker" ? "Idle" : "Coordinator view";
-    const stateFiles = Array.isArray(payload.state_files) ? payload.state_files : [];
-    const presentFiles = stateFiles.filter((item) => networkStateFileStatus(item) === "match").length;
-    const problemFiles = stateFiles.filter((item) => networkStateFileStatus(item) !== "match").length;
-    const claimRows = [
-      ["Worker role", visibleNetworkModeLabel(config)],
-      ["Worker coordinator URL", coordinatorTarget(config, payload)],
-      ["Running vs saved", networkWorkerDriftStatusText(drift)],
-      ["Drift fields", networkWorkerDriftFieldText(drift)],
-      ["Coordinator policy authority", networkWorkerPolicyDivergenceStatusText(drift)],
-      ["Poll interval", `${displayConfigValue(config, "WorkerPollIntervalSecs", "not configured")} second(s)`],
-      ["Lifecycle routes", routeStatus],
-      ["Current job", workerState.job_id || "(none)"],
-      ["Current file", currentFile ? networkBasename(currentFile) : "(none)"],
-      ["Route", routeRow ? networkRouteLabel(routeRow) : "unknown/backend evidence missing"],
-      ["Route evidence", routeRow ? networkRouteEvidence(routeRow) : "no normalized queue-row match"],
-      ["Progress", progress.status ? `${networkWorkerProgressStatus(progress)}; active=${progress.active_count || 0}; blocked=${progress.blocked_count || 0}` : "not loaded"],
-      ["Pending done report", pendingDone ? "yes" : "no"],
-      ["Worker state file", payload.worker_state_path || "not resolved"],
-    ];
-    return {
-      status,
-      claimRows,
-      routeRow,
-      pendingDone,
-      tiles: [
-        networkReviewTile("Local Claim", hasClaim ? "Active" : "Idle", currentFile ? networkBasename(currentFile) : "no local claim", pendingDone ? "blocked" : hasClaim ? "warning" : "match"),
-        networkReviewTile("Pending Done", pendingDone ? "Yes" : "No", "from worker_state", pendingDone ? "blocked" : "match"),
-        networkReviewTile("Coordinator", coordinatorTarget(config, payload), "backend/saved target evidence", role === "worker" ? "warning" : "match"),
-        networkReviewTile("Settings Drift", driftActive ? "Drift" : "OK", networkWorkerDriftFieldText(drift), driftActive ? "warning" : "match"),
-        networkReviewTile("Policy Authority", networkWorkerPolicyDivergenceActive(drift) ? "Review" : "Ready", networkWorkerPolicyDivergenceText(drift), networkWorkerPolicyDivergenceActive(drift) ? "warning" : "match"),
-        networkReviewTile("Poll", `${displayConfigValue(config, "WorkerPollIntervalSecs", "not configured")}s`, "saved worker interval", "match"),
-        networkReviewTile("Lifecycle", routeStatus, "contract evidence", routeStatus.includes("missing") ? "warning" : "match"),
-        networkReviewTile("State Files", `${presentFiles}/${stateFiles.length}`, problemFiles ? `${problemFiles} review` : "present", problemFiles ? "warning" : "match"),
-      ],
-      summaryLines: [
-        "Worker overview:",
-        `Local claim: ${hasClaim ? "present" : "none"}; pending done report=${pendingDone ? "yes" : "no"}; file=${currentFile ? networkBasename(currentFile) : "none"}.`,
-        `Worker coordinator URL: ${coordinatorTarget(config, payload)}; poll interval=${displayConfigValue(config, "WorkerPollIntervalSecs", "not configured")} second(s).`,
-        `Running vs saved: ${networkWorkerDriftStatusText(drift)}.`,
-        `Coordinator policy authority: ${networkWorkerPolicyDivergenceStatusText(drift)}.`,
-        `Lifecycle route status: ${routeStatus}; state-file evidence=${presentFiles}/${stateFiles.length} present.`,
-        "Remote coordinator queue: Phase 2. Worker-side full coordinator queue visibility requires a read-only backend coordinator queue contract and is not inferred by this WebView.",
-        "Mutation guardrail: this dashboard uses backend-owned Network lifecycle routes only; it does not send done reports, mutate queue state, rewrite state files, or touch media files.",
-      ],
-      remoteQueueSummary: [
-        "Phase 2 placeholder:",
-        "Remote coordinator queue rows are intentionally not displayed from worker mode in Phase 1.",
-        "Requirement: add a backend-owned, read-only coordinator queue reporting contract before the worker tab can show remote queued files.",
-        "Current evidence: local worker_state, worker_progress, saved coordinator target, lifecycle contract, and state-file metadata only.",
-      ].join("\n"),
-    };
-  }
-
-  function renderOverviewTiles(elementId, tiles) {
-    const target = byId(elementId);
-    if (!target) return;
-    target.replaceChildren();
-    (Array.isArray(tiles) ? tiles : []).forEach((tile) => {
-      const item = document.createElement("div");
-      item.className = "review-tile";
-      if (tile.tone) item.dataset.tone = networkTileTone(tile.tone);
-      const labelText = String(tile.label || "").trim().toLowerCase();
-      const isCoordinator = elementId === "network-coordinator-overview-tiles";
-      const focusSelector = isCoordinator
-        ? (labelText.includes("queue") || labelText.includes("priority")
-          ? "#network-coordinator-queue-rows"
-          : "#network-coordinator-active-rows")
-        : "#network-worker-claim-rows";
-      item.setAttribute("role", "button");
-      item.setAttribute("tabindex", "0");
-      item.dataset.uiQuickLink = "";
-      item.dataset.quickLinkPage = "network";
-      item.dataset.quickLinkFocus = focusSelector;
-      item.setAttribute("aria-label", `Focus ${tile.label || "network"} evidence`);
-      item.title = `Focus ${tile.label || "network"} evidence`;
-      const label = document.createElement("span");
-      label.className = "review-tile-label";
-      label.textContent = tile.label || "";
-      const value = document.createElement("strong");
-      value.className = "review-tile-value";
-      value.textContent = tile.value || "";
-      const detail = document.createElement("span");
-      detail.className = "review-tile-detail";
-      detail.textContent = tile.detail || "";
-      item.append(label, value, detail);
-      target.appendChild(item);
-    });
-  }
-
-  function focusNetworkQuickLink(selector) {
-    const target = selector ? document.querySelector(selector) : null;
-    if (!target) return false;
-    target.scrollIntoView?.({ block: "center", inline: "nearest" });
-    if (!target.matches?.("a[href], button, input, select, textarea, summary, [tabindex]")) {
-      target.setAttribute("tabindex", "-1");
-    }
-    target.focus?.({ preventScroll: true });
-    return true;
-  }
-
-  function activateQuickLink(action) {
-    const normalized = String(action || "").trim().toLowerCase();
-    const presetMap = {
-      "worker-attention": "attention",
-      "worker-active": "active",
-      "worker-idle": "idle",
-      "worker-stale": "stale",
-      "worker-path-auth": "path-auth",
-      "worker-problem": "attention",
-    };
-    if (Object.prototype.hasOwnProperty.call(presetMap, normalized)) {
-      networkWorkerViewPreset = presetMap[normalized];
-      syncNetworkWorkerViewPresetButtons();
-      renderNetworkWorkerRows(lastNetworkWorkersPayload);
-      return focusNetworkQuickLink("#network-worker-rows");
-    }
-    return true;
-  }
-
-  function networkTileTone(tone) {
-    const value = String(tone || "").toLowerCase();
-    if (value === "blocked" || value === "failed" || value === "danger") return "danger";
-    if (value === "warning" || value === "review" || value === "active") return "warning";
-    if (value === "match" || value === "ready" || value === "success") return "success";
-    if (value === "info") return "info";
-    return "muted";
-  }
-
-  function networkStatusChip(text, state = "") {
-    const chip = document.createElement("span");
-    chip.className = "status-chip";
-    chip.textContent = text || "-";
-    if (state) chip.dataset.status = state;
-    return chip;
-  }
-
-  function networkRouteChip(text, state = "") {
-    const chip = document.createElement("span");
-    chip.className = "route-chip";
-    chip.textContent = text || "Unknown";
-    if (state) chip.dataset.route = state;
-    return chip;
-  }
-
-  function networkAppendCell(row, content, className = "") {
-    const cell = document.createElement("td");
-    if (className) cell.className = className;
-    if (content instanceof Node) {
-      cell.appendChild(content);
-    } else {
-      cell.textContent = content === undefined || content === null ? "" : String(content);
-    }
-    row.appendChild(cell);
-    return cell;
-  }
-
-  function renderCoordinatorActiveRows(model) {
-    const tbody = byId("network-coordinator-active-rows");
-    if (!tbody) return;
-    setText("network-coordinator-active-status", model.activeRows.length ? `${model.activeRows.length} active` : "No active claims");
-    if (!model.activeRows.length) {
-      clearRows(tbody, 6, "No active claimed worker files are visible in the loaded persisted state.");
-      return;
-    }
-    tbody.replaceChildren();
-    model.activeRows.forEach((item) => {
-      const row = document.createElement("tr");
-      row.dataset.status = item.status;
-      networkAppendCell(row, item.worker);
-      networkAppendCell(row, item.file, "network-overview-table-file");
-      if (item.route) {
-        networkAppendCell(row, networkRouteChip(item.route, item.routeTone));
-      } else {
-        const missing = document.createElement("span");
-        missing.className = "network-overview-route-missing";
-        missing.textContent = "unknown/backend evidence missing";
-        missing.title = "No normalized queue-row match exists for this active worker claim.";
-        networkAppendCell(row, missing);
-      }
-      networkAppendCell(row, networkStatusChip(item.stage, item.status));
-      networkAppendCell(row, item.progress, "num");
-      networkAppendCell(row, item.heartbeat, "num");
-      tbody.appendChild(row);
-    });
-  }
-
-  function renderCoordinatorQueueRows(model) {
-    const tbody = byId("network-coordinator-queue-rows");
-    if (!tbody) return;
-    setText("network-coordinator-queue-status", model.onDeckRows.length ? `${model.onDeckRows.length} on deck` : "No on-deck rows");
-    if (!model.onDeckRows.length) {
-      clearRows(tbody, 6, "No unclaimed queue/on-deck files are visible in the loaded queue payload.");
-      return;
-    }
-    tbody.replaceChildren();
-    model.onDeckRows.forEach((item) => {
-      const row = document.createElement("tr");
-      networkAppendCell(row, item.order, "num");
-      networkAppendCell(row, item.file, "network-overview-table-file");
-      networkAppendCell(row, networkRouteChip(item.route, item.routeTone));
-      networkAppendCell(row, item.priority);
-      networkAppendCell(row, item.size, "num");
-      networkAppendCell(row, item.evidence);
-      tbody.appendChild(row);
-    });
-  }
-
-  function renderWorkerClaimRows(model) {
-    const tbody = byId("network-worker-claim-rows");
-    if (!tbody) return;
-    setText("network-worker-claim-status", model.pendingDone ? "Pending done report" : model.status);
-    tbody.replaceChildren();
-    model.claimRows.forEach(([field, evidence]) => {
-      const row = document.createElement("tr");
-      networkAppendCell(row, field);
-      networkAppendCell(row, evidence);
-      tbody.appendChild(row);
-    });
-  }
-
-  function renderNetworkRoleDashboards({ queue, networkWorkers, config, contract } = {}) {
-    const coordinatorModel = networkCoordinatorOverviewModel({ queue, networkWorkers });
-    setText("network-coordinator-overview-status", coordinatorModel.status);
-    setText("network-coordinator-overview-summary", coordinatorModel.summaryLines.join("\n"));
-    renderOverviewTiles("network-coordinator-overview-tiles", coordinatorModel.tiles);
-    renderCoordinatorActiveRows(coordinatorModel);
-    renderCoordinatorQueueRows(coordinatorModel);
-
-    const workerModel = networkWorkerOverviewModel({ config: config || {}, contract: contract || {}, networkWorkers, queue });
-    setText("network-worker-overview-status", workerModel.status);
-    setText("network-worker-overview-summary", workerModel.summaryLines.join("\n"));
-    setText("network-worker-remote-queue-status", "Phase 2");
-    setText("network-worker-remote-queue-summary", workerModel.remoteQueueSummary);
-    renderOverviewTiles("network-worker-overview-tiles", workerModel.tiles);
-    renderWorkerClaimRows(workerModel);
-  }
-
-  function contractSummary(contract) {
-    const routes = Array.isArray(contract?.routes) ? contract.routes : [];
-    const guarded = routes.filter((route) => route.effect && route.effect !== "none");
-    const tokenRoutes = routes.filter((route) => route.auth_required);
-    return [
-      `Routes: ${routes.length}`,
-      `Guarded actions: ${guarded.length}`,
-      `Token-protected routes: ${tokenRoutes.length}`,
-      `Public routes: ${(contract?.auth?.public_routes || []).length || 0}`,
-    ].join("\n");
-  }
-
-  function configFlagText(config, key, fallback = "not configured") {
-    const raw = rawConfigValue(config, key, "");
-    if (raw === "" || raw === undefined || raw === null) return fallback;
-    if (typeof raw === "boolean") return raw ? "enabled" : "disabled";
-    const normalized = String(raw).trim().toLowerCase();
-    if (["true", "1", "yes", "on", "enabled"].includes(normalized)) return "enabled";
-    if (["false", "0", "no", "off", "disabled"].includes(normalized)) return "disabled";
-    return String(raw);
-  }
-
-  function configuredStatus(config, key) {
-    const raw = rawConfigValue(config, key, "");
-    if (raw === "" || raw === undefined || raw === null) return "not configured";
-    const text = String(raw).trim();
-    return text ? "configured" : "not configured";
-  }
-
-  function networkPathMapStatus(config) {
-    const raw = rawConfigValue(config, "WorkerSourcePathMap", "");
-    if (raw && typeof raw === "object") {
-      return Object.keys(raw).length ? `${Object.keys(raw).length} mapping${Object.keys(raw).length === 1 ? "" : "s"} configured` : "not configured";
-    }
-    const text = String(raw || "").trim();
-    if (!text) return "not configured";
-    if (text.startsWith("{")) return "configured JSON map";
-    return "configured";
-  }
-
-  function routeExists(contract, path, method = "GET") {
-    const routes = Array.isArray(contract?.routes) ? contract.routes : [];
-    return routes.some((route) => {
-      const routePath = String(route?.path || "");
-      const routeMethod = String(route?.method || "GET").toUpperCase();
-      return routePath === path && routeMethod === String(method).toUpperCase();
-    });
-  }
-
-  function networkLifecycleContracts(contract) {
-    return Array.isArray(contract?.network_lifecycle_contracts) ? contract.network_lifecycle_contracts : [];
-  }
-
-  function networkLifecycleContractSummary(contract) {
-    const contracts = networkLifecycleContracts(contract);
-    const summary = contract?.network_lifecycle_summary || {};
-    if (!contracts.length && !summary.schema_version) {
-      return "Network lifecycle command contract: not published.";
-    }
-    return [
-      `Network lifecycle command contract: ${summary.status || "backend_lifecycle_routes_available_provider_guarded"}`,
-      `Design contracts: ${contracts.length}; mutation enabled=${summary.mutation_enabled ? "yes" : "no"}; frontend allowed=${summary.frontend_allowed ? "yes" : "no"}`,
-      `Safe next step: ${summary.safe_next_step || "keep lifecycle controls out of WebView until backend routes, preconditions, command history, and tests exist"}`,
-    ].join(" ");
-  }
-
-  function networkLifecycleMutationRouteCount(contract) {
-    const routes = Array.isArray(contract?.routes) ? contract.routes : [];
-    return routes.filter((route) => {
-      const lifecycle = route?.network_lifecycle || {};
-      const method = String(route?.method || "GET").toUpperCase();
-      return method === "POST" && lifecycle.role && lifecycle.action && lifecycle.dry_run === false;
-    }).length;
-  }
-
-  function networkLifecycleDryRunRouteCount(contract) {
-    const routes = Array.isArray(contract?.routes) ? contract.routes : [];
-    return routes.filter((route) => {
-      const lifecycle = route?.network_lifecycle || {};
-      const method = String(route?.method || "GET").toUpperCase();
-      return method === "POST" && lifecycle.role && lifecycle.action && lifecycle.dry_run === true;
-    }).length;
-  }
-
-  function networkSetupMutationRouteRows(contract) {
-    const routes = Array.isArray(contract?.routes) ? contract.routes : [];
-    const networkRoutePrefix = ["/api", "network"].join("/") + "/";
-    return routes.filter((route) => {
-      const path = String(route?.path || "");
-      const method = String(route?.method || "GET").toUpperCase();
-      const effect = String(route?.effect || "").toLowerCase();
-      return path.startsWith(networkRoutePrefix)
-        && method === "POST"
-        && effect !== "none"
-        && !route?.network_lifecycle;
-    });
-  }
-
-  function networkSetupMutationRouteSummary(contract) {
-    const rows = networkSetupMutationRouteRows(contract);
-    if (!rows.length) return "none";
-    return rows
-      .map((route) => `${route.path || "setup route"}=${route.effect || "unknown"}`)
-      .join("; ");
-  }
-
-  function networkLifecycleRouteRow(contract, role, action, dryRun) {
-    const routes = Array.isArray(contract?.routes) ? contract.routes : [];
-    return routes.find((route) => {
-      const lifecycle = route?.network_lifecycle || {};
-      return String(route?.method || "").toUpperCase() === "POST"
-        && String(lifecycle.role || "") === role
-        && String(lifecycle.action || "") === action
-        && Boolean(lifecycle.dry_run) === Boolean(dryRun);
-    }) || null;
-  }
-
-  function networkLifecycleBoundaryStatus({ closeReadiness, contract } = {}) {
-    if (!contract?.schema_version) return "Not loaded";
-    const unsafeClose = closeReadiness && typeof closeReadiness === "object" && closeReadiness.safe_to_close === false;
-    if (unsafeClose) return "Blocked by active work";
-    return networkLifecycleMutationRouteCount(contract) ? "Backend lifecycle routes" : "Read-only boundary";
-  }
-
-  function networkLifecycleBoundaryLines({ closeReadiness, contract, networkWorkers } = {}) {
-    const lifecycleSummary = contract?.network_lifecycle_summary || {};
-    const confirmedLifecycleRoutes = networkLifecycleMutationRouteCount(contract);
-    const dryRunLifecycleRoutes = networkLifecycleDryRunRouteCount(contract);
-    const setupRoutes = networkSetupMutationRouteRows(contract);
-    const workerRouteLoaded = routeExists(contract, "/api/network/workers", "GET");
-    const workerSource = networkWorkers?.source || "not loaded";
-    const unsafeClose = closeReadiness && typeof closeReadiness === "object" && closeReadiness.safe_to_close === false;
-    return [
-      "Lifecycle owner: backend Network diagnostics / Python dispatcher.",
-      closeReadinessLine(closeReadiness),
-      `Persisted worker state source: ${workerSource}`,
-      `Read-only worker route: ${workerRouteLoaded ? "available" : "missing"} (GET /api/network/workers, effect=none).`,
-      `Lifecycle dry-run routes: ${dryRunLifecycleRoutes ? `present (${dryRunLifecycleRoutes})` : "absent"}; confirmed lifecycle routes: ${confirmedLifecycleRoutes ? `present (${confirmedLifecycleRoutes})` : "absent"}.`,
-      `Setup write/secret routes: ${setupRoutes.length ? networkSetupMutationRouteSummary(contract) : "none"}.`,
-      `Lifecycle contracts: ${networkLifecycleContracts(contract).length}; frontend allowed=${lifecycleSummary.frontend_allowed ? "yes" : "no"}.`,
-      unsafeClose
-        ? "Safe next step: leave network role/settings and lifecycle planning unchanged until close-readiness is safe."
-        : "Safe next step: run the backend dry-run route before any confirmed network lifecycle command.",
-    ];
-  }
-
-  function networkRouteSummaryStatus(contract) {
-    if (!contract?.schema_version) return "Not loaded";
-    const workerRouteLoaded = routeExists(contract, "/api/network/workers", "GET");
-    const confirmedLifecycleRoutes = networkLifecycleMutationRouteCount(contract);
-    if (workerRouteLoaded && confirmedLifecycleRoutes > 0) return "Lifecycle routes";
-    if (workerRouteLoaded && confirmedLifecycleRoutes === 0) return "Read-only route";
-    return "Review";
-  }
-
-  function networkRouteSummaryLines(contract) {
-    const workerRouteLoaded = routeExists(contract, "/api/network/workers", "GET");
-    const lifecycleContracts = networkLifecycleContracts(contract);
-    const lifecycleSummary = contract?.network_lifecycle_summary || {};
-    const testConnectionRoute = networkWorkerTestConnectionRoute(contract);
-    const discoveryRoute = networkWorkerDiscoverCoordinatorsRoute(contract);
-    const joinBlobRoute = networkCoordinatorJoinBlobRoute(contract);
-    const joinClusterRoute = networkWorkerJoinClusterRoute(contract);
-    return [
-      `Workers evidence route: ${workerRouteLoaded ? "GET /api/network/workers available with effect=none" : "GET /api/network/workers missing or not loaded"}.`,
-      `Worker test-connection route: ${testConnectionRoute ? "available with effect=none" : "missing or not loaded"}.`,
-      `Worker mDNS discovery route: ${discoveryRoute ? "available with effect=none" : "missing or not loaded"}.`,
-      `Coordinator join blob route: ${joinBlobRoute ? "available; setup secret-transfer, unjournaled because it returns a secret" : "missing or not loaded"}.`,
-      `Worker join cluster route: ${joinClusterRoute ? "available; setup config-write, unjournaled because the request contains a secret" : "missing or not loaded"}.`,
-      `Lifecycle dry-run routes: ${networkLifecycleDryRunRouteCount(contract)}; confirmed lifecycle start/stop routes: ${networkLifecycleMutationRouteCount(contract)}.`,
-      `Setup write/secret routes: ${networkSetupMutationRouteSummary(contract)}.`,
-      `Lifecycle contract posture: ${lifecycleContracts.length ? "published lifecycle contracts" : "not published"}; mutation enabled=${lifecycleSummary.mutation_enabled ? "yes" : "no"}.`,
-      "Deep API contract detail remains in Advanced and Diagnostics/Contract surfaces.",
-    ];
-  }
-
-  function networkLifecycleRoutePath(contract, role, action, dryRun) {
-    const row = networkLifecycleRouteRow(contract, role, action, dryRun);
-    return row ? String(row.path || "") : "";
-  }
-
-  function networkLifecycleRouteAvailable(contract, role, action, dryRun) {
-    const row = networkLifecycleRouteRow(contract, role, action, dryRun);
-    return Boolean(row?.path);
-  }
-
-  function networkLifecycleDryRunKey(role, action) {
-    return `${role || ""}:${action || ""}`;
-  }
-
-  function closeReadinessIsSafe(closeReadiness) {
-    return Boolean(closeReadiness && typeof closeReadiness === "object" && (closeReadiness.safe_to_close === true || closeReadiness.ready === true));
-  }
-
-  function networkLifecycleFingerprint(payload = {}, config = {}, role = "", action = "") {
-    const contract = payload.contract || {};
-    const networkWorkers = payload.networkWorkers || {};
-    const closeReadiness = payload.closeReadiness || {};
-    const roleState = networkLifecycleStateFor(networkWorkers, role);
-    return JSON.stringify({
-      role,
-      action,
-      mode: visibleNetworkMode(config),
-      dry_run_route: networkLifecycleRoutePath(contract, role, action, true),
-      confirmed_route: networkLifecycleRoutePath(contract, role, action, false),
-      lifecycle_state: roleState.status,
-      coordinator_target: coordinatorTarget(config, networkWorkers, { raw: true }) || "",
-      close_readiness_safe: closeReadinessIsSafe(closeReadiness),
-      close_readiness_reason: closeReadiness.reason || closeReadiness.state || closeReadiness.message || "",
-    });
-  }
-
-  function networkLifecycleDryRunRecord(role, action) {
-    return networkLifecycleDryRunEvidence.get(networkLifecycleDryRunKey(role, action)) || null;
-  }
-
-  function pruneNetworkLifecycleDryRunEvidence(payload = {}, config = {}) {
-    Array.from(networkLifecycleDryRunEvidence.entries()).forEach(([key, record]) => {
-      const [role, action] = key.split(":");
-      const currentFingerprint = networkLifecycleFingerprint(payload, config, role, action);
-      if (!record || record.fingerprint !== currentFingerprint || !closeReadinessIsSafe(payload.closeReadiness)) {
-        networkLifecycleDryRunEvidence.delete(key);
-      }
-    });
-  }
-
-  function networkLifecycleDryRunAllowsConfirmed(payload = {}, config = {}, role = "", action = "") {
-    const record = networkLifecycleDryRunRecord(role, action);
-    if (!record || record.safeToApply !== true) return false;
-    return record.fingerprint === networkLifecycleFingerprint(payload, config, role, action)
-      && closeReadinessIsSafe(payload.closeReadiness);
-  }
-
-  function networkLifecycleDryRunRequirementLine(payload = {}, config = {}, role = "", action = "") {
-    const record = networkLifecycleDryRunRecord(role, action);
-    if (!closeReadinessIsSafe(payload.closeReadiness)) {
-      return "Matching dry-run required: close-readiness is not safe or not loaded.";
-    }
-    if (!record) return `Matching dry-run required: run Check ${role} ${action} first.`;
-    if (record.fingerprint !== networkLifecycleFingerprint(payload, config, role, action)) {
-      return `Matching dry-run required: previous Check ${role} ${action} is stale after state/settings/route changes.`;
-    }
-    if (record.safeToApply !== true) return `Matching dry-run required: latest Check ${role} ${action} did not report safe_to_apply.`;
-    return `Matching dry-run accepted: Check ${role} ${action} reported safe_to_apply at ${record.capturedAt}.`;
-  }
-
-  function rememberNetworkLifecycleDryRun(payload = {}, config = {}, role = "", action = "", result = {}) {
-    const data = result?.data && typeof result.data === "object" ? result.data : {};
-    networkLifecycleDryRunEvidence.set(networkLifecycleDryRunKey(role, action), {
-      role,
-      action,
-      ok: result?.ok === true,
-      safeToApply: data.safe_to_apply === true,
-      message: result?.message || "",
-      command: result?.command || "",
-      fingerprint: networkLifecycleFingerprint(payload, config, role, action),
-      capturedAt: new Date().toISOString(),
-    });
-  }
-
-  function networkWorkerTestConnectionRoute(contract) {
-    const routes = Array.isArray(contract?.routes) ? contract.routes : [];
-    const row = routes.find((item) => (
-      String(item?.method || "").toUpperCase() === "POST"
-      && item?.data_schema === "desktop_network_worker_test_connection.v1"
-      && item?.effect === "none"
-      && item?.frontend_exposed === true
-    ));
-    return row ? String(row.path || "") : "";
-  }
-
-  function networkCommandRouteByDataSchema(contract, dataSchema) {
-    const routes = Array.isArray(contract?.routes) ? contract.routes : [];
-    const row = routes.find((item) => (
-      String(item?.method || "").toUpperCase() === "POST"
-      && item?.data_schema === dataSchema
-      && item?.frontend_exposed === true
-    ));
-    return row ? String(row.path || "") : "";
-  }
-
-  function networkCoordinatorJoinBlobRoute(contract) {
-    return networkCommandRouteByDataSchema(contract, "desktop_network_join_blob_result.v1");
-  }
-
-  function networkWorkerJoinClusterRoute(contract) {
-    return networkCommandRouteByDataSchema(contract, "desktop_network_join_import_result.v1");
-  }
-
-  function networkWorkerDiscoverCoordinatorsRoute(contract) {
-    return networkCommandRouteByDataSchema(contract, "desktop_network_coordinator_discovery.v1");
-  }
-
-  function networkLifecycleRelevantRole(config) {
-    const mode = visibleNetworkMode(config);
-    if (mode === "coordinator" || mode === "coordinator_local") return "coordinator";
-    if (mode === "worker") return "worker";
-    return "";
-  }
-
-  function networkLifecycleRelevantRoles(config) {
-    const mode = visibleNetworkMode(config);
-    if (mode === "coordinator_local") return ["coordinator", "worker"];
-    if (mode === "coordinator") return ["coordinator"];
-    if (mode === "worker") return ["worker"];
-    return [];
-  }
-
-  function networkLifecycleControlLines(payload = {}, config = {}) {
-    const contract = payload.contract || {};
-    const networkWorkers = payload.networkWorkers || {};
-    const relevantRoles = networkLifecycleRelevantRoles(config);
-    const modeLabel = visibleNetworkModeLabel(config);
-    const runtime = networkRuntimeStatus(networkWorkers, config);
-    if (!relevantRoles.length) {
-      return [
-        `Mode: ${modeLabel}`,
-        `Runtime: ${runtime.label}`,
-        "Network lifecycle is inactive in Standalone mode.",
-        "Normal Launch is available only in Standalone mode.",
-      ];
-    }
-    const workerUrlIssue = relevantRoles.includes("worker")
-      ? obviousWorkerCoordinatorUrlIssue(coordinatorTarget(config, networkWorkers, { raw: true }), { required: true })
-      : "";
-    const routeLines = relevantRoles.flatMap((roleName) => ["start", "stop"].flatMap((action) => [
-      `${roleName} ${action} dry-run route: ${networkLifecycleRouteAvailable(contract, roleName, action, true) ? "available" : "missing"}`,
-      `${roleName} ${action} route: ${networkLifecycleRouteAvailable(contract, roleName, action, false) ? "available" : "missing"}`,
-    ]));
-    const stateLines = relevantRoles.map((roleName) => {
-      const roleState = networkLifecycleStateFor(networkWorkers, roleName);
-      return `${roleName} state=${roleState.status}; confirmed start=${networkLifecycleDryRunRequirementLine(payload, config, roleName, "start")}; confirmed stop=${networkLifecycleDryRunRequirementLine(payload, config, roleName, "stop")}`;
-    });
-    const lines = [
-      `Mode: ${modeLabel}`,
-      `Runtime: ${runtime.label}.`,
-      "Normal Launch is blocked in this network mode; use these backend lifecycle controls.",
-      "Guided actions run the backend dry-run route first; confirmation opens only after safe_to_apply evidence is current.",
-      "Confirmed start/stop commands still require backend confirmation fields and command-journal records.",
-      ...stateLines,
-      ...routeLines,
-      ...networkTokenPostureLines(networkWorkers),
-      "Drain, Disable New Work, Pause, Abort Current, Reclaim Job, and Quarantine Worker remain disabled until backend routes exist.",
-    ];
-    if (workerUrlIssue) lines.splice(3, 0, `Worker URL blocked: ${workerUrlIssue}`);
-    return lines;
-  }
-
-  function setNetworkSetupRouteStatus(elementId, route, readyText) {
-    const node = byId(elementId);
-    if (!node) return;
-    const current = String(node.textContent || "").trim();
-    const routeOnlyStatuses = new Set(["", "Not loaded", "Route ready", "Route missing"]);
-    if (!route) {
-      node.textContent = "Route missing";
-      return;
-    }
-    if (routeOnlyStatuses.has(current)) {
-      node.textContent = readyText;
-    }
-  }
-
-  function renderNetworkJoinControls(payload = {}, config = {}) {
-    const contract = payload.contract || {};
-    const networkWorkers = payload.networkWorkers || {};
-    const coordinatorRoute = networkCoordinatorJoinBlobRoute(contract);
-    const workerRoute = networkWorkerJoinClusterRoute(contract);
-    const discoveryRoute = networkWorkerDiscoverCoordinatorsRoute(contract);
-    const coordinatorUrlInput = byId("network-coordinator-join-url");
-    const coordinatorButton = byId("network-coordinator-join-create");
-    const copyButton = byId("network-coordinator-join-copy");
-    const workerBlob = byId("network-worker-join-blob");
-    const workerButton = byId("network-worker-join-import");
-    const discoverButton = byId("network-worker-discover");
-    const target = coordinatorTarget(config, networkWorkers, { raw: true });
-    if (coordinatorUrlInput && !coordinatorUrlInput.value) {
-      coordinatorUrlInput.placeholder = target || "http://coordinator-host:7830";
-    }
-    if (coordinatorButton) {
-      coordinatorButton.disabled = !coordinatorRoute;
-      coordinatorButton.title = coordinatorRoute
-        ? "Create an unjournaled backend join blob response for worker setup."
-        : "Backend coordinator join blob route is not available in the loaded contract.";
-    }
-    if (copyButton) {
-      const hasBlob = Boolean(String(byId("network-coordinator-join-output")?.value || "").trim());
-      copyButton.disabled = !hasBlob;
-      copyButton.title = hasBlob ? "Copy the current join blob." : "Create a join blob before copying.";
-    }
-    if (workerButton) {
-      workerButton.disabled = !workerRoute || !String(workerBlob?.value || "").trim();
-      workerButton.title = workerRoute
-        ? "Import a join blob through backend settings save and test connection."
-        : "Backend worker join cluster route is not available in the loaded contract.";
-    }
-    if (discoverButton) {
-      discoverButton.disabled = !discoveryRoute;
-      discoverButton.title = discoveryRoute
-        ? "Scan the LAN for mDNS-advertised coordinators through the backend."
-        : "Backend worker mDNS discovery route is not available in the loaded contract.";
-    }
-    setNetworkSetupRouteStatus("network-coordinator-join-status", coordinatorRoute, "Route ready");
-    setNetworkSetupRouteStatus("network-worker-join-status", workerRoute, "Route ready");
-    setNetworkSetupRouteStatus("network-worker-discovery-status", discoveryRoute, "Route ready");
-  }
-
-  function renderNetworkLifecycleControls(payload = {}, role = "standalone", config = {}) {
-    lastNetworkLifecyclePayload = payload && typeof payload === "object" ? payload : {};
-    const contract = payload.contract || {};
-    const networkWorkers = payload.networkWorkers || {};
-    const relevantRoles = networkLifecycleRelevantRoles(config);
-    const modeLabel = visibleNetworkModeLabel(config);
-    const runtime = networkRuntimeStatus(networkWorkers, config);
-    const roleStates = relevantRoles.map((roleName) => {
-      const state = networkLifecycleStateFor(networkWorkers, roleName);
-      return `${roleName} ${state.status}`;
-    });
-    const workerUrlIssue = relevantRoles.includes("worker")
-      ? obviousWorkerCoordinatorUrlIssue(coordinatorTarget(config, networkWorkers, { raw: true }), { required: true })
-      : "";
-    pruneNetworkLifecycleDryRunEvidence(payload, config);
-    document.querySelectorAll("[data-network-action-group]").forEach((group) => {
-      const groupRole = group.dataset.networkActionGroup || "";
-      const visible = groupRole === "standalone"
-        ? relevantRoles.length === 0
-        : relevantRoles.includes(groupRole);
-      group.hidden = !visible;
-    });
-    document.querySelectorAll("[data-network-lifecycle-role]").forEach((button) => {
-      const buttonRole = button.dataset.networkLifecycleRole || "";
-      const action = button.dataset.networkLifecycleAction || "";
-      const dryRun = button.dataset.networkLifecycleDryRun === "true";
-      const guided = button.dataset.networkLifecycleGuided === "true";
-      const usesDryRunRoute = dryRun || guided;
-      const roleApplies = relevantRoles.includes(buttonRole);
-      const routeAvailable = networkLifecycleRouteAvailable(contract, buttonRole, action, usesDryRunRoute);
-      const roleState = networkLifecycleStateFor(networkWorkers, buttonRole);
-      const stateAllowsAction = dryRun && !guided
-        ? true
-        : action === "start"
-          ? roleState.status === "stopped"
-          : roleState.status === "running";
-      const dryRunAllowsConfirmed = dryRun || guided || networkLifecycleDryRunAllowsConfirmed(payload, config, buttonRole, action);
-      const urlAllows = !workerUrlIssue || buttonRole !== "worker";
-      const available = roleApplies && routeAvailable && urlAllows && stateAllowsAction && dryRunAllowsConfirmed;
-      button.hidden = !roleApplies;
-      button.disabled = !available;
-      if (available) {
-        button.title = guided
-          ? `${modeLabel}: run backend dry-run for ${buttonRole} ${action}; confirmation opens only when safe_to_apply is current.`
-          : dryRun
-            ? `${modeLabel}: check ${buttonRole} ${action}; effect=none.`
-            : action === "stop"
-            ? `${modeLabel}: stop polling/new claims through backend lifecycle route; active work is preserved for done reporting.`
-            : `${modeLabel}: start through backend lifecycle route.`;
-      } else if (!roleApplies) {
-        button.title = "This lifecycle control does not apply to the saved network mode.";
-      } else if (!routeAvailable) {
-        button.title = usesDryRunRoute
-          ? "Backend lifecycle dry-run route is not available in the loaded contract."
-          : "Backend lifecycle route is not available in the loaded contract.";
-      } else if (!urlAllows) {
-        button.title = workerUrlIssue;
-      } else if (!dryRunAllowsConfirmed) {
-        button.title = networkLifecycleDryRunRequirementLine(payload, config, buttonRole, action);
-      } else {
-        button.title = action === "start"
-          ? `Start is available only while ${buttonRole} lifecycle state is stopped.`
-          : `Stop is available only while ${buttonRole} lifecycle state is running.`;
-      }
-    });
-    document.querySelectorAll("[data-network-future-control]").forEach((button) => {
-      button.disabled = true;
-      button.title = "Backend route not implemented yet.";
-    });
-    document.querySelectorAll("[data-network-test-connection]").forEach((button) => {
-      const routeAvailable = Boolean(networkWorkerTestConnectionRoute(contract));
-      const roleApplies = relevantRoles.includes("worker");
-      button.hidden = !roleApplies;
-      button.disabled = !roleApplies || !routeAvailable;
-      button.title = routeAvailable
-        ? "Run backend-owned read-only TCP/auth/path preflight for this worker."
-        : "Backend worker test-connection route is not available in the loaded contract.";
-    });
-    setText(
-      "network-lifecycle-control-status",
-      relevantRoles.length ? `${runtime.label}: ${roleStates.join(", ")}` : "Standalone"
-    );
-    setText("network-lifecycle-control-summary", networkLifecycleControlLines(payload, config).join("\n"));
-    renderNetworkDiagnosticRail(networkWorkers);
-    renderNetworkJoinControls(payload, config);
-  }
-
-  function networkLifecycleCommandResultLines(result) {
-    const data = result?.data && typeof result.data === "object" ? result.data : {};
-    const preconditions = Array.isArray(data.precondition_results) ? data.precondition_results : [];
-    const blocked = preconditions.filter((row) => String(row?.status || "").toLowerCase() === "blocked");
-    const passed = preconditions.filter((row) => String(row?.status || "").toLowerCase() === "pass");
-    const isDryRun = data.dry_run_only === true;
-    const stateAfterStatus = String(data.state_after?.status || "").toLowerCase();
-    const activeWorkPreserved = data.active_work_preserved === true || stateAfterStatus === "active_work_preserved";
-    const lines = isDryRun
-      ? [
-          "Check complete. This was a dry-run only.",
-          "Effect: none.",
-          "No files, queue, scratch, output, pending publish, or lifecycle state changed.",
-        ]
-      : [
-          activeWorkPreserved
-            ? "Stop requested. Active work is preserved for done reporting; backend command journal evidence was required before runtime state changed."
-            : result?.ok
-            ? "Confirmed command completed. Backend command journal evidence was required before runtime state changed."
-            : "Confirmed command was blocked or failed. No fallback to normal Launch was attempted.",
-        ];
-    lines.push(
-      `Command: ${result?.command || "network lifecycle"}`,
-      `Result: ${result?.ok ? "ok" : "blocked"}`,
-      `Severity: ${result?.severity || "unknown"}`,
-      `Message: ${result?.message || "(none)"}`,
-    );
-    if (typeof data.safe_to_apply === "boolean") lines.push(`Safe to apply: ${data.safe_to_apply ? "yes" : "no"}`);
-    if (data.effect) lines.push(`Backend effect: ${data.effect}`);
-    if (data.schema_version) lines.push(`Data schema: ${data.schema_version}`);
-    if (data.command_id) lines.push(`Command ID: ${data.command_id}`);
-    if (passed.length) {
-      lines.push("", "Passed preconditions:");
-      passed.slice(0, 8).forEach((row) => lines.push(`- ${row.key || "precondition"}: ${row.evidence || ""}`));
-    }
-    if (blocked.length) {
-      lines.push("", "Blocked preconditions:");
-      blocked.slice(0, 8).forEach((row) => lines.push(`- ${row.key || "precondition"}: ${row.evidence || ""}`));
-    }
-    const activeWork = activeWorkPreserved
-      ? data.post_action_active_work || data.state_after?.active_work || {}
-      : {};
-    if (activeWorkPreserved && activeWork && typeof activeWork === "object") {
-      const activeJobs = Array.isArray(activeWork.active_jobs) ? activeWork.active_jobs : [];
-      lines.push(
-        "",
-        "Active work preserved:",
-        `- Active jobs: ${activeWork.active_job_count || activeJobs.length || 0}`,
-        `- Local active jobs: ${activeWork.local_active_job_count || 0}`,
-        `- Remote active claims: ${activeWork.remote_active_claim_count || 0}`,
-        "- Effect: stopped polling/new claims; preserved active work must finish and report done through backend lifecycle."
-      );
-      activeJobs.slice(0, 5).forEach((job) => {
-        const label = job.source_name || job.job_id || "active job";
-        lines.push(`- ${label}: ${job.source || "backend evidence"}`);
-      });
-    }
-    const errors = Array.isArray(result?.errors) ? result.errors : [];
-    if (errors.length) {
-      lines.push("", "Errors:");
-      errors.slice(0, 8).forEach((error) => lines.push(`- ${error}`));
-    }
-    const noTouch = data.would_not_touch && typeof data.would_not_touch === "object" ? data.would_not_touch : {};
-    const noTouchKeys = Object.keys(noTouch);
-    if (noTouchKeys.length) {
-      lines.push("", "Would not touch:");
-      noTouchKeys.slice(0, 8).forEach((key) => lines.push(`- ${key}: ${noTouch[key]}`));
-    }
-    const redactedConfig = data.redacted_config_evidence && typeof data.redacted_config_evidence === "object"
-      ? data.redacted_config_evidence
-      : {};
-    const configKeys = Object.keys(redactedConfig);
-    if (configKeys.length) {
-      lines.push("", "Redacted config evidence:");
-      configKeys.slice(0, 10).forEach((key) => {
-        const normalized = String(key).toLowerCase();
-        const label = normalized.includes("authtoken")
-          ? normalized.includes("worker") ? "Worker token" : "Coordinator token"
-          : key;
-        const rawValue = redactedConfig[key];
-        const value = normalized.includes("authtoken")
-          ? String(rawValue || "").replace("present_redacted", "present, hidden").replace("will_generate_on_start", "blank; coordinator can generate").replace("missing", "missing")
-          : rawValue;
-        lines.push(`- ${label}: ${value}`);
-      });
-    }
-    if (data.state_before || data.state_after) {
-      lines.push("", "Lifecycle state:");
-      if (data.state_before) lines.push(`- Before: ${JSON.stringify(data.state_before)}`);
-      if (data.state_after) lines.push(`- After: ${JSON.stringify(data.state_after)}`);
-    }
-    lines.push(
-      "",
-      result?.ok
-        ? "Next action: refresh Network status and verify worker heartbeat/claim evidence before changing roles or running another lifecycle command."
-        : "Next action: fix blocked preconditions, run the dry-run again, then use confirmed controls only when the backend reports safe_to_apply."
-    );
-    return lines;
-  }
-
-  function networkTestConnectionResultLines(result) {
-    const data = result?.data && typeof result.data === "object" ? result.data : {};
-    const layers = data.layers && typeof data.layers === "object" ? data.layers : {};
-    const lines = [
-      "Worker test-connection complete.",
-      "Effect: none.",
-      "No files, queue, scratch, output, pending publish, lifecycle state, or media policy changed.",
-      `Result: ${result?.ok ? "ok" : "blocked"}`,
-      `Severity: ${result?.severity || "unknown"}`,
-      `Message: ${result?.message || "(none)"}`,
-      `Coordinator URL: ${data.coordinator_url || "not configured"}`,
-      `Data schema: ${data.schema_version || "unknown"}`,
-    ];
-    ["l1_tcp", "l2_auth", "l3_paths"].forEach((key) => {
-      const layer = layers[key] && typeof layers[key] === "object" ? layers[key] : {};
-      if (!Object.keys(layer).length) return;
-      lines.push(
-        "",
-        `${layer.label || key}: ${layer.status || "unknown"}`,
-        `- Detail: ${layer.detail || "(none)"}`
-      );
-      if (layer.status_code) lines.push(`- HTTP status: ${layer.status_code}`);
-      if (key === "l3_paths" && Array.isArray(layer.paths)) {
-        lines.push("- Paths:");
-        layer.paths.slice(0, 12).forEach((row) => {
-          lines.push(`  - ${row.library_id || "library"} ${row.path_kind || "path"}: ${row.status || "unknown"} (${row.path || ""})`);
-        });
-      }
-    });
-    const errors = Array.isArray(result?.errors) ? result.errors : [];
-    if (errors.length) {
-      lines.push("", "Blocked layer(s):");
-      errors.slice(0, 8).forEach((error) => lines.push(`- ${error}`));
-    }
-    const noTouch = data.would_not_touch && typeof data.would_not_touch === "object" ? data.would_not_touch : {};
-    const keys = Object.keys(noTouch);
-    if (keys.length) {
-      lines.push("", "Would not touch:");
-      keys.slice(0, 10).forEach((key) => lines.push(`- ${key}: ${noTouch[key]}`));
-    }
-    lines.push(
-      "",
-      result?.ok
-        ? "Next action: start or restart worker polling only after the Network status still matches saved settings."
-        : "Next action: fix the failed TCP, auth, or path layer, then run Test worker connection again before starting worker polling."
-    );
-    return lines;
-  }
-
-  function networkCoordinatorDiscoveryResultLines(result) {
-    const data = result?.data && typeof result.data === "object" ? result.data : {};
-    const coordinators = Array.isArray(data.coordinators) ? data.coordinators : [];
-    const lines = [
-      "mDNS coordinator discovery complete.",
-      "Effect: none.",
-      "No files, queue, scratch, output, pending publish, lifecycle state, settings, or media policy changed.",
-      `Result: ${result?.ok ? "ok" : "blocked"}`,
-      `Severity: ${result?.severity || "unknown"}`,
-      `Message: ${result?.message || "(none)"}`,
-      `Selectable coordinators: ${coordinators.length}`,
-      `Zeroconf available: ${data.zeroconf_available === false ? "no" : "yes"}`,
-      `Data schema: ${data.schema_version || "unknown"}`,
-    ];
-    coordinators.slice(0, 8).forEach((row, index) => {
-      lines.push(`- ${index + 1}. ${row.url || "unknown"} (${row.host || "host unknown"}:${row.port || "port unknown"})`);
-    });
-    const warnings = Array.isArray(result?.warnings) ? result.warnings : [];
-    if (warnings.length) {
-      lines.push("", "Warnings:");
-      warnings.slice(0, 8).forEach((warning) => lines.push(`- ${warning}`));
-    }
-    const errors = Array.isArray(result?.errors) ? result.errors : [];
-    if (errors.length) {
-      lines.push("", "Errors:");
-      errors.slice(0, 8).forEach((error) => lines.push(`- ${error}`));
-    }
-    lines.push(
-      "",
-      coordinators.length
-        ? "Next action: choose Use for the intended coordinator, then preview/save Distributed Settings before starting worker polling."
-        : "Next action: verify the coordinator is running on the LAN, firewall/mDNS is allowed, or use a join blob/manual WorkerCoordinatorUrl."
-    );
-    return lines;
-  }
-
-  function renderNetworkCoordinatorDiscoveryList(result) {
-    const container = byId("network-worker-discovery-list");
-    if (!container) return;
-    container.textContent = "";
-    const data = result?.data && typeof result.data === "object" ? result.data : {};
-    const coordinators = Array.isArray(data.coordinators) ? data.coordinators : [];
-    if (!coordinators.length) {
-      const empty = document.createElement("p");
-      empty.className = "note";
-      empty.textContent = "No mDNS coordinators discovered.";
-      container.appendChild(empty);
-      return;
-    }
-    coordinators.forEach((row) => {
-      const url = String(row?.url || "").trim();
-      if (!url) return;
-      const item = document.createElement("div");
-      item.className = "network-discovery-row";
-      item.setAttribute("role", "listitem");
-      const detail = document.createElement("div");
-      detail.className = "network-discovery-url";
-      detail.textContent = url;
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "secondary-button";
-      button.textContent = "Use";
-      button.dataset.networkDiscoveryUrl = url;
-      button.title = "Stage this discovered coordinator URL for WorkerCoordinatorUrl.";
-      item.append(detail, button);
-      container.appendChild(item);
-    });
-  }
-
-  function stageDiscoveredCoordinatorUrl(url) {
-    const text = String(url || "").trim();
-    if (!text) return false;
-    const roleSelect = byId("settings-network-role");
-    if (roleSelect) {
-      roleSelect.value = "worker";
-      roleSelect.dispatchEvent(new Event("input", { bubbles: true }));
-    }
-    ["settings-network-worker-url", "network-role-setup-worker-url"].forEach((id) => {
-      const input = byId(id);
-      if (!input) return;
-      input.value = text;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-    const settingsView = window.mediaPipelineSettingsView || {};
-    settingsView.markNetworkSettingsBuilderDirty?.();
-    const staged = settingsView.applyNetworkSettingsBuilderToPatch?.() !== false;
-    setText("network-worker-discovery-status", staged ? "Coordinator staged" : "Review staged URL");
-    setText(
-      "network-worker-discovery-result",
-      [
-        `Selected coordinator: ${text}`,
-        staged
-          ? "WorkerCoordinatorUrl was staged into the Settings patch JSON."
-          : "WorkerCoordinatorUrl was filled, but the network settings patch could not be staged.",
-        "Preview/save Distributed Settings before starting worker polling.",
-      ].join("\n")
-    );
-    renderNetworkJoinControls(lastNetworkLifecyclePayload, settingsConfig(lastNetworkLifecyclePayload.settings || {}));
-    return staged;
-  }
-
-  function networkJoinBlobResultLines(result) {
-    const data = result?.data && typeof result.data === "object" ? result.data : {};
-    const lines = [
-      "Coordinator join blob created.",
-      "The blob contains a worker auth secret and is intentionally not written to command history.",
-      `Result: ${result?.ok ? "ok" : "blocked"}`,
-      `Severity: ${result?.severity || "unknown"}`,
-      `Message: ${result?.message || "(none)"}`,
-      `Coordinator URL: ${data.coordinator_url || "not configured"}`,
-      `Token fingerprint: ${data.token_fingerprint || "hidden"}`,
-      `Token source: ${data.token_source || "unknown"}`,
-      `Libraries: ${data.library_count ?? 0}`,
-      `Data schema: ${data.schema_version || "unknown"}`,
-    ];
-    const warnings = Array.isArray(result?.warnings) ? result.warnings : [];
-    if (warnings.length) {
-      lines.push("", "Warnings:");
-      warnings.slice(0, 6).forEach((warning) => lines.push(`- ${warning}`));
-    }
-    const errors = Array.isArray(result?.errors) ? result.errors : [];
-    if (errors.length) {
-      lines.push("", "Errors:");
-      errors.slice(0, 6).forEach((error) => lines.push(`- ${error}`));
-    }
-    lines.push("", "Next action: transfer the blob to the worker Join Cluster box, then import and verify test-connection.");
-    return lines;
-  }
-
-  function networkJoinImportResultLines(result) {
-    const data = result?.data && typeof result.data === "object" ? result.data : {};
-    const settingsSave = data.settings_save && typeof data.settings_save === "object" ? data.settings_save : {};
-    const joinPlan = data.join_plan && typeof data.join_plan === "object" ? data.join_plan : {};
-    const testResult = data.test_connection && typeof data.test_connection === "object" ? data.test_connection : {};
-    const lines = [
-      "Worker join import complete.",
-      "Effect: backend config-write through the Network join route; this is not staged-only Settings JSON.",
-      "Lifecycle: worker polling was not started.",
-      "The request blob contains a worker auth secret and is intentionally not written to command history.",
-      `Result: ${result?.ok ? "ok" : "blocked"}`,
-      `Severity: ${result?.severity || "unknown"}`,
-      `Message: ${result?.message || "(none)"}`,
-      `Coordinator URL: ${data.coordinator_url || "not configured"}`,
-      `Token fingerprint: ${data.token_fingerprint || "hidden"}`,
-      `Settings save: ${settingsSave.status || (settingsSave.ok ? "saved" : "blocked")}`,
-      `Changed keys: ${Array.isArray(settingsSave.changed_keys) && settingsSave.changed_keys.length ? settingsSave.changed_keys.join(", ") : "none"}`,
-      `Libraries advertised: ${data.library_count ?? joinPlan.library_count ?? 0}`,
-      `Auto path-map entries: ${joinPlan.auto_path_map_entries ?? 0}`,
-      `Effective path-map entries: ${joinPlan.effective_path_map_entries ?? 0}`,
-      `Test connection: ${testResult.ok ? "passed" : "review"}`,
-    ];
-    const errors = Array.isArray(result?.errors) ? result.errors : [];
-    if (errors.length) {
-      lines.push("", "Errors:");
-      errors.slice(0, 8).forEach((error) => lines.push(`- ${error}`));
-    }
-    if (testResult.data) {
-      lines.push("", ...networkTestConnectionResultLines(testResult).slice(0, 18));
-    }
-    lines.push(
-      "",
-      result?.ok
-        ? "Next action: refresh Network status, then start worker polling only after saved/running settings still match."
-        : "Next action: fix the blocked settings, TCP, auth, or path layer before starting worker polling."
-    );
-    return lines;
-  }
-
-  async function createNetworkJoinBlob() {
-    const contract = lastNetworkLifecyclePayload.contract || {};
-    const route = networkCoordinatorJoinBlobRoute(contract);
-    const output = byId("network-coordinator-join-output");
-    if (!route) {
-      setText("network-coordinator-join-status", "Route missing");
-      setText("network-coordinator-join-result", "Backend coordinator join blob route is not available in the loaded contract.");
-      return null;
-    }
-    const coordinatorUrl = String(byId("network-coordinator-join-url")?.value || "").trim();
-    const rotate = Boolean(byId("network-coordinator-join-rotate")?.checked);
-    const confirmed = await confirmNetworkSetupCommand({
-      designation: rotate ? "Rotate token + create blob" : "Create join blob",
-      summary: rotate
-        ? "This backend setup command can rotate the worker auth token before returning a secret join blob."
-        : "This backend setup command returns a secret join blob for transfer to a worker.",
-      detailLines: [
-        `Route: ${route}`,
-        "Effect: secret-transfer; response is intentionally unjournaled because it contains a secret.",
-        coordinatorUrl ? `Coordinator URL override: ${coordinatorUrl}` : "Coordinator URL override: none; backend uses saved/coordinator evidence.",
-        rotate
-          ? "Token rotation: yes. Existing worker join blobs or saved worker tokens may need to be refreshed."
-          : "Token rotation: no.",
-        "No lifecycle start/stop, queue claim, publish, rename, or media/source mutation is performed by this WebView command.",
-      ],
-    });
-    if (!confirmed) {
-      setText("network-coordinator-join-status", "Cancelled");
-      setText("network-coordinator-join-result", "Create Join Blob was cancelled before the backend confirmation field was sent.");
-      return null;
-    }
-    const request = {
-      confirm_create: true,
-      rotate_token: rotate,
-    };
-    if (coordinatorUrl) request.coordinator_url = coordinatorUrl;
-    if (rotate) request.confirm_rotate = true;
-    setText("network-coordinator-join-status", "Creating");
-    setText("network-coordinator-join-result", `Submitting ${route}...`);
-    try {
-      const result = await postNetworkRoute(route, request);
-      if (output) output.value = result?.ok ? String(result?.data?.join_blob || "") : "";
-      setText("network-coordinator-join-status", result.ok ? "Blob ready" : "Blocked");
-      setText("network-coordinator-join-result", networkJoinBlobResultLines(result).join("\n"));
-      renderNetworkJoinControls(lastNetworkLifecyclePayload, settingsConfig(lastNetworkLifecyclePayload.settings || {}));
-      return result;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (output) output.value = "";
-      setText("network-coordinator-join-status", "Failed");
-      setText("network-coordinator-join-result", [`Command route: ${route}`, `Error: ${message}`].join("\n"));
-      renderNetworkJoinControls(lastNetworkLifecyclePayload, settingsConfig(lastNetworkLifecyclePayload.settings || {}));
-      return null;
-    }
-  }
-
-  async function copyNetworkJoinBlob() {
-    const blob = String(byId("network-coordinator-join-output")?.value || "").trim();
-    if (!blob) {
-      setText("network-coordinator-join-status", "Nothing to copy");
-      return false;
-    }
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error("clipboard unavailable");
-      await navigator.clipboard.writeText(blob);
-      setText("network-coordinator-join-status", "Copied");
-      return true;
-    } catch (_error) {
-      byId("network-coordinator-join-output")?.select?.();
-      setText("network-coordinator-join-status", "Select blob");
-      return false;
-    }
-  }
-
-  async function importNetworkJoinBlob() {
-    const contract = lastNetworkLifecyclePayload.contract || {};
-    const route = networkWorkerJoinClusterRoute(contract);
-    const blob = String(byId("network-worker-join-blob")?.value || "").trim();
-    if (!route) {
-      setText("network-worker-join-status", "Route missing");
-      setText("network-worker-join-result", "Backend worker join cluster route is not available in the loaded contract.");
-      return null;
-    }
-    if (!blob) {
-      setText("network-worker-join-status", "Blob required");
-      setText("network-worker-join-result", "Paste a coordinator join blob before importing.");
-      renderNetworkJoinControls(lastNetworkLifecyclePayload, settingsConfig(lastNetworkLifecyclePayload.settings || {}));
-      return null;
-    }
-    const confirmed = await confirmNetworkSetupCommand({
-      designation: "Join Cluster",
-      summary: "This backend setup command imports a secret join blob and saves worker network settings.",
-      detailLines: [
-        `Route: ${route}`,
-        "Effect: config-write; backend settings save writes worker coordinator URL, worker auth secret, NetworkRole, and library-derived WorkerSourcePathMap evidence when valid.",
-        "This is separate from staged Distributed Settings and does not use the Preview Settings Patch button.",
-        "It does not start worker polling, claim work, mutate queue state, publish, rename, or touch media/source files.",
-      ],
-    });
-    if (!confirmed) {
-      setText("network-worker-join-status", "Cancelled");
-      setText("network-worker-join-result", "Join Cluster was cancelled before the backend confirmation field was sent.");
-      renderNetworkJoinControls(lastNetworkLifecyclePayload, settingsConfig(lastNetworkLifecyclePayload.settings || {}));
-      return null;
-    }
-    setText("network-worker-join-status", "Importing");
-    setText("network-worker-join-result", `Submitting ${route}...`);
-    try {
-      const result = await postNetworkRoute(route, {
-        join_blob: blob,
-        confirm_import: true,
-      });
-      setText("network-worker-join-status", result.ok ? "Joined" : "Review");
-      setText("network-worker-join-result", networkJoinImportResultLines(result).join("\n"));
-      renderNetworkJoinControls(lastNetworkLifecyclePayload, settingsConfig(lastNetworkLifecyclePayload.settings || {}));
-      if (typeof refreshAll === "function") refreshAll({ automatic: false });
-      return result;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setText("network-worker-join-status", "Failed");
-      setText("network-worker-join-result", [`Command route: ${route}`, `Error: ${message}`].join("\n"));
-      renderNetworkJoinControls(lastNetworkLifecyclePayload, settingsConfig(lastNetworkLifecyclePayload.settings || {}));
-      return null;
-    }
-  }
-
-  async function discoverNetworkCoordinators() {
-    const contract = lastNetworkLifecyclePayload.contract || {};
-    const route = networkWorkerDiscoverCoordinatorsRoute(contract);
-    if (!route) {
-      setText("network-worker-discovery-status", "Route missing");
-      setText("network-worker-discovery-result", "Backend worker mDNS discovery route is not available in the loaded contract.");
-      renderNetworkCoordinatorDiscoveryList(null);
-      return null;
-    }
-    setText("network-worker-discovery-status", "Discovering");
-    setText("network-worker-discovery-result", `Submitting ${route}...`);
-    renderNetworkCoordinatorDiscoveryList(null);
-    try {
-      const result = await postNetworkRoute(route, { timeout_seconds: 2 });
-      setText("network-worker-discovery-status", result.ok ? "Discovery complete" : "Review");
-      setText("network-worker-discovery-result", networkCoordinatorDiscoveryResultLines(result).join("\n"));
-      renderNetworkCoordinatorDiscoveryList(result);
-      renderNetworkJoinControls(lastNetworkLifecyclePayload, settingsConfig(lastNetworkLifecyclePayload.settings || {}));
-      return result;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setText("network-worker-discovery-status", "Failed");
-      setText("network-worker-discovery-result", [`Command route: ${route}`, `Error: ${message}`].join("\n"));
-      renderNetworkCoordinatorDiscoveryList(null);
-      renderNetworkJoinControls(lastNetworkLifecyclePayload, settingsConfig(lastNetworkLifecyclePayload.settings || {}));
-      return null;
-    }
-  }
-
-  function networkLifecycleConfirmationLines({ role, action, route, payload, config }) {
-    const networkWorkers = payload.networkWorkers || {};
-    const roleState = networkLifecycleStateFor(networkWorkers, role);
-    const workerState = networkWorkers.worker_state && typeof networkWorkers.worker_state === "object"
-      ? networkWorkers.worker_state
-      : {};
-    const currentClaim = workerState.job_id || workerState.source_file || "none";
-    const dryRunLine = networkLifecycleDryRunRequirementLine(payload, config, role, action);
-    const lastDryRun = byId("network-lifecycle-command-result")?.textContent || "No recent dry-run result on this page.";
-    const stopImpact = action === "stop"
-      ? "Stop polling/new claims; active work is preserved for done reporting. Verify active claims before confirming."
-      : "Starting begins backend-owned coordinator or worker lifecycle work.";
-    return [
-      `Role: ${role}`,
-      `Action: ${action}`,
-      `Route: ${route}`,
-      `Saved mode: ${visibleNetworkModeLabel(config)}`,
-      `Current lifecycle state: ${roleState.status}`,
-      `Coordinator URL: ${coordinatorTarget(config, networkWorkers) || "not configured"}`,
-      ...networkTokenPostureLines(networkWorkers),
-      `Active claim impact: ${currentClaim}`,
-      `Impact: ${stopImpact}`,
-      dryRunLine,
-      "No-touch summary: this dialog only sets the backend confirmation field. The backend still owns provider checks, lifecycle lock, command journal, and preconditions.",
-      "",
-      "Recent dry-run/status:",
-      lastDryRun.trim().slice(0, 1200) || "No recent dry-run result on this page.",
-    ];
-  }
-
-  function confirmNetworkLifecycleCommand({ role, action, route, payload, config }) {
-    if (!networkLifecycleDryRunAllowsConfirmed(payload, config, role, action)) {
-      return Promise.resolve(false);
-    }
-    const dialog = byId("network-lifecycle-confirm-dialog");
-    const submit = byId("network-lifecycle-confirm-submit");
-    const cancel = byId("network-lifecycle-confirm-cancel");
-    if (!dialog || !submit || !cancel) return Promise.resolve(false);
-    setText("network-lifecycle-confirm-designation", `${role} ${action}`);
-    setText("network-lifecycle-confirm-summary", "Confirmed lifecycle commands are backend-owned, confirmation-gated, provider-guarded, and command-journaled.");
-    setText("network-lifecycle-confirm-detail", networkLifecycleConfirmationLines({ role, action, route, payload, config }).join("\n"));
-    return new Promise((resolve) => {
-      let settled = false;
-      const finish = (value) => {
-        if (settled) return;
-        settled = true;
-        submit.onclick = null;
-        cancel.onclick = null;
-        dialog.oncancel = null;
-        if (dialog.open && dialog.close) dialog.close();
-        else dialog.removeAttribute("open");
-        resolve(value);
-      };
-      submit.onclick = () => finish(true);
-      cancel.onclick = () => finish(false);
-      dialog.oncancel = (event) => {
-        event.preventDefault();
-        finish(false);
-      };
-      if (dialog.showModal && !dialog.open) dialog.showModal();
-      else if (!dialog.open) dialog.setAttribute("open", "open");
-      cancel.focus?.();
-    });
-  }
-
-  function confirmNetworkSetupCommand({ designation, summary, detailLines }) {
-    const dialog = byId("network-lifecycle-confirm-dialog");
-    const submit = byId("network-lifecycle-confirm-submit");
-    const cancel = byId("network-lifecycle-confirm-cancel");
-    if (!dialog || !submit || !cancel) return Promise.resolve(false);
-    setText("network-lifecycle-confirm-designation", designation || "Network setup");
-    setText("network-lifecycle-confirm-summary", summary || "Confirm the backend-owned Network setup command before submitting.");
-    setText("network-lifecycle-confirm-detail", (Array.isArray(detailLines) ? detailLines : [detailLines]).filter(Boolean).join("\n"));
-    return new Promise((resolve) => {
-      let settled = false;
-      const finish = (value) => {
-        if (settled) return;
-        settled = true;
-        submit.onclick = null;
-        cancel.onclick = null;
-        dialog.oncancel = null;
-        if (dialog.open && dialog.close) dialog.close();
-        else dialog.removeAttribute("open");
-        resolve(value);
-      };
-      submit.onclick = () => finish(true);
-      cancel.onclick = () => finish(false);
-      dialog.oncancel = (event) => {
-        event.preventDefault();
-        finish(false);
-      };
-      if (dialog.showModal && !dialog.open) dialog.showModal();
-      else if (!dialog.open) dialog.setAttribute("open", "open");
-      cancel.focus?.();
-    });
-  }
-
-  async function postNetworkRoute(route, request) {
-    if (route) return apiPost(route, request);
-    throw new Error("Unsupported Network route.");
-  }
-
-  async function postNetworkLifecycleRoute(contract, role, action, dryRun, request) {
-    const route = networkLifecycleRoutePath(contract, role, action, dryRun);
-    return postNetworkRoute(route, request);
-  }
-
-  async function runGuidedNetworkLifecycleCommand(button) {
-    const role = button?.dataset?.networkLifecycleRole || "";
-    const action = button?.dataset?.networkLifecycleAction || "";
-    const contract = lastNetworkLifecyclePayload.contract || {};
-    const config = settingsConfig(lastNetworkLifecyclePayload.settings || {});
-    const networkWorkers = lastNetworkLifecyclePayload.networkWorkers || {};
-    const dryRunRoute = networkLifecycleRoutePath(contract, role, action, true);
-    if (!dryRunRoute) {
-      setText("network-lifecycle-control-status", "Route missing");
-      setText("network-lifecycle-command-result", "Backend lifecycle dry-run route is not available in the loaded contract.");
-      return;
-    }
-    const urlIssue = role === "worker"
-      ? obviousWorkerCoordinatorUrlIssue(coordinatorTarget(config, networkWorkers, { raw: true }), { required: true })
-      : "";
-    if (urlIssue) {
-      setText("network-lifecycle-control-status", "Blocked");
-      setText("network-lifecycle-command-result", `Worker coordinator URL is blocked before lifecycle dry-run submission: ${urlIssue}`);
-      return;
-    }
-    setText("network-lifecycle-control-status", "Dry-running");
-    setText("network-lifecycle-command-result", `Submitting ${dryRunRoute}...`);
-    try {
-      const dryRunResult = await postNetworkLifecycleRoute(contract, role, action, true, {
-        reason: "webview_network_lifecycle_guided_dry_run",
-      });
-      rememberNetworkLifecycleDryRun(lastNetworkLifecyclePayload, config, role, action, dryRunResult);
-      setText("network-lifecycle-command-result", networkLifecycleCommandResultLines(dryRunResult).join("\n"));
-      renderNetworkLifecycleControls(lastNetworkLifecyclePayload, role, config);
-      renderNetworkActionReadinessGates(lastNetworkLifecyclePayload, config);
-      if (!networkLifecycleDryRunAllowsConfirmed(lastNetworkLifecyclePayload, config, role, action)) {
-        setText("network-lifecycle-control-status", dryRunResult.ok ? "Dry-run review" : "Dry-run blocked");
-        return;
-      }
-      const confirmRoute = networkLifecycleRoutePath(contract, role, action, false);
-      if (!confirmRoute) {
-        setText("network-lifecycle-control-status", "Route missing");
-        setText(
-          "network-lifecycle-command-result",
-          [
-            ...networkLifecycleCommandResultLines(dryRunResult),
-            "",
-            "Confirmed backend lifecycle route is not available in the loaded contract.",
-          ].join("\n")
-        );
-        return;
-      }
-      const confirmed = await confirmNetworkLifecycleCommand({
-        role,
-        action,
-        route: confirmRoute,
-        payload: lastNetworkLifecyclePayload,
-        config,
-      });
-      if (!confirmed) {
-        setText("network-lifecycle-control-status", "Cancelled");
-        setText("network-lifecycle-command-result", "Guided lifecycle command stopped after dry-run; confirmation was cancelled before the backend confirmation field was sent.");
-        return;
-      }
-      const request = { reason: "webview_network_lifecycle_guided_confirmed" };
-      request[action === "start" ? "confirm_start" : "confirm_stop"] = true;
-      setText("network-lifecycle-control-status", "Running");
-      setText("network-lifecycle-command-result", `Submitting ${confirmRoute}...`);
-      const result = await postNetworkLifecycleRoute(contract, role, action, false, request);
-      setText("network-lifecycle-command-result", networkLifecycleCommandResultLines(result).join("\n"));
-      setText("network-lifecycle-control-status", result.ok ? "Command returned" : "Command blocked");
-      renderNetworkLifecycleControls(lastNetworkLifecyclePayload, role, config);
-      renderNetworkActionReadinessGates(lastNetworkLifecyclePayload, config);
-      if (typeof refreshAll === "function") refreshAll({ automatic: false });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setText("network-lifecycle-control-status", "Command failed");
-      setText("network-lifecycle-command-result", [`Command route: ${dryRunRoute}`, `Error: ${message}`].join("\n"));
-    }
-  }
-
-  async function runNetworkLifecycleCommand(button) {
-    if (button?.dataset?.networkLifecycleGuided === "true") {
-      return runGuidedNetworkLifecycleCommand(button);
-    }
-    const role = button?.dataset?.networkLifecycleRole || "";
-    const action = button?.dataset?.networkLifecycleAction || "";
-    const dryRun = button?.dataset?.networkLifecycleDryRun === "true";
-    const contract = lastNetworkLifecyclePayload.contract || {};
-    const config = settingsConfig(lastNetworkLifecyclePayload.settings || {});
-    const networkWorkers = lastNetworkLifecyclePayload.networkWorkers || {};
-    const route = networkLifecycleRoutePath(contract, role, action, dryRun);
-    if (!route) {
-      setText("network-lifecycle-control-status", "Route missing");
-      setText("network-lifecycle-command-result", "Backend lifecycle route is not available in the loaded contract.");
-      return;
-    }
-    const urlIssue = role === "worker"
-      ? obviousWorkerCoordinatorUrlIssue(coordinatorTarget(config, networkWorkers, { raw: true }), { required: true })
-      : "";
-    if (urlIssue) {
-      setText("network-lifecycle-control-status", "Blocked");
-      setText("network-lifecycle-command-result", `Worker coordinator URL is blocked before lifecycle command submission: ${urlIssue}`);
-      return;
-    }
-    if (!dryRun) {
-      if (!networkLifecycleDryRunAllowsConfirmed(lastNetworkLifecyclePayload, config, role, action)) {
-        setText("network-lifecycle-control-status", "Blocked");
-        setText("network-lifecycle-command-result", networkLifecycleDryRunRequirementLine(lastNetworkLifecyclePayload, config, role, action));
-        renderNetworkLifecycleControls(lastNetworkLifecyclePayload, role, config);
-        renderNetworkActionReadinessGates(lastNetworkLifecyclePayload, config);
-        return;
-      }
-      const confirmed = await confirmNetworkLifecycleCommand({
-        role,
-        action,
-        route,
-        payload: lastNetworkLifecyclePayload,
-        config,
-      });
-      if (!confirmed) {
-        setText("network-lifecycle-control-status", "Cancelled");
-        setText("network-lifecycle-command-result", "Confirmed lifecycle command was cancelled before the backend confirmation field was sent.");
-        return;
-      }
-    }
-    const request = {
-      reason: dryRun ? "webview_network_lifecycle_dry_run" : "webview_network_lifecycle_confirmed",
-    };
-    if (!dryRun) request[action === "start" ? "confirm_start" : "confirm_stop"] = true;
-    setText("network-lifecycle-control-status", dryRun ? "Dry-running" : "Running");
-    setText("network-lifecycle-command-result", `Submitting ${route}...`);
-    try {
-      const result = await postNetworkLifecycleRoute(contract, role, action, dryRun, request);
-      if (dryRun) rememberNetworkLifecycleDryRun(lastNetworkLifecyclePayload, config, role, action, result);
-      setText("network-lifecycle-command-result", networkLifecycleCommandResultLines(result).join("\n"));
-      setText("network-lifecycle-control-status", result.ok ? "Command returned" : "Command blocked");
-      renderNetworkLifecycleControls(lastNetworkLifecyclePayload, role, config);
-      renderNetworkActionReadinessGates(lastNetworkLifecyclePayload, config);
-      if (!dryRun && typeof refreshAll === "function") refreshAll({ automatic: false });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setText("network-lifecycle-control-status", "Command failed");
-      setText("network-lifecycle-command-result", [`Command route: ${route}`, `Error: ${message}`].join("\n"));
-    }
-  }
-
-  async function runNetworkWorkerTestConnection(options = {}) {
-    const render = options.render !== false;
-    const contract = lastNetworkLifecyclePayload.contract || {};
-    const route = networkWorkerTestConnectionRoute(contract);
-    if (!route) {
-      const result = {
-        ok: false,
-        severity: "warning",
-        message: "Backend worker test-connection route is not available in the loaded contract.",
-        data: {},
-      };
-      if (render) {
-        setText("network-lifecycle-control-status", "Route missing");
-        setText("network-lifecycle-command-result", result.message);
-      }
-      return result;
-    }
-    if (render) {
-      setText("network-lifecycle-control-status", "Testing");
-      setText("network-lifecycle-command-result", "Submitting worker test-connection preflight...");
-    }
-    try {
-      const result = await postNetworkRoute(route, {});
-      if (render) {
-        setText("network-lifecycle-command-result", networkTestConnectionResultLines(result).join("\n"));
-        setText("network-lifecycle-control-status", result.ok ? "Connection passed" : "Connection review");
-        if (typeof refreshAll === "function") refreshAll({ automatic: false });
-      }
-      return result;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const result = {
-        ok: false,
-        severity: "error",
-        message,
-        data: {},
-      };
-      if (render) {
-        setText("network-lifecycle-control-status", "Test failed");
-        setText("network-lifecycle-command-result", [`Command route: ${route}`, `Error: ${message}`].join("\n"));
-      }
-      return result;
-    }
-  }
 
   function networkOpenTargets() {
     return ["run_logs", "cluster_log", "active_jobs", "config", "state"];
@@ -2558,1314 +420,261 @@
     return String(data.target || request.target || "").toLowerCase();
   }
 
-  function networkSettingsPatchStatusText() {
-    const raw = byId("settings-patch-status")?.textContent || "none";
-    const text = String(raw || "none").trim();
-    if (!text || text.toLowerCase() === "no patch") return "Staged Patch: none";
-    return text.toLowerCase().startsWith("staged patch:") ? text : `Staged Patch: ${text}`;
-  }
+  const __networkSettingsHandoffMod = window.__networkSettingsHandoffModule || {};
+  delete window.__networkSettingsHandoffModule;
+  const _networkSettingsHandoff = typeof __networkSettingsHandoffMod.createNetworkSettingsHandoffModule === "function"
+    ? __networkSettingsHandoffMod.createNetworkSettingsHandoffModule({ byId, setText, windowRef: window })
+    : {};
+  const {
+    networkSettingsPatchStatusText = function () { return "Staged Patch: none"; },
+    renderNetworkSettingsPatchHandoff = function () {},
+    previewNetworkSettingsPatch = async function () {},
+    saveNetworkSettingsPatch = async function () {},
+  } = _networkSettingsHandoff;
+
+
+
+  const __networkOpenHistoryMod = window.__networkOpenHistoryModule || {};
+  delete window.__networkOpenHistoryModule;
+  const _networkOpenHistory = typeof __networkOpenHistoryMod.createNetworkOpenHistoryModule === "function"
+    ? __networkOpenHistoryMod.createNetworkOpenHistoryModule({
+      commandHistoryCompactEvidenceLine: typeof commandHistoryCompactEvidenceLine === "function" ? commandHistoryCompactEvidenceLine : null,
+      networkOpenCommandTarget,
+      networkOpenTargets,
+      setText,
+    })
+    : {};
+  const {
+    isNetworkOpenCommand = function () { return false; },
+    networkOpenHistoryLine = function () { return ""; },
+    renderNetworkOpenHistory = function () {},
+  } = _networkOpenHistory;
+
+
+
+  const __networkReadinessMod = window.__networkReadinessModule || {};
+  delete window.__networkReadinessModule;
+  const _networkReadiness = typeof __networkReadinessMod.createNetworkReadinessModule === "function"
+    ? __networkReadinessMod.createNetworkReadinessModule({
+      configFlagText,
+      coordinatorTarget,
+      displayConfigValue,
+      networkCoordinatorBindEndpoint,
+      networkLifecycleBoundaryLines,
+      networkLifecycleBoundaryStatus,
+      networkPathMapStatus,
+      networkRouteSummaryLines,
+      networkRouteSummaryStatus,
+      networkTokenPostureLines,
+      routeExists,
+      setText,
+    })
+    : {};
+  const {
+    closeReadinessLine = function () { return "Close readiness: not loaded"; },
+    networkReadinessStatus = function () { return "Not loaded"; },
+    snapshotStateLine = function () { return "Pipeline state: not loaded"; },
+    networkReadinessLines = function () { return []; },
+    renderNetworkReadiness = function () {},
+  } = _networkReadiness;
+
+
+
+  const __networkLifecycleModelMod = window.__networkLifecycleModelModule || {};
+  delete window.__networkLifecycleModelModule;
+  const _networkLifecycleModel = typeof __networkLifecycleModelMod.createNetworkLifecycleModelModule === "function"
+    ? __networkLifecycleModelMod.createNetworkLifecycleModelModule({
+      appendCells,
+      byId,
+      clearRows,
+      closeReadinessLine,
+      coordinatorTarget,
+      displayConfigValue,
+      documentRef: document,
+      makeRowSelectable,
+      networkCoordinatorBindEndpoint,
+      networkLifecycleContractSummary,
+      networkLifecycleContracts,
+      networkLifecycleDryRunRouteCount,
+      networkLifecycleMutationRouteCount,
+      networkPathMapStatus,
+      networkSetupMutationRouteRows,
+      networkSetupMutationRouteSummary,
+      networkStateFileCompactLines: (...args) => networkStateFileCompactLines(...args),
+      networkStateFileStatus: (...args) => networkStateFileStatus(...args),
+      networkWorkerRowsNeedingReview: (...args) => networkWorkerRowsNeedingReview(...args),
+      networkWorkerStatusState: (...args) => networkWorkerStatusState(...args),
+      routeExists,
+      setText,
+      snapshotStateLine,
+      state: {
+        get selectedLifecycleKey() { return selectedNetworkLifecycleKey; },
+        set selectedLifecycleKey(value) { selectedNetworkLifecycleKey = String(value || ""); },
+      },
+      updateTableStatusLegend,
+    })
+    : {};
+  const {
+    networkLifecycleStatusState = function () { return "unknown"; },
+    networkLifecycleGate = function () { return {}; },
+    networkLifecycleRows = function () { return []; },
+    networkLifecycleStatus = function () { return "Not loaded"; },
+    networkLifecycleSummaryLines = function () { return []; },
+    getSelectedNetworkLifecycleRow = function () { return null; },
+    networkLifecycleDetailLines = function () { return []; },
+    renderNetworkLifecycleHandoff = function () {},
+  } = _networkLifecycleModel;
+
+
+
+  const networkStateFilesModule = window.__networkStateFilesModule || {};
+  delete window.__networkStateFilesModule;
+  const networkStateFiles = typeof networkStateFilesModule.createNetworkStateFilesModule === "function"
+    ? networkStateFilesModule.createNetworkStateFilesModule({
+      byId, setText, clearRows, appendCells, makeRowSelectable, updateTableStatusLegend,
+      networkStateFilesDiagnosticStatus,
+      getSelectedKey: () => selectedNetworkStateFileKey,
+      setSelectedKey: (value) => { selectedNetworkStateFileKey = value; },
+    })
+    : {};
+  const {
+    networkStateFileCompactLines = () => [],
+    networkStateFileDetailLines = () => [],
+    networkStateFileRows = () => [],
+    networkStateFileStatus = () => "unknown",
+    networkStateFileSummaryLines = () => [],
+    renderNetworkStateFiles = () => {},
+  } = networkStateFiles;
+
+  const networkEvidenceModule = window.__networkEvidenceModule || {};
+  delete window.__networkEvidenceModule;
+  const networkEvidence = typeof networkEvidenceModule.createNetworkEvidenceModule === "function"
+    ? networkEvidenceModule.createNetworkEvidenceModule({
+      byId, setText, clearRows, appendCells, makeRowSelectable, updateTableStatusLegend,
+      networkRuntimeStatus, networkLifecycleStateFor, networkLifecycleRelevantRoles,
+      networkWorkerDriftPayload, networkWorkerDriftSummaryLines,
+      networkWorkerPolicyDivergencePayload, networkWorkerPolicyDivergenceSummaryLines,
+      networkDiagnosticLayerPosture, networkDiagnosticLayerLines, networkStateFilesDiagnosticStatus,
+      networkStateFileCompactLines, networkStateFileSummaryLines, networkLifecycleControlLines, networkTokenPostureLines,
+      networkCoordinatorConnectivityLines,
+      networkWorkerStatusState: (...args) => networkWorkerStatusState(...args), routeExists, networkLifecycleContracts, networkPathMapStatus,
+      configuredStatus, coordinatorTarget, displayConfigValue, networkCoordinatorBindEndpoint,
+      configFlagText, closeReadinessLine, snapshotStateLine, networkLifecycleContractSummary,
+      networkLifecycleDryRunRouteCount, networkLifecycleMutationRouteCount,
+      networkSetupMutationRouteRows, networkSetupMutationRouteSummary,
+      getSelectedKey: () => selectedNetworkEvidenceKey,
+      setSelectedKey: (value) => { selectedNetworkEvidenceKey = value; },
+    })
+    : {};
+  const {
+    networkEvidenceRows = () => [],
+    networkEvidenceStatus = () => "No evidence",
+    networkEvidenceSummaryLines = () => [],
+    renderNetworkEvidenceChecklist = () => {},
+  } = networkEvidence;
+
+  const __networkWorkersModelMod = window.__networkWorkersModelModule || {};
+  delete window.__networkWorkersModelModule;
+  const _networkWorkersModel = typeof __networkWorkersModelMod.createNetworkWorkersModelModule === "function"
+    ? __networkWorkersModelMod.createNetworkWorkersModelModule({
+      appendCells,
+      byId,
+      clearRows,
+      documentRef: document,
+      networkRows,
+      networkWorkerHasClaimEvidence,
+      networkWorkerLooksCompleteOrIdle,
+      setText,
+      state: {
+        get selectedWorkerKey() { return selectedNetworkWorkerKey; },
+        set selectedWorkerKey(value) { selectedNetworkWorkerKey = String(value || ""); },
+        get workerRows() { return lastNetworkWorkerRows; },
+        set workerRows(value) { lastNetworkWorkerRows = Array.isArray(value) ? value : []; },
+        get workerSearchText() { return networkWorkerSearchText; },
+        set workerSearchText(value) { networkWorkerSearchText = String(value || ""); },
+        get workerStatusFilter() { return networkWorkerStatusFilter; },
+        set workerStatusFilter(value) { networkWorkerStatusFilter = String(value || ""); },
+        get workerViewPreset() { return networkWorkerViewPreset; },
+        set workerViewPreset(value) { networkWorkerViewPreset = String(value || ""); },
+      },
+      workerHeartbeatText: (...args) => workerHeartbeatText(...args),
+      workerProgressText: (...args) => workerProgressText(...args),
+    })
+    : {};
+  const {
+    renderNetworkSettingsRows = function () {},
+    workerDisplayValue = function (value, fallback = "-") { return value ?? fallback; },
+    networkWorkerRowKey = function () { return ""; },
+    getSelectedNetworkWorkerRow = function () { return null; },
+    networkWorkerStatusState = function () { return "unknown"; },
+    networkWorkerFilterText = function () { return ""; },
+    networkWorkerMatchesStatusFilter = function () { return true; },
+    networkWorkerMatchesViewPreset = function () { return true; },
+    filteredNetworkWorkerRows = function (rows) { return Array.isArray(rows) ? rows : []; },
+    networkWorkerViewPresetLabel = function () { return "All"; },
+    networkWorkerFilterLabel = function () { return "none"; },
+    networkWorkerRowsNeedingReview = function () { return []; },
+    renderNetworkWorkerFilterSummary = function () {},
+    networkWorkerDetailLines = function () { return []; },
+    workerLibraryCapabilityText = function () { return "unknown/not reported"; },
+    workerPendingDoneReportText = function () { return "-"; },
+    workerLastResultText = function () { return "-"; },
+    workerThroughputText = function () { return "-"; },
+  } = _networkWorkersModel;
+
+
+
+  const __networkWorkersViewMod = window.__networkWorkersViewModule || {};
+  delete window.__networkWorkersViewModule;
+  const _networkWorkersView = typeof __networkWorkersViewMod.createNetworkWorkersViewModule === "function"
+    ? __networkWorkersViewMod.createNetworkWorkersViewModule({
+      byId,
+      clearRows,
+      documentRef: document,
+      filteredNetworkWorkerRows,
+      getSelectedNetworkWorkerRow,
+      makeRowSelectable,
+      networkAppendCell,
+      networkStatusTone,
+      networkWorkerDetailLines,
+      networkWorkerDriftPayload,
+      networkWorkerDriftStatusText,
+      networkWorkerRowKey,
+      networkWorkerStatusState,
+      renderNetworkWorkerFilterSummary,
+      renderProgressBarsInto,
+      setText,
+      state: {
+        get lifecyclePayload() { return lastNetworkLifecyclePayload; },
+        set lifecyclePayload(value) { lastNetworkLifecyclePayload = value && typeof value === "object" ? value : {}; },
+        get selectedWorkerKey() { return selectedNetworkWorkerKey; },
+        set selectedWorkerKey(value) { selectedNetworkWorkerKey = String(value || ""); },
+        get workerRows() { return lastNetworkWorkerRows; },
+        set workerRows(value) { lastNetworkWorkerRows = Array.isArray(value) ? value : []; },
+        get workersPayload() { return lastNetworkWorkersPayload; },
+        set workersPayload(value) { lastNetworkWorkersPayload = value && typeof value === "object" ? value : {}; },
+      },
+      syncNetworkWorkerViewPresetButtons: (...args) => syncNetworkWorkerViewPresetButtons(...args),
+      updateTableStatusLegend,
+      workerDisplayValue,
+      workerLastResultText,
+      workerPendingDoneReportText,
+      workerThroughputText,
+    })
+    : {};
+  const {
+    appendNetworkInspectorRow = function () {},
+    renderNetworkWorkerDetail = function () {},
+    selectNetworkWorkerRow = function () {},
+    workerHeartbeatText = function () { return "-"; },
+    workerProgressText = function () { return "-"; },
+    networkWorkerProgressStatus = function () { return "Not loaded"; },
+    networkWorkerProgressSummaryLines = function () { return []; },
+    renderNetworkWorkerProgress = function () {},
+    renderNetworkWorkerRows = function () {},
+  } = _networkWorkersView;
 
-  function renderNetworkSettingsPatchHandoff(message = "") {
-    const patchStatus = networkSettingsPatchStatusText();
-    const patchText = byId("settings-patch-json")?.value || "{}";
-    let patchKeys = [];
-    try {
-      const patch = JSON.parse(patchText);
-      if (patch && typeof patch === "object" && !Array.isArray(patch)) {
-        patchKeys = Object.keys(patch);
-      }
-    } catch (_error) {
-      patchKeys = ["invalid JSON"];
-    }
-    setText("network-settings-control-status", patchStatus);
-    setText("network-settings-patch-handoff", [
-      message,
-      `Saved settings patch status: ${patchStatus}`,
-      `Staged keys: ${patchKeys.length ? patchKeys.join(", ") : "none"}`,
-      "Preview Settings Patch calls the backend settings preview route and does not write the PSD1.",
-      "Save Distributed Settings calls the backend settings save route, asks for confirmation, and creates the normal config backup before writing.",
-      "Runtime boundary: settings controls only stage, preview, and save config. Start/Stop must use the backend Network Lifecycle controls.",
-    ].filter(Boolean).join("\n"));
-  }
 
-  async function previewNetworkSettingsPatch() {
-    const preview = window.mediaPipelineSettingsView?.previewSettingsPatch;
-    if (typeof preview !== "function") {
-      setText("network-settings-control-status", "Settings unavailable");
-      renderNetworkSettingsPatchHandoff("Settings preview controls are not loaded.");
-      return;
-    }
-    setText("network-settings-control-status", "Previewing...");
-    renderNetworkSettingsPatchHandoff("Previewing staged Saved Distributed Mode Settings through backend validation.");
-    await preview();
-    renderNetworkSettingsPatchHandoff("Saved Distributed Mode Settings preview command finished.");
-  }
-
-  async function saveNetworkSettingsPatch() {
-    const save = window.mediaPipelineSettingsView?.saveSettingsPatch;
-    if (typeof save !== "function") {
-      setText("network-settings-control-status", "Settings unavailable");
-      renderNetworkSettingsPatchHandoff("Settings save controls are not loaded.");
-      return;
-    }
-    setText("network-settings-control-status", "Saving...");
-    renderNetworkSettingsPatchHandoff("Saving staged Saved Distributed Mode Settings through the backend settings route.");
-    await save();
-    renderNetworkSettingsPatchHandoff("Saved Distributed Mode Settings save command finished.");
-  }
-
-  function isNetworkOpenCommand(entry) {
-    if (String(entry?.command || "").toLowerCase() !== "diagnostics.open") return false;
-    return networkOpenTargets().includes(networkOpenCommandTarget(entry));
-  }
-
-  function networkOpenHistoryLine(entry) {
-    const raw = entry?.raw && typeof entry.raw === "object" ? entry.raw : {};
-    const data = raw.data && typeof raw.data === "object" ? raw.data : {};
-    const request = raw.request && typeof raw.request === "object"
-      ? raw.request
-      : raw.submitted_request && typeof raw.submitted_request === "object"
-        ? raw.submitted_request
-        : {};
-    const bits = [];
-    if (data.target || request.target) bits.push(`target=${data.target || request.target}`);
-    if (data.opened_path) bits.push(`opened=${data.opened_path}`);
-    if (typeof commandHistoryCompactEvidenceLine === "function") {
-      return commandHistoryCompactEvidenceLine(entry, {
-        label: "diagnostics.open",
-        detail: bits.length ? ` (${bits.join("; ")})` : "",
-      });
-    }
-    const status = entry?.result || (entry?.ok ? "ok" : entry?.severity || "unknown");
-    const local = entry?.local ? "local" : "journal";
-    return `${entry?.at || ""} diagnostics.open [${status}; ${local}] ${entry?.message || ""}${bits.length ? ` (${bits.join("; ")})` : ""}`.trim();
-  }
-
-  function renderNetworkOpenHistory(history = []) {
-    const entries = Array.isArray(history) ? history.filter(isNetworkOpenCommand).slice(0, 6) : [];
-    setText("network-open-history-status", entries.length ? `${entries.length} recent` : "No opens");
-    if (!Array.isArray(history) || !history.length) {
-      setText("network-open-history", "No network diagnostics open command history loaded. Open a network diagnostics location to see backend results here after refresh.");
-      return;
-    }
-    if (!entries.length) {
-      setText("network-open-history", "No network diagnostics open commands found in recent command history.");
-      return;
-    }
-    setText("network-open-history", [
-      `Last ${entries.length} network diagnostics open command${entries.length === 1 ? "" : "s"}:`,
-      ...entries.map(networkOpenHistoryLine),
-      "Backend diagnostics target allowlists remain the source of truth.",
-    ].join("\n"));
-  }
-
-  function closeReadinessLine(closeReadiness) {
-    if (!closeReadiness || typeof closeReadiness !== "object") return "Close readiness: not loaded";
-    const safe = closeReadiness.safe_to_close === true || closeReadiness.ready === true;
-    const reason = closeReadiness.reason || closeReadiness.state || closeReadiness.message || "";
-    return `Close readiness: ${safe ? "safe" : "active or blocked"}${reason ? ` (${reason})` : ""}`;
-  }
-
-  function networkReadinessStatus(role, settings, closeReadiness) {
-    if (settings?.error) return "Settings unavailable";
-    const unsafeClose = closeReadiness && typeof closeReadiness === "object" && closeReadiness.safe_to_close === false;
-    if (unsafeClose) return "Active work";
-    if (role === "coordinator") return "Coordinator read-only";
-    if (role === "worker") return "Worker read-only";
-    return "Standalone";
-  }
-
-  function snapshotStateLine(snapshot) {
-    if (!snapshot || typeof snapshot !== "object") return "Pipeline state: not loaded";
-    const pipelineState = snapshot.pipeline_state || snapshot.state || snapshot.status || "loaded";
-    const queueDepth = snapshot.queue_depth ?? snapshot.queue_count ?? snapshot.pending_count;
-    return queueDepth === undefined
-      ? `Pipeline state: ${pipelineState}`
-      : `Pipeline state: ${pipelineState}; queue depth: ${queueDepth}`;
-  }
-
-  function networkReadinessLines({ role, config, closeReadiness, snapshot, contract, networkWorkers }) {
-    const lines = [
-      `Saved role: ${role || "standalone"}`,
-      closeReadinessLine(closeReadiness),
-      snapshotStateLine(snapshot),
-      "Lifecycle owner: backend Network diagnostics / Python dispatcher.",
-      "WebView status: backend-owned lifecycle controls available through contract routes; settings and diagnostics evidence remain read-only until submitted to backend routes.",
-      "Restart note: if backend Python files were updated while this app/API was already running, restart the app/API before using lifecycle controls.",
-      ...networkTokenPostureLines(networkWorkers),
-    ];
-
-    if (role === "coordinator") {
-      lines.push(
-        `Worker coordinator URL: ${coordinatorTarget(config, networkWorkers)}`,
-        `Coordinator bind endpoint: ${networkCoordinatorBindEndpoint(config, networkWorkers)}`,
-        `Coordinator encodes locally: ${configFlagText(config, "CoordinatorAlsoEncodeLocally", "not configured")}`,
-        `Heartbeat timeout: ${displayConfigValue(config, "CoordinatorHeartbeatTimeoutMins", "not configured")} minute(s)`,
-        "Worker board source: persisted runtime state from /api/network/workers; live dispatcher lifecycle rows remain backend-owned.",
-        "Next step: inspect persisted worker evidence and backend Network diagnostics before trusting coordinator health."
-      );
-    } else if (role === "worker") {
-      lines.push(
-        `Coordinator URL: ${displayConfigValue(config, "WorkerCoordinatorUrl", "not configured")}`,
-        `Worker name: ${displayConfigValue(config, "WorkerName", "OS hostname fallback")}`,
-        "Network auth: token values are hidden; the worker token must match the coordinator token.",
-        `Poll interval: ${displayConfigValue(config, "WorkerPollIntervalSecs", "not configured")} second(s)`,
-        `Source path map: ${networkPathMapStatus(config)}`,
-        "Next step: use backend Network diagnostics for worker lifecycle evidence; use Diagnostics for RunLogs and ActiveJobs when claims fail or are reclaimed."
-      );
-    } else {
-      lines.push(
-        "Standalone processing keeps queue claims local to this workstation.",
-        "Next step: switch NetworkRole in Settings only after confirming no active work is running."
-      );
-    }
-
-    lines.push(
-      `Diagnostics open route: ${routeExists(contract, "/api/diagnostics/open", "POST") ? "available" : "not loaded"}`,
-      `Contract route count: ${Array.isArray(contract?.routes) ? contract.routes.length : 0}`
-    );
-    return lines;
-  }
-
-  function renderNetworkReadiness(payload, role, config) {
-    setText("network-readiness-status", networkReadinessStatus(role, payload.settings || {}, payload.closeReadiness));
-    setText(
-      "network-readiness-summary",
-      networkReadinessLines({
-        role,
-        config,
-        closeReadiness: payload.closeReadiness,
-        snapshot: payload.snapshot,
-        contract: payload.contract || {},
-        networkWorkers: payload.networkWorkers || {},
-      }).join("\n")
-    );
-    const boundaryPayload = {
-      closeReadiness: payload.closeReadiness,
-      contract: payload.contract || {},
-      networkWorkers: payload.networkWorkers || {},
-    };
-    setText("network-lifecycle-boundary-status", networkLifecycleBoundaryStatus(boundaryPayload));
-    setText("network-lifecycle-boundary-summary", networkLifecycleBoundaryLines(boundaryPayload).join("\n"));
-    setText("network-route-summary-status", networkRouteSummaryStatus(payload.contract || {}));
-    setText("network-route-summary", networkRouteSummaryLines(payload.contract || {}).join("\n"));
-  }
-
-  function networkLifecycleStatusState(status) {
-    const value = String(status || "").toLowerCase();
-    if (value.includes("block") || value.includes("unsafe") || value.includes("failed") || value.includes("pending report")) return "blocked";
-    if (value.includes("review") || value.includes("warning") || value.includes("active") || value.includes("unknown") || value.includes("stale") || value.includes("missing")) return "warning";
-    return "match";
-  }
-
-  function networkLifecycleGate(key, gate, status, evidence, action, detail = []) {
-    return { key, gate, status, evidence, action, detail };
-  }
-
-  function networkLifecycleRows({ role, config, closeReadiness, snapshot, contract, networkWorkers } = {}) {
-    const payload = networkWorkers && typeof networkWorkers === "object" ? networkWorkers : {};
-    const workerRows = Array.isArray(payload.rows) ? payload.rows : [];
-    const stateFiles = Array.isArray(payload.state_files) ? payload.state_files : [];
-    const warnings = Array.isArray(payload.warnings) ? payload.warnings : [];
-    const workerState = payload.worker_state && typeof payload.worker_state === "object" ? payload.worker_state : {};
-    const roleText = String(role || "standalone").toLowerCase();
-    const closeLoaded = closeReadiness && typeof closeReadiness === "object";
-    const closeBlocked = closeLoaded && closeReadiness.safe_to_close === false;
-    const pendingDone = Boolean(workerState.pending_done_report);
-    const problemRows = networkWorkerRowsNeedingReview(workerRows).filter((row) => ["blocked", "warning"].includes(networkWorkerStatusState(row)));
-    const activeRows = networkWorkerRowsNeedingReview(workerRows).filter((row) => networkWorkerStatusState(row) === "running");
-    const unreadableStateFiles = stateFiles.filter((item) => networkStateFileStatus(item) === "blocked");
-    const missingStateFiles = stateFiles.filter((item) => networkStateFileStatus(item) === "warning");
-    const presentStateFiles = stateFiles.filter((item) => networkStateFileStatus(item) === "match");
-    const heartbeatTimeoutMins = displayConfigValue(config, "CoordinatorHeartbeatTimeoutMins", "not configured");
-    const hasWorkerRoute = routeExists(contract, "/api/network/workers", "GET");
-    const hasDiagnosticsOpen = routeExists(contract, "/api/diagnostics/open", "POST");
-    const lifecycleContracts = networkLifecycleContracts(contract);
-    const rows = [];
-
-    rows.push(networkLifecycleGate(
-      "lifecycle-owner",
-      "Lifecycle owner",
-      closeBlocked ? "blocked" : !closeLoaded ? "review" : "ready",
-      `owner=Python dispatcher; close=${closeLoaded ? (closeReadiness.safe_to_close ? "safe" : "active/blocked") : "not loaded"}; pipeline=${snapshot?.pipeline_state || snapshot?.state || "unknown"}`,
-      closeBlocked
-        ? "Do not move, retry, or change network lifecycle while close-readiness reports active work."
-        : "Use backend-owned Network lifecycle controls only; run dry-runs before confirmed start/stop.",
-      [
-        closeReadinessLine(closeReadiness),
-        snapshotStateLine(snapshot),
-        "Current WebView boundary: coordinator/worker lifecycle commands are backend-owned route submissions with confirmation and command-journal evidence.",
-      ],
-    ));
-
-    rows.push(networkLifecycleGate(
-      "role-config",
-      "Role and configuration",
-      roleText === "standalone" ? "ready" : "review",
-      `role=${roleText}; coordinator=${coordinatorTarget(config, payload)}; auth=hidden token posture; path map=${networkPathMapStatus(config)}`,
-      roleText === "worker"
-        ? "Before trusting worker mode, verify coordinator URL, auth token, and source path map from Saved Distributed Mode Settings and backend Network."
-        : roleText === "coordinator"
-          ? "Before trusting coordinator mode, verify bind/port/auth token and local-encode policy from Saved Distributed Mode Settings and backend Network."
-          : "Standalone role has no distributed lifecycle to promote.",
-      [
-        `NetworkRole: ${roleText}`,
-        `Worker coordinator URL: ${coordinatorTarget(config, payload)}`,
-        `Coordinator bind endpoint: ${networkCoordinatorBindEndpoint(config, payload)}`,
-        `Worker URL: ${displayConfigValue(config, "WorkerCoordinatorUrl", "not configured")}`,
-        `Worker source path map: ${networkPathMapStatus(config)}`,
-        "Network auth: token values are hidden; coordinator can generate a token when blank, and workers must match it.",
-      ],
-    ));
-
-    rows.push(networkLifecycleGate(
-      "claim-health",
-      "Claim and worker health",
-      pendingDone || problemRows.length ? "blocked" : activeRows.length || warnings.length ? "review" : "ready",
-      `workers=${workerRows.length}; active=${activeRows.length}; problem=${problemRows.length}; pending done=${pendingDone ? "yes" : "no"}; warnings=${warnings.length}`,
-      pendingDone
-        ? "Resolve or verify the pending done report from worker_state before assuming a worker result was accepted."
-          : problemRows.length
-            ? "Select failed/stale workers and inspect Cluster Log, ActiveJobs, Run Logs, and Last Stderr before retrying work."
-          : activeRows.length
-            ? "Treat active claims as in-flight; do not close or change role until they finish or are deliberately stopped through backend-owned controls."
-            : "No active/problem worker claim is visible in the loaded persisted state.",
-      [
-        `Worker rows: ${workerRows.length}`,
-        `Active/claimed rows: ${activeRows.length}`,
-        `Failed/stale/offline rows: ${problemRows.length}`,
-        `Pending done report: ${pendingDone ? "yes" : "no"}`,
-        ...warnings.slice(0, 6).map((warning) => `Warning: ${warning}`),
-      ],
-    ));
-
-    rows.push(networkLifecycleGate(
-      "state-files",
-      "Runtime state files",
-      unreadableStateFiles.length ? "blocked" : missingStateFiles.length || !stateFiles.length ? "review" : "ready",
-      `files=${stateFiles.length}; present=${presentStateFiles.length}; missing=${missingStateFiles.length}; unreadable=${unreadableStateFiles.length}; heartbeat timeout=${heartbeatTimeoutMins} minute(s)`,
-      unreadableStateFiles.length
-        ? "Use Diagnostics to inspect state read failures before trusting persisted worker/coordinator evidence."
-        : missingStateFiles.length || !stateFiles.length
-          ? "Use Cluster Log and State Folder evidence before assuming network mode is idle or healthy."
-          : "State file metadata is present; compare ages with heartbeat timeout when diagnosing stale claims.",
-      [
-        ...networkStateFileCompactLines(stateFiles),
-        `Heartbeat timeout setting: ${heartbeatTimeoutMins} minute(s)`,
-        `Coordinator state file: ${payload.coordinator_inflight_path || "not resolved"}`,
-        `Local worker state file: ${payload.worker_state_path || "not resolved"}`,
-        `Cluster log: ${payload.cluster_log_path || "not resolved"}`,
-      ],
-    ));
-
-    rows.push(networkLifecycleGate(
-      "route-boundary",
-      "Route and diagnostics boundary",
-      hasWorkerRoute && hasDiagnosticsOpen ? "ready" : "review",
-      `network workers route=${hasWorkerRoute ? "available" : "missing"}; diagnostics open=${hasDiagnosticsOpen ? "available" : "missing"}; routes=${Array.isArray(contract?.routes) ? contract.routes.length : 0}`,
-      hasWorkerRoute && hasDiagnosticsOpen
-        ? "Use read-only worker/state routes and allowlisted Diagnostics opens before escalating to backend lifecycle controls."
-        : "Refresh Local API contract before relying on Network WebView evidence.",
-      [
-        "Expected read-only route: GET /api/network/workers effect=none.",
-        "Expected diagnostics route: POST /api/diagnostics/open with backend target allowlist.",
-        "Authorized lifecycle commands are limited to backend-owned coordinator/worker start/stop dry-runs and confirmed start/stop routes.",
-        networkLifecycleContractSummary(contract),
-      ],
-    ));
-
-    rows.push(networkLifecycleGate(
-      "promotion-boundary",
-      "Promotion boundary",
-      "ready",
-      `WebView Network exposes backend-owned lifecycle controls; lifecycle contracts=${lifecycleContracts.length}; dry-run routes=${networkLifecycleDryRunRouteCount(contract)}; confirmed lifecycle routes=${networkLifecycleMutationRouteCount(contract)}; setup write/secret routes=${networkSetupMutationRouteRows(contract).length}.`,
-      "Use dry-runs before coordinator/worker start or stop. Retry, reclaim, release, and abort workflows stay disabled until their backend routes and tests exist.",
-      [
-        networkLifecycleContractSummary(contract),
-        `Setup routes: ${networkSetupMutationRouteSummary(contract)}.`,
-        "Confirmed lifecycle commands remain confirmation-gated and provider-guarded.",
-        "This handoff cannot retry, reclaim, release, abort, drain, publish, rename, save settings, rewrite state, or touch media files.",
-      ],
-    ));
-
-    return rows;
-  }
-
-  function networkLifecycleStatus(rows = []) {
-    if (!rows.length) return "Not loaded";
-    if (rows.some((row) => networkLifecycleStatusState(row.status) === "blocked")) return "Blocked review";
-    if (rows.some((row) => networkLifecycleStatusState(row.status) === "warning")) return "Review";
-    return "Ready";
-  }
-
-  function networkLifecycleSummaryLines(rows = []) {
-    const counts = rows.reduce((acc, row) => {
-      const state = networkLifecycleStatusState(row.status);
-      acc[state] = (acc[state] || 0) + 1;
-      return acc;
-    }, {});
-    const reviewRows = rows.filter((row) => networkLifecycleStatusState(row.status) !== "match");
-    const lines = [
-      "Network lifecycle handoff:",
-      `Status: ${networkLifecycleStatus(rows)}`,
-      `Gates: ${rows.length}; blocked=${counts.blocked || 0}; review=${counts.warning || 0}; ready=${counts.match || 0}.`,
-      "Decision rule: trust only backend-owned Network evidence and lifecycle routes; normal Launch remains blocked in network modes.",
-    ];
-    if (reviewRows.length) {
-      lines.push("", "Gates needing attention:");
-      reviewRows.slice(0, 6).forEach((row) => lines.push(`- ${row.gate}: ${row.status}; ${row.action}`));
-    } else {
-      lines.push("", "No lifecycle handoff blockers are visible in the loaded read-only evidence.");
-    }
-    lines.push("", "Mutation guardrail: this panel cannot reclaim, release, abort, retry, drain, publish, rename, save settings, rewrite state, or touch media files.");
-    return lines;
-  }
-
-  function getSelectedNetworkLifecycleRow(rows) {
-    if (!selectedNetworkLifecycleKey) return null;
-    return rows.find((row) => row.key === selectedNetworkLifecycleKey) || null;
-  }
-
-  function networkLifecycleDetailLines(row) {
-    if (!row) {
-      return [
-        "No network lifecycle handoff row selected.",
-        "Select a row to inspect lifecycle owner, role config, claim health, runtime state files, route boundary, or promotion requirements.",
-        "Network lifecycle mutation remains outside WebView.",
-      ];
-    }
-    return [
-      `Gate: ${row.gate}`,
-      `Status: ${row.status}`,
-      `Evidence: ${row.evidence}`,
-      `Safe next step: ${row.action}`,
-      "",
-      "Detail:",
-      ...(Array.isArray(row.detail) && row.detail.length ? row.detail.map((line) => `- ${line}`) : ["- No additional detail."]),
-      "",
-      "Mutation guardrail: this handoff is read-only and cannot change coordinator, worker, queue, publish, settings, state, or media files.",
-    ];
-  }
-
-  function renderNetworkLifecycleHandoff(payload, role, config) {
-    const rows = networkLifecycleRows({
-      role,
-      config,
-      closeReadiness: payload.closeReadiness,
-      snapshot: payload.snapshot,
-      contract: payload.contract || {},
-      networkWorkers: payload.networkWorkers || {},
-    });
-    setText("network-lifecycle-status", networkLifecycleStatus(rows));
-    setText("network-lifecycle-summary", networkLifecycleSummaryLines(rows).join("\n"));
-    const tbody = byId("network-lifecycle-rows");
-    if (!tbody) return;
-    if (!rows.length) {
-      selectedNetworkLifecycleKey = "";
-      clearRows(tbody, 4, "No network lifecycle handoff rows loaded.");
-      updateTableStatusLegend("network-lifecycle-legend", tbody, "Network lifecycle handoff rows");
-      setText("network-lifecycle-detail", networkLifecycleDetailLines(null).join("\n"));
-      return;
-    }
-    if (!rows.some((row) => row.key === selectedNetworkLifecycleKey)) {
-      selectedNetworkLifecycleKey = rows[0].key;
-    }
-    tbody.replaceChildren();
-    rows.forEach((item) => {
-      const row = document.createElement("tr");
-      row.dataset.rowKey = item.key;
-      row.dataset.status = networkLifecycleStatusState(item.status);
-      appendCells(row, [item.gate, item.status, item.evidence, item.action]);
-      makeRowSelectable(row, () => {
-        selectedNetworkLifecycleKey = item.key;
-        renderNetworkLifecycleHandoff(payload, role, config);
-      }, {
-        selected: item.key === selectedNetworkLifecycleKey,
-        label: `Network lifecycle handoff ${item.gate}`,
-      });
-      tbody.appendChild(row);
-    });
-    updateTableStatusLegend("network-lifecycle-legend", tbody, "Network lifecycle handoff rows");
-    setText("network-lifecycle-detail", networkLifecycleDetailLines(getSelectedNetworkLifecycleRow(rows)).join("\n"));
-  }
-
-  function networkEvidenceCount(value) {
-    const number = Number(value || 0);
-    return Number.isFinite(number) ? Math.max(0, Math.round(number)) : 0;
-  }
-
-  function networkEvidencePostureStatus(posture) {
-    const value = String(posture || "").toLowerCase();
-    if (value.includes("blocked") || value.includes("unsafe") || value.includes("failed") || value.includes("pending report")) return "blocked";
-    if (value.includes("review") || value.includes("warning") || value.includes("unknown") || value.includes("stale") || value.includes("not loaded")) return "warning";
-    return "match";
-  }
-
-  function networkEvidenceStatus(rows = []) {
-    if (!rows.length) return "Not loaded";
-    if (rows.some((row) => networkEvidencePostureStatus(row.posture) === "blocked")) return "Blocked review";
-    if (rows.some((row) => networkEvidencePostureStatus(row.posture) === "warning")) return "Review";
-    return "Ready";
-  }
-
-  function networkEvidenceWorkerCounts(rows = []) {
-    return (Array.isArray(rows) ? rows : []).reduce((counts, row) => {
-      const state = networkWorkerStatusState(row) || "unknown";
-      counts[state] = (counts[state] || 0) + 1;
-      return counts;
-    }, {});
-  }
-
-  function networkEvidenceRow(key, checkpoint, posture, evidence, action, detail = []) {
-    return { key, checkpoint, posture, evidence, action, detail };
-  }
-
-  function networkEvidenceRows({ role, config, closeReadiness, snapshot, contract, networkWorkers } = {}) {
-    const payload = networkWorkers && typeof networkWorkers === "object" ? networkWorkers : {};
-    const rows = Array.isArray(payload.rows) ? payload.rows : [];
-    const warnings = Array.isArray(payload.warnings) ? payload.warnings : [];
-    const workerState = payload.worker_state && typeof payload.worker_state === "object" ? payload.worker_state : {};
-    const workerCounts = networkEvidenceWorkerCounts(rows);
-    const hasWorkerRoute = routeExists(contract, "/api/network/workers", "GET");
-    const hasDiagnosticsOpen = routeExists(contract, "/api/diagnostics/open", "POST");
-    const lifecycleContracts = networkLifecycleContracts(contract);
-    const roleText = role || "standalone";
-    const closeLoaded = closeReadiness && typeof closeReadiness === "object";
-    const closeBlocked = closeLoaded && closeReadiness.safe_to_close === false;
-    const pendingDone = Boolean(workerState.pending_done_report);
-    const problemRows = networkEvidenceCount(workerCounts.blocked);
-    const activeRows = networkEvidenceCount(workerCounts.warning);
-    const idleRows = networkEvidenceCount(workerCounts.match);
-    const unknownRows = networkEvidenceCount(workerCounts.unknown);
-    const hasNetworkMode = roleText === "coordinator" || roleText === "worker";
-    const pathMap = networkPathMapStatus(config);
-    const overrides = configuredStatus(config, "WorkerConfigOverrides");
-    const evidence = [];
-
-    evidence.push(networkEvidenceRow(
-      "role-settings",
-      "Role / settings",
-      hasNetworkMode ? "review" : "ready",
-      `role=${roleText}; target=${coordinatorTarget(config, payload)}; worker poll=${displayConfigValue(config, "WorkerPollIntervalSecs", "not configured")}; path map=${pathMap}; overrides=${overrides}`,
-      hasNetworkMode
-        ? "Review Settings Network builder and backend Network diagnostics before trusting distributed work."
-        : "Standalone mode has no worker lifecycle to start from WebView.",
-      [
-        `NetworkRole: ${roleText}`,
-        `Worker coordinator URL: ${coordinatorTarget(config, payload)}`,
-        `Coordinator bind endpoint: ${networkCoordinatorBindEndpoint(config, payload)}`,
-        `Coordinator local encode: ${configFlagText(config, "CoordinatorAlsoEncodeLocally", "not configured")}`,
-        `Worker URL: ${displayConfigValue(config, "WorkerCoordinatorUrl", "not configured")}`,
-        `Worker source path map: ${pathMap}`,
-        `Per-worker overrides: ${overrides} (backend-disabled)`,
-      ],
-    ));
-
-    evidence.push(networkEvidenceRow(
-      "lifecycle-boundary",
-      "Lifecycle boundary",
-      !closeLoaded ? "unknown" : closeBlocked ? "blocked" : "ready",
-      `close=${closeLoaded ? (closeReadiness.safe_to_close ? "safe" : "active/blocked") : "not loaded"}; state=${snapshot?.pipeline_state || closeReadiness?.state || "unknown"}`,
-      closeBlocked
-        ? "Do not change NetworkRole or start/stop coordinator/worker work while close-readiness reports active work."
-        : "Lifecycle controls remain backend-owned until backend command ownership is designed and tested.",
-      [
-        closeReadinessLine(closeReadiness),
-        snapshotStateLine(snapshot),
-        "WebView can inspect persisted state and logs only; it cannot start, stop, drain, reclaim, abort, or release network jobs.",
-      ],
-    ));
-
-    evidence.push(networkEvidenceRow(
-      "api-contract",
-      "API contract",
-      hasWorkerRoute && hasDiagnosticsOpen ? "ready" : "not loaded",
-      `network workers route=${hasWorkerRoute ? "available" : "missing"}; diagnostics open=${hasDiagnosticsOpen ? "available" : "missing"}; routes=${Array.isArray(contract?.routes) ? contract.routes.length : 0}`,
-      hasWorkerRoute
-        ? "Use Network worker rows for persisted evidence; use Diagnostics opens/tails for logs and state."
-        : "Refresh contract and Local API before trusting Network page state.",
-      [
-        "Route /api/network/workers is read-only and has effect=none in the backend contract.",
-        networkLifecycleContractSummary(contract),
-        "Diagnostics open actions use backend target allowlists, not frontend paths.",
-      ],
-    ));
-
-    const diagnosticPosture = networkDiagnosticLayerPosture(payload);
-    evidence.push(networkEvidenceRow(
-      "diagnostic-layers",
-      "Layer status",
-      diagnosticPosture === "blocked" ? "blocked" : diagnosticPosture === "ready" ? "ready" : "review",
-      networkDiagnosticLayerLines(payload).slice(0, 5).join("; "),
-      diagnosticPosture === "blocked"
-        ? "Resolve the blocked network layer before retrying distributed work."
-        : "Use Test connection, Cluster Log, and worker row failure reasons to confirm layer evidence.",
-      [
-        ...networkDiagnosticLayerLines(payload),
-        "Layer names are backend-owned evidence: url_reachable, auth_ok, paths_ok, queue_fresh, last_claim_result.",
-      ],
-    ));
-
-    evidence.push(networkEvidenceRow(
-      "persisted-worker-state",
-      "Persisted worker state",
-      payload.error ? "blocked" : problemRows ? "blocked" : warnings.length || (hasNetworkMode && !rows.length) || unknownRows ? "review" : "ready",
-      `rows=${rows.length}; active=${activeRows}; idle=${idleRows}; problem=${problemRows}; unknown=${unknownRows}; warnings=${warnings.length}`,
-      payload.error
-        ? "Open Diagnostics and cluster.log before relying on network mode."
-        : problemRows
-          ? "Select problem worker rows, read Cluster Log / Last Stderr / ActiveJobs, and use backend lifecycle controls only after evidence agrees."
-          : warnings.length || (hasNetworkMode && !rows.length)
-            ? "Read warning text and compare backend Network diagnostics before starting distributed work."
-            : "Persisted worker evidence has no visible blockers in this payload.",
-      [
-        `Source: ${payload.source || "runtime_state_files"}`,
-        `Active/idle/session completed/session failed: ${payload.active_count || 0}/${payload.idle_count || 0}/${payload.session_completed || 0}/${payload.session_failed || 0}`,
-        `Coordinator state file: ${payload.coordinator_inflight_path || "not resolved"}`,
-        `Cluster log: ${payload.cluster_log_path || "not resolved"}`,
-        ...networkStateFileCompactLines(payload.state_files || []),
-        ...warnings.slice(0, 8).map((warning) => `Warning: ${warning}`),
-      ],
-    ));
-
-    evidence.push(networkEvidenceRow(
-      "local-worker-recovery",
-      "Local worker recovery",
-      pendingDone ? "pending report" : roleText === "worker" && !workerState.job_id && !workerState.source_file ? "review" : "ready",
-      `job=${workerState.job_id || "none"}; file=${workerState.source_file || "none"}; pending done report=${pendingDone ? "yes" : "no"}`,
-      pendingDone
-        ? "Do not assume the last worker completion was accepted. Inspect worker_state, Cluster Log, and coordinator state from Diagnostics."
-        : roleText === "worker" && !workerState.job_id && !workerState.source_file
-          ? "Worker may be idle; compare with backend worker polling status and cluster.log before troubleshooting."
-          : "No pending local worker recovery item is visible.",
-      [
-        `Worker state path: ${payload.worker_state_path || "not resolved"}`,
-        `Job: ${workerState.job_id || "(none)"}`,
-        `Source file: ${workerState.source_file || "(none)"}`,
-        `Pending done report: ${pendingDone ? "yes" : "no"}`,
-      ],
-    ));
-
-    evidence.push(networkEvidenceRow(
-      "diagnostics-evidence",
-      "Diagnostics evidence",
-      hasDiagnosticsOpen ? "ready" : "review",
-      `cluster log path=${payload.cluster_log_path || "not resolved"}; diagnostics open=${hasDiagnosticsOpen ? "available" : "missing"}`,
-      hasDiagnosticsOpen
-        ? "Read/open Cluster Log, Run Logs, ActiveJobs, and State before changing network role or retrying worker claims."
-        : "Refresh Local API contract before using diagnostics actions.",
-      [
-        "Suggested read order: Cluster Log -> ActiveJobs -> Run Logs -> Last Stderr -> State Folder.",
-        "Diagnostics target allowlists remain the source of truth for opening files/folders.",
-      ],
-    ));
-
-    evidence.push(networkEvidenceRow(
-      "mutation-boundary",
-      "Mutation boundary",
-      "ready",
-        `Network page uses backend-owned lifecycle routes; lifecycle contracts=${lifecycleContracts.length}; dry-run routes=${networkLifecycleDryRunRouteCount(contract)}; confirmed lifecycle routes=${networkLifecycleMutationRouteCount(contract)}; setup write/secret routes=${networkSetupMutationRouteRows(contract).length}.`,
-        "Use Network Lifecycle dry-runs before any confirmed coordinator/worker start or stop command.",
-      [
-        "This checklist cannot abort, reclaim, release, drain, publish, rename, save settings, rewrite state, or touch media files.",
-        networkLifecycleContractSummary(contract),
-        `Setup routes: ${networkSetupMutationRouteSummary(contract)}.`,
-        "Changing network settings still requires Settings Save through backend-owned config routes.",
-      ],
-    ));
-
-    return evidence;
-  }
-
-  function networkEvidenceSummaryLines(rows = []) {
-    const counts = rows.reduce((acc, row) => {
-      const key = networkEvidencePostureStatus(row.posture);
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {});
-    const reviewRows = rows.filter((row) => networkEvidencePostureStatus(row.posture) !== "match");
-    const lines = [
-      "Network evidence checklist:",
-      `Status: ${networkEvidenceStatus(rows)}`,
-      `Rows: ${rows.length}; blocked=${counts.blocked || 0}; review=${counts.warning || 0}; ready=${counts.match || 0}.`,
-      "Boundary: persisted worker state is visible through /api/network/workers; coordinator/worker lifecycle controls use backend-owned routes.",
-    ];
-    if (reviewRows.length) {
-      lines.push("", "Rows needing attention:");
-      reviewRows.slice(0, 6).forEach((row) => lines.push(`- ${row.checkpoint}: ${row.posture}; ${row.action}`));
-    } else {
-      lines.push("", "No network evidence review rows are visible in the loaded payload.");
-    }
-    return lines;
-  }
-
-  function getSelectedNetworkEvidenceRow(rows) {
-    if (!selectedNetworkEvidenceKey) return null;
-    return rows.find((row) => row.key === selectedNetworkEvidenceKey) || null;
-  }
-
-  function renderNetworkEvidenceDetail(item) {
-    if (!item) {
-      setText("network-evidence-detail", "No network evidence row selected. Select a row to inspect role, persisted worker state, lifecycle boundary, diagnostics, and mutation guardrails.");
-      return;
-    }
-    setText("network-evidence-detail", [
-      `Checkpoint: ${item.checkpoint}`,
-      `Posture: ${item.posture}`,
-      `Evidence: ${item.evidence}`,
-      `Safe next step: ${item.action}`,
-      "",
-      "Detail:",
-      ...(Array.isArray(item.detail) && item.detail.length ? item.detail.map((line) => `- ${line}`) : ["- No additional detail."]),
-    ].join("\n"));
-  }
-
-  function renderNetworkEvidenceChecklist(payload, role, config) {
-    const rows = networkEvidenceRows({
-      role,
-      config,
-      closeReadiness: payload.closeReadiness,
-      snapshot: payload.snapshot,
-      contract: payload.contract || {},
-      networkWorkers: payload.networkWorkers || {},
-    });
-    setText("network-evidence-status", networkEvidenceStatus(rows));
-    setText("network-evidence-summary", networkEvidenceSummaryLines(rows).join("\n"));
-    const tbody = byId("network-evidence-rows");
-    if (!tbody) return;
-    if (!rows.length) {
-      clearRows(tbody, 4, "No network evidence rows loaded.");
-      updateTableStatusLegend("network-evidence-legend", tbody, "Network evidence rows");
-      renderNetworkEvidenceDetail(null);
-      return;
-    }
-    if (!rows.some((row) => row.key === selectedNetworkEvidenceKey)) {
-      selectedNetworkEvidenceKey = rows[0].key;
-    }
-    tbody.replaceChildren();
-    rows.forEach((item) => {
-      const row = document.createElement("tr");
-      row.dataset.rowKey = item.key;
-      row.dataset.status = networkEvidencePostureStatus(item.posture);
-      appendCells(row, [item.checkpoint, item.posture, item.evidence, item.action]);
-      makeRowSelectable(row, () => {
-        selectedNetworkEvidenceKey = item.key;
-        renderNetworkEvidenceChecklist(payload, role, config);
-      }, {
-        selected: item.key === selectedNetworkEvidenceKey,
-        label: `Network evidence ${item.checkpoint}`,
-      });
-      tbody.appendChild(row);
-    });
-    updateTableStatusLegend("network-evidence-legend", tbody, "Network evidence rows");
-    renderNetworkEvidenceDetail(getSelectedNetworkEvidenceRow(rows));
-  }
-
-  function networkStateFileRows(networkWorkers) {
-    return Array.isArray(networkWorkers?.state_files) ? networkWorkers.state_files : [];
-  }
-
-  function networkStateFileStatus(item) {
-    const status = String(item?.status || "").toLowerCase();
-    if (status.includes("unreadable")) return "blocked";
-    if (status.includes("missing")) return "warning";
-    if (status.includes("present")) return "match";
-    return "warning";
-  }
-
-  function networkStateFileStatusText(rows = []) {
-    if (!rows.length) return "Not loaded";
-    if (rows.some((item) => networkStateFileStatus(item) === "blocked")) return "Blocked review";
-    if (rows.some((item) => networkStateFileStatus(item) === "warning")) return "Review";
-    return "Ready";
-  }
-
-  function networkStateFileKey(item) {
-    return String(item?.key || item?.label || item?.path || "").toLowerCase();
-  }
-
-  function networkStateFileAgeText(item) {
-    if (!item || item.exists === false || String(item.status || "").toLowerCase() === "missing") return "-";
-    const age = item.age_seconds;
-    if (age === null || age === undefined || age === "") return "unknown age";
-    const numeric = Number(age);
-    if (!Number.isFinite(numeric)) return "unknown age";
-    if (numeric < 60) return `${Math.max(0, Math.round(numeric))}s old`;
-    if (numeric < 3600) return `${Math.round(numeric / 60)}m old`;
-    if (numeric < 86400) return `${Math.round(numeric / 3600)}h old`;
-    return `${Math.round(numeric / 86400)}d old`;
-  }
-
-  function networkStateFileCompactLines(rows = []) {
-    const files = Array.isArray(rows) ? rows : [];
-    if (!files.length) return ["State files: not loaded"];
-    return [
-      `State files: ${files.length}; present=${files.filter((item) => networkStateFileStatus(item) === "match").length}; missing=${files.filter((item) => networkStateFileStatus(item) === "warning").length}; unreadable=${files.filter((item) => networkStateFileStatus(item) === "blocked").length}`,
-      ...files.slice(0, 4).map((item) => `${item.label || item.key || "state file"}: ${item.status || "unknown"}; age=${networkStateFileAgeText(item)}`),
-    ];
-  }
-
-  function networkStateFileSummaryLines(rows = []) {
-    const files = Array.isArray(rows) ? rows : [];
-    const present = files.filter((item) => networkStateFileStatus(item) === "match").length;
-    const missing = files.filter((item) => networkStateFileStatus(item) === "warning").length;
-    const unreadable = files.filter((item) => networkStateFileStatus(item) === "blocked").length;
-    const lines = [
-      "Network runtime state file evidence:",
-      `Status: ${networkStateFileStatusText(files)}`,
-      `Files: ${files.length}; present=${present}; missing=${missing}; unreadable=${unreadable}.`,
-      "Read order: Cluster log -> Coordinator in-flight registry -> Local worker state -> ActiveJobs / Run Logs when a row is active or failed.",
-      "Mutation guardrail: this panel only reads backend-authored state-file metadata; it cannot open arbitrary paths or start/stop network work.",
-    ];
-    if (!files.length) {
-      lines.push("No state-file metadata is loaded from the backend network worker payload.");
-    } else {
-      const review = files.filter((item) => networkStateFileStatus(item) !== "match");
-      if (review.length) {
-        lines.push("", "Rows needing attention:");
-        review.forEach((item) => lines.push(`- ${item.label || item.key || "state file"}: ${item.status || "unknown"}; ${item.path || "path not resolved"}`));
-      } else {
-        lines.push("", "All expected network runtime state files are present in the loaded payload.");
-      }
-    }
-    return lines;
-  }
-
-  function getSelectedNetworkStateFileRow(rows) {
-    if (!selectedNetworkStateFileKey) return null;
-    return (Array.isArray(rows) ? rows : []).find((item) => networkStateFileKey(item) === selectedNetworkStateFileKey) || null;
-  }
-
-  function networkStateFileDetailLines(item) {
-    if (!item) {
-      return [
-        "No network runtime state file selected.",
-        "Select a state file row to inspect backend-resolved path, status, size, age, and safe read order.",
-        "This detail is read-only metadata from /api/network/workers; Diagnostics remains responsible for backend-allowlisted opens and tails.",
-      ];
-    }
-    const lines = [
-      `File: ${item.label || item.key || "state file"}`,
-      `Key: ${item.key || "(none)"}`,
-      `Status: ${item.status || "unknown"}`,
-      `Exists: ${item.exists === true ? "yes" : "no"}`,
-      `Path: ${item.path || "not resolved"}`,
-      `Size: ${item.size_bytes === undefined || item.size_bytes === null ? "-" : item.size_bytes} bytes`,
-      `Modified: ${item.modified_at || "-"}`,
-      `Age: ${networkStateFileAgeText(item)}`,
-      `Purpose: ${item.purpose || "No purpose loaded."}`,
-    ];
-    if (item.error) lines.push(`Error: ${item.error}`);
-    lines.push(
-      "",
-      "Safe next step: use Diagnostics allowlisted open/tail controls for cluster.log, ActiveJobs, Run Logs, or State before changing role, retrying worker claims, or trusting pending done reports.",
-      "Mutation guardrail: this panel cannot start/stop coordinator or workers, reclaim jobs, rewrite state, save settings, or touch media files."
-    );
-    return lines;
-  }
-
-  function renderNetworkStateFileDetail(item) {
-    setText("network-state-files-detail", networkStateFileDetailLines(item).join("\n"));
-  }
-
-  function renderNetworkStateFiles(networkWorkers) {
-    const rows = networkStateFileRows(networkWorkers);
-    setText("network-state-files-status", networkStateFileStatusText(rows));
-    setText("network-state-files-summary", networkStateFileSummaryLines(rows).join("\n"));
-    const tbody = byId("network-state-files-rows");
-    if (!tbody) return;
-    if (!rows.length) {
-      selectedNetworkStateFileKey = "";
-      clearRows(tbody, 4, "No network runtime state file evidence loaded.");
-      updateTableStatusLegend("network-state-files-legend", tbody, "Network runtime state file rows");
-      renderNetworkStateFileDetail(null);
-      return;
-    }
-    if (!rows.some((item) => networkStateFileKey(item) === selectedNetworkStateFileKey)) {
-      selectedNetworkStateFileKey = networkStateFileKey(rows[0]);
-    }
-    tbody.replaceChildren();
-    rows.forEach((item) => {
-      const row = document.createElement("tr");
-      const key = networkStateFileKey(item);
-      row.dataset.rowKey = key;
-      row.dataset.status = networkStateFileStatus(item);
-      row.title = item.path || "";
-      appendCells(row, [
-        item.label || item.key || "",
-        item.status || "",
-        networkStateFileAgeText(item),
-        item.purpose || "",
-      ], [null, null, "num", null]);
-      makeRowSelectable(row, () => {
-        selectedNetworkStateFileKey = key;
-        renderNetworkStateFiles(networkWorkers);
-      }, {
-        selected: Boolean(key && key === selectedNetworkStateFileKey),
-        label: `Network runtime state file ${item.label || item.key || ""}`,
-      });
-      tbody.appendChild(row);
-    });
-    updateTableStatusLegend("network-state-files-legend", tbody, "Network runtime state file rows");
-    renderNetworkStateFileDetail(getSelectedNetworkStateFileRow(rows));
-  }
-
-  function renderNetworkSettingsRows(settings) {
-    const rows = networkRows(settings);
-    setText("network-settings-status", `${rows.length} setting${rows.length === 1 ? "" : "s"}`);
-    const tbody = byId("network-settings-rows");
-    if (!tbody) return;
-    if (!rows.length) {
-      clearRows(tbody, 4, "No network settings loaded.");
-      return;
-    }
-    tbody.replaceChildren();
-    rows.forEach((item) => {
-      const row = document.createElement("tr");
-      row.title = item.key;
-      appendCells(row, [item.section, item.label, item.value, item.purpose]);
-      tbody.appendChild(row);
-    });
-  }
-
-  function workerDisplayValue(value, fallback = "-") {
-    if (value === undefined || value === null || value === "") return fallback;
-    if (typeof value === "object") {
-      try {
-        return JSON.stringify(value);
-      } catch (error) {
-        return fallback;
-      }
-    }
-    return String(value);
-  }
-
-  function networkWorkerRowKey(item) {
-    if (!item || typeof item !== "object") return "";
-    const parts = [
-      item.worker_id,
-      item.worker_name,
-      item.job_id,
-      item.source_file,
-      item.current_file,
-      item.current_file_name,
-    ].filter((value) => value !== undefined && value !== null && String(value).trim());
-    return parts.join("\u001f").toLowerCase();
-  }
-
-  function getSelectedNetworkWorkerRow() {
-    if (!selectedNetworkWorkerKey) return null;
-    return lastNetworkWorkerRows.find((item) => networkWorkerRowKey(item) === selectedNetworkWorkerKey) || null;
-  }
-
-  function networkWorkerStatusState(item) {
-    const status = String(item?.status || "").toLowerCase();
-    const stage = String(item?.current_stage || "").toLowerCase();
-    const looksActive = status.includes("active")
-      || status.includes("running")
-      || status.includes("working")
-      || status.includes("claimed")
-      || status.includes("busy")
-      || stage.includes("active")
-      || stage.includes("running")
-      || stage.includes("working")
-      || stage.includes("claimed")
-      || stage.includes("busy")
-      || stage.includes("encode")
-      || stage.includes("remux")
-      || stage.includes("poll");
-    if (status.includes("fail") || status.includes("error") || status.includes("offline") || status.includes("stale") || stage.includes("fail")) return "blocked";
-    if (item?.worker_misconfigured_reason_code) return "blocked";
-    if (looksActive && networkWorkerHasClaimEvidence(item)) return "running";
-    if (looksActive) return "warning";
-    if (item?.last_failure_reason_code || item?.last_failure_reason) return "warning";
-    if (networkWorkerLooksCompleteOrIdle(item)) return "match";
-    return "unknown";
-  }
-
-  function networkWorkerFilterText(item) {
-    if (!item || typeof item !== "object") return "";
-    return Object.keys(item)
-      .sort()
-      .map((key) => `${key} ${workerDisplayValue(item[key], "")}`)
-      .join(" ")
-      .toLowerCase();
-  }
-
-  function networkWorkerMatchesStatusFilter(item) {
-    const filter = networkWorkerStatusFilter;
-    if (!filter) return true;
-    const state = networkWorkerStatusState(item);
-    if (filter === "active") return state === "running";
-    if (filter === "idle") return state === "match";
-    if (filter === "problem") return state === "blocked" || state === "warning";
-    if (filter === "unknown") return state === "unknown" || !state;
-    return true;
-  }
-
-  function networkWorkerMatchesViewPreset(item) {
-    const preset = String(networkWorkerViewPreset || "").trim().toLowerCase();
-    if (!preset) return true;
-    const state = networkWorkerStatusState(item);
-    const text = networkWorkerFilterText(item);
-    if (preset === "attention") return state === "running" || state === "blocked" || state === "warning";
-    if (preset === "active") return state === "running";
-    if (preset === "idle") return state === "match";
-    if (preset === "stale") return state === "blocked" || state === "warning" || text.includes("fail") || text.includes("stale");
-    if (preset === "path-auth") return text.includes("path") || text.includes("auth") || text.includes("source_not_found") || text.includes("misconfigured");
-    return true;
-  }
-
-  function filteredNetworkWorkerRows(rows) {
-    const query = networkWorkerSearchText.trim().toLowerCase();
-    return (Array.isArray(rows) ? rows : []).filter((item) => {
-      if (!networkWorkerMatchesViewPreset(item)) return false;
-      if (!networkWorkerMatchesStatusFilter(item)) return false;
-      return !query || networkWorkerFilterText(item).includes(query);
-    });
-  }
-
-  function networkWorkerViewPresetLabel() {
-    const labels = {
-      attention: "Needs Attention",
-      active: "Active Work",
-      idle: "Idle",
-      stale: "Stale/Failed",
-      "path-auth": "Path/Auth",
-    };
-    return labels[networkWorkerViewPreset] || "All";
-  }
-
-  function networkWorkerFilterLabel() {
-    const parts = [];
-    if (networkWorkerViewPreset) parts.push(`view=${networkWorkerViewPresetLabel()}`);
-    if (networkWorkerStatusFilter) parts.push(`status=${networkWorkerStatusFilter}`);
-    if (networkWorkerSearchText.trim()) parts.push(`search="${networkWorkerSearchText.trim()}"`);
-    return parts.length ? parts.join("; ") : "none";
-  }
-
-  function networkWorkerRowsNeedingReview(rows) {
-    return (Array.isArray(rows) ? rows : []).filter((item) => {
-      const state = networkWorkerStatusState(item);
-      return state === "running" || state === "blocked" || state === "warning";
-    });
-  }
-
-  function renderNetworkWorkerFilterSummary(rows, visibleRows) {
-    const allRows = Array.isArray(rows) ? rows : [];
-    const shownRows = Array.isArray(visibleRows) ? visibleRows : [];
-    if (!allRows.length) {
-      setText(
-        "network-worker-filter-summary",
-        "No persisted worker rows are loaded. Open Cluster Log, ActiveJobs, or State before troubleshooting worker lifecycle."
-      );
-      return;
-    }
-    const visibleKeys = new Set(shownRows.map(networkWorkerRowKey));
-    const hiddenReviewRows = networkWorkerRowsNeedingReview(allRows)
-      .filter((row) => !visibleKeys.has(networkWorkerRowKey(row)));
-    const reviewText = hiddenReviewRows.length
-      ? `${hiddenReviewRows.length} active/problem/review hidden; clear filters before lifecycle decisions.`
-      : "No active/problem/review rows hidden.";
-    setText(
-      "network-worker-filter-summary",
-      `Showing ${shownRows.length}/${allRows.length}. Filter: ${networkWorkerFilterLabel()}. ${reviewText} Filters are visual only.`
-    );
-  }
-
-  function networkWorkerDetailLines(item) {
-    if (!item || typeof item !== "object") {
-      return [
-        "No network worker row selected.",
-        "Select a worker row to inspect persisted coordinator/worker state, current file, progress, heartbeat, and available row fields.",
-        "Lifecycle controls remain backend-owned. This detail pane is read-only persisted state.",
-      ];
-    }
-    const knownKeys = new Set([
-      "worker_name",
-      "worker_id",
-      "status",
-      "job_id",
-      "current_file",
-      "current_file_name",
-      "source_file",
-      "current_stage",
-      "progress_percent",
-      "heartbeat_age_seconds",
-      "last_heartbeat",
-      "files_completed",
-      "total_gb_encoded",
-      "avg_speed_gbh",
-      "current_speed_gbh",
-      "return_code",
-      "error",
-      "last_failure_reason_code",
-      "last_failure_reason",
-      "last_failure_job_id",
-      "last_failure_source_path",
-      "last_failure_at",
-      "failure_streak_reason_code",
-      "failure_streak_count",
-      "worker_misconfigured_reason_code",
-      "worker_misconfigured_at",
-      "accessible_library_ids",
-    ]);
-    const lines = [
-      `Worker: ${workerDisplayValue(item.worker_name || item.worker_id)}`,
-      `Worker ID: ${workerDisplayValue(item.worker_id)}`,
-      `Status: ${workerDisplayValue(item.status)}`,
-      `Accessible libraries: ${workerLibraryCapabilityText(item)}`,
-      `Job: ${workerDisplayValue(item.job_id)}`,
-      `Current file: ${workerDisplayValue(item.current_file_name || item.current_file)}`,
-      `Source file: ${workerDisplayValue(item.source_file)}`,
-      `Stage: ${workerDisplayValue(item.current_stage)}`,
-      `Progress: ${workerProgressText(item)}`,
-      `Heartbeat age: ${workerHeartbeatText(item)}`,
-      `Last heartbeat: ${workerDisplayValue(item.last_heartbeat)}`,
-      `Files completed: ${workerDisplayValue(item.files_completed)}`,
-      `Total GB encoded: ${workerDisplayValue(item.total_gb_encoded)}`,
-      `Average GB/h: ${workerDisplayValue(item.avg_speed_gbh)}`,
-      `Current GB/h: ${workerDisplayValue(item.current_speed_gbh)}`,
-      `Return code: ${workerDisplayValue(item.return_code)}`,
-      `Last failure code: ${workerDisplayValue(item.last_failure_reason_code)}`,
-      `Last failure reason: ${workerDisplayValue(item.last_failure_reason)}`,
-      `Last failure job: ${workerDisplayValue(item.last_failure_job_id)}`,
-      `Last failure source: ${workerDisplayValue(item.last_failure_source_path)}`,
-      `Last failure at: ${workerDisplayValue(item.last_failure_at)}`,
-      `Failure streak: ${workerDisplayValue(item.failure_streak_count)} ${workerDisplayValue(item.failure_streak_reason_code)}`,
-      `Worker misconfigured code: ${workerDisplayValue(item.worker_misconfigured_reason_code)}`,
-      `Worker misconfigured at: ${workerDisplayValue(item.worker_misconfigured_at)}`,
-    ];
-    if (item.error) lines.push(`Error: ${workerDisplayValue(item.error)}`);
-    const extraKeys = Object.keys(item)
-      .filter((key) => !knownKeys.has(key) && workerDisplayValue(item[key], "") !== "")
-      .sort()
-      .slice(0, 12);
-    if (extraKeys.length) {
-      lines.push("", "Additional row fields:");
-      extraKeys.forEach((key) => lines.push(`- ${key}: ${workerDisplayValue(item[key])}`));
-    }
-    lines.push("", "Lifecycle controls remain backend-owned. This detail pane is read-only persisted state.");
-    return lines;
-  }
-
-  function workerLibraryCapabilityText(item) {
-    const ids = Array.isArray(item?.accessible_library_ids)
-      ? item.accessible_library_ids
-        .map((value) => String(value || "").trim())
-        .filter(Boolean)
-      : [];
-    return ids.length ? ids.join(", ") : "unknown/not reported";
-  }
-
-  function workerPendingDoneReportText(item) {
-    if (item?.pending_done_report === true || item?.done_report_pending === true) return "yes";
-    if (item?.pending_done_report === false || item?.done_report_pending === false) return "no";
-    return "-";
-  }
-
-  function workerLastResultText(item) {
-    if (!item || typeof item !== "object") return "-";
-    if (item.worker_misconfigured_reason_code) return `Misconfigured: ${workerDisplayValue(item.worker_misconfigured_reason_code)}`;
-    if (item.last_failure_reason_code) return `Failed: ${workerDisplayValue(item.last_failure_reason_code)}`;
-    if (item.last_failure_reason) return `Failed: ${workerDisplayValue(item.last_failure_reason)}`;
-    if (item.error) return `Error: ${workerDisplayValue(item.error)}`;
-    if (item.return_code !== undefined && item.return_code !== null && item.return_code !== "") return `Exit ${item.return_code}`;
-    if (item.files_completed !== undefined && item.files_completed !== null && item.files_completed !== "") return `${item.files_completed} done`;
-    if (networkWorkerLooksCompleteOrIdle(item)) return workerDisplayValue(item.status || "idle");
-    return "-";
-  }
-
-  function workerThroughputText(item) {
-    if (!item || typeof item !== "object") return "-";
-    if (item.current_speed_gbh !== undefined && item.current_speed_gbh !== null && item.current_speed_gbh !== "") {
-      return `${item.current_speed_gbh} GB/h current`;
-    }
-    if (item.avg_speed_gbh !== undefined && item.avg_speed_gbh !== null && item.avg_speed_gbh !== "") {
-      return `${item.avg_speed_gbh} GB/h avg`;
-    }
-    if (item.total_gb_encoded !== undefined && item.total_gb_encoded !== null && item.total_gb_encoded !== "") {
-      return `${item.total_gb_encoded} GB encoded`;
-    }
-    return "-";
-  }
-
-  function appendNetworkInspectorRow(target, label, value, status = "") {
-    const row = document.createElement("div");
-    row.className = "network-inspector-row";
-    if (status) row.dataset.status = networkStatusTone(status);
-    const labelNode = document.createElement("span");
-    labelNode.textContent = label;
-    const valueNode = document.createElement("strong");
-    valueNode.textContent = workerDisplayValue(value);
-    row.append(labelNode, valueNode);
-    target.appendChild(row);
-  }
-
-  function renderNetworkWorkerDetail(item) {
-    const target = byId("network-worker-detail");
-    if (!target) return;
-    target.replaceChildren();
-    if (!item || typeof item !== "object") {
-      const message = document.createElement("p");
-      message.className = "note";
-      message.textContent = networkWorkerDetailLines(item).join(" ");
-      target.appendChild(message);
-      return;
-    }
-    const networkWorkers = lastNetworkLifecyclePayload.networkWorkers || {};
-    const drift = networkWorkerDriftPayload(networkWorkers);
-    const warnings = Array.isArray(networkWorkers.warnings) ? networkWorkers.warnings : [];
-    appendNetworkInspectorRow(target, "Worker", item.worker_name || item.worker_id || "-");
-    appendNetworkInspectorRow(target, "State", item.status || "-", networkWorkerStatusState(item));
-    appendNetworkInspectorRow(target, "Current job", item.job_id || "-");
-    appendNetworkInspectorRow(target, "Current file", item.current_file_name || item.current_file || item.source_file || "-");
-    appendNetworkInspectorRow(target, "Stage", item.current_stage || "-");
-    appendNetworkInspectorRow(target, "Progress", workerProgressText(item));
-    appendNetworkInspectorRow(target, "Heartbeat", workerHeartbeatText(item));
-    appendNetworkInspectorRow(target, "Pending done report", workerPendingDoneReportText(item));
-    appendNetworkInspectorRow(target, "Last result", workerLastResultText(item), networkWorkerStatusState(item));
-    appendNetworkInspectorRow(target, "Last failure reason", item.last_failure_reason || item.failure_streak_reason_code || "-");
-    appendNetworkInspectorRow(target, "Drift", networkWorkerDriftStatusText(drift), drift.status || "unknown");
-    appendNetworkInspectorRow(target, "Warnings", warnings.length ? `${warnings.length} warning(s)` : "0");
-    appendNetworkInspectorRow(target, "Evidence links", "Cluster Log, ActiveJobs, Run Logs, State Files");
-    const note = document.createElement("p");
-    note.className = "note";
-    note.textContent = "Inspector facts are read-only persisted state. Lifecycle controls remain backend-owned.";
-    target.appendChild(note);
-  }
-
-  function selectNetworkWorkerRow(item) {
-    selectedNetworkWorkerKey = networkWorkerRowKey(item);
-    renderNetworkWorkerDetail(item);
-    renderNetworkWorkerRows(lastNetworkWorkersPayload);
-  }
-
-  function workerHeartbeatText(row) {
-    const age = row?.heartbeat_age_seconds;
-    if (age === null || age === undefined || age === "") return row?.last_heartbeat ? "unknown age" : "-";
-    const numeric = Number(age);
-    if (!Number.isFinite(numeric)) return "unknown age";
-    if (numeric < 60) return `${Math.max(0, Math.round(numeric))}s ago`;
-    if (numeric < 3600) return `${Math.round(numeric / 60)}m ago`;
-    return `${Math.round(numeric / 3600)}h ago`;
-  }
-
-  function workerProgressText(row) {
-    const value = Number(row?.progress_percent || 0);
-    return Number.isFinite(value) && value > 0 ? `${Math.round(value)}%` : "-";
-  }
-
-  function networkWorkerProgressStatus(progress) {
-    const status = String(progress?.status || "").trim();
-    if (!status) return "Not loaded";
-    return status.charAt(0).toUpperCase() + status.slice(1);
-  }
-
-  function networkWorkerProgressSummaryLines(progress) {
-    const payload = progress && typeof progress === "object" ? progress : {};
-    const lines = Array.isArray(payload.summary_lines) && payload.summary_lines.length
-      ? payload.summary_lines.map((line) => String(line || "")
-        .replace(/^Worker progress:/, "Last reported worker progress:")
-        .replace(
-          /^Mutation guardrail: Network progress is read-only persisted runtime evidence;/,
-          "Mutation guardrail: Last reported network progress is read-only persisted runtime evidence;"
-        ))
-      : [
-        `Last reported worker progress: ${payload.status || "not loaded"}`,
-        `Progress bars: ${payload.bar_count || 0}`,
-        `Active worker bars: ${payload.active_count || 0}`,
-      ];
-    lines.push(
-      "",
-      "Safe interpretation:",
-      "- Active bars reflect last reported persisted coordinator/worker runtime state, not a lifecycle command surface.",
-      "- Stale or blocked bars should be cross-checked with Cluster Log, Run Logs, and Last Stderr before retries; ActiveJobs is passive launch diagnostics only.",
-      "Mutation guardrail: this panel uses backend-owned Network lifecycle routes only; it does not reclaim jobs, release claims, send done reports, mutate queue state, or touch media files."
-    );
-    return lines;
-  }
-
-  function renderNetworkWorkerProgress(networkWorkers) {
-    const progress = networkWorkers?.worker_progress && typeof networkWorkers.worker_progress === "object"
-      ? networkWorkers.worker_progress
-      : { progress_bars: Array.isArray(networkWorkers?.progress_bars) ? networkWorkers.progress_bars : [] };
-    const bars = Array.isArray(progress.progress_bars) ? progress.progress_bars : [];
-    setText("network-worker-progress-status", networkWorkerProgressStatus(progress));
-    if (typeof renderProgressBarsInto === "function") {
-      renderProgressBarsInto("network-worker-progress-bars", bars, progress, "No last reported worker progress loaded.");
-    } else {
-      setText("network-worker-progress-bars", bars.length ? bars.map((bar) => `${bar.label || bar.id || "Worker"}: ${bar.status || "unknown"} ${bar.percent ?? ""}%`).join("\n") : "No last reported worker progress loaded.");
-    }
-    setText("network-worker-progress-summary", networkWorkerProgressSummaryLines(progress).join("\n"));
-  }
-
-  function renderNetworkWorkerRows(networkWorkers) {
-    const payload = networkWorkers && typeof networkWorkers === "object" ? networkWorkers : {};
-    lastNetworkWorkersPayload = payload;
-    const rows = Array.isArray(networkWorkers?.rows) ? networkWorkers.rows : [];
-    lastNetworkWorkerRows = rows;
-    const visibleRows = filteredNetworkWorkerRows(rows);
-    const tbody = byId("network-worker-rows");
-    if (!tbody) return;
-    syncNetworkWorkerViewPresetButtons();
-    renderNetworkWorkerFilterSummary(rows, visibleRows);
-    if (!rows.length) {
-      selectedNetworkWorkerKey = "";
-      clearRows(tbody, 9, "No persisted worker rows. Inspect cluster.log, ActiveJobs, or state files before inferring worker lifecycle health.");
-      updateTableStatusLegend("network-worker-table-legend", tbody, "Network worker rows");
-      renderNetworkWorkerDetail(null);
-      return;
-    }
-    setText(
-      "network-worker-status",
-      visibleRows.length === rows.length
-        ? `${rows.length} worker row${rows.length === 1 ? "" : "s"}`
-        : `${visibleRows.length}/${rows.length} worker rows`
-    );
-    const selectedVisible = visibleRows.some((item) => networkWorkerRowKey(item) === selectedNetworkWorkerKey);
-    if (!selectedVisible) {
-      selectedNetworkWorkerKey = visibleRows.length ? networkWorkerRowKey(visibleRows[0]) : "";
-    }
-    if (!visibleRows.length) {
-      clearRows(tbody, 9, "No persisted worker rows match the current Network worker filters.");
-      updateTableStatusLegend("network-worker-table-legend", tbody, "Network worker rows");
-      renderNetworkWorkerDetail(null);
-      return;
-    }
-    tbody.replaceChildren();
-    visibleRows.forEach((item) => {
-      const row = document.createElement("tr");
-      const key = networkWorkerRowKey(item);
-      row.dataset.rowKey = key;
-      row.dataset.status = networkWorkerStatusState(item);
-      row.title = item.worker_id || item.current_file || "";
-      networkAppendCell(row, item.worker_name || item.worker_id || "");
-      networkAppendCell(row, item.status || "");
-      networkAppendCell(row, item.current_file_name || item.current_file || "");
-      networkAppendCell(row, item.current_stage || "");
-      networkAppendCell(row, workerProgressText(item), "num");
-      networkAppendCell(row, workerHeartbeatText(item), "num");
-      networkAppendCell(row, workerLastResultText(item));
-      networkAppendCell(row, workerThroughputText(item), "num");
-      const inspectButton = document.createElement("button");
-      inspectButton.type = "button";
-      inspectButton.className = "secondary-button network-inspect-button";
-      inspectButton.textContent = "Inspect";
-      inspectButton.addEventListener("click", (event) => {
-        event.stopPropagation();
-        selectNetworkWorkerRow(item);
-      });
-      networkAppendCell(row, inspectButton);
-      makeRowSelectable(row, () => selectNetworkWorkerRow(item), {
-        selected: Boolean(key && key === selectedNetworkWorkerKey),
-        label: `Network worker row ${item.worker_name || item.worker_id || item.current_file_name || ""}`,
-      });
-      tbody.appendChild(row);
-    });
-    updateTableStatusLegend("network-worker-table-legend", tbody, "Network worker rows");
-    renderNetworkWorkerDetail(getSelectedNetworkWorkerRow());
-  }
 
   function openNetworkDrawer(id) {
     const drawer = byId(id);
@@ -3884,66 +693,38 @@
     });
   }
 
-  function initNetworkViewEvents() {
-    if (networkViewEventsInitialized) return;
-    networkViewEventsInitialized = true;
-    const workerFilter = byId("network-worker-filter");
-    if (workerFilter) {
-      workerFilter.addEventListener("input", () => {
-        networkWorkerSearchText = workerFilter.value || "";
-        renderNetworkWorkerRows(lastNetworkWorkersPayload);
-      });
-    }
-    const statusFilter = byId("network-worker-status-filter");
-    if (statusFilter) {
-      statusFilter.addEventListener("change", () => {
-        networkWorkerStatusFilter = statusFilter.value || "";
-        renderNetworkWorkerRows(lastNetworkWorkersPayload);
-      });
-    }
-    document.querySelectorAll("[data-network-worker-view]").forEach((button) => {
-      button.addEventListener("click", () => {
-        networkWorkerViewPreset = button.dataset.networkWorkerView || "";
-        syncNetworkWorkerViewPresetButtons();
-        renderNetworkWorkerRows(lastNetworkWorkersPayload);
-      });
-    });
-    const previewSettingsButton = byId("network-settings-preview-button");
-    if (previewSettingsButton) previewSettingsButton.addEventListener("click", previewNetworkSettingsPatch);
-    const saveSettingsButton = byId("network-settings-save-button");
-    if (saveSettingsButton) saveSettingsButton.addEventListener("click", saveNetworkSettingsPatch);
-    document.querySelectorAll("[data-network-lifecycle-role]").forEach((button) => {
-      button.addEventListener("click", () => runNetworkLifecycleCommand(button));
-    });
-    document.querySelectorAll("[data-network-test-connection]").forEach((button) => {
-      button.addEventListener("click", () => runNetworkWorkerTestConnection());
-    });
-    document.querySelectorAll("[data-network-open-drawer]").forEach((button) => {
-      button.addEventListener("click", () => openNetworkDrawer(button.dataset.networkOpenDrawer || ""));
-    });
-    const createJoinButton = byId("network-coordinator-join-create");
-    if (createJoinButton) createJoinButton.addEventListener("click", () => createNetworkJoinBlob());
-    const copyJoinButton = byId("network-coordinator-join-copy");
-    if (copyJoinButton) copyJoinButton.addEventListener("click", () => copyNetworkJoinBlob());
-    const importJoinButton = byId("network-worker-join-import");
-    if (importJoinButton) importJoinButton.addEventListener("click", () => importNetworkJoinBlob());
-    const discoverButton = byId("network-worker-discover");
-    if (discoverButton) discoverButton.addEventListener("click", () => discoverNetworkCoordinators());
-    const discoveryList = byId("network-worker-discovery-list");
-    if (discoveryList) {
-      discoveryList.addEventListener("click", (event) => {
-        const button = event.target?.closest?.("[data-network-discovery-url]");
-        if (!button) return;
-        stageDiscoveredCoordinatorUrl(button.dataset.networkDiscoveryUrl || "");
-      });
-    }
-    const workerJoinBlob = byId("network-worker-join-blob");
-    if (workerJoinBlob) {
-      workerJoinBlob.addEventListener("input", () => {
-        renderNetworkJoinControls(lastNetworkLifecyclePayload, settingsConfig(lastNetworkLifecyclePayload.settings || {}));
-      });
-    }
-  }
+  const networkEventsModule = window.__networkEventsModule || {};
+  delete window.__networkEventsModule;
+  const networkEvents = typeof networkEventsModule.createNetworkEventsModule === "function"
+    ? networkEventsModule.createNetworkEventsModule({
+        byId,
+        renderNetworkWorkerRows,
+        syncNetworkWorkerViewPresetButtons,
+        previewNetworkSettingsPatch,
+        saveNetworkSettingsPatch,
+        runNetworkLifecycleCommand,
+        runNetworkWorkerTestConnection,
+        openNetworkDrawer,
+        createNetworkJoinBlob,
+        copyNetworkJoinBlob,
+        importNetworkJoinBlob,
+        discoverNetworkCoordinators,
+        stageDiscoveredCoordinatorUrl,
+        renderNetworkJoinControls,
+        settingsConfig,
+        getLastNetworkLifecyclePayload: () => lastNetworkLifecyclePayload,
+        getLastNetworkWorkersPayload: () => lastNetworkWorkersPayload,
+        getNetworkViewEventsInitialized: () => networkViewEventsInitialized,
+        setNetworkViewEventsInitialized: (value) => { networkViewEventsInitialized = Boolean(value); },
+        getNetworkWorkerSearchText: () => networkWorkerSearchText,
+        setNetworkWorkerSearchText: (value) => { networkWorkerSearchText = value; },
+        getNetworkWorkerStatusFilter: () => networkWorkerStatusFilter,
+        setNetworkWorkerStatusFilter: (value) => { networkWorkerStatusFilter = value; },
+        getNetworkWorkerViewPreset: () => networkWorkerViewPreset,
+        setNetworkWorkerViewPreset: (value) => { networkWorkerViewPreset = value; },
+      })
+    : {};
+  const { initNetworkViewEvents = () => {} } = networkEvents;
 
   function renderNetworkWorkers(networkWorkers) {
     const payload = networkWorkers && typeof networkWorkers === "object" ? networkWorkers : {};
@@ -4005,96 +786,14 @@
     return leaf && leaf !== text ? `${leaf}\n${text}` : text;
   }
 
-  function networkRerunStatusState(row = {}) {
-    const text = String(row.queue_status || row.status || "").toLowerCase();
-    if (/(failed|blocked|error)/.test(text)) return "blocked";
-    if (/(warning|review|pending_publish|pending_reduction|destination_policy_applying)/.test(text)) return "warning";
-    if (/(completed|published|replaced|done|success|ok)/.test(text)) return "match";
-    if (/(active|running|claimed|pending|stopped|skipped)/.test(text)) return "unknown";
-    return "unknown";
-  }
-
-  function networkRerunRows(rerunResults = {}) {
-    const manifests = Array.isArray(rerunResults.network_manifests) ? rerunResults.network_manifests : [];
-    const fromManifests = manifests.flatMap((manifest) => {
-      const rows = Array.isArray(manifest.rows) ? manifest.rows : [];
-      return rows.map((row) => ({
-        ...row,
-        batch_id: row.batch_id || manifest.batch_id,
-        manifest_status: row.manifest_status || manifest.status,
-        manifest_path: row.manifest_path || manifest.path,
-      }));
-    });
-    if (fromManifests.length) return fromManifests;
-    const queueRows = Array.isArray(rerunResults?.queue_state?.rows) ? rerunResults.queue_state.rows : [];
-    return queueRows.filter((row) => row?.queue_source === "network_csv_rerun");
-  }
-
-  function networkRerunDestinationResult(row = {}) {
-    if (row.network_destination_policy_result && typeof row.network_destination_policy_result === "object") {
-      return row.network_destination_policy_result;
-    }
-    const destination = row.destination_state && typeof row.destination_state === "object" ? row.destination_state : {};
-    return destination.destination_policy_result && typeof destination.destination_policy_result === "object"
-      ? destination.destination_policy_result
-      : {};
-  }
-
-  function networkRerunEvidenceLines(row = {}) {
-    const reducer = row.network_reducer_result && typeof row.network_reducer_result === "object" ? row.network_reducer_result : {};
-    const worker = row.network_worker_result && typeof row.network_worker_result === "object" ? row.network_worker_result : {};
-    const destination = networkRerunDestinationResult(row);
-    return [
-      reducer.classification ? `Reducer: ${reducer.classification}` : "",
-      reducer.accepted === true ? "Reducer accepted" : reducer.accepted === false ? "Reducer rejected" : "",
-      worker.worker_id || worker.worker_name ? `Worker: ${worker.worker_id || worker.worker_name}` : "",
-      destination.status || destination.action ? `Destination: ${[destination.status, destination.action].filter(Boolean).join(" / ")}` : "",
-      destination.pending_publish_manifest_path || row.pending_publish_manifest_path ? `Pending: ${networkRerunLeaf(destination.pending_publish_manifest_path || row.pending_publish_manifest_path)}` : "",
-      destination.published_path || row.published_path ? `Published: ${networkRerunLeaf(destination.published_path || row.published_path)}` : "",
-      row.claim_status ? `Claim: ${row.claim_status}` : "",
-    ].filter(Boolean);
-  }
-
-  function renderNetworkRerunRows(rerunResults = {}) {
-    const tbody = byId("network-rerun-rows");
-    if (!tbody) return;
-    const rows = networkRerunRows(rerunResults);
-    setText("network-rerun-status", rows.length ? `${rows.length} row${rows.length === 1 ? "" : "s"}` : "No rows");
-    const counts = rerunResults?.queue_state?.status_counts && typeof rerunResults.queue_state.status_counts === "object"
-      ? rerunResults.queue_state.status_counts
-      : {};
-    const countText = Object.keys(counts).sort().map((key) => `${key} ${counts[key]}`).join("; ");
-    setText("network-rerun-summary", [
-      "Network CSV rerun read model: backend-owned /api/rerun/results.",
-      `Batches: ${Array.isArray(rerunResults.network_manifests) ? rerunResults.network_manifests.length : 0}; rows: ${rows.length}.`,
-      countText ? `Queue-state counts: ${countText}.` : "No Network CSV rerun status counts loaded.",
-    ].join(" "));
-    if (!rows.length) {
-      clearRows(tbody, 6, "No Network CSV rerun rows loaded.");
-      setText("network-rerun-detail", "No Network CSV rerun batch state is visible in the loaded backend read model.");
-      return;
-    }
-    tbody.replaceChildren();
-    rows.slice(0, 100).forEach((item) => {
-      const row = document.createElement("tr");
-      row.dataset.status = networkRerunStatusState(item);
-      networkAppendCell(row, item.batch_id || item.manifest_status || "unknown");
-      networkAppendCell(row, item.network_rerun_row_key || item.row_key || "");
-      networkAppendCell(row, networkStatusChip(item.queue_status_label || item.queue_status || item.status || "unknown", networkRerunStatusState(item)));
-      networkAppendCell(row, networkRerunCompactPath(item.original_source_path || item.source_path), "network-overview-table-file");
-      networkAppendCell(row, [
-        networkRerunCompactPath(item.output_path || item.verified_output_path || item.review_output_path),
-        networkRerunCompactPath(item.final_output_path || item.destination_path),
-      ].filter(Boolean).join("\n\n"), "network-overview-table-file");
-      networkAppendCell(row, networkRerunEvidenceLines(item).join("\n") || "No reducer or destination-policy evidence loaded.");
-      tbody.appendChild(row);
-    });
-    setText("network-rerun-detail", [
-      "Rows are read-only backend evidence from /api/rerun/results.",
-      "Start controls live in Queue > CSV Rerun and use backend dry-run plus confirmed start routes.",
-      "WebView does not author claims, row status, destination policy, Pending Publish paths, or final output paths.",
-    ].join("\n"));
-  }
+  const networkRerunEvidenceModule = window.__networkRerunEvidenceModule || {};
+  delete window.__networkRerunEvidenceModule;
+  const networkRerunEvidence = typeof networkRerunEvidenceModule.createNetworkRerunEvidenceModule === "function"
+    ? networkRerunEvidenceModule.createNetworkRerunEvidenceModule({
+      byId, setText, clearRows, networkAppendCell, networkStatusChip, networkRerunLeaf, networkRerunCompactPath,
+    })
+    : {};
+  const { renderNetworkRerunRows = () => {} } = networkRerunEvidence;
 
   function renderNetworkView(payload = {}) {
     initNetworkViewEvents();

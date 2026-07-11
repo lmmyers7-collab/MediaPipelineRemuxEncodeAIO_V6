@@ -15,6 +15,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from mediapipeline.core.kernel.contracts.pending_publish import PendingPushManifest  # noqa: E402
 from mediapipeline.core.paths.contracts import ResolvedPaths  # noqa: E402
 from mediapipeline.core.processes.rerun_results import (  # noqa: E402
+    _destination_summary,
     rerun_promote_dry_run,
     rerun_promote_to_pending_publish,
     rerun_results_payload,
@@ -75,6 +76,22 @@ def _write_active_job(resolved: ResolvedPaths, *, launch_id: str, job_kind: str 
 
 
 class RerunResultsTests(unittest.TestCase):
+    def test_destination_summary_never_resolves_destination_paths(self) -> None:
+        rows = [
+            {
+                "queue_status": "failed",
+                "destination_path": r"\\offline-server\library\Movie\Movie.mkv",
+            }
+        ]
+
+        with mock.patch(
+            "mediapipeline.core.processes.rerun_results._path_key",
+            side_effect=AssertionError("display-only destination summary must not resolve filesystem paths"),
+        ):
+            summary = _destination_summary(rows)
+
+        self.assertEqual(summary["distinct_final_destination_count"], 1)
+
     def test_rerun_control_requires_exactly_one_active_rerun_and_writes_marker_only(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -227,7 +244,13 @@ class RerunResultsTests(unittest.TestCase):
                             {"status": "running", "source_path": str(root / "active.mkv")},
                             {"status": "invalid", "source_path": str(root / "blocked.mkv"), "reason": "source file not found"},
                             {"status": "warning", "source_path": str(root / "warning.mkv"), "warning_reason": "audit warning"},
-                            {"status": "failed", "source_path": str(root / "failed.mkv"), "reason": "nested pipeline failed"},
+                            {
+                                "status": "failed",
+                                "source_path": str(root / "failed.mkv"),
+                                "failure_code": "RERUN_OUTPUT_MISSING",
+                                "operator_message": "The rerun did not create the expected output. Source media was not changed.",
+                                "reason": "RERUN_OUTPUT_MISSING: The rerun did not create the expected output. Source media was not changed.",
+                            },
                             {"status": "stopped", "source_path": str(root / "stopped.mkv")},
                             {"status": "completed", "source_path": str(root / "completed.mkv"), "verified_output_path": str(output), "final_output_path": str(final_output), "final_output_source": "csv_completed_output", "final_output_source_field": "plex_planned_path", "audit_issue_codes": "audio-policy"},
                             {"status": "review_workspace", "source_path": str(root / "review.mkv"), "verified_output_path": str(output), "reason": "operator review"},
@@ -257,6 +280,12 @@ class RerunResultsTests(unittest.TestCase):
         self.assertEqual(by_name["blocked.mkv"]["queue_status_label"], "Blocked")
         self.assertEqual(by_name["warning.mkv"]["queue_status_label"], "Warning")
         self.assertEqual(by_name["failed.mkv"]["queue_status_label"], "Failed")
+        self.assertEqual(by_name["failed.mkv"]["failure_code"], "RERUN_OUTPUT_MISSING")
+        self.assertEqual(
+            by_name["failed.mkv"]["operator_guidance"],
+            "The rerun did not create the expected output. Source media was not changed.",
+        )
+        self.assertEqual(by_name["failed.mkv"]["attempt_evidence"]["failure_code"], "RERUN_OUTPUT_MISSING")
         self.assertEqual(by_name["stopped.mkv"]["queue_status_label"], "Stopped")
         self.assertEqual(by_name["completed.mkv"]["queue_status_label"], "Completed")
         self.assertIn("audio-policy", by_name["completed.mkv"]["audit_issue_code_list"])

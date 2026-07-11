@@ -8,6 +8,7 @@ param(
     [switch]$IncludeOptionalTools,
     [switch]$IncludeToolDocs,
     [switch]$IncludeTauriPreviewBinary,
+    [switch]$Deployable,
     [switch]$KeepPersonalConfig,
     [switch]$Verify,
     [switch]$AllowTestlessVerify,
@@ -138,6 +139,39 @@ print(json.dumps(out, sort_keys=True))
         }
     } catch { }
     return @{}
+}
+
+function Get-ReleaseSourceRevision {
+    try {
+        $revision = (& git -C $script:SourceRoot rev-parse HEAD 2>$null | Select-Object -First 1).Trim()
+        if ($revision -match '^[0-9a-f]{40}$') { return $revision }
+    } catch { }
+    return 'unavailable'
+}
+
+function Get-ReleaseFileHashEntries {
+    param([Parameter(Mandatory)][object[]]$CopyPlan)
+
+    return @($CopyPlan | Sort-Object relative | ForEach-Object {
+        [ordered]@{
+            path = $_.relative
+            sha256 = (Get-FileHash -LiteralPath $_.source -Algorithm SHA256).Hash.ToLowerInvariant()
+            bytes = [int64]$_.bytes
+        }
+    })
+}
+
+function Find-ReleaseContentFinding {
+    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$RelativePath)
+
+    if ([System.IO.Path]::GetExtension($Path).ToLowerInvariant() -notin @('.bat', '.cmd', '.css', '.html', '.js', '.json', '.md', '.ps1', '.psd1', '.py', '.rs', '.toml', '.txt', '.yml', '.yaml')) {
+        return $null
+    }
+    try {
+        return Find-MediaPipelineReleaseContentFinding -RelativePath $RelativePath -Content (Get-Content -LiteralPath $Path -Raw)
+    } catch {
+        throw "Release content scan could not read ${RelativePath}: $($_.Exception.Message)"
+    }
 }
 
 function Resolve-ReleaseVerificationPowerShell {
@@ -293,6 +327,16 @@ function Get-MediaPipelineReleaseLabel {
     return 'local'
 }
 
+function Get-NormalizedMediaPipelineReleaseVersion {
+    $versionFile = Join-Path $script:SourceRoot 'ops\release\metadata\VERSION'
+    $raw = (Get-Content -LiteralPath $versionFile -Raw).Trim()
+    if ($raw -notmatch '^(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)(?:[.+](?<build>\d+))?$') {
+        throw "Release version is not normalized or parseable: $raw"
+    }
+    $build = if ($Matches['build']) { [int]$Matches['build'] } else { 0 }
+    return ('{0}.{1}.{2}+{3:D3}' -f [int]$Matches['major'], [int]$Matches['minor'], [int]$Matches['patch'], $build)
+}
+
 $scriptRoot = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 $script:SourceRoot = [System.IO.Path]::GetFullPath((Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $scriptRoot))))
 $releasePolicyModule = Join-Path $script:SourceRoot 'ops\scripts\release\release_policy.ps1'
@@ -300,10 +344,17 @@ if (-not (Test-Path -LiteralPath $releasePolicyModule -PathType Leaf)) {
     throw "Release policy module is missing: $releasePolicyModule"
 }
 . $releasePolicyModule
+if ($Deployable) {
+    if ($KeepPersonalConfig) { throw 'Deployable packages cannot include personal configuration.' }
+    if (-not $Zip) { throw 'Deployable packages must be zipped for portable distribution.' }
+    if (-not $Verify) { throw 'Deployable packages require -Verify for copied-bundle acceptance.' }
+    if ($IncludeTests) { throw 'Deployable packages are lean artifacts and must not include tests.' }
+    $IncludeTauriPreviewBinary = $true
+}
 if ($KeepPersonalConfig -and $Zip) {
     throw 'KeepPersonalConfig cannot be combined with -Zip. Build personal mirrors as directories only, or omit -KeepPersonalConfig for a distributable zip.'
 }
-if ($Verify -and -not $IncludeTests -and -not $AllowTestlessVerify) {
+if ($Verify -and -not $IncludeTests -and -not $AllowTestlessVerify -and -not $Deployable) {
     throw 'Release verification requires -IncludeTests. Use -AllowTestlessVerify only for local/dev package smoke checks that must not be treated as release acceptance.'
 }
 if (-not $DestinationRoot) {
@@ -323,6 +374,8 @@ foreach ($file in $allFiles) {
         $excludePlan.Add([pscustomobject]@{ path = $relative; reason = $reason; bytes = $file.Length })
         continue
     }
+    $contentFinding = if (Test-MediaPipelineReleaseContentScanEligible -RelativePath $relative) { Find-ReleaseContentFinding -Path $file.FullName -RelativePath $relative } else { $null }
+    if ($contentFinding) { throw "Release content policy rejected $contentFinding" }
     $copyPlan.Add([pscustomobject]@{
         source = $file.FullName
         relative = $relative
@@ -360,6 +413,9 @@ $summary = [ordered]@{
     optional_tools_included = [bool]$IncludeOptionalTools
     tool_docs_included = [bool]$IncludeToolDocs
     tauri_preview_binary_included = [bool]$IncludeTauriPreviewBinary
+    deployable = [bool]$Deployable
+    normalized_version = Get-NormalizedMediaPipelineReleaseVersion
+    source_revision = Get-ReleaseSourceRevision
     zip_requested = [bool]$Zip
     verify_requested = [bool]$Verify
     testless_verify_allowed = [bool]$AllowTestlessVerify
@@ -386,6 +442,14 @@ if ($DryRun) {
         Sort-Object Name |
         ForEach-Object { Write-Host ("Excluded {0,4} file(s): {1}" -f $_.Count, $_.Name) }
     return
+}
+
+if ($Deployable) {
+    $sourceVerifier = Join-Path $script:SourceRoot 'ops\scripts\release\test.ps1'
+    $sourcePwsh = Resolve-ReleaseVerificationPowerShell -ReleaseRoot $script:SourceRoot
+    if (-not $sourcePwsh) { throw 'Deployable source validation requires bundled PowerShell 7.' }
+    & $sourcePwsh -NoProfile -ExecutionPolicy Bypass -File $sourceVerifier -BundleRoot $script:SourceRoot -RequireTests
+    if ($LASTEXITCODE -ne 0) { throw "Deployable source validation failed with exit $LASTEXITCODE." }
 }
 
 if (Test-Path -LiteralPath $destinationFull) {
@@ -453,6 +517,10 @@ $manifest = [ordered]@{
         pgs_to_srt = Get-FileVersionText 'ops\pipeline\tools\PgsToSrt\PgsToSrt.exe'
     }
     python_packages = Get-PythonPackageVersions
+    integrity = [ordered]@{
+        algorithm = 'sha256'
+        files = @(Get-ReleaseFileHashEntries -CopyPlan @($copyPlan.ToArray()))
+    }
     excluded_files = @($excludePlan | Sort-Object path)
 }
 
@@ -481,6 +549,8 @@ if ($Verify) {
     ))
     if ($IncludeTests) {
         $verifyArgs.Add('-RequireTests')
+    } elseif ($Deployable) {
+        $verifyArgs.Add('-PackageAcceptance')
     } elseif ($AllowTestlessVerify) {
         Write-Warning 'Release verification is running without tests because -AllowTestlessVerify was supplied. This is not release acceptance.'
     }
@@ -500,6 +570,16 @@ if ($Zip) {
     }
     Compress-Archive -Path (Join-Path $destinationFull '*') -DestinationPath $zipPath -Force
     Write-Host "Zip         : $zipPath"
+    if ($Deployable) {
+        $extractRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("mediapipeline-release-zip-verify-" + [guid]::NewGuid().ToString('N'))
+        try {
+            Expand-Archive -LiteralPath $zipPath -DestinationPath $extractRoot -Force
+            & $verifyPwsh -NoProfile -ExecutionPolicy Bypass -File (Join-Path $extractRoot 'ops\scripts\release\test.ps1') -BundleRoot $extractRoot -PackageAcceptance
+            if ($LASTEXITCODE -ne 0) { throw "Extracted deployable ZIP verification failed with exit $LASTEXITCODE." }
+        } finally {
+            if (Test-Path -LiteralPath $extractRoot) { Remove-Item -LiteralPath $extractRoot -Recurse -Force }
+        }
+    }
 }
 
 Write-Host 'Release build complete.'

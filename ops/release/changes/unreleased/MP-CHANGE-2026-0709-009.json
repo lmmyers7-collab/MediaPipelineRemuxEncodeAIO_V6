@@ -1,0 +1,31 @@
+{
+  "id": "MP-CHANGE-2026-0709-009",
+  "title": "General-public usability review",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-07-09",
+  "date_completed": "2026-07-09",
+  "summary": "Added the single consolidated, evidence-limited general-public usability review for all fifteen primary tabs.",
+  "reason": "Document usability and accessibility barriers for non-technical public users without changing application behavior or safety ownership.",
+  "affected_areas": [
+    "docs",
+    "release"
+  ],
+  "behavior_before": "No current consolidated general-public usability review covered all primary tabs.",
+  "behavior_after": "One actionable review report records tab findings, cross-tab themes, prioritized backlog, quick wins, and post-fix validation.",
+  "files_touched": [
+    "docs/reviews/general-public-usability-review-2026-07-09.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0709-009.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Read the goal objective and used one assigned review worker per primary tab, in sequential batches.",
+    "Verified the report includes all fifteen primary tabs, top recommendations, cross-tab findings, backlog, quick wins, and validation checklist.",
+    "Recorded the authenticated-browser limitation and did not perform destructive or media-mutating actions."
+  ],
+  "rollback_plan": "Remove the report and this change packet if the review record must be withdrawn; no application behavior or runtime state changed.",
+  "related_changes": [],
+  "notes": "Single consolidated evidence-based general-public usability review.\nTracks the review documentation change."
+}

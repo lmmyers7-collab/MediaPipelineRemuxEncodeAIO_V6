@@ -19,6 +19,19 @@ from tests.css_import_resolver import resolve_css_imports
 
 STATIC_ROOT = find_repo_root(Path(__file__)) / "apps" / "desktop" / "webview" / "static"
 STYLES_PAGES_CSS = STATIC_ROOT / "assets" / "styles.pages.css"
+SETTINGS_WIZARD_ASSET_NAMES = (
+    "settings/wizard/libraryEditor.js",
+    "settings/wizard/previewRender.js",
+    "settingsWizard.js",
+)
+SETTINGS_LIBRARIES_ASSET_NAMES = (
+    "settingsLibraries/model.js",
+    "settingsLibraries/render.js",
+    "settingsLibraries/summary.js",
+    "settingsLibraries/interaction.js",
+    "settingsLibraries/facade.js",
+    "settingsLibraries.js",
+)
 VOBSUB_LIBRARY_OVERRIDE_KEYS = {
     "ConvertVobSubToSrt",
     "DropVobSubAfterConversion",
@@ -42,6 +55,20 @@ SUBTITLE_ADVANCED_LIBRARY_FIELDS = (
 
 def _read_pages_css() -> str:
     return resolve_css_imports(STYLES_PAGES_CSS, STATIC_ROOT / "assets")
+
+
+def _settings_wizard_bundle() -> str:
+    return "\n".join(
+        (STATIC_ROOT / "assets" / asset_name).read_text(encoding="utf-8")
+        for asset_name in SETTINGS_WIZARD_ASSET_NAMES
+    )
+
+
+def _settings_libraries_bundle() -> str:
+    return "\n".join(
+        (STATIC_ROOT / "assets" / asset_name).read_text(encoding="utf-8")
+        for asset_name in SETTINGS_LIBRARIES_ASSET_NAMES
+    )
 
 
 def _backend_library_override_keys() -> set[str]:
@@ -92,7 +119,7 @@ def _scan_js_array(source: str, array_start: int) -> tuple[str, int]:
 
 
 def _settings_library_layout_keys_by_group() -> dict[str, set[str]]:
-    js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+    js = _settings_libraries_bundle()
     start = js.index("const overrideLayouts = {")
     end = js.index("const fallbackGroupByField", start)
     layout_text = js[start:end]
@@ -109,7 +136,7 @@ def _settings_library_layout_keys_by_group() -> dict[str, set[str]]:
 
 
 def _settings_library_override_group_order() -> tuple[str, ...]:
-    js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+    js = _settings_libraries_bundle()
     match = re.search(r"const overrideGroupOrder = \[([^\]]+)\]", js)
     if match is None:
         raise AssertionError("overrideGroupOrder was not found in settingsLibraries.js")
@@ -164,7 +191,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertLessEqual(VOBSUB_LIBRARY_OVERRIDE_KEYS, layout_keys)
 
     def test_subtitle_keyword_timeout_and_style_overrides_are_advanced_dropdown(self) -> None:
-        js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        js = _settings_libraries_bundle()
         css = _read_pages_css()
         subtitles_start = js.index("    subtitles: [")
         tx3g_panel_start = js.index('      { type: "panel", title: "TX3G"', subtitles_start)
@@ -220,7 +247,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertEqual(sorted(_backend_library_override_keys() - rendered_keys), [])
 
     def test_settings_libraries_asset_uses_backend_metadata_for_override_rows(self) -> None:
-        js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        js = _settings_libraries_bundle()
 
         for token in (
             "function overrideFieldsForGroup(groupKey)",
@@ -280,12 +307,12 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
                 self.assertEqual(metadata[key]["label"], label)
                 self.assertTrue(metadata[key]["library_override_allowed"])
 
-        js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        js = _settings_libraries_bundle()
         self.assertIn("if (field?.label) return field.label;", js)
         self.assertIn("fieldHelpText(field)", js)
 
     def test_library_route_size_editor_replicates_settings_route_surface(self) -> None:
-        libraries_js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        libraries_js = _settings_libraries_bundle()
         route_model_js = (STATIC_ROOT / "assets" / "settings" / "routePolicyModel.js").read_text(encoding="utf-8")
         html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
 
@@ -382,7 +409,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
 
     def test_library_designation_filtering_omits_inapplicable_override_rows(self) -> None:
         metadata = _backend_field_metadata()
-        js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        js = _settings_libraries_bundle()
 
         self.assertEqual(metadata["MovieRoute1080pTargetSizeGB"]["library_profile_designations"], ("movie", "auto"))
         self.assertEqual(metadata["MovieRoute1440pTargetSizeGB"]["library_profile_designations"], ("movie", "auto"))
@@ -406,7 +433,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         metadata = _backend_field_metadata()
         layout_keys = _settings_library_layout_keys()
         group_by_key = _backend_library_override_group_by_key()
-        js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        js = _settings_libraries_bundle()
 
         for key, label in LABEL_ONLY_RENAMES.items():
             with self.subTest(key=key):
@@ -428,7 +455,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             self.assertIn(token, js)
 
     def test_library_override_unavailable_and_read_only_copy_is_display_only(self) -> None:
-        js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        js = _settings_libraries_bundle()
 
         for token in (
             'field.library_override_allowed !== true',
@@ -442,8 +469,17 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             self.assertIn(token, js)
 
     def test_library_override_validation_hints_reuse_backend_metadata_and_persisted_groups(self) -> None:
-        libraries_js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
-        patch_review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        libraries_js = _settings_libraries_bundle()
+        patch_review_js = "\n".join(
+            (STATIC_ROOT / "assets" / asset_name).read_text(encoding="utf-8")
+            for asset_name in (
+                "settings/finalLibraryPromotion.js",
+                "settings/patchOverview.js",
+                "settings/patchInteractions.js",
+                "settings/patchReadiness.js",
+                "settings/patchReview.js",
+            )
+        )
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
 
         for token in (
@@ -564,7 +600,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         )
 
     def test_libraries_scan_summary_table_is_backend_evidence_only(self) -> None:
-        libraries_js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        libraries_js = _settings_libraries_bundle()
         app_js = (STATIC_ROOT / "assets" / "app.js").read_text(encoding="utf-8")
         css = _read_pages_css()
 
@@ -602,7 +638,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertNotIn("/api/pipeline/start", libraries_js)
 
     def test_libraries_page_stages_existing_watch_folder_settings(self) -> None:
-        js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        js = _settings_libraries_bundle()
 
         for token in (
             "function libraryWatchConfig()",
@@ -648,7 +684,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             self.assertNotIn(token, js)
 
     def test_settings_libraries_asset_stages_profile_patch(self) -> None:
-        js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        js = _settings_libraries_bundle()
 
         for token in (
             "LibraryProfiles",
@@ -754,7 +790,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertNotIn("media_overrides:", js)
 
     def test_settings_libraries_asset_tracks_explicit_override_state(self) -> None:
-        js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        js = _settings_libraries_bundle()
         css = _read_pages_css()
 
         for token in (
@@ -821,7 +857,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertNotIn("card.dataset.inheritedFields", js)
 
     def test_phase4e_library_inheritance_display_and_reset_wiring_is_backend_evidence_based(self) -> None:
-        libraries_js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        libraries_js = _settings_libraries_bundle()
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
 
         for token in (
@@ -919,7 +955,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         )
 
     def test_settings_libraries_asset_preserves_unsaved_cards_during_refresh(self) -> None:
-        js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        js = _settings_libraries_bundle()
         app_js = (STATIC_ROOT / "assets" / "app.js").read_text(encoding="utf-8")
 
         for token in (
@@ -1028,9 +1064,11 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertLess(html.index("/assets/settingsLibraries.js"), html.index("/assets/settingsWizard.js"))
         self.assertLess(html.index("/assets/settingsLibraries.js"), html.index("/assets/librariesRouteMap.js"))
         self.assertLess(html.index("/assets/librariesRouteMap.js"), html.index("/assets/settingsWizard.js"))
+        self.assertLess(html.index("/assets/settings/wizard/libraryEditor.js"), html.index("/assets/settingsWizard.js"))
+        self.assertLess(html.index("/assets/settings/wizard/previewRender.js"), html.index("/assets/settingsWizard.js"))
 
     def test_settings_wizard_library_rows_collect_backend_profile_model(self) -> None:
-        js = (STATIC_ROOT / "assets" / "settingsWizard.js").read_text(encoding="utf-8")
+        js = _settings_wizard_bundle()
 
         for token in (
             "section.dataset.defaultTracking = safeJson(library.default_tracking);",
@@ -1042,7 +1080,8 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "default_tracking: readRowJson",
             "overrides: readRowJson",
             'apiPostLocal("/api/settings/wizard/preview", { wizard: collectWizardPayload() })',
-            'apiPostLocal("/api/settings/wizard/save", { wizard: collectWizardPayload(), confirm_save: true })',
+            'apiPostLocal("/api/settings/wizard/save", {',
+            "confirm_save: true",
         ):
             self.assertIn(token, js)
         self.assertNotIn("ProcessingStrategy", js)
@@ -1051,3 +1090,4 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -12,21 +12,16 @@
 
   const _layoutPreviewTimers = new WeakMap();
 
-  let _layoutDrawerSelectedContainerKey = "";
-
-  let _layoutDrawerSelectedPanelKey = "";
-
-  let _layoutDrawerDragSource = null;
-
-  let _layoutDrawerPointerDrag = null;
-
-  let _layoutDrawerPointerDragCleanup = null;
-
-  let _layoutResetAllArmed = false;
-
-  let _layoutResetAllForced = false;
-
-  let _layoutResetAllTimer = null;
+  const _layoutDrawerState = {
+    selectedContainerKey: "",
+    selectedPanelKey: "",
+    dragSource: null,
+    pointerDrag: null,
+    pointerDragCleanup: null,
+    resetAllArmed: false,
+    resetAllForced: false,
+    resetAllTimer: null,
+  };
 
   function _layoutSlug(text) {
     return String(text || "")
@@ -460,608 +455,52 @@
     panel.querySelector(".pcb-btn-move-up, .pcb-btn-move-down")?.focus();
   }
 
-  function _layoutMovePanelRelative(sourcePanel, targetPanel, after = false) {
-    if (!sourcePanel || !targetPanel || sourcePanel === targetPanel) return false;
-    if (sourcePanel.parentElement !== targetPanel.parentElement) return false;
-    const container = sourcePanel.parentElement;
-    if (after) {
-      container.insertBefore(sourcePanel, targetPanel.nextSibling);
-    } else {
-      container.insertBefore(sourcePanel, targetPanel);
-    }
-    _savePanelOrder(container);
-    _syncPanelMoveButtons(container);
-    _pulseMovedPanel(sourcePanel);
-    return true;
+
+const layoutDrawerModule = window.__layoutManagerDrawerModule;
+  if (!layoutDrawerModule?.createLayoutManagerDrawer) {
+    throw new Error("layoutManager drawer module must load before layoutManager.js");
   }
-
-  function _layoutPanelForDrawerRow(row) {
-    const panelKey = row?.dataset?.layoutEditorPanelKey || "";
-    const containerKey = row?.dataset?.layoutEditorContainerKey || "";
-    const container = _layoutContainerByKey(containerKey);
-    if (!panelKey || !container) return null;
-    return _layoutPanelsInContainer(container).find((panel) => (
-      (panel.dataset.panelKey || "") === panelKey
-    )) || null;
-  }
-
-  function _layoutDrawerPointerClient(event) {
-    return {
-      x: Number.isFinite(event?.clientX) ? Math.max(0, Math.min(window.innerWidth - 1, event.clientX)) : 0,
-      y: Number.isFinite(event?.clientY) ? Math.max(0, Math.min(window.innerHeight - 1, event.clientY)) : 0,
-    };
-  }
-
-  function _layoutDrawerRowFromPoint(event) {
-    const point = _layoutDrawerPointerClient(event);
-    const hit = document.elementFromPoint?.(point.x, point.y);
-    return hit?.closest?.(".layout-editor-panel-row[data-layout-editor-panel-key]")
-      || event?.target?.closest?.(".layout-editor-panel-row[data-layout-editor-panel-key]")
-      || null;
-  }
-
-  function _layoutDrawerDropStateForRow(row, event) {
-    if (!row) return { qualifies: false, after: false };
-    const rect = row.getBoundingClientRect();
-    const clientY = Number.isFinite(event?.clientY) ? event.clientY : rect.top;
-    return {
-      qualifies: rect.height > 0,
-      after: clientY > rect.top + rect.height / 2,
-    };
-  }
-
-  function _layoutDrawerContainers(page) {
-    return _layoutManagedContainers(page)
-      .filter((container) => _layoutPanelsInContainer(container).length > 0);
-  }
-
-  function _layoutDefaultSelectedContainer(page) {
-    const containers = _layoutDrawerContainers(page);
-    if (!containers.length) return null;
-    const activePane = containers.find((container) => (
-      !container.classList?.contains("page")
-      && container.classList?.contains("settings-tab-pane")
-      && container.classList?.contains("is-active")
-    ));
-    return activePane || containers[0];
-  }
-
-  function _layoutContainerByKey(containerKey) {
-    return _layoutContainersByKey.get(containerKey) || null;
-  }
-
-  function _layoutDrawerIsOpen() {
-    return document.body.classList.contains("layout-editor-open");
-  }
-
-  function _setLayoutDrawerAccessibility(open) {
-    const drawer = byId("layout-editor-drawer");
-    if (!drawer) return;
-    if (open) {
-      drawer.hidden = false;
-      drawer.inert = false;
-      drawer.removeAttribute("inert");
-      drawer.setAttribute("aria-hidden", "false");
-      return;
-    }
-    if (drawer.contains(document.activeElement)) byId("customize-layout-btn")?.focus();
-    drawer.inert = true;
-    drawer.setAttribute("inert", "");
-    drawer.setAttribute("aria-hidden", "true");
-    drawer.hidden = true;
-  }
-
-  function _layoutClickTabButton(page, datasetKey, value) {
-    if (!page || !datasetKey || value === undefined) return false;
-    const button = Array.from(page.querySelectorAll(".settings-tab-btn, .settings-section-nav-btn, .profile-nav-btn"))
-      .find((candidate) => candidate.dataset?.[datasetKey] === value);
-    if (!button) return false;
-    button.click();
-    return true;
-  }
-
-  function _layoutActivateContainer(container) {
-    const page = container?.closest?.(".page[data-page-panel]");
-    if (!page) return;
-    showPage(page.dataset.pagePanel);
-    if (container.dataset?.settingsTab) {
-      _layoutClickTabButton(page, "settingsTab", container.dataset.settingsTab);
-    } else if (container.dataset?.diagTab) {
-      _layoutClickTabButton(page, "diagTab", container.dataset.diagTab);
-    } else if (container.dataset?.completedTab) {
-      _layoutClickTabButton(page, "completedTab", container.dataset.completedTab);
-    } else if (container.dataset?.launchTabPanel) {
-      _layoutClickTabButton(page, "launchTab", container.dataset.launchTabPanel);
-    } else if (container.dataset?.reportsTabPanel) {
-      _layoutClickTabButton(page, "reportsTab", container.dataset.reportsTabPanel);
-    }
-  }
-
-  function _layoutPanelIsVisible(panel) {
-    if (!panel) return false;
-    const style = window.getComputedStyle(panel);
-    return style.display !== "none" && style.visibility !== "hidden";
-  }
-
-  function _layoutPreviewPanel(panel) {
-    document.querySelectorAll(".layout-panel-preview").forEach((node) => {
-      node.classList.remove("layout-panel-preview");
-    });
-    if (!panel) return;
-    const title = _layoutPanelTitle(panel);
-    if (panel.hasAttribute("data-panel-hidden")) {
-      _layoutSetStatus(`${title} is hidden. Turn Visible on before previewing it on the page.`);
-      return;
-    }
-    if (panel.hasAttribute("data-panel-advanced") && !document.body.classList.contains("advanced-mode")) {
-      _layoutSetStatus(`${title} is behind the Advanced gate. Turn Advanced on or switch it to Normal before previewing it.`);
-      return;
-    }
-    if (!_layoutPanelIsVisible(panel)) {
-      _layoutSetStatus(`${title} is not visible on the current surface.`);
-      return;
-    }
-    panel.scrollIntoView({ block: "center", behavior: "smooth" });
-    panel.classList.add("layout-panel-preview");
-    const oldTimer = _layoutPreviewTimers.get(panel);
-    if (oldTimer) clearTimeout(oldTimer);
-    const timer = setTimeout(() => {
-      panel.classList.remove("layout-panel-preview");
-      _layoutPreviewTimers.delete(panel);
-    }, 2200);
-    _layoutPreviewTimers.set(panel, timer);
-    _layoutSetStatus(`${title} selected. The matching panel is highlighted on the page.`);
-  }
-
-  function _layoutSelectPanel(panel, { preview = true } = {}) {
-    if (!panel) return;
-    const container = panel.parentElement;
-    _layoutDrawerSelectedContainerKey = _layoutContainerKey(container);
-    _layoutDrawerSelectedPanelKey = panel.dataset.panelKey || "";
-    _layoutActivateContainer(container);
-    if (preview) _layoutPreviewPanel(panel);
-    _layoutRenderDrawer({ preserveStatus: true });
-  }
-
-  function _layoutResetContainerState(container, state) {
-    if (!container) return;
-    const containerKey = _layoutContainerKey(container);
-    const panels = _layoutPanelsInContainer(container);
-    const panelMap = new Map(panels.map((panel) => [panel.dataset.panelKey, panel]));
-    const defaultOrder = _layoutDefaultOrders.get(containerKey) || panels.map((panel) => panel.dataset.panelKey || "").filter(Boolean);
-    delete state[`__order__${containerKey}`];
-    defaultOrder.forEach((panelKey) => {
-      const panel = panelMap.get(panelKey);
-      if (panel) container.appendChild(panel);
-    });
-    panels.forEach((panel) => {
-      if (!defaultOrder.includes(panel.dataset.panelKey)) container.appendChild(panel);
-    });
-    _layoutPanelsInContainer(container).forEach((panel) => {
-      const panelKey = panel.dataset.panelKey || "";
-      delete state[panelKey];
-      const defaults = _layoutDefaultPanelState.get(panelKey) || {};
-      panel.toggleAttribute("data-panel-advanced", Boolean(defaults.advanced));
-      panel.toggleAttribute("data-panel-hidden", false);
-      _layoutSetPanelType(panel, defaults.panelType || "");
-      _updateCustomizeBar(panel);
-    });
-    _syncPanelMoveButtons(container);
-  }
-
-  function _layoutResetContainer(container) {
-    if (!container) return;
-    const state = _loadLayout();
-    _layoutResetContainerState(container, state);
-    _saveLayout(state);
-    _layoutDrawerSelectedContainerKey = _layoutContainerKey(container);
-    _layoutDrawerSelectedPanelKey = "";
-    _layoutRenderDrawer();
-    _layoutSetStatus(`${_layoutContainerLabel(container)} layout reset to its authored order.`);
-    updatePagePanelEmptyStates();
-  }
-
-  function _layoutResetVisiblePage() {
-    const page = _layoutActivePage();
-    if (!page) return;
-    const state = _loadLayout();
-    _layoutDrawerContainers(page).forEach((container) => _layoutResetContainerState(container, state));
-    _saveLayout(state);
-    _layoutDrawerSelectedContainerKey = _layoutContainerKey(_layoutDefaultSelectedContainer(page) || page);
-    _layoutDrawerSelectedPanelKey = "";
-    _layoutRenderDrawer();
-    _layoutSetStatus(`${_layoutPageLabel(page)} layout reset to its authored order.`);
-    updatePagePanelEmptyStates();
-  }
-
-  function _layoutDisarmResetAll(button) {
-    _layoutResetAllArmed = false;
-    _layoutResetAllForced = false;
-    clearTimeout(_layoutResetAllTimer);
-    _layoutResetAllTimer = null;
-    if (button) {
-      button.textContent = "Reset All Layouts";
-      button.dataset.state = "idle";
-    }
-    const warn = byId("layout-reset-warning");
-    if (warn) warn.remove();
-  }
-
-  function _layoutRequestResetAll(button) {
-    if (!_layoutResetAllArmed) {
-      _layoutResetAllArmed = true;
-      if (button) {
-        button.textContent = "Confirm Reset All?";
-        button.dataset.state = "armed";
-      }
-      _layoutResetAllTimer = setTimeout(() => _layoutDisarmResetAll(button), 3000);
-      return;
-    }
-
-    const hasUnsaved = typeof closeReadinessRequiresWarning === "function"
-      && closeReadinessRequiresWarning();
-    if (hasUnsaved && !_layoutResetAllForced) {
-      _layoutResetAllForced = true;
-      if (button) {
-        button.textContent = "Reset All Anyway?";
-        button.dataset.state = "forced";
-      }
-      if (!byId("layout-reset-warning")) {
-        const note = document.createElement("div");
-        note.id = "layout-reset-warning";
-        note.className = "layout-reset-warning-note";
-        note.textContent = "Warning: unsaved page changes are present. Click Reset All Anyway? once more to discard layout preferences and reload.";
-        const topbar = document.querySelector(".topbar");
-        if (topbar) topbar.insertAdjacentElement("afterend", note);
-      }
-      clearTimeout(_layoutResetAllTimer);
-      _layoutResetAllTimer = setTimeout(() => _layoutDisarmResetAll(button), 3000);
-      return;
-    }
-
-    _layoutDisarmResetAll(button);
-    try { localStorage.removeItem(LAYOUT_STORAGE_KEY); } catch (_) {}
-    document.body.classList.remove("layout-editor-open");
-    location.reload();
-  }
-
-  function _layoutClearDrawerDropState(except = null) {
-    document.querySelectorAll(".layout-editor-panel-row.is-drop-target").forEach((row) => {
-      if (except && row === except) return;
-      row.classList.remove("is-drop-target", "is-drop-after");
-    });
-  }
-
-  function _layoutClearDrawerDragState() {
-    document.querySelectorAll(".layout-editor-panel-row.is-dragging, .layout-editor-panel-row.is-drag-holding").forEach((row) => {
-      row.classList.remove("is-dragging", "is-drag-holding");
-    });
-  }
-
-  function _layoutResetDrawerPointerDragState() {
-    _layoutDrawerDragSource = null;
-    _layoutClearDrawerDropState();
-    _layoutClearDrawerDragState();
-    _layoutDrawerPointerDrag = null;
-    if (_layoutDrawerPointerDragCleanup) {
-      const cleanup = _layoutDrawerPointerDragCleanup;
-      _layoutDrawerPointerDragCleanup = null;
-      cleanup();
-    }
-  }
-
-  function _layoutUpdateDrawerPointerDrag(event) {
-    const drag = _layoutDrawerPointerDrag;
-    if (!drag) return;
-    const clientX = Number.isFinite(event?.clientX) ? event.clientX : drag.startX;
-    const clientY = Number.isFinite(event?.clientY) ? event.clientY : drag.startY;
-    const dx = Math.abs(clientX - drag.startX);
-    const dy = Math.abs(clientY - drag.startY);
-    if (!drag.started && dx + dy >= 4) {
-      drag.started = true;
-      drag.sourceRow.classList.add("is-dragging");
-    }
-
-    const row = _layoutDrawerRowFromPoint(event);
-    if (
-      !row
-      || row === drag.sourceRow
-      || row.dataset.layoutEditorContainerKey !== drag.containerKey
-    ) {
-      drag.dropRow = null;
-      drag.dropAfter = false;
-      _layoutClearDrawerDropState();
-      return;
-    }
-
-    const dropState = _layoutDrawerDropStateForRow(row, event);
-    if (!dropState.qualifies) {
-      drag.dropRow = null;
-      drag.dropAfter = false;
-      _layoutClearDrawerDropState();
-      return;
-    }
-
-    drag.dropRow = row;
-    drag.dropAfter = dropState.after;
-    _layoutClearDrawerDropState(row);
-    row.classList.add("is-drop-target");
-    row.classList.toggle("is-drop-after", dropState.after);
-  }
-
-  function _layoutFinishDrawerPointerDrag(event) {
-    const drag = _layoutDrawerPointerDrag;
-    if (!drag) return;
-    _layoutUpdateDrawerPointerDrag(event);
-    const targetPanel = drag.dropRow ? _layoutPanelForDrawerRow(drag.dropRow) : null;
-    let moved = false;
-    if (targetPanel && _layoutMovePanelRelative(drag.panel, targetPanel, drag.dropAfter)) {
-      _layoutDrawerSelectedContainerKey = drag.containerKey;
-      _layoutDrawerSelectedPanelKey = drag.panel.dataset.panelKey || "";
-      _layoutSetStatus(`${_layoutPanelTitle(drag.panel)} moved within ${_layoutContainerLabel(drag.container)}.`);
-      moved = true;
-    }
-    _layoutResetDrawerPointerDragState();
-    if (moved) _layoutRenderDrawer({ preserveStatus: true });
-  }
-
-  function _onLayoutDrawerGripPointerDown(event) {
-    if (!_layoutDrawerIsOpen()) return;
-    if (event.button !== undefined && event.button !== 0) return;
-    const grip = event.currentTarget;
-    const row = grip?.closest?.(".layout-editor-panel-row[data-layout-editor-panel-key]");
-    const panel = _layoutPanelForDrawerRow(row);
-    const containerKey = row?.dataset?.layoutEditorContainerKey || "";
-    const container = _layoutContainerByKey(containerKey);
-    if (!row || !panel || !container) return;
-
-    if (_layoutDrawerPointerDrag) _layoutResetDrawerPointerDragState();
-    event.preventDefault();
-    event.stopPropagation();
-
-    _layoutDrawerDragSource = { panel, containerKey };
-    row.classList.add("is-drag-holding");
-    _layoutDrawerPointerDrag = {
-      sourceRow: row,
-      panel,
-      container,
-      containerKey,
-      startX: Number.isFinite(event.clientX) ? event.clientX : 0,
-      startY: Number.isFinite(event.clientY) ? event.clientY : 0,
-      started: false,
-      dropRow: null,
-      dropAfter: false,
-    };
-
-    try { grip.setPointerCapture?.(event.pointerId); } catch (_) {}
-    const pointerId = event.pointerId;
-    const move = (moveEvent) => _layoutUpdateDrawerPointerDrag(moveEvent);
-    const release = (releaseEvent) => _layoutFinishDrawerPointerDrag(releaseEvent);
-    const cancel = () => _layoutResetDrawerPointerDragState();
-    const keyCancel = (keyEvent) => {
-      if (keyEvent.key === "Escape") cancel();
-    };
-    _layoutDrawerPointerDragCleanup = () => {
-      try { grip.releasePointerCapture?.(pointerId); } catch (_) {}
-      document.removeEventListener("pointermove", move);
-      document.removeEventListener("pointerup", release);
-      document.removeEventListener("pointercancel", cancel);
-      document.removeEventListener("keydown", keyCancel);
-      window.removeEventListener("blur", cancel);
-    };
-    document.addEventListener("pointermove", move);
-    document.addEventListener("pointerup", release);
-    document.addEventListener("pointercancel", cancel);
-    document.addEventListener("keydown", keyCancel);
-    window.addEventListener("blur", cancel);
-  }
-
-  function _layoutCreateDrawerButton(label, className, onClick, disabled = false, options = {}) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = className;
-    button.textContent = label;
-    button.disabled = Boolean(disabled);
-    if (options.pressed !== undefined) button.setAttribute("aria-pressed", String(Boolean(options.pressed)));
-    if (options.title) button.title = options.title;
-    if (options.ariaLabel) button.setAttribute("aria-label", options.ariaLabel);
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      onClick();
-    });
-    return button;
-  }
-
-  function _layoutRenderDrawer(options = {}) {
-    const drawer = byId("layout-editor-drawer");
-    const tree = byId("layout-editor-tree");
-    if (!drawer || !tree) return;
-    const page = _layoutActivePage();
-    if (!page) return;
-    const pageLabel = _layoutPageLabel(page);
-    setText("layout-editor-page-label", `Page: ${pageLabel}`);
-    const containers = _layoutDrawerContainers(page);
-    if (!containers.some((container) => _layoutContainerKey(container) === _layoutDrawerSelectedContainerKey)) {
-      const selected = _layoutDefaultSelectedContainer(page);
-      _layoutDrawerSelectedContainerKey = selected ? _layoutContainerKey(selected) : "";
-      _layoutDrawerSelectedPanelKey = "";
-    }
-    tree.textContent = "";
-    if (!containers.length) {
-      const empty = document.createElement("p");
-      empty.className = "layout-editor-empty";
-      empty.textContent = "No layout-managed panels exist on this page.";
-      tree.appendChild(empty);
-      if (!options.preserveStatus) _layoutSetStatus("No layout-managed panels exist on this page.");
-      return;
-    }
-
-    containers.forEach((container) => {
-      const containerKey = _layoutContainerKey(container);
-      const panels = _layoutPanelsInContainer(container);
-      const details = document.createElement("details");
-      details.className = "layout-editor-group";
-      details.dataset.layoutEditorContainerKey = containerKey;
-      details.open = containerKey === _layoutDrawerSelectedContainerKey
-        || container.classList?.contains("page")
-        || container.classList?.contains("is-active");
-
-      const summary = document.createElement("summary");
-      summary.className = "layout-editor-group-summary";
-      const title = document.createElement("span");
-      title.textContent = _layoutContainerLabel(container);
-      const count = document.createElement("span");
-      count.className = "layout-editor-group-count";
-      count.textContent = `${panels.length} panel${panels.length === 1 ? "" : "s"}`;
-      summary.append(title, count);
-      summary.addEventListener("click", () => {
-        _layoutDrawerSelectedContainerKey = containerKey;
-        _layoutDrawerSelectedPanelKey = "";
-      });
-      details.appendChild(summary);
-
-      const list = document.createElement("div");
-      list.className = "layout-editor-panel-list";
-      panels.forEach((panel, index) => {
-        const panelKey = panel.dataset.panelKey || "";
-        const row = document.createElement("div");
-        row.className = "layout-editor-panel-row";
-        if (panelKey === _layoutDrawerSelectedPanelKey) row.classList.add("is-selected");
-        row.dataset.layoutEditorPanelKey = panelKey;
-        row.dataset.layoutEditorContainerKey = containerKey;
-        row.draggable = true;
-        row.tabIndex = 0;
-        row.setAttribute("role", "treeitem");
-
-        const grip = document.createElement("button");
-        grip.type = "button";
-        grip.className = "layout-editor-panel-grip";
-        grip.textContent = "↕";
-        grip.setAttribute("aria-label", `Drag ${_layoutPanelTitle(panel)}`);
-
-        const name = document.createElement("span");
-        name.className = "layout-editor-panel-name";
-        name.textContent = _layoutPanelTitle(panel);
-
-        const actions = document.createElement("div");
-        actions.className = "layout-editor-panel-actions";
-        const evidenceActive = _layoutPanelIsEvidence(panel);
-        const evidenceLocked = evidenceActive && _layoutPanelIsAuthoredEvidence(panel);
-        actions.append(
-          _layoutCreateDrawerButton("Up", "layout-editor-move-button", () => {
-            _movePanelByStep(panel, -1);
-            _layoutDrawerSelectedContainerKey = containerKey;
-            _layoutDrawerSelectedPanelKey = panelKey;
-            _layoutRenderDrawer();
-          }, index === 0),
-          _layoutCreateDrawerButton("Down", "layout-editor-move-button", () => {
-            _movePanelByStep(panel, 1);
-            _layoutDrawerSelectedContainerKey = containerKey;
-            _layoutDrawerSelectedPanelKey = panelKey;
-            _layoutRenderDrawer();
-          }, index === panels.length - 1),
-          _layoutCreateDrawerButton(
-            panel.hasAttribute("data-panel-hidden") ? "Hidden" : "Visible",
-            panel.hasAttribute("data-panel-hidden") ? "layout-editor-toggle-button is-active" : "layout-editor-toggle-button",
-            () => {
-              _togglePanelHidden(panel);
-              _layoutDrawerSelectedContainerKey = containerKey;
-              _layoutDrawerSelectedPanelKey = panelKey;
-              _layoutRenderDrawer();
-              _layoutSetStatus(`${_layoutPanelTitle(panel)} is now ${panel.hasAttribute("data-panel-hidden") ? "hidden" : "visible"}.`);
-            },
-          ),
-          _layoutCreateDrawerButton(
-            panel.hasAttribute("data-panel-advanced") ? "Advanced" : "Normal",
-            panel.hasAttribute("data-panel-advanced") ? "layout-editor-toggle-button is-active" : "layout-editor-toggle-button",
-            () => {
-              _togglePanelAdvanced(panel);
-              _layoutDrawerSelectedContainerKey = containerKey;
-              _layoutDrawerSelectedPanelKey = panelKey;
-              _layoutRenderDrawer();
-              _layoutSetStatus(`${_layoutPanelTitle(panel)} is now ${panel.hasAttribute("data-panel-advanced") ? "behind the Advanced gate" : "normal"}.`);
-            },
-          ),
-          _layoutCreateDrawerButton(
-            "Evidence",
-            evidenceActive ? "layout-editor-toggle-button is-active" : "layout-editor-toggle-button",
-            () => {
-              _togglePanelEvidence(panel);
-              _layoutDrawerSelectedContainerKey = containerKey;
-              _layoutDrawerSelectedPanelKey = panelKey;
-              _layoutRenderDrawer();
-              _layoutSetStatus(`${_layoutPanelTitle(panel)} is now ${_layoutPanelIsEvidence(panel) ? "marked as evidence" : "restored to its authored panel type"}.`);
-            },
-            evidenceLocked,
-            {
-              pressed: evidenceActive,
-              title: evidenceLocked
-                ? "This panel is authored as evidence"
-                : evidenceActive
-                  ? "Restore this panel to its authored panel type"
-                  : "Mark this panel as read-only evidence",
-            },
-          ),
-        );
-
-        row.append(grip, name, actions);
-        grip.addEventListener("pointerdown", _onLayoutDrawerGripPointerDown);
-        row.addEventListener("click", (event) => {
-          if (event.target?.closest?.("button")) return;
-          _layoutSelectPanel(panel);
-        });
-        row.addEventListener("keydown", (event) => {
-          if (event.key !== "Enter" && event.key !== " ") return;
-          event.preventDefault();
-          _layoutSelectPanel(panel);
-        });
-        row.addEventListener("dragstart", (event) => {
-          if (!event.target?.closest?.(".layout-editor-panel-grip")) {
-            event.preventDefault();
-            return;
-          }
-          _layoutDrawerDragSource = { panel, containerKey };
-          row.classList.add("is-dragging");
-          event.dataTransfer?.setData("text/plain", panelKey);
-          if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
-        });
-        row.addEventListener("dragover", (event) => {
-          if (!_layoutDrawerDragSource || _layoutDrawerDragSource.containerKey !== containerKey || _layoutDrawerDragSource.panel === panel) return;
-          event.preventDefault();
-          const rect = row.getBoundingClientRect();
-          const after = event.clientY > rect.top + rect.height / 2;
-          _layoutClearDrawerDropState();
-          row.classList.add("is-drop-target");
-          row.classList.toggle("is-drop-after", after);
-        });
-        row.addEventListener("drop", (event) => {
-          if (!_layoutDrawerDragSource || _layoutDrawerDragSource.containerKey !== containerKey || _layoutDrawerDragSource.panel === panel) return;
-          event.preventDefault();
-          const rect = row.getBoundingClientRect();
-          const after = event.clientY > rect.top + rect.height / 2;
-          if (_layoutMovePanelRelative(_layoutDrawerDragSource.panel, panel, after)) {
-            _layoutDrawerSelectedContainerKey = containerKey;
-            _layoutDrawerSelectedPanelKey = _layoutDrawerDragSource.panel.dataset.panelKey || "";
-            _layoutSetStatus(`${_layoutPanelTitle(_layoutDrawerDragSource.panel)} moved within ${_layoutContainerLabel(container)}.`);
-          }
-          _layoutDrawerDragSource = null;
-          _layoutClearDrawerDropState();
-          _layoutRenderDrawer({ preserveStatus: true });
-        });
-        row.addEventListener("dragend", () => {
-          _layoutDrawerDragSource = null;
-          _layoutClearDrawerDropState();
-          _layoutClearDrawerDragState();
-        });
-        list.appendChild(row);
-      });
-      details.appendChild(list);
-      tree.appendChild(details);
-    });
-    if (!options.preserveStatus) {
-      _layoutSetStatus("Choose a panel to preview or adjust its layout.");
-    }
-  }
+  const {
+    _layoutRenderDrawer,
+    _layoutDrawerIsOpen,
+    _setLayoutDrawerAccessibility,
+    _layoutResetVisiblePage,
+    _layoutResetContainer,
+    _layoutRequestResetAll,
+    _layoutDisarmResetAll,
+    _layoutContainerByKey,
+    _layoutDefaultSelectedContainer,
+  } = layoutDrawerModule.createLayoutManagerDrawer({
+    layoutStorageKey: LAYOUT_STORAGE_KEY,
+    drawerState: _layoutDrawerState,
+    layoutContainersByKey: _layoutContainersByKey,
+    layoutDefaultOrders: _layoutDefaultOrders,
+    layoutDefaultPanelState: _layoutDefaultPanelState,
+    layoutPreviewTimers: _layoutPreviewTimers,
+    getLayoutManagedContainers: (...args) => _layoutManagedContainers(...args),
+    layoutActivePage: _layoutActivePage,
+    layoutPageLabel: _layoutPageLabel,
+    layoutContainerLabel: _layoutContainerLabel,
+    layoutContainerKey: _layoutContainerKey,
+    layoutPanelsInContainer: _layoutPanelsInContainer,
+    layoutPanelTitle: _layoutPanelTitle,
+    layoutPanelIsEvidence: _layoutPanelIsEvidence,
+    layoutPanelIsAuthoredEvidence: _layoutPanelIsAuthoredEvidence,
+    layoutSetStatus: _layoutSetStatus,
+    layoutSetPanelType: _layoutSetPanelType,
+    layoutDefaultPanelType: _layoutDefaultPanelType,
+    loadLayout: _loadLayout,
+    saveLayout: _saveLayout,
+    savePanelOrder: _savePanelOrder,
+    syncPanelMoveButtons: _syncPanelMoveButtons,
+    pulseMovedPanel: _pulseMovedPanel,
+    movePanelByStep: _movePanelByStep,
+    togglePanelAdvanced: _togglePanelAdvanced,
+    togglePanelHidden: _togglePanelHidden,
+    togglePanelEvidence: _togglePanelEvidence,
+    updateCustomizeBar: _updateCustomizeBar,
+  });
+  delete window.__layoutManagerDrawerModule;
 
   function _onDragStart(e) {
     // Only allow drag to start from the handle element.
@@ -1219,407 +658,44 @@
     updatePagePanelEmptyStates();
   }
 
-  function _layoutNodeHasContent(node) {
-    if (!node) return false;
-    if (node.nodeType === 3) return Boolean(String(node.textContent || "").trim());
-    if (node.nodeType === 1) return true;
-    return false;
+
+const layoutNormalizationModule = window.__layoutManagerNormalizationModule;
+  if (!layoutNormalizationModule?.createLayoutManagerNormalization) {
+    throw new Error("layoutManager normalization module must load before layoutManager.js");
   }
-
-  function _layoutPanelTitleFromHeading(heading, fallback = "Panel") {
-    const h = heading?.querySelector?.("h2, h3");
-    return (h?.textContent || fallback).trim() || fallback;
-  }
-
-  function _layoutPaneTitle(container) {
-    const page = container.closest?.(".page[data-page-panel]");
-    const pairs = [
-      ["settingsTab", "settingsTab"],
-      ["diagTab", "diagTab"],
-      ["completedTab", "completedTab"],
-      ["launchTabPanel", "launchTab"],
-      ["queueTabPanel", "queueTab"],
-      ["reportsTabPanel", "reportsTab"],
-    ];
-    for (const [paneKey, buttonKey] of pairs) {
-      const tab = container.dataset?.[paneKey];
-      if (!tab || !page) continue;
-      const dataAttribute = buttonKey.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
-      const button = page.querySelector(`.settings-tab-btn[data-${dataAttribute}="${tab}"], .settings-section-nav-btn[data-${dataAttribute}="${tab}"], .profile-nav-btn[data-${dataAttribute}="${tab}"]`);
-      const label = button?.textContent?.trim();
-      if (label) return label;
-    }
-    return "Summary";
-  }
-
-  function _layoutMakeHeading(title, statusId = "") {
-    const heading = document.createElement("div");
-    heading.className = "panel-heading";
-    const h = document.createElement("h2");
-    h.textContent = title || "Summary";
-    heading.appendChild(h);
-    if (statusId) {
-      const status = document.createElement("strong");
-      status.id = statusId;
-      heading.appendChild(status);
-    }
-    return heading;
-  }
-
-  function _layoutInferPanelType(nodes) {
-    return nodes.some((node) => (
-      node.nodeType === 1
-      && (
-        node.matches?.("button, input, select, textarea")
-        || node.querySelector?.("button, input, select, textarea")
-      )
-    )) ? "interactive" : "evidence";
-  }
-
-  function _copyPanelContextAttributes(source, target) {
-    if (!source || !target) return;
-    if (source.classList?.contains("settings-tab-pane")) target.classList.add("settings-tab-pane");
-    ["launch-tab-panel", "queue-tab-panel", "reports-tab-panel"].forEach((className) => {
-      if (source.classList?.contains(className)) target.classList.add(className);
-    });
-    [
-      "launchTabPanel",
-      "queueTabPanel",
-      "reportsTabPanel",
-      "evidenceToggleExempt",
-      "layoutSourcePanelType",
-    ].forEach((key) => {
-      if (source.dataset?.[key] !== undefined) target.dataset[key] = source.dataset[key];
-    });
-  }
-
-  function _createLayoutGeneratedPanel(nodes, options = {}) {
-    const panel = document.createElement("section");
-    panel.className = "panel";
-    panel.dataset.layoutGeneratedPanel = "true";
-    panel.dataset.panelType = options.panelType || _layoutInferPanelType(nodes);
-    if (options.advanced) panel.setAttribute("data-advanced", "");
-    if (options.sourcePanel) _copyPanelContextAttributes(options.sourcePanel, panel);
-    if (options.syntheticHeading) panel.appendChild(_layoutMakeHeading(options.title || "Summary"));
-    nodes.forEach((node) => panel.appendChild(node));
-    return panel;
-  }
-
-  function _extractLooseGroups(nodes, defaultTitle, advanced = false, defaultPanelType = "") {
-    const groups = [];
-    let current = null;
-    nodes.forEach((node) => {
-      if (!_layoutNodeHasContent(node)) return;
-      if (node.nodeType === 1 && node.matches("div[data-advanced]")) {
-        const advancedGroups = _extractLooseGroups(Array.from(node.childNodes), defaultTitle, true, defaultPanelType);
-        groups.push(...advancedGroups);
-        node.remove();
-        current = null;
-        return;
-      }
-      if (node.nodeType === 1 && node.matches("section.panel")) {
-        current = null;
-        return;
-      }
-      if (node.nodeType === 1 && node.matches(".panel-heading.panel-subheading")) {
-        current = {
-          title: _layoutPanelTitleFromHeading(node, defaultTitle),
-          nodes: [node],
-          advanced,
-          panelType: node.dataset?.layoutSourcePanelType || defaultPanelType,
-          syntheticHeading: false,
-        };
-        groups.push(current);
-        return;
-      }
-      if (node.nodeType === 1 && node.matches(".panel-heading")) {
-        current = {
-          title: _layoutPanelTitleFromHeading(node, defaultTitle),
-          nodes: [node],
-          advanced,
-          panelType: node.dataset?.layoutSourcePanelType || defaultPanelType,
-          syntheticHeading: false,
-        };
-        groups.push(current);
-        return;
-      }
-      if (!current) {
-        current = {
-          title: defaultTitle,
-          nodes: [],
-          advanced,
-          panelType: defaultPanelType,
-          syntheticHeading: true,
-        };
-        groups.push(current);
-      }
-      current.nodes.push(node);
-    });
-    return groups.filter((group) => group.nodes.some(_layoutNodeHasContent));
-  }
-
-  function _normalizeLayoutTabPaneContainers(page) {
-    if (!page || page.dataset.layoutTabPanesNormalized === "true") return;
-    page.querySelectorAll("section.panel.settings-tab-pane").forEach((pane) => {
-      const container = document.createElement("div");
-      let sourcePanelType = "";
-      Array.from(pane.attributes).forEach((attr) => {
-        if (attr.name === "data-panel-type") {
-          sourcePanelType = attr.value;
-          return;
-        }
-        container.setAttribute(attr.name, attr.value);
-      });
-      container.className = Array.from(pane.classList)
-        .filter((className) => className !== "panel")
-        .join(" ");
-      while (pane.firstChild) container.appendChild(pane.firstChild);
-      if (sourcePanelType) {
-        const heading = container.querySelector(":scope > .panel-heading");
-        if (heading) heading.dataset.layoutSourcePanelType = sourcePanelType;
-        else container.dataset.layoutSourcePanelType = sourcePanelType;
-      }
-      pane.parentNode?.replaceChild(container, pane);
-    });
-
-    const panesByKey = new Map();
-    Array.from(page.querySelectorAll(".settings-tab-pane")).forEach((pane) => {
-      const key = _layoutTabPaneKey(pane);
-      if (!key) return;
-      const existing = panesByKey.get(key);
-      if (!existing) {
-        panesByKey.set(key, pane);
-        return;
-      }
-      if (pane.classList.contains("is-active")) existing.classList.add("is-active");
-      while (pane.firstChild) existing.appendChild(pane.firstChild);
-      pane.remove();
-    });
-    page.dataset.layoutTabPanesNormalized = "true";
-  }
-
-  function _splitLooseContentIntoPanels(container) {
-    if (!container || container.dataset.layoutLoosePanelsReady === "true") return;
-    if (container.classList?.contains("page")) return;
-    const nodes = Array.from(container.childNodes);
-    if (!nodes.some(_layoutNodeHasContent)) return;
-    const hasPanelishHeading = nodes.some((node) => (
-      node.nodeType === 1
-      && (
-        node.matches(".panel-heading.panel-subheading")
-        || (node.matches("div[data-advanced]") && node.querySelector(":scope > .panel-heading.panel-subheading"))
-      )
-    ));
-    const isKnownTabPane = container.matches?.(".settings-tab-pane[data-settings-tab], .settings-tab-pane[data-diag-tab], .settings-tab-pane[data-completed-tab], .settings-tab-pane[data-launch-tab-panel], .settings-tab-pane[data-queue-tab-panel], .settings-tab-pane[data-reports-tab-panel]");
-    if (!hasPanelishHeading && !isKnownTabPane) return;
-    const defaultTitle = _layoutPaneTitle(container);
-    const groups = _extractLooseGroups(nodes, defaultTitle, false, container.dataset.layoutSourcePanelType || "");
-    groups.forEach((group) => {
-      container.appendChild(_createLayoutGeneratedPanel(group.nodes, {
-        title: group.title,
-        advanced: group.advanced,
-        panelType: group.panelType || "",
-        syntheticHeading: group.syntheticHeading,
-      }));
-    });
-    container.dataset.layoutLoosePanelsReady = "true";
-  }
-
-  function _splitDirectPanelSubsections(container) {
-    if (!container) return;
-    Array.from(container.querySelectorAll(":scope > section.panel")).forEach((panel) => {
-      if (panel.dataset.layoutSubsectionsReady === "true" || panel.dataset.layoutGeneratedPanel === "true") return;
-      const directNodes = Array.from(panel.childNodes);
-      const groups = [];
-      let current = null;
-      directNodes.forEach((node) => {
-        if (!_layoutNodeHasContent(node)) return;
-        if (node.nodeType === 1 && node.matches("div[data-advanced]")) {
-          const advancedGroups = _extractLooseGroups(Array.from(node.childNodes), "Advanced", true);
-          groups.push(...advancedGroups);
-          node.remove();
-          current = null;
-          return;
-        }
-        if (node.nodeType === 1 && node.matches(".panel-heading.panel-subheading")) {
-          current = {
-            title: _layoutPanelTitleFromHeading(node, "Detail"),
-            nodes: [node],
-            advanced: false,
-            syntheticHeading: false,
-          };
-          groups.push(current);
-          return;
-        }
-        if (current) current.nodes.push(node);
-      });
-      if (!groups.length) {
-        panel.dataset.layoutSubsectionsReady = "true";
-        return;
-      }
-      let insertAfter = panel;
-      groups.forEach((group) => {
-        const generated = _createLayoutGeneratedPanel(group.nodes, {
-          title: group.title,
-          advanced: group.advanced,
-          syntheticHeading: group.syntheticHeading,
-          sourcePanel: panel,
-        });
-        insertAfter.parentNode.insertBefore(generated, insertAfter.nextSibling);
-        insertAfter = generated;
-      });
-      panel.dataset.layoutSubsectionsReady = "true";
-    });
-  }
-
-  function _flattenAdvancedWrappers(container) {
-    Array.from(container.querySelectorAll(":scope > div[data-advanced]")).forEach((wrapper) => {
-      Array.from(wrapper.querySelectorAll(":scope > section.panel")).forEach((p) => {
-        p.dataset.advancedDefault = "true";
-        if (_layoutPanelIsEditorExcluded(p)) p.setAttribute("data-advanced", "");
-        wrapper.parentNode.insertBefore(p, wrapper);
-      });
-      if (wrapper.children.length === 0) wrapper.remove();
-    });
-    Array.from(container.querySelectorAll(":scope > section.panel[data-advanced]")).forEach((p) => {
-      if (_layoutPanelIsEditorExcluded(p)) return;
-      p.dataset.advancedDefault = "true";
-      p.removeAttribute("data-advanced");
-    });
-  }
-
-  function _applyStoredPanelState(panel, panelState) {
-    const defaultAdv = panel.dataset.advancedDefault === "true";
-    const isAdv = panelState.advanced !== undefined ? Boolean(panelState.advanced) : defaultAdv;
-    const panelType = panelState.panelType === "evidence" ? "evidence" : _layoutDefaultPanelType(panel);
-    _layoutSetPanelType(panel, panelType);
-    panel.toggleAttribute("data-panel-advanced", isAdv);
-    panel.toggleAttribute("data-panel-hidden", Boolean(panelState.hidden));
-  }
-
-  function _panelKeys(panels) {
-    return panels.map((p) => p.dataset.panelKey || "").filter(Boolean);
-  }
-
-  function _storedOrderMatchesCurrentPanels(storedOrder, currentKeys) {
-    if (!Array.isArray(storedOrder) || storedOrder.length === 0) return true;
-    const storedKeys = storedOrder.filter(Boolean);
-    if (storedKeys.length !== currentKeys.length) return false;
-    const currentSet = new Set(currentKeys);
-    const storedSet = new Set(storedKeys);
-    return storedSet.size === currentSet.size && storedKeys.every((key) => currentSet.has(key));
-  }
-
-  function _applyStoredOrder(container, allPanels, state) {
-    const containerKey = _layoutContainerKey(container);
-    const storedOrder = state[`__order__${containerKey}`];
-    if (!Array.isArray(storedOrder) || storedOrder.length === 0) return;
-    const currentKeys = _panelKeys(allPanels);
-    if (!_storedOrderMatchesCurrentPanels(storedOrder, currentKeys)) {
-      // A page schema changed: keep hidden/advanced panel state, but reset order so
-      // newly added panels appear at their authored default position instead of
-      // being appended below every stored panel.
-      state[`__order__${containerKey}`] = currentKeys;
-      _saveLayout(state);
-      container.dataset.layoutOrderStatus = "schema-reset";
-      const page = container.closest?.(".page[data-page-panel]");
-      if (page) page.dataset.layoutOrderStatus = "schema-reset";
-      return;
-    }
-    const panelMap = new Map(allPanels.map((p) => [p.dataset.panelKey, p]));
-    const known = storedOrder.filter((k) => panelMap.has(k));
-    const extra = allPanels
-      .map((p) => p.dataset.panelKey)
-      .filter((k) => !known.includes(k));
-    [...known, ...extra].forEach((k) => {
-      const p = panelMap.get(k);
-      if (p) container.appendChild(p);
-    });
-  }
-
-  function _initLayoutContainer(container, state) {
-    const containerKey = _layoutContainerKey(container);
-    _layoutContainersByKey.set(containerKey, container);
-
-    _splitLooseContentIntoPanels(container);
-    _flattenAdvancedWrappers(container);
-    _splitDirectPanelSubsections(container);
-    _flattenAdvancedWrappers(container);
-
-    // Dedup map: if two panels on the same page share an identical h2 (key
-    // collision), the second gets a "-2" suffix, the third "-3", and so on.
-    // This prevents silent localStorage corruption without requiring any HTML changes.
-    const _keySeen = new Map();
-
-    const panels = Array.from(container.querySelectorAll(":scope > section.panel"))
-      .filter((panel) => !_layoutPanelIsEditorExcluded(panel));
-    panels.forEach((panel) => {
-      let key = _panelKey(containerKey, panel);
-      const seen = (_keySeen.get(key) || 0) + 1;
-      _keySeen.set(key, seen);
-      if (seen > 1) key = `${key}-${seen}`;
-      panel.dataset.panelKey = key;
-      panel.dataset.layoutDefaultPanelType = panel.dataset.panelType || "";
-      const h = panel.querySelector(".panel-heading h2, .panel-heading h3");
-      const title = h ? h.textContent.trim() : key.split("::")[1] || "Panel";
-      _applyStoredPanelState(panel, state[key] || {});
-      _layoutDefaultPanelState.set(key, {
-        advanced: panel.dataset.advancedDefault === "true",
-        hidden: false,
-        panelType: panel.dataset.layoutDefaultPanelType || "",
-      });
-      _injectCustomizeBar(panel, title);
-
-      // Wire per-panel button clicks inside the bar.
-      const bar = panel.querySelector(".panel-customize-bar");
-      if (bar) {
-        const handle = bar.querySelector(".pcb-drag-handle");
-        if (handle) handle.addEventListener("pointerdown", _onDragHandlePointerDown);
-        const btnAdv = bar.querySelector(".pcb-btn-advanced");
-        if (btnAdv) btnAdv.addEventListener("click", () => _togglePanelAdvanced(panel));
-        const btnHid = bar.querySelector(".pcb-btn-hidden");
-        if (btnHid) btnHid.addEventListener("click", () => _togglePanelHidden(panel));
-        const btnUp = bar.querySelector(".pcb-btn-move-up");
-        if (btnUp) btnUp.addEventListener("click", () => _movePanelByStep(panel, -1));
-        const btnDown = bar.querySelector(".pcb-btn-move-down");
-        if (btnDown) btnDown.addEventListener("click", () => _movePanelByStep(panel, 1));
-      }
-
-      // DnD listeners — active only when draggable attr is set.
-      panel.addEventListener("dragstart", _onDragStart);
-      panel.addEventListener("dragover", _onDragOver);
-      panel.addEventListener("dragleave", _onDragLeave);
-      panel.addEventListener("drop", _onDrop);
-      panel.addEventListener("dragend", _onDragEnd);
-    });
-
-    _layoutDefaultOrders.set(containerKey, panels.map((panel) => panel.dataset.panelKey || "").filter(Boolean));
-    _applyStoredOrder(container, panels, state);
-    _syncPanelMoveButtons(container);
-  }
-
-  function _layoutManagedContainers(page) {
-    const containers = [];
-    const seen = new Set();
-    function add(container) {
-      if (!container || seen.has(container)) return;
-      seen.add(container);
-      containers.push(container);
-    }
-    add(page);
-    page.querySelectorAll(
-      ".settings-tab-pane:not(section.panel)[data-settings-tab], .settings-tab-pane:not(section.panel)[data-diag-tab], .settings-tab-pane:not(section.panel)[data-completed-tab], .settings-tab-pane:not(section.panel)[data-launch-tab-panel], .settings-tab-pane:not(section.panel)[data-queue-tab-panel], .settings-tab-pane:not(section.panel)[data-reports-tab-panel]"
-    ).forEach(add);
-    page.querySelectorAll("section.panel > div, .settings-tab-pane > div").forEach((node) => {
-      if (node.querySelector(":scope > .panel-heading.panel-subheading")) add(node);
-    });
-    return containers;
-  }
-
-  function _initPageLayout(page, state) {
-    _normalizeLayoutTabPaneContainers(page);
-    _layoutManagedContainers(page).forEach((container) => _initLayoutContainer(container, state));
-  }
+  const {
+    _initPageLayout,
+    _layoutManagedContainers,
+    _applyStoredPanelState,
+    _applyStoredOrder,
+    _layoutPaneTitle,
+  } = layoutNormalizationModule.createLayoutManagerNormalization({
+    layoutContainersByKey: _layoutContainersByKey,
+    layoutDefaultOrders: _layoutDefaultOrders,
+    layoutDefaultPanelState: _layoutDefaultPanelState,
+    layoutContainerKey: _layoutContainerKey,
+    layoutPanelsInContainer: _layoutPanelsInContainer,
+    layoutPanelIsEditorExcluded: _layoutPanelIsEditorExcluded,
+    layoutSetPanelType: _layoutSetPanelType,
+    layoutDefaultPanelType: _layoutDefaultPanelType,
+    layoutTabPaneKey: _layoutTabPaneKey,
+    panelKey: _panelKey,
+    injectCustomizeBar: _injectCustomizeBar,
+    updateCustomizeBar: _updateCustomizeBar,
+    loadLayout: _loadLayout,
+    saveLayout: _saveLayout,
+    syncPanelMoveButtons: _syncPanelMoveButtons,
+    movePanelByStep: _movePanelByStep,
+    togglePanelAdvanced: _togglePanelAdvanced,
+    togglePanelHidden: _togglePanelHidden,
+    onDragHandlePointerDown: _onDragHandlePointerDown,
+    onDragStart: _onDragStart,
+    onDragOver: _onDragOver,
+    onDragLeave: _onDragLeave,
+    onDrop: _onDrop,
+    onDragEnd: _onDragEnd,
+  });
+  delete window.__layoutManagerNormalizationModule;
 
   function applyStoredLayoutPreferences() {
     const state = _loadLayout();
@@ -1711,7 +787,7 @@
     if (resetSubtab) {
       resetSubtab.addEventListener("click", () => {
         if (!_layoutDrawerIsOpen()) return;
-        const container = _layoutContainerByKey(_layoutDrawerSelectedContainerKey) || _layoutDefaultSelectedContainer(_layoutActivePage());
+        const container = _layoutContainerByKey(_layoutDrawerState.selectedContainerKey) || _layoutDefaultSelectedContainer(_layoutActivePage());
         _layoutResetContainer(container);
       });
     }

@@ -1,5 +1,9 @@
       <section class="page" data-page-panel="maintenance">
         <h1 class="visually-hidden">Maintenance</h1>
+        <section class="panel" data-panel-type="status">
+          <div class="panel-heading"><h2>System Check</h2><strong>Read-only until you choose a tool</strong></div>
+          <p class="note">Use this page to check whether this computer is ready. Developer release and packaging tools are below and are not needed for normal media processing.</p>
+        </section>
         <div class="metric-grid">
           <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="maintenance" data-quick-link-focus="#maintenance-readiness" aria-label="Focus maintenance readiness" title="Focus maintenance readiness">
             <span class="metric-label">OK</span>
@@ -18,6 +22,18 @@
           <strong id="maintenance-total-count">0</strong>
         </section>
       </div>
+        <section class="panel" data-panel-type="interactive" aria-labelledby="maintenance-support-heading">
+          <div class="panel-heading"><h2 id="maintenance-support-heading">Create Support Bundle</h2><strong id="maintenance-support-status" role="status" aria-live="polite">Not loaded</strong></div>
+          <p class="note">The backend chooses the destination, collects bounded evidence, and redacts secrets and personal paths. This never accepts a source-media path from the browser.</p>
+          <div class="form-grid form-grid-dense">
+            <label>Reason <input id="maintenance-support-reason" type="text" maxlength="500" value="operator support" autocomplete="off"></label>
+            <label>Maximum recent-log bytes <input id="maintenance-support-max-log-bytes" type="number" min="1024" max="1048576" value="32768"></label>
+            <label class="check-row"><input id="maintenance-support-include-logs" type="checkbox" checked> Include redacted recent logs</label>
+          </div>
+          <div class="action-row action-row-left"><button type="button" id="maintenance-support-create" class="primary-button">Create Support Bundle</button></div>
+          <pre id="maintenance-support-productization" class="prose-block">Productization status is not loaded.</pre>
+          <pre id="maintenance-support-result" class="prose-block" aria-live="polite">No support bundle has been requested.</pre>
+        </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Change Ledger Summary</h2>
@@ -201,12 +217,16 @@
             <label class="check-row launch-check-row"><input id="release-dry-run-optional-tools" type="checkbox"> Include optional tools</label>
             <label class="check-row launch-check-row"><input id="release-dry-run-tool-docs" type="checkbox"> Include tool docs</label>
             <label class="check-row launch-check-row"><input id="release-dry-run-tauri-binary" type="checkbox" checked> Include Tauri launcher</label>
-            <label class="check-row launch-check-row"><input id="release-dry-run-keep-config" type="checkbox"> Keep personal config</label>
-            <label class="check-row launch-check-row"><input id="release-build-force" type="checkbox"> Replace existing destination</label>
           </div>
+          <details class="settings-advanced-disclosure">
+            <summary>Advanced sharing and overwrite options</summary>
+            <p class="note">Support or share packages should normally exclude personal configuration. Replacing a package overwrites the existing package only after the backend's normal package checks.</p>
+            <label class="check-row launch-check-row"><input id="release-dry-run-keep-config" type="checkbox"> Include private personal configuration — do not share this package</label>
+            <label class="check-row launch-check-row"><input id="release-build-force" type="checkbox"> Replace an existing package at this destination</label>
+          </details>
           <div class="action-row action-row-left wrap-actions">
             <button type="button" id="release-dry-run-button" class="secondary-button">Preview Deployment</button>
-            <button type="button" id="release-build-button" class="primary-button">Create Deployment</button>
+            <button type="button" id="release-build-button" class="primary-button">Create support or share package</button>
           </div>
           <div id="release-package-status-strip" class="live-run-strip live-run-strip-inline release-package-status-strip" role="status" aria-live="polite" aria-atomic="true">
             <div id="release-dry-run-state-chip" class="live-run-chip" data-status="empty">

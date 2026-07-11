@@ -186,7 +186,7 @@ class TdarrMatrixMaterializerTests(unittest.TestCase):
             self.assertIn("designation = 'movie'", config_text)
             self.assertIn("designation = 'tv'", config_text)
             self.assertIn("OutputContainer = 'mkv'", config_text)
-            self.assertIn("DynamicHdrPolicy = 'warn'", config_text)
+            self.assertIn("DynamicHdrPolicy = 'preserve_or_review'", config_text)
             self.assertIn("EncodeLadder = 'auto'", config_text)
             self.assertIn("'.wmv'", config_text)
             self.assertIn("'.mp2'", config_text)

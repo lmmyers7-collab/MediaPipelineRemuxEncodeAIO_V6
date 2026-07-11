@@ -31,6 +31,7 @@ from mediapipeline.core.processes.guard_facade import ProcessGuardFacadeMixin
 from mediapipeline.core.processes.pipeline_facade import PipelineLaunchFacadeMixin
 from mediapipeline.core.processes.rerun_facade import RerunLaunchFacadeMixin
 from mediapipeline.core.processes.schedule_facade import ProcessScheduleFacadeMixin
+from mediapipeline.core.processes.recovery import initial_recovery_status
 from mediapipeline.core.queue.facade import QueueFacadeMixin
 from mediapipeline.core.rename.facade import RenameFacadeMixin
 from mediapipeline.core.sample_validation.facade import SampleValidationFacadeMixin
@@ -142,6 +143,13 @@ class MediaPipelineApplicationFacade(
         self._network_probe_worker_auth = probe_worker_auth
         self._schedule_stop_watcher = ScheduleStopWatcherManager()
         self._watch_folder_manager = WatchFolderManager()
+        self._recovery_status = initial_recovery_status()
+
+    def set_recovery_status(self, status: dict) -> None:
+        self._recovery_status = dict(status or initial_recovery_status())
+
+    def get_recovery_status(self) -> dict:
+        return dict(self._recovery_status)
 
     def _start_watch_folder_manager(self, *, resolved_provider, resolved_reload=None) -> dict:
         latest_resolved = {"value": None}

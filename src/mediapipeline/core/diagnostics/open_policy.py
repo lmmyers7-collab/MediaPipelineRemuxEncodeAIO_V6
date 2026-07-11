@@ -84,7 +84,7 @@ def diagnostics_open_path(
     last_stderr_log: Any = None,
 ) -> Path | None:
     target_paths: dict[str, Path | None] = {
-        "run_logs": Path(resolved.app_root) / "RunLogs",
+        "run_logs": Path(resolved.run_logs_root or (Path(resolved.app_root) / "RunLogs")),
         "pipeline_log": resolved.log_file,
         "cluster_log": Path(resolved.app_root) / "cluster.log",
         "config": resolved.config_path,
@@ -104,7 +104,7 @@ def diagnostics_open_path(
         "latest_priority_csv": optional_diagnostics_path(latest_priority_csv),
         "last_stdout_log": optional_diagnostics_path(last_stdout_log),
         "last_stderr_log": optional_diagnostics_path(last_stderr_log),
-        "sample_validation_log": Path(resolved.state_root or (Path(resolved.app_root) / "State"))
+        "sample_validation_log": Path(resolved.state_root or resolved.runtime_state_root or (Path(resolved.app_root) / "State"))
         / "Validation"
         / "sample_validation_log.jsonl",
     }

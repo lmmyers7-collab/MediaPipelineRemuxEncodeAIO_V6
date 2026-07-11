@@ -45,11 +45,24 @@ function Assert-Match {
 
 Assert-True (Test-Path -LiteralPath $rerunScript -PathType Leaf) "Rerun script missing: $rerunScript"
 
-$rerunScriptText = Get-Content -LiteralPath $rerunScript -Raw
-Assert-Match $rerunScriptText "planned output was not produced" 'Missing planned output check is missing.'
-Assert-Match $rerunScriptText "planned output is empty" 'Empty planned output check is missing.'
-Assert-False ($rerunScriptText -match "(?s)`$plan\.status = 'parked'\s+`$plan\.reason = `"planned output was not produced`"") 'Missing planned output must not be classified as parked.'
-Assert-False ($rerunScriptText -match "(?s)`$plan\.status = 'parked'\s+`$plan\.reason = `"planned output is empty`"") 'Empty planned output must not be classified as parked.'
+$rerunFunctionText = (@(
+        'ops\pipeline\engine\rerun\entry_support.ps1',
+        'ops\pipeline\engine\rerun\evidence.ps1',
+        'ops\pipeline\engine\rerun\planning.ps1',
+        'ops\pipeline\engine\rerun\publish.ps1'
+    ) | ForEach-Object { Get-Content -LiteralPath (Join-Path $repoRoot $_) -Raw }) -join "`n"
+$rerunScriptText = $rerunFunctionText + "`n" + (Get-Content -LiteralPath $rerunScript -Raw)
+Assert-Match $rerunScriptText 'RERUN_OUTPUT_MISSING' 'Missing planned output check is missing.'
+Assert-Match $rerunScriptText 'RERUN_OUTPUT_EMPTY' 'Empty planned output check is missing.'
+Assert-Match $rerunScriptText 'function Resolve-RerunProducedOutput' 'Rerun output reconciliation helper is missing.'
+Assert-Match $rerunScriptText 'source_identity_v2' 'Rerun output reconciliation must require source identity evidence.'
+Assert-Match $rerunScriptText 'Resolve-RerunProducedOutput -Plan \$plan' 'Rerun completion must reconcile a uniquely evidenced produced output before failing the row.'
+Assert-Match $rerunScriptText 'runtime-named output' 'Rerun reconciliation must disclose when runtime naming differs from the planned output path.'
+Assert-Match $rerunScriptText 'RERUN_OUTPUT_MISSING' 'Missing rerun output needs a stable operator-facing error code.'
+Assert-Match $rerunScriptText 'RERUN_OUTPUT_EVIDENCE_MISSING' 'Unverified rerun output needs a stable operator-facing error code.'
+Assert-Match $rerunScriptText 'RERUN_OUTPUT_AMBIGUOUS' 'Ambiguous rerun output needs a stable operator-facing error code.'
+Assert-False ($rerunScriptText -match "(?s)`$plan\.status = 'parked'\s+`$plan\.failure_code = 'RERUN_OUTPUT_MISSING'") 'Missing planned output must not be classified as parked.'
+Assert-False ($rerunScriptText -match "(?s)`$plan\.status = 'parked'\s+`$plan\.failure_code = 'RERUN_OUTPUT_EMPTY'") 'Empty planned output must not be classified as parked.'
 Assert-True ($rerunScriptText.Contains('if ($pipelineExitFailures -gt 0 -or $failed -gt 0) { exit 1 }')) 'Rerun process exit must fail when failed rows remain.'
 Assert-Match $rerunScriptText 'function Resolve-RerunSourcePath' 'CSV source path resolver is missing.'
 Assert-Match $rerunScriptText 'function Test-RerunSourcePathFullyQualified' 'CSV source path absolute-path guard is missing.'
@@ -66,6 +79,59 @@ Assert-Match $rerunScriptText 'rerun_csv_auto_pending_review' 'Auto destination 
 Assert-Match $rerunScriptText 'CSV rerun selected path:' 'CSV rerun selected path log line is missing.'
 Assert-Match $rerunScriptText 'CSV rerun evidence:' 'CSV rerun evidence log line is missing.'
 Assert-Match $rerunScriptText 'Rerun batch complete: csv=' 'CSV rerun completion log line does not include the selected CSV path.'
+
+function Get-RerunFunctionForTest {
+    param([string]$Name)
+    $tokens = $null
+    $parseErrors = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseInput($rerunFunctionText, [ref]$tokens, [ref]$parseErrors)
+    if (@($parseErrors).Count -gt 0) { throw "Rerun script parse failed while loading $Name for test." }
+    $definitions = @($ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $Name }, $true))
+    if ($definitions.Count -ne 1) { throw "Expected exactly one rerun function named $Name, found $($definitions.Count)." }
+    return [scriptblock]::Create($definitions[0].Extent.Text)
+}
+
+function Write-RerunLog { param([string]$Message, [string]$Level = 'INFO') }
+. (Get-RerunFunctionForTest -Name 'Test-RerunSamePath')
+. (Get-RerunFunctionForTest -Name 'Resolve-RerunProducedOutput')
+
+$reconciliationRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("rerun-output-reconcile-" + [guid]::NewGuid().ToString('N'))
+try {
+    $outputDir = Join-Path $reconciliationRoot 'Output\TV\Show\Season 00'
+    New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+    $plannedOutput = Join-Path $outputDir 'Show - S00E01.mkv'
+    $actualOutput = Join-Path $outputDir 'Show - S00E01 - Episode Title.mkv'
+    $stagePath = Join-Path $reconciliationRoot 'Stage\Show - S00E01.mkv'
+    $identity = 'identity-v2-test'
+    Set-Content -LiteralPath $actualOutput -Value 'verified media fixture' -Encoding utf8
+    @{
+        source_identity_v2 = $identity
+        source_path = $stagePath
+        output_path = $actualOutput
+    } | ConvertTo-Json | Set-Content -LiteralPath "$actualOutput.pipeline.json" -Encoding utf8
+    $plan = [pscustomobject]@{
+        source_path = 'C:\Source\Show - S00E01.mkv'
+        planned_output_path = $plannedOutput
+        stage_path = $stagePath
+        source_identity_v2 = $identity
+    }
+    $reconciled = Resolve-RerunProducedOutput -Plan $plan
+    Assert-True ($reconciled.Path -eq $actualOutput) 'Sidecar-backed runtime-named output was not reconciled.'
+    Assert-True ($reconciled.Code -eq 'RERUN_RUNTIME_NAMED_OUTPUT_RECONCILED') 'Runtime-named output reconciliation did not record its stable evidence code.'
+
+    $ambiguousOutput = Join-Path $outputDir 'Show - S00E01 - Alternate Title.mkv'
+    Set-Content -LiteralPath $ambiguousOutput -Value 'ambiguous media fixture' -Encoding utf8
+    @{
+        source_identity_v2 = $identity
+        source_path = $stagePath
+        output_path = $ambiguousOutput
+    } | ConvertTo-Json | Set-Content -LiteralPath "$ambiguousOutput.pipeline.json" -Encoding utf8
+    $ambiguous = Resolve-RerunProducedOutput -Plan $plan
+    Assert-True ([string]::IsNullOrWhiteSpace($ambiguous.Path)) 'Ambiguous runtime-named outputs must remain unresolved.'
+    Assert-True ($ambiguous.Code -eq 'RERUN_OUTPUT_AMBIGUOUS') 'Ambiguous runtime-named outputs need a stable operator-facing error code.'
+} finally {
+    Remove-Item -LiteralPath $reconciliationRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
 
 $pwshHost = (Get-Process -Id $PID).Path
 if (-not $pwshHost) { $pwshHost = (Get-Command pwsh.exe -ErrorAction SilentlyContinue).Source }

@@ -120,6 +120,31 @@ def manifest_row(
 
 
 class TdarrMatrixAuditTests(unittest.TestCase):
+    def test_balanced_selection_keeps_each_codec_container_pair_before_bucket_quota(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            library_root = root / "library"
+            rows = [
+                audit.ManifestRow.from_record(
+                    manifest_row(root, case_id="tdarr-0001", bucket="container-stress", video_codec="h264", container="avi"),
+                    library_root=library_root,
+                ),
+                audit.ManifestRow.from_record(
+                    manifest_row(root, case_id="tdarr-0002", bucket="container-stress", video_codec="av1", container="avi"),
+                    library_root=library_root,
+                ),
+                audit.ManifestRow.from_record(
+                    manifest_row(root, case_id="tdarr-0003", bucket="container-stress", video_codec="h264", container="mov"),
+                    library_root=library_root,
+                ),
+            ]
+
+            selected = audit.select_balanced_sample_rows(rows, samples_per_bucket=1)
+
+        self.assertEqual(
+            {(row.video_codec, row.container) for row in selected},
+            {("h264", "avi"), ("av1", "avi"), ("h264", "mov")},
+        )
     def test_load_manifest_rows_normalizes_generated_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -254,6 +279,7 @@ class TdarrMatrixAuditTests(unittest.TestCase):
             self.assertEqual(len(selected), 3)
             self.assertEqual([row.case_id for row in selected], ["tdarr-0001", "tdarr-0002", "tdarr-0003"])
             self.assertTrue(audit.parse_args(["run-samples", "--all-samples"]).all_samples)
+            self.assertTrue(audit.parse_args(["run-samples", "--balanced-selection"]).balanced_selection)
 
     def test_auto_sample_selection_skips_probe_mismatched_mjpeg_mp2_rows(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

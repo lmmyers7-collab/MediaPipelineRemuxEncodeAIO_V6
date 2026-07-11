@@ -23,6 +23,7 @@ from mediapipeline.contracts.stages import (
     StageResult,
     build_stage_request,
     make_stage_result,
+    stage_contract,
     validate_stage_data,
 )
 from mediapipeline.tools.paths import find_repo_root
@@ -45,6 +46,7 @@ class StageProcessResult:
 
 RunCapture = Callable[..., StageProcessResult]
 JournalRecord = Callable[[Mapping[str, Any]], None]
+OperationJournalRecord = Callable[[Mapping[str, Any]], Mapping[str, Any] | None]
 
 
 @dataclass(frozen=True)
@@ -56,6 +58,7 @@ class RunnerOptions:
     entrypoint_path: Path | str = DEFAULT_ENTRYPOINT
     run_capture_func: RunCapture | None = None
     journal_record: JournalRecord | None = None
+    operation_journal_record: OperationJournalRecord | None = None
     state_db_root: Path | str | None = None
     force_payload_file: bool = False
     payload_file_threshold: int = 7000
@@ -218,6 +221,29 @@ def _record_journal(options: RunnerOptions, request: StageRequest, result: Stage
 def _record_stage_event(options: RunnerOptions, request: StageRequest, result: StageResult) -> None:
     if options.state_db_root is None:
         return
+
+
+def _operation_journal_event(
+    options: RunnerOptions,
+    *,
+    event: str,
+    request: StageRequest,
+    result: StageResult | None = None,
+) -> Mapping[str, Any] | None:
+    recorder = options.operation_journal_record
+    if recorder is None:
+        raise RuntimeError("Guarded ingest execute requires a strict operation journal adapter.")
+    payload: dict[str, Any] = {
+        "schema_version": "pipeline_stage_operation.v1",
+        "event": event,
+        "stage": request.stage.value,
+        "operation_id": getattr(request.payload, "operation_id", ""),
+        "scratch_reservation_id": getattr(request.payload, "scratch_reservation_id", ""),
+        "dry_run_fingerprint": getattr(request.payload, "dry_run_fingerprint", ""),
+    }
+    if result is not None:
+        payload["result"] = result.model_dump(mode="json")
+    return recorder(payload)
     try:
         from mediapipeline.core.storage.db import maybe_maintain_state_db, open_state_db
 
@@ -370,6 +396,42 @@ def run_stage(
         _record_journal(opts, request, result)
         return result
 
+    if not stage_contract(stage_name).enabled_in_entrypoint:
+        result = _error_result(
+            stage=stage_name,
+            started_at=started_at,
+            code="stage.not_enabled",
+            message=f"Stage {stage_name.value!r} is declared but disabled by the Python dispatcher.",
+        )
+        _record_stage_event(opts, request, result)
+        _record_journal(opts, request, result)
+        return result
+
+    guarded_ingest_execute = stage_name is StageName.ingest and getattr(request.payload, "intent", "") == "execute"
+    if guarded_ingest_execute:
+        try:
+            previous = _operation_journal_event(opts, event="accepted", request=request)
+        except Exception as exc:
+            return _error_result(
+                stage=stage_name,
+                started_at=started_at,
+                code="stage.operation_journal_required",
+                message=f"Guarded ingest execute blocked because strict operation journaling is unavailable: {exc}",
+            )
+        if previous:
+            prior_result = previous.get("result") if isinstance(previous, Mapping) else None
+            if isinstance(prior_result, Mapping):
+                try:
+                    return StageResult.model_validate(prior_result)
+                except Exception:
+                    pass
+            return _error_result(
+                stage=stage_name,
+                started_at=started_at,
+                code="stage.operation_in_progress",
+                message="Guarded ingest operation is already accepted and has no terminal result yet.",
+            )
+
     entrypoint = Path(opts.entrypoint_path)
     if not entrypoint.exists():
         result = _error_result(
@@ -442,6 +504,19 @@ def run_stage(
         )
     else:
         result = _parse_result(stage_name, started_at, captured)
+    if guarded_ingest_execute:
+        try:
+            _operation_journal_event(opts, event="completed", request=request, result=result)
+        except Exception as exc:
+            result = _error_result(
+                stage=stage_name,
+                started_at=started_at,
+                code="stage.operation_journal_failed",
+                message=(
+                    "Guarded ingest finished but its strict terminal journal record failed; "
+                    f"the scratch reservation must remain unavailable pending recovery: {exc}"
+                ),
+            )
     _record_stage_event(opts, request, result)
     _record_journal(opts, request, result)
     return result

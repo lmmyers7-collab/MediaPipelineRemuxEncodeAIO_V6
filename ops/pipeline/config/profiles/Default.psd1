@@ -44,7 +44,7 @@
     VideoPreset = 'p7'
     VideoQuality = 21
     OutputContainer = 'mkv'
-    DynamicHdrPolicy = 'warn'
+    DynamicHdrPolicy = 'preserve_or_review'
     DoviToolPath = ''
     Hdr10PlusToolPath = ''
     EncodeTuningPreset = 'balanced_nvenc'

@@ -16,6 +16,8 @@ def _pending_evidence_class(row: Mapping[str, Any]) -> str:
         return "diagnostic-error"
     if row.get("local_exists") is False or status == "missing_payload":
         return "missing-payload"
+    if str(row.get("drain_attempt_status") or "").casefold() == "in_progress":
+        return "review"
     if status in {"invalid_manifest", "unreadable_manifest"} or state in {"invalid_manifest", "unreadable_manifest", "invalid_contract", "unreadable"}:
         return "manifest-invalid"
     if state == "orphan_payload" or status == "orphan_payload":
@@ -229,6 +231,15 @@ def pending_publish_drain_confidence_payload(payload: Mapping[str, Any], rows: l
             else "No parked outputs are waiting. Do not reprocess solely because Pending Publish is empty."
             if not rows
             else "Review row-level evidence below before pressing Drain Parked Outputs.",
+        )
+        weak_proof_count = sum(1 for row in rows if str(row.get("copy_proof_state") or "").casefold() == "legacy_weak_copy_proof")
+        add(
+            "Byte-equivalence proof",
+            "review" if weak_proof_count else "ready",
+            f"sha256-backed={len(rows) - weak_proof_count}; legacy-weak={weak_proof_count}",
+            "Legacy manifests remain drainable for compatibility, but SHA-256-backed rows provide stronger final-copy proof."
+            if weak_proof_count
+            else "All loaded pending rows report SHA-256 copy proof.",
         )
         add(
             "Blocker evidence",

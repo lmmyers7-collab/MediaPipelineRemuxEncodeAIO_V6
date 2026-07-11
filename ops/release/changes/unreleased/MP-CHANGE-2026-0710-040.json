@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0710-040",
+  "title": "Parallel engineering audits and worker startup evidence",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-07-10",
+  "date_completed": "2026-07-10",
+  "summary": "Run independent engineering audit checks with bounded concurrency and record per-check/worker-spawn timing without changing media or encoder behavior.",
+  "reason": "Audit suites launched every read-only check sequentially and worker child startup cost was not directly measurable before considering safe process reuse.",
+  "affected_areas": [
+    "docs",
+    "generated-context",
+    "queue",
+    "tests",
+    "tooling"
+  ],
+  "behavior_before": "Engineering checks ran one subprocess at a time and local worker metadata lacked spawn duration evidence.",
+  "behavior_after": "Audit suites use four ordered read-only workers by default (1-8 configurable), report each duration, and worker metadata/claims carry spawn-request and duration evidence. Per-file worker isolation remains unchanged.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/queue/local_worker_slots.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/queue/worker_process.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-LocalWorkerSlotChecks.ps1.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/audit_checks.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_audit_checks.py.md",
+    "docs/testing/PERFORMANCE_BENCHMARK_RUNBOOK.md",
+    "ops/pipeline/engine/queue/local_worker_slots.ps1",
+    "ops/pipeline/engine/queue/worker_process.ps1",
+    "ops/pipeline/tests/Unit/Invoke-LocalWorkerSlotChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-040.json",
+    "src/mediapipeline/tools/dev/audit_checks.py",
+    "tests/python/tooling/test_audit_checks.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_audit_checks.py",
+    "ops/pipeline/tests/Unit/Invoke-LocalWorkerSlotChecks.ps1"
+  ],
+  "manual_validation": [
+    "python -m unittest tests.python.tooling.test_audit_checks -v (pass)",
+    "Invoke-LocalWorkerSlotChecks.ps1 (pass)",
+    "phase1-generated on same dirty tree: jobs=1 8994.6 ms; jobs=4 5769.5 ms (35.9% faster; same pre-existing nonzero suite status)"
+  ],
+  "rollback_plan": "Set audit suite execution back to sequential, remove --jobs/timing fields, and remove worker spawn timing properties from process, metadata, claims, and tests.",
+  "related_changes": [],
+  "notes": "Run independent read-only checks with bounded concurrency, preserve manifest order, and report per-check duration.\nCover ordered parallel results and bounded CLI jobs.\nAttach worker child process spawn timing evidence without changing processing or encoder policy.\nPersist worker spawn timing evidence in metadata and claim state.\nValidate worker spawn timing evidence and initialize worker heartbeat test state.\nDocument bounded audit-suite jobs and sequential comparison.\nRefresh generated summary for the performance change."
+}

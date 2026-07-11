@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/services.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: fd90ec40b31d2f94bd0a1a62056cabfd74d15f93af8225e0c25606ac14583173
+sha256: 762b0067bdb686bc69a9353a6d7575ee727cf520a669f2c6b955a2ed75f27e8e
 ---
 # `src/mediapipeline/desktop/services.py`
 

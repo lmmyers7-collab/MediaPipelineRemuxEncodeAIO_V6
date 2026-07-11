@@ -70,3 +70,13 @@ evidence summary.
 Rerun representative real-media validation whenever FFmpeg command generation,
 subtitle conversion/OCR, audio routing, source/scratch/output movement,
 pending-publish drain, final publish, or cleanup behavior changes.
+
+## Pending output-verification revalidation
+
+MP-CHANGE-2026-0710-005 adds fail-closed source/output video topology and
+resolved audio/subtitle verification before publish, plus Dynamic HDR remux
+verification for preservation policies. It is not accepted by this document
+until representative encode and remux samples provide source/output ffprobe
+JSON, sidecar evidence, Dynamic HDR artifacts where applicable, source hashes,
+and playback observations. Dynamic HDR playback-device validation remains a
+per-profile gate; no new device compatibility claim is made here.

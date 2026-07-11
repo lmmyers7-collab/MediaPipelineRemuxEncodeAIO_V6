@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/metadata_parts/subtitle_fields.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-30
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 532560cf17456a4f0ee8ec4196a48996bf06f0e48b7ec758cf1c1ce00c59d3b4
+sha256: c92ea558293ab24f4657fc78f2dd385cda8702e04e141e0aba66be5bd9406dc8
 ---
 # `src/mediapipeline/core/config/metadata_parts/subtitle_fields.py`
 

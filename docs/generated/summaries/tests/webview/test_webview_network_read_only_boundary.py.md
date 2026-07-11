@@ -3,9 +3,9 @@ file: tests/webview/test_webview_network_read_only_boundary.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-05
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: a7198980ad5e7d66d4250f321536d5b820978839f7197d47c3ddfba59dc53736
+sha256: 1ba8a16a38867bf32e6da956d5ddc4e3da47d428c5a9a36239b75b7987b74cf5
 ---
 # `tests/webview/test_webview_network_read_only_boundary.py`
 

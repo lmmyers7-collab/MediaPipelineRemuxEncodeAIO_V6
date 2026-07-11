@@ -1,5 +1,6 @@
       <section class="page" data-page-panel="reports">
         <h1 class="visually-hidden">Reports</h1>
+        <p class="note">Review results first. Use Audit only when you need to check a library, and use policy controls only for advanced future-report tuning.</p>
         <div class="metric-grid">
           <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="reports" data-quick-link-reports-tab="failures" data-quick-link-module="reports" data-quick-link-action="failure-needs-action" aria-label="Open failure reports needing action" title="Open failure reports">
             <span class="metric-label">Failure JSON</span>
@@ -55,12 +56,12 @@
           </details>
         </section>
         <div class="settings-tab-bar reports-tab-bar" role="tablist" aria-label="Reports sections">
-          <button type="button" class="settings-tab-btn" role="tab" data-reports-tab="failures" aria-selected="true">Failures</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-reports-tab="audit" aria-selected="false">Audit</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-reports-tab="files" aria-selected="false">Locations</button>
+          <button type="button" id="reports-tab-failures" class="settings-tab-btn" role="tab" data-reports-tab="failures" aria-controls="reports-panel-failures" aria-selected="true">Failures</button>
+          <button type="button" id="reports-tab-audit" class="settings-tab-btn" role="tab" data-reports-tab="audit" aria-controls="reports-panel-audit" aria-selected="false">Audit</button>
+          <button type="button" id="reports-tab-files" class="settings-tab-btn" role="tab" data-reports-tab="files" aria-controls="reports-panel-files" aria-selected="false">Locations</button>
         </div>
 
-<section class="panel settings-tab-pane is-active reports-tab-panel" data-reports-tab-panel="failures" data-panel-type="interactive">
+<section id="reports-panel-failures" class="panel settings-tab-pane is-active reports-tab-panel" role="tabpanel" aria-labelledby="reports-tab-failures" data-reports-tab-panel="failures" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Failure Resolution Center</h2>
             <strong id="failure-status">No rows</strong>
@@ -339,7 +340,7 @@
           </section>
         </section>
 
-        <section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="status">
+        <section id="reports-panel-audit" class="panel settings-tab-pane reports-tab-panel" role="tabpanel" aria-labelledby="reports-tab-audit" data-reports-tab-panel="audit" data-panel-type="status">
           <div class="panel-heading">
             <h2>Audit Progress</h2>
             <strong id="report-progress-status">Not loaded</strong>
@@ -361,14 +362,14 @@
                 <span class="path-picker-label-text">Location to Scan</span>
                 <button type="button" id="report-audit-library-root-picker-badge" class="path-picker-badge" data-path-picker-target="reports.audit_library_root" data-path-picker-input="report-audit-start-library-root" data-path-picker-mode="folder" data-path-picker-status="report-audit-launch-status" title="Open a backend-owned Windows folder picker for an audit source location.">Browse</button>
               </span>
-              <input id="report-audit-start-library-root" type="text" autocomplete="off" placeholder="D:\Media or \\server\share\Video">
+              <input id="report-audit-start-library-root" type="text" autocomplete="off" placeholder="D:\Media or \\server\share\Video" aria-describedby="report-audit-source-selection-status">
             </label>
             <label class="check-row launch-check-row"><input id="report-audit-start-include-sidecars" type="checkbox" checked> Include Sidecars</label>
             <label class="check-row launch-check-row"><input id="report-audit-start-show-console" type="checkbox"> Show Console</label>
           </div>
           <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="report-audit-add-source-button" class="secondary-button">Add Source</button>
-            <button type="button" id="report-audit-scan-selected-button" class="secondary-button">Scan Selected</button>
+            <button type="button" id="report-audit-add-source-button" class="secondary-button">1. Add this location</button>
+            <button type="button" id="report-audit-scan-selected-button" class="secondary-button">2. Scan selected locations</button>
             <button type="button" id="report-audit-scan-all-button" class="secondary-button">Scan All</button>
             <button type="button" id="report-audit-select-all-sources-button" class="secondary-button">Select All</button>
             <button type="button" id="report-audit-clear-source-selection-button" class="secondary-button">Clear Selection</button>
@@ -399,7 +400,7 @@
           <p id="report-audit-source-selection-status" class="note table-legend">Select one or more locations before starting an audit.</p>
           <pre id="report-audit-launch-preflight" class="prose-block">No audit start request staged.</pre>
           <div class="action-row action-row-left">
-            <button type="button" id="report-audit-start-button" class="primary-button">Start Audit Selected</button>
+            <button type="button" id="report-audit-start-button" class="primary-button">3. Start audit for selected locations</button>
             <button type="button" id="report-audit-stop-button" class="danger-button" disabled>Stop Audit</button>
           </div>
           <pre id="report-audit-launch-detail" class="prose-block">No audit launch result.</pre>
@@ -445,8 +446,8 @@
             <button type="button" id="report-audit-export-rerun-csv-button" class="primary-button">Build CSV Rerun Queue</button>
           </div>
           <pre id="report-audit-export-detail" class="prose-block">No audit rerun CSV export submitted.</pre>
-          <div class="table-wrap">
-            <table>
+          <div class="table-wrap report-audit-preview-table-wrap" aria-label="Audit result rows; narrow screens show one result per card">
+            <table class="report-audit-preview-table">
               <thead>
                 <tr>
                   <th scope="col">Select</th>
@@ -481,7 +482,7 @@
           <pre id="audit-review-board" class="prose-block">No audit review board loaded.</pre>
         </section>
 
-<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="interactive">
+<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="interactive" data-advanced>
           <div class="panel-heading">
             <h2>Audit Policy</h2>
             <strong id="report-audit-score-policy-status">Not loaded</strong>
@@ -550,7 +551,7 @@
           </details>
         </section>
 
-<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="files" data-panel-type="evidence">
+<section id="reports-panel-files" class="panel settings-tab-pane reports-tab-panel" role="tabpanel" aria-labelledby="reports-tab-files" data-reports-tab-panel="files" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Report Support Summary</h2>
             <strong id="report-triage-status">Not loaded</strong>

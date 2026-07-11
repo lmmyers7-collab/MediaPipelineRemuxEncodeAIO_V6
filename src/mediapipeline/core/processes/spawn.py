@@ -27,8 +27,14 @@ def hidden_creationflags(show_console: bool) -> int:
     return 0
 
 
-def build_spawn_log_paths(app_root: Path, *, app_pid: int | None = None, now: datetime | None = None) -> SpawnLogPaths:
-    run_log_dir = app_root / "RunLogs"
+def build_spawn_log_paths(
+    app_root: Path,
+    *,
+    run_logs_root: Path | None = None,
+    app_pid: int | None = None,
+    now: datetime | None = None,
+) -> SpawnLogPaths:
+    run_log_dir = run_logs_root or app_root / "RunLogs"
     run_log_dir.mkdir(parents=True, exist_ok=True)
     stamp = (now or datetime.now()).strftime("%Y%m%d_%H%M%S_%f")
     pid = os.getpid() if app_pid is None else app_pid

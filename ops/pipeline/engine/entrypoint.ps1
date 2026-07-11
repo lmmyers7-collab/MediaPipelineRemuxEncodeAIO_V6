@@ -358,7 +358,7 @@ function Assert-StagePayloadContract {
         'ingest' {
             Assert-AllowedObjectProperties `
                 -Object $Payload `
-                -Allowed @('run_id','job_id','source_path','scratch_root','operation','intent','confirm_ingest') `
+                -Allowed @('run_id','job_id','source_path','scratch_root','operation','intent','confirm_ingest','operation_id','scratch_reservation_id','dry_run_fingerprint') `
                 -Context 'ingest payload'
             Assert-StageStringField -Payload $Payload -Name 'run_id'
             Assert-StageStringField -Payload $Payload -Name 'job_id'
@@ -367,6 +367,9 @@ function Assert-StagePayloadContract {
             Assert-StageStringField -Payload $Payload -Name 'operation' -AllowedValues @('copy_to_scratch')
             Assert-StageStringField -Payload $Payload -Name 'intent' -Required -AllowedValues @('dry_run','execute')
             Assert-StageBooleanField -Payload $Payload -Name 'confirm_ingest'
+            Assert-StageStringField -Payload $Payload -Name 'operation_id'
+            Assert-StageStringField -Payload $Payload -Name 'scratch_reservation_id'
+            Assert-StageStringField -Payload $Payload -Name 'dry_run_fingerprint'
             $intent = [string](Get-ObjectValue -Object $Payload -Name 'intent' -Default '')
             $confirm = Get-ObjectValue -Object $Payload -Name 'confirm_ingest' -Default $false
             if ($intent -eq 'execute' -and $confirm -ne $true) {

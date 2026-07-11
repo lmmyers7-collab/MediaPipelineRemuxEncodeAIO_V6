@@ -38,7 +38,13 @@ def _assert_launch_exports(testcase: unittest.TestCase, source: str, symbols: tu
 def _assert_csv_rerun_exports(testcase: unittest.TestCase, source: str, symbols: tuple[str, ...]) -> None:
     for symbol in symbols:
         with testcase.subTest(symbol=symbol):
-            _assert_namespace_export(testcase, source, "mediaPipelineCsvRerunWorkflow", symbol)
+            if "...rerunFacade" in source:
+                testcase.assertRegex(
+                    source,
+                    rf"return\s*\{{[\s\S]*?\.{3}rerun(?:Evidence|Presentation|Orchestration)[\s\S]*?\}};|\b{symbol}\b",
+                )
+            else:
+                _assert_namespace_export(testcase, source, "mediaPipelineCsvRerunWorkflow", symbol)
 
 
 class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
@@ -61,8 +67,10 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
                 "/assets/launch/risk/policyPatch.js",
                 "/assets/launch/risk/policyBoundary.js",
                 "/assets/launchView.risk.js",
+                "/assets/launch/scope/compactGate.js",
                 "/assets/launchView.scope.js",
                 "/assets/launchView.realmedia.js",
+                "/assets/launch/preflight/pilotReadiness.js",
                 "/assets/launchView.preflight.js",
                 "/assets/launch/controllerState.js",
                 "/assets/launch/statusRender.js",
@@ -70,6 +78,11 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
                 "/assets/queue/rerunRequest.js",
                 "/assets/launch/scopeControls.js",
                 "/assets/launch/commandButtons.js",
+                "/assets/launch/commandOrchestration.js",
+                "/assets/launch/rerunEvidence.js",
+                "/assets/launch/rerunPresentation.js",
+                "/assets/launch/rerunOrchestration.js",
+                "/assets/launch/rerunFacade.js",
                 "/assets/launchView.js",
                 'id="launch-settings-intent-status"',
                 'id="launch-settings-intent-summary"',
@@ -156,7 +169,7 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
                 'data-rerun-policy-card="collision"',
                 "Destination handling",
                 "When output exists",
-                "Clean verified outputs use backend-derived final placement",
+                "Verified outputs stay in review until you choose a backend-owned final placement path.",
                 "rerun-mode-policy-note",
                 "rerun-csv-path-picker-badge",
                 'data-path-picker-target="queue.rerun_csv"',
@@ -667,6 +680,8 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
             (
                 "function createLaunchScopeModule",
                 "window.__launchViewScopeModule",
+                "function createLaunchCompactGateModule",
+                "window.__launchCompactGateModule",
                 "function launchScopeReconciliationRows",
                 "function renderLaunchScopeReconciliation",
                 "Launch scope reconciliation:",
@@ -706,6 +721,8 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
             (
                 "function createLaunchPreflightModule",
                 "window.__launchViewPreflightModule",
+                "function createLaunchPilotReadinessModule",
+                "window.__launchPilotReadinessModule",
                 "function launchPilotRunReadinessRows",
                 "function renderLaunchPilotRunReadiness",
                 "Launch pilot run readiness:",
@@ -716,8 +733,9 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
                 "function getLastLaunchBackendPreflightRefreshInfo",
                 "function refreshLaunchBackendPreflight",
                 "function refreshLaunchBackendPreflightEncoderCapability",
-                "refresh_encoder_capability_report",
                 "refresh_encoder_capability_report_requested",
+                "/api/diagnostics/encoder-capabilities/refresh",
+                "apiPost(\"/api/diagnostics/encoder-capabilities/refresh\", {}, { timeoutMs: 65000 })",
                 "Last refresh:",
                 "fetch_failure_count",
                 "renderQueueLaunchDecisionChecklist()",
@@ -756,6 +774,9 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
                 "const launchPreflightModule = window.__launchViewPreflightModule || {}",
                 "delete window.__launchViewPreflightModule",
                 "launchPreflightModule.createLaunchPreflightModule",
+                "const launchPilotReadinessModule = window.__launchPilotReadinessModule || {}",
+                "delete window.__launchPilotReadinessModule",
+                "launchPilotReadinessModule.createLaunchPilotReadinessModule",
                 "refreshLaunchBackendPreflight()",
                 "refreshLaunchBackendPreflightEncoderCapability()",
                 "launch-encoder-capability-refresh-button",
@@ -948,7 +969,8 @@ class ApplicationFacadeWebStaticLaunchTests(unittest.TestCase):
                 "settings: values.settings || getLastSettings()",
                 "startupProgressLines",
                 "bootstrap.startupProgress",
-                'refreshGet("/api/health", refreshOptions)',
+                '["health", "/api/health", false]',
+                "refreshGet(path, refreshOptions, { required })",
                 "values.health?.startup_progress",
             ),
         )

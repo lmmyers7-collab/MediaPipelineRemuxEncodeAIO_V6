@@ -13,6 +13,8 @@ if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'AGENTS.md') -PathType Lea
 . (Join-Path $repoRoot 'ops\pipeline\engine\decide\encoder_descriptors.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\decide\encode_policy.ps1')
 
+$encodeFallbackText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\process\encode_fallback.ps1') -Raw
+
 function Assert-Equal {
     param(
         [Parameter(Mandatory)] $Actual,
@@ -86,6 +88,9 @@ $hardwareListOnly = Test-MediaEncoderDescriptorAvailable `
 Assert-Equal ([bool]$hardwareListOnly.EncoderListMatch) $true 'Bundled ffmpeg should list av1_nvenc even when this host may not support runtime NVENC.'
 Assert-Equal ([bool]$hardwareListOnly.Available) $false 'Hardware list-only probe must stay fail-closed until runtime probing succeeds.'
 Assert-Equal ([bool]$hardwareListOnly.RuntimeProbeSkipped) $true 'Hardware list-only probe must not claim runtime validation.'
+Assert-True ($encodeFallbackText -match 'Resolve-MediaEncoderDescriptorForFlags[\s\S]+Test-MediaEncoderDescriptorAvailable') 'Hardware attempts must exact-probe their selected descriptor before the primary attempt.'
+Assert-True ($encodeFallbackText -match 'Invalidate-EncoderBackendProbe -Backend \$selectedHardwareBackend') 'Hardware retry failure must invalidate only the selected descriptor backend.'
+Assert-True ($encodeFallbackText -notmatch 'Test-NvencProbeReportsAvailable|Invalidate-NvencAvailableProbe') 'Generic attempt ladder must not use NVENC-only skip or invalidation helpers.'
 
 $av1Report = New-MediaEncoderCapabilityReport `
     -VideoCodec 'av1_nvenc' `

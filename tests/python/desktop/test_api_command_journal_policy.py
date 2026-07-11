@@ -21,6 +21,7 @@ from mediapipeline.desktop.api.command_journal_policy import (
     summarize_command_payload,
     valid_journal_entries,
 )
+from mediapipeline.desktop.api.handler_policy import requires_strict_durable_command_journal
 
 
 class LocalApiCommandJournalPolicyTests(unittest.TestCase):
@@ -28,6 +29,18 @@ class LocalApiCommandJournalPolicyTests(unittest.TestCase):
         self.assertTrue(is_command_result_payload({"schema_version": COMMAND_RESULT_SCHEMA_VERSION}))
         self.assertFalse(is_command_result_payload({"schema_version": "desktop_snapshot.v1"}))
         self.assertFalse(is_command_result_payload({}))
+
+    def test_critical_lifecycle_and_media_routes_require_strict_durable_evidence(self) -> None:
+        for route in (
+            "/api/pipeline/start",
+            "/api/pipeline/control",
+            "/api/rename/apply",
+            "/api/pending-publish/repair-manifest",
+            "/api/network/worker/start",
+            "/api/backend/shutdown",
+        ):
+            self.assertTrue(requires_strict_durable_command_journal(route))
+        self.assertFalse(requires_strict_durable_command_journal("/api/settings/save-patch"))
 
     def test_scalar_text_normalizes_line_endings_and_truncates(self) -> None:
         self.assertEqual(scalar_text("one\r\ntwo\rthree", limit=40), "one\ntwo\nthree")

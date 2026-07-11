@@ -4,6 +4,7 @@ import contextlib
 import io
 import json
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from mediapipeline.tools.dev import audit_checks, ai_guardrail
@@ -14,6 +15,42 @@ REPO_ROOT = find_repo_root(Path(__file__))
 
 
 class AuditCheckManifestTests(unittest.TestCase):
+    def test_parallel_suite_preserves_manifest_order_and_timing(self) -> None:
+        checks = audit_checks.suite_checks("phase1-generated")[:3]
+
+        def fake_run(check, *, python_executable=None):
+            return audit_checks.AuditCheckResult(
+                check=check,
+                ok=True,
+                returncode=0,
+                output="",
+                elapsed_ms=10.0,
+            )
+
+        with mock.patch.object(audit_checks, "suite_checks", return_value=checks), mock.patch.object(
+            audit_checks, "run_check", side_effect=fake_run
+        ):
+            results = audit_checks.run_suite("phase1-generated", jobs=3)
+
+        self.assertEqual([result.check.id for result in results], [check.id for check in checks])
+        self.assertTrue(all(result.elapsed_ms == 10.0 for result in results))
+
+    def test_run_cli_accepts_bounded_parallel_jobs(self) -> None:
+        result = audit_checks.AuditCheckResult(
+            check=audit_checks.suite_checks("phase1-generated")[0],
+            ok=True,
+            returncode=0,
+            output="",
+            elapsed_ms=1.0,
+        )
+        stdout = io.StringIO()
+        with mock.patch.object(audit_checks, "run_suite", return_value=(result,)) as run_suite, contextlib.redirect_stdout(stdout):
+            exit_code = audit_checks.main(["run", "phase1-generated", "--jobs", "2", "--json"])
+
+        self.assertEqual(exit_code, 0)
+        run_suite.assert_called_once_with("phase1-generated", jobs=2)
+        self.assertEqual(json.loads(stdout.getvalue())["jobs"], 2)
+
     def test_precommit_suite_preserves_existing_guardrail_coverage(self) -> None:
         self.assertEqual(
             [check.id for check in audit_checks.suite_checks("precommit")],

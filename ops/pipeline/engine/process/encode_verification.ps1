@@ -70,7 +70,11 @@ function Invoke-MediaPipelineEncodeVerification {
         return New-MediaPipelineEncodeStageResult -Ok $false -Terminal $true -Value $false -Stage 'encode-verify'
     }
 
-    $videoPreservation = Test-OutputVideoStreamPreservation -SourcePath $localIn -OutputPath $tempOut -Route $verifyRoute -SourceInventory $videoStreamPolicy.Inventory
+    $expectedVideoCodec = ''
+    if ($Context.EncodePlan -and $Context.EncodePlan.PSObject.Properties['SelectedEncoder']) { $expectedVideoCodec = [string]$Context.EncodePlan.SelectedEncoder }
+    $videoPreservation = Test-OutputVideoStreamPreservation -SourcePath $localIn -OutputPath $tempOut -Route $verifyRoute -SourceInventory $videoStreamPolicy.Inventory -ExpectedVideoCodec $expectedVideoCodec
+    $script:LastMediaVerification = $videoPreservation
+    $Context.MediaVerification = $videoPreservation
     if (-not [bool]$videoPreservation.Allowed) {
         $reason = [string]$videoPreservation.Reason
         $errorCode = [string]$videoPreservation.ErrorCode
@@ -84,6 +88,36 @@ function Invoke-MediaPipelineEncodeVerification {
         Write-Log "ENCODE: $reason" "ERROR"
         $Context.TempOut = $null
         return New-MediaPipelineEncodeStageResult -Ok $false -Terminal $true -Value $false -Stage 'encode-video-stream-verify'
+    }
+
+    $hdr10Verification = Test-Hdr10OutputMetadataPreservation `
+        -SourcePath $localIn `
+        -OutputPath $tempOut `
+        -SourceInventory $videoPreservation.SourceInventory `
+        -OutputInventory $videoPreservation.OutputInventory
+    $Context.Hdr10Verification = $hdr10Verification
+    if (-not [bool]$hdr10Verification.Allowed) {
+        $null = Register-SourceFailure -SourceFile $file -ScratchPath $tempOut -Classification 'operator_required' -Reason ([string]$hdr10Verification.Reason) -Stage 'encode-hdr10-verify' -ErrorCode ([string]$hdr10Verification.ErrorCode) -SuggestedAction 'Inspect source/output ffprobe HDR10 facts and saved repro evidence. Publish remains blocked until every HDR10 output stream has 10-bit BT.2020/PQ signalling and preserves source mastering-display/MaxCLL when present.' -AdditionalProperties @{ hdr10_verification = $hdr10Verification; video_stream_preservation = $videoPreservation }
+        Write-Log "ENCODE HDR10 VERIFY: $($hdr10Verification.Reason)" "ERROR"
+        $Context.TempOut = $null
+        return New-MediaPipelineEncodeStageResult -Ok $false -Terminal $true -Value $false -Stage 'encode-hdr10-verify'
+    }
+
+    $trackVerificationPlan = $Context.MediaTrackVerificationPlan
+    if (-not $trackVerificationPlan) {
+        $trackVerificationPlan = New-MediaTrackOutputVerificationPlanFromFfmpegSubtitleArgs -AudioDecisions @(Get-LastAudioDecisionRecords) -SubtitleMapArgs @($Context.SubResult.MapArgs)
+    }
+    $trackVerification = Test-MediaTrackOutputVerification -OutputPath $tempOut -Plan $trackVerificationPlan
+    $script:LastMediaTrackVerification = $trackVerification
+    $Context.MediaTrackVerification = $trackVerification
+    $script:LastAudioVerification = Get-MediaTrackVerificationFacet -Verification $trackVerification -Kind 'audio'
+    $script:LastSubtitleVerification = Get-MediaTrackVerificationFacet -Verification $trackVerification -Kind 'subtitle'
+    $Context.AudioVerification = $script:LastAudioVerification
+    $Context.SubtitleVerification = $script:LastSubtitleVerification
+    if (-not [bool]$trackVerification.allowed) {
+        $null = Register-SourceFailure -SourceFile $file -ScratchPath $tempOut -Classification 'operator_required' -Reason ([string]$trackVerification.reason) -Stage 'encode-media-track-verify' -ErrorCode ([string]$trackVerification.error_code) -SuggestedAction 'Inspect source/output ffprobe stream inventories and backend policy evidence; publish remains blocked until every resolved audio and subtitle output track matches the plan.' -AdditionalProperties @{ media_track_verification = $trackVerification; media_track_verification_plan = $trackVerificationPlan; audio_verification = $script:LastAudioVerification; subtitle_verification = $script:LastSubtitleVerification }
+        $Context.TempOut = $null
+        return New-MediaPipelineEncodeStageResult -Ok $false -Terminal $true -Value $false -Stage 'encode-media-track-verify'
     }
 
     if ($dynamicHdrForceCpuEncode -and $script:CurrentDynamicHdrEvidence) {

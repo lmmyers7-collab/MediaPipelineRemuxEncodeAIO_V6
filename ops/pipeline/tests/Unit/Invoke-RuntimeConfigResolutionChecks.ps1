@@ -201,8 +201,16 @@ try {
     else {
         $cap = Get-Content -LiteralPath $capDumpD -Raw | ConvertFrom-Json
         try {
-            Assert-True ([string]$cap.schema -eq 'mediapipeline.encoder_capabilities.v1') "unexpected capability schema '$($cap.schema)'"
+            Assert-True ([string]$cap.schema -eq 'mediapipeline.encoder_capabilities.v2') "unexpected capability schema '$($cap.schema)'"
             Assert-True ([string]$cap.video_codec -eq 'libaom-av1') "capability dump video codec drifted to '$($cap.video_codec)'"
+            Assert-True (-not [string]::IsNullOrWhiteSpace([string]$cap.evidence.freshness.generated_at)) 'capability dump is missing evidence freshness timestamp'
+            Assert-True ([int]$cap.evidence.freshness.ttl_seconds -gt 0) 'capability dump is missing positive evidence TTL'
+            Assert-True (-not [string]::IsNullOrWhiteSpace([string]$cap.evidence.resolved_config.fingerprint)) 'capability dump is missing resolved-config fingerprint'
+            Assert-True (-not [string]::IsNullOrWhiteSpace([string]$cap.evidence.ffmpeg.path)) 'capability dump is missing FFmpeg identity path'
+            Assert-True ([string]$cap.evidence.host.device_facts_state -eq 'not_collected') 'lockless diagnostic must not overclaim host device facts'
+            Assert-True ([string]$cap.evidence.host.driver_facts_state -eq 'not_collected') 'lockless diagnostic must not overclaim driver facts'
+            Assert-True ([string]$cap.evidence.selected_descriptor_chain.primary.encoder -eq 'libaom-av1') 'capability dump is missing selected primary descriptor evidence'
+            Assert-True ([string]$cap.evidence.runtime_probe_state -eq 'completed') 'CPU-only capability dump should report completed runtime probe state'
             Assert-True ([int]@($cap.encoders).Count -eq 1) "CPU-only capability dump should include one unique encoder, got $(@($cap.encoders).Count)"
             $libaom = $cap.by_encoder.'libaom-av1'
             Assert-True ($null -ne $libaom) 'capability dump missing libaom-av1 by_encoder entry'

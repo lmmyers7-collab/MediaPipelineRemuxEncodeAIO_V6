@@ -768,10 +768,17 @@ class RerunLaunchFacadeMixin:
         scoped_csv_path = None
         scoped_info: dict[str, Any] = {}
         needs_scoped_csv = request_needs_scoped_csv(request, preview)
-        launch_lock, lock_message = self._acquire_process_launch_lock("CSV rerun start")
+        command_id = str(request.get("_command_id") or "")
+        launch_lock, lock_message = self._acquire_process_launch_lock(
+            "CSV rerun start",
+            resolved=resolved,
+            command_id=command_id,
+            resource_claims=[str(csv_path)],
+        )
         if lock_message:
             return rerun_start_active_work_result(lock_message)
         try:
+            self._set_process_launch_recovery_descriptor(launch_lock, route="/api/rerun/start", request=request)
             block_message = self._active_work_block_message(resolved, "CSV rerun start")
             if block_message:
                 return rerun_start_active_work_result(block_message)
@@ -782,6 +789,7 @@ class RerunLaunchFacadeMixin:
             starter = getattr(self.service, "start_rerun_csv", None)
             if not callable(starter):
                 raise RuntimeError("CSV rerun start service is not available.")
+            self._prepare_process_launch_lease(launch_lock)
             proc = starter(
                 resolved=resolved,
                 csv_path=launch_csv_path,
@@ -801,6 +809,7 @@ class RerunLaunchFacadeMixin:
                 confirm_delete_original=lifecycle.confirm_delete_original,
                 show_console=False,
             )
+            self._transfer_process_launch_lease(launch_lock, proc)
             pid = int(getattr(proc, "pid", 0) or 0)
             launch_logs = ""
             log_method = getattr(self.service, "launch_log_summary", None)

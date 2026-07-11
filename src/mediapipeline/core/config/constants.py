@@ -81,11 +81,11 @@ ENCODER_BACKEND_DESCRIPTIONS = {
     "cpu": "Prefer CPU encoders when descriptor activation is enabled.",
 }
 
-DYNAMIC_HDR_POLICY_DEFAULT = "warn"
+DYNAMIC_HDR_POLICY_DEFAULT = "preserve_or_review"
 DYNAMIC_HDR_POLICY_NAMES = ("off", "warn", "preserve_or_remux", "preserve_or_review")
 DYNAMIC_HDR_POLICY_DESCRIPTIONS = {
     "off": "Disable dynamic HDR preservation diagnostics beyond normal probe data.",
-    "warn": "Warn when dynamic HDR metadata is expected to be dropped by encode; remux behavior remains unchanged.",
-    "preserve_or_remux": "Future enforcement mode: prefer remux when dynamic HDR cannot be preserved by encode.",
-    "preserve_or_review": "Future enforcement mode: route to review when dynamic HDR cannot be preserved safely.",
+    "warn": "Compatibility mode: continue with known Dynamic-HDR loss warnings. This is intentionally lossy and never HDR-safe readiness.",
+    "preserve_or_remux": "Prefer a safe remux route when Dynamic HDR cannot be preserved by encode.",
+    "preserve_or_review": "Default: block unsafe Dynamic-HDR encode and route it to review when preservation cannot be proven.",
 }

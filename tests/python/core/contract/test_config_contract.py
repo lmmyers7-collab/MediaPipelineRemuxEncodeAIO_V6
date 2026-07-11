@@ -280,6 +280,17 @@ class ConfigContractTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             Config.model_validate({"AudioTranscodeBitrate": "0k"})
 
+    def test_bdpgs_ocr_defaults_true_without_migrating_explicit_false(self) -> None:
+        self.assertTrue(Config().ConvertBdpgsToSrt)
+        self.assertFalse(Config.model_validate({"ConvertBdpgsToSrt": False}).ConvertBdpgsToSrt)
+
+        contract_schema = Config.model_json_schema()
+        pipeline_schema = json.loads(
+            (REPO_ROOT / "ops" / "pipeline" / "config" / "schemas" / "media_pipeline_config.schema.json").read_text(encoding="utf-8")
+        )
+        self.assertTrue(contract_schema["properties"]["ConvertBdpgsToSrt"]["default"])
+        self.assertTrue(pipeline_schema["properties"]["ConvertBdpgsToSrt"]["default"])
+
     def test_generated_schema_declares_runtime_subtitle_cross_field_policy(self) -> None:
         schema_path = REPO_ROOT / "src" / "mediapipeline" / "contracts" / "schemas" / "config.v1.schema.json"
         schema = json.loads(schema_path.read_text(encoding="utf-8"))

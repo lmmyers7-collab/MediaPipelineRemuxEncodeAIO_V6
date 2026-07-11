@@ -1,0 +1,58 @@
+{
+  "id": "MP-CHANGE-2026-0710-033",
+  "title": "Improve backend startup responsiveness",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-07-10",
+  "date_completed": null,
+  "summary": "Snapshot reads now return immediate initializing or cached evidence while a coalesced worker refreshes state; startup steps include timing, and WebView refreshes are scoped to the active page.",
+  "reason": "Avoid snapshot lock contention and unnecessary initial WebView reads without weakening backend ownership or media safety boundaries.",
+  "affected_areas": [
+    "backend",
+    "generated_context"
+  ],
+  "behavior_before": "A snapshot request synchronously rebuilt state and reconciled ActiveJobs, while WebView refreshes requested every page's read route at once.",
+  "behavior_after": "Snapshot construction is cache-first and asynchronous, ActiveJobs reconciliation runs on a backend-owned cadence, startup timing is exposed in existing progress evidence, and WebView reads are limited to core plus the active page.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/app/lifecycle.js",
+    "apps/desktop/webview/static/assets/launch/commandButtons.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/lifecycle.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launch/commandButtons.js.md",
+    "docs/generated/summaries/src/mediapipeline/core/status/snapshot_runner.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/api/server.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/backend_bootstrap.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/local_api_main.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/services.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api_http.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_status_snapshot_runner.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-033.json",
+    "src/mediapipeline/core/status/snapshot_runner.py",
+    "src/mediapipeline/desktop/api/server.py",
+    "src/mediapipeline/desktop/backend_bootstrap.py",
+    "src/mediapipeline/desktop/local_api_main.py",
+    "src/mediapipeline/desktop/services.py",
+    "tests/python/desktop/test_application_facade_local_api_http.py",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/python/desktop/test_service_status_snapshot_runner.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_local_api_http.py",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/python/desktop/test_service_status_snapshot_runner.py"
+  ],
+  "manual_validation": [
+    "Passed: python -m unittest tests.python.desktop.test_service_status_snapshot_runner tests.python.desktop.test_process_service -q; Node syntax checks; Python py_compile.",
+    "Python compile and Node syntax checks passed.",
+    "Status snapshot and process service unit suites passed.",
+    "TDD GREEN: targeted snapshot placeholder and request-path reconciliation tests passed.",
+    "TDD RED: targeted snapshot and request-path reconciliation tests failed before implementation as expected."
+  ],
+  "rollback_plan": "Revert the listed backend, WebView, and generated-summary paths; the previous synchronous snapshot and all-page refresh behavior will be restored without media-state migration.",
+  "related_changes": [],
+  "notes": "Improve non-blocking backend startup status and active-page refresh behavior.\nRefresh generated summary after backend responsiveness change.\nFull Local API and browser/static suites are blocked by unrelated Pending Publish import regression: pending_open_policy imports removed _command_result from pending_results."
+}

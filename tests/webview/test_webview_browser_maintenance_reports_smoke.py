@@ -2278,8 +2278,8 @@ def _browser_maintenance_reports_runner_source() -> str:
             if (rerunPreviewPost.body?.csv_path !== "C:/State/Rerun/ImportCsv/audit_rerun_export_smoke.csv") {
               throw new Error("Queue CSV Rerun preview did not receive the audit-exported CSV path.");
             }
-            if (rerunPreviewPost.body?.destination_mode !== "auto_replace_clean_else_pending_review") {
-              throw new Error("Queue CSV Rerun preview did not keep the backend-owned default return policy.");
+            if (rerunPreviewPost.body?.destination_mode !== "review_workspace") {
+              throw new Error("Queue CSV Rerun preview did not keep the non-replacing review-workspace default.");
             }
             if (!visiblePage("queue")) throw new Error("Audit rerun export did not navigate to Queue.");
             if (!document.querySelector('[data-queue-tab-panel="rerun"]')?.classList.contains("is-active")) {
@@ -2540,7 +2540,7 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
         self.assertIn("audit_priority.csv", audit_rerun_export_post["body"]["row_keys"][0])
         self.assertIn("subtitle_missing_srt", audit_rerun_export_post["body"]["row_keys"][0])
         self.assertEqual(rerun_preview_post["body"]["csv_path"], "C:/State/Rerun/ImportCsv/audit_rerun_export_smoke.csv")
-        self.assertEqual(rerun_preview_post["body"]["destination_mode"], "auto_replace_clean_else_pending_review")
+        self.assertEqual(rerun_preview_post["body"]["destination_mode"], "review_workspace")
         self.assertFalse(any(post["path"] == "/api/pipeline/start" for post in posts))
         self.assertEqual(diagnostics_open_post["body"]["target"], "latest_failure_report")
         self.assertEqual(len(lifecycle_posts), 3)

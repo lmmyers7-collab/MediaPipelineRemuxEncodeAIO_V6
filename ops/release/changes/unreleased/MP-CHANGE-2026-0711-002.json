@@ -1,0 +1,36 @@
+{
+  "id": "MP-CHANGE-2026-0711-002",
+  "title": "Effective settings provenance",
+  "version_target": "2026.07.11.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-07-11",
+  "date_completed": "2026-07-11",
+  "summary": "Rendered normalized backend effective-settings provenance in Queue, Completed, and Diagnostics.",
+  "reason": "Make saved/profile/override/final-evidence boundaries understandable without changing encoding decisions.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Existing queue and completed evidence exposed different effective-settings fragments without a common operator presentation.",
+  "behavior_after": "Queue labels profile-effective evidence as non-final, Completed labels final or legacy evidence, and Diagnostics presents the shared runtime_effective_settings.v1 boundary.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/provenanceView.js",
+    "apps/desktop/webview/static/partials/page-completed.html",
+    "apps/desktop/webview/static/partials/page-queue.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/provenanceView.js.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0711-002.json",
+    "tests/webview/test_webview_product_integration_static.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_product_integration_static.py"
+  ],
+  "manual_validation": [
+    "Focused provenance contract and WebView static tests passed."
+  ],
+  "rollback_plan": "Remove read-only provenance panels and renderer; existing backend evidence contracts and media policy remain unchanged.",
+  "related_changes": [],
+  "notes": "Added normalized provenance rendering.\nAdded Queue provenance display.\nAdded Completed provenance display.\nCovers read-only provenance labels.\nGenerated summary for provenance module."
+}

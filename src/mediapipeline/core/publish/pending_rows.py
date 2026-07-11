@@ -245,6 +245,7 @@ def pending_publish_row_ready_to_drain(row: Mapping[str, Any]) -> bool:
         or schema_version != PENDING_PUSH_MANIFEST_SCHEMA_VERSION
         or state not in PENDING_PUSH_MANIFEST_DRAINABLE_STATES
         or state in {"orphan_payload", "invalid_manifest", "unreadable_manifest", "invalid_contract", "unreadable"}
+        or str(row.get("drain_attempt_status") or "").casefold() == "in_progress"
     )
 
 
@@ -259,6 +260,10 @@ def pending_publish_row_issue_summary(row: Mapping[str, Any]) -> str:
         )
     if row.get("local_exists") is False:
         issues.append("local payload missing")
+    if str(row.get("copy_proof_state") or "").casefold() == "legacy_weak_copy_proof":
+        issues.append("legacy manifest has no SHA-256 copy proof")
+    if str(row.get("drain_attempt_status") or "").casefold() == "in_progress":
+        issues.append("a drain attempt is recorded in progress")
     missing_sidecars = int_value(row.get("missing_sidecar_count"))
     if missing_sidecars:
         issues.append(f"{missing_sidecars} sidecar(s) missing")

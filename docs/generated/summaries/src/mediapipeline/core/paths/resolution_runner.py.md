@@ -3,9 +3,9 @@ file: src/mediapipeline/core/paths/resolution_runner.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: paths
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 4754918cfd6212f80a78f777e427730cc6e69fb4ce26da3b6945f365c56f49fc
+sha256: a7b7600096d93efdb05e6d92b50fbae0b7f03fdfe1284f04fbc56db2ffacfe97
 ---
 # `src/mediapipeline/core/paths/resolution_runner.py`
 

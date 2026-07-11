@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/networkView.js
 pipeline_stage: network
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-05
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: ac6c963305882164392090f49c5c4b71bc6edcc7d4b7c4597a5599fdbc8801a4
+sha256: fa95a92bd5b2fe5751f6bbd55b1c57720c3e8d2cbe7761bb184fa0cae48a41bc
 ---
 # `apps/desktop/webview/static/assets/networkView.js`
 

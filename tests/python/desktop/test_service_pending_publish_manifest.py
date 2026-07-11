@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
@@ -122,6 +123,36 @@ class ServicePendingPublishManifestTests(unittest.TestCase):
         self.assertFalse(dto_row["ready_to_drain"])
         self.assertEqual(dto_row["diagnostic_status"], "invalid_manifest")
         self.assertEqual(dto_row["drain_recommendation"], "do_not_drain")
+
+    def test_current_manifest_reports_sha256_proof_and_in_progress_attempt_as_review(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            payload = root / "payload.mkv"
+            payload.write_bytes(b"payload")
+            manifest_path = root / "payload.mkv.manifest.json"
+            manifest_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "pending_push_manifest.v1",
+                        "pipeline_version": "1.0",
+                        "publish_transaction_id": "tx",
+                        "manifest_state": "parked",
+                        "local_file": str(payload), "server_out": str(root / "server.mkv"), "route": "encode",
+                        "source_identity_v2": "source-v2", "source_identity_v2_algorithm": "fixture-v2",
+                        "source_path": str(root / "source.mkv"), "output_size": payload.stat().st_size,
+                        "output_sha256": hashlib.sha256(payload.read_bytes()).hexdigest(), "output_hash_algorithm": "SHA256",
+                        "drain_attempt_id": "attempt-1", "drain_attempt_status": "in_progress",
+                        "sidecar_files": [], "tx3g_srt_tracks": [], "tx3g_srt_failures": [], "bdpgs_srt_failures": [],
+                        "vobsub_srt_failures": [], "tx3g_embedded_srt_tracks": [], "bdpgs_embedded_srt_tracks": [], "vobsub_embedded_srt_tracks": [],
+                    }
+                ), encoding="utf-8"
+            )
+            row = pending_publish_rows([pending_manifest_row(manifest_path)])[0]
+
+        self.assertEqual(row["copy_proof_state"], "sha256_recorded")
+        self.assertEqual(row["drain_attempt_status"], "in_progress")
+        self.assertFalse(row["ready_to_drain"])
+        self.assertIn("in progress", row["issue_summary"])
 
     def test_legacy_manifest_unknown_state_is_not_ready_for_drain(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

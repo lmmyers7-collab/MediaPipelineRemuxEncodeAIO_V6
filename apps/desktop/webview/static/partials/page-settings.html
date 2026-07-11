@@ -9,6 +9,7 @@
           <button type="button" class="settings-section-nav-btn" data-settings-tab="publish-recovery">Publish &amp; Recovery</button>
           <button type="button" class="settings-section-nav-btn" data-settings-tab="naming">Naming</button>
           <button type="button" class="settings-section-nav-btn" data-settings-tab="queue-runtime">Queue &amp; Runtime</button>
+          <button type="button" class="settings-section-nav-btn" data-settings-tab="presets">Presets</button>
           <button type="button" class="settings-section-nav-btn" data-settings-tab="advanced-evidence">Evidence</button>
         </div>
 
@@ -30,7 +31,7 @@
             <h2>Guided Setup</h2>
             <strong id="settings-wizard-status">Not loaded</strong>
           </div>
-          <p class="note" id="settings-wizard-status-detail">Guided setup prepares the same PSD1-backed settings used by the manual editor. Save goes through backend validation; this does not start media processing, drain pending publish, rename files, or touch source media.</p>
+          <p class="note" id="settings-wizard-status-detail">Guided setup prepares saved settings through backend validation. Use this wizard's Review &amp; Save step as the single save path; it does not start media processing, drain pending publish, rename files, or touch source media.</p>
           <div class="settings-wizard-readiness-strip" id="settings-wizard-readiness-strip" aria-label="Guided Setup readiness">
             <span><span class="settings-mini-label">Blockers</span><strong id="settings-wizard-readiness-blockers">0</strong></span>
             <span><span class="settings-mini-label">Warnings</span><strong id="settings-wizard-readiness-warnings">0</strong></span>
@@ -126,6 +127,7 @@
               </section>
               <section class="settings-wizard-step" data-wizard-step="2">
                 <h3>Toolchain</h3>
+                <p class="note">Check this computer first. Detect Tools and Probe Encoders show what is available; advanced video choices remain optional until then.</p>
                 <div class="form-grid form-grid-dense">
                   <label>
                     <span class="path-picker-label-row">
@@ -140,36 +142,6 @@
                       <button type="button" id="wizard-ffprobe-path-picker-badge" class="path-picker-badge" data-path-picker-target="settings.wizard.ffprobe_path" data-path-picker-input="wizard-ffprobe-path" data-path-picker-mode="files" data-path-picker-status="settings-wizard-status-detail" title="Open a backend-owned Windows file picker for ffprobe.exe.">Browse</button>
                     </span>
                     <input id="wizard-ffprobe-path" type="text" autocomplete="off" placeholder="C:\ffmpeg\bin\ffprobe.exe">
-                  </label>
-                </div>
-                <div class="form-grid form-grid-dense">
-                  <label>Default video strategy
-                    <select id="wizard-video-strategy">
-                      <option value="remux_when_possible">Remux when possible</option>
-                      <option value="prefer_nvenc_cpu_fallback">Prefer NVENC, CPU fallback allowed</option>
-                      <option value="cpu_fallback">CPU fallback / CPU primary</option>
-                      <option value="manual_review_missing_hardware">Manual review if hardware is missing</option>
-                    </select>
-                  </label>
-                  <label>Preferred codec
-                    <select id="wizard-preferred-codec">
-                      <option value="hevc_nvenc">HEVC NVENC</option>
-                      <option value="h264_nvenc">H.264 NVENC</option>
-                      <option value="av1_nvenc">AV1 NVENC</option>
-                      <option value="libx265">CPU HEVC / libx265</option>
-                      <option value="libx264">CPU H.264 / libx264</option>
-                    </select>
-                  </label>
-                  <label>Video quality
-                    <input id="wizard-video-quality" type="number" min="1" max="51" step="1">
-                  </label>
-                  <label>Encoder speed preset
-                    <select id="wizard-video-preset">
-                      <option value="p4">p4</option>
-                      <option value="p5">p5</option>
-                      <option value="p6">p6</option>
-                      <option value="p7">p7</option>
-                    </select>
                   </label>
                 </div>
                 <div class="form-grid form-grid-dense">
@@ -193,7 +165,42 @@
                 </div>
                 <div id="settings-wizard-tools-result" class="settings-wizard-result-list">No tool validation has run.</div>
                 <div id="settings-wizard-hardware-result" class="settings-wizard-result-list">No encoder probe has run.</div>
+                <p id="settings-wizard-hardware-recommendation" class="note" aria-live="polite">Probe encoders to receive a compatible default recommendation. No media is processed during this check.</p>
                 <div id="settings-wizard-workers-result" class="settings-wizard-result-list">No worker validation has run.</div>
+                <details class="settings-advanced-disclosure">
+                  <summary>Optional video and encoder choices</summary>
+                  <p class="note">Use the compatible recommendation above first. These overrides prepare settings for backend review and save; they do not start processing or change media.</p>
+                  <div class="form-grid form-grid-dense">
+                    <label>Default video strategy
+                      <select id="wizard-video-strategy">
+                        <option value="remux_when_possible">Remux when possible</option>
+                        <option value="prefer_nvenc_cpu_fallback">Prefer NVENC, CPU fallback allowed</option>
+                        <option value="cpu_fallback">CPU fallback / CPU primary</option>
+                        <option value="manual_review_missing_hardware">Manual review if hardware is missing</option>
+                      </select>
+                    </label>
+                    <label>Preferred codec
+                      <select id="wizard-preferred-codec">
+                        <option value="hevc_nvenc">HEVC NVENC</option>
+                        <option value="h264_nvenc">H.264 NVENC</option>
+                        <option value="av1_nvenc">AV1 NVENC</option>
+                        <option value="libx265">CPU HEVC / libx265</option>
+                        <option value="libx264">CPU H.264 / libx264</option>
+                      </select>
+                    </label>
+                    <label>Video quality
+                      <input id="wizard-video-quality" type="number" min="1" max="51" step="1">
+                    </label>
+                    <label>Encoder speed preset
+                      <select id="wizard-video-preset">
+                        <option value="p4">p4</option>
+                        <option value="p5">p5</option>
+                        <option value="p6">p6</option>
+                        <option value="p7">p7</option>
+                      </select>
+                    </label>
+                  </div>
+                </details>
               </section>
               <section class="settings-wizard-step" data-wizard-step="3">
                 <h3>Policy</h3>
@@ -280,13 +287,36 @@
         </div>
 
         <!-- TAB: PRESETS -->
-        <div class="settings-tab-pane" data-settings-tab="status">
-        <section class="panel" data-panel-type="evidence">
+        <div class="settings-tab-pane" data-settings-tab="presets">
+        <section class="panel" data-panel-type="interactive" aria-labelledby="settings-preset-library-heading">
           <div class="panel-heading">
-            <h2>Preset Orientation</h2>
-            <strong>Display only</strong>
+            <h2 id="settings-preset-library-heading">Preset Library</h2>
+            <strong id="settings-preset-library-status" role="status" aria-live="polite">Not loaded</strong>
           </div>
-          <p class="note">Preset display adapters share the same backend Save Settings path as the rest of Settings. Guided Setup now lives in its own tab.</p>
+          <p class="note">Validate and compare PresetV2 candidates in the backend. Saving changes the preset library only. Applying changes saved settings for future launches only; active work is unchanged.</p>
+          <div class="form-grid form-grid-dense">
+            <label>Stored preset
+              <select id="settings-preset-library-select" aria-describedby="settings-preset-library-detail"><option value="">Loading presets…</option></select>
+            </label>
+            <label>Compare with
+              <select id="settings-preset-library-compare-select"><option value="">Select a stored preset</option></select>
+            </label>
+          </div>
+          <label class="full-field">PresetV2 record or document
+            <textarea id="settings-preset-library-json" rows="12" spellcheck="false" aria-describedby="settings-preset-library-detail settings-preset-library-result"></textarea>
+          </label>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="settings-preset-library-load" class="secondary-button">Load Presets</button>
+            <button type="button" id="settings-preset-library-validate" class="secondary-button">Validate Candidate</button>
+            <button type="button" id="settings-preset-library-compare" class="secondary-button">Compare</button>
+            <button type="button" id="settings-preset-library-import-preview" class="secondary-button">Preview Import</button>
+            <button type="button" id="settings-preset-library-save" class="secondary-button">Save Preset</button>
+            <button type="button" id="settings-preset-library-export" class="secondary-button">Export Preset</button>
+            <button type="button" id="settings-preset-library-apply-preview" class="secondary-button">Preview Apply</button>
+            <button type="button" id="settings-preset-library-apply" class="primary-button">Apply for Future Launches</button>
+          </div>
+          <p id="settings-preset-library-detail" class="note" role="status" aria-live="polite">Load presets to inspect backend-owned library records.</p>
+          <pre id="settings-preset-library-result" class="prose-block" aria-live="polite">No preset operation has run.</pre>
         </section>
         </div>
 
@@ -703,13 +733,17 @@
             <h2>Current Changes</h2>
             <strong id="settings-patch-status">No changes</strong>
           </div>
-          <label class="full-field">
-            Save Changes JSON
-            <textarea id="settings-patch-json" rows="6" spellcheck="false">{
+          <details class="settings-advanced-disclosure">
+            <summary>Advanced: edit raw settings JSON</summary>
+            <p class="note">Use the structured controls above for normal changes. This technical editor is reviewed and saved only through the same backend validation flow.</p>
+            <label class="full-field">
+              Save Changes JSON
+              <textarea id="settings-patch-json" rows="6" spellcheck="false">{
   "RoutingProfile": "plex_direct_stream",
   "SizeGuardMode": "advisory"
 }</textarea>
-          </label>
+            </label>
+          </details>
           <label class="check-row">
             <input id="settings-patch-summary-changed-only" type="checkbox"> Show changed / unknown only
           </label>
@@ -885,7 +919,7 @@
 
         <!-- TAB: DIMENSIONS -->
         <div class="settings-tab-pane" data-settings-tab="media-output">
-        <section class="panel" data-panel-type="evidence" data-handbrake-section="dimensions">
+        <section class="panel" data-panel-type="evidence" data-handbrake-section="dimensions" data-advanced>
           <div class="panel-heading">
             <h2>Dimensions</h2>
             <strong>Read-only pending backend exposure</strong>
@@ -901,7 +935,7 @@
 
         <!-- TAB: FILTERS -->
         <div class="settings-tab-pane" data-settings-tab="media-output">
-        <section class="panel" data-panel-type="evidence" data-handbrake-section="filters">
+        <section class="panel" data-panel-type="evidence" data-handbrake-section="filters" data-advanced>
           <div class="panel-heading">
             <h2>Filters</h2>
             <strong>Read-only pending backend exposure</strong>
@@ -1785,10 +1819,10 @@
         <div class="settings-tab-pane" data-settings-tab="naming">
         <section class="panel settings-rename-workbench-panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Rename Filter Case Workbench</h2>
+            <h2>Fix a Naming Issue</h2>
             <strong id="settings-rename-workbench-status">Backend cleaner waits for input.</strong>
           </div>
-          <p class="note">Use this loop to make a bad case fail first, stage new filter terms into the Settings draft, retest with staged filters, then use Save Settings only after the backend comparison passes.</p>
+          <p class="note">Test one filename and its expected result, review the suggested change, then save through backend validation. Detailed regression-case controls remain available for advanced troubleshooting.</p>
           <form id="settings-rename-workbench-form">
             <div class="rename-workbench-layout">
               <div class="rename-workbench-fields">

@@ -304,8 +304,24 @@
         textValue(item.label, "Attention item"),
         textValue(item.value, "Review"),
         textValue(item.detail, "not available"),
-        textValue(item.target_subtab, "overview"),
-      ], [null, null, "num", null, null]);
+      ], [null, null, "num", null]);
+      const actionCell = document.createElement("td");
+      const targetTab = metricsTabIds().includes(String(item.target_subtab || "")) ? String(item.target_subtab) : "overview";
+      const action = document.createElement("button");
+      action.type = "button";
+      action.className = "secondary-button";
+      action.textContent = `View ${targetTab === "overview" ? "details" : `${targetTab} details`}`;
+      action.addEventListener("click", () => {
+        activateMetricsTab(targetTab);
+        const panel = document.querySelector(`[data-page-panel="metrics"] [data-metrics-tab-panel="${targetTab}"]`);
+        const heading = panel?.querySelector("h2");
+        if (heading) {
+          heading.tabIndex = -1;
+          heading.focus();
+        }
+      });
+      actionCell.appendChild(action);
+      row.appendChild(actionCell);
       tbody.appendChild(row);
     });
   }

@@ -7,7 +7,7 @@ from collections.abc import Mapping
 
 
 ACTIVE_CLOSE_STATES = frozenset({"processing", "paused", "audit"})
-NON_BLOCKING_CLOSE_STATES = frozenset({"idle", "completed", "failed", "stale", "stopped", "unknown"})
+NON_BLOCKING_CLOSE_STATES = frozenset({"idle", "completed", "failed", "stale", "stopped"})
 INACTIVE_PIPELINE_PROGRESS_STAGES = frozenset({"", "idle", "sleeping", "stopped", "completed"})
 INACTIVE_AUDIT_PROGRESS_STATUSES = frozenset({"", "idle", "completed", "failed", "stopped"})
 SNAPSHOT_UNAVAILABLE_WARNING = "Snapshot was unavailable while evaluating close readiness."
@@ -23,15 +23,16 @@ def close_readiness_fields(
     continuous_watcher: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     warnings = [] if snapshot_available else [SNAPSHOT_UNAVAILABLE_WARNING]
-    active_work = bool(block_message) or state in ACTIVE_CLOSE_STATES or not snapshot_available
+    # Unknown is an authority failure, not evidence that work has stopped.
+    active_work = bool(block_message) or state in ACTIVE_CLOSE_STATES or not snapshot_available or state == "unknown"
     if not active_work and state not in NON_BLOCKING_CLOSE_STATES:
         active_work = True
     if block_message:
         reason = block_message
-    elif active_work:
-        reason = f"Shell close blocked because current pipeline state is {state}."
     elif state == "unknown":
         reason = UNKNOWN_CLOSE_READINESS_REASON
+    elif active_work:
+        reason = f"Shell close blocked because current pipeline state is {state}."
     else:
         reason = NO_ACTIVE_WORK_REASON
     return {

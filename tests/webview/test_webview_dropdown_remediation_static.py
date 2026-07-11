@@ -44,7 +44,14 @@ class WebViewDropdownRemediationStaticTests(unittest.TestCase):
         self.assertIn(".enhanced-choice-card:has(input:focus-visible)", css)
 
     def test_queue_strategy_selector_has_visible_radio_cards(self) -> None:
-        js = read_static("assets/queueView.js")
+        js = "\n".join(
+            read_static(path)
+            for path in (
+                "assets/queue/strategy.js",
+                "assets/queue/controls.js",
+                "assets/queueView.js",
+            )
+        )
         partial = read_static("partials/page-queue.html")
         css = read_css("assets/styles.queue.css")
         self.assertIn("enhanceQueueStrategySelector", js)

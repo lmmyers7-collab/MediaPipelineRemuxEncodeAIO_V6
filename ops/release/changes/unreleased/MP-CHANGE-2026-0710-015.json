@@ -1,0 +1,35 @@
+{
+  "id": "MP-CHANGE-2026-0710-015",
+  "title": "Clarify lifecycle evidence and Tauri shutdown",
+  "version_target": "2026.07.10.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "high",
+  "date_started": "2026-07-10",
+  "date_completed": "2026-07-10",
+  "summary": "Require backend shutdown acknowledgement before Tauri force-close can terminate its child tree.",
+  "reason": "Prevent transport failures from becoming authorization to kill active backend work.",
+  "affected_areas": [
+    "operator-evidence",
+    "tauri"
+  ],
+  "behavior_before": "A confirmed native close could terminate a live backend after unavailable shutdown transport.",
+  "behavior_after": "Tauri retains an unacknowledged backend and blocks shell close; evidence docs/inventory include recovery state.",
+  "files_touched": [
+    "apps/desktop/tauri/src-tauri/src/backend_process.rs",
+    "apps/desktop/tauri/src-tauri/src/lib.rs",
+    "docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md",
+    "docs/inventories/API_ROUTE_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-015.json",
+    "tests/python/desktop/test_application_facade_local_api_lifecycle.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_local_api_lifecycle.py"
+  ],
+  "manual_validation": [
+    "Tauri check/build and targeted shutdown tests passed."
+  ],
+  "rollback_plan": "Revert Rust close behavior only with a documented operator decision on abandoned backend handling.",
+  "related_changes": [],
+  "notes": "Tauri now retains an unacknowledged backend and route inventory exposes recovery state."
+}

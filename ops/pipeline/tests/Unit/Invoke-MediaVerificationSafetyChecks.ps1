@@ -103,6 +103,15 @@ function global:Invoke-FFprobeCommand {
                 Stopped = $false
             }
         }
+        'remux-topology-drift' {
+            return [pscustomobject]@{
+                ExitCode = 0
+                Output = '{"streams":[{"index":0,"codec_name":"h264","width":3840,"height":2160,"pix_fmt":"yuv420p","color_primaries":"bt709","color_transfer":"bt709","color_space":"bt709","disposition":{"attached_pic":0}}]}'
+                Error = ''
+                TimedOut = $false
+                Stopped = $false
+            }
+        }
         default {
             return [pscustomobject]@{ ExitCode = 1; Output = ''; Error = 'ffprobe failed'; TimedOut = $false; Stopped = $false }
         }
@@ -159,6 +168,15 @@ Assert-Equal ([int]$preservedOutput.SourceCount) 2 'Preserved-output source coun
 Assert-Equal ([int]$preservedOutput.OutputCount) 2 'Preserved-output output count mismatch.'
 
 $script:VideoInventoryProbeByPath = @{
+    'source-single-topology.mkv' = 'single'
+    'output-single-topology.mkv' = 'remux-topology-drift'
+}
+$topologyDrift = Test-OutputVideoStreamPreservation -SourcePath 'source-single-topology.mkv' -OutputPath 'output-single-topology.mkv' -Route 'remux'
+Assert-True (-not [bool]$topologyDrift.Allowed) 'Equal video counts must not accept remux codec/color topology drift.'
+Assert-Equal ([string]$topologyDrift.ErrorCode) 'OUTPUT_VIDEO_STREAM_TOPOLOGY_MISMATCH' 'Topology drift should use the dedicated output topology error code.'
+Assert-True (@($topologyDrift.Mismatches).Count -gt 0) 'Topology drift should emit bounded mismatch evidence.'
+
+$script:VideoInventoryProbeByPath = @{
     'source-multi.mkv' = 'multi'
     'output-single.mkv' = 'single'
 }
@@ -180,6 +198,27 @@ $outputProbeFailure = Test-OutputVideoStreamPreservation -SourcePath 'source-sin
 Assert-True (-not [bool]$outputProbeFailure.Allowed) 'Output probe failure must fail closed before publish.'
 Assert-Equal ([string]$outputProbeFailure.ErrorCode) 'OUTPUT_VIDEO_STREAM_PROBE_FAILED' 'Output probe failure should use the output-probe error code.'
 $script:VideoInventoryProbeByPath = @{}
+
+function Get-SourceHdr10MasteringMetadata {
+    param([string] $FilePath)
+    if ($FilePath -eq 'hdr-source.mkv') {
+        return [pscustomobject]@{ Known = $true; HasMasterDisplay = $true; MasterDisplay = 'G(1,2)B(3,4)R(5,6)WP(7,8)L(1000,1)'; HasMaxCll = $true; MaxCll = '1000,400'; Reason = '' }
+    }
+    if ($FilePath -eq 'hdr-output-good.mkv') {
+        return [pscustomobject]@{ Known = $true; HasMasterDisplay = $true; MasterDisplay = 'G(1,2)B(3,4)R(5,6)WP(7,8)L(1000,1)'; HasMaxCll = $true; MaxCll = '1000,400'; Reason = '' }
+    }
+    return [pscustomobject]@{ Known = $false; HasMasterDisplay = $false; MasterDisplay = ''; HasMaxCll = $false; MaxCll = ''; Reason = 'missing output side data' }
+}
+$hdrSourceInventory = [pscustomobject]@{ Ok = $true; RealVideoStreams = @([pscustomobject]@{ PixFmt = 'yuv420p10le'; ColorPrimaries = 'bt2020'; ColorTransfer = 'smpte2084'; ColorSpace = 'bt2020nc' }) }
+$hdrOutputGoodInventory = [pscustomobject]@{ Ok = $true; RealVideoStreams = @([pscustomobject]@{ PixFmt = 'p010le'; ColorPrimaries = 'bt2020'; ColorTransfer = 'smpte2084'; ColorSpace = 'bt2020nc' }) }
+$hdrOutputBadInventory = [pscustomobject]@{ Ok = $true; RealVideoStreams = @([pscustomobject]@{ PixFmt = 'yuv420p'; ColorPrimaries = 'bt2020'; ColorTransfer = 'smpte2084'; ColorSpace = 'bt2020nc' }) }
+$hdr10Good = Test-Hdr10OutputMetadataPreservation -SourcePath 'hdr-source.mkv' -OutputPath 'hdr-output-good.mkv' -SourceInventory $hdrSourceInventory -OutputInventory $hdrOutputGoodInventory
+Assert-True ([bool]$hdr10Good.Allowed) "HDR10 output with matching 10-bit/PQ/mastering facts should pass. Reason: $($hdr10Good.Reason)"
+$hdr10Bad = Test-Hdr10OutputMetadataPreservation -SourcePath 'hdr-source.mkv' -OutputPath 'hdr-output-bad.mkv' -SourceInventory $hdrSourceInventory -OutputInventory $hdrOutputBadInventory
+Assert-True (-not [bool]$hdr10Bad.Allowed) 'HDR10 output with 8-bit or absent mastering facts must fail closed.'
+Assert-Equal ([string]$hdr10Bad.ErrorCode) 'HDR10_OUTPUT_METADATA_MISMATCH' 'HDR10 mismatch must use the publish-blocking error code.'
+Assert-True (@($hdr10Bad.Mismatches).Count -ge 2) 'HDR10 mismatch evidence must identify bit depth and missing source metadata.'
+
 
 $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ('mp-existing-output-' + [guid]::NewGuid().ToString('N'))
 [System.IO.Directory]::CreateDirectory($tempDir) | Out-Null
@@ -240,8 +279,13 @@ Assert-True ($remuxText -match 'Test-SourceVideoStreamPublishPolicy') 'Remux mus
 Assert-True ($encodeText -match 'Test-SourceVideoStreamPublishPolicy') 'Encode must run source video stream policy before FFmpeg publish.'
 Assert-True ($remuxText -match 'Test-OutputVideoStreamPreservation') 'Remux must verify output real-video stream preservation before publish.'
 Assert-True ($encodeText -match 'Test-OutputVideoStreamPreservation') 'Encode must verify output real-video stream preservation before publish.'
+Assert-True ($remuxText -match 'Test-MediaTrackOutputVerification') 'Remux must verify resolved audio/subtitle output topology before publish.'
+Assert-True ($encodeText -match 'Test-MediaTrackOutputVerification') 'Encode must verify resolved audio/subtitle output topology before publish.'
 Assert-True ($encodeText -match 'SUBTITLE_BURN_MULTI_VIDEO_UNSUPPORTED') 'Encode must fail closed when subtitle burn-in would collapse multiple real video streams.'
 Assert-True ($remuxText -match 'REMUX_AUDIO_TID_MAPPING_FAILED') 'Remux must fail closed when audio TID probing cannot cover expected tracks.'
 Assert-True ($remuxText -notmatch 'skipping explicit default-track flags') 'Remux must not publish after skipping explicit audio default-track flags.'
+
+$moduleLoaderText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\module_loader.ps1') -Raw
+Assert-True ($moduleLoaderText -match 'MediaTrackVerification\.ps1') 'Engine module loader must source output media-track verification before encode/remux verification.'
 
 Write-Host 'Media verification safety checks passed.'

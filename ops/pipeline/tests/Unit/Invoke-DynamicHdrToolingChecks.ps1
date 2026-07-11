@@ -574,6 +574,7 @@ try {
     Assert-Equal $verificationOk.output_dovi_bl_compat_id 1 'Dynamic HDR output verification should capture DoVi BL compatibility id.'
     Assert-True ([bool]$verificationOk.output_hdr10plus_present) 'Dynamic HDR output verification should capture HDR10+ presence.'
     Assert-Equal $verificationOk.expected_frame_count 42 'Dynamic HDR output verification should preserve expected RPU frame-count evidence.'
+    Assert-Equal $verificationOk.rpu_frame_count 0 'Dynamic HDR output verification must not claim an output RPU count that it did not measure.'
 
     $script:DynamicHdrOutputHdr10PlusState = [pscustomobject][ordered]@{
         Known = $true

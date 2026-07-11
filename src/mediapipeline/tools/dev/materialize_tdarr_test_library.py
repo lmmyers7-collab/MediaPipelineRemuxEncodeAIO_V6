@@ -403,7 +403,7 @@ def render_config(template_path: Path, library_root: Path) -> str:
         "FinalLibraryPromotionCleanupAfterVerified": ps_bool(False),
         "FinalLibraryPromotionOverwriteExisting": ps_bool(False),
         "OutputContainer": ps_quote("mkv"),
-        "DynamicHdrPolicy": ps_quote("warn"),
+        "DynamicHdrPolicy": ps_quote("preserve_or_review"),
         "EncodeLadder": ps_quote("auto"),
         "ValidExtensions": ps_array(VALID_EXTENSIONS),
     }

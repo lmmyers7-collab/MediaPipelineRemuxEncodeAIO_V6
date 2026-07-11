@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from mediapipeline.core.kernel.dto_inventory import PendingPublishPreviewDto
+
 from .pending_contracts import (
     PENDING_DRAIN_CONFIDENCE_SCHEMA_VERSION,
     PENDING_FILE_INVENTORY_SCHEMA_VERSION,
@@ -12,8 +14,8 @@ from .pending_contracts import (
     PENDING_PUBLISH_RECOVERY_PLAN_COMMAND,
     PENDING_PUBLISH_RECOVERY_PLAN_SCHEMA_VERSION,
     PENDING_PUBLISH_SERVICE_UNAVAILABLE_MESSAGE,
-    _command_result,
-    _json_safe,
+    _command_result,  # noqa: F401 - re-exported for pending_open_policy compatibility.
+    _json_safe,  # noqa: F401 - re-exported for pending_open_policy compatibility.
     _pending_publish_preview_dto,
 )
 

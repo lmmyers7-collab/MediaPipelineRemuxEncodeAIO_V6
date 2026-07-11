@@ -1,0 +1,37 @@
+{
+  "id": "MP-CHANGE-2026-0710-031",
+  "title": "Preserve route-less queue row open keys",
+  "version_target": "2026.07.10.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-10",
+  "date_completed": "2026-07-10",
+  "summary": "Preserves the delimiter-terminated backend row key used by route-less blocked queue rows, so their safe source open actions resolve normally.",
+  "reason": "Python's generic whitespace trim removed the terminal unit-separator field delimiter from a queue key with an empty route name. The backend then could not match the exact snapshot row.",
+  "affected_areas": [
+    "docs",
+    "queue",
+    "release",
+    "tests"
+  ],
+  "behavior_before": "Open Source, Open Source Folder, and Open Source Root reported that the selected row was unavailable for route-less blocked rows such as the 12v2 source.",
+  "behavior_after": "The API preserves the complete backend-issued row key and opens allowlisted source targets for route-less blocked rows without accepting frontend file paths.",
+  "files_touched": [
+    "docs/generated/summaries/src/mediapipeline/core/queue/facade.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_queue.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-031.json",
+    "src/mediapipeline/core/queue/facade.py",
+    "tests/python/desktop/test_application_facade_queue.py"
+  ],
+  "tests_added": [
+    "Application facade regression for opening a queue row whose route name is empty and whose row key ends in the unit-separator delimiter."
+  ],
+  "manual_validation": [
+    "Inspected the Local API command journal: ordinary routed rows opened successfully while the route-less 12v2 key was truncated only by request normalization.",
+    "Passed: python -m unittest tests.python.desktop.test_application_facade_queue tests.python.desktop.test_api_command_journal_policy tests.python.desktop.test_api_handler_policy -q (35 tests). Generated summaries refreshed for the two changed sources. Strict repository change validation remains blocked by unrelated pre-existing invalid/uncovered packets."
+  ],
+  "rollback_plan": "Revert the queue row-key normalization and its regression fixture; this change does not mutate source media or queue state.",
+  "related_changes": [],
+  "notes": "Python impact: restricts transport whitespace trimming for an opaque queue identity; no media, filesystem, or queue mutation behavior changed.\nPreserve the trailing row-key delimiter for route-less queue rows.\nCover opening a blocked route-less queue row whose key ends in the field delimiter.\nRecord the queue row-key bug fix and validation evidence.\nRefresh generated queue facade summary after the row-key fix.\nRefresh generated test summary after adding the route-less row regression."
+}

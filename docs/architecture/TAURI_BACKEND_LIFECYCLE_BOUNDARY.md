@@ -127,15 +127,24 @@ behavior changes still require representative real-media revalidation.
   │   [operator closes window]
   │
   ├─ GET /api/backend/close-readiness → if active work: prompt operator
-  ├─ POST /api/backend/shutdown
+  ├─ POST /api/backend/shutdown → require backend acknowledgement
   ├─ wait up to 3 seconds for process exit
-  ├─ if still running: terminate process tree
+  ├─ if acknowledged but still running: terminate process tree
+  ├─ if transport/acknowledgement fails: retain backend and block shell close
   └─ shell exits
 ```
 
 ---
 
 ## Reference To Existing Implementation
+
+## Durable Lifecycle Evidence (2026-07-10)
+
+- `unknown`, stale, malformed, unavailable, and recovery-in-progress close evidence is unsafe. Neither the WebView nor Tauri may convert an authority failure into a safe close.
+- Backend process launches hold an atomic durable lifecycle lease under backend state. The lease carries the command ID, resource claims, child PID, heartbeat, and one-shot recovery descriptor; an ambiguous lease blocks a new launch and shell close.
+- Critical lifecycle/media routes persist strict `accepted` evidence before mutation and strict terminal evidence after it. A terminal-journal failure creates an indeterminate marker that blocks close/retry until reconciliation.
+- Startup exposes `GET /api/backend/recovery-status` and reconciles lifecycle state before the watch-folder manager starts. Only a proven no-media/plan boundary may auto-resume once; partial or ambiguous media/manifests remain parked.
+- A confirmed native force-close still requires backend acknowledgement. Tauri retains a live backend if its shutdown transport fails or the backend declines the request; it does not use transport failure as permission to tree-kill work.
 
 - Tauri shell Rust source: `apps/desktop/tauri/src-tauri/src/lib.rs`
 - Single-instance guard: `apps/desktop/tauri/src-tauri/src/single_instance_guard.rs`

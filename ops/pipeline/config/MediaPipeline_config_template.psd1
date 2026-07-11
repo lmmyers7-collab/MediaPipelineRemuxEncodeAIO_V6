@@ -54,7 +54,7 @@
     VideoPreset = 'p7'
     VideoQuality = 22
     OutputContainer = 'mkv'
-    DynamicHdrPolicy = 'warn'
+    DynamicHdrPolicy = 'preserve_or_review'
     DoviToolPath = ''
     Hdr10PlusToolPath = ''
     EncodeTuningPreset = 'balanced_nvenc'
@@ -71,7 +71,7 @@
     Tx3gExtractLanguages = @('eng', 'en', 'und')
     Tx3gPreserveExistingSrt = $true
     Tx3gTreatForcedAsSeparate = $true
-    ConvertBdpgsToSrt = $false
+    ConvertBdpgsToSrt = $true
     DropBdpgsAfterConversion = $false
     BdpgsExtractLanguages = @('eng', 'en', 'und')
     BdpgsOcrToolPath = 'tools\PgsToSrt\PgsToSrt.exe'

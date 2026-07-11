@@ -99,6 +99,14 @@ LOCAL_API_STATUS_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
     },
     {
         "method": "GET",
+        "path": "/api/backend/recovery-status",
+        "auth_required": True,
+        "effect": "none",
+        "response_schema": "desktop_lifecycle_recovery.v1",
+        "purpose": "Read backend-owned lifecycle recovery classification, one-shot resume evidence, and required operator action.",
+    },
+    {
+        "method": "GET",
         "path": "/api/ui-preferences",
         "auth_required": True,
         "effect": "none",

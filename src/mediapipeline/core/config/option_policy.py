@@ -97,7 +97,7 @@ def validate_option_config(values: dict[str, Any], errors: list[str], warnings: 
     if encode_waste_guard_mode not in ENCODE_WASTE_GUARD_MODE_NAMES:
         errors.append(f"EncodeWasteGuardMode must be one of: {', '.join(ENCODE_WASTE_GUARD_MODE_NAMES)}.")
 
-    dynamic_hdr_policy = str(values.get(KEY_DYNAMIC_HDR_POLICY, "warn") or "warn").strip().lower()
+    dynamic_hdr_policy = str(values.get(KEY_DYNAMIC_HDR_POLICY, "preserve_or_review") or "preserve_or_review").strip().lower()
     if dynamic_hdr_policy not in DYNAMIC_HDR_POLICY_NAMES:
         errors.append(f"DynamicHdrPolicy must be one of: {', '.join(DYNAMIC_HDR_POLICY_NAMES)}.")
 

@@ -20,8 +20,10 @@ def startup_step(
     status: str = "complete",
     detail: str = "",
     source: str = "local_api_main",
-) -> dict[str, str]:
-    return {
+    duration_ms: float | None = None,
+    elapsed_ms: float | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
         "id": str(step_id),
         "label": str(label),
         "status": str(status or "unknown"),
@@ -29,6 +31,11 @@ def startup_step(
         "source": str(source or "local_api_main"),
         "updated_at": startup_timestamp(),
     }
+    if duration_ms is not None:
+        payload["duration_ms"] = round(max(0.0, float(duration_ms)), 1)
+    if elapsed_ms is not None:
+        payload["elapsed_ms"] = round(max(0.0, float(elapsed_ms)), 1)
+    return payload
 
 
 def startup_progress_payload(steps: list[dict[str, Any]] | None = None) -> dict[str, Any]:

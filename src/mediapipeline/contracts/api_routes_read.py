@@ -120,7 +120,6 @@ LOCAL_API_STATUS_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
             "schedule_override",
             "extra_args",
             "allow_extra_args",
-            "refresh_encoder_capability_report",
             "library_root",
             "include_sidecars",
             "csv_path",
@@ -137,7 +136,7 @@ LOCAL_API_STATUS_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         ],
         "allowed_targets": ["pipeline", "audit", "rerun"],
         "response_schema": "desktop_launch_preflight.v1",
-        "purpose": "Read backend-authored launch preflight checks for pipeline, audit, or CSV rerun. Pipeline preflight refreshes the backend-owned encoder capability diagnostic JSON only when refresh_encoder_capability_report=true; it does not reserve locks, launch work, write control flags, mutate config, or touch media files.",
+        "purpose": "Read backend-authored launch preflight checks for pipeline, audit, or CSV rerun. This route is strictly read-only: it does not reserve locks, launch work, write control flags, regenerate capability evidence, mutate config, or touch media files.",
     },
     {
         "method": "GET",

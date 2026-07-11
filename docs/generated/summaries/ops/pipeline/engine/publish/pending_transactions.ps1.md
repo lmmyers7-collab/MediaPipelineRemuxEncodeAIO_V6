@@ -3,14 +3,14 @@ file: ops/pipeline/engine/publish/pending_transactions.ps1
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6a354425b66efd3b4ae0260d9d9c95b8576ed7139d64125f598329fb6ecd897e
+sha256: 7e319e87d0ccf4ec480fbf6bf15edcc13e76b147390c4481038cc4f5ec8ee1d8
 ---
 # `ops/pipeline/engine/publish/pending_transactions.ps1`
 
 **Purpose:** (no .SYNOPSIS block)
 
-**Functions:** `Get-FileLengthOrNull`, `New-PublishTransactionId`
+**Functions:** `Get-FileLengthOrNull`, `Get-PendingFileSha256OrNull`, `New-PublishTransactionId`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/engine/publish/pending_transactions.ps1`._

@@ -711,7 +711,9 @@ def _browser_settings_launch_runner_source() -> str:
               expression: `Boolean(document.readyState === "complete" && document.getElementById("settings-patch-json") && document.getElementById("launch-settings-intent-summary") && typeof window.renderSettings === "function" && typeof window.externalDependencyRows === "function" && typeof window.markSettingsPatchTouched === "function" && typeof window.getCommandHistory === "function" && typeof window.mediaPipelineLaunchView.renderAllLaunchPreflights === "function")`,
               returnByValue: true,
             });
-            if (ready.result?.value !== true) throw new Error("Settings/Launch WebView globals or DOM nodes did not become ready.");
+            if (ready.result?.value !== true) {
+              throw new Error(`Settings/Launch WebView globals or DOM nodes did not become ready. ${client.exceptions.concat(client.consoleEvents).join("; ")}`);
+            }
             const result = await client.send("Runtime.evaluate", {
               expression: settingsLaunchScript({
                 settings: payload.settings,

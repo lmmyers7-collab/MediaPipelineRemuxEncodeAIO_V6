@@ -20,22 +20,28 @@ NETWORK_JS = STATIC_ROOT / "assets" / "networkView.js"
 NETWORK_BUILDER_JS = STATIC_ROOT / "assets" / "settingsView.builders.network.js"
 STYLES_PAGES_CSS = STATIC_ROOT / "assets" / "styles.pages.css"
 NETWORK_CHILD_ASSET_NAMES = (
-    "network/state.js",
-    "network/shared.js",
+    "network/configDiagnostics.js",
     "network/config.js",
-    "network/contract.js",
-    "network/status.js",
+    "network/queueProjection.js",
+    "network/overviewTiles.js",
+    "network/overviewModel.js",
+    "network/lifecycleContract.js",
+    "network/stateFiles.js",
     "network/readiness.js",
-    "network/lifecycle.model.js",
     "network/lifecycle.view.js",
+    "network/status.js",
+    "network/lifecycle.model.js",
+    "network/lifecycle.results.js",
     "network/lifecycle.commands.js",
     "network/setup.commands.js",
     "network/settingsHandoff.js",
     "network/openHistory.js",
-    "network/stateFiles.js",
+    "network/evidence.js",
     "network/workers.model.js",
     "network/workers.view.js",
     "network/roleDashboard.js",
+    "network/rerunEvidence.js",
+    "network/events.js",
 )
 NETWORK_ASSET_NAMES = (*NETWORK_CHILD_ASSET_NAMES, "networkView.js")
 
@@ -97,7 +103,7 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
             [
                 "Network Command Board",
                 "Worker Board",
-                "Network CSV Rerun",
+                "Network CSV Rerun Status",
                 "Coordinator At A Glance",
                 "Worker At A Glance",
                 "Join Worker to Cluster",
@@ -130,7 +136,10 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
 
     def test_workers_page_distinguishes_saved_and_persisted_state_labels(self) -> None:
         network_html = _network_page_html()
-        network_view_js = NETWORK_JS.read_text(encoding="utf-8")
+        network_view_js = "\n".join((
+            (NETWORK_JS.parent / "network" / "rerunEvidence.js").read_text(encoding="utf-8"),
+            NETWORK_JS.read_text(encoding="utf-8"),
+        ))
 
         for expected in (
             "Network Command Board",
@@ -240,7 +249,7 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
             "Cancel",
             "Confirm command",
             "All",
-            "Needs Attention",
+            "Active or needs attention",
             "Active Work",
             "Idle",
             "Stale/Failed",
@@ -300,6 +309,7 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
                 or "data-network-future-control=" in attrs
                 or "data-network-test-connection" in attrs
                 or "data-network-worker-view" in attrs
+                or 'id="network-open-queue-rerun-button"' in attrs
             ):
                 continue
             self.assertTrue(any(item in attrs for item in allowed_setting_ids), attrs)

@@ -16,6 +16,10 @@ class ResolvedPaths:
     powershell_host: str | None
     local_base: Path | None = None
     state_root: Path | None = None
+    # Service-owned mutable roots. Productized launches keep these outside the
+    # portable bundle while development launches retain their local layout.
+    runtime_state_root: Path | None = None
+    run_logs_root: Path | None = None
     active_jobs_path: Path | None = None
     app_state_path: Path | None = None
     source_movies: Path | None = None

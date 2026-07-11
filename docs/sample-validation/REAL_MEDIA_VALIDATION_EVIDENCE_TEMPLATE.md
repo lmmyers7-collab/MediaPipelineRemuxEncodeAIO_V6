@@ -200,6 +200,26 @@ Publish Reconciliation check (`GET /api/publish-reconciliation` via Completed pa
 
 ---
 
+## Policy Proof Pack And Primary Plex Client
+
+Complete this section when the change affects routing, subtitles, audio, Dynamic
+HDR, encoders, source/scratch/output movement, or pending publish. The Policy
+Proof Pack is a required strict gate for applicable categories; its owned-media
+sources remain outside this repository.
+
+| Field | Value |
+|---|---|
+| Policy Proof Pack run ID | |
+| Strict report path | |
+| Applicable fixture categories passed | |
+| Explicit not-applicable categories and effective-config reason | |
+| Primary Plex client label | |
+| Primary-client Direct Play/transcode observation | |
+| Primary-client HDR indicator observation | |
+| Primary-client subtitle/audio/chapter observation | |
+
+---
+
 ## Diagnostics State After Run
 
 | Field | Value |

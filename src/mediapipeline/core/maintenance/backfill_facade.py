@@ -63,7 +63,7 @@ class MaintenanceBackfillFacadeMixin:
 
     def _maintenance_checkpoint_path(self, stem: str) -> Path:
         app_root = self._optional_path(getattr(self.service, "app_root", None)) or Path.cwd()
-        run_logs = app_root / "RunLogs"
+        run_logs = self._optional_path(getattr(self.service, "run_logs_root", None)) or (app_root / "RunLogs")
         try:
             run_logs.mkdir(parents=True, exist_ok=True)
             root = run_logs

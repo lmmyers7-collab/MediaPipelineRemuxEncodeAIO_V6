@@ -68,11 +68,14 @@ function Get-ProbeCacheIdentity {
 }
 
 function Get-ProbeCachePath {
-    param($FileInfo)
+    param(
+        $FileInfo,
+        [string] $Identity = ''
+    )
 
     if (-not $script:ProbeCacheRoot -or $null -eq $FileInfo) { return $null }
 
-    $identity = Get-ProbeCacheIdentity $FileInfo
+    $identity = if ([string]::IsNullOrWhiteSpace($Identity)) { Get-ProbeCacheIdentity $FileInfo } else { $Identity }
     if ([string]::IsNullOrWhiteSpace($identity)) { return $null }
 
     $hash = Get-Sha256Hex $identity
@@ -136,14 +139,22 @@ function Clear-ProbeCache {
 }
 
 function Get-ProbeCacheEntry {
-    param($FileInfo)
+    param(
+        $FileInfo,
+        [string] $Identity = ''
+    )
 
     if ($script:AuditRebuildProbeCache) {
         $script:ProbeCacheMissCount++
         return $null
     }
 
-    $cachePath = Get-ProbeCachePath $FileInfo
+    $resolvedIdentity = if ([string]::IsNullOrWhiteSpace($Identity)) { Get-ProbeCacheIdentity $FileInfo } else { $Identity }
+    if ([string]::IsNullOrWhiteSpace($resolvedIdentity)) {
+        $script:ProbeCacheMissCount++
+        return $null
+    }
+    $cachePath = Get-ProbeCachePath -FileInfo $FileInfo -Identity $resolvedIdentity
     if (-not $cachePath -or -not (Test-Path -LiteralPath $cachePath)) {
         $script:ProbeCacheMissCount++
         return $null
@@ -157,10 +168,9 @@ function Get-ProbeCacheEntry {
         return $null
     }
 
-    $expectedIdentity = Get-ProbeCacheIdentity $FileInfo
     if (([string]$cache.cache_schema_version) -ne $script:ProbeCacheSchemaVersion -or
         ([string]$cache.ffprobe_field_set_version) -ne $script:ProbeCacheFieldSetVersion -or
-        ([string]$cache.source_identity) -ne $expectedIdentity) {
+        ([string]$cache.source_identity) -ne $resolvedIdentity) {
         $script:ProbeCacheMissCount++
         return $null
     }
@@ -182,12 +192,15 @@ function Get-ProbeCacheEntry {
 function Save-ProbeCacheEntry {
     param(
         $FileInfo,
-        $ProbeData
+        $ProbeData,
+        [string] $Identity = ''
     )
 
     if ($null -eq $FileInfo -or $null -eq $ProbeData) { return }
 
-    $cachePath = Get-ProbeCachePath $FileInfo
+    $resolvedIdentity = if ([string]::IsNullOrWhiteSpace($Identity)) { Get-ProbeCacheIdentity $FileInfo } else { $Identity }
+    if ([string]::IsNullOrWhiteSpace($resolvedIdentity)) { return }
+    $cachePath = Get-ProbeCachePath -FileInfo $FileInfo -Identity $resolvedIdentity
     if (-not $cachePath) { return }
 
     $payload = [pscustomobject]@{
@@ -195,7 +208,7 @@ function Save-ProbeCacheEntry {
         ffprobe_field_set_version = $script:ProbeCacheFieldSetVersion
         cached_at              = (Get-Date -Format 'o')
         source_path            = $FileInfo.FullName
-        source_identity        = Get-ProbeCacheIdentity $FileInfo
+        source_identity        = $resolvedIdentity
         data                   = $ProbeData
     }
 
@@ -246,14 +259,15 @@ function Invoke-FfprobeJson {
 function Invoke-FfprobeJsonCached {
     param($FileInfo)
 
-    $cached = Get-ProbeCacheEntry -FileInfo $FileInfo
+    $identity = Get-ProbeCacheIdentity -FileInfo $FileInfo
+    $cached = Get-ProbeCacheEntry -FileInfo $FileInfo -Identity $identity
     if ($cached) {
         return $cached
     }
 
     $probe = Invoke-FfprobeJson -FilePath $FileInfo.FullName
     if ($probe.Success -and $probe.Data) {
-        Save-ProbeCacheEntry -FileInfo $FileInfo -ProbeData $probe.Data
+        Save-ProbeCacheEntry -FileInfo $FileInfo -ProbeData $probe.Data -Identity $identity
     }
     return $probe
 }

@@ -319,6 +319,12 @@ The worksheet helper is documentation-only. It writes Markdown evidence under `d
 
 Expected evidence: Queue route reason, FFmpeg stderr/run log, Completed output/sidecar, subtitle and audio decision, size-growth policy, Pending Publish state or drain summary.
 
+For output-verification changes, also retain source/output ffprobe stream and
+frame-side-data JSON, verifier mismatch/acceptance evidence, and the selected
+audio/subtitle policy plan. Preservation-policy Dynamic HDR remux evidence must
+show source and output Dolby Vision/HDR10+ probe results; it must not claim RPU
+frame equality unless a separate tool measurement produced that evidence.
+
 This rung is the only rung that proves FFmpeg behavior. No smoke test, no unit test, and no release gate replaces it.
 
 ---

@@ -30,7 +30,13 @@ function Assert-Match {
 
 Assert-True (Test-Path -LiteralPath $rerunScript -PathType Leaf) "Rerun script missing: $rerunScript"
 
-$text = Get-Content -LiteralPath $rerunScript -Raw
+$text = (@(
+        'ops\pipeline\engine\rerun\entry_support.ps1',
+        'ops\pipeline\engine\rerun\evidence.ps1',
+        'ops\pipeline\engine\rerun\planning.ps1',
+        'ops\pipeline\engine\rerun\publish.ps1',
+        'ops\pipeline\entrypoints\Invoke-RerunCsv.ps1'
+    ) | ForEach-Object { Get-Content -LiteralPath (Join-Path $repoRoot $_) -Raw }) -join "`n"
 
 Assert-Match $text 'function Get-RerunStopAfterCurrentRequest' 'Stop marker reader is missing.'
 Assert-Match $text 'function Update-RerunManifestCounts' 'Manifest count helper is missing.'

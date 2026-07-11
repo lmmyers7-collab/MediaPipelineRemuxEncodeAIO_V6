@@ -14,6 +14,7 @@ GET_ROUTE_HANDLERS: dict[str, RouteHandlerSpec] = {
     "/api/diagnostics/tdarr-matrix/runs": RouteHandlerSpec("_tdarr_matrix_runs_payload"),
     "/api/diagnostics/tdarr-matrix/compare": RouteHandlerSpec("_tdarr_matrix_compare_payload", needs_query=True),
     "/api/backend/close-readiness": RouteHandlerSpec("_close_readiness_payload"),
+    "/api/backend/recovery-status": RouteHandlerSpec("_backend_recovery_status_payload"),
     "/api/ui-preferences": RouteHandlerSpec("_ui_preferences_payload"),
     "/api/launch/preflight": RouteHandlerSpec("_launch_preflight_payload", needs_query=True),
     "/api/commands": RouteHandlerSpec("_command_history_payload", needs_query=True),

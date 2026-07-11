@@ -20,6 +20,7 @@ $repoRoot = Split-Path -Parent (Split-Path -Parent $pipelineRoot)
 . (Join-Path $repoRoot 'ops\pipeline\engine\audit\policy.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\entrypoints\Audit-MediaLibrary\path_utilities.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\audit\reports.ps1')
+$auditEntrypoint = Join-Path $repoRoot 'ops\pipeline\entrypoints\Audit-MediaLibrary.ps1'
 
 function Assert-True {
     param([bool] $Condition, [string] $Message)
@@ -49,6 +50,12 @@ function Assert-SequenceEqual {
         }
     }
 }
+
+Assert-True (Test-Path -LiteralPath $auditEntrypoint -PathType Leaf) "Audit entrypoint missing: $auditEntrypoint"
+$auditEntrypointText = Get-Content -LiteralPath $auditEntrypoint -Raw
+Assert-True ($auditEntrypointText -match 'Tx3gEmbeddedSrtInvalidCount\s+=\s+0') 'Audit result factory must initialize Tx3gEmbeddedSrtInvalidCount before the audit updates it.'
+Assert-True ($auditEntrypointText -match 'AUDIT_TX3G_RESULT_REPAIRED') 'Audit must log a stable recovery code when a legacy audit record is missing the TX3G count field.'
+Assert-True ($auditEntrypointText -match 'Add-Member\s+-InputObject\s+\$result\s+-MemberType\s+NoteProperty\s+-Name\s+Tx3gEmbeddedSrtInvalidCount') 'Audit must repair a missing TX3G count field instead of aborting the audit item.'
 
 Assert-Equal (Get-RelativePathSafe -RootPath 'C:\Media' -FullPath 'C:\Media\Movie.mkv') 'Movie.mkv' 'Relative path did not trim a real child path.'
 Assert-Equal (Get-RelativePathSafe -RootPath 'C:\Media' -FullPath 'C:\MediaBackup\Movie.mkv') 'C:\MediaBackup\Movie.mkv' 'Relative path crossed a sibling root with the same string prefix.'

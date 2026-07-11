@@ -5,6 +5,68 @@ function Normalize-MediaPipelineReleaseRelativePath {
     return (($RelativePath -replace '/', '\').TrimStart('\'))
 }
 
+function Find-MediaPipelineReleaseContentFinding {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$RelativePath,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Content
+    )
+
+    $checks = @(
+        @{ Pattern = '(?i)[a-z]:[\\/]+users[\\/]'; Label = 'user-profile path' },
+        @{ Pattern = '(?i)(?:%localappdata%|%appdata%|appdata[\\/]+local[\\/]+temp)'; Label = 'AppData or temp path' },
+        @{ Pattern = '(?<!\\)\\\\[^\\\s]+\\[^\\\s]+'; Label = 'UNC path' },
+        @{ Pattern = '(?i)authorization\s*:\s*bearer\s+(?![<{])[^\s"'']{8,}'; Label = 'bearer token' },
+        @{ Pattern = '(?i)-----BEGIN(?: [A-Z]+)? PRIVATE KEY-----'; Label = 'private key material' },
+        @{ Pattern = '(?i)\b(?:password|credential|secret|workerauthtoken)\b\s*[:=]\s*["''][^"'']{8,}["'']'; Label = 'credential-like assignment' }
+    )
+    $opsRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    $allowlistPath = Join-Path $opsRoot 'release\metadata\release_content_allowlist.json'
+    $allowlist = @()
+    if (Test-Path -LiteralPath $allowlistPath -PathType Leaf) {
+        try { $allowlist = @((Get-Content -LiteralPath $allowlistPath -Raw | ConvertFrom-Json).entries) } catch { throw "Release content allowlist is invalid: $allowlistPath" }
+    }
+    foreach ($check in $checks) {
+        $matches = [regex]::Matches($Content, $check.Pattern)
+        foreach ($match in $matches) {
+            $allowed = @($allowlist | Where-Object {
+                $_.relative_path -eq $RelativePath -and
+                $_.pattern -and
+                $_.reason -and
+                $_.expires_on -and
+                [datetime]$_.expires_on -ge (Get-Date) -and
+                [regex]::IsMatch([string]$match.Value, [string]$_.pattern)
+            }).Count -gt 0
+            if ($allowed) { continue }
+            return "$($check.Label) in $RelativePath"
+        }
+    }
+    return $null
+}
+
+function Test-MediaPipelineReleaseContentScanEligible {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$RelativePath)
+
+    $relative = Normalize-MediaPipelineReleaseRelativePath -RelativePath $RelativePath
+    if ($relative -like 'docs\*') { return $true }
+    if ($relative -like 'ops\pipeline\config\*') { return $true }
+    # Executable/runtime source is protected by the file-hash manifest. Text
+    # privacy scanning is intentionally scoped to human/configuration content
+    # where a literal live value is meaningful rather than a language example.
+    return $false
+}
+
+function Test-MediaPipelineReleaseContentAllowed {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$RelativePath,
+        [Parameter(Mandatory)][string]$Content
+    )
+
+    return $null -eq (Find-MediaPipelineReleaseContentFinding -RelativePath $RelativePath -Content $Content)
+}
+
 function Get-MediaPipelineReleaseExclusionReason {
     [CmdletBinding()]
     param(
@@ -80,6 +142,12 @@ function Get-MediaPipelineReleaseExclusionReason {
     if ($relative -like 'docs\RealMediaValidationRuns\*' -and $name -ne 'README.md') { return 'operator real-media validation evidence omitted' }
     if ($relative -like 'docs\PG3CleanMachineReports\*') { return 'operator clean-machine validation evidence omitted' }
     if ($relative -like 'docs\reviews\*') { return 'active review/audit ledger omitted' }
+    if ($relative -like 'ops\release\changes\unreleased\*') { return 'unreleased change record omitted' }
+    if ($relative -like 'docs\generated\summaries\ops\release\changes\unreleased\*') { return 'unreleased change record summary omitted' }
+    if ($relative -eq 'docs\REMEDIATION_CHANGELOG.md') { return 'historical remediation ledger omitted' }
+    if ($relative -eq 'docs\CURRENT_PROJECT_STATE.md') { return 'volatile project status omitted' }
+    if ($relative -eq 'docs\OPEN_WORK_CHECKLIST.md') { return 'developer backlog omitted' }
+    if ($relative -eq 'docs\inventories\TEST_SUITE_SUBSYSTEM_INVENTORY.md') { return 'developer test inventory omitted' }
     if ($relative -like 'docs\archive\root-artifacts\*') { return 'local assistant root artifact' }
 
     if ($relative -like 'Pipeline\*.log' -or $relative -like 'Pipeline\*.tmp' -or $relative -like 'Pipeline\*.bak') { return 'pipeline runtime artifact' }

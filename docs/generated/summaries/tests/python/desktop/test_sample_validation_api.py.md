@@ -3,9 +3,9 @@ file: tests/python/desktop/test_sample_validation_api.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-13
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 69840428b7bb25b9911c849c87f096926d320761cbdd7072af04cc6084de4385
+sha256: ef8ad0ead84a362c7ba417f381e22c2671f23dcd8cbbadc9c5225ba7b8b249e4
 ---
 # `tests/python/desktop/test_sample_validation_api.py`
 

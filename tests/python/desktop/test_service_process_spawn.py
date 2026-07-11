@@ -52,6 +52,22 @@ class ProcessSpawnHelperTests(unittest.TestCase):
             self.assertEqual(paths.stdout_log.name, "run_20260508_123001_234567_1234.stdout.log")
             self.assertEqual(paths.stderr_log.name, "run_20260508_123001_234567_1234.stderr.log")
 
+    def test_build_spawn_log_paths_accepts_product_runtime_root(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            package_root = Path(td) / "Package" / "apps" / "desktop"
+            appdata_run_logs = Path(td) / "AppData" / "MediaPipelineRemuxEncodeAIO" / "RunLogs"
+
+            paths = build_spawn_log_paths(
+                package_root,
+                run_logs_root=appdata_run_logs,
+                app_pid=4321,
+                now=datetime(2026, 5, 8, 12, 30, 1, 234567),
+            )
+
+            self.assertTrue(appdata_run_logs.exists())
+            self.assertFalse((package_root / "RunLogs").exists())
+            self.assertEqual(paths.stdout_log.parent, appdata_run_logs)
+
     def test_launch_cwd_prefers_existing_workspace_root(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             app_root = Path(td) / "DesktopApp"

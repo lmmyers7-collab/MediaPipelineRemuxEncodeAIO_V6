@@ -76,6 +76,16 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
 
         self.assertIn("/api/health", payload["auth"]["public_routes"])
+
+    def test_contract_payload_declares_stage_dispatcher_orchestration_only(self) -> None:
+        payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
+        dispatcher = payload["stage_dispatcher_contract"]
+
+        self.assertEqual(dispatcher["current_status"], "orchestration_only_no_local_api_mutation_route")
+        self.assertFalse(dispatcher["frontend_allowed"])
+        self.assertEqual(dispatcher["enabled_mutation_stages"], ["ingest"])
+        self.assertIn("transcode", dispatcher["permanently_disabled_stages"])
+        self.assertIn("No generic execute arbitrary stage API.", dispatcher["must_not"])
         self.assertIn("/api/pipeline/start", payload["auth"]["token_routes"])
         self.assertGreater(len(payload["routes"]), 10)
         self.assertGreaterEqual(len(payload["network_lifecycle_contracts"]), 3)
@@ -89,8 +99,13 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertIn("extra_args", query_keys)
         self.assertIn("allow_extra_args", query_keys)
         self.assertIn("single_file", query_keys)
-        self.assertIn("refresh_encoder_capability_report", query_keys)
+        self.assertNotIn("refresh_encoder_capability_report", query_keys)
         self.assertEqual(routes["/api/launch/preflight"]["effect"], "none")
+        refresh = routes["/api/diagnostics/encoder-capabilities/refresh"]
+        self.assertEqual(refresh["method"], "POST")
+        self.assertEqual(refresh["effect"], "diagnostics-artifact-write")
+        self.assertEqual(refresh["request_keys"], [])
+        self.assertIn("does not launch", refresh["purpose"].casefold())
 
     def test_completed_contract_advertises_query_fields(self) -> None:
         routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}

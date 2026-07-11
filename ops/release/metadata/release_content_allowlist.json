@@ -1,0 +1,35 @@
+{
+  "schema_version": "mediapipeline_release_content_allowlist.v1",
+  "entries": [
+    {
+      "relative_path": "docs\\architecture\\ARCHITECTURE.md",
+      "pattern": "%LOCALAPPDATA%",
+      "reason": "Reviewed documentation of the product-owned runtime location; this is a literal environment-variable example, not a live path.",
+      "expires_on": "2027-07-10"
+    },
+    {
+      "relative_path": "docs\\architecture\\LOCAL_API_SECURITY_SURFACE.md",
+      "pattern": "Authorization: Bearer <token>",
+      "reason": "Reviewed authentication-header syntax example; it contains no credential value.",
+      "expires_on": "2027-07-10"
+    },
+    {
+      "relative_path": "docs\\architecture\\MODULE_MAP.md",
+      "pattern": "%LOCALAPPDATA%",
+      "reason": "Reviewed product-runtime documentation literal; it is not a live user profile path.",
+      "expires_on": "2027-07-10"
+    },
+    {
+      "relative_path": "docs\\inventories\\STATE_FILE_SCHEMA_REFERENCE.md",
+      "pattern": "%LOCALAPPDATA%",
+      "reason": "Reviewed schema documentation literal for the per-user settings authority.",
+      "expires_on": "2027-07-10"
+    },
+    {
+      "relative_path": "docs\\operator\\PRIVATE_BETA_INSTALL_UPDATE_RUNBOOK.md",
+      "pattern": "%LOCALAPPDATA%",
+      "reason": "Reviewed operator instruction uses an environment-variable placeholder, not a machine-specific path.",
+      "expires_on": "2027-07-10"
+    }
+  ]
+}

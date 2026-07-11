@@ -3,9 +3,9 @@ file: ops/pipeline/engine/process/encode_fallback.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-30
+last_modified: 2026-07-10
 last_reviewed: 2026-06-24
-sha256: 72152476ada265ced0fa4d3749accdbdd0bcb73a98335916561018e4e42f04b7
+sha256: 137f5c72d5485d167d1732462f426b72c77070b3828c90e26dd16c92b0cd5e6e
 ---
 # `ops/pipeline/engine/process/encode_fallback.ps1`
 

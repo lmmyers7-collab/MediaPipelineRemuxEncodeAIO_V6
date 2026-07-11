@@ -3,9 +3,9 @@ file: src/mediapipeline/core/completed/contracts.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: completed
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: 9f89d0819be097a1f1673cc789e498e01a162d6475a8fa1a1a6bb87e739aeb5f
+sha256: 5bdce55683e9c3950c86a11b4c5e781bd349bd79e9f9510b529683380f315c76
 ---
 # `src/mediapipeline/core/completed/contracts.py`
 

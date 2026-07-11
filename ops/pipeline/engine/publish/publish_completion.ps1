@@ -14,6 +14,56 @@ function Get-PendingParkResultOutputSize {
     return 0L
 }
 
+function Get-SubtitleConversionEvidenceValue {
+    param($Value, [Parameter(Mandatory)] [string] $Name, $Default = $null)
+
+    if ($null -eq $Value) { return $Default }
+    if ($Value -is [System.Collections.IDictionary] -and $Value.Contains($Name)) { return $Value[$Name] }
+    $property = $Value.PSObject.Properties[$Name]
+    if ($property) { return $property.Value }
+    return $Default
+}
+
+function New-NormalizedSubtitleConversionResults {
+    param(
+        [array] $Tracks = @(),
+        [array] $Candidates = @(),
+        [string] $DefaultOutputLocation = 'embedded'
+    )
+
+    $result = [System.Collections.Generic.List[object]]::new()
+    $records = if (@($Candidates).Count -gt 0) { @($Candidates) } else { @($Tracks) }
+    foreach ($record in $records) {
+        $streamInfo = Get-SubtitleConversionEvidenceValue -Value $record -Name 'StreamInfo' -Default $record
+        $stream = Get-SubtitleConversionEvidenceValue -Value $streamInfo -Name 'Stream' -Default $null
+        $sourceIndex = Get-SubtitleConversionEvidenceValue -Value $record -Name 'source_stream_index' -Default $null
+        if ($null -eq $sourceIndex -and $stream) { $sourceIndex = Get-SubtitleConversionEvidenceValue -Value $stream -Name 'index' -Default -1 }
+        try { $sourceIndex = [int]$sourceIndex } catch { $sourceIndex = -1 }
+        $conversionKind = [string](Get-SubtitleConversionEvidenceValue -Value $record -Name 'ConversionKind' -Default (Get-SubtitleConversionEvidenceValue -Value $record -Name 'conversion_kind' -Default ''))
+        $sourceKind = [string](Get-SubtitleConversionEvidenceValue -Value $record -Name 'SourceSubtitleKind' -Default (Get-SubtitleConversionEvidenceValue -Value $record -Name 'source_subtitle_kind' -Default 'subtitle'))
+        $sourceCodec = [string](Get-SubtitleConversionEvidenceValue -Value $record -Name 'SourceSubtitleCodec' -Default (Get-SubtitleConversionEvidenceValue -Value $record -Name 'source_codec' -Default ''))
+        $selected = [bool](Get-SubtitleConversionEvidenceValue -Value $record -Name 'selected' -Default $true)
+        $location = if (@($Candidates).Count -gt 0) { 'external_sidecar' } else { $DefaultOutputLocation }
+        $result.Add([pscustomobject][ordered]@{
+            schema_version = 'subtitle_conversion_result.v1'
+            source_stream_identity = if ($sourceIndex -ge 0) { "stream:$sourceIndex" } else { 'sidecar' }
+            source_stream_index = $sourceIndex
+            source_subtitle_kind = $sourceKind
+            source_codec = $sourceCodec
+            output_subtitle_kind = 'srt'
+            action = $conversionKind
+            original_preserved = [bool](Get-SubtitleConversionEvidenceValue -Value $record -Name 'OriginalPreserved' -Default (Get-SubtitleConversionEvidenceValue -Value $record -Name 'original_preserved' -Default $false))
+            original_preserve_reason = [string](Get-SubtitleConversionEvidenceValue -Value $record -Name 'OriginalPreserveReason' -Default (Get-SubtitleConversionEvidenceValue -Value $record -Name 'original_preserve_reason' -Default ''))
+            generated_cue_count = [int](Get-SubtitleConversionEvidenceValue -Value $record -Name 'CueCount' -Default (Get-SubtitleConversionEvidenceValue -Value $record -Name 'cue_count' -Default 0))
+            expected_output_location = $location
+            sidecar_candidate_selected = $selected
+            sidecar_reduction_reason = [string](Get-SubtitleConversionEvidenceValue -Value $record -Name 'reduction_reason' -Default '')
+            failure_code = ''
+        }) | Out-Null
+    }
+    return @($result)
+}
+
 function Complete-PipelineOutputPublish {
     param(
         [Parameter(Mandatory)] $SourceFile,
@@ -45,6 +95,8 @@ function Complete-PipelineOutputPublish {
     $routePlanMetadata = $publishEvidence.RoutePlanMetadata
     $sidecarMediaType = $publishEvidence.MediaType
     $libraryProfileEvidence = $publishEvidence.LibraryProfileEvidence
+    $subtitleConversionResults = New-NormalizedSubtitleConversionResults -Tracks @(@($Tx3gTracks) + @($BdpgsTracks) + @($VobSubTracks)) -Candidates @($ConvertedSrtSidecarCandidates) -DefaultOutputLocation $(if ([System.IO.Path]::GetExtension($Paths.ServerOut).TrimStart('.').ToLowerInvariant() -in @('mp4','m4v','mov')) { 'external_sidecar' } else { 'embedded' })
+    $script:LastSubtitleConversionResults = @($subtitleConversionResults)
 
     if ($script:DeferredPublish) {
         Set-ProgressStage -Stage 'push' -Status $script:pipelineStatus -Route $ProgressRoute -PushState 'deferred' -Percent 100 -SaveNow
@@ -193,6 +245,7 @@ function Complete-PipelineOutputPublish {
         encode_selected_gpu_device = if ($selectedEncodeAttempt) { [string]$selectedEncodeAttempt.selected_gpu_device } else { '' }
         audio_decisions        = if (Get-Command -Name Get-LastAudioDecisionRecords -ErrorAction SilentlyContinue) { @(Get-LastAudioDecisionRecords) } else { @() }
         subtitle_decisions     = if (Get-Command -Name Get-LastSubtitleDecisionRecords -ErrorAction SilentlyContinue) { @(Get-LastSubtitleDecisionRecords) } else { @() }
+        subtitle_conversion_results = @($subtitleConversionResults)
         source_identity        = $sourceIdentity
         source_identity_v2     = $sourceIdentityV2
         source_identity_v2_algorithm = $script:SourceIdentityV2Algorithm
@@ -220,7 +273,23 @@ function Complete-PipelineOutputPublish {
     }
     if ($libraryProfileEvidence) { $sidecarExtra['library_profile'] = $libraryProfileEvidence }
     if ($folderPolicyMetadata) { $sidecarExtra['folder_policy'] = $folderPolicyMetadata }
-    if ($script:CurrentDynamicHdrEvidence) { $sidecarExtra['dynamic_hdr'] = $script:CurrentDynamicHdrEvidence }
+    if ($script:CurrentDynamicHdrEvidence) {
+        $dynamicHdrEvidence = $script:CurrentDynamicHdrEvidence
+        $dynamicHdrEvidence | Add-Member -NotePropertyName 'profile_support' -NotePropertyValue ([ordered]@{
+            schema_version = 'dynamic_hdr_profile_support.v1'
+            validation_scope = 'metadata_only'
+            source_profile = [int]$dynamicHdrEvidence.dovi_profile
+            source_container = [System.IO.Path]::GetExtension($SourceFile.FullName).TrimStart('.').ToLowerInvariant()
+            target_profile = if ($dynamicHdrEvidence.PSObject.Properties['x265_artifacts']) { [string]$dynamicHdrEvidence.x265_artifacts.target_dovi_profile } else { '' }
+            playback_device_validated = $false
+            expansion_requires = @('source_hash','tool_artifacts','output_ffprobe_side_data','format_artifact_comparison','representative_playback_validation')
+        }) -Force
+        $sidecarExtra['dynamic_hdr'] = $dynamicHdrEvidence
+    }
+    if ($script:LastMediaVerification) { $sidecarExtra['media_verification'] = $script:LastMediaVerification }
+    if ($script:LastMediaTrackVerification) { $sidecarExtra['media_track_verification'] = $script:LastMediaTrackVerification }
+    if ($script:LastAudioVerification) { $sidecarExtra['audio_verification'] = $script:LastAudioVerification }
+    if ($script:LastSubtitleVerification) { $sidecarExtra['subtitle_verification'] = $script:LastSubtitleVerification }
     if ($script:LastQualityVerification) { $sidecarExtra['quality_verification'] = $script:LastQualityVerification }
     if (Get-Command -Name Add-MediaRoutePlanMetadataToMap -ErrorAction SilentlyContinue) {
         Add-MediaRoutePlanMetadataToMap -Map $sidecarExtra -Metadata $routePlanMetadata | Out-Null

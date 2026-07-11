@@ -1,0 +1,36 @@
+{
+  "id": "MP-CHANGE-2026-0710-030",
+  "title": "Retain desktop shell during audit child exit",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-10",
+  "date_completed": "2026-07-10",
+  "summary": "Prevents a direct Tauri exit request from closing the desktop shell when the backend refuses or cannot confirm a safe shutdown during active work such as an audit.",
+  "reason": "An audit launch exited abnormally and the desktop application closed even though Windows remained healthy. The direct app-exit path requested safe backend shutdown but did not prevent the native exit when shutdown was blocked or unavailable.",
+  "affected_areas": [
+    "generated-context",
+    "lifecycle",
+    "tests"
+  ],
+  "behavior_before": "RunEvent::ExitRequested always allowed the native Tauri process to exit after requesting safe backend shutdown, even when the backend reported active work or the shutdown request failed.",
+  "behavior_after": "RunEvent::ExitRequested prevents native exit unless backend-owned safe shutdown is acknowledged; blocked or failed shutdown keeps the desktop shell open while active work remains protected.",
+  "files_touched": [
+    "apps/desktop/tauri/src-tauri/src/lib.rs",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/lib.rs.md",
+    "docs/generated/summaries/tests/python/desktop/test_tauri_shell_scaffold.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-030.json",
+    "tests/python/desktop/test_tauri_shell_scaffold.py"
+  ],
+  "tests_added": [
+    "test_tauri_shell_uses_safe_only_shutdown_for_unconfirmed_exit_paths asserts that direct exit requests prevent native shell shutdown when backend shutdown is blocked or fails."
+  ],
+  "manual_validation": [
+    "Observed the audit start, its abnormal child-process disappearance, and desktop-backend closure without a corresponding Windows reboot, bugcheck, or application-fault event.",
+    "Tauri prereq/import CheckOnly passed."
+  ],
+  "rollback_plan": "Revert the RunEvent::ExitRequested branch in apps/desktop/tauri/src-tauri/src/lib.rs and restore the prior static lifecycle assertion if the shell must permit direct exit despite an unsafe backend state.",
+  "related_changes": [],
+  "notes": "Track desktop audit-close investigation and lifecycle hardening.\nPrevent direct Tauri exit requests from closing the shell when safe backend shutdown is blocked or unavailable.\nCover direct-exit prevention when backend shutdown is unsafe.\nRefresh lifecycle shell summary after direct-exit guard change.\nRefresh regression-test summary after shell exit coverage update.\nValidation: targeted Python lifecycle static test passed; cargo test --lib backend_lifecycle_monitor passed (and compiled the Tauri library); start-tauri-preview.bat -CheckOnly passed.\nFull test_tauri_shell_scaffold remains blocked by pre-existing dirty-workspace route-contract drift. cargo fmt --check reports pre-existing formatting drift in unrelated Tauri files. Python impact: test-only assertion update; no Local API, media policy, filesystem mutation, or source/scratch/output behavior changed."
+}

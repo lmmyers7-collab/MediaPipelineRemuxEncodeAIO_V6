@@ -1095,6 +1095,8 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
             source = root / "TV" / "Show" / "Season 01" / "Show - S01E01.mkv"
             source.parent.mkdir(parents=True)
             source.write_bytes(b"media")
+            route_less_source = root / "TV" / "Show" / "Season 01" / "Show - S01E12v2.mkv"
+            route_less_source.write_bytes(b"media")
             excluded_source = root / "Movies" / "Already There.mkv"
             excluded_source.parent.mkdir(parents=True)
             excluded_source.write_bytes(b"media")
@@ -1156,7 +1158,27 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
                                 "season_number": 1,
                                 "episode_number": 1,
                                 "last_write_utc": "2026-05-07T21:00:00Z",
-                            }
+                            },
+                            {
+                                "global_order": 2,
+                                "phase": "tv",
+                                "media_kind": "tv",
+                                "queue_index": 2,
+                                "queue_total": 2,
+                                "is_priority": False,
+                                "source_path": str(route_less_source),
+                                "root_path": str(source_root),
+                                "relative_path": "Show\\Season 01\\Show - S01E12v2.mkv",
+                                "display_name": "Show - S01E12v2.mkv",
+                                "size_gb": 1.25,
+                                "route": "",
+                                "route_reason_code": "tv_parse_unreliable",
+                                "route_reason": "TV parse is unreliable.",
+                                "blocked_reason": "TV parse is unreliable.",
+                                "season_number": 1,
+                                "episode_number": 0,
+                                "last_write_utc": "2026-05-07T21:00:00Z",
+                            },
                         ],
                     }
                 ),
@@ -1169,8 +1191,10 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
 
             preview = facade.get_queue_preview(resolved)
             row_key = preview.rows[0]["row_key"]
+            route_less_row_key = preview.rows[1]["row_key"]
             excluded_row_key = preview.excluded_rows[0]["row_key"]
             opened = facade.open_queue_location(resolved, {"row_key": row_key, "target": "source_folder"})
+            opened_route_less = facade.open_queue_location(resolved, {"row_key": route_less_row_key, "target": "source_file"})
             opened_excluded = facade.open_queue_location(resolved, {"row_key": excluded_row_key, "row_scope": "excluded", "target": "source_root"})
             rejected = facade.open_queue_location(resolved, {"row_key": row_key, "target": str(root / "secret.txt")})
             rejected_scope = facade.open_queue_location(resolved, {"row_key": excluded_row_key, "row_scope": "secret", "target": "source_file"})
@@ -1181,11 +1205,15 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
         self.assertEqual(opened.data["target"], "source_folder")
         self.assertEqual(opened.data["row_scope"], "runnable")
         self.assertEqual(opened.data["path"], str(source.parent))
+        self.assertTrue(route_less_row_key.endswith("\x1f"))
+        self.assertTrue(opened_route_less.ok)
+        self.assertEqual(opened_route_less.data["target"], "source_file")
+        self.assertEqual(opened_route_less.data["path"], str(route_less_source))
         self.assertTrue(opened_excluded.ok)
         self.assertEqual(opened_excluded.data["target"], "source_root")
         self.assertEqual(opened_excluded.data["row_scope"], "excluded")
         self.assertEqual(opened_excluded.data["path"], str(movie_root))
-        self.assertEqual(service.opened_paths, [source.parent, movie_root])
+        self.assertEqual(service.opened_paths, [source.parent, route_less_source, movie_root])
         self.assertFalse(rejected.ok)
         self.assertIn("not allowed", rejected.message)
         self.assertFalse(rejected_scope.ok)

@@ -25,6 +25,14 @@ def resolve_paths_for_service(service: PathResolutionServiceProtocol, pipeline_p
         rerun_script_path=service.default_rerun_script_path(),
         powershell_host=service.resolve_powershell_host(),
     )
+    runtime_roots = getattr(service, "product_runtime_roots", None) or {}
+    resolved.runtime_state_root = runtime_roots.get("state_root")
+    resolved.run_logs_root = getattr(service, "run_logs_root", None)
+    if resolved.runtime_state_root is not None:
+        # This is a productized fallback only. A configured LocalBase remains
+        # authoritative for media state and replaces this value below.
+        resolved.state_root = resolved.runtime_state_root
+        resolved.app_state_path = app_state_path_for_state_root(resolved.state_root)
 
     authority_loader = getattr(service, "load_settings_authority", None)
     if callable(authority_loader):
@@ -131,7 +139,7 @@ def resolve_paths_for_service(service: PathResolutionServiceProtocol, pipeline_p
             resolved.config_identity["snapshot_error"] = str(exc)
 
     if not resolved.audit_reports_path:
-        resolved.audit_reports_path = service.app_root / "AuditReports"
+        resolved.audit_reports_path = (resolved.runtime_state_root or service.app_root) / "AuditReports"
 
     markers = config_data.get(KEY_PRIORITY_MARKERS)
     if isinstance(markers, list) and markers:

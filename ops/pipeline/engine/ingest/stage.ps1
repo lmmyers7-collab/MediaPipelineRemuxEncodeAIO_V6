@@ -28,6 +28,24 @@ function Test-IngestPathEquals {
     return [string]::Equals($leftFull, $rightFull, [System.StringComparison]::OrdinalIgnoreCase)
 }
 
+function Test-IngestPathHasReparsePoint {
+    param([Parameter(Mandatory = $true)] [string] $Path)
+
+    $candidate = Get-IngestFullPath -Path $Path
+    while (-not [string]::IsNullOrWhiteSpace($candidate)) {
+        if (Test-Path -LiteralPath $candidate -ErrorAction SilentlyContinue) {
+            $item = Get-Item -LiteralPath $candidate -Force -ErrorAction Stop
+            if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                return $true
+            }
+        }
+        $parent = Split-Path -Path $candidate -Parent
+        if ([string]::IsNullOrWhiteSpace($parent) -or $parent -eq $candidate) { break }
+        $candidate = $parent
+    }
+    return $false
+}
+
 function ConvertTo-IngestSafeSegment {
     param(
         [Parameter(Mandatory = $true)] [string] $Value,
@@ -62,6 +80,21 @@ function ConvertTo-IngestSafeSegment {
 function Get-IngestSha256 {
     param([Parameter(Mandatory = $true)] [string] $Path)
     return ((Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop).Hash).ToLowerInvariant()
+}
+
+function Get-IngestDryRunFingerprint {
+    param(
+        [Parameter(Mandatory = $true)] [string] $SourcePath,
+        [Parameter(Mandatory = $true)] [string] $ScratchRoot,
+        [Parameter(Mandatory = $true)] [string] $ScratchPath,
+        [Parameter(Mandatory = $true)] [string] $ReservationId,
+        [Parameter(Mandatory = $true)] [string] $SourceHash,
+        [Parameter(Mandatory = $true)] [long] $SourceSize,
+        [Parameter(Mandatory = $true)] [string] $SourceMtime
+    )
+
+    $material = "$SourcePath`n$ScratchRoot`n$ScratchPath`n$ReservationId`n$SourceHash`n$SourceSize`n$SourceMtime"
+    return [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($material))).ToLowerInvariant()
 }
 
 function New-IngestEvidence {
@@ -138,11 +171,18 @@ function Invoke-IngestStage {
     $intent = [string](Require-ObjectValue -Object $Payload -Name 'intent')
     $sourceFull = Get-IngestFullPath -Path $sourcePath
     $scratchRootFull = Get-IngestFullPath -Path $scratchRoot
+    if ($sourceFull.StartsWith('\\') -or $scratchRootFull.StartsWith('\\')) {
+        throw 'ingest UNC paths are not permitted by the guarded stage boundary'
+    }
+    if ((Test-IngestPathHasReparsePoint -Path $sourceFull) -or (Test-IngestPathHasReparsePoint -Path $scratchRootFull)) {
+        throw 'ingest source_path and scratch_root must not traverse a reparse point'
+    }
     $boundaryChecks = @(
         'source is read-only input',
         'scratch target is a child of scratch_root',
         'scratch target refuses overwrite',
-        'evidence path is a child of scratch_root'
+        'evidence path is a child of scratch_root',
+        'source and scratch paths do not traverse reparse points'
     )
 
     if (-not (Test-Path -LiteralPath $sourceFull -PathType Leaf)) {
@@ -164,7 +204,10 @@ function Invoke-IngestStage {
         }
     }
 
-    $identitySeed = [string](Get-ObjectValue -Object $Payload -Name 'job_id' -Default '')
+    $identitySeed = [string](Get-ObjectValue -Object $Payload -Name 'scratch_reservation_id' -Default '')
+    if ([string]::IsNullOrWhiteSpace($identitySeed)) {
+        $identitySeed = [string](Get-ObjectValue -Object $Payload -Name 'job_id' -Default '')
+    }
     if ([string]::IsNullOrWhiteSpace($identitySeed)) {
         $identitySeed = [string](Get-ObjectValue -Object $Payload -Name 'run_id' -Default '')
     }
@@ -188,6 +231,7 @@ function Invoke-IngestStage {
 
     $sourceHashBefore = Get-IngestSha256 -Path $sourceFull
     $sourceMtimeBefore = $sourceFile.LastWriteTimeUtc.ToString('o')
+    $dryRunFingerprint = Get-IngestDryRunFingerprint -SourcePath $sourceFull -ScratchRoot $scratchRootFull -ScratchPath $scratchPath -ReservationId $safeIdentity -SourceHash $sourceHashBefore -SourceSize ([long]$sourceFile.Length) -SourceMtime $sourceMtimeBefore
     $rollbackActions = @(
         "delete scratch_path: $scratchPath",
         "delete evidence_path: $evidencePath",
@@ -209,6 +253,9 @@ function Invoke-IngestStage {
             rollback_actions = @('dry_run only; no rollback needed')
             recovery_actions = @('execute ingest with confirm_ingest=true to create the scratch copy')
             boundary_checks  = @($boundaryChecks)
+            operation_id     = ''
+            scratch_reservation_id = $safeIdentity
+            dry_run_fingerprint = $dryRunFingerprint
         }
     }
 
@@ -218,6 +265,19 @@ function Invoke-IngestStage {
     $confirm = Get-ObjectValue -Object $Payload -Name 'confirm_ingest' -Default $false
     if ($confirm -ne $true) {
         throw "payload field 'confirm_ingest' must be boolean true for ingest execute intent"
+    }
+    $operationId = [string](Get-ObjectValue -Object $Payload -Name 'operation_id' -Default '')
+    $parsedOperationId = [guid]::Empty
+    if (-not [guid]::TryParse($operationId, [ref]$parsedOperationId)) {
+        throw "payload field 'operation_id' must be a UUID for ingest execute intent"
+    }
+    $providedReservation = [string](Get-ObjectValue -Object $Payload -Name 'scratch_reservation_id' -Default '')
+    if ([string]::IsNullOrWhiteSpace($providedReservation) -or $providedReservation -ne $safeIdentity) {
+        throw "payload field 'scratch_reservation_id' did not match the guarded scratch reservation"
+    }
+    $providedFingerprint = [string](Get-ObjectValue -Object $Payload -Name 'dry_run_fingerprint' -Default '')
+    if ($providedFingerprint -ne $dryRunFingerprint) {
+        throw "payload field 'dry_run_fingerprint' did not match the current guarded ingest dry-run"
     }
     if (Test-Path -LiteralPath $scratchPath -PathType Leaf -ErrorAction SilentlyContinue) {
         throw "ingest scratch target already exists; refusing to overwrite: $scratchPath"
@@ -280,6 +340,9 @@ function Invoke-IngestStage {
             rollback_actions = @($rollbackActions)
             recovery_actions = @($recoveryActions)
             boundary_checks  = @($boundaryChecks)
+            operation_id     = $operationId
+            scratch_reservation_id = $safeIdentity
+            dry_run_fingerprint = $dryRunFingerprint
         }
     } catch {
         if (Test-Path -LiteralPath $tmpCopy -PathType Leaf -ErrorAction SilentlyContinue) {

@@ -353,6 +353,16 @@ function Test-PendingManifestCurrentContractFields {
         return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'OUTPUT_SIZE_INVALID' -Reason 'output_size is not an integer in current pending manifest.' -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
     }
 
+    $outputHash = Get-PendingManifestText -Object $Manifest -Name 'output_sha256'
+    $hashAlgorithm = Get-PendingManifestText -Object $Manifest -Name 'output_hash_algorithm'
+    if (-not [string]::IsNullOrWhiteSpace($outputHash)) {
+        if ($outputHash -notmatch '^[A-Fa-f0-9]{64}$' -or $hashAlgorithm -ne 'SHA256') {
+            return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'OUTPUT_HASH_INVALID' -Reason 'output_sha256 must be a SHA256 hexadecimal value when present.' -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
+        }
+    } elseif (-not [string]::IsNullOrWhiteSpace($hashAlgorithm)) {
+        return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'OUTPUT_HASH_INVALID' -Reason 'output_hash_algorithm requires output_sha256.' -Status 'invalid_manifest' -ManifestPath $ManifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
+    }
+
     foreach ($key in @(
         'sidecar_files',
         'tx3g_srt_tracks',
@@ -664,6 +674,55 @@ function Update-PendingManifestRetryState {
     } catch {
         Write-Log "Pending: failed to persist retry state '$State' to manifest $ManifestPath : $_" "WARN"
     }
+}
+
+function Update-PendingManifestDrainAttempt {
+    param(
+        [Parameter(Mandatory)] [string] $ManifestPath,
+        [Parameter(Mandatory)] $Manifest,
+        [Parameter(Mandatory)] [string] $AttemptId,
+        [Parameter(Mandatory)] [string] $Status,
+        [string] $Error = ''
+    )
+
+    $currentManifest = $Manifest
+    if (Test-Path -LiteralPath $ManifestPath -ErrorAction SilentlyContinue) {
+        try { $currentManifest = Read-PendingManifestFile -Path $ManifestPath } catch {}
+    }
+    $map = ConvertTo-PendingManifestMap $currentManifest
+    $map['drain_attempt_id'] = $AttemptId
+    if ($Status -eq 'in_progress') {
+        $map['drain_attempt_started_at'] = (Get-Date -Format 'o')
+        $map['drain_attempt_completed_at'] = ''
+    } else {
+        $map['drain_attempt_completed_at'] = (Get-Date -Format 'o')
+    }
+    $map['drain_attempt_status'] = $Status
+    $map['drain_attempt_error'] = if ($Error.Length -gt 2048) { $Error.Substring(0, 2048) } else { $Error }
+    Write-PendingManifestFile -Path $ManifestPath -Manifest $map | Out-Null
+    return (Read-PendingManifestFile -Path $ManifestPath)
+}
+
+function Update-PendingManifestReplacementEvidence {
+    param(
+        [Parameter(Mandatory)] [string] $ManifestPath,
+        [Parameter(Mandatory)] $Manifest,
+        [bool] $ReplacedExisting,
+        [object] $PriorSize = 0,
+        [string] $PriorSha256 = '',
+        [string] $TransactionId = ''
+    )
+    $currentManifest = $Manifest
+    if (Test-Path -LiteralPath $ManifestPath -ErrorAction SilentlyContinue) {
+        try { $currentManifest = Read-PendingManifestFile -Path $ManifestPath } catch {}
+    }
+    $map = ConvertTo-PendingManifestMap $currentManifest
+    $map['replacement_existing_final'] = [bool]$ReplacedExisting
+    $map['replacement_prior_final_size'] = if ($null -eq $PriorSize) { 0 } else { [long]$PriorSize }
+    $map['replacement_prior_final_sha256'] = [string]$PriorSha256
+    $map['replacement_transaction_id'] = [string]$TransactionId
+    Write-PendingManifestFile -Path $ManifestPath -Manifest $map | Out-Null
+    return (Read-PendingManifestFile -Path $ManifestPath)
 }
 
 function Test-PendingManifestRoundTripValid {

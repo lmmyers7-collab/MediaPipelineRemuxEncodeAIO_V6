@@ -48,6 +48,8 @@ def assert_namespace_export(testcase: unittest.TestCase, source: str, namespace:
 COMMAND_HISTORY_ASSET_ORDER = [
     "/assets/commandHistory/formatters.js",
     "/assets/commandHistory/diagnostics.js",
+    "/assets/commandHistory/diagnosticEvidence.js",
+    "/assets/commandHistory/resolutionChecklist.js",
     "/assets/commandHistory.js",
 ]
 
@@ -580,9 +582,18 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
                 html = response.read().decode("utf-8")
                 content_type = response.headers.get("Content-Type", "")
                 set_cookie = response.headers.get("Set-Cookie", "")
+            with urlopen(f"{server.url}/assets/app/lifecycle/topbar.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                app_lifecycle_topbar_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/app/lifecycle/navigation.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                app_lifecycle_navigation_js = response.read().decode("utf-8")
             with urlopen(f"{server.url}/assets/app/lifecycle.js", timeout=5) as response:  # noqa: S310 - localhost test server
-                app_lifecycle_js = response.read().decode("utf-8")
+                app_lifecycle_parent_js = response.read().decode("utf-8")
                 app_lifecycle_content_type = response.headers.get("Content-Type", "")
+            app_lifecycle_js = "\n".join((
+                app_lifecycle_topbar_js,
+                app_lifecycle_navigation_js,
+                app_lifecycle_parent_js,
+            ))
             with urlopen(f"{server.url}/assets/app/topbar.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 app_topbar_js = response.read().decode("utf-8")
                 app_topbar_content_type = response.headers.get("Content-Type", "")
@@ -595,18 +606,41 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
             with urlopen(f"{server.url}/assets/app/refresh.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 app_refresh_js = response.read().decode("utf-8")
                 app_refresh_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/app/home/dailyDriver.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                app_home_daily_driver_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/app/home/queueProjection.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                app_home_queue_projection_js = response.read().decode("utf-8")
             with urlopen(f"{server.url}/assets/app/home.js", timeout=5) as response:  # noqa: S310 - localhost test server
-                app_home_js = response.read().decode("utf-8")
+                app_home_parent_js = response.read().decode("utf-8")
                 app_home_content_type = response.headers.get("Content-Type", "")
+            app_home_js = "\n".join((app_home_daily_driver_js, app_home_queue_projection_js, app_home_parent_js))
             with urlopen(f"{server.url}/assets/app/homeReadiness.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 app_home_readiness_js = response.read().decode("utf-8")
                 app_home_readiness_content_type = response.headers.get("Content-Type", "")
             with urlopen(f"{server.url}/assets/app/rowOpenActions.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 app_row_open_actions_js = response.read().decode("utf-8")
                 app_row_open_actions_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/app/layoutManager/drawer.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                app_layout_manager_drawer_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/app/layoutManager/normalization.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                app_layout_manager_normalization_js = response.read().decode("utf-8")
             with urlopen(f"{server.url}/assets/app/layoutManager.js", timeout=5) as response:  # noqa: S310 - localhost test server
-                app_layout_manager_js = response.read().decode("utf-8")
+                app_layout_manager_parent_js = response.read().decode("utf-8")
                 app_layout_manager_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/app/uiPreferences.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                app_ui_preferences_js = response.read().decode("utf-8")
+                app_ui_preferences_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/app/lifecycleOrchestration.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                app_lifecycle_orchestration_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/app/refreshCoordinator.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                app_refresh_coordinator_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/app/dashboard.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                app_dashboard_js = response.read().decode("utf-8")
+            app_layout_manager_js = "\n".join((
+                app_layout_manager_drawer_js,
+                app_layout_manager_normalization_js,
+                app_layout_manager_parent_js,
+            ))
             with urlopen(f"{server.url}/assets/app.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 app_parent_js = response.read().decode("utf-8")
                 js_content_type = response.headers.get("Content-Type", "")
@@ -620,6 +654,10 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
                 app_home_readiness_js,
                 app_row_open_actions_js,
                 app_layout_manager_js,
+                app_ui_preferences_js,
+                app_dashboard_js,
+                app_refresh_coordinator_js,
+                app_lifecycle_orchestration_js,
                 app_parent_js,
             ))
             with urlopen(f"{server.url}/assets/apiClient.js", timeout=5) as response:  # noqa: S310 - localhost test server
@@ -663,6 +701,8 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
                 "/assets/completed/evidence/filterScope.js",
                 "/assets/completed/evidence/acceptance.js",
                 "/assets/completed/evidence/routeAgreement.js",
+                "/assets/completed/evidence/pendingProofModel.js",
+                "/assets/completed/evidence/pendingProofView.js",
             ):
                 with urlopen(f"{server.url}{asset_path}", timeout=5) as response:  # noqa: S310 - localhost test server
                     completed_view_evidence_parts.append(response.read().decode("utf-8"))
@@ -671,15 +711,26 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
                 completed_view_evidence_parts.append(response.read().decode("utf-8"))
                 completed_view_evidence_content_type = response.headers.get("Content-Type", "")
             completed_view_evidence_js = "\n".join(completed_view_evidence_parts)
+            with urlopen(f"{server.url}/assets/completed/proof/pilotEvidence.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                completed_view_pilot_evidence_js = response.read().decode("utf-8")
             with urlopen(f"{server.url}/assets/completedView.proof.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 completed_view_proof_js = response.read().decode("utf-8")
                 completed_view_proof_content_type = response.headers.get("Content-Type", "")
+            completed_view_proof_js = "\n".join((
+                completed_view_pilot_evidence_js,
+                completed_view_proof_js,
+            ))
             completed_view_review_asset_paths = [
                 "assets/completed/review/integrity.js",
+                "assets/completed/review/workflowOverview.js",
                 "assets/completed/review/sizeReview.js",
                 "assets/completed/review/healthSignals.js",
                 "assets/completed/review/reviewRows.js",
                 "assets/completed/review/investigationFilters.js",
+                "assets/completed/review/tablePanels.js",
+                "assets/completed/review/metricsValidation.js",
+                "assets/completed/review/selectedAtAGlance.js",
+                "assets/completed/review/selectedEvidence.js",
             ]
             completed_view_review_parts = []
             completed_view_review_child_content_types = {}
@@ -709,9 +760,20 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
             with urlopen(f"{server.url}/assets/completed/table.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 completed_view_table_js = response.read().decode("utf-8")
                 completed_view_table_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/completed/sizeMode.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                completed_view_size_mode_js = response.read().decode("utf-8")
+                completed_view_size_mode_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/completed/presentation.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                completed_view_presentation_js = response.read().decode("utf-8")
+                completed_view_presentation_content_type = response.headers.get("Content-Type", "")
             with urlopen(f"{server.url}/assets/completedView.js", timeout=5) as response:  # noqa: S310 - localhost test server
-                completed_view_js = response.read().decode("utf-8")
+                completed_view_parent_js = response.read().decode("utf-8")
                 completed_view_content_type = response.headers.get("Content-Type", "")
+            completed_view_js = "\n".join((
+                completed_view_size_mode_js,
+                completed_view_presentation_js,
+                completed_view_parent_js,
+            ))
             with urlopen(f"{server.url}/assets/queueView.summary.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 queue_view_summary_js = response.read().decode("utf-8")
                 queue_view_summary_content_type = response.headers.get("Content-Type", "")
@@ -724,6 +786,9 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
             with urlopen(f"{server.url}/assets/queueView.launch.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 queue_view_launch_js = response.read().decode("utf-8")
                 queue_view_launch_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/queue/rerunApi.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                queue_rerun_api_js = response.read().decode("utf-8")
+                queue_rerun_api_content_type = response.headers.get("Content-Type", "")
             with urlopen(f"{server.url}/assets/queueView.rerun.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 queue_view_rerun_js = response.read().decode("utf-8")
                 queue_view_rerun_content_type = response.headers.get("Content-Type", "")
@@ -739,18 +804,50 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
             with urlopen(f"{server.url}/assets/queue/table.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 queue_view_table_js = response.read().decode("utf-8")
                 queue_view_table_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/queue/tabs.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                queue_view_tabs_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/queue/sourceModel.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                queue_view_source_model_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/queue/sourceRender.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                queue_view_source_render_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/queue/decisionSummary.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                queue_view_decision_summary_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/queue/statusPanels.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                queue_view_status_panels_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/queue/tableView.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                queue_view_table_view_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/queue/priority.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                queue_view_priority_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/queue/manualOrder.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                queue_view_manual_order_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/queue/strategy.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                queue_view_strategy_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/queue/controls.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                queue_view_controls_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/queue/excluded.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                queue_view_excluded_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/queue/scan.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                queue_view_scan_js = response.read().decode("utf-8")
             with urlopen(f"{server.url}/assets/queueView.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 queue_view_js = response.read().decode("utf-8")
                 queue_view_content_type = response.headers.get("Content-Type", "")
             with urlopen(f"{server.url}/assets/pendingPublish/summary.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 pending_publish_summary_js = response.read().decode("utf-8")
                 pending_publish_summary_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/pendingPublish/tableSupport.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                pending_publish_table_support_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/pendingPublish/defaultAdapters.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                pending_publish_default_adapters_js = response.read().decode("utf-8")
             with urlopen(f"{server.url}/assets/pendingPublish/details.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 pending_publish_details_js = response.read().decode("utf-8")
                 pending_publish_details_content_type = response.headers.get("Content-Type", "")
             with urlopen(f"{server.url}/assets/pendingPublish/filters.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 pending_publish_filters_js = response.read().decode("utf-8")
                 pending_publish_filters_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/pendingPublish/actionCenter.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                pending_publish_action_center_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/pendingPublish/rendering.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                pending_publish_rendering_js = response.read().decode("utf-8")
             with urlopen(f"{server.url}/assets/pendingPublishView.recovery.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 pending_publish_recovery_js = response.read().decode("utf-8")
                 pending_publish_recovery_content_type = response.headers.get("Content-Type", "")
@@ -760,20 +857,33 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
             with urlopen(f"{server.url}/assets/pendingPublishView.drain.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 pending_publish_drain_js = response.read().decode("utf-8")
                 pending_publish_drain_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/pendingPublish/confidence/postDrainTrust.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                pending_publish_post_drain_trust_js = response.read().decode("utf-8")
             with urlopen(f"{server.url}/assets/pendingPublishView.confidence.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 pending_publish_confidence_js = response.read().decode("utf-8")
                 pending_publish_confidence_content_type = response.headers.get("Content-Type", "")
+            pending_publish_confidence_js = "\n".join((
+                pending_publish_post_drain_trust_js,
+                pending_publish_confidence_js,
+            ))
+            with urlopen(f"{server.url}/assets/pendingPublishView.repair.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                pending_publish_repair_js = response.read().decode("utf-8")
             with urlopen(f"{server.url}/assets/pendingPublishView.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 pending_publish_view_js = response.read().decode("utf-8")
                 pending_publish_view_content_type = response.headers.get("Content-Type", "")
             pending_publish_view_js = "\n".join([
-                pending_publish_summary_js,
-                pending_publish_details_js,
-                pending_publish_filters_js,
                 pending_publish_recovery_js,
                 pending_publish_diagnostics_js,
                 pending_publish_drain_js,
                 pending_publish_confidence_js,
+                pending_publish_repair_js,
+                pending_publish_table_support_js,
+                pending_publish_default_adapters_js,
+                pending_publish_summary_js,
+                pending_publish_filters_js,
+                pending_publish_details_js,
+                pending_publish_action_center_js,
+                pending_publish_rendering_js,
                 pending_publish_view_js,
             ])
             with urlopen(f"{server.url}/assets/crossPageContextView.conflict.js", timeout=5) as response:  # noqa: S310 - localhost test server
@@ -812,22 +922,52 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
             with urlopen(f"{server.url}/assets/renameHistoryView.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 rename_history_view_js = response.read().decode("utf-8")
                 rename_history_view_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/rename/cleaningFilters.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                rename_cleaning_filters_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/rename/cleaningWorkbench.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                rename_cleaning_workbench_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/rename/selection.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                rename_selection_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/rename/paths.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                rename_paths_js = response.read().decode("utf-8")
             with urlopen(f"{server.url}/assets/rename/preview.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 rename_preview_js = response.read().decode("utf-8")
                 rename_preview_content_type = response.headers.get("Content-Type", "")
             with urlopen(f"{server.url}/assets/rename/applyReadiness.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 rename_apply_readiness_js = response.read().decode("utf-8")
                 rename_apply_readiness_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/rename/editing.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                rename_editing_js = response.read().decode("utf-8")
             with urlopen(f"{server.url}/assets/rename/applyResult.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 rename_apply_result_js = response.read().decode("utf-8")
                 rename_apply_result_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/rename/commandEvidence.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                rename_command_evidence_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/rename/previewLifecycle.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                rename_preview_lifecycle_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/rename/interactions.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                rename_interactions_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/rename/confirmSummary.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                rename_confirm_summary_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/rename/dialogs.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                rename_dialogs_js = response.read().decode("utf-8")
             with urlopen(f"{server.url}/assets/renameView.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 rename_view_parent_js = response.read().decode("utf-8")
                 rename_view_content_type = response.headers.get("Content-Type", "")
             rename_view_js = "\n".join((
+                rename_cleaning_filters_js,
+                rename_cleaning_workbench_js,
+                rename_selection_js,
+                rename_paths_js,
                 rename_preview_js,
                 rename_apply_readiness_js,
+                rename_editing_js,
                 rename_apply_result_js,
+                rename_command_evidence_js,
+                rename_preview_lifecycle_js,
+                rename_interactions_js,
+                rename_confirm_summary_js,
+                rename_dialogs_js,
                 rename_view_parent_js,
             ))
             with urlopen(f"{server.url}/assets/settingsOverview.js", timeout=5) as response:  # noqa: S310 - localhost test server
@@ -878,12 +1018,46 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
             with urlopen(f"{server.url}/assets/settings/backendResult.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 settings_backend_result_js = response.read().decode("utf-8")
                 settings_backend_result_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/settings/finalLibraryPromotion.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                settings_final_library_promotion_js = response.read().decode("utf-8")
+                settings_final_library_promotion_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/settings/patchOverview.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                settings_patch_overview_js = response.read().decode("utf-8")
+                settings_patch_overview_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/settings/patchInteractions.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                settings_patch_interactions_js = response.read().decode("utf-8")
+                settings_patch_interactions_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/settings/patchReadiness.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                settings_patch_readiness_js = response.read().decode("utf-8")
+                settings_patch_readiness_content_type = response.headers.get("Content-Type", "")
             with urlopen(f"{server.url}/assets/settings/patchReview.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 settings_patch_review_js = response.read().decode("utf-8")
                 settings_patch_review_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/settings/policyImpact/mediaProjection.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                settings_media_projection_js = response.read().decode("utf-8")
+                settings_media_projection_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/settings/policyImpact/effectivePolicyView.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                settings_effective_policy_view_js = response.read().decode("utf-8")
+                settings_effective_policy_view_content_type = response.headers.get("Content-Type", "")
             with urlopen(f"{server.url}/assets/settings/policyImpact.js", timeout=5) as response:  # noqa: S310 - localhost test server
-                settings_policy_impact_js = response.read().decode("utf-8")
+                settings_policy_impact_parent_js = response.read().decode("utf-8")
                 settings_policy_impact_content_type = response.headers.get("Content-Type", "")
+            settings_policy_impact_js = "\n".join((
+                settings_media_projection_js,
+                settings_effective_policy_view_js,
+                settings_policy_impact_parent_js,
+            ))
+            settings_view_child_parts = []
+            for asset_path in [
+                "assets/settings/view/builder.js",
+                "assets/settings/view/impact.js",
+                "assets/settings/view/review.js",
+                "assets/settings/view/commands.js",
+                "assets/settings/view/lifecycle.js",
+                "assets/settings/view/facade.js",
+            ]:
+                with urlopen(f"{server.url}/{asset_path}", timeout=5) as response:  # noqa: S310 - localhost test server
+                    settings_view_child_parts.append(response.read().decode("utf-8"))
             with urlopen(f"{server.url}/assets/settingsView.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 settings_view_parent_js = response.read().decode("utf-8")
                 settings_view_content_type = response.headers.get("Content-Type", "")
@@ -893,13 +1067,47 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
                 settings_view_raw_triage_js,
                 settings_view_safety_locks_js,
                 settings_backend_result_js,
+                settings_final_library_promotion_js,
+                settings_patch_overview_js,
+                settings_patch_interactions_js,
+                settings_patch_readiness_js,
                 settings_patch_review_js,
                 settings_policy_impact_js,
+                *settings_view_child_parts,
                 settings_view_parent_js,
             ))
+            network_asset_names = (
+                "network/configDiagnostics.js",
+                "network/config.js",
+                "network/queueProjection.js",
+                "network/overviewTiles.js",
+                "network/overviewModel.js",
+                "network/lifecycleContract.js",
+                "network/stateFiles.js",
+                "network/readiness.js",
+                "network/lifecycle.view.js",
+                "network/status.js",
+                "network/lifecycle.model.js",
+                "network/lifecycle.results.js",
+                "network/lifecycle.commands.js",
+                "network/setup.commands.js",
+                "network/settingsHandoff.js",
+                "network/openHistory.js",
+                "network/evidence.js",
+                "network/workers.model.js",
+                "network/workers.view.js",
+                "network/roleDashboard.js",
+                "network/rerunEvidence.js",
+                "network/events.js",
+            )
+            network_child_js = []
+            for network_asset_name in network_asset_names:
+                with urlopen(f"{server.url}/assets/{network_asset_name}", timeout=5) as response:  # noqa: S310 - localhost test server
+                    network_child_js.append(response.read().decode("utf-8"))
             with urlopen(f"{server.url}/assets/networkView.js", timeout=5) as response:  # noqa: S310 - localhost test server
-                network_view_js = response.read().decode("utf-8")
+                network_view_parent_js = response.read().decode("utf-8")
                 network_view_content_type = response.headers.get("Content-Type", "")
+            network_view_js = "\n".join((*network_child_js, network_view_parent_js))
             with urlopen(f"{server.url}/assets/diagnosticsTailView.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 diagnostics_tail_view_js = response.read().decode("utf-8")
                 diagnostics_tail_view_content_type = response.headers.get("Content-Type", "")
@@ -915,6 +1123,12 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
             with urlopen(f"{server.url}/assets/diagnosticsView.investigation.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 diagnostics_view_investigation_js = response.read().decode("utf-8")
                 diagnostics_view_investigation_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/diagnostics/matrixConsole.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                diagnostics_matrix_console_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/diagnostics/triage.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                diagnostics_triage_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/diagnostics/firstResponse.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                diagnostics_first_response_js = response.read().decode("utf-8")
             with urlopen(f"{server.url}/assets/diagnosticsView.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 diagnostics_view_parent_js = response.read().decode("utf-8")
                 diagnostics_view_content_type = response.headers.get("Content-Type", "")
@@ -922,6 +1136,9 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
                 diagnostics_view_active_jobs_js,
                 diagnostics_view_log_js,
                 diagnostics_view_investigation_js,
+                diagnostics_matrix_console_js,
+                diagnostics_triage_js,
+                diagnostics_first_response_js,
                 diagnostics_view_parent_js,
             ))
             with urlopen(f"{server.url}/assets/reportsView.js", timeout=5) as response:  # noqa: S310 - localhost test server
@@ -951,23 +1168,127 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
             with urlopen(f"{server.url}/assets/reports/auditView.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 reports_audit_view_js = response.read().decode("utf-8")
                 reports_audit_view_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/reports/audit/sources.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                reports_audit_sources_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/reports/audit/progress.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                reports_audit_progress_js = response.read().decode("utf-8")
             with urlopen(f"{server.url}/assets/reports/auditCommands.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 reports_audit_commands_js = response.read().decode("utf-8")
                 reports_audit_commands_content_type = response.headers.get("Content-Type", "")
+            reports_audit_commands_js = "\n".join((
+                reports_audit_sources_js,
+                reports_audit_progress_js,
+                reports_audit_commands_js,
+            ))
             with urlopen(f"{server.url}/assets/reports/triage.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 reports_triage_js = response.read().decode("utf-8")
                 reports_triage_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/reports/investigation.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                reports_investigation_js = response.read().decode("utf-8")
+                reports_investigation_content_type = response.headers.get("Content-Type", "")
+            reports_view_parent_js = reports_view_js
+            reports_view_js = "\n".join((
+                reports_state_js,
+                reports_shared_js,
+                reports_shell_js,
+                reports_failure_model_js,
+                reports_failure_commands_js,
+                reports_failure_view_js,
+                reports_audit_model_js,
+                reports_audit_view_js,
+                reports_audit_commands_js,
+                reports_triage_js,
+                reports_investigation_js,
+                reports_view_parent_js,
+            ))
+            with urlopen(f"{server.url}/assets/schedule/watchFolder.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                schedule_watch_folder_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/schedule/editor.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                schedule_editor_js = response.read().decode("utf-8")
             with urlopen(f"{server.url}/assets/scheduleView.js", timeout=5) as response:  # noqa: S310 - localhost test server
-                schedule_view_js = response.read().decode("utf-8")
+                schedule_view_parent_js = response.read().decode("utf-8")
                 schedule_view_content_type = response.headers.get("Content-Type", "")
+            schedule_view_js = "\n".join((
+                schedule_watch_folder_js,
+                schedule_editor_js,
+                schedule_view_parent_js,
+            ))
+            with urlopen(f"{server.url}/assets/maintenance/changeLedger.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                maintenance_change_ledger_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/maintenance/health.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                maintenance_health_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/maintenance/dryRunReadiness.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                maintenance_dry_run_readiness_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/maintenance/releaseCommands.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                maintenance_release_commands_js = response.read().decode("utf-8")
             with urlopen(f"{server.url}/assets/maintenanceView.js", timeout=5) as response:  # noqa: S310 - localhost test server
-                maintenance_view_js = response.read().decode("utf-8")
+                maintenance_view_parent_js = response.read().decode("utf-8")
                 maintenance_view_content_type = response.headers.get("Content-Type", "")
+            maintenance_view_js = "\n".join((
+                maintenance_change_ledger_js,
+                maintenance_health_js,
+                maintenance_dry_run_readiness_js,
+                maintenance_release_commands_js,
+                maintenance_view_parent_js,
+            ))
+            with urlopen(f"{server.url}/assets/telemetry/gpuProjection.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                telemetry_gpu_projection_js = response.read().decode("utf-8")
+                telemetry_gpu_projection_content_type = response.headers.get("Content-Type", "")
             with urlopen(f"{server.url}/assets/telemetryView.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 telemetry_view_js = response.read().decode("utf-8")
                 telemetry_view_content_type = response.headers.get("Content-Type", "")
+            telemetry_view_parent_js = telemetry_view_js
+            telemetry_view_js = "\n".join((telemetry_gpu_projection_js, telemetry_view_parent_js))
+            with urlopen(f"{server.url}/assets/progress/diagnostics.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                progress_diagnostics_js = response.read().decode("utf-8")
+                progress_diagnostics_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/progress/barState.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                progress_bar_state_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/progress/barPresentation.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                progress_bar_presentation_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/progress/audit.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                progress_audit_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/progress/details.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                progress_details_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/progress/evidenceRows.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                progress_evidence_rows_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/progress/worker.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                progress_worker_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/progress/ffmpegEta.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                progress_ffmpeg_eta_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/progress/evidence.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                progress_evidence_js = response.read().decode("utf-8")
+                progress_evidence_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/progress/activeWork.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                progress_active_work_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/progress/liveRun.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                progress_live_run_js = response.read().decode("utf-8")
+                progress_live_run_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/progress/csvRerun.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                progress_csv_rerun_js = response.read().decode("utf-8")
+                progress_csv_rerun_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/progress/timelineCore.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                progress_timeline_core_js = response.read().decode("utf-8")
+            with urlopen(f"{server.url}/assets/progress/timelineView.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                progress_timeline_view_js = response.read().decode("utf-8")
             with urlopen(f"{server.url}/assets/progressView.js", timeout=5) as response:  # noqa: S310 - localhost test server
-                progress_view_js = response.read().decode("utf-8")
+                progress_view_js = "\n".join((
+                    progress_bar_state_js,
+                    progress_bar_presentation_js,
+                    progress_audit_js,
+                    progress_details_js,
+                    progress_evidence_rows_js,
+                    progress_worker_js,
+                    progress_ffmpeg_eta_js,
+                    progress_diagnostics_js,
+                    progress_evidence_js,
+                    progress_active_work_js,
+                    progress_csv_rerun_js,
+                    progress_timeline_core_js,
+                    progress_live_run_js,
+                    progress_timeline_view_js,
+                    response.read().decode("utf-8"),
+                ))
                 progress_view_content_type = response.headers.get("Content-Type", "")
             with urlopen(f"{server.url}/assets/launchReadinessView.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 launch_readiness_view_js = response.read().decode("utf-8")
@@ -992,21 +1313,34 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
                 launch_view_risk_parts.append(response.read().decode("utf-8"))
                 launch_view_risk_content_type = response.headers.get("Content-Type", "")
             launch_view_risk_js = "\n".join(launch_view_risk_parts)
+            with urlopen(f"{server.url}/assets/launch/scope/compactGate.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                launch_compact_gate_js = response.read().decode("utf-8")
             with urlopen(f"{server.url}/assets/launchView.scope.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 launch_view_scope_js = response.read().decode("utf-8")
                 launch_view_scope_content_type = response.headers.get("Content-Type", "")
+            launch_view_scope_js = "\n".join((launch_compact_gate_js, launch_view_scope_js))
             with urlopen(f"{server.url}/assets/launchView.realmedia.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 launch_view_realmedia_js = response.read().decode("utf-8")
                 launch_view_realmedia_content_type = response.headers.get("Content-Type", "")
+            with urlopen(f"{server.url}/assets/launch/preflight/pilotReadiness.js", timeout=5) as response:  # noqa: S310 - localhost test server
+                launch_pilot_readiness_js = response.read().decode("utf-8")
+                launch_pilot_readiness_content_type = response.headers.get("Content-Type", "")
             with urlopen(f"{server.url}/assets/launchView.preflight.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 launch_view_preflight_js = response.read().decode("utf-8")
                 launch_view_preflight_content_type = response.headers.get("Content-Type", "")
+            launch_view_preflight_parent_js = launch_view_preflight_js
+            launch_view_preflight_js = "\n".join((launch_pilot_readiness_js, launch_view_preflight_parent_js))
             launch_view_child_asset_paths = [
                 "assets/launch/controllerState.js",
                 "assets/launch/statusRender.js",
                 "assets/launch/startRequest.js",
                 "assets/launch/scopeControls.js",
                 "assets/launch/commandButtons.js",
+                "assets/launch/commandOrchestration.js",
+                "assets/launch/rerunEvidence.js",
+                "assets/launch/rerunPresentation.js",
+                "assets/launch/rerunOrchestration.js",
+                "assets/launch/rerunFacade.js",
             ]
             launch_view_child_parts = []
             launch_view_child_content_types = {}
@@ -1017,7 +1351,14 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
             with urlopen(f"{server.url}/assets/launchView.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 launch_view_parent_js = response.read().decode("utf-8")
                 launch_view_content_type = response.headers.get("Content-Type", "")
-            launch_view_js = "\n".join([*launch_view_child_parts, launch_view_parent_js])
+            launch_view_js = "\n".join([
+                launch_view_risk_js,
+                launch_view_scope_js,
+                launch_view_realmedia_js,
+                launch_view_preflight_js,
+                *launch_view_child_parts,
+                launch_view_parent_js,
+            ])
             with urlopen(f"{server.url}/assets/contractView.js", timeout=5) as response:  # noqa: S310 - localhost test server
                 contract_view_js = response.read().decode("utf-8")
                 contract_view_content_type = response.headers.get("Content-Type", "")
@@ -1070,11 +1411,24 @@ def served_webview_static_contract_bundle() -> SimpleNamespace:
         queue_view_review_js,
         queue_view_detail_js,
         queue_view_launch_js,
+        queue_rerun_api_js,
         queue_view_rerun_js,
         queue_rerun_request_js,
         queue_view_selection_js,
         queue_view_open_actions_js,
         queue_view_table_js,
+        queue_view_tabs_js,
+        queue_view_source_model_js,
+        queue_view_source_render_js,
+        queue_view_decision_summary_js,
+        queue_view_status_panels_js,
+        queue_view_table_view_js,
+        queue_view_priority_js,
+        queue_view_manual_order_js,
+        queue_view_strategy_js,
+        queue_view_controls_js,
+        queue_view_excluded_js,
+        queue_view_scan_js,
         queue_view_parent_js,
     ])
 
@@ -1089,30 +1443,45 @@ def _read_queue_asset_bundle(assets_root: Path) -> str:
             "queueView.review.js",
             "queueView.detail.js",
             "queueView.launch.js",
+            "queue/rerunApi.js",
             "queueView.rerun.js",
             "queue/selection.js",
             "queue/openActions.js",
             "queue/table.js",
+            "queue/tabs.js",
+            "queue/sourceModel.js",
+            "queue/sourceRender.js",
+            "queue/decisionSummary.js",
+            "queue/statusPanels.js",
+            "queue/tableView.js",
+            "queue/priority.js",
+            "queue/manualOrder.js",
+            "queue/strategy.js",
+            "queue/controls.js",
+            "queue/excluded.js",
+            "queue/scan.js",
             "queueView.js",
         ]
     )
 
 
 def _read_queue_file_overrides_asset_bundle(assets_root: Path) -> str:
-    return "\n".join(
-        (assets_root / name).read_text(encoding="utf-8")
-        for name in [
-            "queueView.js",
-            "queue/fileOverrides.routePreview.js",
-            "queue/fileOverrides.drawer.state.js",
-            "queue/fileOverrides.drawer.form.js",
-            "queue/fileOverrides.drawer.series.js",
-            "queue/fileOverrides.drawer.tracks.js",
-            "queue/fileOverrides.drawer.api.js",
-            "queue/fileOverrides.drawer.focus.js",
-            "queue/fileOverrides.drawer.js",
-        ]
-    )
+    return "\n".join([
+        _read_queue_asset_bundle(assets_root),
+        "\n".join(
+            (assets_root / name).read_text(encoding="utf-8")
+            for name in [
+                "queue/fileOverrides.routePreview.js",
+                "queue/fileOverrides.drawer.state.js",
+                "queue/fileOverrides.drawer.form.js",
+                "queue/fileOverrides.drawer.series.js",
+                "queue/fileOverrides.drawer.tracks.js",
+                "queue/fileOverrides.drawer.api.js",
+                "queue/fileOverrides.drawer.focus.js",
+                "queue/fileOverrides.drawer.js",
+            ]
+        ),
+    ])
 
 
 def _read_diagnostics_asset_bundle(assets_root: Path) -> str:
@@ -1122,6 +1491,9 @@ def _read_diagnostics_asset_bundle(assets_root: Path) -> str:
             "diagnosticsView.activejobs.js",
             "diagnosticsView.log.js",
             "diagnosticsView.investigation.js",
+            "diagnostics/matrixConsole.js",
+            "diagnostics/triage.js",
+            "diagnostics/firstResponse.js",
             "diagnosticsView.js",
         ]
     )
@@ -1133,6 +1505,8 @@ def _read_command_history_asset_bundle(assets_root: Path) -> str:
         for name in [
             "commandHistory/formatters.js",
             "commandHistory/diagnostics.js",
+            "commandHistory/diagnosticEvidence.js",
+            "commandHistory/resolutionChecklist.js",
             "commandHistory.js",
         ]
     )
@@ -1160,13 +1534,21 @@ def _read_completed_asset_bundle(assets_root: Path) -> str:
             "completed/evidence/filterScope.js",
             "completed/evidence/acceptance.js",
             "completed/evidence/routeAgreement.js",
+            "completed/evidence/pendingProofModel.js",
+            "completed/evidence/pendingProofView.js",
             "completedView.evidence.js",
+            "completed/proof/pilotEvidence.js",
             "completedView.proof.js",
             "completed/review/integrity.js",
+            "completed/review/workflowOverview.js",
             "completed/review/sizeReview.js",
             "completed/review/healthSignals.js",
             "completed/review/reviewRows.js",
             "completed/review/investigationFilters.js",
+            "completed/review/tablePanels.js",
+            "completed/review/metricsValidation.js",
+            "completed/review/selectedAtAGlance.js",
+            "completed/review/selectedEvidence.js",
             "completedView.review.js",
             "completedView.diagnostics.js",
             "completed/statusBoards.js",
@@ -1175,6 +1557,8 @@ def _read_completed_asset_bundle(assets_root: Path) -> str:
             "completed/selection.js",
             "completed/filters.js",
             "completed/table.js",
+            "completed/sizeMode.js",
+            "completed/presentation.js",
             "completedView.js",
         ]
     )
@@ -1188,6 +1572,8 @@ def _read_completed_evidence_asset_bundle(assets_root: Path) -> str:
             "completed/evidence/filterScope.js",
             "completed/evidence/acceptance.js",
             "completed/evidence/routeAgreement.js",
+            "completed/evidence/pendingProofModel.js",
+            "completed/evidence/pendingProofView.js",
             "completedView.evidence.js",
         ]
     )
@@ -1198,10 +1584,15 @@ def _read_completed_review_asset_bundle(assets_root: Path) -> str:
         (assets_root / name).read_text(encoding="utf-8")
         for name in [
             "completed/review/integrity.js",
+            "completed/review/workflowOverview.js",
             "completed/review/sizeReview.js",
             "completed/review/healthSignals.js",
             "completed/review/reviewRows.js",
             "completed/review/investigationFilters.js",
+            "completed/review/tablePanels.js",
+            "completed/review/metricsValidation.js",
+            "completed/review/selectedAtAGlance.js",
+            "completed/review/selectedEvidence.js",
             "completedView.review.js",
         ]
     )
@@ -1211,11 +1602,19 @@ def _read_pending_publish_asset_bundle(assets_root: Path) -> str:
     return "\n".join(
         (assets_root / name).read_text(encoding="utf-8")
         for name in [
-            "pendingPublish/details.js",
-            "pendingPublish/summary.js",
-            "pendingPublishView.drain.js",
-            "pendingPublishView.confidence.js",
             "pendingPublishView.recovery.js",
+            "pendingPublishView.diagnostics.js",
+            "pendingPublishView.drain.js",
+            "pendingPublish/confidence/postDrainTrust.js",
+            "pendingPublishView.confidence.js",
+            "pendingPublishView.repair.js",
+            "pendingPublish/tableSupport.js",
+            "pendingPublish/defaultAdapters.js",
+            "pendingPublish/summary.js",
+            "pendingPublish/filters.js",
+            "pendingPublish/details.js",
+            "pendingPublish/actionCenter.js",
+            "pendingPublish/rendering.js",
             "pendingPublishView.js",
         ]
     )
@@ -1228,9 +1627,21 @@ def _read_settings_asset_bundle(assets_root: Path) -> str:
             "settings/metadataFields.js",
             "settings/builderControls.js",
             "settings/backendResult.js",
+            "settings/finalLibraryPromotion.js",
+            "settings/patchOverview.js",
+            "settings/patchInteractions.js",
+            "settings/patchReadiness.js",
             "settings/patchReview.js",
+            "settings/policyImpact/mediaProjection.js",
+            "settings/policyImpact/effectivePolicyView.js",
             "settings/policyImpact.js",
             "settingsView.rawTriage.js",
+            "settings/view/builder.js",
+            "settings/view/impact.js",
+            "settings/view/review.js",
+            "settings/view/commands.js",
+            "settings/view/lifecycle.js",
+            "settings/view/facade.js",
             "settingsView.js",
         ]
     )
@@ -1254,11 +1665,27 @@ def _read_launch_view_asset_bundle(assets_root: Path) -> str:
     return "\n".join(
         (assets_root / name).read_text(encoding="utf-8")
         for name in [
+            "launch/risk/settingsAccess.js",
+            "launch/risk/mediaPolicyValues.js",
+            "launch/risk/riskRows.js",
+            "launch/risk/policyPatch.js",
+            "launch/risk/policyBoundary.js",
+            "launchView.risk.js",
+            "launch/scope/compactGate.js",
+            "launchView.scope.js",
+            "launchView.realmedia.js",
+            "launch/preflight/pilotReadiness.js",
+            "launchView.preflight.js",
             "launch/controllerState.js",
             "launch/statusRender.js",
             "launch/startRequest.js",
             "launch/scopeControls.js",
             "launch/commandButtons.js",
+            "launch/commandOrchestration.js",
+            "launch/rerunEvidence.js",
+            "launch/rerunPresentation.js",
+            "launch/rerunOrchestration.js",
+            "launch/rerunFacade.js",
             "launchView.js",
         ]
     )
@@ -1268,9 +1695,19 @@ def _read_rename_asset_bundle(assets_root: Path) -> str:
     return "\n".join(
         (assets_root / name).read_text(encoding="utf-8")
         for name in [
+            "rename/cleaningFilters.js",
+            "rename/cleaningWorkbench.js",
+            "rename/selection.js",
+            "rename/paths.js",
             "rename/preview.js",
             "rename/applyReadiness.js",
+            "rename/editing.js",
             "rename/applyResult.js",
+            "rename/commandEvidence.js",
+            "rename/previewLifecycle.js",
+            "rename/interactions.js",
+            "rename/confirmSummary.js",
+            "rename/dialogs.js",
             "renameView.js",
         ]
     )

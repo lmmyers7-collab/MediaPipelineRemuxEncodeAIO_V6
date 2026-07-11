@@ -37,6 +37,11 @@ Audit features in scope:
 
 - A fresh audit enumerates media files currently present under the selected or
   configured library roots and calls `Invoke-FfprobeJsonCached` for each file.
+- Enumeration filters media and captures cache-identity metadata in the bounded
+  scan job, avoiding a second parent-process `Get-Item` pass. Probe-cache
+  identity is sampled once per lookup, and uncached ffprobe work uses two
+  bounded workers by default (`-ProbeConcurrency 1..8` for measured overrides)
+  before classification and report generation continue in deterministic order.
 - Latest standard and priority CSV selection prefers the pointers from a
   completed, non-failed `audit_progress.json` when each pointer stays inside the
   configured audit report root and resolves to the expected report kind.

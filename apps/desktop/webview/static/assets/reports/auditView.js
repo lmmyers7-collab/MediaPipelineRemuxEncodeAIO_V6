@@ -434,6 +434,9 @@
           item.primary_issue_code || item.issue_messages || item.primary_suggested_action || "",
           auditActionOwner(item),
         ], ["num", null, null, null, null, null, null]);
+        ["Select", "Score", "Priority", "Bucket", "Media", "Title", "Issue", "Owner"].forEach((label, index) => {
+          if (row.children[index]) row.children[index].dataset.label = label;
+        });
         makeRowSelectable(row, () => selectAuditRow(item), {
           selected: Boolean(key && key === reportsState.selectedAuditRowKey),
           label: `Audit row ${item.lookup_title || item.relative_path || item.path || ""}`,

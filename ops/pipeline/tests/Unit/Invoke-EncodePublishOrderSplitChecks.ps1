@@ -52,6 +52,7 @@ $encodeText = ($encodePaths | ForEach-Object {
 $outputExistsIndex = Get-RequiredIndex $encodeText 'ENCODE output missing or empty after ffmpeg' 'Encode publish-order check must find output existence gate.'
 $durationIndex = Get-RequiredIndex $encodeText 'Test-DurationMatch -SourcePath $localIn -OutputPath $tempOut -Label "ENCODE" -AllowAVFallback' 'Encode publish-order check must find duration verification gate.'
 $videoIndex = Get-RequiredIndex $encodeText 'Test-OutputVideoStreamPreservation -SourcePath $localIn -OutputPath $tempOut' 'Encode publish-order check must find video-stream preservation gate.'
+$hdr10Index = Get-RequiredIndex $encodeText 'Test-Hdr10OutputMetadataPreservation' 'Encode publish-order check must find HDR10 metadata gate.'
 $qualityIndex = Get-RequiredIndex $encodeText 'Invoke-MediaQualityVerification' 'Encode publish-order check must find quality verification gate.'
 $sizeIndex = Get-RequiredIndex $encodeText 'Test-MediaEncodeOutputSizePolicy' 'Encode publish-order check must find size policy gate.'
 $publishIndex = Get-RequiredIndex $encodeText 'Complete-PipelineOutputPublish -SourceFile $file' 'Encode publish-order check must find publish handoff.'
@@ -59,6 +60,7 @@ $publishIndex = Get-RequiredIndex $encodeText 'Complete-PipelineOutputPublish -S
 Assert-True ($outputExistsIndex -lt $publishIndex) 'Encode publish must remain after output existence/non-empty check.'
 Assert-True ($durationIndex -lt $publishIndex) 'Encode publish must remain after duration verification.'
 Assert-True ($videoIndex -lt $publishIndex) 'Encode publish must remain after video-stream preservation verification.'
+Assert-True ($hdr10Index -lt $publishIndex) 'Encode publish must remain after HDR10 metadata verification.'
 Assert-True ($qualityIndex -lt $publishIndex) 'Encode publish must remain after quality verification handling.'
 Assert-True ($sizeIndex -lt $publishIndex) 'Encode publish must remain after size/waste guard handling.'
 

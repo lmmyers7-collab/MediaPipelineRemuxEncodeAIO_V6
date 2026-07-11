@@ -10,6 +10,7 @@ TDARR_PROOF_PACK_SCHEMA_VERSION = "tdarr_proof_pack.v1"
 TDARR_PROOF_PACK_SENTINEL = ".tdarr-proof-pack.json"
 TDARR_PROOF_PACK_NAME = "tdarr-proof-pack"
 TDARR_PROOF_PACK_ROOT = Path("E:/Videos/TdarrMatrix/ProofPack")
+TDARR_POLICY_PROOF_PACK_ROOT = Path("E:/Videos/TdarrMatrix/PolicyProofPack")
 TDARR_LEGACY_MATRIX_ROOT = Path("E:/Videos/TdarrMatrix/TestLibraries/TdarrMatrix")
 TDARR_LEGACY_MATRIX_RUNS_ROOT = Path("E:/Videos/TdarrMatrix/TestLibraries/TdarrMatrixRuns")
 
@@ -126,6 +127,18 @@ def tdarr_proof_runs_root(workspace_root: Path) -> Path:
     return tdarr_proof_pack_root(workspace_root) / "runs"
 
 
+def tdarr_policy_proof_pack_root(workspace_root: Path) -> Path:
+    """Return the external owned-media policy proof root for real workspaces."""
+    workspace_root = Path(workspace_root)
+    if _looks_like_repo_root(workspace_root):
+        return TDARR_POLICY_PROOF_PACK_ROOT
+    return workspace_root / "LocalBase" / "Scratch" / "TestLibraries" / "PolicyProofPack"
+
+
+def tdarr_policy_proof_runs_root(workspace_root: Path) -> Path:
+    return tdarr_policy_proof_pack_root(workspace_root) / "runs"
+
+
 def tdarr_legacy_cache_root(workspace_root: Path) -> Path:
     return Path(workspace_root) / "LocalBase" / "TestFixtures" / "TdarrSamples"
 
@@ -151,6 +164,7 @@ __all__ = [
     "TDARR_PROOF_CASE_IDS_BY_BUCKET",
     "TDARR_PROOF_PACK_NAME",
     "TDARR_PROOF_PACK_ROOT",
+    "TDARR_POLICY_PROOF_PACK_ROOT",
     "TDARR_PROOF_PACK_SCHEMA_VERSION",
     "TDARR_PROOF_PACK_SENTINEL",
     "TDARR_SMOKE_CASE_IDS_BY_BUCKET",
@@ -162,4 +176,6 @@ __all__ = [
     "tdarr_legacy_cleanup_targets",
     "tdarr_proof_pack_root",
     "tdarr_proof_runs_root",
+    "tdarr_policy_proof_pack_root",
+    "tdarr_policy_proof_runs_root",
 ]

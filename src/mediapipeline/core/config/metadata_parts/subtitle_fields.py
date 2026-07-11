@@ -75,6 +75,7 @@ SUBTITLE_CONFIG_FIELD_DEFINITIONS = (
         "key": "ConvertBdpgsToSrt",
         "label": "OCR BDPGS to SRT",
         "kind": "bool",
+        "default": True,
         "help": "OCR Blu-ray PGS image subtitles to SRT tracks using an external PgsToSrt-compatible tool.",
     },
     {

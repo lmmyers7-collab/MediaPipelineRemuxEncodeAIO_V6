@@ -3,9 +3,9 @@ file: src/mediapipeline/core/maintenance/productization.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: maintenance
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-17
-sha256: 3b13b37ca84f0f3de17e48d4668e0fa97bc112549ea468888ac96034be066e0d
+sha256: c8ca65748c680dfcd5af6e1e42315d52fdf4ac377249c04080aa5129305de996
 ---
 # `src/mediapipeline/core/maintenance/productization.py`
 

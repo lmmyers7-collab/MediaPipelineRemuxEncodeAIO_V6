@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Literal
+from uuid import UUID
 
 from pydantic import Field, StrictBool, model_validator
 
@@ -15,11 +16,23 @@ class IngestPayload(StagePayload):
     operation: Literal["copy_to_scratch"] = "copy_to_scratch"
     intent: MutationIntent
     confirm_ingest: StrictBool = False
+    operation_id: str = ""
+    scratch_reservation_id: str = ""
+    dry_run_fingerprint: str = ""
 
     @model_validator(mode="after")
     def _require_execute_confirmation(self) -> IngestPayload:
         if self.intent == "execute" and not self.confirm_ingest:
             raise ValueError("Ingest execute intent requires confirm_ingest=true.")
+        if self.intent == "execute":
+            try:
+                UUID(self.operation_id)
+            except (TypeError, ValueError, AttributeError):
+                raise ValueError("Ingest execute intent requires a UUID operation_id.") from None
+            if not self.scratch_reservation_id.strip():
+                raise ValueError("Ingest execute intent requires scratch_reservation_id.")
+            if len(self.dry_run_fingerprint) != 64 or any(ch not in "0123456789abcdef" for ch in self.dry_run_fingerprint):
+                raise ValueError("Ingest execute intent requires a lowercase SHA-256 dry_run_fingerprint.")
         return self
 
 class IngestResult(StageData):
@@ -32,6 +45,9 @@ class IngestResult(StageData):
     rollback_actions: list[str] = Field(default_factory=list)
     recovery_actions: list[str] = Field(default_factory=list)
     boundary_checks: list[str] = Field(default_factory=list)
+    operation_id: str = ""
+    scratch_reservation_id: str = ""
+    dry_run_fingerprint: str = ""
 
 class TranscodePayload(StagePayload):
     scratch_path: str = Field(min_length=1)

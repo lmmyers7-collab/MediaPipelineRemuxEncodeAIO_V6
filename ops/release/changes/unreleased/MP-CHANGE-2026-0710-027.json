@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0710-027",
+  "title": "Decompose Progress timeline presentation",
+  "version_target": "2026.07.10.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-07-10",
+  "date_completed": "2026-07-10",
+  "summary": "Decomposes the read-only Progress WebView facade into bounded responsibility modules while preserving the mediaPipelineProgressView API.",
+  "reason": "progressView.js had accumulated unrelated timeline, telemetry, evidence, detail, audit, and rendering responsibilities, making safe maintenance difficult.",
+  "affected_areas": [
+    "generated-context",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Progress facade contained multiple independent UI projections and rendering models in one oversized file.",
+  "behavior_after": "The facade is a 414-line wiring layer; each Progress child module owns one bounded projection or presentation responsibility and remains below 500 lines.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/progress/activeWork.js",
+    "apps/desktop/webview/static/assets/progress/audit.js",
+    "apps/desktop/webview/static/assets/progress/barPresentation.js",
+    "apps/desktop/webview/static/assets/progress/barState.js",
+    "apps/desktop/webview/static/assets/progress/csvRerun.js",
+    "apps/desktop/webview/static/assets/progress/details.js",
+    "apps/desktop/webview/static/assets/progress/diagnostics.js",
+    "apps/desktop/webview/static/assets/progress/evidence.js",
+    "apps/desktop/webview/static/assets/progress/evidenceRows.js",
+    "apps/desktop/webview/static/assets/progress/ffmpegEta.js",
+    "apps/desktop/webview/static/assets/progress/liveRun.js",
+    "apps/desktop/webview/static/assets/progress/timelineCore.js",
+    "apps/desktop/webview/static/assets/progress/timelineView.js",
+    "apps/desktop/webview/static/assets/progress/worker.js",
+    "apps/desktop/webview/static/assets/progressView.js",
+    "apps/desktop/webview/static/index.html",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-027.json",
+    "tests/python/desktop/application_facade_test_support.py",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/webview/test_webview_csv_rerun_completion.py",
+    "tests/webview/test_webview_navigation_static.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Browser diagnostics handoff smoke exceeded its 120-second command timeout after startup; no failure output was emitted.",
+    "Focused Node syntax checks and 28 WebView static tests passed."
+  ],
+  "rollback_plan": "Restore the previous Progress facade and remove the extracted Progress child script includes and modules. This refactor is read-only and does not affect media, runtime state, queue state, or backend policy.",
+  "related_changes": [],
+  "notes": "Consolidates the bounded Progress facade decomposition: parent 414 lines; all Progress child modules are under 500 lines."
+}

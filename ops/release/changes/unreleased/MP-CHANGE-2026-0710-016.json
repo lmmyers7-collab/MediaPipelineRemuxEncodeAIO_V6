@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0710-016",
+  "title": "Prevent snapshot path-resolution stalls",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-10",
+  "date_completed": "2026-07-10",
+  "summary": "Prevents dashboard snapshots from resolving stale destination shares and fixes Local API lifecycle recovery startup so the listener stays running after bootstrap.",
+  "reason": "Live stack evidence showed snapshot-to-DTO construction blocked in rerun destination summary path resolution, while the fresh backend then exited with a NameError before the shell could use it.",
+  "affected_areas": [
+    "generated-context",
+    "local-api-resilience"
+  ],
+  "behavior_before": "The Home snapshot's display-only CSV-rerun destination summary resolved filesystem paths, which can block on an unavailable UNC path. Fresh Local API startup then referenced an out-of-scope resolved_state variable and crashed after printing its bootstrap line.",
+  "behavior_after": "Destination summaries compare text-only Windows paths without filesystem access, and lifecycle recovery reads the server-owned resolved-path provider so the local API remains available after startup.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0710-016.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-016.json",
+    "src/mediapipeline/core/processes/rerun_results.py",
+    "src/mediapipeline/desktop/local_api_main.py",
+    "tests/python/desktop/test_application_facade_local_api_http.py",
+    "tests/python/desktop/test_process_rerun_results.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_local_api_http.py",
+    "tests/python/desktop/test_process_rerun_results.py"
+  ],
+  "manual_validation": [
+    "GREEN: 25 targeted Python tests passed, including rerun results, status snapshots, Local API snapshot recovery, and backend startup recovery.",
+    "Live proof: a fresh token-protected backend served five consecutive /api/snapshot requests with HTTP 200 in 622-2838 ms and no error code or warnings.",
+    "Local API lifecycle contract smoke passed.",
+    "RED: destination summary test failed when path resolution was called; Local API main startup test failed with NameError: resolved_state is not defined."
+  ],
+  "rollback_plan": "Revert the two production files and their regression tests. This update changes read-only snapshot and lifecycle startup behavior only; it does not alter source media, FFmpeg policy, publishing, settings, queue data, or manifests.",
+  "related_changes": [],
+  "notes": "The display-only path key deliberately avoids Path.resolve() because Windows can contact a stale/offline share during resolution.\nThe attempted Tauri dev smoke did not complete because the tool host lost stdout; temporary proof and smoke processes were stopped.\nNo media was processed.\nRefresh completed change packet summary."
+}

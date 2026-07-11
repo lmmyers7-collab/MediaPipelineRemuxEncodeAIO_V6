@@ -37,7 +37,8 @@ VOBSUB_TESSERACT_BUNDLED_CANDIDATES = (
     Path("Tools") / "Tesseract" / "tesseract.exe",
 )
 ENCODER_CAPABILITY_REPORT_SCHEMA = "settings_encoder_capability_report.v1"
-ENCODER_CAPABILITY_REPORT_SOURCE_SCHEMA = "mediapipeline.encoder_capabilities.v1"
+ENCODER_CAPABILITY_REPORT_SOURCE_SCHEMA = "mediapipeline.encoder_capabilities.v2"
+ENCODER_CAPABILITY_REPORT_LEGACY_SOURCE_SCHEMA = "mediapipeline.encoder_capabilities.v1"
 ENCODER_CAPABILITY_REPORT_MAX_BYTES = 1024 * 1024
 HARDWARE_ENCODER_BACKENDS = frozenset({"nvenc", "qsv", "amf"})
 
@@ -195,6 +196,7 @@ def _settings_encoder_capability_report_base(path: Path | None) -> dict[str, Any
         "active_hardware_runtime_unverified_encoders": [],
         "backend_counts": {},
         "encoding_capability_facts": {},
+        "evidence": {},
         "summary_lines": [],
         "errors": [],
     }
@@ -247,7 +249,9 @@ def _settings_encoder_capability_report_from_payload(
     capability_facts = encoding_capability_facts_from_encoder_rows(capability_rows).model_dump()
     report_schema = str(report.get("schema") or report.get("schema_version") or "")
     errors: list[str] = []
-    if report_schema != ENCODER_CAPABILITY_REPORT_SOURCE_SCHEMA:
+    if report_schema == ENCODER_CAPABILITY_REPORT_LEGACY_SOURCE_SCHEMA:
+        errors.append("Legacy encoder capability report is review-only; refresh backend diagnostic evidence.")
+    elif report_schema != ENCODER_CAPABILITY_REPORT_SOURCE_SCHEMA:
         errors.append(f"Unexpected encoder capability report schema: {report_schema or '(missing)'}")
     if not rows:
         errors.append("Encoder capability report did not include encoder rows.")
@@ -265,6 +269,12 @@ def _settings_encoder_capability_report_from_payload(
     status = "Ready" if state == "ready" else "Review"
     video_codec = str(report.get("video_codec") or "")
     encoder_backend = str(report.get("encoder_backend") or "")
+    evidence = _settings_encoder_capability_evidence(report.get("evidence"))
+    if report_schema == ENCODER_CAPABILITY_REPORT_SOURCE_SCHEMA:
+        required_evidence = ("freshness", "resolved_config", "ffmpeg", "host", "selected_descriptor_chain")
+        missing_evidence = [key for key in required_evidence if not evidence.get(key)]
+        if missing_evidence:
+            errors.append(f"Capability evidence is incomplete: {', '.join(missing_evidence)}")
     summary = [
         f"Report generated for VideoCodec={video_codec or '(unknown)'}, EncoderBackend={encoder_backend or '(unknown)'}.",
         f"Available encoders: {', '.join(available) if available else 'none'}.",
@@ -285,6 +295,10 @@ def _settings_encoder_capability_report_from_payload(
         summary.append(
             "Active hardware descriptors without runtime proof: "
             f"{', '.join(active_hardware_runtime_unverified)}."
+        )
+    if evidence:
+        summary.append(
+            "Evidence boundary: availability/activation/runtime probes are not metadata or playback certification."
         )
     if errors:
         summary.extend(errors)
@@ -310,11 +324,35 @@ def _settings_encoder_capability_report_from_payload(
             "active_hardware_runtime_unverified_encoders": active_hardware_runtime_unverified,
             "backend_counts": _settings_encoder_backend_counts(rows),
             "encoding_capability_facts": capability_facts,
+            "evidence": evidence,
             "summary_lines": summary,
             "errors": errors,
         }
     )
     return base
+
+
+def _settings_encoder_capability_evidence(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    return {
+        "evidence_schema": str(value.get("evidence_schema") or ""),
+        "freshness": _settings_encoder_capability_evidence_object(value.get("freshness")),
+        "resolved_config": _settings_encoder_capability_evidence_object(value.get("resolved_config")),
+        "ffmpeg": _settings_encoder_capability_evidence_object(value.get("ffmpeg")),
+        "host": _settings_encoder_capability_evidence_object(value.get("host")),
+        "selected_descriptor_chain": _settings_encoder_capability_evidence_object(value.get("selected_descriptor_chain")),
+        "activation_state": _settings_encoder_capability_evidence_object(value.get("activation_state")),
+        "list_probe_state": str(value.get("list_probe_state") or ""),
+        "runtime_probe_state": str(value.get("runtime_probe_state") or ""),
+        "invalidation_state": _settings_encoder_capability_evidence_object(value.get("invalidation_state")),
+        "metadata_proof_state": str(value.get("metadata_proof_state") or "not_collected"),
+        "playback_proof_state": str(value.get("playback_proof_state") or "not_collected"),
+    }
+
+
+def _settings_encoder_capability_evidence_object(value: Any) -> dict[str, Any]:
+    return {str(key): item for key, item in value.items()} if isinstance(value, dict) else {}
 
 
 def _settings_encoder_capability_selection(value: Any) -> dict[str, Any]:

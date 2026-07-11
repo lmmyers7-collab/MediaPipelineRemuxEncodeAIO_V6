@@ -983,6 +983,8 @@ class SampleValidationApiTests(unittest.TestCase):
             (
                 (command_history_assets_root / "commandHistory" / "formatters.js").read_text(encoding="utf-8"),
                 (command_history_assets_root / "commandHistory" / "diagnostics.js").read_text(encoding="utf-8"),
+                (command_history_assets_root / "commandHistory" / "diagnosticEvidence.js").read_text(encoding="utf-8"),
+                (command_history_assets_root / "commandHistory" / "resolutionChecklist.js").read_text(encoding="utf-8"),
                 (command_history_assets_root / "commandHistory.js").read_text(encoding="utf-8"),
             )
         )

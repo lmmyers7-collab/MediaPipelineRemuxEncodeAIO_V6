@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sys
 import unittest
+import uuid
 from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Literal, get_args, get_origin
@@ -178,14 +179,47 @@ class StageContractTests(unittest.TestCase):
             )
         request = build_stage_request(
             StageName.ingest,
-            {
-                "source_path": "source.mkv",
-                "scratch_root": "D:\\Scratch",
-                "intent": "execute",
-                "confirm_ingest": True,
-            },
+                {
+                    "source_path": "source.mkv",
+                    "scratch_root": "D:\\Scratch",
+                    "intent": "execute",
+                    "confirm_ingest": True,
+                    "operation_id": "b8ed5543-1370-46d5-868a-7fbf3596d525",
+                    "scratch_reservation_id": "stage_ingest_reservation",
+                    "dry_run_fingerprint": "a" * 64,
+                },
         )
         self.assertTrue(request.payload.confirm_ingest)
+
+    def test_ingest_execute_requires_a_valid_dry_run_operation_binding(self) -> None:
+        operation_id = str(uuid.uuid4())
+        base = {
+            "source_path": "source.mkv",
+            "scratch_root": "D:\\Scratch",
+            "intent": "execute",
+            "confirm_ingest": True,
+            "operation_id": operation_id,
+            "scratch_reservation_id": "stage_ingest_reservation",
+        }
+        with self.assertRaises(ValidationError):
+            build_stage_request(StageName.ingest, base)
+        with self.assertRaises(ValidationError):
+            build_stage_request(
+                StageName.ingest,
+                {
+                    **base,
+                    "operation_id": "not-a-uuid",
+                    "dry_run_fingerprint": "a" * 64,
+                },
+            )
+        request = build_stage_request(
+            StageName.ingest,
+            {
+                **base,
+                "dry_run_fingerprint": "a" * 64,
+            },
+        )
+        self.assertEqual(request.payload.operation_id, operation_id)
 
     def test_mutation_capable_payloads_use_shared_intent(self) -> None:
         exceptions: list[StageName] = []

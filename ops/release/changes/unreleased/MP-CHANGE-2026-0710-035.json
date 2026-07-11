@@ -1,0 +1,36 @@
+{
+  "id": "MP-CHANGE-2026-0710-035",
+  "title": "Guard page refresh against unavailable queue renderer",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-10",
+  "date_completed": "2026-07-10",
+  "summary": "Restored the Queue renderer's module initialization and source-inventory helper boundaries, then removed the brittle global Queue renderer call from page-scoped refreshes.",
+  "reason": "Metrics refreshes failed with `renderQueue is not defined` because Queue module setup terminated before it exported its renderer.",
+  "affected_areas": [
+    "generated-context",
+    "webview"
+  ],
+  "behavior_before": "The Queue view stopped initializing, and a refresh that included queue data threw `renderQueue is not defined`.",
+  "behavior_after": "Queue initialization completes and page-scoped refreshes call the Queue namespace only when it is available.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/queue/sourceRender.js",
+    "apps/desktop/webview/static/assets/queueView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queue/sourceRender.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queueView.js.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-035.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Browser-backed Metrics degraded-state smoke passed.",
+    "Node syntax checks passed for app.js, queueView.js, and queue/sourceRender.js.",
+    "Browser-backed large-table smoke progressed past Queue module startup; its unrelated table-scroll assertion still fails."
+  ],
+  "rollback_plan": "Revert the Queue renderer initialization, source-render helper, and page-refresh guard changes in this packet.",
+  "related_changes": [],
+  "notes": "Restore queue module initialization scope so the renderer is exported.\nRestore source-inventory rendering helper boundaries.\nAvoid a global renderer call during partial page refreshes.\nRefresh generated source summary after page-refresh guard.\nRefresh generated source summary after queue renderer repair.\nAdd generated summary for repaired source renderer module."
+}

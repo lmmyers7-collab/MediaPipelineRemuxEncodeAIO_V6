@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/audit_facade.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: process
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6f317d56e30bcf0ec0cce9b14941cfe848118f2960eb3f19a4d36cda3b407f8b
+sha256: cdb14326ea8cb9b86f582808961c9c40eabaec94a802c7dd9d53177c030a93b2
 ---
 # `src/mediapipeline/core/processes/audit_facade.py`
 

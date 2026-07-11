@@ -548,6 +548,19 @@ def build_completed_subtitle_qa(
     coverage, coverage_failures = _completed_coverage(decisions, row)
     conversion, conversion_failures = _completed_conversion_evidence(decisions)
     sync_review, sync_failures = _completed_sync_review(row, coverage)
+    media_track_verification = _mapping_value(payload.get("media_track_verification"))
+    verifier_failures: list[str] = []
+    if media_track_verification and not bool(media_track_verification.get("allowed")):
+        error_code = _text(media_track_verification.get("error_code")) or "OUTPUT_MEDIA_TRACK_VERIFICATION_FAILED"
+        reason = _text(media_track_verification.get("reason"))
+        verifier_failures.append(f"{error_code}: {reason or 'backend output track verification blocked publish.'}")
+        for mismatch in _list_value(media_track_verification.get("mismatches"))[:8]:
+            if isinstance(mismatch, Mapping):
+                kind = _text(mismatch.get("kind")) or "track"
+                property_name = _text(mismatch.get("property")) or "mismatch"
+                verifier_failures.append(
+                    f"Verifier {kind} {property_name}: expected {_text(mismatch.get('expected')) or 'unspecified'}, got {_text(mismatch.get('actual')) or 'unspecified'}."
+                )
     row_failures = _subtitle_failure_texts(
         [
             row.get("runtime_outcome_error_code"),
@@ -557,6 +570,7 @@ def build_completed_subtitle_qa(
             row.get("primary_concern"),
             *(_list_value(row.get("review_flags"))),
             *(_list_value(row.get("consistency_issues"))),
+            *verifier_failures,
         ]
     )
     posture = _best_posture(

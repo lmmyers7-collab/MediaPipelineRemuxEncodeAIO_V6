@@ -481,3 +481,79 @@
     min-height: 0;
   }
 }
+
+@media (max-width: 760px) {
+  .failure-records-table-wrap,
+  .report-audit-source-table-wrap,
+  .report-audit-preview-table-wrap {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .failure-records-table,
+  .report-audit-source-table,
+  .report-audit-preview-table {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .failure-records-table thead,
+  .report-audit-source-table thead,
+  .report-audit-preview-table thead {
+    display: none;
+  }
+
+  .failure-records-table tbody,
+  .report-audit-source-table tbody,
+  .report-audit-preview-table tbody,
+  .failure-records-table tr,
+  .report-audit-source-table tr,
+  .report-audit-preview-table tr,
+  .failure-records-table td,
+  .report-audit-source-table td,
+  .report-audit-preview-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .failure-records-table tr,
+  .report-audit-source-table tr,
+  .report-audit-preview-table tr {
+    margin-bottom: var(--space-2);
+    padding: var(--space-2);
+    border: 1px solid var(--grey-700);
+    border-radius: var(--radius-sm);
+    background: var(--grey-900);
+  }
+
+  .failure-records-table td,
+  .report-audit-source-table td,
+  .report-audit-preview-table td {
+    display: grid;
+    grid-template-columns: minmax(7rem, 38%) minmax(0, 1fr);
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    border: 0;
+  }
+
+  .failure-records-table td::before,
+  .report-audit-source-table td::before,
+  .report-audit-preview-table td::before {
+    content: attr(data-label);
+    color: var(--grey-400);
+    font-size: var(--text-xs);
+    font-weight: 700;
+  }
+
+  .failure-records-table td[colspan],
+  .report-audit-source-table td[colspan],
+  .report-audit-preview-table td[colspan] {
+    display: block;
+  }
+
+  .failure-records-table td[colspan]::before,
+  .report-audit-source-table td[colspan]::before,
+  .report-audit-preview-table td[colspan]::before {
+    content: none;
+  }
+}

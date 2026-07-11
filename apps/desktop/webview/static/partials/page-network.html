@@ -111,7 +111,7 @@
               </div>
               <div class="network-worker-view-presets" id="network-worker-view-presets" aria-label="Worker board views">
                 <button type="button" class="secondary-button" data-network-worker-view="" aria-pressed="true">All</button>
-                <button type="button" class="secondary-button" data-network-worker-view="attention" aria-pressed="false">Needs Attention</button>
+                <button type="button" class="secondary-button" data-network-worker-view="attention" aria-pressed="false">Active or needs attention</button>
                 <button type="button" class="secondary-button" data-network-worker-view="active" aria-pressed="false">Active Work</button>
                 <button type="button" class="secondary-button" data-network-worker-view="idle" aria-pressed="false">Idle</button>
                 <button type="button" class="secondary-button" data-network-worker-view="stale" aria-pressed="false">Stale/Failed</button>
@@ -178,9 +178,9 @@
             <pre id="network-worker-progress-summary" class="prose-block">No last reported worker progress loaded.</pre>
           </details>
         </section>
-        <section class="panel network-rerun-board" data-panel-type="evidence" aria-labelledby="network-rerun-board-title">
+        <section class="panel network-rerun-board" data-panel-type="interactive" aria-labelledby="network-rerun-board-title">
           <div class="panel-heading">
-            <h2 id="network-rerun-board-title">Network CSV Rerun</h2>
+            <h2 id="network-rerun-board-title">Network CSV Rerun Status</h2>
             <strong id="network-rerun-status">Not loaded</strong>
           </div>
           <p id="network-rerun-summary" class="note">No Network CSV rerun backend read model loaded.</p>
@@ -201,7 +201,8 @@
               </tbody>
             </table>
           </div>
-          <pre id="network-rerun-detail" class="prose-block">Select Queue CSV Rerun for start controls. This Network page shows backend-authored batch, worker, reducer, and destination-policy evidence only.</pre>
+          <div class="action-row action-row-left"><button type="button" id="network-open-queue-rerun-button" class="secondary-button">Open Queue CSV Rerun</button></div>
+          <pre id="network-rerun-detail" class="prose-block">This page shows backend-authored batch, worker, reducer, and destination-policy evidence only. Use Queue CSV Rerun for backend-owned start controls.</pre>
         </section>
         <div id="network-role-dashboards" class="network-role-dashboard-stack" aria-label="Saved network role dashboard">
           <div class="settings-tab-pane network-tab-panel" data-network-role-panel="coordinator" hidden>

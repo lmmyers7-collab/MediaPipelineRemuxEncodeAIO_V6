@@ -30,7 +30,7 @@
                 </label>
                 <button type="button" id="rename-add-path-button" class="secondary-button">Add manual path</button>
               </div>
-              <div id="rename-drop-zone" class="rename-drop-zone" tabindex="0" aria-label="Drag and drop files or one folder here">
+              <div id="rename-drop-zone" class="rename-drop-zone">
                 Drag files or a folder here, or use the buttons above. Folder selection adds only the files directly inside (no subfolders), all extensions.
               </div>
               <label class="rename-paths-field">
@@ -80,9 +80,9 @@
                 </label>
               </div>
               <div class="option-grid option-grid-compact">
-                <label class="check-row"><input id="rename-sidecars" type="checkbox" checked> Rename sidecar preview</label>
-                <label class="check-row"><input id="rename-force-pipeline" type="checkbox"> Force pipeline name preview</label>
-                <label class="check-row"><input id="rename-pipeline-preview" type="checkbox"> Use pipeline naming preview when available</label>
+                <label class="check-row"><input id="rename-sidecars" type="checkbox" checked> Also rename related subtitle and metadata files</label>
+                <label class="check-row"><input id="rename-force-pipeline" type="checkbox"> Advanced: force the app's standard filename suggestion</label>
+                <label class="check-row"><input id="rename-pipeline-preview" type="checkbox"> Use the app's standard filename suggestion when available</label>
               </div>
               <div class="action-row">
                 <button type="button" id="rename-preview-button" class="primary-button">Preview Rename Plan</button>
@@ -114,10 +114,10 @@
                     </tbody>
                   </table>
                 </div>
-                <p id="rename-table-legend" class="note table-legend">Preview rows show the rename plan. Apply uses checked rows when present; otherwise it renames every applicable row that is not blocked.</p>
+                <p id="rename-table-legend" class="note table-legend">Preview rows show the rename plan. Apply uses only checked, reviewed rows; it never falls back to an unreviewed batch.</p>
                 <div class="action-row action-row-left wrap-actions">
-                  <button type="button" id="rename-check-applicable-button" class="secondary-button">Check Applicable</button>
-                  <button type="button" id="rename-check-all-button" class="secondary-button">Check All</button>
+                  <button type="button" id="rename-check-applicable-button" class="secondary-button">Check visible ready rows</button>
+                  <button type="button" id="rename-check-all-button" class="secondary-button">Check visible selectable rows</button>
                   <button type="button" id="rename-clear-checks-button" class="secondary-button">Clear Checks</button>
                   <span id="rename-selected-count" class="note">0 checked</span>
                 </div>
@@ -128,11 +128,14 @@
                   <button type="button" id="rename-log-bad-case-button" class="secondary-button" disabled>Log Bad Rename Case</button>
                   <span id="rename-log-bad-case-status" class="note">Select a preview row to log a case.</span>
                 </div>
-                <p id="rename-review-board-status" class="status-line">No preview</p>
-                <pre id="rename-review-board" class="prose-block compact-text-block">No rename review board loaded.</pre>
-                <pre id="rename-batch-safety" class="prose-block compact-text-block">No rename batch safety evidence loaded.</pre>
-                <p id="rename-pipeline-handoff-status" class="status-line">No preview</p>
-                <pre id="rename-pipeline-handoff" class="prose-block compact-text-block">No rename-to-pipeline handoff loaded.</pre>
+                <details class="rename-disclosure" id="rename-technical-evidence-details">
+                  <summary>Show technical preview evidence</summary>
+                  <p id="rename-review-board-status" class="status-line">No preview</p>
+                  <pre id="rename-review-board" class="prose-block compact-text-block">No rename review board loaded.</pre>
+                  <pre id="rename-batch-safety" class="prose-block compact-text-block">No rename batch safety evidence loaded.</pre>
+                  <p id="rename-pipeline-handoff-status" class="status-line">No preview</p>
+                  <pre id="rename-pipeline-handoff" class="prose-block compact-text-block">No rename-to-pipeline handoff loaded.</pre>
+                </details>
                 <div class="action-row action-row-left wrap-actions">
                   <button type="button" id="rename-apply-button" class="primary-button" disabled>Preview before apply</button>
                   <button type="button" id="rename-undo-button" class="secondary-button" disabled hidden>Undo Last Apply</button>

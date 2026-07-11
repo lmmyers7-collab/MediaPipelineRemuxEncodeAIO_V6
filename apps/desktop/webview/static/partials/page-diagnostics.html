@@ -27,6 +27,23 @@
 
         <!-- TAB: TRIAGE -->
         <div class="settings-tab-pane is-active" data-diag-tab="triage">
+        <section class="panel" data-panel-type="status">
+          <div class="panel-heading"><h2>Choose a Recovery Task</h2><strong>Read-only guidance</strong></div>
+          <p class="note">Start with First Response for a failed job, Active Jobs for work that seems stuck, or Shutdown Readiness before closing. Detailed logs and technical evidence stay available in their dedicated tabs.</p>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" class="secondary-button" data-ui-quick-link data-quick-link-page="diagnostics" data-quick-link-diag-tab="logs" data-quick-link-focus="#diagnostics-log-filter" aria-label="Open Diagnostics logs to find the reason for a failed job">Find reason for a failed job</button>
+            <button type="button" class="secondary-button" data-ui-quick-link data-quick-link-page="diagnostics" data-quick-link-diag-tab="progress" data-quick-link-focus="#diagnostics-state-summary-rows" aria-label="Open Diagnostics state to review work that seems stuck">Review work that seems stuck</button>
+            <button type="button" class="secondary-button" data-ui-quick-link data-quick-link-page="diagnostics" data-quick-link-diag-tab="triage" data-quick-link-focus="#diagnostics-close-readiness-overview" aria-label="Focus Diagnostics shutdown readiness">Check whether it is safe to close</button>
+          </div>
+        </section>
+        <section class="panel" data-panel-type="evidence" aria-labelledby="diagnostics-recovery-heading">
+          <div class="panel-heading"><h2 id="diagnostics-recovery-heading">Startup Recovery</h2><strong id="diagnostics-recovery-status" role="status" aria-live="polite">Not loaded</strong></div>
+          <pre id="diagnostics-recovery-detail" class="prose-block">Recovery evidence is not loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence" aria-labelledby="diagnostics-provenance-heading">
+          <div class="panel-heading"><h2 id="diagnostics-provenance-heading">Effective Settings Provenance</h2><strong>Read-only</strong></div>
+          <pre id="diagnostics-provenance-detail" class="prose-block">Effective-settings provenance is not loaded.</pre>
+        </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>First Response</h2>
@@ -829,10 +846,10 @@
         <div class="settings-tab-pane" data-diag-tab="advanced">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Tdarr Proof Pack</h2>
+            <h2>Developer Test Tools — Tdarr Proof Pack</h2>
             <strong id="tdarr-matrix-audit-status">Idle</strong>
           </div>
-          <p class="note">Backend-owned Tdarr proof diagnostics only. Load latest evidence first; guarded cleanup/delete controls stay disabled until prerequisite proof steps are visible.</p>
+          <p class="note">For developer test-matrix evidence only; this is not a normal failed-job recovery path. Load latest evidence first; guarded cleanup/delete controls stay disabled until prerequisite proof steps are visible.</p>
           <div class="action-row action-row-left wrap-actions">
             <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="prepare-proof-pack">Prepare Proof Pack</button>
             <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="smoke-pack">Smoke Pack</button>

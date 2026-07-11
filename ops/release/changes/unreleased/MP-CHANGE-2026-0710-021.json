@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0710-021",
+  "title": "Split read-only progress view modules",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-07-10",
+  "date_completed": "2026-07-10",
+  "summary": "Extracted the read-only Diagnostics progress projection from the Progress WebView facade into a child module while preserving the existing public namespace and function exports.",
+  "reason": "Reduce the size and responsibility concentration of progressView.js without changing backend ownership, mutation behavior, or operator-visible progress semantics.",
+  "affected_areas": [
+    "generated-context",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "progressView.js contained the Diagnostics progress row projection, status classification, summary text, and rendering implementation alongside unrelated progress views.",
+  "behavior_after": "progress/diagnostics.js owns the read-only Diagnostics progress implementation; progressView.js wires it into the unchanged mediaPipelineProgressView public facade.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/progress/diagnostics.js",
+    "apps/desktop/webview/static/assets/progressView.js",
+    "apps/desktop/webview/static/index.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/progress/diagnostics.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/progressView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/index.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0710-021.json.md",
+    "docs/generated/summaries/tests/python/desktop/application_facade_test_support.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_navigation_static.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-021.json",
+    "tests/python/desktop/application_facade_test_support.py",
+    "tests/webview/test_webview_navigation_static.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_web_static_diagnostics_reports.py",
+    "tests/webview/test_webview_csv_rerun_completion.py",
+    "tests/webview/test_webview_navigation_static.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static_diagnostics_reports tests.webview.test_webview_navigation_static tests.webview.test_webview_csv_rerun_completion -q - passed (28 tests)",
+    "git diff --check for the refactor path set - passed",
+    "node --check apps/desktop/webview/static/assets/progress/diagnostics.js; node --check apps/desktop/webview/static/assets/progressView.js - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1 - passed (2 tests)"
+  ],
+  "rollback_plan": "Remove the progress/diagnostics.js script include and restore the extracted implementation to progressView.js; no backend, runtime-state, or media files are changed by this refactor.",
+  "related_changes": [],
+  "notes": "Extracted read-only Diagnostics progress projection behind the existing progress facade.\nDelegates Diagnostics progress rendering to the extracted child while preserving public exports.\nLoads the Diagnostics progress child before its facade.\nServes the Diagnostics progress child in the static WebView contract bundle.\nPins child-before-facade script ordering.\nGenerated summary for extracted Diagnostics progress module.\nRefreshed summary for the progress facade.\nRefreshed summary for child-before-facade script ordering.\nRefreshed static contract support summary.\nRefreshed navigation static test summary.\nGenerated summary for the refactor change packet.\nGlobal strict change validation remains blocked by pre-existing unrelated unreleased-packet and uncovered-worktree failures; scoped refactor paths are packet-covered."
+}

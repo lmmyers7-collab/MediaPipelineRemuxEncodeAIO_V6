@@ -3,9 +3,9 @@ file: ops/pipeline/engine/process/encode_context.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-24
+last_modified: 2026-07-10
 last_reviewed: 2026-06-24
-sha256: 07fc8cebaef6ed1d2897d52aa579a4da84a6eeac69556cbf8759755bd2e7111a
+sha256: 87972712e28ece093d24bb3c3284e21d4fbc6d93eb66e28d6ffbf426f43700c5
 ---
 # `ops/pipeline/engine/process/encode_context.ps1`
 

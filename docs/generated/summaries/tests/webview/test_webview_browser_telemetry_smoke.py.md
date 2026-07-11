@@ -3,9 +3,9 @@ file: tests/webview/test_webview_browser_telemetry_smoke.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-02
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 600447e4bc87a078d9363f7b7d1956111c101d9a5c21be3c9dcbf7e6f84bc50a
+sha256: 15c1f595f9bf9a944904cf7c32e904d77bf630fd7044d55706301f1819a843e1
 ---
 # `tests/webview/test_webview_browser_telemetry_smoke.py`
 

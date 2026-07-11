@@ -41,7 +41,7 @@ def network_rerun_state_root_for_app(app: Any) -> Path | None:
         return None
     state_root = getattr(resolved, "state_root", None)
     if state_root is None and getattr(resolved, "local_base", None) is not None:
-        state_root = Path(getattr(resolved, "local_base")) / "State"
+        state_root = Path(resolved.local_base) / "State"
     if state_root is None:
         return None
     return Path(state_root) / "Rerun" / "Network"

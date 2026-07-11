@@ -138,6 +138,12 @@ def readable_pending_manifest_row(
     error_text: str,
     retry_count: int = 0,
     retry_limit: int = PENDING_PUSH_RETRY_LIMIT,
+    output_sha256: str = "",
+    output_hash_algorithm: str = "",
+    drain_attempt_status: str = "",
+    drain_attempt_id: str = "",
+    replacement_existing_final: bool = False,
+    replacement_transaction_id: str = "",
 ) -> dict[str, Any]:
     safe_retry_count = max(0, int(retry_count or 0))
     safe_retry_limit = max(1, int(retry_limit or PENDING_PUSH_RETRY_LIMIT))
@@ -162,5 +168,12 @@ def readable_pending_manifest_row(
         "retry_count": safe_retry_count,
         "retry_limit": safe_retry_limit,
         "retry_exhausted": safe_retry_count >= safe_retry_limit,
+        "copy_proof_state": "sha256_recorded" if output_sha256 and output_hash_algorithm == "SHA256" else "legacy_weak_copy_proof",
+        "output_sha256": output_sha256,
+        "output_hash_algorithm": output_hash_algorithm,
+        "drain_attempt_status": drain_attempt_status or "not_reported",
+        "drain_attempt_id": drain_attempt_id,
+        "replacement_existing_final": bool(replacement_existing_final),
+        "replacement_transaction_id": replacement_transaction_id,
         "error": error_text,
     }

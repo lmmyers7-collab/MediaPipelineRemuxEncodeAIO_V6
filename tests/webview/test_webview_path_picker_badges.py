@@ -78,17 +78,17 @@ STATIC_BADGES = [
 ]
 
 DYNAMIC_TARGETS_BY_ASSET = {
-    "settingsWizard.js": [
+    "settings/wizard/libraryEditor.js": [
         "settings.wizard.library_source_path",
         "settings.wizard.library_output_path",
         "settings.wizard.library_promotion_destination",
     ],
-    "settingsLibraries.js": [
+    "settingsLibraries/model.js": [
         "settings.library.source_path",
         "settings.library.output_path",
         "settings.library.promotion_destination",
     ],
-    "settings/patchReview.js": [
+    "settings/finalLibraryPromotion.js": [
         "settings.final_library_promotion.source_root",
         "settings.final_library_promotion.destination_root",
     ],

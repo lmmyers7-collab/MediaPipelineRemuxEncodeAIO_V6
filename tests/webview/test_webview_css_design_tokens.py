@@ -26,7 +26,15 @@ PENDING_VIEW_PATH = ASSETS_ROOT / "pendingPublishView.js"
 COMPLETED_TABLE_PATH = ASSETS_ROOT / "completed" / "table.js"
 APP_PATH = ASSETS_ROOT / "app.js"
 APP_LIFECYCLE_PATH = ASSETS_ROOT / "app" / "lifecycle.js"
+APP_LIFECYCLE_CHILD_PATHS = (
+    ASSETS_ROOT / "app" / "lifecycle" / "topbar.js",
+    ASSETS_ROOT / "app" / "lifecycle" / "navigation.js",
+)
 APP_LAYOUT_MANAGER_PATH = ASSETS_ROOT / "app" / "layoutManager.js"
+APP_LAYOUT_MANAGER_CHILD_PATHS = (
+    ASSETS_ROOT / "app" / "layoutManager" / "drawer.js",
+    ASSETS_ROOT / "app" / "layoutManager" / "normalization.js",
+)
 LAUNCH_VIEW_PATH = ASSETS_ROOT / "launchView.js"
 LAUNCH_COMMAND_BUTTONS_PATH = ASSETS_ROOT / "launch" / "commandButtons.js"
 SETTINGS_SUBTITLE_BUILDER_PATH = ASSETS_ROOT / "settingsView.builders.subtitle.js"
@@ -70,6 +78,20 @@ def _read_pages_css() -> str:
 
 def _read_queue_css() -> str:
     return resolve_css_imports(QUEUE_CSS_PATH, ASSETS_ROOT)
+
+
+def _read_layout_manager_bundle() -> str:
+    return "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (*APP_LAYOUT_MANAGER_CHILD_PATHS, APP_LAYOUT_MANAGER_PATH)
+    )
+
+
+def _read_lifecycle_bundle() -> str:
+    return "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (*APP_LIFECYCLE_CHILD_PATHS, APP_LIFECYCLE_PATH)
+    )
 
 
 class WebViewCssDesignTokenTests(unittest.TestCase):
@@ -475,7 +497,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
 
     def test_theme_runtime_is_dark_only(self) -> None:
         html = _rendered_index_html()
-        app_js = APP_LIFECYCLE_PATH.read_text(encoding="utf-8")
+        app_js = _read_lifecycle_bundle()
         app_root_js = APP_PATH.read_text(encoding="utf-8")
 
         self.assertNotIn('id="theme-toggle"', html)
@@ -494,8 +516,8 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         pages = _read_pages_css()
         components = _read_components_css()
         rename_css = (ASSETS_ROOT / "styles.rename.css").read_text(encoding="utf-8")
-        app_js = APP_LAYOUT_MANAGER_PATH.read_text(encoding="utf-8")
-        lifecycle_js = APP_LIFECYCLE_PATH.read_text(encoding="utf-8")
+        app_js = _read_layout_manager_bundle()
+        lifecycle_js = _read_lifecycle_bundle()
         launch_js = LAUNCH_VIEW_PATH.read_text(encoding="utf-8")
         reports_js = REPORTS_VIEW_PATH.read_text(encoding="utf-8")
         reports_shell_js = REPORTS_SHELL_PATH.read_text(encoding="utf-8")

@@ -11,6 +11,10 @@ from .handler_policy import bounded_error_text
 
 STATIC_INDEX_BOOTSTRAP_PLACEHOLDER = "__MEDIA_PIPELINE_BOOTSTRAP__"
 STATIC_INCLUDE_RE = re.compile(r"<!--\s*mp-include:\s*(?P<path>[-A-Za-z0-9_./]+)\s*-->")
+EXTERNAL_SCRIPT_WITHOUT_LOADING_HINT_RE = re.compile(
+    r"<script(?![^>]*\b(?:async|defer)\b)(?=[^>]*\bsrc\s*=)",
+    flags=re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -56,6 +60,12 @@ def json_for_inline_script(value: dict[str, Any]) -> str:
 def render_index_html(template: str, bootstrap: dict[str, Any]) -> bytes:
     html = template.replace(STATIC_INDEX_BOOTSTRAP_PLACEHOLDER, json_for_inline_script(bootstrap))
     return html.encode("utf-8")
+
+
+def defer_external_scripts(template: str) -> str:
+    """Let HTML paint before ordered application scripts execute."""
+
+    return EXTERNAL_SCRIPT_WITHOUT_LOADING_HINT_RE.sub("<script defer", template)
 
 
 def render_static_includes(template: str, static_root: Path) -> str:

@@ -89,8 +89,10 @@ class WebViewDiagnosticsDrilldownStaticTests(unittest.TestCase):
             self.assertIn(fragment, html)
 
     def test_targetless_artifact_hints_do_not_post_empty_diagnostics_open(self) -> None:
-        diagnostics_view_js = (self._static_root() / "diagnosticsView.js").read_text(
-            encoding="utf-8"
+        static_root = self._static_root()
+        diagnostics_view_js = "\n".join(
+            (static_root / name).read_text(encoding="utf-8")
+            for name in ("diagnostics/triage.js", "diagnosticsView.js")
         )
 
         self.assertIn('target: ""', diagnostics_view_js)

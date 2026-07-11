@@ -64,22 +64,28 @@ def _read_queue_css(assets_root: Path) -> str:
 
 
 NETWORK_ASSET_NAMES = (
-    "network/state.js",
-    "network/shared.js",
+    "network/configDiagnostics.js",
     "network/config.js",
-    "network/contract.js",
-    "network/status.js",
+    "network/queueProjection.js",
+    "network/overviewTiles.js",
+    "network/overviewModel.js",
+    "network/lifecycleContract.js",
+    "network/stateFiles.js",
     "network/readiness.js",
-    "network/lifecycle.model.js",
     "network/lifecycle.view.js",
+    "network/status.js",
+    "network/lifecycle.model.js",
+    "network/lifecycle.results.js",
     "network/lifecycle.commands.js",
     "network/setup.commands.js",
     "network/settingsHandoff.js",
     "network/openHistory.js",
-    "network/stateFiles.js",
+    "network/evidence.js",
     "network/workers.model.js",
     "network/workers.view.js",
     "network/roleDashboard.js",
+    "network/rerunEvidence.js",
+    "network/events.js",
     "networkView.js",
 )
 
@@ -186,11 +192,15 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             const fs = require("fs");
             const vm = require("vm");
             const path = require("path");
-            const lifecyclePath = path.join(
-              process.cwd(),
-              "apps/desktop/webview/static/assets/app/lifecycle.js"
-            );
-            const source = fs.readFileSync(lifecyclePath, "utf8");
+            const lifecycleAssetPaths = [
+              "apps/desktop/webview/static/assets/app/lifecycle/topbar.js",
+              "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
+              "apps/desktop/webview/static/assets/app/lifecycle.js",
+            ].map((assetPath) => path.join(process.cwd(), assetPath));
+            const lifecyclePath = lifecycleAssetPaths.at(-1);
+            const source = lifecycleAssetPaths
+              .map((assetPath) => fs.readFileSync(assetPath, "utf8"))
+              .join("\n");
             const ticker = { textContent: "", title: "", dataset: {} };
             const activity = {
               textContent: "",
@@ -320,6 +330,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               "apps/desktop/webview/static/assets/progressView.js"
             );
             const source = fs.readFileSync(progressPath, "utf8");
+            const progressChildren = ["barState.js", "barPresentation.js", "audit.js", "details.js", "worker.js", "csvRerun.js", "ffmpegEta.js", "activeWork.js", "diagnostics.js", "evidence.js", "evidenceRows.js", "timelineCore.js", "liveRun.js", "timelineView.js"].map((name) => {
+              const childPath = path.join(process.cwd(), "apps/desktop/webview/static/assets/progress", name);
+              return { childPath, source: fs.readFileSync(childPath, "utf8") };
+            });
             function makeElement(tag) {
               const node = {
                 tagName: String(tag || "").toUpperCase(),
@@ -355,10 +369,16 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               Date,
               document: { createElement: makeElement },
               byId() { return null; },
+              setText() {},
+              clearRows() {},
+              updateTableStatusLegend() {},
+              appendCells() {},
+              makeRowSelectable() {},
               mediaPipelineFormatters: { formatProgressValue(value) { return value == null ? "" : String(value); } },
             };
             context.window = context;
             vm.createContext(context);
+            progressChildren.forEach(({ childPath, source }) => vm.runInContext(source, context, { filename: childPath }));
             vm.runInContext(source, context, { filename: progressPath });
             const progress = context.window.mediaPipelineProgressView;
             if (!progress?.renderProgressBarsInto || !progress?.formatProgressUpdatedAt) {
@@ -815,6 +835,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               "apps/desktop/webview/static/assets/progressView.js"
             );
             const source = fs.readFileSync(progressPath, "utf8");
+            const progressChildren = ["barState.js", "barPresentation.js", "audit.js", "details.js", "worker.js", "csvRerun.js", "ffmpegEta.js", "activeWork.js", "diagnostics.js", "evidence.js", "evidenceRows.js", "timelineCore.js", "liveRun.js", "timelineView.js"].map((name) => {
+              const childPath = path.join(process.cwd(), "apps/desktop/webview/static/assets/progress", name);
+              return { childPath, source: fs.readFileSync(childPath, "utf8") };
+            });
             const context = {
               window: {},
               console,
@@ -825,6 +849,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             };
             context.window = context;
             vm.createContext(context);
+            progressChildren.forEach(({ childPath, source }) => vm.runInContext(source, context, { filename: childPath }));
             vm.runInContext(source, context, { filename: progressPath });
             const progress = context.window.mediaPipelineProgressView;
             if (!progress?.csvRerunTailEvidence || !progress?.csvRerunActivityEvidence || !progress?.csvRerunTerminalLine || !progress?.liveRunStatus || !progress?.liveRunStripItems || !progress?.runTimelineItems) {
@@ -1122,9 +1147,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
 
     def test_home_live_work_summary_renders_before_launch_preflight_await(self) -> None:
         repo_root = find_repo_root(Path(__file__))
-        app_js = (
-            repo_root / "apps" / "desktop" / "webview" / "static" / "assets" / "app.js"
-        ).read_text(encoding="utf-8")
+        assets_root = repo_root / "apps" / "desktop" / "webview" / "static" / "assets"
+        app_js = "\n".join(
+            (assets_root / path).read_text(encoding="utf-8")
+            for path in ("app/refreshCoordinator.js", "app.js")
+        )
 
         self.assertIn("function renderLiveWorkHomeSummary", app_js)
         self.assertGreaterEqual(app_js.count("renderLiveWorkHomeSummary(liveRunContext)"), 2)
@@ -1142,6 +1169,23 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             app_js.rindex("renderLiveWorkHomeSummary(liveRunContext)"),
             app_js.index("await launchView.refreshLaunchBackendPreflight();"),
         )
+
+    def test_refresh_requests_only_core_and_active_page_routes(self) -> None:
+        repo_root = find_repo_root(Path(__file__))
+        assets_root = repo_root / "apps" / "desktop" / "webview" / "static" / "assets"
+        app_js = "\n".join(
+            (assets_root / path).read_text(encoding="utf-8")
+            for path in ("app/refreshCoordinator.js", "app/lifecycleOrchestration.js")
+        )
+
+        self.assertIn("function activeRefreshPage", app_js)
+        self.assertIn("function refreshRequestIncluded", app_js)
+        self.assertIn('settings: new Set(["settings", "preset library"])', app_js)
+        self.assertIn(".filter(([name]) => refreshRequestIncluded(name, refreshPage, refreshOptions))", app_js)
+        self.assertIn("if (options.initialCritical) return CORE_REFRESH_REQUESTS.has(name);", app_js)
+        self.assertIn('refreshAll({ automatic: true, initialCritical: true, page: "home" })', app_js)
+        self.assertIn('schema_version: "webview_startup_performance.v1"', app_js)
+        self.assertNotIn('["contract", "/api/contract", false]', app_js)
 
     def test_home_next_queue_shows_first_five_runnable_rows_only(self) -> None:
         node = shutil.which("node")
@@ -1542,7 +1586,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         desktop_root = find_repo_root(Path(__file__))
         static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
         html = _render_static_index_html(static_root)
-        app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
+        app_js = "\n".join(
+            (static_root / "assets" / path).read_text(encoding="utf-8")
+            for path in ("app/dashboard.js", "app/refreshCoordinator.js", "app.js")
+        )
         topbar_js = (static_root / "assets" / "app" / "topbar.js").read_text(encoding="utf-8")
         components_css = _read_components_css(static_root / "assets")
 
@@ -1573,7 +1620,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
     def test_app_refresh_uses_schedule_namespace_export(self) -> None:
         desktop_root = find_repo_root(Path(__file__))
         static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
-        app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
+        app_js = (static_root / "assets" / "app" / "refreshCoordinator.js").read_text(encoding="utf-8")
 
         self.assertIn("window.mediaPipelineScheduleView?.renderSchedule?.(values.schedule);", app_js)
         self.assertNotIn("renderSchedule(values.schedule);", app_js)
@@ -1635,7 +1682,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertNotIn("Pause / Resume", home_html)
         self.assertNotIn("Stop After Current", home_html)
         self.assertNotIn("Force Stop", home_html)
-        self.assertIn("Home controls navigate or open backend-allowlisted evidence", home_html)
+        self.assertIn("Review readiness and choose a queue before anything runs. Originals stay unchanged.", home_html)
         self.assertIn('data-cross-page-target="completed" data-home-promotion-entry', home_html)
         self.assertIn("Open Completed Output", home_html)
         self.assertIn('id="home-scratch-storage-status"', home_html)
@@ -1792,7 +1839,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
         launch_js = _read_launch_view_asset_bundle(static_root / "assets")
         helpers_js = _read_dom_helpers_asset_bundle(static_root / "assets")
-        telemetry_js = (static_root / "assets" / "telemetryView.js").read_text(encoding="utf-8")
+        telemetry_js = "\n".join(
+            (static_root / "assets" / name).read_text(encoding="utf-8")
+            for name in ("telemetry/gpuProjection.js", "telemetryView.js")
+        )
         progress_js = (static_root / "assets" / "progressView.js").read_text(encoding="utf-8")
         completed_review_js = _read_completed_review_asset_bundle(static_root / "assets")
         completed_proof_js = (static_root / "assets" / "completedView.proof.js").read_text(encoding="utf-8")
@@ -1854,7 +1904,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
         assets_root = static_root / "assets"
         html = _render_static_index_html(static_root)
-        app_js = (assets_root / "app.js").read_text(encoding="utf-8")
+        app_js = "\n".join(
+            (assets_root / path).read_text(encoding="utf-8")
+            for path in ("app/dashboard.js", "app/refreshCoordinator.js", "app.js")
+        )
+        app_lifecycle_orchestration_js = (assets_root / "app" / "lifecycleOrchestration.js").read_text(encoding="utf-8")
         home_js = (assets_root / "app" / "home.js").read_text(encoding="utf-8")
         launch_js = (assets_root / "launchView.js").read_text(encoding="utf-8")
         pending_view_js = (assets_root / "pendingPublishView.js").read_text(encoding="utf-8")
@@ -1871,7 +1925,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertLess(html.index('/assets/progressView.js'), html.index('/assets/pendingPublish/details.js'))
         self.assertIn("window.refreshAll = refreshAll;", app_js)
         self.assertIn("window.refreshAllNow = refreshAllNow;", app_js)
-        self.assertLess(app_js.index("initKeyboardShortcuts();"), app_js.index("await restoreSharedUiPreferences();"))
+        self.assertLess(
+            app_lifecycle_orchestration_js.index("initKeyboardShortcuts();"),
+            app_lifecycle_orchestration_js.index("await restoreSharedUiPreferences();"),
+        )
         self.assertIn('[data-page-panel="launch"] .settings-tab-btn[data-launch-tab]', launch_js)
         self.assertIn("activateLaunchTab(button.dataset.launchTab || \"pipeline\");", launch_js)
         self.assertIn("window.mediaPipelineProgressView?.renderProgressBarsInto?.(...args)", pending_view_js)
@@ -2124,7 +2181,16 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         completed_view_js = _read_completed_asset_bundle(static_root)
         rename_view_js = _read_rename_asset_bundle(static_root)
         rename_history_view_js = (static_root / "renameHistoryView.js").read_text(encoding="utf-8")
-        maintenance_view_js = (static_root / "maintenanceView.js").read_text(encoding="utf-8")
+        maintenance_view_js = "\n".join(
+            (static_root / asset_name).read_text(encoding="utf-8")
+            for asset_name in (
+                "maintenance/changeLedger.js",
+                "maintenance/health.js",
+                "maintenance/dryRunReadiness.js",
+                "maintenance/releaseCommands.js",
+                "maintenanceView.js",
+            )
+        )
         settings_command_history_js = (static_root / "settingsCommandHistory.js").read_text(encoding="utf-8")
         pending_publish_diagnostics_js = (static_root / "pendingPublishView.diagnostics.js").read_text(encoding="utf-8")
         pending_publish_drain_js = (static_root / "pendingPublishView.drain.js").read_text(encoding="utf-8")
@@ -2286,7 +2352,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         completed_view_review_js = _read_completed_review_asset_bundle(assets_root)
         completed_view_js = _read_completed_asset_bundle(assets_root)
         pending_view_drain_js = (assets_root / "pendingPublishView.drain.js").read_text(encoding="utf-8")
-        pending_view_confidence_js = (assets_root / "pendingPublishView.confidence.js").read_text(encoding="utf-8")
+        pending_view_confidence_js = "\n".join((
+            (assets_root / "pendingPublish" / "confidence" / "postDrainTrust.js").read_text(encoding="utf-8"),
+            (assets_root / "pendingPublishView.confidence.js").read_text(encoding="utf-8"),
+        ))
         pending_view_js = _read_pending_publish_asset_bundle(assets_root)
         rename_view_js = _read_rename_asset_bundle(assets_root)
         command_history_js = _read_command_history_asset_bundle(assets_root)
@@ -2509,40 +2578,40 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         queue_view_js = _read_queue_file_overrides_asset_bundle(assets_root)
         queue_table_js = (assets_root / "queue" / "table.js").read_text(encoding="utf-8")
 
-        self.assertIn('async function clearQueuePriorityManifest()', queue_view_js)
-        self.assertIn("let queuePriorityCommandInFlight = false;", queue_view_js)
-        self.assertIn("function beginQueuePriorityCommand(message = \"\")", queue_view_js)
-        self.assertIn("function endQueuePriorityCommand(seq)", queue_view_js)
-        self.assertIn("if (queuePriorityCommandInFlight)", queue_view_js)
+        self.assertIn('async function clearPriorityManifest()', queue_view_js)
+        self.assertIn("let inFlight = false;", queue_view_js)
+        self.assertIn("function beginCommand(message = \"\")", queue_view_js)
+        self.assertIn("function endCommand(seq)", queue_view_js)
+        self.assertIn("if (inFlight)", queue_view_js)
         self.assertIn('apiPost("/api/queue/priority", { clear_all: true })', queue_view_js)
-        self.assertIn('wire("queue-priority-clear-all-btn", clearQueuePriorityManifest);', queue_view_js)
+        self.assertIn('wire("queue-priority-clear-all-btn", clearPriorityManifest);', queue_view_js)
         self.assertIn('return Boolean(item.is_priority) && manifestLevel === "normal" ? "fs" : manifestLevel;', queue_table_js)
         self.assertIn('const labels = { high: "High", low: "Low", hold: "Hold", fs: "FS" };', queue_table_js)
         self.assertNotIn('Cleared priority manifest for ${items.length} row(s).', queue_view_js)
-        refresh_snippet = 'if (result && result.ok && typeof refreshAll === "function") await refreshAll();'
+        refresh_snippet = "if (result?.ok) await refreshAll();"
         send_block = queue_view_js[
-            queue_view_js.index("async function sendQueuePriority(") :
-            queue_view_js.index("async function sendQueuePriorityBulk(")
+            queue_view_js.index("async function sendPriority(") :
+            queue_view_js.index("async function sendPriorityBulk(")
         ]
         bulk_block = queue_view_js[
-            queue_view_js.index("async function sendQueuePriorityBulk(") :
-            queue_view_js.index("async function clearQueuePriorityManifest(")
+            queue_view_js.index("async function sendPriorityBulk(") :
+            queue_view_js.index("async function clearPriorityManifest(")
         ]
         clear_block = queue_view_js[
-            queue_view_js.index("async function clearQueuePriorityManifest(") :
+            queue_view_js.index("async function clearPriorityManifest(") :
             queue_view_js.index("function initQueuePriorityToolbar()")
         ]
-        self.assertIn("function applyDisplayedQueuePriorityUpdates(items)", queue_view_js)
-        self.assertIn("function clearDisplayedQueuePriorityManifest()", queue_view_js)
-        self.assertIn("manifest_priority_level: nextLevel", queue_view_js)
-        self.assertIn("priority_visible_count: lastQueueRows.filter(queuePriorityRowHasVisibleMarker).length", queue_view_js)
-        self.assertIn("renderQueueRows();", queue_view_js)
-        self.assertIn('if (result && result.ok) applyDisplayedQueuePriorityUpdates([{ path, level }]);', send_block)
-        self.assertIn("if (result && result.ok) applyDisplayedQueuePriorityUpdates(items);", bulk_block)
-        self.assertIn("if (result && result.ok) clearDisplayedQueuePriorityManifest();", clear_block)
-        self.assertLess(send_block.index("applyDisplayedQueuePriorityUpdates"), send_block.index(refresh_snippet))
-        self.assertLess(bulk_block.index("applyDisplayedQueuePriorityUpdates"), bulk_block.index(refresh_snippet))
-        self.assertLess(clear_block.index("clearDisplayedQueuePriorityManifest();"), clear_block.index(refresh_snippet))
+        self.assertIn("function applyDisplayedPriorityUpdates(items)", queue_view_js)
+        self.assertIn("function clearDisplayedPriorityManifest()", queue_view_js)
+        self.assertIn("manifest_priority_level: level", queue_view_js)
+        self.assertIn("priority_visible_count: rows.filter(rowHasVisibleMarker).length", queue_view_js)
+        self.assertIn("renderRows();", queue_view_js)
+        self.assertIn("if (result?.ok) applyDisplayedPriorityUpdates([{ path, level }]);", send_block)
+        self.assertIn("if (result?.ok) applyDisplayedPriorityUpdates(items);", bulk_block)
+        self.assertIn("if (result?.ok) clearDisplayedPriorityManifest();", clear_block)
+        self.assertLess(send_block.index("applyDisplayedPriorityUpdates"), send_block.index(refresh_snippet))
+        self.assertLess(bulk_block.index("applyDisplayedPriorityUpdates"), bulk_block.index(refresh_snippet))
+        self.assertLess(clear_block.index("clearDisplayedPriorityManifest();"), clear_block.index(refresh_snippet))
         self.assertIn(refresh_snippet, send_block)
         self.assertIn(refresh_snippet, bulk_block)
         self.assertIn(refresh_snippet, clear_block)
@@ -2580,7 +2649,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("function queueManualOrderPositionItems()", queue_view_js)
         self.assertIn("let queueManualOrderLoadedKeys = [];", queue_view_js)
         self.assertIn("let queueManualOrderDraftDirty = false;", queue_view_js)
-        self.assertIn("function resetQueueManualOrderLoadedKeys(rows = lastQueueRows)", queue_view_js)
+        self.assertIn("function resetQueueManualOrderLoadedKeys(rows = state.rows)", queue_view_js)
         self.assertIn("function syncQueueManualOrderDraftDirty()", queue_view_js)
         self.assertIn("position: index + 1", queue_view_js)
         self.assertIn('apiPost("/api/queue/priority", { items })', queue_view_js)
@@ -2615,11 +2684,13 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         queue_css = _read_queue_css(assets_root)
 
         self.assertIn('openFileSettingsDrawer(item, { trigger: button });', queue_table_js)
-        self.assertIn('aria-describedby="fo-inherited-settings-status fo-drawer-status"', html)
+        self.assertIn('button.textContent = "File overrides";', queue_table_js)
+        self.assertNotIn('button.textContent = "⚙";', queue_table_js)
+        self.assertIn('aria-describedby="fo-drawer-scope-summary fo-inherited-settings-status fo-drawer-status"', html)
         self.assertIn('tabindex="-1"', html)
         self.assertIn('id="fo-inherited-settings-status"', html)
-        self.assertIn('id="fo-drawer-title" class="fo-drawer-title">File</h3>', html)
-        self.assertNotIn('id="fo-drawer-title" class="fo-drawer-title">File Settings</h3>', html)
+        self.assertIn('id="fo-drawer-title" class="fo-drawer-title">File overrides</h3>', html)
+        self.assertIn('id="fo-drawer-scope-summary"', html)
         self.assertIn('class="fo-drawer-footer" aria-label="File override actions"', html)
         self.assertIn('id="fo-drawer-save" class="primary-button" disabled', html)
         self.assertIn('id="fo-drawer-status" class="fo-drawer-status" role="status" aria-live="polite" data-tone="info"', html)
@@ -3309,6 +3380,9 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("verify_ffprobe", steps_by_id)
         self.assertIn("verify_mkvmerge", steps_by_id)
         self.assertIn("create_local_api", steps_by_id)
+        elapsed_values = [float(step["elapsed_ms"]) for step in payload["startup_progress"]["steps"]]
+        self.assertEqual(elapsed_values, sorted(elapsed_values))
+        self.assertTrue(all(float(step["duration_ms"]) >= 0 for step in payload["startup_progress"]["steps"]))
         for step_id in ("verify_ffmpeg", "verify_ffprobe", "verify_mkvmerge"):
             detail = str(steps_by_id[step_id].get("detail") or "")
             self.assertIn("ops\\pipeline\\tools", detail)

@@ -339,6 +339,20 @@ if ([string]$audioBitrateSchema.pattern -ne '^[1-9]\d*k$') {
 $vobSubOcrToolDefault = 'tools\SubtitleEditLegacy\SubtitleEdit.exe'
 $powershellDefaults = Get-MediaPipelineConfigDefaultValues
 $defaultProfileConfig = Import-PowerShellDataFile -Path (Join-Path $repoRoot 'ops\pipeline\config\profiles\Default.psd1')
+$bdpgsSchemaDefault = [bool](Get-JsonSchemaProperty -Key 'ConvertBdpgsToSrt').default
+if (-not [bool]$powershellDefaults['ConvertBdpgsToSrt'] -or -not [bool]$templateConfig['ConvertBdpgsToSrt'] -or -not [bool]$defaultProfileConfig['ConvertBdpgsToSrt'] -or -not $bdpgsSchemaDefault) {
+    throw 'BDPGS OCR must default enabled across PowerShell defaults, template, default profile, and JSON schema.'
+}
+$config = @{}
+function Add-StartupWarning { param([string]$Message) }
+. (Join-Path $repoRoot 'ops\pipeline\engine\config\getters.ps1')
+if (-not [bool](Get-ConfigBool 'ConvertBdpgsToSrt' $true)) {
+    throw 'Missing ConvertBdpgsToSrt must use the new enabled default.'
+}
+$config = @{ ConvertBdpgsToSrt = $false }
+if ([bool](Get-ConfigBool 'ConvertBdpgsToSrt' $true)) {
+    throw 'An explicitly saved ConvertBdpgsToSrt=false must survive default resolution.'
+}
 $expectedAudioPassthroughProfile = Get-MediaPipelineAudioPassthroughProfileDefault
 $expectedAudioPassthroughCodecs = @(Get-MediaPipelineAudioPassthroughProfileCodecs -Profile $expectedAudioPassthroughProfile)
 if ([string]$defaultProfileConfig['AudioPassthroughProfile'] -ne $expectedAudioPassthroughProfile) {

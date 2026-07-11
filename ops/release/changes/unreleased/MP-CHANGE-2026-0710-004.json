@@ -1,0 +1,63 @@
+{
+  "id": "MP-CHANGE-2026-0710-004",
+  "title": "Strengthen pending publish drain byte proof",
+  "version_target": "2026.07.10.001",
+  "status": "in_progress",
+  "type": "feature",
+  "risk_level": "high",
+  "date_started": "2026-07-10",
+  "date_completed": null,
+  "summary": "Pending publish now records SHA-256 copy proof and durable drain-attempt/replacement evidence; drain verifies staged and final bytes before cleanup and rolls back failed final evidence.",
+  "reason": "Prevent false-success drain cleanup, preserve parked artifacts on copy/evidence failure, and expose backend-owned proof posture without adding a duplicate state store.",
+  "affected_areas": [
+    "generated-context",
+    "publish"
+  ],
+  "behavior_before": "Parked output drain relied on Robocopy success, size, and sidecar identity evidence; there was no durable per-item drain attempt state or final byte-equivalence proof.",
+  "behavior_after": "New parked manifests carry SHA-256 proof. Drain records an in-progress attempt, verifies partial and final hashes, retains rollback backup until completed evidence succeeds, and leaves payload/manifest retryable on failure. Legacy manifests remain drainable with explicit weak-proof evidence.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/publish/pending_drain_transaction.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/publish/pending_manifest_store.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/publish/pending_park_transaction.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/publish/pending_push.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/publish/pending_transactions.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/publish/publish_partial.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1.md",
+    "docs/generated/summaries/src/mediapipeline/core/kernel/contracts/pending_publish.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/publish/pending_drain_confidence.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/publish/pending_manifest.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/publish/pending_manifest_rows.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/publish/pending_rows.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_pending_publish_manifest.py.md",
+    "ops/pipeline/config/schemas/media_pipeline_pending_push_manifest.schema.json",
+    "ops/pipeline/engine/publish/pending_drain_transaction.ps1",
+    "ops/pipeline/engine/publish/pending_manifest_store.ps1",
+    "ops/pipeline/engine/publish/pending_park_transaction.ps1",
+    "ops/pipeline/engine/publish/pending_transactions.ps1",
+    "ops/pipeline/engine/publish/publish_partial.ps1",
+    "ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-004.json",
+    "src/mediapipeline/core/kernel/contracts/pending_publish.py",
+    "src/mediapipeline/core/publish/pending_drain_confidence.py",
+    "src/mediapipeline/core/publish/pending_manifest.py",
+    "src/mediapipeline/core/publish/pending_manifest_rows.py",
+    "src/mediapipeline/core/publish/pending_rows.py",
+    "src/mediapipeline/core/repair_reconcile/apply.py",
+    "src/mediapipeline/core/repair_reconcile/dry_run.py",
+    "tests/python/desktop/test_repair_reconcile_apply.py",
+    "tests/python/desktop/test_service_pending_publish_manifest.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_service_pending_publish_manifest.py::test_current_manifest_reports_sha256_proof_and_in_progress_attempt_as_review",
+    "ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1 SHA-256 and attempt-state assertions"
+  ],
+  "manual_validation": [
+    "Focused Python pending-publish and repair/reconcile tests passed (50 tests, 3 subtests).",
+    "Pending publish PowerShell safety checks passed.",
+    "Contract schema checks passed.",
+    "Full reliability regression was attempted but failed an unrelated release self-test generated-artifact guard in the pre-existing dirty worktree."
+  ],
+  "rollback_plan": "Revert this packet's manifest schema, PowerShell publish transaction, Python evidence, test, and generated-summary changes together. Existing pending manifests omit the optional proof fields and remain compatible with the read model.",
+  "related_changes": [],
+  "notes": "Strengthen pending publish drain safety evidence.\nRefresh generated source summary for pending publish safety change."
+}

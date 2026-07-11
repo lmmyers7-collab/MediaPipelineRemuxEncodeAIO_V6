@@ -3,9 +3,9 @@ file: docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-26
+last_modified: 2026-07-10
 last_reviewed: 2026-06-02
-sha256: c3b8a23927235dc0404e65e0edb5e005b8a21c3b90e4d5d6f0d507a71297276f
+sha256: 7af5509dfef8c0166995a7ac9a92352cbaa4cff64ddb30840731e5057eeaa687
 ---
 # `docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`
 

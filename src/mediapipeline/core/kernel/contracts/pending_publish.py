@@ -101,6 +101,17 @@ class PendingPushManifest:
     source_mtime_utc: str
     output_size: int
     publish_mode: str
+    output_sha256: str = ""
+    output_hash_algorithm: str = ""
+    drain_attempt_id: str = ""
+    drain_attempt_started_at: str = ""
+    drain_attempt_completed_at: str = ""
+    drain_attempt_status: str = ""
+    drain_attempt_error: str = ""
+    replacement_existing_final: bool = False
+    replacement_prior_final_size: int = 0
+    replacement_prior_final_sha256: str = ""
+    replacement_transaction_id: str = ""
     sidecar_files: list[Any] = field(default_factory=list)
     tx3g_srt_tracks: list[Any] = field(default_factory=list)
     tx3g_srt_failures: list[Any] = field(default_factory=list)
@@ -130,6 +141,15 @@ class PendingPushManifest:
         for field_name in PENDING_PUSH_MANIFEST_REQUIRED_ARRAY_FIELDS:
             _required_list_field(data, field_name)
         output_size = _required_int_field(data, "output_size")
+        output_sha256 = text_field(data, "output_sha256").strip()
+        output_hash_algorithm = text_field(data, "output_hash_algorithm").strip()
+        if output_sha256:
+            if len(output_sha256) != 64 or any(char not in "0123456789abcdefABCDEF" for char in output_sha256):
+                raise ContractError("output_sha256 must be a 64-character hexadecimal SHA-256 value")
+            if output_hash_algorithm != "SHA256":
+                raise ContractError("output_hash_algorithm must be SHA256 when output_sha256 is present")
+        elif output_hash_algorithm:
+            raise ContractError("output_hash_algorithm requires output_sha256")
         return cls(
             schema_version=schema_version,
             parked_at=text_field(data, "parked_at"),
@@ -153,6 +173,17 @@ class PendingPushManifest:
             source_mtime_utc=text_field(data, "source_mtime_utc"),
             output_size=output_size,
             publish_mode=text_field(data, "publish_mode"),
+            output_sha256=output_sha256,
+            output_hash_algorithm=output_hash_algorithm,
+            drain_attempt_id=text_field(data, "drain_attempt_id"),
+            drain_attempt_started_at=text_field(data, "drain_attempt_started_at"),
+            drain_attempt_completed_at=text_field(data, "drain_attempt_completed_at"),
+            drain_attempt_status=text_field(data, "drain_attempt_status"),
+            drain_attempt_error=text_field(data, "drain_attempt_error"),
+            replacement_existing_final=bool_field(data, "replacement_existing_final"),
+            replacement_prior_final_size=max(0, int_field(data, "replacement_prior_final_size")),
+            replacement_prior_final_sha256=text_field(data, "replacement_prior_final_sha256").strip(),
+            replacement_transaction_id=text_field(data, "replacement_transaction_id"),
             sidecar_files=_required_list_field(data, "sidecar_files"),
             tx3g_srt_tracks=_required_list_field(data, "tx3g_srt_tracks"),
             tx3g_srt_failures=_required_list_field(data, "tx3g_srt_failures"),

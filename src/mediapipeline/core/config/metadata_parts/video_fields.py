@@ -48,7 +48,7 @@ VIDEO_CONFIG_FIELD_DEFINITIONS = (
         "choices": ENCODER_BACKEND_NAMES,
         "default": ENCODER_BACKEND_DEFAULT,
         "choice_help": ENCODER_BACKEND_DESCRIPTIONS,
-        "help": "Stored backend preference for encoder capability diagnostics. Normal encode selection remains controlled by VideoCodec until descriptor-backed activation is validated.",
+        "help": "auto follows VideoCodec; cpu actively forces the descriptor-owned CPU path for that codec family. Hardware preferences remain visible but are honored only for descriptor pairs the backend has activated; availability is not output or playback certification.",
     },
     {
         "page": "Video",
@@ -87,7 +87,7 @@ VIDEO_CONFIG_FIELD_DEFINITIONS = (
         "choices": DYNAMIC_HDR_POLICY_NAMES,
         "default": DYNAMIC_HDR_POLICY_DEFAULT,
         "choice_help": DYNAMIC_HDR_POLICY_DESCRIPTIONS,
-        "help": "Controls Dolby Vision and HDR10+ preservation handling. Warn is the current safe default until preserve modes have real-media remux evidence.",
+        "help": "Controls Dolby Vision and HDR10+ preservation handling. preserve_or_review is the default; an explicit saved warn setting is intentionally lossy compatibility mode and never HDR-safe readiness.",
     },
     {
         "page": "Video",

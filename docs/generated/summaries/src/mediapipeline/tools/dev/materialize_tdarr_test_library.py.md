@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/dev/materialize_tdarr_test_library.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-07
-sha256: 36016322e45e9c903ead69a3126002e6716031eae24770bbc2a028c87c3c8b37
+sha256: 1e62749ce4aee7a303f3155d7e294aa72ba79cd0f39646a337f6421f58e463c4
 ---
 # `src/mediapipeline/tools/dev/materialize_tdarr_test_library.py`
 

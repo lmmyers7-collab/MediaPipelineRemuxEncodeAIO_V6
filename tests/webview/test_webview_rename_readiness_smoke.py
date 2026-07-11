@@ -373,7 +373,7 @@ def _rename_readiness_runner_source() -> str:
         requireNotContains("batch safety unchecked scope", text("rename-batch-safety"), ["selected detail row"]);
         requireContains("no checked readiness", text("rename-apply-readiness-status"), ["Blocked"]);
         requireContains("unchecked apply button", text("rename-apply-button"), ["Check rows before apply"]);
-        requireContains("unchecked apply hint", text("rename-apply-status-hint"), ["No rows checked", "Check Applicable"]);
+        requireContains("unchecked apply hint", text("rename-apply-status-hint"), ["No rows checked", "Check visible ready rows"]);
         const warningSecond = {
           ...first,
           source: "C:/TV/Season 02/Serial Experiments Lain E02 Girls.mkv",
@@ -400,13 +400,13 @@ def _rename_readiness_runner_source() -> str:
         requireContains("ready status", text("rename-apply-readiness-status"), ["Ready"]);
         requireContains("ready cells", readinessCellText(), ["Apply scope", "checked rows", "Mutation boundary", "/api/rename/apply"]);
         requireContains("checked apply button", text("rename-apply-button"), ["Apply 1 checked rename"]);
-        requireContains("checked apply hint", text("rename-apply-status-hint"), ["Checked 1 ready/match row", "warning=1"]);
+        requireContains("checked apply hint", text("rename-apply-status-hint"), ["Checked 1 visible ready/match row", "warning=1"]);
         context.mediaPipelineRenameView.clearCheckedRenameRows();
         context.mediaPipelineRenameView.checkAllRenameRows();
         requireContains("check all status", text("rename-selection-audit-status"), ["Checked selectable rows"]);
         requireContains("check all count", text("rename-selected-count"), ["2 checked"]);
         requireContains("check all apply button", text("rename-apply-button"), ["Apply 2 checked renames"]);
-        requireContains("check all hint", text("rename-apply-status-hint"), ["Checked 2 selectable rows", "skipped 0"]);
+        requireContains("check all hint", text("rename-apply-status-hint"), ["Checked 2 visible selectable rows", "skipped 0"]);
         requireContains("check all detail", text("rename-detail"), ["Review warnings before apply"]);
         context.mediaPipelineRenameView.clearCheckedRenameRows();
         context.renderRenamePreview({ rows: [first], preview_fingerprint: "rename-preview-fp", counts: { total: 1, ready: 1 }, confidence_counts: { high: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { rename: 1 } });
@@ -519,10 +519,11 @@ def _rename_readiness_runner_source() -> str:
         requireContains("large preview status", text("rename-status"), ["260 ready", "250 shown / 260 preview rows"]);
         requireContains("large preview legend", text("rename-table-legend"), ["Display cap: 250 shown / 260 preview rows rendered", "not visible in the table"]);
         context.mediaPipelineRenameView.checkApplicableRenameRows();
-        requireContains("large checked count", text("rename-selected-count"), ["260 checked"]);
-        requireContains("checked apply button", text("rename-apply-button"), ["Apply 260 checked renames"]);
-        requireContains("large selection audit", text("rename-selection-audit"), ["Rows in scope: 260", "Rendered rows: 250 of 260", "checked scope may include rows not currently rendered"]);
-        requireContains("large readiness cells", readinessCellText(), ["Render cap visibility", "250 of 260 preview row(s) are rendered", "unrendered backend preview rows"]);
+        requireContains("large checked count", text("rename-selected-count"), ["250 checked"]);
+        requireContains("checked apply button", text("rename-apply-button"), ["Apply 250 checked renames"]);
+        requireContains("large selection audit", text("rename-selection-audit"), ["Rows in scope: 250", "Rendered rows: 250 of 260"]);
+        requireNotContains("large selection audit", text("rename-selection-audit"), ["checked scope may include rows not currently rendered"]);
+        requireContains("large readiness cells", readinessCellText(), ["Render cap visibility", "250 of 260 preview row(s) are rendered"]);
 
         const blockedExisting = { ...first, status: "blocked", errors: ["destination already exists"], warnings: [] };
         context.renderRenamePreview({ rows: [blockedExisting], preview_fingerprint: "rename-preview-fp", counts: { total: 1, blocked: 1 }, confidence_counts: { blocked: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { blocked: 1 } });
@@ -569,9 +570,19 @@ def _run_rename_readiness_smoke() -> dict[str, object]:
         "domHelpers.js",
         "renameLabels.js",
         "renameHistoryView.js",
+        "rename/cleaningFilters.js",
+        "rename/cleaningWorkbench.js",
+        "rename/selection.js",
+        "rename/paths.js",
         "rename/preview.js",
         "rename/applyReadiness.js",
+        "rename/editing.js",
         "rename/applyResult.js",
+        "rename/commandEvidence.js",
+        "rename/previewLifecycle.js",
+        "rename/interactions.js",
+        "rename/confirmSummary.js",
+        "rename/dialogs.js",
         "renameView.js",
     ):
         assets.append({"name": name, "source": (WEB_STATIC / name).read_text(encoding="utf-8")})

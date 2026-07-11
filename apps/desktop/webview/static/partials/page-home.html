@@ -17,11 +17,11 @@
           </section>
           <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="pending" aria-label="Open Pending Publish" title="Open Pending Publish">
             <span class="metric-label">Pending</span>
-            <strong id="home-pending-count">0</strong>
+            <strong id="home-pending-count">—</strong>
           </section>
           <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="reports" data-quick-link-reports-tab="failures" data-quick-link-module="reports" data-quick-link-action="failure-needs-action" aria-label="Open Reports failures needing action" title="Open Reports failures">
             <span id="home-failed-label" class="metric-label">Failed</span>
-            <strong id="home-failed-count">0</strong>
+            <strong id="home-failed-count">—</strong>
           </section>
         </div>
 
@@ -33,12 +33,14 @@
           </div>
           <div class="action-row action-row-left wrap-actions home-quick-control-row">
             <button type="button" id="home-refresh-button" class="secondary-button">Refresh Home</button>
-            <button type="button" class="primary-button" data-cross-page-target="launch">Start / Launch</button>
+            <button type="button" class="primary-button" data-cross-page-target="launch">Review &amp; start processing</button>
             <button type="button" class="secondary-button" data-cross-page-target="completed" data-home-promotion-entry disabled>Open Completed Output</button>
             <button type="button" class="secondary-button" data-cross-page-target="queue">Queue</button>
             <button type="button" class="secondary-button" data-cross-page-target="pending">Open Pending Publish</button>
           </div>
-          <p id="home-control-message" class="note visually-hidden" aria-live="polite">Home controls navigate or open backend-allowlisted evidence. Use Launch for starts, stops, and full readiness detail.</p>
+          <p id="home-control-message" class="note" aria-live="polite">Review readiness and choose a queue before anything runs. Originals stay unchanged. Use Launch for starts, stops, and full readiness detail.</p>
+          <p id="home-health-banner" class="note" role="status" aria-live="polite">Checking system readiness…</p>
+          <p id="home-recovery-banner" class="note" role="status" aria-live="polite" hidden></p>
           <p id="home-promotion-entry-message" class="note visually-hidden" aria-live="polite">Completed Output opens when reviewed files are eligible for final-library promotion.</p>
         </section>
 

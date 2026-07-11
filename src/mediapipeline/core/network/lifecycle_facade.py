@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, UTC
 from pathlib import Path
+import json
 import uuid
 from typing import Any
 from collections.abc import Callable, Mapping
@@ -22,12 +23,14 @@ from mediapipeline.core.processes.pipeline_policy import (
 )
 from mediapipeline.core.kernel.dto_commands import CommandResult
 from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.processes.file_io import atomic_write_text
 
 
 NETWORK_LIFECYCLE_DRY_RUN_SCHEMA_VERSION = "desktop_network_lifecycle_dry_run.v1"
 NETWORK_LIFECYCLE_RESULT_SCHEMA_VERSION = "desktop_network_lifecycle_result.v1"
 NETWORK_LIFECYCLE_EFFECT_NONE = "none"
 NETWORK_LIFECYCLE_EFFECT_CONFIRMED = "backend-lifecycle"
+NETWORK_LIFECYCLE_STATE_SCHEMA_VERSION = "desktop_network_lifecycle_state.v2"
 
 
 def _utc_now() -> str:
@@ -141,6 +144,7 @@ class NetworkLifecycleFacadeMixin:
     app_version: str
 
     def _network_lifecycle_state_for(self, role: str) -> dict[str, Any]:
+        self._load_network_lifecycle_state_if_needed()
         state = getattr(self, "_network_lifecycle_state", None)
         if not isinstance(state, dict):
             return {"role": role, "status": "stopped"}
@@ -200,7 +204,8 @@ class NetworkLifecycleFacadeMixin:
             "last_command_id": command_id,
             "last_action": action,
             "updated_utc": now,
-            "state_scope": "session_memory_only",
+            "state_scope": "durable_backend_state",
+            "lifecycle_epoch": str(getattr(self, "_network_lifecycle_epoch", "") or uuid.uuid4().hex),
         }
         if action == "start" and status == "running":
             updated["started_utc"] = now
@@ -214,6 +219,79 @@ class NetworkLifecycleFacadeMixin:
             state = {}
             self._network_lifecycle_state = state
         state[role] = dict(state_after)
+        self._persist_network_lifecycle_state()
+
+    def _network_lifecycle_state_path(self) -> Path | None:
+        root = getattr(self, "_network_lifecycle_state_root", None)
+        return Path(root) / "network_lifecycle_state.json" if root else None
+
+    def _load_network_lifecycle_state_if_needed(self) -> None:
+        path = self._network_lifecycle_state_path()
+        if path is None or getattr(self, "_network_lifecycle_state_loaded_path", None) == str(path):
+            return
+        self._network_lifecycle_state_loaded_path = str(path)
+        self._network_lifecycle_epoch = uuid.uuid4().hex
+        if not path.exists():
+            return
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict) or payload.get("schema_version") != NETWORK_LIFECYCLE_STATE_SCHEMA_VERSION:
+                raise ValueError("invalid network lifecycle state schema")
+            states = payload.get("roles")
+            if not isinstance(states, dict):
+                raise ValueError("network lifecycle roles are invalid")
+            # A previous backend cannot prove its in-memory provider survived.
+            # Preserve evidence but require coordinator reconciliation before any
+            # new claim/start is allowed.
+            self._network_lifecycle_state = {
+                str(role): {**dict(value), "status": "reconciliation_required", "recovery_required": True}
+                for role, value in states.items()
+                if isinstance(value, dict)
+            }
+            self._network_lifecycle_epoch = str(payload.get("lifecycle_epoch") or self._network_lifecycle_epoch)
+        except Exception:
+            self._network_lifecycle_state = {
+                "coordinator": {"role": "coordinator", "status": "reconciliation_required", "recovery_required": True},
+                "worker": {"role": "worker", "status": "reconciliation_required", "recovery_required": True},
+            }
+
+    def _persist_network_lifecycle_state(self) -> None:
+        path = self._network_lifecycle_state_path()
+        if path is None:
+            return
+        state = getattr(self, "_network_lifecycle_state", {})
+        atomic_write_text(
+            path,
+            json.dumps(
+                {
+                    "schema_version": NETWORK_LIFECYCLE_STATE_SCHEMA_VERSION,
+                    "lifecycle_epoch": str(getattr(self, "_network_lifecycle_epoch", "") or uuid.uuid4().hex),
+                    "updated_utc": _utc_now(),
+                    "roles": state if isinstance(state, dict) else {},
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+        )
+
+    def _reconcile_persisted_network_lifecycle_state(self, resolved: ResolvedPaths, role: str) -> None:
+        state = self._network_lifecycle_state_for(role)
+        if not bool(state.get("recovery_required")) and str(state.get("status") or "") != "reconciliation_required":
+            return
+        try:
+            evidence = self.get_network_workers(resolved).to_mapping()
+        except Exception as exc:
+            state.update({"status": "reconciliation_required", "recovery_required": True, "reconciliation_error": _bounded_evidence(exc)})
+            self._network_lifecycle_state_commit(role, state)
+            return
+        worker_state = evidence.get("worker_state") if isinstance(evidence.get("worker_state"), dict) else {}
+        active = bool(worker_state.get("active_job") or worker_state.get("pending_done_report"))
+        if active:
+            state.update({"status": "reconciliation_required", "recovery_required": True, "reconciliation_evidence": "active claim or pending done/release evidence remains"})
+        else:
+            state.update({"status": "stopped", "recovery_required": False, "reconciled_utc": _utc_now(), "reconciliation_evidence": "backend provider read found no active claim or pending done report"})
+        self._network_lifecycle_state_commit(role, state)
 
     def _network_lifecycle_preconditions(
         self,
@@ -227,6 +305,7 @@ class NetworkLifecycleFacadeMixin:
         configured_role = configured_network_role(config)
         configured_role_valid = network_role_is_valid(configured_role)
         running = str(state.get("status") or "stopped") == "running"
+        reconciliation_required = bool(state.get("recovery_required")) or str(state.get("status") or "") == "reconciliation_required"
         provider_available = self._network_lifecycle_provider_available(role, action)
         preconditions = [
             _precondition(
@@ -252,6 +331,14 @@ class NetworkLifecycleFacadeMixin:
                     "blocked" if running else "pass",
                     f"current_lifecycle_status={state.get('status') or 'stopped'}",
                     "Stop the existing network lifecycle before starting it again.",
+                )
+            )
+            preconditions.append(
+                _precondition(
+                    "coordinator_reconciliation",
+                    "blocked" if reconciliation_required else "pass",
+                    "persisted lifecycle evidence requires coordinator/worker claim reconciliation" if reconciliation_required else "no unresolved persisted lifecycle state",
+                    "Reconcile coordinator claims and worker done/release evidence before a fresh start/claim.",
                 )
             )
         else:
@@ -632,6 +719,9 @@ class NetworkLifecycleFacadeMixin:
         else:
             lock_context = lock
         with lock_context:
+            self._network_lifecycle_state_root = _runtime_state_dir(resolved, self.service)
+            self._load_network_lifecycle_state_if_needed()
+            self._reconcile_persisted_network_lifecycle_state(resolved, normalized_role)
             data = self._network_lifecycle_dry_run_data(
                 resolved=resolved,
                 role=normalized_role,

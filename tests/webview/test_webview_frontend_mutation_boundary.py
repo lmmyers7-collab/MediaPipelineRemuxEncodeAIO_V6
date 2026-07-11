@@ -30,22 +30,28 @@ API_POST_DISPATCH_LITERAL_RE = re.compile(
 )
 API_POST_CALL_RE = re.compile(r"(?<!function\s)(?<![\w$])(?:\w+\.)?apiPost(?:Local)?\s*\(")
 NETWORK_CHILD_ASSET_NAMES = (
-    "network/state.js",
-    "network/shared.js",
+    "network/configDiagnostics.js",
     "network/config.js",
-    "network/contract.js",
-    "network/status.js",
+    "network/queueProjection.js",
+    "network/overviewTiles.js",
+    "network/overviewModel.js",
+    "network/lifecycleContract.js",
+    "network/stateFiles.js",
     "network/readiness.js",
-    "network/lifecycle.model.js",
     "network/lifecycle.view.js",
+    "network/status.js",
+    "network/lifecycle.model.js",
+    "network/lifecycle.results.js",
     "network/lifecycle.commands.js",
     "network/setup.commands.js",
     "network/settingsHandoff.js",
     "network/openHistory.js",
-    "network/stateFiles.js",
+    "network/evidence.js",
     "network/workers.model.js",
     "network/workers.view.js",
     "network/roleDashboard.js",
+    "network/rerunEvidence.js",
+    "network/events.js",
 )
 NETWORK_ASSET_NAMES = (*NETWORK_CHILD_ASSET_NAMES, "networkView.js")
 NETWORK_DYNAMIC_DISPATCH_ASSETS = {
@@ -53,47 +59,70 @@ NETWORK_DYNAMIC_DISPATCH_ASSETS = {
     "network/lifecycle.commands.js",
     "network/setup.commands.js",
 }
+SCHEDULE_ASSET_NAMES = (
+    "schedule/watchFolder.js",
+    "schedule/editor.js",
+    "scheduleView.js",
+)
+DIAGNOSTICS_ASSET_NAMES = (
+    "diagnosticsView.activejobs.js",
+    "diagnosticsView.log.js",
+    "diagnosticsView.investigation.js",
+    "diagnostics/matrixConsole.js",
+    "diagnostics/triage.js",
+    "diagnostics/firstResponse.js",
+    "diagnosticsView.js",
+)
+MAINTENANCE_ASSET_NAMES = (
+    "maintenance/changeLedger.js",
+    "maintenance/health.js",
+    "maintenance/dryRunReadiness.js",
+    "maintenance/releaseCommands.js",
+    "maintenanceView.js",
+)
 
 EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/backend/shutdown": {"app.js"},
     "/api/ui-preferences": {"app.js"},
-    "/api/pipeline/control": {"launchView.js"},
-    "/api/pipeline/browse-file": {"launchView.js"},
-    "/api/pipeline/start": {"launchView.js"},
+    "/api/pipeline/control": {"launch/commandOrchestration.js"},
+    "/api/pipeline/browse-file": {"launch/commandOrchestration.js"},
+    "/api/pipeline/start": {"launch/commandOrchestration.js"},
     "/api/path-picker/browse": {"pathPicker.js"},
     "/api/audit/start": {"reports/auditCommands.js"},
     "/api/audit/stop": {"reports/auditCommands.js"},
-    "/api/rerun/preview": {"queueView.rerun.js"},
-    "/api/rerun/network-preview": {"queueView.rerun.js"},
-    "/api/rerun/network/start-dry-run": {"queueView.rerun.js"},
-    "/api/rerun/network/start": {"queueView.rerun.js"},
-    "/api/rerun/start": {"queueView.rerun.js"},
-    "/api/rerun/control": {"queueView.rerun.js"},
-    "/api/rerun/continue": {"queueView.rerun.js"},
-    "/api/rerun/promote-dry-run": {"queueView.rerun.js"},
-    "/api/rerun/promote": {"queueView.rerun.js"},
+    "/api/rerun/preview": {"queue/rerunApi.js"},
+    "/api/rerun/network-preview": {"queue/rerunApi.js"},
+    "/api/rerun/network/start-dry-run": {"queue/rerunApi.js"},
+    "/api/rerun/network/start": {"queue/rerunApi.js"},
+    "/api/rerun/start": {"queue/rerunApi.js"},
+    "/api/rerun/control": {"queue/rerunApi.js"},
+    "/api/rerun/continue": {"queue/rerunApi.js"},
+    "/api/rerun/promote-dry-run": {"queue/rerunApi.js"},
+    "/api/rerun/promote": {"queue/rerunApi.js"},
     "/api/audit/score-policy": {"reports/auditCommands.js"},
     "/api/audit/ignore": {"reports/auditCommands.js"},
     "/api/audit/sources": {"reports/auditCommands.js"},
     "/api/audit/sources/scan": {"reports/auditCommands.js"},
     "/api/audit/export-rerun-csv": {"reports/auditCommands.js"},
-    "/api/rerun/open": {"queueView.rerun.js"},
+    "/api/rerun/open": {"queue/rerunApi.js"},
     "/api/completed/open": {"completed/openActions.js"},
     "/api/final-library-promotion/promote-queue": {"completed/promotionCommands.js"},
     "/api/final-library-promotion/pause": {"completed/promotionCommands.js"},
     "/api/final-library-promotion/resume": {"completed/promotionCommands.js"},
-    "/api/maintenance/release-dry-run": {"maintenanceView.js"},
-    "/api/maintenance/release-build": {"maintenanceView.js"},
-    "/api/maintenance/completed-backfill-dry-run": {"maintenanceView.js"},
-    "/api/maintenance/dependency-atlas": {"maintenanceView.js"},
-    "/api/maintenance/dependency-atlas/open-folder": {"maintenanceView.js"},
-    "/api/maintenance/archive-state-journals": {"launchView.js"},
+    "/api/maintenance/release-dry-run": {"maintenance/releaseCommands.js"},
+    "/api/maintenance/release-build": {"maintenance/releaseCommands.js"},
+    "/api/maintenance/completed-backfill-dry-run": {"maintenance/releaseCommands.js"},
+    "/api/maintenance/dependency-atlas": {"maintenance/releaseCommands.js"},
+    "/api/maintenance/dependency-atlas/open-folder": {"maintenance/releaseCommands.js"},
+    "/api/maintenance/archive-state-journals": {"launch/commandOrchestration.js"},
+    "/api/maintenance/support-export": {"recoverySupportView.js"},
     "/api/sample-validation/preview": {"crossPageContextView.sampleValidation.js"},
     "/api/sample-validation/append": {"crossPageContextView.sampleValidation.js"},
-    "/api/diagnostics/open": {"diagnosticsView.js", "queueView.rerun.js"},
-    "/api/diagnostics/tdarr-matrix-audit": {"diagnosticsView.js"},
-    "/api/diagnostics/tdarr-matrix/evidence/open": {"diagnosticsView.js"},
-    "/api/diagnostics/tdarr-matrix/rerun": {"diagnosticsView.js"},
+    "/api/diagnostics/open": {"diagnosticsView.js", "queue/rerunApi.js"},
+    "/api/diagnostics/tdarr-matrix-audit": {"diagnostics/matrixConsole.js"},
+    "/api/diagnostics/tdarr-matrix/evidence/open": {"diagnostics/matrixConsole.js"},
+    "/api/diagnostics/tdarr-matrix/rerun": {"diagnostics/matrixConsole.js"},
+    "/api/diagnostics/encoder-capabilities/refresh": {"launchView.preflight.js"},
     "/api/completed/reconcile-manifest-dry-run": {"completedView.repair.js"},
     "/api/completed/reconcile-manifest": {"completedView.repair.js"},
     "/api/completed/repair-sidecar-metadata-dry-run": {"completedView.repair.js"},
@@ -105,11 +134,18 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/pending-publish/reconcile-orphan-payloads-dry-run": {"pendingPublishView.repair.js"},
     "/api/pending-publish/reconcile-orphan-payloads": {"pendingPublishView.repair.js"},
     "/api/queue/open": {"queue/openActions.js"},
-    "/api/queue/scan": {"queueView.js"},
-    "/api/queue/priority": {"queueView.js"},
-    "/api/queue/strategy": {"queueView.js"},
+    "/api/queue/scan": {"queue/scan.js"},
+    "/api/queue/priority": {"queue/manualOrder.js", "queue/priority.js"},
+    "/api/queue/strategy": {"queue/strategy.js"},
     "/api/queue/file-overrides": {"queue/fileOverrides.drawer.api.js"},
     "/api/queue/file-overrides/route-preview": {"queue/fileOverrides.routePreview.js"},
+    "/api/settings/preset-library/validate": {"settings/presetLibrary.js"},
+    "/api/settings/preset-library/compare": {"settings/presetLibrary.js"},
+    "/api/settings/preset-library/import-preview": {"settings/presetLibrary.js"},
+    "/api/settings/preset-library/save": {"settings/presetLibrary.js"},
+    "/api/settings/preset-library/export": {"settings/presetLibrary.js"},
+    "/api/settings/preset-library/apply-preview": {"settings/presetLibrary.js"},
+    "/api/settings/preset-library/apply": {"settings/presetLibrary.js"},
     "/api/queue/file-overrides/series-preview": {"queue/fileOverrides.drawer.series.js"},
     "/api/queue/file-overrides/series-apply": {"queue/fileOverrides.drawer.series.js"},
     "/api/queue/file-overrides/series-clear-preview": {"queue/fileOverrides.drawer.series.js"},
@@ -121,12 +157,12 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/failures/artifacts/cleanup": {"reports/failureCommands.js"},
     "/api/failures/lifecycle": {"reports/failureCommands.js"},
     "/api/rename/apply": {"renameView.js"},
-    "/api/rename/browse": {"renameView.js"},
-    "/api/rename/filter-cases": {"renameView.js"},
-    "/api/rename/preview": {"renameView.js"},
+    "/api/rename/browse": {"rename/paths.js"},
+    "/api/rename/filter-cases": {"rename/selection.js"},
+    "/api/rename/preview": {"rename/previewLifecycle.js"},
     "/api/rename/undo": {"renameView.js"},
-    "/api/schedule/preview": {"scheduleView.js"},
-    "/api/schedule/save": {"scheduleView.js"},
+    "/api/schedule/preview": {"schedule/editor.js"},
+    "/api/schedule/save": {"schedule/editor.js"},
     "/api/settings/validate": {"settingsView.js"},
     "/api/settings/browse-path": {"settingsView.js"},
     "/api/settings/preview-patch": {"settingsView.js"},
@@ -141,6 +177,22 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
 }
 REPAIR_RECONCILE_ROUTE_TERMS = ("repair", "reconcile", "reconciliation")
 ALLOWED_TAURI_EVENT_BRIDGE = "tauriLifecycleBridge.js"
+RENAME_ASSET_NAMES = (
+    "rename/cleaningFilters.js",
+    "rename/cleaningWorkbench.js",
+    "rename/selection.js",
+    "rename/paths.js",
+    "rename/preview.js",
+    "rename/applyReadiness.js",
+    "rename/editing.js",
+    "rename/applyResult.js",
+    "rename/commandEvidence.js",
+    "rename/previewLifecycle.js",
+    "rename/interactions.js",
+    "rename/confirmSummary.js",
+    "rename/dialogs.js",
+    "renameView.js",
+)
 
 
 def _asset_sources() -> dict[str, str]:
@@ -157,6 +209,26 @@ def _network_asset_source(sources: dict[str, str] | None = None) -> str:
         for name in NETWORK_ASSET_NAMES
         if name in loaded_sources
     )
+
+
+def _rename_asset_source(sources: dict[str, str] | None = None) -> str:
+    loaded_sources = sources if sources is not None else _asset_sources()
+    return "\n".join(loaded_sources[name] for name in RENAME_ASSET_NAMES if name in loaded_sources)
+
+
+def _schedule_asset_source(sources: dict[str, str] | None = None) -> str:
+    loaded_sources = sources if sources is not None else _asset_sources()
+    return "\n".join(loaded_sources[name] for name in SCHEDULE_ASSET_NAMES if name in loaded_sources)
+
+
+def _diagnostics_asset_source(sources: dict[str, str] | None = None) -> str:
+    loaded_sources = sources if sources is not None else _asset_sources()
+    return "\n".join(loaded_sources[name] for name in DIAGNOSTICS_ASSET_NAMES if name in loaded_sources)
+
+
+def _maintenance_asset_source(sources: dict[str, str] | None = None) -> str:
+    loaded_sources = sources if sources is not None else _asset_sources()
+    return "\n".join(loaded_sources[name] for name in MAINTENANCE_ASSET_NAMES if name in loaded_sources)
 
 
 def _is_network_contract_dynamic_dispatch(name: str, source: str, dynamic_call_count: int) -> bool:
@@ -284,7 +356,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
                 self.assertNotIn(path, source)
 
     def test_diagnostics_does_not_own_pipeline_control_mutations(self) -> None:
-        diagnostics_view = _asset_sources()["diagnosticsView.js"]
+        diagnostics_view = _diagnostics_asset_source()
         diagnostics_html = DIAGNOSTICS_PARTIAL.read_text(encoding="utf-8")
 
         self.assertNotIn("/api/pipeline/control", diagnostics_view)
@@ -296,7 +368,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         )
 
     def test_tdarr_matrix_findings_render_in_diagnostics_table(self) -> None:
-        diagnostics_view = _asset_sources()["diagnosticsView.js"]
+        diagnostics_view = _diagnostics_asset_source()
         diagnostics_html = DIAGNOSTICS_PARTIAL.read_text(encoding="utf-8")
 
         self.assertIn('id="tdarr-matrix-audit-findings-rows"', diagnostics_html)
@@ -334,7 +406,11 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
 
     def test_home_does_not_surface_tdarr_matrix_activity(self) -> None:
         home_html = HOME_PARTIAL.read_text(encoding="utf-8")
-        app_js = _asset_sources()["app.js"]
+        app_js = "\n".join((
+            _asset_sources()["app/dashboard.js"],
+            _asset_sources()["app/refreshCoordinator.js"],
+            _asset_sources()["app.js"],
+        ))
         home_js = _asset_sources()["app/home.js"]
         home_readiness_js = _asset_sources()["app/homeReadiness.js"]
 
@@ -357,10 +433,37 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         launch_html = LAUNCH_PARTIAL.read_text(encoding="utf-8")
         pending_html = PENDING_PARTIAL.read_text(encoding="utf-8")
         diagnostics_html = DIAGNOSTICS_PARTIAL.read_text(encoding="utf-8")
-        app_js = _asset_sources()["app.js"]
-        progress_js = _asset_sources()["progressView.js"]
-        home_js = _asset_sources()["app/home.js"]
-        pending_js = _asset_sources()["pendingPublishView.js"]
+        app_js = "\n".join((
+            _asset_sources()["app/dashboard.js"],
+            _asset_sources()["app/refreshCoordinator.js"],
+            _asset_sources()["app.js"],
+        ))
+        progress_js = "\n".join((
+            _asset_sources()["progress/barState.js"],
+            _asset_sources()["progress/barPresentation.js"],
+            _asset_sources()["progress/audit.js"],
+            _asset_sources()["progress/details.js"],
+            _asset_sources()["progress/diagnostics.js"],
+            _asset_sources()["progress/activeWork.js"],
+            _asset_sources()["progress/evidence.js"],
+            _asset_sources()["progress/evidenceRows.js"],
+            _asset_sources()["progress/liveRun.js"],
+            _asset_sources()["progress/csvRerun.js"],
+            _asset_sources()["progress/worker.js"],
+            _asset_sources()["progress/ffmpegEta.js"],
+            _asset_sources()["progress/timelineCore.js"],
+            _asset_sources()["progress/timelineView.js"],
+            _asset_sources()["progressView.js"],
+        ))
+        home_js = "\n".join((
+            _asset_sources()["app/home/dailyDriver.js"],
+            _asset_sources()["app/home/queueProjection.js"],
+            _asset_sources()["app/home.js"],
+        ))
+        pending_js = "\n".join((
+            _asset_sources()["pendingPublish/rendering.js"],
+            _asset_sources()["pendingPublishView.js"],
+        ))
 
         for html, prefix in [
             (home_html, "home"),
@@ -403,33 +506,36 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertNotIn('apiPost("/api/progress', progress_js)
 
     def test_ui_preferences_sync_stays_allowlisted_and_runs_before_layout_init(self) -> None:
-        app_js = _asset_sources()["app.js"]
+        sources = _asset_sources()
+        app_js = sources["app.js"]
+        preferences_js = sources["app/uiPreferences.js"]
+        startup_js = sources["app/lifecycleOrchestration.js"]
 
-        self.assertIn('const UI_PREFERENCES_ROUTE = "/api/ui-preferences";', app_js)
-        self.assertIn("const UI_PREFERENCE_KEY_RE = /^mediapipeline[-.]", app_js)
-        self.assertIn("let uiPreferenceSyncPending = false;", app_js)
-        self.assertIn("let uiPreferenceLocalDirty = false;", app_js)
-        self.assertIn("let uiPreferenceAwaitingRemoteEchoSerialized = \"\";", app_js)
-        self.assertIn('bootstrap.shellSurface || bootstrap.shell_surface || "webview"', app_js)
-        self.assertIn('if (surface !== "tauri" && Object.keys(local).length)', app_js)
-        self.assertIn("localStorage.removeItem(key)", app_js)
-        self.assertIn("uiPreferenceSyncPending = true;", app_js)
-        self.assertIn("uiPreferenceLocalDirty = true;", app_js)
-        self.assertIn("function hasPendingSharedUiPreferenceWrite()", app_js)
-        self.assertIn("hasPendingSharedUiPreferenceWrite() && remoteSerialized !== localSerialized", app_js)
-        self.assertIn("uiPreferenceAwaitingRemoteEchoSerialized === localSerialized", app_js)
-        self.assertIn("await persistSharedUiPreferencesNow({ force: true });", app_js)
+        self.assertIn('apiGet("/api/ui-preferences", { timeoutMs: 5000 })', preferences_js)
+        self.assertIn("const keyPattern = /^mediapipeline[-.]", preferences_js)
+        self.assertIn("let syncPending = false;", preferences_js)
+        self.assertIn("let localDirty = false;", preferences_js)
+        self.assertIn("let awaitingRemoteEchoSerialized = \"\";", preferences_js)
+        self.assertIn('bootstrap.shellSurface || bootstrap.shell_surface || "webview"', preferences_js)
+        self.assertIn('if (surface() !== "tauri" && Object.keys(local).length)', preferences_js)
+        self.assertIn("storage.removeItem(key)", preferences_js)
+        self.assertIn("syncPending = true;", preferences_js)
+        self.assertIn("localDirty = true;", preferences_js)
+        self.assertIn("function hasPendingWrite()", preferences_js)
+        self.assertIn("hasPendingWrite() && remoteSerialized !== localSerialized", preferences_js)
+        self.assertIn("awaitingRemoteEchoSerialized === localSerialized", preferences_js)
+        self.assertIn("await persist({ force: true });", preferences_js)
         self.assertLess(
-            app_js.index("function hasPendingSharedUiPreferenceWrite()"),
-            app_js.index("async function restoreSharedUiPreferences"),
+            preferences_js.index("function hasPendingWrite()"),
+            preferences_js.index("async function restore(options"),
         )
-        self.assertIn("await restoreSharedUiPreferences();", app_js)
-        self.assertIn("installSharedUiPreferenceStorageSync();", app_js)
-        self.assertIn("startSharedUiPreferenceRemoteRefresh();", app_js)
+        self.assertIn("await restoreSharedUiPreferences();", startup_js)
+        self.assertIn("installSharedUiPreferenceStorageSync();", startup_js)
+        self.assertIn("startSharedUiPreferenceRemoteRefresh();", startup_js)
         self.assertIn("function applySharedUiPreferenceRuntimeState()", app_js)
         self.assertIn("function applyStoredLayoutPreferences()", app_js)
-        install_index = app_js.index("installSharedUiPreferenceStorageSync();")
-        self.assertLess(app_js.index("await restoreSharedUiPreferences();"), install_index)
+        install_index = startup_js.index("installSharedUiPreferenceStorageSync();")
+        self.assertLess(startup_js.index("await restoreSharedUiPreferences();"), install_index)
         for startup_call in [
             "initNavigation();",
             "initLayoutManager();",
@@ -442,19 +548,20 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             "startSharedUiPreferenceRemoteRefresh();",
         ]:
             with self.subTest(startup_call=startup_call):
-                self.assertLess(install_index, app_js.index(startup_call))
-        self.assertIn('const result = await apiPost("/api/ui-preferences", payload', app_js)
-        self.assertIn("if (result && result.ok === false)", app_js)
+                self.assertLess(install_index, startup_js.index(startup_call))
+        self.assertIn("const result = await postPreferences(nextPayload", preferences_js)
+        self.assertIn('postPreferences: (payload, options) => apiPost("/api/ui-preferences", payload, options)', app_js)
+        self.assertIn("if (result && result.ok === false)", preferences_js)
 
     def test_shell_open_routes_submit_backend_selector_keys_not_raw_paths(self) -> None:
         specs = {
             "/api/diagnostics/open": ("diagnosticsView.js", {"target"}),
-            "/api/diagnostics/tdarr-matrix/evidence/open": ("diagnosticsView.js", {"run_id", "finding_key", "target"}),
-            "/api/diagnostics/tdarr-matrix/rerun": ("diagnosticsView.js", {"source_run_id", "selection", "finding_keys"}),
+            "/api/diagnostics/tdarr-matrix/evidence/open": ("diagnostics/matrixConsole.js", {"run_id", "finding_key", "target"}),
+            "/api/diagnostics/tdarr-matrix/rerun": ("diagnostics/matrixConsole.js", {"source_run_id", "selection", "finding_keys"}),
             "/api/queue/open": ("queue/openActions.js", {"row_key", "row_scope", "target"}),
             "/api/completed/open": ("completed/openActions.js", {"row_key", "target"}),
             "/api/pending-publish/open": ("pendingPublishView.diagnostics.js", {"row_key", "target"}),
-            "/api/maintenance/dependency-atlas/open-folder": ("maintenanceView.js", set()),
+            "/api/maintenance/dependency-atlas/open-folder": ("maintenance/releaseCommands.js", set()),
         }
         forbidden_path_keys = {
             "path",
@@ -501,9 +608,12 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn('"/api/settings/save-patch"', settings_js)
         self.assertIn("review_confirmation: reviewConfirmation", settings_js)
         self.assertIn("confirm_save: true", settings_js)
-        self.assertIn('apiPostLocal("/api/settings/wizard/save", { wizard: collectWizardPayload(), confirm_save: true })', _asset_sources()["settingsWizard.js"])
-        self.assertIn('apiPost("/api/schedule/save", { ...request, confirm_save: true })', _asset_sources()["scheduleView.js"])
-        maintenance_js = _asset_sources()["maintenanceView.js"]
+        settings_wizard = _asset_sources()["settingsWizard.js"]
+        self.assertIn('apiPostLocal("/api/settings/wizard/save", {', settings_wizard)
+        self.assertIn("confirm_save: true", settings_wizard)
+        self.assertIn("review_confirmation: state.lastPreview?.data?.review_confirmation || null", settings_wizard)
+        self.assertIn('apiPost("/api/schedule/save", { ...request, confirm_save: true })', _schedule_asset_source())
+        maintenance_js = _maintenance_asset_source()
         self.assertIn("confirm_create: true", maintenance_js)
         self.assertIn("include_tauri_preview_binary", maintenance_js)
         completed_js = _asset_sources()["completed/promotionCommands.js"]
@@ -511,23 +621,34 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn("if (selectedRowKeys.length) request.row_keys = selectedRowKeys;", completed_js)
         self.assertIn('apiPost("/api/final-library-promotion/promote-queue", request)', completed_js)
         queue_rerun_js = _asset_sources()["queueView.rerun.js"]
+        queue_rerun_api_js = _asset_sources()["queue/rerunApi.js"]
         queue_rerun_request_js = _asset_sources()["queue/rerunRequest.js"]
-        launch_js = _asset_sources()["launchView.js"]
-        self.assertIn('requireApiPost(RERUN_CONTROL_ROUTE)("/api/rerun/control", { action: "stop_after_current", confirm_stop: true })', queue_rerun_js)
-        self.assertIn('requireApiPost(RERUN_CONTROL_ROUTE)("/api/rerun/control", { action: "pause", confirm_pause: true })', queue_rerun_js)
-        self.assertIn('requireApiPost(RERUN_NETWORK_START_DRY_RUN_ROUTE)("/api/rerun/network/start-dry-run", request)', queue_rerun_js)
-        self.assertIn('requireApiPost(RERUN_NETWORK_START_ROUTE)("/api/rerun/network/start", request)', queue_rerun_js)
-        self.assertIn("const request = { manifest_key: key, confirm_continue: true };", launch_js)
+        launch_rerun_presentation_js = _asset_sources()["launch/rerunPresentation.js"]
+        self.assertIn('requireApiPost(RERUN_CONTROL_ROUTE)("/api/rerun/control", { action: "stop_after_current", confirm_stop: true })', queue_rerun_api_js)
+        self.assertIn('requireApiPost(RERUN_CONTROL_ROUTE)("/api/rerun/control", { action: "pause", confirm_pause: true })', queue_rerun_api_js)
+        self.assertIn('requireApiPost(RERUN_NETWORK_START_DRY_RUN_ROUTE)("/api/rerun/network/start-dry-run", request)', queue_rerun_api_js)
+        self.assertIn('requireApiPost(RERUN_NETWORK_START_ROUTE)("/api/rerun/network/start", request)', queue_rerun_api_js)
+        self.assertIn("const request = { manifest_key: key, confirm_continue: true };", launch_rerun_presentation_js)
         self.assertIn("confirm_start: true", queue_rerun_request_js)
         self.assertIn("dry_run_fingerprint: fingerprint", queue_rerun_request_js)
-        self.assertIn('requireApiPost(RERUN_CONTINUE_ROUTE)("/api/rerun/continue", request)', queue_rerun_js)
-        self.assertIn('requireApiPost(RERUN_PROMOTE_DRY_RUN_ROUTE)("/api/rerun/promote-dry-run", { row_key: rowKey })', queue_rerun_js)
+        self.assertIn('requireApiPost(RERUN_CONTINUE_ROUTE)("/api/rerun/continue", request)', queue_rerun_api_js)
+        self.assertIn('requireApiPost(RERUN_PROMOTE_DRY_RUN_ROUTE)("/api/rerun/promote-dry-run", { row_key: rowKey })', queue_rerun_api_js)
         self.assertIn("const request = { row_key: key, dry_run_fingerprint: fingerprint, confirm_promote: true };", queue_rerun_js)
-        self.assertIn('requireApiPost(RERUN_PROMOTE_ROUTE)("/api/rerun/promote", request)', queue_rerun_js)
+        self.assertIn('requireApiPost(RERUN_PROMOTE_ROUTE)("/api/rerun/promote", request)', queue_rerun_api_js)
 
     def test_queue_loaded_priority_copy_does_not_imply_launch_scope(self) -> None:
         queue_html = QUEUE_PARTIAL.read_text(encoding="utf-8")
-        queue_view = _asset_sources()["queueView.js"]
+        queue_view = "\n".join((
+            _asset_sources()["queue/statusPanels.js"],
+            _asset_sources()["queue/tableView.js"],
+            _asset_sources()["queue/priority.js"],
+            _asset_sources()["queue/manualOrder.js"],
+            _asset_sources()["queue/strategy.js"],
+            _asset_sources()["queue/controls.js"],
+            _asset_sources()["queue/excluded.js"],
+            _asset_sources()["queue/scan.js"],
+            _asset_sources()["queueView.js"],
+        ))
 
         for snippet in [
             "All Loaded Movies",
@@ -558,7 +679,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertNotIn("visible rows to High priority", queue_html + queue_view)
 
     def test_rename_filter_staging_uses_settings_patch_not_direct_psd1_save(self) -> None:
-        rename_view = _asset_sources()["renameView.js"]
+        rename_view = _rename_asset_source()
         settings_view = _asset_sources()["settingsView.js"]
         settings_html = SETTINGS_PARTIAL.read_text(encoding="utf-8")
 
@@ -971,7 +1092,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
     def test_tauri_lifecycle_bridge_is_read_only_event_listener(self) -> None:
         sources = _asset_sources()
         bridge = sources[ALLOWED_TAURI_EVENT_BRIDGE]
-        app = sources["app.js"]
+        app = "\n".join((sources["app/lifecycleOrchestration.js"], sources["app.js"]))
 
         for snippet in [
             "mediapipeline://backend-lifecycle",

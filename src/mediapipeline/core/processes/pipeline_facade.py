@@ -104,10 +104,17 @@ class PipelineLaunchFacadeMixin:
         if not schedule_gate["ok"]:
             return pipeline_start_schedule_gate_result(schedule_gate)
         actual_mode = str(schedule_gate.get("mode") or mode)
-        launch_lock, lock_message = self._acquire_process_launch_lock("Pipeline start")
+        command_id = str(request.get("_command_id") or "")
+        launch_lock, lock_message = self._acquire_process_launch_lock(
+            "Pipeline start",
+            resolved=resolved,
+            command_id=command_id,
+            resource_claims=[single_file] if single_file else [],
+        )
         if lock_message:
             return pipeline_start_active_work_result(lock_message)
         try:
+            self._set_process_launch_recovery_descriptor(launch_lock, route="/api/pipeline/start", request=request)
             block_message = self._active_work_block_message(resolved, "Pipeline start")
             if block_message:
                 return pipeline_start_active_work_result(block_message)
@@ -132,6 +139,7 @@ class PipelineLaunchFacadeMixin:
             starter = getattr(self.service, "start_pipeline", None)
             if not callable(starter):
                 raise RuntimeError("Pipeline start service is not available.")
+            self._prepare_process_launch_lease(launch_lock)
             proc = starter(
                 resolved=resolved,
                 mode=actual_mode,
@@ -141,6 +149,7 @@ class PipelineLaunchFacadeMixin:
                 show_console=intent.show_console,
                 single_file=single_file or None,
             )
+            self._transfer_process_launch_lease(launch_lock, proc)
             pid = int(getattr(proc, "pid", 0) or 0)
             launch_prep_messages.extend(
                 self._arm_pipeline_schedule_stop_watcher(

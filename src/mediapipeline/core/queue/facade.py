@@ -743,7 +743,12 @@ class QueueFacadeMixin:
 
     def open_queue_location(self, resolved: ResolvedPaths, request: dict[str, object]) -> CommandResult:
         """Open a path selected from the backend queue snapshot, not a raw frontend path."""
-        row_key = str(request.get("row_key") or "").strip().casefold()
+        # Queue row keys use the unit separator as a field delimiter.  A
+        # route-less row legitimately ends with that delimiter, and Python's
+        # whitespace-only ``strip()`` treats it as removable control space.
+        # Trim only transport whitespace so the opaque backend-issued key
+        # retains its complete identity.
+        row_key = str(request.get("row_key") or "").strip(" \t\r\n").casefold()
         target = normalize_queue_open_target(request.get("target"))
         row_scope = normalize_queue_open_scope(request.get("row_scope"))
         if not row_key:

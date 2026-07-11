@@ -8,6 +8,45 @@
   const reportsState = reportsStateModule.createReportsState();
   const REPORTS_TAB_STORAGE_KEY = "mediapipeline-reports-tab";
   const REPORTS_ROW_RENDER_LIMIT = 250;
+  const reportsInvestigationModule = window.__reportsViewInvestigationModule || {};
+  delete window.__reportsViewInvestigationModule;
+  if (typeof reportsInvestigationModule.createReportsInvestigationModule !== "function") {
+    throw new Error("reports/investigation.js must load before reportsView.js");
+  }
+  const {
+    getSelectedFailureGroup,
+    selectedFailureGroupMarkerPaths,
+    setReportChipPressed,
+    getSelectedFailureRow,
+    getSelectedFailureRows,
+    failureMarkerModeActive,
+    setFailureMarkerSourceMode,
+    reportNumber,
+    reportPreviewLoaded,
+    reportCountBy,
+    reportFormatCounts,
+    reportSortedCountEntries,
+    reportHumanLabel,
+    reportCompactCountPairs,
+    focusReportsQuickLinkTarget,
+    setFailureQuickFilter,
+    setAuditQuickFilter,
+    activateQuickLink,
+  } = reportsInvestigationModule.createReportsInvestigationModule({
+    state: reportsState,
+    byId,
+    failureResolutionGroupKey: (...args) => failureResolutionGroupKey(...args),
+    normalizeFailureMarkerPaths: (...args) => normalizeFailureMarkerPaths(...args),
+    failureRowsForGroup: (...args) => failureRowsForGroup(...args),
+    failureClearMarkerPathsForRow: (...args) => failureClearMarkerPathsForRow(...args),
+    failureRowKey: (...args) => failureRowKey(...args),
+    renderFailureResolutionGroups: (...args) => renderFailureResolutionGroups(...args),
+    renderFailureRows: (...args) => renderFailureRows(...args),
+    updateFailureClearConfirmState: (...args) => updateFailureClearConfirmState(...args),
+    updateFailureLifecycleConfirmState: (...args) => updateFailureLifecycleConfirmState(...args),
+    renderAuditRows: (...args) => renderAuditRows(...args),
+    activateReportsTab: (...args) => activateReportsTab(...args),
+  });
   let reportsAuditCommands = null;
   let reportsTriage = null;
   const reportsSharedModule = window.__reportsViewSharedModule || {};
@@ -645,113 +684,6 @@
     if (typeof getCommandHistory === "function") renderReportOpenHistory(getCommandHistory());
     renderReportAuditRunningState(snapshotPayload);
   }
-  function getSelectedFailureGroup() {
-    if (!reportsState.selectedFailureGroupKey) return reportsState.lastFailureResolutionGroups[0] || null;
-    return reportsState.lastFailureResolutionGroups.find((group) => failureResolutionGroupKey(group) === reportsState.selectedFailureGroupKey) || reportsState.lastFailureResolutionGroups[0] || null;
-  }
-  function selectedFailureGroupMarkerPaths() {
-    const group = getSelectedFailureGroup();
-    const groupPaths = normalizeFailureMarkerPaths(group?.clearable_marker_paths || []);
-    if (groupPaths.length) return groupPaths;
-    const seen = new Set();
-    const paths = [];
-    failureRowsForGroup(group).forEach((row) => {
-      failureClearMarkerPathsForRow(row).forEach((markerPath) => {
-        const key = markerPath.toLowerCase();
-        if (markerPath && !seen.has(key)) {
-          seen.add(key);
-          paths.push(markerPath);
-        }
-      });
-    });
-    return paths;
-  }
-  function setReportChipPressed(selector, activeValue) {
-    document.querySelectorAll(selector).forEach((button) => {
-      const value = button.dataset.failureFilterChip || button.dataset.auditFilterChip || "all";
-      button.setAttribute("aria-pressed", String(value === activeValue));
-    });
-  }
-  function getSelectedFailureRow() {
-    if (!reportsState.selectedFailureRowKey) return null;
-    return reportsState.lastFailureRows.find((row) => failureRowKey(row) === reportsState.selectedFailureRowKey) || null;
-  }
-
-  function getSelectedFailureRows() {
-    if (!reportsState.selectedFailureRowKeys.size) {
-      const single = getSelectedFailureRow();
-      return single ? [single] : [];
-    }
-    return reportsState.lastFailureRows.filter((row) => reportsState.selectedFailureRowKeys.has(failureRowKey(row)));
-  }
-
-  function failureMarkerModeActive() {
-    return String(reportsState.lastFailurePreviewPayload.source_kind || "").toLowerCase() === "markers";
-  }
-
-  function setFailureMarkerSourceMode(enabled) {
-    const checkbox = byId("failure-source-markers");
-    if (!checkbox) return false;
-    checkbox.checked = Boolean(enabled);
-    return true;
-  }
-
-  function reportNumber(value) {
-    const numeric = Number(value);
-    return Number.isFinite(numeric) ? numeric : 0;
-  }
-
-  function reportPreviewLoaded(payload, rows) {
-    const warnings = Array.isArray(payload?.warnings) ? payload.warnings : [];
-    return Boolean(
-      payload?.source ||
-      payload?.source_kind ||
-      payload?.count !== undefined ||
-      payload?.error ||
-      warnings.length ||
-      (Array.isArray(rows) && rows.length)
-    );
-  }
-
-  function reportCountBy(rows, keys, fallback = "unknown") {
-    const keyList = Array.isArray(keys) ? keys : [keys];
-    const counts = {};
-    (Array.isArray(rows) ? rows : []).forEach((row) => {
-      let value = "";
-      keyList.some((key) => {
-        value = String(row?.[key] || "").trim();
-        return Boolean(value);
-      });
-      const normalized = value || fallback;
-      counts[normalized] = (counts[normalized] || 0) + 1;
-    });
-    return counts;
-  }
-
-  function reportFormatCounts(counts, limit = 6) {
-    const entries = reportSortedCountEntries(counts, limit);
-    return entries.length ? entries.map(([key, value]) => `${key}: ${value}`).join(", ") : "none";
-  }
-
-  function reportSortedCountEntries(counts, limit = 6) {
-    return Object.entries(counts || {})
-      .sort((left, right) => Number(right[1] || 0) - Number(left[1] || 0) || String(left[0]).localeCompare(String(right[0])))
-      .slice(0, limit);
-  }
-
-  function reportHumanLabel(value, fallback = "None") {
-    const text = String(value || "").trim();
-    if (!text) return fallback;
-    const spaced = text.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
-    if (spaced.length <= 4 && spaced === spaced.toUpperCase()) return spaced;
-    return spaced.toLowerCase().replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
-  }
-
-  function reportCompactCountPairs(counts, limit = 3, fallback = "None") {
-    const entries = reportSortedCountEntries(counts, limit);
-    if (!entries.length) return fallback;
-    return entries.map(([key, value]) => `${reportHumanLabel(key)} ${value}`).join(" / ");
-  }
   function failureReviewTileNode(tile) {
     const section = document.createElement("section");
     section.className = `review-tile${tile.wide ? " review-tile-wide" : ""}`;
@@ -794,65 +726,6 @@
 
   function renderReportInvestigation() {
     return reportsTriageApi().renderReportInvestigation();
-  }
-
-  function focusReportsQuickLinkTarget(selector) {
-    const target = selector ? document.querySelector(selector) : null;
-    if (!target) return false;
-    target.scrollIntoView?.({ block: "center", inline: "nearest" });
-    if (!target.matches?.("a[href], button, input, select, textarea, summary, [tabindex]")) {
-      target.setAttribute("tabindex", "-1");
-    }
-    target.focus?.({ preventScroll: true });
-    return true;
-  }
-
-  function setFailureQuickFilter(chip) {
-    reportsState.activeFailureFilterChip = chip || "all";
-    reportsState.lastFailureClearPreview = null;
-    reportsState.lastFailureLifecyclePreview = null;
-    setReportChipPressed("[data-failure-filter-chip]", reportsState.activeFailureFilterChip);
-    renderFailureResolutionGroups();
-    renderFailureRows();
-    updateFailureClearConfirmState();
-    updateFailureLifecycleConfirmState();
-    return focusReportsQuickLinkTarget("#failure-rows");
-  }
-
-  function setAuditQuickFilter(chip) {
-    reportsState.activeAuditFilterChip = chip || "all";
-    setReportChipPressed("[data-audit-filter-chip]", reportsState.activeAuditFilterChip);
-    renderAuditRows();
-    return focusReportsQuickLinkTarget("#audit-preview-rows");
-  }
-
-  function activateQuickLink(action) {
-    const normalized = String(action || "").trim().toLowerCase();
-    const failureFilters = {
-      "failure-needs-action": "needs_action",
-      "failure-working": "working",
-      "failure-waiting-retry": "waiting_retry",
-      "failure-ready-clear": "ready_to_clear",
-      "failure-all": "all",
-    };
-    const auditFilters = {
-      "audit-review": "review",
-      "audit-high": "high",
-      "audit-all": "all",
-    };
-    if (Object.prototype.hasOwnProperty.call(failureFilters, normalized)) {
-      activateReportsTab("failures");
-      return setFailureQuickFilter(failureFilters[normalized]);
-    }
-    if (Object.prototype.hasOwnProperty.call(auditFilters, normalized)) {
-      activateReportsTab("audit");
-      return setAuditQuickFilter(auditFilters[normalized]);
-    }
-    if (normalized === "locations" || normalized === "files") {
-      activateReportsTab("files");
-      return focusReportsQuickLinkTarget('[data-reports-tab-panel="files"]');
-    }
-    return true;
   }
 
   function initReportsViewEvents() {

@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-AuditScorePolicyChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-08
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 477ff2a2b6b0f3862aff70972917bf24bbceff3afe5e00a3bb73f7d187ff85f2
+sha256: 30c2e0e38c3744e1271a1888cd73c7f369840bcec587c00742db0d6d7829fc6d
 ---
 # `ops/pipeline/tests/Unit/Invoke-AuditScorePolicyChecks.ps1`
 

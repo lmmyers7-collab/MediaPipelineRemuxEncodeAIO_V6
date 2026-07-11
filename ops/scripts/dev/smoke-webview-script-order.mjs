@@ -152,6 +152,7 @@ const requiredGlobals = [
   "mediaPipelineCompletedView",
   "mediaPipelineDom",
   "mediaPipelineLaunchView",
+  "mediaPipelineNetworkView",
   "mediaPipelineQueueView",
   "mediaPipelineSettingsMetadata",
   "mediaPipelineSettingsOverview",
@@ -180,8 +181,16 @@ for (const src of collectScriptTags()) {
 }
 
 const missing = requiredGlobals.filter((name) => context[name] === undefined);
-if (missing.length) {
+const missingHandlers = [
+  ["mediaPipelineQueueView", "renderQueueRows"],
+  ["mediaPipelineQueueView", "resetQueueFilters"],
+  ["mediaPipelineNetworkView", "renderNetworkView"],
+].filter(([namespace, handler]) => typeof context[namespace]?.[handler] !== "function");
+if (missing.length || missingHandlers.length) {
   console.error(`Missing expected globals after ordered script load: ${missing.join(", ")}`);
+  if (missingHandlers.length) {
+    console.error(`Missing expected namespaced handlers after ordered script load: ${missingHandlers.map(([namespace, handler]) => `${namespace}.${handler}`).join(", ")}`);
+  }
   process.exitCode = 1;
 } else {
   console.log(`Loaded ${loaded.length} WebView scripts in index order.`);

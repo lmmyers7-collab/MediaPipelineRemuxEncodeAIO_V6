@@ -244,6 +244,29 @@ function New-DynamicHdrEvidence {
     }
 }
 
+function Resolve-DynamicHdrPolicy {
+    param([string] $Policy)
+    return 'warn'
+}
+
+function Get-LastAudioDecisionRecords { return @() }
+
+function New-MediaTrackOutputVerificationPlan {
+    param([array] $AudioDecisions, [array] $SubtitleTracks)
+    return [pscustomobject]@{ expected_audio_tracks = @(); expected_embedded_subtitle_tracks = @() }
+}
+
+function Test-MediaTrackOutputVerification {
+    param([string] $OutputPath, $Plan)
+    $script:RemuxGateOrder.Add('media-track-verification') | Out-Null
+    return [pscustomobject]@{ allowed = $true; reason = ''; error_code = '' }
+}
+
+function Get-MediaTrackVerificationFacet {
+    param($Verification, [string] $Kind)
+    return [pscustomobject]@{ schema_version = "${Kind}_verification.v1"; allowed = [bool]$Verification.allowed }
+}
+
 function Build-AudioArgs {
     param([string] $InputPath)
     $script:LastAudioTrackCount = 1

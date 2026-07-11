@@ -33,8 +33,17 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
                 "/assets/queueView.review.js",
                 "/assets/queueView.detail.js",
                 "/assets/queueView.launch.js",
+                "/assets/queue/rerunApi.js",
                 "/assets/queueView.rerun.js",
                 "/assets/queue/rerunRequest.js",
+                "/assets/queue/statusPanels.js",
+                "/assets/queue/tableView.js",
+                "/assets/queue/priority.js",
+                "/assets/queue/manualOrder.js",
+                "/assets/queue/strategy.js",
+                "/assets/queue/controls.js",
+                "/assets/queue/excluded.js",
+                "/assets/queue/scan.js",
                 "/assets/queueView.js",
                 'data-queue-tab="main"',
                 'data-queue-tab="rerun"',
@@ -65,8 +74,8 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
                 "Destination Collision",
                 'data-rerun-policy-card="destination"',
                 'data-rerun-policy-card="collision"',
-                "Clean verified outputs use backend-derived final placement",
-                "Source-path overwrite requires the explicit checkbox.",
+                "Verified outputs stay in review until you choose a backend-owned final placement path.",
+                "Use the CSV source path as a final-output target",
                 "rerun-csv-path-picker-badge",
                 'data-path-picker-target="queue.rerun_csv"',
                 'data-path-picker-input="rerun-start-csv-path"',
@@ -184,7 +193,7 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
                 "Open Excluded Source",
                 'targetDataset: "openQueue"',
                 "Open Source Root",
-                "queueClearFiltersButton.addEventListener(\"click\", resetQueueFilters)",
+                "queueClearFiltersButton.addEventListener(\"click\", () => window.mediaPipelineQueueView?.resetQueueFilters?.())",
             ),
         )
         _assert_contains_all(
@@ -208,6 +217,7 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
 
     def test_queue_csv_rerun_routes_and_events_are_static_pinned(self) -> None:
         bundle = self.bundle
+        rerun_runtime_js = "\n".join((bundle.queue_rerun_api_js, bundle.queue_view_rerun_js))
 
         _assert_contains_all(
             self,
@@ -238,7 +248,7 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
         )
         _assert_contains_all(
             self,
-            bundle.queue_view_rerun_js,
+            rerun_runtime_js,
             (
                 'const RERUN_PREVIEW_ROUTE = "/api/rerun/preview"',
                 'const RERUN_NETWORK_PREVIEW_ROUTE = "/api/rerun/network-preview"',
@@ -309,7 +319,7 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
                 "Check Network Start",
             ),
         )
-        self.assertNotIn('apiPost("/api/pipeline/start"', bundle.queue_view_rerun_js)
+        self.assertNotIn('apiPost("/api/pipeline/start"', rerun_runtime_js)
         self.assertNotIn('Rule reason: ${item.rerun_rule_reason}', bundle.queue_view_rerun_js)
         rerun_state_table = bundle.html[
             bundle.html.index('class="workflow-table rerun-state-table"') :
@@ -429,7 +439,7 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
                 "Display filter / backend launch scope",
                 "Backend launch scope: unchanged.",
                 "Launch routes use backend queue/schedule/settings checks, not the visible WebView table subset.",
-                "renderQueueLaunchDecisionChecklist(lastQueuePayload, lastQueueRows",
+                "renderQueueLaunchDecisionChecklist(state.payload, state.rows",
                 "function queueLaunchBackendPreflightPayload",
                 "function queueLaunchBackendPreflightCheckpoint",
                 'launchView.launchBackendPreflightPayloadForTarget("pipeline")',

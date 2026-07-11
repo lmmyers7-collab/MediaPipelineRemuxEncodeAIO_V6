@@ -197,6 +197,9 @@ function New-PendingDrainSummaryItem {
     $retryCount = 0
     $retryLimit = Get-PendingPublishRetryLimit
     $recovered = $false
+    $copyProofState = 'legacy_weak_copy_proof'
+    $drainAttemptStatus = ''
+    $replacementExistingFinal = $false
     if ($null -ne $Manifest) {
         $localFile = [string](Get-PendingObjectProperty -Object $Manifest -Name 'local_file')
         $serverOut = [string](Get-PendingObjectProperty -Object $Manifest -Name 'server_out')
@@ -205,6 +208,9 @@ function New-PendingDrainSummaryItem {
         $publishMode = [string](Get-PendingObjectProperty -Object $Manifest -Name 'publish_mode')
         $transactionId = [string](Get-PendingObjectProperty -Object $Manifest -Name 'publish_transaction_id')
         $retryCount = Get-PendingManifestRetryCount -Manifest $Manifest
+        if (-not [string]::IsNullOrWhiteSpace([string](Get-PendingObjectProperty -Object $Manifest -Name 'output_sha256'))) { $copyProofState = 'sha256_recorded' }
+        $drainAttemptStatus = [string](Get-PendingObjectProperty -Object $Manifest -Name 'drain_attempt_status')
+        $replacementExistingFinal = [bool](Get-PendingObjectProperty -Object $Manifest -Name 'replacement_existing_final')
     }
     if ($null -ne $Transaction) {
         $Status = [string](Get-PendingObjectProperty -Object $Transaction -Name 'Status')
@@ -234,6 +240,9 @@ function New-PendingDrainSummaryItem {
         sidecar_count          = $sidecarCount
         retry_count            = $retryCount
         retry_limit            = $retryLimit
+        copy_proof_state       = $copyProofState
+        drain_attempt_status   = $drainAttemptStatus
+        replacement_existing_final = $replacementExistingFinal
         error                  = $ErrorMessage
     }
 }

@@ -3,9 +3,9 @@ file: ops/pipeline/engine/entrypoint.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-24
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6befc3bda12222d0212b99f8f7226cde3ca442a776b82a14b470e9adb7660513
+sha256: 8b49522fc4597a077cf9073f219055d3a20fbcbf4f32beafebb4e14c787b2586
 ---
 # `ops/pipeline/engine/entrypoint.ps1`
 

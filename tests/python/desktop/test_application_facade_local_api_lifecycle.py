@@ -78,14 +78,13 @@ class LocalApiLifecycleTests(LocalApiHttpTestMixin, unittest.TestCase):
             finally:
                 server.stop()
 
-        self.assertEqual(status, 200)
+        self.assertEqual(status, 503)
         self.assertEqual(payload["schema_version"], "desktop_command_result.v1")
         self.assertEqual(payload["command"], "backend.shutdown")
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["severity"], "error")
-        self.assertEqual(payload["data"]["safe_to_close"], False)
-        self.assertEqual(payload["data"]["state"], "unknown")
-        self.assertIn("resolved paths are unavailable", payload["errors"][0])
+        self.assertEqual(payload["data"]["evidence_phase"], "rejected")
+        self.assertEqual(payload["data"]["journal_durability"], "strict")
         self.assertFalse(shutdown_event.wait(0.2))
 
     def test_local_api_shutdown_ignores_active_jobs_when_close_readiness_is_safe(self) -> None:
@@ -164,7 +163,9 @@ class LocalApiLifecycleTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertTrue(shutdown["ok"])
         self.assertEqual(shutdown["severity"], "info")
         self.assertEqual(shutdown["message"], "Backend shutdown requested.")
-        self.assertEqual(shutdown["data"], {})
+        self.assertEqual(shutdown["data"]["evidence_phase"], "completed")
+        self.assertEqual(shutdown["data"]["journal_durability"], "strict")
+        self.assertTrue(shutdown["data"]["command_id"])
         self.assertTrue(shutdown_event.wait(0.5))
 
     def test_local_api_shutdown_blocks_when_schedule_stop_watcher_is_armed(self) -> None:

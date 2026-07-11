@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0710-037",
+  "title": "Unified performance benchmark ledger",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "low",
+  "date_started": "2026-07-10",
+  "date_completed": "2026-07-10",
+  "summary": "Add a repeatable read-only performance benchmark, explicit JSONL ledger records, baseline summaries, and a runbook for comparing safe variants.",
+  "reason": "Performance changes lacked one durable baseline format covering backend import, WebView asset load, pipeline module load, and optional engineering audit suites.",
+  "affected_areas": [
+    "docs",
+    "generated-context",
+    "observability",
+    "tests",
+    "tooling"
+  ],
+  "behavior_before": "Performance investigations used one-off commands and did not persist comparable schema-versioned measurements.",
+  "behavior_after": "The bundled runtime can repeat bounded benchmarks, fail on correctness regressions, emit full JSON, and append comparable JSONL measurements only when an explicit ledger path is supplied.",
+  "files_touched": [
+    "docs/DOCS_INDEX.md",
+    "docs/generated/summaries/src/mediapipeline/core/observability/performance.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/performance_benchmark.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_performance_benchmark.py.md",
+    "docs/testing/PERFORMANCE_BENCHMARK_RUNBOOK.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-037.json",
+    "src/mediapipeline/core/observability/performance.py",
+    "src/mediapipeline/tools/dev/performance_benchmark.py",
+    "tests/python/tooling/test_performance_benchmark.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_performance_benchmark.py"
+  ],
+  "manual_validation": [
+    "python -m unittest tests.python.tooling.test_performance_benchmark -v (pass)",
+    "performance_benchmark --repeat 5 --variant baseline (pass; backend import median 728.125 ms, 186 external scripts, 70 PowerShell modules)"
+  ],
+  "rollback_plan": "Remove the benchmark/ledger modules, their focused tests and runbook, and the DOCS_INDEX entry. LocalBase benchmark artifacts are optional ignored runtime evidence.",
+  "related_changes": [],
+  "notes": "Add shared performance record and JSONL ledger helpers.\nAdd repeatable read-only startup, static-shell, module-graph, and optional audit-suite benchmarks.\nCover performance summaries, ledger writes, static inventory, and record projection.\nDocument benchmark baselines, ledger behavior, and correctness boundaries.\nIndex the performance benchmark runbook.\nRefresh generated summary for the performance change."
+}

@@ -118,6 +118,27 @@ class SubtitleQaFeatureTests(unittest.TestCase):
         self.assertEqual(qa["conversion_evidence"]["status"], "blocked")
         self.assertTrue(any("OCR tool path missing" in reason for reason in qa["reasons"]))
 
+    def test_completed_qa_blocks_backend_media_track_verifier_mismatch(self) -> None:
+        qa = build_completed_subtitle_qa(
+            {
+                "row_key": "completed-track-verifier",
+                "source_path": "C:/Media/Input.mkv",
+                "output_path": "C:/Media/Output.mkv",
+                "output_exists": True,
+            },
+            record_payload={
+                "media_track_verification": {
+                    "allowed": False,
+                    "error_code": "OUTPUT_MEDIA_TRACK_VERIFICATION_FAILED",
+                    "reason": "output subtitle language differs from resolved policy",
+                    "mismatches": [{"kind": "subtitle", "property": "language", "expected": "eng", "actual": "fra"}],
+                }
+            },
+        )
+
+        self.assertEqual(qa["posture"], "blocked")
+        self.assertIn("OUTPUT_MEDIA_TRACK_VERIFICATION_FAILED", "\n".join(qa["reasons"]))
+
     def test_completed_qa_does_not_block_image_subtitle_with_cue_evidence(self) -> None:
         qa = build_completed_subtitle_qa(
             {

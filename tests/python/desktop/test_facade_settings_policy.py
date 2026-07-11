@@ -161,6 +161,48 @@ class SettingsFacadePolicyTests(unittest.TestCase):
             ["copy", "nvenc"],
         )
 
+    def test_encoder_capability_v2_exposes_evidence_boundaries_without_certification_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            report_path = root / "State" / "Progress" / "encoder_capabilities.json"
+            report_path.parent.mkdir(parents=True)
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "schema": "mediapipeline.encoder_capabilities.v2",
+                        "generated_at": "2026-07-10T12:00:00Z",
+                        "video_codec": "libaom-av1",
+                        "encoder_backend": "cpu",
+                        "selection": {"resolved": True, "reason": "cpu override", "family": "av1"},
+                        "encoders": [{
+                            "encoder_name": "libaom-av1", "probe_encoder_name": "libaom-av1",
+                            "family": "av1", "backend": "cpu", "roles": ["primary", "cpu_fallback"],
+                            "descriptor_flags_active": True, "activation": [], "available": True,
+                            "probed": True, "runtime_probe_skipped": False, "encoder_list_match": True,
+                            "runtime_ok": True, "backend_invalidated": False, "reason": "ok", "probed_at": "2026-07-10T12:00:00Z",
+                        }],
+                        "evidence": {
+                            "freshness": {"generated_at": "2026-07-10T12:00:00Z", "ttl_seconds": 900, "posture": "availability_and_runtime_probe_only"},
+                            "resolved_config": {"fingerprint": "abc123"},
+                            "ffmpeg": {"path": "C:/tools/ffmpeg.exe", "file_version": "7.1", "identity_state": "path_and_file_version"},
+                            "host": {"device_facts_state": "not_collected", "driver_facts_state": "not_collected", "certification_state": "not_certified"},
+                            "selected_descriptor_chain": {"primary": {"family": "av1", "backend": "cpu", "encoder": "libaom-av1"}, "cpu_fallback": {"family": "av1", "backend": "cpu", "encoder": "libaom-av1"}},
+                            "activation_state": {"selected_resolved": True}, "list_probe_state": "completed", "runtime_probe_state": "completed",
+                            "invalidation_state": {"invalidated": False, "backends": []},
+                            "metadata_proof_state": "not_collected", "playback_proof_state": "not_collected",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            evidence = settings_encoder_capability_report(_resolved(root))
+
+        self.assertEqual(evidence["operator_status"], "Ready")
+        self.assertEqual(evidence["evidence"]["resolved_config"]["fingerprint"], "abc123")
+        self.assertEqual(evidence["evidence"]["host"]["certification_state"], "not_certified")
+        self.assertEqual(evidence["evidence"]["metadata_proof_state"], "not_collected")
+        self.assertEqual(evidence["evidence"]["playback_proof_state"], "not_collected")
+
     def test_encoder_capability_report_excludes_available_but_inactive_descriptor_rows_from_facts(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

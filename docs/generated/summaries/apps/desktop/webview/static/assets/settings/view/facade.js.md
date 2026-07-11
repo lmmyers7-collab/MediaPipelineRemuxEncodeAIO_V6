@@ -1,0 +1,14 @@
+---
+file: apps/desktop/webview/static/assets/settings/view/facade.js
+pipeline_stage: n/a
+token_priority: medium
+owner_domain: webview
+last_modified: 2026-07-11
+last_reviewed: 2026-07-11
+sha256: 3590401fde9ea2d63f7cbcbc6374e1b397edddb4d399c6565a9c4a9a16bef0ed
+---
+# `apps/desktop/webview/static/assets/settings/view/facade.js`
+
+**Purpose:** (unparsed)
+
+_Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/settings/view/facade.js`._

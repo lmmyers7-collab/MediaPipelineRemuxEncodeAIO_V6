@@ -14,6 +14,13 @@ from mediapipeline.desktop.api.static_files import render_index
 REPO_ROOT = find_repo_root(Path(__file__))
 STATIC_ROOT = REPO_ROOT / "apps" / "desktop" / "webview" / "static"
 ASSETS_ROOT = STATIC_ROOT / "assets"
+MAINTENANCE_ASSET_NAMES = (
+    "maintenance/changeLedger.js",
+    "maintenance/health.js",
+    "maintenance/dryRunReadiness.js",
+    "maintenance/releaseCommands.js",
+    "maintenanceView.js",
+)
 
 
 def _render_html() -> str:
@@ -24,6 +31,13 @@ def _render_html() -> str:
     if response.status != 200:
         raise AssertionError(f"index render failed with status {response.status}: {response.body!r}")
     return response.body.decode("utf-8")
+
+
+def _maintenance_source_bundle() -> str:
+    return "\n".join(
+        (ASSETS_ROOT / asset_name).read_text(encoding="utf-8")
+        for asset_name in MAINTENANCE_ASSET_NAMES
+    )
 
 
 class WebViewMaintenanceChangeLedgerStaticTests(unittest.TestCase):
@@ -40,7 +54,7 @@ class WebViewMaintenanceChangeLedgerStaticTests(unittest.TestCase):
         self.assertIn('id="maintenance-change-ledger-hygiene"', html)
 
     def test_maintenance_view_uses_read_only_get_route_and_namespace_exports(self) -> None:
-        source = (ASSETS_ROOT / "maintenanceView.js").read_text(encoding="utf-8")
+        source = _maintenance_source_bundle()
 
         self.assertIn("CHANGE_LEDGER_ROW_LIMIT = 200", source)
         self.assertIn("CHANGE_LEDGER_REFRESH_TIMEOUT_MS = 120000", source)
@@ -64,7 +78,7 @@ class WebViewMaintenanceChangeLedgerStaticTests(unittest.TestCase):
         self.assertIn("Root CHANGELOG.md remains the canonical human changelog.", source)
 
     def test_maintenance_view_treats_running_process_guard_as_active_not_blocked(self) -> None:
-        source = (ASSETS_ROOT / "maintenanceView.js").read_text(encoding="utf-8")
+        source = _maintenance_source_bundle()
 
         self.assertIn('item?.status !== "ok" && item?.status !== "running"', source)
         self.assertIn('item?.status === "running"', source)

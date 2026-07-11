@@ -2,6 +2,13 @@
 
 Purpose: validate unattended long-run behavior with isolated media roots, injected failure modes, and read-only health evidence. This soak must not run against production source, scratch, output, final-library, or pending-publish roots.
 
+Use the owned-media Policy Proof Pack as the seed corpus for the isolated
+subtitle/audio/topology/HDR/publish cases. Its controlled interruption/rerun
+case supplies the restart baseline; its deferred-publish fixture supplies the
+park/drain baseline. Keep the soak's existing fault injection and capacity
+backpressure paths separate from production roots and record the matching
+Policy Proof Pack report ID in the soak evidence.
+
 ## Isolated Profile
 
 Create a dedicated configuration profile with these roots under a disposable test directory:

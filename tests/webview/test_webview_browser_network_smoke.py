@@ -338,8 +338,8 @@ def _browser_network_runner_source() -> str:
               }
               return { ok: true, command: "diagnostics.open", message: "browser smoke mocked diagnostics open", data: { target: body?.target || "" } };
             };
-            try { refreshAll = () => {}; } catch (_error) {}
-            window.refreshAll = () => {};
+            try { refreshAll = async () => {}; } catch (_error) {}
+            window.refreshAll = async () => {};
             window.open = (url) => {
               opened.push(String(url || ""));
               return null;
@@ -437,7 +437,7 @@ def _browser_network_runner_source() -> str:
             requireText("network-worker-progress-summary", ["Last reported worker progress:", "Active worker bars:", "Mutation guardrail: this panel uses backend-owned Network lifecycle routes only"]);
             requireText("network-worker-progress-bars", ["worker-active", "42%", "worker-failed"]);
             requireText("network-worker-filter-summary", ["Showing 3/3", "No active/problem/review rows hidden", "Filters are visual only"]);
-            requireText("network-worker-view-presets", ["All", "Needs Attention", "Active", "Idle", "Stale", "Path/Auth"]);
+            requireText("network-worker-view-presets", ["All", "Active or needs attention", "Active", "Idle", "Stale", "Path/Auth"]);
             click('[data-network-worker-view="stale"]', "stale worker board preset");
             requireText("network-worker-filter-summary", ["Showing 1/3", "Filter: view=Stale/Failed", "1 active/problem/review hidden"]);
             click('[data-network-worker-view=""]', "all worker board preset");

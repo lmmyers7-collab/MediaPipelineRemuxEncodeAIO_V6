@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 import threading
 import time
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from collections.abc import Mapping
 
 from mediapipeline.core.paths.contracts import ResolvedPaths
@@ -28,6 +28,7 @@ class InfoWarningLogger(Protocol):
 class ProcessSpawnService(Protocol):
     app_root: Path
     workspace_root: Path
+    run_logs_root: Path
     logger: InfoWarningLogger
     _last_spawn_stdout_log: Path | None
     _last_spawn_stderr_log: Path | None
@@ -110,6 +111,13 @@ def _start_active_job_completion_watcher(
         finally:
             if callable(unregister_active_process):
                 unregister_active_process(proc)
+            lease = getattr(proc, "_mediapipeline_lifecycle_lease", None)
+            release = getattr(lease, "release", None)
+            if callable(release):
+                try:
+                    release(outcome="completed" if return_code == 0 else "failed")
+                except Exception as exc:
+                    service.logger.warning("Failed to release %s lifecycle lease after process exit: %s", job_kind, exc)
 
     watcher = threading.Thread(
         target=_watch,
@@ -142,6 +150,10 @@ def _start_active_job_heartbeat_watcher(
                 if poll() is not None:
                     return
                 update_active_job(proc, status="active", return_code=None)
+                lease = getattr(proc, "_mediapipeline_lifecycle_lease", None)
+                heartbeat = getattr(lease, "heartbeat", None)
+                if callable(heartbeat):
+                    heartbeat()
             except Exception as exc:
                 service.logger.warning("Failed to heartbeat %s ActiveJobs record: %s", job_kind, exc)
 
@@ -167,7 +179,10 @@ def spawn_process_for_service(
     creationflags = hidden_creationflags(show_console)
     command_line = build_spawn_command_line(args)
     service.logger.info("Launching: %s", command_line)
-    log_paths = build_spawn_log_paths(service.app_root)
+    log_paths = build_spawn_log_paths(
+        service.app_root,
+        run_logs_root=getattr(service, "run_logs_root", None),
+    )
     stdout_log = log_paths.stdout_log
     stderr_log = log_paths.stderr_log
     stdout_handle = stdout_log.open("ab")
@@ -184,7 +199,15 @@ def spawn_process_for_service(
     )
     try:
         proc = subprocess.Popen(args, stdin=subprocess.DEVNULL, **kwargs)
+        pending_lease = getattr(service, "_consume_pending_lifecycle_lease", None)
+        lease = pending_lease() if callable(pending_lease) else None
         try:
+            if lease is not None:
+                activate = getattr(lease, "activate", None)
+                if not callable(activate):
+                    raise RuntimeError("Pending lifecycle lease does not support activation.")
+                activate(int(proc.pid))
+                cast(Any, proc)._mediapipeline_lifecycle_lease = lease
             service._write_active_job_launch_record(
                 proc,
                 resolved=resolved,
@@ -213,6 +236,12 @@ def spawn_process_for_service(
                     unregister_active_process(proc)
         except Exception:
             _stop_started_process_after_launch_failure(service, proc, job_kind)
+            release = getattr(lease, "release", None)
+            if callable(release):
+                try:
+                    release(outcome="launch_failed")
+                except Exception as lease_exc:
+                    service.logger.warning("Failed to release %s lifecycle lease after launch failure: %s", job_kind, lease_exc)
             raise
         return proc
     finally:

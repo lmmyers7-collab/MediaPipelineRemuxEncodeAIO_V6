@@ -40,6 +40,11 @@ function New-PendingDrainSidecarExtra {
         source_size            = $Manifest.source_size
         source_mtime_utc       = [string]$Manifest.source_mtime_utc
         output_size            = $OutputSize
+        output_sha256          = [string](Get-PendingObjectProperty -Object $Manifest -Name 'output_sha256')
+        output_hash_algorithm  = [string](Get-PendingObjectProperty -Object $Manifest -Name 'output_hash_algorithm')
+        pending_copy_proof     = if ([string]::IsNullOrWhiteSpace([string](Get-PendingObjectProperty -Object $Manifest -Name 'output_sha256'))) { 'legacy_weak_copy_proof' } else { 'sha256_verified' }
+        replacement_existing_final = [bool](Test-Path -LiteralPath $ServerPath -PathType Leaf -ErrorAction SilentlyContinue)
+        replacement_transaction_id = $PublishTransactionId
     }
     if (-not [string]::IsNullOrWhiteSpace([string]$Manifest.parked_at)) {
         $sidecarExtra['encoded_at'] = [string]$Manifest.parked_at
@@ -155,10 +160,25 @@ function Invoke-PendingDrainTransaction {
         }
     }
 
+    $attemptId = [guid]::NewGuid().ToString('N')
+    try {
+        $Manifest = Update-PendingManifestDrainAttempt -ManifestPath $manifestPath -Manifest $Manifest -AttemptId $attemptId -Status 'in_progress'
+    } catch {
+        $result.Status = 'attempt_state_failed'
+        $result.Error = "Could not persist pending drain attempt intent: $_"
+        return [pscustomobject]$result
+    }
+    $expectedHash = [string](Get-PendingObjectProperty -Object $Manifest -Name 'output_sha256')
+    $hasStrongHashProof = -not [string]::IsNullOrWhiteSpace($expectedHash)
+    if (-not $hasStrongHashProof) {
+        Write-Log "Pending: draining legacy manifest without output SHA-256 proof: $($ManifestFile.Name)" 'WARN'
+    }
+
     if (-not (Test-Path -LiteralPath $local)) {
         $reason = "Pending parked local file is missing: $local"
         Write-Log "Pending: $reason; leaving manifest queued as missing_payload: $($ManifestFile.Name)" "ERROR"
         Update-PendingManifestRetryState -ManifestPath $manifestPath -Manifest $Manifest -State 'missing_payload' -Reason $reason -Stage 'retry_pending_push'
+        Update-PendingManifestDrainAttempt -ManifestPath $manifestPath -Manifest $Manifest -AttemptId $attemptId -Status 'missing_payload' -Error $reason | Out-Null
         $result.Status = 'missing_payload'
         $result.Error = $reason
         return [pscustomobject]$result
@@ -166,10 +186,24 @@ function Invoke-PendingDrainTransaction {
 
     if (Test-Path -LiteralPath $server) {
         if (Test-PendingPublishedServerCopy -Manifest $Manifest -LocalPath $local -ServerPath $server) {
+            if ($hasStrongHashProof) {
+                $existingHash = Get-PendingFileSha256OrNull $server
+                if ([string]::IsNullOrWhiteSpace($existingHash) -or -not $existingHash.Equals($expectedHash, [System.StringComparison]::OrdinalIgnoreCase)) {
+                    Write-Log "Pending: existing server copy passed metadata checks but SHA-256 proof mismatched; replacing transactionally" 'WARN'
+                } else {
+                    Update-PendingManifestDrainAttempt -ManifestPath $manifestPath -Manifest $Manifest -AttemptId $attemptId -Status 'already_published' | Out-Null
+                    Write-Log "Pending: server already has a validated published copy for $server - discarding local parked copy"
+                    Remove-PendingDrainLocalArtifacts -Manifest $Manifest -LocalPath $local -ManifestPath $manifestPath
+                    $result.Status = 'already_published'
+                    return [pscustomobject]$result
+                }
+            } else {
+                Update-PendingManifestDrainAttempt -ManifestPath $manifestPath -Manifest $Manifest -AttemptId $attemptId -Status 'already_published' | Out-Null
             Write-Log "Pending: server already has a validated published copy for $server - discarding local parked copy"
             Remove-PendingDrainLocalArtifacts -Manifest $Manifest -LocalPath $local -ManifestPath $manifestPath
             $result.Status = 'already_published'
             return [pscustomobject]$result
+            }
         }
         Write-Log "Pending: server path exists but is not a validated publish; replacing via transactional copy" "WARN"
     }
@@ -179,6 +213,8 @@ function Invoke-PendingDrainTransaction {
         try { [System.IO.Directory]::CreateDirectory($srvDir) | Out-Null } catch {}
     }
     $publishTxn = if ([string]::IsNullOrWhiteSpace([string]$Manifest.publish_transaction_id)) { New-PublishTransactionId } else { [string]$Manifest.publish_transaction_id }
+    $priorFinalSize = if (Test-Path -LiteralPath $server -PathType Leaf -ErrorAction SilentlyContinue) { Get-FileLengthOrNull $server } else { 0 }
+    $priorFinalHash = if ($priorFinalSize -gt 0) { Get-PendingFileSha256OrNull $server } else { '' }
     $result.PublishTransactionId = $publishTxn
     $serverPartial = New-PublishPartialMediaPath -ServerOut $server -PublishTransactionId $publishTxn
     Remove-PublishPartialMedia -Path $serverPartial
@@ -190,11 +226,25 @@ function Invoke-PendingDrainTransaction {
         $copyReason = Get-PublishCopyFailureReason
         if ([string]::IsNullOrWhiteSpace($copyReason)) { $copyReason = 'Pending media partial copy failed' }
         Update-PendingManifestRetryState -ManifestPath $manifestPath -Manifest $Manifest -State 'retry_copy_failed' -Reason $copyReason -Stage 'retry_pending_push'
+        Update-PendingManifestDrainAttempt -ManifestPath $manifestPath -Manifest $Manifest -AttemptId $attemptId -Status 'copy_failed' -Error $copyReason | Out-Null
         Set-ProgressStage -Stage 'retry_pending_push' -Status 'Retrying pending push' -Route $route -PushState 'failed' -Percent $null -SaveNow
         Write-Log "Pending: still cannot push $(Split-Path $local -Leaf) - will retry next round" "WARN"
         $result.Status = 'copy_failed'
         $result.Error = $copyReason
         return [pscustomobject]$result
+    }
+
+    if ($hasStrongHashProof) {
+        $partialHash = Get-PendingFileSha256OrNull $serverPartial
+        if ([string]::IsNullOrWhiteSpace($partialHash) -or -not $partialHash.Equals($expectedHash, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $reason = "Pending partial copy SHA-256 mismatch (expected $expectedHash; got $partialHash)"
+            Remove-PublishPartialMedia -Path $serverPartial
+            Update-PendingManifestRetryState -ManifestPath $manifestPath -Manifest $Manifest -State 'retry_copy_failed' -Reason $reason -Stage 'retry_pending_push'
+            Update-PendingManifestDrainAttempt -ManifestPath $manifestPath -Manifest $Manifest -AttemptId $attemptId -Status 'partial_hash_mismatch' -Error $reason | Out-Null
+            $result.Status = 'partial_hash_mismatch'
+            $result.Error = $reason
+            return [pscustomobject]$result
+        }
     }
 
     Set-ProgressStage -Stage 'retry_pending_push' -Status 'Retrying pending push' -Route $route -PushState 'copied_pending_reveal' -Percent 95 -SaveNow
@@ -212,6 +262,7 @@ function Invoke-PendingDrainTransaction {
         }
         $failureSourcePath = if ([string]::IsNullOrWhiteSpace([string]$Manifest.source_path)) { $local } else { [string]$Manifest.source_path }
         Update-PendingManifestRetryState -ManifestPath $manifestPath -Manifest $Manifest -State 'retry_sidecar_file_failed' -Reason $reason -Stage 'pending-tx3g-sidecar' -Tx3gFailures $failureList
+        Update-PendingManifestDrainAttempt -ManifestPath $manifestPath -Manifest $Manifest -AttemptId $attemptId -Status 'sidecar_file_failed' -Error $reason | Out-Null
         Add-RoundFailureRecord -SourcePath $failureSourcePath -Stage 'pending-tx3g-sidecar' -Reason $reason -Classification 'transient' -ErrorCode 'SUBTITLE_TX3G_SRT_PUBLISH_FAILED' -ArtifactPath $local -SuggestedAction 'Inspect the PendingServerPush manifest and parked tx3g SRT files. Restore missing sidecar files or rerun the source so tx3g extraction can recreate them.'
         Set-ProgressStage -Stage 'sidecar' -Status 'Retrying pending push' -Route $route -SidecarState 'failed' -Percent $null -SaveNow
         Remove-PublishPartialMedia -Path $serverPartial
@@ -223,6 +274,7 @@ function Invoke-PendingDrainTransaction {
 
     $sidecarExtra['tx3g_srt_tracks'] = @($pendingSidecars.Tracks)
     $sidecarExtra['tx3g_srt_failures'] = @($pendingSidecars.Failures)
+    $sidecarExtra['subtitle_conversion_results'] = @($Manifest.subtitle_conversion_results)
 
     Set-ProgressStage -Stage 'sidecar' -Status 'Retrying pending push' -Route $route -SidecarState 'writing' -Percent $null -SaveNow
     $publishSidecarBackup = Backup-PublishSidecarForReveal -OutputPath $server -PublishTransactionId $publishTxn -Context 'Pending: '
@@ -230,6 +282,7 @@ function Invoke-PendingDrainTransaction {
         Undo-PendingPublishedSidecarFiles -PublishedSidecars @($pendingSidecars.Published) -Context 'Pending: '
         Remove-PublishPartialMedia -Path $serverPartial
         Update-PendingManifestRetryState -ManifestPath $manifestPath -Manifest $Manifest -State 'retry_sidecar_backup_failed' -Reason 'Existing final sidecar could not be backed up before pending media reveal' -Stage 'sidecar'
+        Update-PendingManifestDrainAttempt -ManifestPath $manifestPath -Manifest $Manifest -AttemptId $attemptId -Status 'sidecar_backup_failed' -Error 'Existing final sidecar could not be backed up before pending media reveal' | Out-Null
         Set-ProgressStage -Stage 'sidecar' -Status 'Retrying pending push' -Route $route -SidecarState 'failed' -Percent $null -SaveNow
         Write-Log "Pending: existing publish sidecar backup failed - removed partial and left manifest/local copy for next retry" "ERROR"
         $result.Status = 'sidecar_backup_failed'
@@ -241,6 +294,7 @@ function Invoke-PendingDrainTransaction {
         Undo-PendingPublishedSidecarFiles -PublishedSidecars @($pendingSidecars.Published) -Context 'Pending: '
         Remove-PublishPartialMedia -Path $serverPartial
         Update-PendingManifestRetryState -ManifestPath $manifestPath -Manifest $Manifest -State 'retry_sidecar_failed' -Reason 'Pending sidecar write failed before final media reveal' -Stage 'sidecar'
+        Update-PendingManifestDrainAttempt -ManifestPath $manifestPath -Manifest $Manifest -AttemptId $attemptId -Status 'sidecar_failed' -Error 'Pending sidecar write failed before final media reveal' | Out-Null
         Set-ProgressStage -Stage 'sidecar' -Status 'Retrying pending push' -Route $route -SidecarState 'failed' -Percent $null -SaveNow
         Write-Log "Pending: partial media copy ok but sidecar failed - removed partial and left manifest/local copy for next retry" "WARN"
         $result.Status = 'sidecar_failed'
@@ -250,11 +304,12 @@ function Invoke-PendingDrainTransaction {
 
     Set-ProgressStage -Stage 'sidecar' -Status 'Retrying pending push' -Route $route -SidecarState 'complete' -Percent 100 -SaveNow
     Set-ProgressStage -Stage 'retry_pending_push' -Status 'Retrying pending push' -Route $route -PushState 'revealing' -Percent 99 -SaveNow
-    if (-not (Complete-PublishMediaReveal -PartialPath $serverPartial -FinalPath $server -PublishTransactionId $publishTxn -Context 'Pending: ')) {
+    if (-not (Complete-PublishMediaReveal -PartialPath $serverPartial -FinalPath $server -PublishTransactionId $publishTxn -Context 'Pending: ' -KeepBackup)) {
         Restore-PublishSidecarAfterRevealFailure -OutputPath $server -Backup $publishSidecarBackup -Context 'Pending: '
         Undo-PendingPublishedSidecarFiles -PublishedSidecars @($pendingSidecars.Published) -Context 'Pending: '
         Remove-PublishPartialMedia -Path $serverPartial
         Update-PendingManifestRetryState -ManifestPath $manifestPath -Manifest $Manifest -State 'retry_reveal_failed' -Reason 'Server partial copy and sidecar write succeeded but final media reveal failed' -Stage 'retry_pending_push'
+        Update-PendingManifestDrainAttempt -ManifestPath $manifestPath -Manifest $Manifest -AttemptId $attemptId -Status 'reveal_failed' -Error 'Server partial copy and sidecar write succeeded but final media reveal failed' | Out-Null
         Set-ProgressStage -Stage 'retry_pending_push' -Status 'Retrying pending push' -Route $route -PushState 'failed' -Percent $null -SaveNow
         Write-Log "Pending: reveal failed - restored/removed sidecar, removed partial, and left manifest/local copy for next retry" "WARN"
         $result.Status = 'reveal_failed'
@@ -262,10 +317,44 @@ function Invoke-PendingDrainTransaction {
         return [pscustomobject]$result
     }
 
+    $revealBackup = [string]$script:LastPublishRevealBackupPath
+    $replacedExisting = [bool]$script:LastPublishRevealReplacedExisting
+    if ($hasStrongHashProof) {
+        $finalHash = Get-PendingFileSha256OrNull $server
+        if ([string]::IsNullOrWhiteSpace($finalHash) -or -not $finalHash.Equals($expectedHash, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $reason = "Pending final output SHA-256 mismatch after reveal (expected $expectedHash; got $finalHash)"
+            Restore-PublishMediaAfterRevealFailure -FinalPath $server -BackupPath $revealBackup -Context 'Pending: '
+            Restore-PublishSidecarAfterRevealFailure -OutputPath $server -Backup $publishSidecarBackup -Context 'Pending: '
+            Undo-PendingPublishedSidecarFiles -PublishedSidecars @($pendingSidecars.Published) -Context 'Pending: '
+            Update-PendingManifestRetryState -ManifestPath $manifestPath -Manifest $Manifest -State 'retry_reveal_failed' -Reason $reason -Stage 'retry_pending_push'
+            Update-PendingManifestDrainAttempt -ManifestPath $manifestPath -Manifest $Manifest -AttemptId $attemptId -Status 'final_hash_mismatch' -Error $reason | Out-Null
+            $result.Status = 'final_hash_mismatch'
+            $result.Error = $reason
+            return [pscustomobject]$result
+        }
+    }
+
+    $Manifest = Update-PendingManifestReplacementEvidence -ManifestPath $manifestPath -Manifest $Manifest -ReplacedExisting:$replacedExisting -PriorSize $priorFinalSize -PriorSha256 $priorFinalHash -TransactionId $publishTxn
+
+    $completedEntryAdded = Add-CompletedJobsManifestEntryFromSidecar -OutputPath $server
+    if (-not $completedEntryAdded) {
+        $reason = 'Completed manifest entry failed after final media reveal; retaining pending payload for retry.'
+        Restore-PublishMediaAfterRevealFailure -FinalPath $server -BackupPath $revealBackup -Context 'Pending: '
+        Restore-PublishSidecarAfterRevealFailure -OutputPath $server -Backup $publishSidecarBackup -Context 'Pending: '
+        Undo-PendingPublishedSidecarFiles -PublishedSidecars @($pendingSidecars.Published) -Context 'Pending: '
+        Update-PendingManifestRetryState -ManifestPath $manifestPath -Manifest $Manifest -State 'retry_reveal_failed' -Reason $reason -Stage 'retry_pending_push'
+        Update-PendingManifestDrainAttempt -ManifestPath $manifestPath -Manifest $Manifest -AttemptId $attemptId -Status 'completed_evidence_failed' -Error $reason | Out-Null
+        $result.Status = 'completed_evidence_failed'
+        $result.Error = $reason
+        return [pscustomobject]$result
+    }
     Remove-PublishSidecarBackup -BackupPath $publishSidecarBackup
+    if ($revealBackup -and (Test-Path -LiteralPath $revealBackup -ErrorAction SilentlyContinue)) {
+        Remove-Item -LiteralPath $revealBackup -Force -ErrorAction SilentlyContinue
+    }
     Complete-PendingPublishedSidecarFiles -PublishedSidecars @($pendingSidecars.Published)
-    Add-CompletedJobsManifestEntryFromSidecar -OutputPath $server | Out-Null
     Write-OutputSummary -FilePath $server -Route $route
+    Update-PendingManifestDrainAttempt -ManifestPath $manifestPath -Manifest $Manifest -AttemptId $attemptId -Status 'succeeded' | Out-Null
     Remove-PendingDrainLocalArtifacts -Manifest $Manifest -LocalPath $local -ManifestPath $manifestPath
     Write-Log "Pending: successfully pushed $(Split-Path $server -Leaf)"
     $result.Status = 'succeeded'

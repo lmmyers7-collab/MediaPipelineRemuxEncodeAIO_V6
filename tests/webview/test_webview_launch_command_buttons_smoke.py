@@ -17,10 +17,12 @@ CONTROLLER_STATE_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets
 LAUNCH_READINESS_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launchReadinessView.js"
 LAUNCH_VIEW_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launchView.js"
 LAUNCH_SCOPE_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launchView.scope.js"
+LAUNCH_COMPACT_GATE_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launch" / "scope" / "compactGate.js"
 PAGE_LAUNCH_HTML = ROOT / "apps" / "desktop" / "webview" / "static" / "partials" / "page-launch.html"
 PAGE_QUEUE_HTML = ROOT / "apps" / "desktop" / "webview" / "static" / "partials" / "page-queue.html"
 PAGE_DIAGNOSTICS_HTML = ROOT / "apps" / "desktop" / "webview" / "static" / "partials" / "page-diagnostics.html"
 PREFLIGHT_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launchView.preflight.js"
+PILOT_READINESS_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launch" / "preflight" / "pilotReadiness.js"
 START_REQUEST_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launch" / "startRequest.js"
 QUEUE_RERUN_REQUEST_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "queue" / "rerunRequest.js"
 
@@ -265,6 +267,7 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
         const fs = require("fs");
         const vm = require("vm");
 
+        const pilotReadinessSource = fs.readFileSync({str(PILOT_READINESS_JS)!r}, "utf8");
         const source = fs.readFileSync({str(PREFLIGHT_JS)!r}, "utf8");
         const text = {{}};
         const elements = {{
@@ -311,6 +314,7 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
         context.window.window = context.window;
         context.window.document = context.document;
         vm.createContext(context);
+        vm.runInContext(pilotReadinessSource, context);
         vm.runInContext(source, context);
 
         const encoderCapabilityDetail = {{
@@ -333,6 +337,7 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
         }};
 
         const fetchUrls = [];
+        const postCalls = [];
         const factory = context.window.__launchViewPreflightModule.createLaunchPreflightModule;
         const launchPreflightModule = factory({{
           apiGet(url) {{
@@ -349,6 +354,14 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
                 {{ key: `${{target}}-${{request.dry_run || "na"}}`, label: "Ready check", status: "ready", evidence: "ok", action: "No action." }},
                 encoderCapabilityCheck,
               ],
+            }});
+          }},
+          apiPost(path, payload, options) {{
+            postCalls.push({{ path, payload, timeoutMs: options?.timeoutMs || 0 }});
+            return Promise.resolve({{
+              ok: true,
+              command: "diagnostics.encoder_capabilities.refresh",
+              data: {{ launches_media_processing: false, source_media_mutation: false }},
             }});
           }},
           byId(id) {{ return elements[id] || null; }},
@@ -394,6 +407,7 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
           const stagedSummary = text["launch-backend-preflight-summary"];
 
           const emptyCsvFetchUrls = [];
+          const emptyCsvPostCalls = [];
           const emptyCsvText = {{}};
           const emptyCsvElements = {{
             "launch-backend-preflight-status": {{ dataset: {{}} }},
@@ -415,6 +429,14 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
                   {{ key: `${{target}}-ready`, label: "Ready check", status: "ready", evidence: "ok", action: "No action." }},
                   encoderCapabilityCheck,
                 ],
+              }});
+            }},
+            apiPost(path, payload, options) {{
+              emptyCsvPostCalls.push({{ path, payload, timeoutMs: options?.timeoutMs || 0 }});
+              return Promise.resolve({{
+                ok: true,
+                command: "diagnostics.encoder_capabilities.refresh",
+                data: {{ launches_media_processing: false, source_media_mutation: false }},
               }});
             }},
             byId(id) {{ return emptyCsvElements[id] || null; }},
@@ -524,6 +546,7 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
             emptyCsvStatusText: emptyCsvText["launch-backend-preflight-status"],
             emptyCsvRefreshInfo,
             encoderRefreshFetchUrls,
+            encoderRefreshPostCalls: emptyCsvPostCalls,
             encoderRefreshInfo,
             emptyCsvSummary,
             emptyCsvCandidates,
@@ -619,6 +642,7 @@ def _run_launch_compact_gate_smoke() -> dict[str, object]:
         const fs = require("fs");
         const vm = require("vm");
 
+        const compactGateSource = fs.readFileSync({str(LAUNCH_COMPACT_GATE_JS)!r}, "utf8");
         const source = fs.readFileSync({str(LAUNCH_SCOPE_JS)!r}, "utf8");
         const context = {{
           window: {{}},
@@ -627,6 +651,7 @@ def _run_launch_compact_gate_smoke() -> dict[str, object]:
         context.window.window = context.window;
         context.window.document = context.document;
         vm.createContext(context);
+        vm.runInContext(compactGateSource, context);
         vm.runInContext(source, context);
 
         const factory = context.window.__launchViewScopeModule.createLaunchScopeModule;
@@ -1004,7 +1029,11 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         self.assertEqual(result["emptyCsvRefreshInfo"]["refresh_encoder_capability_report_requested"], False)
         self.assertEqual(len(result["encoderRefreshFetchUrls"]), 1)
         self.assertIn("target=pipeline", result["encoderRefreshFetchUrls"][0])
-        self.assertIn("refresh_encoder_capability_report=true", result["encoderRefreshFetchUrls"][0])
+        self.assertFalse(any("refresh_encoder_capability_report=" in item for item in result["encoderRefreshFetchUrls"]))
+        self.assertEqual(
+            result["encoderRefreshPostCalls"],
+            [{"path": "/api/diagnostics/encoder-capabilities/refresh", "payload": {}, "timeoutMs": 65000}],
+        )
         self.assertEqual(result["encoderRefreshInfo"]["refresh_encoder_capability_report_requested"], True)
         self.assertIn("Pipeline backend preflight", result["emptyCsvSummary"])
         self.assertNotIn("CSV Rerun Start", result["emptyCsvSummary"])

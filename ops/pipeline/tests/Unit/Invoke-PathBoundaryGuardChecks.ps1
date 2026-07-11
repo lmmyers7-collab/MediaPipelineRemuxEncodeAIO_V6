@@ -22,6 +22,7 @@ $repoRoot = Split-Path -Parent (Split-Path -Parent $pipelineRoot)
 . (Join-Path $repoRoot 'ops\pipeline\engine\storage\disk.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\audit\policy.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\audit\probe.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\entrypoints\Audit-MediaLibrary\scanner.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\shared\temp_cleanup.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\storage\scratch_copy.ps1')
 
@@ -567,6 +568,77 @@ Invoke-WithTempRoot {
 
     Remove-Variable -Name LocalBase -Scope Script -ErrorAction SilentlyContinue
     Remove-Variable -Name processingDir -Scope Script -ErrorAction SilentlyContinue
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    $originalSampleHash = (Get-Command Get-ProbeCacheSampleHash -CommandType Function).ScriptBlock
+    $originalProbe = (Get-Command Invoke-FfprobeJson -CommandType Function).ScriptBlock
+    $originalAtomicJson = Get-Command Write-AtomicJsonFile -CommandType Function -ErrorAction SilentlyContinue
+    try {
+        $script:ProbeIdentitySampleCalls = 0
+        function Get-ProbeCacheSampleHash {
+            param($FileInfo, [int] $SampleBytes = 1048576)
+            $script:ProbeIdentitySampleCalls++
+            return 'single-pass-sample-hash'
+        }
+        function Invoke-FfprobeJson {
+            param([string] $FilePath)
+            return @{ Success = $true; Error = ''; Data = [pscustomobject]@{ format = [pscustomobject]@{ duration = '1.0' }; streams = @() } }
+        }
+        function Write-AtomicJsonFile {
+            param([string] $Path, $InputObject, [int] $Depth = 16)
+            [System.IO.File]::WriteAllText($Path, ($InputObject | ConvertTo-Json -Depth $Depth), [System.Text.UTF8Encoding]::new($false))
+        }
+        $script:ProbeCacheRoot = Join-Path $Root.FullName 'ProbeCache'
+        $script:ProbeCacheSchemaVersion = 'probe-cache-test.v1'
+        $script:ProbeCacheFieldSetVersion = 'probe-fields-test.v1'
+        $script:ProbeCacheHitCount = 0
+        $script:ProbeCacheMissCount = 0
+        $script:ProbeCacheWriteCount = 0
+        $script:AuditRebuildProbeCache = $false
+        [System.IO.Directory]::CreateDirectory($script:ProbeCacheRoot) | Out-Null
+        $sourcePath = Join-Path $Root.FullName 'identity-once.mkv'
+        [System.IO.File]::WriteAllText($sourcePath, 'media')
+        $source = Get-Item -LiteralPath $sourcePath
+
+        $first = Invoke-FfprobeJsonCached -FileInfo $source
+        $second = Invoke-FfprobeJsonCached -FileInfo $source
+
+        Assert-True ([bool]$first.Success -and [bool]$second.Success) 'Probe cache identity reuse fixture should return successful probes.'
+        Assert-Equal $script:ProbeIdentitySampleCalls 2 'Each cached probe lookup should sample source identity exactly once.'
+        Assert-Equal $script:ProbeCacheWriteCount 1 'First lookup should populate the cache exactly once.'
+        Assert-Equal $script:ProbeCacheHitCount 1 'Second lookup should reuse the populated cache.'
+    } finally {
+        Set-Item -LiteralPath Function:Get-ProbeCacheSampleHash -Value $originalSampleHash
+        Set-Item -LiteralPath Function:Invoke-FfprobeJson -Value $originalProbe
+        if ($null -ne $originalAtomicJson) {
+            Set-Item -LiteralPath Function:Write-AtomicJsonFile -Value $originalAtomicJson.ScriptBlock
+        } else {
+            Remove-Item -LiteralPath Function:Write-AtomicJsonFile -ErrorAction SilentlyContinue
+        }
+        foreach ($name in @('ProbeCacheRoot','ProbeCacheSchemaVersion','ProbeCacheFieldSetVersion','ProbeCacheHitCount','ProbeCacheMissCount','ProbeCacheWriteCount','AuditRebuildProbeCache','ProbeIdentitySampleCalls')) {
+            Remove-Variable -Name $name -Scope Script -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    $script:ValidExtensions = @('.mkv', '.mp4')
+    $nested = Join-Path $Root.FullName 'nested'
+    [System.IO.Directory]::CreateDirectory($nested) | Out-Null
+    [System.IO.File]::WriteAllText((Join-Path $Root.FullName 'movie.mkv'), 'media')
+    [System.IO.File]::WriteAllText((Join-Path $nested 'episode.mp4'), 'media')
+    [System.IO.File]::WriteAllText((Join-Path $nested 'ignore.txt'), 'not-media')
+
+    $rows = @(Get-AuditMediaFilesBounded -RootPath $Root.FullName -TimeoutSeconds 30)
+
+    Assert-Equal $rows.Count 2 'Audit enumeration should return only configured media extensions.'
+    Assert-Equal ([string]$rows[0].Name) 'movie.mkv' 'Audit enumeration should return stable full-path ordering.'
+    Assert-Equal ([string]$rows[1].Name) 'episode.mp4' 'Audit enumeration should include nested media without a parent Get-Item pass.'
+    Assert-True ($null -ne $rows[0].Length -and $null -ne $rows[0].LastWriteTimeUtc) 'Audit enumeration rows should carry cache identity metadata.'
+    Remove-Variable -Name ValidExtensions -Scope Script -ErrorAction SilentlyContinue
 }
 
 Write-Host 'Path boundary guard checks passed.'

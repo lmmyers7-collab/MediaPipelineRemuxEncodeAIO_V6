@@ -4,7 +4,7 @@ Date: 2026-07-03
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `apps/desktop/webview/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 2017. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 2069. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -61,6 +61,7 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `home-readiness-status` | `<strong>` | Operator readiness status badge |
 | `home-readiness-summary` | `<pre>` | Operator readiness text block |
 | `home-pending-count` | `<strong>` | Pending parked count metric chip — updated by `renderHomePendingCount` |
+| `home-recovery-banner` | `<p>` | Compact backend-classified startup recovery banner; hidden when no meaningful recovery evidence exists |
 | `home-failed-count` | `<strong>` | Failed-file count metric chip — updated by `renderSnapshot` from `snapshot.counts.failed` (swapped for `home-network-role` in UI refactor phase 1) |
 | `home-queue-snapshot-status` | `<strong>` | Queue snapshot panel status badge |
 | `home-queue-snapshot` | `<pre>` | Queue snapshot compact text block — updated by `renderHomeQueueSnapshot` |
@@ -114,6 +115,7 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `queue-rows` | `<tbody>` | Queue table body |
 | `queue-selected-status` | `<strong>` | Selected queue row at-a-glance status |
 | `queue-selected-summary` | `<pre>` | Selected queue row at-a-glance summary |
+| `queue-provenance-detail` | `<pre>` | Read-only profile-effective settings and staged-override provenance for the selected Queue row |
 | `queue-backend-scope-status` | `<strong>` | Backend launch scope preview status |
 | `queue-backend-scope-summary` | `<pre>` | Backend launch route/scope/filter/selection summary |
 | `queue-backend-scope-rows` | `<tbody>` | Backend launch scope evidence rows |
@@ -141,6 +143,7 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `completed-filter-summary` | `<pre>` | Verbose current filter scope summary |
 | `completed-selected-status` | `<strong>` | Selected completed row at-a-glance status |
 | `completed-selected-summary` | `<pre>` | Selected completed row at-a-glance summary |
+| `completed-provenance-detail` | `<pre>` | Read-only final job-resolved settings provenance for the selected Completed row |
 | `completed-detail` | `<div>` | Selected row detail panel |
 | `completed-open-status` | `<span>` | Open operation status |
 | `completed-open-history` | `<div>` | Open operation history |
@@ -455,6 +458,9 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `diagnostics-first-response-rows` | `<tbody>` | First response checklist rows |
 | `diagnostics-first-response-legend` | `<p>` | First response checklist read-only guardrail |
 | `diagnostics-first-response-detail` | `<pre>` | Selected first-response row detail and read-only mutation boundary |
+| `diagnostics-recovery-status` | `<strong>` | Backend lifecycle recovery classification status |
+| `diagnostics-recovery-detail` | `<pre>` | Backend lifecycle recovery evidence and required action; never a lifecycle command surface |
+| `diagnostics-provenance-detail` | `<pre>` | Cross-surface normalized effective-settings provenance troubleshooting view |
 | `diagnostics-close-readiness-overview` | `<div>` | Structured close-readiness status callout |
 | `diagnostics-close-readiness-facts` | `<dl>` | Compact close-readiness fact list |
 | `launch-readiness-status` | `<strong>` | Diagnostics Readiness tab launch readiness status badge |
@@ -523,6 +529,20 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | ID | Element | Purpose |
 |---|---|---|
 | `settings-status` | `<span>` | Settings operation status |
+| `settings-preset-library-select` | `<select>` | Backend PresetV2 library record picker |
+| `settings-preset-library-compare-select` | `<select>` | Backend PresetV2 comparison target picker |
+| `settings-preset-library-json` | `<textarea>` | Candidate PresetV2 record/document editor for backend validation and previews |
+| `settings-preset-library-status` | `<strong>` | Preset library load/action status |
+| `settings-preset-library-detail` | `<p>` | Accessible operator guidance for backend PresetV2 operations |
+| `settings-preset-library-result` | `<pre>` | Redacted backend PresetV2 result detail |
+| `settings-preset-library-load` | `<button>` | Load backend preset library |
+| `settings-preset-library-validate` | `<button>` | Validate candidate through backend route |
+| `settings-preset-library-compare` | `<button>` | Compare preset candidates through backend route |
+| `settings-preset-library-import-preview` | `<button>` | Preview preset import without writing |
+| `settings-preset-library-save` | `<button>` | Explicitly save preset with strict backend confirmation |
+| `settings-preset-library-export` | `<button>` | Request safe backend preset export payload |
+| `settings-preset-library-apply-preview` | `<button>` | Preview saved-settings impact without applying |
+| `settings-preset-library-apply` | `<button>` | Explicitly apply preset for future launches only |
 | `settings-runtime-failure-artifact-threshold` | `<input>` | Runtime builder failure artifact warning threshold in GB |
 | `settings-runtime-failure-artifact-retention` | `<input>` | Runtime builder failure artifact age-retention cleanup threshold in days |
 | `settings-runtime-failure-artifact-cleanup-target` | `<input>` | Runtime builder failure artifact cleanup target in GB |
@@ -609,6 +629,13 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | ID | Element | Purpose |
 |---|---|---|
 | `maintenance-refresh-button` | `<button>` | Trigger `GET /api/maintenance` |
+| `maintenance-support-status` | `<strong>` | Support-bundle action status |
+| `maintenance-support-reason` | `<input>` | Bounded operator reason sent to the backend support-export route |
+| `maintenance-support-max-log-bytes` | `<input>` | Bounded recent-log limit sent to the backend |
+| `maintenance-support-include-logs` | `<input>` | Include backend-redacted recent logs toggle |
+| `maintenance-support-create` | `<button>` | Create backend-owned redacted support bundle |
+| `maintenance-support-productization` | `<pre>` | Backend productization readiness summary |
+| `maintenance-support-result` | `<pre>` | Redacted bundle destination and content summary |
 | `maintenance-change-ledger-status` | `<strong>` | Change ledger load and hygiene status |
 | `maintenance-change-ledger-refresh-button` | `<button>` | Trigger `GET /api/maintenance/change-ledger` |
 | `maintenance-change-ledger-summary` | `<pre>` | Change ledger count and Python-impact summary |
@@ -844,7 +871,7 @@ and rename bad-case corpus example fields. Current ID count is 1943 unique
 
 This section is generated from `apps/desktop/webview/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 2017
+Count: 2069
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 ```text
@@ -967,6 +994,7 @@ completed-pilot-evidence-markdown
 completed-pilot-evidence-rows
 completed-pilot-evidence-status
 completed-pilot-evidence-summary
+completed-provenance-detail
 completed-raw-detail
 completed-real-media-proof-detail
 completed-real-media-proof-legend
@@ -1114,6 +1142,11 @@ diagnostics-progress-bars
 diagnostics-progress-detail
 diagnostics-progress-rows
 diagnostics-progress-status
+diagnostics-provenance-detail
+diagnostics-provenance-heading
+diagnostics-recovery-detail
+diagnostics-recovery-heading
+diagnostics-recovery-status
 diagnostics-state-recovery
 diagnostics-state-recovery-status
 diagnostics-state-summary
@@ -1241,6 +1274,7 @@ fo-drawer-clear
 fo-drawer-close
 fo-drawer-path
 fo-drawer-save
+fo-drawer-scope-summary
 fo-drawer-status
 fo-drawer-title
 fo-inherited-settings-status
@@ -1318,6 +1352,7 @@ home-failed-count
 home-failed-label
 home-failure-artifact-storage-detail
 home-failure-artifact-storage-status
+home-health-banner
 home-live-run-status
 home-live-run-strip
 home-next-queue-detail
@@ -1334,6 +1369,7 @@ home-readiness-summary
 home-recent-completed-detail
 home-recent-completed-status
 home-recent-completed-tbody
+home-recovery-banner
 home-refresh-button
 home-run-state-handoff
 home-runtime-open-status
@@ -1365,6 +1401,8 @@ launch-live-run-status
 launch-live-run-strip
 launch-logs
 launch-open-pipeline-log-window-button
+launch-panel-history
+launch-panel-pipeline
 launch-pilot-readiness-detail
 launch-pilot-readiness-legend
 launch-pilot-readiness-rows
@@ -1411,6 +1449,8 @@ launch-start-decision-legend
 launch-start-decision-rows
 launch-start-decision-status
 launch-start-decision-summary
+launch-tab-history
+launch-tab-pipeline
 launch-timing
 launch-timing-status
 layout-editor-done
@@ -1474,6 +1514,14 @@ maintenance-readiness-status
 maintenance-refresh-button
 maintenance-rows
 maintenance-status
+maintenance-support-create
+maintenance-support-heading
+maintenance-support-include-logs
+maintenance-support-max-log-bytes
+maintenance-support-productization
+maintenance-support-reason
+maintenance-support-result
+maintenance-support-status
 maintenance-table-legend
 maintenance-toolchain
 maintenance-toolchain-status
@@ -1600,6 +1648,7 @@ network-local-api
 network-mode-model
 network-open-history
 network-open-history-status
+network-open-queue-rerun-button
 network-readiness-status
 network-readiness-summary
 network-rerun-board-title
@@ -1835,6 +1884,7 @@ pipeline-sparkline
 pipeline-start-button
 pipeline-start-disabled-reason
 pipeline-start-mode
+pipeline-start-safety-summary
 pipeline-start-schedule-override
 pipeline-start-show-config
 pipeline-start-show-console
@@ -1898,10 +1948,13 @@ queue-manual-move-top-btn
 queue-manual-move-up-btn
 queue-manual-order-status
 queue-manual-save-order-btn
+queue-next-step-title
 queue-open-history
 queue-open-status
 queue-page-next-btn
 queue-page-prev-btn
+queue-panel-main
+queue-panel-rerun
 queue-priority-clear-all-btn
 queue-priority-hold-btn
 queue-priority-low-btn
@@ -1913,6 +1966,7 @@ queue-priority-status
 queue-progress-bars
 queue-progress-status
 queue-progress-summary
+queue-provenance-detail
 queue-readiness
 queue-readiness-status
 queue-review-board
@@ -1931,6 +1985,8 @@ queue-strategy-apply-btn
 queue-strategy-select
 queue-strategy-status
 queue-summary
+queue-tab-main
+queue-tab-rerun
 queue-table-legend
 queue-table-page-status
 queue-table-pagination
@@ -2064,6 +2120,7 @@ rename-start
 rename-status
 rename-summary
 rename-table-legend
+rename-technical-evidence-details
 rename-template-preset
 rename-undo-button
 rename-undo-status
@@ -2129,6 +2186,12 @@ report-triage-warning-count
 report-warning-count
 report-warning-rows
 report-warning-status
+reports-panel-audit
+reports-panel-failures
+reports-panel-files
+reports-tab-audit
+reports-tab-failures
+reports-tab-files
 rerun-csv-path-picker-badge
 rerun-history-summary
 rerun-inspect-csv-button
@@ -2544,6 +2607,21 @@ settings-policy-delta-legend
 settings-policy-delta-rows
 settings-policy-delta-status
 settings-policy-delta-summary
+settings-preset-library-apply
+settings-preset-library-apply-preview
+settings-preset-library-compare
+settings-preset-library-compare-select
+settings-preset-library-detail
+settings-preset-library-export
+settings-preset-library-heading
+settings-preset-library-import-preview
+settings-preset-library-json
+settings-preset-library-load
+settings-preset-library-result
+settings-preset-library-save
+settings-preset-library-select
+settings-preset-library-status
+settings-preset-library-validate
 settings-profiles
 settings-quality-apply-button
 settings-quality-builder-status
@@ -2754,6 +2832,7 @@ settings-wizard-add-library-button
 settings-wizard-back-button
 settings-wizard-copy-diagnostics-button
 settings-wizard-detect-tools-button
+settings-wizard-hardware-recommendation
 settings-wizard-hardware-result
 settings-wizard-library-list
 settings-wizard-next-button

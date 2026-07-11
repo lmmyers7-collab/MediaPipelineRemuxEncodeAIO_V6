@@ -34,7 +34,7 @@ function Get-MediaPipelineDynamicHdrPolicyNames {
 }
 
 function Get-MediaPipelineDynamicHdrPolicyDefault {
-    return 'warn'
+    return 'preserve_or_review'
 }
 
 function Resolve-MediaPipelineDynamicHdrPolicy {

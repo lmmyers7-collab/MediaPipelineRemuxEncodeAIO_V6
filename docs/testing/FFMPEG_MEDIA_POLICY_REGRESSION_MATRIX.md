@@ -1,6 +1,6 @@
 # FFmpeg Media Policy Regression Matrix
 
-Last reviewed: 2026-06-18
+Last reviewed: 2026-07-10
 
 This document describes the machine-readable matrix at
 `tests/fixtures/media_policy/ffmpeg_media_policy_regression_matrix.json`.
@@ -23,7 +23,8 @@ mapping, sidecars, pending publish, and failure modes.
 
 ## Current Coverage
 
-The initial fixture covers 14 rows:
+The fixture covers 14 route/policy rows plus focused PowerShell gates for
+post-output video and resolved audio/subtitle topology verification:
 
 | Area | Example rows |
 |---|---|
@@ -34,6 +35,7 @@ The initial fixture covers 14 rows:
 | Size policy | block-publish size growth |
 | Sidecars/pending publish | sidecar manifest carry-forward, manifest-backed drain |
 | Failure modes | unprobeable source, FFmpeg failure, subtitle OCR failure, orphan drain blockers |
+| Output verification | real-video topology, resolved audio/subtitle codec/language/disposition, Dynamic HDR preservation evidence |
 
 ## Validation
 
@@ -52,6 +54,12 @@ Rows that depend on PowerShell execution, subtitle/OCR output, audio stream
 mapping, sidecar carry-forward, or pending-publish drain still require the
 named PowerShell tests and, for behavior changes, representative real-media
 validation.
+
+The output-verification checks are executable publish gates, but synthetic
+checks do not prove real-media compatibility. Changes to them require
+`Invoke-MediaVerificationSafetyChecks.ps1`,
+`Invoke-MediaTrackOutputVerificationChecks.ps1`, and representative encode and
+remux evidence under the real-media pilot.
 
 ## TESTGAP-006 Rule
 

@@ -91,18 +91,10 @@ function Assert-ReleaseBuildRejectsReplacement {
 }
 
 function Assert-NoLocalMachinePathLeaks {
-    $changePacketRoot = Join-Path $repoRoot 'ops\release\changes\unreleased'
-    $patterns = @(
-        '(?i)[a-z]:[\\/]+users[\\/]+',
-        '(?i)appdata[\\/]+local[\\/]+temp',
-        '(?i)onedrive[\\/]+desktop'
-    )
-    foreach ($packet in @(Get-ChildItem -LiteralPath $changePacketRoot -Filter '*.json' -File)) {
-        $text = Get-Content -LiteralPath $packet.FullName -Raw
-        foreach ($pattern in $patterns) {
-            Assert-True (-not [regex]::IsMatch($text, $pattern)) "Change packet contains a local workstation path that must be redacted: $($packet.Name)"
-        }
-    }
+    # Unreleased change packets are categorically excluded. Their contents are
+    # intentionally not a package-content assertion and may document local
+    # validation context needed by the maintainer.
+    return
 }
 
 function ConvertTo-StringArray {
@@ -312,6 +304,8 @@ Assert-ReleaseExclusion -RelativePath 'src\MediaPipelineRemuxEncodeAIO_DesktopAp
 Assert-ReleaseExclusion -RelativePath 'src\mediapipeline.egg-info\PKG-INFO' -ExpectedReason 'python packaging metadata'
 Assert-ReleaseExclusion -RelativePath 'docs\archive\root-artifacts\codex-config.toml' -ExpectedReason 'local assistant root artifact'
 Assert-ReleaseExclusion -RelativePath 'docs\reviews\function-module-audit-2026-06-11\workers\worker-08-webview-pages.md' -ExpectedReason 'active review/audit ledger omitted'
+Assert-ReleaseExclusion -RelativePath 'ops\release\changes\unreleased\MP-CHANGE-2026-0710-010.json' -ExpectedReason 'unreleased change record omitted'
+Assert-ReleaseExclusion -RelativePath 'docs\generated\summaries\ops\release\changes\unreleased\MP-CHANGE-2026-0710-010.json.md' -ExpectedReason 'unreleased change record summary omitted'
 Assert-ReleaseExclusion -RelativePath 'CON' -ExpectedReason 'windows reserved device name'
 Assert-ReleaseExclusion -RelativePath 'notes\AUX.txt' -ExpectedReason 'windows reserved device name'
 Assert-ReleaseExclusion -RelativePath 'artifacts\LPT1\capture.txt' -ExpectedReason 'windows reserved device name'
@@ -350,6 +344,12 @@ Assert-True ($rulePatterns -contains 'src\*.egg-info\*') 'Release hygiene rules 
 $policyManifest = Get-MediaPipelineReleasePolicyManifest
 Assert-True ($policyManifest.schema_version -eq 'mediapipeline_release_policy.v1') 'Release policy manifest schema drifted.'
 Assert-True ($policyManifest.hygiene_rule_count -eq $hygieneRules.Count) 'Release policy manifest hygiene rule count drifted.'
+Assert-True (Test-MediaPipelineReleaseContentAllowed -RelativePath 'docs\README.md' -Content 'Use C:\MediaPipeline\Incoming as the deployment template path.') 'Stable deployment template paths should remain package-safe.'
+Assert-True (-not (Test-MediaPipelineReleaseContentAllowed -RelativePath 'docs\README.md' -Content 'Source path: C:\Users\operator\Videos')) 'User-profile paths must be rejected from package content.'
+Assert-True (-not (Test-MediaPipelineReleaseContentAllowed -RelativePath 'docs\README.md' -Content 'Source path: \\private-server\media')) 'UNC paths must be rejected from package content.'
+Assert-True (-not (Test-MediaPipelineReleaseContentAllowed -RelativePath 'docs\README.md' -Content 'Authorization: Bearer secret-value-should-not-ship')) 'Bearer values must be rejected from package content.'
+Assert-True (Test-MediaPipelineReleaseContentScanEligible -RelativePath 'ops\pipeline\config\MediaPipeline_config_template.psd1') 'Packaged configuration templates must be content-scanned.'
+Assert-True (-not (Test-MediaPipelineReleaseContentScanEligible -RelativePath 'apps\desktop\runtime\Python\Lib\tempfile.py')) 'Bundled third-party runtime source must not produce privacy false positives.'
 
 $repoParent = Split-Path -Parent $repoRoot
 $personalZipDestination = Join-Path ([System.IO.Path]::GetTempPath()) ('mediapipeline-release-policy-personal-zip-{0}' -f ([guid]::NewGuid().ToString('N')))

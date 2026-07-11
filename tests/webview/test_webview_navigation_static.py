@@ -308,7 +308,23 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             )
 
     def test_progress_detail_cards_are_quick_links(self) -> None:
-        progress_js = (_STATIC_ROOT / "assets" / "progressView.js").read_text(encoding="utf-8")
+        progress_js = "\n".join((
+            (_STATIC_ROOT / "assets" / "progress" / "barState.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "barPresentation.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "audit.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "details.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "evidenceRows.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "worker.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "csvRerun.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "ffmpegEta.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "diagnostics.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "evidence.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "activeWork.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "timelineCore.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "liveRun.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "timelineView.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progressView.js").read_text(encoding="utf-8"),
+        ))
         progress_css = (
             _STATIC_ROOT / "assets" / "styles" / "components" / "progress-live.css"
         ).read_text(encoding="utf-8")
@@ -336,6 +352,12 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             "box-shadow: var(--focus-ring);",
         ]:
             self.assertIn(fragment, progress_css)
+
+    def test_progress_diagnostics_module_loads_before_its_facade(self) -> None:
+        html = (_STATIC_ROOT / "index.html").read_text(encoding="utf-8")
+        for child in ("diagnostics", "evidence"):
+            with self.subTest(child=child):
+                self.assertLess(html.index(f'/assets/progress/{child}.js'), html.index('/assets/progressView.js'))
 
     def test_ui_status_tile_quick_links_have_safe_targets(self) -> None:
         valid_pages = set(_EXPECTED_PAGE_PANELS)
@@ -374,8 +396,31 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             self.assertIn(fragment, html)
 
     def test_dynamic_quick_link_renderers_are_present(self) -> None:
-        progress_js = (_STATIC_ROOT / "assets" / "progressView.js").read_text(encoding="utf-8")
-        queue_js = (_STATIC_ROOT / "assets" / "queueView.js").read_text(encoding="utf-8")
+        progress_js = "\n".join((
+            (_STATIC_ROOT / "assets" / "progress" / "barState.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "barPresentation.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "audit.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "details.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "evidenceRows.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "worker.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "csvRerun.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "ffmpegEta.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "timelineCore.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "liveRun.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progress" / "timelineView.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "progressView.js").read_text(encoding="utf-8"),
+        ))
+        queue_js = "\n".join((
+            (_STATIC_ROOT / "assets" / "queue" / "sourceRender.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "queue" / "statusPanels.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "queue" / "tableView.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "queue" / "priority.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "queue" / "manualOrder.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "queue" / "strategy.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "queue" / "excluded.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "queue" / "scan.js").read_text(encoding="utf-8"),
+            (_STATIC_ROOT / "assets" / "queueView.js").read_text(encoding="utf-8"),
+        ))
         network_js = (_STATIC_ROOT / "assets" / "networkView.js").read_text(encoding="utf-8")
         completed_table_js = (_STATIC_ROOT / "assets" / "completed" / "table.js").read_text(encoding="utf-8")
         for source, fragments in {
@@ -551,7 +596,7 @@ class WebViewNavigationStaticTests(unittest.TestCase):
         self.assertIsNotNone(quick_match)
         quick_html = quick_match.group(1)
         self.assertIn('id="home-control-readiness-status" class="visually-hidden"', quick_html)
-        self.assertIn('id="home-control-message" class="note visually-hidden"', quick_html)
+        self.assertIn('id="home-control-message" class="note"', quick_html)
         self.assertIn('id="home-promotion-entry-message" class="note visually-hidden"', quick_html)
         for removed_fragment in [
             'data-cross-page-target="diagnostics"',

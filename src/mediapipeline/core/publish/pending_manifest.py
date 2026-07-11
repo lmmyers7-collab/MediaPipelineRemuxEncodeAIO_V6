@@ -75,4 +75,10 @@ def pending_manifest_row(manifest_path: Path) -> dict[str, Any]:
         error_text=error_text,
         retry_count=retry_count,
         retry_limit=PENDING_PUSH_RETRY_LIMIT,
+        output_sha256=contract.output_sha256 if contract else str(manifest.get("output_sha256") or "").strip(),
+        output_hash_algorithm=contract.output_hash_algorithm if contract else str(manifest.get("output_hash_algorithm") or "").strip(),
+        drain_attempt_status=contract.drain_attempt_status if contract else str(manifest.get("drain_attempt_status") or "").strip(),
+        drain_attempt_id=contract.drain_attempt_id if contract else str(manifest.get("drain_attempt_id") or "").strip(),
+        replacement_existing_final=contract.replacement_existing_final if contract else bool(manifest.get("replacement_existing_final", False)),
+        replacement_transaction_id=contract.replacement_transaction_id if contract else str(manifest.get("replacement_transaction_id") or "").strip(),
     )

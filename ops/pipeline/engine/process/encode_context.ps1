@@ -30,6 +30,11 @@ function New-MediaPipelineEncodeContext {
     $script:CurrentSizePolicyResult = $null
     $script:LastRemuxFallbackRejection = $null
     $script:LastQualityVerification = $null
+    $script:LastMediaVerification = $null
+    $script:LastAudioVerification = $null
+    $script:LastSubtitleVerification = $null
+    $script:LastMediaTrackVerification = $null
+    $script:LastSubtitleConversionResults = @()
     $script:CurrentDynamicHdrEvidence = $null
 
     return [pscustomobject][ordered]@{
@@ -69,5 +74,10 @@ function New-MediaPipelineEncodeContext {
         GlobalTitle       = ''
         PublishResult     = $null
         SizePolicyResult  = $null
+        MediaVerification = $null
+        AudioVerification = $null
+        SubtitleVerification = $null
+        MediaTrackVerificationPlan = $null
+        MediaTrackVerification = $null
     }
 }

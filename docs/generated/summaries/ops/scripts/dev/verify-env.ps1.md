@@ -3,9 +3,9 @@ file: ops/scripts/dev/verify-env.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-13
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 14bf9d649d0dcb21b845bd78edda17d5c3202b0a7da70bb65d0a25978ff9ff8c
+sha256: 61c6337dc2596ef262969240f1d69e1ee0074f8f4f383d4b9bf505645483d46a
 ---
 # `ops/scripts/dev/verify-env.ps1`
 

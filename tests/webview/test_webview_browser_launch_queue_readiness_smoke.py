@@ -856,8 +856,8 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             clickQueueTab("rerun");
             requireText("rerun-mode-policy-note", [
               "Backend owns output proof",
-              "Clean verified outputs use backend-derived final placement",
-              "Source-path overwrite requires the explicit checkbox.",
+              "verified outputs stay out of the final library",
+              "Original source files are never replaced.",
             ]);
             requireText("rerun-state-status-filter", [
               "All statuses",

@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0710-022",
+  "title": "Split progress evidence view module",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-07-10",
+  "date_completed": "2026-07-10",
+  "summary": "",
+  "reason": "",
+  "affected_areas": [
+    "generated-context",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "",
+  "behavior_after": "",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/progress/evidence.js",
+    "apps/desktop/webview/static/assets/progressView.js",
+    "apps/desktop/webview/static/index.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/progress/evidence.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/progressView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/index.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0710-022.json.md",
+    "docs/generated/summaries/tests/python/desktop/application_facade_test_support.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_navigation_static.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-022.json",
+    "tests/python/desktop/application_facade_test_support.py",
+    "tests/webview/test_webview_navigation_static.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_web_static_diagnostics_reports.py",
+    "tests/webview/test_webview_csv_rerun_completion.py",
+    "tests/webview/test_webview_navigation_static.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static_diagnostics_reports tests.webview.test_webview_navigation_static tests.webview.test_webview_csv_rerun_completion -q - passed (28 tests)",
+    "git diff --check for the refactor path set - passed",
+    "node --check apps/desktop/webview/static/assets/progress/evidence.js; node --check apps/desktop/webview/static/assets/progressView.js - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1 - passed (2 tests)"
+  ],
+  "rollback_plan": "",
+  "related_changes": [],
+  "notes": "Extracted the read-only Progress evidence board into a child module.\nDelegates the Progress evidence board through the unchanged public facade.\nLoads the Progress evidence child before its facade.\nIncludes both Progress child modules in static contract assertions.\nPins Progress child-before-facade script ordering.\nRefreshed generated summaries for the Progress evidence extraction.\nScoped path coverage is complete; global strict change validation remains blocked by pre-existing unrelated packet and worktree failures."
+}

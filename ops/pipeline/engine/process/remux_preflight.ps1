@@ -161,8 +161,15 @@ function Invoke-MediaPipelineRemuxPreflight {
         $doviState = Get-DolbyVisionState -FilePath $Context.LocalIn
         $hdr10PlusState = Test-Hdr10PlusPresence -FilePath $Context.LocalIn
         $script:CurrentDynamicHdrEvidence = New-DynamicHdrEvidence -Route 'remux' -DoviState $doviState -Hdr10PlusState $hdr10PlusState
+        $dynamicHdrPolicy = Resolve-DynamicHdrPolicy -Policy ([string]$script:DynamicHdrPolicy)
+        if ($dynamicHdrPolicy -in @('preserve_or_remux','preserve_or_review') -and -not [bool]$script:CurrentDynamicHdrEvidence.probed) {
+            $reason = 'Dynamic HDR source detection was inconclusive under a preservation policy; refusing remux without proof.'
+            $null = Register-SourceFailure -SourceFile $Context.File -ScratchPath $Context.LocalIn -Classification 'operator_required' -Reason $reason -Stage 'remux-dynamic-hdr-probe' -ErrorCode 'DYNAMIC_HDR_OUTPUT_VERIFY_UNKNOWN' -SuggestedAction 'Inspect source ffprobe Dolby Vision and HDR10+ probe evidence; preservation policies require conclusive source detection before remux publish.' -AdditionalProperties @{ dynamic_hdr = $script:CurrentDynamicHdrEvidence }
+            $Context.LocalIn = $null
+            return New-MediaPipelineRemuxStageResult -Ok $false -Terminal $true -Value $false -Stage 'remux-dynamic-hdr-probe'
+        }
         if ([bool]$script:CurrentDynamicHdrEvidence.dynamic_metadata_present) {
-            Write-Log ("REMUX: source carries dynamic HDR metadata ({0}); expected to pass through remux, output verification ships in a later phase" -f $script:CurrentDynamicHdrEvidence.summary)
+            Write-Log ("REMUX: source carries dynamic HDR metadata ({0}); preservation policy {1}" -f $script:CurrentDynamicHdrEvidence.summary, $dynamicHdrPolicy)
         }
     }
 

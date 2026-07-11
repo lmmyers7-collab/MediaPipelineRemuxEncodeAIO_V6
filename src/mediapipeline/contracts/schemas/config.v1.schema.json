@@ -811,7 +811,7 @@
       "type": "string"
     },
     "DynamicHdrPolicy": {
-      "default": "warn",
+      "default": "preserve_or_review",
       "enum": [
         "off",
         "warn",
@@ -976,7 +976,7 @@
       "type": "boolean"
     },
     "ConvertBdpgsToSrt": {
-      "default": false,
+      "default": true,
       "title": "Convertbdpgstosrt",
       "type": "boolean"
     },

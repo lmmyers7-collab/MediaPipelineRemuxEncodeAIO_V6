@@ -38,6 +38,7 @@ Describe the problem in plain language:
 | Tauri/WebView open? | Yes / No | — |
 | Pipeline running? | Yes / No | WebView Home / ActiveJobs |
 | Close readiness | Safe / Unsafe / Unknown | `GET /api/backend/close-readiness` or WebView Home |
+| Backend recovery | Complete / Recovering / Parked / Unknown | `GET /api/backend/recovery-status` or Diagnostics |
 | Recent command history entries | | WebView Command History or `GET /api/commands` |
 | ActiveJobs records present? | Yes / No | `State\ActiveJobs\` or WebView Diagnostics |
 | ActiveJobs PID still running? | Yes / No | Task Manager or `Get-Process` |

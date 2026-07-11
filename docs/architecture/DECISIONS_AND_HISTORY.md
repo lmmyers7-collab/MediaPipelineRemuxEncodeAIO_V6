@@ -21,6 +21,53 @@ This document preserves durable decisions and historical context without requiri
 - Network lifecycle/setup controls are backend-owned Local API routes. WebView may call provider-guarded coordinator/worker dry-run, start/stop, test-connection, discovery, and join/import routes, but it must not implement lifecycle, queue, claim, done-report, settings-save, publish, rename, or media mutation logic itself.
 - Command journal atomicity, strict JSON handling, duplicate-command guards, and backend close-readiness checks are release-critical.
 
+## Product-Integration Decisions (2026-07-11)
+
+### PI-001: SQLite remains a rebuildable observability mirror
+
+Decision: retain `State\mediapipeline_state.sqlite3` as an optional,
+best-effort observability index for bounded command-event history, queue
+dry-run snapshots, completed-manifest mirrors, and diagnostics health. JSON
+state, manifests, and journals remain authoritative for every operator action
+and lifecycle decision.
+
+Evidence: `src/mediapipeline/core/storage/db.py` writes the four mirror tables
+opportunistically, applies schema migrations, bounds completed rows, and keeps
+maintenance failures from changing the outcome of authoritative writes. The
+runtime artifact inventory explicitly excludes SQLite from queue scope,
+completed acceptance, pending-publish drain, command-history rendering, and
+recovery authority.
+
+Alternatives considered: retiring it now would remove an existing bounded
+diagnostic index without simplifying any authoritative state flow. Promoting it
+to a primary store would require a broad migration and is rejected because it
+would introduce a second mutable authority.
+
+Consequences and rollback: existing database files are never deleted
+automatically. A database may be ignored if unavailable or incompatible; JSON
+remains usable. Any future rebuild/migration needs a separately gated dry-run
+comparison against authoritative JSON before implementation.
+
+### PI-002: Python stage dispatcher is a narrow boundary, not the media engine
+
+Decision: retain the dispatcher as a supported probe/decision and guarded
+scratch-ingest boundary. `probe` and `decide` are read-only. Guarded `ingest`
+may only perform its separately validated scratch copy; transcode, subtitle,
+audio, publish, drain, rename, final placement, and source movement remain
+disabled in the dispatcher. The PowerShell engine remains the production owner
+of encode/remux/subtitle/audio/publish mutation and real-media policy.
+
+Evidence: `STAGE_REGISTRY` marks only `ingest`, `probe`, and `decide` enabled;
+the runner rejects disabled stages before spawning PowerShell. Ingest execute
+requires strict confirmation, operation identity, a scratch reservation,
+matching dry-run fingerprint, journaling, source-unchanged proof, and recovery
+evidence.
+
+Consequences and rollback: this avoids a shadow-engine cutover claim and keeps
+existing PowerShell real-media validation valid. A genuine cutover would be a
+separate phased migration with policy parity, rollback, and representative
+real-media gates; it is not authorized by this decision.
+
 ## Media Policy Decisions
 
 - Plex compatibility and Direct Stream/Direct Play friendliness are the guiding default, but not at the cost of blindly re-encoding good low-bitrate sources.

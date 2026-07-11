@@ -599,6 +599,21 @@
           "default": false,
           "title": "Confirm Ingest",
           "type": "boolean"
+        },
+        "operation_id": {
+          "default": "",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "scratch_reservation_id": {
+          "default": "",
+          "title": "Scratch Reservation Id",
+          "type": "string"
+        },
+        "dry_run_fingerprint": {
+          "default": "",
+          "title": "Dry Run Fingerprint",
+          "type": "string"
         }
       },
       "required": [
@@ -663,6 +678,21 @@
           },
           "title": "Boundary Checks",
           "type": "array"
+        },
+        "operation_id": {
+          "default": "",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "scratch_reservation_id": {
+          "default": "",
+          "title": "Scratch Reservation Id",
+          "type": "string"
+        },
+        "dry_run_fingerprint": {
+          "default": "",
+          "title": "Dry Run Fingerprint",
+          "type": "string"
         }
       },
       "title": "IngestResult",

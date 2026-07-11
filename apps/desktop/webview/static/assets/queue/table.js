@@ -263,9 +263,9 @@
     const button = document.createElement("button");
     button.type = "button";
     button.className = "fo-open-btn queue-row-action-button";
-    button.textContent = "⚙";
-    button.title = "File settings";
-    button.setAttribute("aria-label", `Open file settings for ${item.display_name || item.relative_path || item.source_path || "queue row"}`);
+    button.textContent = "File overrides";
+    button.title = "Review or save settings that apply only to this queued file.";
+    button.setAttribute("aria-label", `Open file overrides for ${item.display_name || item.relative_path || item.source_path || "queue row"}`);
     if (item.__queue_has_override || item.has_override || item.has_file_override || item.file_override || item.file_override_path) {
       button.dataset.hasOverride = "true";
     }
@@ -329,6 +329,9 @@
     if (context.manualOrderEnabled) row.dataset.manualOrderDraggable = "true";
     const rendered = appendQueueRowCells(row, item, visibleIndex, context);
     decorateQueueRowCells(rendered.cells, item, rendered.level, rendered.routeParts, context);
+    ["Order", "Status", "Title", "Type", "Route", "Evidence", "Priority", "Override", "File overrides"].forEach((label, index) => {
+      if (rendered.cells[index]) rendered.cells[index].dataset.label = label;
+    });
     context.makeRowSelectable(row, (event) => context.selectQueueRow(item, event), {
       selected,
       label: `Queue row ${item.display_name || item.relative_path || item.source_path || ""}`,

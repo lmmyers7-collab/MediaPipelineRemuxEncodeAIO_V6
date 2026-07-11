@@ -106,10 +106,17 @@ class AuditLaunchFacadeMixin:
         library_root = library_roots[0] if library_roots else ""
         if not library_roots:
             return audit_missing_library_root_result()
-        launch_lock, lock_message = self._acquire_process_launch_lock("Audit start")
+        command_id = str(request.get("_command_id") or "")
+        launch_lock, lock_message = self._acquire_process_launch_lock(
+            "Audit start",
+            resolved=resolved,
+            command_id=command_id,
+            resource_claims=library_roots,
+        )
         if lock_message:
             return audit_start_active_work_result(lock_message)
         try:
+            self._set_process_launch_recovery_descriptor(launch_lock, route="/api/audit/start", request=request)
             block_message = self._active_work_block_message(resolved, "Audit start")
             if block_message:
                 return audit_start_active_work_result(block_message)
@@ -128,7 +135,9 @@ class AuditLaunchFacadeMixin:
             }
             if len(library_roots) > 1:
                 start_kwargs["library_roots"] = library_roots
+            self._prepare_process_launch_lease(launch_lock)
             proc = starter(**start_kwargs)
+            self._transfer_process_launch_lease(launch_lock, proc)
             pid = int(getattr(proc, "pid", 0) or 0)
             launch_logs = ""
             log_method = getattr(self.service, "launch_log_summary", None)

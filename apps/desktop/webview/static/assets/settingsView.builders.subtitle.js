@@ -48,7 +48,7 @@
       Tx3gPreserveExistingSrt: true,
       Tx3gTreatForcedAsSeparate: true,
       TreatTx3gSignsSongsAsForced: false,
-      ConvertBdpgsToSrt: false,
+      ConvertBdpgsToSrt: true,
       DropBdpgsAfterConversion: false,
       TreatBdpgsSignsSongsAsForced: false,
       ConvertVobSubToSrt: false,
@@ -226,7 +226,7 @@
       setSubtitleBuilderControl("settings-subtitle-preserve-tx3g-srt", "Tx3gPreserveExistingSrt", "bool", true);
       setSubtitleBuilderControl("settings-subtitle-forced-tx3g", "Tx3gTreatForcedAsSeparate", "bool", true);
       setSubtitleBuilderControl("settings-subtitle-tx3g-signs-forced", "TreatTx3gSignsSongsAsForced", "bool", false);
-      setSubtitleBuilderControl("settings-subtitle-convert-bdpgs", "ConvertBdpgsToSrt", "bool", false);
+      setSubtitleBuilderControl("settings-subtitle-convert-bdpgs", "ConvertBdpgsToSrt", "bool", true);
       setSubtitleBuilderControl("settings-subtitle-drop-bdpgs", "DropBdpgsAfterConversion", "bool", false);
       setSubtitleBuilderControl("settings-subtitle-bdpgs-signs-forced", "TreatBdpgsSignsSongsAsForced", "bool", false);
       setSubtitleBuilderControl("settings-subtitle-convert-vobsub", "ConvertVobSubToSrt", "bool", false);

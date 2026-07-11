@@ -3,9 +3,9 @@ file: tests/python/desktop/test_rename_workbench.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-23
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 85d7a55c5164a4d02e4ff1eac876b296a66fdfa44b81fec5ad34332556805e23
+sha256: aa6e8f17bc670d3c008bc612b0cca0d80d8ca3cdcaf7940953f44c2cd137a4bf
 ---
 # `tests/python/desktop/test_rename_workbench.py`
 

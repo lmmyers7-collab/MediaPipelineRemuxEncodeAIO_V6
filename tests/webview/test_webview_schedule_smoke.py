@@ -561,6 +561,8 @@ class WebViewScheduleSmoke(unittest.TestCase):
             "dom/filtering.js",
             "dom/table.js",
             "domHelpers.js",
+            "schedule/watchFolder.js",
+            "schedule/editor.js",
             "scheduleView.js",
         ]
         payload = {

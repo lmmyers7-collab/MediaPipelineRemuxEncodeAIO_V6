@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/launch/commandButtons.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-05
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6d7d4fd306836801716ce19f137a641eb21230fca2006c4c80f340f3cc31c14a
+sha256: 492003edf5f3e1ff492b6377cd91a7e55f627dec1312da0bdcfa2a64f28da019
 ---
 # `apps/desktop/webview/static/assets/launch/commandButtons.js`
 

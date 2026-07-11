@@ -1,17 +1,20 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 import http.server
 import logging
 import secrets
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
 from ..application import MediaPipelineApplicationFacade
 from ..models import ResolvedPaths, Snapshot
 from .command_journal import CommandJournal
+from mediapipeline.core.processes.lifecycle_lease import LifecycleLeaseStore
 from mediapipeline.core.api.command_handlers import LocalApiCommandHandlerMixin
 from .handler import build_local_api_handler_class
 from .http_helpers import (
@@ -32,6 +35,10 @@ ResolvedReload = Callable[[], ResolvedPaths | None]
 SnapshotProvider = Callable[[], Snapshot | None]
 AuditRootProvider = Callable[[], str]
 ShutdownRequest = Callable[[], None]
+SNAPSHOT_CACHE_TTL_SECONDS = 1.0
+SNAPSHOT_INITIALIZING_MESSAGE = "Dashboard status is loading in the background."
+SNAPSHOT_REFRESH_PENDING_MESSAGE = "Dashboard status is refreshing in the background. Showing the last known status."
+SNAPSHOT_REFRESH_FAILED_MESSAGE = "Dashboard status could not be refreshed. Retrying in the background."
 
 
 def _windows_path_picker_adapter(**kwargs: Any) -> dict[str, Any]:
@@ -39,6 +46,15 @@ def _windows_path_picker_adapter(**kwargs: Any) -> dict[str, Any]:
     picker_kwargs.pop("target_key", None)
     picker_kwargs.pop("setting_key", None)
     return select_windows_paths_with_dialog(**picker_kwargs)
+
+
+def _journal_state_root(resolved: ResolvedPaths | None) -> Path | None:
+    if resolved is None:
+        return None
+    if resolved.state_root is not None:
+        return resolved.state_root
+    active_jobs = getattr(resolved, "active_jobs_path", None)
+    return Path(active_jobs).parent if active_jobs else None
 
 
 class _LocalApiThreadingHTTPServer(http.server.ThreadingHTTPServer):
@@ -100,13 +116,22 @@ class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandHandlerMixin):
         self._settings_path_picker = _windows_path_picker_adapter
         self._pipeline_file_picker = _windows_path_picker_adapter
         resolved = self._resolved()
+        journal_state_root = _journal_state_root(resolved)
+        if command_journal_path is None and journal_state_root is not None:
+            command_journal_path = journal_state_root / "RunLogs" / "local_api_command_history.json"
         self.command_journal = CommandJournal(
             path=command_journal_path,
-            state_db_root=resolved.state_root if resolved is not None else None,
+            state_db_root=journal_state_root,
             logger=self.logger,
         )
         self._server: http.server.ThreadingHTTPServer | None = None
         self._thread: threading.Thread | None = None
+        self._snapshot_cache_lock = threading.Lock()
+        self._snapshot_cache: Snapshot | None = None
+        self._snapshot_cache_at_monotonic = 0.0
+        self._snapshot_refresh_lock = threading.Lock()
+        self._snapshot_refresh_thread: threading.Thread | None = None
+        self._snapshot_refresh_error = ""
 
     @property
     def port(self) -> int:
@@ -128,6 +153,7 @@ class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandHandlerMixin):
         self._server = server
         self._thread = threading.Thread(target=server.serve_forever, name="MediaPipelineLocalApi", daemon=True)
         self._thread.start()
+        self._schedule_snapshot_refresh()
 
     def set_startup_progress(self, startup_progress: dict[str, Any]) -> None:
         self.startup_progress = dict(startup_progress or {})
@@ -151,6 +177,9 @@ class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandHandlerMixin):
         self._thread = None
         if thread and thread.is_alive():
             thread.join(timeout=2.0)
+        refresh_thread = self._snapshot_refresh_thread
+        if refresh_thread and refresh_thread.is_alive():
+            refresh_thread.join(timeout=0.25)
 
     def _request_authorized(self, headers: Any, query: dict[str, list[str]]) -> bool:
         return request_authorized(headers, query, token=self.token, require_token=self.require_token)
@@ -190,10 +219,25 @@ class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandHandlerMixin):
     ) -> None:
         try:
             resolved = self._resolved()
-            self.command_journal.state_db_root = resolved.state_root if resolved is not None else None
+            self.command_journal.state_db_root = _journal_state_root(resolved)
         except Exception as exc:
             self.logger.warning("Could not refresh SQLite command journal state root: %s", exc)
         self.command_journal.record(payload, request=request, strict=strict)
+
+    def _mark_command_evidence_indeterminate(self, *, command_id: str, route: str, reason: str) -> None:
+        """Durably block close/retry when post-mutation journal evidence fails."""
+        resolved = self._resolved()
+        if resolved is None or resolved.state_root is None:
+            self.logger.error("Critical command evidence is indeterminate but no lifecycle state root is available.")
+            return
+        try:
+            LifecycleLeaseStore(resolved.state_root).mark_indeterminate(
+                command_id=command_id,
+                route=route,
+                reason=reason,
+            )
+        except Exception as exc:
+            self.logger.exception("Could not persist critical command indeterminate marker: %s", exc)
 
     def _validate_api_payload(self, route: str, body: dict[str, Any]) -> dict[str, Any]:
         from mediapipeline.core.validation.boundary import validate_api_payload
@@ -201,19 +245,74 @@ class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandHandlerMixin):
         return validate_api_payload(route, body)
 
     def _snapshot(self) -> Snapshot | None:
-        if self.snapshot_provider is not None:
-            snapshot = self.snapshot_provider()
-            if snapshot is not None:
-                return snapshot
+        with self._snapshot_cache_lock:
+            snapshot = self._snapshot_cache
+            cached_at = self._snapshot_cache_at_monotonic
+        if snapshot is not None and time.monotonic() - cached_at < SNAPSHOT_CACHE_TTL_SECONDS:
+            return snapshot
+
+        self._schedule_snapshot_refresh()
+        if snapshot is None:
+            return self._initializing_snapshot()
+        return replace(snapshot, last_error=f"SNAPSHOT_REFRESH_PENDING: {SNAPSHOT_REFRESH_PENDING_MESSAGE}")
+
+    def _schedule_snapshot_refresh(self) -> None:
+        if not self._snapshot_refresh_lock.acquire(blocking=False):
+            return
+        thread = threading.Thread(target=self._refresh_snapshot_cache, name="MediaPipelineSnapshotRefresh", daemon=True)
+        self._snapshot_refresh_thread = thread
+        thread.start()
+
+    def _refresh_snapshot_cache(self) -> None:
+        started = time.monotonic()
+        try:
+            if self.snapshot_provider is not None:
+                snapshot = self.snapshot_provider()
+            else:
+                resolved = self._resolved()
+                if resolved is None:
+                    return
+                build_snapshot = getattr(self.facade.service, "build_snapshot", None)
+                if not callable(build_snapshot):
+                    return
+                audit_root = self.audit_root_provider() if self.audit_root_provider is not None else ""
+                snapshot = build_snapshot(resolved, audit_root)
+            if not isinstance(snapshot, Snapshot):
+                raise RuntimeError("Snapshot refresh returned an invalid response.")
+            with self._snapshot_cache_lock:
+                self._snapshot_cache = snapshot
+                self._snapshot_cache_at_monotonic = time.monotonic()
+                self._snapshot_refresh_error = ""
+            self.logger.info("Snapshot refresh completed in %.0f ms.", (time.monotonic() - started) * 1000)
+        except Exception as exc:
+            self._snapshot_refresh_error = str(exc)
+            self.logger.exception(
+                "Snapshot refresh failed after %.0f ms; code=SNAPSHOT_READ_FAILED detail=%s",
+                (time.monotonic() - started) * 1000,
+                exc,
+            )
+        finally:
+            self._snapshot_refresh_lock.release()
+
+    def _initializing_snapshot(self) -> Snapshot | None:
         resolved = self._resolved()
         if resolved is None:
             return None
-        build_snapshot = getattr(self.facade.service, "build_snapshot", None)
-        if not callable(build_snapshot):
-            return None
-        audit_root = self.audit_root_provider() if self.audit_root_provider is not None else ""
-        snapshot = build_snapshot(resolved, audit_root)
-        return snapshot if isinstance(snapshot, Snapshot) else None
+        code = "SNAPSHOT_READ_FAILED" if self._snapshot_refresh_error else "SNAPSHOT_INITIALIZING"
+        message = SNAPSHOT_REFRESH_FAILED_MESSAGE if self._snapshot_refresh_error else SNAPSHOT_INITIALIZING_MESSAGE
+        return Snapshot(
+            resolved=resolved,
+            current_activity="Backend status is loading.",
+            status_summary="Backend status is loading.",
+            log_tail="",
+            progress={"Status": "initializing"},
+            audit_progress=None,
+            latest_failure_report=None,
+            latest_failure_json=None,
+            latest_audit_csv=None,
+            latest_priority_csv=None,
+            last_error=f"{code}: {message}",
+        )
 
     def _send_index(self, handler: http.server.BaseHTTPRequestHandler) -> None:
         response = render_index(

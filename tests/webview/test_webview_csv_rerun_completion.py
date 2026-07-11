@@ -21,7 +21,29 @@ class WebViewCsvRerunCompletionTests(unittest.TestCase):
             const vm = require("vm");
             const path = require("path");
             const progressPath = path.join(process.cwd(), "apps/desktop/webview/static/assets/progressView.js");
+            const barStatePath = path.join(process.cwd(), "apps/desktop/webview/static/assets/progress/barState.js");
+            const barPresentationPath = path.join(process.cwd(), "apps/desktop/webview/static/assets/progress/barPresentation.js");
+            const auditPath = path.join(process.cwd(), "apps/desktop/webview/static/assets/progress/audit.js");
+            const detailsPath = path.join(process.cwd(), "apps/desktop/webview/static/assets/progress/details.js");
+            const evidenceRowsPath = path.join(process.cwd(), "apps/desktop/webview/static/assets/progress/evidenceRows.js");
+            const workerPath = path.join(process.cwd(), "apps/desktop/webview/static/assets/progress/worker.js");
+            const liveRunPath = path.join(process.cwd(), "apps/desktop/webview/static/assets/progress/liveRun.js");
+            const csvRerunPath = path.join(process.cwd(), "apps/desktop/webview/static/assets/progress/csvRerun.js");
+            const ffmpegEtaPath = path.join(process.cwd(), "apps/desktop/webview/static/assets/progress/ffmpegEta.js");
+            const timelineCorePath = path.join(process.cwd(), "apps/desktop/webview/static/assets/progress/timelineCore.js");
+            const timelineViewPath = path.join(process.cwd(), "apps/desktop/webview/static/assets/progress/timelineView.js");
             const source = fs.readFileSync(progressPath, "utf8");
+            const barStateSource = fs.readFileSync(barStatePath, "utf8");
+            const barPresentationSource = fs.readFileSync(barPresentationPath, "utf8");
+            const auditSource = fs.readFileSync(auditPath, "utf8");
+            const detailsSource = fs.readFileSync(detailsPath, "utf8");
+            const evidenceRowsSource = fs.readFileSync(evidenceRowsPath, "utf8");
+            const workerSource = fs.readFileSync(workerPath, "utf8");
+            const liveRunSource = fs.readFileSync(liveRunPath, "utf8");
+            const csvRerunSource = fs.readFileSync(csvRerunPath, "utf8");
+            const ffmpegEtaSource = fs.readFileSync(ffmpegEtaPath, "utf8");
+            const timelineCoreSource = fs.readFileSync(timelineCorePath, "utf8");
+            const timelineViewSource = fs.readFileSync(timelineViewPath, "utf8");
             const rendered = {};
             const context = {
               window: {}, console, Date,
@@ -30,6 +52,17 @@ class WebViewCsvRerunCompletionTests(unittest.TestCase):
             };
             context.window = context;
             vm.createContext(context);
+            vm.runInContext(barStateSource, context, { filename: barStatePath });
+            vm.runInContext(barPresentationSource, context, { filename: barPresentationPath });
+            vm.runInContext(auditSource, context, { filename: auditPath });
+            vm.runInContext(detailsSource, context, { filename: detailsPath });
+            vm.runInContext(evidenceRowsSource, context, { filename: evidenceRowsPath });
+            vm.runInContext(workerSource, context, { filename: workerPath });
+            vm.runInContext(csvRerunSource, context, { filename: csvRerunPath });
+            vm.runInContext(ffmpegEtaSource, context, { filename: ffmpegEtaPath });
+            vm.runInContext(timelineCoreSource, context, { filename: timelineCorePath });
+            vm.runInContext(liveRunSource, context, { filename: liveRunPath });
+            vm.runInContext(timelineViewSource, context, { filename: timelineViewPath });
             vm.runInContext(source, context, { filename: progressPath });
             const progress = context.window.mediaPipelineProgressView;
             if (typeof progress.csvRerunCompletionSummary !== "function") {

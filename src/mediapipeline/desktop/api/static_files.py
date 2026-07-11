@@ -10,6 +10,7 @@ from .http_helpers import content_type_for, resolve_asset_path
 from .static_files_policy import (
     STATIC_INDEX_BOOTSTRAP_PLACEHOLDER,
     StaticFileResponse,
+    defer_external_scripts,
     local_api_bootstrap,
     missing_bootstrap_placeholder_response,
     missing_index_response,
@@ -36,6 +37,7 @@ def render_index(
     try:
         html = index_path.read_text(encoding="utf-8")
         html = render_static_includes(html, static_root)
+        html = defer_external_scripts(html)
         if STATIC_INDEX_BOOTSTRAP_PLACEHOLDER not in html:
             if logger is not None:
                 logger.error("local API index render failed: bootstrap placeholder missing")

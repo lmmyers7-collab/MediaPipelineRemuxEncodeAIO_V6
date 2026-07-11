@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import threading
+import time
 from collections.abc import Callable
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from collections.abc import Sequence
 
 from mediapipeline.core.config.identity import config_identity_block_reasons
 from mediapipeline.core.config.recovery import ensure_canonical_config, restore_verified_last_good_config
+from mediapipeline.core.processes.recovery import LifecycleRecoveryCoordinator
 from mediapipeline.core.api.file_overrides.remux_pilot import file_override_remux_pilot_auto_promote_payload
 
 from .api import LocalApiServer
@@ -23,6 +25,7 @@ from .services import DesktopAppService
 
 
 StartupProgressCallback = Callable[[dict[str, Any]], None]
+_STARTUP_TIMERS: dict[int, tuple[list[dict[str, Any]], float, float]] = {}
 
 
 class BackendResolvedState:
@@ -74,7 +77,23 @@ def record_startup_step(
     status: str = "complete",
     callback: StartupProgressCallback | None = None,
 ) -> dict[str, Any]:
-    steps.append(startup_step(step_id, label, status=status, detail=detail))
+    now = time.monotonic()
+    timer_key = id(steps)
+    tracked_steps, started_at, previous_at = _STARTUP_TIMERS.get(timer_key, (steps, now, now))
+    if tracked_steps is not steps:
+        started_at = now
+        previous_at = now
+    _STARTUP_TIMERS[timer_key] = (steps, started_at, now)
+    steps.append(
+        startup_step(
+            step_id,
+            label,
+            status=status,
+            detail=detail,
+            duration_ms=(now - previous_at) * 1000,
+            elapsed_ms=(now - started_at) * 1000,
+        )
+    )
     progress = startup_progress_payload(steps)
     if callback is not None:
         callback(progress)
@@ -172,6 +191,7 @@ def build_backend(
         resolved_provider=resolved_state.get,
         payload_builder=file_override_remux_pilot_auto_promote_payload,
     )
+    service.configure_active_job_reconciliation(resolved_state.get)
     resolved = resolved_state.get()
     startup_progress = record_startup_step(
         startup_steps,
@@ -342,6 +362,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         startup_progress_callback=startup_callback,
     )
     try:
+        def current_resolved() -> ResolvedPaths:
+            provider = server.resolved_provider
+            current = provider() if callable(provider) else None
+            return current if current is not None else resolved
+
         service.start_background_tasks()
         startup_steps = list(server.startup_progress.get("steps", [])) if isinstance(server.startup_progress, dict) else []
         server.set_startup_progress(
@@ -365,6 +390,35 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         )
         print(json.dumps(bootstrap_payload(server, resolved, include_token=require_token), sort_keys=True), flush=True)
+        # Reconcile durable lifecycle ownership before a watcher can create a
+        # competing launch. The listener remains available for authoritative
+        # recovery/close evidence while this bounded reconciliation runs.
+        recovery = LifecycleRecoveryCoordinator()
+        server.facade.set_recovery_status(recovery.status())
+
+        def _resume_lifecycle_operation(route: str, request: dict[str, Any], original_command_id: str) -> dict[str, Any]:
+            recovery_command_id = f"{original_command_id}-recovery"
+            replay = {**dict(request), "_command_id": recovery_command_id}
+            try:
+                if route == "/api/pipeline/start":
+                    result = server.facade.start_pipeline_process(current_resolved(), replay)
+                elif route == "/api/audit/start":
+                    result = server.facade.start_audit_process(current_resolved(), replay)
+                elif route == "/api/rerun/start":
+                    result = server.facade.start_rerun_csv_process(current_resolved(), replay)
+                else:
+                    return {"ok": False, "message": f"No backend recovery executor is registered for {route}."}
+                payload = result.to_mapping()
+                data = dict(payload.get("data") or {})
+                data.update({"command_id": recovery_command_id, "recovery_of_command_id": original_command_id, "evidence_phase": "recovery_terminal"})
+                payload["data"] = data
+                server._record_command_journal(payload, request=replay, strict=True)
+                return payload
+            except Exception as exc:
+                return {"ok": False, "message": f"Automatic recovery execution failed: {exc}"}
+
+        recovery_status = recovery.run(current_resolved(), resume=_resume_lifecycle_operation)
+        server.facade.set_recovery_status(recovery_status)
         # Started after the listener and bootstrap line so an enabled watcher's
         # first scan of large/remote roots can never delay backend reachability.
         startup_steps = list(server.startup_progress.get("steps", [])) if isinstance(server.startup_progress, dict) else []

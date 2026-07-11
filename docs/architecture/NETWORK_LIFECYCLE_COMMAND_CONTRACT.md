@@ -21,6 +21,10 @@ The WebView may render Network lifecycle controls only by calling these Local AP
 
 ## Route Flow
 
+## Durable restart posture
+
+Confirmed coordinator/worker lifecycle state is persisted by the backend with a lifecycle epoch and command evidence. On a new backend session, a persisted active role becomes `reconciliation_required`, not an assumed running provider. The backend reads coordinator/worker claim and pending-done evidence before clearing that posture; a fresh start may claim work only after reconciliation. The WebView remains a route client and never performs claim, done, release, worker, or process recovery itself.
+
 Operators should use routes in this order:
 
 1. `POST /api/network/coordinator/start-dry-run`

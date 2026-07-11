@@ -1,5 +1,6 @@
       <section class="page" data-page-panel="libraries">
         <h1 class="visually-hidden">Libraries</h1>
+        <p class="note">Start here: select or add a library, review its folders, then save changes. Scan Sources refreshes inventory evidence only; it never processes or changes media files.</p>
         <div id="settings-library-profile-nav" class="profile-nav settings-library-profile-nav" role="navigation" aria-label="Library profiles"></div>
 
         <section class="panel settings-library-summary-panel" id="settings-library-summary-panel" data-panel-type="interactive" aria-label="Saved library tiles">
@@ -43,9 +44,9 @@
               <button type="button" class="danger-button" id="settings-library-delete-button">Delete Library</button>
               <button type="button" class="secondary-button" id="settings-library-defaults-button">Reset Overrides To Defaults</button>
               <button type="button" class="secondary-button" id="settings-library-reset-button">Reset From Current</button>
-              <button type="button" class="secondary-button" id="settings-library-build-patch-button">Stage Patch</button>
-              <button type="button" class="secondary-button" id="settings-library-preview-button">Preview</button>
-              <button type="button" class="primary-button" id="settings-library-save-button">Save Library Profile</button>
+              <button type="button" class="secondary-button" id="settings-library-build-patch-button">Prepare changes</button>
+              <button type="button" class="secondary-button" id="settings-library-preview-button">Review changes</button>
+              <button type="button" class="primary-button" id="settings-library-save-button">Save changes</button>
             </div>
           </div>
         </section>
@@ -56,13 +57,13 @@
             <strong id="settings-library-watch-status">Not loaded</strong>
           </div>
           <div class="option-grid option-grid-compact">
-            <label class="check-row launch-check-row"><input id="settings-library-watch-auto-run" type="checkbox"> Auto-run new library media</label>
-            <label class="check-row launch-check-row"><input id="settings-library-watch-respect-schedule" type="checkbox"> Respect schedule window</label>
+            <label class="check-row launch-check-row"><input id="settings-library-watch-auto-run" type="checkbox"> When new files are found, add them to the queue and start processing automatically</label>
+            <label class="check-row launch-check-row"><input id="settings-library-watch-respect-schedule" type="checkbox"> Only start during my schedule</label>
           </div>
           <div class="action-row action-row-left wrap-actions">
-            <button type="button" class="secondary-button" id="settings-library-watch-stage-button">Stage Auto-Run Toggle</button>
-            <button type="button" class="secondary-button" id="settings-library-watch-preview-button">Preview</button>
-            <button type="button" class="primary-button" id="settings-library-watch-save-button">Save Auto-Run Toggle</button>
+            <button type="button" class="secondary-button" id="settings-library-watch-stage-button">Prepare auto-run change</button>
+            <button type="button" class="secondary-button" id="settings-library-watch-preview-button">Review auto-run change</button>
+            <button type="button" class="primary-button" id="settings-library-watch-save-button">Save auto-run change</button>
           </div>
           <pre id="settings-library-watch-summary" class="prose-block settings-library-feedback">No watch-folder settings loaded.</pre>
         </section>
@@ -76,7 +77,7 @@
           <pre id="settings-library-warning-summary" class="prose-block settings-library-feedback" hidden></pre>
         </section>
 
-        <section class="panel settings-library-route-map-panel" data-panel-type="evidence" data-table-ui="off">
+        <section class="panel settings-library-route-map-panel" data-panel-type="evidence" data-table-ui="off" data-advanced>
           <div class="panel-heading">
             <h2>Library Route Map</h2>
             <strong id="library-route-map-status">Not loaded</strong>

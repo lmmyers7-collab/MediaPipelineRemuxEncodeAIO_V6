@@ -109,6 +109,17 @@ function New-PendingParkManifest {
         source_size            = $SourceSize
         source_mtime_utc       = $SourceMTimeUtc
         output_size            = Get-FileLengthOrNull $LocalOut
+        output_sha256          = Get-PendingFileSha256OrNull $LocalOut
+        output_hash_algorithm  = 'SHA256'
+        drain_attempt_id       = ''
+        drain_attempt_started_at = ''
+        drain_attempt_completed_at = ''
+        drain_attempt_status   = 'not_started'
+        drain_attempt_error    = ''
+        replacement_existing_final = $false
+        replacement_prior_final_size = 0
+        replacement_prior_final_sha256 = ''
+        replacement_transaction_id = ''
         publish_mode           = $PublishMode
         sidecar_files          = @($SidecarManifestEntries)
         tx3g_srt_tracks        = @($Tx3gSrtTracks)
@@ -117,6 +128,7 @@ function New-PendingParkManifest {
         vobsub_srt_failures    = @($VobSubSrtFailures)
         converted_srt_sidecar_candidates = @($ConvertedSrtSidecarCandidates)
         subtitle_output_reduction = @($SubtitleOutputReduction)
+        subtitle_conversion_results = if ($script:LastSubtitleConversionResults) { @($script:LastSubtitleConversionResults) } else { @() }
         tx3g_embedded_srt_tracks = @($Tx3gEmbeddedSrtTracks)
         bdpgs_embedded_srt_tracks = @($BdpgsEmbeddedSrtTracks)
         vobsub_embedded_srt_tracks = @($VobSubEmbeddedSrtTracks)
@@ -249,6 +261,9 @@ function Invoke-PendingParkTransaction {
             -MediaType $MediaType
 
         $manifestPath = "$parked.manifest.json"
+        if ([string]::IsNullOrWhiteSpace([string]$manifest.output_sha256)) {
+            throw "pending park SHA-256 proof could not be produced for $LocalOut"
+        }
         Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
         $roundTrip = Read-PendingManifestFile -Path $manifestPath
         if ([string]$roundTrip.local_file -ne $parked -or [string]$roundTrip.server_out -ne $ServerOut -or [string]$roundTrip.manifest_state -ne 'pending_move') {

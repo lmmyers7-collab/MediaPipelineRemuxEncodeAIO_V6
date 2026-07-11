@@ -1,10 +1,10 @@
       <section class="page" data-page-panel="launch">
         <h1 class="visually-hidden">Launch</h1>
         <div class="settings-tab-bar launch-tab-bar" role="tablist" aria-label="Launch sections">
-          <button type="button" class="settings-tab-btn" role="tab" aria-selected="true" data-launch-tab="pipeline">Pipeline Processor</button>
-          <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-launch-tab="history">History</button>
+          <button type="button" id="launch-tab-pipeline" class="settings-tab-btn" role="tab" aria-selected="true" aria-controls="launch-panel-pipeline" data-launch-tab="pipeline">Pipeline Processor</button>
+          <button type="button" id="launch-tab-history" class="settings-tab-btn" role="tab" aria-selected="false" aria-controls="launch-panel-history" data-launch-tab="history">History</button>
         </div>
-        <section class="panel settings-tab-pane is-active launch-tab-panel pipeline-controller-panel" data-launch-tab-panel="pipeline" data-panel-type="interactive">
+        <section id="launch-panel-pipeline" class="panel settings-tab-pane is-active launch-tab-panel pipeline-controller-panel" role="tabpanel" aria-labelledby="launch-tab-pipeline" data-launch-tab-panel="pipeline" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Pipeline Processor</h2>
             <strong id="pipeline-launch-status">Idle</strong>
@@ -88,6 +88,7 @@
                 <h3>Start Work</h3>
                 <strong>Normal launch path</strong>
               </div>
+              <p id="pipeline-start-safety-summary" class="note" role="status" aria-live="polite">Review the selected backend scope and readiness first. Starting work never changes original source files; results remain under backend-controlled review and publish safeguards.</p>
               <div class="pipeline-mode-command-grid" role="group" aria-label="Common pipeline start modes">
                 <button type="button" class="pipeline-mode-button" data-pipeline-mode-preset="once" aria-pressed="false">
                   <span class="pipeline-mode-title">Run Once</span>
@@ -99,7 +100,7 @@
                 </button>
               </div>
               <div class="pipeline-mode-secondary-row" role="group" aria-label="Secondary pipeline start modes">
-                <button type="button" class="secondary-button pipeline-mode-secondary-button" data-pipeline-mode-preset="validate">Validate</button>
+                <button type="button" class="secondary-button pipeline-mode-secondary-button" data-pipeline-mode-preset="validate">Check setup only — does not process media</button>
                 <button type="button" class="secondary-button pipeline-mode-secondary-button" data-cross-page-target="pending">Open Pending Publish</button>
                 <button type="button" id="launch-open-pipeline-log-window-button" class="secondary-button pipeline-mode-secondary-button">Open Log Window</button>
               </div>
@@ -209,7 +210,7 @@
           <pre id="pipeline-launch-preflight" class="prose-block">No pipeline launch evidence loaded.</pre>
           <pre id="pipeline-launch-detail" class="prose-block">No launch result evidence.</pre>
         </section>
-        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="history" data-panel-type="interactive">
+        <section id="launch-panel-history" class="panel settings-tab-pane launch-tab-panel" role="tabpanel" aria-labelledby="launch-tab-history" data-launch-tab-panel="history" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Command History</h2>
             <strong id="launch-history-status">No launches</strong>

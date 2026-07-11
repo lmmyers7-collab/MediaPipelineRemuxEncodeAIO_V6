@@ -198,7 +198,13 @@ Assert-Equal @($pendingManifest.converted_srt_sidecar_candidates).Count 1 'Pendi
 Assert-Equal @($pendingManifest.subtitle_output_reduction).Count 1 'Pending manifest MP4 subtitle reduction evidence did not round-trip.'
 Assert-True ([bool]$pendingManifest.vobsub_srt_conversion_enabled) 'Pending manifest VobSub conversion flag did not round-trip.'
 
-$rerunCsvScriptText = Get-Content -LiteralPath (Join-Path $pipelineRoot 'entrypoints\Invoke-RerunCsv.ps1') -Raw
+$rerunCsvScriptText = (@(
+        'engine\rerun\entry_support.ps1',
+        'engine\rerun\evidence.ps1',
+        'engine\rerun\planning.ps1',
+        'engine\rerun\publish.ps1',
+        'entrypoints\Invoke-RerunCsv.ps1'
+    ) | ForEach-Object { Get-Content -LiteralPath (Join-Path $pipelineRoot $_) -Raw }) -join "`n"
 foreach ($field in @(
     'product_version',
     'pipeline_version',

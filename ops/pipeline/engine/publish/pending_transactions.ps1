@@ -29,3 +29,18 @@ function Get-FileLengthOrNull {
     } catch {}
     return $null
 }
+
+# A pending manifest stores this proof once when the verified local output is
+# parked. Drain compares the staged partial and the revealed final file to this
+# same value before it may discard the only parked copy.
+function Get-PendingFileSha256OrNull {
+    param([string]$Path)
+    try {
+        if ($Path -and (Test-Path -LiteralPath $Path -PathType Leaf -ErrorAction SilentlyContinue)) {
+            return ([string](Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop).Hash).ToUpperInvariant()
+        }
+    } catch {
+        Write-Log "Pending: SHA-256 proof failed for $Path : $_" 'WARN'
+    }
+    return $null
+}

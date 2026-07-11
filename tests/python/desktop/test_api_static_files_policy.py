@@ -13,6 +13,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 from mediapipeline.desktop.api.static_files import render_index
 from mediapipeline.desktop.api.static_files_policy import (
     STATIC_INDEX_BOOTSTRAP_PLACEHOLDER,
+    defer_external_scripts,
     local_api_bootstrap,
     missing_bootstrap_placeholder_response,
     missing_index_response,
@@ -24,6 +25,40 @@ from mediapipeline.desktop.api.static_files_policy import (
 
 
 class LocalApiStaticFilesPolicyTests(unittest.TestCase):
+    def test_defer_external_scripts_preserves_order_and_existing_hints(self) -> None:
+        html = "\n".join(
+            (
+                '<script type="application/json">{}</script>',
+                '<script src="/assets/one.js"></script>',
+                '<script async src="/assets/two.js"></script>',
+                '<script defer src="/assets/three.js"></script>',
+            )
+        )
+
+        rendered = defer_external_scripts(html)
+
+        self.assertIn('<script defer src="/assets/one.js">', rendered)
+        self.assertIn('<script async src="/assets/two.js">', rendered)
+        self.assertIn('<script defer src="/assets/three.js">', rendered)
+        self.assertIn('<script type="application/json">', rendered)
+        self.assertLess(rendered.index("one.js"), rendered.index("two.js"))
+
+    def test_render_index_serves_every_external_script_with_a_loading_hint(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            static_root = Path(tmp)
+            (static_root / "index.html").write_text(
+                (
+                    f'<script type="application/json">{STATIC_INDEX_BOOTSTRAP_PLACEHOLDER}</script>'
+                    '<script src="/assets/app.js"></script>'
+                ),
+                encoding="utf-8",
+            )
+
+            response = render_index(static_root, {"apiBase": "", "token": ""})
+
+        self.assertEqual(response.status, 200)
+        self.assertIn(b'<script defer src="/assets/app.js">', response.body)
+
     def test_local_api_bootstrap_includes_token_only_when_required(self) -> None:
         required = local_api_bootstrap(token="secret", require_token=True, app_version="v5-test")
         disabled = local_api_bootstrap(token="secret", require_token=False, app_version="v5-test", shell_surface="tauri")

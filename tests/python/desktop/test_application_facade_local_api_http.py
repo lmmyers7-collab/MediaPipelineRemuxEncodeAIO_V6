@@ -43,6 +43,188 @@ from tests.python.desktop.application_facade_test_support import (
 
 
 class LocalApiHttpTests(LocalApiHttpTestMixin, unittest.TestCase):
+    def test_snapshot_returns_initializing_placeholder_while_background_refresh_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
+            refresh_started = threading.Event()
+            release_refresh = threading.Event()
+
+            def snapshot_provider() -> Snapshot:
+                refresh_started.set()
+                self.assertTrue(release_refresh.wait(timeout=2.0))
+                return Snapshot(
+                    resolved=resolved,
+                    current_activity="Fresh snapshot.",
+                    status_summary="OK",
+                    log_tail="",
+                    progress=None,
+                    audit_progress=None,
+                    latest_failure_report=None,
+                    latest_failure_json=None,
+                    latest_audit_csv=None,
+                    latest_priority_csv=None,
+                )
+
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: resolved,
+                snapshot_provider=snapshot_provider,
+            )
+            try:
+                server.start()
+                self.assertTrue(refresh_started.wait(timeout=0.5))
+                started = time.monotonic()
+                initial = server._snapshot()
+                elapsed = time.monotonic() - started
+                self.assertIsNotNone(initial)
+                assert initial is not None
+                self.assertLess(elapsed, 0.1)
+                self.assertEqual(initial.last_error, "SNAPSHOT_INITIALIZING: Dashboard status is loading in the background.")
+
+                release_refresh.set()
+                deadline = time.monotonic() + 1.0
+                refreshed = initial
+                while time.monotonic() < deadline:
+                    refreshed = server._snapshot()
+                    if refreshed is not None and refreshed.current_activity == "Fresh snapshot.":
+                        break
+                    time.sleep(0.01)
+                self.assertIsNotNone(refreshed)
+                assert refreshed is not None
+                self.assertEqual(refreshed.current_activity, "Fresh snapshot.")
+            finally:
+                release_refresh.set()
+                server.stop()
+
+    def test_snapshot_provider_is_coalesced_in_one_background_worker(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
+            calls = 0
+
+            def snapshot_provider() -> Snapshot:
+                nonlocal calls
+                calls += 1
+                time.sleep(0.05)
+                return Snapshot(
+                    resolved=resolved,
+                    current_activity="Idle.",
+                    status_summary="OK",
+                    log_tail="",
+                    progress=None,
+                    audit_progress=None,
+                    latest_failure_report=None,
+                    latest_failure_json=None,
+                    latest_audit_csv=None,
+                    latest_priority_csv=None,
+                )
+
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: resolved,
+                snapshot_provider=snapshot_provider,
+            )
+            results: list[Snapshot | None] = []
+            results_lock = threading.Lock()
+
+            def read_snapshot() -> None:
+                snapshot = server._snapshot()
+                with results_lock:
+                    results.append(snapshot)
+
+            threads = [threading.Thread(target=read_snapshot) for _ in range(3)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+
+            deadline = time.monotonic() + 1.0
+            while calls < 1 and time.monotonic() < deadline:
+                time.sleep(0.01)
+
+        self.assertEqual(len(results), 3)
+        self.assertTrue(all(result is not None for result in results))
+        self.assertEqual(calls, 1)
+
+    def test_snapshot_refresh_contention_returns_initializing_status_without_waiting(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
+            calls = 0
+
+            def snapshot_provider() -> Snapshot:
+                nonlocal calls
+                calls += 1
+                return Snapshot(
+                    resolved=resolved,
+                    current_activity="Idle.",
+                    status_summary="OK",
+                    log_tail="",
+                    progress=None,
+                    audit_progress=None,
+                    latest_failure_report=None,
+                    latest_failure_json=None,
+                    latest_audit_csv=None,
+                    latest_priority_csv=None,
+                )
+
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: resolved,
+                snapshot_provider=snapshot_provider,
+            )
+            self.assertTrue(server._snapshot_refresh_lock.acquire(timeout=0.1))
+            try:
+                started = time.monotonic()
+                result = [server._snapshot()]
+                self.assertLess(time.monotonic() - started, 0.1)
+            finally:
+                server._snapshot_refresh_lock.release()
+
+        self.assertEqual(calls, 0)
+        self.assertEqual(len(result), 1)
+        self.assertIsNotNone(result[0])
+        assert result[0] is not None
+        self.assertEqual(
+            result[0].last_error,
+            "SNAPSHOT_INITIALIZING: Dashboard status is loading in the background.",
+        )
+
+    def test_snapshot_read_failure_returns_readable_initializing_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
+
+            def failing_snapshot_provider() -> Snapshot:
+                raise RuntimeError("fixture snapshot read failure")
+
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: resolved,
+                snapshot_provider=failing_snapshot_provider,
+            )
+            try:
+                server.start()
+                deadline = time.monotonic() + 1.0
+                while not server._snapshot_refresh_error and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                status, payload = self._get_json(f"{server.url}/api/snapshot", token="test-token")
+            finally:
+                server.stop()
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["pipeline_state"], "initializing")
+        self.assertIn("SNAPSHOT_READ_FAILED", payload["warnings"])
+
     def test_local_api_server_suppresses_client_disconnect_tracebacks(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -202,6 +384,77 @@ class LocalApiHttpTests(LocalApiHttpTestMixin, unittest.TestCase):
 
         self.assertEqual(missing_env, 2)
         self.assertEqual(non_loopback, 2)
+
+    def test_local_api_main_runs_lifecycle_recovery_with_server_resolved_provider(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            recovery_instances: list[object] = []
+
+            class FakeService:
+                def start_background_tasks(self) -> None:
+                    return None
+
+                def stop_background_tasks(self) -> None:
+                    return None
+
+            class FakeFacade:
+                def set_recovery_status(self, status: dict[str, object]) -> None:
+                    self.recovery_status = status
+
+                def _start_watch_folder_manager(self, **kwargs: object) -> dict[str, object]:
+                    _ = kwargs
+                    return {"enabled": False}
+
+            class FakeServer:
+                url = "http://127.0.0.1:49999"
+                host = "127.0.0.1"
+                port = 49999
+                token = "test-token"
+                shell_surface = "tauri"
+                startup_progress: dict[str, object] = {"steps": []}
+                facade = FakeFacade()
+                resolved_provider = staticmethod(lambda: resolved)
+                resolved_reload = staticmethod(lambda: resolved)
+
+                def set_startup_progress(self, progress: dict[str, object]) -> None:
+                    self.startup_progress = progress
+
+                def start(self) -> None:
+                    return None
+
+                def stop(self) -> None:
+                    return None
+
+            class FakeRecovery:
+                def __init__(self) -> None:
+                    self.resolved: ResolvedPaths | None = None
+                    recovery_instances.append(self)
+
+                def status(self) -> dict[str, object]:
+                    return {"status": "idle"}
+
+                def run(self, recovered_resolved: ResolvedPaths, **kwargs: object) -> dict[str, object]:
+                    _ = kwargs
+                    self.resolved = recovered_resolved
+                    return {"status": "complete"}
+
+            class StopEvent:
+                def wait(self, timeout: float) -> bool:
+                    _ = timeout
+                    return True
+
+            with (
+                patch("mediapipeline.desktop.local_api_main.build_backend", return_value=(FakeService(), resolved, FakeServer())),
+                patch("mediapipeline.desktop.local_api_main.LifecycleRecoveryCoordinator", FakeRecovery),
+                patch("mediapipeline.desktop.local_api_main.threading.Event", return_value=StopEvent()),
+                patch("builtins.print"),
+            ):
+                result = local_api_main(["--app-root", str(root), "--port", "49999"])
+
+        self.assertEqual(result, 0)
+        self.assertEqual(len(recovery_instances), 1)
+        self.assertIs(recovery_instances[0].resolved, resolved)  # type: ignore[attr-defined]
 
     def test_local_api_request_threads_are_not_daemonized(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

@@ -65,6 +65,15 @@
       if (!reportsState.reportsTabNavInitialized) {
         buttons.forEach((button) => {
           button.addEventListener("click", () => activateReportsTab(button.dataset.reportsTab || "failures"));
+          button.addEventListener("keydown", (event) => {
+            const keys = ["ArrowLeft", "ArrowRight", "Home", "End"];
+            if (!keys.includes(event.key)) return;
+            event.preventDefault();
+            const current = buttons.indexOf(button);
+            const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 : (current + (event.key === "ArrowRight" ? 1 : -1) + buttons.length) % buttons.length;
+            buttons[next].focus();
+            activateReportsTab(buttons[next].dataset.reportsTab || "failures");
+          });
         });
         reportsState.reportsTabNavInitialized = true;
       }

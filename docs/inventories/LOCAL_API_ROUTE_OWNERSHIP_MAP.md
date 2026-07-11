@@ -28,7 +28,7 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/diagnostics/tdarr-matrix/compare` | Yes | `desktop_tdarr_matrix_compare.v1` | Diagnostics | Query params: `left_run_id`, `right_run_id`, `left`, `right`; compares existing reports without opening files or launching work |
 | `GET /api/backend/close-readiness` | Yes | `desktop_close_readiness.v1` | Tauri shell (close flow) | Backend has authority over whether it is safe to close; shell must not decide unilaterally |
 | `GET /api/ui-preferences` | Yes | `desktop_ui_preferences.v1` | Chrome WebView, Tauri shell | Shared UI preference state for layout/theme/tab parity; no settings, queue, or media mutation |
-| `GET /api/launch/preflight` | Yes | `desktop_launch_preflight.v1` | Launch | Backend-authored pre-launch checks from read-only start-intent query fields, including pipeline single-file intent, extra-argument posture, and encoder capability diagnostic evidence that refreshes only when `refresh_encoder_capability_report=true`; no locks reserved, no processes started, no media touched |
+| `GET /api/launch/preflight` | Yes | `desktop_launch_preflight.v1` | Launch | Backend-authored read-only pre-launch checks from start-intent query fields, including pipeline single-file intent, extra-argument posture, and existing encoder capability evidence; no artifact refresh, locks, process starts, or media touch |
 | `GET /api/commands` | Yes | `desktop_command_history.v1` | Diagnostics, Home | Recent command journal entries; query param: `limit` |
 | `GET /api/rerun/results` | Yes | `desktop_rerun_results.v1` + nested `desktop_rerun_queue_state.v1` | Queue | Reads completed/current CSV rerun manifests plus read-only Network CSV rerun rows, first-class Queue-facing row statuses including `pending_reduction`, `review_workspace`, `pending_publish`, published, and failed policy states, backend-owned rule/reducer/destination decisions, worker/result evidence, stop evidence, continuation eligibility, rerun review outputs, destination/review/publish evidence, and backend-known import/scoped CSV candidates; no file movement or media mutation |
 
@@ -157,6 +157,7 @@ Final-library promotion remains backend-owned: the backend resolves destinations
 | Route | Effect | Request Keys | Allowed Targets | Frontend Caller |
 |---|---|---|---|---|
 | `POST /api/diagnostics/open` | `shell-open` | `target` | 21 allowlisted keys (see below) | Diagnostics, all pages |
+| `POST /api/diagnostics/encoder-capabilities/refresh` | `diagnostics-artifact-write` | none | N/A | Launch, Settings; journals bounded capability evidence and cannot launch media processing or touch source media |
 | `POST /api/diagnostics/tdarr-matrix-audit` | `diagnostic-process` | `action` | `report`, `smoke`, `matrix`, `full`, `strict-report` | Diagnostics |
 | `POST /api/diagnostics/tdarr-matrix/evidence/open` | `shell-open` | `run_id`, `finding_key`, `target` | `stdout`, `stderr`, `worker_result`, `source_hashes`, `failure_artifact`, `output`, `report_folder` | Diagnostics |
 | `POST /api/diagnostics/tdarr-matrix/rerun` | `diagnostic-process` | `source_run_id`, `selection`, `finding_keys` | `selected`, `latest_failures` | Diagnostics |

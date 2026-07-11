@@ -108,6 +108,7 @@ Other 2026-06 audit/review packs are historical evidence snapshots and should li
 - `inventories/PACKAGING_DEPENDENCY_INVENTORY.md`
 - `inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md`
 - `inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`
+- `inventories/RELEASE_DEPENDENCY_REVIEW.md`
 - `inventories/RENAME_SAFETY_TEST_INVENTORY.md`
 - `inventories/RENAME_TOOL_EDGE_CASE_CATALOG.md`
 - `inventories/ROOT_SCRIPT_INVENTORY.md`
@@ -122,6 +123,7 @@ Other 2026-06 audit/review packs are historical evidence snapshots and should li
 
 ## Testing And Validation
 
+- `testing/PERFORMANCE_BENCHMARK_RUNBOOK.md`: repeatable startup/static/module-graph baselines and optional audit-suite timing.
 - `testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md`
 - `testing/BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md`
 - `testing/BROWSER_SMOKE_PREREQUISITES_CHECKLIST.md`
@@ -151,6 +153,7 @@ Smoke wrappers live under `..\ops/scripts/smoke\`. Do not add new smoke wrappers
 ## Sample Validation
 
 - `sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md`
+- `sample-validation/POLICY_PROOF_PACK_RUNBOOK.md`
 - `sample-validation/REAL_MEDIA_VALIDATION_EVIDENCE_TEMPLATE.md`
 - `sample-validation/SAMPLE_VALIDATION_PAYLOAD_SCHEMA_REFERENCE.md`
 - `sample-validation/SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md`

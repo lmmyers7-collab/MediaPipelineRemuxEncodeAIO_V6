@@ -20,6 +20,7 @@
       renameStatusExplanation,
       setText,
     } = deps;
+    const duplicateTargetsFor = typeof renameDuplicateTargets === "function" ? renameDuplicateTargets : () => [];
     const RENAME_READ_ONLY_BOUNDARY = "Mutation guardrail: read-only evidence; backend rename routes own filesystem changes.";
 
     function renameApplyScopeRows() {
@@ -57,12 +58,12 @@
     }
 
     function renameSelectionDuplicateTargets(rows) {
-      return renameDuplicateTargets(rows);
+      return duplicateTargetsFor(rows);
     }
 
     function renameApplyScopeBlockers(rows) {
       const scopedRows = Array.isArray(rows) ? rows : [];
-      const duplicateTargets = renameDuplicateTargets(scopedRows);
+      const duplicateTargets = duplicateTargetsFor(scopedRows);
       const destinationExistsRows = scopedRows.filter((row) => Boolean(row.destination_exists) && !row.matches_target);
       const blockers = [];
       if (duplicateTargets.length) {
@@ -117,7 +118,7 @@
       if (errors.length) lines.push(`Errors: ${errors.slice(0, 4).join(" | ")}`);
       if (warnings.length) lines.push(`Warnings: ${warnings.slice(0, 4).join(" | ")}`);
       if (lastRenameRows.length > RENAME_PREVIEW_RENDER_LIMIT) {
-        lines.push("Render cap note: checked scope may include rows not currently rendered after Check Applicable; review confirmation before filesystem mutation.");
+        lines.push("Render cap note: automatic selection is limited to rendered rows. Review later preview rows separately before adding them to the apply scope.");
       }
       lines.push("Next step: if the audit looks correct, Apply sends these checked rows as backend selected_sources.");
       lines.push(RENAME_READ_ONLY_BOUNDARY);
@@ -143,8 +144,8 @@
       const blockedRows = rows.filter((row) => !renameRowCanApply(row));
       const warningRows = rows.filter((row) => String(row.status || "").toLowerCase() === "warning");
       const matchRows = rows.filter((row) => String(row.status || "").toLowerCase() === "match");
-      const duplicateTargets = renameDuplicateTargets(rows);
-      const previewDuplicateTargets = renameDuplicateTargets(lastRenameRows);
+      const duplicateTargets = duplicateTargetsFor(rows);
+      const previewDuplicateTargets = duplicateTargetsFor(lastRenameRows);
       const destinationExistsRows = rows.filter((row) => Boolean(row.destination_exists) && !row.matches_target);
       const sidecarMoves = rows.reduce((acc, row) => acc + Number(row.sidecar_count || 0), 0);
       const forceRows = rows.filter((row) => Boolean(row.force_pipeline_name)).length;
@@ -164,7 +165,7 @@
         "Render cap visibility",
         previewCount > RENAME_PREVIEW_RENDER_LIMIT ? "review" : (previewCount ? "ready" : "waiting"),
         previewCount ? `${renderedCount} of ${previewCount} preview row(s) are rendered; ${getCheckedRenameRows().length} checked row(s).` : "No preview rows are rendered.",
-        previewCount > RENAME_PREVIEW_RENDER_LIMIT ? "Use Selection Audit and checked count; applying checked rows can include unrendered backend preview rows after Check Applicable Rows." : "All backend preview rows are visible in the current table render.",
+        previewCount > RENAME_PREVIEW_RENDER_LIMIT ? "Automatic selection is limited to rendered rows. Review later preview rows separately before adding them to the apply scope." : "All backend preview rows are visible in the current table render.",
       ));
       readinessRows.push(renameApplyReadinessRow(
         "Apply scope",

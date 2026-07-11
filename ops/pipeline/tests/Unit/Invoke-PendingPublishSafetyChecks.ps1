@@ -346,6 +346,9 @@ Invoke-WithTempRoot {
     Assert-Equal ([string]$manifest.manifest_state) 'parked' 'Pending manifest did not reach parked state.'
     Assert-Equal ([string]$manifest.publish_mode) 'deferred' 'Pending manifest did not preserve deferred publish mode.'
     Assert-Equal ([string]$manifest.media_type) 'movie' 'Pending manifest did not preserve media type.'
+    Assert-True ([string]$manifest.output_sha256 -match '^[A-F0-9]{64}$') 'New pending manifests must record a SHA-256 output proof.'
+    Assert-Equal ([string]$manifest.output_hash_algorithm) 'SHA256' 'New pending manifests must identify their SHA-256 proof algorithm.'
+    Assert-Equal ([string]$manifest.drain_attempt_status) 'not_started' 'New pending manifests must initialize durable drain-attempt state.'
     Assert-Equal @($manifest.sidecar_files).Count 1 'Pending manifest did not preserve sidecar entry.'
     $parkedSidecar = [string]$manifest.sidecar_files[0].local_file
     Assert-True (Test-Path -LiteralPath $parkedSidecar -PathType Leaf) 'Parked sidecar file is missing.'
@@ -1082,5 +1085,9 @@ Assert-MatchText $publishCompletionText 'Clear-SourceFailureState \$SourceFile[\
 
 $pendingDrainText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_drain_transaction.ps1') -Raw
 Assert-MatchText $pendingDrainText 'Test-PublishSidecarBackupReadyForReveal[\s\S]+retry_sidecar_backup_failed' 'Pending drain must fail closed when an existing final sidecar cannot be backed up.'
+Assert-MatchText $pendingDrainText 'Get-PendingFileSha256OrNull \$serverPartial' 'Pending drain must verify the copied partial with SHA-256 before reveal.'
+Assert-MatchText $pendingDrainText 'Get-PendingFileSha256OrNull \$server' 'Pending drain must verify the revealed final output with SHA-256 before pending cleanup.'
+Assert-MatchText $pendingDrainText 'Update-PendingManifestDrainAttempt' 'Pending drain must persist per-manifest attempt evidence.'
+Assert-MatchText $pendingDrainText 'Restore-PublishMediaAfterRevealFailure' 'Pending final hash failure must restore prior media or remove the newly revealed media.'
 
 Write-Host 'OK: pending publish safety checks passed.'

@@ -3,9 +3,9 @@ file: ops/pipeline/engine/process/encode_preflight.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-24
+last_modified: 2026-07-10
 last_reviewed: 2026-06-24
-sha256: 39b70af03f34a1848ea91eb6fe97053e24c4192ed52e87e7b1140beeb45c93e7
+sha256: cf7de353cfc91a295390977edfd7821a01ada9352cba0817acd0377baeb09850
 ---
 # `ops/pipeline/engine/process/encode_preflight.ps1`
 

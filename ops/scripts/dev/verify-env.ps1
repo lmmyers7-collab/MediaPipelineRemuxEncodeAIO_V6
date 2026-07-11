@@ -422,7 +422,7 @@ if (Test-Path -LiteralPath $pipelineConfig) {
 }
 
 Write-Section 'BDPGS OCR Readiness'
-$convertBdpgs = Get-ConfigBoolValue -Config $configData -Key 'ConvertBdpgsToSrt' -Default $false
+$convertBdpgs = Get-ConfigBoolValue -Config $configData -Key 'ConvertBdpgsToSrt' -Default $true
 $configuredPgsTool = [string](Get-ConfigValue -Config $configData -Key 'BdpgsOcrToolPath' -Default 'tools\PgsToSrt\PgsToSrt.exe')
 $configuredPgsTessdata = [string](Get-ConfigValue -Config $configData -Key 'BdpgsOcrTessdataPath' -Default 'tools\PgsToSrt\tessdata')
 $resolvedPgsTool = Resolve-PipelineRelativePath -PathValue $configuredPgsTool

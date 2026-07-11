@@ -124,5 +124,6 @@ function Invoke-MediaPipelineEncodeStreamPreparation {
     $Context.AudioArgs = @($audioArgs)
     $Context.DefaultAudioLang = $defaultAudioLang
     $Context.SubResult = $subResult
+    $Context.MediaTrackVerificationPlan = New-MediaTrackOutputVerificationPlan -AudioDecisions @(Get-LastAudioDecisionRecords) -SubtitleTracks @($subResult.VerificationTracks)
     return New-MediaPipelineEncodeStageResult -Ok $true -Terminal $false -Stage 'encode-stream-preparation'
 }

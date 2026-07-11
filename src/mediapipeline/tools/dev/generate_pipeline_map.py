@@ -53,6 +53,7 @@ STAGE_METADATA: dict[str, dict[str, object]] = {
         "notes": "FFmpeg invocation. Returns output path, size, and attempts.",
         "domains": "src/mediapipeline/core/processes/ and src/mediapipeline/core/orchestration/ (runner/plans), ops/pipeline/engine/process/ and ops/pipeline/entrypoints/MediaPipeline/ (invocation)",
         "detail": [
+            "Descriptive contract only; permanently disabled in the orchestration-only dispatcher.",
             "FFmpeg command generation and stream mapping are high-risk surfaces.",
             "Attempt records preserve encoder, timestamps, exit code, and log path.",
         ],
@@ -61,6 +62,7 @@ STAGE_METADATA: dict[str, dict[str, object]] = {
         "notes": "ASS/TX3G/BDPGS to SRT, language filtering, and review routing.",
         "domains": "src/mediapipeline/contracts/source_media*.py (subtitle facts), ops/pipeline/engine/subtitles/",
         "detail": [
+            "Descriptive contract only; permanently disabled in the orchestration-only dispatcher.",
             "Original subtitles are preserved by default.",
             "OCR/conversion failure routes to review, never silent bad publish.",
         ],
@@ -69,6 +71,7 @@ STAGE_METADATA: dict[str, dict[str, object]] = {
         "notes": "Passthrough, downmix, or transcode by profile.",
         "domains": "src/mediapipeline/contracts/source_media*.py (audio facts), ops/pipeline/engine/audio/",
         "detail": [
+            "Descriptive contract only; permanently disabled in the orchestration-only dispatcher.",
             "Audio routing is profile/config driven.",
             "Passthrough, downmix, and transcode policy changes require high validation.",
         ],
@@ -77,6 +80,7 @@ STAGE_METADATA: dict[str, dict[str, object]] = {
         "notes": "Move to final root, or park on final-root safety guard.",
         "domains": "src/mediapipeline/core/publish/, ops/pipeline/engine/publish/",
         "detail": [
+            "Descriptive contract only; permanently disabled in the orchestration-only dispatcher.",
             "Pending publish parks output when final placement is unsafe.",
             "Publish evidence is captured through manifest_path and pending_publish_id.",
         ],
@@ -85,6 +89,7 @@ STAGE_METADATA: dict[str, dict[str, object]] = {
         "notes": "Drain parked outputs to final root with manifest evidence.",
         "domains": "src/mediapipeline/core/publish/ (drain), ops/pipeline/engine/publish/",
         "detail": [
+            "Descriptive contract only; permanently disabled in the orchestration-only dispatcher.",
             "Drain moves only from pending-publish evidence, not from source media.",
             "Retry policy is expected to be conservative because final roots may be unavailable.",
         ],
@@ -93,6 +98,7 @@ STAGE_METADATA: dict[str, dict[str, object]] = {
         "notes": "Plan, apply, or undo rename operations with sidecars.",
         "domains": "src/mediapipeline/core/rename/, ops/pipeline/engine/naming/",
         "detail": [
+            "Descriptive contract only; permanently disabled in the orchestration-only dispatcher.",
             "Backend owns apply and undo behavior.",
             "Every apply is expected to write an undo record.",
         ],
@@ -183,7 +189,8 @@ def render_pipeline_map(module: ModuleType) -> str:
     lines.append("- Logs go to stderr and must not be required for result parsing.")
     lines.append(f"- All payloads and results carry `schema_version: \"{module.STAGE_SCHEMA_VERSION}\"`.")
     lines.append("- The engine rejects unknown schema versions.")
-    lines.append("- In this additive Phase 3 slice, only stages marked enabled below dispatch to behavior.")
+    lines.append("- The dispatcher is orchestration-only; no Local API stage-execute route exists.")
+    lines.append("- Only stages marked enabled below dispatch to behavior; disabled mutation DTOs are descriptive contracts, not future route commitments.")
     lines.append("")
     lines.append("## Stages")
     lines.append("")

@@ -5,24 +5,19 @@ function Get-AuditMediaFilesBounded {
     )
 
     $job = Start-Job -ScriptBlock {
-        param($root)
+        param($root, $validExtensions)
         Get-ChildItem -LiteralPath $root -Recurse -File -Force -ErrorAction Stop |
-            ForEach-Object { $_.FullName }
-    } -ArgumentList $RootPath
+            Where-Object { $validExtensions -contains $_.Extension.ToLowerInvariant() } |
+            Sort-Object FullName |
+            Select-Object FullName, Name, DirectoryName, Extension, Length, LastWriteTimeUtc
+    } -ArgumentList $RootPath, @($script:ValidExtensions)
 
     $startedAt = Get-Date
     try {
         while ($true) {
             $completed = Wait-Job $job -Timeout 1
             if ($completed) {
-                $paths = @(Receive-Job $job -ErrorAction Stop)
-                $files = foreach ($path in $paths) {
-                    if ([string]::IsNullOrWhiteSpace([string]$path)) { continue }
-                    $ext = [System.IO.Path]::GetExtension([string]$path).ToLowerInvariant()
-                    if ($script:ValidExtensions -notcontains $ext) { continue }
-                    try { Get-Item -LiteralPath ([string]$path) -ErrorAction Stop } catch { $null }
-                }
-                return @($files | Where-Object { $null -ne $_ } | Sort-Object FullName)
+                return @(Receive-Job $job -ErrorAction Stop)
             }
 
             if ($TimeoutSeconds -gt 0 -and ((Get-Date) - $startedAt).TotalSeconds -ge $TimeoutSeconds) {

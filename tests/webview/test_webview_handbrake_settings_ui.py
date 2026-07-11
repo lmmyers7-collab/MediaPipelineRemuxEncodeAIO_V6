@@ -22,6 +22,49 @@ from tests.css_import_resolver import resolve_css_imports
 
 STATIC_ROOT = find_repo_root(Path(__file__)) / "apps" / "desktop" / "webview" / "static"
 ASSETS_ROOT = STATIC_ROOT / "assets"
+SETTINGS_PATCH_REVIEW_ASSET_NAMES = (
+    "settings/finalLibraryPromotion.js",
+    "settings/patchOverview.js",
+    "settings/patchInteractions.js",
+    "settings/patchReadiness.js",
+    "settings/patchReview.js",
+)
+SETTINGS_WIZARD_ASSET_NAMES = (
+    "settings/wizard/libraryEditor.js",
+    "settings/wizard/previewRender.js",
+    "settingsWizard.js",
+)
+SETTINGS_LIBRARIES_ASSET_NAMES = (
+    "settingsLibraries/model.js",
+    "settingsLibraries/render.js",
+    "settingsLibraries/summary.js",
+    "settingsLibraries/interaction.js",
+    "settingsLibraries/facade.js",
+    "settingsLibraries.js",
+)
+
+
+def _settings_patch_review_bundle() -> str:
+    return "\n".join(
+        (ASSETS_ROOT / asset_name).read_text(encoding="utf-8")
+        for asset_name in SETTINGS_PATCH_REVIEW_ASSET_NAMES
+    )
+
+
+def _settings_libraries_bundle() -> str:
+    return "\n".join(
+        (ASSETS_ROOT / asset_name).read_text(encoding="utf-8")
+        for asset_name in SETTINGS_LIBRARIES_ASSET_NAMES
+    )
+
+
+def _settings_wizard_bundle() -> str:
+    return "\n".join(
+        (ASSETS_ROOT / asset_name).read_text(encoding="utf-8")
+        for asset_name in SETTINGS_WIZARD_ASSET_NAMES
+    )
+
+
 REPRESENTATIVE_SETTINGS_METADATA_KEYS = {
     "VideoPreset",
     "ConvertBdpgsToSrt",
@@ -257,7 +300,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertNotIn("Evidence scope", html)
 
     def test_summary_panel_uses_persisted_keys_without_runtime_authority(self) -> None:
-        review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        review_js = _settings_patch_review_bundle()
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
 
         for token in (
@@ -294,7 +337,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
     def test_source_compatibility_tab_and_preview_call_are_removed(self) -> None:
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
-        review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        review_js = _settings_patch_review_bundle()
 
         for token in (
             "Source / Compatibility",
@@ -324,7 +367,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
     def test_guided_setup_tab_uses_five_phase_backend_owned_flow(self) -> None:
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
-        wizard_js = (STATIC_ROOT / "assets" / "settingsWizard.js").read_text(encoding="utf-8")
+        wizard_js = _settings_wizard_bundle()
 
         for token in (
             'data-settings-tab="guided-setup"',
@@ -347,14 +390,17 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "function handlePrimaryWizardAction()",
             "function syncRiskAckRows()",
             "Wizard draft changed after the last preview. Preview Config again before saving.",
-            "function wizardCapabilityFactsText(data)",
+            "function capabilityFactsText(data)",
             'label: "Capability facts"',
             'label: "Hardware backends"',
             'label: "CPU fallbacks"',
+            "function hardwareRecommendation(data)",
+            "settings-wizard-hardware-recommendation",
             'return "Review Policy";',
             'if (label === "Review Policy")',
             'apiPostLocal("/api/settings/wizard/preview", { wizard: collectWizardPayload() })',
-            'apiPostLocal("/api/settings/wizard/save", { wizard: collectWizardPayload(), confirm_save: true })',
+            'apiPostLocal("/api/settings/wizard/save", {',
+            'review_confirmation: state.lastPreview?.data?.review_confirmation || null,',
         ):
             self.assertIn(token, wizard_js)
 
@@ -376,7 +422,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
     def test_settings_deployment_action_path_is_visible_and_backend_owned(self) -> None:
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
-        wizard_js = (STATIC_ROOT / "assets" / "settingsWizard.js").read_text(encoding="utf-8")
+        wizard_js = _settings_wizard_bundle()
 
         for token in (
             "settings-deployment-path-panel",
@@ -468,7 +514,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
     def test_routing_labels_are_visible_without_taxonomy_badges(self) -> None:
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
-        review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        review_js = _settings_patch_review_bundle()
         builder_controls_js = (STATIC_ROOT / "assets" / "settings" / "builderControls.js").read_text(encoding="utf-8")
 
         for token in (
@@ -836,7 +882,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
         styles = _read_components_css()
-        review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        review_js = _settings_patch_review_bundle()
         video_builder_js = (STATIC_ROOT / "assets" / "settingsView.builders.video.js").read_text(encoding="utf-8")
 
         combined_tag_sources = html + settings_js + styles
@@ -862,7 +908,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
     def test_display_label_metadata_overrides_legacy_terms(self) -> None:
         js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
         metadata_fields_js = (STATIC_ROOT / "assets" / "settings" / "metadataFields.js").read_text(encoding="utf-8")
-        review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        review_js = _settings_patch_review_bundle()
 
         self.assertNotIn("settingsDisplayLabels", js)
         for key, label in LABEL_ONLY_RENAMES.items():
@@ -945,7 +991,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             self.assertIn(token, helper)
 
     def test_patch_preview_keeps_persisted_keys_for_backend_labels(self) -> None:
-        review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        review_js = _settings_patch_review_bundle()
         metadata_fields_js = (STATIC_ROOT / "assets" / "settings" / "metadataFields.js").read_text(encoding="utf-8")
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
 
@@ -972,7 +1018,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
         metadata_fields_js = (STATIC_ROOT / "assets" / "settings" / "metadataFields.js").read_text(encoding="utf-8")
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
-        review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        review_js = _settings_patch_review_bundle()
         video_builder_js = (STATIC_ROOT / "assets" / "settingsView.builders.video.js").read_text(encoding="utf-8")
         patch_sources = review_js + video_builder_js
 
@@ -1009,7 +1055,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
     def test_webview_validation_hints_are_advisory_and_share_backend_alias_policy(self) -> None:
         metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
-        review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        review_js = _settings_patch_review_bundle()
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
 
         self.assertEqual(_settings_friendly_alias_entries(), FRIENDLY_LABEL_PERSISTED_KEY_ALIASES)
@@ -1045,7 +1091,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
     def test_webview_validation_hints_do_not_replace_backend_preview_or_save_authority(self) -> None:
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
-        patch_review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        patch_review_js = _settings_patch_review_bundle()
 
         self.assertIn("const localHintLines = settingsPatchLocalValidationHintLines(changes);", settings_js)
         self.assertIn('"Requesting backend patch preview. This will not save the PSD1."', settings_js)
@@ -1064,7 +1110,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
     def test_settings_runtime_restart_helpers_are_namespace_only_exports(self) -> None:
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
-        settings_wizard_js = (STATIC_ROOT / "assets" / "settingsWizard.js").read_text(encoding="utf-8")
+        settings_wizard_js = _settings_wizard_bundle()
 
         self.assertIn(
             "settingsRuntimeRestartConfirmationLine, settingsRuntimeRestartNoticeLines, maybeShowSettingsRuntimeRestartNotice,",
@@ -1268,10 +1314,10 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
     def test_phase5_completion_gate_webview_surfaces_backend_errors_without_save_authority(self) -> None:
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
-        patch_review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        patch_review_js = _settings_patch_review_bundle()
         settings_validation_js = settings_js + patch_review_js
-        libraries_js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
-        wizard_js = (STATIC_ROOT / "assets" / "settingsWizard.js").read_text(encoding="utf-8")
+        libraries_js = _settings_libraries_bundle()
+        wizard_js = _settings_wizard_bundle()
 
         for token in (
             'apiPost("/api/settings/preview-patch", { changes, ...requestExtras }, { timeoutMs: SETTINGS_PREVIEW_POST_TIMEOUT_MS })',
@@ -1301,7 +1347,8 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
         for token in (
             'apiPostLocal("/api/settings/wizard/preview", { wizard: collectWizardPayload() })',
-            'apiPostLocal("/api/settings/wizard/save", { wizard: collectWizardPayload(), confirm_save: true })',
+            'apiPostLocal("/api/settings/wizard/save", {',
+            'review_confirmation: state.lastPreview?.data?.review_confirmation || null,',
             "overrides: readRowJson",
             "default_tracking: readRowJson",
         ):
@@ -1311,7 +1358,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         backend = _backend_metadata_by_key()
         metadata_fields_js = (STATIC_ROOT / "assets" / "settings" / "metadataFields.js").read_text(encoding="utf-8")
         builder_controls_js = (STATIC_ROOT / "assets" / "settings" / "builderControls.js").read_text(encoding="utf-8")
-        review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        review_js = _settings_patch_review_bundle()
 
         for key, label in LABEL_ONLY_RENAMES.items():
             with self.subTest(key=key):
@@ -1341,7 +1388,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
     def test_phase3e_help_text_disambiguates_routing_encode_and_publish_copy(self) -> None:
         backend = _backend_metadata_by_key()
         metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
-        libraries_js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        libraries_js = _settings_libraries_bundle()
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
 
         self.assertIn("Used before processing to decide copy/remux versus encode.", backend["RouteThresholdMode"]["help_text"])
@@ -1382,3 +1429,4 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

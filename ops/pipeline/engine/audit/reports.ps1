@@ -401,6 +401,7 @@ function Write-AuditReportBundle {
             report_root          = $script:ReportRootResolved
             config_path          = $script:ConfigPathResolved
             ffprobe_path         = $script:FfprobePath
+            probe_concurrency    = [int]$script:AuditProbeConcurrency
             include_sidecars     = [bool]$IncludeSidecars
             min_pipeline_version = $script:MinPipelineVersion
             totals               = [pscustomobject]@{

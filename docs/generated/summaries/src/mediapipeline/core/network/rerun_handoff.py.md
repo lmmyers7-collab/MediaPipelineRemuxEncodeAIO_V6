@@ -3,9 +3,9 @@ file: src/mediapipeline/core/network/rerun_handoff.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-07-05
+last_modified: 2026-07-10
 last_reviewed: 2026-07-05
-sha256: 589ded3b93f37cf2e09f8a5c6442adfb71570414e47536a382e560b0b27ffd35
+sha256: 4be2d93a1055290dab79ec08b22d16f0c00aa749be5207e9eb0082baa910c8af
 ---
 # `src/mediapipeline/core/network/rerun_handoff.py`
 

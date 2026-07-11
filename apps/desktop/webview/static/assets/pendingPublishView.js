@@ -1,4 +1,44 @@
 (function () {
+  const pendingTableSupportModule = window.__pendingPublishTableSupportModule || {};
+  delete window.__pendingPublishTableSupportModule;
+  const { PENDING_FILTER_FIELDS, clampTableScrollOffset, tableScrollSnapshot, restoreTableScrollSnapshot, deferTableScrollRestore } =
+    pendingTableSupportModule.createPendingPublishTableSupportModule();
+
+  const pendingDefaultAdaptersModule = window.__pendingPublishDefaultAdaptersModule || {};
+  delete window.__pendingPublishDefaultAdaptersModule;
+  let {
+    pendingDiagnosticsFallbackLines, pendingDiagnosticsFallbackRender, pendingSelectedOpenTargetLines, pendingDiagnosticsActionsForRow,
+    pendingDiagnosticsGuidanceLines, renderPendingDiagnosticsLinks, requestPendingDiagnosticsAction, isPendingOpenCommand,
+    pendingOpenHistoryLine, renderPendingOpenHistory, requestPendingPublishOpen, pendingRecoveryFallbackRows,
+    pendingRecoveryFallbackLines, pendingRecoveryFallbackRender, rejectPendingRecoveryPlanWhileBusy, requestPendingRecoveryPlan,
+    renderPendingRecoveryPlanResult, pendingRecoveryPlanResultLines, pendingRecoveryPlanRowKey, pendingRecoveryPlanRowStatus,
+    pendingRecoveryPlanEvidenceText, pendingRecoveryPlanActionText, pendingRecoveryPlanRowDetailLines, renderPendingRecoveryPlanRows,
+    selectPendingRecoveryPlanRow, renderPendingRecoveryPlanRowDetail, renderPendingRecoveryPlanHistory, isPendingRecoveryPlanCommand,
+    pendingRecoveryPlanHistoryLine, pendingRecoveryPlanResultData, pendingRecoveryPlanRowLabel, initPendingRepairManifestEvents,
+    isPendingRepairManifestCommand, pendingRepairDryRunIsSafeForSelection, pendingRepairManifestApplyRequest, pendingRepairManifestDryRunRequest,
+    pendingRepairManifestHistoryLine, pendingRepairManifestResultLines, renderPendingRepairManifestControls, renderPendingRepairManifestHistory,
+    requestPendingRepairManifestApply, requestPendingRepairManifestDryRun, setPendingRepairManifestBusy, isPendingRepairOrphanCommand,
+    pendingOrphanDryRunIsSafeForSelection, pendingRepairOrphanApplyRequest, pendingRepairOrphanDryRunRequest, renderPendingRepairOrphanControls,
+    renderPendingRepairOrphanHistory, requestPendingRepairOrphanApply, requestPendingRepairOrphanDryRun, setPendingRepairOrphanBusy,
+    pendingDrainFallbackRows, pendingDrainFallbackLines, pendingDrainFallbackScope, pendingDrainFallbackRender,
+    pendingCurrentFilterScope, pendingCurrentFilterScopeEvidence, pendingCurrentFilterScopeAction, pendingBackendDrainScopeRows,
+    pendingBackendDrainScopeStatus, pendingBackendDrainScopeSummaryLines, renderPendingBackendDrainScopePreview, pendingEvidenceClass,
+    pendingEvidenceRows, pendingEvidenceStatus, pendingEvidenceText, pendingEvidenceAction,
+    pendingDrainEvidenceLines, renderPendingDrainEvidence, pendingDrainSearchText, isPendingDrainCommand,
+    pendingDrainHistoryLine, renderPendingDrainHistory, pendingDrainEventsFromSnapshot, pendingDrainEventStatus,
+    pendingDrainEventRoute, pendingDrainEventLeaf, pendingDrainEventCounts, pendingDrainEventsStatus,
+    pendingDrainEventsLines, renderPendingDrainEvents, pendingDrainSummaryPayload, pendingDrainSummaryItems,
+    pendingDrainSummaryStatus, pendingDrainSummaryLeaf, pendingDrainSummaryLines, renderPendingDrainSummary,
+    pendingDrainLatestCommand, pendingDrainCommandData, pendingDrainCommandRequest, pendingDrainCommandResultText,
+    pendingDrainCommandIssueLevel, pendingDrainSummaryIssueLevel, pendingDrainCorrelationStatus, pendingDrainCorrelationLines,
+    renderPendingDrainCorrelation, pendingConfidenceFallbackRows, pendingConfidenceFallbackLines, pendingConfidenceFallbackRender,
+    pendingDrainConfidenceRows, pendingDrainConfidenceStatus, pendingDrainConfidenceSummaryLines, renderPendingDrainActionConfidence,
+    pendingDrainDecisionRows, pendingDrainDecisionStatus, pendingDrainDecisionStatusState, pendingDrainDecisionSummaryLines,
+    pendingDrainDecisionDetailLines, pendingDrainDecisionPostureStatus, renderPendingDrainDecisionChecklist, pendingPostDrainTrustRows,
+    pendingPostDrainTrustStatus, pendingPostDrainTrustSummaryLines, pendingPostDrainTrustDetailLines, pendingPostDrainTrustPostureStatus,
+    renderPendingPostDrainTrust, pendingDrainGuardState, pendingDrainGuardLines, renderPendingDrainGuard,
+  } = pendingDefaultAdaptersModule.createPendingPublishDefaultAdapters();
+
   const formatters = window.mediaPipelineFormatters || {};
   const shortenPath = typeof formatters.shortenPath === "function" ? formatters.shortenPath : null;
   const PENDING_READ_ONLY_BOUNDARY = "Mutation guardrail: read-only evidence; backend routes own pending-publish changes.";
@@ -15,62 +55,6 @@
   let pendingOpenInFlight = false;
   let pendingRecoveryPlanInFlight = false;
   let pendingActionCenterEventsInitialized = false;
-  const PENDING_FILTER_FIELDS = [
-    "state",
-    "row_key",
-    "local_file",
-    "server_out",
-    "source_path",
-    "manifest_path",
-    "error",
-    "issue_summary",
-    "primary_concern",
-    "safe_next_action",
-    "route",
-    "publish_mode",
-    "diagnostic_status",
-    "diagnostic_severity",
-    "drain_recommendation",
-    "operator_guidance",
-    "operator_trust_state",
-  ];
-
-  function clampTableScrollOffset(value, maxValue) {
-    const numeric = Number(value);
-    const maximum = Math.max(0, Number(maxValue) || 0);
-    return Math.min(Math.max(0, Number.isFinite(numeric) ? numeric : 0), maximum);
-  }
-
-  function tableScrollSnapshot(tbody) {
-    const target = tbody?.closest?.(".table-wrap") || null;
-    if (!target) return null;
-    return {
-      target,
-      top: target.scrollTop,
-      left: target.scrollLeft,
-    };
-  }
-
-  function restoreTableScrollSnapshot(snapshot) {
-    const target = snapshot?.target;
-    if (!target || target.isConnected === false) return;
-    target.scrollTop = clampTableScrollOffset(snapshot.top, target.scrollHeight - target.clientHeight);
-    target.scrollLeft = clampTableScrollOffset(snapshot.left, target.scrollWidth - target.clientWidth);
-  }
-
-  function deferTableScrollRestore(snapshot) {
-    if (!snapshot) return;
-    const schedule = typeof window.requestAnimationFrame === "function"
-      ? window.requestAnimationFrame.bind(window)
-      : (fn) => window.setTimeout(fn, 0);
-    restoreTableScrollSnapshot(snapshot);
-    schedule(() => {
-      restoreTableScrollSnapshot(snapshot);
-      schedule(() => restoreTableScrollSnapshot(snapshot));
-      window.setTimeout(() => restoreTableScrollSnapshot(snapshot), 0);
-    });
-  }
-
   function diagnosticsBridgeApi() {
     return window.mediaPipelineDiagnosticsBridge || {};
   }
@@ -95,21 +79,6 @@
     return true;
   };
 
-  const pendingDiagnosticsFallbackLines = function () { return []; };
-  const pendingDiagnosticsFallbackRender = function () {};
-  let pendingSelectedOpenTargetLines = pendingDiagnosticsFallbackLines;
-  let pendingDiagnosticsActionsForRow = function () { return []; };
-  let pendingDiagnosticsGuidanceLines = pendingDiagnosticsFallbackLines;
-  let renderPendingDiagnosticsLinks = pendingDiagnosticsFallbackRender;
-  let requestPendingDiagnosticsAction = async function () {};
-  let isPendingOpenCommand = function (entry) { return String(entry?.command || "").toLowerCase() === "pending_publish.open"; };
-  let pendingOpenHistoryLine = function (entry) { return String(entry?.message || entry?.command || "pending_publish.open"); };
-  let renderPendingOpenHistory = pendingDiagnosticsFallbackRender;
-  let requestPendingPublishOpen = async function () {};
-
-  const pendingRecoveryFallbackRows = function () { return []; };
-  const pendingRecoveryFallbackLines = function () { return []; };
-  const pendingRecoveryFallbackRender = function () {};
   let setPendingRecoveryPlanBusy = function (isBusy) {
     pendingRecoveryPlanInFlight = Boolean(isBusy);
     ["pending-recovery-plan-selected-button", "pending-recovery-plan-all-button"].forEach((id) => {
@@ -117,389 +86,6 @@
       if (button) button.disabled = pendingRecoveryPlanInFlight;
     });
   };
-  let rejectPendingRecoveryPlanWhileBusy = function () { return false; };
-  let requestPendingRecoveryPlan = async function () {};
-  let renderPendingRecoveryPlanResult = pendingRecoveryFallbackRender;
-  let pendingRecoveryPlanResultLines = pendingRecoveryFallbackLines;
-  let pendingRecoveryPlanRowKey = function (row, index = 0) { return String(row?.row_key || row?.manifest_path || row?.local_file || row?.server_out || row?.source_path || `plan-row-${index}`).trim(); };
-  let pendingRecoveryPlanRowStatus = function () { return "warning"; };
-  let pendingRecoveryPlanEvidenceText = function () { return "No explicit evidence fields reported."; };
-  let pendingRecoveryPlanActionText = function (row) { return row?.safe_next_action || row?.planned_action || "Review pending publish diagnostics before drain."; };
-  let pendingRecoveryPlanRowDetailLines = pendingRecoveryFallbackLines;
-  let renderPendingRecoveryPlanRows = pendingRecoveryFallbackRender;
-  let selectPendingRecoveryPlanRow = pendingRecoveryFallbackRender;
-  let renderPendingRecoveryPlanRowDetail = pendingRecoveryFallbackRender;
-  let renderPendingRecoveryPlanHistory = pendingRecoveryFallbackRender;
-  let isPendingRecoveryPlanCommand = function (entry) { return String(entry?.command || "").toLowerCase() === "pending_publish.recovery_plan_dry_run"; };
-  let pendingRecoveryPlanHistoryLine = function (entry) { return String(entry?.message || entry?.command || "pending_publish.recovery_plan_dry_run"); };
-  let pendingRecoveryPlanResultData = function (result) { return result?.data && typeof result.data === "object" ? result.data : {}; };
-  let pendingRecoveryPlanRowLabel = function (row) { return pendingRecoveryPlanRowKey(row); };
-  let initPendingRepairManifestEvents = function () {};
-  let isPendingRepairManifestCommand = function () { return false; };
-  let pendingRepairDryRunIsSafeForSelection = function () { return false; };
-  let pendingRepairManifestApplyRequest = function () { return null; };
-  let pendingRepairManifestDryRunRequest = function () { return null; };
-  let pendingRepairManifestHistoryLine = function (entry) { return String(entry?.message || entry?.command || "pending_publish.repair_manifest"); };
-  let pendingRepairManifestResultLines = pendingRecoveryFallbackLines;
-  let renderPendingRepairManifestControls = pendingRecoveryFallbackRender;
-  let renderPendingRepairManifestHistory = pendingRecoveryFallbackRender;
-  let requestPendingRepairManifestApply = async function () {};
-  let requestPendingRepairManifestDryRun = async function () {};
-  let setPendingRepairManifestBusy = function () {};
-  let isPendingRepairOrphanCommand = function (entry) { return String(entry?.command || entry?.raw?.command || "").toLowerCase() === "pending_publish.reconcile_orphan_payloads"; };
-  let pendingOrphanDryRunIsSafeForSelection = function () { return false; };
-  let pendingRepairOrphanApplyRequest = function () { return null; };
-  let pendingRepairOrphanDryRunRequest = function () { return null; };
-  let renderPendingRepairOrphanControls = pendingRecoveryFallbackRender;
-  let renderPendingRepairOrphanHistory = pendingRecoveryFallbackRender;
-  let requestPendingRepairOrphanApply = async function () {};
-  let requestPendingRepairOrphanDryRun = async function () {};
-  let setPendingRepairOrphanBusy = function () {};
-
-  const pendingDrainFallbackRows = function () { return []; };
-  const pendingDrainFallbackLines = function () { return []; };
-  const pendingDrainFallbackScope = function () {
-    return {
-      active: false,
-      filterText: "",
-      statusFilter: "all",
-      statusLabel: "all",
-      investigationFilter: "all",
-      investigationLabel: "all signals",
-      totalCount: 0,
-      visibleCount: 0,
-      hiddenCount: 0,
-      hiddenBlockedCount: 0,
-      hiddenReviewCount: 0,
-    };
-  };
-  const pendingDrainFallbackRender = function () {};
-  let pendingCurrentFilterScope = pendingDrainFallbackScope;
-  let pendingCurrentFilterScopeEvidence = function () { return "filters=inactive; visible=0/0; hidden=0; hidden blocked=0; hidden review=0; text=none; status=all; view=all signals"; };
-  let pendingCurrentFilterScopeAction = function () { return "No display filter is active; visible table scope matches loaded Pending Publish rows."; };
-  let pendingBackendDrainScopeRows = pendingDrainFallbackRows;
-  let pendingBackendDrainScopeStatus = function () { return "Not evaluated"; };
-  let pendingBackendDrainScopeSummaryLines = pendingDrainFallbackLines;
-  let renderPendingBackendDrainScopePreview = pendingDrainFallbackRender;
-  let pendingEvidenceClass = function () { return "review"; };
-  let pendingEvidenceRows = pendingDrainFallbackRows;
-  let pendingEvidenceStatus = function () { return "Not loaded"; };
-  let pendingEvidenceText = function () { return "no explicit evidence fields reported"; };
-  let pendingEvidenceAction = function () { return "Select a row and inspect backend-selected targets before drain."; };
-  let pendingDrainEvidenceLines = pendingDrainFallbackLines;
-  let renderPendingDrainEvidence = pendingDrainFallbackRender;
-  let pendingDrainSearchText = function () { return ""; };
-  let isPendingDrainCommand = function () { return false; };
-  let pendingDrainHistoryLine = function (entry) { return String(entry?.message || entry?.command || "pending publish drain"); };
-  let renderPendingDrainHistory = pendingDrainFallbackRender;
-  let pendingDrainEventsFromSnapshot = pendingDrainFallbackRows;
-  let pendingDrainEventStatus = function () { return "unknown"; };
-  let pendingDrainEventRoute = function () { return "unknown"; };
-  let pendingDrainEventLeaf = function () { return "(unknown output)"; };
-  let pendingDrainEventCounts = function () { return "none"; };
-  let pendingDrainEventsStatus = function () { return "No snapshot"; };
-  let pendingDrainEventsLines = pendingDrainFallbackLines;
-  let renderPendingDrainEvents = pendingDrainFallbackRender;
-  let pendingDrainSummaryPayload = function () { return {}; };
-  let pendingDrainSummaryItems = pendingDrainFallbackRows;
-  let pendingDrainSummaryStatus = function () { return "No summary"; };
-  let pendingDrainSummaryLeaf = function () { return "(unknown output)"; };
-  let pendingDrainSummaryLines = pendingDrainFallbackLines;
-  let renderPendingDrainSummary = pendingDrainFallbackRender;
-  let pendingDrainLatestCommand = function () { return null; };
-  let pendingDrainCommandData = function () { return {}; };
-  let pendingDrainCommandRequest = function () { return {}; };
-  let pendingDrainCommandResultText = function () { return "no recent drain command"; };
-  let pendingDrainCommandIssueLevel = function () { return "none"; };
-  let pendingDrainSummaryIssueLevel = function () { return "none"; };
-  let pendingDrainCorrelationStatus = function () { return "No drain evidence"; };
-  let pendingDrainCorrelationLines = pendingDrainFallbackLines;
-  let renderPendingDrainCorrelation = pendingDrainFallbackRender;
-
-  const pendingConfidenceFallbackRows = function () { return []; };
-  const pendingConfidenceFallbackLines = function () { return []; };
-  const pendingConfidenceFallbackRender = function () {};
-  let pendingDrainConfidenceRows = pendingConfidenceFallbackRows;
-  let pendingDrainConfidenceStatus = function () { return "Not evaluated"; };
-  let pendingDrainConfidenceSummaryLines = pendingConfidenceFallbackLines;
-  let renderPendingDrainActionConfidence = pendingConfidenceFallbackRender;
-  let pendingDrainDecisionRows = pendingConfidenceFallbackRows;
-  let pendingDrainDecisionStatus = function () { return "Not evaluated"; };
-  let pendingDrainDecisionStatusState = function () { return "unknown"; };
-  let pendingDrainDecisionSummaryLines = pendingConfidenceFallbackLines;
-  let pendingDrainDecisionDetailLines = pendingConfidenceFallbackLines;
-  let pendingDrainDecisionPostureStatus = function () { return "unknown"; };
-  let renderPendingDrainDecisionChecklist = pendingConfidenceFallbackRender;
-  let pendingPostDrainTrustRows = pendingConfidenceFallbackRows;
-  let pendingPostDrainTrustStatus = function () { return "Not evaluated"; };
-  let pendingPostDrainTrustSummaryLines = pendingConfidenceFallbackLines;
-  let pendingPostDrainTrustDetailLines = pendingConfidenceFallbackLines;
-  let pendingPostDrainTrustPostureStatus = function () { return "unknown"; };
-  let renderPendingPostDrainTrust = pendingConfidenceFallbackRender;
-  let pendingDrainGuardState = function () {
-    return {
-      allowed: false,
-      review_required: false,
-      decision_status: "Not evaluated",
-      message: "Pending drain guard is not loaded.",
-      confirm_message: "Pending drain guard is not loaded.",
-    };
-  };
-  let pendingDrainGuardLines = function (state) { return [state?.message || "Pending drain guard is not loaded."]; };
-  let renderPendingDrainGuard = function () { return pendingDrainGuardState(); };
-
-  function renderPendingPublish(pending, snapshot = {}) {
-    const rows = Array.isArray(pending.rows) ? pending.rows : [];
-    lastPendingRows = rows;
-    lastPendingPayload = pending || {};
-    lastPendingSnapshot = snapshot || {};
-    if (selectedPendingRowKey && !rows.some((row) => pendingRowKey(row) === selectedPendingRowKey)) {
-      selectedPendingRowKey = "";
-    }
-    clearStalePendingRecoveryPlan(pending || {}, rows);
-    lastPendingEmptyMessage = pendingEmptyStateMessage(pending, rows);
-    setText("pending-count", String(pending.count || 0));
-    setText("pending-payload-count", String(pending.payload_count || 0));
-    setText("pending-size", pending.total_size_text || "0 B");
-    setText("pending-health-count", String(pending.health_count || 0));
-    const freshnessLines = window.mediaPipelineDom?.payloadFreshnessLines
-      ? window.mediaPipelineDom.payloadFreshnessLines({
-        payload: pending,
-        label: "Pending Publish",
-        rowCount: pending.count || rows.length || 0,
-        sourceLine: pending.pending_root ? `Pending root: ${pending.pending_root}` : "",
-        artifactLine: pending.exists ? "Pending scan: backend returned current parked-output inventory." : "Pending scan: pending root does not exist.",
-        readError: pending.error || "",
-        refreshAction: "Use Refresh Pending or topbar Refresh. This re-reads parked-output evidence only and does not publish, repair, delete, or move files.",
-      })
-      : [];
-    const summary = [
-      ...freshnessLines,
-      freshnessLines.length ? "" : (pending.pending_root ? `Pending root: ${pending.pending_root}` : ""),
-      freshnessLines.length ? "" : (pending.exists ? "" : "Pending root does not exist."),
-      `Manifests: ${pending.count || rows.length || 0}`,
-      `Payloads: ${pending.payload_count || 0}`,
-      `Health rows: ${pending.health_count || 0}`,
-      `Ready/review: ${pending.ready_count || 0} / ${pending.issue_count || 0}`,
-      pending.operator_trust_state_counts ? `Backend trust states: ${pendingFormatCounts(pending.operator_trust_state_counts)}` : "",
-      pending.available_open_target_counts ? `Backend open targets: ${pendingFormatCounts(pending.available_open_target_counts)}` : "",
-      pending.missing_local_count ? `${pending.missing_local_count} payload reference(s) missing.` : "",
-      ...(pending.warnings || []),
-      !rows.length ? pendingEmptyStateMessage(pending, rows) : "",
-    ].filter(Boolean);
-    setText("pending-summary", summary.join("\n") || pending.error || "No pending publish health issues.");
-    renderPendingDrainProgress(snapshot || {});
-    renderPendingInventoryProgress(pending);
-    renderPendingFileInventory(pending);
-    renderPendingPublishReadiness(pending, rows);
-    renderPendingRiskBreakdown(pending, rows);
-    renderPendingValidation(pending, rows);
-    renderPendingWorkflow(pending, rows);
-    renderPendingReviewBoard(pending, rows);
-    renderPendingDrainEvidence(pending, rows);
-    if (typeof getCommandHistory === "function") renderPendingDrainHistory(getCommandHistory());
-    if (typeof getCommandHistory === "function") renderPendingOpenHistory(getCommandHistory());
-    if (typeof getCommandHistory === "function") renderPendingRecoveryPlanHistory(getCommandHistory());
-    if (typeof getCommandHistory === "function") renderPendingRepairManifestHistory(getCommandHistory());
-    renderPendingDrainEvents(snapshot || {});
-    renderPendingDrainSummary(pending || {});
-    renderPendingDrainCorrelation(pending || {}, rows, snapshot || {}, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-    renderPendingPostDrainTrust(pending || {}, rows, snapshot || {}, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-    renderPendingDrainActionConfidence(pending || {}, rows, snapshot || {}, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-    renderPendingBackendDrainScopePreview(pending || {}, rows, snapshot || {}, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-    renderPendingDrainDecisionChecklist(pending || {}, rows, snapshot || {}, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-    renderPendingDrainGuard(pending || {}, rows, snapshot || {}, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-    renderPendingDetail(getSelectedPendingRow());
-    renderPendingRows();
-    renderPendingRepairManifestControls();
-    renderPendingRepairOrphanControls();
-    const completedView = window.mediaPipelineCompletedView || {};
-    if (
-      typeof completedView.renderCompletedPendingProof === "function"
-      && typeof completedView.getLastCompletedPayload === "function"
-      && typeof completedView.getLastCompletedRows === "function"
-    ) {
-      const completedPayload = completedView.getLastCompletedPayload();
-      const completedRows = completedView.getLastCompletedRows();
-      completedView.renderCompletedPendingProof(completedPayload, completedRows, lastPendingPayload);
-      if (typeof completedView.renderCompletedRealMediaProof === "function" && typeof completedView.getLastCompletedPendingProofRows === "function") {
-        const completedPendingProofRows = completedView.getLastCompletedPendingProofRows();
-        completedView.renderCompletedRealMediaProof(
-          completedPayload,
-          completedRows,
-          completedPendingProofRows,
-          lastPendingPayload,
-        );
-        if (typeof completedView.renderCompletedPilotEvidencePacket === "function") {
-          completedView.renderCompletedPilotEvidencePacket(
-            completedPayload,
-            completedRows,
-            completedPendingProofRows,
-            lastPendingPayload,
-          );
-        }
-      }
-    }
-  }
-
-  function renderPendingDrainProgress(snapshot = {}) {
-    const bars = Array.isArray(snapshot?.progress_bars)
-      ? snapshot.progress_bars.filter((bar) => ["pending_drain", "publish_copy", "publish_output"].includes(String(bar?.id || "")))
-      : [];
-    window.mediaPipelineProgressView?.renderProgressBarsInto?.(
-      "pending-drain-progress-bars",
-      bars,
-      snapshot,
-      "No active pending-publish drain progress loaded.",
-      { compact: "pendingDrain" },
-    );
-  }
-
-  function getLastPendingPublishPayload() {
-    return lastPendingPayload;
-  }
-
-  function getLastPendingPublishRows() {
-    return lastPendingRows.slice();
-  }
-
-  function pendingRecoverySignatureValue(value) {
-    return String(value ?? "").replace(/[\\/]+/g, "/").trim().toLowerCase();
-  }
-
-  function pendingRecoveryPlanSignature(pending = lastPendingPayload, rows = lastPendingRows) {
-    const payload = pending && typeof pending === "object" ? pending : {};
-    const rowList = Array.isArray(rows) ? rows : [];
-    const rowParts = rowList.map((row, index) => [
-      pendingRecoverySignatureValue(pendingRowKey(row) || `row-${index}`),
-      pendingRecoverySignatureValue(row?.manifest_path),
-      pendingRecoverySignatureValue(row?.local_file),
-      pendingRecoverySignatureValue(row?.server_out),
-      pendingRecoverySignatureValue(row?.source_path),
-      pendingRecoverySignatureValue(row?.state),
-      pendingRecoverySignatureValue(row?.diagnostic_status),
-      pendingRecoverySignatureValue(row?.diagnostic_severity),
-      pendingRecoverySignatureValue(row?.drain_recommendation),
-      pendingRecoverySignatureValue(row?.operator_trust_state),
-    ].join("::")).sort();
-    return [
-      pendingRecoverySignatureValue(payload.pending_root),
-      String(payload.count || rowList.length || 0),
-      String(payload.ready_count || 0),
-      String(payload.issue_count || 0),
-      String(payload.health_count || 0),
-      String(payload.missing_local_count || 0),
-      rowParts.join("||"),
-    ].join("|");
-  }
-
-  function clearStalePendingRecoveryPlan(pending, rows) {
-    const currentSignature = pendingRecoveryPlanSignature(pending, rows);
-    const hasPlanRows = Array.isArray(lastPendingRecoveryPlanRows) && lastPendingRecoveryPlanRows.length > 0;
-    const hasRecoveryState = hasPlanRows || Boolean(lastPendingRecoveryPlanSignature || selectedPendingRecoveryPlanKey);
-    if (!hasRecoveryState || (hasPlanRows && lastPendingRecoveryPlanSignature === currentSignature)) {
-      return currentSignature;
-    }
-    lastPendingRecoveryPlanRows = [];
-    lastPendingRecoveryPlanSignature = "";
-    selectedPendingRecoveryPlanKey = "";
-    setText("pending-recovery-plan-status", "Recovery dry-run cleared because Pending Publish evidence changed. Build a fresh dry-run before drain review.");
-    renderPendingRecoveryPlanRows([]);
-    return currentSignature;
-  }
-
-  function pendingFileInventoryPayload(pending) {
-    const inventory = pending?.file_inventory;
-    return inventory && typeof inventory === "object" ? inventory : {};
-  }
-
-  function pendingFileInventoryRows(pending) {
-    const rows = pendingFileInventoryPayload(pending).rows;
-    return Array.isArray(rows) ? rows.filter(Boolean) : [];
-  }
-
-  function pendingFileInventoryStatus(pending) {
-    const inventory = pendingFileInventoryPayload(pending);
-    const rows = pendingFileInventoryRows(pending);
-    if (inventory.error) return "Unavailable";
-    if (inventory.exists === false) return "No pending root";
-    if (!Number(inventory.total_count || rows.length || 0)) return "No parked files";
-    if (inventory.truncated) return `${rows.length} shown / ${inventory.total_count} files`;
-    if (Number(inventory.orphan_payload_count || 0) > 0) return "Review files";
-    return "Inventory loaded";
-  }
-
-  function pendingFileInventorySummaryLines(pending) {
-    const inventory = pendingFileInventoryPayload(pending);
-    const summary = Array.isArray(inventory.summary_lines) ? inventory.summary_lines.filter(Boolean) : [];
-    if (summary.length) return summary;
-    if (inventory.error) {
-      return [
-        "Pending parked file inventory:",
-        `Status: unavailable`,
-        `Error: ${inventory.error}`,
-        "Safe action: open Diagnostics > Pending Publish and Run Logs before drain, cleanup, rerun, or manual move.",
-      ];
-    }
-    return [
-      "Pending parked file inventory:",
-      `Pending root: ${inventory.pending_root || pending?.pending_root || "not reported"}`,
-      `Files scanned: ${inventory.total_count || 0}`,
-      `Rows shown: ${inventory.shown_count || pendingFileInventoryRows(pending).length || 0}`,
-      `Manifest files: ${inventory.manifest_count || 0}`,
-      `Payload-like files: ${inventory.payload_like_count || 0}`,
-      `Referenced payload files: ${inventory.referenced_payload_count || 0}`,
-      `Unreferenced payload files: ${inventory.orphan_payload_count || 0}`,
-      `Total size: ${inventory.total_size_text || "0 B"}`,
-      "Evidence boundary: directory listing only; file bytes were not read and no files were changed.",
-    ];
-  }
-
-  function pendingFileInventoryRowStatus(item) {
-    const role = String(item?.role || "").toLowerCase();
-    const status = String(item?.status || "").toLowerCase();
-    if (role === "scan_error" || status === "error") return "failed";
-    if (role === "orphan_payload" || status === "unreferenced") return "warning";
-    if (role === "manifest") return "changed";
-    return "match";
-  }
-
-  function renderPendingFileInventory(pending) {
-    setText("pending-file-inventory-status", pendingFileInventoryStatus(pending || {}));
-    setText("pending-file-inventory-summary", pendingFileInventorySummaryLines(pending || {}).join("\n"));
-    const tbody = byId("pending-file-inventory-rows");
-    if (!tbody) return;
-    const rows = pendingFileInventoryRows(pending || {});
-    const scrollSnapshot = tableScrollSnapshot(tbody);
-    if (!rows.length) {
-      clearRows(tbody, 6, "No parked files were reported by the backend pending directory scan.");
-      updateTableStatusLegend("pending-file-inventory-legend", tbody, "Parked file inventory rows");
-      deferTableScrollRestore(scrollSnapshot);
-      return;
-    }
-    tbody.replaceChildren();
-    rows.slice(0, 250).forEach((item) => {
-      const row = document.createElement("tr");
-      row.dataset.status = pendingFileInventoryRowStatus(item);
-      const pathRaw = item.path || item.name || "";
-      const pathDisplay = typeof shortenPath === "function" ? shortenPath(pathRaw, 56) : pathRaw;
-      appendCells(row, [
-        item.kind || "unknown",
-        item.role || item.status || "unknown",
-        item.size_text || "",
-        item.modified_at || "",
-        pathDisplay,
-        item.evidence || "",
-      ], [null, null, "num", null, "path-cell", null]);
-      const cells = row.querySelectorAll("td");
-      if (typeof setCellStatusChip === "function") setCellStatusChip(cells[0], item.kind || "unknown", row.dataset.status);
-      if (cells[4] && pathRaw) cells[4].title = pathRaw;
-      tbody.appendChild(row);
-    });
-    updateTableStatusLegend("pending-file-inventory-legend", tbody, "Parked file inventory rows");
-    deferTableScrollRestore(scrollSnapshot);
-  }
-
   let pendingInventoryProgressBars = function () { return []; };
   let renderPendingInventoryProgress = function () {};
   let pendingEmptyStateMessage = function () { return "No pending publish rows available."; };
@@ -601,481 +187,6 @@
   pendingSelectedQuickSignalLines = typeof pendingFilters.pendingSelectedQuickSignalLines === "function" ? pendingFilters.pendingSelectedQuickSignalLines : pendingSelectedQuickSignalLines;
   pendingInvestigationSignalLines = typeof pendingFilters.pendingInvestigationSignalLines === "function" ? pendingFilters.pendingInvestigationSignalLines : pendingInvestigationSignalLines;
 
-  function pendingListText(value) {
-    return Array.isArray(value) && value.length ? value.join(", ") : "none";
-  }
-
-  function pendingRowKey(item) {
-    if (item?.row_key) return String(item.row_key).toLocaleLowerCase();
-    return [
-      item?.manifest_path || "",
-      item?.local_file || "",
-      item?.server_out || "",
-      item?.state || "",
-    ].join("\u001f").toLocaleLowerCase();
-  }
-
-  function getSelectedPendingRow() {
-    if (!selectedPendingRowKey) return null;
-    return lastPendingRows.find((row) => pendingRowKey(row) === selectedPendingRowKey) || null;
-  }
-
-  function capturePendingSelectionScroll() {
-    return window.mediaPipelineDom?.captureScrollablePositions?.() || null;
-  }
-
-  function restorePendingSelectionScroll(snapshot) {
-    if (snapshot) window.mediaPipelineDom?.restoreScrollablePositions?.(snapshot);
-  }
-
-  function selectPendingRow(item) {
-    const scrollSnapshot = capturePendingSelectionScroll();
-    selectedPendingRowKey = pendingRowKey(item);
-    renderPendingDetail(item || null);
-    renderPendingReviewDigest(lastPendingPayload, lastPendingRows);
-    renderPendingDrainEvidence(lastPendingPayload, lastPendingRows);
-    renderPendingBackendDrainScopePreview(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-    renderPendingDrainDecisionChecklist(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-    renderPendingRows();
-    renderPendingRepairManifestControls();
-    renderPendingRepairOrphanControls();
-    restorePendingSelectionScroll(scrollSnapshot);
-  }
-
-  function pendingDrainOverviewState(status) {
-    const normalized = String(status || "").toLowerCase();
-    if (normalized.includes("do not") || normalized.includes("blocked")) return "blocked";
-    if (normalized.includes("incomplete") || normalized.includes("not evaluated")) return "validation-needed";
-    if (normalized.includes("review")) return "warning";
-    if (normalized.includes("ready")) return "ok";
-    return "unknown";
-  }
-
-  function pendingRowPresentationStatus(item) {
-    const tableStatus = pendingTableRowStatus(item);
-    const evidenceClass = pendingEvidenceClass(item);
-    const severity = String(item?.diagnostic_severity || "").toLowerCase();
-    const recommendation = String(item?.drain_recommendation || "").toLowerCase();
-    if (["completed", "skipped", "running", "publishing", "queued"].includes(tableStatus)) return tableStatus;
-    if (tableStatus === "failed" || severity === "error" || item?.error) return "failed";
-    if (
-      tableStatus === "blocked"
-      || recommendation === "do_not_drain"
-      || ["do-not-drain", "diagnostic-error", "manifest-invalid", "missing-payload"].includes(evidenceClass)
-    ) {
-      return "blocked";
-    }
-    if (["missing-sidecar", "orphan-payload"].includes(evidenceClass)) return "validation-needed";
-    if (tableStatus === "warning" || evidenceClass === "review" || item?.ready_to_drain === false) return "warning";
-    if (["ready", "match"].includes(tableStatus) || item?.ready_to_drain === true || evidenceClass === "ready-evidence") return "ready";
-    return tableStatus || "unknown";
-  }
-
-  function pendingRowPresentationLabel(item) {
-    const status = pendingRowPresentationStatus(item);
-    if (status === "completed") return "Drained";
-    if (["running", "publishing", "queued"].includes(status)) return "Draining";
-    if (status === "skipped") return "Skipped";
-    if (status === "failed") return "Failed";
-    if (status === "blocked") return "Blocked";
-    if (status === "validation-needed") return "Evidence missing";
-    if (status === "warning") return "Needs review";
-    if (["ready", "match"].includes(status)) return "Ready";
-    if (status === "unavailable") return "Unavailable";
-    if (status === "empty") return "No row";
-    return "Unknown";
-  }
-
-  function pendingRowReasonText(item) {
-    const candidates = [
-      item?.issue_summary,
-      item?.primary_concern,
-      item?.error,
-      item?.operator_guidance,
-      item?.safe_next_action,
-      item?.drain_recommendation,
-      item?.diagnostic_status,
-    ];
-    const reason = candidates.map((value) => String(value || "").trim()).find(Boolean);
-    if (reason) return reason;
-    if (item?.ready_to_drain === true) return "No focused blocker in the loaded backend scan.";
-    return "";
-  }
-
-  function pendingRowUpdatedText(item) {
-    return String(
-      item?.updated_at
-      || item?.modified_at
-      || item?.last_seen_at
-      || item?.parked_at_display
-      || item?.parked_at
-      || item?.age_text
-      || ""
-    );
-  }
-
-  function pendingPathDisplay(path, limit = 44) {
-    const value = String(path || "");
-    return typeof shortenPath === "function" ? shortenPath(value, limit) : value;
-  }
-
-  function pendingDrainSummaryCounts(payload) {
-    const summary = pendingDrainSummaryPayload(payload || {});
-    const items = pendingDrainSummaryItems(summary);
-    const counts = {
-      drained: Number(summary.succeeded_count || 0) + Number(summary.already_published_count || 0),
-      failed: Number(summary.error_count || 0),
-      skipped: Number(summary.skipped_count || 0),
-    };
-    if (!items.length) return counts;
-    const itemCounts = items.reduce((acc, item) => {
-      const status = String(item?.status || item?.result || "").trim().toLowerCase();
-      if (["succeeded", "success", "already_published", "published", "completed"].includes(status)) acc.drained += 1;
-      else if (["skipped", "deferred"].includes(status)) acc.skipped += 1;
-      else if (status || item?.error) acc.failed += 1;
-      return acc;
-    }, { drained: 0, failed: 0, skipped: 0 });
-    return {
-      drained: counts.drained || itemCounts.drained,
-      failed: counts.failed || itemCounts.failed,
-      skipped: counts.skipped || itemCounts.skipped,
-    };
-  }
-
-  function pendingActionCenterTriage(rows, payload = lastPendingPayload) {
-    const rowList = Array.isArray(rows) ? rows : [];
-    const counts = rowList.reduce((acc, row) => {
-      const status = pendingRowPresentationStatus(row);
-      if (status === "completed") {
-        acc.drained += 1;
-      } else if (status === "skipped") {
-        acc.skipped += 1;
-      } else if (["running", "publishing", "queued"].includes(status)) {
-        acc.draining += 1;
-      } else if (status === "failed") {
-        acc.failed += 1;
-      } else if (status === "blocked") {
-        acc.blocked += 1;
-      } else if (status === "validation-needed") {
-        acc.evidence += 1;
-      } else if (["warning", "unknown", "unavailable", "empty"].includes(status)) {
-        acc.review += 1;
-      } else {
-        acc.ready += 1;
-      }
-      return acc;
-    }, { ready: 0, review: 0, evidence: 0, blocked: 0, failed: 0, drained: 0, skipped: 0, draining: 0 });
-    const summaryCounts = pendingDrainSummaryCounts(payload || {});
-    counts.drained += summaryCounts.drained;
-    counts.failed += summaryCounts.failed;
-    counts.skipped += summaryCounts.skipped;
-    return counts;
-  }
-
-  function pendingActionCenterOutcome(payload, rowList, decisionStatus, validationStatus, guard, triage) {
-    const rows = Array.isArray(rowList) ? rowList : [];
-    const counts = triage || pendingActionCenterTriage(rows, payload);
-    const normalizedDecision = String(decisionStatus || "").toLowerCase();
-    const warnings = Array.isArray(payload?.warnings) ? payload.warnings.filter(Boolean) : [];
-    if (payload?.error) {
-      return {
-        action: "Open Diagnostics first",
-        reason: `Pending Publish scan is unavailable: ${payload.error}`,
-        detail: "Do not drain until backend state, Run Logs, and Last Stderr explain the scan failure.",
-        state: "blocked",
-      };
-    }
-    if (payload?.exists === false) {
-      return {
-        action: "No drain needed",
-        reason: "No pending-publish folder exists yet.",
-        detail: "Check Completed and Run Logs before reprocessing if an expected output is missing.",
-        state: "empty",
-      };
-    }
-    if (!rows.length) {
-      if (counts.drained) {
-        return {
-          action: `Review ${counts.drained} drained file${counts.drained === 1 ? "" : "s"}`,
-          reason: "No current parked rows are loaded; the latest drain summary has completed evidence.",
-          detail: "Compare Last Drain and Completed proof before assuming final placement for a specific title.",
-          state: "empty",
-        };
-      }
-      return {
-        action: "No parked outputs",
-        reason: "Pending Publish has no parked rows loaded.",
-        detail: "An empty pending view is not proof of publish; compare Completed and drain-summary evidence when an output is missing.",
-        state: "empty",
-      };
-    }
-    if (counts.failed) {
-      return {
-        action: `Investigate ${counts.failed} failed file${counts.failed === 1 ? "" : "s"}`,
-        reason: `${counts.failed} failed drain or row error signal${counts.failed === 1 ? "" : "s"} loaded.`,
-        detail: "Open the failed row, Last Drain, Run Logs, and Last Stderr before another drain attempt.",
-        state: "blocked",
-      };
-    }
-    if (counts.blocked || normalizedDecision.includes("do not")) {
-      return {
-        action: "Resolve blockers before drain",
-        reason: counts.blocked
-          ? `${counts.blocked} blocked row${counts.blocked === 1 ? "" : "s"} or do-not-drain checkpoint found.`
-          : "A do-not-drain checkpoint is active in the drain decision checklist.",
-        detail: "Show blockers, select the highest-risk row, and inspect backend-selected diagnostics in Advanced before another drain attempt.",
-        state: "blocked",
-      };
-    }
-    if (counts.evidence || normalizedDecision.includes("incomplete") || normalizedDecision.includes("not evaluated")) {
-      return {
-        action: "Review evidence gaps",
-        reason: counts.evidence
-          ? `${counts.evidence} row${counts.evidence === 1 ? "" : "s"} have payload, sidecar, or parked-output evidence gaps.`
-          : "Drain evidence is incomplete or has not been evaluated.",
-        detail: "Show evidence gaps, then use Advanced recovery or diagnostics only when the row evidence explains a concrete problem.",
-        state: "validation-needed",
-      };
-    }
-    if (counts.review || validationStatus === "Review" || warnings.length || guard?.review_required) {
-      return {
-        action: "Review before drain",
-        reason: counts.review
-          ? `${counts.review} row${counts.review === 1 ? "" : "s"} or checklist signal require read-first review.`
-          : "The drain guard requires explicit read-first review before submission.",
-        detail: "Use the review filter and selected-row detail first; open Advanced diagnostics only when a row needs deeper evidence.",
-        state: "warning",
-      };
-    }
-    return {
-      action: `Drain ${rows.length} parked file${rows.length === 1 ? "" : "s"}`,
-      reason: `${counts.ready} row${counts.ready === 1 ? " has" : "s have"} no focused blocker in the loaded backend scan.`,
-      detail: "Submit the backend-owned drain when the current parked rows show no local blockers; the backend still validates the full parked scope.",
-      state: "ok",
-    };
-  }
-
-  function setPendingActionCount(id, count, state, label) {
-    const node = byId(id);
-    if (!node) return;
-    node.textContent = String(count || 0);
-    const button = node.closest("button");
-    if (button) {
-      button.dataset.state = state || "empty";
-      button.title = `${label}: ${count || 0}`;
-      button.setAttribute("aria-label", `Show ${label.toLowerCase()}: ${count || 0}`);
-    }
-  }
-
-  function renderPendingActionCenter(pending = lastPendingPayload, rows = lastPendingRows, snapshot = lastPendingSnapshot, entries, overview = {}) {
-    const payload = pending && typeof pending === "object" ? pending : {};
-    const rowList = Array.isArray(rows) ? rows : [];
-    const entryList = Array.isArray(entries) ? entries : (typeof getCommandHistory === "function" ? getCommandHistory() : []);
-    const decisionStatus = overview.decisionStatus || pendingDrainDecisionStatus(payload, rowList, snapshot || {}, entryList);
-    const validationStatus = overview.validationStatus || pendingValidationStatus(payload, rowList);
-    const filterScope = overview.filterScope || pendingCurrentFilterScope(rowList);
-    const guard = overview.guard || pendingDrainGuardState(payload, rowList, snapshot || {}, entryList);
-    const triage = pendingActionCenterTriage(rowList, payload);
-    const outcome = pendingActionCenterOutcome(payload, rowList, decisionStatus, validationStatus, guard, triage);
-    const state = pendingDrainOverviewState(decisionStatus) === "unknown" ? outcome.state : pendingDrainOverviewState(decisionStatus);
-
-    setText("pending-action-status", decisionStatus || "Not loaded");
-    const statusNode = byId("pending-action-status");
-    if (statusNode) statusNode.dataset.state = state;
-    setText("pending-action-subtitle", `Rows loaded: ${rowList.length}; visible after filters: ${filterScope.visibleCount ?? rowList.length}/${filterScope.totalCount ?? rowList.length}; backend drain scope is not narrowed by display filters.`);
-    setText("pending-action-primary", outcome.action);
-    setText("pending-action-reason", outcome.reason);
-    setPendingActionCount("pending-action-ready-count", triage.ready, triage.ready ? "ok" : "empty", "Ready to drain rows");
-    setPendingActionCount("pending-action-review-count", triage.review, triage.review ? "warning" : "empty", "Rows needing review");
-    setPendingActionCount("pending-action-evidence-count", triage.evidence, triage.evidence ? "validation-needed" : "empty", "Rows with missing evidence");
-    setPendingActionCount("pending-action-blocked-count", triage.blocked, triage.blocked ? "blocked" : "empty", "Blocked rows");
-    setPendingActionCount("pending-action-failed-count", triage.failed, triage.failed ? "blocked" : "empty", "Failed rows");
-    setPendingActionCount("pending-action-drained-count", triage.drained, triage.drained ? "completed" : "empty", "Drained rows in latest summary");
-
-    const drainButton = byId("pending-action-drain-button");
-    if (drainButton) {
-      const drainLabel = rowList.length
-        ? `Drain ${rowList.length} parked file${rowList.length === 1 ? "" : "s"}`
-        : "Drain Parked Outputs";
-      drainButton.disabled = !guard?.allowed;
-      drainButton.textContent = guard?.allowed
-        ? guard.review_required && rowList.length ? `Drain after review (${rowList.length})` : drainLabel
-        : "Drain Blocked";
-      drainButton.title = guard?.allowed ? guard.confirm_message || outcome.detail : guard?.message || outcome.detail;
-      drainButton.dataset.state = guard?.allowed ? guard.review_required ? "warning" : "ok" : "blocked";
-    }
-
-    setText("pending-action-detail", [
-      "Pending Publish action center:",
-      `Next action: ${outcome.action}`,
-      `Why: ${outcome.reason}`,
-      `Drain decision: ${decisionStatus || "not loaded"}; checklist: ${validationStatus || "not loaded"}; backend button guard: ${guard?.allowed ? guard.review_required ? "review confirmation required" : "allowed" : "blocked"}.`,
-      `Triage filters: ready=${triage.ready}; review=${triage.review}; evidence missing=${triage.evidence}; blocked=${triage.blocked}; failed=${triage.failed}; drained summary=${triage.drained}.`,
-      `Visible table scope: ${filterScope.visibleCount ?? rowList.length}/${filterScope.totalCount ?? rowList.length}; hidden blocked/review=${filterScope.hiddenBlockedCount || 0}/${filterScope.hiddenReviewCount || 0}.`,
-      outcome.detail,
-      "Boundary: this action center can only update local filters, refresh backend evidence, or submit the backend-owned drain command.",
-    ].join("\n"));
-  }
-
-  function renderPendingDrainOverview(pending = lastPendingPayload, rows = lastPendingRows, snapshot = lastPendingSnapshot, entries) {
-    const payload = pending && typeof pending === "object" ? pending : {};
-    const rowList = Array.isArray(rows) ? rows : [];
-    const entryList = Array.isArray(entries) ? entries : (typeof getCommandHistory === "function" ? getCommandHistory() : []);
-    const decisionStatus = pendingDrainDecisionStatus(payload, rowList, snapshot || {}, entryList);
-    const validationStatus = pendingValidationStatus(payload, rowList);
-    const filterScope = pendingCurrentFilterScope(rowList);
-    const guard = pendingDrainGuardState(payload, rowList, snapshot || {}, entryList);
-    const chips = byId("pending-drain-decision-chips");
-    if (chips && window.mediaPipelineDom?.makeStatusChip) {
-      chips.replaceChildren(
-        window.mediaPipelineDom.makeStatusChip("Blocked", decisionStatus === "Do not drain" ? "blocked" : "normal"),
-        window.mediaPipelineDom.makeStatusChip("Review", decisionStatus === "Review first" ? "warning" : "normal"),
-        window.mediaPipelineDom.makeStatusChip("Need evidence", decisionStatus === "Evidence incomplete" || decisionStatus === "Not evaluated" ? "validation-needed" : "normal"),
-        window.mediaPipelineDom.makeStatusChip("Ready", decisionStatus === "Ready-looking" ? "ok" : "normal"),
-      );
-    }
-    setText("pending-drain-overview", [
-      "Pending Publish drain decision:",
-      `Operator outcome: ${decisionStatus}.`,
-      `Publish checklist: ${validationStatus}.`,
-      `Rows loaded: ${rowList.length}; visible table scope: ${filterScope.visibleCount ?? rowList.length}/${filterScope.totalCount ?? rowList.length}; hidden blocked=${filterScope.hiddenBlockedCount || 0}; hidden review=${filterScope.hiddenReviewCount || 0}.`,
-      `Button guard: ${guard.allowed ? (guard.review_required ? "review confirmation required" : "allowed by local evidence") : "blocked by local evidence"}.`,
-      "Command boundary: Drain Parked Outputs remains the backend-owned validation and movement path; this overview cannot move, publish, repair, delete, rewrite, or mark outputs complete.",
-    ].join("\n"));
-    const overviewNode = byId("pending-drain-overview");
-    if (overviewNode) overviewNode.dataset.state = pendingDrainOverviewState(decisionStatus);
-    renderPendingActionCenter(payload, rowList, snapshot || {}, entryList, { decisionStatus, validationStatus, filterScope, guard });
-  }
-
-  function applyPendingActionFilter(kind) {
-    const normalized = String(kind || "all").trim().toLowerCase();
-    const filter = byId("pending-filter");
-    const status = byId("pending-status-filter");
-    const investigation = byId("pending-investigation-filter");
-    if (filter) filter.value = "";
-    if (status) status.value = "all";
-    if (investigation) investigation.value = "all";
-    if (normalized === "ready") {
-      if (status) status.value = "ready";
-      if (investigation) investigation.value = "ready_to_drain";
-    } else if (normalized === "review") {
-      if (status) status.value = "warning";
-    } else if (normalized === "evidence") {
-      if (investigation) investigation.value = "evidence_missing";
-    } else if (normalized === "blocked") {
-      if (status) status.value = "blocked";
-      if (investigation) investigation.value = "do_not_drain";
-    } else if (normalized === "failed") {
-      if (status) status.value = "failed";
-      if (investigation) investigation.value = "failed";
-    } else if (normalized === "drained") {
-      if (status) status.value = "completed";
-      if (investigation) investigation.value = "drained";
-    } else if (normalized === "payloads") {
-      if (filter) filter.value = "payload";
-    }
-    renderPendingRows();
-    const labels = {
-      ready: "Showing ready-looking pending rows. Backend drain scope is unchanged.",
-      review: "Showing pending rows that need review. Backend drain scope is unchanged.",
-      evidence: "Showing pending rows with missing payload, sidecar, or manifest evidence. Backend drain scope is unchanged.",
-      blocked: "Showing do-not-drain or blocked pending rows. Backend drain scope is unchanged.",
-      failed: "Showing failed pending rows and failed latest-summary entries when present. Backend drain scope is unchanged.",
-      drained: "Showing rows with drained/completed evidence when present. Current pending rows remain the backend source of truth.",
-      payloads: "Showing rows matching payload evidence. Backend drain scope is unchanged.",
-    };
-    setText("pending-action-feedback", labels[normalized] || "Pending Publish filters cleared. Backend drain scope is unchanged.");
-  }
-
-  function triggerPendingActionDrain() {
-    const drainButton = byId("pending-drain-button");
-    if (!drainButton) {
-      setText("pending-action-feedback", "The backend drain button is not available on this page.");
-      return;
-    }
-    if (drainButton.disabled) {
-      setText("pending-action-feedback", "Drain is currently busy or unavailable. Wait for the active command to finish, then refresh evidence.");
-      return;
-    }
-    setText("pending-action-feedback", "Opening the existing backend-owned Drain Parked Outputs confirmation.");
-    drainButton.click();
-  }
-
-  function focusPendingQuickLinkTarget(selector) {
-    const target = selector ? document.querySelector(selector) : null;
-    if (!target) return false;
-    target.scrollIntoView?.({ block: "center", inline: "nearest" });
-    if (!target.matches?.("a[href], button, input, select, textarea, summary, [tabindex]")) {
-      target.setAttribute("tabindex", "-1");
-    }
-    target.focus?.({ preventScroll: true });
-    return true;
-  }
-
-  function setPendingTextFilter(text) {
-    const filter = byId("pending-filter");
-    const status = byId("pending-status-filter");
-    const investigation = byId("pending-investigation-filter");
-    if (filter) filter.value = text || "";
-    if (status) status.value = "all";
-    if (investigation) investigation.value = "all";
-    renderPendingRows();
-    setText("pending-action-feedback", `Showing Pending Publish rows matching "${text}". Backend drain scope is unchanged.`);
-  }
-
-  function activateQuickLink(action) {
-    const normalized = String(action || "").trim().toLowerCase();
-    if (normalized === "manifests") {
-      setPendingTextFilter("manifest");
-      return focusPendingQuickLinkTarget("#pending-rows");
-    }
-    if (normalized === "payloads") {
-      setPendingTextFilter("payload");
-      return focusPendingQuickLinkTarget("#pending-rows");
-    }
-    if (normalized === "review" || normalized === "health") {
-      applyPendingActionFilter("review");
-      return focusPendingQuickLinkTarget("#pending-rows");
-    }
-    if (normalized === "summary" || normalized === "size") {
-      return focusPendingQuickLinkTarget("#pending-summary");
-    }
-    if (normalized === "action") {
-      return focusPendingQuickLinkTarget(".pending-action-center");
-    }
-    return true;
-  }
-
-  function triggerPendingActionRefresh() {
-    const refreshButton = document.querySelector('[data-page-refresh-button="pending"]');
-    if (refreshButton && typeof refreshButton.click === "function") {
-      setText("pending-action-feedback", "Refreshing backend Pending Publish evidence.");
-      refreshButton.click();
-      return;
-    }
-    if (typeof window.refreshAllNow === "function") {
-      setText("pending-action-feedback", "Refreshing backend evidence from the app refresh command.");
-      window.refreshAllNow();
-      return;
-    }
-    setText("pending-action-feedback", "Refresh command is not available yet.");
-  }
-
-  function initPendingActionCenterEvents() {
-    if (pendingActionCenterEventsInitialized) return;
-    if (typeof document === "undefined" || typeof document.querySelectorAll !== "function") return;
-    document.querySelectorAll("[data-pending-action-filter]").forEach((button) => {
-      button.addEventListener("click", () => applyPendingActionFilter(button.dataset.pendingActionFilter || "all"));
-    });
-    const drainButton = byId("pending-action-drain-button");
-    if (drainButton) drainButton.addEventListener("click", triggerPendingActionDrain);
-    const refreshButton = byId("pending-action-refresh-button");
-    if (refreshButton) refreshButton.addEventListener("click", triggerPendingActionRefresh);
-    const blockersButton = byId("pending-action-blockers-button");
-    if (blockersButton) blockersButton.addEventListener("click", () => applyPendingActionFilter("blocked"));
-    pendingActionCenterEventsInitialized = true;
-  }
-
   let pendingRowReviewChecklistLines = function () { return []; };
   let pendingSelectedAtAGlanceState = function () { return "unknown"; };
   let pendingSelectedAtAGlanceStatus = function () { return "No row selected"; };
@@ -1122,106 +233,83 @@
   pendingRowTrustSummaryLines = typeof pendingDetails.pendingRowTrustSummaryLines === "function" ? pendingDetails.pendingRowTrustSummaryLines : pendingRowTrustSummaryLines;
   renderPendingDetail = typeof pendingDetails.renderPendingDetail === "function" ? pendingDetails.renderPendingDetail : renderPendingDetail;
 
-  function renderPendingRows() {
-    const filterText = byId("pending-filter")?.value || "";
-    const statusFilter = byId("pending-status-filter")?.value || "all";
-    const investigationFilter = byId("pending-investigation-filter")?.value || "all";
-    const textRows = filterRows(lastPendingRows, filterText, PENDING_FILTER_FIELDS);
-    const statusRows = typeof filterRowsByStatus === "function" ? filterRowsByStatus(textRows, statusFilter, pendingRowPresentationStatus) : textRows;
-    const rows = typeof filterRowsByInvestigation === "function" ? filterRowsByInvestigation(statusRows, investigationFilter, pendingMatchesInvestigationFilter) : statusRows;
-    const renderLimit = 250;
-    const renderedCount = Math.min(rows.length, renderLimit);
-    setText(
-      "pending-status",
-      rows.length > renderLimit
-        ? `${renderedCount} shown / ${rows.length} filtered / ${lastPendingRows.length} rows`
-        : `${rows.length} / ${lastPendingRows.length} row${lastPendingRows.length === 1 ? "" : "s"}`
-    );
-    if (typeof filterResultSummaryLines === "function") {
-      setText("pending-filter-summary", filterResultSummaryLines({
-        label: "Pending publish filter",
-        allRows: lastPendingRows,
-        visibleRows: rows,
-        filterText,
-        statusFilter,
-        investigationFilter,
-        investigationLabel: pendingInvestigationFilterLabel(investigationFilter),
-        statusOf: pendingRowPresentationStatus,
-        limit: 250,
-        decisionName: "publish/drain",
-        guardrail: PENDING_READ_ONLY_BOUNDARY,
-      }).join("\n"));
-    }
-    const tbody = byId("pending-rows");
-    const scrollSnapshot = tableScrollSnapshot(tbody);
-    if (!rows.length) {
-      clearRows(tbody, 7, lastPendingRows.length ? "No pending publish rows match the filter." : lastPendingEmptyMessage);
-      updateTableStatusLegend("pending-table-legend", tbody, "Pending publish rows");
-      if (selectedPendingRowKey) renderPendingDetail(getSelectedPendingRow());
-      renderPendingDrainActionConfidence(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-      renderPendingBackendDrainScopePreview(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-      renderPendingDrainDecisionChecklist(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-      renderPendingDrainOverview(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-      renderPendingDrainGuard(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-      renderPendingRepairManifestControls();
-      renderPendingRepairOrphanControls();
-      deferTableScrollRestore(scrollSnapshot);
-      return;
-    }
-    tbody.replaceChildren();
-    rows.slice(0, renderLimit).forEach((item) => {
-      const row = document.createElement("tr");
-      const key = pendingRowKey(item);
-      row.dataset.rowKey = key;
-      row.dataset.status = pendingRowPresentationStatus(item);
-      const localFileDisplay = pendingPathDisplay(item.local_file || item.source_path || "", 42);
-      const manifestDisplay = pendingPathDisplay(item.manifest_path || item.row_key || "", 34);
-      const serverOutDisplay = pendingPathDisplay(item.server_out || "", 42);
-      const statusText = pendingRowPresentationLabel(item);
-      appendCells(row, [
-        statusText,
-        localFileDisplay,
-        manifestDisplay,
-        serverOutDisplay,
-        item.size_text || "",
-        pendingRowUpdatedText(item),
-        pendingRowReasonText(item),
-      ], [null, "path-cell", "path-cell", "path-cell", "num", null, null]);
-      const pendingCells = row.querySelectorAll("td");
-      const stateCell = pendingCells[0] || row.children?.[0];
-      if (typeof setCellStatusChip === "function") setCellStatusChip(stateCell, statusText, row.dataset.status);
-      if (pendingCells[1] && (item.local_file || item.source_path)) pendingCells[1].title = item.local_file || item.source_path;
-      if (pendingCells[2] && item.manifest_path) pendingCells[2].title = item.manifest_path;
-      if (pendingCells[3] && item.server_out) pendingCells[3].title = item.server_out;
-      makeRowSelectable(row, () => selectPendingRow(item), {
-        selected: Boolean(key && key === selectedPendingRowKey),
-        label: `Pending publish row ${item.local_file || item.server_out || item.manifest_path || ""}`,
-      });
-      tbody.appendChild(row);
-    });
-    updateTableStatusLegend("pending-table-legend", tbody, "Pending publish rows");
-    if (selectedPendingRowKey) renderPendingDetail(getSelectedPendingRow());
-    renderPendingDrainActionConfidence(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-    renderPendingBackendDrainScopePreview(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-    renderPendingDrainDecisionChecklist(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-    renderPendingDrainOverview(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-    renderPendingDrainGuard(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-    renderPendingRepairManifestControls();
-    renderPendingRepairOrphanControls();
-    deferTableScrollRestore(scrollSnapshot);
-  }
-
-  function resetPendingFilters() {
-    const filter = byId("pending-filter");
-    const status = byId("pending-status-filter");
-    const investigation = byId("pending-investigation-filter");
-    if (filter) filter.value = "";
-    if (status) status.value = "all";
-    if (investigation) investigation.value = "all";
-    renderPendingRows();
-    setText("pending-open-status", "Pending Publish display filters cleared. Backend drain scope, recovery plans, manifests, and payloads are unchanged.");
-  }
-
+  const pendingActionCenterModule = window.__pendingPublishActionCenterModule || {};
+  delete window.__pendingPublishActionCenterModule;
+  const pendingActionCenter = typeof pendingActionCenterModule.createPendingPublishActionCenterModule === "function"
+    ? pendingActionCenterModule.createPendingPublishActionCenterModule({
+      byId,
+      clearRows: typeof clearRows === "function" ? clearRows : window.clearRows,
+      appendCells: typeof appendCells === "function" ? appendCells : window.appendCells,
+      setCellStatusChip: typeof setCellStatusChip === "function" ? setCellStatusChip : window.setCellStatusChip,
+      makeRowSelectable: typeof makeRowSelectable === "function" ? makeRowSelectable : window.makeRowSelectable,
+      updateTableStatusLegend: typeof updateTableStatusLegend === "function" ? updateTableStatusLegend : window.updateTableStatusLegend,
+      filterRows: typeof filterRows === "function" ? filterRows : window.filterRows,
+      filterRowsByStatus: typeof filterRowsByStatus === "function" ? filterRowsByStatus : window.filterRowsByStatus,
+      filterRowsByInvestigation: typeof filterRowsByInvestigation === "function" ? filterRowsByInvestigation : window.filterRowsByInvestigation,
+      filterResultSummaryLines: typeof filterResultSummaryLines === "function" ? filterResultSummaryLines : window.filterResultSummaryLines,
+      tableScrollSnapshot,
+      deferTableScrollRestore,
+      pendingFilterFields: PENDING_FILTER_FIELDS,
+      readOnlyBoundary: PENDING_READ_ONLY_BOUNDARY,
+      getLastPendingEmptyMessage: () => lastPendingEmptyMessage,
+      setText,
+      shortenPath: typeof shortenPath === "function" ? shortenPath : (value) => String(value || ""),
+      getLastPendingPayload: () => lastPendingPayload,
+      getLastPendingRows: () => lastPendingRows,
+      getLastPendingSnapshot: () => lastPendingSnapshot,
+      getSelectedPendingRowKey: () => selectedPendingRowKey,
+      setSelectedPendingRowKey: (value) => { selectedPendingRowKey = value || ""; },
+      pendingTableRowStatus: (...args) => pendingTableRowStatus(...args),
+      pendingEvidenceClass: (...args) => pendingEvidenceClass(...args),
+      pendingDrainSummaryPayload: (...args) => pendingDrainSummaryPayload(...args),
+      pendingDrainSummaryItems: (...args) => pendingDrainSummaryItems(...args),
+      pendingDrainDecisionStatus: (...args) => pendingDrainDecisionStatus(...args),
+      pendingValidationStatus: (...args) => pendingValidationStatus(...args),
+      pendingCurrentFilterScope: (...args) => pendingCurrentFilterScope(...args),
+      pendingDrainGuardState: (...args) => pendingDrainGuardState(...args),
+      pendingInvestigationFilterLabel: (...args) => pendingInvestigationFilterLabel(...args),
+      pendingMatchesInvestigationFilter: (...args) => pendingMatchesInvestigationFilter(...args),
+      renderPendingDetail: (...args) => renderPendingDetail(...args),
+      renderPendingReviewDigest: (...args) => renderPendingReviewDigest(...args),
+      renderPendingDrainEvidence: (...args) => renderPendingDrainEvidence(...args),
+      renderPendingBackendDrainScopePreview: (...args) => renderPendingBackendDrainScopePreview(...args),
+      renderPendingDrainDecisionChecklist: (...args) => renderPendingDrainDecisionChecklist(...args),
+      renderPendingDrainActionConfidence: (...args) => renderPendingDrainActionConfidence(...args),
+      renderPendingDrainGuard: (...args) => renderPendingDrainGuard(...args),
+      renderPendingRepairManifestControls: (...args) => renderPendingRepairManifestControls(...args),
+      renderPendingRepairOrphanControls: (...args) => renderPendingRepairOrphanControls(...args),
+      getCommandHistory: () => typeof getCommandHistory === "function" ? getCommandHistory() : [],
+    })
+    : {};
+  const {
+    pendingListText = (value) => Array.isArray(value) && value.length ? value.join(", ") : "none",
+    pendingRowKey = (item) => String(item?.row_key || item?.manifest_path || "").toLowerCase(),
+    getSelectedPendingRow = () => null,
+    capturePendingSelectionScroll = () => null,
+    restorePendingSelectionScroll = () => {},
+    selectPendingRow = () => {},
+    pendingDrainOverviewState = () => "unknown",
+    pendingRowPresentationStatus = () => "unknown",
+    pendingRowPresentationLabel = () => "Unknown",
+    pendingRowReasonText = () => "",
+    pendingRowUpdatedText = () => "",
+    pendingPathDisplay = (value) => String(value || ""),
+    pendingDrainSummaryCounts = () => ({ drained: 0, failed: 0, skipped: 0 }),
+    pendingActionCenterTriage = () => ({ ready: 0, review: 0, evidence: 0, blocked: 0, failed: 0, drained: 0, skipped: 0, draining: 0 }),
+    pendingActionCenterOutcome = () => ({ action: "Review Pending Publish", reason: "Evidence not loaded.", detail: "Refresh Pending Publish.", state: "unknown" }),
+    setPendingActionCount = () => {},
+    renderPendingActionCenter = () => {},
+    renderPendingDrainOverview = () => {},
+    applyPendingActionFilter = () => {},
+    triggerPendingActionDrain = () => {},
+    focusPendingQuickLinkTarget = () => false,
+    setPendingTextFilter = () => {},
+    activateQuickLink = () => false,
+    triggerPendingActionRefresh = () => {},
+    initPendingActionCenterEvents = () => {},
+    renderPendingRows = () => {},
+    resetPendingFilters = () => {},
+  } = pendingActionCenter;
   const pendingDiagnosticsState = {
     get pendingOpenInFlight() {
       return pendingOpenInFlight;
@@ -1373,6 +461,51 @@
     },
   };
 
+  const pendingRenderingModule = window.__pendingPublishRenderingModule || {};
+  delete window.__pendingPublishRenderingModule;
+  const pendingRendering = typeof pendingRenderingModule.createPendingPublishRenderingModule === "function"
+    ? pendingRenderingModule.createPendingPublishRenderingModule({
+      byId,
+      setText,
+      clearRows: typeof clearRows === "function" ? clearRows : window.clearRows,
+      appendCells: typeof appendCells === "function" ? appendCells : window.appendCells,
+      setCellStatusChip: typeof setCellStatusChip === "function" ? setCellStatusChip : window.setCellStatusChip,
+      updateTableStatusLegend: typeof updateTableStatusLegend === "function" ? updateTableStatusLegend : window.updateTableStatusLegend,
+      shortenPath: typeof shortenPath === "function" ? shortenPath : (value) => String(value || ""),
+      tableScrollSnapshot, deferTableScrollRestore, pendingRowKey, getSelectedPendingRow,
+      setLastPendingRows: (value) => { lastPendingRows = value; },
+      setLastPendingPayload: (value) => { lastPendingPayload = value; },
+      setLastPendingSnapshot: (value) => { lastPendingSnapshot = value; },
+      setLastPendingEmptyMessage: (value) => { lastPendingEmptyMessage = value; },
+      getLastPendingRows: () => lastPendingRows,
+      getLastPendingPayload: () => lastPendingPayload,
+      getSelectedPendingRowKey: () => selectedPendingRowKey,
+      setSelectedPendingRowKey: (value) => { selectedPendingRowKey = value || ""; },
+      getLastRecoveryPlanRows: () => lastPendingRecoveryPlanRows,
+      setLastRecoveryPlanRows: (value) => { lastPendingRecoveryPlanRows = value; },
+      getLastRecoveryPlanSignature: () => lastPendingRecoveryPlanSignature,
+      setLastRecoveryPlanSignature: (value) => { lastPendingRecoveryPlanSignature = value || ""; },
+      getSelectedRecoveryPlanKey: () => selectedPendingRecoveryPlanKey,
+      setSelectedRecoveryPlanKey: (value) => { selectedPendingRecoveryPlanKey = value || ""; },
+      pendingEmptyStateMessage: (...args) => pendingEmptyStateMessage(...args), pendingFormatCounts: (...args) => pendingFormatCounts(...args),
+      renderPendingDrainProgress: (...args) => renderPendingDrainProgress(...args), renderPendingInventoryProgress: (...args) => renderPendingInventoryProgress(...args),
+      renderPendingPublishReadiness: (...args) => renderPendingPublishReadiness(...args), renderPendingRiskBreakdown: (...args) => renderPendingRiskBreakdown(...args),
+      renderPendingValidation: (...args) => renderPendingValidation(...args), renderPendingWorkflow: (...args) => renderPendingWorkflow(...args),
+      renderPendingReviewBoard: (...args) => renderPendingReviewBoard(...args), renderPendingDrainEvidence: (...args) => renderPendingDrainEvidence(...args),
+      renderPendingDrainHistory: (...args) => renderPendingDrainHistory(...args), renderPendingOpenHistory: (...args) => renderPendingOpenHistory(...args),
+      renderPendingRecoveryPlanHistory: (...args) => renderPendingRecoveryPlanHistory(...args), renderPendingRepairManifestHistory: (...args) => renderPendingRepairManifestHistory(...args),
+      renderPendingDrainEvents: (...args) => renderPendingDrainEvents(...args), renderPendingDrainSummary: (...args) => renderPendingDrainSummary(...args),
+      renderPendingDrainCorrelation: (...args) => renderPendingDrainCorrelation(...args), renderPendingPostDrainTrust: (...args) => renderPendingPostDrainTrust(...args),
+      renderPendingDrainActionConfidence: (...args) => renderPendingDrainActionConfidence(...args), renderPendingBackendDrainScopePreview: (...args) => renderPendingBackendDrainScopePreview(...args),
+      renderPendingDrainDecisionChecklist: (...args) => renderPendingDrainDecisionChecklist(...args), renderPendingDrainGuard: (...args) => renderPendingDrainGuard(...args),
+      renderPendingDetail: (...args) => renderPendingDetail(...args), renderPendingRows: (...args) => renderPendingRows(...args),
+      renderPendingRepairManifestControls: (...args) => renderPendingRepairManifestControls(...args), renderPendingRepairOrphanControls: (...args) => renderPendingRepairOrphanControls(...args),
+      renderPendingRecoveryPlanRows: (...args) => renderPendingRecoveryPlanRows(...args), getCommandHistory: () => typeof getCommandHistory === "function" ? getCommandHistory() : [],
+    }) : {};
+  const { renderPendingPublish, renderPendingDrainProgress, getLastPendingPublishPayload, getLastPendingPublishRows,
+    pendingRecoverySignatureValue, pendingRecoveryPlanSignature, clearStalePendingRecoveryPlan,
+    pendingFileInventoryPayload, pendingFileInventoryRows, pendingFileInventoryStatus, pendingFileInventorySummaryLines,
+    pendingFileInventoryRowStatus, renderPendingFileInventory } = pendingRendering;
   const pendingRecoveryModule = window.__pendingPublishRecoveryModule || {};
   delete window.__pendingPublishRecoveryModule;
   const pendingRecovery = typeof pendingRecoveryModule.createPendingPublishRecoveryModule === "function"

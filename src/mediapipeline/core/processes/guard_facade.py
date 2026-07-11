@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from mediapipeline.core.kernel.dto_status import CloseReadinessDto
 from mediapipeline.core.schedule.stop_watcher import schedule_stop_watcher_state_mapping
@@ -16,6 +17,7 @@ from mediapipeline.core.processes.guard_policy import (
     close_readiness_fields,
     pipeline_progress_indicates_active_work,
 )
+from mediapipeline.core.processes.lifecycle_lease import LifecycleLeaseError, LifecycleLeaseStore
 
 if TYPE_CHECKING:
     from mediapipeline.core.status.contracts import Snapshot
@@ -34,7 +36,14 @@ class ProcessGuardFacadeMixin:
             return {"pipeline", "rerun_csv"}
         return None
 
-    def _acquire_process_launch_lock(self, action: str) -> tuple[object | None, str]:
+    def _acquire_process_launch_lock(
+        self,
+        action: str,
+        *,
+        resolved: ResolvedPaths | None = None,
+        command_id: str = "",
+        resource_claims: list[str] | None = None,
+    ) -> tuple[object | None, str]:
         lock = getattr(self, "_process_launch_lock", None)
         if lock is None:
             return None, ""
@@ -45,18 +54,78 @@ class ProcessGuardFacadeMixin:
             return None, f"{action} blocked because the process launch lock could not be verified: {exc}"
         if not acquired:
             return None, f"{action} blocked because another process launch command is already in progress."
-        return lock, ""
+        if resolved is None or resolved.state_root is None:
+            return lock, ""
+        try:
+            lease = LifecycleLeaseStore(resolved.state_root).acquire(
+                scope=action,
+                command_id=command_id or "untracked-command",
+                resource_claims=resource_claims,
+            )
+        except LifecycleLeaseError as exc:
+            lock.release()
+            return None, f"{action} blocked because the durable lifecycle lease could not be acquired: {exc}"
+        return {"memory_lock": lock, "lease": lease, "transferred": False}, ""
 
     def _release_process_launch_lock(self, lock: object | None) -> None:
         if lock is None:
             return
-        try:
-            lock.release()  # type: ignore[attr-defined]
-        except Exception as exc:
-            self._log_close_guard_exception("Process launch lock release failed", exc)
+        if isinstance(lock, dict):
+            memory_lock = lock.get("memory_lock")
+            lease = lock.get("lease")
+            if lock.get("transferred") is not True and lease is not None:
+                try:
+                    lease.release(outcome="launch_failed")
+                except Exception as exc:
+                    self._log_close_guard_exception("Lifecycle lease release failed", exc)
+            lock = memory_lock
+        release = getattr(lock, "release", None)
+        if callable(release):
+            try:
+                release()
+            except Exception as exc:
+                self._log_close_guard_exception("Process launch lock release failed", exc)
+
+    def _prepare_process_launch_lease(self, launch_guard: object | None) -> None:
+        if not isinstance(launch_guard, dict):
+            return
+        lease = launch_guard.get("lease")
+        setter = getattr(self.service, "_set_pending_lifecycle_lease", None)
+        if lease is not None and callable(setter):
+            setter(lease)
+
+    def _set_process_launch_recovery_descriptor(
+        self,
+        launch_guard: object | None,
+        *,
+        route: str,
+        request: dict[str, object],
+    ) -> None:
+        if not isinstance(launch_guard, dict):
+            return
+        lease = launch_guard.get("lease")
+        setter = getattr(lease, "set_recovery_descriptor", None)
+        if callable(setter):
+            setter(route=route, request=request)
+
+    def _transfer_process_launch_lease(self, launch_guard: object | None, proc: object) -> None:
+        if not isinstance(launch_guard, dict):
+            return
+        lease = launch_guard.get("lease")
+        if lease is None:
+            return
+        attached = getattr(proc, "_mediapipeline_lifecycle_lease", None)
+        if attached is not lease:
+            try:
+                lease.activate(int(getattr(proc, "pid", 0) or 0))
+                cast(Any, proc)._mediapipeline_lifecycle_lease = lease
+            except Exception as exc:
+                raise RuntimeError(f"Lifecycle lease could not be bound to launched process: {exc}") from exc
+        launch_guard["transferred"] = True
 
     def get_close_readiness(self, resolved: ResolvedPaths, snapshot: Snapshot | None = None) -> CloseReadinessDto:
-        state = self._pipeline_state(snapshot) if snapshot is not None else "unknown"
+        pipeline_state = getattr(self, "_pipeline_state", None)
+        state = str(pipeline_state(snapshot)) if snapshot is not None and callable(pipeline_state) else "unknown"
         block_message = self._active_work_block_message(resolved, "Shell close")
         return CloseReadinessDto(
             **close_readiness_fields(
@@ -68,6 +137,25 @@ class ProcessGuardFacadeMixin:
         )
 
     def _active_work_block_message(self, resolved: ResolvedPaths, action: str) -> str:
+        recovery_reader = getattr(self, "get_recovery_status", None)
+        if callable(recovery_reader):
+            recovery = recovery_reader()
+            recovery_status = str(recovery.get("status") or "idle").casefold()
+            if recovery_status in {"reconciling", "recovering", "blocked"}:
+                return f"{action} blocked because backend recovery is {recovery_status}: {recovery.get('operator_action_required') or 'reconciliation is required.'}"
+        if resolved.state_root is not None:
+            lifecycle = LifecycleLeaseStore(resolved.state_root).status()
+            lifecycle_status = str(lifecycle.get("status") or "unknown")
+            lease_value = lifecycle.get("lease")
+            lease: dict[str, Any] = dict(lease_value) if isinstance(lease_value, dict) else {}
+            own_pending_reservation = (
+                lifecycle_status == "active"
+                and str(lease.get("scope") or "") == action
+                and int(lease.get("owner_pid") or 0) == os.getpid()
+                and int(lease.get("child_pid") or 0) <= 0
+            )
+            if lifecycle_status != "idle" and not own_pending_reservation:
+                return f"{action} blocked because backend lifecycle state is {lifecycle_status}: {lifecycle.get('reason') or 'reconciliation is required.'}"
         self._cleanup_stale_launch_guards(resolved, action)
         blocking_job_kinds = self._blocking_job_kinds_for_action(action)
         related_method = getattr(self.service, "find_related_pipeline_processes", None)
@@ -251,7 +339,7 @@ class ProcessGuardFacadeMixin:
             return f"{action} blocked because backend schedule-stop watcher state could not be verified: {error}"
         if status != "armed":
             return ""
-        pid = int(state.get("pid", 0) or 0)
+        pid = int(str(state.get("pid", 0) or 0))
         deadline = str(state.get("deadline", "") or "").strip()
         pid_text = f" PID {pid}" if pid > 0 else ""
         deadline_text = f" until {deadline}" if deadline else ""

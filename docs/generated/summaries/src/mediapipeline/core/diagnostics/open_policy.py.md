@@ -3,9 +3,9 @@ file: src/mediapipeline/core/diagnostics/open_policy.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: diagnostics
-last_modified: 2026-07-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 2b8b89a5ae303289a22947dbc7d9e7b8df05072f23d2d45ceb7cab0f027e1de2
+sha256: 3fc21fd47223eabb1a93351f900897d2360c95d0670a552a737e9f442fc390e3
 ---
 # `src/mediapipeline/core/diagnostics/open_policy.py`
 

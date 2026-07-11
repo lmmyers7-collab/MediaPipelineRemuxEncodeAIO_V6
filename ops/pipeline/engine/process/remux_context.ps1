@@ -33,6 +33,11 @@ function New-MediaPipelineRemuxContext {
 
     $script:LastPublishResult = $null
     $script:CurrentDynamicHdrEvidence = $null
+    $script:LastMediaVerification = $null
+    $script:LastAudioVerification = $null
+    $script:LastSubtitleVerification = $null
+    $script:LastMediaTrackVerification = $null
+    $script:LastSubtitleConversionResults = @()
     if ($FallbackFromOversizedEncode) {
         $script:LastRemuxFallbackRejection = $null
     }
@@ -68,5 +73,10 @@ function New-MediaPipelineRemuxContext {
         DefaultAudioLang                  = ''
         MkvArgs                           = @()
         MkvmergeResult                    = $null
+        MediaVerification                 = $null
+        AudioVerification                 = $null
+        SubtitleVerification              = $null
+        MediaTrackVerificationPlan        = $null
+        MediaTrackVerification            = $null
     }
 }

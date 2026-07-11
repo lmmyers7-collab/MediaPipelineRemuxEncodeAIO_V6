@@ -111,8 +111,13 @@ per ADR-0002. In the current.x maintenance state, the read-only `probe` and
 mutation-capable stage. Guarded ingest may only copy a source file into a
 scratch-root child path with strict execute confirmation and evidence;
 `transcode`, `subtitle-convert`, `audio-mix`, `publish`, `drain`, and
-`rename` remain modeled but disabled until their own safety coverage and
-real-media validation prove the replacement path.
+`rename` are permanently disabled in the stage dispatcher. The dispatcher is
+an orchestration-only PowerShell supervision boundary and is not a Local API
+mutation route. `ops/pipeline/entrypoints/MediaPipeline.ps1` remains the sole
+production owner for encode/remux, integrated subtitle/audio decisions, output
+verification/sidecars, pending-publish park/drain, queue claims, lifecycle,
+and recovery. No generic stage-execute API, frontend-selected mutation paths,
+or dispatcher-owned media/publish/rename policy is permitted.
 
 ## State and files
 

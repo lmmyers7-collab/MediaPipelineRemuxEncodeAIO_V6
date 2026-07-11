@@ -320,7 +320,7 @@ function Get-MediaPipelineConfigDefaultValues {
         Tx3gExtractLanguages       = @('eng','en','und')
         Tx3gPreserveExistingSrt    = $true
         Tx3gTreatForcedAsSeparate  = $true
-        ConvertBdpgsToSrt          = $false
+        ConvertBdpgsToSrt          = $true
         DropBdpgsAfterConversion   = $false
         BdpgsExtractLanguages      = @('eng','en','und')
         BdpgsOcrToolPath           = 'tools\PgsToSrt\PgsToSrt.exe'

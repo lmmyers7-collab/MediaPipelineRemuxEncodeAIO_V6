@@ -3,9 +3,9 @@ file: tests/webview/test_webview_diagnostics_drilldown_static.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 74a39058fe288fcd9fa5b480fa68f7a95802078f2ca81716687cc3491f506976
+sha256: 33d22cd4f063a61465bff709482470b07a687d6d9c2bd317687fabdc6cf33224
 ---
 # `tests/webview/test_webview_diagnostics_drilldown_static.py`
 

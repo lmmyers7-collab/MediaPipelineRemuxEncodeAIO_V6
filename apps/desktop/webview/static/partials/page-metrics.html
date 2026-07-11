@@ -1,5 +1,6 @@
       <section class="page" data-page-panel="metrics">
         <h1 class="visually-hidden">Metrics</h1>
+        <p class="note">Review what the app has processed, storage results, and follow-up items. This page does not change media; it becomes useful after completed jobs exist.</p>
         <div class="metric-grid">
           <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="metrics" data-quick-link-metrics-tab="production" aria-label="Open Metrics production for completed jobs" title="Open Metrics production">
             <span class="metric-label">Completed Jobs</span>
@@ -52,7 +53,7 @@
                   <th scope="col">Signal</th>
                   <th scope="col" class="num">Value</th>
                   <th scope="col">Detail</th>
-                  <th scope="col">Subtab</th>
+                  <th scope="col">Next step</th>
                 </tr>
               </thead>
               <tbody id="metrics-attention-rows">
@@ -102,7 +103,7 @@
               <input id="metrics-source-label" type="text" autocomplete="off" placeholder="Drive label" />
             </label>
             <button id="metrics-source-add-button" type="button">Add Source</button>
-            <button id="metrics-backfill-button" type="button">Backfill Enabled</button>
+            <button id="metrics-backfill-button" type="button">Refresh history from enabled sources</button>
           </div>
           <div class="table-wrap detail-table-wrap metrics-source-table-wrap">
             <table class="metrics-source-table">
@@ -120,6 +121,7 @@
               </tbody>
             </table>
           </div>
+          <p class="note">Refreshing history reads saved pipeline records only; it never changes media files.</p>
           <pre id="metrics-backfill-detail" class="prose-block">No Metrics sidecar backfill has run.</pre>
         </section>
 

@@ -110,6 +110,28 @@ REPORTS_AUDIT_COMMANDS = (
     / "reports"
     / "auditCommands.js"
 )
+REPORTS_AUDIT_SOURCES = (
+    REPO_ROOT
+    / "apps"
+    / "desktop"
+    / "webview"
+    / "static"
+    / "assets"
+    / "reports"
+    / "audit"
+    / "sources.js"
+)
+REPORTS_AUDIT_PROGRESS = (
+    REPO_ROOT
+    / "apps"
+    / "desktop"
+    / "webview"
+    / "static"
+    / "assets"
+    / "reports"
+    / "audit"
+    / "progress.js"
+)
 REPORTS_TRIAGE = (
     REPO_ROOT
     / "apps"
@@ -119,6 +141,16 @@ REPORTS_TRIAGE = (
     / "assets"
     / "reports"
     / "triage.js"
+)
+REPORTS_INVESTIGATION = (
+    REPO_ROOT
+    / "apps"
+    / "desktop"
+    / "webview"
+    / "static"
+    / "assets"
+    / "reports"
+    / "investigation.js"
 )
 APP_JS = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "app.js"
 OPERATOR_TOAST = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "operatorToast.js"
@@ -172,7 +204,10 @@ class ReportsViewStaticTests(unittest.TestCase):
         audit_model_source = REPORTS_AUDIT_MODEL.read_text(encoding="utf-8")
         audit_view_source = REPORTS_AUDIT_VIEW.read_text(encoding="utf-8")
         audit_commands_source = REPORTS_AUDIT_COMMANDS.read_text(encoding="utf-8")
+        audit_sources_source = REPORTS_AUDIT_SOURCES.read_text(encoding="utf-8")
+        audit_progress_source = REPORTS_AUDIT_PROGRESS.read_text(encoding="utf-8")
         triage_source = REPORTS_TRIAGE.read_text(encoding="utf-8")
+        investigation_source = REPORTS_INVESTIGATION.read_text(encoding="utf-8")
 
         self.assertLess(html.index("/assets/reports/state.js"), html.index("/assets/reportsView.js"))
         self.assertLess(html.index("/assets/reports/shared.js"), html.index("/assets/reportsView.js"))
@@ -183,10 +218,14 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertLess(html.index("/assets/reports/failureView.js"), html.index("/assets/reportsView.js"))
         self.assertLess(html.index("/assets/reports/auditModel.js"), html.index("/assets/reportsView.js"))
         self.assertLess(html.index("/assets/reports/auditView.js"), html.index("/assets/reportsView.js"))
+        self.assertLess(html.index("/assets/reports/audit/sources.js"), html.index("/assets/reports/auditCommands.js"))
+        self.assertLess(html.index("/assets/reports/audit/progress.js"), html.index("/assets/reports/auditCommands.js"))
         self.assertLess(html.index("/assets/reports/auditCommands.js"), html.index("/assets/reportsView.js"))
         self.assertLess(html.index("/assets/reports/auditView.js"), html.index("/assets/reports/auditCommands.js"))
         self.assertLess(html.index("/assets/reports/triage.js"), html.index("/assets/reportsView.js"))
         self.assertLess(html.index("/assets/reports/auditCommands.js"), html.index("/assets/reports/triage.js"))
+        self.assertLess(html.index("/assets/reports/triage.js"), html.index("/assets/reports/investigation.js"))
+        self.assertLess(html.index("/assets/reports/investigation.js"), html.index("/assets/reportsView.js"))
         self.assertIn("window.__reportsViewStateModule", state_source)
         self.assertIn("window.__reportsViewSharedModule", shared_source)
         self.assertIn("window.__reportsViewShellModule", shell_source)
@@ -195,8 +234,13 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn("window.__reportsViewFailureViewModule", failure_view_source)
         self.assertIn("window.__reportsViewAuditModelModule", audit_model_source)
         self.assertIn("window.__reportsViewAuditViewModule", audit_view_source)
+        self.assertIn("window.__reportsAuditSourcesModule", audit_sources_source)
+        self.assertIn("window.__reportsAuditProgressModule", audit_progress_source)
         self.assertIn("window.__reportsViewAuditCommandsModule", audit_commands_source)
+        self.assertIn("delete window.__reportsAuditSourcesModule;", audit_commands_source)
+        self.assertIn("delete window.__reportsAuditProgressModule;", audit_commands_source)
         self.assertIn("window.__reportsViewTriageModule", triage_source)
+        self.assertIn("window.__reportsViewInvestigationModule", investigation_source)
         self.assertIn("delete window.__reportsViewStateModule;", source)
         self.assertIn("delete window.__reportsViewSharedModule;", source)
         self.assertIn("delete window.__reportsViewShellModule;", source)
@@ -207,6 +251,7 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn("delete window.__reportsViewAuditViewModule;", source)
         self.assertIn("delete window.__reportsViewAuditCommandsModule;", source)
         self.assertIn("delete window.__reportsViewTriageModule;", source)
+        self.assertIn("delete window.__reportsViewInvestigationModule;", source)
         self.assertIn('throw new Error("reports/state.js must load before reportsView.js")', source)
         self.assertIn('throw new Error("reports/shared.js must load before reportsView.js")', source)
         self.assertIn('throw new Error("reports/shell.js must load before reportsView.js")', source)
@@ -217,6 +262,7 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn('throw new Error("reports/auditView.js must load before reportsView.js")', source)
         self.assertIn('throw new Error("reports/auditCommands.js must load before reportsView.js")', source)
         self.assertIn('throw new Error("reports/triage.js must load before reportsView.js")', source)
+        self.assertIn('throw new Error("reports/investigation.js must load before reportsView.js")', source)
         self.assertIn("window.mediaPipelineReportsView = {", source)
 
     def test_reports_tab_nav_binds_without_direct_child_panel_selector(self) -> None:
@@ -444,6 +490,7 @@ class ReportsViewStaticTests(unittest.TestCase):
     def test_marker_clear_is_guided_preview_first_flow(self) -> None:
         source = REPORTS_VIEW.read_text(encoding="utf-8")
         failure_commands_source = REPORTS_FAILURE_COMMANDS.read_text(encoding="utf-8")
+        investigation_source = REPORTS_INVESTIGATION.read_text(encoding="utf-8")
         html = REPORTS_PAGE.read_text(encoding="utf-8")
 
         self.assertIn("Failure Resolution Center", html)
@@ -486,7 +533,7 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn("failureClearPreviewKey(request)", failure_commands_source)
         self.assertIn("journal_key: journalKey", failure_commands_source)
         self.assertIn("Clearing all active errors.", failure_commands_source)
-        self.assertIn("function setFailureMarkerSourceMode(enabled)", source)
+        self.assertIn("function setFailureMarkerSourceMode(enabled)", investigation_source)
         self.assertIn("setFailureMarkerSourceMode(true);", failure_commands_source)
         self.assertIn("function applyLocalFailureMarkerClear(request, result)", failure_commands_source)
         self.assertIn('apiPost("/api/failures/open", payload)', failure_commands_source)
@@ -551,7 +598,11 @@ class ReportsViewStaticTests(unittest.TestCase):
         state_source = REPORTS_STATE.read_text(encoding="utf-8")
         audit_view_source = REPORTS_AUDIT_VIEW.read_text(encoding="utf-8")
         audit_model_source = REPORTS_AUDIT_MODEL.read_text(encoding="utf-8")
-        audit_commands_source = REPORTS_AUDIT_COMMANDS.read_text(encoding="utf-8")
+        audit_commands_source = "\n".join((
+            REPORTS_AUDIT_SOURCES.read_text(encoding="utf-8"),
+            REPORTS_AUDIT_PROGRESS.read_text(encoding="utf-8"),
+            REPORTS_AUDIT_COMMANDS.read_text(encoding="utf-8"),
+        ))
         triage_source = REPORTS_TRIAGE.read_text(encoding="utf-8")
         html = REPORTS_PAGE.read_text(encoding="utf-8")
 
@@ -569,8 +620,8 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn("report-audit-source-selection-status", html)
         self.assertIn("Audit Sources", html)
         self.assertIn("Location to Scan", html)
-        self.assertIn("Add Source", html)
-        self.assertIn("Scan Selected", html)
+        self.assertIn("Add this location", html)
+        self.assertIn("Scan selected locations", html)
         self.assertIn("<th scope=\"col\">Location</th>", html)
         self.assertIn("<th scope=\"col\">Status</th>", html)
         self.assertIn("<th scope=\"col\">Video Files</th>", html)
@@ -709,7 +760,10 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn("report-triage-next-action", html)
         self.assertIn("report-triage-action-owner", html)
         self.assertIn("report-triage-report-state", html)
-        self.assertIn('data-reports-tab="files" aria-selected="false">Locations</button>', html)
+        self.assertIn('id="reports-tab-files"', html)
+        self.assertIn('aria-controls="reports-panel-files"', html)
+        self.assertIn('role="tabpanel" aria-labelledby="reports-tab-files"', html)
+        self.assertIn('class="report-audit-preview-table"', html)
         self.assertNotIn('data-reports-tab="overview"', html)
         self.assertNotIn("report-go-rerun-button", html)
         self.assertNotIn("report-go-audit-button", html)

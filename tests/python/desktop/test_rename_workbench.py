@@ -28,10 +28,30 @@ STATIC_ROOT = REPO_ROOT / "apps" / "desktop" / "webview" / "static"
 PARTIAL = STATIC_ROOT / "partials" / "page-rename.html"
 RENAME_JS = STATIC_ROOT / "assets" / "renameView.js"
 APP_JS = STATIC_ROOT / "assets" / "app.js"
+RENAME_ASSET_NAMES = (
+    "rename/cleaningFilters.js",
+    "rename/cleaningWorkbench.js",
+    "rename/selection.js",
+    "rename/paths.js",
+    "rename/preview.js",
+    "rename/applyReadiness.js",
+    "rename/editing.js",
+    "rename/applyResult.js",
+    "rename/commandEvidence.js",
+    "rename/previewLifecycle.js",
+    "rename/interactions.js",
+    "rename/confirmSummary.js",
+    "rename/dialogs.js",
+    "renameView.js",
+)
 
 
 def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def _rename_asset_bundle() -> str:
+    return "\n".join(_read(STATIC_ROOT / "assets" / name) for name in RENAME_ASSET_NAMES)
 
 
 class RenameWorkbenchHtmlTests(unittest.TestCase):
@@ -190,7 +210,7 @@ class RenameWorkbenchHtmlTests(unittest.TestCase):
 
 class RenameWorkbenchJsTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.js = _read(RENAME_JS)
+        self.js = _rename_asset_bundle()
         self.app_js = _read(APP_JS)
 
     def test_browse_folder_uses_folder_files_mode(self) -> None:
@@ -244,7 +264,7 @@ class RenameWorkbenchJsTests(unittest.TestCase):
         self.assertIn("renameOpenUndoConfirmDialog", self.js)
         self.assertIn('apiPost("/api/rename/undo"', self.js)
         self.assertIn("confirm_undo: true", self.js)
-        self.assertIn("lastRenameUndoManifest = payload.ok ? renameUndoManifestFromApplyResult(payload) : \"\";", self.js)
+        self.assertIn("state.lastUndoManifest = payload.ok ? renameUndoManifestFromApplyResult(payload) : \"\";", self.js)
         self.assertIn('if (undoButton) undoButton.addEventListener("click", () => undoLastRenameApply());', self.js)
         self.assertIn("Undo canceled. No rename.undo request was sent.", self.js)
         self.assertIn("syncRenameUndoButton", self.js)

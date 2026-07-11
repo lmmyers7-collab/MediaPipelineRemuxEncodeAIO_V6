@@ -38,6 +38,7 @@ from mediapipeline.core.telemetry.service import TelemetryServiceMixin
 LOG_NAME = "MediaPipelineRemuxEncodeAIO_DesktopApp.log"
 DESKTOP_LOG_MAX_BYTES = 50 * 1024 * 1024
 DESKTOP_LOG_BACKUP_COUNT = 3
+ACTIVE_JOB_RECONCILIATION_INTERVAL_SECONDS = 15.0
 
 
 class DesktopAppService(
@@ -84,7 +85,12 @@ class DesktopAppService(
             if productized_app_enabled() and self.product_runtime_roots is not None
             else app_root / "RunLogs" / "local_api_command_history.json"
         )
-        self.app_state_path = app_root / APP_STATE_NAME
+        self.run_logs_root = self.command_journal_path.parent
+        self.app_state_path = (
+            self.product_runtime_roots["state_root"] / "App" / APP_STATE_NAME
+            if productized_app_enabled() and self.product_runtime_roots is not None
+            else app_root / APP_STATE_NAME
+        )
         self._nvidia_smi_path: str | None = None
         self._nvidia_smi_checked = False
         self._vlc_path: Path | None = None
@@ -117,9 +123,48 @@ class DesktopAppService(
         self._last_spawn_stderr_log: Path | None = None
         self._active_spawned_processes_lock = threading.Lock()
         self._active_spawned_processes: dict[int, tuple[object, str]] = {}
+        self._pending_lifecycle_lease_lock = threading.Lock()
+        self._pending_lifecycle_lease: object | None = None
+        self._active_job_reconciliation_provider = None
+        self._active_job_reconciliation_stop = threading.Event()
+        self._active_job_reconciliation_thread: threading.Thread | None = None
         self.logger = self._create_logger()
         self._initialize_remux_pilot_auto_promotion()
         self._initialize_telemetry_sampler()
+
+    def configure_active_job_reconciliation(self, resolved_provider) -> None:
+        self._active_job_reconciliation_provider = resolved_provider
+
+    def start_background_tasks(self) -> None:
+        super().start_background_tasks()
+        if self._active_job_reconciliation_thread and self._active_job_reconciliation_thread.is_alive():
+            return
+        self._active_job_reconciliation_stop.clear()
+        self._active_job_reconciliation_thread = threading.Thread(
+            target=self._active_job_reconciliation_loop,
+            name="MediaPipelineActiveJobReconciliation",
+            daemon=True,
+        )
+        self._active_job_reconciliation_thread.start()
+
+    def stop_background_tasks(self) -> None:
+        self._active_job_reconciliation_stop.set()
+        thread = self._active_job_reconciliation_thread
+        if thread and thread.is_alive():
+            thread.join(timeout=1.5)
+        self._active_job_reconciliation_thread = None
+        super().stop_background_tasks()
+
+    def _active_job_reconciliation_loop(self) -> None:
+        while not self._active_job_reconciliation_stop.is_set():
+            provider = self._active_job_reconciliation_provider
+            try:
+                resolved = provider() if callable(provider) else None
+                if resolved is not None:
+                    self.reconcile_active_job_records(resolved)
+            except Exception as exc:
+                self.logger.warning("ActiveJobs background reconciliation failed: %s", exc)
+            self._active_job_reconciliation_stop.wait(ACTIVE_JOB_RECONCILIATION_INTERVAL_SECONDS)
 
     def _create_logger(self) -> logging.Logger:
         logger = logging.getLogger("mediapipeline.desktop")

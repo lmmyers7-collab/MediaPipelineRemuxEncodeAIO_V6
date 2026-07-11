@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/progressView.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-09
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 8a705ab29e10308d569ff4913323583f317d1727c3438f5cc68041278ad630d5
+sha256: fdd1502c74d26a2c57754e50db794eeb2dfcf5d30d3e5ad1ecfa426273ae0c1e
 ---
 # `apps/desktop/webview/static/assets/progressView.js`
 

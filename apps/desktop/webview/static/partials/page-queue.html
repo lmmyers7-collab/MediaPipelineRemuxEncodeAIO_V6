@@ -1,10 +1,10 @@
       <section class="page" data-page-panel="queue">
         <h1 class="visually-hidden">Queue</h1>
         <div class="settings-tab-bar queue-tab-bar" role="tablist" aria-label="Queue sections">
-          <button type="button" class="settings-tab-btn" role="tab" aria-selected="true" data-queue-tab="main">Main Queue</button>
-          <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-queue-tab="rerun">CSV Rerun</button>
+          <button type="button" id="queue-tab-main" class="settings-tab-btn" role="tab" aria-selected="true" aria-controls="queue-panel-main" data-queue-tab="main">Main Queue</button>
+          <button type="button" id="queue-tab-rerun" class="settings-tab-btn" role="tab" aria-selected="false" aria-controls="queue-panel-rerun" data-queue-tab="rerun">CSV Rerun</button>
         </div>
-        <section class="panel settings-tab-pane queue-tab-panel" data-panel-key="queue-rerun" data-queue-tab-panel="rerun" data-panel-type="interactive">
+        <section id="queue-panel-rerun" class="panel settings-tab-pane queue-tab-panel" role="tabpanel" aria-labelledby="queue-tab-rerun" data-panel-key="queue-rerun" data-queue-tab-panel="rerun" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>CSV Rerun</h2>
             <strong id="rerun-queue-status">Idle</strong>
@@ -89,41 +89,45 @@
                 Destination
                 <select id="rerun-start-destination-mode" title="Where verified rerun outputs go after backend proof.">
                   <option value="auto">auto destination</option>
-                  <option value="auto_replace_clean_else_pending_review" selected>auto replace clean, else Pending Publish</option>
-                  <option value="review_workspace">review workspace</option>
+                  <option value="auto_replace_clean_else_pending_review">auto replace clean, else Pending Publish</option>
+                  <option value="review_workspace" selected>review workspace (review before final placement)</option>
                   <option value="pending_publish">pending publish</option>
                   <option value="publish_non_overlap">publish with non-overlap name</option>
                   <option value="publish_replace_final">publish and replace final output</option>
                 </select>
               </label>
+            </div>
+            <details class="settings-advanced-disclosure">
+              <summary>Advanced final-output replacement options</summary>
+              <p class="note">These choices concern completed final-library outputs only. They never replace original source media, and backend confirmation and manifest safeguards still apply.</p>
               <label>
                 Destination Collision
                 <select id="rerun-start-collision-policy" title="Collision handling for publish destinations.">
                   <option value="auto">auto collision</option>
                   <option value="suffix">suffix when needed</option>
                   <option value="fail">block on overlap</option>
-                  <option value="replace_final" selected>replace final output</option>
+                  <option value="replace_final">replace final output</option>
                 </select>
               </label>
               <label class="check-row launch-check-row" title="Use the CSV source_path as the replace-final destination. Pending publish/drain still requires backend manifest proof and this explicit confirmation.">
                 <input id="rerun-start-confirm-source-overwrite" type="checkbox">
-                Allow source-path overwrite
+                Use the CSV source path as a final-output target
               </label>
-            </div>
+            </details>
             <div class="rerun-handling-summary" aria-live="polite">
               <div class="rerun-policy-card" data-rerun-policy-card="destination" data-state="blocked">
                 <span class="rerun-policy-card-label">Destination handling</span>
-                <strong data-rerun-policy-summary="destination">Auto replace clean, else Pending Publish</strong>
-                <span data-rerun-policy-detail="destination">Backend replaces clean verified outputs with strict confirmation; outputs with issue evidence are parked for Pending Publish/review.</span>
+                <strong data-rerun-policy-summary="destination">Review workspace</strong>
+                <span data-rerun-policy-detail="destination">Verified outputs stay in review until you choose a backend-owned final placement path. Original source files are never replaced.</span>
               </div>
               <div class="rerun-policy-card" data-rerun-policy-card="collision" data-state="blocked">
                 <span class="rerun-policy-card-label">When output exists</span>
-                <strong data-rerun-policy-summary="collision">Replace final output</strong>
-                <span data-rerun-policy-detail="collision">Replacement is allowed only with backend confirmation and output proof.</span>
+                <strong data-rerun-policy-summary="collision">Suffix when needed</strong>
+                <span data-rerun-policy-detail="collision">A different final-output name is used instead of replacing an existing final library file.</span>
               </div>
             </div>
           </fieldset>
-          <p id="rerun-mode-policy-note" class="note">Backend owns output proof, replacement, and pending publish. Clean verified outputs use backend-derived final placement unless source-path overwrite is explicitly confirmed. Source-path overwrite requires the explicit checkbox. Rows with remaining issues stay in pending/review flows.</p>
+          <p id="rerun-mode-policy-note" class="note">Start with review: verified outputs stay out of the final library until you choose a backend-owned placement path. Original source files are never replaced. Backend owns output proof. Replacing a final-library output is an Advanced choice that still requires backend proof and confirmation.</p>
           <div class="form-grid launch-form-grid" aria-label="CSV rerun scope controls">
             <label class="check-row launch-check-row"><input id="rerun-scope-enabled-only" type="checkbox" checked> Enabled Rows</label>
             <label class="check-row launch-check-row"><input id="rerun-scope-skip-blocked" type="checkbox"> Skip Blocked</label>
@@ -256,7 +260,7 @@
             <pre id="rerun-history-summary" class="prose-block">No CSV rerun history loaded.</pre>
           </div>
         </section>
-        <div class="settings-tab-pane is-active queue-tab-panel" data-queue-tab-panel="main">
+        <div id="queue-panel-main" class="settings-tab-pane is-active queue-tab-panel" role="tabpanel" aria-labelledby="queue-tab-main" data-queue-tab-panel="main">
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Queue Decision</h2>
@@ -304,6 +308,10 @@
           </div>
           <p class="note">Scan Sources asks the backend to inventory configured source roots, then curate the authoritative queue snapshot. Display filters, selected rows, and visible table limits do not change backend launch scope.</p>
           <pre id="queue-filter-summary" class="prose-block queue-filter-summary" hidden aria-hidden="true">Queue filter inactive. No rows loaded.</pre>
+          <section class="queue-next-step" aria-live="polite" aria-labelledby="queue-next-step-title">
+            <h2 id="queue-next-step-title">After a scan</h2>
+            <p>Review any blocked or warning rows first. If the queue is ready, continue to Launch to review the backend scope before processing. Scanning only inventories configured sources; it does not change media.</p>
+          </section>
           <div id="queue-source-inventory" class="queue-source-inventory" aria-live="polite">
             <section class="queue-source-tile queue-source-message-tile" data-tone="muted" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="queue" data-quick-link-focus="[data-queue-refresh-button]" aria-label="Focus Scan Sources button" title="Focus Scan Sources button">
               <div class="queue-source-tile-header">
@@ -395,7 +403,7 @@
                   <th scope="col">Evidence</th>
                   <th scope="col">Priority</th>
                   <th scope="col">Override</th>
-                  <th scope="col" class="settings-col" title="Actions">⚙</th>
+                  <th scope="col" class="settings-col">File overrides</th>
                 </tr>
               </thead>
               <tbody id="queue-rows">
@@ -410,15 +418,16 @@
           <p id="queue-table-legend" class="note table-legend" hidden aria-hidden="true"></p>
           <!-- S80 Per-file settings drawer (Phase 3) -->
           <div id="fo-overlay" class="fo-overlay" hidden aria-hidden="true"></div>
-          <aside id="fo-drawer" class="fo-drawer" hidden role="dialog" aria-modal="true" aria-labelledby="fo-drawer-title" aria-describedby="fo-inherited-settings-status fo-drawer-status" tabindex="-1">
+          <aside id="fo-drawer" class="fo-drawer" hidden role="dialog" aria-modal="true" aria-labelledby="fo-drawer-title" aria-describedby="fo-drawer-scope-summary fo-inherited-settings-status fo-drawer-status" tabindex="-1">
             <div class="fo-drawer-header">
               <div class="fo-drawer-title-group">
-                <h3 id="fo-drawer-title" class="fo-drawer-title">File</h3>
+                <h3 id="fo-drawer-title" class="fo-drawer-title">File overrides</h3>
                 <p id="fo-drawer-path" class="fo-drawer-path"></p>
               </div>
               <button type="button" id="fo-drawer-close" class="icon-button fo-close-btn" aria-label="Close settings">✕</button>
             </div>
             <div class="fo-drawer-body">
+              <p id="fo-drawer-scope-summary" class="note">Changes here apply only to this file after you save. They do not rename, delete, or alter the original source file.</p>
               <p id="fo-inherited-settings-status" class="fo-inherited-status" aria-live="polite"></p>
               <section id="fo-source-info-section" class="fo-section fo-source-info-section" aria-labelledby="fo-source-info-title">
                 <h4 id="fo-source-info-title" class="fo-section-title">Detected file info</h4>
@@ -668,6 +677,7 @@
           </div>
           <pre id="queue-selected-summary" class="prose-block">Select a queue row to see trust, route, concern, safe next step, filter visibility, and backend authority.</pre>
           <pre id="queue-detail" class="prose-block" data-visual-keep="copy-output">No queue row selected.</pre>
+          <pre id="queue-provenance-detail" class="prose-block">Select a Queue row to view backend-owned effective-settings provenance.</pre>
         </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">

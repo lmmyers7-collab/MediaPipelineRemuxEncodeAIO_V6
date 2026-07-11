@@ -10,12 +10,14 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.api.handler_policy import (
     OPTIONS_RESPONSE_HEADERS,
+    OperatorRouteError,
     bounded_error_text,
     cors_response_headers,
     not_found_payload,
     options_response_headers,
     route_exception_journal_payload,
     route_exception_payload,
+    route_exception_status,
     route_validation_error_payload,
     route_validation_journal_payload,
     should_record_command_payload,
@@ -59,6 +61,18 @@ class LocalApiHandlerPolicyTests(unittest.TestCase):
         self.assertEqual(error_payload["error"], "internal route error")
         self.assertEqual(error_payload["path"], "/api/snapshot")
         self.assertRegex(error_payload["error_id"], r"^[0-9a-f]{12}$")
+        retryable_error = OperatorRouteError(
+            code="snapshot_busy",
+            operator_message="Dashboard status is still loading. Wait a moment and refresh.",
+            status=503,
+        )
+        retryable_payload = route_exception_payload("/api/snapshot", retryable_error)
+        self.assertEqual(retryable_payload["error"], "Dashboard status is still loading. Wait a moment and refresh.")
+        self.assertEqual(retryable_payload["code"], "snapshot_busy")
+        self.assertTrue(retryable_payload["retryable"])
+        self.assertEqual(retryable_payload["status"], 503)
+        self.assertEqual(route_exception_status(retryable_error), 503)
+        self.assertEqual(route_exception_status(RuntimeError("failed")), 500)
         self.assertEqual(
             route_validation_error_payload("/api/snapshot", RuntimeError("failed")),
             {"error": "failed", "path": "/api/snapshot"},

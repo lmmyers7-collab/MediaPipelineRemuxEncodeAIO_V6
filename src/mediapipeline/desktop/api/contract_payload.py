@@ -16,6 +16,22 @@ LOCAL_API_CONTRACT_NOTES = [
     "The frontend must treat process, control, validation, repair/reconcile write, and config-write effects as operator-confirmed actions.",
 ]
 
+STAGE_DISPATCHER_CONTRACT = {
+    "schema_version": "desktop_stage_dispatcher_contract.v1",
+    "current_status": "orchestration_only_no_local_api_mutation_route",
+    "frontend_allowed": False,
+    "enabled_read_only_stages": ["probe", "decide"],
+    "enabled_mutation_stages": ["ingest"],
+    "permanently_disabled_stages": ["transcode", "subtitle-convert", "audio-mix", "publish", "drain", "rename"],
+    "production_owner": "ops/pipeline/entrypoints/MediaPipeline.ps1",
+    "must_not": [
+        "No generic execute arbitrary stage API.",
+        "No frontend-selected source, scratch, output, final-library, pending, or rename path.",
+        "No dispatcher FFmpeg, subtitle, audio, publish, drain, or rename policy implementation.",
+        "No source deletion, overwrite, rename, or cleanup capability.",
+    ],
+}
+
 NETWORK_LIFECYCLE_DRY_RUN_REQUIRED_FIELDS = [
     "schema_version",
     "candidate_command",
@@ -792,6 +808,7 @@ def local_api_contract_payload(
             "token_routes": [str(route["path"]) for route in route_rows if route.get("auth_required")],
         },
         "routes": [dict(route) for route in route_rows],
+        "stage_dispatcher_contract": deepcopy(STAGE_DISPATCHER_CONTRACT),
         "network_lifecycle_contracts": deepcopy(NETWORK_LIFECYCLE_CONTRACTS),
         "network_lifecycle_summary": {
             "schema_version": "desktop_network_lifecycle_contracts.v1",

@@ -67,6 +67,8 @@ function Start-MediaPipelineLocalWorkerChild {
         [Parameter(Mandatory)] [string] $OwnerRunId
     )
 
+    $spawnRequestedAt = (Get-Date).ToUniversalTime()
+    $spawnStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     Initialize-MediaPipelineWorkerSlotLayout -SlotLayout $SlotLayout | Out-Null
     Save-MediaPipelineLocalWorkerResultDiagnostic `
         -ResultPath ([string]$SlotLayout.ResultFile) `
@@ -102,13 +104,19 @@ function Start-MediaPipelineLocalWorkerChild {
         '-WorkerHeartbeatPath', ([string]$SlotLayout.HeartbeatFile)
     )
     $argumentLine = ($arguments | ForEach-Object { Join-MediaPipelineProcessArgument -Value ([string]$_) }) -join ' '
-    $process = Start-Process -FilePath $PowerShellPath `
-        -ArgumentList $argumentLine `
-        -WorkingDirectory (Split-Path -Parent $ScriptPath) `
-        -RedirectStandardOutput $SlotLayout.StdoutLog `
-        -RedirectStandardError $SlotLayout.StderrLog `
-        -WindowStyle Hidden `
-        -PassThru
+    try {
+        $process = Start-Process -FilePath $PowerShellPath `
+            -ArgumentList $argumentLine `
+            -WorkingDirectory (Split-Path -Parent $ScriptPath) `
+            -RedirectStandardOutput $SlotLayout.StdoutLog `
+            -RedirectStandardError $SlotLayout.StderrLog `
+            -WindowStyle Hidden `
+            -PassThru
+    } finally {
+        $spawnStopwatch.Stop()
+    }
+    $process | Add-Member -NotePropertyName MediaPipelineSpawnRequestedAt -NotePropertyValue $spawnRequestedAt.ToString('o') -Force
+    $process | Add-Member -NotePropertyName MediaPipelineSpawnDurationMs -NotePropertyValue ([math]::Round($spawnStopwatch.Elapsed.TotalMilliseconds, 3)) -Force
     return $process
 }
 

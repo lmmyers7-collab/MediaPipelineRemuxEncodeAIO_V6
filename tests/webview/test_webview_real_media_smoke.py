@@ -29,12 +29,25 @@ LAUNCH_RISK_ASSET_PATHS = [
     "assets/launch/risk/policyBoundary.js",
 ]
 
+LAUNCH_PREFLIGHT_ASSET_PATHS = [
+    "assets/launch/preflight/pilotReadiness.js",
+]
+
+LAUNCH_SCOPE_ASSET_PATHS = [
+    "assets/launch/scope/compactGate.js",
+]
+
 LAUNCH_VIEW_ASSET_PATHS = [
     "assets/launch/controllerState.js",
     "assets/launch/statusRender.js",
     "assets/launch/startRequest.js",
     "assets/launch/scopeControls.js",
     "assets/launch/commandButtons.js",
+    "assets/launch/commandOrchestration.js",
+    "assets/launch/rerunEvidence.js",
+    "assets/launch/rerunPresentation.js",
+    "assets/launch/rerunOrchestration.js",
+    "assets/launch/rerunFacade.js",
 ]
 
 
@@ -439,9 +452,23 @@ class WebViewRealMediaSmoke(unittest.TestCase):
                     launch_risk_child_results[asset_path] = (child_status, child_type)
                 launch_risk_status, launch_risk_parent_js, launch_risk_type = _get_text(f"{server.url}/assets/launchView.risk.js")
                 launch_risk_js = "\n".join([*launch_risk_parts, launch_risk_parent_js])
-                launch_scope_status, launch_scope_js, launch_scope_type = _get_text(f"{server.url}/assets/launchView.scope.js")
+                launch_scope_parts = []
+                launch_scope_child_results = {}
+                for asset_path in LAUNCH_SCOPE_ASSET_PATHS:
+                    child_status, child_js, child_type = _get_text(f"{server.url}/{asset_path}")
+                    launch_scope_parts.append(child_js)
+                    launch_scope_child_results[asset_path] = (child_status, child_type)
+                launch_scope_status, launch_scope_parent_js, launch_scope_type = _get_text(f"{server.url}/assets/launchView.scope.js")
+                launch_scope_js = "\n".join([*launch_scope_parts, launch_scope_parent_js])
                 launch_realmedia_status, launch_realmedia_js, launch_realmedia_type = _get_text(f"{server.url}/assets/launchView.realmedia.js")
-                launch_preflight_status, launch_preflight_js, launch_preflight_type = _get_text(f"{server.url}/assets/launchView.preflight.js")
+                launch_preflight_parts = []
+                launch_preflight_child_results = {}
+                for asset_path in LAUNCH_PREFLIGHT_ASSET_PATHS:
+                    child_status, child_js, child_type = _get_text(f"{server.url}/{asset_path}")
+                    launch_preflight_parts.append(child_js)
+                    launch_preflight_child_results[asset_path] = (child_status, child_type)
+                launch_preflight_status, launch_preflight_parent_js, launch_preflight_type = _get_text(f"{server.url}/assets/launchView.preflight.js")
+                launch_preflight_js = "\n".join([*launch_preflight_parts, launch_preflight_parent_js])
                 launch_view_parts = []
                 launch_view_child_results = {}
                 for asset_path in LAUNCH_VIEW_ASSET_PATHS:
@@ -599,6 +626,9 @@ class WebViewRealMediaSmoke(unittest.TestCase):
             self.assertIn("javascript", child_type, asset_path)
         self.assertEqual(launch_scope_status, 200)
         self.assertIn("javascript", launch_scope_type)
+        for asset_path, (child_status, child_type) in launch_scope_child_results.items():
+            self.assertEqual(child_status, 200, asset_path)
+            self.assertIn("javascript", child_type, asset_path)
         self.assertEqual(launch_realmedia_status, 200)
         self.assertIn("javascript", launch_realmedia_type)
         self.assertEqual(launch_preflight_status, 200)
@@ -609,11 +639,17 @@ class WebViewRealMediaSmoke(unittest.TestCase):
         self.assertIn("/assets/launchView.risk.js", html)
         self.assertIn("window.__launchViewRiskModule", launch_risk_js)
         self.assertIn("/assets/launchView.scope.js", html)
+        self.assertIn("/assets/launch/scope/compactGate.js", html)
+        self.assertIn("window.__launchCompactGateModule", launch_scope_js)
         self.assertIn("window.__launchViewScopeModule", launch_scope_js)
         self.assertIn("/assets/launchView.realmedia.js", html)
         self.assertIn("window.__launchViewRealMediaModule", launch_realmedia_js)
+        self.assertIn("/assets/launch/preflight/pilotReadiness.js", html)
+        self.assertIn("window.__launchPilotReadinessModule", launch_preflight_js)
         self.assertIn("/assets/launchView.preflight.js", html)
         self.assertIn("window.__launchViewPreflightModule", launch_preflight_js)
+        for asset_path in LAUNCH_PREFLIGHT_ASSET_PATHS:
+            self.assertIn(f"/{asset_path}", html)
         for asset_path in LAUNCH_VIEW_ASSET_PATHS:
             self.assertIn(f"/{asset_path}", html)
         launch_view_js = launch_view_js + "\n" + launch_risk_js + "\n" + launch_scope_js + "\n" + launch_realmedia_js + "\n" + launch_preflight_js
@@ -704,6 +740,17 @@ class WebViewRealMediaSmoke(unittest.TestCase):
                 settings_policy_impact_status, settings_policy_impact_js, settings_policy_impact_type = _get_text(
                     f"{server.url}/assets/settings/policyImpact.js"
                 )
+                settings_media_projection_status, settings_media_projection_js, settings_media_projection_type = _get_text(
+                    f"{server.url}/assets/settings/policyImpact/mediaProjection.js"
+                )
+                settings_effective_policy_view_status, settings_effective_policy_view_js, settings_effective_policy_view_type = _get_text(
+                    f"{server.url}/assets/settings/policyImpact/effectivePolicyView.js"
+                )
+                settings_policy_impact_js = "\n".join((
+                    settings_media_projection_js,
+                    settings_effective_policy_view_js,
+                    settings_policy_impact_js,
+                ))
                 settings_view_status, settings_view_js, settings_view_type = _get_text(f"{server.url}/assets/settingsView.js")
                 settings_overview_status, settings_overview_js, settings_overview_type = _get_text(f"{server.url}/assets/settingsOverview.js")
                 launch_risk_parts = []
@@ -738,6 +785,10 @@ class WebViewRealMediaSmoke(unittest.TestCase):
 
         self.assertEqual(settings_policy_impact_status, 200)
         self.assertIn("javascript", settings_policy_impact_type)
+        self.assertEqual(settings_media_projection_status, 200)
+        self.assertIn("javascript", settings_media_projection_type)
+        self.assertEqual(settings_effective_policy_view_status, 200)
+        self.assertIn("javascript", settings_effective_policy_view_type)
         for fragment in (
             "function settingsBackendMediaPolicyReadiness",
             "function renderSettingsBackendMediaPolicyReadiness",

@@ -85,7 +85,10 @@ def product_runtime_roots(*, create: bool = False) -> dict[str, Path] | None:
         return None
     roots = {
         "appdata_root": appdata_root,
-        "config_root": appdata_root,
+        # Reserved service-owned home for productized configuration and
+        # migration metadata. Legacy settings projections may remain at the
+        # app-data root until their own migration completes.
+        "config_root": appdata_root / "Config",
         "state_root": appdata_root / "State",
         "logs_root": appdata_root / "Logs",
         "run_logs_root": appdata_root / "RunLogs",

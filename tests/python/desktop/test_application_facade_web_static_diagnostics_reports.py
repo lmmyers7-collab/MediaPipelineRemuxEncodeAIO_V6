@@ -46,6 +46,7 @@ OPERATIONS_DOM_ASSERTIONS: tuple[AssertionRow, ...] = (('in', 'html', '/assets/n
  ('not_in', 'html', 'data-audit-score-policy-mirror="high_issue"'),
  ('in', 'html', '/assets/scheduleView.js'),
  ('in', 'html', '/assets/maintenanceView.js'),
+ ('in', 'html', '/assets/telemetry/gpuProjection.js'),
  ('in', 'html', '/assets/telemetryView.js'),
  ('in', 'html', '/assets/progressView.js'),
  ('in', 'html', '/assets/contractView.js'),

@@ -438,15 +438,24 @@ function Invoke-MediaPipelineEncodeAttemptLadder {
     if ($isHDR) { Write-Log "ENCODE: HDR detected - Main10 / BT.2020" }
     else        { Write-Log "ENCODE: SDR - Main profile" }
 
-    # Attempt 1 uses the configured GPU-first encoder. Retry policy and
-    # CPU fallback command construction live in ops\pipeline\engine\decide\encode_policy.ps1.
-    # Suggestion #2 - when the cached NVENC probe says GPU is
-    # unavailable (set by Invalidate-NvencAvailableProbe after an
-    # earlier runtime NVENC failure), skip the primary AND safe-retry
-    # attempts entirely. Saves ~10-60 s per file on a no-GPU machine.
+    # Attempt 1 uses the selected descriptor-owned hardware encoder. Every
+    # active hardware attempt must exact-probe that descriptor before FFmpeg is
+    # launched; encoder-list availability alone is never sufficient.
     $cpuFallbackTarget = Resolve-MediaEncoderCpuFallbackDescriptor -VideoCodec ([string]$VideoCodec) -IsHDR:$isHDR
     $cpuFallbackEncoderName = if ([bool]$cpuFallbackTarget.Resolved) { [string]$cpuFallbackTarget.EncoderName } else { Get-MediaVideoCodecLibx265Name }
-    $skipGpuDueToProbe = if ($dynamicHdrForceCpuEncode -or $forceCpuBackendEncode) { $true } else { -not (Test-NvencProbeReportsAvailable) }
+    $selectedAttemptDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec ([string]$VideoCodec) -EncoderBackend $normalizedEncoderBackend
+    $selectedHardwareBackend = if ($selectedAttemptDescriptor) { ([string]$selectedAttemptDescriptor.Backend).Trim().ToLowerInvariant() } else { '' }
+    $selectedHardwareEncoder = if ($selectedAttemptDescriptor) { [string]$selectedAttemptDescriptor.EncoderName } else { '' }
+    $selectedHardwareProbe = $null
+    $hardwareDescriptorSelected = $selectedHardwareBackend -in @('nvenc','qsv','amf')
+    $skipGpuDueToProbe = [bool]($dynamicHdrForceCpuEncode -or $forceCpuBackendEncode)
+    if (-not $skipGpuDueToProbe -and $hardwareDescriptorSelected) {
+        $selectedHardwareProbe = Test-MediaEncoderDescriptorAvailable `
+            -Descriptor $selectedAttemptDescriptor `
+            -FfmpegPath $ffmpegPath `
+            -TimeoutSeconds 15
+        $skipGpuDueToProbe = -not [bool]$selectedHardwareProbe.Available
+    }
     if ($dynamicHdrForceCpuEncode) {
         $cpuFallbackEncoderName = Get-MediaVideoCodecLibx265Name
         Write-Log "ENCODE: Dynamic HDR preservation requires CPU/libx265; skipping GPU-first ladder" "WARN"
@@ -470,13 +479,15 @@ function Invoke-MediaPipelineEncodeAttemptLadder {
             is_hdr          = [bool]$isHDR
         } | Out-Null
     } elseif ($skipGpuDueToProbe) {
-        $probeReason = if ($script:NvencAvailableProbe -and $script:NvencAvailableProbe.Reason) { [string]$script:NvencAvailableProbe.Reason } else { 'NVENC probe cache reports unavailable' }
-        Write-Log "ENCODE: NVENC unavailable per cached probe ($probeReason); skipping GPU-first ladder and going straight to CPU" "WARN"
+        $probeReason = if ($selectedHardwareProbe -and $selectedHardwareProbe.Reason) { [string]$selectedHardwareProbe.Reason } else { "selected hardware descriptor '$selectedHardwareEncoder' runtime probe reports unavailable" }
+        Write-Log "ENCODE: selected $selectedHardwareBackend encoder '$selectedHardwareEncoder' unavailable per exact runtime probe ($probeReason); skipping hardware ladder and going straight to CPU" "WARN"
         Write-PipelineEvent -EventType 'encoder_fallback_started' -Stage 'encode_cpu' -Route 'encode' -Status 'warn' -SourcePath $file.FullName -Data @{
             from_encoder = 'cached_unavailable'
             to_encoder   = $cpuFallbackEncoderName
             reason       = $probeReason
-            trigger      = 'nvenc_probe_unavailable'
+            trigger      = 'descriptor_runtime_probe_unavailable'
+            encoder_backend = $selectedHardwareBackend
+            selected_encoder = $selectedHardwareEncoder
             cpu_preset   = [string]$script:CpuEncodePreset
             is_hdr       = [bool]$isHDR
         } | Out-Null
@@ -561,7 +572,7 @@ function Invoke-MediaPipelineEncodeAttemptLadder {
         # synthesize the failure state so the existing fallback
         # branch fires and falls into the CPU path below.
         $success = $false
-        $script:LastFFmpegStderr = if ($dynamicHdrForceCpuEncode) { 'Dynamic HDR preservation requires CPU/libx265; primary GPU attempt skipped' } elseif ($forceCpuBackendEncode) { 'EncoderBackend=cpu selected; primary hardware attempt skipped' } else { 'NVENC probe cache reports unavailable; primary GPU attempt skipped' }
+        $script:LastFFmpegStderr = if ($dynamicHdrForceCpuEncode) { 'Dynamic HDR preservation requires CPU/libx265; primary hardware attempt skipped' } elseif ($forceCpuBackendEncode) { 'EncoderBackend=cpu selected; primary hardware attempt skipped' } else { "selected hardware descriptor '$selectedHardwareEncoder' runtime probe reports unavailable; primary hardware attempt skipped" }
         $script:LastFFmpegExit = 1
     } else {
         $success = Invoke-MediaPipelineEncodeAttemptExecution -Plan $encodePlan -ArgumentList $ffArgs -InputPath $localIn -OutputPath $tempOut -TimeoutSeconds $script:FFmpegEncodeTimeoutSeconds -WasteGuardContext $wasteGuardContext
@@ -639,7 +650,7 @@ function Invoke-MediaPipelineEncodeAttemptLadder {
             # plan. Force the inner gate to fall straight into the CPU
             # branch.
             $success = $false
-            $script:LastFFmpegStderr = if ($dynamicHdrForceCpuEncode) { 'Dynamic HDR preservation requires CPU/libx265; safe-retry skipped' } elseif ($forceCpuBackendEncode) { 'EncoderBackend=cpu selected; hardware safe-retry skipped' } else { 'NVENC probe cache reports unavailable; safe-retry skipped' }
+            $script:LastFFmpegStderr = if ($dynamicHdrForceCpuEncode) { 'Dynamic HDR preservation requires CPU/libx265; safe-retry skipped' } elseif ($forceCpuBackendEncode) { 'EncoderBackend=cpu selected; hardware safe-retry skipped' } else { "selected hardware descriptor '$selectedHardwareEncoder' runtime probe reports unavailable; safe-retry skipped" }
             $script:LastFFmpegExit = 1
         }
         if (-not $success -and [string]$script:LastFFmpegAbortCode -eq 'ENCODE_WASTE_GUARD_PROJECTED_OVERSIZE') {
@@ -670,20 +681,17 @@ function Invoke-MediaPipelineEncodeAttemptLadder {
             $script:CurrentRouteReasonCode = 'hardware_encoder_safe_retry_succeeded'
             $script:CurrentRouteReason = 'hardware encoder failed with primary flags; compatibility retry succeeded'
         } elseif (Test-ShouldRetryEncodeWithCpuFallback -Success:$success -StopRequested:$script:StopRequested -VideoCodec $VideoCodec -ErrorText $script:LastFFmpegStderr -ForceCpu:$skipGpuDueToProbe) {
-            # Suggestion #2 - second NVENC failure in this file means
-            # the GPU is genuinely sick (driver hang, eGPU disconnect,
-            # VRAM exhausted, etc.). Invalidate the probe cache so
-            # the NEXT file goes straight to CPU instead of repeating
-            # primary + safe-retry just to fail twice more. Skip when
-            # we already came in via $skipGpuDueToProbe.
+            # A selected backend's primary plus safe-retry failure invalidates
+            # only that backend cache. The next file remains eligible for its
+            # descriptor-owned CPU fallback without poisoning other backends.
             if (-not $skipGpuDueToProbe) {
                 $invalidateReason = if ($script:LastFFmpegStderr) {
                     $tail = ($script:LastFFmpegStderr -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -Last 1)
-                    "GPU primary + safe-retry both failed: $tail"
+                    "$selectedHardwareBackend primary + safe-retry both failed: $tail"
                 } else {
-                    'GPU primary + safe-retry both failed'
+                    "$selectedHardwareBackend primary + safe-retry both failed"
                 }
-                Invalidate-NvencAvailableProbe -Reason $invalidateReason -SourcePath $file.FullName
+                Invalidate-EncoderBackendProbe -Backend $selectedHardwareBackend -Reason $invalidateReason -SourcePath $file.FullName -Trigger 'primary_and_safe_retry_failed' | Out-Null
             }
             if ($dynamicHdrForceCpuEncode) {
                 Write-Log "ENCODE: Dynamic HDR preservation continuing with $(Get-MediaVideoCodecLibx265Name) (CRF $($script:FallbackCpuQuality), preset $script:CpuEncodePreset, timeout $($script:FFmpegCpuEncodeTimeoutSeconds)s, priority $script:CpuEncodeProcessPriority)" "WARN"
@@ -703,7 +711,7 @@ function Invoke-MediaPipelineEncodeAttemptLadder {
                 is_hdr               = [bool]$isHDR
                 dynamic_hdr          = [bool]$dynamicHdrForceCpuEncode
                 encoder_backend      = $normalizedEncoderBackend
-                trigger              = if ($forceCpuBackendEncode) { 'encoder_backend_cpu_selected' } elseif ($skipGpuDueToProbe) { 'nvenc_probe_unavailable' } else { 'hardware_encoder_failure' }
+                trigger              = if ($forceCpuBackendEncode) { 'encoder_backend_cpu_selected' } elseif ($skipGpuDueToProbe) { 'descriptor_runtime_probe_unavailable' } else { 'hardware_encoder_failure' }
             } | Out-Null
             if (Test-Path -LiteralPath $tempOut) {
                 Remove-Item -LiteralPath $tempOut -Force -ErrorAction SilentlyContinue

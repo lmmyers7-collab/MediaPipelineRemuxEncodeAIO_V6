@@ -50,6 +50,8 @@ try {
     $script:PauseFlag = Join-Path $state 'pipeline_pause.flag'
     $script:StopFlag = Join-Path $state 'pipeline_stop.flag'
     $script:StopRequested = $false
+    $script:WorkerChild = $false
+    $script:WorkerHeartbeatPath = ''
     $script:totalProcessed = 0
     $script:totalEncoded = 0
     $script:totalRemuxed = 0
@@ -248,14 +250,16 @@ try {
         }
         return [pscustomobject]@{ Id = 4242; HasExited = $false }
     }
-    Start-MediaPipelineLocalWorkerChild `
+    $spawnedWorker = Start-MediaPipelineLocalWorkerChild `
         -Entry $entry `
         -Claim $reuseClaim `
         -SlotLayout $reuseSlot `
         -ScriptPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline.ps1') `
         -ConfigPath (Join-Path $repoRoot 'ops\pipeline\config\MediaPipeline_config.psd1') `
         -PowerShellPath 'pwsh.exe' `
-        -OwnerRunId 'unit-run' | Out-Null
+        -OwnerRunId 'unit-run'
+    Assert-True (-not [string]::IsNullOrWhiteSpace([string]$spawnedWorker.MediaPipelineSpawnRequestedAt)) 'Worker child should expose spawn-request timing evidence.'
+    Assert-True ([double]$spawnedWorker.MediaPipelineSpawnDurationMs -ge 0) 'Worker child should expose non-negative spawn duration evidence.'
     Assert-True (-not (Test-Path -LiteralPath $reuseSlot.ResultFile -PathType Leaf)) 'Slot reuse should clear the fixed result file before the new child starts.'
     $archivedResults = @(Get-ChildItem -LiteralPath $reuseSlot.ResultArchive -Filter '*worker_result.json' -File)
     Assert-Equal $archivedResults.Count 1 'Slot reuse should archive the stale worker result before deleting it.'

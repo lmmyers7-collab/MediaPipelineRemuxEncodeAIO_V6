@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sys
 import unittest
+import uuid
 from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any
@@ -271,6 +272,7 @@ class StageRunnerTests(unittest.TestCase):
 
     def test_run_ingest_stage_records_evidence_paths_and_recovery_actions(self) -> None:
         journal: list[dict[str, Any]] = []
+        operation_journal: list[dict[str, Any]] = []
 
         def fake_run(args, **kwargs):
             self.assertIn("-Stage", args)
@@ -302,12 +304,16 @@ class StageRunnerTests(unittest.TestCase):
                 "intent": "execute",
                 "confirm_ingest": True,
                 "job_id": "job-1",
+                "operation_id": str(uuid.uuid4()),
+                "scratch_reservation_id": "stage_ingest_job-1",
+                "dry_run_fingerprint": "a" * 64,
             },
             RunnerOptions(
                 entrypoint_path=self._existing_entrypoint(),
                 powershell_path="pwsh",
                 run_capture_func=fake_run,
                 journal_record=journal.append,
+                operation_journal_record=lambda payload: operation_journal.append(dict(payload)) or None,
             ),
         )
 
@@ -318,6 +324,7 @@ class StageRunnerTests(unittest.TestCase):
         self.assertEqual(journal[0]["data"]["rollback_actions"], ["delete scratch_path"])
         self.assertEqual(journal[0]["data"]["recovery_actions"], ["rerun ingest"])
         self.assertEqual(journal[0]["data"]["boundary_checks"], ["scratch target is a child of scratch_root"])
+        self.assertEqual([event["event"] for event in operation_journal], ["accepted", "completed"])
 
     def test_run_ingest_stage_rejects_string_confirmation_before_spawn(self) -> None:
         called = False
@@ -339,6 +346,54 @@ class StageRunnerTests(unittest.TestCase):
 
         self.assertFalse(result.ok)
         self.assertEqual(result.error.code if result.error else "", "stage.invalid_payload")
+        self.assertFalse(called)
+
+    def test_disabled_mutation_stage_is_rejected_before_spawn(self) -> None:
+        called = False
+
+        def fake_run(args, **kwargs):
+            nonlocal called
+            called = True
+            return StageProcessResult(args=args, returncode=0, stdout=_stage_stdout(stage="transcode"), stderr="")
+
+        result = run_stage(
+            StageName.transcode,
+            {
+                "scratch_path": "D:/Scratch/source.mkv",
+                "output_path": "D:/Scratch/output.mkv",
+                "decision": {"route": "encode", "should_encode": True},
+                "intent": "dry_run",
+            },
+            RunnerOptions(entrypoint_path=self._existing_entrypoint(), powershell_path="pwsh", run_capture_func=fake_run),
+        )
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error.code if result.error else "", "stage.not_enabled")
+        self.assertFalse(called)
+
+    def test_ingest_execute_requires_strict_operation_journal_before_spawn(self) -> None:
+        called = False
+
+        def fake_run(args, **kwargs):
+            nonlocal called
+            called = True
+            return StageProcessResult(args=args, returncode=0, stdout=_stage_stdout(stage="ingest"), stderr="")
+
+        result = run_ingest_stage(
+            {
+                "source_path": "C:/Media/source.mkv",
+                "scratch_root": "D:/Scratch",
+                "intent": "execute",
+                "confirm_ingest": True,
+                "operation_id": str(uuid.uuid4()),
+                "scratch_reservation_id": "stage_ingest_job-1",
+                "dry_run_fingerprint": "a" * 64,
+            },
+            RunnerOptions(entrypoint_path=self._existing_entrypoint(), powershell_path="pwsh", run_capture_func=fake_run),
+        )
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error.code if result.error else "", "stage.operation_journal_required")
         self.assertFalse(called)
 
 

@@ -45,5 +45,7 @@ function Complete-MediaPipelineRemuxSubtitlePlan {
         return New-MediaPipelineRemuxStageResult -Ok $false -Terminal $true -Value $false -Stage 'subtitle-extract'
     }
 
+    $Context.MediaTrackVerificationPlan = New-MediaTrackOutputVerificationPlan -AudioDecisions @(Get-LastAudioDecisionRecords) -SubtitleTracks @($Context.SubTracks.VerificationTracks)
+
     return New-MediaPipelineRemuxStageResult -Ok $true -Terminal $false -Stage 'remux-subtitle-complete'
 }

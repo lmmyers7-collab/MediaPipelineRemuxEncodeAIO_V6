@@ -82,6 +82,23 @@ def _normalized_spawned_job_kinds(job_kinds: set[str] | None) -> set[str] | None
 
 
 class ProcessLifecycleServiceMixin:
+    def _set_pending_lifecycle_lease(self, lease: object) -> None:
+        """Pass a facade-reserved lease into the next spawned child atomically."""
+        lock = getattr(self, "_pending_lifecycle_lease_lock", None)
+        if lock is None:
+            return
+        with lock:
+            self._pending_lifecycle_lease = lease
+
+    def _consume_pending_lifecycle_lease(self) -> object | None:
+        lock = getattr(self, "_pending_lifecycle_lease_lock", None)
+        if lock is None:
+            return None
+        with lock:
+            lease = getattr(self, "_pending_lifecycle_lease", None)
+            self._pending_lifecycle_lease = None
+            return lease
+
     def _iter_bundled_launch_dirs(self) -> list[Path]:
         return iter_bundled_launch_dirs(self.app_root, self.workspace_root)
 

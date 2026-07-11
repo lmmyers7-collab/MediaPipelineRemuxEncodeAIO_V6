@@ -114,6 +114,14 @@ class _DummyStatusSnapshotService:
 
 
 class ServiceStatusSnapshotRunnerTests(unittest.TestCase):
+    def test_snapshot_build_does_not_reconcile_active_jobs_on_the_request_path(self) -> None:
+        service = _DummyStatusSnapshotService()
+        resolved = _resolved(Path("C:/snapshot-runner"))
+
+        build_snapshot_for_service(service, resolved, "AuditRoot")
+
+        self.assertNotIn("reconcile", service.calls)
+
     def test_build_snapshot_collects_readers_and_returns_snapshot_contract(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             resolved = _resolved(Path(temp_dir))
@@ -339,16 +347,15 @@ class ServiceStatusSnapshotRunnerTests(unittest.TestCase):
         self.assertNotIn("SKIP (already in outsource)", snapshot.log_tail)
         self.assertEqual(snapshot.progress["ActiveJobKind"], "rerun_csv")
 
-    def test_build_snapshot_logs_reconcile_failure_and_continues(self) -> None:
+    def test_snapshot_build_ignores_reconciliation_failures_until_background_work(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             resolved = _resolved(Path(temp_dir))
             service = _DummyStatusSnapshotService(fail_reconcile=True)
 
-            with self.assertLogs("test_service_status_snapshot_runner", level="WARNING") as logs:
-                snapshot = build_snapshot_for_service(service, resolved, "AuditRoot")
+            snapshot = build_snapshot_for_service(service, resolved, "AuditRoot")
 
         self.assertEqual(snapshot.status_summary, "status summary")
-        self.assertIn("ActiveJobs reconciliation failed: offline", "\n".join(logs.output))
+        self.assertNotIn("reconcile", service.calls)
 
 
 if __name__ == "__main__":

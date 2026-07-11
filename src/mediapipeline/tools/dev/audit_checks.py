@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -33,6 +35,7 @@ class AuditCheckResult:
     ok: bool
     returncode: int
     output: str
+    elapsed_ms: float
 
 
 def _check(
@@ -309,6 +312,7 @@ def subprocess_environment() -> dict[str, str]:
 
 def run_check(check: AuditCheck, *, python_executable: str | None = None) -> AuditCheckResult:
     command = command_for_check(check, python_executable=python_executable)
+    started = time.perf_counter()
     try:
         result = subprocess.run(
             list(command),
@@ -319,17 +323,34 @@ def run_check(check: AuditCheck, *, python_executable: str | None = None) -> Aud
             stderr=subprocess.STDOUT,
         )
     except OSError as exc:
-        return AuditCheckResult(check=check, ok=False, returncode=127, output=str(exc))
+        return AuditCheckResult(
+            check=check,
+            ok=False,
+            returncode=127,
+            output=str(exc),
+            elapsed_ms=(time.perf_counter() - started) * 1000,
+        )
     return AuditCheckResult(
         check=check,
         ok=result.returncode == 0,
         returncode=result.returncode,
         output=result.stdout.strip(),
+        elapsed_ms=(time.perf_counter() - started) * 1000,
     )
 
 
-def run_suite(suite: str, *, python_executable: str | None = None) -> tuple[AuditCheckResult, ...]:
-    return tuple(run_check(check, python_executable=python_executable) for check in suite_checks(suite))
+def run_suite(
+    suite: str,
+    *,
+    python_executable: str | None = None,
+    jobs: int = 4,
+) -> tuple[AuditCheckResult, ...]:
+    checks = suite_checks(suite)
+    worker_count = max(1, min(int(jobs), 8, len(checks)))
+    if worker_count == 1:
+        return tuple(run_check(check, python_executable=python_executable) for check in checks)
+    with ThreadPoolExecutor(max_workers=worker_count, thread_name_prefix="audit-check") as executor:
+        return tuple(executor.map(lambda check: run_check(check, python_executable=python_executable), checks))
 
 
 def check_to_dict(check: AuditCheck) -> dict[str, Any]:
@@ -353,6 +374,7 @@ def result_to_dict(result: AuditCheckResult) -> dict[str, Any]:
         "ok": result.ok,
         "returncode": result.returncode,
         "output": result.output,
+        "elapsed_ms": round(result.elapsed_ms, 3),
     }
 
 
@@ -360,7 +382,7 @@ def _print_run_report(suite: str, results: tuple[AuditCheckResult, ...]) -> None
     print(f"Audit check suite '{suite}' ({len(results)} checks)")
     for result in results:
         status = "OK" if result.ok else "FAIL"
-        print(f"[{status}] {result.check.id}: {result.check.label}")
+        print(f"[{status}] {result.check.id}: {result.check.label} ({result.elapsed_ms:.0f} ms)")
         if not result.ok and result.output:
             for line in result.output.splitlines()[-80:]:
                 print(f"  {line}")
@@ -382,6 +404,7 @@ def main(argv: list[str] | None = None) -> int:
 
     run_parser = subparsers.add_parser("run", help="Run all checks in a suite.")
     _add_suite_argument(run_parser)
+    run_parser.add_argument("--jobs", type=int, choices=range(1, 9), default=4, help="Concurrent read-only checks (1-8; default 4).")
     run_parser.add_argument("--json", action="store_true", help="Emit machine-readable result JSON.")
 
     args = parser.parse_args(argv)
@@ -399,7 +422,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "run":
-        results = run_suite(args.suite)
+        results = run_suite(args.suite, jobs=args.jobs)
         ok = all(result.ok for result in results)
         if args.json:
             print(
@@ -407,6 +430,7 @@ def main(argv: list[str] | None = None) -> int:
                     {
                         "suite": args.suite,
                         "ok": ok,
+                        "jobs": args.jobs,
                         "results": [result_to_dict(result) for result in results],
                     },
                     indent=2,

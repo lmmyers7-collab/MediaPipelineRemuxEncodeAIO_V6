@@ -3,9 +3,9 @@ file: tests/python/desktop/test_facade_settings_policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-23
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: c8e23684cc50f48b66e4ea13510e1e080e114679f6a74fee2dc0a06f035d2b73
+sha256: 38acc4d486fe5f56ccee3c719abc67a41f52106f393a213b6237bb3bdc0428e7
 ---
 # `tests/python/desktop/test_facade_settings_policy.py`
 

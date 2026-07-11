@@ -106,6 +106,8 @@ function Write-PipelineEvent {
 . (Join-Path $projectRoot 'ops\pipeline\engine\shared\failure_codes.ps1')
 . (Join-Path $projectRoot 'ops\pipeline\engine\failures\failure_state.ps1')
 . (Join-Path $projectRoot 'ops\pipeline\engine\shared\native.ps1')
+. (Join-Path $projectRoot 'ops\pipeline\engine\probe\media_probe.ps1')
+. (Join-Path $projectRoot 'ops\pipeline\engine\verify\media_track_verification.ps1')
 . (Join-Path $projectRoot 'ops\pipeline\engine\process\ffmpeg_progress.ps1')
 . (Join-Path $projectRoot 'ops\pipeline\engine\subtitles\srt.ps1')
 . (Join-Path $projectRoot 'ops\pipeline\engine\subtitles\common.ps1')
@@ -222,6 +224,44 @@ try {
     )
     Assert-True ([int]$encodedProbe.ExitCode -eq 0) ("bundled ffprobe failed to read encoded output: {0}" -f $encodedProbe.Error)
     Assert-True (([string]$encodedProbe.Output).Trim() -eq 'video') 'encoded output did not contain a probeable video stream'
+
+    $encodedInventory = Test-OutputVideoStreamPreservation -SourcePath $sourcePath -OutputPath $encodedPath -Route 'encode' -ExpectedVideoCodec 'mpeg4'
+    Assert-True ([bool]$encodedInventory.Allowed) ("generated encode should satisfy executable video verification: {0}" -f $encodedInventory.Reason)
+    Assert-True ($encodedInventory.schema_version -eq 'media_verification.v1') 'generated encode video evidence schema mismatch'
+    $wrongCodecInventory = Test-OutputVideoStreamPreservation -SourcePath $sourcePath -OutputPath $encodedPath -Route 'encode' -ExpectedVideoCodec 'hevc'
+    Assert-True (-not [bool]$wrongCodecInventory.Allowed) 'wrong selected encoder codec must block generated output verification'
+    Assert-True ($wrongCodecInventory.ErrorCode -eq 'OUTPUT_VIDEO_STREAM_TOPOLOGY_MISMATCH') 'wrong selected encoder codec must use topology mismatch failure'
+
+    $trackPlan = New-MediaTrackOutputVerificationPlan -AudioDecisions @(
+        [pscustomobject]@{ audio_ordinal = 0; action = 'copy'; output_codec = 'aac'; language = 'und'; output_channels = 1; is_default = $false; is_forced = $false }
+    )
+    $trackResult = Test-MediaTrackOutputVerification -OutputPath $encodedPath -Plan $trackPlan
+    Assert-True ([bool]$trackResult.allowed) ("generated encode should satisfy resolved audio verification: {0}; mismatches={1}" -f $trackResult.reason, ($trackResult.mismatches | ConvertTo-Json -Compress))
+    $wrongLanguagePlan = New-MediaTrackOutputVerificationPlan -AudioDecisions @(
+        [pscustomobject]@{ audio_ordinal = 0; action = 'copy'; output_codec = 'aac'; language = 'eng'; output_channels = 1; is_default = $false; is_forced = $false }
+    )
+    $wrongLanguageResult = Test-MediaTrackOutputVerification -OutputPath $encodedPath -Plan $wrongLanguagePlan
+    Assert-True (-not [bool]$wrongLanguageResult.allowed) 'wrong audio language plan must block generated output verification'
+    Assert-True ($wrongLanguageResult.error_code -eq 'OUTPUT_MEDIA_TRACK_VERIFICATION_FAILED') 'wrong audio language plan must use stable track-verification error'
+
+    $outputJsonProbe = Invoke-FFprobeCommand -Stage 'integration-probe-output-json' -TimeoutSeconds 30 -ArgumentList @(
+        '-v', 'error', '-show_streams', '-show_format', '-of', 'json', '--', $encodedPath
+    )
+    Assert-True ([int]$outputJsonProbe.ExitCode -eq 0) ("ffprobe streams/format JSON failed for generated output: {0}" -f $outputJsonProbe.Error)
+    $outputJson = $outputJsonProbe.Output | ConvertFrom-Json -ErrorAction Stop
+    Assert-True (@($outputJson.streams | Where-Object { $_.codec_type -eq 'video' }).Count -eq 1) 'generated output ffprobe JSON did not retain one real video stream'
+    Assert-True (@($outputJson.streams | Where-Object { $_.codec_type -eq 'audio' }).Count -eq 1) 'generated output ffprobe JSON did not retain one audio stream'
+    $frameProbe = Invoke-FFprobeCommand -Stage 'integration-probe-output-frames' -TimeoutSeconds 30 -ArgumentList @(
+        '-v', 'error', '-read_intervals', '%+#1', '-select_streams', 'v:0', '-show_frames', '-of', 'json', '--', $encodedPath
+    )
+    Assert-True ([int]$frameProbe.ExitCode -eq 0) ("ffprobe frame JSON failed for generated output: {0}" -f $frameProbe.Error)
+    $frameJson = $frameProbe.Output | ConvertFrom-Json -ErrorAction Stop
+    Assert-True (@($frameJson.frames).Count -ge 1) 'generated output ffprobe frame JSON did not contain a video frame'
+    $emptyOutputPath = Join-Path $workRoot 'interrupted-empty-output.mkv'
+    [System.IO.File]::WriteAllText($emptyOutputPath, '', [System.Text.UTF8Encoding]::new($false))
+    $emptyInventory = Test-OutputVideoStreamPreservation -SourcePath $sourcePath -OutputPath $emptyOutputPath -Route 'encode' -ExpectedVideoCodec 'mpeg4'
+    Assert-True (-not [bool]$emptyInventory.Allowed) 'empty/interrupted output must fail video inventory verification'
+    Assert-True ($emptyInventory.ErrorCode -eq 'OUTPUT_VIDEO_STREAM_PROBE_FAILED') 'empty/interrupted output must use output video probe failure'
 
     $completedEvents = @($script:IntegrationEvents | Where-Object { $_.EventType -eq 'tool_completed' })
     Assert-True (@($completedEvents | Where-Object { $_.Data.tool_name -eq 'ffmpeg' -and $_.Status -eq 'succeeded' }).Count -ge 2) 'ffmpeg wrapper/progress completion events were not recorded'

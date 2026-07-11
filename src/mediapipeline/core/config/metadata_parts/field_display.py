@@ -162,7 +162,7 @@ _PHASE3_DISPLAY_METADATA_BY_KEY: dict[str, dict[str, object]] = {
         "section": "Dynamic HDR",
         "rule_taxonomy": ("output", "compatibility"),
         "strictness": "hard",
-        "help_text": "Controls Dolby Vision and HDR10+ preservation handling. Warn is the safe default until preserve modes have real-media remux evidence.",
+        "help_text": "Controls Dolby Vision and HDR10+ preservation handling. preserve_or_review is the default; an explicit saved warn value is compatibility mode that permits known metadata loss and is never HDR-safe readiness.",
     },
     "DoviToolPath": {
         "label": "dovi_tool Path",

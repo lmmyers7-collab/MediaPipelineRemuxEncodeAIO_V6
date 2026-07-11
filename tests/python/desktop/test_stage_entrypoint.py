@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
@@ -64,6 +65,33 @@ class StageEntrypointTests(unittest.TestCase):
             errors="replace",
             timeout=30,
         )
+
+    def ingest_execute_payload(self, source: Path, scratch_root: Path, job_id: str) -> dict:
+        dry_run = self.run_entrypoint(
+            "ingest",
+            {
+                "schema_version": "v1",
+                "stage": "ingest",
+                "payload": {
+                    "source_path": str(source),
+                    "scratch_root": str(scratch_root),
+                    "intent": "dry_run",
+                    "job_id": job_id,
+                },
+            },
+        )
+        self.assertEqual(dry_run.returncode, 0, dry_run.stderr)
+        data = IngestResult.model_validate(StageResult.model_validate(json.loads(dry_run.stdout)).data)
+        return {
+            "source_path": str(source),
+            "scratch_root": str(scratch_root),
+            "intent": "execute",
+            "confirm_ingest": True,
+            "job_id": job_id,
+            "operation_id": str(uuid.uuid4()),
+            "scratch_reservation_id": data.scratch_reservation_id,
+            "dry_run_fingerprint": data.dry_run_fingerprint,
+        }
 
     def test_unknown_stage_returns_single_structured_json_result(self) -> None:
         completed = self.run_entrypoint("unknown-stage", {})
@@ -189,13 +217,7 @@ class StageEntrypointTests(unittest.TestCase):
                 {
                     "schema_version": "v1",
                     "stage": "ingest",
-                    "payload": {
-                        "source_path": str(source),
-                        "scratch_root": str(scratch_root),
-                        "intent": "execute",
-                        "confirm_ingest": True,
-                        "job_id": "job-execute",
-                    },
+                    "payload": self.ingest_execute_payload(source, scratch_root, "job-execute"),
                 },
             )
 
@@ -243,13 +265,7 @@ class StageEntrypointTests(unittest.TestCase):
                 {
                     "schema_version": "v1",
                     "stage": "ingest",
-                    "payload": {
-                        "source_path": str(source),
-                        "scratch_root": str(scratch_root),
-                        "intent": "execute",
-                        "confirm_ingest": True,
-                        "job_id": "job-existing",
-                    },
+                    "payload": self.ingest_execute_payload(source, scratch_root, "job-existing"),
                 },
             )
 
@@ -281,13 +297,7 @@ class StageEntrypointTests(unittest.TestCase):
                 {
                     "schema_version": "v1",
                     "stage": "ingest",
-                    "payload": {
-                        "source_path": str(source),
-                        "scratch_root": str(scratch_root),
-                        "intent": "execute",
-                        "confirm_ingest": True,
-                        "job_id": "job-evidence",
-                    },
+                    "payload": self.ingest_execute_payload(source, scratch_root, "job-evidence"),
                 },
             )
 

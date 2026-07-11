@@ -796,6 +796,7 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/rename/apply": RenameApplyCommandPayload,
     "/api/rename/undo": RenameUndoCommandPayload,
     "/api/diagnostics/open": OpenLocationCommandPayload,
+    "/api/diagnostics/encoder-capabilities/refresh": EmptyCommandPayload,
     "/api/diagnostics/tdarr-matrix-audit": DiagnosticsTdarrMatrixAuditCommandPayload,
     "/api/diagnostics/tdarr-matrix/evidence/open": DiagnosticsTdarrMatrixEvidenceOpenCommandPayload,
     "/api/diagnostics/tdarr-matrix/rerun": DiagnosticsTdarrMatrixRerunCommandPayload,

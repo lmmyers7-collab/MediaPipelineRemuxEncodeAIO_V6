@@ -3,9 +3,9 @@ file: tests/webview/test_webview_row_detail_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-07
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 435aa3b6de6b2769cc013bd9536d70faefe40565ba3db1b165b66ebe53d315ca
+sha256: 38e5a6192f94e5df8ff10ef0b2b0592b704c5d073fc478afceccc34695375b51
 ---
 # `tests/webview/test_webview_row_detail_smoke.py`
 

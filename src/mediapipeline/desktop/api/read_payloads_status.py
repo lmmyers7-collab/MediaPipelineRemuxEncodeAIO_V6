@@ -74,6 +74,12 @@ class LocalApiStatusReadPayloadMixin:
             return close_readiness_unavailable_payload()
         return self.facade.get_close_readiness(resolved, self._snapshot()).to_mapping()
 
+    def _backend_recovery_status_payload(self) -> dict[str, Any]:
+        reader = getattr(self.facade, "get_recovery_status", None)
+        if not callable(reader):
+            return {"schema_version": "desktop_lifecycle_recovery.v1", "status": "unknown", "classification": "unknown", "operator_action_required": "Backend recovery status is unavailable.", "items": []}
+        return dict(reader())
+
     def _watch_folders_status_payload(self) -> dict[str, Any]:
         state_reader = getattr(self.facade, "get_watch_folder_state", None)
         if not callable(state_reader):

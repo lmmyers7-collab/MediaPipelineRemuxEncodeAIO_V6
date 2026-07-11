@@ -3,9 +3,9 @@ file: tests/webview/test_webview_css_design_tokens.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-03
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: a69c4304c5de6343b1054cd1a9896199c8b615637ae2dd8abf19d94544e8f1cd
+sha256: 6f95827a2b6683434b5865415f20e7455707d5c6298687e58e539a8cc7760cd9
 ---
 # `tests/webview/test_webview_css_design_tokens.py`
 

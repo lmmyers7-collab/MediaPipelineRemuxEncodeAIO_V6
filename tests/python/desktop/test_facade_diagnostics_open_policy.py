@@ -108,6 +108,14 @@ class DiagnosticsOpenPolicyTests(unittest.TestCase):
         self.assertIsNone(diagnostics_open_path(resolved, "last_stderr_log", last_stderr_log="   "))
         self.assertIsNone(diagnostics_open_path(resolved, "not_allowed"))
 
+    def test_productized_run_logs_open_outside_package_root(self) -> None:
+        root = Path("C:/MediaPipeline")
+        resolved = _resolved(root)
+        resolved.run_logs_root = root / "AppData" / "MediaPipelineRemuxEncodeAIO" / "RunLogs"
+
+        self.assertEqual(diagnostics_open_path(resolved, "run_logs"), resolved.run_logs_root)
+        self.assertNotEqual(diagnostics_open_path(resolved, "run_logs"), resolved.app_root / "RunLogs")
+
     def test_optional_path_and_operator_messages_are_stable(self) -> None:
         path = Path("C:/MediaPipeline/RunLogs/run.stdout.log")
         error = RuntimeError("blocked")

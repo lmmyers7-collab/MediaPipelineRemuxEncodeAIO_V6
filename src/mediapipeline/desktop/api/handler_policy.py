@@ -5,6 +5,40 @@ from typing import Any
 import uuid
 
 from .command_journal_policy import COMMAND_RESULT_SCHEMA_VERSION
+
+
+# These routes either own process lifecycle or alter media/manifests. Their
+# evidence is durable before execution; ordinary settings and read-only routes
+# intentionally keep the existing lightweight command history policy.
+STRICT_DURABLE_COMMAND_ROUTES = frozenset(
+    {
+        "/api/pipeline/start",
+        "/api/pipeline/control",
+        "/api/audit/start",
+        "/api/audit/stop",
+        "/api/rerun/start",
+        "/api/rerun/control",
+        "/api/rerun/continue",
+        "/api/rerun/promote",
+        "/api/rerun/network/start",
+        "/api/rename/apply",
+        "/api/rename/undo",
+        "/api/pending-publish/repair-manifest",
+        "/api/pending-publish/reconcile-orphan-payloads",
+        "/api/completed/reconcile-manifest",
+        "/api/completed/repair-sidecar-metadata",
+        "/api/network/coordinator/start",
+        "/api/network/coordinator/stop",
+        "/api/network/worker/start",
+        "/api/network/worker/stop",
+        "/api/backend/shutdown",
+        "/api/final-library-promotion/promote-queue",
+    }
+)
+
+
+def requires_strict_durable_command_journal(route: str) -> bool:
+    return route in STRICT_DURABLE_COMMAND_ROUTES
 from .contract_command import LOCAL_API_COMMAND_ROUTE_CONTRACT
 from .http_helpers import LOCAL_API_CONTENT_SECURITY_POLICY
 
@@ -20,6 +54,16 @@ _COMMAND_ROUTE_BY_PATH = {
     for row in LOCAL_API_COMMAND_ROUTE_CONTRACT
     if isinstance(row, dict)
 }
+
+
+class OperatorRouteError(RuntimeError):
+    """A safe, retryable route failure with an operator-facing explanation."""
+
+    def __init__(self, *, code: str, operator_message: str, status: int = 503) -> None:
+        super().__init__(operator_message)
+        self.code = str(code or "backend_unavailable").strip() or "backend_unavailable"
+        self.operator_message = bounded_error_text(operator_message, limit=500)
+        self.status = int(status) if 400 <= int(status) <= 599 else 503
 
 
 def options_response_headers(allowed_origin: str = "http://127.0.0.1") -> list[tuple[str, str]]:
@@ -62,25 +106,49 @@ def not_found_payload(route: str) -> dict[str, Any]:
 
 
 def route_exception_payload(route: str, exc: Exception) -> dict[str, Any]:
-    _ = exc
+    if isinstance(exc, OperatorRouteError):
+        return {
+            "error": exc.operator_message,
+            "code": exc.code,
+            "path": route,
+            "retryable": True,
+            "status": exc.status,
+            "error_id": uuid.uuid4().hex[:12],
+        }
     return {"error": "internal route error", "path": route, "error_id": uuid.uuid4().hex[:12]}
+
+
+def route_exception_status(exc: Exception) -> int:
+    return exc.status if isinstance(exc, OperatorRouteError) else 500
 
 
 def route_exception_journal_payload(route: str, response_payload: Mapping[str, Any]) -> dict[str, Any]:
     path = bounded_error_text(response_payload.get("path") or route, limit=500)
     error_id = bounded_error_text(response_payload.get("error_id"), limit=80)
+    code = bounded_error_text(response_payload.get("code"), limit=120)
+    error = (
+        bounded_error_text(response_payload.get("error") or "Internal route error.", limit=500)
+        if code
+        else "Internal route error."
+    )
+    status = response_payload.get("status", 500)
+    try:
+        status = int(status)
+    except (TypeError, ValueError):
+        status = 500
     return {
         "schema_version": COMMAND_RESULT_SCHEMA_VERSION,
         "command": "local_api.route_exception",
         "ok": False,
         "severity": "error",
         "message": f"Command route failed for {path}.",
-        "errors": ["Internal route error."],
+        "errors": [error],
         "refresh_hint": "diagnostics",
         "data": {
             "path": path,
-            "status": 500,
+            "status": status,
             "error_id": error_id,
+            "code": code,
         },
     }
 

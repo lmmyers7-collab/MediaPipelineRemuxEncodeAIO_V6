@@ -56,7 +56,7 @@ class ProcessGuardPolicyTests(unittest.TestCase):
         self.assertEqual(custom["reason"], "PID 123 is still running.")
         self.assertFalse(unexpected["safe_to_close"])
         self.assertIn("publishing", unexpected["reason"])
-        self.assertTrue(unknown_with_snapshot["safe_to_close"])
+        self.assertFalse(unknown_with_snapshot["safe_to_close"])
         self.assertEqual(unknown_with_snapshot["reason"], UNKNOWN_CLOSE_READINESS_REASON)
 
     def test_pipeline_progress_active_policy_preserves_current_stage_behavior(self) -> None:

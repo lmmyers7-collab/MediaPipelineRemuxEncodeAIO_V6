@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/reports/shell.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-03
+last_modified: 2026-07-10
 last_reviewed: 2026-06-24
-sha256: 603593774fe98ea11d04feefda55e04fe0a5e63753357943100fa6c204302aad
+sha256: aa2069790f27547dc5064c254d55f8ce6f8011de02e7e4b3d7f127aa14609ba4
 ---
 # `apps/desktop/webview/static/assets/reports/shell.js`
 

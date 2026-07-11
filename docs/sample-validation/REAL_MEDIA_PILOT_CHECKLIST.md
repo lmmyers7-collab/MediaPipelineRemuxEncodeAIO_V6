@@ -9,6 +9,14 @@ target. For release/package validation, the target is the named portable
 candidate. For a media-policy or pipeline-risk change, the target is the
 current source tree or package build named by the change packet.
 
+## TDARR And Policy Proof Coverage
+
+The Tdarr Proof Pack validates broad codec/container compatibility. It does not
+replace the owned-media Policy Proof Pack for stream topology, subtitles,
+audio-language/default behavior, Dynamic HDR, encoder, deferred-publish, or
+primary-device playback acceptance. Run the Policy Proof Pack after any change
+to those behavior areas; see `POLICY_PROOF_PACK_RUNBOOK.md`.
+
 ## Required Sample Categories
 
 Use at least one sample for each category:
@@ -63,6 +71,8 @@ All required categories must pass with:
 - size-growth/encode policy evidence
 - Pending Publish park/drain or final-placement proof
 - manual playback check
+- Policy Proof Pack report for applicable media-policy categories, including the
+  primary Plex client observation
 - Sample Validation record that reconciles to current backend evidence
 
 Any of these blocks acceptance of the validation target:

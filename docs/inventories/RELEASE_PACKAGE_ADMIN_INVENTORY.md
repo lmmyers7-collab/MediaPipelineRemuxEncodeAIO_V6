@@ -12,6 +12,17 @@ Documents what a clean release package is expected to include and exclude. Sourc
 .\ops\scripts\release\build.ps1 -Zip
 ```
 
+### Portable deployable acceptance package
+
+```powershell
+.\ops\scripts\release\build.ps1 -Deployable -Zip -Verify
+```
+
+`-Deployable` requires the compiled Tauri executable, runs the full source
+self-test before staging, omits tests from the ZIP, records SHA-256 hashes and
+normalized release identity, then validates an extracted copy with
+`-PackageAcceptance`. It must never be combined with `-KeepPersonalConfig`.
+
 ### Engineering handoff with tests and verification
 
 ```powershell
@@ -48,7 +59,7 @@ Documents what a clean release package is expected to include and exclude. Sourc
 | `ops\scripts\release\build.ps1` | Yes | Release builder |
 | `ops\scripts\release\test.ps1` | Yes | Release self-test |
 | `ops/scripts/smoke\Test-WebView*.ps1` and `ops/scripts/smoke\Test-LocalApi*.ps1` | Yes | WebView and local API smoke wrappers |
-| `release_manifest.json` | Yes (generated) | Written by build; records included/excluded/tool versions |
+| `release_manifest.json` | Yes (generated) | Records included/excluded files, normalized version/source revision, tool versions, and SHA-256 hashes |
 
 ### Desktop App
 
@@ -98,6 +109,8 @@ Documents what a clean release package is expected to include and exclude. Sourc
 | `DesktopApp\encode_speed_history.json` | Desktop local telemetry |
 | `docs\RealMediaValidationRuns\*` (except README.md) | Operator real-media validation evidence |
 | `LocalBase\*` (if present in source folder) | Runtime state |
+| `ops\release\changes\unreleased\*`, its generated summaries, `docs\CURRENT_PROJECT_STATE.md`, `docs\OPEN_WORK_CHECKLIST.md`, and `docs\REMEDIATION_CHANGELOG.md` | Developer history, volatile status, and remediation ledger |
+| `docs\reviews\*`, clean-machine reports, real-media worksheets, generated evidence | Operator/review evidence that can contain personal paths or runtime history |
 
 ### Development and Build Artifacts
 
@@ -149,8 +162,14 @@ Documents what a clean release package is expected to include and exclude. Sourc
 - Tool versions (FFmpeg, MKVToolNix, Python, bundled packages)
 - Build options used
 - Config policy (template vs live)
+- Normalized version and source revision without absolute local paths
+- SHA-256 for every copied file
 
 The release self-test (`ops\scripts\release\test.ps1`) validates the manifest after build.
+For a deployable manifest, `-PackageAcceptance` also rescans included text,
+audits the Tauri production surface, launches and closes the copied shell using
+a temporary AppData root, and rejects mutable bundle-root files or orphaned
+backend/media-tool processes.
 
 ---
 

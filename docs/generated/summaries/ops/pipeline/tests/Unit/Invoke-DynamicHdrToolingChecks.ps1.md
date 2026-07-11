@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-22
+last_modified: 2026-07-10
 last_reviewed: 2026-06-12
-sha256: ea02b83688daed4e3897e4a7905ceb76e151176887ef93da8b1e87a279ba323f
+sha256: 4b89e4f538cccca81023a3ff64a10b27a4bf7da0183067723058434fe4a28f49
 ---
 # `ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1`
 

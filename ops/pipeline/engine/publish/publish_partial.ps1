@@ -148,7 +148,8 @@ function Complete-PublishMediaReveal {
         [Parameter(Mandatory)] [string] $PartialPath,
         [Parameter(Mandatory)] [string] $FinalPath,
         [Parameter(Mandatory)] [string] $PublishTransactionId,
-        [string] $Context = ''
+        [string] $Context = '',
+        [switch] $KeepBackup
     )
     if (-not (Test-Path -LiteralPath $PartialPath -PathType Leaf -ErrorAction SilentlyContinue)) {
         Write-Log "${Context}publish reveal failed: partial media is missing at $PartialPath" "ERROR"
@@ -160,9 +161,16 @@ function Complete-PublishMediaReveal {
     }
     $backupPath = Join-Path $dir (".{0}.mp-publish-backup.{1}" -f (Split-Path -Leaf $FinalPath), $PublishTransactionId)
     try {
+        $script:LastPublishRevealBackupPath = ''
+        $script:LastPublishRevealReplacedExisting = $false
         if (Test-Path -LiteralPath $FinalPath -PathType Leaf -ErrorAction SilentlyContinue) {
             [System.IO.File]::Replace($PartialPath, $FinalPath, $backupPath, $true)
-            Remove-Item -LiteralPath $backupPath -Force -ErrorAction SilentlyContinue
+            $script:LastPublishRevealReplacedExisting = $true
+            $script:LastPublishRevealBackupPath = $backupPath
+            if (-not $KeepBackup) {
+                Remove-Item -LiteralPath $backupPath -Force -ErrorAction SilentlyContinue
+                $script:LastPublishRevealBackupPath = ''
+            }
         } else {
             [System.IO.File]::Move($PartialPath, $FinalPath)
         }
@@ -171,5 +179,28 @@ function Complete-PublishMediaReveal {
         Write-Log "${Context}publish reveal failed for $FinalPath : $_" "ERROR"
         Remove-Item -LiteralPath $backupPath -Force -ErrorAction SilentlyContinue
         return $false
+    }
+}
+
+function Restore-PublishMediaAfterRevealFailure {
+    param(
+        [Parameter(Mandatory)] [string] $FinalPath,
+        [string] $BackupPath = '',
+        [string] $Context = ''
+    )
+    try {
+        if (-not [string]::IsNullOrWhiteSpace($BackupPath) -and (Test-Path -LiteralPath $BackupPath -PathType Leaf -ErrorAction SilentlyContinue)) {
+            if (Test-Path -LiteralPath $FinalPath -PathType Leaf -ErrorAction SilentlyContinue) {
+                [System.IO.File]::Replace($BackupPath, $FinalPath, $null, $true)
+            } else {
+                [System.IO.File]::Move($BackupPath, $FinalPath, $true)
+            }
+            Write-Log "${Context}restored pre-existing final media after reveal verification failure: $FinalPath" 'WARN'
+        } elseif (Test-Path -LiteralPath $FinalPath -PathType Leaf -ErrorAction SilentlyContinue) {
+            Remove-Item -LiteralPath $FinalPath -Force -ErrorAction Stop
+            Write-Log "${Context}removed newly revealed final media after verification failure: $FinalPath" 'WARN'
+        }
+    } catch {
+        Write-Log "${Context}failed to roll back final media after verification failure for $FinalPath : $_" 'ERROR'
     }
 }

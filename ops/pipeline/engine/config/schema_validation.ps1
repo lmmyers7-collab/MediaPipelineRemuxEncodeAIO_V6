@@ -460,13 +460,17 @@ function Test-MediaPipelineConfigSubtitleToggles {
         $Errors.Add('CreateExternalTx3gSrtSidecars requires ConvertTx3gToSrt.')
     }
 
-    $convertBdpgs = ConvertTo-MediaPipelineConfigBool -Config $Config -Key 'ConvertBdpgsToSrt' -Default $false
+    $convertBdpgs = ConvertTo-MediaPipelineConfigBool -Config $Config -Key 'ConvertBdpgsToSrt' -Default $true
     $dropBdpgs = ConvertTo-MediaPipelineConfigBool -Config $Config -Key 'DropBdpgsAfterConversion' -Default $false
     if (-not $convertBdpgs -and $dropBdpgs) {
         $Errors.Add('DropBdpgsAfterConversion requires ConvertBdpgsToSrt.')
     }
     if ($convertBdpgs) {
-        $toolPath = [string](Get-MediaPipelineConfigValue -Config $Config -Key 'BdpgsOcrToolPath')
+        $toolPath = if (Test-MediaPipelineConfigHasKey -Config $Config -Key 'BdpgsOcrToolPath') {
+            [string](Get-MediaPipelineConfigValue -Config $Config -Key 'BdpgsOcrToolPath')
+        } else {
+            'tools\PgsToSrt\PgsToSrt.exe'
+        }
         if ([string]::IsNullOrWhiteSpace($toolPath)) {
             $Errors.Add('ConvertBdpgsToSrt requires BdpgsOcrToolPath.')
         }

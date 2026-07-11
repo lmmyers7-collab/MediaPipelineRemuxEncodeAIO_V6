@@ -1,0 +1,36 @@
+{
+  "id": "MP-CHANGE-2026-0710-013",
+  "title": "Add backend recovery coordinator",
+  "version_target": "2026.07.10.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "high",
+  "date_started": "2026-07-10",
+  "date_completed": "2026-07-10",
+  "summary": "Backend startup recovery classification and one-shot safe-boundary resume.",
+  "reason": "Prevent watcher races and unsafe retry after interrupted work.",
+  "affected_areas": [
+    "recovery"
+  ],
+  "behavior_before": "Watchers could start without an authoritative lifecycle recovery posture.",
+  "behavior_after": "Recovery runs before watchers; only proven non-media/plan boundaries resume once and all ambiguity parks.",
+  "files_touched": [
+    "docs/operator/FAILURE_TRIAGE_WORKSHEET.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-013.json",
+    "src/mediapipeline/core/processes/recovery.py",
+    "src/mediapipeline/desktop/api/read_payloads_status.py",
+    "src/mediapipeline/desktop/api/routes_read.py",
+    "src/mediapipeline/desktop/application/facade.py",
+    "src/mediapipeline/desktop/local_api_main.py",
+    "tests/python/desktop/test_lifecycle_recovery.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_lifecycle_recovery.py"
+  ],
+  "manual_validation": [
+    "Focused recovery tests passed."
+  ],
+  "rollback_plan": "Disable recovery coordinator invocation only after manually reconciling existing lifecycle leases.",
+  "related_changes": [],
+  "notes": "Backend startup recovery status, one-shot proven-boundary resume, and watcher gating."
+}

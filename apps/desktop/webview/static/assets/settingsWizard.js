@@ -1,4 +1,12 @@
 (function () {
+  const createLibraryEditor = window.__settingsWizardLibraryEditorModule;
+  const createPreviewRenderer = window.__settingsWizardPreviewRenderModule;
+  delete window.__settingsWizardLibraryEditorModule;
+  delete window.__settingsWizardPreviewRenderModule;
+  if (typeof createLibraryEditor !== "function" || typeof createPreviewRenderer !== "function") {
+    throw new Error("Settings Wizard child modules must load before settingsWizard.js");
+  }
+
   const byIdLocal = window.byId || function (id) { return document.getElementById(id); };
   const setTextLocal = window.setText || function (id, text) {
     const node = byIdLocal(id);
@@ -248,27 +256,6 @@
     return String(text || "").split(/[,;\s]+/).map((item) => item.trim()).filter(Boolean);
   }
 
-  function optionNode(value, label, selected) {
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = label;
-    option.selected = Boolean(selected);
-    return option;
-  }
-
-  function safeJson(value) {
-    try { return JSON.stringify(value || {}); } catch (_error) { return "{}"; }
-  }
-
-  function readRowJson(row, key, fallback) {
-    try {
-      const value = JSON.parse(row.dataset[key] || "");
-      return value && typeof value === "object" ? value : fallback;
-    } catch (_error) {
-      return fallback;
-    }
-  }
-
   function wizardResultData(result) {
     return result?.data && typeof result.data === "object" ? result.data : (result || {});
   }
@@ -465,6 +452,34 @@
     updateWizardReadiness();
   }
 
+  const libraryEditor = createLibraryEditor({
+    byId: byIdLocal,
+    defaultSourceRoles,
+    designations,
+    markDirty,
+    profileChoices,
+    setValue,
+    textValue,
+  });
+  const previewRenderer = createPreviewRenderer({
+    appendCells: appendCellsLocal,
+    byId: byIdLocal,
+    clearRows: clearRowsLocal,
+    setText: setTextLocal,
+    updateReadiness: updateWizardReadiness,
+  });
+  const { addLibraryRow, collectLibraries, renderLibraryRows, renderToolCandidates } = libraryEditor;
+  const {
+    capabilityFactsText: wizardCapabilityFactsText,
+    encoderBackendText: wizardEncoderBackendText,
+    focusTarget: focusWizardTarget,
+    hardwareRecommendation: wizardHardwareRecommendation,
+    renderPathRows,
+    renderPreview,
+    renderResultList,
+    validationText,
+  } = previewRenderer;
+
   function activateWizardTab() {
     const page = document.querySelector('[data-page-panel="settings"]');
     if (!page) return;
@@ -476,6 +491,8 @@
     page.querySelectorAll(".settings-tab-pane[data-settings-tab]").forEach((pane) => {
       pane.classList.toggle("is-active", pane.dataset.settingsTab === WIZARD_TAB_ID);
     });
+    const saveHeader = page.querySelector("#settings-save-header");
+    if (saveHeader) saveHeader.hidden = true;
     try { localStorage.setItem("mediapipeline-settings-section", WIZARD_TAB_ID); } catch (_error) {}
     if (typeof window.updatePagePanelEmptyStates === "function") window.updatePagePanelEmptyStates();
   }
@@ -602,123 +619,6 @@
     syncRiskAckRows();
   }
 
-  function renderToolCandidates(candidates) {
-    const firstExisting = (rows) => (Array.isArray(rows) ? rows.find((row) => row.exists)?.path || "" : "");
-    if (!textValue("wizard-ffmpeg-path")) setValue("wizard-ffmpeg-path", firstExisting(candidates.ffmpeg));
-    if (!textValue("wizard-ffprobe-path")) setValue("wizard-ffprobe-path", firstExisting(candidates.ffprobe));
-  }
-
-  function wizardLibraryPathField(label, field, targetKey) {
-    return `
-        <label data-path-picker-scope="true">
-          <span class="path-picker-label-row">
-            <span class="path-picker-label-text">${label}</span>
-            <button type="button" class="path-picker-badge" data-path-picker-target="${targetKey}" data-path-picker-input='[data-library-field="${field}"]' data-path-picker-mode="folder" data-path-picker-status="settings-wizard-status-detail" title="Open a backend-owned Windows folder picker for ${label.toLowerCase()}.">Browse</button>
-          </span>
-          <input type="text" data-library-field="${field}" autocomplete="off">
-        </label>`;
-  }
-
-  function createLibraryRow(library, index) {
-    const section = document.createElement("section");
-    section.className = "settings-wizard-library-row";
-    section.dataset.libraryIndex = String(index);
-    section.dataset.libraryId = library.id || library.library_id || "";
-    section.dataset.defaultTracking = safeJson(library.default_tracking);
-    section.dataset.overrides = safeJson(library.overrides);
-    const protectedDefault = ["movies", "tv"].includes(String(section.dataset.libraryId || "").toLowerCase());
-    section.innerHTML = `
-      <div class="settings-wizard-library-title">
-        <label><input type="checkbox" data-library-field="enabled" ${protectedDefault ? "disabled" : ""}> Enabled</label>
-        <button type="button" class="secondary-button" data-library-remove ${protectedDefault ? "disabled" : ""}>Remove</button>
-      </div>
-      <div class="form-grid form-grid-dense">
-        <label>Friendly name *<input type="text" data-library-field="name" autocomplete="off"></label>
-        <label>Category<input type="text" data-library-field="category" list="wizard-library-category-list" autocomplete="off"></label>
-        <label>Designation<select data-library-field="designation"></select></label>
-        <label>Default root role<select data-library-field="default_source_role"></select></label>
-        ${wizardLibraryPathField("Source path *", "source_path", "settings.wizard.library_source_path")}
-        ${wizardLibraryPathField("Output destination", "output_path", "settings.wizard.library_output_path")}
-        ${wizardLibraryPathField("Promotion destination", "promotion_destination", "settings.wizard.library_promotion_destination")}
-        <label>Processing profile<select data-library-field="profile"></select></label>
-      </div>
-      <label class="settings-wizard-library-promotion"><input type="checkbox" data-library-field="promotion_enabled"> Enable promotion for this library</label>
-    `;
-    section.querySelector('[data-library-field="enabled"]').checked = library.enabled !== false;
-    section.querySelector('[data-library-field="name"]').value = library.name || `Library ${index + 1}`;
-    section.querySelector('[data-library-field="source_path"]').value = library.source_path || "";
-    section.querySelector('[data-library-field="output_path"]').value = library.output_path || "";
-    section.querySelector('[data-library-field="promotion_destination"]').value = library.promotion_destination || "";
-    section.querySelector('[data-library-field="promotion_enabled"]').checked = library.promotion_enabled === true;
-    section.querySelector('[data-library-field="category"]').value = library.category || "other";
-    const roleSelect = section.querySelector('[data-library-field="default_source_role"]');
-    defaultSourceRoles.forEach(([value, label]) => roleSelect.appendChild(optionNode(value, label, value === (library.default_source_role || "auto"))));
-    const designationSelect = section.querySelector('[data-library-field="designation"]');
-    designations.forEach(([value, label]) => designationSelect.appendChild(optionNode(value, label, value === (library.designation || library.media_kind || "auto"))));
-    const profileSelect = section.querySelector('[data-library-field="profile"]');
-    profileChoices.forEach(([value, label]) => profileSelect.appendChild(optionNode(value, label, value === (library.profile || "general_plex_direct_play"))));
-    section.querySelectorAll("input, select").forEach((node) => {
-      node.addEventListener("input", markDirty);
-      node.addEventListener("change", markDirty);
-    });
-    section.querySelector("[data-library-remove]").addEventListener("click", () => {
-      if (protectedDefault) return;
-      section.remove();
-      markDirty();
-    });
-    return section;
-  }
-
-  function renderLibraryRows(libraries) {
-    const container = byIdLocal("settings-wizard-library-list");
-    if (!container) return;
-    container.textContent = "";
-    const rows = libraries.length ? libraries : [
-      { id: "movies", name: "Movies", designation: "movie", category: "movies", default_source_role: "source_movies", source_path: "", enabled: true, profile: "general_plex_direct_play" },
-      { id: "tv", name: "TV", designation: "tv", category: "tv", default_source_role: "source_tv", source_path: "", enabled: true, profile: "general_plex_direct_play" },
-    ];
-    rows.forEach((library, index) => container.appendChild(createLibraryRow(library, index)));
-  }
-
-  function addLibraryRow() {
-    const container = byIdLocal("settings-wizard-library-list");
-    if (!container) return;
-    const index = container.querySelectorAll(".settings-wizard-library-row").length;
-    container.appendChild(createLibraryRow({
-      name: `Library ${index + 1}`,
-      media_kind: "auto",
-      category: "other",
-      default_source_role: "additional",
-      output_path: textValue("wizard-output-root"),
-      promotion_enabled: false,
-      promotion_destination: "",
-      enabled: true,
-      profile: "general_plex_direct_play",
-    }, index));
-    markDirty();
-  }
-
-  function collectLibraries() {
-    return Array.from(document.querySelectorAll(".settings-wizard-library-row")).map((row, index) => {
-      const fallbackId = `library_${index + 1}`;
-      return {
-        id: String(row.dataset.libraryId || fallbackId).trim() || fallbackId,
-        enabled: row.querySelector('[data-library-field="enabled"]')?.checked === true,
-        name: String(row.querySelector('[data-library-field="name"]')?.value || "").trim(),
-        category: String(row.querySelector('[data-library-field="category"]')?.value || "other").trim(),
-        designation: String(row.querySelector('[data-library-field="designation"]')?.value || "auto").trim(),
-        default_source_role: String(row.querySelector('[data-library-field="default_source_role"]')?.value || "auto").trim(),
-        source_path: String(row.querySelector('[data-library-field="source_path"]')?.value || "").trim(),
-        output_path: String(row.querySelector('[data-library-field="output_path"]')?.value || "").trim(),
-        promotion_enabled: row.querySelector('[data-library-field="promotion_enabled"]')?.checked === true,
-        promotion_destination: String(row.querySelector('[data-library-field="promotion_destination"]')?.value || "").trim(),
-        profile: String(row.querySelector('[data-library-field="profile"]')?.value || "general_plex_direct_play").trim(),
-        overrides: readRowJson(row, "overrides", {}),
-        default_tracking: readRowJson(row, "defaultTracking", {}),
-      };
-    });
-  }
-
   function collectDangerAck() {
     const active = new Set(activeRiskAckRules().map((rule) => rule.key));
     return ["AllowSystemTools", "AllowNoAudio", "CleanupRemoteStaging", "ReprocessAll"]
@@ -799,113 +699,6 @@
     }
   }
 
-  function validationText(data) {
-    const errors = data.errors || [];
-    const warnings = data.warnings || [];
-    const lines = [
-      errors.length ? `Blocked: ${errors.length} issue(s)` : "No hard blockers.",
-      ...errors.map((item) => `- ${item}`),
-      warnings.length ? `Warnings: ${warnings.length}` : "No warnings.",
-      ...warnings.map((item) => `- ${item}`),
-    ];
-    if (data.path_validation?.rows) lines.push("", `Paths checked: ${data.path_validation.rows.length}`);
-    return lines.join("\n");
-  }
-
-  function renderPathRows(rows) {
-    const tbody = byIdLocal("settings-wizard-path-rows");
-    if (!tbody) return;
-    if (!rows.length) {
-      clearRowsLocal(tbody, 4, "Path validation has not run.");
-      return;
-    }
-    tbody.textContent = "";
-    rows.forEach((item) => {
-      const row = document.createElement("tr");
-      appendCellsLocal(row, [
-        item.label || "",
-        item.status || "",
-        `${item.path || "not configured"}${item.exists ? " (exists)" : ""}${item.is_dir ? " (folder)" : ""}`,
-      ]);
-      const actionCell = document.createElement("td");
-      if (item.target) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "secondary-button";
-        button.dataset.wizardFocusTarget = item.target;
-        button.textContent = "Focus";
-        actionCell.appendChild(button);
-      } else {
-        actionCell.textContent = "";
-      }
-      row.appendChild(actionCell);
-      tbody.appendChild(row);
-    });
-  }
-
-  function renderResultList(id, items) {
-    const node = byIdLocal(id);
-    if (!node) return;
-    node.textContent = "";
-    const rows = Array.isArray(items) ? items : [];
-    if (!rows.length) {
-      node.textContent = "No result loaded.";
-      return;
-    }
-    rows.forEach((item) => {
-      const row = document.createElement("div");
-      row.className = "settings-wizard-result-row";
-      if (typeof item === "string") {
-        row.textContent = item;
-      } else {
-        row.dataset.state = String(item.state || item.status || "").toLowerCase();
-        const label = document.createElement("strong");
-        label.textContent = item.label || "";
-        const status = document.createElement("span");
-        status.textContent = item.status || "";
-        const detail = document.createElement("span");
-        detail.textContent = item.detail || "";
-        row.append(label, status, detail);
-      }
-      node.appendChild(row);
-    });
-  }
-
-  function wizardListText(values, fallback = "none") {
-    return (Array.isArray(values) ? values : []).filter(Boolean).join(", ") || fallback;
-  }
-
-  function wizardCapabilityFactsText(data) {
-    const facts = data?.capability_facts || {};
-    const codecs = wizardListText(facts.supported_video_codecs);
-    const backends = wizardListText(facts.supported_encoder_backends);
-    const scope = data?.capability_facts_scope || "unknown";
-    return `video codecs=${codecs}; encoder backends=${backends}; scope=${scope}`;
-  }
-
-  function wizardEncoderBackendText(data, selectedBackends) {
-    const wanted = new Set(selectedBackends || []);
-    const rows = (Array.isArray(data?.encoder_backend_rows) ? data.encoder_backend_rows : [])
-      .filter((row) => wanted.has(row.backend) && row.available);
-    return rows.map((row) => `${row.backend}: ${wizardListText(row.encoders)}`).join("; ") || "none";
-  }
-
-  function focusWizardTarget(target) {
-    let node = null;
-    const text = String(target || "");
-    if (text.startsWith("library:")) {
-      const [, indexText, field] = text.split(":");
-      const index = Number.parseInt(indexText, 10) - 1;
-      node = document.querySelector(`.settings-wizard-library-row[data-library-index="${index}"] [data-library-field="${field}"]`);
-    } else if (text.startsWith("#") || text.startsWith(".")) {
-      node = document.querySelector(text);
-    }
-    if (node) {
-      node.focus();
-      node.scrollIntoView({ block: "center", behavior: "smooth" });
-    }
-  }
-
   async function validatePaths() {
     const signature = wizardPayloadSignature();
     const result = await runWizardCommand("settings.wizard.validate_paths", "settings-wizard-status-detail", () => (
@@ -960,6 +753,7 @@
         ...(data.warnings || []).map((item) => ({ label: "Warning", status: "Warning", detail: item, state: "warning" })),
         ...(data.errors || []).map((item) => ({ label: "Error", status: "Blocked", detail: item, state: "blocked" })),
       ]);
+      setTextLocal("settings-wizard-hardware-recommendation", wizardHardwareRecommendation(data));
       updateWizardReadiness();
     }
   }
@@ -981,40 +775,6 @@
       ]);
       updateWizardReadiness();
     }
-  }
-
-  function renderSummaryRows(rows) {
-    const tbody = byIdLocal("settings-wizard-summary-rows");
-    if (!tbody) return;
-    if (!rows.length) {
-      clearRowsLocal(tbody, 3, "No summary loaded.");
-      return;
-    }
-    tbody.textContent = "";
-    rows.forEach((item) => {
-      const row = document.createElement("tr");
-      appendCellsLocal(row, [item.category || "", item.status || "", item.detail || ""]);
-      tbody.appendChild(row);
-    });
-  }
-
-  function renderPreview(result) {
-    const data = result.data || {};
-    const wizard = data.wizard || data;
-    const changedKeys = data.changed_keys || wizard.changed_keys || Object.keys(wizard.changes || {});
-    setTextLocal("settings-wizard-review-summary", [
-      result.message || "Preview completed.",
-      `Changed keys: ${changedKeys.join(", ") || "none"}`,
-      "",
-      "Warnings:",
-      ...((result.warnings || wizard.warnings || []).length ? (result.warnings || wizard.warnings || []) : ["none"]),
-      "",
-      "Errors:",
-      ...((result.errors || wizard.errors || []).length ? (result.errors || wizard.errors || []) : ["none"]),
-    ].join("\n"));
-    renderSummaryRows(wizard.summary?.categories || []);
-    setTextLocal("settings-wizard-validation-summary", validationText(wizard));
-    updateWizardReadiness();
   }
 
   async function previewWizard() {

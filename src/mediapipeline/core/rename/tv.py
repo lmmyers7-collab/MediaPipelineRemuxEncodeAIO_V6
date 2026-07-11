@@ -12,10 +12,11 @@ from mediapipeline.core.rename.tv_folder import (
 from mediapipeline.core.rename.utils import normalize_plex_filename_component, remove_default_priority_markers, strip_known_media_suffix
 
 
-TV_SEASON_EPISODE_PATTERN = re.compile(r"(?i)\bS(?P<season>\d{1,2})E(?P<episode>\d{1,3})(?:[-_]?E(?P<episode_end>\d{1,3}))?\b")
+TV_SEASON_EPISODE_PATTERN = re.compile(r"(?i)\bS(?P<season>\d{1,2})E(?P<episode>\d{1,3})(?:[-_]?E(?P<episode_end>\d{1,3}))?(?:v\d+)?\b")
 TV_NXM_PATTERN = re.compile(r"(?i)(?<!\d)(?P<season>\d{1,2})x(?P<episode>\d{1,3})(?!\d)")
 TV_SEASON_ONLY_PATTERN = re.compile(r"(?i)(?<![A-Za-z0-9])(?:Season|S)[\s._-]*(?P<season>\d{1,2})(?![A-Za-z0-9])")
-TV_EXPLICIT_EPISODE_PATTERN = re.compile(r"(?i)(?<![A-Za-z0-9])(?:Episode|Ep|E)[\s._-]*(?P<episode>\d{1,3})(?![A-Za-z0-9])")
+TV_EXPLICIT_EPISODE_PATTERN = re.compile(r"(?i)(?<![A-Za-z0-9])(?:Episode|Ep|E)[\s._-]*(?P<episode>\d{1,3})(?:v\d+)?\b")
+TV_BARE_ANIME_EPISODE_PATTERN = re.compile(r"(?i)(?<=\s-\s)(?P<episode>\d{1,3})(?:v\d+)?(?=\s*(?:\(|\[|$|\s-\s))")
 TV_RELEASE_TAG_PATTERN = re.compile(
     r"\b(?:2160p|1080p|720p|480p|uhd|hdr10\+?|hdr|dv|dolby[\s._-]*vision|"
     r"hevc|h\.?264|h\.?265|x264|x265|av1|10\s*bit|8\s*bit|bd|bdrip|blu[\s._-]*ray|"
@@ -157,6 +158,19 @@ def normalize_tv_filter_terms(tv_filter_terms: dict[str, list[str]] | None = Non
 
 def rename_tv_filter_default_terms() -> dict[str, list[str]]:
     return {key: list(values) for key, values in RENAME_TV_FILTER_DEFAULT_TERMS.items()}
+
+
+def find_tv_episode_token(stem: str) -> tuple[str, re.Match[str]] | None:
+    for kind, pattern in (
+        ("season_episode", TV_SEASON_EPISODE_PATTERN),
+        ("nxm", TV_NXM_PATTERN),
+        ("explicit", TV_EXPLICIT_EPISODE_PATTERN),
+        ("bare_anime", TV_BARE_ANIME_EPISODE_PATTERN),
+    ):
+        match = pattern.search(stem)
+        if match:
+            return kind, match
+    return None
 
 
 def collective_tv_filter_terms(tv_filter_terms: dict[str, list[str]] | None, key: str) -> list[str]:
@@ -369,17 +383,15 @@ def extract_confident_tv_episode_title(
     tv_filter_terms: dict[str, list[str]] | None = None,
 ) -> str:
     text = strip_known_media_suffix(stem)
-    title_fragment = ""
-    for pattern in (TV_SEASON_EPISODE_PATTERN, TV_NXM_PATTERN, TV_EXPLICIT_EPISODE_PATTERN):
-        match = pattern.search(text)
-        if not match:
-            continue
-        after = text[match.end() :].strip(" ._-")
-        if not after:
-            continue
-        hyphen_match = re.match(r"^\s*[-–]\s*(.+)$", after)
-        title_fragment = hyphen_match.group(1) if hyphen_match else after
-        break
+    token = find_tv_episode_token(text)
+    if token is None:
+        return ""
+    _, match = token
+    after = text[match.end() :].strip(" ._-")
+    if not after:
+        return ""
+    hyphen_match = re.match(r"^\s*[-–]\s*(.+)$", after)
+    title_fragment = hyphen_match.group(1) if hyphen_match else after
     if not title_fragment:
         return ""
     source_tag = TV_RELEASE_TAG_PATTERN.search(title_fragment)
@@ -408,31 +420,31 @@ def build_auto_tv_rename_name(
     episode = 0
     show_fragment = ""
     folder_info = resolve_tv_folder_season_info(source, remove_terms, tv_filter_options, tv_filter_terms)
-    marker_match = TV_SEASON_EPISODE_PATTERN.search(stem)
-    if marker_match:
+    token = find_tv_episode_token(stem)
+    if token is not None and token[0] == "season_episode":
+        _, marker_match = token
+        season = int(marker_match.group("season"))
+        episode = int(marker_match.group("episode"))
+        show_fragment = stem[: marker_match.start()]
+    elif token is not None and token[0] == "nxm":
+        _, marker_match = token
         season = int(marker_match.group("season"))
         episode = int(marker_match.group("episode"))
         show_fragment = stem[: marker_match.start()]
     else:
-        marker_match = TV_NXM_PATTERN.search(stem)
-        if marker_match:
-            season = int(marker_match.group("season"))
-            episode = int(marker_match.group("episode"))
-            show_fragment = stem[: marker_match.start()]
-        else:
-            season_match = TV_SEASON_ONLY_PATTERN.search(stem)
-            episode_match = TV_EXPLICIT_EPISODE_PATTERN.search(stem)
-            if season_match and episode_match:
-                season = int(season_match.group("season"))
-                episode = int(episode_match.group("episode"))
-                show_fragment = stem[: season_match.start()]
-            elif episode_match:
-                if folder_info is not None:
-                    season = int(folder_info["season"])
-                else:
-                    season = season_number if season_number >= 0 else 1
-                episode = int(episode_match.group("episode"))
-                show_fragment = stem[: episode_match.start()]
+        season_match = TV_SEASON_ONLY_PATTERN.search(stem)
+        episode_match = token[1] if token is not None and token[0] in {"explicit", "bare_anime"} else None
+        if season_match and episode_match and token is not None and token[0] == "explicit":
+            season = int(season_match.group("season"))
+            episode = int(episode_match.group("episode"))
+            show_fragment = stem[: season_match.start()]
+        elif episode_match:
+            if folder_info is not None:
+                season = int(folder_info["season"])
+            else:
+                season = season_number if season_number >= 0 else 1
+            episode = int(episode_match.group("episode"))
+            show_fragment = stem[: episode_match.start()]
 
     if season <= 0 or episode <= 0:
         if season == 0 and episode > 0:

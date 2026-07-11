@@ -527,6 +527,9 @@
           failureSuggestedActionText(item),
           failureActionOwner(item),
         ]);
+        ["Select", "Status", "File", "Evidence", "Suggested fix", "Owner"].forEach((label, index) => {
+          if (row.children[index]) row.children[index].dataset.label = label;
+        });
         makeRowSelectable(row, () => selectFailureRow(item), {
           selected: Boolean(key && key === reportsState.selectedFailureRowKey),
           label: `Failure row ${item.lookup_title || item.source_path || item.error_code || ""}`,

@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/backend_bootstrap.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 3165e53665db086dd7d83fa01adf89c60f58206e586859fbd22d9b352f047c40
+sha256: e8985cb85b3a3941767b01da1fd31443383acf63d0b65b9e94ff0679e4c702e0
 ---
 # `src/mediapipeline/desktop/backend_bootstrap.py`
 

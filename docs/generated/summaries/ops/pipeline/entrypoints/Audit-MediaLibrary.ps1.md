@@ -3,14 +3,13 @@ file: ops/pipeline/entrypoints/Audit-MediaLibrary.ps1
 pipeline_stage: observability
 token_priority: medium
 owner_domain: audit
-last_modified: 2026-07-08
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 62fb96aebbbd34b9ed0715cafdf90cadb420b8a2d4c1363ed6794bbac03cb637
+sha256: 423423de117ede92dfdf99cf80bab882c751a4496f20639e0f529ffce18bca33
 ---
 # `ops/pipeline/entrypoints/Audit-MediaLibrary.ps1`
 
 **Purpose:** (no .SYNOPSIS block)
 
-**Functions:** `Add-AuditIssue`, `Add-AuditSubtitleCompatibilityIssues`, `Analyze-Sidecar`, `Format-AudioCandidateLabel`, `Get-AudioCodecFidelityRank`, `Get-AudioStreamFidelityScore`, `Get-AuditNormalizedPathKey`, `Get-AuditResultForFile`, `Get-AuditSidecarSrtRecordPath`, `Get-AuditTx3gGenericSrtSuffixes`, `Get-AuditValidatedEmbeddedSrtRecordCount`, `Get-CompletedAuditTaskText`, `Get-DefaultStream`, `Get-ExpectedDefaultAudioCandidate`, `Get-LibraryLookupTitle`, `Get-MatchingExternalSrtFilesForAudit`, `Get-NormalizedPreferredAudioLanguages`, `Get-StreamDispositionValue`, `Get-StreamTagValue`, `Get-TVParseRenameSuggestion`, `Get-TagValue`, `Invoke-AuditNativeCommand`, `New-AuditResult`, `Normalize-AudioLanguagePreferenceValue`, `Normalize-LibraryLookupText`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/entrypoints/Audit-MediaLibrary.ps1`._

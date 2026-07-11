@@ -8,7 +8,7 @@ Source: `src/mediapipeline/desktop/api/contract_command.py`,
 `src/mediapipeline/core/api/commands.py`, and the WebView `apiPost` call
 inventory.
 
-Total command routes: 113 POST routes across 11 contract groups.
+Total command routes: 114 POST routes across 11 contract groups.
 
 Network lifecycle start/stop now has backend-owned dry-run and confirmed POST
 routes. Confirmed coordinator/worker lifecycle routes are confirmation-gated,
@@ -25,7 +25,7 @@ dry-run fingerprints and backend backups.
 | `LOCAL_API_FILE_COMMAND_ROUTE_CONTRACT` | queue/scan, queue/priority, queue/strategy, queue/file-overrides, queue/file-overrides/route-preview, queue/file-overrides/series-preview, queue/file-overrides/series-apply, queue/file-overrides/series-clear-preview, queue/file-overrides/series-clear-apply, queue/file-overrides/remux-pilot-promote, queue/file-overrides/folder-preview, queue/file-overrides/folder-rule, failures/clear, failures/archive-evidence, failures/open, failures/artifacts/cleanup, failures/lifecycle, queue/open, completed/open, subtitle-qa/preview, pending-publish/open, pending-publish/recovery-plan, completed/reconcile-manifest-dry-run, completed/reconcile-manifest, completed/repair-sidecar-metadata-dry-run, completed/repair-sidecar-metadata, pending-publish/repair-manifest-dry-run, pending-publish/repair-manifest, pending-publish/reconcile-orphan-payloads-dry-run, pending-publish/reconcile-orphan-payloads, startup/reconcile-dry-run, final-library-promotion/promote-queue, final-library-promotion/pause, final-library-promotion/resume |
 | `LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT` | maintenance/release-dry-run, maintenance/release-build, maintenance/completed-backfill-dry-run, maintenance/retention-dry-run, maintenance/dependency-atlas, maintenance/dependency-atlas/open-folder, maintenance/archive-state-journals, maintenance/support-export |
 | `LOCAL_API_METRICS_COMMAND_ROUTE_CONTRACT` | metrics/sources, metrics/backfill |
-| `LOCAL_API_DIAGNOSTICS_COMMAND_ROUTE_CONTRACT` | diagnostics/open, diagnostics/tdarr-matrix-audit, diagnostics/tdarr-matrix/evidence/open, diagnostics/tdarr-matrix/rerun |
+| `LOCAL_API_DIAGNOSTICS_COMMAND_ROUTE_CONTRACT` | diagnostics/open, diagnostics/encoder-capabilities/refresh, diagnostics/tdarr-matrix-audit, diagnostics/tdarr-matrix/evidence/open, diagnostics/tdarr-matrix/rerun |
 | `LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT` | rename/preview, rename/browse, rename/filter-cases, rename/apply, rename/undo |
 | `LOCAL_API_SETTINGS_COMMAND_ROUTE_CONTRACT` | settings/validate, settings/preset-library/validate, settings/preset-library/compare, settings/preset-library/import-preview, settings/preset-library/save, settings/preset-library/export, settings/preset-library/apply-preview, settings/preset-library/apply, settings/browse-path, settings/preview-patch, settings/pipeline-plan-preview, settings/save-patch, settings/import-psd1-preview, settings/import-psd1, settings/wizard/validate-paths, settings/wizard/validate-tools, settings/wizard/probe-hardware, settings/wizard/validate-workers, settings/wizard/preview, settings/wizard/save, settings/reload |
 | `LOCAL_API_SCHEDULE_COMMAND_ROUTE_CONTRACT` | schedule/preview, schedule/save |
@@ -141,7 +141,7 @@ destinations, eligibility, cleanup behavior, or media policy.
 | `POST /api/maintenance/dependency-atlas` | Maintenance | `maintenanceView.js` | `tooling-artifact-write` | Writes generated dependency-atlas artifacts under `docs/generated/dependency-atlas/` only |
 | `POST /api/maintenance/dependency-atlas/open-folder` | Maintenance | `maintenanceView.js` | `shell-open` | Opens fixed backend-resolved `docs/generated/dependency-atlas/`; request payload must be empty |
 | `POST /api/maintenance/archive-state-journals` | Launch, Maintenance | `launchView.js` | `runtime-evidence-archive` | Requires `confirm_archive: true` and safe close-readiness; archives only backend-resolved `State\Progress\pipeline_events.jsonl` when oversized, then creates a fresh empty replacement; does not archive completed manifests, queue snapshots, progress files, pending-publish manifests/payloads, source media, scratch media, or final outputs |
-| `POST /api/maintenance/support-export` | Maintenance | No WebView caller; backend route only | `diagnostics-artifact-write` | Writes a backend-owned redacted support export under per-user AppData DiagnosticsExports; includes product/version/update/migration/health evidence and bounded redacted log tails without private config, signing material, bearer tokens, unredacted personal paths, or media mutation |
+| `POST /api/maintenance/support-export` | Maintenance | `recoverySupportView.js` | `diagnostics-artifact-write` | Writes a backend-owned redacted support export under per-user AppData DiagnosticsExports; includes product/version/update/migration/health evidence and bounded redacted log tails without private config, signing material, bearer tokens, unredacted personal paths, or media mutation |
 
 ### Metrics Commands
 
@@ -155,6 +155,7 @@ destinations, eligibility, cleanup behavior, or media policy.
 | Route | Owner page | Owner JS | Mutation class | Key restriction |
 |---|---|---|---|---|
 | `POST /api/diagnostics/open` | Diagnostics | `diagnosticsView.js` | `shell-open` | `target` must be one of 21 allowlisted diagnostics keys |
+| `POST /api/diagnostics/encoder-capabilities/refresh` | Launch, Settings | `launchView.preflight.js` | `diagnostics-artifact-write` | Empty request only; regenerates bounded capability evidence, journals the command, and cannot launch media processing or touch source media |
 | `POST /api/diagnostics/tdarr-matrix-audit` | Diagnostics | `diagnosticsView.js` | `diagnostic-process` | `action` must be one of `report`, `smoke`, `matrix`, `full`, `strict-report`; backend expands fixed Tdarr Matrix audit presets only |
 | `POST /api/diagnostics/tdarr-matrix/evidence/open` | Diagnostics | `diagnosticsView.js` | `shell-open` | `run_id`, `finding_key`, and allowlisted evidence `target`; backend resolves the path inside the selected Tdarr Matrix run root |
 | `POST /api/diagnostics/tdarr-matrix/rerun` | Diagnostics | `diagnosticsView.js` | `diagnostic-process` | `source_run_id`, `selection`, and finding keys only; backend maps findings to manifest case IDs and creates a fresh isolated run root |
@@ -181,13 +182,13 @@ Allowed targets: `run_logs`, `cluster_log`, `config`, `config_folder`,
 | Route | Owner page | Owner JS | Mutation class | Key restriction |
 |---|---|---|---|---|
 | `POST /api/settings/validate` | Settings | `settingsView.js` | `none` | Validation only; no config written |
-| `POST /api/settings/preset-library/validate` | Settings | `settingsView.js` | `none` | Validates an inline PresetV2 document without writing the preset library or active config |
-| `POST /api/settings/preset-library/compare` | Settings | `settingsView.js` | `none` | Compares two preset records or inline PresetV2 documents through backend legacy-patch projection only |
-| `POST /api/settings/preset-library/import-preview` | Settings | `settingsView.js` | `none` | Validates import candidate records and reports would-write state without writing `State/PresetLibrary/presets.json` |
-| `POST /api/settings/preset-library/save` | Settings | `settingsView.js` | `preset-library-state-write` | Writes a PresetV2 record to backend State JSON only; does not save active PSD1 settings or launch work |
-| `POST /api/settings/preset-library/export` | Settings | `settingsView.js` | `none` | Returns a preset record or inline preset export payload without writing state or config |
-| `POST /api/settings/preset-library/apply-preview` | Settings | `settingsView.js` | `none` | Converts a PresetV2 record to a legacy settings patch and runs backend settings preview semantics without saving config |
-| `POST /api/settings/preset-library/apply` | Settings | `settingsView.js` | `config-write` | Requires `confirm_apply: true`; converts PresetV2 to legacy settings patch and saves through the existing backend settings save path for future launches only |
+| `POST /api/settings/preset-library/validate` | Settings | `settings/presetLibrary.js` | `none` | Validates an inline PresetV2 document without writing the preset library or active config |
+| `POST /api/settings/preset-library/compare` | Settings | `settings/presetLibrary.js` | `none` | Compares two preset records or inline PresetV2 documents through backend legacy-patch projection only |
+| `POST /api/settings/preset-library/import-preview` | Settings | `settings/presetLibrary.js` | `none` | Validates import candidate records and reports would-write state without writing `State/PresetLibrary/presets.json` |
+| `POST /api/settings/preset-library/save` | Settings | `settings/presetLibrary.js` | `preset-library-state-write` | Writes a PresetV2 record to backend State JSON only; does not save active PSD1 settings or launch work |
+| `POST /api/settings/preset-library/export` | Settings | `settings/presetLibrary.js` | `none` | Returns a preset record or inline preset export payload without writing state or config |
+| `POST /api/settings/preset-library/apply-preview` | Settings | `settings/presetLibrary.js` | `none` | Converts a PresetV2 record to a legacy settings patch and runs backend settings preview semantics without saving config |
+| `POST /api/settings/preset-library/apply` | Settings | `settings/presetLibrary.js` | `config-write` | Requires `confirm_apply: true`; converts PresetV2 to legacy settings patch and saves through the existing backend settings save path for future launches only |
 | `POST /api/settings/browse-path` | Settings | `settingsView.js` | `shell-dialog` | Folder-only browser for allowlisted source/output/scratch and final-library promotion root fields; stages selected-folder evidence only |
 | `POST /api/settings/preview-patch` | Settings; Network Worker Mode Settings | `settingsView.js`; `networkView.js` delegates to `window.mediaPipelineSettingsView` | `none` | Returns redacted diff; no config written |
 | `POST /api/settings/pipeline-plan-preview` | Settings | `settingsView.js` | `none` | Strict source facts plus optional staged settings patch; backend-owned dry-run plan only |

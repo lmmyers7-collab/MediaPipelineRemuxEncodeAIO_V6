@@ -77,6 +77,10 @@ class CompletedJobRecord:
         return _decision_records(self.payload.get("subtitle_decisions"))
 
     @property
+    def subtitle_conversion_results(self) -> list[dict[str, Any]]:
+        return _decision_records(self.payload.get("subtitle_conversion_results"))
+
+    @property
     def encode_selected_encoder(self) -> str:
         return str(self.payload.get("encode_selected_encoder", "") or "").strip()
 

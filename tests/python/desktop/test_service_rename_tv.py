@@ -83,6 +83,32 @@ class RenameTvHelperTests(unittest.TestCase):
                 "Serial Experiments Lain - S01E01 - Weird.mkv",
             )
 
+    def test_auto_tv_name_accepts_episode_revision_suffixes(self) -> None:
+        self.assertEqual(
+            build_auto_tv_rename_name(Path("Example Show S01E12v2.mkv"), season_number=1, remove_terms=None),
+            "Example Show - S01E12.mkv",
+        )
+        self.assertEqual(
+            build_auto_tv_rename_name(Path("Example Show E12v3 - Revision Title.mkv"), season_number=1, remove_terms=None),
+            "Example Show - S01E12 - Revision Title.mkv",
+        )
+
+    def test_auto_tv_name_accepts_delimited_bare_anime_episode_numbers(self) -> None:
+        self.assertEqual(
+            build_auto_tv_rename_name(Path("Kanan-sama wa Akumade Choroi - 12 (1080p).mkv"), season_number=1, remove_terms=None),
+            "Kanan-sama wa Akumade Choroi - S01E12.mkv",
+        )
+        self.assertEqual(
+            build_auto_tv_rename_name(Path("Kanan-sama wa Akumade Choroi - 12v2 - Episode Title (1080p).mkv"), season_number=1, remove_terms=None),
+            "Kanan-sama wa Akumade Choroi - S01E12 - Episode Title.mkv",
+        )
+
+    def test_auto_tv_name_rejects_non_episode_bare_numeric_tokens(self) -> None:
+        for source_name in ("Example Show - 1080p.mkv", "Example Show - 2024.mkv", "Example Show - 12bit.mkv", "Example Show - v2.mkv"):
+            with self.subTest(source_name=source_name):
+                with self.assertRaisesRegex(ValueError, "TV auto preview needs"):
+                    build_auto_tv_rename_name(Path(source_name), season_number=1, remove_terms=None)
+
     def test_service_wrappers_match_extracted_tv_helpers(self) -> None:
         service = DummyRenameTvService()
         source = Path("Serial Experiments Lain E01 Weird 1080p BluRay.mkv")

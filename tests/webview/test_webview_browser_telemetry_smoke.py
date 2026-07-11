@@ -624,13 +624,16 @@ def _run_node_telemetry_view_smoke() -> dict[str, object]:
         raise unittest.SkipTest("Node.js is required for the WebView telemetry view smoke.")
 
     formatters_path = STATIC_ASSETS / "formatters.js"
+    telemetry_gpu_projection_path = STATIC_ASSETS / "telemetry" / "gpuProjection.js"
     telemetry_path = STATIC_ASSETS / "telemetryView.js"
     formatters_source = json.dumps(formatters_path.read_text(encoding="utf-8"))
+    telemetry_gpu_projection_source = json.dumps(telemetry_gpu_projection_path.read_text(encoding="utf-8"))
     telemetry_source = json.dumps(telemetry_path.read_text(encoding="utf-8"))
     script = textwrap.dedent(
         f"""
         const vm = require("vm");
         const formattersSource = {formatters_source};
+        const telemetryGpuProjectionSource = {telemetry_gpu_projection_source};
         const telemetrySource = {telemetry_source};
 
         const context = {{}};
@@ -641,6 +644,7 @@ def _run_node_telemetry_view_smoke() -> dict[str, object]:
         }};
         vm.createContext(context);
         vm.runInContext(formattersSource, context, {{ filename: "formatters.js" }});
+        vm.runInContext(telemetryGpuProjectionSource, context, {{ filename: "telemetry/gpuProjection.js" }});
         vm.runInContext(telemetrySource, context, {{ filename: "telemetryView.js" }});
 
         const view = context.mediaPipelineTelemetryView;

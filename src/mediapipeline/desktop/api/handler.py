@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import http.server
 import json
+import uuid
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
@@ -11,8 +12,10 @@ from .handler_policy import (
     route_exception_journal_payload,
     options_response_headers,
     route_exception_payload,
+    route_exception_status,
     route_validation_error_payload,
     route_validation_journal_payload,
+    requires_strict_durable_command_journal,
     should_record_command_payload,
     should_record_route_exception_journal,
     should_record_validation_failure_journal,
@@ -58,7 +61,7 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
                 except Exception as exc:
                     payload = route_exception_payload(route, exc)
                     owner.logger.exception("local API route failed: %s error_id=%s", route, payload.get("error_id"))
-                    self._send_json(payload, status=500)
+                    self._send_json(payload, status=route_exception_status(exc))
                 return
             if not owner._request_authorized(self.headers, query):
                 self._send_json(unauthorized_payload(), status=401)
@@ -75,7 +78,7 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
             except Exception as exc:
                 payload = route_exception_payload(route, exc)
                 owner.logger.exception("local API route failed: %s error_id=%s", route, payload.get("error_id"))
-                self._send_json(payload, status=500)
+                self._send_json(payload, status=route_exception_status(exc))
 
         def do_POST(self) -> None:
             parsed = urlsplit(self.path)
@@ -114,7 +117,57 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
                                 owner.logger.warning("Could not record local API validation failure for %s: %s", route, journal_exc)
                         self._send_json(route_validation_error_payload(route, exc), status=400)
                         return
-                self._send_json(getattr(owner, spec.method_name)(body), journal_request=body)
+                strict_evidence = requires_strict_durable_command_journal(route)
+                command_id = uuid.uuid4().hex if strict_evidence else ""
+                if strict_evidence:
+                    try:
+                        owner._record_command_journal(
+                            _strict_command_evidence_payload(
+                                route,
+                                command_id,
+                                phase="accepted",
+                                ok=True,
+                                message="Critical command accepted by the backend before mutation.",
+                            ),
+                            request=body,
+                            strict=True,
+                        )
+                    except Exception as journal_exc:
+                        self._send_json(
+                            _strict_command_evidence_payload(
+                                route,
+                                command_id,
+                                phase="rejected",
+                                ok=False,
+                                message="Critical command was rejected before mutation because durable command evidence is unavailable.",
+                                error=str(journal_exc),
+                            ),
+                            status=503,
+                        )
+                        return
+                    body = {**body, "_command_id": command_id}
+                result = getattr(owner, spec.method_name)(body)
+                if strict_evidence:
+                    result = _with_strict_command_evidence(result, command_id)
+                    try:
+                        owner._record_command_journal(result, request=body, strict=True)
+                    except Exception as journal_exc:
+                        marker = getattr(owner, "_mark_command_evidence_indeterminate", None)
+                        if callable(marker):
+                            marker(command_id=command_id, route=route, reason=str(journal_exc))
+                        self._send_json(
+                            _strict_command_evidence_payload(
+                                route,
+                                command_id,
+                                phase="indeterminate",
+                                ok=False,
+                                message="The operation may have run, but its terminal evidence could not be persisted. Do not retry or close; reconcile backend state.",
+                                error=str(journal_exc),
+                            ),
+                            status=503,
+                        )
+                        return
+                self._send_json(result, journal_request=body)
             except Exception as exc:
                 payload = route_exception_payload(route, exc)
                 owner.logger.exception("local API route failed: %s error_id=%s", route, payload.get("error_id"))
@@ -123,7 +176,7 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
                         owner._record_command_journal(route_exception_journal_payload(route, payload), request=body)
                     except Exception as journal_exc:
                         owner.logger.warning("Could not record local API route exception for %s: %s", route, journal_exc)
-                self._send_json(payload, status=500)
+                self._send_json(payload, status=route_exception_status(exc))
 
         def _read_json_body(self) -> dict[str, Any] | None:
             return read_json_body(self, lambda payload, status: self._send_json(payload, status=status))
@@ -177,3 +230,46 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
             send_bytes(self, body, status=status, content_type=content_type, extra_headers=response_headers)
 
     return _Handler
+
+
+def _strict_command_evidence_payload(
+    route: str,
+    command_id: str,
+    *,
+    phase: str,
+    ok: bool,
+    message: str,
+    error: str = "",
+) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "command_id": command_id,
+        "route": route,
+        "evidence_phase": phase,
+        "journal_durability": "strict",
+        "suppress_command_journal": True,
+    }
+    if error:
+        data["journal_error"] = error
+    return {
+        "schema_version": "desktop_command_result.v1",
+        "command": route.removeprefix("/api/").replace("/", "."),
+        "ok": ok,
+        "severity": "info" if ok else "error",
+        "message": message,
+        "data": data,
+    }
+
+
+def _with_strict_command_evidence(payload: dict[str, Any], command_id: str) -> dict[str, Any]:
+    result = dict(payload)
+    data = dict(result.get("data") or {})
+    data.update(
+        {
+            "command_id": command_id,
+            "evidence_phase": "completed" if bool(result.get("ok")) else "rejected_or_failed",
+            "journal_durability": "strict",
+            "strict_command_journal_recorded": True,
+        }
+    )
+    result["data"] = data
+    return result

@@ -20,6 +20,8 @@ function Invoke-MediaPipelineRemuxVerification {
     }
 
     $videoPreservation = Test-OutputVideoStreamPreservation -SourcePath $Context.LocalIn -OutputPath $Context.Paths.LocalOut -Route 'remux' -SourceInventory $Context.VideoStreamPolicy.Inventory
+    $script:LastMediaVerification = $videoPreservation
+    $Context.MediaVerification = $videoPreservation
     if (-not [bool]$videoPreservation.Allowed) {
         $reason = [string]$videoPreservation.Reason
         $errorCode = [string]$videoPreservation.ErrorCode
@@ -32,6 +34,50 @@ function Invoke-MediaPipelineRemuxVerification {
         $null = Register-SourceFailure -SourceFile $Context.File -ScratchPath $Context.Paths.LocalOut -Classification 'operator_required' -Reason $reason -Stage 'remux-video-stream-verify' -ErrorCode $errorCode -SuggestedAction 'Inspect source/output ffprobe stream inventories and saved FFmpeg/mkvmerge repro commands; publish remains blocked until every real source video stream is present in output.' -AdditionalProperties $failureProperties
         Write-Log "REMUX: $reason" "ERROR"
         return New-MediaPipelineRemuxStageResult -Ok $false -Terminal $true -Value $false -Stage 'remux-video-stream-verify'
+    }
+
+    $trackVerificationPlan = $Context.MediaTrackVerificationPlan
+    if (-not $trackVerificationPlan) {
+        $trackVerificationPlan = New-MediaTrackOutputVerificationPlan -AudioDecisions @(Get-LastAudioDecisionRecords) -SubtitleTracks @($Context.SubTracks.VerificationTracks)
+    }
+    $trackVerification = Test-MediaTrackOutputVerification -OutputPath $Context.Paths.LocalOut -Plan $trackVerificationPlan
+    $script:LastMediaTrackVerification = $trackVerification
+    $Context.MediaTrackVerification = $trackVerification
+    $script:LastAudioVerification = Get-MediaTrackVerificationFacet -Verification $trackVerification -Kind 'audio'
+    $script:LastSubtitleVerification = Get-MediaTrackVerificationFacet -Verification $trackVerification -Kind 'subtitle'
+    $Context.AudioVerification = $script:LastAudioVerification
+    $Context.SubtitleVerification = $script:LastSubtitleVerification
+    if (-not [bool]$trackVerification.allowed) {
+        $null = Register-SourceFailure -SourceFile $Context.File -ScratchPath $Context.Paths.LocalOut -Classification 'operator_required' -Reason ([string]$trackVerification.reason) -Stage 'remux-media-track-verify' -ErrorCode ([string]$trackVerification.error_code) -SuggestedAction 'Inspect source/output ffprobe stream inventories and backend policy evidence; publish remains blocked until every resolved audio and subtitle output track matches the plan.' -AdditionalProperties @{ media_track_verification = $trackVerification; media_track_verification_plan = $trackVerificationPlan; audio_verification = $script:LastAudioVerification; subtitle_verification = $script:LastSubtitleVerification }
+        return New-MediaPipelineRemuxStageResult -Ok $false -Terminal $true -Value $false -Stage 'remux-media-track-verify'
+    }
+
+    $dynamicHdrPolicy = Resolve-DynamicHdrPolicy -Policy ([string]$script:DynamicHdrPolicy)
+    if ($script:CurrentDynamicHdrEvidence -and [bool]$script:CurrentDynamicHdrEvidence.dynamic_metadata_present) {
+        if ($dynamicHdrPolicy -in @('preserve_or_remux','preserve_or_review')) {
+            if (-not [bool]$script:CurrentDynamicHdrEvidence.probed) {
+                $reason = 'Dynamic HDR source detection was inconclusive; preservation policy cannot verify remux output.'
+                $null = Register-SourceFailure -SourceFile $Context.File -ScratchPath $Context.LocalIn -Classification 'operator_required' -Reason $reason -Stage 'remux-dynamic-hdr-verify' -ErrorCode 'DYNAMIC_HDR_OUTPUT_VERIFY_UNKNOWN' -SuggestedAction 'Inspect source ffprobe Dynamic HDR evidence and retry only after both Dolby Vision and HDR10+ probes are conclusive.' -AdditionalProperties @{ dynamic_hdr = $script:CurrentDynamicHdrEvidence }
+                return New-MediaPipelineRemuxStageResult -Ok $false -Terminal $true -Value $false -Stage 'remux-dynamic-hdr-verify'
+            }
+            $dynamicHdrVerification = Test-DynamicHdrOutputPreservation -SourceEvidence $script:CurrentDynamicHdrEvidence -OutputPath $Context.Paths.LocalOut
+            $script:CurrentDynamicHdrEvidence | Add-Member -NotePropertyName 'verification' -NotePropertyValue $dynamicHdrVerification -Force
+            if (-not [bool]$dynamicHdrVerification.ok) {
+                $null = Register-SourceFailure -SourceFile $Context.File -ScratchPath $Context.LocalIn -Classification 'operator_required' -Reason ([string]$dynamicHdrVerification.reason) -Stage 'remux-dynamic-hdr-verify' -ErrorCode ([string]$dynamicHdrVerification.error_code) -SuggestedAction 'Inspect output ffprobe Dolby Vision/HDR10+ side data. Preservation policy blocks remux publish until expected metadata is detected.' -AdditionalProperties @{ dynamic_hdr = $script:CurrentDynamicHdrEvidence }
+                return New-MediaPipelineRemuxStageResult -Ok $false -Terminal $true -Value $false -Stage 'remux-dynamic-hdr-verify'
+            }
+            $script:CurrentDynamicHdrEvidence.outcome = 'preserved_remux_verified'
+        } elseif ($dynamicHdrPolicy -eq 'warn') {
+            $script:CurrentDynamicHdrEvidence.outcome = 'preservation_unverified_warn'
+            $script:CurrentDynamicHdrEvidence | Add-Member -NotePropertyName 'policy_reason' -NotePropertyValue 'warn policy permits remux publish without Dynamic HDR output verification' -Force
+        }
+        if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+            Write-PipelineEvent -EventType 'dynamic_hdr_remux_verification' -Stage 'remux-dynamic-hdr-verify' -SourcePath $Context.File -Route 'remux' -Status ([string]$script:CurrentDynamicHdrEvidence.outcome) -Data @{
+                policy       = $dynamicHdrPolicy
+                outcome      = [string]$script:CurrentDynamicHdrEvidence.outcome
+                verification = $script:CurrentDynamicHdrEvidence.verification
+            } | Out-Null
+        }
     }
 
     Write-PlexCompatibilityReport -FilePath $Context.Paths.LocalOut -Context "REMUX: "
