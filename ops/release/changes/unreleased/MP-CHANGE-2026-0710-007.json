@@ -28,7 +28,9 @@
     "src/mediapipeline/desktop/api/contract_payload.py"
   ],
   "tests_added": ["tests/python/desktop/test_api_contract_payload.py"],
-  "manual_validation": [],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_api_contract_payload tests.python.desktop.test_stage_runner -q - passed (46 tests)"
+  ],
   "rollback_plan": "Revert the public contract and documentation records together; no route, UI caller, or filesystem mutation was added.",
   "related_changes": [],
   "notes": "Publish orchestration-only dispatcher boundary.\nDocument production PowerShell ownership.\nDocument no dispatcher API routes.\nRecord hardened ingest and disabled stages.\nPublish descriptive disabled-stage notes.\nRefresh guarded ingest contract summary.\nRefresh dispatcher runner summary.\nRefresh dispatcher API contract summary."

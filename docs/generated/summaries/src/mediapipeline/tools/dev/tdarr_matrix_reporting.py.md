@@ -1,0 +1,17 @@
+---
+file: src/mediapipeline/tools/dev/tdarr_matrix_reporting.py
+pipeline_stage: n/a
+token_priority: medium
+owner_domain: scripts
+last_modified: 2026-07-11
+last_reviewed: 2026-07-11
+sha256: 38bbdb1687e5b7ce49ad7670101f47ae1b915dfb42e9ca223e616fef0ff6b9b8
+---
+# `src/mediapipeline/tools/dev/tdarr_matrix_reporting.py`
+
+**Purpose:** Audit and sample-run harness for the generated Tdarr Matrix test library.
+
+**Public functions:** `add_common_arguments()`, `audit_existing_library()`, `command_report()`, `command_run_samples()`, `exit_code_for_findings()`, `main()`, `parse_args()`, `report_paths()`, `required_input_findings()`, `run_id_default()`, `write_reports()`
+**In-repo imports:** `mediapipeline.core.diagnostics.tdarr_matrix_proof`, `mediapipeline.tools.dev`, `mediapipeline.tools.dev.tdarr_matrix_audits`, `mediapipeline.tools.dev.tdarr_matrix_models`, `mediapipeline.tools.dev.tdarr_matrix_operations`, `mediapipeline.tools.paths`
+
+_Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/tools/dev/tdarr_matrix_reporting.py`._

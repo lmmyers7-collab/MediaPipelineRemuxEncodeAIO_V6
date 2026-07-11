@@ -40,10 +40,6 @@ if TYPE_CHECKING:
 
 
 _log = logging.getLogger(__name__)
-NETWORK_TEST_CONNECTION_SCHEMA_VERSION = "desktop_network_worker_test_connection.v1"
-NETWORK_COORDINATOR_DISCOVERY_SCHEMA_VERSION = "desktop_network_coordinator_discovery.v1"
-
-
 from mediapipeline.core.network.facade_contract import (
     NETWORK_COORDINATOR_DISCOVERY_SCHEMA_VERSION,
     NETWORK_TEST_CONNECTION_SCHEMA_VERSION,

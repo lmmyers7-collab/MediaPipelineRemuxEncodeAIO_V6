@@ -274,22 +274,6 @@ def _encode_tuning_for_strategy(strategy: str) -> str:
     return "balanced_nvenc"
 
 
-__all__ = [
-    "settings_wizard_status",
-    "settings_wizard_defaults",
-    "preview_settings_wizard",
-    "save_settings_wizard",
-    "validate_wizard_payload",
-    "validate_wizard_paths",
-    "validate_worker_settings",
-    "validate_ffmpeg_tools",
-    "probe_ffmpeg_hardware",
-    "tool_candidates",
-    "mark_settings_wizard_completed",
-    "settings_wizard_payload_from_request",
-    "wizard_changes",
-]
-
 __all__ = (
     "_tool_candidate_roots",
     "_candidate",

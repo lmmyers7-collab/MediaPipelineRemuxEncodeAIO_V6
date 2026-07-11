@@ -488,7 +488,6 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
     def test_marker_clear_is_guided_preview_first_flow(self) -> None:
-        source = REPORTS_VIEW.read_text(encoding="utf-8")
         failure_commands_source = REPORTS_FAILURE_COMMANDS.read_text(encoding="utf-8")
         investigation_source = REPORTS_INVESTIGATION.read_text(encoding="utf-8")
         html = REPORTS_PAGE.read_text(encoding="utf-8")

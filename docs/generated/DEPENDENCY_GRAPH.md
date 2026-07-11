@@ -36,6 +36,7 @@ graph LR
   queue["queue"]
   rename["rename"]
   repair_reconcile["repair_reconcile"]
+  rerun["rerun"]
   sample_validation["sample_validation"]
   schedule["schedule"]
   scripts["scripts"]
@@ -52,47 +53,58 @@ graph LR
   verify["verify"]
   watch["watch"]
   webview["webview"]
-  tests -->|798| api
+  tests -->|809| api
+  process -->|104| processes
+  scripts -->|67| api
   tests -->|63| config
-  scripts -->|47| api
-  process -->|43| processes
-  tests -->|41| processes
-  observability -->|36| status
-  config -->|26| kernel
-  contracts -->|26| api
+  tests -->|44| processes
+  observability -->|39| status
+  contracts -->|32| api
+  process -->|30| paths
+  config -->|27| kernel
+  process -->|27| kernel
+  tests -->|25| queue
   tests -->|25| rename
-  tests -->|24| queue
-  tests -->|22| status
+  tests -->|23| status
+  unknown -->|19| kernel
   tests -->|18| publish
-  process -->|17| kernel
-  process -->|17| paths
+  diagnostics -->|15| kernel
+  unknown -->|15| config
   application -->|14| kernel
   config -->|13| api
   tests -->|13| paths
+  diagnostics -->|12| status
+  network -->|12| kernel
   subtitles -->|12| api
   tests -->|12| completed
   decide -->|11| api
+  network -->|11| config
+  process -->|11| network
   tests -->|11| audit
-  unknown -->|11| kernel
+  unknown -->|11| repair_reconcile
+  completed -->|10| observability
+  config -->|10| paths
   contracts -->|10| kernel
+  network -->|10| api
+  network -->|10| application
+  observability -->|10| paths
   tests -->|10| kernel
+  api -->|9| processes
   api -->|9| queue
-  config -->|9| paths
-  observability -->|9| paths
   sample_validation -->|9| paths
   tests -->|9| maintenance
-  unknown -->|9| config
-  api -->|8| processes
   audit -->|8| paths
-  network -->|8| config
+  network -->|8| processes
   observability -->|8| telemetry
+  process -->|8| config
+  process -->|8| final_library
+  publish -->|8| kernel
   queue -->|8| paths
+  scripts -->|8| diagnostics
   tests -->|8| diagnostics
   api -->|7| kernel
-  diagnostics -->|7| kernel
-  diagnostics -->|7| status
+  contracts -->|7| rename
   maintenance -->|7| kernel
-  publish -->|7| kernel
   tests -->|7| application
   tests -->|7| decide
   tests -->|7| storage
@@ -100,8 +112,7 @@ graph LR
   api -->|6| rename
   audit -->|6| kernel
   metrics -->|6| completed
-  network -->|6| kernel
-  process -->|6| config
+  network -->|6| paths
   rename -->|6| files
   rename -->|6| kernel
   tests -->|6| failures
@@ -109,39 +120,39 @@ graph LR
   tests -->|6| folder_policy
   unknown -->|6| api
   application -->|5| api
+  completed -->|5| files
   completed -->|5| paths
+  completed -->|5| subtitles
   failures -->|5| paths
-  network -->|5| processes
   observability -->|5| kernel
   orchestration -->|5| api
   orchestration -->|5| config
-  scripts -->|5| diagnostics
+  process -->|5| audit
+  tests -->|5| observability
   tests -->|5| orchestration
   tests -->|5| telemetry
   tests -->|5| validation
   unknown -->|5| completed
+  unknown -->|5| library
   audit -->|4| failures
   completed -->|4| kernel
   config -->|4| rename
-  contracts -->|4| rename
   final_library -->|4| completed
   maintenance -->|4| paths
   observability -->|4| rename
   queue -->|4| observability
   sample_validation -->|4| kernel
   tests -->|4| network
-  tests -->|4| observability
   unknown -->|4| paths
   unknown -->|4| queue
   unknown -->|4| status
   application -->|3| config
   config -->|3| validation
+  contracts -->|3| validation
   diagnostics -->|3| paths
   final_library -->|3| paths
-  network -->|3| paths
   orchestration -->|3| decide
   paths -->|3| kernel
-  process -->|3| network
   rename -->|3| paths
   schedule -->|3| kernel
   tests -->|3| files
@@ -150,14 +161,12 @@ graph LR
   unknown -->|3| maintenance
   api -->|2| orchestration
   audit -->|2| completed
-  completed -->|2| observability
-  contracts -->|2| validation
   failures -->|2| kernel
   final_library -->|2| kernel
   metrics -->|2| paths
+  observability -->|2| processes
   observability -->|2| storage
   paths -->|2| storage
-  process -->|2| final_library
   process -->|2| schedule
   publish -->|2| files
   publish -->|2| paths
@@ -166,15 +175,16 @@ graph LR
   scripts -->|2| processes
   scripts -->|2| publish
   tests -->|2| metrics
+  tests -->|2| repair_reconcile
   unknown -->|2| failures
-  unknown -->|2| library
-  unknown -->|2| repair_reconcile
+  unknown -->|2| processes
   unknown -->|2| storage
   unknown -->|2| telemetry
   validation -->|2| api
   api -->|1| failures
   api -->|1| files
   api -->|1| maintenance
+  api -->|1| metrics
   api -->|1| network
   api -->|1| publish
   api -->|1| repair_reconcile
@@ -186,9 +196,7 @@ graph LR
   application -->|1| schedule
   audit -->|1| files
   audit -->|1| processes
-  completed -->|1| files
   completed -->|1| publish
-  completed -->|1| subtitles
   config -->|1| network
   config -->|1| processes
   diagnostics -->|1| config
@@ -202,12 +210,9 @@ graph LR
   maintenance -->|1| network
   maintenance -->|1| storage
   metrics -->|1| kernel
-  network -->|1| api
   observability -->|1| api
   observability -->|1| config
-  observability -->|1| processes
   orchestration -->|1| paths
-  process -->|1| audit
   process -->|1| completed
   process -->|1| files
   publish -->|1| completed
@@ -217,6 +222,7 @@ graph LR
   queue -->|1| subtitles
   rename -->|1| validation
   schedule -->|1| paths
+  scripts -->|1| observability
   scripts -->|1| paths
   scripts -->|1| rename
   subtitles -->|1| completed
@@ -228,7 +234,6 @@ graph LR
   unknown -->|1| files
   unknown -->|1| final_library
   unknown -->|1| folder_policy
-  unknown -->|1| processes
   unknown -->|1| publish
   unknown -->|1| ui_preferences
   watch -->|1| processes
@@ -238,47 +243,58 @@ graph LR
 
 | From | To | Edges |
 |---|---|---|
-| tests | api | 798 |
+| tests | api | 809 |
+| process | processes | 104 |
+| scripts | api | 67 |
 | tests | config | 63 |
-| scripts | api | 47 |
-| process | processes | 43 |
-| tests | processes | 41 |
-| observability | status | 36 |
-| config | kernel | 26 |
-| contracts | api | 26 |
+| tests | processes | 44 |
+| observability | status | 39 |
+| contracts | api | 32 |
+| process | paths | 30 |
+| config | kernel | 27 |
+| process | kernel | 27 |
+| tests | queue | 25 |
 | tests | rename | 25 |
-| tests | queue | 24 |
-| tests | status | 22 |
+| tests | status | 23 |
+| unknown | kernel | 19 |
 | tests | publish | 18 |
-| process | kernel | 17 |
-| process | paths | 17 |
+| diagnostics | kernel | 15 |
+| unknown | config | 15 |
 | application | kernel | 14 |
 | config | api | 13 |
 | tests | paths | 13 |
+| diagnostics | status | 12 |
+| network | kernel | 12 |
 | subtitles | api | 12 |
 | tests | completed | 12 |
 | decide | api | 11 |
+| network | config | 11 |
+| process | network | 11 |
 | tests | audit | 11 |
-| unknown | kernel | 11 |
+| unknown | repair_reconcile | 11 |
+| completed | observability | 10 |
+| config | paths | 10 |
 | contracts | kernel | 10 |
+| network | api | 10 |
+| network | application | 10 |
+| observability | paths | 10 |
 | tests | kernel | 10 |
+| api | processes | 9 |
 | api | queue | 9 |
-| config | paths | 9 |
-| observability | paths | 9 |
 | sample_validation | paths | 9 |
 | tests | maintenance | 9 |
-| unknown | config | 9 |
-| api | processes | 8 |
 | audit | paths | 8 |
-| network | config | 8 |
+| network | processes | 8 |
 | observability | telemetry | 8 |
+| process | config | 8 |
+| process | final_library | 8 |
+| publish | kernel | 8 |
 | queue | paths | 8 |
+| scripts | diagnostics | 8 |
 | tests | diagnostics | 8 |
 | api | kernel | 7 |
-| diagnostics | kernel | 7 |
-| diagnostics | status | 7 |
+| contracts | rename | 7 |
 | maintenance | kernel | 7 |
-| publish | kernel | 7 |
 | tests | application | 7 |
 | tests | decide | 7 |
 | tests | storage | 7 |
@@ -286,8 +302,7 @@ graph LR
 | api | rename | 6 |
 | audit | kernel | 6 |
 | metrics | completed | 6 |
-| network | kernel | 6 |
-| process | config | 6 |
+| network | paths | 6 |
 | rename | files | 6 |
 | rename | kernel | 6 |
 | tests | failures | 6 |
@@ -295,39 +310,39 @@ graph LR
 | tests | folder_policy | 6 |
 | unknown | api | 6 |
 | application | api | 5 |
+| completed | files | 5 |
 | completed | paths | 5 |
+| completed | subtitles | 5 |
 | failures | paths | 5 |
-| network | processes | 5 |
 | observability | kernel | 5 |
 | orchestration | api | 5 |
 | orchestration | config | 5 |
-| scripts | diagnostics | 5 |
+| process | audit | 5 |
+| tests | observability | 5 |
 | tests | orchestration | 5 |
 | tests | telemetry | 5 |
 | tests | validation | 5 |
 | unknown | completed | 5 |
+| unknown | library | 5 |
 | audit | failures | 4 |
 | completed | kernel | 4 |
 | config | rename | 4 |
-| contracts | rename | 4 |
 | final_library | completed | 4 |
 | maintenance | paths | 4 |
 | observability | rename | 4 |
 | queue | observability | 4 |
 | sample_validation | kernel | 4 |
 | tests | network | 4 |
-| tests | observability | 4 |
 | unknown | paths | 4 |
 | unknown | queue | 4 |
 | unknown | status | 4 |
 | application | config | 3 |
 | config | validation | 3 |
+| contracts | validation | 3 |
 | diagnostics | paths | 3 |
 | final_library | paths | 3 |
-| network | paths | 3 |
 | orchestration | decide | 3 |
 | paths | kernel | 3 |
-| process | network | 3 |
 | rename | paths | 3 |
 | schedule | kernel | 3 |
 | tests | files | 3 |
@@ -336,14 +351,12 @@ graph LR
 | unknown | maintenance | 3 |
 | api | orchestration | 2 |
 | audit | completed | 2 |
-| completed | observability | 2 |
-| contracts | validation | 2 |
 | failures | kernel | 2 |
 | final_library | kernel | 2 |
 | metrics | paths | 2 |
+| observability | processes | 2 |
 | observability | storage | 2 |
 | paths | storage | 2 |
-| process | final_library | 2 |
 | process | schedule | 2 |
 | publish | files | 2 |
 | publish | paths | 2 |
@@ -352,15 +365,16 @@ graph LR
 | scripts | processes | 2 |
 | scripts | publish | 2 |
 | tests | metrics | 2 |
+| tests | repair_reconcile | 2 |
 | unknown | failures | 2 |
-| unknown | library | 2 |
-| unknown | repair_reconcile | 2 |
+| unknown | processes | 2 |
 | unknown | storage | 2 |
 | unknown | telemetry | 2 |
 | validation | api | 2 |
 | api | failures | 1 |
 | api | files | 1 |
 | api | maintenance | 1 |
+| api | metrics | 1 |
 | api | network | 1 |
 | api | publish | 1 |
 | api | repair_reconcile | 1 |
@@ -372,9 +386,7 @@ graph LR
 | application | schedule | 1 |
 | audit | files | 1 |
 | audit | processes | 1 |
-| completed | files | 1 |
 | completed | publish | 1 |
-| completed | subtitles | 1 |
 | config | network | 1 |
 | config | processes | 1 |
 | diagnostics | config | 1 |
@@ -388,12 +400,9 @@ graph LR
 | maintenance | network | 1 |
 | maintenance | storage | 1 |
 | metrics | kernel | 1 |
-| network | api | 1 |
 | observability | api | 1 |
 | observability | config | 1 |
-| observability | processes | 1 |
 | orchestration | paths | 1 |
-| process | audit | 1 |
 | process | completed | 1 |
 | process | files | 1 |
 | publish | completed | 1 |
@@ -403,6 +412,7 @@ graph LR
 | queue | subtitles | 1 |
 | rename | validation | 1 |
 | schedule | paths | 1 |
+| scripts | observability | 1 |
 | scripts | paths | 1 |
 | scripts | rename | 1 |
 | subtitles | completed | 1 |
@@ -414,7 +424,6 @@ graph LR
 | unknown | files | 1 |
 | unknown | final_library | 1 |
 | unknown | folder_policy | 1 |
-| unknown | processes | 1 |
 | unknown | publish | 1 |
 | unknown | ui_preferences | 1 |
 | watch | processes | 1 |

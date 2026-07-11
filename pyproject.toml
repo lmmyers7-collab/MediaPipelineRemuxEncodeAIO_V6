@@ -55,6 +55,27 @@ ignore = []
 "**/__init__.py" = ["F401", "F403"]
 "**/test_*.py" = ["F401"]
 "**/conftest.py" = ["F401", "F403"]
+# These module families are compatibility splits: their locally annotated
+# star imports intentionally re-export names across sibling slices. Keep the
+# existing wiring visible while still enforcing every other Ruff rule.
+"src/mediapipeline/contracts/api_routes_command.py" = ["F401", "F405"]
+"src/mediapipeline/contracts/config*.py" = ["F401", "F405"]
+"src/mediapipeline/core/completed/policy*.py" = ["F401", "F405"]
+"src/mediapipeline/core/config/settings_wizard*.py" = ["F401", "F405"]
+"src/mediapipeline/core/diagnostics/autonomy_health*.py" = ["F401", "F405"]
+"src/mediapipeline/core/diagnostics/tdarr_matrix_audit*.py" = ["F401", "F405"]
+"src/mediapipeline/core/failures/policy*.py" = ["F401", "F405"]
+"src/mediapipeline/core/library/route_map*.py" = ["F401", "F405"]
+"src/mediapipeline/core/network/facade*.py" = ["F401", "F405"]
+"src/mediapipeline/core/network/registry*.py" = ["F401", "F405"]
+"src/mediapipeline/core/processes/preflight*.py" = ["F401", "F405"]
+"src/mediapipeline/core/processes/rerun_preview*.py" = ["F401", "F405"]
+"src/mediapipeline/core/processes/rerun_results*.py" = ["F401", "F405"]
+"src/mediapipeline/core/repair_reconcile/dry_run*.py" = ["F401", "F405"]
+"src/mediapipeline/core/sample_validation/pilot_plan*.py" = ["F401", "F405"]
+"src/mediapipeline/desktop/api/contract_command.py" = ["F401", "F405"]
+"src/mediapipeline/desktop/network/registry*.py" = ["F401", "F405"]
+"src/mediapipeline/tools/dev/tdarr_matrix*.py" = ["F401", "F405"]
 
 [tool.ruff.lint.flake8-quotes]
 inline-quotes = "double"

@@ -7,15 +7,15 @@
   "risk_level": "low",
   "date_started": "2026-07-10",
   "date_completed": "2026-07-10",
-  "summary": "",
-  "reason": "",
+  "summary": "Extracted the read-only Progress evidence board into a child module while preserving its existing facade and script order.",
+  "reason": "Keep the WebView Progress surface maintainable without moving authority or changing operator behavior.",
   "affected_areas": [
     "generated-context",
     "tests",
     "webview"
   ],
-  "behavior_before": "",
-  "behavior_after": "",
+  "behavior_before": "Progress evidence rendering lived in the larger progress view module.",
+  "behavior_after": "The Progress facade delegates the evidence board to a child module loaded before the facade; rendering and read-only behavior are unchanged.",
   "files_touched": [
     "apps/desktop/webview/static/assets/progress/evidence.js",
     "apps/desktop/webview/static/assets/progressView.js",
@@ -41,7 +41,7 @@
     "node --check apps/desktop/webview/static/assets/progress/evidence.js; node --check apps/desktop/webview/static/assets/progressView.js - passed",
     "ops/scripts/smoke/Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1 - passed (2 tests)"
   ],
-  "rollback_plan": "",
+  "rollback_plan": "Revert the evidence child-module extraction, facade delegation, script-order assertion, and generated summaries together.",
   "related_changes": [],
   "notes": "Extracted the read-only Progress evidence board into a child module.\nDelegates the Progress evidence board through the unchanged public facade.\nLoads the Progress evidence child before its facade.\nIncludes both Progress child modules in static contract assertions.\nPins Progress child-before-facade script ordering.\nRefreshed generated summaries for the Progress evidence extraction.\nScoped path coverage is complete; global strict change validation remains blocked by pre-existing unrelated packet and worktree failures."
 }

@@ -44,7 +44,7 @@ repos:
 
       - id: mediapipeline-python-lint
         name: MediaPipeline Python lint
-        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_python_lint
+        entry: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_python_lint
         language: system
         pass_filenames: false
 
