@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 13cc4c5aa3a297972ae827b21cc82f622f61a3a1c9b1b55a7aecf545ab1613b5
+sha256: 85d7a55c5164a4d02e4ff1eac876b296a66fdfa44b81fec5ad34332556805e23
 ---
 # `tests/python/desktop/test_rename_workbench.py`
 

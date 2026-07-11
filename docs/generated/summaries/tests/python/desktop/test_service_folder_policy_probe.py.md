@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: e22a5efa81c3b52bf2f21ee6297668cf797ece87d2b57d02348ae634788a3309
+sha256: 953fc8861f886afbc177043b8fe32d7a2929a83d223e5fa65c059a8c11006fb0
 ---
 # `tests/python/desktop/test_service_folder_policy_probe.py`
 

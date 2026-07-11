@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 112cd9b28402d8c0df5c3190c83d621a6e7f2e892f0d6c6447c101a304275397
+sha256: 600447e4bc87a078d9363f7b7d1956111c101d9a5c21be3c9dcbf7e6f84bc50a
 ---
 # `tests/webview/test_webview_browser_telemetry_smoke.py`
 

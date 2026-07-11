@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: verify
 last_modified: 2026-07-10
 last_reviewed: 2026-06-11
-sha256: a244314d0f8921fce791264b2337e02f4e01271578ea38984be4b80885a3fd5a
+sha256: ad47171db83955556bbac53ccab0cc1351a9355860874b9da60acf2c12b01f09
 ---
 # `ops/pipeline/engine/verify/quality.ps1`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 7899ee4956d406dad46d7a9161c45b61611dfb363428a63d78542db3a0717824
+sha256: 7a8da09e22dbef70fa90ed641ca84900a004362ff86c8a4164d70fdd5b5c2129
 ---
 # `ops/pipeline/engine/config/schema_keys.ps1`
 

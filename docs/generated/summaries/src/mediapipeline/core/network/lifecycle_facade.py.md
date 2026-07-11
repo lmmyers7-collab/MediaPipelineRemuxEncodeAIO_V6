@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: network
 last_modified: 2026-07-10
 last_reviewed: 2026-06-13
-sha256: 1242bd4d1fb03d30f08a2c726d2bd0c6ee123d59e23e2147a5637eb0f20cf193
+sha256: 7f69944f42909a0d7a4a34bc29de8c020ead5d6442e89556da695de3b1492200
 ---
 # `src/mediapipeline/core/network/lifecycle_facade.py`
 

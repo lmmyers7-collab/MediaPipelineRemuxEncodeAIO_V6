@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-11
-sha256: 69bfd58559202e11c6d0fe3844d2444f65a5bc44176127fc0eb8bb7d1faf44cd
+sha256: ef3b9bb61d2412bfa52870d9712032d3f1c77bff8fba40626902b29b3b54e677
 ---
 # `ops/pipeline/tests/Unit/Invoke-DynamicHdrDetectionChecks.ps1`
 

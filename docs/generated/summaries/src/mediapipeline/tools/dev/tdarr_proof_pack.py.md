@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-12
-sha256: 55cf5ec40f6540665468c766f0c28255bdc602c3ec4dacb33ccbcd3fd370baa8
+sha256: 98b4763d8d9678a96cbd7a7e101f5843699a13e86222501b22288e7717079292
 ---
 # `src/mediapipeline/tools/dev/tdarr_proof_pack.py`
 

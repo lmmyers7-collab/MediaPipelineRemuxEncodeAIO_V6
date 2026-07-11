@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 3dd244d4585dad8e6672333a301f8ae967197d98d9970cf090cedbb7de1dabf8
+sha256: 92ed2dfdaf006904afc65ce1a40d6c33be0112d57cac611ea399b199b2acfe7f
 ---
 # `src/mediapipeline/tools/dev/generate_pipeline_map.py`
 

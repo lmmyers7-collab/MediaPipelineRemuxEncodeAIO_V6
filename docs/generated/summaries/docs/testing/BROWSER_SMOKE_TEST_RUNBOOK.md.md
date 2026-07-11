@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-10
 last_reviewed: 2026-05-29
-sha256: 81877b48c1004a5e71baff9df70a1ac2cbbcb08706576f2e987417555b12fae4
+sha256: 08a71cc773f3080704867b8d8ef8606d5bd95fe12db5f499779122d7420a6af8
 ---
 # `docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md`
 

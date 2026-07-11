@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: subtitles
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 344b6351436e91ac155bb1d3d8e9b1ff97f3334e409d2aa24e54e2149a21791d
+sha256: 23f80d96736ab5546450ef81fbac8713e20458db5360ba4800e58ca7029c93d8
 ---
 # `ops/pipeline/engine/subtitles/subtitles.ps1`
 

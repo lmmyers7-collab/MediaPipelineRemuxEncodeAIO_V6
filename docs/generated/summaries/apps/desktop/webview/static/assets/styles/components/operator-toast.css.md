@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-30
-sha256: f1c5435063a14d015ae0fd47cb770eb0f5ea53c58b10d8abbe14fae56b4438a6
+sha256: 6445c82348850d11ea86e99b3a4732a5db99207d162b2abb90babfe146725c71
 ---
 # `apps/desktop/webview/static/assets/styles/components/operator-toast.css`
 

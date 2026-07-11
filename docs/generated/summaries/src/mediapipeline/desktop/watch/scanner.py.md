@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: watch
 last_modified: 2026-07-10
 last_reviewed: 2026-06-11
-sha256: 102f73c55c92db392549019e6de9df194adf46ae13c2c94ef0af88754b697f2c
+sha256: 1b20b5444ab39ac9f7c5e0288a415ea9fd2de39ce0f7b093dd89f6afe53f3674
 ---
 # `src/mediapipeline/desktop/watch/scanner.py`
 

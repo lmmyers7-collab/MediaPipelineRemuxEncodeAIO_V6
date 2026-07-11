@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 9abbe6141342a8716ce46ba289d8ae14b81d7bbd0cec6c826f054eb9391abcbf
+sha256: 474ace2757b10657dec704df61d46007d774b3de6f888ecea044a46ce851db9f
 ---
 # `tests/python/desktop/test_subprocess_runner.py`
 

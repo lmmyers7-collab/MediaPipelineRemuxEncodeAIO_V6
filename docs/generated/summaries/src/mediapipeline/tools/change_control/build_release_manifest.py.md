@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 49cc4940a214d81cf556dd0c48151203a5892ef14ee5612fa7e87bdde28fc539
+sha256: e609c61b89fb2475ba739b6ca9912e4ee43273518ab456d021ea9dda2787ddae
 ---
 # `src/mediapipeline/tools/change_control/build_release_manifest.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 89664b5f45a3b510227cd5158aa17423ca2dbca78ff72e9d91ab2dd253b91807
+sha256: 3dc2a870af1bfccb8f621bc3efb02e551d6b92b692168a0890a252de3d11dc7b
 ---
 # `tests/python/desktop/test_service_process_control_flags.py`
 

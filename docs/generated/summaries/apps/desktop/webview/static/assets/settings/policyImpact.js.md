@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 4adfe85d2e711427491e4a57c2d8c8382948cd1c9b859cc1008480cafcbe25c7
+sha256: 189185acff2668845653e2618e5c5b0e1f685bef289e1ee2b7a4e71e583f3c94
 ---
 # `apps/desktop/webview/static/assets/settings/policyImpact.js`
 

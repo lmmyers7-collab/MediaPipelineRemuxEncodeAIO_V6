@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: api
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: fe7dd8d7808c1ac27ed512ab0b4e229cca06566caebe6a18591991c941adf87e
+sha256: 262434e5f8794e16af691497886a0f3b06cf22a8d07697dd7aaed2831405d78f
 ---
 # `src/mediapipeline/core/api/file_overrides/tracks.py`
 

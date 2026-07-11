@@ -4,7 +4,7 @@ Date: 2026-07-03
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `apps/desktop/webview/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 2017. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 2018. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -844,7 +844,7 @@ and rename bad-case corpus example fields. Current ID count is 1943 unique
 
 This section is generated from `apps/desktop/webview/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 2017
+Count: 2018
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 ```text
@@ -2732,6 +2732,7 @@ settings-validation
 settings-video-apply-button
 settings-video-apply-hint
 settings-video-builder-status
+settings-video-cpu-mutex-wait
 settings-video-cpu-preset
 settings-video-cpu-priority
 settings-video-cpu-quality

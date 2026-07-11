@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: decide
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 1ac0195cd1744cae04b2a17cf97c7e6ba4fd90488f516589fe6738fa6f83c78e
+sha256: 4eccb829935a4ed78998df301b57dcf20bef2756182c1dc9876e057d871efbfa
 ---
 # `ops/pipeline/engine/decide/profile_selection.ps1`
 

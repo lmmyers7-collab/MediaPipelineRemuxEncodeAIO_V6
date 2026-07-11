@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: contracts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: bc76e3798eecc5afb2cc0286b10c2dc95221508a02f6dd475896673e49dc58c4
+sha256: f183edf10ae034b8c06f2a18cc5c2a298c27bed89c7839bb7ece176b52adf876
 ---
 # `src/mediapipeline/contracts/stage_mutation.py`
 

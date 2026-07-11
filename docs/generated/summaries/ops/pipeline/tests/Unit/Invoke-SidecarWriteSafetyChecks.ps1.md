@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: c0321e3b16b7e38d7ef9c2f97ddd1132b3f7792d1bb6b926dc38e27545bf6775
+sha256: 7637da219fe31685c8930b3ff7d92356a9195a1b7fd28aa6e26339700f052ab4
 ---
 # `ops/pipeline/tests/Unit/Invoke-SidecarWriteSafetyChecks.ps1`
 

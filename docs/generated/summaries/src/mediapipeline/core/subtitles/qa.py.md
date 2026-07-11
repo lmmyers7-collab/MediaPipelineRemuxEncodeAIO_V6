@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: subtitles
 last_modified: 2026-07-10
 last_reviewed: 2026-06-05
-sha256: d9be3a46bece4c5d678cdd1adaeb3f2893bd8e608d9f1db9b55eaa34cf0e99fc
+sha256: 31ecc80beb6cb24433b1a258a4f86aa3e7e329101cc560ecc8d94ce3150ff665
 ---
 # `src/mediapipeline/core/subtitles/qa.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-10
 last_reviewed: 2026-06-02
-sha256: 742fbddce5467369655f1c92d710dce7c457a60e4e7a9152ae083e9b7c7e2bce
+sha256: 60891e206e7d4e3ac9089f964732bd4fafb3c3d68aaf1fe5bbf4eea276cbe2ff
 ---
 # `docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md`
 

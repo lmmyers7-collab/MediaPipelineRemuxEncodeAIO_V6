@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: kernel
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 39578a797cb4fddbbf3307a01081e0b9a72cf6aec716975f87fd106cfe86c965
+sha256: f1d64d6ba8cd03c8d252e736d206f3d7f53ab61d5164e40a31af0aab9a35630b
 ---
 # `src/mediapipeline/core/kernel/config_locations.py`
 

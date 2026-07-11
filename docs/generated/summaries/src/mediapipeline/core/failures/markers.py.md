@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: failures
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: c6e8eca126d339f82a6320a1966305fadf5e86be0f381d09a017b57d07704812
+sha256: fce2cead3db43eac2996c8d4f363b73b154bb73d4ceec4f5e236fb41b350199d
 ---
 # `src/mediapipeline/core/failures/markers.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 397627263fd16231eeaf98c5c06a0105d8f89ca649da3e252a280feef69c1118
+sha256: d7a976e177e8cac5ad06df60f73c129625b9b4aea142fd13079e6e828ddc15ff
 ---
 # `tests/python/desktop/test_service_pending_publish_manifest_rows.py`
 

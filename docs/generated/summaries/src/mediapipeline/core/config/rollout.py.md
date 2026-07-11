@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ecc9e48643dd19537187f8c864fbe7d8eb99dbc307645023e2c4c85508ba4ea8
+sha256: 9dad7d5fa2c53f671a1555076ec2b563c6f34e27b635afef442f05ce3fcbd8d1
 ---
 # `src/mediapipeline/core/config/rollout.py`
 

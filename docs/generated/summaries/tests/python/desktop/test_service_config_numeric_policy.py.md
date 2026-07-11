@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: af5cb9a101729a7546641facb92a125315a732eadafc6d5d141067a513fba23d
+sha256: 7a652d12fe46621246a4631a670dac497ece2f3d96f3e16e9da67ea8f4bc27cf
 ---
 # `tests/python/desktop/test_service_config_numeric_policy.py`
 

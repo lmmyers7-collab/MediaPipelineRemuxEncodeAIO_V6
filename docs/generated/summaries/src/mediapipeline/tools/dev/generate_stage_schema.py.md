@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 3bb5835c5c84221d55985f25e239f503ec2aeee9ea9b2e1e28cac6216393b039
+sha256: 65a8788faf99ba2b3d321619da66b3491058f245f65fee846f41fc54df911040
 ---
 # `src/mediapipeline/tools/dev/generate_stage_schema.py`
 

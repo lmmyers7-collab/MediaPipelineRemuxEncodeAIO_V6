@@ -5,7 +5,7 @@ token_priority: low
 owner_domain: queue
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: d8bbde8c37306aef6af884d599492870361aaa6a6e4fbb0ee51f67d707b0c795
+sha256: ac34b1aeebfcd4975432a587097ee969ef70981f4ccf86309e0b91e0f2b95502
 ---
 # `src/mediapipeline/core/queue/__init__.py`
 

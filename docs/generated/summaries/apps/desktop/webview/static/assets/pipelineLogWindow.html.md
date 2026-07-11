@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-24
-sha256: b7aab79675ca93158f5586fe77d425bd33cc909cef4cf9a92553dcebf21b1358
+sha256: 4611caaaa19c03e8fd19f1cf214e3c4ffbf4293f63a4e4e84f147260cd8e5b71
 ---
 # `apps/desktop/webview/static/assets/pipelineLogWindow.html`
 

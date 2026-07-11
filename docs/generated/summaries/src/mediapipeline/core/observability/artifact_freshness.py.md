@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: observability
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ba461c9087584471003e22ab3f84a911adb77d395caacc794bb06271284d3041
+sha256: a43c27b9509574ca2eaa156ce83b2f3b97d1c1ee2615902700ece3c60b0fc789
 ---
 # `src/mediapipeline/core/observability/artifact_freshness.py`
 

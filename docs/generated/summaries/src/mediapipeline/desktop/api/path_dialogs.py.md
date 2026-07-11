@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: api
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 42ed6c9f79d3b0cab886be3180e699660e45d525db1573a672159b53c137052f
+sha256: 370a0cac04905bb8bbd97086d96890b79a2a4cf5ebe8164b4ad1d63c256e14a7
 ---
 # `src/mediapipeline/desktop/api/path_dialogs.py`
 

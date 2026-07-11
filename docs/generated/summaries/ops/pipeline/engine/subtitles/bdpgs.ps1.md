@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: subtitles
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6cbe4dd53979ed0d4516a598969411e5c5bc848fa0da333f3e808d392cbda6d0
+sha256: 1608e659a177dd4af6deabde2d6b02ca9ec2e68107ebd70a87981d8d9e7cdf10
 ---
 # `ops/pipeline/engine/subtitles/bdpgs.ps1`
 

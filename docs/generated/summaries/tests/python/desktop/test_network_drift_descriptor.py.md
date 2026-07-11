@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-14
-sha256: f28c82759e40ecd918633a8d48203fc90381af4228a2361d8b7bb32aff06c3de
+sha256: c6d4419088825cbcc67e0312b9af6de371bc9281867040b11f085249363d7ca4
 ---
 # `tests/python/desktop/test_network_drift_descriptor.py`
 

@@ -46,12 +46,13 @@ class QueueSourcePathPolicyTests(unittest.TestCase):
             source = resolved.source_movies / "Movie.mkv"
             source.parent.mkdir(parents=True)
             source.write_bytes(b"media")
+            expected_source_path = str(source.resolve(strict=False))
             traversal = resolved.source_movies / "Season 01" / ".." / "Movie.mkv"
 
             source_path, error = validate_queue_source_path(resolved, traversal)
 
         self.assertIsNone(error)
-        self.assertEqual(source_path, str(source))
+        self.assertEqual(source_path, expected_source_path)
 
     def test_validate_queue_source_path_uses_route_specific_field_label(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -79,6 +80,7 @@ class QueueSourcePathPolicyTests(unittest.TestCase):
             source_movies.mkdir()
             source = source_movies / "Movie.mkv"
             source.write_bytes(b"media")
+            expected_source_path = str(source.resolve(strict=False))
             resolved = _resolved(root)
             resolved.source_movies = None
             resolved.source_tv = None
@@ -88,9 +90,9 @@ class QueueSourcePathPolicyTests(unittest.TestCase):
             validation = queue_source_file_validation(resolved, source, field_name="single_file")
 
         self.assertIsNone(error)
-        self.assertEqual(source_path, str(source))
+        self.assertEqual(source_path, expected_source_path)
         self.assertTrue(validation["ok"])
-        self.assertEqual(validation["normalized_path"], str(source))
+        self.assertEqual(validation["normalized_path"], expected_source_path)
         self.assertTrue(validation["under_source_root"])
 
 

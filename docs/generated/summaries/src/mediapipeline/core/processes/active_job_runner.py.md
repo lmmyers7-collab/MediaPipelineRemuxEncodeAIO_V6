@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 966e1e00eb1d8167e1eff97635919712f37647559d416ad71028aacd76009869
+sha256: 1b72f0e97b03b5907f1633053f65e9bb87261789912af7748e401fe4b4c7c27e
 ---
 # `src/mediapipeline/core/processes/active_job_runner.py`
 

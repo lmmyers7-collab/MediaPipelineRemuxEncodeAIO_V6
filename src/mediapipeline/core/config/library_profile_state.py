@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterable, Mapping
+from pathlib import Path
 from typing import Any
 
 from mediapipeline.core.kernel.config_keys import (
@@ -10,6 +11,7 @@ from mediapipeline.core.kernel.config_keys import (
     KEY_SOURCE_MOVIES,
     KEY_SOURCE_TV,
 )
+from mediapipeline.core.paths.layout import normalized_path_key
 
 from .library_profile_defaults import (
     DEFAULT_LIBRARY_IDS,
@@ -420,10 +422,13 @@ def _resolved_match_key(value: Any) -> str:
     if not text:
         return ""
     try:
-        full = os.path.abspath(text)
-    except (OSError, ValueError):
-        full = text
-    return os.path.normcase(full.rstrip("\\/"))
+        return normalized_path_key(Path(text)).rstrip("\\/")
+    except (OSError, RuntimeError, ValueError):
+        try:
+            full = os.path.abspath(text)
+        except (OSError, ValueError):
+            full = text
+        return os.path.normcase(full.rstrip("\\/"))
 
 def _path_is_under_or_equal(candidate_key: str, root_key: str) -> bool:
     if not candidate_key or not root_key:

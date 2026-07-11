@@ -126,13 +126,14 @@ class TdarrMatrixAuditTests(unittest.TestCase):
             library_root = root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrix"
             row = manifest_row(root)
             write_manifest(library_root / "manifests" / "materialized_library.csv", [row])
+            expected_generated_abs = library_root.resolve(strict=False) / row["generated_path"]
 
             rows = audit.load_manifest_rows(library_root / "manifests" / "materialized_library.csv", library_root=library_root)
 
             self.assertEqual(len(rows), 1)
             self.assertEqual(rows[0].view, "movies")
             self.assertEqual(rows[0].generated_path, row["generated_path"])
-            self.assertEqual(rows[0].generated_abs, library_root / row["generated_path"])
+            self.assertEqual(rows[0].generated_abs, expected_generated_abs)
 
     def test_load_manifest_rows_rejects_unsafe_generated_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

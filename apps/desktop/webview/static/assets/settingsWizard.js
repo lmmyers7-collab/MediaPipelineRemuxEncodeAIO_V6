@@ -353,6 +353,10 @@
     } else if (state.lastPreview.ok === false) {
       issues.push("Backend preview has blockers. Resolve them before saving.");
     }
+    const reviewConfirmation = state.lastPreview?.data?.review_confirmation;
+    if (!reviewConfirmation || typeof reviewConfirmation !== "object" || !String(reviewConfirmation.preview_id || "").trim()) {
+      issues.push("Backend preview did not return a review confirmation. Preview Config again before saving.");
+    }
     activeRiskAckMissing().forEach((key) => {
       issues.push(`${key} acknowledgement is required before Save & Reload.`);
     });

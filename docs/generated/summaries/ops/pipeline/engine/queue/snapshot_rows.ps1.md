@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: queue
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: bc9553ccd355ada31e6f1db77da61bc3098bad8dae16d71cd037251e73e98d51
+sha256: 8e389e64cb164f57df923fd41f3cacd1c79f03d02335835ca73d16fad8180027
 ---
 # `ops/pipeline/engine/queue/snapshot_rows.ps1`
 

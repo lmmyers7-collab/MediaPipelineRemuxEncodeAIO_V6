@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: shell
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: e835f5e5c35cd98e91ebdc9f9e105b7f73893758a29c4920ebeef025ba73ffc9
+sha256: 4ee0a1c9b317fde9949052e96f31e08266212b8f3103ca983e1b7469ac1f00e1
 ---
 # `apps/desktop/tauri/src-tauri/src/backend_lifecycle_monitor.rs`
 

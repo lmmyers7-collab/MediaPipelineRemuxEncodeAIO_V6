@@ -5,7 +5,7 @@ token_priority: low
 owner_domain: network
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 23d8bd2a9efc9d3a9a55f9df0a099cb5313e8f72ccbcd8049bce40bf219a85de
+sha256: 80ad0f4c7a22b9faffd0ce3e8899c2e1ceaeb7c5d431f23a3b41e37a07c830ce
 ---
 # `src/mediapipeline/desktop/network/__init__.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-18
-sha256: 282ea3608b5de05fc2b4d837bce884e68d31fa967409bdbf9f68077bbbf5ad16
+sha256: b60159789b0bfc2af1a1f2ef8ee120cd301884a5fe04ffbf5d11fcfc018d5ad2
 ---
 # `tests/python/tooling/test_autonomy_soak_tick.py`
 

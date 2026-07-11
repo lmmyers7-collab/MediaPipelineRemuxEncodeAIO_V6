@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 9353dc6f5dfc2112d2159bd5ed56cccae5e70eeeb62a451e47af4e12c63b9f50
+sha256: 111595eacd41245b6fd8acc94e93d5a54c98d2712c27e2accab42d40fea886a7
 ---
 # `tests/python/desktop/test_application_facade_maintenance.py`
 

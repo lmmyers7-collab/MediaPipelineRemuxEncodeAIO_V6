@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 360849452dc401627e70335754b834cd9ffe696422c20251b97b85afa752bd7e
+sha256: 39a4d702598695aa6ac6b2c8cb0710c39ab7b5564d443c85389d3036edb7f09c
 ---
 # `ops/scripts/smoke/Test-WebViewBrowserHighRiskSmoke.ps1`
 

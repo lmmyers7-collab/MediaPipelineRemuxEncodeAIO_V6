@@ -5,7 +5,7 @@ token_priority: low
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-23
-sha256: ed538f1480a4104efc8a8bf1a5ed3fd43eed908e9ad941a9b0f9d68614f68aa3
+sha256: 7bc1c4de580d1991e5d74f693a127c3182e06ff220081c879d8843d2e970b336
 ---
 # `tests/fixtures/settings_store/missing_new_keys.psd1`
 

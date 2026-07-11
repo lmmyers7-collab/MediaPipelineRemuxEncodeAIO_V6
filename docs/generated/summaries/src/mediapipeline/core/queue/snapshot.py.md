@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: queue
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: c48d3a801281b850298d659960cc0bed89ab610d3f716b0b80a08420a231173d
+sha256: 46bc978229b210e6112f094098356ca2ccdd7dac8c8d8b333a8cd4a7ad6783cd
 ---
 # `src/mediapipeline/core/queue/snapshot.py`
 

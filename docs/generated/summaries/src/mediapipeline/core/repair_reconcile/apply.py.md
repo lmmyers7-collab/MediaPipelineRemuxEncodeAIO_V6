@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-10
 last_reviewed: 2026-06-19
-sha256: 0dacd92ea3a21acc3043ba8b05b60b8452b16c17d8326b52626145d3d4c1728e
+sha256: 02d2b5af7ed2eb19056353136d875a6a299938089c1ff7a606f325cb2b29103b
 ---
 # `src/mediapipeline/core/repair_reconcile/apply.py`
 

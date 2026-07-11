@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-26
-sha256: 8d9aa1fe045a0e720baa9ea5033bd43efaf745949fd0023d1e21f125d53933fa
+sha256: 22bd29fa1beace39651cd00f538331eaaed47a1b4c9de126910716ca17208bb8
 ---
 # `ops/scripts/release/Initialize-CiPythonRuntime.ps1`
 

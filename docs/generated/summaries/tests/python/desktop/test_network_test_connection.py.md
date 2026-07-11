@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-14
-sha256: d927fa061c3fa67cee35bc452e878c1659564ab9a88b58a7a95aa25a8cff4da9
+sha256: c89ea138e1d3bfe955bdc05a33b1c34e53b16429f4818a750015f270b40c718c
 ---
 # `tests/python/desktop/test_network_test_connection.py`
 

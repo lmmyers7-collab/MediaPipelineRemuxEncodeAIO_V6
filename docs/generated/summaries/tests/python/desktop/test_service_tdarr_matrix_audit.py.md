@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-07
-sha256: faf96f063d0475ae9cab851cec05330bb2d11bf0fb6478e8b95bc0d0cf84634f
+sha256: 08d8e9385e17d07af9ad7f58948a94a960e9ce5f07efe6bc7809af87df1b618d
 ---
 # `tests/python/desktop/test_service_tdarr_matrix_audit.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 65c50c13a944fbce063012e3097ca5c17aa2e46fb5782c5317fde02f971f94a6
+sha256: da33bb76d746b01c770f903acd068bc6ce1284cf38056f437e80199af759cc8b
 ---
 # `ops/pipeline/tests/Unit/Invoke-PortablePathChecks.ps1`
 

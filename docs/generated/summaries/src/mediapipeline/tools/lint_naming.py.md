@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 403c7dc6edb3f65d30a76debb2aa0d86b08476783b07e41234bbb526954d1de3
+sha256: b644aa60029492e630bdb4ea56460a89dfd9d8080aed7031eb1d1cc748f96f02
 ---
 # `src/mediapipeline/tools/lint_naming.py`
 

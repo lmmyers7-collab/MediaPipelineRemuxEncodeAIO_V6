@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 0ebbbf46924082eda98b3d38025dc8ce3cf31c5abd36c6997b7c10e7c20e0ceb
+sha256: 70f61c0448b79802d0aa4979c05749c9692ee0ecbe7474b8d443531d4375a9de
 ---
 # `tests/python/desktop/test_network_worker_runtime.py`
 

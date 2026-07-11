@@ -6,6 +6,7 @@ import io
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
@@ -54,7 +55,106 @@ def _prepare_clean_state(payload: dict[str, object]) -> None:
             path.mkdir(parents=True, exist_ok=True)
 
 
+def _ready_fixture_path_health(resolved: object, **_kwargs: object) -> dict[str, object]:
+    local_base = getattr(resolved, "local_base", None)
+    return {
+        "schema_version": "desktop_configured_path_health.v1",
+        "read_only": True,
+        "operator_status": "ready",
+        "operator_summary": "Configured test roots are ready.",
+        "rows": [
+            {
+                "key": "local_base",
+                "label": "LocalBase scratch/state root",
+                "role": "scratch",
+                "path": str(local_base or ""),
+                "status": "ready",
+                "operator_status": "ready",
+                "storage_status": "ready",
+                "free_space_gb": 200.0,
+                "reserve_gb": 0.0,
+            }
+        ],
+    }
+
+
+def _blocked_fixture_path_health(resolved: object, **_kwargs: object) -> dict[str, object]:
+    local_base = getattr(resolved, "local_base", None)
+    return {
+        "schema_version": "desktop_configured_path_health.v1",
+        "read_only": True,
+        "operator_status": "blocked",
+        "operator_summary": "Configured test roots are below the reserve.",
+        "rows": [
+            {
+                "key": "local_base",
+                "label": "LocalBase scratch/state root",
+                "role": "scratch",
+                "path": str(local_base or ""),
+                "status": "blocked",
+                "operator_status": "blocked",
+                "storage_status": "low",
+                "free_space_gb": 1.0,
+                "reserve_gb": 100.0,
+                "message": "Free space is below the configured reserve.",
+            }
+        ],
+    }
+
+
 class AutonomySoakTickToolTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._path_health_patcher = patch(
+            "mediapipeline.tools.autonomy_soak_tick.configured_path_health",
+            side_effect=_ready_fixture_path_health,
+        )
+        self._path_health_patcher.start()
+        self.addCleanup(self._path_health_patcher.stop)
+
+    def test_clean_fixture_is_independent_of_host_free_space(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            payload = _paths_payload(root)
+            _prepare_clean_state(payload)
+            with patch(
+                "mediapipeline.core.processes.path_evidence._cached_path_probe",
+                return_value={
+                    "path": str(payload["local_base"]),
+                    "exists": True,
+                    "path_kind": "directory",
+                    "can_list": True,
+                    "elapsed_ms": 0,
+                    "free_bytes": 1 * 1024**3,
+                    "total_bytes": 10 * 1024**3,
+                    "used_bytes": 9 * 1024**3,
+                    "capacity_source": "test",
+                },
+            ):
+                result = autonomy_soak_tick.run_tick_from_payload(payload, record_snapshot=False)
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["exit_code"], 0)
+        self.assertEqual(result["health"]["overall_status"], "ready")
+
+    def test_tick_keeps_blocked_path_health_as_a_strict_exit(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            payload = _paths_payload(root)
+            _prepare_clean_state(payload)
+            with patch(
+                "mediapipeline.tools.autonomy_soak_tick.configured_path_health",
+                side_effect=_blocked_fixture_path_health,
+            ):
+                result = autonomy_soak_tick.run_tick_from_payload(payload, record_snapshot=False)
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["exit_code"], autonomy_soak_tick.AUTONOMY_SOAK_BLOCKED_EXIT_CODE)
+        self.assertEqual(result["health"]["overall_status"], "blocked")
+        self.assertIn(
+            "autonomy_storage_free_space_low",
+            [item["code"] for item in result["health"]["blockers"]],
+        )
+
     def test_tick_without_snapshot_is_read_only_and_exit_zero_when_ready(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

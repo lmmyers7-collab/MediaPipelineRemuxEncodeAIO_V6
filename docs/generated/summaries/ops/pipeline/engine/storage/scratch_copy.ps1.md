@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: storage
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: c99d87796a1bf5fb41902c42a6afe72f13702b0a489b140ddb1df73616489e46
+sha256: 50c6d8e9f9d0274da1f5b89f1f4eed5fcc335619543a526e53e715b2dc7f8abd
 ---
 # `ops/pipeline/engine/storage/scratch_copy.ps1`
 

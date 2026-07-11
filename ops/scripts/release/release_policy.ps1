@@ -31,6 +31,8 @@ function Get-MediaPipelineReleaseExclusionReason {
     if ($segments -contains '__pycache__') { return 'python bytecode cache' }
     if ($segments -contains '.pytest_cache' -or $segments -contains '.mypy_cache' -or $segments -contains '.ruff_cache') { return 'test/tool cache' }
     if ($name -like '*.pyc' -or $name -like '*.pyo') { return 'python bytecode cache' }
+    if ($relative -match '^(apps\\desktop|ops\\pipeline)\\runtime\\Python\\Lib\\site-packages\\__editable__\.mediapipeline-[^\\]+\.pth$') { return 'editable MediaPipeline runtime link' }
+    if ($relative -match '^(apps\\desktop|ops\\pipeline)\\runtime\\Python\\Lib\\site-packages\\mediapipeline-[^\\]+\.dist-info\\direct_url\.json$') { return 'editable MediaPipeline runtime metadata' }
     if ($relative -like 'CodexVerification\*') { return 'local verification evidence' }
     if ($relative -like 'LocalBase\*') { return 'local runtime state' }
     if ($relative -like 'RunLogs\*') { return 'root runtime logs' }
@@ -200,6 +202,11 @@ function Get-MediaPipelineReleaseHygieneRules {
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern '~$*' -Label 'Office lock/temp files')
     )) {
         [void]$rules.Add($rule)
+    }
+
+    foreach ($runtimeRoot in @('apps\desktop\runtime\Python', 'ops\pipeline\runtime\Python')) {
+        [void]$rules.Add((New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern "$runtimeRoot\Lib\site-packages\__editable__.mediapipeline-*.pth" -Label 'editable MediaPipeline runtime link'))
+        [void]$rules.Add((New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern "$runtimeRoot\Lib\site-packages\mediapipeline-*.dist-info\direct_url.json" -Label 'editable MediaPipeline runtime metadata'))
     }
 
     foreach ($pattern in @('*.doc', '*.docx', '*.docm', '*.dotx', '*.xlsx', '*.xlsm', '*.pptx', '*.pptm')) {

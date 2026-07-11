@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: application
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 1b75acfe731fe2742ef29f722a67ca9d629e73d48aee650ae4540394d9d9e65f
+sha256: ffa399fea18cdb99358c814d494a356646fc99d354ade36b2f29b5c438c83dd7
 ---
 # `src/mediapipeline/desktop/application/dto_commands.py`
 

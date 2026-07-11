@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 0d2b2ea6fff0cc26758b1eeb3249a1f4b35b9ccf54f880a8e7748af2a3e559b2
+sha256: 27ae2d39f7dd23e96051775dde09017a99fc56a54a44df19cbbce28338587613
 ---
 # `src/mediapipeline/core/processes/runtime_runner.py`
 

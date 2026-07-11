@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: cae72b4ca3edba269ffc190ff648e2afe1e858709254a9dae2d36b3a6887b152
+sha256: 839a175254ecfe2d882eab361da475c9cf6a876e8544a09cd06c192da4fdab77
 ---
 # `src/mediapipeline/core/processes/readiness.py`
 

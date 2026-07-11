@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: d6bea32093e9e4b56ccae7b75f95d38c6f63e9919f08519886ebd6366b4b973f
+sha256: c7d430f92263886ee86366d66563b9bfe6359c13629022d87e173af711551114
 ---
 # `tests/python/desktop/test_service_failure_retry_state.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: e183b17a86a4fca4d03e047285175ab0e53d7eba4d8a382ced5742edfca4db84
+sha256: 006375450c8859ea5053733e5dc9cdd1b379eb78abd065ee2742ecf8add1d2fb
 ---
 # `tests/python/tooling/test_lint_naming.py`
 

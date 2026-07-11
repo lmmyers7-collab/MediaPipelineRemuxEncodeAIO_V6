@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: kernel
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: c09d59bdd2c1a699c8f3c41fbc4b061f0e668a54a9f370e884ec2529d8f325f0
+sha256: 5495533d37b6f3914d3d87761a406ac2f09fe5bbb6d7e3b2c2f19ea8564b75b6
 ---
 # `src/mediapipeline/core/kernel/runtime/subprocess_runner.py`
 

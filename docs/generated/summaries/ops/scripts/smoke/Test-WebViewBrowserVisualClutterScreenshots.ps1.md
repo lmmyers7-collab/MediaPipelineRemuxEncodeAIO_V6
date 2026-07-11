@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-19
-sha256: dfbf61ceb9a51fb2bfc842101cbc7e3cc52782eec72c3023366518d9a30c1d1f
+sha256: ff7a35ce7adc6f29728adf42be25369467ac205672a55c77904669f8371bdecd
 ---
 # `ops/scripts/smoke/Test-WebViewBrowserVisualClutterScreenshots.ps1`
 

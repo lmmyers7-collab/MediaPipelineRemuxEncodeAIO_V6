@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: sample_validation
 last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: 6e8605b19b29c71a4e7dfa67064f623edb60d2f0e6c4e54974325873e082b1ee
+sha256: 80dfbc581809791294908ac548a9875896ed53ebfa47de831dd30989a660e436
 ---
 # `src/mediapipeline/core/sample_validation/pilot_plan.py`
 

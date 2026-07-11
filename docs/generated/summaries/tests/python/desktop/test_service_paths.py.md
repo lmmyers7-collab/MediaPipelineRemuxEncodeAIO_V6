@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 4e1157e539052dd2191b2e2f4f3173b2ae758d1604812ee63aba30c39495ce52
+sha256: fb1eb1978bc4190b748cf4011bf287c9f1a4e4bf8f08a4b17982a7f8fa1d5dd0
 ---
 # `tests/python/desktop/test_service_paths.py`
 

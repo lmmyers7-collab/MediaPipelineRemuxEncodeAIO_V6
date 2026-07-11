@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 2fca8aaf7149b7cdd4e1844279f49f9cac0362de5b760c5e6db808c6c27d6a79
+sha256: 198d0f6a3a36f057b121298071102683ba77e9886fe18e7f11286d855b48d6a1
 ---
 # `src/mediapipeline/tools/change_control/build_changelog.py`
 

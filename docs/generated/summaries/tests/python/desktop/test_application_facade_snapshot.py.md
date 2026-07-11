@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 29fba603e0d84c6a398fcc2a7e4df02239717a2585fc6e26c1e3b7fe491718bc
+sha256: 5e95af2461b6293925f7e5d6113eec10c629ebd4840644be1cbc60ccff311fbf
 ---
 # `tests/python/desktop/test_application_facade_snapshot.py`
 

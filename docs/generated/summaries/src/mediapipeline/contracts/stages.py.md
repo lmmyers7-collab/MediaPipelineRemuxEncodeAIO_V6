@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: contracts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 7bf828d97da19c38d55091993e1f001a0c4d531c49946813455d97be38686c3a
+sha256: 920291fe5148f59d74898884d7ea120b99609c3891ec741c59ff98b892227d5a
 ---
 # `src/mediapipeline/contracts/stages.py`
 

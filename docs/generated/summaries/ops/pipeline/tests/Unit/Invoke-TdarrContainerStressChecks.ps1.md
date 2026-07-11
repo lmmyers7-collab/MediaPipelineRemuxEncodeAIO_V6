@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-22
-sha256: 3f714b3238587d5ede3c8f0fff8b64ef409c300a83add71462f6e360da7a20cf
+sha256: a9f709eeea7c88a3c9130d00a9de36be84dfa6fdfaa78395a8d10bead109bde7
 ---
 # `ops/pipeline/tests/Unit/Invoke-TdarrContainerStressChecks.ps1`
 

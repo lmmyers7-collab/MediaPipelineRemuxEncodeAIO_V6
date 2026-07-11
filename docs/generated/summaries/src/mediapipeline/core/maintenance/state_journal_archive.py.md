@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: maintenance
 last_modified: 2026-07-10
 last_reviewed: 2026-06-18
-sha256: 85510ad39442a04e25fbef368be6d158d14fa2823b5967140a3f72c842a3daa9
+sha256: 0d6371fe28cb725e2ae210afd1fc24595b44a58a9b3cd9f91490cd4370694b53
 ---
 # `src/mediapipeline/core/maintenance/state_journal_archive.py`
 

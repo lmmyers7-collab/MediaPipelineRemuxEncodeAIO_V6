@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: diagnostics
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: e7efe783a1d4ecb08d4f06282d1101e086bd49682f4b2c4cca608f37e7469663
+sha256: 61965c817244b55fcf868a2149d135ec2f0d5be09750764062a5790404f6dc87
 ---
 # `src/mediapipeline/core/diagnostics/policy.py`
 

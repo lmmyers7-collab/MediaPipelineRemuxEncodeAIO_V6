@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import importlib.util
 import sys
 import tempfile
@@ -37,7 +36,7 @@ generate_feature_file_map = _load_module(
 
 
 def _sha(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return refresh_summaries.sha256_of(path)
 
 
 def _summary_text(file_path: str, sha256: str = "0" * 64) -> str:

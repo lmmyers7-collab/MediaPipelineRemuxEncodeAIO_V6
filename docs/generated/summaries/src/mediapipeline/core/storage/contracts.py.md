@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: storage
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 5b7e0bdea846a323ea37bb0fcf984a2b41a1578aacbf8913c7b5b7e4f610881f
+sha256: ddc190fb00b2f8a70db53f23701dcaba7bba279795f03fa73e09ccbd1d70ada8
 ---
 # `src/mediapipeline/core/storage/contracts.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: paths
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 7b93fbc20bb7c1936baf7db81215b58b437bc138db17581d0d267636e3bc7362
+sha256: bde9ab7e3860c262e9be5b807a1b75cddc35a92a651d23a7b0ace3a1e6ff0f2d
 ---
 # `ops/pipeline/engine/paths/path_capability.ps1`
 

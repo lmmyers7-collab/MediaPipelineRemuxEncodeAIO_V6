@@ -5,7 +5,7 @@ token_priority: low
 owner_domain: api
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: b8087abdc5dd7f485ab8973268b5c01acb82702ffae76dc0a3e9f00ff764b129
+sha256: 748d82ea00e460e7268cb6b85f6633c7bf21753a5d096addfcbdbe6a8a7dfaa8
 ---
 # `src/mediapipeline/desktop/api/__init__.py`
 

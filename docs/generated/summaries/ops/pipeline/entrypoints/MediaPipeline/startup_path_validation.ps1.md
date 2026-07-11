@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-06-10
-sha256: e5b8afe5c043e891f7c7c3882fddcb7f0dc01275b70be095928ad65a26612e2a
+sha256: 6281c8a0bdd2ce6fff7a2691e8ce270c8b6d4e2adfb015a1a122fe13484fba48
 ---
 # `ops/pipeline/entrypoints/MediaPipeline/startup_path_validation.ps1`
 

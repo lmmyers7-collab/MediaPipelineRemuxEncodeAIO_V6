@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 07ec4b7eedcccc57c08368596731a8f7a398bd7d9195315a7d4f49ae091c9229
+sha256: 8b05fbdb0a8fde979f8326452cce241a1c9cff422469ce44f83fd159ce86ef05
 ---
 # `tests/python/desktop/test_facade_maintenance_policy.py`
 

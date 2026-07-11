@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 94031f21b31069cc45d6ff89c42916d3eb8706acd48eccff12e2882e5ffe3ccf
+sha256: 82e5283409f72a1200db0edc268939851ce2fd590ace8360f2f07912a4e05a5c
 ---
 # `tests/python/desktop/test_api_command_journal_policy.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 90a09ac7ee2b5770b76c76168dbce4fe152b3eeb489322acbeb937fb150c60fa
+sha256: a69c4304c5de6343b1054cd1a9896199c8b615637ae2dd8abf19d94544e8f1cd
 ---
 # `tests/webview/test_webview_css_design_tokens.py`
 

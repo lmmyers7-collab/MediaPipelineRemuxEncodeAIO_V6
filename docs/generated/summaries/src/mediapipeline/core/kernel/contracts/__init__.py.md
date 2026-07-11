@@ -5,7 +5,7 @@ token_priority: low
 owner_domain: kernel
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 3babc4930c41c98f601fed12a5ef56c402dbe5cb785491be0bd5a4dd3275d8df
+sha256: 85d3b4bcadfc4a1929d1201199ec2da3e451ca9221302d63b12c6ace21b99982
 ---
 # `src/mediapipeline/core/kernel/contracts/__init__.py`
 

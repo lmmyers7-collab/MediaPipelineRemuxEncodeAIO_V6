@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: contracts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ddb0e463838a16654adb800f8ba5f59300b28764fdb0dbfd50e1590a0c60efff
+sha256: 0b0fabb0a918c28de3a592d3cc38693ec9840c82c589f10211d933790a2e327a
 ---
 # `src/mediapipeline/contracts/config_coercion.py`
 

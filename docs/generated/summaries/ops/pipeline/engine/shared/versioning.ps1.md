@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: shared
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 653f7acec37f8d5d6e2145cefd6d14be7180c5ff8053faef07a62f3491dac07c
+sha256: f184ced1ec00750ef3ce47a085ebfb026f4408142c513d04dd9b36c5ecc02993
 ---
 # `ops/pipeline/engine/shared/versioning.ps1`
 

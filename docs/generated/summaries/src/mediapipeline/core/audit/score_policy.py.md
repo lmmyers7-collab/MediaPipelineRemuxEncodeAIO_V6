@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: audit
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f4db609cf995d6896042b073073f5a144bb8abd4f980b53acf010e45ea1aa87c
+sha256: c930ce217ec42a2a4320b6c3de0cf82a8eb90a177e73aba08db82dd35cf96533
 ---
 # `src/mediapipeline/core/audit/score_policy.py`
 

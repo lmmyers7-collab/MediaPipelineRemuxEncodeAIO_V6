@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: failures
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 43a554c9e89f1e9cf31b949f27b1ca78f7b44d415dc34fb66de00dcc09f943eb
+sha256: 4959086b172220900ab01b25a9d10a67bb3411e798d2d5ccb8e8fdf9c8d2f649
 ---
 # `src/mediapipeline/core/failures/retry_state.py`
 

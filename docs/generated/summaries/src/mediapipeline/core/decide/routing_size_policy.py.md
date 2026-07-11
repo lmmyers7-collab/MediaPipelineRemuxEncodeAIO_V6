@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: decide
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 2047e4c129c244cf8ca6bf1355112ffa59ff2d4627d76ce8ff637f8f7a06121f
+sha256: 92005597e7c17b94bdb7bde57e1f477166c868941f7583e042ebc939fe818693
 ---
 # `src/mediapipeline/core/decide/routing_size_policy.py`
 

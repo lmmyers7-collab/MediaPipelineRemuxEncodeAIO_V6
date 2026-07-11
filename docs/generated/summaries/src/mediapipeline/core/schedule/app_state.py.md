@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: schedule
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 3eb914db28bf46d2f9d0c0b0287a387ce2b5ef0b6fe8db12dfd699cd0c543915
+sha256: 9269cd7c089faa77c176b6ef2fa8c66f732f599754bc256cf6526c73c5e51d49
 ---
 # `src/mediapipeline/core/schedule/app_state.py`
 

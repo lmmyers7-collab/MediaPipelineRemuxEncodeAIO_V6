@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: diagnostics
 last_modified: 2026-07-10
 last_reviewed: 2026-06-07
-sha256: 4db7b924b8d64aeeb38644efbbf1408f2b71ec148a642b25e7dbe43d8f5e1d36
+sha256: ead30b6c541482fef04e92de809a4c473f60f2d5ba33b2eada9a280546d7c0f1
 ---
 # `src/mediapipeline/core/diagnostics/tdarr_matrix_console.py`
 

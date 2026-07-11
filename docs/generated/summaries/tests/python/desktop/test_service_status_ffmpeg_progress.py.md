@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 50da8f427f717f53ec65654f53ffdb701bc726b35f08bc9f2779979c13403048
+sha256: c0370c9222f5bc58c8630593f83ffaaad2b9cae46c39dc77a37fe8e29b363dc2
 ---
 # `tests/python/desktop/test_service_status_ffmpeg_progress.py`
 

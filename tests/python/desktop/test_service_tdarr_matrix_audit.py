@@ -879,6 +879,9 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
             payload = tdarr_matrix_console_payload(root, run_id="run-20260608-000003")
             finding_key = payload["findings"][0]["finding_key"]
             opened: list[Path] = []
+            expected_stdout = (
+                run_root / "manifests" / "audit" / "files" / "tdarr-0001-movies" / "stdout.log"
+            ).resolve(strict=False)
 
             result = tdarr_matrix_evidence_open_result(
                 root,
@@ -892,7 +895,7 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
             )
 
         self.assertTrue(result.ok)
-        self.assertEqual(opened, [run_root / "manifests" / "audit" / "files" / "tdarr-0001-movies" / "stdout.log"])
+        self.assertEqual(opened, [expected_stdout])
         self.assertFalse(rejected.ok)
         self.assertIn("Allowed targets", " ".join(rejected.errors))
         self.assertEqual(set(TDARR_MATRIX_CONSOLE_EVIDENCE_TARGETS), {"stdout", "stderr", "worker_result", "source_hashes", "failure_artifact", "output", "report_folder"})

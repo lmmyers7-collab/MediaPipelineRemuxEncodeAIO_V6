@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: rename
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: dc8345fcf94f51357fa1b2632fce0c4b7a0db76cc139397eb0bbfdc6a47e0a77
+sha256: 0591ecfe68162f2d7cf8bfd18d7dd4d1be207ed87323780fe67033d3cb5f2656
 ---
 # `src/mediapipeline/core/rename/cleaning_policy.py`
 

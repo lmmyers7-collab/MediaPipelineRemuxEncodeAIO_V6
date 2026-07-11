@@ -5,7 +5,7 @@ token_priority: low
 owner_domain: diagnostics
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 99ff1e4202e035a1048972608c32a2c9ec45cd5f4aad29ea5267087f1bdf025b
+sha256: 399cac4eed91e3c435dc8371943424268ef95562dc57eef5fce9be900b611066
 ---
 # `src/mediapipeline/core/diagnostics/__init__.py`
 

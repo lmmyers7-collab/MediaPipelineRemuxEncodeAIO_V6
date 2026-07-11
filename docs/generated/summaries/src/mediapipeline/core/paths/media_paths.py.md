@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: paths
 last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: 85dab2c870ff7a5c8a638dcd7cf2e8274ac848b3f2abbe4315c47a918d5329af
+sha256: b2803953cc4fb1c12c70b390ed3f3dde821ee9cbad0641bba0030bf0e6ba7d4b
 ---
 # `src/mediapipeline/core/paths/media_paths.py`
 

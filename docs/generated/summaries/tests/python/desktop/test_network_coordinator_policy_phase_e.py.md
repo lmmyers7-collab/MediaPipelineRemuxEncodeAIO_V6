@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-14
-sha256: 89d877151eae064df988fa123a97787b85106c09acc253fae5ebb63047b0eb5e
+sha256: b6e8f01efeb7b58e645f8f395c78b2a1fab426a8d1fadbe6fd102b9f2fc08a15
 ---
 # `tests/python/desktop/test_network_coordinator_policy_phase_e.py`
 

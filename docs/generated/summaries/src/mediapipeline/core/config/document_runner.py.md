@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: e8d0c9debe3900400ad229f248651eb4fb5d4a73b30e9bb72300e476d357bed2
+sha256: ac80881cd65687b56c370c2102c42f884eb40045cbab4e74f8c6f36b8297c509
 ---
 # `src/mediapipeline/core/config/document_runner.py`
 

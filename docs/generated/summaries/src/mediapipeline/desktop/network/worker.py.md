@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: network
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6a9ae1a283d5f37ebee85a9bc1ebd79caeb913b9affae23af025ddaa19cc4b43
+sha256: 8cf8b420055193948ad55d061c35cbfa3a29384318697e50510ead95041fca7a
 ---
 # `src/mediapipeline/desktop/network/worker.py`
 

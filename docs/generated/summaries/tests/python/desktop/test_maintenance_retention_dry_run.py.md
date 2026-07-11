@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-18
-sha256: d9990e9b1335136613479bc6c95dffdb25d7e5c1995240bc3a5f1ee7e26b9514
+sha256: 66d9030438a38175ab7cc4feb999bdb18847b427d87f4821b39f811c92306fd8
 ---
 # `tests/python/desktop/test_maintenance_retention_dry_run.py`
 

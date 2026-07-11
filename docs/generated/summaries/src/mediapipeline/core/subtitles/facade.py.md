@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: subtitles
 last_modified: 2026-07-10
 last_reviewed: 2026-06-05
-sha256: a40031727331d5d2622d757e97bbfb3a18a94733b9eae8e33f44cfc898ae43bb
+sha256: fdd211cbbeef726bbcaa294b3c07ff636ff8b1473ae8047e1cff9c1e4062db4b
 ---
 # `src/mediapipeline/core/subtitles/facade.py`
 

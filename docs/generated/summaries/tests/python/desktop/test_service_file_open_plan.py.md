@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 49ead4deb7b0bad70e8eec15014e03632f7a0bb2c84caba30afa3b0ae8a37bde
+sha256: dfa16a73b962409851849ba40d3e1ca3203c7ff3b9dac17fa76cb7973b54a053
 ---
 # `tests/python/desktop/test_service_file_open_plan.py`
 

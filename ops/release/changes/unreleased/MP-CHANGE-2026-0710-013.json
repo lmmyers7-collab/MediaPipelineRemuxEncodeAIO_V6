@@ -1,0 +1,36 @@
+{
+  "id": "MP-CHANGE-2026-0710-013",
+  "title": "Preserve CSV rerun item evidence",
+  "version_target": "2026.07.10.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-10",
+  "date_completed": "2026-07-10",
+  "summary": "Keeps active CSV rerun evidence visible when the backend current-work item is the placeholder None.",
+  "reason": "A placeholder current-work item hid the latest staged CSV filename even though bounded stdout evidence identified it.",
+  "affected_areas": [
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "CSV rerun Home status treated the truthy placeholder None as a real current item and rendered it instead of the latest CSV staging evidence.",
+  "behavior_after": "An exact case-insensitive None placeholder falls back to current-import or last-imported CSV evidence, while genuine backend labels remain preferred.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-013.json",
+    "tests/webview/test_webview_browser_home_live_state_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_home_live_state_smoke.py"
+  ],
+  "manual_validation": [
+    "GREEN: python -m unittest tests.webview.test_webview_browser_home_live_state_smoke - passed (1 test)",
+    "RED: test_webview_browser_home_live_state_smoke failed because placeholder None hid the staged CSV item",
+    "python -m unittest targeted WebView contracts/browser suite - passed (119 tests)"
+  ],
+  "rollback_plan": "Revert the CSV display-item fallback and its focused browser assertions; this only affects Home display text.",
+  "related_changes": [
+    "MP-CHANGE-2026-0710-010"
+  ],
+  "notes": "Treat placeholder CSV current-work labels as absent so stdout evidence can identify the staged item.\nCover CSV stdout fallback when backend supplies placeholder None while preserving genuine current-work labels."
+}

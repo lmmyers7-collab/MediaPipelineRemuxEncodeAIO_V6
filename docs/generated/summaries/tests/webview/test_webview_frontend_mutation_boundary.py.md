@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: cb7b4afbb33da4560c7e024a4bcbe00158835fc624d33373b5ec6cd9b40c021c
+sha256: 9ed0de0dd8333d0dab1e97165cd218847f14fd4eb3816677355bbd32144e06aa
 ---
 # `tests/webview/test_webview_frontend_mutation_boundary.py`
 

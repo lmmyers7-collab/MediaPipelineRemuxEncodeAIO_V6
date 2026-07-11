@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-10
 last_reviewed: 2026-06-02
-sha256: c0d24ab1c8396f03ea0838fee79a38d5b7aa8fcdccc8fb2015952f85774a8fca
+sha256: 762680acc0fbac3d79526e7213c3580bdd7ef7908fe5d65e5e531bfb5a5572b0
 ---
 # `docs/inventories/GOD_FILE_GUARDRAIL.v1.json`
 

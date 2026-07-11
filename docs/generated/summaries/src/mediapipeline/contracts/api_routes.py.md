@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: contracts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: 2771998bd4e481016205bd1a938cef108d4b10fb02bdda6b5c9b070e88ac4206
+sha256: a660cff5ae1ecf1449c9de0f5b10a5ec1d6db1b70223f3503cc1389d3fa7082d
 ---
 # `src/mediapipeline/contracts/api_routes.py`
 

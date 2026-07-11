@@ -128,6 +128,7 @@ class RealMediaValidationWorksheetTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
+            expected_snapshot_path = str(snapshot.resolve(strict=False))
 
             result = subprocess.run(
                 [
@@ -160,7 +161,7 @@ class RealMediaValidationWorksheetTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
             payload = json.loads(result.stdout)
-            self.assertEqual(payload["queue_snapshot_path"], str(snapshot))
+            self.assertEqual(payload["queue_snapshot_path"], expected_snapshot_path)
             self.assertEqual(payload["queue_snapshot_rows"], 1)
             self.assertEqual(payload["queue_snapshot_sample_matches"], 1)
             self.assertFalse(out_dir.exists())
@@ -255,6 +256,7 @@ class RealMediaValidationWorksheetTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
+            expected_snapshot_path = str(snapshot.resolve(strict=False))
 
             result = subprocess.run(
                 [
@@ -291,7 +293,7 @@ class RealMediaValidationWorksheetTests(unittest.TestCase):
             self.assertIn("| 1 | REMUX (codec check pending) | source size is within threshold (size_within_threshold) | No | No | \\\\SERVER\\Encode\\TV |", text)
             self.assertIn("Queue snapshot age: produced 2026-05-17T10:00:00.", text)
             self.assertIn("; age", text)
-            self.assertIn(f"source {snapshot}", text)
+            self.assertIn(f"source {expected_snapshot_path}", text)
             self.assertIn("Snapshot still matches expected source files: Yes (1/1)", text)
 
     def test_release_builder_omits_generated_real_media_validation_runs(self) -> None:

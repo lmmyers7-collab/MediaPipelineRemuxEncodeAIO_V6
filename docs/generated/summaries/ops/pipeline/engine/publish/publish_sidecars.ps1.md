@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: publish
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 8100bfe82b674d3841fe801aae709df40ae87b674124dfc3f22ec5cd2a0183c3
+sha256: 96fcce5b3aeb2d679273b8f6e7dc69256685ed6a44ac0b34451a213f9686c28c
 ---
 # `ops/pipeline/engine/publish/publish_sidecars.ps1`
 

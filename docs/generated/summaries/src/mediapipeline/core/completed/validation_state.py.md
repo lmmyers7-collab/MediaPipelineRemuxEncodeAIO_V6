@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: completed
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: fa33b0af2168d6035a2248607ee57010332ce36b402b9d6d7e3df856615526cd
+sha256: 01616b02780a3d0efcd63d8652b87b0933dcb3535ba750883806eeb57bb3a5e2
 ---
 # `src/mediapipeline/core/completed/validation_state.py`
 

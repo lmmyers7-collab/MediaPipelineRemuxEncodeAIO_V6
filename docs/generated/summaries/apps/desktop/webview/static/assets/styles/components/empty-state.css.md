@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-25
-sha256: e5a555426ad00c924ced4adeb90fdd09f71cb8914c3103df68164dea7ee63584
+sha256: ae091f7e735aa036bc16d474ebcb1cd99c0e3d5b99f911ebfbe8f4637174a043
 ---
 # `apps/desktop/webview/static/assets/styles/components/empty-state.css`
 

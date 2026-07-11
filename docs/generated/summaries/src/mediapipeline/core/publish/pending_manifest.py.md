@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: publish
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 2da8c125d36c7a200d5f3244f076baf8e4128d04ca92422d172d253dc7165178
+sha256: d6f9d0ea395f970ba6ab3b2cbf82c54b11e85113b67738fbdc220ab020d057fe
 ---
 # `src/mediapipeline/core/publish/pending_manifest.py`
 

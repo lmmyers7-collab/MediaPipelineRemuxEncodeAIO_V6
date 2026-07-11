@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 5736e1f801f969abd0acc07bac236466b9babc2ce637ae256270027b03de1f49
+sha256: bca03749027d1ec40b22d30e67897e63a61a7d52a26c3eb4ca559daac8314ebd
 ---
 # `tests/python/desktop/test_service_queue_source_scan.py`
 

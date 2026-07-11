@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-17
-sha256: f309db83ea217107f449205f68663d1bd16bffe2fdea9247361feacf0e7fed5e
+sha256: 97428ac6ebf52d5a053777b01de9242b58329ba61e14db031dcc5c4bd8afc402
 ---
 # `src/mediapipeline/tools/dev/generate_smoke_wrapper_map.py`
 

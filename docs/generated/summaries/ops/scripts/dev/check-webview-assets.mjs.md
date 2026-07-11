@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 446ea8fd99016b91b8f473144003ace04a83aadcdc9328e0ff411a100dd0955a
+sha256: 1a932acf8ae6fb090d06da3b1d7660374ab435dfb74c63de7adc6cd6cca354e2
 ---
 # `ops/scripts/dev/check-webview-assets.mjs`
 

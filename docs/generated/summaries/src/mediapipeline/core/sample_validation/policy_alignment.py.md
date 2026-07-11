@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: sample_validation
 last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: b2001e13fea3f0ab8db656797decd00be9192a2b9faab65db62bb98381ed2f22
+sha256: 28e8debbb525c8d9795647311d1ed437c2bfc654a687c40c27f4d358245fe50a
 ---
 # `src/mediapipeline/core/sample_validation/policy_alignment.py`
 

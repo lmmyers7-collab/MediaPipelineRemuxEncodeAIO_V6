@@ -779,7 +779,10 @@ function renderCsvRerunHomeSummary(context = { stdoutTail: lastStdoutTail, snaps
   const currentWork = dashboardCurrentWork(source.snapshot || {});
   const workSummary = currentWork.summary_label || currentWork.latest_evidence_label || "";
   const workStage = currentWork.current_stage_label || currentWork.phase_label || "";
-  const item = currentWork.item_label || csvRerun.currentImport || csvRerun.lastImported || "CSV rerun staging";
+  const currentWorkItem = String(currentWork.item_label || "").trim();
+  const item = currentWorkItem && currentWorkItem.toLowerCase() !== "none"
+    ? currentWorkItem
+    : csvRerun.currentImport || csvRerun.lastImported || "CSV rerun staging";
   const activity = workSummary || (csvRerun.currentImport ? `Importing ${csvRerun.currentImport}` : "CSV rerun active");
   const stage = workStage || (csvRerun.currentImport ? "Importing from CSV" : "CSV rerun");
   renderTopbarActivity({

@@ -295,12 +295,13 @@ class ApplicationFacadeCoreContractTests(unittest.TestCase):
             assets.mkdir()
             script = assets / "app.js"
             script.write_text("console.log('ok');", encoding="utf-8")
+            expected_script = script.resolve(strict=False)
 
             allowed = resolve_asset_path(root, "/assets/app.js")
             traversal = resolve_asset_path(root, "/assets/../secret.txt")
             backslash = resolve_asset_path(root, "/assets/..\\secret.txt")
 
-        self.assertEqual(allowed, script)
+        self.assertEqual(allowed, expected_script)
         self.assertIsNone(traversal)
         self.assertIsNone(backslash)
         self.assertEqual(content_type_for(Path("app.js")), "text/javascript; charset=utf-8")

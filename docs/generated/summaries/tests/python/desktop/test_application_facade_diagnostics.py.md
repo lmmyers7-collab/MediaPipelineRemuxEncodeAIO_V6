@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 5c1dd9c8d37320864c2e8766744b789dca6ae14bb997726ce6be4713242c6827
+sha256: 7abfb10bde70ec6b0d1089c1e35f0781a9b70b29895a1bc0877b61c7ef446afb
 ---
 # `tests/python/desktop/test_application_facade_diagnostics.py`
 

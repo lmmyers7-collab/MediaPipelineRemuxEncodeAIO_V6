@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: contracts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 2e5054e42d549cb9deb8494ef9f9862a28236ca53112df5f3f88f51fd07bb44a
+sha256: 5810265d962e27520dad01f19586122d1c36cb2d126280144ef8aedd84653f88
 ---
 # `src/mediapipeline/desktop/contracts/progress.py`
 

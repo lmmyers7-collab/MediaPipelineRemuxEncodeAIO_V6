@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 9f2b674d6e5dd4412a329a8e01eeb209af7a41a7de65d62ad7d2f33e9211ab0f
+sha256: ef62715c62e815fedc7cd5ec9cd55b5f51f4caa58300a7def3fd57258be171ed
 ---
 # `apps/desktop/webview/static/assets/completed/review/sizeReview.js`
 

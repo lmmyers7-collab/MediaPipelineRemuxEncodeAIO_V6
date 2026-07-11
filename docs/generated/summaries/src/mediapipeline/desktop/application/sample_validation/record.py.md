@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: sample_validation
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: a2fd002e898af95e19c3e1a6e9b7f370c90da67692e53d0e7da219ae1e3db5a9
+sha256: 965c3d3c42a5d494420722c652194891938b6993a87896720bc9b5d8f3bab2d4
 ---
 # `src/mediapipeline/desktop/application/sample_validation/record.py`
 

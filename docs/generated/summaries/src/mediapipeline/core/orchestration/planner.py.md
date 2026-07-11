@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: orchestration
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 0d2ba5319a30b9ab985820e33421718cb684241b959c8da773993f266480388c
+sha256: ca2862da92da266d29ab30e5545719c90462502c694b7fb7e619e6e6357d7892
 ---
 # `src/mediapipeline/core/orchestration/planner.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-19
-sha256: aa783c54cd252d6c09912fa5b89a5783831bc8a60bb1f1e20945ae004462615b
+sha256: 972300261c8c77a3668d254b04d30206a43edbb4556aeb308ae0c223ea7cc1ce
 ---
 # `ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1`
 

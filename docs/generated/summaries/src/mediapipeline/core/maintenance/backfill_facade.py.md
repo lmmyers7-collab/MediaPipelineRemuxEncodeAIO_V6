@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: maintenance
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 8f2500bb7c814f2f23448a87ed1fb72af2837a6dc8af79af3f1bb722215c51b4
+sha256: 9ce062701de14cc1754b1208a0e779ced6529b80876d3531ddc885cc9bd4d368
 ---
 # `src/mediapipeline/core/maintenance/backfill_facade.py`
 

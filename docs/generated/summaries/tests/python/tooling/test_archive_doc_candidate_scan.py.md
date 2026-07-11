@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-16
-sha256: e5a7e0947de0838be08a6a2fb48a8dd6e95294915ababa42d28891e3e1c01e21
+sha256: d547d4c4d6a73c5434c18b7b24df8f37e8394bdad85e624b8fed0f21946d4b87
 ---
 # `tests/python/tooling/test_archive_doc_candidate_scan.py`
 

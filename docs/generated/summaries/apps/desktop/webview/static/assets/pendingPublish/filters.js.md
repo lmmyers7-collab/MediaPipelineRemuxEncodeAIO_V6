@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: d61703f8e3aaff3b675aa4338218edf42418423164648eb1303322a6550f502a
+sha256: c537034e3f361dd034a69ebb6472fce5835955775f8457cfcbbd729751b5fe31
 ---
 # `apps/desktop/webview/static/assets/pendingPublish/filters.js`
 

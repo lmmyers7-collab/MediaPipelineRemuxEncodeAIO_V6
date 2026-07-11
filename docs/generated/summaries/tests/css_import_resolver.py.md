@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-25
-sha256: 4d58dc3b0741498ce95a9bb8822a7247bbae9745a04b41a5f18cfb20708a7625
+sha256: 975991ea74d2b45812f495a53388322d57ea11d1b8b31728e97f17a164484c7f
 ---
 # `tests/css_import_resolver.py`
 

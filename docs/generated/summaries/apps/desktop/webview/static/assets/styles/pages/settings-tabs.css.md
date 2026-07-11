@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-25
-sha256: c5b944f24f6fe63eff29bc93dfe5047a591bc43354d55936b479be153ff5a08c
+sha256: 3aeb978b1415fe2cb7fd1f4bfcf95856d5811520fcb873585013d7238a9f19c5
 ---
 # `apps/desktop/webview/static/assets/styles/pages/settings-tabs.css`
 

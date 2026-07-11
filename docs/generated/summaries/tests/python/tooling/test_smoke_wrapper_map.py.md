@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-17
-sha256: 698f40448b44f0b61a9143102657cf32df5ec161a90d062389d4c72ecc794c48
+sha256: c26dec872e105b9da682350770f4f003ccf5adccc3d0abeb0666dede7b4fe697
 ---
 # `tests/python/tooling/test_smoke_wrapper_map.py`
 

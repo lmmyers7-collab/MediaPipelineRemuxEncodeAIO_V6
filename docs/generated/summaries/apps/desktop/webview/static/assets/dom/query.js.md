@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 2f655d03b22a349f23cf00f347df78d9a9ea8366b195597ed4848c71ccf15494
+sha256: c0d4d4fdf5ef93fc71f16ec97d0cd0426757258e14bb7f264b9ef1e64cf44e9f
 ---
 # `apps/desktop/webview/static/assets/dom/query.js`
 

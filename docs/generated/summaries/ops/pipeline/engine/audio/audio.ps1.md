@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: audio
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 2a9141e0b044f74104b8740b2c5d09e2fd65998bc0f4366bc0bddfcdf2d86df1
+sha256: 12c625b3827a07e91df159fcf2e0fdb618c18dcfa864b7b4b9cfa16ff67efa69
 ---
 # `ops/pipeline/engine/audio/audio.ps1`
 

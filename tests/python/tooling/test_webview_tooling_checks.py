@@ -68,6 +68,26 @@ class WebViewToolingCheckTests(unittest.TestCase):
         self.assertIn("Recoverable parser error", result.stderr)
         self.assertIn("duplicate.js", result.stderr)
 
+    def test_godfile_map_check_accepts_crlf_report_content(self) -> None:
+        _require_webview_tooling_dependencies()
+        report = REPO_ROOT / "docs" / "generated" / "WEBVIEW_GODFILE_SPLIT_MAP.md"
+        original = report.read_bytes()
+        crlf_content = original.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+
+        try:
+            report.write_bytes(crlf_content)
+            result = subprocess.run(
+                [_node(), "ops/scripts/dev/analyze-webview-godfiles.mjs", "--check"],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        finally:
+            report.write_bytes(original)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

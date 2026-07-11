@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 9d75e822ca4a217867093325e1a8eb35e1751d7ef9f6366cb0579b09d4303c97
+sha256: 55afc0ac86eeeeadef310674b3e95be2a6b7741aec6e32fe233916622c884c8e
 ---
 # `src/mediapipeline/desktop/webview_settings_patch_smoke.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6a5b77204b62140313a77cbb80dfb42954543e42286db2c23030333bc83aed54
+sha256: 53c19f05fe677ef1804649eb2fcf7dd9760b08792609a87299442fed920acd21
 ---
 # `tests/python/desktop/test_service_app_schedule.py`
 

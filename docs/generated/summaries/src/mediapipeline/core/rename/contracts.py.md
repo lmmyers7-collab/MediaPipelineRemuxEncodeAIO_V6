@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: rename
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f2f136913d1aba368d54d8423caa36e25777287ac39404c22f94c439705fc29a
+sha256: 56564f1816aae57ab1cd1443d2d5ccd1791b9565758aff7719b9edc7c0c5f811
 ---
 # `src/mediapipeline/core/rename/contracts.py`
 

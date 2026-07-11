@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-06-24
-sha256: 4fbec0547bf26a859411b86c6f16185f039ba87e97bd5e306c668f65bc226d34
+sha256: 1f112bf38658c0ed53cc85d52ae34e1456dcc44d010bd2c12b5d3a30fd1a8524
 ---
 # `ops/pipeline/engine/process/encode_command_builder.ps1`
 

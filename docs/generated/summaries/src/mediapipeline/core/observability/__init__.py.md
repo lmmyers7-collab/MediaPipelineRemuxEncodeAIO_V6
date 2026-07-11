@@ -5,7 +5,7 @@ token_priority: low
 owner_domain: observability
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 27332b8ea286aae1027e68888a6d16a774ea70e7c7ccf3e60cfc20da3bcb4e76
+sha256: e5cd67891709ad817b3a45e4eeea9c17848f74994dd57fb735bc063db99c4ec5
 ---
 # `src/mediapipeline/core/observability/__init__.py`
 

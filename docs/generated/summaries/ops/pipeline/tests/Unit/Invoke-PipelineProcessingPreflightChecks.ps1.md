@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 90581f363b35ff395b1cbe77b51bd085d67a798bae5a7951243579443ea00629
+sha256: 653571bdf64a6184f8b9ce20a7111c6488798c595af680c1774af7971638036a
 ---
 # `ops/pipeline/tests/Unit/Invoke-PipelineProcessingPreflightChecks.ps1`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 15d39dd1814c9cc5a4f5f95264382b678a645ff584a8721592c4cd1b902923ff
+sha256: 83495a6f882e8e29d7cbf5b079e572757d6c03c583f1c089721535bf029133e1
 ---
 # `tests/python/desktop/test_service_status_snapshot_runner.py`
 

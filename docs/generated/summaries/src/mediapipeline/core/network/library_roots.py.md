@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: network
 last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: 9c6256555404be3810a654ffd558813719308376575548bf2415ee144b7ecd9f
+sha256: 1b10a4cd5bc5c5f6a91056c767bb15e3240abf782f42fc1cd21002bd7fbea190
 ---
 # `src/mediapipeline/core/network/library_roots.py`
 

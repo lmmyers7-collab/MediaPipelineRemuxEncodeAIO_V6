@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f973e6106ce107d731fa2034223613c907657fb4ab2e8817760c334925a1b296
+sha256: 78dca764c4432af6b503b731def34b41a305b88bfd9c3703b85201aa5c206ab6
 ---
 # `src/mediapipeline/tools/dev/check_architecture_guardrails.py`
 

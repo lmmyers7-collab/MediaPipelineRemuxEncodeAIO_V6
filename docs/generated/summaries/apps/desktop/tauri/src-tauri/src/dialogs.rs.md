@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: shell
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 726c5585ea440bd64058273921b95fb58ba83c85e480e5701ebe827b6c63a0d0
+sha256: 36109f35765206077b116bb1752ddba18e13fbb27a16735e2d59f6a0ec75cb8c
 ---
 # `apps/desktop/tauri/src-tauri/src/dialogs.rs`
 

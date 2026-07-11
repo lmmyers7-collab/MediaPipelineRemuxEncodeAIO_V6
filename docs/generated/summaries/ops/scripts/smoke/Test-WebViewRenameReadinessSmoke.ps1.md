@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: d2d5776c02be03b16379debf1bd91e5fe82985a5cb7d53bcdd642274486c60d1
+sha256: 15430563c7d7f45c5a0b747cb0ae44fa6c764a4712c037b8794ee85e2cb46273
 ---
 # `ops/scripts/smoke/Test-WebViewRenameReadinessSmoke.ps1`
 

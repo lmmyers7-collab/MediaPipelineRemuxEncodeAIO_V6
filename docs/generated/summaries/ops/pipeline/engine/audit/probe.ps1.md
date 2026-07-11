@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: audit
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 03a1079dbec5a9140ce7e57cd1bdce204ac39880ded5d6d07ef12ae1f965d99c
+sha256: 2aad5e2281e69604aa706fd4193ffbffb4c7564b004861c9ed19eb85c1483b42
 ---
 # `ops/pipeline/engine/audit/probe.ps1`
 

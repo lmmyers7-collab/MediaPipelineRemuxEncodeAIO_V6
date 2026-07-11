@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: shell
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 9ec5ca26c680726c0b68c3d20e412332ccf87af4df62a42629b98252fd07270a
+sha256: 23e453a61a4c1ba5633b407ef35563395b7485cfd4ca6db9867e7216027d8a8b
 ---
 # `apps/desktop/tauri/src-tauri/src/backend_process.rs`
 

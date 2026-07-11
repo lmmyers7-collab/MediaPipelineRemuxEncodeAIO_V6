@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: observability
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 7053a4b5117e375d07bd034e47b9421430973dae52d10233c4ca824d71af157a
+sha256: afd3d332393f1ee33302e3fd181719da2d809fd4dd49919120b28fa4b68ad251
 ---
 # `src/mediapipeline/core/status/ffmpeg_progress.py`
 

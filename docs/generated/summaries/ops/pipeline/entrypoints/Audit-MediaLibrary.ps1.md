@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: audit
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 12407e849d9935df8859accff7504466fc8560564e905d094ca80e297df0d43e
+sha256: 62fb96aebbbd34b9ed0715cafdf90cadb420b8a2d4c1363ed6794bbac03cb637
 ---
 # `ops/pipeline/entrypoints/Audit-MediaLibrary.ps1`
 

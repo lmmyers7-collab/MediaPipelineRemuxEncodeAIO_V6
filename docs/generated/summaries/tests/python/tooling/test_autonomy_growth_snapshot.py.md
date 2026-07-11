@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-18
-sha256: 3020d2721c4fc7bb41eeaf00f10126c02bbbc0a63c08e3e1ab133b6e54570a51
+sha256: 2c6b8f8339a8e176b576183125abd53b88154e94803eecfc78016d72b26749c9
 ---
 # `tests/python/tooling/test_autonomy_growth_snapshot.py`
 

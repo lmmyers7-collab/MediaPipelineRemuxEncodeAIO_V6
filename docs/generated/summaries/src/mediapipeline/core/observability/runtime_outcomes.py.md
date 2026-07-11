@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: observability
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 79447954673413c9d5b1028b5f460ee8038afe8a0f5970ddea55dcce40a5e040
+sha256: efc770575b4f8d2160872c3f460cffe6a2934ef050afc9ae6a0dc014f4c79d08
 ---
 # `src/mediapipeline/core/observability/runtime_outcomes.py`
 

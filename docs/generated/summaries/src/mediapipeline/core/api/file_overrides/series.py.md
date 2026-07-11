@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: api
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 5757927bc234bd97fae363327bda82cfb066d7b05c13549ea27791c5451d53ab
+sha256: 8807d8458ceca5bf404627a438f286633bad7500c13eb82760d730c02d809932
 ---
 # `src/mediapipeline/core/api/file_overrides/series.py`
 

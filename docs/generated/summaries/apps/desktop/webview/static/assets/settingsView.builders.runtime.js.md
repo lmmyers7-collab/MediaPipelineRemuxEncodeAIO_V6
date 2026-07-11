@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 1d5ef8fb493aaa8eb3fc4eb1edcd20c1846d4fe97b18ff02005ef3bf98fea960
+sha256: 87f9bf9a7fe164ec334e4a4137593a3230f21f7101297b6a1a4c60cf44d3fb8e
 ---
 # `apps/desktop/webview/static/assets/settingsView.builders.runtime.js`
 

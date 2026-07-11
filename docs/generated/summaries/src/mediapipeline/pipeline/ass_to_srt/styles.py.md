@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: subtitles
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 4f9df4b8d6e6874626cf60f944c2314e58e3478aa9800fddfb4f91a46a235571
+sha256: 4b71ce5f5825b8230abe8d8f6da574655fc8a220ce314fa288509a22d93a8a8b
 ---
 # `src/mediapipeline/pipeline/ass_to_srt/styles.py`
 

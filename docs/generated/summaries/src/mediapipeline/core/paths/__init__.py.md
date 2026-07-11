@@ -5,7 +5,7 @@ token_priority: low
 owner_domain: paths
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: a719ec9f012db2578152874ccde6adb7afa230e0fd53a0e51eed62329b04f04c
+sha256: edbc731afacd4acd348bc69e8b52b99c54c73657eefe12c7df3ff193697267a0
 ---
 # `src/mediapipeline/core/paths/__init__.py`
 

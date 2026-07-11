@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: api
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 59f00a54573f9cdb60951a9e07413c22080d50d0b9c31bfef38c32378cfaacfb
+sha256: d51220174ed0b294ef9bb7d6497739c035bfc65685da0b1141ea058e85058851
 ---
 # `src/mediapipeline/desktop/api/read_payloads_policy.py`
 

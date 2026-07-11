@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: c824d14411dd0289ef3f4886150cf32f5e9fa222172b1eb65c544961ab5a67ff
+sha256: 69264e2d09efd56f6286d2dc1ec977db3425370725812a499d95932b8eaf2c61
 ---
 # `src/mediapipeline/tools/dev/check_python_typing.py`
 

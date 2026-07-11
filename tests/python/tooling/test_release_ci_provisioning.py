@@ -51,11 +51,24 @@ class ReleaseCiProvisioningTests(unittest.TestCase):
         for workflow_name in ("deep-audit.yml", "phase1-drift.yml"):
             with self.subTest(workflow=workflow_name):
                 workflow = (REPO_ROOT / ".github" / "workflows" / workflow_name).read_text(encoding="utf-8")
+                python_tests = workflow.split("  python-tests:", maxsplit=1)[1].split(
+                    "  webview-prework:", maxsplit=1
+                )[0]
 
-                self.assertIn("TMP: ${{ runner.temp }}", workflow)
-                self.assertIn("TEMP: ${{ runner.temp }}", workflow)
+                self.assertNotIn("TMP: ${{ runner.temp }}", workflow)
+                self.assertNotIn("TEMP: ${{ runner.temp }}", workflow)
                 self.assertIn("Initialize-CiPythonRuntime.ps1 -InstallDependencies", workflow)
                 self.assertIn("Initialize-CiMediaTools.ps1 -InstallMissing", workflow)
+                self.assertIn("Use runner temporary directory", python_tests)
+                self.assertIn('"TMP=$env:RUNNER_TEMP" >> $env:GITHUB_ENV', python_tests)
+                self.assertIn('"TEMP=$env:RUNNER_TEMP" >> $env:GITHUB_ENV', python_tests)
+                self.assertIn("Provision CI Python runtime", python_tests)
+                self.assertIn("Initialize-CiPythonRuntime.ps1 -InstallDependencies", python_tests)
+                self.assertIn("Provision CI media tools", python_tests)
+                self.assertIn("Initialize-CiMediaTools.ps1 -InstallMissing", python_tests)
+                self.assertIn("Set up Node", python_tests)
+                self.assertIn("Install WebView tooling", python_tests)
+                self.assertIn("npm ci", python_tests)
                 self.assertIn("timeout-minutes: 60", workflow)
                 self.assertIn("timeout-minutes: 90", workflow)
 

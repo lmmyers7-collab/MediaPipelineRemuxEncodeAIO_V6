@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-18
-sha256: 3dc9af4317976072ffa72bfd6cc5d70363bd8351105fda8bd6a3a78399ca90bb
+sha256: 1f4aea9f19416a340d7410b1d5e45b5068630d6acfa5c5a70ac71d1d7a9dd61e
 ---
 # `tests/python/tooling/test_private_beta_github_release_setup.py`
 

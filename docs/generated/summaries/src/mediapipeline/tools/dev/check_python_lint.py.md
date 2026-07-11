@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-07-01
-sha256: 7a6177351a488c91fb322c29028631953a8ffc74d4ef3472cf39684e649f2d7d
+sha256: 723edd184fe344b378d958d607259536a5c02ab1921b3ea848542d9eecea00d0
 ---
 # `src/mediapipeline/tools/dev/check_python_lint.py`
 

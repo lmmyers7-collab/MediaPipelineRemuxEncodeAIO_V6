@@ -283,6 +283,7 @@
       ["FallbackCpuQuality", "CPU fallback quality"],
       ["CpuEncodePreset", "CPU encode preset"],
       ["CpuEncodeProcessPriority", "CPU process priority"],
+      ["CpuEncodeMutexWaitSeconds", "CPU encode mutex wait seconds"],
       ["FFmpegEncodeTimeoutSeconds", "FFmpeg encode timeout seconds"],
       ["FFmpegRemuxTimeoutSeconds", "FFmpeg remux timeout seconds"],
     ].forEach(([key, label]) => add("Encoder", key, label));

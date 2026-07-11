@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-25
-sha256: f5821aa60fdf88647c9a8bfd2d2b4613ce88c98d7867c3011de5c5a5931c3bee
+sha256: 8fb783d1de633480c6d2cc3a7afcc2ffda28ca75cb6c6c65084c37351990ba3e
 ---
 # `apps/desktop/webview/static/assets/styles/queue/table.css`
 

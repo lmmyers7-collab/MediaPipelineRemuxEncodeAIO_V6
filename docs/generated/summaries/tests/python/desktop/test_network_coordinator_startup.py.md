@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f5239b5b6745eb85e79fbfb6fd292917eb1fb1e9ff4c2e198f18a590e418f2b2
+sha256: 83569b1420de7ac3fe31cb1da332565b02a77ac6437901205d2e7ca75a88a35d
 ---
 # `tests/python/desktop/test_network_coordinator_startup.py`
 

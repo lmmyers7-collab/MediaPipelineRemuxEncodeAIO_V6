@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 64da29552e1d861848dc41867a7842d0ddb26c04ffc908114515670b3b4cab60
+sha256: 9175bf7b777f7c48a8dea5a8371457be02ba55ebdbed4eb061a5015ee113e01d
 ---
 # `tests/python/tooling/test_lifecycle_map.py`
 

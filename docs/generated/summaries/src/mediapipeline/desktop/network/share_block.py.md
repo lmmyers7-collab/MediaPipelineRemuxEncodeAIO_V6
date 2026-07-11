@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: network
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 3f10da1fa100b0f33f5276930eacbe33a8c14991e24391efda7ef95ff6f56308
+sha256: cc9f4709482d8fc28e5e15dfa729d5dd82c42f296f8cf4450d00ccfdf05f3c7f
 ---
 # `src/mediapipeline/desktop/network/share_block.py`
 

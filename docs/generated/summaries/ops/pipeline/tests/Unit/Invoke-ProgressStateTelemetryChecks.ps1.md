@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-08
-sha256: 81b62fb3b082042ce8e457f32fbff6be6e7d474fe4ccc488603d0e67a8b9bf46
+sha256: b136f4b59cf23c6526c60605ec18b5ee5b2ee4956a5a16407b7e8be8275a7f61
 ---
 # `ops/pipeline/tests/Unit/Invoke-ProgressStateTelemetryChecks.ps1`
 

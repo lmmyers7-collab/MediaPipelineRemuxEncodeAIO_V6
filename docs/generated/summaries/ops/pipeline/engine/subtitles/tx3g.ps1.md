@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: subtitles
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 9421dae89f790c463a13fa4ad3f4c9e25b1315e23bfd8fda38f5e88935b47512
+sha256: ec8f855125f53105562dc324fd6346d58f7fbcf63f8b32d3c909d50cbcfdfa81
 ---
 # `ops/pipeline/engine/subtitles/tx3g.ps1`
 

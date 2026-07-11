@@ -56,10 +56,15 @@
                 <strong id="pending-action-drained-count" class="num">0</strong>
                 <small>latest summary rows</small>
               </button>
-              <button type="button" class="pending-action-filter" data-pending-action-filter="payloads">
+              <button type="button" class="pending-action-filter" data-pending-action-filter="payloads" data-ui-quick-link data-quick-link-page="pending" aria-label="Filter Pending Publish by payload evidence" title="Filter Pending Publish by payload evidence">
                 <span>Total size</span>
                 <strong id="pending-size" class="num">0 B</strong>
-                <small><span id="pending-payload-count">0</span> payloads; <span id="pending-health-count">0</span> health signals</small>
+                <small><span id="pending-payload-count">0</span> payloads</small>
+              </button>
+              <button type="button" class="pending-action-filter" data-pending-action-filter="review" data-ui-quick-link data-quick-link-page="pending" aria-label="Show Pending Publish review evidence" title="Show Pending Publish review evidence">
+                <span>Health signals</span>
+                <strong id="pending-health-count" class="num">0</strong>
+                <small>review evidence</small>
               </button>
             </div>
           </div>
@@ -131,7 +136,7 @@
             </div>
             <pre id="pending-filter-summary" class="prose-block">Pending publish filter inactive. No rows loaded.</pre>
             <div class="table-wrap pending-table-wrap">
-              <table class="workflow-table pending-table" aria-label="Pending publish file inventory">
+              <table class="workflow-table pending-table" aria-label="Pending publish rows">
                 <thead>
                   <tr>
                     <th scope="col">Status</th>

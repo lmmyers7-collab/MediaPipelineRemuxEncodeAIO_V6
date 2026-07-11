@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 5af9712bcf0845db83b10ff8a10bef18a02b237033271ca9204a75d6bc266b30
+sha256: ca1d093016ad5a0b1cf355831e9569331fc9992924f92093afdd14086c41ed91
 ---
 # `src/mediapipeline/core/config/settings_facade.py`
 

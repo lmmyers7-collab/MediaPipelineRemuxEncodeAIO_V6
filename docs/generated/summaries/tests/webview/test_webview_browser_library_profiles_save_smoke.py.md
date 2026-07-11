@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-25
-sha256: 55b18758879def800d3b5df0a0279372c32b08726bdbd3ff01960c8244f150fc
+sha256: 0fb20aa59ac38f8d3a7b691da34e14a7c38cf96e6a906c55f83c8ee5242f4a88
 ---
 # `tests/webview/test_webview_browser_library_profiles_save_smoke.py`
 

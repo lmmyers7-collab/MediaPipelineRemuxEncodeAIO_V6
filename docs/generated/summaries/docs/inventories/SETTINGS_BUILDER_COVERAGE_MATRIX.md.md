@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-10
 last_reviewed: 2026-06-02
-sha256: 52c8892f70edab6e0e7354622682fa107b2ac213ab9f3d00e2c804b99423b652
+sha256: 9927e2567558396dabd1a54fcd14808a030ceb839fc21eea64a3dce3b7a587d8
 ---
 # `docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`
 

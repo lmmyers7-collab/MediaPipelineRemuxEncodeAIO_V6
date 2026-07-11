@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-17
-sha256: 28bee035480fb905996636d99fa0aa5a709a192d3b2fb86b1016472aeaf6d2eb
+sha256: 329d2306af058f9b45cf938131c9ed9bca6d51ee26e9a91b58894102c59b63ad
 ---
 # `tests/python/tooling/test_private_beta_release_artifact.py`
 

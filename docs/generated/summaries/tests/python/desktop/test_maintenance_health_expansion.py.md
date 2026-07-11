@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: cc243dbbdcaf0e425cb5346b8ee8d885ecf993967daad6e760f04dd45bac14e5
+sha256: 4b031ba9ab560fda97b63c6a7373fa7e144bbe135aea6baac89d426c578a98cf
 ---
 # `tests/python/desktop/test_maintenance_health_expansion.py`
 

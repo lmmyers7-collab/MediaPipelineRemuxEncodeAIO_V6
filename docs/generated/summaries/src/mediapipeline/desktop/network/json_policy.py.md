@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: network
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 1135a57e425f5d22de218dd7a3db6aac3d8cdad1cbd966f556fab8e0d27e514e
+sha256: 9c6f7f7d918ea510e2e7a3016a03818636ed83e9fa1d6a4ccf039719373338aa
 ---
 # `src/mediapipeline/desktop/network/json_policy.py`
 

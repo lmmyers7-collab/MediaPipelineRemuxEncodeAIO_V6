@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 136016b9ebef4a915c4edcdb23657efe8f8f18cdc35932757c372a4634f84d7a
+sha256: b753be0963fa3540eb9e63cec3ebc8cc524d4cd6477404c5b17d83ae7c0fb3ee
 ---
 # `tests/python/desktop/test_state_file_atomic_writes.py`
 

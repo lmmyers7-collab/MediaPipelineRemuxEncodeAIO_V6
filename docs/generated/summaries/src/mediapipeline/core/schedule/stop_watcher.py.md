@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: schedule
 last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: 400f15652341ad4992ee39ab7996c70ae81e7db52e119e313c122f9952d19977
+sha256: 4596a5d7f73618d074447a5e8d646fc543b78d578daa74e087f9feb1b6a9f15e
 ---
 # `src/mediapipeline/core/schedule/stop_watcher.py`
 

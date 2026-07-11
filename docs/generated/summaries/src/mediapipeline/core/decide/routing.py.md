@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: decide
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: aab57fc1c3784d5a08622ec6b4a3ab7a4b7c01323030b8711382d52fae1e3cbb
+sha256: 3a1844ebb9ba1747c2d4e570496d6578bef9e233c5a47f5431ff53ffc28a5603
 ---
 # `src/mediapipeline/core/decide/routing.py`
 

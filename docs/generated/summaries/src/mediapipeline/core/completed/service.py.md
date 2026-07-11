@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: completed
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 26a215b67bf16c999f08aba472d7e14bbe4d9a8495dc10dd8b26af38781ce18c
+sha256: 1abd212500c55ebdf9604d75dd692ea1ea1558aafc4ed1a4300bd809d0582b90
 ---
 # `src/mediapipeline/core/completed/service.py`
 

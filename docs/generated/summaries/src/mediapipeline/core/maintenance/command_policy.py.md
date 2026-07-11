@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: maintenance
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 7a6018691a1417c5536801fc8f43b078dee975d24932d965722f700ffe40c82a
+sha256: fbcb5f07281f0326857f3ffb54e6ef187248d3a0a40bb5c6d6883a47c4a5551d
 ---
 # `src/mediapipeline/core/maintenance/command_policy.py`
 

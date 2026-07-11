@@ -501,7 +501,14 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn('"/api/settings/save-patch"', settings_js)
         self.assertIn("review_confirmation: reviewConfirmation", settings_js)
         self.assertIn("confirm_save: true", settings_js)
-        self.assertIn('apiPostLocal("/api/settings/wizard/save", { wizard: collectWizardPayload(), confirm_save: true })', _asset_sources()["settingsWizard.js"])
+        settings_wizard_js = _asset_sources()["settingsWizard.js"]
+        for token in (
+            'apiPostLocal("/api/settings/wizard/save", {',
+            "wizard: collectWizardPayload(),",
+            "confirm_save: true,",
+            "review_confirmation: state.lastPreview?.data?.review_confirmation || null,",
+        ):
+            self.assertIn(token, settings_wizard_js)
         self.assertIn('apiPost("/api/schedule/save", { ...request, confirm_save: true })', _asset_sources()["scheduleView.js"])
         maintenance_js = _asset_sources()["maintenanceView.js"]
         self.assertIn("confirm_create: true", maintenance_js)

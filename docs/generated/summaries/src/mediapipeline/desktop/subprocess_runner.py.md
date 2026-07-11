@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 675da12e0b7981a527f0e5287a301510598745162b5b91d9ec94fa2d31177ac7
+sha256: 90884d7e51de485727a7e3ebb0a44b7081c064d83b85e9e606e4df6335008534
 ---
 # `src/mediapipeline/desktop/subprocess_runner.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: queue
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 62c927c3355ef5e2fc8cb67d34ad73cd758a083293c47c8da2fba7ff670d395e
+sha256: 67c480dcdf325c0033b4b08397b8ede281b6326b6ac8db88f54d075c61f03f16
 ---
 # `ops/pipeline/engine/queue/worker_claim_store.ps1`
 

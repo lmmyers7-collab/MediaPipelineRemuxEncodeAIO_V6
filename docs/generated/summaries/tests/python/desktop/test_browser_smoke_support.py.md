@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: d2d646b7ac7b653da49ad998f984d5f16dc96a3a21e45bb29d4bcdda94c80a4b
+sha256: 82e3d2430dcb1548be6920b261a5fa0ae0557c0bb5c44d624422074104e063b3
 ---
 # `tests/python/desktop/test_browser_smoke_support.py`
 

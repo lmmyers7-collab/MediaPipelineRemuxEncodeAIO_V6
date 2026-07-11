@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: b027e70c1c366f4f4364b3ec6265de83ee05159fc05e679cb10d6f7fca3e1fc3
+sha256: d9310374b05e309c9844e8b571bd5f7f92632fbea57280bcb3cd3ccb73b850e6
 ---
 # `tests/webview/test_webview_inventory_docs.py`
 

@@ -377,7 +377,6 @@ def _browser_home_live_state_runner_source() -> str:
               "Encoding",
             ]);
             requireText("activity", [
-              "Current Fixture",
               "Anime Library",
               "TV",
               "item 2 of 5",
@@ -391,7 +390,7 @@ def _browser_home_live_state_runner_source() -> str:
               throw new Error("Topbar activity metadata is not clipped: textOverflow=" + metaStyle.textOverflow + "; whiteSpace=" + metaStyle.whiteSpace);
             }
             const activityText = text("activity");
-            for (const forbidden of ["Original:", "Current Fixture.mkv", "Serial Experiments Lain S02E01 Weird.mkv"]) {
+            for (const forbidden of ["Original:", "Current Fixture", "Serial Experiments Lain S02E01 Weird.mkv"]) {
               if (activityText.includes(forbidden)) {
                 throw new Error("Topbar activity leaked raw filename text: " + forbidden + "\\nActual:\\n" + activityText);
               }
@@ -566,8 +565,8 @@ def _browser_home_live_state_runner_source() -> str:
               throw new Error("Completed Filters tile did not focus the current-output filter.");
             }
             await clickUiQuickLink("#pending-health-count", "pending", "Pending Health tile");
-            if (byId("pending-status-filter").value !== "review") {
-              throw new Error("Pending Health tile did not apply review status filter.");
+            if (byId("pending-status-filter").value !== "warning") {
+              throw new Error("Pending Health tile did not apply the warning status filter.");
             }
             await clickUiQuickLink("#pending-payload-count", "pending", "Pending Payloads tile");
             if (byId("pending-filter").value !== "payload") {
@@ -855,6 +854,31 @@ def _browser_home_live_state_runner_source() -> str:
             }
             const csvPipelineState = text("pipeline-state");
             const csvQueueCount = text("queue-count");
+            window.renderSnapshot({
+              app_version: "v5-test",
+              pipeline_state: "idle",
+              status_summary: "Status OK",
+              current_work: { phase_label: "Idle", item_label: "Current CSV Item.mkv" },
+              counts: { queue_index: 0, queue_total: 0, processed: 1, failed: 0 },
+              progress: {},
+              progress_bars: [],
+              recent_events: [{ event_type: "tool_completed", stage: "subtitle-helper", status: "complete" }],
+            });
+            renderLiveWorkHomeSummary({
+              snapshot: window.getLastSnapshot?.(),
+              closeReadiness: { safe_to_close: false, state: "running", reason: "CSV rerun active work is still running." },
+              stdoutTail: {
+                text: [
+                  "2026-07-03 10:36:09 [INFO] Rerun CSV rows listed: 100; enabled/planned: 100",
+                  "2026-07-03 10:36:10 [INFO] STAGED copy: D:/Media/Paprika(2006).mkv",
+                ].join("\\n"),
+              },
+              diagnostics: null,
+            });
+            requireText("queue-count", ["Current CSV Item.mkv"]);
+            if (text("queue-count").includes("Paprika(2006).mkv")) {
+              throw new Error("Home CSV rerun item fallback replaced a real backend item label.");
+            }
             window.renderSnapshot(activeSnapshot);
             if (text("pipeline-state").includes("_")) {
               throw new Error("Home pipeline state still contains underscores: " + text("pipeline-state"));
@@ -1105,7 +1129,7 @@ class WebViewBrowserHomeLiveStateSmoke(unittest.TestCase):
                 post for post in browser_result["posts"] if post["path"] != "/api/ui-preferences"
             ]
             self.assertEqual(unexpected_posts, [])
-            self.assertEqual(browser_result["queueCount"], "2 / 5")
+            self.assertEqual(browser_result["queueCount"], "Current Fixture")
             self.assertIn("Rows:", browser_result["queueSnapshot"])
             self.assertIn("Runnable:", browser_result["queueSnapshot"])
             self.assertEqual(browser_result["pipelineStateMain"], "Encoding TV")

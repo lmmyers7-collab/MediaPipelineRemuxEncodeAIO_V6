@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: files
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 5f3659073db6b9682167d4087d5686e69998284b25ffcee4c1487540c1ccfd90
+sha256: 9baca16af860b2620e4ddda66ab2f3786bbaa8ca650a122a28500a2f9cba4a43
 ---
 # `src/mediapipeline/core/files/open_plan.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 93d78a468adafcb44743c3ee6f871b086510eed1c70f21d850d608640c889174
+sha256: bd64994b3b169df915108e89d77de7b810ffff6b863514811014099280e5f1f2
 ---
 # `tests/python/tooling/test_change_control.py`
 

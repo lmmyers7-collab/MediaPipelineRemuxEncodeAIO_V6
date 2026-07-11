@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-18
-sha256: 8fc87b2bee273a6eab6f2959d30a71d65602978b841c320f2380b8bb18f436bf
+sha256: a4aeb8f06f2b06a1cfa26ee76a6b8823fcfd152662e162d36fd01de33b8c9194
 ---
 # `tests/python/tooling/test_private_beta_downloaded_assets.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 557f44c8406db528a9d41bc454fd074df81132ddf1c540cbc81677e0b3d16ec6
+sha256: 14b71e2481150ad5e22a2af1882ad233ab34ae1c3757e9bf9779b994c9aadbdf
 ---
 # `ops/scripts/dev/run.bat`
 

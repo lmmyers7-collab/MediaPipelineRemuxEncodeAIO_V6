@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-28
-sha256: 7500b8bd3abd6eddd7fe6a3988e112d2766cf48e0a9b0b384fa9681b76093d7b
+sha256: 088a1ac720d8c5fc9465740943ae54a4ffda788671a9f3424b445a1f449a9621
 ---
 # `apps/desktop/webview/static/assets/pathPicker.js`
 

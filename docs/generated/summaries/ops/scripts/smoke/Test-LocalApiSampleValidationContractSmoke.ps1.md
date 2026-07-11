@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 21331c103956b4ac0d8005e120531dc4987bf60109e154b621420664929a26cb
+sha256: 73abc844d85b54b163eadea06081334a9f5050ebdd8030b0a18876242c6f7dd9
 ---
 # `ops/scripts/smoke/Test-LocalApiSampleValidationContractSmoke.ps1`
 

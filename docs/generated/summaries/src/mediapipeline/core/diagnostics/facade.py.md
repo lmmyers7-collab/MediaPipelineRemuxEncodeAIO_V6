@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: diagnostics
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 77675cb2114bc769fc2e5954faf9501b467baf6c44235f69cddbabd330d26301
+sha256: ee26e802d9c77cec6b57bc2b0b1a3d8a9145cda8ac31dec655588caf82fb63d6
 ---
 # `src/mediapipeline/core/diagnostics/facade.py`
 

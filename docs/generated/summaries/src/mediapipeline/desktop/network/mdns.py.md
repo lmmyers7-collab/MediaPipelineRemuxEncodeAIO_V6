@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: network
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 01cc9bd5b81de2d99b43c5ed1ed3138b9fb039d7758180f73c34e78163dc950c
+sha256: 74a4906d1b0293a5f9f748012100dba544270fd600873cfb8a6b400fc8fdb512
 ---
 # `src/mediapipeline/desktop/network/mdns.py`
 

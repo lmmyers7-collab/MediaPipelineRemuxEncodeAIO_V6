@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-10
 last_reviewed: 2026-06-02
-sha256: 3c0f2c0a2a65767c76d84d964237af25cd36f761194cb1c47213ba00015fe122
+sha256: 77bfd77352b79ba03126ac636581153d6eb146c130cd9267b208bca037c1f4fd
 ---
 # `docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`
 

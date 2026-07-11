@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: queue
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 4758470875a369e674a28e70cf8e6599ea556fd2007c9450d63c8b5189371703
+sha256: c84feb227cb55fa7e2cc3e17527aed2e9403f8d4848c829d6740bf1bf7ebf65b
 ---
 # `ops/pipeline/engine/queue/priority_manifest.ps1`
 

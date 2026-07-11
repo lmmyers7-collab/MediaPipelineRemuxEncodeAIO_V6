@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: 2c29318a920da47a9069d41d117e555ae767b0168ebb92b924a5ffc2da2d97aa
+sha256: 23b362ea8454e7836c3c23686f4ff0340a309d655efd32f3552029fd28de14cc
 ---
 # `tests/python/desktop/test_architecture_boundary_phase2_compatibility_imports.py`
 

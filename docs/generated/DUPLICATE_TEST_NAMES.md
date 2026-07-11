@@ -7,7 +7,7 @@ This report groups exact bare Python test function/method names that appear in m
 ## Summary
 
 - Test roots: `tests/python`, `tests/webview`
-- Python test definitions scanned: **3075**
+- Python test definitions scanned: **3087**
 - Duplicate bare names across files: **9**
 
 ## Duplicate Names
@@ -52,7 +52,7 @@ This report groups exact bare Python test function/method names that appear in m
 | File | Qualname | Line |
 |---|---|---:|
 | `tests/python/tooling/test_autonomy_growth_snapshot.py` | `AutonomyGrowthSnapshotToolTests.test_main_records_snapshot_and_prints_json` | 70 |
-| `tests/python/tooling/test_autonomy_soak_tick.py` | `AutonomySoakTickToolTests.test_main_records_snapshot_and_prints_json` | 163 |
+| `tests/python/tooling/test_autonomy_soak_tick.py` | `AutonomySoakTickToolTests.test_main_records_snapshot_and_prints_json` | 263 |
 
 ### `test_mutation_capable_payloads_use_shared_intent`
 

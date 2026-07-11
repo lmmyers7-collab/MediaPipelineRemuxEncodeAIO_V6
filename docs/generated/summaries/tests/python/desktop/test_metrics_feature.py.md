@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-05
-sha256: 7b4bb8793a8964a9a586373f4160ddff05ae5b48679c8942abb9dc24ff60be14
+sha256: 12258475f041d23d960b85e3a834d67d63522a75564c606b282de4ed1cff7e50
 ---
 # `tests/python/desktop/test_metrics_feature.py`
 

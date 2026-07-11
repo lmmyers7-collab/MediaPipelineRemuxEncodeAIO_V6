@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ff6542b0374ef8c1bc932040a648c7f85d909508d885d9012700757bcdeec211
+sha256: 16a9cec629848ddecb3c5c4be4e41a21fd234e1c4c0add4b8e48d837be22c191
 ---
 # `src/mediapipeline/desktop/webview_settings_live_smoke.py`
 

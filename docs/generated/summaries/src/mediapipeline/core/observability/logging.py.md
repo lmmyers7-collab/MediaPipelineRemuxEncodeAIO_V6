@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: observability
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: c64c49c2ab7d60bee2ef6ae31dace5d95ffc612347f1900517d8b9b40e384449
+sha256: 97d54bb8a3126913078207e6d2b0cbfb691e5a2ba79f13152a7fa2888119c33b
 ---
 # `src/mediapipeline/core/observability/logging.py`
 

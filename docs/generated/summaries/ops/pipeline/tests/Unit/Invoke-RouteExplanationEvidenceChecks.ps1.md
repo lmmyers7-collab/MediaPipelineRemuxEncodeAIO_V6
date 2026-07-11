@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-19
-sha256: c991c6e2bd5dec2a678592850b9d787d646a82451056f69e68bb6c9d7d5ae5ec
+sha256: 685ca5600f2eb84a2503f86cc523658341e030c2cc04fd0a6f01d34ec0ea97cc
 ---
 # `ops/pipeline/tests/Unit/Invoke-RouteExplanationEvidenceChecks.ps1`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 47a2b51c3c449d7f0bd8afaeed2aa761d0a45d2be08a108357a793caa6a516c9
+sha256: 82a2c89a8243435ec224aa21f68bc32994cfcadfc87b75729d03bdb3c3126910
 ---
 # `src/mediapipeline/tools/change_control/build_change_index.py`
 

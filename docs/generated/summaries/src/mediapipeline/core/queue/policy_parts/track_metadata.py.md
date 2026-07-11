@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: queue
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 665f472b87d2f38bc4fe50b0befab5f6e6baac0247e7426f4b2d15fd02d13702
+sha256: 3ac0fd58eaf763f63090659ac1102e8aa6689960329625ed6bd39f7285d0f6df
 ---
 # `src/mediapipeline/core/queue/policy_parts/track_metadata.py`
 

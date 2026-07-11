@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: kernel
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: af9f2da05ec02df3b23ff7ca68b07387532d1b00bbe0ad3f6e5211ab0008c1a8
+sha256: f52f3bc89a636103fc3fb2fddaf5abadf97b5687d64b1a5b7c75eb737e0ffeb4
 ---
 # `src/mediapipeline/core/kernel/config_key_aliases.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 9b3ddfcefbaa3b9946ee9f3217a2819373abe41f1d20d227f69b265d1a13f95e
+sha256: 2200ed7362069aa61c326f65451985c937bb4f95d29d22717668a484a283f96e
 ---
 # `tests/python/desktop/test_service_completed_backfill.py`
 

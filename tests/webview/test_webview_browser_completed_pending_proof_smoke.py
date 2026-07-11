@@ -714,11 +714,11 @@ def _browser_completed_pending_proof_runner_source() -> str:
             window.mediaPipelineCompletedView.renderCompletedPendingProof(payload.completed, payload.completed.rows, payload.pending);
             window.mediaPipelineCompletedView.renderCompletedRealMediaProof(payload.completed, payload.completed.rows, getCompletedPendingProofRows(), payload.pending);
             window.mediaPipelineCompletedView.renderCompletedFinalTrust(payload.completed, payload.completed.rows, getCompletedPendingProofRows(), payload.pending);
-            const currentCompletedRows = (payload.completed.rows || []).filter((row) => row.output_exists !== false);
-            requireText("completed-count", [String(currentCompletedRows.length)]);
-            requireText("completed-encode-count", [String(currentCompletedRows.filter((row) => String(row.route || "").startsWith("encode")).length)]);
-            requireText("completed-remux-count", [String(currentCompletedRows.filter((row) => String(row.route || "") === "remux").length)]);
-            requireText("completed-missing-count", [String((payload.completed.rows || []).filter((row) => row.output_exists === false).length)]);
+            const completedMetrics = window.mediaPipelineCompletedView.completedMetricCounts(payload.completed.rows || []);
+            requireText("completed-count", [String(completedMetrics.current)]);
+            requireText("completed-encode-count", [String(completedMetrics.encoded)]);
+            requireText("completed-remux-count", [String(completedMetrics.remuxed)]);
+            requireText("completed-missing-count", [String(completedMetrics.missing)]);
             if (!document.getElementById("completed-history-rows")) throw new Error("expected Completed History table");
             if (!document.getElementById("completed-refresh-current-output-button")) throw new Error("expected Refresh Current Output Status button");
             requireText("completed-trust-decision-summary", [
@@ -832,7 +832,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
             requireText("completed-pending-proof-status", ["Review overlaps"]);
             requireText("completed-pending-proof-summary", [
               "Completed-to-Pending output proof cross-check:",
-              "Exact completed output -> pending destination: 1",
+              "Exact completed output -> pending destination: 2",
               "Proof order:",
               "Mutation guardrail",
             ]);
@@ -910,7 +910,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
             window.selectPendingRow(selectedPending);
             requireText("pending-detail", [
               "Completed Manifest correlation for selected pending row:",
-              "Exact pending destination -> completed output: 1",
+              "Exact pending destination -> completed output: 2",
               "Proof order: exact normalized destination/source path matches are stronger",
               "Boundary: same-leaf matches are duplicate-title hints only",
               "Sample Validation handoff: Pending Publish",
@@ -920,7 +920,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "Matching evidence records: 1",
               "current=1",
               "Post-run capture: Preview Record includes pending/final-placement proof rows",
-              "Mutation guardrail: this pending-row correlation",
+              "Mutation guardrail: read-only evidence; backend routes own pending-publish changes.",
             ]);
             const exactCorrelation = window.mediaPipelinePendingPublishView.pendingSelectedCompletedCorrelationRows(selectedPending);
             if (!exactCorrelation.exactDestination.length) {
@@ -1403,7 +1403,7 @@ class WebViewBrowserCompletedPendingProofSmoke(unittest.TestCase):
         self.assertIn("Checkpoint: Output and sidecar", browser_result["realMediaProofDetail"])
         self.assertIn("output=missing", browser_result["realMediaProofDetail"])
         self.assertIn("Completed Manifest correlation for selected pending row:", browser_result["pendingDetail"])
-        self.assertIn("Mutation guardrail: this pending-row correlation", browser_result["pendingDetail"])
+        self.assertIn("Mutation guardrail: read-only evidence; backend routes own pending-publish changes.", browser_result["pendingDetail"])
         self.assertEqual(browser_result["postCount"], 0)
 
 

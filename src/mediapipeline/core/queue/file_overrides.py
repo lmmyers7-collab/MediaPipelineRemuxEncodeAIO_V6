@@ -61,6 +61,7 @@ from typing import Any, get_args
 from collections.abc import Iterable
 
 from mediapipeline.core.config.constants import ROUTE_THRESHOLD_MODE_NAMES
+from mediapipeline.core.paths.layout import normalized_path_key
 from mediapipeline.contracts.config import Config
 
 FILE_OVERRIDES_VERSION = 1
@@ -188,7 +189,7 @@ def file_overrides_path(state_root: Path) -> Path:
 
 
 def _normalise(path: str | Path) -> str:
-    return str(path).replace("\\", "/").lower().rstrip("/")
+    return normalized_path_key(Path(path)).replace("\\", "/").lower().rstrip("/")
 
 
 def normalize_file_override_path(path: str | Path) -> str:

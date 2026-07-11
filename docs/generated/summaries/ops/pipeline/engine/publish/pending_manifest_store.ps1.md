@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: publish
 last_modified: 2026-07-10
 last_reviewed: 2026-07-10
-sha256: 81d85e683ae0f32ef9572fd4755bac49736ae1829db19e37c96752c5a9e4028c
+sha256: bb36dda74d1087bf391041dabb55d6bec8ee3cba8bf87741e83b4d60cdc180dc
 ---
 # `ops/pipeline/engine/publish/pending_manifest_store.ps1`
 

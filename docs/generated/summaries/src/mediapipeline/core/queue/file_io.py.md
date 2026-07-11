@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: queue
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f571039873def3b24faa1cfaac2c8256f2a26d8c0c82141a1d6033d8fe5a1ea2
+sha256: bb26df42f9d39fc9c9c7d63410f7279b627a1468f1fb2949f50f5966cb65b72c
 ---
 # `src/mediapipeline/core/queue/file_io.py`
 

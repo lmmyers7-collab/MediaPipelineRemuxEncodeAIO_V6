@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-06-24
-sha256: be8545bf295cc07769af4d445522ba3e8c74270fe55be208795e97fa3b533c1f
+sha256: 07fc8cebaef6ed1d2897d52aa579a4da84a6eeac69556cbf8759755bd2e7111a
 ---
 # `ops/pipeline/engine/process/encode_context.ps1`
 

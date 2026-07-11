@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: fb65679f184929d2bb87e0e71736427c00cd88d6003f49f62b2c95b796d0b64a
+sha256: dc8d1fb789affd9efd5537aecc5eb4a1468bcd7c3dbfdc542dc75d97370df037
 ---
 # `ops/pipeline/config/setup/Validation.ps1`
 

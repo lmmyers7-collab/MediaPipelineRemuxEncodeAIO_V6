@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 39e3ca2b0f358fa3f3a8a603b3b469736e893f22074d7416c6e466aa6d9669f7
+sha256: 54b1873c22d9ad533b7ec18a6e8b89afde7a2e349e12860ed668349d510e77e3
 ---
 # `tests/python/desktop/test_service_process_spawn.py`
 

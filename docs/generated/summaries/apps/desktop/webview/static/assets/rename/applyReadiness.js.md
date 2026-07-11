@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: b0025ab2a2da0b3dd3d9288b07250855eb0d45d2bd7faba3abf958f0fabeae23
+sha256: 43465eb0f9a717bffab15e9288ac15510e57024f92e6a9e37bc699d4ad917ac6
 ---
 # `apps/desktop/webview/static/assets/rename/applyReadiness.js`
 

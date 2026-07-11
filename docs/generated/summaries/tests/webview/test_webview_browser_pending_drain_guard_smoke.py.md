@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 5dd938d07c2c0bbce3139439c5a856cb0e7b7dfdc833170c42be250b77322d0f
+sha256: 809882c2c84e9b76d2e6d8a298b57210c4ee9f41b1341be0ed2bc5954e9c4d10
 ---
 # `tests/webview/test_webview_browser_pending_drain_guard_smoke.py`
 

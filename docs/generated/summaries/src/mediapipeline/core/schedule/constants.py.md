@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: schedule
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 74d1aca1b33e10ca3ecb1dc60b91aac007cf1f54e818575608c4d7f868413823
+sha256: 687c8beca1993e2a47a192f8e94bf29fb7ba3725576a7aeece6ab0361aa3b0d9
 ---
 # `src/mediapipeline/core/schedule/constants.py`
 

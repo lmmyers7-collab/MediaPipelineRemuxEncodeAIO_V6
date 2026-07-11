@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: storage
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 3ad02658533a3d99775e0c6ece696f73f6f50d70ad378e820945cba96a445f12
+sha256: f6de409561ac29a435717ea811cfffb7fdada6491635fa4812d33609ee76423e
 ---
 # `ops/pipeline/engine/storage/disk.ps1`
 

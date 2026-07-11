@@ -88,7 +88,7 @@
       { type: "note", text: "Library editor overrides affect only content routed through this library. Backend Save remains authoritative before future runs use these values." },
     ],
     video: [
-      { type: "grid", fields: ["VideoPreset", "VideoQuality", "H264RemuxMaxBitrateMbps", "H264RemuxMaxHeight", "FallbackCpuQuality", "CpuEncodePreset", "CpuEncodeProcessPriority", "CpuEncodeMaxThreads"] },
+      { type: "grid", fields: ["VideoPreset", "VideoQuality", "H264RemuxMaxBitrateMbps", "H264RemuxMaxHeight", "FallbackCpuQuality", "CpuEncodePreset", "CpuEncodeProcessPriority", "CpuEncodeMaxThreads", "CpuEncodeMutexWaitSeconds"] },
       { type: "options", fields: ["AllowH264RemuxIfPlexCompatible"] },
       { type: "full", fields: ["RemuxSafeVideoCodecs", "ExtraVideoFlags"] },
       { type: "note", text: "Use this for direct-copy allowlists and fallback encode controls. Backend Save remains authoritative before any future run uses these values." },

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-10
 last_reviewed: 2026-06-03
-sha256: deaeed86d6bd5d6c93f2d74c91d5646014f3f9f773e83ffa26e7e3f4348cfd45
+sha256: 5c014be73b8e5f64432e2dcca95509117e27118da55fd2874a54641814498a2f
 ---
 # `docs/change_control/README.md`
 

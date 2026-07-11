@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: api
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 601fc03c5c687285afb724e8d497d7966a6b074d6c34cdbc0abefa4ef30d8145
+sha256: b1e74b21fdf802fbf997e5927df936566104bb9fe230f89e9e9a411d7a0f0a2d
 ---
 # `src/mediapipeline/core/api/file_overrides/folder_preview.py`
 

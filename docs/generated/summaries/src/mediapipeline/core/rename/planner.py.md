@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: rename
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 56c654a928e440012ceb9bc387a965cbd5753a6576f051d2aae92563c055cb30
+sha256: 7cd8d0b43a497ca7fa812fa0aafb3514d198b10e57072d803a5033f35aef188f
 ---
 # `src/mediapipeline/core/rename/planner.py`
 

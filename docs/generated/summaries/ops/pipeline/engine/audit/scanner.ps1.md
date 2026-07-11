@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: audit
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: af74bf9929a67ee193617ad2801b2e0599bb1f88c44d5ed368c55e9ee2fce78e
+sha256: f45fa036b95dbe0ad09f8cbaa1f89345dab4bba4924f0656b66e272511eece0b
 ---
 # `ops/pipeline/engine/audit/scanner.ps1`
 

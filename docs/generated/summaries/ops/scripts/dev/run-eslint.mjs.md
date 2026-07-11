@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 736bce8fc8896563c437061ddd8cd1b201b673f63ac2c2a6f30ee153037b1408
+sha256: 8a34b516254b2a27ea3de9129de3221f0ea479bf6c0bce12ba227f475856334c
 ---
 # `ops/scripts/dev/run-eslint.mjs`
 

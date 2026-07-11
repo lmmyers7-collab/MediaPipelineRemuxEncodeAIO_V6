@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: kernel
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 466e47e0c3f17f069d24e33c889f6f10c5c50807a02942d662b1fb3d59a8e86f
+sha256: 17fdc91c290d3a89b940bd2ecf4b4010be200d9a4072936e684765b9ac543ad5
 ---
 # `src/mediapipeline/core/kernel/dto_base.py`
 

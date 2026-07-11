@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: folder_policy
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: d0502285dc8fdbe8654cf583287a6c088a33e792488e8924c3a9847baa56a095
+sha256: 038035f4b9600785318159269a65a6de4bdb3ceb3985d09e8711b7d778f854da
 ---
 # `src/mediapipeline/core/folder_policy/io.py`
 

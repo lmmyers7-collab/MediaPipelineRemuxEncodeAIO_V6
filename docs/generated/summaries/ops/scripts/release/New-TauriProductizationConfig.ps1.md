@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-17
-sha256: d44d39d0e91e4a4accb123df4abd097ad48d72c3fa6d5780bdb18f3d9694faf8
+sha256: 25ef1c7a71af20e28b3ceabf81e2aea7ef629114790db5f556116d52573ad69e
 ---
 # `ops/scripts/release/New-TauriProductizationConfig.ps1`
 

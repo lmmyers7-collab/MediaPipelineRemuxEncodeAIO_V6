@@ -319,6 +319,10 @@ Assert-ReleaseExclusion -RelativePath 'docs\reviews\function-module-audit-2026-0
 Assert-ReleaseExclusion -RelativePath 'CON' -ExpectedReason 'windows reserved device name'
 Assert-ReleaseExclusion -RelativePath 'notes\AUX.txt' -ExpectedReason 'windows reserved device name'
 Assert-ReleaseExclusion -RelativePath 'artifacts\LPT1\capture.txt' -ExpectedReason 'windows reserved device name'
+foreach ($runtimeRoot in @('apps\desktop\runtime\Python', 'ops\pipeline\runtime\Python')) {
+    Assert-ReleaseExclusion -RelativePath "$runtimeRoot\Lib\site-packages\__editable__.mediapipeline-2026.6.4+1.pth" -ExpectedReason 'editable MediaPipeline runtime link'
+    Assert-ReleaseExclusion -RelativePath "$runtimeRoot\Lib\site-packages\mediapipeline-2026.6.4+1.dist-info\direct_url.json" -ExpectedReason 'editable MediaPipeline runtime metadata'
+}
 
 $hygieneRules = @(
     Get-MediaPipelineReleaseHygieneRules `
@@ -350,6 +354,10 @@ Assert-True ($rulePaths -contains 'ops\pipeline\config\backups') 'Release hygien
 Assert-True ($rulePatterns -contains 'ops\pipeline\config\backups\*.psd1') 'Release hygiene rules must reject generated config backups in active backup folders.'
 Assert-True ($rulePatterns -contains 'src\*.log') 'Release hygiene rules must reject source-tree runtime logs.'
 Assert-True ($rulePatterns -contains 'src\*.egg-info\*') 'Release hygiene rules must reject Python packaging metadata.'
+foreach ($runtimeRoot in @('apps\desktop\runtime\Python', 'ops\pipeline\runtime\Python')) {
+    Assert-True ($rulePatterns -contains "$runtimeRoot\Lib\site-packages\__editable__.mediapipeline-*.pth") 'Release hygiene rules must reject editable MediaPipeline runtime links.'
+    Assert-True ($rulePatterns -contains "$runtimeRoot\Lib\site-packages\mediapipeline-*.dist-info\direct_url.json") 'Release hygiene rules must reject editable MediaPipeline runtime metadata.'
+}
 
 $policyManifest = Get-MediaPipelineReleasePolicyManifest
 Assert-True ($policyManifest.schema_version -eq 'mediapipeline_release_policy.v1') 'Release policy manifest schema drifted.'

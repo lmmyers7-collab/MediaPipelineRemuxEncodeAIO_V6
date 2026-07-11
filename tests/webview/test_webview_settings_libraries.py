@@ -1042,7 +1042,10 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "default_tracking: readRowJson",
             "overrides: readRowJson",
             'apiPostLocal("/api/settings/wizard/preview", { wizard: collectWizardPayload() })',
-            'apiPostLocal("/api/settings/wizard/save", { wizard: collectWizardPayload(), confirm_save: true })',
+            'apiPostLocal("/api/settings/wizard/save", {',
+            "wizard: collectWizardPayload(),",
+            "confirm_save: true,",
+            "review_confirmation: state.lastPreview?.data?.review_confirmation || null,",
         ):
             self.assertIn(token, js)
         self.assertNotIn("ProcessingStrategy", js)

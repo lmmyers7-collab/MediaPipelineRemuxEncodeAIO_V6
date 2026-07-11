@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 9590287cd27ffde862c4f751a6e4f491ab82b3fb6cd178aa13fd90a9a56625ea
+sha256: d24abb5c7074088f1ef8ddd0263a49dca006342ee52b6cfe97b5c6e7ba8340d7
 ---
 # `ops/scripts/smoke/Test-WebViewSettingsLaunchPolicySmoke.ps1`
 

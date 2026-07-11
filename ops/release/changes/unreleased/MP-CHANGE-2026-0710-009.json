@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0710-009",
+  "title": "Normalize Windows path identity keys",
+  "version_target": "2026.07.10.001",
+  "status": "in_progress",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-10",
+  "date_completed": null,
+  "summary": "Canonicalize Windows path comparisons used by queue manifests, library-profile matching, and audit-progress pointer validation.",
+  "reason": "Windows hosted CI can expose the same directory via RUNNER~1 and its long name, which previously produced mismatched keys and false path-boundary rejections.",
+  "affected_areas": [
+    "config",
+    "observability",
+    "queue",
+    "release",
+    "tests"
+  ],
+  "behavior_before": "The affected helpers compared lexical path spellings, so equivalent Windows 8.3 and long paths could miss manifest entries, library profiles, or valid audit pointers.",
+  "behavior_after": "The affected helpers reuse the resolved canonical path key and boundary helper, preserving case-insensitive semantics while treating equivalent Windows short and long paths as the same location.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0710-009.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_windows_path_key_regression.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-009.json",
+    "src/mediapipeline/core/config/library_profile_state.py",
+    "src/mediapipeline/core/observability/status_files.py",
+    "src/mediapipeline/core/queue/file_overrides.py",
+    "src/mediapipeline/core/queue/priority_manifest.py",
+    "tests/python/desktop/test_windows_path_key_regression.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_windows_path_key_regression.py"
+  ],
+  "manual_validation": [
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m ruff check targeted source and regression test (passed after fail-closed guard)",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m ruff check targeted source and regression test (passed)",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest audit pointer fail-closed regression (RED: intended ValueError)",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest targeted queue/config/status/path modules (190 passed, 1 skipped)",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest targeted queue/config/status/path modules (191 passed, 1 skipped)",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest tests.python.desktop.test_windows_path_key_regression (GREEN: 5 passed)",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest tests.python.desktop.test_windows_path_key_regression (RED: 4 intended failures)"
+  ],
+  "rollback_plan": "Revert this packet's four helper changes and its regression test to restore lexical path comparisons if the shared resolved path key proves incompatible with a supported filesystem.",
+  "related_changes": [],
+  "notes": "Track the Windows path-key CI repair and its validation evidence.\nAdd deterministic regressions for 8.3 and long-path identity comparisons.\nCanonicalize persisted file-override manifest keys through the shared resolved path key.\nCanonicalize priority manifest keys through the shared resolved path key.\nResolve library profile comparison keys consistently across Windows short and long paths.\nUse the shared resolved boundary comparison for audit progress pointers.\nRED/GREEN regression coverage exercises short-name expansion through the shared resolved path key and preserves sibling boundary rejection.\nThe status-file wrapper retains fail-closed handling for path-resolution errors while delegating equivalent-path comparison to path_within_root.\nRefresh the Windows path identity regression summary.\nRecord the generated summary for the Windows path identity packet."
+}

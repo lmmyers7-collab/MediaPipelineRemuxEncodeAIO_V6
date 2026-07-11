@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: b2cba984938155154bf0776088cbae623b011a90e44688800cbef92962897796
+sha256: b0723427c22b832f05e321d9a46e253bf971547aae8d9889cd49395a5e8ef2b7
 ---
 # `src/mediapipeline/tools/dev/check_active_doc_references.py`
 

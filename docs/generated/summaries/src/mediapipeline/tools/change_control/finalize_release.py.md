@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 124090329f56334a0628ba20edb8b72736c08e6e9a151fe555882ad3e3eb629e
+sha256: a1cb34161bc755a7713191c90188267d8ac98c9970d9acddaace9e9927a6f0a0
 ---
 # `src/mediapipeline/tools/change_control/finalize_release.py`
 

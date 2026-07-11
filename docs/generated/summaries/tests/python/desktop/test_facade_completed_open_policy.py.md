@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6bf0f74d83926ceabc085e31553e56bcfc8d16e8cb12b4e024aff224eb4be11a
+sha256: 162dfab6d50e1a14e255e9c3461c2bae6ede300892f530628a184f7cb0fabb39
 ---
 # `tests/python/desktop/test_facade_completed_open_policy.py`
 

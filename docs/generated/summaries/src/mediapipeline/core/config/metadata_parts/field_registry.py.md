@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 82b2933c19540367b797b7e18a6c8f6bef20bc70fa0c1e908fdc9de604d50343
+sha256: 2c0bac39d6e3fe504dc34f1db288279c37edfd0263161e097c13d721afcb1cb4
 ---
 # `src/mediapipeline/core/config/metadata_parts/field_registry.py`
 

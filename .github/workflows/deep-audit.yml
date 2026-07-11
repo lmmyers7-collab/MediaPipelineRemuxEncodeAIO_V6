@@ -74,8 +74,25 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Provision CI Python runtime
+        shell: pwsh
+        run: .\ops\scripts\release\Initialize-CiPythonRuntime.ps1 -InstallDependencies
+
+      - name: Provision CI media tools
+        shell: pwsh
+        run: .\ops\scripts\release\Initialize-CiMediaTools.ps1 -InstallMissing
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
       - name: Install test dependencies
         run: python -m pip install -r requirements/dev.txt -e .
+
+      - name: Install WebView tooling
+        run: npm ci
 
       - name: Run Python unit tests
         run: python -m unittest discover -s tests -q
@@ -178,6 +195,13 @@ jobs:
           npm ci
           npm ci --prefix apps/desktop/tauri
 
+      - name: Prepare isolated LOCALAPPDATA
+        shell: pwsh
+        run: |
+          $ciLocalAppData = Join-Path $env:RUNNER_TEMP "mediapipeline-release-self-test-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          New-Item -ItemType Directory -Force -Path (Join-Path $ciLocalAppData 'MediaPipelineRemuxEncodeAIO') | Out-Null
+          "LOCALAPPDATA=$ciLocalAppData" >> $env:GITHUB_ENV
+
       - name: Run release self-test with required gates
         shell: pwsh
         run: .\ops\scripts\release\test.ps1 -RequireTests
@@ -222,6 +246,13 @@ jobs:
           python -m pip install -r requirements/dev.txt -e .
           npm ci
           npm ci --prefix apps/desktop/tauri
+
+      - name: Prepare isolated LOCALAPPDATA
+        shell: pwsh
+        run: |
+          $ciLocalAppData = Join-Path $env:RUNNER_TEMP "mediapipeline-package-verify-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          New-Item -ItemType Directory -Force -Path (Join-Path $ciLocalAppData 'MediaPipelineRemuxEncodeAIO') | Out-Null
+          "LOCALAPPDATA=$ciLocalAppData" >> $env:GITHUB_ENV
 
       - name: Build and verify release package
         shell: pwsh

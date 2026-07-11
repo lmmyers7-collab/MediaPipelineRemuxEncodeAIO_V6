@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 104d5d7d46522f9288ebc6d48fd73561f6f49a79ece39b6d53975eede0de7c19
+sha256: 1125878ff468342de5a7e3287d0b8ab3656c9e8ca9c8cfce3b4ceacc2bbac543
 ---
 # `src/mediapipeline/core/config/library_profile_defaults.py`
 

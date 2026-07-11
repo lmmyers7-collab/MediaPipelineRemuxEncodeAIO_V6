@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-07-09
-sha256: 2f2d2cf043d286568c702282f0d8937ed693c523b97ee9cb0648ce129916c579
+sha256: b564e52d96b12d09a2378e067187e2077e1b9a8e1b9d0ef1855211c983995f7d
 ---
 # `src/mediapipeline/core/processes/rerun_policy.py`
 

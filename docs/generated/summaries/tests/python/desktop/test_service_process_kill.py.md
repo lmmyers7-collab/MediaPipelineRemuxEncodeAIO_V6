@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 02a539568c64e556989c2faf14b64ca923807d379465be3d509d99e8163f7d4e
+sha256: a9601e41d3185f2d073d40bff7e95ed4f20cfed73edef533303afde1b92dc02d
 ---
 # `tests/python/desktop/test_service_process_kill.py`
 

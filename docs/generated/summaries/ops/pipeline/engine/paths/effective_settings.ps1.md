@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: paths
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f1e2fa32af7cb65af69531860789feadd907b839d04bb225248ce57a00dc7b51
+sha256: f8b6421ad0bc27cc5875ca6f7cb70dfa8093a799d509529908d0ad9c2a52bcdc
 ---
 # `ops/pipeline/engine/paths/effective_settings.ps1`
 

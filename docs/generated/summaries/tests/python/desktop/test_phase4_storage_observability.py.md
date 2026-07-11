@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 242a7df9a3f0dab93cacab9cc047f0052f93c5d25ae7b56491450383de4b5e3e
+sha256: bdc22f293307a774a1a5527c3c3553f07e909fef76ba515934e19ae48a107ba1
 ---
 # `tests/python/desktop/test_phase4_storage_observability.py`
 

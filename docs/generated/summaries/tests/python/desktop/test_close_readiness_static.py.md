@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-26
-sha256: b8d9ea0d8c18a09efc87763a0bdabdda2d1df8f758b0ae2ff66c9a4224093897
+sha256: 9080738a1e39fd108c0f3660a4d2922a66dc808c2fbaa6be05648751c6b7de54
 ---
 # `tests/python/desktop/test_close_readiness_static.py`
 

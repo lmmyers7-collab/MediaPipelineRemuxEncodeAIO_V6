@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 76f0749b6fed1a46b029c9092c2b84d0479f02b32559df378e757fde4e50013a
+sha256: ed92a9f016f4c708139a5b8beb5eebb894b54cb1c2ed4a88182b0544b1ad4e63
 ---
 # `tests/python/desktop/test_network_worker_source_policy.py`
 

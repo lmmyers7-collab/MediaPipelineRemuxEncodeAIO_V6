@@ -1244,10 +1244,15 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             const owner = window.mediaPipelineCommandHistory.commandHistoryOwnerPage(launchEntry);
             if (owner !== "Launch") throw new Error("pipeline.start owner should be Launch, got " + owner);
             const scanPosts = posts.filter((post) => post.path === "/api/queue/scan");
-            const unexpectedPosts = posts.filter((post) => !["/api/queue/scan", "/api/ui-preferences"].includes(post.path));
+            const allowedReadOnlyPosts = ["/api/rerun/preview"];
+            const unexpectedPosts = posts.filter((post) => !["/api/queue/scan", "/api/ui-preferences", ...allowedReadOnlyPosts].includes(post.path));
             if (scanPosts.length !== 1) throw new Error("Scan Sources should post exactly one backend queue scan command: " + JSON.stringify(posts));
             if (scanPosts[0].body.mode !== "inventory_then_curate" || scanPosts[0].body.scope !== "all" || scanPosts[0].body.force !== true) {
               throw new Error("Scan Sources posted unexpected scan payload: " + JSON.stringify(scanPosts[0]));
+            }
+            const rerunPreviewPosts = posts.filter((post) => post.path === "/api/rerun/preview");
+            if (rerunPreviewPosts.some((post) => !String(post.body?.csv_path || "").trim())) {
+              throw new Error("CSV rerun preview must retain its selected CSV path: " + JSON.stringify(rerunPreviewPosts));
             }
             if (unexpectedPosts.length) throw new Error("Launch/Queue readiness render posted unexpected routes: " + JSON.stringify(unexpectedPosts));
             window.apiPost = originalApiPost;

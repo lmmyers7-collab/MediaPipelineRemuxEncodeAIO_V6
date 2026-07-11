@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 309abc7a2e88a5a3d119967f9d56a654fd0850297ff5e002b744a23fdfea8005
+sha256: 0dea0d660940981f217b9e08ca0d90569e2fc2ee3a33d54d46d0593bbb7d3f47
 ---
 # `tests/webview/test_webview_browser_maintenance_change_ledger_smoke.py`
 

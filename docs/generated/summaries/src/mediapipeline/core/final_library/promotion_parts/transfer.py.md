@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: final_library
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 2d8a7ff3389cfc4b08f6c9e38d29e2f754a0964e51fa5315eaeeb36e45cddf2b
+sha256: c2986ebebdbda97282e5066453380fa27539de7b4488209ea0988c3a31723fba
 ---
 # `src/mediapipeline/core/final_library/promotion_parts/transfer.py`
 

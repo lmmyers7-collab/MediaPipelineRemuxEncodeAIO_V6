@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f9746fec78457cd1e9a2dffc8ccd29fdc2e0dd2dee1e7ecd4597598fc236eee2
+sha256: 4fee68cabd8f7b030fe0018e963ae5ebe5605a8ce7208590f0b8b1189c90cc53
 ---
 # `src/mediapipeline/tools/release_identity.py`
 

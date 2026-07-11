@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: a910dfb532777cd50c3747694522fc8c8017a9b372d9dc9af4fbf6699f71099d
+sha256: f5b96290d505c8f202e553014824410853bbf93351c6594a6c639aae96a0dc27
 ---
 # `ops/pipeline/config/setup/PathValidation.ps1`
 

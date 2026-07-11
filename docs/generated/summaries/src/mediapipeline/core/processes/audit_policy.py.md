@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: e389bc4371b6b96aab99e9778982bbbe083ab9d68c8eafe40048b85b92591aad
+sha256: 4077eef4e0c7c3462ccba3b08a46a8ba2fb125b7be2870d75c9733d2272fec47
 ---
 # `src/mediapipeline/core/processes/audit_policy.py`
 

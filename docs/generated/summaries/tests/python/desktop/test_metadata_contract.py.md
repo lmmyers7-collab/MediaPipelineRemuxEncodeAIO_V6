@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: a9b3676dfe9780dd94aa5cbc833a43bc046359ac93f27ba70c022764b35091be
+sha256: 28726967a9e5cdc74733eec4cc373e090640cef5f45dbea27183167213279b9b
 ---
 # `tests/python/desktop/test_metadata_contract.py`
 

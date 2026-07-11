@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-17
-sha256: 3e6a5c51cacd1ce7921cff82f74b2634d399db92830ba0e0445770c9d821427d
+sha256: 7bd1c9688bccc9203dd5adb3ff223dd3d123f67db5470bb3c8a108c6343c0975
 ---
 # `ops/scripts/release/New-TauriUpdaterChannelJson.ps1`
 

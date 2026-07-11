@@ -7,7 +7,7 @@
   "violations": [],
   "summary": {
     "scripts": 154,
-    "controls": 499,
+    "controls": 500,
     "route_usages": 104,
     "dynamic_api_posts": 1,
     "route_contracts": 166,
@@ -18,7 +18,7 @@
       "backend-owned-route": 175,
       "disabled-future-network-control": 5,
       "local-copy": 2,
-      "local-display-state": 74,
+      "local-display-state": 75,
       "local-form-staging": 3,
       "local-guided-setup": 8,
       "local-launch-intent-staging": 6,
@@ -2626,11 +2626,12 @@
       "page": "pending",
       "tag": "button",
       "id": "",
-      "text": "Total size 0 B 0 payloads; 0 health signals",
+      "text": "Total size 0 B 0 payloads",
       "classification": "local-display-state",
       "route": "",
       "data_attrs": {
-        "data-pending-action-filter": "payloads"
+        "data-pending-action-filter": "payloads",
+        "data-quick-link-page": "pending"
       }
     },
     {
@@ -2642,6 +2643,18 @@
       "route": "/api/pipeline/start",
       "data_attrs": {
         "data-pending-action-filter": "ready"
+      }
+    },
+    {
+      "page": "pending",
+      "tag": "button",
+      "id": "",
+      "text": "Health signals 0 review evidence",
+      "classification": "local-display-state",
+      "route": "",
+      "data_attrs": {
+        "data-pending-action-filter": "review",
+        "data-quick-link-page": "pending"
       }
     },
     {
@@ -6688,7 +6701,7 @@
       "normalized_route": "/api/settings/wizard/preview",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsWizard.js",
-      "line": 1023,
+      "line": 1027,
       "script_owner": "Settings Wizard",
       "allowed_owners": [
         "Settings",
@@ -6705,7 +6718,7 @@
       "normalized_route": "/api/settings/wizard/probe-hardware",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsWizard.js",
-      "line": 947,
+      "line": 951,
       "script_owner": "Settings Wizard",
       "allowed_owners": [
         "Settings",
@@ -6722,7 +6735,7 @@
       "normalized_route": "/api/settings/wizard/save",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsWizard.js",
-      "line": 1053,
+      "line": 1057,
       "script_owner": "Settings Wizard",
       "allowed_owners": [
         "Settings",
@@ -6739,7 +6752,7 @@
       "normalized_route": "/api/settings/wizard/validate-paths",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsWizard.js",
-      "line": 912,
+      "line": 916,
       "script_owner": "Settings Wizard",
       "allowed_owners": [
         "Settings",
@@ -6756,7 +6769,7 @@
       "normalized_route": "/api/settings/wizard/validate-tools",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsWizard.js",
-      "line": 928,
+      "line": 932,
       "script_owner": "Settings Wizard",
       "allowed_owners": [
         "Settings",
@@ -6773,7 +6786,7 @@
       "normalized_route": "/api/settings/wizard/validate-workers",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsWizard.js",
-      "line": 970,
+      "line": 974,
       "script_owner": "Settings Wizard",
       "allowed_owners": [
         "Settings",
@@ -6790,7 +6803,7 @@
       "normalized_route": "/api/ui-preferences",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/app.js",
-      "line": 1450,
+      "line": 1453,
       "script_owner": "App Shell",
       "allowed_owners": [
         "App Shell"

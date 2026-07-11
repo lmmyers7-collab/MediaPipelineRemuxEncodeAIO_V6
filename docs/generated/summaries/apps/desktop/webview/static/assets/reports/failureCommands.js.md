@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-24
-sha256: 4c6731237860f468026b111fdf009960a03032079999add5adbfd0be50728d32
+sha256: 5aacaa68a843bd3857aded64fe9cfe16ed3c71008f846ad17095f6012fa2521d
 ---
 # `apps/desktop/webview/static/assets/reports/failureCommands.js`
 

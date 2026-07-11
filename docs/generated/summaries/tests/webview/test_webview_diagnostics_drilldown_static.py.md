@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ef7dd9d8fe0162a6df679121d865c41efd90d774d7e72d80001c562ffa5ba44f
+sha256: 7b71a302b0e042f27cbbf6ddbf8eadf954156248055c6e2938c952c8d75cbc82
 ---
 # `tests/webview/test_webview_diagnostics_drilldown_static.py`
 

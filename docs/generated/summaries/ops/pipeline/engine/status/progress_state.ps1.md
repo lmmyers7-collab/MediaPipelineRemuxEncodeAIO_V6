@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: status
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 4d8390fb49a898b22cb59c3a601528bc269521199e15ae24f4e6242a60d18869
+sha256: 6b51cf7b292581541d91c92f84356d86237677af8161c0cea42a590855e264b7
 ---
 # `ops/pipeline/engine/status/progress_state.ps1`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 3b1bafdb88ed1c7035d99d96607e3e38f0ecd2bf8ad8c2d24acf0b07ab96f8d3
+sha256: cdabb1ebdc47331318bd160707bde4bd3eaa7bf8d4f351a2b2db60d984ec2253
 ---
 # `tests/python/desktop/test_config_service.py`
 

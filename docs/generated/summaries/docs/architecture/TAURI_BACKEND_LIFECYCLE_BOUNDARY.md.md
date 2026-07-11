@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-10
 last_reviewed: 2026-06-02
-sha256: e30ccca560a99231aff1cc2b51b4d3ab88cc8ec7670f31ae338ed50967725cc8
+sha256: c3b8a23927235dc0404e65e0edb5e005b8a21c3b90e4d5d6f0d507a71297276f
 ---
 # `docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`
 

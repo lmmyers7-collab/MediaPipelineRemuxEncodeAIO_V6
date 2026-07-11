@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: fbe485d3b41e64d84e9bf82d7a668bfee9c47bea351380f43cf2f9ae6576e704
+sha256: e2b37f8ba3b350c34c03d21af764a48e90c22ffdce55de888ea0dcbf2e322e99
 ---
 # `ops/scripts/smoke/Test-WebViewBrowserCompletedPendingProofSmoke.ps1`
 

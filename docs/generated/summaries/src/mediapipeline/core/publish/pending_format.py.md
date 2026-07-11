@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: publish
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 7e7d1b5f04285fba0b352bc687513bbdf382cebe6da8c1012d072db61cbe1346
+sha256: 00d574dc8e417a035afb276be319b735a515859a3f0e6d4a6c97467051b8d398
 ---
 # `src/mediapipeline/core/publish/pending_format.py`
 

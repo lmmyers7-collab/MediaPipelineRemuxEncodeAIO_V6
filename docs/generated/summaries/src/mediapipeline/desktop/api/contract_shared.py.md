@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: api
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 0da8a6077c02fc4ae1c3cc1481148f07d33d1788ac44c1d1efc7b0289bfdac15
+sha256: 1794c1498c9bb08828827a59105d1456c7d8603c9ef5b15b84600e05d3f3eea6
 ---
 # `src/mediapipeline/desktop/api/contract_shared.py`
 

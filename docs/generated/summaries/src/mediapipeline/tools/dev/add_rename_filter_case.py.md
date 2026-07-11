@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-17
-sha256: a361be07f26fc8c316d713a65aeaf2b118de47eeb23facaab7d8d455e1fdfbd4
+sha256: 9cc01157a6dbd6abc8c29bea58e9ecdd27585392cb2c6a14f3447564e35d4af2
 ---
 # `src/mediapipeline/tools/dev/add_rename_filter_case.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 2ac787680259a082b065280b583a7c4aae937449b6dc183ed6ee4b071d9747e8
+sha256: e22028c899c3ed91c19fa3002e2bffc7780273066cda9f67c8062ac914b633a6
 ---
 # `src/mediapipeline/core/config/profiles.py`
 

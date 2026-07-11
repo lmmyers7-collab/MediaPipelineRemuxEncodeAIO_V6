@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: network
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 85bd8cd787f432e003c43c0d524a5f8a625dc2902eab31bcc89389ebb021a0d4
+sha256: 765784fa22230075d22bcc68ab44bfa1f73e8fb3f9b55930977bd62914c3d338
 ---
 # `src/mediapipeline/desktop/network/encode_config_snapshot.py`
 

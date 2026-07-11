@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 58b54cb3bcfe50349828c0abfc18047bab4e85cc128a1f8e933013d7187b2788
+sha256: 760275a2e0a282da63c315a403e90fa3687075a86d4085742a9fb68bfa39d900
 ---
 # `ops/scripts/dev/run-python-tool.py`
 

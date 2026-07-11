@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: api
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6eeba70cc1295342a9ab9f48770b3182ac3ebb5efa62b505780ddd93b34a1b60
+sha256: 62efa97f9b5a68805392d7136459f16c7dff99e231644fb3ad7f0a59a6386faa
 ---
 # `src/mediapipeline/desktop/api/command_journal_policy.py`
 

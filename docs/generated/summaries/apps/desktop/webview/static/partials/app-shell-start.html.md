@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: d73ff3a04a81d28080055a1f2d4acc8c9c4cc8b31dbef16693489be6a35f3428
+sha256: 2b6ec4e2e32a844be78a5fc2bac7cfa4351f614970048982a5dc09acfbb983f0
 ---
 # `apps/desktop/webview/static/partials/app-shell-start.html`
 

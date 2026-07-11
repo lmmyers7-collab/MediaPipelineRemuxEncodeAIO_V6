@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-10
 last_reviewed: 2026-06-17
-sha256: 854f034540577a7d68d27161aee2d125c612dffeeccd095e7e8fc598274a615d
+sha256: 04970d6f1b9548496fe2927407b3956c0ce053e0a2c99978d0c8bb4cbd007337
 ---
 # `src/mediapipeline/core/repair_reconcile/facade.py`
 

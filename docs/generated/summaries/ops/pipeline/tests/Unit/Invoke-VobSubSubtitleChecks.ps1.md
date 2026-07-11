@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 7c6a95a8f901299bc6a837484120ee920ccf7a1c4112c40adc3d33c870659ac3
+sha256: 8a4eae00c37662b7ed952853296268f6314940fba826f1c7bd0d05afd96a79b7
 ---
 # `ops/pipeline/tests/Unit/Invoke-VobSubSubtitleChecks.ps1`
 

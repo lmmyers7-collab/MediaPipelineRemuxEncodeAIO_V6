@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-10
 last_reviewed: 2026-06-02
-sha256: 359b2e29a863f2489f6cf32bd8420c1aedc3f8da2f91bc9b34fc0411694fdfee
+sha256: 62c561642607451132657532922e740afbdc05a4d5a49909501720bfa0e7ed54
 ---
 # `docs/inventories/RISKY_FILE_REGISTRY.v1.json`
 

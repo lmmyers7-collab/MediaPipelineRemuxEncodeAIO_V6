@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: a4be48ea8693fe3b38459f9b3fc5acdb64c429893409eac3b543bcb2cc50035f
+sha256: eaed356eaa4a5daf98a4adcd197c00253bb9f184052eca83c345d8f3572c0971
 ---
 # `tests/python/desktop/test_service_status_summary.py`
 

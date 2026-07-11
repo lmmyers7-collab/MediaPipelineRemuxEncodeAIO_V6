@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: c32a45d86ca47ec072d3397fe7ce596f42e5aa622ec3a9109b536417246366d4
+sha256: 477ff2a2b6b0f3862aff70972917bf24bbceff3afe5e00a3bb73f7d187ff85f2
 ---
 # `ops/pipeline/tests/Unit/Invoke-AuditScorePolicyChecks.ps1`
 

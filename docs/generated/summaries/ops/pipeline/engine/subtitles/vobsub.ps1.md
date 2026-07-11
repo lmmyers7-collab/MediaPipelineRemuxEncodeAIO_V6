@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: subtitles
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 097b2a8fb0c9ec3c034617dcf2d2c8c658b6879759a037368c8c616c34ab5311
+sha256: db246348a0ff211424447c22394b40e08c76cf3a5c194ba7a04917d4bf4a9cbc
 ---
 # `ops/pipeline/engine/subtitles/vobsub.ps1`
 

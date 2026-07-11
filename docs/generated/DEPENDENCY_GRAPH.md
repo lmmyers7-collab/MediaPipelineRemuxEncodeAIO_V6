@@ -52,33 +52,34 @@ graph LR
   verify["verify"]
   watch["watch"]
   webview["webview"]
-  tests -->|812| api
-  tests -->|63| config
+  tests -->|813| api
+  tests -->|64| config
   scripts -->|47| api
   process -->|44| processes
   tests -->|41| processes
   observability -->|39| status
+  tests -->|27| queue
   config -->|26| kernel
   contracts -->|26| api
-  tests -->|25| queue
   tests -->|25| rename
   tests -->|23| status
   tests -->|18| publish
   process -->|17| kernel
   process -->|17| paths
   application -->|14| kernel
+  tests -->|14| paths
   config -->|13| api
-  tests -->|13| paths
   subtitles -->|12| api
   tests -->|12| completed
   decide -->|11| api
+  observability -->|11| paths
   tests -->|11| audit
   unknown -->|11| kernel
+  config -->|10| paths
   contracts -->|10| kernel
-  observability -->|10| paths
+  queue -->|10| paths
   tests -->|10| kernel
   api -->|9| queue
-  config -->|9| paths
   sample_validation -->|9| paths
   tests -->|9| maintenance
   unknown -->|9| config
@@ -86,7 +87,6 @@ graph LR
   audit -->|8| paths
   network -->|8| config
   observability -->|8| telemetry
-  queue -->|8| paths
   tests -->|8| diagnostics
   api -->|7| kernel
   diagnostics -->|7| kernel
@@ -116,6 +116,7 @@ graph LR
   orchestration -->|5| api
   orchestration -->|5| config
   scripts -->|5| diagnostics
+  tests -->|5| observability
   tests -->|5| orchestration
   tests -->|5| telemetry
   tests -->|5| validation
@@ -130,7 +131,6 @@ graph LR
   queue -->|4| observability
   sample_validation -->|4| kernel
   tests -->|4| network
-  tests -->|4| observability
   unknown -->|4| paths
   unknown -->|4| queue
   unknown -->|4| status
@@ -240,33 +240,34 @@ graph LR
 
 | From | To | Edges |
 |---|---|---|
-| tests | api | 812 |
-| tests | config | 63 |
+| tests | api | 813 |
+| tests | config | 64 |
 | scripts | api | 47 |
 | process | processes | 44 |
 | tests | processes | 41 |
 | observability | status | 39 |
+| tests | queue | 27 |
 | config | kernel | 26 |
 | contracts | api | 26 |
-| tests | queue | 25 |
 | tests | rename | 25 |
 | tests | status | 23 |
 | tests | publish | 18 |
 | process | kernel | 17 |
 | process | paths | 17 |
 | application | kernel | 14 |
+| tests | paths | 14 |
 | config | api | 13 |
-| tests | paths | 13 |
 | subtitles | api | 12 |
 | tests | completed | 12 |
 | decide | api | 11 |
+| observability | paths | 11 |
 | tests | audit | 11 |
 | unknown | kernel | 11 |
+| config | paths | 10 |
 | contracts | kernel | 10 |
-| observability | paths | 10 |
+| queue | paths | 10 |
 | tests | kernel | 10 |
 | api | queue | 9 |
-| config | paths | 9 |
 | sample_validation | paths | 9 |
 | tests | maintenance | 9 |
 | unknown | config | 9 |
@@ -274,7 +275,6 @@ graph LR
 | audit | paths | 8 |
 | network | config | 8 |
 | observability | telemetry | 8 |
-| queue | paths | 8 |
 | tests | diagnostics | 8 |
 | api | kernel | 7 |
 | diagnostics | kernel | 7 |
@@ -304,6 +304,7 @@ graph LR
 | orchestration | api | 5 |
 | orchestration | config | 5 |
 | scripts | diagnostics | 5 |
+| tests | observability | 5 |
 | tests | orchestration | 5 |
 | tests | telemetry | 5 |
 | tests | validation | 5 |
@@ -318,7 +319,6 @@ graph LR
 | queue | observability | 4 |
 | sample_validation | kernel | 4 |
 | tests | network | 4 |
-| tests | observability | 4 |
 | unknown | paths | 4 |
 | unknown | queue | 4 |
 | unknown | status | 4 |

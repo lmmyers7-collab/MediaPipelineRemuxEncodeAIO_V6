@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: kernel
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: e24019050b9cc47424b116cd085d656eb73c70770a3a75accdb49350b764ebca
+sha256: 85f249ee8a32ef62db3a52fa93b58da300276f58eaf4481e4d3eb57e346e8161
 ---
 # `src/mediapipeline/core/kernel/contracts/control_flag.py`
 

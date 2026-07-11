@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: observability
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f279e2b37b74a81fb325b220adad057d21cf7e0c425159eeae5c8e6768eb6617
+sha256: d669cd883895f48dc43b8319ecbe9ac053df90894374cafd26ba11e8e155bf87
 ---
 # `src/mediapipeline/core/observability/status_policy.py`
 

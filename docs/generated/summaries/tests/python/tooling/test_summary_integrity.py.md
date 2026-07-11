@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 2411d311d48b26ae4c513e5e26edda087a04dc3147b0e1b757ca66990f368fbc
+sha256: efedadf0cbbea56f1922756d41db3f61406ce4e8174749d9a217d39a340269aa
 ---
 # `tests/python/tooling/test_summary_integrity.py`
 

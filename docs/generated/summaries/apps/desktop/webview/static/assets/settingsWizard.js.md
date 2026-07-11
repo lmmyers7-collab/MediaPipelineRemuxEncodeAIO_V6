@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ee95670ab2eef300bf3d1b8d96c7574dfce3ff5ae952635a80d79f4943523703
+sha256: 9979ad0ed2838eeff98e72a2079e426927952ef2292fda5781803a46c1dafb1f
 ---
 # `apps/desktop/webview/static/assets/settingsWizard.js`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 38cbf2fd57419c8e1329f9bcd7cbfdb124471a3ea311921965ff01ad3dc29f56
+sha256: b28bcd09d0a85371eac3b4d9fdf12165999ff7c2e72bbf98d5cf38b65ac0f5d0
 ---
 # `src/mediapipeline/core/processes/runtime_artifacts.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: contracts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 402e38bb2814b64dba1b880d8141ef6d688fcd5e92e6a886ac921b2b9aa66f4f
+sha256: bcb14b261afade746981c00ce5c2bdb024c69949db61a538247f323876b68c61
 ---
 # `src/mediapipeline/desktop/contracts/queue_snapshot.py`
 

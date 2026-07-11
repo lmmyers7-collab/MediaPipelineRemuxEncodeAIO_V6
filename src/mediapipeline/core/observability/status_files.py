@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 import re
 from typing import Any
 
 from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.paths.layout import path_within_root
 
 
 _AUDIT_REPORT_STAMP_RE = re.compile(r"^audit_summary_(?P<stamp>\d{8}(?:_\d{6})?)(?:\.priority)?\.csv$", re.IGNORECASE)
@@ -34,10 +34,8 @@ def latest_matching_file(folder: Path | None, pattern: str) -> Path | None:
 
 def _path_is_inside(child: Path, parent: Path) -> bool:
     try:
-        child_text = os.path.normcase(os.path.abspath(str(child)))
-        parent_text = os.path.normcase(os.path.abspath(str(parent)))
-        return os.path.commonpath([child_text, parent_text]) == parent_text
-    except (OSError, ValueError):
+        return path_within_root(child, parent)
+    except (OSError, RuntimeError, ValueError):
         return False
 
 

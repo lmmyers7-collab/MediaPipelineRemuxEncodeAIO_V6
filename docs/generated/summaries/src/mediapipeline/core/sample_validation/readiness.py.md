@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: sample_validation
 last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: 75f5586fc627ca80d708b167bc2d62727e7be4f44fd766d6dd9b2e3586fe608d
+sha256: 552f13837eb4f5896697445647831df07a2100214c8632f66ee601afed83eab9
 ---
 # `src/mediapipeline/core/sample_validation/readiness.py`
 

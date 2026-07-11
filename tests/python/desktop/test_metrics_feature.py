@@ -170,6 +170,39 @@ class MetricsFeatureTests(unittest.TestCase):
         self.assertEqual(payload["source_evidence"]["completed_manifest"]["proof_mode"], "summary")
         self.assertEqual(payload["source_evidence"]["metrics_backfill"]["source_count"], 0)
 
+    def test_metrics_payload_preserves_aware_timestamp_offsets_and_latest_order(self) -> None:
+        records = [
+            CompletedJobRecord(
+                sidecar_path=Path("Earlier.pipeline.json"),
+                payload={
+                    "source_path": "Source/Earlier.mkv",
+                    "output_path": "Out/Earlier.mkv",
+                    "route": "remux",
+                    "encoded_at": "2026-06-02T10:00:00+05:30",
+                },
+            ),
+            CompletedJobRecord(
+                sidecar_path=Path("Later.pipeline.json"),
+                payload={
+                    "source_path": "Source/Later.mkv",
+                    "output_path": "Out/Later.mkv",
+                    "route": "encode",
+                    "encoded_at": "2026-06-02T02:00:00-04:00",
+                },
+            ),
+        ]
+
+        payload = build_metrics_payload(records, generated_at="2026-06-05T12:00:00Z")
+
+        self.assertEqual(
+            [row["completed_at"] for row in payload["production"]["recent_jobs"]],
+            ["2026-06-02T10:00:00+05:30", "2026-06-02T02:00:00-04:00"],
+        )
+        self.assertEqual(
+            payload["production"]["completion_series"], [{"date": "2026-06-02", "remux": 1, "encode": 1, "other": 0, "total": 2}]
+        )
+        self.assertEqual(payload["production"]["throughput"]["last_completed_at"], "2026-06-02T02:00:00-04:00")
+
     def test_metrics_route_contracts_define_read_and_backfill_boundaries(self) -> None:
         routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
 

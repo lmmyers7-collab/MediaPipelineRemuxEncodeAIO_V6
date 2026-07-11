@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: aa32a884e049db88ff56d9f39152629b062a30ebfd645c86a3e5b7b94e81c407
+sha256: a8f292798443d5c3eb608aa9b9b9cbaa1e875db914d9b002c31890d52b763222
 ---
 # `apps/desktop/webview/static/assets/crossPageContextView.conflict.js`
 

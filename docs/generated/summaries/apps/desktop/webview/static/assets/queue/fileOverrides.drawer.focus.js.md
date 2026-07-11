@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-05
-sha256: bed89a0aa0893b9e494a28e0884c40575735dd4b3678f75ca444294a75e724e1
+sha256: 66dbd053ed945c8fbf2f3fefb22a95ba0aef8588da66fe95652b57af75ba304f
 ---
 # `apps/desktop/webview/static/assets/queue/fileOverrides.drawer.focus.js`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-23
-sha256: e662c48368efdd1b54229f73d99bf7db790e257da79a55622aa1b98a57a792cf
+sha256: 185a40571cd5e51afe97bffcc6a459361024a96df7a2a1f57912d0aaad0ec5ae
 ---
 # `tests/python/desktop/test_settings_store.py`
 

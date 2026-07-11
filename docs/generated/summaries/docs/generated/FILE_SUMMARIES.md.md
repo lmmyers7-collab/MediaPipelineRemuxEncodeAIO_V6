@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-10
 last_reviewed: 2026-06-02
-sha256: 41cf6166667ff7f3f2eefa7d12592532657f25c1de4b1890786f3a0a55b9d3bf
+sha256: cde3247a3310f8ee0b61f26207572cdf742ab10744705d522bda8530a55d5bba
 ---
 # `docs/generated/FILE_SUMMARIES.md`
 

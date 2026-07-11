@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 68142490651d4b2a1875aac8c122f2014f49bd1c5d8e482b118584a1bd230d07
+sha256: 6d7d4fd306836801716ce19f137a641eb21230fca2006c4c80f340f3cc31c14a
 ---
 # `apps/desktop/webview/static/assets/launch/commandButtons.js`
 

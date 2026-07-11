@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: shell
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 33f76e6d48265f46234548c156b2e19616d98e48f67dad06556da3bf50e5b493
+sha256: 5111c6e1109c52ef88964f9616bd8c7085870a947d48b57fc77193c91eee97cf
 ---
 # `apps/desktop/tauri/Test-TauriShell-Launch.ps1`
 

@@ -1087,6 +1087,7 @@ function settingsPolicyDeltaRows(entries) {
     "FFmpegEncodeTimeoutSeconds",
     "FFmpegRemuxTimeoutSeconds",
     "FFmpegCpuEncodeTimeoutSeconds",
+    "CpuEncodeMutexWaitSeconds",
     "MkvmergeRemuxTimeoutSeconds",
     "SourceScanIntervalSeconds",
     "TransientFailureRetryLimit",
@@ -1094,12 +1095,13 @@ function settingsPolicyDeltaRows(entries) {
   ];
   const nextAllowSystemTools = settingsPatchCandidateBool(entries, "AllowSystemTools", false);
   const nextEncodeTimeout = settingsPatchCandidateNumber(entries, "FFmpegEncodeTimeoutSeconds", 21600);
+  const nextCpuMutexWait = settingsPatchCandidateNumber(entries, "CpuEncodeMutexWaitSeconds", 1800);
   const nextRetention = settingsPatchCandidateNumber(entries, "LogRetentionDays", 7);
   rows.push({
     area: "Runtime / diagnostics guardrails",
     posture: nextAllowSystemTools || nextEncodeTimeout < 1800 || nextRetention === 0 ? "review" : (settingsPolicyDeltaChangedLabels(entries, runtimeKeys).length ? "preview required" : "unchanged"),
-    current: `debug=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("DebugMode", false))}; encode timeout=${settingsPatchCurrentNumber("FFmpegEncodeTimeoutSeconds", 21600)}s; remux timeout=${settingsPatchCurrentNumber("FFmpegRemuxTimeoutSeconds", 7200)}s; retention=${settingsPatchCurrentNumber("LogRetentionDays", 7)}d; PATH tools=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("AllowSystemTools", false))}`,
-    candidate: `debug=${settingsPolicyDeltaBoolText(settingsPatchCandidateBool(entries, "DebugMode", false))}; encode timeout=${nextEncodeTimeout}s; remux timeout=${settingsPatchCandidateNumber(entries, "FFmpegRemuxTimeoutSeconds", 7200)}s; retention=${nextRetention}d; PATH tools=${settingsPolicyDeltaBoolText(nextAllowSystemTools)}`,
+    current: `debug=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("DebugMode", false))}; encode timeout=${settingsPatchCurrentNumber("FFmpegEncodeTimeoutSeconds", 21600)}s; CPU mutex wait=${settingsPatchCurrentNumber("CpuEncodeMutexWaitSeconds", 1800)}s; remux timeout=${settingsPatchCurrentNumber("FFmpegRemuxTimeoutSeconds", 7200)}s; retention=${settingsPatchCurrentNumber("LogRetentionDays", 7)}d; PATH tools=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("AllowSystemTools", false))}`,
+    candidate: `debug=${settingsPolicyDeltaBoolText(settingsPatchCandidateBool(entries, "DebugMode", false))}; encode timeout=${nextEncodeTimeout}s; CPU mutex wait=${nextCpuMutexWait}s; remux timeout=${settingsPatchCandidateNumber(entries, "FFmpegRemuxTimeoutSeconds", 7200)}s; retention=${nextRetention}d; PATH tools=${settingsPolicyDeltaBoolText(nextAllowSystemTools)}`,
     check: nextAllowSystemTools
       ? "Bundled tools should remain preferred; PATH fallback can hide FFmpeg/ffprobe version drift."
       : `${settingsPolicyDeltaChangedText(entries, runtimeKeys)} Timeout and log-retention changes affect long-running failure diagnosis.`,

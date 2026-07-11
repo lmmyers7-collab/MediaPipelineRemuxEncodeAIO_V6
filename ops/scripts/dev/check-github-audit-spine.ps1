@@ -79,6 +79,21 @@ foreach ($WorkflowPath in @(".github/workflows/phase1-drift.yml", ".github/workf
     }
 }
 
+foreach ($WorkflowPath in @(".github/workflows/phase1-drift.yml", ".github/workflows/deep-audit.yml")) {
+    $Workflow = Get-Content -LiteralPath (Join-Path $RepoRoot $WorkflowPath) -Raw
+    foreach ($JobName in @("release-self-test", "package-verify")) {
+        $JobMatch = [regex]::Match($Workflow, "(?ms)^  ${JobName}:\r?\n(?<body>.*?)(?=^  [A-Za-z0-9_-]+:|\z)")
+        if (-not $JobMatch.Success) {
+            throw "Workflow is missing $JobName job: $WorkflowPath"
+        }
+        foreach ($Expected in @("Prepare isolated LOCALAPPDATA", 'LOCALAPPDATA=$ciLocalAppData', "MediaPipelineRemuxEncodeAIO", '$env:RUNNER_TEMP', '$env:GITHUB_ENV')) {
+            if ($JobMatch.Groups['body'].Value -notmatch [regex]::Escape($Expected)) {
+                throw "$JobName job is missing isolated LOCALAPPDATA token '$Expected': $WorkflowPath"
+            }
+        }
+    }
+}
+
 $SarifWorkflow = Get-Content -LiteralPath (Join-Path $RepoRoot ".github/workflows/audit-sarif.yml") -Raw
 foreach ($Expected in @("ruff", "semgrep", "upload-sarif", "upload-artifact", "GITHUB_STEP_SUMMARY", "security-events: write")) {
     if ($SarifWorkflow -notmatch [regex]::Escape($Expected)) {

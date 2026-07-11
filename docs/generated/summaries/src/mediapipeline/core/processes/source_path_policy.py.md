@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-06-16
-sha256: af0ac7f77e3141f335a8e5991e2b794ae69b9d6ff2d34521101081de0b0e8454
+sha256: b18bc7ae625d895b948b8e2f1ed9aafd578d872617eccc216eb20065416c142f
 ---
 # `src/mediapipeline/core/processes/source_path_policy.py`
 

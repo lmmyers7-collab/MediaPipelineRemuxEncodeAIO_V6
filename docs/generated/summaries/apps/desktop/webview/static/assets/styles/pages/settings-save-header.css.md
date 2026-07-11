@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-25
-sha256: 7d570f49e9cf5479fa5804baaa84f229e26fe803355197a755cbcaee2d163a4a
+sha256: ce759098fd97a92f90503c7ef74ee63a795754dc360ceb3697ed8b0b604373c2
 ---
 # `apps/desktop/webview/static/assets/styles/pages/settings-save-header.css`
 

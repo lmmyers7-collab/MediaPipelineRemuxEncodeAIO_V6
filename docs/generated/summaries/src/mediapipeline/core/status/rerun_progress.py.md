@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: observability
 last_modified: 2026-07-10
 last_reviewed: 2026-07-04
-sha256: d77c484f77b5ba5abb229ed99105e3af57d632b56d0ea9d5b8564ba8092a0f9d
+sha256: 1245002adc7543c2c5c08c52f7c893f17e37295b2412dd10153dd85a94cfd238
 ---
 # `src/mediapipeline/core/status/rerun_progress.py`
 

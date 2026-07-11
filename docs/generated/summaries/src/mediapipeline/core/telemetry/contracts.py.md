@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: observability
 last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: 7fac32d7d725b6560ad887f3a57fd09a93bb39690113b68dd78d7bd3db640439
+sha256: 2e3f584d8b116bf475ae9c6da043ee9f83da29e53b16d86ebc0b112123d1ec81
 ---
 # `src/mediapipeline/core/telemetry/contracts.py`
 

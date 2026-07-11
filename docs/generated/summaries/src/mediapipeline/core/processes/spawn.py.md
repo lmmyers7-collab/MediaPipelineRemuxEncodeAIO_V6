@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 0f35ec3fd4c7640b211aa2ac65074a29ba6d72b259505906d83114635baae7bc
+sha256: f8a023c48bda041c6029f1eb955016aff2a04624b4036f2f462c112c2869eb62
 ---
 # `src/mediapipeline/core/processes/spawn.py`
 

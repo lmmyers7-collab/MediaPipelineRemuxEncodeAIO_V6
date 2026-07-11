@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: network
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f56dfc29b8cd816458a2a3b242787d35b2ef59f9cdf3ecc37f835ec0c14c2d59
+sha256: cb2ac2181219df98d823a1a9483aee803ff946e9294ee1c64e4972f5f0b3b305
 ---
 # `src/mediapipeline/desktop/network/coordinator_policy.py`
 

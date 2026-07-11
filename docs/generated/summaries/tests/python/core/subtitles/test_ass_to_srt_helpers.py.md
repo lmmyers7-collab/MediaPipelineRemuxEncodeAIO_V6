@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 4b36ce1feec7610731b6a1aa1730e3d0840301dc2ced3bc429da25e1cd8c36d1
+sha256: fabde78433d9073f63f1c7ba94f156754ce38d02c980fd22688a9d0114a12102
 ---
 # `tests/python/core/subtitles/test_ass_to_srt_helpers.py`
 

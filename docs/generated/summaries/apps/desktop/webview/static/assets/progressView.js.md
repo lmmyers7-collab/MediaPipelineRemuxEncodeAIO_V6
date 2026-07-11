@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: cd512a3d8aeccaf45db0e7bbce102f4e41c26d10f0be3b5b413b2f9b55923b03
+sha256: 8a705ab29e10308d569ff4913323583f317d1727c3438f5cc68041278ad630d5
 ---
 # `apps/desktop/webview/static/assets/progressView.js`
 

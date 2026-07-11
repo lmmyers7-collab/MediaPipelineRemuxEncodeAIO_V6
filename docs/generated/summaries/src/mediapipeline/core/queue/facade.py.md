@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: queue
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f9bd5d34ce79b616751de287723489c9139861dd847010567506c1f73004264a
+sha256: b06fe5e54c43623f65d2cdf54dbf5e86118a70c7fef104bdce9cd18247a59c72
 ---
 # `src/mediapipeline/core/queue/facade.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: application
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f15056b1423953dca87b4b54a7af2fd54e6bde486fb9b9665da5100b7c05c563
+sha256: efc10c8b1cd9c6242afae8f49100430ef8cfa2a25843003472b55c64ca53c7aa
 ---
 # `src/mediapipeline/desktop/application/dto_workspaces.py`
 

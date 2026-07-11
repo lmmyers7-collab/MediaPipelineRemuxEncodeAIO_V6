@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 011e318e96b6fe9fb338f31165ce0cd80efdcc07ca6b834b0de318e9adea3397
+sha256: 686dcaabd5f908e425b0ff0963a8c4dce906b365de40ff961ebc1eaef0f63f1c
 ---
 # `tests/python/tooling/test_risky_file_registry.py`
 

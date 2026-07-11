@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-14
-sha256: e228557273a067b3e944ff13e51d1415b930673a287c57f21a02a3167573fc65
+sha256: 7e240ad6985b635e5f82abffe3d84be471f5f9eca3f7a61723eb3c2bf3941935
 ---
 # `tests/python/desktop/test_network_library_relative_claim.py`
 

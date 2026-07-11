@@ -345,11 +345,10 @@ def iter_summary_files() -> Iterable[Path]:
 
 
 def sha256_of(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as fh:
-        for chunk in iter(lambda: fh.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    """Return a generated-summary fingerprint independent of checkout EOLs."""
+
+    canonical_bytes = path.read_bytes().replace(b"\r\n", b"\n")
+    return hashlib.sha256(canonical_bytes).hexdigest()
 
 
 def frontmatter_value(summary_path: Path, key: str) -> str | None:

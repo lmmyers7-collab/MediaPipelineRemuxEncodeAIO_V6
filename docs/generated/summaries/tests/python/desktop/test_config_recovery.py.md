@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f309d50e4198c9f08595b334e4dd66e98013428474d436d878599a87379262f5
+sha256: b35e7401d8b7f5cbe07dd7e0cb1fc945f0320f790b15fa7707890174d72f8532
 ---
 # `tests/python/desktop/test_config_recovery.py`
 

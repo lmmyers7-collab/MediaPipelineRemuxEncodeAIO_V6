@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: storage
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 198d43e8e64004025ee9b9d06fc925888d19ce19b401257d2c5aa3c38a57b311
+sha256: 3e906e37f31728c1e26faab1b3326a3b1e9245f3ad1e121f0cd9a86222c1b85e
 ---
 # `src/mediapipeline/core/storage/constants.py`
 

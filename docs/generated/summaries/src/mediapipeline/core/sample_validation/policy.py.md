@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: sample_validation
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 05022da6001ad26954b9d0a80359b6eac8584bae9fa8c80f7eddc35dd54c110e
+sha256: fe1529da98336cb7e310c31ff57e0820e826819def7b1717a959b80383ecc64a
 ---
 # `src/mediapipeline/core/sample_validation/policy.py`
 

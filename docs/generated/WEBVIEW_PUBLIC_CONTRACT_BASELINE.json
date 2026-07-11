@@ -11856,7 +11856,7 @@
         },
         {
           "name": "renderSettingsOverview",
-          "line": 346,
+          "line": 347,
           "kind": "function"
         }
       ],
@@ -11951,62 +11951,62 @@
         },
         {
           "name": "qualityDetailSettingsBuilderFields",
-          "line": 92,
+          "line": 93,
           "kind": "const"
         },
         {
           "name": "runtimeSettingsBuilderFields",
-          "line": 104,
+          "line": 105,
           "kind": "const"
         },
         {
           "name": "pendingPublishSettingsBuilderFields",
-          "line": 125,
+          "line": 126,
           "kind": "const"
         },
         {
           "name": "subtitleSettingsBuilderFields",
-          "line": 140,
+          "line": 141,
           "kind": "const"
         },
         {
           "name": "audioSettingsBuilderFields",
-          "line": 177,
+          "line": 178,
           "kind": "const"
         },
         {
           "name": "settingsSafetyLockDefinitions",
-          "line": 189,
+          "line": 190,
           "kind": "const"
         },
         {
           "name": "settingsImpactGroups",
-          "line": 273,
+          "line": 274,
           "kind": "const"
         },
         {
           "name": "settingsSpecificImpactHints",
-          "line": 420,
+          "line": 422,
           "kind": "const"
         },
         {
           "name": "settingsChoiceLabels",
-          "line": 531,
+          "line": 534,
           "kind": "const"
         },
         {
           "name": "settingsFriendlyPersistedKeyAliases",
-          "line": 612,
+          "line": 615,
           "kind": "const"
         },
         {
           "name": "settingsAdvancedFallbackKeys",
-          "line": 673,
+          "line": 676,
           "kind": "const"
         },
         {
           "name": "settingsLibraryCompatibilityPresets",
-          "line": 693,
+          "line": 697,
           "kind": "const"
         }
       ],
@@ -15994,217 +15994,217 @@
         },
         {
           "name": "phaseStatuses",
-          "line": 362,
+          "line": 366,
           "kind": "function"
         },
         {
           "name": "footerActionLabel",
-          "line": 386,
+          "line": 390,
           "kind": "function"
         },
         {
           "name": "updateWizardReadiness",
-          "line": 403,
+          "line": 407,
           "kind": "function"
         },
         {
           "name": "setCurrentStep",
-          "line": 446,
+          "line": 450,
           "kind": "function"
         },
         {
           "name": "markDirty",
-          "line": 462,
+          "line": 466,
           "kind": "function"
         },
         {
           "name": "activateWizardTab",
-          "line": 468,
+          "line": 472,
           "kind": "function"
         },
         {
           "name": "openWizard",
-          "line": 483,
+          "line": 487,
           "kind": "function"
         },
         {
           "name": "setDeploymentActionStatus",
-          "line": 489,
+          "line": 493,
           "kind": "function"
         },
         {
           "name": "verifyDeploymentSettings",
-          "line": 494,
+          "line": 498,
           "kind": "function"
         },
         {
           "name": "showDeploymentRepairGuidance",
-          "line": 499,
+          "line": 503,
           "kind": "function"
         },
         {
           "name": "openDeploymentLaunchReadiness",
-          "line": 508,
+          "line": 512,
           "kind": "function"
         },
         {
           "name": "bindDeploymentActionPath",
-          "line": 514,
+          "line": 518,
           "kind": "function"
         },
         {
           "name": "loadWizardDefaults",
-          "line": 521,
+          "line": 525,
           "kind": "function"
         },
         {
           "name": "loadWizardStatus",
-          "line": 548,
+          "line": 552,
           "kind": "function"
         },
         {
           "name": "applyWizardDefaults",
-          "line": 558,
+          "line": 562,
           "kind": "function"
         },
         {
           "name": "renderToolCandidates",
-          "line": 605,
+          "line": 609,
           "kind": "function"
         },
         {
           "name": "wizardLibraryPathField",
-          "line": 611,
+          "line": 615,
           "kind": "function"
         },
         {
           "name": "createLibraryRow",
-          "line": 622,
+          "line": 626,
           "kind": "function"
         },
         {
           "name": "renderLibraryRows",
-          "line": 672,
+          "line": 676,
           "kind": "function"
         },
         {
           "name": "addLibraryRow",
-          "line": 683,
+          "line": 687,
           "kind": "function"
         },
         {
           "name": "collectLibraries",
-          "line": 701,
+          "line": 705,
           "kind": "function"
         },
         {
           "name": "collectDangerAck",
-          "line": 722,
+          "line": 726,
           "kind": "function"
         },
         {
           "name": "collectWizardPayload",
-          "line": 729,
+          "line": 733,
           "kind": "function"
         },
         {
           "name": "runWizardCommand",
-          "line": 780,
+          "line": 784,
           "kind": "function"
         },
         {
           "name": "validationText",
-          "line": 802,
+          "line": 806,
           "kind": "function"
         },
         {
           "name": "renderPathRows",
-          "line": 815,
+          "line": 819,
           "kind": "function"
         },
         {
           "name": "renderResultList",
-          "line": 846,
+          "line": 850,
           "kind": "function"
         },
         {
           "name": "wizardListText",
-          "line": 874,
-          "kind": "function"
-        },
-        {
-          "name": "wizardCapabilityFactsText",
           "line": 878,
           "kind": "function"
         },
         {
+          "name": "wizardCapabilityFactsText",
+          "line": 882,
+          "kind": "function"
+        },
+        {
           "name": "wizardEncoderBackendText",
-          "line": 886,
+          "line": 890,
           "kind": "function"
         },
         {
           "name": "focusWizardTarget",
-          "line": 893,
+          "line": 897,
           "kind": "function"
         },
         {
           "name": "validatePaths",
-          "line": 909,
+          "line": 913,
           "kind": "function"
         },
         {
           "name": "detectTools",
-          "line": 925,
+          "line": 929,
           "kind": "function"
         },
         {
           "name": "probeHardware",
-          "line": 944,
+          "line": 948,
           "kind": "function"
         },
         {
           "name": "validateWorkers",
-          "line": 967,
+          "line": 971,
           "kind": "function"
         },
         {
           "name": "renderSummaryRows",
-          "line": 986,
+          "line": 990,
           "kind": "function"
         },
         {
           "name": "renderPreview",
-          "line": 1001,
+          "line": 1005,
           "kind": "function"
         },
         {
           "name": "previewWizard",
-          "line": 1020,
+          "line": 1024,
           "kind": "function"
         },
         {
           "name": "saveWizard",
-          "line": 1032,
+          "line": 1036,
           "kind": "function"
         },
         {
           "name": "handlePrimaryWizardAction",
-          "line": 1084,
+          "line": 1088,
           "kind": "function"
         },
         {
           "name": "copyDiagnostics",
-          "line": 1108,
+          "line": 1112,
           "kind": "function"
         },
         {
           "name": "renderSettingsWizardStatus",
-          "line": 1131,
+          "line": 1135,
           "kind": "function"
         },
         {
           "name": "initSettingsWizardEvents",
-          "line": 1145,
+          "line": 1149,
           "kind": "function"
         }
       ],
@@ -24216,518 +24216,518 @@
           "kind": "function"
         },
         {
-          "name": "topbarCleanCurrentName",
+          "name": "topbarStageContext",
           "line": 26,
           "kind": "function"
         },
         {
-          "name": "topbarStageContext",
+          "name": "topbarStagePrimaryText",
           "line": 37,
           "kind": "function"
         },
         {
           "name": "topbarCurrentWorkMeta",
-          "line": 48,
+          "line": 46,
           "kind": "function"
         },
         {
           "name": "renderTopbarActivity",
-          "line": 69,
+          "line": 65,
           "kind": "function"
         },
         {
           "name": "topbarTickerCompactText",
-          "line": 107,
+          "line": 97,
           "kind": "function"
         },
         {
           "name": "topbarEventData",
-          "line": 113,
+          "line": 103,
           "kind": "function"
         },
         {
           "name": "topbarEventTimestampMs",
-          "line": 117,
+          "line": 107,
           "kind": "function"
         },
         {
           "name": "topbarLatestEvent",
-          "line": 124,
+          "line": 114,
           "kind": "function"
         },
         {
           "name": "topbarEventKey",
-          "line": 139,
+          "line": 129,
           "kind": "function"
         },
         {
           "name": "topbarEventDisplayName",
-          "line": 154,
+          "line": 144,
           "kind": "function"
         },
         {
           "name": "topbarEventTickerLine",
-          "line": 169,
+          "line": 159,
           "kind": "function"
         },
         {
           "name": "topbarPendingLaunchLine",
-          "line": 180,
+          "line": 170,
           "kind": "function"
         },
         {
           "name": "topbarPipelineState",
-          "line": 188,
+          "line": 178,
           "kind": "function"
         },
         {
           "name": "topbarPendingLaunchIsValid",
-          "line": 192,
+          "line": 182,
           "kind": "function"
         },
         {
           "name": "renderTopbarEventTicker",
-          "line": 212,
+          "line": 202,
           "kind": "function"
         },
         {
           "name": "setTopbarPendingLaunch",
-          "line": 234,
+          "line": 224,
           "kind": "function"
         },
         {
           "name": "clearTopbarPendingLaunch",
-          "line": 249,
+          "line": 239,
           "kind": "function"
         },
         {
           "name": "formatCloseReadiness",
-          "line": 254,
+          "line": 244,
           "kind": "function"
         },
         {
           "name": "closeReadinessWatcherData",
-          "line": 280,
+          "line": 270,
           "kind": "function"
         },
         {
           "name": "closeReadinessWatcherSummary",
-          "line": 286,
+          "line": 276,
           "kind": "function"
         },
         {
           "name": "closeReadinessWatcherIsArmed",
-          "line": 294,
+          "line": 284,
           "kind": "function"
         },
         {
           "name": "backendLifecycleState",
-          "line": 298,
+          "line": 288,
           "kind": "function"
         },
         {
           "name": "startupProgressLines",
-          "line": 331,
+          "line": 321,
           "kind": "function"
         },
         {
           "name": "normalizeTauriBackendLifecycleEvent",
-          "line": 349,
+          "line": 339,
           "kind": "function"
         },
         {
           "name": "tauriBackendLifecycleStatusLabel",
-          "line": 364,
+          "line": 354,
           "kind": "function"
         },
         {
           "name": "tauriBackendLifecycleLines",
-          "line": 371,
+          "line": 361,
           "kind": "function"
         },
         {
           "name": "renderTauriBackendLifecycleAlert",
-          "line": 384,
+          "line": 374,
           "kind": "function"
         },
         {
           "name": "pipelineControlReadinessStatus",
-          "line": 404,
+          "line": 394,
           "kind": "function"
         },
         {
           "name": "pipelineControlReadinessLines",
-          "line": 413,
+          "line": 403,
           "kind": "function"
         },
         {
           "name": "renderControlReadiness",
-          "line": 446,
+          "line": 436,
           "kind": "function"
         },
         {
           "name": "visiblePagePanel",
-          "line": 453,
+          "line": 443,
           "kind": "function"
         },
         {
           "name": "panelVisibilityEmptyState",
-          "line": 458,
+          "line": 448,
           "kind": "function"
         },
         {
           "name": "panelIsCurrentlyVisible",
-          "line": 517,
+          "line": 507,
           "kind": "function"
         },
         {
           "name": "panelHiddenByAdvancedGate",
-          "line": 521,
+          "line": 511,
           "kind": "function"
         },
         {
           "name": "panelHiddenByEvidenceGate",
-          "line": 526,
+          "line": 516,
           "kind": "function"
         },
         {
           "name": "pagePanelHiddenReasonLines",
-          "line": 532,
+          "line": 522,
           "kind": "function"
         },
         {
           "name": "updatePagePanelEmptyState",
-          "line": 541,
+          "line": 531,
           "kind": "function"
         },
         {
           "name": "updatePagePanelEmptyStates",
-          "line": 555,
+          "line": 545,
           "kind": "function"
         },
         {
           "name": "kebabCase",
-          "line": 559,
+          "line": 549,
           "kind": "function"
         },
         {
           "name": "ensureElementId",
-          "line": 563,
+          "line": 553,
           "kind": "function"
         },
         {
           "name": "tabDatasetKey",
-          "line": 571,
+          "line": 561,
           "kind": "function"
         },
         {
           "name": "tabPanelDatasetKey",
-          "line": 575,
+          "line": 565,
           "kind": "function"
         },
         {
           "name": "syncTabAccessibility",
-          "line": 580,
+          "line": 570,
           "kind": "function"
         },
         {
           "name": "resetWorkspaceScroll",
-          "line": 627,
+          "line": 617,
           "kind": "const"
         },
         {
           "name": "showPage",
-          "line": 642,
+          "line": 632,
           "kind": "function"
         },
         {
           "name": "applyDefaultActionTooltips",
-          "line": 664,
+          "line": 654,
           "kind": "function"
         },
         {
           "name": "initSettingsTabNav",
-          "line": 718,
+          "line": 708,
           "kind": "function"
         },
         {
           "name": "activateDiagnosticsTab",
-          "line": 751,
+          "line": 741,
           "kind": "function"
         },
         {
           "name": "initDiagnosticsTabNav",
-          "line": 774,
+          "line": 764,
           "kind": "function"
         },
         {
           "name": "activateCompletedTab",
-          "line": 793,
+          "line": 783,
           "kind": "function"
         },
         {
           "name": "showCompletedOutputTab",
-          "line": 816,
+          "line": 806,
           "kind": "function"
         },
         {
           "name": "activateCrossPageTarget",
-          "line": 821,
+          "line": 811,
           "kind": "function"
         },
         {
           "name": "focusUiQuickLinkTarget",
-          "line": 831,
+          "line": 821,
           "kind": "function"
         },
         {
           "name": "activateUiQuickLinkModule",
-          "line": 844,
+          "line": 834,
           "kind": "function"
         },
         {
           "name": "activateUiQuickLink",
-          "line": 858,
+          "line": 848,
           "kind": "function"
         },
         {
           "name": "initUiQuickLinks",
-          "line": 881,
+          "line": 871,
           "kind": "function"
         },
         {
           "name": "initCompletedTabNav",
-          "line": 899,
+          "line": 889,
           "kind": "function"
         },
         {
           "name": "initNavigation",
-          "line": 915,
+          "line": 905,
           "kind": "function"
         },
         {
           "name": "sparkKind",
-          "line": 934,
+          "line": 924,
           "kind": "function"
         },
         {
           "name": "renderSparkline",
-          "line": 943,
+          "line": 933,
           "kind": "function"
         },
         {
           "name": "initLaunchEvidenceToggle",
-          "line": 958,
+          "line": 948,
           "kind": "function"
         },
         {
           "name": "initCollapsibleSummaries",
-          "line": 982,
+          "line": 972,
           "kind": "function"
         },
         {
           "name": "initThemeToggle",
-          "line": 1020,
+          "line": 1010,
           "kind": "function"
         },
         {
           "name": "applyThemePreference",
-          "line": 1024,
+          "line": 1014,
           "kind": "function"
         },
         {
           "name": "lifecycleDisplayText",
-          "line": 1032,
+          "line": 1022,
           "kind": "function"
         },
         {
           "name": "lifecycleStateToken",
-          "line": 1037,
+          "line": 1027,
           "kind": "function"
         },
         {
           "name": "lifecycleFactNode",
-          "line": 1046,
+          "line": 1036,
           "kind": "function"
         },
         {
           "name": "renderLifecycleFacts",
-          "line": 1059,
+          "line": 1049,
           "kind": "function"
         },
         {
           "name": "renderLifecycleCallout",
-          "line": 1065,
+          "line": 1055,
           "kind": "function"
         },
         {
           "name": "lifecycleWatcherStatus",
-          "line": 1076,
+          "line": 1066,
           "kind": "function"
         },
         {
           "name": "lifecycleStopRequestedText",
-          "line": 1081,
+          "line": 1071,
           "kind": "function"
         },
         {
           "name": "lifecycleGenerationText",
-          "line": 1088,
+          "line": 1078,
           "kind": "function"
         },
         {
           "name": "lifecycleCloseReadinessLabel",
-          "line": 1095,
+          "line": 1085,
           "kind": "function"
         },
         {
           "name": "renderDiagnosticsCloseReadinessOverview",
-          "line": 1100,
+          "line": 1090,
           "kind": "function"
         },
         {
           "name": "renderBackendLifecycleOverview",
-          "line": 1135,
+          "line": 1125,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandData",
-          "line": 1167,
+          "line": 1157,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandResultLabel",
-          "line": 1178,
+          "line": 1168,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandResultState",
-          "line": 1190,
+          "line": 1180,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandTime",
-          "line": 1198,
+          "line": 1188,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandSummary",
-          "line": 1203,
+          "line": 1193,
           "kind": "function"
         },
         {
           "name": "appendLifecycleTableCell",
-          "line": 1220,
+          "line": 1210,
           "kind": "function"
         },
         {
           "name": "lifecycleResultChip",
-          "line": 1229,
+          "line": 1219,
           "kind": "function"
         },
         {
           "name": "renderBackendLifecycleHistoryRows",
-          "line": 1237,
+          "line": 1227,
           "kind": "function"
         },
         {
           "name": "renderBackendLifecycle",
-          "line": 1260,
+          "line": 1250,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandEntries",
-          "line": 1288,
+          "line": 1278,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandLine",
-          "line": 1295,
+          "line": 1285,
           "kind": "function"
         },
         {
           "name": "renderBackendLifecycleHistory",
-          "line": 1318,
+          "line": 1308,
           "kind": "function"
         },
         {
           "name": "KEYBOARD_PAGE_KEYS",
-          "line": 1332,
+          "line": 1322,
           "kind": "const"
         },
         {
           "name": "KEYBOARD_PRIMARY_FILTER_IDS",
-          "line": 1344,
+          "line": 1334,
           "kind": "const"
         },
         {
           "name": "KEYBOARD_DETAIL_IDS",
-          "line": 1354,
+          "line": 1344,
           "kind": "const"
         },
         {
           "name": "activeKeyboardPage",
-          "line": 1364,
+          "line": 1354,
           "kind": "function"
         },
         {
           "name": "activeKeyboardPanel",
-          "line": 1368,
+          "line": 1358,
           "kind": "function"
         },
         {
           "name": "shortcutTypingTarget",
-          "line": 1372,
+          "line": 1362,
           "kind": "function"
         },
         {
           "name": "shortcutElementVisible",
-          "line": 1377,
+          "line": 1367,
           "kind": "function"
         },
         {
           "name": "focusActivePageSearch",
-          "line": 1384,
+          "line": 1374,
           "kind": "function"
         },
         {
           "name": "dispatchShortcutInputChange",
-          "line": 1395,
+          "line": 1385,
           "kind": "function"
         },
         {
           "name": "clearActivePageFilters",
-          "line": 1400,
+          "line": 1390,
           "kind": "function"
         },
         {
           "name": "activePageSelectableRows",
-          "line": 1438,
+          "line": 1428,
           "kind": "function"
         },
         {
           "name": "moveActivePageSelection",
-          "line": 1444,
+          "line": 1434,
           "kind": "function"
         },
         {
           "name": "focusActivePageDetail",
-          "line": 1458,
+          "line": 1448,
           "kind": "function"
         },
         {
           "name": "keyboardShortcutRegistry",
-          "line": 1474,
+          "line": 1464,
           "kind": "function"
         },
         {
           "name": "keyboardShortcutHelpText",
-          "line": 1494,
+          "line": 1484,
           "kind": "function"
         },
         {
           "name": "initKeyboardShortcuts",
-          "line": 1505,
+          "line": 1495,
           "kind": "function"
         }
       ],
@@ -27005,332 +27005,332 @@
         },
         {
           "name": "renderLiveWorkHomeSummary",
-          "line": 841,
+          "line": 844,
           "kind": "function"
         },
         {
           "name": "normalizeRefreshOptions",
-          "line": 858,
+          "line": 861,
           "kind": "function"
         },
         {
           "name": "mergeRefreshOptions",
-          "line": 865,
+          "line": 868,
           "kind": "function"
         },
         {
           "name": "refreshGet",
-          "line": 874,
+          "line": 877,
           "kind": "function"
         },
         {
           "name": "refreshLiveRunTail",
-          "line": 885,
+          "line": 888,
           "kind": "function"
         },
         {
           "name": "refreshAll",
-          "line": 906,
+          "line": 909,
           "kind": "function"
         },
         {
           "name": "refreshCurrentOutputStatus",
-          "line": 936,
+          "line": 939,
           "kind": "function"
         },
         {
           "name": "refreshAllNow",
-          "line": 940,
+          "line": 943,
           "kind": "function"
         },
         {
           "name": "initSettingsTabNav",
-          "line": 1343,
+          "line": 1346,
           "kind": "function"
         },
         {
           "name": "initDiagnosticsTabNav",
-          "line": 1347,
+          "line": 1350,
           "kind": "function"
         },
         {
           "name": "initCompletedTabNav",
-          "line": 1351,
+          "line": 1354,
           "kind": "function"
         },
         {
           "name": "initNavigation",
-          "line": 1355,
+          "line": 1358,
           "kind": "function"
         },
         {
           "name": "renderSparkline",
-          "line": 1359,
+          "line": 1362,
           "kind": "function"
         },
         {
           "name": "initLaunchEvidenceToggle",
-          "line": 1363,
+          "line": 1366,
           "kind": "function"
         },
         {
           "name": "initCollapsibleSummaries",
-          "line": 1367,
+          "line": 1370,
           "kind": "function"
         },
         {
           "name": "initThemeToggle",
-          "line": 1371,
+          "line": 1374,
           "kind": "function"
         },
         {
           "name": "applyThemePreference",
-          "line": 1375,
+          "line": 1378,
           "kind": "function"
         },
         {
           "name": "UI_PREFERENCES_ROUTE",
-          "line": 1379,
-          "kind": "const"
-        },
-        {
-          "name": "UI_PREFERENCE_KEY_RE",
-          "line": 1380,
-          "kind": "const"
-        },
-        {
-          "name": "ADVANCED_MODE_STORAGE_KEY",
-          "line": 1381,
-          "kind": "const"
-        },
-        {
-          "name": "EVIDENCE_HIDDEN_STORAGE_KEY",
           "line": 1382,
           "kind": "const"
         },
         {
-          "name": "THEME_STORAGE_KEY",
+          "name": "UI_PREFERENCE_KEY_RE",
           "line": 1383,
           "kind": "const"
         },
         {
-          "name": "uiPreferenceSyncInstalled",
+          "name": "ADVANCED_MODE_STORAGE_KEY",
+          "line": 1384,
+          "kind": "const"
+        },
+        {
+          "name": "EVIDENCE_HIDDEN_STORAGE_KEY",
           "line": 1385,
-          "kind": "let"
+          "kind": "const"
         },
         {
-          "name": "uiPreferenceSyncTimer",
+          "name": "THEME_STORAGE_KEY",
           "line": 1386,
-          "kind": "let"
+          "kind": "const"
         },
         {
-          "name": "uiPreferenceRemoteRefreshTimer",
-          "line": 1387,
-          "kind": "let"
-        },
-        {
-          "name": "uiPreferenceSyncInFlight",
+          "name": "uiPreferenceSyncInstalled",
           "line": 1388,
           "kind": "let"
         },
         {
-          "name": "uiPreferenceSyncPending",
+          "name": "uiPreferenceSyncTimer",
           "line": 1389,
           "kind": "let"
         },
         {
-          "name": "uiPreferenceApplyingRemote",
+          "name": "uiPreferenceRemoteRefreshTimer",
           "line": 1390,
           "kind": "let"
         },
         {
-          "name": "uiPreferenceLocalDirty",
+          "name": "uiPreferenceSyncInFlight",
           "line": 1391,
           "kind": "let"
         },
         {
-          "name": "uiPreferenceLastSerialized",
+          "name": "uiPreferenceSyncPending",
           "line": 1392,
           "kind": "let"
         },
         {
-          "name": "uiPreferenceAwaitingRemoteEchoSerialized",
+          "name": "uiPreferenceApplyingRemote",
           "line": 1393,
           "kind": "let"
         },
         {
-          "name": "isSharedUiPreferenceKey",
+          "name": "uiPreferenceLocalDirty",
+          "line": 1394,
+          "kind": "let"
+        },
+        {
+          "name": "uiPreferenceLastSerialized",
           "line": 1395,
+          "kind": "let"
+        },
+        {
+          "name": "uiPreferenceAwaitingRemoteEchoSerialized",
+          "line": 1396,
+          "kind": "let"
+        },
+        {
+          "name": "isSharedUiPreferenceKey",
+          "line": 1398,
           "kind": "function"
         },
         {
           "name": "collectSharedUiPreferences",
-          "line": 1401,
+          "line": 1404,
           "kind": "function"
         },
         {
           "name": "currentUiPreferenceSurface",
-          "line": 1414,
+          "line": 1417,
           "kind": "function"
         },
         {
           "name": "readBooleanUiPreference",
-          "line": 1419,
+          "line": 1422,
           "kind": "function"
         },
         {
           "name": "sharedUiPreferencePayload",
-          "line": 1423,
+          "line": 1426,
           "kind": "function"
         },
         {
           "name": "persistSharedUiPreferencesNow",
-          "line": 1430,
+          "line": 1433,
           "kind": "function"
         },
         {
           "name": "applySharedUiPreferenceStorage",
-          "line": 1468,
+          "line": 1471,
           "kind": "function"
         },
         {
           "name": "hasPendingSharedUiPreferenceWrite",
-          "line": 1489,
+          "line": 1492,
           "kind": "function"
         },
         {
           "name": "scheduleSharedUiPreferenceSync",
-          "line": 1493,
+          "line": 1496,
           "kind": "function"
         },
         {
           "name": "restoreSharedUiPreferences",
-          "line": 1503,
+          "line": 1506,
           "kind": "function"
         },
         {
           "name": "startSharedUiPreferenceRemoteRefresh",
-          "line": 1560,
+          "line": 1563,
           "kind": "function"
         },
         {
           "name": "installSharedUiPreferenceStorageSync",
-          "line": 1573,
+          "line": 1576,
           "kind": "function"
         },
         {
           "name": "initAdvancedToggle",
-          "line": 1594,
+          "line": 1597,
           "kind": "function"
         },
         {
           "name": "initEvidenceToggle",
-          "line": 1607,
+          "line": 1610,
           "kind": "function"
         },
         {
           "name": "syncDiagnosticAdvancedCallouts",
-          "line": 1618,
+          "line": 1621,
           "kind": "function"
         },
         {
           "name": "applyAdvancedModePreference",
-          "line": 1625,
+          "line": 1628,
           "kind": "function"
         },
         {
           "name": "applyEvidenceHiddenPreference",
-          "line": 1637,
+          "line": 1640,
           "kind": "function"
         },
         {
           "name": "activeKeyboardPage",
-          "line": 1689,
+          "line": 1692,
           "kind": "function"
         },
         {
           "name": "activeKeyboardPanel",
-          "line": 1693,
+          "line": 1696,
           "kind": "function"
         },
         {
           "name": "shortcutTypingTarget",
-          "line": 1697,
+          "line": 1700,
           "kind": "function"
         },
         {
           "name": "shortcutElementVisible",
-          "line": 1701,
+          "line": 1704,
           "kind": "function"
         },
         {
           "name": "focusActivePageSearch",
-          "line": 1705,
+          "line": 1708,
           "kind": "function"
         },
         {
           "name": "dispatchShortcutInputChange",
-          "line": 1709,
+          "line": 1712,
           "kind": "function"
         },
         {
           "name": "clearActivePageFilters",
-          "line": 1713,
+          "line": 1716,
           "kind": "function"
         },
         {
           "name": "activePageSelectableRows",
-          "line": 1717,
+          "line": 1720,
           "kind": "function"
         },
         {
           "name": "moveActivePageSelection",
-          "line": 1721,
+          "line": 1724,
           "kind": "function"
         },
         {
           "name": "focusActivePageDetail",
-          "line": 1725,
+          "line": 1728,
           "kind": "function"
         },
         {
           "name": "keyboardShortcutRegistry",
-          "line": 1729,
+          "line": 1732,
           "kind": "function"
         },
         {
           "name": "keyboardShortcutHelpText",
-          "line": 1733,
+          "line": 1736,
           "kind": "function"
         },
         {
           "name": "initKeyboardShortcuts",
-          "line": 1737,
+          "line": 1740,
           "kind": "function"
         },
         {
           "name": "_layoutRenderDrawer",
-          "line": 1862,
+          "line": 1865,
           "kind": "function"
         },
         {
           "name": "_movePanelByStep",
-          "line": 1866,
+          "line": 1869,
           "kind": "function"
         },
         {
           "name": "applyStoredLayoutPreferences",
-          "line": 1870,
+          "line": 1873,
           "kind": "function"
         },
         {
           "name": "applySharedUiPreferenceRuntimeState",
-          "line": 1874,
+          "line": 1877,
           "kind": "function"
         },
         {
           "name": "initLayoutManager",
-          "line": 1888,
+          "line": 1891,
           "kind": "function"
         }
       ],

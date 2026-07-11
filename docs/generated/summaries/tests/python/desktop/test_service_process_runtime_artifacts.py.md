@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 60c9f31af0cc94bc332a0904d59e43977641e73eeacc189983ccd18beb7c55b5
+sha256: 3dd48aa30d01efc15829262edce4c7a78a89cde89f116213ac9f95609edef541
 ---
 # `tests/python/desktop/test_service_process_runtime_artifacts.py`
 

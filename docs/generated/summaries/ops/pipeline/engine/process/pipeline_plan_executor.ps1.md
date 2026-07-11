@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 3faad4713af86d2d2845ead09bc5e1ce53dd310238039fb6c7cbd1f89a917f69
+sha256: 2f15abfc3607033afa27825ee0fd5c13d59707c745fea291722efff43854e546
 ---
 # `ops/pipeline/engine/process/pipeline_plan_executor.ps1`
 

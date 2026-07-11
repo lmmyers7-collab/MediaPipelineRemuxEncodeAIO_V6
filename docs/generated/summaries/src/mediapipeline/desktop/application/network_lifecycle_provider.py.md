@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: application
 last_modified: 2026-07-10
 last_reviewed: 2026-06-13
-sha256: e5e61d3abe792c23b68550c92fb44a05434da9e66fb41f696399530d98fad377
+sha256: d1d97be684a44ce45e533b799148a482c184dfac7004fafe18b9e8c9abcbff86
 ---
 # `src/mediapipeline/desktop/application/network_lifecycle_provider.py`
 

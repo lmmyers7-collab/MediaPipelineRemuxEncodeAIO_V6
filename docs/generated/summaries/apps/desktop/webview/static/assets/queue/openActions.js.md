@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: a693106d2176d69072820b9c7fef29032b5bbef9a43a8503d0926634a3720277
+sha256: 396d2795de2e30fa000566955b696182a2d8f22baf5292765e25433cd80ef322
 ---
 # `apps/desktop/webview/static/assets/queue/openActions.js`
 

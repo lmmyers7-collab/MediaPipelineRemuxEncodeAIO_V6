@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: network
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 7c36213a9080a5604dc7ca9d69c27e85a683debf41e0519c22cfb13dad1ec162
+sha256: fb1db8d568ececc4682b3a0a397a4589dda6e13354af57b15fca573dbfe957db
 ---
 # `src/mediapipeline/desktop/network/dispatcher.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: diagnostics
 last_modified: 2026-07-10
 last_reviewed: 2026-07-02
-sha256: 31eb36e936f967abe49b7e793451a5a9497f261f25a2e25c4832e1e7027e1c4a
+sha256: de8cebad654a29cf69bb6856cb112362ab111753c07c78fe41bb4c4afe9ac19e
 ---
 # `src/mediapipeline/core/diagnostics/autonomy_scan.py`
 

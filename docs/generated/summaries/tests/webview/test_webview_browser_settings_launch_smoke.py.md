@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 1e127651364e034956a17f1389667810453c5b1d28ec33a3cb215e8a617efa68
+sha256: f07ccb114f440a8caeebfd32fbc0b01e14403532d22695b1d19e2d6633600155
 ---
 # `tests/webview/test_webview_browser_settings_launch_smoke.py`
 

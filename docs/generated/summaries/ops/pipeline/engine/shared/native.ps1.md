@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: shared
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 7293f3b732278026206a8275a34dcfe863023a0749f9c8a77b9f101933605906
+sha256: 5a12d720b0dc5a1e8cf5a52fe11e7efdbca6911637cb9dcaf9628816c7908202
 ---
 # `ops/pipeline/engine/shared/native.ps1`
 

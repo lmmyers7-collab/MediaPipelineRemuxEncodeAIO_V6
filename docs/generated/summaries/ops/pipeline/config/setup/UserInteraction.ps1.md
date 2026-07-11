@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 851deef277f7b95ee93b3ecd934ac3233d8a954d3a7bef9b5aca86389a236b76
+sha256: f7ec2b8ac44f439013e718b55f0a8df00f8e2d8f90fec698800452401c36bd1c
 ---
 # `ops/pipeline/config/setup/UserInteraction.ps1`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: sample_validation
 last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: 694cc67159cd746f05451f786dc5838213d816b0803fc50efa96e5164926b4ed
+sha256: ea12f7405903bad07b02e6cd73c79627b1c361775762f4ac3306fd83a37c22d1
 ---
 # `src/mediapipeline/core/sample_validation/log_payload.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-07
-sha256: bc523d67e3f6585e0dd2f9e487726c542c7ab37547de5c47e766baf8b4eaa076
+sha256: 1008b4eefec50417b4193d5ff0ca091e5e40e1e5bef67c41f756366e683ba38d
 ---
 # `tests/python/desktop/test_library_route_map_api.py`
 

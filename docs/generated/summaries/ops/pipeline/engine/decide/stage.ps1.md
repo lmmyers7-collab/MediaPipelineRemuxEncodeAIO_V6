@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: decide
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: fa33b3114dfe5929850bdeb08fa25694bb1ef7c39fddb7d5083021d5ffd7e019
+sha256: 4676258d4746404a25d50be0a3bf46f6863bc784d3aa94df7c13a6898101cabf
 ---
 # `ops/pipeline/engine/decide/stage.ps1`
 

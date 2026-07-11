@@ -40,6 +40,8 @@ import uuid
 from datetime import datetime, UTC
 from pathlib import Path
 
+from mediapipeline.core.paths.layout import normalized_path_key
+
 VALID_LEVELS = frozenset({"high", "normal", "low", "hold"})
 DEFAULT_LEVEL = "normal"
 MANIFEST_VERSION = 1
@@ -61,7 +63,7 @@ def priority_manifest_path(state_root: Path) -> Path:
 
 def _normalise(path: str | Path) -> str:
     """Return a normalised string key for a path (lowercased, forward slashes)."""
-    return str(path).replace("\\", "/").lower().rstrip("/")
+    return normalized_path_key(Path(path)).replace("\\", "/").lower().rstrip("/")
 
 
 # ---------------------------------------------------------------------------

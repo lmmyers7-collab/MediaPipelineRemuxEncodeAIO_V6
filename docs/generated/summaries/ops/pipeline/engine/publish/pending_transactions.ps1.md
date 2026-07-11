@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: publish
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6a354425b66efd3b4ae0260d9d9c95b8576ed7139d64125f598329fb6ecd897e
+sha256: a1465c3fca3f10df59b8e1dfd66cd9bd71072e96cd40c8779d20389a0c9e8251
 ---
 # `ops/pipeline/engine/publish/pending_transactions.ps1`
 

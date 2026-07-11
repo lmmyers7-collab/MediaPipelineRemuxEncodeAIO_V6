@@ -5,7 +5,7 @@ token_priority: low
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-05-28
-sha256: ac22d759a247728f3137d0a3ec793afa3a77054e9ea85f9fbf18fd577719defe
+sha256: 6fb2a5be00578e83895a0f1e648101e812364537dfe6c3a5d22d31291b8ce536
 ---
 # `tests/__init__.py`
 

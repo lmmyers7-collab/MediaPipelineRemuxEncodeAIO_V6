@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: decide
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: c03d85bb0f71d148cbdad09a8fbecc339f0b39b6f745082420f82c948244b7da
+sha256: fdd1f6e73b8c1f2c2375ef348b887f6a218658f963b2948ec1a8ec2121bebe47
 ---
 # `src/mediapipeline/core/decide/encoding_rules.py`
 

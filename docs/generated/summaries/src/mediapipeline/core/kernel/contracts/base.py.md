@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: kernel
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 35651905fd948b0e5d3b5dbcdb69b7acee8509d01544ebcb543a0ab8a9851e1c
+sha256: 29ee3831601ccf7f6e843fa0509bcee4e8df04048d42deb6748cc73cca6df5a3
 ---
 # `src/mediapipeline/core/kernel/contracts/base.py`
 

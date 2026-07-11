@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: final_library
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: e760f20f0a21558bd81c5c7ac4953b5fb5eea8e71ee51835a0c11f19c58b06fa
+sha256: 170333830c63daff04a8806269a646abb38979d6568c34bf5dae8fe3c4d2ef90
 ---
 # `src/mediapipeline/core/final_library/facade.py`
 

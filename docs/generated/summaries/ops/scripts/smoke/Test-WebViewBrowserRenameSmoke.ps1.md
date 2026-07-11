@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: e03d3182363e3bfabc40956882f12c155db19d333cbfa9f143a00bda3652739a
+sha256: 6038775bf3123167e16c71920f66d5037bbe754cf8d20f412d174d2bbaf0cbdc
 ---
 # `ops/scripts/smoke/Test-WebViewBrowserRenameSmoke.ps1`
 

@@ -391,7 +391,9 @@ function writeOrCheck(path, content, check) {
   const absolute = resolve(repoRoot, path);
   if (check) {
     const current = existsSync(absolute) ? readFileSync(absolute, "utf-8") : "";
-    if (current === content) {
+    const currentCanonical = current.replace(/\r\n/g, "\n");
+    const contentCanonical = content.replace(/\r\n/g, "\n");
+    if (currentCanonical === contentCanonical) {
       console.log(`${repoRelative(path)} is current`);
       return 0;
     }

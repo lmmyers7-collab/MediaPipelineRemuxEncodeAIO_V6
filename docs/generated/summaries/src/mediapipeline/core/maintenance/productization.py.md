@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: maintenance
 last_modified: 2026-07-10
 last_reviewed: 2026-06-17
-sha256: 337e10f0f38611cdb240c190d0f9882505f1e97192cfa1a5c7b84a0bffbec5ed
+sha256: 3b13b37ca84f0f3de17e48d4668e0fa97bc112549ea468888ac96034be066e0d
 ---
 # `src/mediapipeline/core/maintenance/productization.py`
 

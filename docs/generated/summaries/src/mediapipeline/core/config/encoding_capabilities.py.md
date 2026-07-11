@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: e727a6e5cb68bbf37f6f845bc0028834a0b967ac3f0125ff04c3b2f3fe24f92f
+sha256: 6ef92db3070457ba56576655cf9c6f609a2c17b93993f9342db3f048b81de7d2
 ---
 # `src/mediapipeline/core/config/encoding_capabilities.py`
 

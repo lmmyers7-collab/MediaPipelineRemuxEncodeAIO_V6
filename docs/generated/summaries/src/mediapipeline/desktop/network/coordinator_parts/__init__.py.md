@@ -5,7 +5,7 @@ token_priority: low
 owner_domain: network
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 228d6d3d3330b29e9de17c2b2343dd98209969c250a47671275ee2ac246dc577
+sha256: 001e7698af9d5b74dc9a7e047dd0601551c2bcc6c8c8680291dc68a27ecc803e
 ---
 # `src/mediapipeline/desktop/network/coordinator_parts/__init__.py`
 

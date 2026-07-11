@@ -22,6 +22,7 @@
     "docs/generated/FEATURE_FILE_MAP.md",
     "docs/generated/PROJECT_INDEX.md",
     "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0710-004.json.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/refresh_summaries.py.md",
     "docs/generated/summaries/tests/python/tooling/test_summary_integrity.py.md",
     "ops/release/changes/unreleased/MP-CHANGE-2026-0710-004.json",
     "src/mediapipeline/tools/dev/refresh_summaries.py",
@@ -29,6 +30,7 @@
   ],
   "tests_added": [],
   "manual_validation": [
+    "GREEN: the focused cross-platform regression and all 15 summary-integrity tests passed after fingerprint canonicalization.",
     "RED: test_summary_fingerprint_normalizes_windows_and_unix_line_endings failed because raw LF and CRLF source bytes produced different SHA-256 values."
   ],
   "rollback_plan": "Revert the fingerprint canonicalization and regenerated summaries only if a demonstrated non-text source requires byte-level summary hashing; rerun the cross-platform regression and generated-context audit.",
@@ -37,5 +39,5 @@
     "MP-CHANGE-2026-0710-002",
     "MP-CHANGE-2026-0710-003"
   ],
-  "notes": "Normalize text line endings before calculating generated-summary fingerprints.\nCover cross-platform generated-summary fingerprint stability.\nRefresh the regression-test summary after adding the cross-platform reproducer.\nRecord the generated summary for this cross-platform fingerprint change packet.\nRegenerate project index for the new change packet.\nRegenerate dependency graph for the new change packet.\nRegenerate feature map for the new change packet."
+  "notes": "Normalize text line endings before calculating generated-summary fingerprints.\nCover cross-platform generated-summary fingerprint stability.\nRefresh the regression-test summary after adding the cross-platform reproducer.\nRecord the generated summary for this cross-platform fingerprint change packet.\nRegenerate project index for the new change packet.\nRegenerate dependency graph for the new change packet.\nRegenerate feature map for the new change packet.\nRefresh the summary-generator summary after canonicalizing its fingerprints."
 }

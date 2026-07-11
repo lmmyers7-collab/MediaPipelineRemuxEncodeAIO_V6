@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: api
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: b8a5b3db39499603df6c2c1256144ae3eb172b17f666977cdf8a27b0aaf11131
+sha256: e5890c1b5867236e92a48cb50fa9f4bbded040152dc914785229118b36f89685
 ---
 # `src/mediapipeline/desktop/api/queue_source_path_policy.py`
 

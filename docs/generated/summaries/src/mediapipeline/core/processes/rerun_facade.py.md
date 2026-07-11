@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: b47e1fa8cdfd8202b0e9cb6c981f91e24481a4ca32bf08f550dcff80666864b1
+sha256: 2c1e2165bb5697dff8c4653df9874cdf87865b632c2c463d2361fa79bf2cf547
 ---
 # `src/mediapipeline/core/processes/rerun_facade.py`
 

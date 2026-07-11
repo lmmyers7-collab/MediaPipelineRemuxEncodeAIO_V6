@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-24
-sha256: 4f713db417a2a09c2b990656afdbac858b1287224da94353e6e2909b1ea983bb
+sha256: cf1840282af1c6f0f3a5e1f2e00fb7ee9822410e31040689f0371376adf4a512
 ---
 # `apps/desktop/webview/static/assets/reports/shared.js`
 

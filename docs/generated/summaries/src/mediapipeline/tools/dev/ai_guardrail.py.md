@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: e9126dafa3a6d93f09c08e982f1d6a2580a3d27eb8f3984c100b1589396ac48b
+sha256: 05bdeb80e354a6f41ea5df9abf573ac3e3372c4e249092193870659ddf31f2e9
 ---
 # `src/mediapipeline/tools/dev/ai_guardrail.py`
 

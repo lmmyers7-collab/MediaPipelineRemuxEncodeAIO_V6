@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 0b2c0a4ac9365b417f88cf804f7b0ea49719656c7b684267367b0da597c36678
+sha256: a4b564edd099ce33bc1e7c8833eea7861cce96bbc2d39fe06655eb2ed14763f8
 ---
 # `tests/python/desktop/test_api_contract_payload.py`
 

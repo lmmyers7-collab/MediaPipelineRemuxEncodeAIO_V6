@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: e7442499739500718ed436fa498c407151b40e19717b5ca4b673385875f19c80
+sha256: 0e55566b136e704761def9778ead0483e1f7638a0094b8ea5780bb271be6b3b2
 ---
 # `src/mediapipeline/core/config/value_checks.py`
 

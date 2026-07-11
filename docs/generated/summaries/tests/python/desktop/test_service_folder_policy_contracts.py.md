@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f8981b002e10334dd422dc9c8e913729adab80c7a497b5e5e188d976351fa40f
+sha256: 08b83c6f2b17e999d34328716f0fbd9552403dd56943241b773531a93acfef79
 ---
 # `tests/python/desktop/test_service_folder_policy_contracts.py`
 

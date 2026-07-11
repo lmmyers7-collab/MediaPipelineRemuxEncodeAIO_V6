@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 83af1b9a6f61e4eb7367b33dc62d6e267b8254820756075e1216fcc78e330019
+sha256: 0d4bcce567407a32e61f1e423f5918bbfb921f0a5a9acc486fa73567d6c6b643
 ---
 # `apps/desktop/webview/static/partials/page-telemetry.html`
 

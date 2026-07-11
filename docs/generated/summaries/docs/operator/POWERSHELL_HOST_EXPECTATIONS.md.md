@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-10
 last_reviewed: 2026-06-02
-sha256: 689156c3636a2ed4abdc843d1cb2072e5a9f9a2693e03af2df0b6d3c3bef7596
+sha256: 1a8f5f733201d4c1f425c66510e4104c30952224a04780bfc1ba1d907efa95f5
 ---
 # `docs/operator/POWERSHELL_HOST_EXPECTATIONS.md`
 

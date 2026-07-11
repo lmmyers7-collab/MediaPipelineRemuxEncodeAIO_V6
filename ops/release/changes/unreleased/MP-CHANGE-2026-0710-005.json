@@ -1,0 +1,37 @@
+{
+  "id": "MP-CHANGE-2026-0710-005",
+  "title": "Preserve metrics timestamp offsets",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-10",
+  "date_completed": null,
+  "summary": "Keep aware completed-job timestamps in their recorded offset while selecting the latest completion by absolute time.",
+  "reason": "GitHub Actions runs in UTC, so converting aware timestamps to the host timezone changed the metrics API payload and made it disagree with recorded completion evidence.",
+  "affected_areas": [
+    "docs",
+    "metrics",
+    "tests"
+  ],
+  "behavior_before": "Metrics converted each aware completion timestamp and its date bucket to the host timezone, making the API response differ between local development and CI.",
+  "behavior_after": "Metrics retain each recorded aware timestamp and source-local date while calculating the latest completion from timezone-aware chronological values.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0710-005.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/metrics/policy.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_metrics_feature.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-005.json",
+    "src/mediapipeline/core/metrics/policy.py",
+    "tests/python/desktop/test_metrics_feature.py"
+  ],
+  "tests_added": [
+    "MetricsFeatureTests.test_metrics_payload_preserves_aware_timestamp_offsets_and_latest_order"
+  ],
+  "manual_validation": [
+    "GREEN: the focused mixed-offset regression and the full test_metrics_feature module (10 tests) passed after preserving recorded offsets and sorting by aware timestamps.",
+    "RED: the focused mixed-offset timestamp regression failed because the +05:30 completion was converted to the host -04:00 offset."
+  ],
+  "rollback_plan": "Revert the metrics timestamp/date normalization changes and rerun the focused mixed-offset regression if consumers formally require host-local presentation instead of preserved completion evidence.",
+  "related_changes": [],
+  "notes": "Preserve aware completion timestamps and date buckets without converting to the host timezone.\nAdd a regression for mixed aware timestamp offsets and chronological latest completion selection.\nRefresh generated summary after making metrics timestamps offset-stable.\nRefresh generated summary after adding the mixed-offset regression.\nRecord generated summary for the metrics timestamp change packet."
+}

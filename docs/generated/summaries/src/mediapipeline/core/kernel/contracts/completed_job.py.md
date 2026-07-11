@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: kernel
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 0275bd84782f5eeee870ef1ff9c4f7943d9cd52d1a82e69bbba2ee0073a980c8
+sha256: f6d251b32550c872a6eb32be84acbe464fcebed78f37821d5f71510523d3e70e
 ---
 # `src/mediapipeline/core/kernel/contracts/completed_job.py`
 

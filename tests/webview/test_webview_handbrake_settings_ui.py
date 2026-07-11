@@ -354,7 +354,11 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             'return "Review Policy";',
             'if (label === "Review Policy")',
             'apiPostLocal("/api/settings/wizard/preview", { wizard: collectWizardPayload() })',
-            'apiPostLocal("/api/settings/wizard/save", { wizard: collectWizardPayload(), confirm_save: true })',
+            'apiPostLocal("/api/settings/wizard/save", {',
+            'wizard: collectWizardPayload(),',
+            'confirm_save: true,',
+            'review_confirmation: state.lastPreview?.data?.review_confirmation || null,',
+            'Backend preview did not return a review confirmation. Preview Config again before saving.',
         ):
             self.assertIn(token, wizard_js)
 
@@ -373,6 +377,30 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             '    } else if (label === "Save & Reload")',
             wizard_js,
         )
+
+    def test_cpu_encode_mutex_wait_is_wired_through_video_builder_and_library_layout(self) -> None:
+        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
+        builder_js = (STATIC_ROOT / "assets" / "settingsView.builders.video.js").read_text(encoding="utf-8")
+        libraries_js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        overview_js = (STATIC_ROOT / "assets" / "settingsOverview.js").read_text(encoding="utf-8")
+        policy_impact_js = (STATIC_ROOT / "assets" / "settings" / "policyImpact.js").read_text(encoding="utf-8")
+
+        self.assertIn(
+            '["CpuEncodeMutexWaitSeconds", "settings-video-cpu-mutex-wait", "number"]',
+            metadata_js,
+        )
+        self.assertIn(
+            'setVideoDetailBuilderControl("settings-video-cpu-mutex-wait", "CpuEncodeMutexWaitSeconds", "number", 1800)',
+            builder_js,
+        )
+        self.assertIn(
+            'id="settings-video-cpu-mutex-wait" type="number" min="0" max="86400" step="1"',
+            html,
+        )
+        self.assertIn('"CpuEncodeMutexWaitSeconds"', libraries_js)
+        self.assertIn('["CpuEncodeMutexWaitSeconds", "CPU encode mutex wait seconds"]', overview_js)
+        self.assertIn('"CpuEncodeMutexWaitSeconds"', policy_impact_js)
 
     def test_settings_deployment_action_path_is_visible_and_backend_owned(self) -> None:
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
@@ -1301,7 +1329,10 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
         for token in (
             'apiPostLocal("/api/settings/wizard/preview", { wizard: collectWizardPayload() })',
-            'apiPostLocal("/api/settings/wizard/save", { wizard: collectWizardPayload(), confirm_save: true })',
+            'apiPostLocal("/api/settings/wizard/save", {',
+            "wizard: collectWizardPayload(),",
+            "confirm_save: true,",
+            "review_confirmation: state.lastPreview?.data?.review_confirmation || null,",
             "overrides: readRowJson",
             "default_tracking: readRowJson",
         ):

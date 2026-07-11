@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6b07f76a5ff145e480c5222fa2c487ec35e1e760f164cb3586a9c198ac98a5a1
+sha256: 9955bf2e9b02ed9f8958044f9913151fca9887639fb5f898610086d7ace68040
 ---
 # `tests/python/desktop/test_local_api_lifecycle_contract_smoke.py`
 

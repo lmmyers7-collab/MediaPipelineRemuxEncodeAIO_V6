@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ea0b912df423d129a4ab3f45563391b967d52f4d55c1d40fde566382dd23b442
+sha256: 26fb45d45d913b7fcbd38b69350189cd84ecf35f61bff6ee309978508a6ff619
 ---
 # `tests/webview/test_application_facade.py`
 

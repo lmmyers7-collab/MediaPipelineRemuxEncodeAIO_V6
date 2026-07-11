@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: network
 last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: de73026f429759136e468a6400cd2d98f663361db999f2cca1bb200937983c98
+sha256: e986f0d21a6ed76c43cb246116f1110d55b818f7d197a5e8461cfcad701ff00e
 ---
 # `src/mediapipeline/core/network/failure_reasons.py`
 

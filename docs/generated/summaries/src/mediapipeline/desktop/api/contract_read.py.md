@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: api
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 053f31083d4ce43a5db5bacda702bef95d7155bf8050f58df599fde3a87610bf
+sha256: 2e356c83ae841c25caede8a3054351245f43bfb206e44eb485899f4219c93508
 ---
 # `src/mediapipeline/desktop/api/contract_read.py`
 

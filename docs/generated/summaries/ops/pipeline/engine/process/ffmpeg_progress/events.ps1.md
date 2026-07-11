@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 37ec632132495c7b42d76895966413082ead053d8fcb66da495a28e9e8f39b01
+sha256: 1281402d86997e4bc41c2e0cb0770adf1a409375cee2950443b488e4691df4f0
 ---
 # `ops/pipeline/engine/process/ffmpeg_progress/events.ps1`
 

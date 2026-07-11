@@ -5,7 +5,7 @@ token_priority: low
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 54245552199ffb087f4e16b7f93a958dd065f81139f94a5c7aa55488f6b7989c
+sha256: 82f952b4d3b5389d23d394c960f5348da453cbcbfdb4c53edc259bc2de68d5d5
 ---
 # `tests/webview/__init__.py`
 

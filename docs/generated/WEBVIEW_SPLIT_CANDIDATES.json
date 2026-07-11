@@ -32,8 +32,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.refresh.js",
           "topic": "app-refresh",
           "line_range": {
-            "start": 874,
-            "end": 1313,
+            "start": 877,
+            "end": 1316,
             "line_count": 440
           },
           "functions_to_move": [
@@ -413,8 +413,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 1343,
-            "end": 1650,
+            "start": 1346,
+            "end": 1653,
             "line_count": 308
           },
           "functions_to_move": [
@@ -549,8 +549,8 @@
           "topic": "app-core",
           "line_range": {
             "start": 611,
-            "end": 872,
-            "line_count": 262
+            "end": 875,
+            "line_count": 265
           },
           "functions_to_move": [
             "renderExternalDependencyDigest",

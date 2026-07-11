@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 804b05a2aeba2e3c7c5d5387039ff3d63a0e3d19aafe90180598850dafa93412
+sha256: 1aff5317ac771acbf07b761fe8b70959e5fcc1f8312f53a584b0eb90106ffdd6
 ---
 # `ops/pipeline/config/setup/ConfigFile.ps1`
 

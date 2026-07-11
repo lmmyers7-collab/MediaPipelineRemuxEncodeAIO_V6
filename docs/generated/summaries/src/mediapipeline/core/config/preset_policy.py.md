@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 55d904cfcb8a813d18536deec8e0be82b13cf48e33575a18027a088cd00a5fe3
+sha256: f467604b7073c01d44a891a254c7235e5f249dc0ffda5568da5d445a878a2532
 ---
 # `src/mediapipeline/core/config/preset_policy.py`
 

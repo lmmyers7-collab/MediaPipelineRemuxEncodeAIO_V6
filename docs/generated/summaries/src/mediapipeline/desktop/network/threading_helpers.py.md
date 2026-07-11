@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: network
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ee05b5d76ad3b869f08328ee7f764061c54f730f799aa5b45d4b1753a5e6374d
+sha256: 90a24f8ad289e73483688d41861006ad5bc4061180dd2872232438d51df3065f
 ---
 # `src/mediapipeline/desktop/network/threading_helpers.py`
 

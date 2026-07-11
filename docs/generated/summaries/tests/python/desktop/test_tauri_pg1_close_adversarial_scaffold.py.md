@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: c4c4ca8ff3d87a1b3d7a0caccab61893cad4448170cd30899abf300e329f723c
+sha256: 3083bf21b5bf79d31e9979e5bd14e7c5f6af24cc57dccaaccb5b30b00db3d2e5
 ---
 # `tests/python/desktop/test_tauri_pg1_close_adversarial_scaffold.py`
 

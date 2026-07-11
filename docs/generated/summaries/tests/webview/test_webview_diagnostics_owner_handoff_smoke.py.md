@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 71905adb41b4caabee9ac46a4c1460bdce28506a864bf18564bfa0ddfbeaca38
+sha256: 1219377d78a9e1032abaad65e176ba3a653a014758fe638f7560ab482db7b813
 ---
 # `tests/webview/test_webview_diagnostics_owner_handoff_smoke.py`
 

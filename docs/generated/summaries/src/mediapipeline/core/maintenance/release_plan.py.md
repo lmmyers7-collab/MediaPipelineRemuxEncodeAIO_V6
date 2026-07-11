@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: maintenance
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 177b2a42f93951557f176edfd696ed5c48d8fb995964847e2ace860d003f63cb
+sha256: e5ad4e10e48d73466655377c4cdbe162d7202a59b88af9f1fea4d9644506ebfd
 ---
 # `src/mediapipeline/core/maintenance/release_plan.py`
 

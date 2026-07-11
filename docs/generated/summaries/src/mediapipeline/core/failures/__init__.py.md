@@ -5,7 +5,7 @@ token_priority: low
 owner_domain: failures
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: d3706c965e4454dcd186115fff4157d0529509d8a8f4ba61ed94a53b71ab35d4
+sha256: dde5752c13852c23d02e915428b20e0b4465708ff25264e482dea8b7704e31ea
 ---
 # `src/mediapipeline/core/failures/__init__.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 1866cd6fde00819c85d9b925be94d749b0a1e28c3d14847662857e5fe110c49b
+sha256: 499d19997a7111f10b463d99ac66a59acef27eda9d09bd2a21d2f3d55b6df4d3
 ---
 # `ops/scripts/dev/start-tauri-preview.bat`
 

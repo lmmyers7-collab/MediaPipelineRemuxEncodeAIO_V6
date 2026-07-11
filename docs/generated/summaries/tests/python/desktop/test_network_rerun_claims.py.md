@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-07-05
-sha256: b9b46b6b5fb6c9101d8875dbe4f244db315e00cb77f62118d87514f7c23a2c56
+sha256: 861541a516d946492872ccdf0e5d03a20a86b294786d28bbcd7c8c916377d872
 ---
 # `tests/python/desktop/test_network_rerun_claims.py`
 

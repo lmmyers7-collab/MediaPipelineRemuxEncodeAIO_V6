@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 07348abbeac9b0caf261e340e58625cb7e908fedc894d43af54e6f7e459f5f6f
+sha256: 40cfb2fe430125675cdb7d8e298144721eb1e4fd812ca0c9621f233880177bf5
 ---
 # `tests/python/desktop/test_marketecture_guard.py`
 

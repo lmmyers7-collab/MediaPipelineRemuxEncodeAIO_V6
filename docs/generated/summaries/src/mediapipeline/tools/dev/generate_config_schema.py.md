@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: fdcf1724ac37f4e81a545b5afa2cae87466095c2292d69e75493453f2208a1c8
+sha256: fac2051471245941aa5e7b0e9a5c9e0b456ffaae6d316e4bce508a12217602d8
 ---
 # `src/mediapipeline/tools/dev/generate_config_schema.py`
 

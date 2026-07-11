@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: maintenance
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f543b96fec7ef650b6fe340669d41ab8b80eb28474b3c384bcfb35b046279e32
+sha256: 412879b76d59e70f04339266ef20ab97e80b843d35bac753c4f380c4cd5a173e
 ---
 # `src/mediapipeline/core/maintenance/change_ledger.py`
 

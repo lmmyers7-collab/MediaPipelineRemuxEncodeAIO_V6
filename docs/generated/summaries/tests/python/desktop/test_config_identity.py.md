@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f48811b61882d1ce70009c621bec52e25e206203331835c8ce67448588de6132
+sha256: 8626c51c9b48c7fe24f1d88106868cc81df4b038538b54745345c926f5cb6dac
 ---
 # `tests/python/desktop/test_config_identity.py`
 

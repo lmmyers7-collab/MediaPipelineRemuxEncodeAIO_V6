@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: eff1c68fd502d3e21e3b99d815a25453f9ad22b5e29ac663f137cad67f27db34
+sha256: db73ad784b9ec2572c798a174070e72aaaf495f233b06b792716953fe84bbc09
 ---
 # `apps/desktop/webview/static/assets/diagnosticsView.activejobs.js`
 

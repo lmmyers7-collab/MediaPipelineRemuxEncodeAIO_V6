@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: df1b392eeadae51f5ca21f0609490e873b0e5eb2ef5f0754102243e6428fdcf2
+sha256: 6f317d56e30bcf0ec0cce9b14941cfe848118f2960eb3f19a4d36cda3b407f8b
 ---
 # `src/mediapipeline/core/processes/audit_facade.py`
 

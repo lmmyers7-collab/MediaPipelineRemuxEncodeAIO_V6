@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: cf855ee016adff2cb6d0c0ca7a203fecd41f4ec2862250adb3885a00fdcc4497
+sha256: 0704e910f132a518b696eb06908252b5792f07655df30c074b0ba769feaf71d7
 ---
 # `src/mediapipeline/core/processes/guard_facade.py`
 

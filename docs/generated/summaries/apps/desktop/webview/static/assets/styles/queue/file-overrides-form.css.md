@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-25
-sha256: 54a5fedba490194e8194bed524718a18507771e3189d8ae9bf8f0166253644e5
+sha256: 0ab7d11f3981fb68961ed5c0115cd2842e8102f38e971098cd0b1cda38407db7
 ---
 # `apps/desktop/webview/static/assets/styles/queue/file-overrides-form.css`
 

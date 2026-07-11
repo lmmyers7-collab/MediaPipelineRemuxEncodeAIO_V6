@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6dbd5b6a376c340d307f4c0f14fbee0e299cf50d77f8701ac5c10b7c36a60910
+sha256: ebb838056aee6f48fe4169128fbec4c337b1c29c0a01734a62e5baf79eda719e
 ---
 # `src/mediapipeline/tools/dev/generate_dependency_atlas.py`
 

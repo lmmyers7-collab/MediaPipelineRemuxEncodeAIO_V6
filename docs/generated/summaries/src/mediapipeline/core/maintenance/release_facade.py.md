@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: maintenance
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 2abe87b0eb79c384c28728eed71562ed01559d9b7ef2b4047fc085d953632bbc
+sha256: 1326186db0ef10af49b7e3fc5261f53d8e84984120e85b8fafa69804ba9193cf
 ---
 # `src/mediapipeline/core/maintenance/release_facade.py`
 

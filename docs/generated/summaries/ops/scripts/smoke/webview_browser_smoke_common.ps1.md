@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-11
-sha256: 1e3ea9401450c98ae7e980dc7179e723dd77b561f9a6282f61d1ceda28d998f0
+sha256: 76b41d8848caa06835e754fa1db07f1510c8ba61489f8df95405b6484bb5ee65
 ---
 # `ops/scripts/smoke/webview_browser_smoke_common.ps1`
 

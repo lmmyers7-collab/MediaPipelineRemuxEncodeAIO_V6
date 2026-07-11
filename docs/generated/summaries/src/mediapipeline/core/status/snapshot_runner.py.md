@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: observability
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 36d537442b95b6db9f17030ade8a368d580c640eb1ca18067388c1a489a29ddf
+sha256: 8ef52ff9f103ec0058c2f9e4334bb1f31ac5098e9779fccfb003be8d2930cda2
 ---
 # `src/mediapipeline/core/status/snapshot_runner.py`
 

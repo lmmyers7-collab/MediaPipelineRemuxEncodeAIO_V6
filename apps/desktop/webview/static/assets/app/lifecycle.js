@@ -23,17 +23,6 @@
     return text.split(/[\\/]/).filter(Boolean).pop() || text;
   }
 
-  function topbarCleanCurrentName(progress = {}, currentWork = {}) {
-    return formatProgressValue(
-      currentWork.item_label
-        || progress.CurrentDisplayName
-        || progress.CleanDisplayName
-        || progress.CleanedName
-        || progress.CurrentFileDisplay
-        || "",
-    ).trim();
-  }
-
   function topbarStageContext(progress = {}) {
     const stage = formatProgressValue(progress.CurrentStage || progress.Status || "").trim();
     const percent = homeProgressPercent(progress.CurrentStagePercent);
@@ -45,8 +34,16 @@
     ].filter(Boolean).join(" · ");
   }
 
+  function topbarStagePrimaryText(progress = {}) {
+    const stage = formatProgressValue(progress.CurrentStage || progress.Status || "").trim();
+    if (!stage) return "";
+    return stage
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
   function topbarCurrentWorkMeta(currentWork = {}, progress = {}) {
-    const item = formatProgressValue(currentWork.item_label || "").trim();
     const library = formatProgressValue(currentWork.library_label || "").trim();
     const queue = formatProgressValue(currentWork.queue_label || "").trim();
     const queuePosition = formatProgressValue(currentWork.queue_position_label || "").trim();
@@ -55,7 +52,6 @@
     const next = formatProgressValue(currentWork.next_stage_label || "").trim();
     const missing = formatProgressValue(currentWork.missing_evidence_label || "").trim();
     const parts = [];
-    if (item) parts.push(item);
     if (library) parts.push(library);
     if (queue && queue.toLowerCase() !== library.toLowerCase()) parts.push(queue);
     if (queuePosition) parts.push(queuePosition);
@@ -78,19 +74,13 @@
     const pendingActivity = pendingLaunch
       ? `${pendingLaunch.label || "pipeline.start"} ${pendingLaunch.statusLabel || "accepted"}${pendingPid}`
       : "";
-    const activity = formatProgressValue(pendingActivity || payload.activity || "No active work reported.").trim();
-    const cleanName = topbarCleanCurrentName(progress, currentWork);
-    const activeSummary = formatProgressValue(
-      currentWork.summary_label
-      || currentWork.latest_evidence_label
-      || currentWork.current_stage_label
-      || ""
-    ).trim();
-    const phaseLabel = formatProgressValue(pendingLaunch?.label || currentWork.current_stage_label || currentWork.phase_label || "").trim();
+    const stagePrimary = topbarStagePrimaryText(progress);
+    const stageContext = topbarStageContext(progress);
+    const phaseLabel = formatProgressValue(pendingLaunch?.label || stagePrimary || stageContext || "").trim();
     const metaText = pendingLaunch
       ? topbarTickerCompactText(pendingLaunch.waitLabel || "", 64)
-      : topbarCurrentWorkMeta(currentWork, progress) || topbarStageContext(progress);
-    const primaryText = activeSummary || cleanName || activity || "No active work reported.";
+      : topbarCurrentWorkMeta(currentWork, progress) || stageContext;
+    const primaryText = pendingActivity || stagePrimary || stageContext || "No active work reported.";
 
     const primary = document.createElement("span");
     primary.className = "activity-primary";

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-18
-sha256: 21a53bc4b6706ebda3b44bfecca49ccc27cffa24d9eb1d1935cab9e7933abd02
+sha256: b06481f12fef98bff290a508f92ee1bdc3902cb72931c9d9b90a06f4359233a8
 ---
 # `ops/scripts/release/Test-PrivateBetaGitHubSetup.ps1`
 

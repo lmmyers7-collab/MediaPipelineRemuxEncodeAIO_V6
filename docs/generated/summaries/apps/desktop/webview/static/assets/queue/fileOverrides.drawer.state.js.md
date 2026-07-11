@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-10
 last_reviewed: 2026-06-05
-sha256: b521c997d134e331f4c4f1eaac14e3d278867e664041022c74f046ff8bb311df
+sha256: 42efeda3de34e6f88b3beea2949e7f040bdd61a5481d2f1dc462b0a90c05bf68
 ---
 # `apps/desktop/webview/static/assets/queue/fileOverrides.drawer.state.js`
 

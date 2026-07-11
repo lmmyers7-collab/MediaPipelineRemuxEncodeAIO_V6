@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: c9b2cedd5fd3e32d80b9a58e3ebe002a75beefe2b2a362fd0bd478bb99096860
+sha256: a330570038590dc3bb7461896ec9f98f79ac6c93a8e8cfe787d8b9449e588f32
 ---
 # `tests/webview/test_webview_navigation_static.py`
 

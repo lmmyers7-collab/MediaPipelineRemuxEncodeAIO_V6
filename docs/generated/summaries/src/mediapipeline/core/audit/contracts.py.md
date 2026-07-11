@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: audit
 last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: ff05d7219089f1f7fcc9a6fecc8e67ebd80ba1705c3f910d6e56e728ef403233
+sha256: 50ea25480233da62550fe032e7a6725b9f908256f0c9be0ba9a25fbe9dd5cab3
 ---
 # `src/mediapipeline/core/audit/contracts.py`
 

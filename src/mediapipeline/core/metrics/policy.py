@@ -78,14 +78,14 @@ def _completed_date_key(record: CompletedJobRecord) -> str:
     completed_at = record.completed_at
     if completed_at is None:
         return "unknown"
-    return completed_at.astimezone().date().isoformat()
+    return completed_at.date().isoformat()
 
 
 def _completed_at_text(record: CompletedJobRecord) -> str:
     completed_at = record.completed_at
     if completed_at is None:
         return ""
-    return completed_at.astimezone().isoformat(timespec="seconds")
+    return completed_at.isoformat(timespec="seconds")
 
 
 def _counter_mapping(values: Iterable[str]) -> dict[str, int]:
@@ -356,10 +356,15 @@ def _production_throughput(rows: list[dict[str, Any]]) -> dict[str, Any]:
     recent_completed_count = sum(_int_value(item.get("completed_count")) for item in recent_series)
     recent_output_bytes = sum(_int_value(item.get("output_bytes")) for item in recent_series)
     recent_day_count = len(recent_series)
-    completed_at_values = sorted(str(row.get("completed_at") or "") for row in rows if row.get("completed_at"))
+    completed_at_values = [str(row.get("completed_at") or "") for row in rows if row.get("completed_at")]
+    latest_completed_at = max(
+        completed_at_values,
+        key=datetime.fromisoformat,
+        default="",
+    )
     recent_output_per_day_bytes = int(recent_output_bytes / recent_day_count) if recent_day_count else 0
     return {
-        "last_completed_at": completed_at_values[-1] if completed_at_values else "",
+        "last_completed_at": latest_completed_at,
         "recent_day_count": recent_day_count,
         "recent_completed_count": recent_completed_count,
         "recent_output_bytes": recent_output_bytes,

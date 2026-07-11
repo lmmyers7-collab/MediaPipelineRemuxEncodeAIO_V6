@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f8c9a5371feb501fe567c128e30f4cbdbf0b782086dc4b361bc9d4593814a795
+sha256: 3c90ad76a3403d47dd08d9a7553f2b02dd0c7946aa3126a517a62b030b4a0074
 ---
 # `src/mediapipeline/core/processes/launch_plans.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: fefd4fd3399193075bb910dccae2d4b0bbabf38d9a4999da9e52c278ef086b7f
+sha256: 4059eba5f1c512a3a8eec50dd2f2c65a478f6e334ea86e3f61832c622b36053b
 ---
 # `ops/scripts/smoke/Test-WebViewScheduleSmoke.ps1`
 

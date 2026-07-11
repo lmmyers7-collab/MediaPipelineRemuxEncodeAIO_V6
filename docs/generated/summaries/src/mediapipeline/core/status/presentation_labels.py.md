@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: observability
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 3ff2ff078db638327b016b65d9d5b2972ad855def57eead79eff6076d7c44ecf
+sha256: bfd285b708a3ef474b7595e381b91feee1ab92e7946a68884318b73038f2d6fd
 ---
 # `src/mediapipeline/core/status/presentation_labels.py`
 

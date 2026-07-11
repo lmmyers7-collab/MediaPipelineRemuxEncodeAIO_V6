@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: contracts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6ff18c5d7e43cc63936eb8d90f1b200c42b202cfe300d39760215f64e574496e
+sha256: 98319b209c065ca66dbe1f7468955f757d6f126b457e2f874473112b00d3134a
 ---
 # `src/mediapipeline/desktop/contracts/pipeline_events.py`
 

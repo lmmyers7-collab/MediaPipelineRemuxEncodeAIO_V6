@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f139f90607962a329f8186077ac967c9b946fc8db2572a976e2aa736fefa6487
+sha256: d9fa0f0f59e935ee94d4e791c8296d54ef77824fad5a0893ace0021d14b3ec84
 ---
 # `src/mediapipeline/core/config/metadata_parts/subtitle_fields.py`
 

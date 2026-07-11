@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 4be259c67d04a8b5970d5e285f09bca5d2ac8ba16e4f55c5bc48d5865a1c4118
+sha256: d2b37aec95cc862bdf8a78b352fe425fa96d0d14328d4db900cecb5a8aeddb54
 ---
 # `tests/python/desktop/test_service_config_psd1.py`
 

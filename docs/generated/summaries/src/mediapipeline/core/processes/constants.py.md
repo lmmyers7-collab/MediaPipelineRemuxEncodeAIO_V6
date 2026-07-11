@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: c64c5238d6cbf993763d5ca3084b38028f875bcd63a12ae2cc8f94796023e741
+sha256: da936665468ff22339a50b87631f61ebbc9637edd9c0fe4e71b3e6200cde043f
 ---
 # `src/mediapipeline/core/processes/constants.py`
 

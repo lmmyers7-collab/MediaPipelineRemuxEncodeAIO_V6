@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-24
-sha256: aece5ccc0ee96b06eb07194498cecd8f9f47d9f593e2e790f64ee9860497e458
+sha256: 5dfb9ba375a4c1e9cb96a40f3714d7fcb0d0559f0ee6773546723f6e4afd8bb9
 ---
 # `ops/pipeline/tests/Unit/Invoke-LibraryIndexCacheChecks.ps1`
 

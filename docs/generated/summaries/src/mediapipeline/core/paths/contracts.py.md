@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: paths
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: c2fb8bf5c1878dbf88e7fcbac27738dc4f7af3c8f323e6a56dc147616de90e79
+sha256: 5d16eb9f15e2ab99216c5fcc7b925420b11ebc55cfdfd340a5b1851ab54f1440
 ---
 # `src/mediapipeline/core/paths/contracts.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: shell
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 5fbbf4c1fc37084818454479a1ce40f06b5f30c9a1f4e2f1cc2343795af8a04c
+sha256: d22184291a6352112c1722ccc6008b20c5ba581c17317d9e15422320dad70228
 ---
 # `apps/desktop/tauri/Test-TauriShell-PG2WebViewLaunch.ps1`
 

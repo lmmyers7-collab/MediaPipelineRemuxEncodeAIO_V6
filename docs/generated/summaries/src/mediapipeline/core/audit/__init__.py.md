@@ -5,7 +5,7 @@ token_priority: low
 owner_domain: audit
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: bc96135cdb9de4d002eca221dbb38b2a4dbf580dc566969fa02f651b18012adb
+sha256: b4ca56f545a733439f623c48ee7829a4ce9fb1fc4f37609fdb33e72f7c7f1135
 ---
 # `src/mediapipeline/core/audit/__init__.py`
 

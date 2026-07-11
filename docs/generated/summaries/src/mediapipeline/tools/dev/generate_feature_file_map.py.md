@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-10
 last_reviewed: 2026-06-11
-sha256: 7720b1cbfd0892a081aa32cab5d9b35e1e11185a48af3d94b7f22634ce0370bb
+sha256: ef180d6c7c57d435918262d83e5c4a71d8fb568ddca186d303a249090f2433c2
 ---
 # `src/mediapipeline/tools/dev/generate_feature_file_map.py`
 

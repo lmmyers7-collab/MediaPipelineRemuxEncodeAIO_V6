@@ -5,7 +5,7 @@ token_priority: low
 owner_domain: folder_policy
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: afb68e47fb7d13df608523e2db5977a41891268004443d2cbc99faf4abb57c93
+sha256: 63310d1cfa91fbcb373be9f17979b2b374aaee96fb7d517df2aa4d3dba8b3c7b
 ---
 # `src/mediapipeline/core/folder_policy/__init__.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: audit
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 08eb337ba72583f6bcaaaeda43069234e399a19a743567c3687ab4e9c7b27359
+sha256: fb9ecd20907f6bf65d107e8376cbce365a7373796f57dd5afcccaa22e00d6d5a
 ---
 # `ops/pipeline/engine/audit/policy.ps1`
 

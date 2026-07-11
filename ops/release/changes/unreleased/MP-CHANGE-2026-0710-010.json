@@ -1,0 +1,55 @@
+{
+  "id": "MP-CHANGE-2026-0710-010",
+  "title": "Repair WebView static CI contracts",
+  "version_target": "2026.07.10.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-10",
+  "date_completed": "2026-07-10",
+  "summary": "Repairs WebView CI contracts, exposes CPU encode mutex waiting in Settings, and keeps compact operator status privacy-safe.",
+  "reason": "The PR WebView/static test cluster contained stale expectations and omitted UI wiring that prevented its browser and contract checks from passing.",
+  "affected_areas": [
+    "docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The WebView omitted the CPU mutex wait setting, used undeclared CSS values, accepted stale browser-test expectations, and could display raw media names in compact topbar activity.",
+  "behavior_after": "Settings renders and explains CPU mutex waiting, CSS and accessibility contracts are explicit, browser tests follow backend-authored evidence, and compact topbar activity omits raw media names.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app/lifecycle.js",
+    "apps/desktop/webview/static/assets/settings/policyImpact.js",
+    "apps/desktop/webview/static/assets/settingsLibraries.js",
+    "apps/desktop/webview/static/assets/settingsMetadata.js",
+    "apps/desktop/webview/static/assets/settingsOverview.js",
+    "apps/desktop/webview/static/assets/settingsView.builders.video.js",
+    "apps/desktop/webview/static/assets/settingsWizard.js",
+    "apps/desktop/webview/static/assets/styles.tokens.css",
+    "apps/desktop/webview/static/assets/styles/components/progress-live.css",
+    "apps/desktop/webview/static/assets/styles/pages/settings-library-profiles.css",
+    "apps/desktop/webview/static/partials/page-pending.html",
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "docs/inventories/WEBVIEW_DOM_ID_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-010.json",
+    "tests/webview/test_webview_browser_completed_pending_proof_smoke.py",
+    "tests/webview/test_webview_browser_high_risk_smoke.py",
+    "tests/webview/test_webview_browser_home_live_state_smoke.py",
+    "tests/webview/test_webview_browser_launch_queue_readiness_smoke.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py",
+    "tests/webview/test_webview_handbrake_settings_ui.py",
+    "tests/webview/test_webview_settings_libraries.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_handbrake_settings_ui.py"
+  ],
+  "manual_validation": [
+    "git diff --check scoped files - passed (no whitespace errors)",
+    "python -m unittest targeted WebView contracts/browser suite - passed (119 tests)",
+    "python -m unittest tests.webview.test_webview_settings_libraries tests.webview.test_webview_settings_live_smoke - passed (24 tests)"
+  ],
+  "rollback_plan": "Revert the listed WebView asset, inventory, and test changes together; this does not alter backend media, publish, or settings persistence policy.",
+  "related_changes": [
+    "MP-CHANGE-2026-0710-013"
+  ],
+  "notes": "Keep topbar status useful without exposing raw media names.\nExpose CPU mutex wait through settings metadata and impact documentation.\nLoad the CPU mutex wait control from backend-provided settings.\nKeep library video override layout aligned with the expanded video metadata.\nShow the CPU mutex wait in the settings overview.\nInclude mutex waiting in policy-impact review evidence.\nReplace raw opacity values with design tokens.\nUse an existing shadow token for the library inspect overlay.\nDefine timeline opacity design tokens.\nRestore the stable accessible label for the pending rows table.\nPlace the CPU mutex wait input with related CPU encoder settings.\nAlign completed count expectations with deduplicated output identity semantics.\nAssert the backend-supported pending diagnostics sequence.\nAssert topbar activity keeps raw media names out of the compact status.\nAllow the contract-defined read-only rerun preview in readiness rendering.\nCover strict review confirmation and CPU mutex wait builder wiring.\nRegister the added CPU mutex wait input DOM id.\nBlock wizard saves that lack the backend-issued review confirmation.\nAssert wizard save retains strict backend review confirmation alongside confirm_save.\nAssert library wizard coverage retains backend-issued review confirmation on save."
+}

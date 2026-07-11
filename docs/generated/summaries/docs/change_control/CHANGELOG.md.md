@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-10
 last_reviewed: 2026-06-03
-sha256: 760db71c30533e964424b3ee1ff09eddd1d4de7e4acb388839420f1fc2d97059
+sha256: 252a98124fc6b2c6651f0c280c35be39a37d650132f09e978aec7d7c5b5f2023
 ---
 # `docs/change_control/CHANGELOG.md`
 

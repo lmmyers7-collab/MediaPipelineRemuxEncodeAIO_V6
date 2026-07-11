@@ -1,0 +1,36 @@
+{
+  "id": "MP-CHANGE-2026-0710-011",
+  "title": "Stabilize autonomy soak tick fixture",
+  "version_target": "2026.07.10.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-10",
+  "date_completed": "2026-07-10",
+  "summary": "Stabilize autonomy soak tick unit tests by supplying deterministic healthy path evidence for clean-state fixture cases.",
+  "reason": "Hosted Windows runner free space can be below the production 100 GiB autonomy floor, causing a clean temporary-directory fixture to return blocked/76 for an unrelated host-capacity condition.",
+  "affected_areas": [
+    "generated-context",
+    "tests"
+  ],
+  "behavior_before": "Happy-path soak-tick unit tests evaluated the actual host capacity through configured path health, so the same clean fixture was ready locally but blocked in CI.",
+  "behavior_after": "Happy-path soak-tick unit tests use explicit healthy fixture path evidence; an adjacent regression test confirms genuinely blocked path health still returns the strict blocked exit code.",
+  "files_touched": [
+    "docs/generated/summaries/tests/python/tooling/test_autonomy_soak_tick.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0710-011.json",
+    "tests/python/tooling/test_autonomy_soak_tick.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_autonomy_soak_tick.py"
+  ],
+  "manual_validation": [
+    "GREEN: bundled Python unittest tests.python.tooling.test_autonomy_soak_tick passed (7 tests).",
+    "Generated summary: refresh_summaries --check --paths tests/python/tooling/test_autonomy_soak_tick.py passed.",
+    "Lint: bundled Python ruff check and ruff format --check tests/python/tooling/test_autonomy_soak_tick.py passed.",
+    "RED: targeted host-capacity regression failed with result[ok]=False before fixture isolation.",
+    "Strict gate: bundled Python unittest test_low_configured_storage_free_space_blocks passed."
+  ],
+  "rollback_plan": "Revert the test-only path-health fixture helpers and the two regression tests. No production autonomy policy or launch gating code changes are included.",
+  "related_changes": [],
+  "notes": "Track the deterministic autonomy soak fixture repair and its validation evidence.\nMake autonomy soak tick unit fixtures independent of hosted-runner free-space capacity while retaining an explicit strict-gate test.\nOnly the test harness is patched; production autonomy health and its 100 GiB default policy remain unchanged.\nRED was reproduced by forcing a 1 GiB path-capacity probe, which returned autonomy_storage_free_space_low and exit 76 before the test fixture mock was added."
+}

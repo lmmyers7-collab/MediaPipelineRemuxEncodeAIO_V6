@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: publish
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 4b4e352b94b49c1bc13d2e077c6571219417d1de7b22cd3341d157a9b577bad9
+sha256: 27217f2a1ca2bfa9448e2234979558e68759ddbd2be64b794ec8e33273a5d502
 ---
 # `ops/pipeline/engine/publish/publish_result.ps1`
 

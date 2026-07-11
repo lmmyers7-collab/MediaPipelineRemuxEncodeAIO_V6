@@ -5,7 +5,7 @@ token_priority: low
 owner_domain: validation
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 77b81d71632a7363c0e2bc06d7a202dd19c70b03f4c1d9ee1171c02887270c77
+sha256: 45559c77c3add929a2f3b3f5c6395e2a55b6f067dab7c404dc4ad7864b6a4855
 ---
 # `src/mediapipeline/core/validation/__init__.py`
 

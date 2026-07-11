@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-10
 last_reviewed: 2026-06-17
-sha256: 2e73d6969ba6d387a1fede3e7c33570f3b6fd9335455beef0f4fffe75bd3ee06
+sha256: 9f6b3d92c16d4bc6b36399294f1d875b02ad8da78553ba82c01887478f2f53df
 ---
 # `tests/webview/test_webview_command_boundary_audit.py`
 

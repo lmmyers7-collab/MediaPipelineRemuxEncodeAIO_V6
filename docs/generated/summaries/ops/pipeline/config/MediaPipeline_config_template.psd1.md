@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: fc21bc27cb9b483527544f58d769e049ac73db0f65a56e568bd633e77ef087b7
+sha256: a8e264d1c1f3887c2ca758bfaa0d176da45a4e53a6193f5848e2d789c1217358
 ---
 # `ops/pipeline/config/MediaPipeline_config_template.psd1`
 

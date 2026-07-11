@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 243717f8caf385e6827f5d05bae0111b57126fac219fc0e4cce781d3516af775
+sha256: 6054951c1a81ad8628cae8ca0fc51d85052e96818455287a52f9d12f616f1df7
 ---
 # `src/mediapipeline/core/processes/file_io.py`
 

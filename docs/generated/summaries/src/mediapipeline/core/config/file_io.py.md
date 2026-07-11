@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 81ad34d7955eec96a4315f08c2632b31a84ec8df5952928a1210e2b29f100d80
+sha256: a8fb7888d6eed414066150380f3ccec156dafdc4f818108bb848caf9c5d7158f
 ---
 # `src/mediapipeline/core/config/file_io.py`
 

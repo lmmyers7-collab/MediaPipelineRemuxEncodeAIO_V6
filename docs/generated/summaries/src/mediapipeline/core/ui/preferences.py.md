@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: bf3de97cc044c5122a43ae395e5e46f407ccb485f1c31dcfa524a9ede8d5e16a
+sha256: 7042402995b78c8bc17905eab3e3e3d6ad116ebbb87ecae44424d9159abd1118
 ---
 # `src/mediapipeline/core/ui/preferences.py`
 
