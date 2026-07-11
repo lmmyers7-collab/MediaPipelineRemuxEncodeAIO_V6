@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from src.mediapipeline.desktop.api.contract_command_file import *  # noqa: F403
-from src.mediapipeline.desktop.api.contract_command_operations import *  # noqa: F403
-from src.mediapipeline.desktop.api.contract_command_settings_ui import *  # noqa: F403
-from src.mediapipeline.desktop.api.contract_command_network import *  # noqa: F403
-from src.mediapipeline.desktop.api.contract_command_process import *  # noqa: F403
+from .contract_command_file import *  # noqa: F403
+from .contract_command_operations import *  # noqa: F403
+from .contract_command_settings_ui import *  # noqa: F403
+from .contract_command_network import *  # noqa: F403
+from .contract_command_process import *  # noqa: F403
 
 LOCAL_API_COMMAND_ROUTE_CONTRACT = (
     LOCAL_API_FILE_COMMAND_ROUTE_CONTRACT
