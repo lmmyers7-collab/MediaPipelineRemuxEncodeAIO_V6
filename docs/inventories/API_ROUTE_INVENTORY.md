@@ -4,7 +4,7 @@ Date: 2026-06-19
 
 Full inventory of all Local API routes: route, method, effect class, backend contract/handler, mutation risk, primary frontend caller, and test coverage. Source: `contract_read.py`, `contract_command.py`, `routes_read.py`, `routes_command.py`.
 
-Total: 163 routes — 53 GET (read) + 110 POST (command).
+Total: 166 routes — 53 GET (read) + 113 POST (command).
 
 All routes require the bootstrap token (`Authorization: Bearer` or `X-MediaPipeline-Token`) except `GET /api/health`.
 
@@ -139,7 +139,7 @@ Priority and file override/folder-rule path writes are rejected unless the submi
 |---|---|---|---|---|---|
 | `POST /api/queue/open` | `shell-open` | `source_file`, `source_folder`, `source_root` | Queue | Low — OS open only | `test_facade_queue_policy.py`, `test_service_file_open.py` |
 | `POST /api/completed/open` | `shell-open` | `output_file`, `play_output_file`, `output_folder`, `sidecar`, `source_folder` | Completed | Low | `test_facade_completed_open_policy.py`, `test_service_file_open.py` |
-| `POST /api/pending-publish/open` | `shell-open` | `local_file`, `manifest`, `destination_folder`, `source_folder` | Pending Publish | Low | `test_facade_pending_publish_policy.py`, `test_service_file_open.py` |
+| `POST /api/pending-publish/open` | `shell-open` | `play_local_file`, `local_file`, `manifest`, `destination_folder`, `source_folder` | Pending Publish | Low | `test_facade_pending_publish_policy.py`, `test_service_file_open.py` |
 | `POST /api/pending-publish/recovery-plan` | `none` | `scope` (`all`/`selected`), `row_key` | Pending Publish | None — dry-run plan only | `test_facade_pending_publish_policy.py` |
 | `POST /api/completed/reconcile-manifest-dry-run` | `none` | `scope`, `row_key`, `limit`, `reason` | Completed | None — backend dry-run diff only; no manifest write | `test_repair_reconcile_dry_run.py`, `test_application_facade_local_api_repair.py` |
 | `POST /api/completed/reconcile-manifest` | `completed-manifest-write` | `scope`, `row_key`, `limit`, `reason`, `dry_run_fingerprint`, `confirm_apply` | Completed | Medium — backs up and atomically rewrites existing selected completed manifest rows only after matching dry-run fingerprint | `test_repair_reconcile_apply.py`, `test_api_command_contracts.py` |

@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/application/dto_status.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: application
-last_modified: 2026-06-26
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 98566bd2e8e3be7d7ce29ca209323f322dd146fe3fb6f361c1d46a4465d91bd6
+sha256: c619ca13213deaa159977bb2a903c972ecca8788d47cc5540ea931b72d003f43
 ---
 # `src/mediapipeline/desktop/application/dto_status.py`
 

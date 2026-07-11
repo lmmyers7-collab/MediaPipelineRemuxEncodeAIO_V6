@@ -3,9 +3,9 @@ file: src/mediapipeline/core/queue/policy_parts/runtime_outcomes.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 00d9b044f5447434df6cb2aab5bd06f1224b7a65d493e970480208bbd479f58d
+sha256: 3c78f36cc56105ec8c4eee92bdca54ccf18183edeed7aa5b570b28b4a1af20b5
 ---
 # `src/mediapipeline/core/queue/policy_parts/runtime_outcomes.py`
 

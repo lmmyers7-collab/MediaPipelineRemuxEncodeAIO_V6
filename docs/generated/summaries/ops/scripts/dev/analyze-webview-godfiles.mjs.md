@@ -3,9 +3,9 @@ file: ops/scripts/dev/analyze-webview-godfiles.mjs
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-11
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6b0b47c56382237e74194329a137435b2a9b2628066ad7d1ce6aec84aa15217b
+sha256: aaa88a22cb1b268eb30caa1d0a6bc0afaa3187e3c5ceaef1f3b2468c55a3f372
 ---
 # `ops/scripts/dev/analyze-webview-godfiles.mjs`
 

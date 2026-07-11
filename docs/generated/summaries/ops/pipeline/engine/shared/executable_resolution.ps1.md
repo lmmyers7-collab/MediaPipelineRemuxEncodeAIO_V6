@@ -3,9 +3,9 @@ file: ops/pipeline/engine/shared/executable_resolution.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shared
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: b748a788a6eaceccae361e33e657f38d142ffc6b47164652ec1315c84503594f
+sha256: 1a5f592fb5c3dc47c3172f29151ea8dfde48f850196dd46f1b549a13f8f511ee
 ---
 # `ops/pipeline/engine/shared/executable_resolution.ps1`
 

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/rerun_preview.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-07-07
+last_modified: 2026-07-10
 last_reviewed: 2026-07-09
-sha256: bc83e328a19bca9ced05a5a3e0ea2e0a1deb44dc560c643abdd279a7a137ffc3
+sha256: 6052585ff7ff5a751fe1047064a7c2e6f48369b33d11723d2ecae8f4c365e718
 ---
 # `src/mediapipeline/core/processes/rerun_preview.py`
 

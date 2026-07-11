@@ -3,9 +3,9 @@ file: tests/python/desktop/test_watch_folder_scanner.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-11
+last_modified: 2026-07-10
 last_reviewed: 2026-06-11
-sha256: bd183a9c0e0c92c3e93bd3682218a81c229e96a0a0b33d01bc788591a6ffd641
+sha256: b341fd30bc2cc529538cdd9a582b0d64f549b0dba8a8da39d007a8a3b68545a2
 ---
 # `tests/python/desktop/test_watch_folder_scanner.py`
 

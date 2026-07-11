@@ -3,9 +3,9 @@ file: src/mediapipeline/core/failures/contracts.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: failures
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: c8d463dac064bf71448aa5d10b5b27f15967732c23a147dd1a9413236f25cd79
+sha256: 6e84d7b66a3dfdef03b2a10f03b0eccd4da7523bbe7f8bdb9794149de76e2705
 ---
 # `src/mediapipeline/core/failures/contracts.py`
 

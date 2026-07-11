@@ -3,9 +3,9 @@ file: src/mediapipeline/core/publish/pending_recovery.py
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
-last_modified: 2026-07-05
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6b73b021f3665f857ff566aa06ab91d3d6cd8302bdc275b7fb23e8523cdf54fd
+sha256: 461fa3bb60e286daee50126dcf31e2c231064bfd759703b09d79ffb36f2f4359
 ---
 # `src/mediapipeline/core/publish/pending_recovery.py`
 

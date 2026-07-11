@@ -3,15 +3,15 @@
   "generated_by": "ops/scripts/dev/check-webview-lint-budget.mjs",
   "target": "apps/desktop/webview/static/assets/**/*.js",
   "budget_policy": "Future checks fail on any ESLint error or on warning counts above this baseline by total or rule.",
-  "total_warnings": 624,
+  "total_warnings": 637,
   "total_errors": 0,
   "by_rule": {
     "complexity": {
-      "warnings": 115,
+      "warnings": 123,
       "errors": 0
     },
     "max-lines-per-function": {
-      "warnings": 46,
+      "warnings": 47,
       "errors": 0
     },
     "no-extra-boolean-cast": {
@@ -19,11 +19,11 @@
       "errors": 0
     },
     "no-undef": {
-      "warnings": 268,
+      "warnings": 269,
       "errors": 0
     },
     "no-unused-vars": {
-      "warnings": 192,
+      "warnings": 195,
       "errors": 0
     },
     "parse-error": {
@@ -34,10 +34,10 @@
   "files": [
     {
       "path": "apps/desktop/webview/static/assets/app.js",
-      "warnings": 31,
+      "warnings": 33,
       "errors": 0,
       "rules": {
-        "complexity": 2,
+        "complexity": 4,
         "max-lines-per-function": 2,
         "no-undef": 26,
         "no-unused-vars": 1
@@ -303,10 +303,10 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "warnings": 16,
+      "warnings": 17,
       "errors": 0,
       "rules": {
-        "complexity": 5,
+        "complexity": 6,
         "no-undef": 8,
         "no-unused-vars": 3
       }
@@ -353,14 +353,6 @@
       }
     },
     {
-      "path": "apps/desktop/webview/static/assets/launch/risk/riskRows.js",
-      "warnings": 1,
-      "errors": 0,
-      "rules": {
-        "no-unused-vars": 1
-      }
-    },
-    {
       "path": "apps/desktop/webview/static/assets/launch/scopeControls.js",
       "warnings": 1,
       "errors": 0,
@@ -394,11 +386,12 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/launchView.js",
-      "warnings": 41,
+      "warnings": 43,
       "errors": 0,
       "rules": {
-        "complexity": 2,
-        "no-undef": 39
+        "complexity": 3,
+        "no-undef": 39,
+        "no-unused-vars": 1
       }
     },
     {
@@ -510,10 +503,10 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/pendingPublishView.drain.js",
-      "warnings": 3,
+      "warnings": 4,
       "errors": 0,
       "rules": {
-        "complexity": 2,
+        "complexity": 3,
         "max-lines-per-function": 1
       }
     },
@@ -545,12 +538,12 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/progressView.js",
-      "warnings": 6,
+      "warnings": 11,
       "errors": 0,
       "rules": {
-        "complexity": 4,
+        "complexity": 6,
         "no-undef": 1,
-        "no-unused-vars": 1
+        "no-unused-vars": 4
       }
     },
     {
@@ -581,11 +574,11 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/queueView.js",
-      "warnings": 42,
+      "warnings": 43,
       "errors": 0,
       "rules": {
         "complexity": 2,
-        "no-undef": 15,
+        "no-undef": 16,
         "no-unused-vars": 25
       }
     },
@@ -597,6 +590,15 @@
         "complexity": 1,
         "max-lines-per-function": 1,
         "no-undef": 4
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.rerun.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1
       }
     },
     {
@@ -688,12 +690,12 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/reports/failureView.js",
-      "warnings": 12,
+      "warnings": 13,
       "errors": 0,
       "rules": {
         "complexity": 2,
         "max-lines-per-function": 1,
-        "no-unused-vars": 9
+        "no-unused-vars": 10
       }
     },
     {
@@ -714,11 +716,11 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/reportsView.js",
-      "warnings": 45,
+      "warnings": 44,
       "errors": 0,
       "rules": {
         "no-undef": 7,
-        "no-unused-vars": 38
+        "no-unused-vars": 37
       }
     },
     {

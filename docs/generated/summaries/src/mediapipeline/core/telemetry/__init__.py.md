@@ -3,9 +3,9 @@ file: src/mediapipeline/core/telemetry/__init__.py
 pipeline_stage: observability
 token_priority: low
 owner_domain: observability
-last_modified: 2026-05-28
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 2014499647cda3fed471872167476170c7f1997a7cdbbb0d8420cd26b8859973
+sha256: 07cff5ff7825cf79aefd30d0406d9daf827fc6c39fcc721d6f1351ea5ea0f163
 ---
 # `src/mediapipeline/core/telemetry/__init__.py`
 

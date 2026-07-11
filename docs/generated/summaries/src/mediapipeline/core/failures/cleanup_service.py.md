@@ -3,9 +3,9 @@ file: src/mediapipeline/core/failures/cleanup_service.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: failures
-last_modified: 2026-07-01
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ad4ff0b6dd07a2ccfaa7e5b10d0b770a86624f3ae02dcaf450aa683f629973b9
+sha256: a5bb29b61dc8a2e1c417996a5e34281e8d6fe94b8fd03e9f76b4a4e68a658da8
 ---
 # `src/mediapipeline/core/failures/cleanup_service.py`
 

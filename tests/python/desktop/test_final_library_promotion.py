@@ -161,6 +161,7 @@ class FinalLibraryPromotionTests(unittest.TestCase):
                     "destination_root": str(destination),
                     "library_id": "movies",
                     "designation": "movie",
+                    "derived_from_library_profile": True,
                 },
             )
 

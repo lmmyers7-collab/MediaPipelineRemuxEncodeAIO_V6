@@ -3,9 +3,9 @@ file: apps/desktop/tauri/Test-TauriShell-Prereqs.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shell
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 33a182e78bd5472ca376d507e6e27dece3b9c17cb11cda1cc1f52e786dc02120
+sha256: 0ad8c2f1759cb8c554261921b7a11d0b9a78b6e2c85404d46a9813c928be38bb
 ---
 # `apps/desktop/tauri/Test-TauriShell-Prereqs.ps1`
 

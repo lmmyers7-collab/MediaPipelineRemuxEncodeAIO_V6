@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 215dcb78e96bc04018f9e88aa64595cf7b72aed78a898849227617f641660204
+sha256: 4f5c2633a0ca5cf78cc4600e7ed11e88807ec187f30c9735592c9cab49883a8f
 ---
 # `ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1`
 

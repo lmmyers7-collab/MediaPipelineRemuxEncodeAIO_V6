@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/reports/auditModel.js
 pipeline_stage: observability
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-08
+last_modified: 2026-07-10
 last_reviewed: 2026-06-24
-sha256: b6693e09bac7658db3272d2e276d9f794f1ec1af89b044b5fa71a92e776b24e2
+sha256: a62ceb50c6429576060ac4efed815db6e7f2eb1d71e195f170e33e1413410f45
 ---
 # `apps/desktop/webview/static/assets/reports/auditModel.js`
 

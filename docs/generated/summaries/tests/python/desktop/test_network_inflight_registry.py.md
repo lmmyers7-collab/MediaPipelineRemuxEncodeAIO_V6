@@ -3,9 +3,9 @@ file: tests/python/desktop/test_network_inflight_registry.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-30
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: fbfc6491a27deb83642b5279008e235f54500f87dfbef1600ff087fc69aae020
+sha256: b00aa99ca810b9a5e0d81b75bbf83efb8cd56a9d0f5eb74b84282bd0738a6654
 ---
 # `tests/python/desktop/test_network_inflight_registry.py`
 

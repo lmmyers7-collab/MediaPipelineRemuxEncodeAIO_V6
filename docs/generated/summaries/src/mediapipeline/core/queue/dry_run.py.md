@@ -3,9 +3,9 @@ file: src/mediapipeline/core/queue/dry_run.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: bf4df467690d8b46098650ced6d3cb6f97510677892847ba1ded6c43edd42184
+sha256: 9bddd4f5c9474f46367a80f62043e3012cbf9d2bed41df6abfca1544ccae4b08
 ---
 # `src/mediapipeline/core/queue/dry_run.py`
 

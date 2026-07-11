@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_failure_markers.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-01
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 75a6873a8e3d1993bf5047761ac6ad5200a8c8854a5c654492eaaede717b332b
+sha256: 65041a0c6f2d740020849705ba5bcc21a500eadf0fe2dd24144d96b547e766e9
 ---
 # `tests/python/desktop/test_service_failure_markers.py`
 

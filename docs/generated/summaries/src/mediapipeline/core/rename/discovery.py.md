@@ -3,9 +3,9 @@ file: src/mediapipeline/core/rename/discovery.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: rename
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 833f8bc186edb630e243dee63d0b0065a32e771868cb55cb0acd65bd450c3036
+sha256: c730376ebdca61275dd6dd8703679d127477fbe8c897ac609a1f1f8ef2e73198
 ---
 # `src/mediapipeline/core/rename/discovery.py`
 

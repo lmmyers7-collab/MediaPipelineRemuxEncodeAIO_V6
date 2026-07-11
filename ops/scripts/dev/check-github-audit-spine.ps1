@@ -83,14 +83,14 @@ foreach ($Expected in @("ai_guardrail", "audit_checks run deep-audit", "unittest
         throw "Deep audit workflow is missing expected token: $Expected"
     }
 }
-foreach ($Expected in @("permissions:", "contents: read", "Initialize-CiPythonRuntime.ps1")) {
+foreach ($Expected in @("permissions:", "contents: read", "Initialize-CiPythonRuntime.ps1 -InstallDependencies", "Initialize-CiMediaTools.ps1 -InstallMissing", 'TMP: ${{ runner.temp }}', 'TEMP: ${{ runner.temp }}', "timeout-minutes: 60", "timeout-minutes: 90")) {
     if ($DeepAuditWorkflow -notmatch [regex]::Escape($Expected)) {
         throw "Deep audit workflow is missing expected hardening token: $Expected"
     }
 }
 
 $Phase1Workflow = Get-Content -LiteralPath (Join-Path $RepoRoot ".github/workflows/phase1-drift.yml") -Raw
-foreach ($Expected in @("permissions:", "contents: read", "MP_GITHUB_BASE_REF", "Initialize-CiPythonRuntime.ps1", "audit_checks run phase1-generated")) {
+foreach ($Expected in @("permissions:", "contents: read", "MP_GITHUB_BASE_REF", "Initialize-CiPythonRuntime.ps1 -InstallDependencies", "Initialize-CiMediaTools.ps1 -InstallMissing", 'TMP: ${{ runner.temp }}', 'TEMP: ${{ runner.temp }}', "timeout-minutes: 60", "timeout-minutes: 90", "audit_checks run phase1-generated")) {
     if ($Phase1Workflow -notmatch [regex]::Escape($Expected)) {
         throw "Generated drift workflow is missing expected hardening token: $Expected"
     }

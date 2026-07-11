@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/queue/fileOverrides.routePreview.js
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-05
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 763d97913313b72ac70faea32516669a980b8bc28f6823ec1b121f7e5a189835
+sha256: 30557de11d93f91babb1da2b47476e522361b6e4b814400abac94fbb261b2670
 ---
 # `apps/desktop/webview/static/assets/queue/fileOverrides.routePreview.js`
 

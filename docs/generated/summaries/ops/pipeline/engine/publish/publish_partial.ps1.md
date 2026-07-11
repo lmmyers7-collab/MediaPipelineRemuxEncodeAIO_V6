@@ -3,9 +3,9 @@ file: ops/pipeline/engine/publish/publish_partial.ps1
 pipeline_stage: publish
 token_priority: medium
 owner_domain: publish
-last_modified: 2026-06-10
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 35e79a583e1dd7880cbc1291ffad03c2b596344e43d99b56314752a37646e110
+sha256: 9e5ae89ad1988f9d6b8034cf8a544fdb1da1eea7dc574cd858367559d9a3083b
 ---
 # `ops/pipeline/engine/publish/publish_partial.ps1`
 

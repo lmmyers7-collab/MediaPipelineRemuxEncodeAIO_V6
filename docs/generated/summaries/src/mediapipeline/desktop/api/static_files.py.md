@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/api/static_files.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 30e9e81523fa16e846c84269e730a922039e9fe876e6ba76358ebf55213bf474
+sha256: fb98f4169ee6712668be0ee98886a54114207aa53a0afdb64dfa660378b3738e
 ---
 # `src/mediapipeline/desktop/api/static_files.py`
 

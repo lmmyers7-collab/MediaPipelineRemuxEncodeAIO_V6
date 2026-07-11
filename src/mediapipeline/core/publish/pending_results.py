@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .pending_contracts import (
     PENDING_DRAIN_CONFIDENCE_SCHEMA_VERSION,
@@ -12,10 +12,11 @@ from .pending_contracts import (
     PENDING_PUBLISH_RECOVERY_PLAN_COMMAND,
     PENDING_PUBLISH_RECOVERY_PLAN_SCHEMA_VERSION,
     PENDING_PUBLISH_SERVICE_UNAVAILABLE_MESSAGE,
-    _command_result,
-    _json_safe,
     _pending_publish_preview_dto,
 )
+
+if TYPE_CHECKING:
+    from mediapipeline.core.kernel.dto_inventory import PendingPublishPreviewDto
 
 
 def pending_publish_service_unavailable_result() -> PendingPublishPreviewDto:

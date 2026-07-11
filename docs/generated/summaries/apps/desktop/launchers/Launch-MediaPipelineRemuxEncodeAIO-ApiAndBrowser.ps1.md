@@ -3,9 +3,9 @@ file: apps/desktop/launchers/Launch-MediaPipelineRemuxEncodeAIO-ApiAndBrowser.ps
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-16
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 1c2d6496d2f9c0e6849ca44aa14db08b7752cd4e882c0b1e72b82ea0ad5849d4
+sha256: c52406849cf7dc994c6b029bd91c04b34b1e82dab6baa1f73685b2b861f24988
 ---
 # `apps/desktop/launchers/Launch-MediaPipelineRemuxEncodeAIO-ApiAndBrowser.ps1`
 

@@ -3,9 +3,9 @@ file: ops/scripts/release/Test-PrivateBetaReleaseReadiness.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-18
+last_modified: 2026-07-10
 last_reviewed: 2026-06-18
-sha256: cb4cc25f50b187d0234719e262db4ae213e0d7bc472e31c60cb23eb9d74e9c38
+sha256: e56215edbae2702591d2af6d4d2176f114f57249bed7c8c8b7c13a945c99ef88
 ---
 # `ops/scripts/release/Test-PrivateBetaReleaseReadiness.ps1`
 

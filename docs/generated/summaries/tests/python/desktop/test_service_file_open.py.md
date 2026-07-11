@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_file_open.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-06
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 234057f9df3774adcd5df136298d4a8eb221951a05bdee0fd62e08b1b154c71d
+sha256: 3ad15a023c9ca009776d581bfb9a3b1b98b660715f9f85984de9c8d4413e96e4
 ---
 # `tests/python/desktop/test_service_file_open.py`
 

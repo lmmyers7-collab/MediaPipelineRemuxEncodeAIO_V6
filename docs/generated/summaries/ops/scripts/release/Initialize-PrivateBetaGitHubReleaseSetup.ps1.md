@@ -3,9 +3,9 @@ file: ops/scripts/release/Initialize-PrivateBetaGitHubReleaseSetup.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-18
+last_modified: 2026-07-10
 last_reviewed: 2026-06-18
-sha256: 987a9777c902c4ca5318fab597c4c8a5561eb86abf4d566220c0f0077becda5a
+sha256: 6e30fd9bc7609af0fe0d8a6feb79050716c25782e1edbb8654403040a596e1d8
 ---
 # `ops/scripts/release/Initialize-PrivateBetaGitHubReleaseSetup.ps1`
 

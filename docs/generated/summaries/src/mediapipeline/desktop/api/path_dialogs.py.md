@@ -3,7 +3,7 @@ file: src/mediapipeline/desktop/api/path_dialogs.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-06-23
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
 sha256: 42ed6c9f79d3b0cab886be3180e699660e45d525db1573a672159b53c137052f
 ---

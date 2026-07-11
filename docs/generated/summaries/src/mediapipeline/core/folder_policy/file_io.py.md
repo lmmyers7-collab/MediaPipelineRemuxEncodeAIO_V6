@@ -3,9 +3,9 @@ file: src/mediapipeline/core/folder_policy/file_io.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: folder_policy
-last_modified: 2026-05-31
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 77fa65b97dc0d92dddb74f3be7c2604e63679654eb14365bd8a76ea8bc85e033
+sha256: ed02ffcda8cebf692bc61c8a398ec33abd2ea02e683937b36dd48816afcf3e2e
 ---
 # `src/mediapipeline/core/folder_policy/file_io.py`
 

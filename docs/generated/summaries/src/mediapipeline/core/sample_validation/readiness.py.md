@@ -3,9 +3,9 @@ file: src/mediapipeline/core/sample_validation/readiness.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: sample_validation
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: 22971aa82fe0fad6a361208e89b212957ebbc982998a01b1a7f24d010e94055e
+sha256: 75f5586fc627ca80d708b167bc2d62727e7be4f44fd766d6dd9b2e3586fe608d
 ---
 # `src/mediapipeline/core/sample_validation/readiness.py`
 

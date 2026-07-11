@@ -3,9 +3,9 @@ file: src/mediapipeline/core/network/auth.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-19
+last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: a2910972f2dc45edf0cce4a9bc16c89fc73779c099a9fe81a2069a385ac76012
+sha256: 5b18b6e21520339a33f3aed1546e4fc75ba44dfa579318f0a83ccd7c11364eb6
 ---
 # `src/mediapipeline/core/network/auth.py`
 

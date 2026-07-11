@@ -3,9 +3,9 @@ file: src/mediapipeline/core/rename/path_authority.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: rename
-last_modified: 2026-07-09
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 658418295c707dcfee4cbd92eafd0e195484cc6dbe2e604077ffaa98cdcb393a
+sha256: 5bae314b1f23f7eea79cf20168a45e0aa57a51bc2d3e773c6511e6e9bf5051fb
 ---
 # `src/mediapipeline/core/rename/path_authority.py`
 

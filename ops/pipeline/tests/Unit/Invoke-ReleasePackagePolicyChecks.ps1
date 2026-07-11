@@ -240,6 +240,10 @@ Assert-Contains $buildScriptText 'Release verification requires -IncludeTests' '
 Assert-Contains $buildScriptText 'This is not release acceptance.' 'Release builder must label testless verification as non-release acceptance.'
 Assert-Contains $buildScriptText 'Test-ReleaseTraversalDirectoryPruned' 'Release builder must prune known excluded directories before recursive package traversal.'
 Assert-Contains $buildScriptText 'Get-ReleaseSourceFileItems' 'Release builder must use the pruned release source traversal helper.'
+Assert-Contains $buildScriptText 'function Update-ReleasePackageGeneratedIndexes' 'Release builder must refresh package-specific generated indexes after exclusions are applied.'
+Assert-Contains $buildScriptText 'mediapipeline.tools.dev.generate_project_index' 'Release builder must regenerate the package project index through the bundled tool runner.'
+Assert-Contains $buildScriptText 'mediapipeline.tools.dev.generate_feature_file_map' 'Release builder must regenerate the package feature map after refreshing the project index.'
+Assert-Contains $buildScriptText 'Update-ReleasePackageGeneratedIndexes -ReleaseRoot $destinationFull' 'Release builder must refresh package-specific generated indexes before verification.'
 Assert-True (-not $buildScriptText.Contains('Get-ChildItem -LiteralPath $script:SourceRoot -Recurse -File -Force')) 'Release builder must not recurse through every source file before applying package exclusions.'
 
 $rgignoreText = Get-Content -LiteralPath $rgignorePath -Raw

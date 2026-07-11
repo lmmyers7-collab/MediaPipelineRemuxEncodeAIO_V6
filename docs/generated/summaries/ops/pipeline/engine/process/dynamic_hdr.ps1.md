@@ -3,9 +3,9 @@ file: ops/pipeline/engine/process/dynamic_hdr.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-22
+last_modified: 2026-07-10
 last_reviewed: 2026-06-12
-sha256: 99d3fb5ebbdb1021ec54877502f73c764f123efafcc1e705dec5fd214a7e3450
+sha256: 0d74ea49edd4cec73143821bc3991147f6328474a2a1fed167d57a52668bb4da
 ---
 # `ops/pipeline/engine/process/dynamic_hdr.ps1`
 

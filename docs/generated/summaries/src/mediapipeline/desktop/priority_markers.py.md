@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/priority_markers.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: db9c8a57950446fcc5a450e050497e24c587036aa394ab9d0b7e1bebcc48a50c
+sha256: 70bab54904334ca4e330d9f33233c06cf49cb3bfdc011b90504f7e5b62e1f1b0
 ---
 # `src/mediapipeline/desktop/priority_markers.py`
 

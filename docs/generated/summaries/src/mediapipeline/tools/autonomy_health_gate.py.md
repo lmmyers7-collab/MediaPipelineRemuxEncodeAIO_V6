@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/autonomy_health_gate.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-17
-sha256: 8a880d3c02c0fb5ad90e91f7e2129e2f4ed4e43fe59f5231dbf870e1bafa0ed5
+sha256: cb33e5558ea6d73776688fd1f19899963424f387a905a46f2fc74004bf336def
 ---
 # `src/mediapipeline/tools/autonomy_health_gate.py`
 

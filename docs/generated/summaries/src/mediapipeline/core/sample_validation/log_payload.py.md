@@ -3,9 +3,9 @@ file: src/mediapipeline/core/sample_validation/log_payload.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: sample_validation
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: de50c6978c36c598fbebba61ad00ecb00f91bcceff6107c807b8eb19a1c5bccc
+sha256: 694cc67159cd746f05451f786dc5838213d816b0803fc50efa96e5164926b4ed
 ---
 # `src/mediapipeline/core/sample_validation/log_payload.py`
 

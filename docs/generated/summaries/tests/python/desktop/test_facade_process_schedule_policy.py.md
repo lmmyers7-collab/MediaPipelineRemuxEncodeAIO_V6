@@ -3,9 +3,9 @@ file: tests/python/desktop/test_facade_process_schedule_policy.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ee99233639ffb7f522f51a0bc891482deb5da63ff495cd6f26454700383a560a
+sha256: 9000436d1b9b5a4f2277127f5cff8f4061ed968279fe168c0632d92d69a43190
 ---
 # `tests/python/desktop/test_facade_process_schedule_policy.py`
 

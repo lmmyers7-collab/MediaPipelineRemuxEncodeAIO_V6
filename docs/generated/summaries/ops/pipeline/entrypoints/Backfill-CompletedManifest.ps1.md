@@ -3,9 +3,9 @@ file: ops/pipeline/entrypoints/Backfill-CompletedManifest.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-12
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: a3ab3d5374c162a77bf9a57c57304ad53401ec54e4d95ddc55ea9e081ac210fb
+sha256: 13c96266405db5eddabc641bb4fc09917c33adbf0f7f783532012a47763a3538
 ---
 # `ops/pipeline/entrypoints/Backfill-CompletedManifest.ps1`
 

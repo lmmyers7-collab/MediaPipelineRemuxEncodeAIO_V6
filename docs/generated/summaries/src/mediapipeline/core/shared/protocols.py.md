@@ -3,9 +3,9 @@ file: src/mediapipeline/core/shared/protocols.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shared
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 4d1236287479d42ffe43ea4034bd4cbe29fdb703b5c98b22fd59b68b2b222105
+sha256: 8c2484c929e2590d3d012a0f0e9dd15f9a0665f3efd9f584c9b6da47282f1e59
 ---
 # `src/mediapipeline/core/shared/protocols.py`
 

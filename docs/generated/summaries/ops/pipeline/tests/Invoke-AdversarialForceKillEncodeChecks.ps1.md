@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Invoke-AdversarialForceKillEncodeChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-19
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 0aa3502081cb44473a76a32f2b27302192087660f1d7962393392d55913230ab
+sha256: 51ee2db3fb801879fe4cf63a417f726054ddeb6c0ba559744972968ff4eabf2e
 ---
 # `ops/pipeline/tests/Invoke-AdversarialForceKillEncodeChecks.ps1`
 

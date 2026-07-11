@@ -24,9 +24,9 @@
   ],
   "report_note": "Pre-split report only. IDs are collected from index.html with mp-include partials expanded. Missing IDs can be legitimate when markup is generated at runtime, but every future split should keep this report stable or deliberately update it.",
   "counts": {
-    "html_ids": 2005,
-    "js_touched_ids": 636,
-    "ids_present_in_index": 596,
+    "html_ids": 2017,
+    "js_touched_ids": 639,
+    "ids_present_in_index": 599,
     "ids_missing_from_index": 40,
     "likely_dynamic_missing_ids": 0,
     "review_missing_ids": 40
@@ -287,6 +287,7 @@
     "network-lifecycle-confirm-dialog",
     "network-lifecycle-confirm-submit",
     "network-lifecycle-rows",
+    "network-rerun-rows",
     "network-role-coordinator-setup-button",
     "network-role-dashboards",
     "network-role-setup-close-button",
@@ -476,6 +477,7 @@
     "rerun-inspect-csv-button",
     "rerun-lifecycle-evidence",
     "rerun-lifecycle-phase",
+    "rerun-network-minimum-workers",
     "rerun-preview-limit",
     "rerun-preview-rows",
     "rerun-preview-tiles",
@@ -492,6 +494,7 @@
     "rerun-start-csv-path",
     "rerun-start-destination-mode",
     "rerun-start-execution-mode",
+    "rerun-start-target-mode",
     "rerun-start-window-size",
     "reset-layout-btn",
     "sample-validation-acceptance-gate-rows",
@@ -1835,6 +1838,7 @@
         "network-lifecycle-confirm-dialog",
         "network-lifecycle-confirm-submit",
         "network-lifecycle-rows",
+        "network-rerun-rows",
         "network-role-dashboards",
         "network-settings-preview-button",
         "network-settings-rows",
@@ -2038,6 +2042,7 @@
       "src": "/assets/reports/auditCommands.js",
       "path": "apps/desktop/webview/static/assets/reports/auditCommands.js",
       "dom_ids_touched": [
+        "audit-preview-priority-only",
         "report-audit-clear-source-selection-button",
         "report-audit-scan-all-button",
         "report-audit-scan-selected-button",
@@ -2308,6 +2313,7 @@
       "src": "/assets/queue/rerunRequest.js",
       "path": "apps/desktop/webview/static/assets/queue/rerunRequest.js",
       "dom_ids_touched": [
+        "rerun-network-minimum-workers",
         "rerun-preview-limit",
         "rerun-scope-enabled-only",
         "rerun-scope-first-n",
@@ -2318,6 +2324,7 @@
         "rerun-start-csv-path",
         "rerun-start-destination-mode",
         "rerun-start-execution-mode",
+        "rerun-start-target-mode",
         "rerun-start-window-size"
       ],
       "missing_from_index": []

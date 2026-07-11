@@ -3,9 +3,9 @@ file: tests/python/desktop/test_status_rerun_completion.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-09
+last_modified: 2026-07-10
 last_reviewed: 2026-07-09
-sha256: b0f998d6e0ff8e1d9493fa17433ee678e6d7f775ec8dccf1a74fc081e2b9c50b
+sha256: 9a1bd2d87afb8e49d2c2480b4c20bcf488b832df1c7667630158530b69f3f8e5
 ---
 # `tests/python/desktop/test_status_rerun_completion.py`
 

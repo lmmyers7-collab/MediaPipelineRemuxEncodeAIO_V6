@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/partials/page-schedule.html
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-28
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: be22c39333cd6fac8f4fe00044f66a5b6d305228284180ce68ec5f31952190cb
+sha256: 5a7a45e74ab522e265e155af637a8068965de52c42ce5f96f55f3fb4fb057931
 ---
 # `apps/desktop/webview/static/partials/page-schedule.html`
 

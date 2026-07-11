@@ -3,9 +3,9 @@ file: ops/pipeline/engine/publish/pending_sidecar_transactions.ps1
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 0a68946a8ef2443abdf6ad48e81aa897ed53e29eb458a8c3a88ea912c60e8841
+sha256: b2f1d1bd809e29ed6e44fe5bb2481eedd650ea12941fc444e0a15d179c7815df
 ---
 # `ops/pipeline/engine/publish/pending_sidecar_transactions.ps1`
 

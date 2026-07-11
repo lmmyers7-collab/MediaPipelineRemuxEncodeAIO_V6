@@ -3,9 +3,9 @@ file: ops/scripts/release/Test-PrivateBetaWorkflowRun.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-18
+last_modified: 2026-07-10
 last_reviewed: 2026-06-18
-sha256: 30c07f93611bd7a52d5ad77f23f1afa743518a2f0a9b3c742af16e967c1210c3
+sha256: dfceddef806bbf9112d0ea55a772f06511a101ec6d68182183466470e3e06903
 ---
 # `ops/scripts/release/Test-PrivateBetaWorkflowRun.ps1`
 

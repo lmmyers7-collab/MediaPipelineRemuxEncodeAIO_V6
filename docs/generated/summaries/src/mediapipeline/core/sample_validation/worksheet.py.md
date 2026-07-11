@@ -3,9 +3,9 @@ file: src/mediapipeline/core/sample_validation/worksheet.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: sample_validation
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: 5a8fabe389bc6975bf0d5dfe847814748f700b154fc84d6479a63537c82c594b
+sha256: 95c70f3750613217edcbe505bad5081e44cd099884d5f4b0de43f8369dbbf1e7
 ---
 # `src/mediapipeline/core/sample_validation/worksheet.py`
 

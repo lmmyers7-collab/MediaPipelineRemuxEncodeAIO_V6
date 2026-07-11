@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/logs.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 46c149ce529989fa8ec567f5c5c31d3dbced94af45dd5497b0562a11d7837ab0
+sha256: 6d4f71f88c8208ed604955c3298f987751573dd14585c7060a1587c7f89c06e5
 ---
 # `src/mediapipeline/core/processes/logs.py`
 

@@ -3,9 +3,9 @@ file: ops/pipeline/engine/process/encode_publish.ps1
 pipeline_stage: publish
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-24
+last_modified: 2026-07-10
 last_reviewed: 2026-06-24
-sha256: 159890e311d42752ee886952c04425db9b74d9a4a7933f4ea884cbdb2c729fbd
+sha256: 961746c3e59b72e2e39c73d8eb6fd6ddff0d2cec1955113280ca5a099e56edcf
 ---
 # `ops/pipeline/engine/process/encode_publish.ps1`
 

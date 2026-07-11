@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/contracts/control_flag.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 99a621a4076d1d9358a41c11007c2d0bf62835ec4172f921cebad038a6612f62
+sha256: f92afb25a1e6d0bb6755810151cd67b90e9a4d0eca8ea127e0dcf2e3f22414ad
 ---
 # `src/mediapipeline/desktop/contracts/control_flag.py`
 

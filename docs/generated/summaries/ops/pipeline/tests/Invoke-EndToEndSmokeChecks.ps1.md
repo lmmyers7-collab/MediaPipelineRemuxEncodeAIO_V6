@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-03
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 39414eee80f03d8beda0ba103b4b05486e0d2647de322d82ef1d2c2b70590254
+sha256: 168f28af1f8674eb328587954a04b3c9cbcb5838b901ca4ccc978fb8fa414d3c
 ---
 # `ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1`
 

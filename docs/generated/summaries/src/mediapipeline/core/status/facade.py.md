@@ -3,9 +3,9 @@ file: src/mediapipeline/core/status/facade.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-07-09
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: cd2f1c585dc9e49fd9481529d228701daaeee945d41017931d6dd00f28d03c6e
+sha256: 25c9046f6a1be5cc19e58139518e535f377491865500fee86f93c78296474b9f
 ---
 # `src/mediapipeline/core/status/facade.py`
 

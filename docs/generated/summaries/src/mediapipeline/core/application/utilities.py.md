@@ -3,9 +3,9 @@ file: src/mediapipeline/core/application/utilities.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-01
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: b3e7ed547c57986b6931e497bb039c6d7ec033fdf30eba9e37d8cd6648ca4a26
+sha256: 91670b35a70e8318557010cb907425912de2172d68492a2937e756b80534b843
 ---
 # `src/mediapipeline/core/application/utilities.py`
 

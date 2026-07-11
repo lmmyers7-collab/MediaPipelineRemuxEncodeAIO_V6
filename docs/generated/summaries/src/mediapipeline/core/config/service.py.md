@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/service.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: e906893ce0ff6c144b5c37c36004cdb8329452e1eb05fb6ba037a4bce6444b2c
+sha256: d79a7e1d9be7bdf97db90e573ac4226857d2d639df01f13f92d58bf721062eed
 ---
 # `src/mediapipeline/core/config/service.py`
 

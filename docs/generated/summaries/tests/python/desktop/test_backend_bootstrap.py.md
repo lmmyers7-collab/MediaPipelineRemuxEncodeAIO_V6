@@ -3,7 +3,7 @@ file: tests/python/desktop/test_backend_bootstrap.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
 sha256: c21adbac76dd681105b7a6534c8d2ea8a7cb44f710b8af05af875061ef526339
 ---

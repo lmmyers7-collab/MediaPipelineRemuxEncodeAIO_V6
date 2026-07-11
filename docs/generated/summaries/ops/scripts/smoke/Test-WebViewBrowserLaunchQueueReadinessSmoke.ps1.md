@@ -3,7 +3,7 @@ file: ops/scripts/smoke/Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-11
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
 sha256: 6194e1300df4fe9a8a9c54887f74ac2df96070deeb801a8dfb75c7745609a9bf
 ---

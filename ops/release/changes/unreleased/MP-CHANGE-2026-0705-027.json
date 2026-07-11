@@ -32,7 +32,7 @@
   ],
   "manual_validation": [
     "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_application_facade_process_launch.ApplicationFacadeProcessLaunchTests.test_network_rerun_phase8_start_claim_done_destination_and_read_model -q (1 test)",
-    "PASS: Phase 8 retained real-media validation using Phase 4B source and real worker output; evidence in docs/RealMediaValidationRuns/network-csv-rerun-phase8-2026-07-06.md and retained summary C:\\Users\\lmmye\\AppData\\Local\\Temp\\mp-phase8-realmedia-retained-07ur8msa\\phase8-realmedia-summary.json",
+    "PASS: Phase 8 retained real-media validation using Phase 4B source and real worker output; evidence in docs/RealMediaValidationRuns/network-csv-rerun-phase8-2026-07-06.md and retained summary <local temporary retained-summary path, redacted>",
     "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_application_facade_process_launch tests.python.desktop.test_network_rerun_claims tests.python.desktop.test_process_rerun_results -q (78 tests)",
     "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_network_protocol_runtime tests.python.desktop.test_network_done_release tests.python.desktop.test_rerun_csv_preview -q (63 tests)",
     "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed (1 written, 61 unchanged)",

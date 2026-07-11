@@ -2,7 +2,7 @@
 
 Documents all Local API routes, their mutation risk, auth requirements, backend owner confirmation, and primary frontend caller. Source of truth is `contract_read.py` and `contract_command.py`; handler dispatch is in `routes_read.py` and `routes_command.py`.
 
-Total routes: 163 (53 read, 110 command).
+Total routes: 166 (53 read, 113 command).
 
 All routes that mutate state are backend-owned. The WebView never resolves filesystem paths, selects output targets, chooses encode settings, or launches processes directly — it forwards requests with allowlisted parameters and the backend validates, plans, and executes.
 
@@ -128,7 +128,7 @@ Failure lifecycle is append-only operator resolution evidence under `State\Failu
 |---|---|---|---|---|
 | `POST /api/queue/open` | `shell-open` | `row_key`, `target`, `row_scope` | `source_file`, `source_folder`, `source_root` | Queue |
 | `POST /api/completed/open` | `shell-open` | `row_key`, `target` | `output_file`, `play_output_file`, `output_folder`, `sidecar`, `source_folder` | Completed |
-| `POST /api/pending-publish/open` | `shell-open` | `row_key`, `target` | `local_file`, `manifest`, `destination_folder`, `source_folder` | Pending Publish |
+| `POST /api/pending-publish/open` | `shell-open` | `row_key`, `target` | `play_local_file`, `local_file`, `manifest`, `destination_folder`, `source_folder` | Pending Publish |
 | `POST /api/pending-publish/recovery-plan` | `none` (dry-run) | `scope`, `row_key` | `all`, `selected` | Pending Publish |
 | `POST /api/completed/reconcile-manifest-dry-run` | `none` (dry-run) | `scope`, `row_key`, `limit`, `reason` | Backend-authored dry-run only; no manifest write | Completed |
 | `POST /api/completed/reconcile-manifest` | `completed-manifest-write` | `scope`, `row_key`, `limit`, `reason`, `dry_run_fingerprint`, `confirm_apply` | Backs up and atomically rewrites existing selected completed manifest rows only after matching dry-run fingerprint | Completed |

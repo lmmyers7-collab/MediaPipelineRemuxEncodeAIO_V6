@@ -3,9 +3,9 @@ file: tests/python/tooling/test_dependency_atlas.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 10e5391224535711e6e749cc4acd758a57d91322e5fdb35e9bd4022e9fff626a
+sha256: 9db84f06f6116f8c565e5def32a822a2fd5231ff044f78c4cfd6cece1487bbf1
 ---
 # `tests/python/tooling/test_dependency_atlas.py`
 

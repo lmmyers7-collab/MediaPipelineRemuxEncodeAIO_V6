@@ -3,9 +3,9 @@ file: tests/webview/test_webview_browser_maintenance_reports_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-09
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 16bab70b985c7eefc1597e913439ca29470db3a7c781ee353d429c52ac4ab428
+sha256: 2b3d1b0f4727fbd657f91e27e76c5ad46ec66fb57ba0afeb2c52010209e9f334
 ---
 # `tests/webview/test_webview_browser_maintenance_reports_smoke.py`
 

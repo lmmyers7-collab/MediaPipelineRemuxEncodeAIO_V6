@@ -3,7 +3,7 @@ file: tests/python/desktop/test_network_firewall.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
 sha256: 17185eeaa188582a8ab65497ca6e61f393a42ae4ea78c40763972193799cfe70
 ---

@@ -3,9 +3,9 @@ file: ops/pipeline/engine/subtitles/failure_records.ps1
 pipeline_stage: subtitles
 token_priority: high
 owner_domain: subtitles
-last_modified: 2026-06-26
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ebe0ba0e70dfb0d77cdb495fe0fc1fec5f39604d16247786c19fae6d2cb50aae
+sha256: 6a17599ee4c77b6fc785068ab401b7cda36e3fafd9e2b3c32714053ffa16e139
 ---
 # `ops/pipeline/engine/subtitles/failure_records.ps1`
 

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/paths/defaults.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: paths
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 36d5e62aba534e5fae090bceae9d3c63d34d823245866a5bd3facf7d71177285
+sha256: fffc88799a3c07f6d9da2f69d838fe45ace3f720fa5533d7479a0d331808d87b
 ---
 # `src/mediapipeline/core/paths/defaults.py`
 

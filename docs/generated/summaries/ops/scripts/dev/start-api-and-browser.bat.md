@@ -3,9 +3,9 @@ file: ops/scripts/dev/start-api-and-browser.bat
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: fa9fc4890873614f36af9c409f63c7343827bd506eda6b28904acc421d354f3f
+sha256: d4532884771b5b27d2b4739bedbc3b2d8045c437c6a5d6ac36c1b6ba95a029b4
 ---
 # `ops/scripts/dev/start-api-and-browser.bat`
 

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/schedule/stop_watcher.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: schedule
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: 165a4bf5bba218e856efbffeecb0660256a2529f41232ea86217a899254ca26b
+sha256: 400f15652341ad4992ee39ab7996c70ae81e7db52e119e313c122f9952d19977
 ---
 # `src/mediapipeline/core/schedule/stop_watcher.py`
 

@@ -3,9 +3,9 @@ file: ops/pipeline/entrypoints/MediaPipeline/tx3g_sidecars.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: a9355c29848b088501208582cd5756485e373118efc7ae17f1a87a35fb962f0c
+sha256: 8c85fe0edba76a22461d61c36a82c8118b8fb8c0852ed9903a66a390c16c5928
 ---
 # `ops/pipeline/entrypoints/MediaPipeline/tx3g_sidecars.ps1`
 

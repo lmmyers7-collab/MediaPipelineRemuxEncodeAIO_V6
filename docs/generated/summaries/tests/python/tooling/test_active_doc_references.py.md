@@ -3,9 +3,9 @@ file: tests/python/tooling/test_active_doc_references.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-05
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 614c6914a15aac7b5fda71eb77fecfffb230c2625f0b8dde4a9ce5ed4de312e0
+sha256: 3d59b61e26691053c46eb4f848c68ba41d6e32d1525f2ea2d1d502e1c306baf9
 ---
 # `tests/python/tooling/test_active_doc_references.py`
 

@@ -3,9 +3,9 @@ file: ops/scripts/dev/webview-public-contract.mjs
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 879c46912f3e4f923c45ba660a69c514800a1baaf226235f4d471f1105039b67
+sha256: e13e9b97646b8ddd861d14963ad966d75c3d3943b953330e6dffb38b71128dea
 ---
 # `ops/scripts/dev/webview-public-contract.mjs`
 

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/validation.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-07-05
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 929ae45ee5a54fcd095f4af22e9958095439f8fe6c5d4e0b0e51f0134a96e7da
+sha256: 630125aa248e5d0c0cbad883486a5aada9bfe02961f0ef92e47cba13ff4b749c
 ---
 # `src/mediapipeline/core/config/validation.py`
 

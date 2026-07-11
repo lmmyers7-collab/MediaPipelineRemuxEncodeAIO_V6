@@ -3,7 +3,7 @@ file: tests/webview/test_webview_tauri_lifecycle_bridge.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-23
+last_modified: 2026-07-10
 last_reviewed: 2026-06-11
 sha256: 3361dcf6da45412bef8aa1dc9c9ff1f5fb33ab94cc3959171b8f1de06e193261
 ---

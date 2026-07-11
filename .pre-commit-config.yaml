@@ -42,6 +42,12 @@ repos:
         language: system
         pass_filenames: false
 
+      - id: mediapipeline-change-packet-staged-coverage
+        name: MediaPipeline staged change-packet coverage
+        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-staged-coverage
+        language: system
+        pass_filenames: false
+
       - id: mediapipeline-python-lint
         name: MediaPipeline Python lint
         entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_python_lint

@@ -3,9 +3,9 @@ file: ops/pipeline/engine/library/library_index.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: library
-last_modified: 2026-06-26
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 38d6d16735ec0579cc8c8948802736546acbd926f40b6cd71eee9b591dba80af
+sha256: aa35be7796d7f3c1a7abd69127f53e45c9af50759d224fafcc40654acae7af34
 ---
 # `ops/pipeline/engine/library/library_index.ps1`
 

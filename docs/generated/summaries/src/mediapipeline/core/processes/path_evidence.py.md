@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/path_evidence.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: a69a9e40a1e90ece0507e5dbc34c13b295e7c8c9e309d19062d6c8f15f2360be
+sha256: dd1cec0fc95018c558967a1261e60880e4b591ac7152a121145e7d0e94e57153
 ---
 # `src/mediapipeline/core/processes/path_evidence.py`
 

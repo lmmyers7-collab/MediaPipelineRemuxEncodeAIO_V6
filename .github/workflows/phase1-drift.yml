@@ -146,6 +146,10 @@ jobs:
   release-self-test:
     name: Release self-test
     runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      TMP: ${{ runner.temp }}
+      TEMP: ${{ runner.temp }}
 
     steps:
       - name: Check out repository
@@ -164,7 +168,11 @@ jobs:
 
       - name: Provision CI Python runtime
         shell: pwsh
-        run: .\ops\scripts\release\Initialize-CiPythonRuntime.ps1
+        run: .\ops\scripts\release\Initialize-CiPythonRuntime.ps1 -InstallDependencies
+
+      - name: Provision CI media tools
+        shell: pwsh
+        run: .\ops\scripts\release\Initialize-CiMediaTools.ps1 -InstallMissing
 
       - name: Install dependencies
         shell: pwsh
@@ -180,6 +188,10 @@ jobs:
   package-verify:
     name: Package verify
     runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      TMP: ${{ runner.temp }}
+      TEMP: ${{ runner.temp }}
 
     steps:
       - name: Check out repository
@@ -198,7 +210,11 @@ jobs:
 
       - name: Provision CI Python runtime
         shell: pwsh
-        run: .\ops\scripts\release\Initialize-CiPythonRuntime.ps1
+        run: .\ops\scripts\release\Initialize-CiPythonRuntime.ps1 -InstallDependencies
+
+      - name: Provision CI media tools
+        shell: pwsh
+        run: .\ops\scripts\release\Initialize-CiMediaTools.ps1 -InstallMissing
 
       - name: Install dependencies
         shell: pwsh

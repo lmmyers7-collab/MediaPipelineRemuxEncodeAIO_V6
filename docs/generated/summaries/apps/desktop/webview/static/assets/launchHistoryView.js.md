@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/launchHistoryView.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-03
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ae30a97356cd48e0ee29192e68ee4c4483397829c10a11f95edd9890a91fb900
+sha256: ea9e95cae764f15da32443e61e00e2a4fa34571b2f4c8edff109cdd4e3122f56
 ---
 # `apps/desktop/webview/static/assets/launchHistoryView.js`
 

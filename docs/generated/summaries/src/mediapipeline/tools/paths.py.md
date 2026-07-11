@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/paths.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: fb0b691a49d2b04ae7f00ac91efdba781d849e14ff8eddd0068e635b91a4f237
+sha256: bc43f5b9c6e62c0be1b6147a5231193f64af96bb1ae26e750fe12f68c7d6fbdf
 ---
 # `src/mediapipeline/tools/paths.py`
 

@@ -3,9 +3,9 @@ file: ops/pipeline/config/setup/Validation.ps1
 pipeline_stage: setup
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-05
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: e3cd6199a6cb4ee6071d6f69d71ba355fed0d96f583a99e04257377d8be0edd7
+sha256: fb65679f184929d2bb87e0e71736427c00cd88d6003f49f62b2c95b796d0b64a
 ---
 # `ops/pipeline/config/setup/Validation.ps1`
 

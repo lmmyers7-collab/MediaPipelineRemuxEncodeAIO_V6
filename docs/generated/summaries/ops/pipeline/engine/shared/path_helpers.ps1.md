@@ -3,9 +3,9 @@ file: ops/pipeline/engine/shared/path_helpers.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shared
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 776bb7243aab744362246f0891957b500f02c9e3fc6fefbcb6fd9a988f0e57fc
+sha256: a6d63f21098a2b9aa80d5a9f3931ff4a84277eac83f15c2573c79a5c2df6c914
 ---
 # `ops/pipeline/engine/shared/path_helpers.ps1`
 

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/queue/selection.js
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-18
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: d0eb9dc15cb3b7ee69e921c620fd052c50948917d3fcbe692f89c22949575753
+sha256: d49eb0427efa9edb00a1ef4ca2f7dac0dee50b1f2c73e31c41e2473cec39e5b0
 ---
 # `apps/desktop/webview/static/assets/queue/selection.js`
 

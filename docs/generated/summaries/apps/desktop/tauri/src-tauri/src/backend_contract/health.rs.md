@@ -3,9 +3,9 @@ file: apps/desktop/tauri/src-tauri/src/backend_contract/health.rs
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shell
-last_modified: 2026-05-30
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 94210aaa90c19351fc41d6eac029713493b1a2a5f7efd0081681fd2fcccf0539
+sha256: d3a6662b558b53545f86e95b3b5483ba8c6cc5bdc55e492f0e7d2b7e57758660
 ---
 # `apps/desktop/tauri/src-tauri/src/backend_contract/health.rs`
 

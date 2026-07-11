@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/dispatcher.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-07-05
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 9d25b6d4fdfd0bab896de183a97d23b377443d98e14fd62ac71e8db992a83675
+sha256: 7c36213a9080a5604dc7ca9d69c27e85a683debf41e0519c22cfb13dad1ec162
 ---
 # `src/mediapipeline/desktop/network/dispatcher.py`
 

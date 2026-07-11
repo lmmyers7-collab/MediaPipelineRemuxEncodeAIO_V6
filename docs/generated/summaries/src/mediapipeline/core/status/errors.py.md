@@ -3,9 +3,9 @@ file: src/mediapipeline/core/status/errors.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 1ac4e31c72ab61275a58ec5bd0c7d6ecac323833fd2ed7694619913a4cb9dd5f
+sha256: f75a9a47adc04c20e08b08de167709ec32628e57396b9d348e2afca4c15b8acf
 ---
 # `src/mediapipeline/core/status/errors.py`
 

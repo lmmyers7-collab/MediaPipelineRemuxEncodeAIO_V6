@@ -3,9 +3,9 @@ file: docs/inventories/RENAME_SAFETY_TEST_INVENTORY.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-26
+last_modified: 2026-07-10
 last_reviewed: 2026-06-02
-sha256: 7ecd70857970beae94d2c194c782b88198cae94ef2a1a4176ad9acfa0bc09d83
+sha256: c3ad39afaf5b6aac20173625134fa200aba3b3e77bd5b55165a28251c2dcf7d9
 ---
 # `docs/inventories/RENAME_SAFETY_TEST_INVENTORY.md`
 

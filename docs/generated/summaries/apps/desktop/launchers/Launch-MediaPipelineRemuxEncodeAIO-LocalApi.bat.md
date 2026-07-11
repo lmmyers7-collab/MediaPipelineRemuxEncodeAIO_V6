@@ -3,9 +3,9 @@ file: apps/desktop/launchers/Launch-MediaPipelineRemuxEncodeAIO-LocalApi.bat
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 03707f2885572fb0ada6124b9761bbba870b0418d132822db079fbcf9f315b73
+sha256: 68f45e3995b4368e6b8ab385d489f8804771c394b6a4f7972984a7633f6d8ff7
 ---
 # `apps/desktop/launchers/Launch-MediaPipelineRemuxEncodeAIO-LocalApi.bat`
 

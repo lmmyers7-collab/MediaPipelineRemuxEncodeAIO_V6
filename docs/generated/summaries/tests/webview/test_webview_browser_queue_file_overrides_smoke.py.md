@@ -3,9 +3,9 @@ file: tests/webview/test_webview_browser_queue_file_overrides_smoke.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 81dda3ec256470948859c6982fbf6e2ff12e75cbab8e2b14e366e871736d22bf
+sha256: d923e9409fcc1e7ea82ce338b37716f2b71d3145e3a1625996d926b2b3ea0014
 ---
 # `tests/webview/test_webview_browser_queue_file_overrides_smoke.py`
 

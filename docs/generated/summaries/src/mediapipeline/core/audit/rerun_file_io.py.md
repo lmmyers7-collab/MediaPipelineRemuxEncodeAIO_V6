@@ -3,9 +3,9 @@ file: src/mediapipeline/core/audit/rerun_file_io.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: audit
-last_modified: 2026-05-31
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 58873e0d4e2aa48d99190e6a0fbc31c5aa1c225217a44ff161827feeb5ad70ea
+sha256: 4a6aaf93dc089ca478cf12ee3721373da8c40015ff44a778e695b2c96760408d
 ---
 # `src/mediapipeline/core/audit/rerun_file_io.py`
 

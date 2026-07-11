@@ -192,6 +192,7 @@ const routeHintRules = [
   { pattern: /rerun-open-(?:csv-(?:button|folder-button)|latest-manifest-button)|open latest manifest/i, route: "/api/rerun/open" },
   { pattern: /rerun-open-(?:active-jobs|last-stderr|last-stdout|run-logs)-button/i, route: "/api/diagnostics/open" },
   { pattern: /rerun-stop-after-current-button|stop after current/i, route: "/api/rerun/control" },
+  { pattern: /rerun-network-start-dry-run-button|check network start/i, route: "/api/rerun/network/start-dry-run" },
   { pattern: /rerun-(start|dry-run|plan-only)-button|rerun start|start rerun|preview csv rerun|plan csv rerun/i, route: "/api/rerun/start" },
   { pattern: /queue-scan|scan sources/i, route: "/api/queue/scan" },
   { pattern: /queue-priority|priority/i, route: "/api/queue/priority" },

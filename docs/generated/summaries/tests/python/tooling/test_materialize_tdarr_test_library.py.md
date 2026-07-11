@@ -3,9 +3,9 @@ file: tests/python/tooling/test_materialize_tdarr_test_library.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-12
+last_modified: 2026-07-10
 last_reviewed: 2026-06-07
-sha256: 0987963b720eeb185a50735afc6ac496c98a36ec3cd57af06127ed831b775ee7
+sha256: 1e36293517f03239a8ea0b3014925e7dd08dbef7e6401e24500c32095cf230e0
 ---
 # `tests/python/tooling/test_materialize_tdarr_test_library.py`
 

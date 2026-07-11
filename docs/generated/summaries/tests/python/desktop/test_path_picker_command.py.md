@@ -3,9 +3,9 @@ file: tests/python/desktop/test_path_picker_command.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-03
+last_modified: 2026-07-10
 last_reviewed: 2026-06-28
-sha256: 7627212e684c704de1fb36a18ac66e9749dc6dccb0dc71000251759e605c38cc
+sha256: bb404bb9611d54799073b64e9730b5b7fdadf144b27ded29383897dcd2da0b8e
 ---
 # `tests/python/desktop/test_path_picker_command.py`
 

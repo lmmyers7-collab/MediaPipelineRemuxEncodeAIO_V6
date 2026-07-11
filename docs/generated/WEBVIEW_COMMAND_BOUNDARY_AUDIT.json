@@ -7,18 +7,18 @@
   "violations": [],
   "summary": {
     "scripts": 154,
-    "controls": 494,
+    "controls": 499,
     "route_usages": 104,
     "dynamic_api_posts": 1,
-    "route_contracts": 163,
+    "route_contracts": 166,
     "high_risk_route_usages": 51,
     "unclassified_high_risk_controls": 0,
     "controls_by_classification": {
       "backend-contract-dynamic-route": 4,
-      "backend-owned-route": 173,
+      "backend-owned-route": 175,
       "disabled-future-network-control": 5,
       "local-copy": 2,
-      "local-display-state": 71,
+      "local-display-state": 74,
       "local-form-staging": 3,
       "local-guided-setup": 8,
       "local-launch-intent-staging": 6,
@@ -2571,11 +2571,33 @@
       "page": "pending",
       "tag": "button",
       "id": "",
+      "text": "Total pending 0 manifest rows loaded",
+      "classification": "local-display-state",
+      "route": "",
+      "data_attrs": {
+        "data-pending-action-filter": "all"
+      }
+    },
+    {
+      "page": "pending",
+      "tag": "button",
+      "id": "",
       "text": "Blocked 0 do-not-drain evidence",
       "classification": "backend-owned-route",
       "route": "/api/pipeline/start",
       "data_attrs": {
         "data-pending-action-filter": "blocked"
+      }
+    },
+    {
+      "page": "pending",
+      "tag": "button",
+      "id": "",
+      "text": "Drained 0 latest summary rows",
+      "classification": "backend-owned-route",
+      "route": "/api/pipeline/start",
+      "data_attrs": {
+        "data-pending-action-filter": "drained"
       }
     },
     {
@@ -2593,7 +2615,29 @@
       "page": "pending",
       "tag": "button",
       "id": "",
-      "text": "Ready to drain 0 backend-ready looking",
+      "text": "Failed 0 error severity rows",
+      "classification": "local-display-state",
+      "route": "",
+      "data_attrs": {
+        "data-pending-action-filter": "failed"
+      }
+    },
+    {
+      "page": "pending",
+      "tag": "button",
+      "id": "",
+      "text": "Total size 0 B 0 payloads; 0 health signals",
+      "classification": "local-display-state",
+      "route": "",
+      "data_attrs": {
+        "data-pending-action-filter": "payloads"
+      }
+    },
+    {
+      "page": "pending",
+      "tag": "button",
+      "id": "",
+      "text": "Ready to drain 0 backend-ready rows",
       "classification": "backend-owned-route",
       "route": "/api/pipeline/start",
       "data_attrs": {
@@ -2604,7 +2648,7 @@
       "page": "pending",
       "tag": "button",
       "id": "",
-      "text": "Needs review 0 warning or read-first rows",
+      "text": "Needs review 0 read-first rows",
       "classification": "local-display-state",
       "route": "",
       "data_attrs": {
@@ -2653,7 +2697,7 @@
       "page": "pending",
       "tag": "button",
       "id": "pending-clear-filters-button",
-      "text": "Clear Pending Filters",
+      "text": "Clear Filters",
       "classification": "local-display-state",
       "route": "",
       "data_attrs": {}
@@ -3269,6 +3313,15 @@
       "text": "Inspect CSV",
       "classification": "backend-owned-route",
       "route": "/api/rerun/preview",
+      "data_attrs": {}
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "rerun-network-start-dry-run-button",
+      "text": "Check Network Start",
+      "classification": "backend-owned-route",
+      "route": "/api/rerun/network/start-dry-run",
       "data_attrs": {}
     },
     {
@@ -5137,7 +5190,7 @@
       "normalized_route": "/api/audit/export-rerun-csv",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 1160,
+      "line": 1207,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5153,7 +5206,7 @@
       "normalized_route": "/api/audit/ignore",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 1050,
+      "line": 1097,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5169,7 +5222,7 @@
       "normalized_route": "/api/audit/score-policy",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 1006,
+      "line": 1053,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5185,7 +5238,7 @@
       "normalized_route": "/api/audit/sources",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 696,
+      "line": 742,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5201,7 +5254,7 @@
       "normalized_route": "/api/audit/sources",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 729,
+      "line": 775,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5217,7 +5270,7 @@
       "normalized_route": "/api/audit/sources/scan",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 761,
+      "line": 807,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5233,7 +5286,7 @@
       "normalized_route": "/api/audit/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 881,
+      "line": 928,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5249,7 +5302,7 @@
       "normalized_route": "/api/audit/stop",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 962,
+      "line": 1009,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5281,7 +5334,7 @@
       "normalized_route": "/api/backend/shutdown",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/app.js",
-      "line": 474,
+      "line": 487,
       "script_owner": "App Shell",
       "allowed_owners": [
         "App Shell",
@@ -5702,7 +5755,7 @@
       "normalized_route": "/api/maintenance/archive-state-journals",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1216,
+      "line": 1231,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5898,7 +5951,7 @@
       "normalized_route": "/api/pending-publish/recovery-plan",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/pendingPublishView.recovery.js",
-      "line": 351,
+      "line": 358,
       "script_owner": "Pending Publish",
       "allowed_owners": [
         "Pending Publish"
@@ -5973,7 +6026,7 @@
       "normalized_route": "/api/pipeline/browse-file",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 959,
+      "line": 991,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5989,7 +6042,7 @@
       "normalized_route": "/api/pipeline/control",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 918,
+      "line": 947,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6005,7 +6058,7 @@
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1047,
+      "line": 1079,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6021,7 +6074,7 @@
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1145,
+      "line": 1160,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6217,7 +6270,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2266,
+      "line": 2274,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6232,7 +6285,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2291,
+      "line": 2299,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6247,7 +6300,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2356,
+      "line": 2364,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6262,7 +6315,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2553,
+      "line": 2561,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6277,7 +6330,7 @@
       "normalized_route": "/api/queue/scan",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 1784,
+      "line": 1788,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6292,7 +6345,7 @@
       "normalized_route": "/api/queue/strategy",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2991,
+      "line": 2999,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6307,7 +6360,7 @@
       "normalized_route": "/api/rename/apply",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 3387,
+      "line": 3398,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -6323,7 +6376,7 @@
       "normalized_route": "/api/rename/browse",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 1576,
+      "line": 1577,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -6339,7 +6392,7 @@
       "normalized_route": "/api/rename/browse",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 1752,
+      "line": 1753,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -6355,7 +6408,7 @@
       "normalized_route": "/api/rename/filter-cases",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 1362,
+      "line": 1363,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -6371,7 +6424,7 @@
       "normalized_route": "/api/rename/preview",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 2695,
+      "line": 2697,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -6387,7 +6440,7 @@
       "normalized_route": "/api/rename/undo",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 3421,
+      "line": 3432,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -6737,7 +6790,7 @@
       "normalized_route": "/api/ui-preferences",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/app.js",
-      "line": 1345,
+      "line": 1450,
       "script_owner": "App Shell",
       "allowed_owners": [
         "App Shell"
@@ -8092,7 +8145,8 @@
       "frontend_exposed": null,
       "network_lifecycle": false,
       "request_keys": [
-        "action"
+        "action",
+        "confirm_force_stop"
       ]
     },
     {
@@ -8268,6 +8322,7 @@
         "items",
         "level",
         "path",
+        "position",
         "reason"
       ]
     },
@@ -8319,6 +8374,7 @@
         "movie_year",
         "paths",
         "powershell_host",
+        "preview_fingerprint",
         "remove_terms",
         "remove_terms_text",
         "rename_sidecars",
@@ -8428,7 +8484,98 @@
       "network_lifecycle": false,
       "request_keys": [
         "action",
+        "confirm_pause",
         "confirm_stop"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/rerun/network-preview",
+      "effect": "read-only-preview",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "bucket_filter",
+        "bucket_filters",
+        "collision_policy",
+        "confirm_replace_final",
+        "confirm_source_overwrite",
+        "csv_path",
+        "destination_mode",
+        "enabled_only",
+        "execution_mode",
+        "first_n",
+        "issue_filter",
+        "issue_filters",
+        "original_mode",
+        "preview_limit",
+        "return_mode",
+        "scope",
+        "skip_blocked",
+        "skip_warning_rows",
+        "stage_mode",
+        "status_filters",
+        "window_size"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/rerun/network/start",
+      "effect": "network-state-write",
+      "owner": "",
+      "requires_confirmation": true,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "bucket_filters",
+        "collision_policy",
+        "confirm_replace_final",
+        "confirm_source_overwrite",
+        "confirm_start",
+        "csv_path",
+        "destination_mode",
+        "dry_run_fingerprint",
+        "enabled_only",
+        "execution_mode",
+        "first_n",
+        "issue_filters",
+        "minimum_worker_count",
+        "preview_limit",
+        "reason",
+        "scope",
+        "skip_blocked",
+        "skip_warning_rows",
+        "window_size"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/rerun/network/start-dry-run",
+      "effect": "none",
+      "owner": "",
+      "requires_confirmation": false,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "bucket_filters",
+        "collision_policy",
+        "confirm_replace_final",
+        "confirm_source_overwrite",
+        "csv_path",
+        "destination_mode",
+        "enabled_only",
+        "execution_mode",
+        "first_n",
+        "issue_filters",
+        "minimum_worker_count",
+        "preview_limit",
+        "reason",
+        "scope",
+        "skip_blocked",
+        "skip_warning_rows",
+        "window_size"
       ]
     },
     {
@@ -8795,7 +8942,8 @@
         "changes",
         "confirm_save",
         "library_profile_resets",
-        "remove_keys"
+        "remove_keys",
+        "review_confirmation"
       ]
     },
     {

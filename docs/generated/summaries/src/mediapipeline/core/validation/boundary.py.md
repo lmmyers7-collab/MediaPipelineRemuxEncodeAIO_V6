@@ -3,9 +3,9 @@ file: src/mediapipeline/core/validation/boundary.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: validation
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 86f8764c141ffca9731a7f6f90472e60306b89df1f06a228240406c9cd51433b
+sha256: 8edce0a27b75d43036e9b8b91584708df9d2e6a2b73a15a145c862ae02bd8b52
 ---
 # `src/mediapipeline/core/validation/boundary.py`
 

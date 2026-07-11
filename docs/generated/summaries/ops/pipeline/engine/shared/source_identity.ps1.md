@@ -3,9 +3,9 @@ file: ops/pipeline/engine/shared/source_identity.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shared
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 312d5911bddae154a1b972feb83588a3f75a1a5662615cb8c2c9fd188d8fc914
+sha256: 550f087699775fa515c4ec5e0df9ad70396f605370e58e2d9a47d689fb4c6191
 ---
 # `ops/pipeline/engine/shared/source_identity.ps1`
 

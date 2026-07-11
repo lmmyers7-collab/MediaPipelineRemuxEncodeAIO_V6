@@ -3,9 +3,9 @@ file: ops/scripts/release/Test-PrivateBetaDownloadedAssets.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-18
+last_modified: 2026-07-10
 last_reviewed: 2026-06-18
-sha256: 392ce7df954011dd68f4ed4d0ad1b5c0e195d1598bf5e48cd25038a8cdff332a
+sha256: bfd62b94119f691906bc204896231fe796e3bbbb2e4c0e1f1aaea1dc0f4b3da8
 ---
 # `ops/scripts/release/Test-PrivateBetaDownloadedAssets.ps1`
 

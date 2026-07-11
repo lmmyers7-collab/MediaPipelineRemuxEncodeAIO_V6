@@ -3,9 +3,9 @@ file: src/mediapipeline/core/final_library/promotion.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: final_library
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: b342b4af4bf060d8368dff35e45157aa3f9cb8a9592028abd7b302cffe6a79ef
+sha256: 3a7c9c708a71366d6b9ab8ba05aed007d60f1194f3d13394895364e94f05bef7
 ---
 # `src/mediapipeline/core/final_library/promotion.py`
 

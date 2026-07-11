@@ -3,9 +3,9 @@ file: src/mediapipeline/contracts/stage_decide.py
 pipeline_stage: decide
 token_priority: high
 owner_domain: contracts
-last_modified: 2026-06-05
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6e52a1e3dc08b599e9192dd962b13e1b5d105d02015671c647ce067bda745f09
+sha256: 994a395034cba31c57f65ec41abf26f56d7a0d4e941507aca59a4f0f7b7f6712
 ---
 # `src/mediapipeline/contracts/stage_decide.py`
 

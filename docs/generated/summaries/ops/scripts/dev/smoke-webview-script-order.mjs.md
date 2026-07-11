@@ -3,9 +3,9 @@ file: ops/scripts/dev/smoke-webview-script-order.mjs
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-05-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 37ca9ffe71ddc2177f0efc0affee5699c20b972d6d1c3a568772c399c8fa8a62
+sha256: b95fc88b462689acec9edb55446434c7eafd16e5631be4d8490e689296b59ef6
 ---
 # `ops/scripts/dev/smoke-webview-script-order.mjs`
 

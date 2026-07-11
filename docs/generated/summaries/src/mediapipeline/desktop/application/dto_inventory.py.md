@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/application/dto_inventory.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: application
-last_modified: 2026-06-26
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: a11f65f21d6d27a814327fc22769cb3dafa22810ac6a0679ac200aa605f992f2
+sha256: cd55cd47e2d8e19c5b0b42eeed1061fc4d74761042ecf8355f6aa3eb81ef5f4b
 ---
 # `src/mediapipeline/desktop/application/dto_inventory.py`
 

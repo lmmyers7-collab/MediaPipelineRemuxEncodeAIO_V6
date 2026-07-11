@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/settings_wizard_facade.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: a31b9329c0de93f157e29994a974ca32caf0694d33cc58c5aa8b796cbc949c76
+sha256: d9c938cd992275cc4f852acfeab1b829397c7095e6952a1e8faacf96eb9d1327
 ---
 # `src/mediapipeline/core/config/settings_wizard_facade.py`
 

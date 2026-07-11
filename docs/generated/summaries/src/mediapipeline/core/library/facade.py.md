@@ -3,9 +3,9 @@ file: src/mediapipeline/core/library/facade.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-07
-sha256: b6948836e39f59c14240de530c5bfa84a1c83256b851867dd2e12234fe2bf52a
+sha256: 9db42133d4e4b938d81dcb238298419466f29b5bc79b3adba87fde4ce2072cb7
 ---
 # `src/mediapipeline/core/library/facade.py`
 

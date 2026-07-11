@@ -3,9 +3,9 @@ file: ops/scripts/dev/check-github-audit-spine.ps1
 pipeline_stage: observability
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-01
+last_modified: 2026-07-10
 last_reviewed: 2026-06-26
-sha256: 1cdc03c429f04ec466abd2ce94f0cd768469db3b8ad3a9888296ef787a28cc02
+sha256: 17f50e2db0fbd3a630d49d62f06cc0a8865b676bf854358c49df7052956c0a7b
 ---
 # `ops/scripts/dev/check-github-audit-spine.ps1`
 

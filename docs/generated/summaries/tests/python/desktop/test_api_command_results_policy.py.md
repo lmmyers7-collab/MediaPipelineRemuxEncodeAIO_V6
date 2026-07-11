@@ -3,7 +3,7 @@ file: tests/python/desktop/test_api_command_results_policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
 sha256: c1142fbb926ee30f4db7a12faefa65d8deac35b6bfa7f14963b7edec16e4924a
 ---

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/metadata_parts/queue_fields.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 96abb5ebce15b625fe1db3bea49a983b1ebf996586ee9bd26e9a6b9e832195f5
+sha256: 459411b6eab45ba704e2a9f87d2f163208780b4d825c1c03fc2d453813c536fa
 ---
 # `src/mediapipeline/core/config/metadata_parts/queue_fields.py`
 

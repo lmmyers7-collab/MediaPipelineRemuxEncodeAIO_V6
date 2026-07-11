@@ -8,11 +8,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from mediapipeline.tools.dev.release_package_scope import release_package_omits_path
 from mediapipeline.tools.paths import find_repo_root
 
 
 REPO_ROOT = find_repo_root(Path(__file__))
 SCRIPT = REPO_ROOT / "ops" / "scripts" / "release" / "Test-PrivateBetaReleasePreflight.ps1"
+GITHUB_WORKFLOWS_OMITTED = release_package_omits_path(REPO_ROOT, ".github/workflows")
 
 
 def _powershell() -> str:
@@ -71,6 +73,10 @@ def _run_preflight(env: dict[str, str], config_path: Path) -> subprocess.Complet
 
 
 class PrivateBetaReleasePreflightTests(unittest.TestCase):
+    @unittest.skipIf(
+        GITHUB_WORKFLOWS_OMITTED,
+        "GitHub workflow metadata is intentionally omitted from release packages.",
+    )
     def test_preflight_passes_with_required_release_inputs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "tauri.beta.preflight.conf.json"

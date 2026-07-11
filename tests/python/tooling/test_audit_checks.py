@@ -7,10 +7,12 @@ import unittest
 from pathlib import Path
 
 from mediapipeline.tools.dev import audit_checks, ai_guardrail
+from mediapipeline.tools.dev.release_package_scope import release_package_omits_path
 from mediapipeline.tools.paths import find_repo_root
 
 
 REPO_ROOT = find_repo_root(Path(__file__))
+GITHUB_WORKFLOWS_OMITTED = release_package_omits_path(REPO_ROOT, ".github/workflows")
 
 
 class AuditCheckManifestTests(unittest.TestCase):
@@ -82,18 +84,25 @@ class AuditCheckManifestTests(unittest.TestCase):
         self.assertEqual(payload["suite"], "release-self-test")
         self.assertIn("checks", payload)
 
-    def test_surfaces_reference_manifest_backed_suites(self) -> None:
+    def test_local_surfaces_reference_manifest_backed_suites(self) -> None:
         precommit = (REPO_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
-        phase1 = (REPO_ROOT / ".github" / "workflows" / "phase1-drift.yml").read_text(encoding="utf-8")
-        deep = (REPO_ROOT / ".github" / "workflows" / "deep-audit.yml").read_text(encoding="utf-8")
         release_test = (REPO_ROOT / "ops" / "scripts" / "release" / "test.ps1").read_text(encoding="utf-8")
 
         self.assertIn("mediapipeline.tools.dev.audit_checks run precommit", precommit)
         self.assertIn("mediapipeline.tools.dev.check_python_lint", precommit)
-        self.assertIn("mediapipeline.tools.dev.audit_checks run phase1-generated", phase1)
-        self.assertIn("mediapipeline.tools.dev.audit_checks run deep-audit", deep)
         self.assertIn("mediapipeline.tools.dev.audit_checks emit release-self-test", release_test)
         self.assertNotIn("mediapipeline.tools.dev.refresh_summaries --check", precommit)
+
+    @unittest.skipIf(
+        GITHUB_WORKFLOWS_OMITTED,
+        "GitHub workflow metadata is intentionally omitted from release packages.",
+    )
+    def test_workflow_surfaces_reference_manifest_backed_suites(self) -> None:
+        phase1 = (REPO_ROOT / ".github" / "workflows" / "phase1-drift.yml").read_text(encoding="utf-8")
+        deep = (REPO_ROOT / ".github" / "workflows" / "deep-audit.yml").read_text(encoding="utf-8")
+
+        self.assertIn("mediapipeline.tools.dev.audit_checks run phase1-generated", phase1)
+        self.assertIn("mediapipeline.tools.dev.audit_checks run deep-audit", deep)
 
 
 if __name__ == "__main__":

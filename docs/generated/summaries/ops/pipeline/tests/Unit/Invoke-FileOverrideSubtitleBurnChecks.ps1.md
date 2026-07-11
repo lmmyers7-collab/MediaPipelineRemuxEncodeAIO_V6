@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-FileOverrideSubtitleBurnChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-09
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 9a861ff2768bd965bd4a8e755ed64dfdeb896999a027e27f8ddb71d4e515da4c
+sha256: 1c33c533ff25eec031757960c8f4d6341ad47167a5eecc27fdd32c3f9877d2ec
 ---
 # `ops/pipeline/tests/Unit/Invoke-FileOverrideSubtitleBurnChecks.ps1`
 

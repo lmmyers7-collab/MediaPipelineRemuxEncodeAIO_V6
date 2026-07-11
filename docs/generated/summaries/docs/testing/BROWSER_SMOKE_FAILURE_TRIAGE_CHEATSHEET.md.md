@@ -3,9 +3,9 @@ file: docs/testing/BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-03
-sha256: bd0ff39bfc4df7948cadc63cc43f20422b26d43d40c6ddc4f1e3823f4f19c5d2
+sha256: bb438d95b1405543d038c81428f91d6cc51a9e084562af93ae2829954d93f05f
 ---
 # `docs/testing/BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md`
 

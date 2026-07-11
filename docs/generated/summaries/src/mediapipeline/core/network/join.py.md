@@ -3,9 +3,9 @@ file: src/mediapipeline/core/network/join.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-14
-sha256: 7831bcb684b4c388d8e3e880f7df0f3f3e9a5f4c06dc513acf7d5ebda147bc38
+sha256: 835e5a730b958e7d07b36761844f1f009ce4f874cdfbf3320fcf0f385e06cec9
 ---
 # `src/mediapipeline/core/network/join.py`
 

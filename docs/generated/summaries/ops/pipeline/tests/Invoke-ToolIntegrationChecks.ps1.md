@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Invoke-ToolIntegrationChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-11
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 747d838a9396591670798ee6f3caf4af156d886e4871db259c936784d6f6bd86
+sha256: 86ed434c5e6978a45271bb87af27ad0c72df902c94a54e82808ec63ce9137fc4
 ---
 # `ops/pipeline/tests/Invoke-ToolIntegrationChecks.ps1`
 

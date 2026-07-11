@@ -2,7 +2,7 @@
 
 Companion to `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
 
-Total routes: 163 (53 read, 110 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+Total routes: 166 (53 read, 113 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
 
 ---
 
@@ -127,6 +127,7 @@ Returns backend-authored previews. No files, manifests, config, or queue state a
 | `POST /api/queue/file-overrides/folder-preview` | `read-only-preview` | Frontend cannot scan or approve folder rules independently | Backend uses bounded known-file/cached-track evidence only; no source folder scan or state write |
 | `POST /api/subtitle-qa/preview` | `read-only-preview` | Frontend cannot probe, convert, repair, or author subtitle QA evidence | Backend reads already-loaded Queue and Completed subtitle QA evidence only; no sidecar rewrite, publish, drain, or media touch |
 | `POST /api/rerun/preview` | `read-only-preview` | Frontend cannot parse CSV scope or approve executable rows independently | Backend parses the selected CSV, classifies blocked/warning rows, returns recent candidates and scoped counts, and writes no scoped CSV or media/process state |
+| `POST /api/rerun/network-preview` | `read-only-preview` | Frontend cannot model claims, mapping, or destination safety independently | Backend models future network CSV rerun rows, source mapping and handoff-root readiness, and destination-policy risk without creating handoff folders, writing network state, making claims, launching workers, mutating queue state, or touching media |
 | `POST /api/rerun/promote-dry-run` | `read-only-preview` | Frontend cannot decide review-output promotion safety independently | Backend computes dry-run evidence and a fingerprint for promoting an existing rerun review output into Pending Publish without moving files or writing manifests |
 
 ### failure-marker-write (medium risk, retry-blocker state)
@@ -148,7 +149,7 @@ Opens a file or folder in the OS shell. Backend resolves the path from its own s
 |---|---|---|---|
 | `POST /api/queue/open` | `shell-open` | Frontend cannot select the path directly | Allowed targets: `source_file`, `source_folder`, `source_root` |
 | `POST /api/completed/open` | `shell-open` | Frontend cannot select the path directly | Allowed targets: `output_file`, `output_folder`, `sidecar`, `source_folder` |
-| `POST /api/pending-publish/open` | `shell-open` | Frontend cannot select the path directly | Allowed targets: `local_file`, `manifest`, `destination_folder`, `source_folder` |
+| `POST /api/pending-publish/open` | `shell-open` | Frontend cannot select the path directly | Allowed targets: `play_local_file`, `local_file`, `manifest`, `destination_folder`, `source_folder` |
 | `POST /api/diagnostics/open` | `shell-open` | Frontend cannot select arbitrary files | `target` must be one of the diagnostics allowlist keys; see `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md` |
 | `POST /api/diagnostics/tdarr-matrix/evidence/open` | `shell-open` | Frontend cannot submit arbitrary paths | Backend resolves `run_id` + `finding_key` + allowlisted evidence `target` under the selected Tdarr Matrix run root |
 | `POST /api/failures/open` | `shell-open` | Frontend cannot select failure evidence paths directly | Backend resolves the current failure preview row and opens only allowed evidence targets under backend failure-evidence roots |
@@ -217,6 +218,7 @@ Returns backend-computed plans, diffs, validation results, or reload status. No 
 | `POST /api/network/coordinator/stop-dry-run` | `none` | Frontend cannot decide coordinator stop safety | Backend reports active-work, claim, provider, and state-preservation posture only |
 | `POST /api/network/worker/start-dry-run` | `none` | Frontend cannot claim work or validate path maps independently | Backend reports coordinator URL, path-map, pending-done, provider, and no-touch posture only |
 | `POST /api/network/worker/stop-dry-run` | `none` | Frontend cannot abort work or clean scratch independently | Backend reports worker stop and pending-done posture only |
+| `POST /api/rerun/network/start-dry-run` | `none` | Frontend cannot decide coordinator lifecycle, worker availability, or network rerun safety | Backend validates the coordinator, active-work and duplicate-batch guards, handoff-root and worker evidence, and planned state paths without writing network state, making claims, launching workers, mutating queue state, or touching media |
 
 ### repair/reconcile confirmed writes (medium risk, manifest or sidecar state only)
 
@@ -340,6 +342,14 @@ Initiates guarded backend lifecycle operations. Network lifecycle routes are pro
 | `POST /api/network/coordinator/stop` | `backend-lifecycle` | Frontend cannot force-release active claims or delete state | Requires `confirm_stop`; preserves `coordinator_inflight.json`, `worker_state.json`, and `cluster.log` |
 | `POST /api/network/worker/start` | `backend-lifecycle` | Frontend cannot start worker queue scanning or claim work directly | Requires `confirm_start`; worker lifecycle provider claims only coordinator-assigned work one file at a time |
 | `POST /api/network/worker/stop` | `backend-lifecycle` | Frontend cannot abort worker scratch cleanup directly | Requires `confirm_stop`; preserves pending done reports and worker state; abort remains a separate explicit command |
+
+### network-state-write (high risk, coordinator batch state only)
+
+The backend owns the network rerun state transition. The WebView submits a reviewed request and never creates batch state, claim records, handoff folders, or worker work.
+
+| Route | Mutation class | Frontend cannot own? | Key restriction |
+|---|---|---|---|
+| `POST /api/rerun/network/start` | `network-state-write` | Frontend cannot create batches, claims, worker work, or destination policy decisions | Requires a matching backend dry-run fingerprint and `confirm_start: true`; after a transient backend handoff-root probe, writes one coordinator-owned network rerun batch plus command-journal evidence, with no direct worker launch, normal queue mutation, Pending Publish/final output mutation, or source-media touch |
 
 ### process-launch (high risk)
 

@@ -3,9 +3,9 @@ file: ops/scripts/dev/verify-env.bat
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 31e81e416c136b1c6999ce0f55550b6cd218504267053b9211eb7e73b653ff45
+sha256: 4dd575aaf899837c08f43fd322e855e6a67af614833d081e6a59afb8099085db
 ---
 # `ops/scripts/dev/verify-env.bat`
 

@@ -3,9 +3,9 @@ file: tests/python/desktop/test_facade_process_pipeline_policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-09
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f32238bca42135f933adb9318e9b5e45a8271bfc9138b941a012da78c00f7dbb
+sha256: d41c545a4fd0cff8d3f65f2790295041cf44fe2e01d561983dd9ac2068d67948
 ---
 # `tests/python/desktop/test_facade_process_pipeline_policy.py`
 

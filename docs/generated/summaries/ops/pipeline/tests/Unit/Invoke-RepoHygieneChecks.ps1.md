@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-RepoHygieneChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 65d072e1eb1e17d071992fb91d5c60a69be31746b1bfc9bfb2c300bb262b7f64
+sha256: 38e08354c4b5160131dba19c818e07e8fae52c2d2f48b39232ec020f84a80151
 ---
 # `ops/pipeline/tests/Unit/Invoke-RepoHygieneChecks.ps1`
 

@@ -3,9 +3,9 @@ file: ops/pipeline/engine/process/encode_mux.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-24
+last_modified: 2026-07-10
 last_reviewed: 2026-06-24
-sha256: bfb973bffbc945dfe8de21b212d384f5fc4beba770e9fdcd4f74f91d13a17a6a
+sha256: 00fc565d16435234c4e0737f16330616aac50f9c3814034287dc783e26b99d24
 ---
 # `ops/pipeline/engine/process/encode_mux.ps1`
 

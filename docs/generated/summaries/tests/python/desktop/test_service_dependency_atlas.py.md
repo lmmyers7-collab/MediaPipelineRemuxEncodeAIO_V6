@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_dependency_atlas.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-07
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 0d542376b82575446bb0e4ed2bc9388f0ce2bd383a8777f6caa93104e4ac8a19
+sha256: f2450d9b4b649c7c5445bef72eed5c53148e92849bb8745fed7b65033d7369e8
 ---
 # `tests/python/desktop/test_service_dependency_atlas.py`
 

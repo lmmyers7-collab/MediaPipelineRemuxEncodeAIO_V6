@@ -3,9 +3,9 @@ file: ops/scripts/dev/bootstrap-github-audit-spine.ps1
 pipeline_stage: observability
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-25
+last_modified: 2026-07-10
 last_reviewed: 2026-06-26
-sha256: 4d0de3ba81c12d5d55fd9c53604912ccc319943cc7c300edcdb9148ab307920e
+sha256: fdcd4dada1b7bb8371d81fb2901514275708c1e7f2032e21bfb2a2abafac6710
 ---
 # `ops/scripts/dev/bootstrap-github-audit-spine.ps1`
 

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/orchestration/runner.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: orchestration
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 9323a6e9f5285af615ee42aedf7aef9f2caaa2f18e196fecc9b6b4b6ee20e013
+sha256: acfe96762ba9cd63bad3f6bdffbc94835cd83c5a38c5174ad1cbf5350a60ea1f
 ---
 # `src/mediapipeline/core/orchestration/runner.py`
 

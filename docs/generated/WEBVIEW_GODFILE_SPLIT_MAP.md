@@ -7,67 +7,67 @@ Candidate slices require at least **80** contiguous lines with gaps of **25** li
 
 ## `apps/desktop/webview/static/assets/app.js`
 
-- Lines: **1950** (1650 nonblank)
-- Top-level declarations: **169**
+- Lines: **2117** (1811 nonblank)
+- Top-level declarations: **175**
 - Namespace exports: -
 - Flat compatibility exports: **11**
 - API routes: `/api/backend/shutdown`, `/api/ui-preferences`
-- DOM IDs touched: **76**
+- DOM IDs touched: **73**
 - Event types: `DOMContentLoaded`, `beforeunload`, `change`, `click`, `focus`, `input`, `keydown`, `mediapipeline:backend-lifecycle`, `visibilitychange`
 
 ### Candidate Slices
 
 | Lines | Topic | Declarations | Outside local deps | API routes | Suggested file |
 |---:|---|---|---|---|---|
-| 752-1140 (389) | `app-refresh` | `refreshGet`, `refreshLiveRunTail`, `refreshAll`, `refreshCurrentOutputStatus`, `refreshAllNow` | `AUTOMATIC_OPTIONAL_GET_TIMEOUT_MS`, `AUTOMATIC_REFRESH_INTERVAL_MS`, `attachRefreshMetadata`, `bootstrap`, `lastCloseReadiness` (+25) | - | `apps/desktop/webview/static/assets/app.refresh.js` |
-| 1170-1477 (308) | `app-core` | `initSettingsTabNav`, `initDiagnosticsTabNav`, `initCompletedTabNav`, `initNavigation`, `renderSparkline`, `initLaunchEvidenceToggle`, `initCollapsibleSummaries` (+33) | `applySharedUiPreferenceRuntimeState`, `bootstrap`, `updatePagePanelEmptyStates` | `/api/ui-preferences` | `apps/desktop/webview/static/assets/app.core.js` |
-| 96-351 (256) | `app-core` | `renderTauriBackendLifecycleAlert`, `renderLaunchReadinessPanel`, `renderSnapshot`, `dashboardText`, `dashboardCount`, `dashboardBoolean`, `dashboardEventData` (+17) | `formatCloseReadiness`, `lastCloseReadiness`, `lastSchedule`, `lastSnapshot`, `lastStdoutTail` (+9) | - | `apps/desktop/webview/static/assets/app.core.js` |
-| 555-750 (196) | `app-core` | `renderExternalDependencyDigest`, `renderHomeNextQueue`, `renderDailyDriverReadiness`, `recordLocalUiDiagnostic`, `renderTelemetrySafely`, `renderControlReadiness`, `updatePagePanelEmptyStates` (+8) | `lastCloseReadiness`, `lastSnapshot`, `lastStdoutTail`, `renderHomePipelineState`, `renderTopbarActivity` (+1) | - | `apps/desktop/webview/static/assets/app.core.js` |
+| 874-1313 (440) | `app-refresh` | `refreshGet`, `refreshLiveRunTail`, `refreshAll`, `refreshCurrentOutputStatus`, `refreshAllNow` | `AUTOMATIC_OPTIONAL_GET_TIMEOUT_MS`, `AUTOMATIC_REFRESH_INTERVAL_MS`, `attachRefreshMetadata`, `bootstrap`, `lastCloseReadiness` (+25) | - | `apps/desktop/webview/static/assets/app.refresh.js` |
+| 96-407 (312) | `app-core` | `renderTauriBackendLifecycleAlert`, `renderLaunchReadinessPanel`, `renderSnapshot`, `dashboardCurrentWork`, `dashboardCurrentWorkDetail`, `renderDashboardCurrentWorkMetric`, `dashboardText` (+21) | `formatCloseReadiness`, `lastCloseReadiness`, `lastSchedule`, `lastSnapshot`, `lastStdoutTail` (+9) | - | `apps/desktop/webview/static/assets/app.core.js` |
+| 1343-1650 (308) | `app-core` | `initSettingsTabNav`, `initDiagnosticsTabNav`, `initCompletedTabNav`, `initNavigation`, `renderSparkline`, `initLaunchEvidenceToggle`, `initCollapsibleSummaries` (+33) | `applySharedUiPreferenceRuntimeState`, `bootstrap`, `updatePagePanelEmptyStates` | `/api/ui-preferences` | `apps/desktop/webview/static/assets/app.core.js` |
+| 611-872 (262) | `app-core` | `renderExternalDependencyDigest`, `renderHomeNextQueue`, `renderDailyDriverReadiness`, `recordLocalUiDiagnostic`, `renderTelemetrySafely`, `renderControlReadiness`, `updatePagePanelEmptyStates` (+10) | `dashboardCurrentWork`, `lastCloseReadiness`, `lastSnapshot`, `lastStdoutTail`, `renderHomePipelineState` (+2) | - | `apps/desktop/webview/static/assets/app.core.js` |
 
 ### Largest Declarations
 
 | Lines | Name | Topic | Local deps | Referenced by |
 |---:|---|---|---|---|
-| 820-1140 (321) | `refreshAllNow` | `app-refresh` | `AUTOMATIC_REFRESH_INTERVAL_MS`, `attachRefreshMetadata`, `bootstrap`, `lastCloseReadiness`, `lastQueue` (+30) | `refreshAll` |
-| 678-734 (57) | `renderCsvRerunHomeSummary` | `app-core` | `csvRerunActivityEvidence`, `csvRerunHomeIsActive`, `lastCloseReadiness`, `lastSnapshot`, `lastStdoutTail` (+3) | `refreshAllNow`, `refreshLiveRunTail` |
-| 1330-1385 (56) | `restoreSharedUiPreferences` | `app-core` | `UI_PREFERENCES_ROUTE`, `applySharedUiPreferenceRuntimeState`, `applySharedUiPreferenceStorage`, `collectSharedUiPreferences`, `currentUiPreferenceSurface` (+8) | `startSharedUiPreferenceRemoteRefresh` |
-| 104-150 (47) | `renderSnapshot` | `app-core` | `dashboardCount`, `lastCloseReadiness`, `lastSchedule`, `lastSnapshot`, `lastStdoutTail` (+9) | `refreshAllNow` |
-| 409-448 (40) | `requestBackendShutdown` | `app-lifecycle` | `appendBackendShutdownResult`, `backendLifecycleState`, `backendShutdownInFlight`, `lastCloseReadiness`, `lastSnapshot` (+2) | - |
-| 1257-1293 (37) | `persistSharedUiPreferencesNow` | `app-core` | `scheduleSharedUiPreferenceSync`, `sharedUiPreferencePayload`, `uiPreferenceApplyingRemote`, `uiPreferenceAwaitingRemoteEchoSerialized`, `uiPreferenceLastSerialized` (+4) | `restoreSharedUiPreferences`, `scheduleSharedUiPreferenceSync` |
-| 307-335 (29) | `renderCloseReadiness` | `app-core` | `formatCloseReadiness`, `lastCloseReadiness`, `lastSchedule`, `lastSnapshot`, `renderBackendLifecycle` (+2) | `refreshAllNow` |
-| 786-814 (29) | `refreshAll` | `app-refresh` | `mergeRefreshOptions`, `normalizeRefreshOptions`, `refreshAllNow`, `refreshInFlight`, `refreshQueued` (+3) | - |
-| 216-238 (23) | `renderDashboardIssueMetric` | `app-core` | `dashboardLatestStopRequestedOutcome` | `renderSnapshot` |
-| 606-627 (22) | `renderTelemetrySafely` | `app-core` | `recordLocalUiDiagnostic` | `refreshAllNow` |
-| 763-784 (22) | `refreshLiveRunTail` | `app-refresh` | `attachRefreshMetadata`, `lastCloseReadiness`, `lastQueue`, `lastSnapshot`, `lastStdoutTail` (+3) | `refreshAllNow` |
-| 1295-1314 (20) | `applySharedUiPreferenceStorage` | `app-core` | `collectSharedUiPreferences`, `isSharedUiPreferenceKey` | `restoreSharedUiPreferences` |
-| 1400-1419 (20) | `installSharedUiPreferenceStorageSync` | `app-core` | `isSharedUiPreferenceKey`, `scheduleSharedUiPreferenceSync`, `uiPreferenceSyncInstalled` | - |
-| 190-204 (15) | `dashboardProgressHasStopRequested` | `app-core` | `dashboardBoolean`, `dashboardText` | `dashboardLatestStopRequestedOutcome` |
-| 282-296 (15) | `dashboardQueueHasFreshEmptyProof` | `app-core` | `dashboardCount`, `dashboardHasOwn`, `dashboardQueueProgress`, `dashboardQueueRunnableCount`, `dashboardQueueScanStatus` (+1) | `renderHomePipelineQueueOutcome` |
-| 1464-1477 (14) | `applyEvidenceHiddenPreference` | `app-core` | `EVIDENCE_HIDDEN_STORAGE_KEY`, `updatePagePanelEmptyStates` | `initEvidenceToggle` |
-| 395-407 (13) | `rejectBackendShutdown` | `app-core` | `appendBackendShutdownResult`, `lastCloseReadiness`, `lastSnapshot`, `renderBackendLifecycle` | `requestBackendShutdown` |
-| 592-604 (13) | `recordLocalUiDiagnostic` | `app-core` | - | `renderTelemetrySafely` |
-| 1228-1239 (12) | `collectSharedUiPreferences` | `app-core` | `isSharedUiPreferenceKey` | `applySharedUiPreferenceStorage`, `restoreSharedUiPreferences`, `sharedUiPreferencePayload` |
-| 1387-1398 (12) | `startSharedUiPreferenceRemoteRefresh` | `app-core` | `currentUiPreferenceSurface`, `restoreSharedUiPreferences`, `uiPreferenceApplyingRemote`, `uiPreferenceRemoteRefreshTimer`, `uiPreferenceSyncInFlight` | - |
-| 1421-1432 (12) | `initAdvancedToggle` | `app-core` | `ADVANCED_MODE_STORAGE_KEY`, `applyAdvancedModePreference`, `readBooleanUiPreference` | - |
-| 1452-1462 (11) | `applyAdvancedModePreference` | `app-core` | `ADVANCED_MODE_STORAGE_KEY`, `syncDiagnosticAdvancedCallouts`, `updatePagePanelEmptyStates` | `initAdvancedToggle` |
-| 752-761 (10) | `refreshGet` | `app-refresh` | `AUTOMATIC_OPTIONAL_GET_TIMEOUT_MS`, `normalizeRefreshOptions` | `refreshAllNow`, `refreshLiveRunTail` |
-| 1434-1443 (10) | `initEvidenceToggle` | `app-core` | `EVIDENCE_HIDDEN_STORAGE_KEY`, `applyEvidenceHiddenPreference`, `readBooleanUiPreference` | - |
-| 206-214 (9) | `dashboardLatestStopRequestedOutcome` | `app-core` | `dashboardEventIsFailure`, `dashboardEventIsStopRequested`, `dashboardProgressHasStopRequested` | `renderDashboardIssueMetric` |
-| 1320-1328 (9) | `scheduleSharedUiPreferenceSync` | `app-core` | `persistSharedUiPreferencesNow`, `uiPreferenceApplyingRemote`, `uiPreferenceLocalDirty`, `uiPreferenceSyncInstalled`, `uiPreferenceSyncTimer` | `installSharedUiPreferenceStorageSync`, `persistSharedUiPreferencesNow` |
-| 181-188 (8) | `dashboardEventIsFailure` | `app-core` | `dashboardEventData`, `dashboardText` | `dashboardLatestStopRequestedOutcome` |
-| 298-305 (8) | `renderHomePipelineQueueOutcome` | `app-core` | `dashboardPipelineStateAllowsEmptyScan`, `dashboardQueueBlockingWarnings`, `dashboardQueueHasFreshEmptyProof`, `dashboardQueueScanRunning`, `dashboardQueueStale` (+2) | `refreshAllNow` |
-| 361-368 (8) | `backendLifecycleCommandLine` | `app-lifecycle` | - | `_backendLifecycleSliceCompatibility` |
-| 743-750 (8) | `mergeRefreshOptions` | `app-core` | `normalizeRefreshOptions` | `refreshAll` |
-| 161-167 (7) | `dashboardBoolean` | `app-core` | `dashboardText` | `dashboardProgressHasStopRequested` |
-| 173-179 (7) | `dashboardEventIsStopRequested` | `app-core` | `dashboardEventData`, `dashboardText` | `dashboardLatestStopRequestedOutcome` |
-| 381-387 (7) | `backendShutdownStatusMessage` | `app-core` | - | `appendBackendShutdownResult` |
-| 264-269 (6) | `dashboardQueueStale` | `app-core` | `dashboardQueueProgress`, `dashboardText` | `renderHomePipelineQueueOutcome` |
-| 374-379 (6) | `_backendLifecycleSliceCompatibility` | `app-core` | `backendLifecycleCommandEntries`, `backendLifecycleCommandLine`, `startupProgressLines`, `tauriBackendLifecycleLines` | - |
-| 671-676 (6) | `csvRerunHomeIsActive` | `app-core` | `csvRerunTailEvidence`, `lastCloseReadiness` | `renderCsvRerunHomeSummary` |
-| 736-741 (6) | `normalizeRefreshOptions` | `app-core` | - | `mergeRefreshOptions`, `refreshAll`, `refreshAllNow`, `refreshGet` |
-| 1250-1255 (6) | `sharedUiPreferencePayload` | `app-core` | `collectSharedUiPreferences`, `currentUiPreferenceSurface` | `persistSharedUiPreferencesNow` |
-| 1445-1450 (6) | `syncDiagnosticAdvancedCallouts` | `app-core` | - | `applyAdvancedModePreference` |
-| 276-280 (5) | `dashboardQueueRunnableCount` | `app-core` | `dashboardCount`, `dashboardHasOwn` | `dashboardQueueHasFreshEmptyProof` |
+| 940-1313 (374) | `refreshAllNow` | `app-refresh` | `AUTOMATIC_REFRESH_INTERVAL_MS`, `attachRefreshMetadata`, `bootstrap`, `lastCloseReadiness`, `lastQueue` (+31) | `refreshAll` |
+| 772-839 (68) | `renderCsvRerunHomeSummary` | `app-core` | `csvRerunActivityEvidence`, `csvRerunHomeIsActive`, `dashboardCurrentWork`, `lastCloseReadiness`, `lastSnapshot` (+5) | `renderLiveWorkHomeSummary` |
+| 1503-1558 (56) | `restoreSharedUiPreferences` | `app-core` | `UI_PREFERENCES_ROUTE`, `applySharedUiPreferenceRuntimeState`, `applySharedUiPreferenceStorage`, `collectSharedUiPreferences`, `currentUiPreferenceSurface` (+8) | `startSharedUiPreferenceRemoteRefresh` |
+| 104-150 (47) | `renderSnapshot` | `app-core` | `dashboardCount`, `lastCloseReadiness`, `lastSchedule`, `lastSnapshot`, `lastStdoutTail` (+10) | `refreshAllNow` |
+| 465-504 (40) | `requestBackendShutdown` | `app-lifecycle` | `appendBackendShutdownResult`, `backendLifecycleState`, `backendShutdownInFlight`, `lastCloseReadiness`, `lastSnapshot` (+2) | - |
+| 1430-1466 (37) | `persistSharedUiPreferencesNow` | `app-core` | `scheduleSharedUiPreferenceSync`, `sharedUiPreferencePayload`, `uiPreferenceApplyingRemote`, `uiPreferenceAwaitingRemoteEchoSerialized`, `uiPreferenceLastSerialized` (+4) | `restoreSharedUiPreferences`, `scheduleSharedUiPreferenceSync` |
+| 736-770 (35) | `renderCsvRerunHomeCompletionSummary` | `app-core` | `lastSnapshot`, `renderHomePipelineState`, `renderTopbarActivity` | `renderCsvRerunHomeSummary` |
+| 350-380 (31) | `renderCloseReadiness` | `app-core` | `formatCloseReadiness`, `lastCloseReadiness`, `lastSchedule`, `lastSnapshot`, `renderBackendLifecycle` (+2) | `refreshAllNow`, `renderCloseReadinessUnavailable` |
+| 906-934 (29) | `refreshAll` | `app-refresh` | `mergeRefreshOptions`, `normalizeRefreshOptions`, `refreshAllNow`, `refreshInFlight`, `refreshQueued` (+3) | - |
+| 169-193 (25) | `renderDashboardCurrentWorkMetric` | `app-core` | `dashboardCurrentWork`, `dashboardCurrentWorkDetail` | `renderSnapshot` |
+| 259-281 (23) | `renderDashboardIssueMetric` | `app-core` | `dashboardLatestStopRequestedOutcome` | `renderSnapshot` |
+| 662-683 (22) | `renderTelemetrySafely` | `app-core` | `recordLocalUiDiagnostic` | `refreshAllNow` |
+| 885-904 (20) | `refreshLiveRunTail` | `app-refresh` | `attachRefreshMetadata`, `lastCloseReadiness`, `lastQueue`, `lastSnapshot`, `lastStdoutTail` (+3) | `refreshAllNow` |
+| 1468-1487 (20) | `applySharedUiPreferenceStorage` | `app-core` | `collectSharedUiPreferences`, `isSharedUiPreferenceKey` | `restoreSharedUiPreferences` |
+| 1573-1592 (20) | `installSharedUiPreferenceStorageSync` | `app-core` | `isSharedUiPreferenceKey`, `scheduleSharedUiPreferenceSync`, `uiPreferenceSyncInstalled` | - |
+| 841-856 (16) | `renderLiveWorkHomeSummary` | `app-core` | `lastCloseReadiness`, `lastSnapshot`, `lastStdoutTail`, `renderCsvRerunHomeSummary` | `refreshAllNow`, `refreshLiveRunTail` |
+| 233-247 (15) | `dashboardProgressHasStopRequested` | `app-core` | `dashboardBoolean`, `dashboardText` | `dashboardLatestStopRequestedOutcome` |
+| 325-339 (15) | `dashboardQueueHasFreshEmptyProof` | `app-core` | `dashboardCount`, `dashboardHasOwn`, `dashboardQueueProgress`, `dashboardQueueRunnableCount`, `dashboardQueueScanStatus` (+1) | `renderHomePipelineQueueOutcome` |
+| 1637-1650 (14) | `applyEvidenceHiddenPreference` | `app-core` | `EVIDENCE_HIDDEN_STORAGE_KEY`, `updatePagePanelEmptyStates` | `initEvidenceToggle` |
+| 451-463 (13) | `rejectBackendShutdown` | `app-core` | `appendBackendShutdownResult`, `lastCloseReadiness`, `lastSnapshot`, `renderBackendLifecycle` | `requestBackendShutdown` |
+| 648-660 (13) | `recordLocalUiDiagnostic` | `app-core` | - | `renderTelemetrySafely` |
+| 156-167 (12) | `dashboardCurrentWorkDetail` | `app-core` | - | `renderDashboardCurrentWorkMetric` |
+| 1401-1412 (12) | `collectSharedUiPreferences` | `app-core` | `isSharedUiPreferenceKey` | `applySharedUiPreferenceStorage`, `restoreSharedUiPreferences`, `sharedUiPreferencePayload` |
+| 1560-1571 (12) | `startSharedUiPreferenceRemoteRefresh` | `app-core` | `currentUiPreferenceSurface`, `restoreSharedUiPreferences`, `uiPreferenceApplyingRemote`, `uiPreferenceRemoteRefreshTimer`, `uiPreferenceSyncInFlight` | - |
+| 1594-1605 (12) | `initAdvancedToggle` | `app-core` | `ADVANCED_MODE_STORAGE_KEY`, `applyAdvancedModePreference`, `readBooleanUiPreference` | - |
+| 1625-1635 (11) | `applyAdvancedModePreference` | `app-core` | `ADVANCED_MODE_STORAGE_KEY`, `syncDiagnosticAdvancedCallouts`, `updatePagePanelEmptyStates` | `initAdvancedToggle` |
+| 382-391 (10) | `renderCloseReadinessUnavailable` | `app-core` | `renderCloseReadiness` | `refreshAllNow` |
+| 874-883 (10) | `refreshGet` | `app-refresh` | `AUTOMATIC_OPTIONAL_GET_TIMEOUT_MS`, `normalizeRefreshOptions` | `refreshAllNow`, `refreshLiveRunTail` |
+| 1607-1616 (10) | `initEvidenceToggle` | `app-core` | `EVIDENCE_HIDDEN_STORAGE_KEY`, `applyEvidenceHiddenPreference`, `readBooleanUiPreference` | - |
+| 249-257 (9) | `dashboardLatestStopRequestedOutcome` | `app-core` | `dashboardEventIsFailure`, `dashboardEventIsStopRequested`, `dashboardProgressHasStopRequested` | `renderDashboardIssueMetric` |
+| 1493-1501 (9) | `scheduleSharedUiPreferenceSync` | `app-core` | `persistSharedUiPreferencesNow`, `uiPreferenceApplyingRemote`, `uiPreferenceLocalDirty`, `uiPreferenceSyncInstalled`, `uiPreferenceSyncTimer` | `installSharedUiPreferenceStorageSync`, `persistSharedUiPreferencesNow` |
+| 224-231 (8) | `dashboardEventIsFailure` | `app-core` | `dashboardEventData`, `dashboardText` | `dashboardLatestStopRequestedOutcome` |
+| 341-348 (8) | `renderHomePipelineQueueOutcome` | `app-core` | `dashboardPipelineStateAllowsEmptyScan`, `dashboardQueueBlockingWarnings`, `dashboardQueueHasFreshEmptyProof`, `dashboardQueueScanRunning`, `dashboardQueueStale` (+2) | `refreshAllNow` |
+| 417-424 (8) | `backendLifecycleCommandLine` | `app-lifecycle` | - | `_backendLifecycleSliceCompatibility` |
+| 727-734 (8) | `csvRerunHomeIsActive` | `app-core` | `csvRerunTailEvidence`, `lastCloseReadiness` | `renderCsvRerunHomeSummary` |
+| 865-872 (8) | `mergeRefreshOptions` | `app-core` | `normalizeRefreshOptions` | `refreshAll` |
+| 204-210 (7) | `dashboardBoolean` | `app-core` | `dashboardText` | `dashboardProgressHasStopRequested` |
+| 216-222 (7) | `dashboardEventIsStopRequested` | `app-core` | `dashboardEventData`, `dashboardText` | `dashboardLatestStopRequestedOutcome` |
+| 437-443 (7) | `backendShutdownStatusMessage` | `app-core` | - | `appendBackendShutdownResult` |
+| 307-312 (6) | `dashboardQueueStale` | `app-core` | `dashboardQueueProgress`, `dashboardText` | `renderHomePipelineQueueOutcome` |
 
 ## `apps/desktop/webview/static/assets/settingsView.js`
 

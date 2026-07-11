@@ -337,7 +337,7 @@ class ApplicationFacadeWebStaticPendingPublishTests(unittest.TestCase):
                 "Mutation guardrail: read-only evidence; backend routes own pending-publish changes.",
                 "function pendingDrainGuardState",
                 "function renderPendingDrainGuard",
-                "Drain Parked Outputs blocked by WebView evidence",
+                "WebView evidence advises against draining:",
                 "Pending table filter:",
                 "local filters do not narrow publish scope",
                 "The backend will still perform authoritative validation before moving files. Continue?",

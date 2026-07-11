@@ -3,9 +3,9 @@ file: src/mediapipeline/core/metrics/sources.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: metrics
-last_modified: 2026-07-09
+last_modified: 2026-07-10
 last_reviewed: 2026-06-05
-sha256: d67431ae6886e9f59b1caf6347d5587faabedfc46d2f1ef21b23b148fc958fe2
+sha256: b46c775358897f06d72ce1b874759b4ec955b05bea1550c4163bb781109f1237
 ---
 # `src/mediapipeline/core/metrics/sources.py`
 

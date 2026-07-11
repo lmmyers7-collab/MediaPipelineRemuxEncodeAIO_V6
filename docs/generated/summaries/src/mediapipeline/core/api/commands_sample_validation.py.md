@@ -3,9 +3,9 @@ file: src/mediapipeline/core/api/commands_sample_validation.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-05-28
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 3715db96952a4571611abf3cd7791e22a666cb07644f091b2e303835c62b9967
+sha256: 58662cf49b3e64b06cd7f79e2cbc21d394502fe43119731208bf37a46e44ebea
 ---
 # `src/mediapipeline/core/api/commands_sample_validation.py`
 

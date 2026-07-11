@@ -3,9 +3,9 @@ file: src/mediapipeline/core/diagnostics/state_summary.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: diagnostics
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 71b115694c3c593aab0d282de001a6f127f74a47a37feb54c5e7ef9021a5788b
+sha256: 08c176f5e0a3d1beecced7bfcc155d4703c8793d0e3c5193cd48d3652c700888
 ---
 # `src/mediapipeline/core/diagnostics/state_summary.py`
 

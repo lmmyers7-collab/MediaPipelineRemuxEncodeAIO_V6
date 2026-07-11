@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-EncodeSizeGuardInspectionChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-19
+last_modified: 2026-07-10
 last_reviewed: 2026-06-15
-sha256: 07e98637bdc38d2597b79ac47aaf862f4fa767a06838251f08b2abd240e3ba1a
+sha256: 435e48fca8af61502ee18e94b8bc0dee39a8eb7a2a50211baae8fc638655f1ce
 ---
 # `ops/pipeline/tests/Unit/Invoke-EncodeSizeGuardInspectionChecks.ps1`
 

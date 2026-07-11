@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 
 from mediapipeline.tools.dev.release_package_scope import (
     is_release_excluded_path,
+    release_package_omits_path,
     release_excluded_prefixes,
 )
 
@@ -99,6 +100,27 @@ class ReleasePackageScopeTests(unittest.TestCase):
 
     def test_is_release_excluded_path_empty_prefixes_never_matches(self) -> None:
         self.assertFalse(is_release_excluded_path("tests/python/desktop/test_x.py", ()))
+
+    def test_release_package_omits_path_requires_valid_manifest_and_missing_excluded_path(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.assertFalse(release_package_omits_path(root, ".github/workflows"))
+
+            (root / "release_manifest.json").write_text(
+                json.dumps({"schema_version": "not-a-release-package", "summary": {}}),
+                encoding="utf-8",
+            )
+            self.assertFalse(release_package_omits_path(root, ".github/workflows"))
+
+            (root / "release_manifest.json").write_text(
+                json.dumps({"schema_version": "mediapipeline_release_manifest.v1", "summary": {}}),
+                encoding="utf-8",
+            )
+            self.assertTrue(release_package_omits_path(root, ".github/workflows"))
+            self.assertFalse(release_package_omits_path(root, "src/mediapipeline"))
+
+            (root / ".github" / "workflows").mkdir(parents=True)
+            self.assertFalse(release_package_omits_path(root, ".github/workflows"))
 
 
 if __name__ == "__main__":

@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/config_keys.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: c0577c2b0dadeecc7d7b3c3f2e30fea768f5722c515af5b8dd9a50ddec9ce48f
+sha256: 140729d1eed24bd6b2abae816cbe219d1d32924ac5079f19bbaa002ee7f545bd
 ---
 # `src/mediapipeline/desktop/config_keys.py`
 

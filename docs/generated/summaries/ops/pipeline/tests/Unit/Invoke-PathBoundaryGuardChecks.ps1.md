@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-09
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 4c6a1a57f5256d42e38bf2cdfc99801f574b5ebe992892620126ec27161125ca
+sha256: 7b47905b2751792557fbe027b37fda1a411530ee7b0ab4573f2b3a1d73c577f0
 ---
 # `ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1`
 

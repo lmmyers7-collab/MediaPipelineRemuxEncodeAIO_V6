@@ -3,9 +3,9 @@ file: src/mediapipeline/core/audit/sources.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: audit
-last_modified: 2026-07-08
+last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: 9d3a5e6ff3eb45e3485acb37373e5880daff5a4210c1e4501706c7e8f2b90f93
+sha256: 6e68982505be9f3b4716238d959a85a17862d7ac31b3e27cb5c56d60605625b1
 ---
 # `src/mediapipeline/core/audit/sources.py`
 

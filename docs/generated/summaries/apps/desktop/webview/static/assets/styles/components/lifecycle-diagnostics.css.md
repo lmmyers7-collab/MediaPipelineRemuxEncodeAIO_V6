@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/styles/components/lifecycle-diagnostics
 pipeline_stage: observability
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-26
+last_modified: 2026-07-10
 last_reviewed: 2026-06-25
-sha256: 47073e961755aba41ad8fa5627577dc4ffd38c8379dd63834d735dbf1c8d1a47
+sha256: c1fb3491e8d364ba0a4f34acce64e09e4f00013d9c5081e01e49ac95be1f87c6
 ---
 # `apps/desktop/webview/static/assets/styles/components/lifecycle-diagnostics.css`
 

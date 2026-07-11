@@ -3,9 +3,9 @@ file: ops/pipeline/engine/naming/rename_overrides.ps1
 pipeline_stage: rename
 token_priority: medium
 owner_domain: naming
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: efc0f37da6444b2385b9ce59278340e99f114a02ef5d9a64db136ef3e9fb5451
+sha256: d9824f080228180ef5fcb46fa502c4a336de11f6b35001f9b353958c08513c7e
 ---
 # `ops/pipeline/engine/naming/rename_overrides.ps1`
 

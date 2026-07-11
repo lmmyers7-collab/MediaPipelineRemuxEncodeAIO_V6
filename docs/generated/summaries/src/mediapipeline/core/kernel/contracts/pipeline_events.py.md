@@ -3,9 +3,9 @@ file: src/mediapipeline/core/kernel/contracts/pipeline_events.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: kernel
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 54c8d2cfe99f1ed5fd58401f4d38ba1f1d1628ef5594ebcdaea0a7b729204a4b
+sha256: c0c0c08c499cd4ac2bbc4dae817c6b9d49a48506938942b59df3d5eac162e6d8
 ---
 # `src/mediapipeline/core/kernel/contracts/pipeline_events.py`
 

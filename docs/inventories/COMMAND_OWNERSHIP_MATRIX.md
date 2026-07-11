@@ -93,7 +93,7 @@ or artifact root directories.
 |---|---|---|---|---|
 | `POST /api/queue/open` | Queue | `queueView.js` | `shell-open` | `row_key` plus `target`; allowed targets: `source_file`, `source_folder`, `source_root` |
 | `POST /api/completed/open` | Completed | `completedView.js` | `shell-open` | `row_key` plus `target`; allowed targets: `output_file`, `play_output_file`, `output_folder`, `sidecar`, `source_folder` |
-| `POST /api/pending-publish/open` | Pending Publish | `pendingPublishView.diagnostics.js` | `shell-open` | `row_key` plus `target`; allowed targets: `local_file`, `manifest`, `destination_folder`, `source_folder` |
+| `POST /api/pending-publish/open` | Pending Publish | `pendingPublishView.diagnostics.js` | `shell-open` | `row_key` plus `target`; allowed targets: `play_local_file`, `local_file`, `manifest`, `destination_folder`, `source_folder` |
 | `POST /api/pending-publish/recovery-plan` | Pending Publish | `pendingPublishView.recovery.js` | `none` | `scope`: `all` or `selected`; backend-authored dry-run only |
 
 Backend resolves actual filesystem paths from state. The frontend submits row

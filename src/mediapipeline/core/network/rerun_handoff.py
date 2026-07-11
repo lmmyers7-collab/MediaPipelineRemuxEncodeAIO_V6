@@ -12,7 +12,6 @@ from typing import Any
 
 from mediapipeline.core.config.library_profiles import library_profiles_from_config
 from mediapipeline.core.kernel.config_keys import (
-    KEY_LIBRARY_PROFILES,
     KEY_LOCAL_BASE,
     KEY_NETWORK_RERUN_HANDOFF_ROOT,
     KEY_OUTSOURCE,

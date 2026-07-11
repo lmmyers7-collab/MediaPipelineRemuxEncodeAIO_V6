@@ -3,9 +3,9 @@ file: src/mediapipeline/core/library/route_map.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-07
+last_modified: 2026-07-10
 last_reviewed: 2026-06-07
-sha256: e908e0407169890aa5cf6692af4065031842ecee95f7bab0e3e90d27e62dec4e
+sha256: 9e3ea472339c58288c2c828181f6c943eb6608b44cc4e8de71aff2086df32c5d
 ---
 # `src/mediapipeline/core/library/route_map.py`
 

@@ -3,9 +3,9 @@ file: ops/scripts/release/Test-PrivateBetaReleaseArtifact.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-17
+last_modified: 2026-07-10
 last_reviewed: 2026-06-17
-sha256: ebeb849d3c6d59cd3bcc18aa2c5bfb55985072ddac3badc72723f38d3c4d80a1
+sha256: ca602f07741d623184857a96b4b701eb45e05ddefa83e6af73c0c389207dba04
 ---
 # `ops/scripts/release/Test-PrivateBetaReleaseArtifact.ps1`
 

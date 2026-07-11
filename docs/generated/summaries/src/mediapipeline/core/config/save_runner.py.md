@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/save_runner.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 25a365c273d152a38c3963d94fbfdd710617aed08ffe6b27c0639f73332f51ae
+sha256: be4e2ae9e7073403fb13e4ade37bc6149dd3909d9f378a300701f4a504da3a4f
 ---
 # `src/mediapipeline/core/config/save_runner.py`
 

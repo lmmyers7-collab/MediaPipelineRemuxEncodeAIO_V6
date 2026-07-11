@@ -3,9 +3,9 @@ file: ops/pipeline/engine/process/encode_orchestrator.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-24
+last_modified: 2026-07-10
 last_reviewed: 2026-06-24
-sha256: 06f389a60e7752d5d348c5c4e149d923d019c4b252e02fef130040aaa1d9846b
+sha256: 15904a8a80d688a86d04b79a193ae63f8d7ff9cb2010efe83184aba239d76289
 ---
 # `ops/pipeline/engine/process/encode_orchestrator.ps1`
 

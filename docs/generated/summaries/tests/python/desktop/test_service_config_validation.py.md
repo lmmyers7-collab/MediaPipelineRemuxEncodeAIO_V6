@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_config_validation.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-05
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 3cd7535f84bf7a4c4786c01fe9307e6315b1328b2e9dc7e1a4d9e6ccdd082a6b
+sha256: 427a27abb7ebd14ec44177233281cc31ab61c6bb5c4f3c947111d2f8eb959528
 ---
 # `tests/python/desktop/test_service_config_validation.py`
 

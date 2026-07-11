@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_folder_policy_contracts.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-12
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 71db6c501a9068129201f7efdf4e697fc95169a12a914de9b1fd016c5a03bdd0
+sha256: f8981b002e10334dd422dc9c8e913729adab80c7a497b5e5e188d976351fa40f
 ---
 # `tests/python/desktop/test_service_folder_policy_contracts.py`
 

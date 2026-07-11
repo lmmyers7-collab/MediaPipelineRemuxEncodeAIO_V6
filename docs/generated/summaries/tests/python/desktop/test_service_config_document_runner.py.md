@@ -3,7 +3,7 @@ file: tests/python/desktop/test_service_config_document_runner.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
 sha256: a128d2fce2fefe786346d0ec25f8f08a1f5059b670ed6ca80dd9d46de3d47d17
 ---

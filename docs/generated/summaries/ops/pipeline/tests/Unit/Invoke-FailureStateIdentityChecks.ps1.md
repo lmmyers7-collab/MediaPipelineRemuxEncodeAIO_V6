@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-FailureStateIdentityChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-12
+last_modified: 2026-07-10
 last_reviewed: 2026-06-12
-sha256: 3a9e94a2ad8d0bbe2f6fa3bbe9546f2e8974942ec16c2d6e3446061ac0e597d2
+sha256: 1bbe4afe75c95fd43ede013deaa0d35c0bc830ab7dcf215b215c441ede4a1a45
 ---
 # `ops/pipeline/tests/Unit/Invoke-FailureStateIdentityChecks.ps1`
 

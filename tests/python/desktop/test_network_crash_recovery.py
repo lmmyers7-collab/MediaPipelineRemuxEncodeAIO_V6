@@ -263,7 +263,7 @@ class NetworkCrashRecoveryTests(unittest.TestCase):
                 self.assertTrue(path.exists())
                 self.assertEqual(load_worker_state(path)["job_id"], "job-1")
 
-    def test_crash_recover_preserves_unreadable_state_and_does_not_post_done(self) -> None:
+    def test_crash_recover_quarantines_unreadable_state_and_does_not_post_done(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "worker_state.json"
             path.write_text("{not-json", encoding="utf-8")
@@ -279,11 +279,12 @@ class NetworkCrashRecoveryTests(unittest.TestCase):
                 WorkerDispatcher._crash_recover(worker)
 
             self.assertEqual(clears, [])
-            self.assertTrue(path.exists())
-            self.assertEqual(path.read_text(encoding="utf-8"), "{not-json")
-            self.assertIn("Expecting property name", worker._worker_state_startup_error)
+            self.assertFalse(path.exists())
+            quarantined = list((path.parent / "worker_state_review").glob("worker_state.json.*.corrupt.json"))
+            self.assertEqual(len(quarantined), 1)
+            self.assertEqual(quarantined[0].read_text(encoding="utf-8"), "{not-json")
             self.assertIn("worker_state.json unreadable", "\n".join(logs.output))
-            self.assertIn("preserving and holding new claims", "\n".join(logs.output))
+            self.assertIn("was quarantined; claims may resume", "\n".join(logs.output))
 
     def test_crash_recover_logs_malformed_pending_done_before_crash_failed_fallback(self) -> None:
         with tempfile.TemporaryDirectory() as td:

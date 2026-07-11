@@ -3,9 +3,9 @@ file: src/mediapipeline/core/queue/priority_markers.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 501d87c4b0d3a7b66a6e7ec89fa4fc05b5ac68b3bf412efd8ab1d1760bea8ab5
+sha256: 0802ea31c569ea89b8f9b1328f67690f8f16973fc2d52a1677a8c4f50a5e5e7d
 ---
 # `src/mediapipeline/core/queue/priority_markers.py`
 

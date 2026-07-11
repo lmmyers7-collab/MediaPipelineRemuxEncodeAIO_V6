@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/launch_runner.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-07-03
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ca7d39a5daf497d1fea30582e99a5340ecd96381c4f4cd10cd3792e9fff90bcf
+sha256: 3e35d7b2398d401c01e330d3426ab877047c97fc35d9f4cb224c020e99c788ef
 ---
 # `src/mediapipeline/core/processes/launch_runner.py`
 

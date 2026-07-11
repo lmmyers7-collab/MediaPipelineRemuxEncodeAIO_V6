@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.j
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-19
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ac9e26598ff9852dd118224881ed6812b8195e22841317b998fe7dc3b71ff510
+sha256: 3e008ad183bd7b1a95ca63abebb398296337ee89b7fb7b748ffdb6cd14d1797b
 ---
 # `apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.js`
 

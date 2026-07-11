@@ -3,9 +3,9 @@ file: ops/scripts/release/Test-PrivateBetaInstalledLayout.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-18
+last_modified: 2026-07-10
 last_reviewed: 2026-06-18
-sha256: edea36a263813c396595c75b88dcb29ccf18188fcf4d33c50755be83f9930c7c
+sha256: c901c853bc88dd25f56c1b153c3606df9fd6966b8e1ee7e0a85b061397f8709c
 ---
 # `ops/scripts/release/Test-PrivateBetaInstalledLayout.ps1`
 

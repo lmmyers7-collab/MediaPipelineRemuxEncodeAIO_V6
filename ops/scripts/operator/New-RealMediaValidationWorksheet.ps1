@@ -302,7 +302,7 @@ function Set-TemplateLineValue {
 
     $escapedField = [regex]::Escape($Field)
     $valueText = ConvertTo-MarkdownCell $Value
-    return [regex]::Replace($Text, "(?m)^\| $escapedField \|.*\|$", "| $Field | $valueText |", 1)
+    return [regex]::Replace($Text, "(?m)^\| $escapedField \|.*\|(?=\r?$)", "| $Field | $valueText |", 1)
 }
 
 function Set-SampleBatchTable {

@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/contracts/process_result.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 52ea3f4248d78c6b55856289492e6a8b08bb782dd21a9df00a6b25d933a1ce25
+sha256: 3ac921c2172d70fee75d7c7abc340765ba1cb437b37a66e1a454a9bd8c84277e
 ---
 # `src/mediapipeline/desktop/contracts/process_result.py`
 

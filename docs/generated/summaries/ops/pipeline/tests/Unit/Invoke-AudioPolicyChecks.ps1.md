@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-AudioPolicyChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-12
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 1de1cd9e292979468f5793438cb6aa6bfc98ec4bde19e4d3e59db11d2041c788
+sha256: 25a09d7bba780c1c1fb4e0829bbd31d7485c13d39232f6e1c33087697db67844
 ---
 # `ops/pipeline/tests/Unit/Invoke-AudioPolicyChecks.ps1`
 

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/completed/review/investigationFilters.j
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-07
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 9cc8c053d311c96c441a1d4f9e43245f15135ba130dc2765c39563212f8da642
+sha256: 77dd9cd201a1abbc8328f5a3b6ce2f91313fd4ecc72e5d7b1f1ef4fb16ae3a63
 ---
 # `apps/desktop/webview/static/assets/completed/review/investigationFilters.js`
 

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/app/refresh.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-26
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: b7fa7eb640126686fa4d03de7b04dee37787b03aa32e0d3afe42b60ae1030605
+sha256: 27c014445b4592797a7cf9b812e7cd6b83cb7477db4bb65a1adaa0f4d7ac4e9b
 ---
 # `apps/desktop/webview/static/assets/app/refresh.js`
 

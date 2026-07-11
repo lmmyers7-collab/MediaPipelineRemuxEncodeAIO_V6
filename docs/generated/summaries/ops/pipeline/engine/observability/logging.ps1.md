@@ -3,9 +3,9 @@ file: ops/pipeline/engine/observability/logging.ps1
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-06-30
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 74898a3136d5ab7f3560299244651ed42a8325bffd1d8b19603920a5f397de23
+sha256: a6e91ecfad86c28310f1081b0fceee94b8f4c5a599fb6ea592739c4e668d8553
 ---
 # `ops/pipeline/engine/observability/logging.ps1`
 

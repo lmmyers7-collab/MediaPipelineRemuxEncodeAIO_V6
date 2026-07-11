@@ -3,9 +3,9 @@ file: ops/pipeline/engine/publish/pending_drain_transaction.ps1
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
-last_modified: 2026-06-10
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 53fd18f0824b355bd4339e7b7b1a3f2f0faf0870a24d46d4d47f8c15c4404f52
+sha256: d0b2c0eb9e48eaca213134efe3364b30afbf48f3bb5611fa2d4add1ee8a4f12b
 ---
 # `ops/pipeline/engine/publish/pending_drain_transaction.ps1`
 

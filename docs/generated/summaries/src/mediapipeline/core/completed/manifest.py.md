@@ -3,9 +3,9 @@ file: src/mediapipeline/core/completed/manifest.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: completed
-last_modified: 2026-07-09
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 4c47c8d24e51a73f081ac85eb0f67deae94f0eabda5ce0e412152e3f49f3726c
+sha256: b068368cd15114f24d93ab0e94158e59e54ff45fad0ddf163a09f6f505d808fa
 ---
 # `src/mediapipeline/core/completed/manifest.py`
 

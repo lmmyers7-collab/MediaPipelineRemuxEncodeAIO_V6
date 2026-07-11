@@ -3,9 +3,9 @@ file: src/mediapipeline/core/audit/ignore_manifest.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: audit
-last_modified: 2026-07-07
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 92456706d9a8d3a7199d19ad47a8f95ac4363b23023cd16d2d9134e6f0a96b2d
+sha256: f44ea6109984b86aec10f45ed39c7b4082bf842fcd3c0992b61ac899a8027ca0
 ---
 # `src/mediapipeline/core/audit/ignore_manifest.py`
 

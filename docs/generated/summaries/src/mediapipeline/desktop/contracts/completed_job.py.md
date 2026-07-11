@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/contracts/completed_job.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 1c3dc2c461fdc263037f554f541c74d2a39323363badc33e0ab0659d596d12c7
+sha256: 492c5412d235088038538119c1b4a645ffc47d7309b30776b10f2468718300c9
 ---
 # `src/mediapipeline/desktop/contracts/completed_job.py`
 

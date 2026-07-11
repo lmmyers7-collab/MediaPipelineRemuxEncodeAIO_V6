@@ -3,7 +3,7 @@ file: src/mediapipeline/core/sample_validation/summary.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: sample_validation
-last_modified: 2026-05-28
+last_modified: 2026-07-10
 last_reviewed: 2026-06-29
 sha256: c5a3954df3e405fd297ee518624aa840d8339b50a57f559b3523b0465c51f9b7
 ---

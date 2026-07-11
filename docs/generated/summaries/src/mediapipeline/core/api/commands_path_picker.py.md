@@ -3,9 +3,9 @@ file: src/mediapipeline/core/api/commands_path_picker.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-07-03
+last_modified: 2026-07-10
 last_reviewed: 2026-06-28
-sha256: 5fe0a7ffd14a28bf96fe6543d370cd2f13adeb0ef4cf471f9739e174eb6e2b31
+sha256: ea97fe5a68ee61afb3b16de4a95e335c8b9d1ebadc191d3bd325cc44a133c798
 ---
 # `src/mediapipeline/core/api/commands_path_picker.py`
 

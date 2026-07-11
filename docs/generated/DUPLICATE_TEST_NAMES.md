@@ -7,7 +7,7 @@ This report groups exact bare Python test function/method names that appear in m
 ## Summary
 
 - Test roots: `tests/python`, `tests/webview`
-- Python test definitions scanned: **2940**
+- Python test definitions scanned: **3075**
 - Duplicate bare names across files: **9**
 
 ## Duplicate Names
@@ -17,27 +17,27 @@ This report groups exact bare Python test function/method names that appear in m
 | File | Qualname | Line |
 |---|---|---:|
 | `tests/python/desktop/test_service_config_path_warnings.py` | `ServiceConfigPathWarningTests.test_config_path_overlap_warning_reports_same_source_roots` | 32 |
-| `tests/python/desktop/test_service_config_validation.py` | `ServiceConfigValidationTests.test_config_path_overlap_warning_reports_same_source_roots` | 345 |
+| `tests/python/desktop/test_service_config_validation.py` | `ServiceConfigValidationTests.test_config_path_overlap_warning_reports_same_source_roots` | 398 |
 
 ### `test_empty_preview_fields_keep_operator_warning`
 
 | File | Qualname | Line |
 |---|---|---:|
-| `tests/python/desktop/test_facade_audit_policy.py` | `AuditFacadePolicyTests.test_empty_preview_fields_keep_operator_warning` | 120 |
-| `tests/python/desktop/test_facade_completed_policy.py` | `CompletedFacadePolicyTests.test_empty_preview_fields_keep_operator_warning` | 508 |
+| `tests/python/desktop/test_facade_audit_policy.py` | `AuditFacadePolicyTests.test_empty_preview_fields_keep_operator_warning` | 246 |
+| `tests/python/desktop/test_facade_completed_policy.py` | `CompletedFacadePolicyTests.test_empty_preview_fields_keep_operator_warning` | 577 |
 
 ### `test_format_active_job_summary_reports_invalid_current_contract`
 
 | File | Qualname | Line |
 |---|---|---:|
 | `tests/python/desktop/test_service_status_active_jobs.py` | `StatusActiveJobsHelperTests.test_format_active_job_summary_reports_invalid_current_contract` | 117 |
-| `tests/python/desktop/test_status_service.py` | `StatusServiceContractTests.test_format_active_job_summary_reports_invalid_current_contract` | 150 |
+| `tests/python/desktop/test_status_service.py` | `StatusServiceContractTests.test_format_active_job_summary_reports_invalid_current_contract` | 154 |
 
 ### `test_format_bytes_compact_uses_existing_units`
 
 | File | Qualname | Line |
 |---|---|---:|
-| `tests/python/desktop/test_facade_completed_policy.py` | `CompletedFacadePolicyTests.test_format_bytes_compact_uses_existing_units` | 90 |
+| `tests/python/desktop/test_facade_completed_policy.py` | `CompletedFacadePolicyTests.test_format_bytes_compact_uses_existing_units` | 91 |
 | `tests/python/desktop/test_service_pending_publish_format.py` | `PendingPublishFormatTests.test_format_bytes_compact_uses_existing_units` | 24 |
 
 ### `test_git_diff_candidates_uses_three_dot_merge_base_range`
@@ -74,4 +74,4 @@ This report groups exact bare Python test function/method names that appear in m
 |---|---|---:|
 | `tests/python/desktop/test_facade_process_audit_policy.py` | `AuditLaunchPolicyTests.test_success_message_and_payload_are_stable` | 38 |
 | `tests/python/desktop/test_facade_process_pipeline_policy.py` | `PipelineLaunchPolicyTests.test_success_message_and_payload_are_stable` | 55 |
-| `tests/python/desktop/test_facade_process_rerun_policy.py` | `RerunLaunchPolicyTests.test_success_message_and_payload_are_stable` | 88 |
+| `tests/python/desktop/test_facade_process_rerun_policy.py` | `RerunLaunchPolicyTests.test_success_message_and_payload_are_stable` | 112 |

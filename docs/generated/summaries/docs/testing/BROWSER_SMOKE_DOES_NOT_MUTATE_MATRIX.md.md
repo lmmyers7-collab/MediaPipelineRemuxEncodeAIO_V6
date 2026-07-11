@@ -3,9 +3,9 @@ file: docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-04
+last_modified: 2026-07-10
 last_reviewed: 2026-05-29
-sha256: f9b64a5b050905997a2804dabb35b206e6c62014af96f926740785c0475e6224
+sha256: e8302e9c860d4dca4292d5d86fcb7ed3aacb4207af5dc0b56ae23f4e9820a785
 ---
 # `docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md`
 

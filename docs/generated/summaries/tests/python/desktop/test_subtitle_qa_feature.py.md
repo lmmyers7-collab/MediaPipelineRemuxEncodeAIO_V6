@@ -3,9 +3,9 @@ file: tests/python/desktop/test_subtitle_qa_feature.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-05
+last_modified: 2026-07-10
 last_reviewed: 2026-06-05
-sha256: ae03e9cc5113cba0559ed49d2ae1b4fc634522b1a8c7ea3df5a89bab9f53eaa0
+sha256: 6b894846ef47dfc645655b87c41ccc6062d71564a112ab6b6558bec57b6ae626
 ---
 # `tests/python/desktop/test_subtitle_qa_feature.py`
 

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/launch/risk/settingsAccess.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ea321b4a4053ccb298810e13e916114c265163a28e4e0b73d0b1dce2f7e7662d
+sha256: 2c92f22fca347d67c98f24d3895ffb595d49d83548ed66d84c28b79481096835
 ---
 # `apps/desktop/webview/static/assets/launch/risk/settingsAccess.js`
 

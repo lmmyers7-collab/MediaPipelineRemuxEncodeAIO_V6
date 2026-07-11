@@ -7,11 +7,13 @@ import subprocess
 import unittest
 from pathlib import Path
 
+from mediapipeline.tools.dev.release_package_scope import release_package_omits_path
 from mediapipeline.tools.paths import find_repo_root
 
 
 REPO_ROOT = find_repo_root(Path(__file__))
 SCRIPT = REPO_ROOT / "ops" / "scripts" / "release" / "Test-PrivateBetaGitHubSetup.ps1"
+GITHUB_WORKFLOWS_OMITTED = release_package_omits_path(REPO_ROOT, ".github/workflows")
 
 
 def _powershell() -> str:
@@ -39,6 +41,10 @@ def _repository_for_static_preflight() -> str:
 
 
 class PrivateBetaGitHubSetupTests(unittest.TestCase):
+    @unittest.skipIf(
+        GITHUB_WORKFLOWS_OMITTED,
+        "GitHub workflow metadata is intentionally omitted from release packages.",
+    )
     def test_static_setup_preflight_validates_workflow_without_github_account(self) -> None:
         result = subprocess.run(
             [

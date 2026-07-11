@@ -3,9 +3,9 @@ file: src/mediapipeline/core/sample_validation/record.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: sample_validation
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: 681682384fc0e6ced8b93b1041e71900aca3267c51f61df248515924ccea8739
+sha256: 26ddb4cdfc047157ba151357d945e325ef832c7eb0e6852fa36676f4608618f0
 ---
 # `src/mediapipeline/core/sample_validation/record.py`
 

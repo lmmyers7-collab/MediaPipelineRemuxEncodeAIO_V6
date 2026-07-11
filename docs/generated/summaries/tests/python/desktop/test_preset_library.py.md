@@ -3,9 +3,9 @@ file: tests/python/desktop/test_preset_library.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-10
 last_reviewed: 2026-06-19
-sha256: 4ad1039ed5350386f987f3145f385381027d3bfad5e0c2672577b4c869a47378
+sha256: 97f7f029a5f12537995d44a7cb7e57646420104feb1f9a015697b753df478d85
 ---
 # `tests/python/desktop/test_preset_library.py`
 

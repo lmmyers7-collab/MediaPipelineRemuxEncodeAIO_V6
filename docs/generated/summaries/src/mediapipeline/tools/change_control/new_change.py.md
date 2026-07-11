@@ -3,7 +3,7 @@ file: src/mediapipeline/tools/change_control/new_change.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
 sha256: f7f4f6cc1e6d9c6913e195787971bcc35782526ef4c86c1378f4d7013cd82990
 ---

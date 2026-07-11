@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/launch_intent.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-07-02
-sha256: 4c756266c68aac1717001a3818fa5ff7f226cde4f76026c58dc7af5ec9edfb5f
+sha256: 75c742c1fe648386647ece077c6f44e16299201a0bd654683a128500e0bd8e8e
 ---
 # `src/mediapipeline/core/processes/launch_intent.py`
 

@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-FFmpegProgressChecks.ps1
 pipeline_stage: n/a
 token_priority: high
 owner_domain: tests
-last_modified: 2026-06-20
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 82eb752f73b9d53b76412e50c430c70aa29e2998c36ad6db8ca81a63971a4af8
+sha256: 821861cfc88bc0d0c08c557fd9d8cdd1947bc0593ec312e8e1e052b0002e715e
 ---
 # `ops/pipeline/tests/Unit/Invoke-FFmpegProgressChecks.ps1`
 

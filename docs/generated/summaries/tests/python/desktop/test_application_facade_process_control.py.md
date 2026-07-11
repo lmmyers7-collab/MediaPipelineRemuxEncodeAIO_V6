@@ -3,9 +3,9 @@ file: tests/python/desktop/test_application_facade_process_control.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-09
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: feb8f6dc28ce8012e9e917cdc371214552aec04ac25b3a0c4ef81f3380a44698
+sha256: 0b4713f4b78680c20a4a4d920c1381e6fd62432cb22161126aafbb5840a85cb3
 ---
 # `tests/python/desktop/test_application_facade_process_control.py`
 

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/styles/pages/settings-wizard.css
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-26
+last_modified: 2026-07-10
 last_reviewed: 2026-06-25
-sha256: f6e3dfb6f31c0e4c673a8357a3c486d5ab9ea54189602c74004585172d87684d
+sha256: a39edea32b1c030e8364dc5911f653fa4bbad4cfb5ae84a19b213038a8cc5d54
 ---
 # `apps/desktop/webview/static/assets/styles/pages/settings-wizard.css`
 

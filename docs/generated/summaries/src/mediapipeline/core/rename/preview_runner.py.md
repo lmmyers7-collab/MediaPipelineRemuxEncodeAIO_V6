@@ -3,9 +3,9 @@ file: src/mediapipeline/core/rename/preview_runner.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: rename
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 380f724142fa49b906a93f0b6efbffc5c6aed1bdec355dc2fcf33f084b3778a7
+sha256: b655ecf518a7b3db73be144e19e74236bc063071a13f28be9c38a095923770ac
 ---
 # `src/mediapipeline/core/rename/preview_runner.py`
 

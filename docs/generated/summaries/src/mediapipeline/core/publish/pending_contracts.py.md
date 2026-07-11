@@ -3,9 +3,9 @@ file: src/mediapipeline/core/publish/pending_contracts.py
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
-last_modified: 2026-07-05
+last_modified: 2026-07-10
 last_reviewed: 2026-07-05
-sha256: 20ac3b4ac10376f8cf283885b8f6adc8fe3ba7192e973fbc437339b13140001a
+sha256: 5e3e678f41eb6c6129bdd84e102a2f0805aa385d4d4a207b58475501b444c698
 ---
 # `src/mediapipeline/core/publish/pending_contracts.py`
 

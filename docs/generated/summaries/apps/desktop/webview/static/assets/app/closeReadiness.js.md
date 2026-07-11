@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/app/closeReadiness.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-09
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 7e08b97e6454d48cf6bf50838e0c2425cce26296b95cd4349a1dce5942201b78
+sha256: b085b3e9453ee6f4cd31cc8a03d9dfb2880fc192fc514bf438c2bfce48ff8b18
 ---
 # `apps/desktop/webview/static/assets/app/closeReadiness.js`
 

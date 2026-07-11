@@ -6,7 +6,7 @@ from collections.abc import Mapping
 
 from mediapipeline.core.files.constants import MEDIA_FILE_SUFFIXES
 
-from .pending_results import (
+from .pending_contracts import (
     PENDING_PUBLISH_OPEN_COMMAND,
     PENDING_PUBLISH_OPEN_TARGETS,
     PENDING_PUBLISH_SERVICE_UNAVAILABLE_MESSAGE,

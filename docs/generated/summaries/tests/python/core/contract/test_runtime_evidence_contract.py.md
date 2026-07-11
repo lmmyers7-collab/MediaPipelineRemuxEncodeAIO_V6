@@ -3,9 +3,9 @@ file: tests/python/core/contract/test_runtime_evidence_contract.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 48e21bf46d88dd8cc70651fc0a05e3eedf32e6dc9e65278ae60f28a0235c5fd2
+sha256: 553b3459c8a46a8d2d6c080d93aa7be9b126e4ddcfc92ed3c1f6f2db62c36cb1
 ---
 # `tests/python/core/contract/test_runtime_evidence_contract.py`
 

@@ -7,6 +7,10 @@ the manifest records which optional sets were excluded (see
 ``ops/scripts/release/build.ps1``); the summary-freshness, project-index, and
 feature-file-map checks consult this so they do not flag deliberately-omitted
 files (whose generated summaries still ship) as missing or orphaned.
+
+The strict ``release_package_omits_path`` helper additionally lets tests
+recognize a valid artifact that deliberately omits a path, without treating a
+source checkout or malformed manifest as a release package.
 """
 
 from __future__ import annotations
@@ -91,3 +95,25 @@ def is_release_excluded_path(rel_path: str, prefixes: tuple[str, ...]) -> bool:
     """True if ``rel_path`` falls under one of the package-excluded prefixes."""
     rel = rel_path.replace("\\", "/").lstrip("/")
     return any(rel == prefix.rstrip("/") or rel.startswith(prefix) for prefix in prefixes)
+
+
+def release_package_omits_path(repo_root: Path, rel_path: str) -> bool:
+    """True only when a valid release package deliberately omits ``rel_path``.
+
+    This is intentionally stricter than :func:`release_excluded_prefixes` so
+    source/CI tests cannot be skipped by an incomplete or malformed manifest.
+    """
+    manifest_path = repo_root / "release_manifest.json"
+    if not manifest_path.is_file():
+        return False
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    if not isinstance(manifest, dict) or manifest.get("schema_version") != "mediapipeline_release_manifest.v1":
+        return False
+
+    normalized = rel_path.replace("\\", "/").lstrip("/")
+    if not normalized or not is_release_excluded_path(normalized, release_excluded_prefixes(repo_root)):
+        return False
+    return not (repo_root / Path(normalized)).exists()

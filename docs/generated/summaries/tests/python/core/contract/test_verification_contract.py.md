@@ -3,9 +3,9 @@ file: tests/python/core/contract/test_verification_contract.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-06
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 7c28645a644cd8026b9066771811f2f7a63b752fe11f231e256214241925324d
+sha256: 8acb9043c81addbaa065eecdc7aaa43c1a090eb50e791f4ff3cf3c3191a0b5f4
 ---
 # `tests/python/core/contract/test_verification_contract.py`
 

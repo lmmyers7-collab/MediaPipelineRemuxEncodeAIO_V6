@@ -3,9 +3,9 @@ file: docs/architecture/FILE_LIFECYCLE_MAP.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-02
-sha256: 30b383055b45eb75371a25fb3f6e6be1965deed914a69a6027da0e47310ea0d6
+sha256: b961f6b19d5ccaaac751209b65718e9abda12cdd8ba5bed1c09e1a46d1b8b33f
 ---
 # `docs/architecture/FILE_LIFECYCLE_MAP.md`
 

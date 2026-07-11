@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/app/homeReadiness.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-12
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 657398583cf468a34f8f7fcb0d45ac1298bf7084f4b17c8e11905bb64a88b632
+sha256: 5449182937304aa71bb4a1e8868f4f1044330198ce56bc99ee263d331809d82f
 ---
 # `apps/desktop/webview/static/assets/app/homeReadiness.js`
 

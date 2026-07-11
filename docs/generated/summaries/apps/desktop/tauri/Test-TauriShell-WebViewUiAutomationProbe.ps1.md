@@ -3,9 +3,9 @@ file: apps/desktop/tauri/Test-TauriShell-WebViewUiAutomationProbe.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shell
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: c51e5fee597170dee13bc0a0abfea231268279d44c5e485eb7f368d49f2b48bf
+sha256: 5bb09fcff585fafab3941c931306dad61cb4f2898d80bea4d596b45c988b2312
 ---
 # `apps/desktop/tauri/Test-TauriShell-WebViewUiAutomationProbe.ps1`
 

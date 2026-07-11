@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/completed/evidence/commands.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 7b5d8024daab3c8b67b475b3460a8bcc614c9b4e2c6244baeb46b1c948265d53
+sha256: b14376b9b8f1372b2c3f8b0440896095b469db4daeef68f3d047f3d34cf4c562
 ---
 # `apps/desktop/webview/static/assets/completed/evidence/commands.js`
 

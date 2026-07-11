@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/application/dto_base.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: application
-last_modified: 2026-06-26
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 91c2e432852d2ee370647b21b34b8afe7b69fcdeb2ba359d18af117220a27760
+sha256: a8ef2d75c5fa2cda6c0a9e5e692548614e2eb27aeac92967d9030cec1e266d28
 ---
 # `src/mediapipeline/desktop/application/dto_base.py`
 

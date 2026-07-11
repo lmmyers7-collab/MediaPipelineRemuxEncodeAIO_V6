@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/models_media_paths.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 178c6b74f3cb15f485fefb8a4515778a082fdd68a4b4ae7277dff9889e37ddeb
+sha256: d959f1b22584d44629af3ebb42ab3789156767beb0da592732726e43dd2701f2
 ---
 # `src/mediapipeline/desktop/models_media_paths.py`
 

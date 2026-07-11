@@ -3,9 +3,9 @@ file: ops/pipeline/engine/naming/naming.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: naming
-last_modified: 2026-07-05
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: d71ffb6f1773e0f7d37da92c54268b91cfae0ba3ff326ae18f4d310d595abc78
+sha256: 3f6ce78b70bd8e1004afd00279fc4db80420fe1de82cd608be3c5c1f047ad72a
 ---
 # `ops/pipeline/engine/naming/naming.ps1`
 

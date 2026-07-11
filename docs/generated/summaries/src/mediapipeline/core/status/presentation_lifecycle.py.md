@@ -3,9 +3,9 @@ file: src/mediapipeline/core/status/presentation_lifecycle.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: fa811d621cdc23854fd974e116af297b7cfec38a4385b65e220826f3e60594ca
+sha256: 579bd9c4410726e6d3fb0ce3f46572ff141e66706e3ac1feb84218c3adeaab52
 ---
 # `src/mediapipeline/core/status/presentation_lifecycle.py`
 

@@ -3,9 +3,9 @@ file: tests/python/desktop/test_application_facade_local_api.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: e4b518b61ab8a2fe734c95a6de3eff86ef7717ba4de25496766e048cd1c6d565
+sha256: 711b21b5129a24910172983f81ed55ea6cb7e4018c2434e17d5e8fe24faef950
 ---
 # `tests/python/desktop/test_application_facade_local_api.py`
 

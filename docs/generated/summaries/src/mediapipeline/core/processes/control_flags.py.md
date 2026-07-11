@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/control_flags.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ea0b273f7154c2550742efc003370e6159f928c7c25acd7d6dff636f474ab9a7
+sha256: fb86ad43526d3195575e74601c3896f86fa297eb323d2d1514c19f14220bb5a0
 ---
 # `src/mediapipeline/core/processes/control_flags.py`
 

@@ -3,9 +3,9 @@ file: tests/python/desktop/__init__.py
 pipeline_stage: n/a
 token_priority: low
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 9574dccb6c6f511dada2aca3a853482759195fa4b88a88217b44455a87c5a50a
+sha256: c210b1b903408a78f985707939d4d14810b37cf76f10c07f2bdd7b840b922501
 ---
 # `tests/python/desktop/__init__.py`
 

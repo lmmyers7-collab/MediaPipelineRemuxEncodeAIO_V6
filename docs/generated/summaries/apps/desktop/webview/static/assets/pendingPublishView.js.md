@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/pendingPublishView.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-05
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 4b2c9af10e6b71f7b43b422b14b3e493161f9c7407a5babcc62f9833c919e609
+sha256: 84061db4c723762063e2eee41a8d2684fa80e970eeb0d07fc52dab96906c4e4f
 ---
 # `apps/desktop/webview/static/assets/pendingPublishView.js`
 

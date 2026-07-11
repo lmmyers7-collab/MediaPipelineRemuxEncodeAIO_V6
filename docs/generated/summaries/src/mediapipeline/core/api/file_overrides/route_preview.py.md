@@ -3,9 +3,9 @@ file: src/mediapipeline/core/api/file_overrides/route_preview.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: cd898e866fbb1ed407383a9dda0b33a2530db554f31eab66208aaeac9e088341
+sha256: 4ad5193bd361bc96501623ee0559cfb2ee1df6957c1b2172be03fd098a38a16f
 ---
 # `src/mediapipeline/core/api/file_overrides/route_preview.py`
 

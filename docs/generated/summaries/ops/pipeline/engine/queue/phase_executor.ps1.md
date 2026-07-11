@@ -3,9 +3,9 @@ file: ops/pipeline/engine/queue/phase_executor.ps1
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-06-30
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 0c900fac0fb1fec4fcad1e318d3d08ef06df4218f7c3ffbdf3066f8d87a2fb60
+sha256: 7f7360b62881790ddc075f85a35a86b789196402fd4db4bdebecc15b61fa57ea
 ---
 # `ops/pipeline/engine/queue/phase_executor.ps1`
 

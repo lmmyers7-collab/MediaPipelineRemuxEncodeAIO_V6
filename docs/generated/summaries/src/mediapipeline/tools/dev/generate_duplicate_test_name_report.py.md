@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/dev/generate_duplicate_test_name_report.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-17
+last_modified: 2026-07-10
 last_reviewed: 2026-06-17
-sha256: 22d7fd440c85e93a9f64b1c4761529ab104af8e171e97657e20798f8c8b13a7d
+sha256: 9e8445c98c293ef1a471c00f7419bf104686d2c58c3de9084d1abb24d65873f0
 ---
 # `src/mediapipeline/tools/dev/generate_duplicate_test_name_report.py`
 

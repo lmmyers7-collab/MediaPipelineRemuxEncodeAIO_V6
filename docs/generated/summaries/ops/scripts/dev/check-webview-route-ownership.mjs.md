@@ -3,9 +3,9 @@ file: ops/scripts/dev/check-webview-route-ownership.mjs
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-17
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 44f46c5c06cab2f01640d0d6171b87b67f9fd8ee006dca42f53dac652217bf62
+sha256: 120d1476802364492d0d0b1b71f7d2a3bfaeb8942549c6a518628907d94cf64d
 ---
 # `ops/scripts/dev/check-webview-route-ownership.mjs`
 

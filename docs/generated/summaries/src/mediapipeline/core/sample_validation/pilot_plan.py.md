@@ -3,9 +3,9 @@ file: src/mediapipeline/core/sample_validation/pilot_plan.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: sample_validation
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: bbe90a2c11039fbdb887a4e2dcdf10c84b463f8fea156d5f5a0660871d7b181a
+sha256: 6e8605b19b29c71a4e7dfa67064f623edb60d2f0e6c4e54974325873e082b1ee
 ---
 # `src/mediapipeline/core/sample_validation/pilot_plan.py`
 

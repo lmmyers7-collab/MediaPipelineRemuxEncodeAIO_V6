@@ -3,9 +3,9 @@ file: ops/pipeline/engine/process/ffmpeg_progress/tool_context.ps1
 pipeline_stage: transcode
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f0ae67dce6fb466ab5a5b67df7abc4c33f0a9ced9b59215678e47c0bf8b6576a
+sha256: 6b3dd3e405a6ff9572e68ec094031708b210b0f1ccf65ef646465da2dce59179
 ---
 # `ops/pipeline/engine/process/ffmpeg_progress/tool_context.ps1`
 

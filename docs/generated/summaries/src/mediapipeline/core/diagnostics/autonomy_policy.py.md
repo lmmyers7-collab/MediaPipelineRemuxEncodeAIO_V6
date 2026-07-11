@@ -3,9 +3,9 @@ file: src/mediapipeline/core/diagnostics/autonomy_policy.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: diagnostics
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-07-02
-sha256: 85e34a5f1c7273a56e297236e19e653325fe778b378978172487fd88a65a3ffa
+sha256: 7a4b07675538caa2b0501b31ba0a6ec12e142c1adc3b7a769513a45af4105bcd
 ---
 # `src/mediapipeline/core/diagnostics/autonomy_policy.py`
 

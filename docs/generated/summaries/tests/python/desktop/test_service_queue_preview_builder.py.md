@@ -3,7 +3,7 @@ file: tests/python/desktop/test_service_queue_preview_builder.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
 sha256: b859863f1ac1cf7bd4a5a23fb435bc6aee361de147071a216490778836b4e13d
 ---

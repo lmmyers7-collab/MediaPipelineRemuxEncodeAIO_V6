@@ -3,9 +3,9 @@ file: ops/pipeline/engine/shared/temp_cleanup.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shared
-last_modified: 2026-06-26
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 7593538b76a6bcd0d7f2c5f84ce54ee1ff306dceb604f419dd2092c2153f7401
+sha256: 6f1980fd6a9782840dd9b196b75fc57343b0d24bf2e77d090cc7a395f12d5bf8
 ---
 # `ops/pipeline/engine/shared/temp_cleanup.ps1`
 

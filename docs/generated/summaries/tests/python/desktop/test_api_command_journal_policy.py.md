@@ -3,9 +3,9 @@ file: tests/python/desktop/test_api_command_journal_policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-14
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6c41ab194ed67302625d62fc3486558361c45a1053f1f39fd695272923c3b1db
+sha256: 94031f21b31069cc45d6ff89c42916d3eb8706acd48eccff12e2882e5ffe3ccf
 ---
 # `tests/python/desktop/test_api_command_journal_policy.py`
 

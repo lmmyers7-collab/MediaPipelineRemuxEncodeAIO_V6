@@ -3,7 +3,7 @@ file: src/mediapipeline/tools/dev/generate_project_index.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-12
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
 sha256: 19f0758e1322e7bb4f0abea3cfb9a1df6c09b1c3c994129d14a8d333689959f5
 ---

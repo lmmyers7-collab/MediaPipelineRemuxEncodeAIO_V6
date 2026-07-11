@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/http_json.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-14
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 04c4b9bb0f6209e0a80dc77fe9f00a1870546f1af8ec805a88a4471b6d1186f8
+sha256: 0e72e5c0ec816a1b7b1ce3f734caee17261cc1ecceae5f44e16cef4435e198bb
 ---
 # `src/mediapipeline/desktop/network/http_json.py`
 

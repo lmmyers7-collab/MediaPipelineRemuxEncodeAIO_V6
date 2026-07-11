@@ -3,9 +3,9 @@ file: tests/python/desktop/test_architecture_boundary_compatibility_imports.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: e9c6566ecd6a541cb98102365f5ea11c5183a4c89f6b23e46e451aa15274e1dd
+sha256: 58fcc5f72f49426ce23f07c6e5457a247bbc27f29f3f70bedbf5e4978aaef0b2
 ---
 # `tests/python/desktop/test_architecture_boundary_compatibility_imports.py`
 

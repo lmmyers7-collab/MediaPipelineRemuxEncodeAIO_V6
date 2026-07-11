@@ -3,9 +3,9 @@ file: ops/pipeline/engine/process/encode_verification.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-24
+last_modified: 2026-07-10
 last_reviewed: 2026-06-24
-sha256: fbf987de055167648073e1b995d0414bb1d91acb3e9e9e7ebb3e04e0a8c51e9c
+sha256: cfbaaafa1132c9b92947898856f467c78c99aaa91fe5cb09ccfbd0aaa67acc95
 ---
 # `ops/pipeline/engine/process/encode_verification.ps1`
 

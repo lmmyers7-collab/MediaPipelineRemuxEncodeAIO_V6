@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/metadata_support.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-07
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f1db0cdd60e5601e174cb2581ab939378f09cf6d557f0eb750f3e18319f5bc76
+sha256: ccf1bba957661e83cc14dd80346d19545f0e313314c7817ac6b1a55e856176f7
 ---
 # `src/mediapipeline/core/config/metadata_support.py`
 

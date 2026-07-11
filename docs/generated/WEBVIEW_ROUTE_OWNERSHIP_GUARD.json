@@ -151,6 +151,12 @@
       ]
     },
     {
+      "route": "/api/failures/open",
+      "files": [
+        "apps/desktop/webview/static/assets/reports/failureCommands.js"
+      ]
+    },
+    {
       "route": "/api/final-library-promotion/pause",
       "files": [
         "apps/desktop/webview/static/assets/completed/promotionCommands.js"
@@ -382,18 +388,6 @@
       "route": "/api/rename/undo",
       "files": [
         "apps/desktop/webview/static/assets/renameView.js"
-      ]
-    },
-    {
-      "route": "/api/rerun/preview",
-      "files": [
-        "apps/desktop/webview/static/assets/launchView.js"
-      ]
-    },
-    {
-      "route": "/api/rerun/start",
-      "files": [
-        "apps/desktop/webview/static/assets/launchView.js"
       ]
     },
     {

@@ -3,9 +3,9 @@ file: ops/pipeline/engine/queue/file_overrides.ps1
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-07-09
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 1f8f161b15d76c12386fddf0fc0598a4de13fe5c5c9e3ece2b3d89de066f637a
+sha256: b6c309fe0cca696806e3adb734a267d57262701cedef1cf59bb5db79403fdb49
 ---
 # `ops/pipeline/engine/queue/file_overrides.ps1`
 

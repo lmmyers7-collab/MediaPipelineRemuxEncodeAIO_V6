@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/probe.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-14
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: bc955bdb02a95b1b1af41ec002fed8d9049e213a41c7848b62d05ebb9bbc1655
+sha256: 5ecd15a22481be658f3d451d7e1ab5e73f8f3a0ced5c1153ed9dda462aca2a2e
 ---
 # `src/mediapipeline/desktop/network/probe.py`
 

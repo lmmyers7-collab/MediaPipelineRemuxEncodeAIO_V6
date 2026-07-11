@@ -3,9 +3,9 @@ file: ops/pipeline/config/setup/Dependencies.ps1
 pipeline_stage: setup
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-13
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 07263a2fe0d6d89708089290a613783fd469ac9d7a14a2c0ca0dd8d60ad45037
+sha256: a98148709c7541ef3b4864a26e455428268e463bf3a7442452b45b62c328d6fa
 ---
 # `ops/pipeline/config/setup/Dependencies.ps1`
 

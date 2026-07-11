@@ -3,9 +3,9 @@ file: ops/pipeline/engine/subtitles/builders/decisions.ps1
 pipeline_stage: subtitles
 token_priority: high
 owner_domain: subtitles
-last_modified: 2026-06-07
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: f3551fda8a3c468b32fcbca6673bd0d4c8a4cf330c9c7cfc39b9474c5b35fb5c
+sha256: 2df1966d25f76cb6b264dd98fddc4d03f3d0c56630ede5b400035632b8a299d0
 ---
 # `ops/pipeline/engine/subtitles/builders/decisions.ps1`
 

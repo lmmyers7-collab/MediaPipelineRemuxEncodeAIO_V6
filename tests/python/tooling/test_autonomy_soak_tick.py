@@ -130,7 +130,7 @@ class AutonomySoakTickToolTests(unittest.TestCase):
         self.assertFalse(second["tick_history"]["write_result"]["queue_mutation_performed"])
         self.assertFalse(second["tick_history"]["write_result"]["cleanup_performed"])
 
-    def test_blocked_health_returns_blocked_exit_without_killing_work(self) -> None:
+    def test_stale_passive_active_job_is_review_only_without_killing_work(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             payload = _paths_payload(root)
@@ -155,9 +155,9 @@ class AutonomySoakTickToolTests(unittest.TestCase):
 
             result = autonomy_soak_tick.run_tick_from_payload(payload, record_snapshot=False)
 
-        self.assertFalse(result["ok"])
-        self.assertEqual(result["exit_code"], autonomy_soak_tick.AUTONOMY_SOAK_BLOCKED_EXIT_CODE)
-        self.assertEqual(result["health"]["overall_status"], "blocked")
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["exit_code"], 0)
+        self.assertEqual(result["health"]["overall_status"], "review")
         self.assertFalse(result["would_kill_active_work"])
 
     def test_main_records_snapshot_and_prints_json(self) -> None:

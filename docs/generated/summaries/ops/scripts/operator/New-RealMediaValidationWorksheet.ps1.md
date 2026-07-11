@@ -3,9 +3,9 @@ file: ops/scripts/operator/New-RealMediaValidationWorksheet.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 74edf436a0e975b2aa171f9d75de79abab5dd6ebafcfe780ef2354d94cf0f2cf
+sha256: 966798e750416ca8421ea14ace8c63f9c8e232979fa0796d711d1bec528a172e
 ---
 # `ops/scripts/operator/New-RealMediaValidationWorksheet.ps1`
 

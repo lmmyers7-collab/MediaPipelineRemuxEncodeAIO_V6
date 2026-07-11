@@ -3,9 +3,9 @@ file: src/mediapipeline/core/paths/layout.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: paths
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 94104b9f2521c126f0f085c52dbb051061cf6462bcdc97690a35add0d31ffb3a
+sha256: a4d5f5089d904957cc21e6206bb1f4388921c9cafac93b9d03a7dd2840e21ce5
 ---
 # `src/mediapipeline/core/paths/layout.py`
 

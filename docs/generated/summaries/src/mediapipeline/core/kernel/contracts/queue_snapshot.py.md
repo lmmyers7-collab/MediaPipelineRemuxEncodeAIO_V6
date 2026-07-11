@@ -3,9 +3,9 @@ file: src/mediapipeline/core/kernel/contracts/queue_snapshot.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: kernel
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 8303f95b2e0936a7bea0b0ec5c6763744cc76966a4b2b5080a259c6790080965
+sha256: a00cd716f9eb4d70d59fc5d7bf2a856e4aca431621d76afccb3c6b09093d59bc
 ---
 # `src/mediapipeline/core/kernel/contracts/queue_snapshot.py`
 

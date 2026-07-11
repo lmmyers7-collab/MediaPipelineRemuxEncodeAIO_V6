@@ -3,9 +3,9 @@ file: src/mediapipeline/core/network/protocol.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: a46c558c3c8e82114fc984f15fc174a71fd28e08d4b54ed2ce984b5b4c99ad48
+sha256: 9b13d4659b6ededa4bc81177cf1be9b520b7ff46e9121a44c8bb13ea9cb39cc6
 ---
 # `src/mediapipeline/core/network/protocol.py`
 

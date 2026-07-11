@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/firewall.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-12
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: c6167f39ec48e1d4cb0ffb810bbb0357a37ac9963284dbfbbddcbff4c8db57fc
+sha256: 1813782061350db09cce0e1993c8afecda583c476d5eac147d35f50c61f5d699
 ---
 # `src/mediapipeline/desktop/network/firewall.py`
 

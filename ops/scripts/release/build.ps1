@@ -153,6 +153,37 @@ function Resolve-ReleaseVerificationPowerShell {
     return $null
 }
 
+function Update-ReleasePackageGeneratedIndexes {
+    param([Parameter(Mandatory)][string]$ReleaseRoot)
+
+    $releasePython = Join-Path $ReleaseRoot 'apps\desktop\runtime\Python\python.exe'
+    $toolRunner = Join-Path $ReleaseRoot 'ops\scripts\dev\run-python-tool.py'
+    if (-not (Test-Path -LiteralPath $releasePython -PathType Leaf)) {
+        throw "Release package generated-index refresh requires bundled Python: $releasePython"
+    }
+    if (-not (Test-Path -LiteralPath $toolRunner -PathType Leaf)) {
+        throw "Release package generated-index refresh requires the Python tool runner: $toolRunner"
+    }
+
+    $previousPythonPath = $env:PYTHONPATH
+    try {
+        $env:PYTHONPATH = Join-Path $ReleaseRoot 'src'
+        Push-Location -LiteralPath $ReleaseRoot
+        foreach ($module in @(
+            'mediapipeline.tools.dev.generate_project_index',
+            'mediapipeline.tools.dev.generate_feature_file_map'
+        )) {
+            & $releasePython $toolRunner $module
+            if ($LASTEXITCODE -ne 0) {
+                throw "Release package generated-index refresh failed for $module with exit $LASTEXITCODE."
+            }
+        }
+    } finally {
+        Pop-Location
+        $env:PYTHONPATH = $previousPythonPath
+    }
+}
+
 function ConvertTo-ReleaseCanonicalPath {
     param([Parameter(Mandatory)][string]$Path)
 
@@ -458,6 +489,7 @@ $manifest = [ordered]@{
 
 $manifestPath = Join-Path $destinationFull 'release_manifest.json'
 $manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
+Update-ReleasePackageGeneratedIndexes -ReleaseRoot $destinationFull
 Remove-Item -LiteralPath $inProgressMarkerPath -Force -ErrorAction SilentlyContinue
 Write-Host "Manifest    : $manifestPath"
 

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/rename/facade.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: rename
-last_modified: 2026-07-09
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 77ff70a41c354459cbe2d38e5efb611798f47681ac53ab8a6450f2910767ee0a
+sha256: 0c8bf847af016decaaef5e0c4c71ad009b0a831205001d0c98e7e1b932648130
 ---
 # `src/mediapipeline/core/rename/facade.py`
 

@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/watch/manager.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: watch
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-11
-sha256: 294c865bc65f1fda5829eee7dc49bd0c4eb824b4d85e96f2081b89ae26bb2501
+sha256: d5574a3dbc274f2aa2eecee664e9d920635825eed6520f511eeed55ef12b9ea2
 ---
 # `src/mediapipeline/desktop/watch/manager.py`
 

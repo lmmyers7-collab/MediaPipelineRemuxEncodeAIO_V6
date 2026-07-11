@@ -3,9 +3,9 @@ file: src/mediapipeline/core/queue/remux_pilot_auto_service.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-06-19
+last_modified: 2026-07-10
 last_reviewed: 2026-06-19
-sha256: e998a5089bebd0cd5e01d71d3354837795aad014551dcd89887ebbff2bc03499
+sha256: 058f3781bcfda022e0fd478411f8825411e3d450837e19c9e8662a8e8afbd905
 ---
 # `src/mediapipeline/core/queue/remux_pilot_auto_service.py`
 

@@ -3,9 +3,9 @@ file: tests/webview/test_webview_queue_table_state_chips.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-07
+last_modified: 2026-07-10
 last_reviewed: 2026-07-07
-sha256: 2daf2a8fd9a618e0efa1b388268b26ab75ca6cbb296f947e631ab1efaa30cba4
+sha256: b6a3a94e1f9bcb21b512a3d3f7ce1076836e237eacebb615ccd791bdb6643151
 ---
 # `tests/webview/test_webview_queue_table_state_chips.py`
 

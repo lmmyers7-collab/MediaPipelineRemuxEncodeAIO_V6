@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/application/sample_validation/summary.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: sample_validation
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 49646ae6e90d3133674f4f801d9c84ed29c88d8d95772f74178875b0003dd972
+sha256: 3050c7bd03cd88df8f37f070be0f97af719eb5c4e4ccbc2696262cab2471530b
 ---
 # `src/mediapipeline/desktop/application/sample_validation/summary.py`
 

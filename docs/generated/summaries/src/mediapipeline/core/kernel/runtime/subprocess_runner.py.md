@@ -3,9 +3,9 @@ file: src/mediapipeline/core/kernel/runtime/subprocess_runner.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: kernel
-last_modified: 2026-06-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 99dfa47ca4f2f82b4f79e975d24f391b98496ab16f86fbcb70b676cad0ccbe0a
+sha256: c09d59bdd2c1a699c8f3c41fbc4b061f0e668a54a9f370e884ec2529d8f325f0
 ---
 # `src/mediapipeline/core/kernel/runtime/subprocess_runner.py`
 

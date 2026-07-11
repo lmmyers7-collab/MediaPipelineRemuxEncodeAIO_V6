@@ -3,7 +3,7 @@ file: tests/python/desktop/test_service_process_readiness.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
 sha256: aca11b4e444277a24bb92cdd9fef4bf163dc53c1fe0d6f0f2a783eb35b57351a
 ---

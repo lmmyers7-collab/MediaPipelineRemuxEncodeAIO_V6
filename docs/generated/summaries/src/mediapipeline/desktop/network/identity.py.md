@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/identity.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-11
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6f2d38969f1b0583c68819345edbf3e164e9735982f48b107b36c5a029a3b9cb
+sha256: 4b0c49d21ec7358b297b08fcfc91baf9746d62ece6b13c3e780a076cc0114ee2
 ---
 # `src/mediapipeline/desktop/network/identity.py`
 

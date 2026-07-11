@@ -3,9 +3,9 @@ file: src/mediapipeline/core/failures/facade.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: failures
-last_modified: 2026-07-01
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 8604d5d2cf3751da310cc182b68fa13e98f535cd855da704aef90db11177db88
+sha256: 06e4d7c12dc18137c486fbad8941822d47975488f096f3f1d0574f60c61f5031
 ---
 # `src/mediapipeline/core/failures/facade.py`
 

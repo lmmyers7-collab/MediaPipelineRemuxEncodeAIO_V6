@@ -3,9 +3,9 @@ file: tests/python/desktop/test_audit_sources.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-08
+last_modified: 2026-07-10
 last_reviewed: 2026-06-29
-sha256: b14d9ca543b316de779de5b6401d294d8d1362333b0fef5399fe3d92c923f165
+sha256: d2508a404a20b7e18b46cf34d13c2bbd8f1ab529c7f70b39b3c0de11110b4724
 ---
 # `tests/python/desktop/test_audit_sources.py`
 

@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-EncodePublishOrderSplitChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-24
+last_modified: 2026-07-10
 last_reviewed: 2026-06-24
-sha256: b0f23163ced192f88e148d828ce66050055265577a7da80ea073bda2adef07b7
+sha256: aff8f950bd8260f8273ab3fbc808f434c391c4432c98c61a8cb2894d9c3da731
 ---
 # `ops/pipeline/tests/Unit/Invoke-EncodePublishOrderSplitChecks.ps1`
 

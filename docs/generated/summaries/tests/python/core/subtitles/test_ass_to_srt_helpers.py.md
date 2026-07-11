@@ -3,9 +3,9 @@ file: tests/python/core/subtitles/test_ass_to_srt_helpers.py
 pipeline_stage: subtitles
 token_priority: high
 owner_domain: tests
-last_modified: 2026-06-12
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: d824bd8cb9e9582b6fd69f20df9a96ccd880b578233b8d686cf9dd913c45bbae
+sha256: 4b36ce1feec7610731b6a1aa1730e3d0840301dc2ced3bc429da25e1cd8c36d1
 ---
 # `tests/python/core/subtitles/test_ass_to_srt_helpers.py`
 

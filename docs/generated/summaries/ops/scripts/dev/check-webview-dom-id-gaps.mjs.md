@@ -3,9 +3,9 @@ file: ops/scripts/dev/check-webview-dom-id-gaps.mjs
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: e5107eb2c4f4151364f1d063065ff05f7d467360ec2629a0999a87e39dfb75fc
+sha256: e492630b53468b659bc8498bf2a8ec1c680e876b1717af914b05bf3b502076bc
 ---
 # `ops/scripts/dev/check-webview-dom-id-gaps.mjs`
 

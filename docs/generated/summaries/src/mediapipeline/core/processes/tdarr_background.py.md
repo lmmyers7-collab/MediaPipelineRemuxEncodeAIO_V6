@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/tdarr_background.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-07-09
+last_modified: 2026-07-10
 last_reviewed: 2026-07-09
-sha256: 2393095e7e801ec46a8af86e6bbf9c1969f6d7148026b6f36a57bd495f58a143
+sha256: a236270245480971e43c6fdf144db639996a6a05d3e7386451cc21d3f2fcd856
 ---
 # `src/mediapipeline/core/processes/tdarr_background.py`
 

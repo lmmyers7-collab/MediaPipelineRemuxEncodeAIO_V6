@@ -3,9 +3,9 @@ file: src/mediapipeline/core/library/summary.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-28
+last_modified: 2026-07-10
 last_reviewed: 2026-06-28
-sha256: f74761923146e036fda1e85f7a23b4dbbfa80e1aaa03cfb6ce30033b45c74a9c
+sha256: 01424707d2c9822cd80e734179ed82be01ece393991370163f7beacf81bad949
 ---
 # `src/mediapipeline/core/library/summary.py`
 

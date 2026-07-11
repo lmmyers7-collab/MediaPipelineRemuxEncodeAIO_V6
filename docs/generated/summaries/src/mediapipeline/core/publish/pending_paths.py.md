@@ -3,9 +3,9 @@ file: src/mediapipeline/core/publish/pending_paths.py
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: bce2cc513ab8e9abd54da5e4c13e6c38e1ab3c5d047563c5d49765c83a80f66c
+sha256: 57d16dd037816c188717f187b67a522d5b63761b67edc418e8d2f457cc4ac381
 ---
 # `src/mediapipeline/core/publish/pending_paths.py`
 

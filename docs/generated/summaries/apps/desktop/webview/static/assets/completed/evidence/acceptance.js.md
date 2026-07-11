@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/completed/evidence/acceptance.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-06
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: cb1ee51009ec8f69dda8af58fdf91fbf5d676fd810b8b491db44acb36276bc97
+sha256: 6778b2a7ade9b9725d3903d0e7f373851256eab4ec03c99ec99bf48b2d1205d7
 ---
 # `apps/desktop/webview/static/assets/completed/evidence/acceptance.js`
 

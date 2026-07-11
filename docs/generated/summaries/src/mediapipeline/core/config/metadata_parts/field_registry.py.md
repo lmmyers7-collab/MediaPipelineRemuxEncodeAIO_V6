@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/metadata_parts/field_registry.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-11
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 646b3cf3bf1075e844ce9a07063334e4145e446bea413a0f163db5195b3b6fa3
+sha256: 82b2933c19540367b797b7e18a6c8f6bef20bc70fa0c1e908fdc9de604d50343
 ---
 # `src/mediapipeline/core/config/metadata_parts/field_registry.py`
 

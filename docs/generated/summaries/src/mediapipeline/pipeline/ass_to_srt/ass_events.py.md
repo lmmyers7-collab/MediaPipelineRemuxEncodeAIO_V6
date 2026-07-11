@@ -3,9 +3,9 @@ file: src/mediapipeline/pipeline/ass_to_srt/ass_events.py
 pipeline_stage: subtitles
 token_priority: high
 owner_domain: subtitles
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 61efd676ebbcc187cb3cb5166ba0c9c4bc7415d5a6d879f804aa6fce1d0a53ad
+sha256: d5c4caaad41950f54f15bc69b2cc6632f471005d1eb1e75b7d1c76d6b10bb77d
 ---
 # `src/mediapipeline/pipeline/ass_to_srt/ass_events.py`
 

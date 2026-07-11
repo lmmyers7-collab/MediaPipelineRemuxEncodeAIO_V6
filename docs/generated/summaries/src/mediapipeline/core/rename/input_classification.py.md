@@ -3,7 +3,7 @@ file: src/mediapipeline/core/rename/input_classification.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: rename
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-23
 sha256: eac922fe634705d0a7ba6888d4e1f77c782a28634e7ff4905efd21c804c82332
 ---

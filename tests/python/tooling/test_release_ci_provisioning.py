@@ -3,10 +3,12 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
+from mediapipeline.tools.dev.release_package_scope import release_package_omits_path
 from mediapipeline.tools.paths import find_repo_root
 
 
 REPO_ROOT = find_repo_root(Path(__file__))
+GITHUB_WORKFLOWS_OMITTED = release_package_omits_path(REPO_ROOT, ".github/workflows")
 
 
 class ReleaseCiProvisioningTests(unittest.TestCase):
@@ -41,13 +43,29 @@ class ReleaseCiProvisioningTests(unittest.TestCase):
         self.assertIn("mkvmerge.exe", script)
         self.assertIn("'ffmpeg', 'mkvtoolnix'", script)
 
-    def test_deep_audit_provisions_bundled_runtime_tools_and_stable_temp_paths(self) -> None:
-        workflow = (REPO_ROOT / ".github" / "workflows" / "deep-audit.yml").read_text(encoding="utf-8")
+    @unittest.skipIf(
+        GITHUB_WORKFLOWS_OMITTED,
+        "GitHub workflow metadata is intentionally omitted from release packages.",
+    )
+    def test_release_workflows_provision_bundled_runtime_tools_and_stable_temp_paths(self) -> None:
+        for workflow_name in ("deep-audit.yml", "phase1-drift.yml"):
+            with self.subTest(workflow=workflow_name):
+                workflow = (REPO_ROOT / ".github" / "workflows" / workflow_name).read_text(encoding="utf-8")
 
-        self.assertIn("TMP: ${{ runner.temp }}", workflow)
-        self.assertIn("TEMP: ${{ runner.temp }}", workflow)
-        self.assertIn("Initialize-CiPythonRuntime.ps1 -InstallDependencies", workflow)
-        self.assertIn("Initialize-CiMediaTools.ps1 -InstallMissing", workflow)
+                self.assertIn("TMP: ${{ runner.temp }}", workflow)
+                self.assertIn("TEMP: ${{ runner.temp }}", workflow)
+                self.assertIn("Initialize-CiPythonRuntime.ps1 -InstallDependencies", workflow)
+                self.assertIn("Initialize-CiMediaTools.ps1 -InstallMissing", workflow)
+                self.assertIn("timeout-minutes: 60", workflow)
+                self.assertIn("timeout-minutes: 90", workflow)
+
+    def test_release_builder_refreshes_package_specific_generated_indexes(self) -> None:
+        script = (REPO_ROOT / "ops" / "scripts" / "release" / "build.ps1").read_text(encoding="utf-8")
+
+        self.assertIn("function Update-ReleasePackageGeneratedIndexes", script)
+        self.assertIn("mediapipeline.tools.dev.generate_project_index", script)
+        self.assertIn("mediapipeline.tools.dev.generate_feature_file_map", script)
+        self.assertIn("Update-ReleasePackageGeneratedIndexes -ReleaseRoot $destinationFull", script)
 
 
 if __name__ == "__main__":

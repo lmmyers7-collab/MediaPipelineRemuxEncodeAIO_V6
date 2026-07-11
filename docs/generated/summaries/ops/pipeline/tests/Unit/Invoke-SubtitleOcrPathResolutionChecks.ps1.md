@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-SubtitleOcrPathResolutionChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 2decefdc9ed1c72aa7e69d3fc9f9d95b03aaa229b6cea276c7bc797fe28a846e
+sha256: 96fd77cec32ddb531d2a764417304362be7850111f7fb719beb6732f8b6e9b1e
 ---
 # `ops/pipeline/tests/Unit/Invoke-SubtitleOcrPathResolutionChecks.ps1`
 

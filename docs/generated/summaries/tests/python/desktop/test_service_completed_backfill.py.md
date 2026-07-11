@@ -3,7 +3,7 @@ file: tests/python/desktop/test_service_completed_backfill.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
 sha256: 9b3ddfcefbaa3b9946ee9f3217a2819373abe41f1d20d227f69b265d1a13f95e
 ---

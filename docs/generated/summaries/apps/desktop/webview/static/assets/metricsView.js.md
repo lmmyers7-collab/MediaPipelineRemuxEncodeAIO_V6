@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/metricsView.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-09
+last_modified: 2026-07-10
 last_reviewed: 2026-06-05
-sha256: 25c4b0945f0a87e80c8e0f1b3ad693f3e3aed0bffeaba8786cecefb699efea0c
+sha256: 3fb28fdbd2b71e29457705032c7a4a987a59081d19dedd1d95e77c5e06124c41
 ---
 # `apps/desktop/webview/static/assets/metricsView.js`
 

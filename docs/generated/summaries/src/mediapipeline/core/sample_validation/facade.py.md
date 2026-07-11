@@ -3,9 +3,9 @@ file: src/mediapipeline/core/sample_validation/facade.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: sample_validation
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: b22c8b91fbc21f76bfcc2ca29d0bca0af6a6afdfa69dc6b425dfe8a6f1557323
+sha256: 2047dbdb1ac2efbed7638dcd4390bd9698a1fd89ffc6d2fdff2c814ff0a20d0b
 ---
 # `src/mediapipeline/core/sample_validation/facade.py`
 

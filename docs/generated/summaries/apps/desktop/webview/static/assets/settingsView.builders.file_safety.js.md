@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settingsView.builders.file_safety.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-19
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ac95a126bb0183071e5b3b8f4e90f40d009e8191fca5fe9a36fe9ea27a321ac2
+sha256: a9e9416b05548ac53fa7479e5032c32ec02acdf0ca9e72055da831b789c6eb32
 ---
 # `apps/desktop/webview/static/assets/settingsView.builders.file_safety.js`
 

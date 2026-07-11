@@ -3,9 +3,9 @@ file: ops/pipeline/engine/audit/progress.ps1
 pipeline_stage: observability
 token_priority: medium
 owner_domain: audit
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 343be268d65d78270f2455994e2246163a8152dc56bf8efa681a897b71dd873a
+sha256: 6c378c93f92a26d0fad6713eb3bc6ccc8a85da8d09ee544cb1f00a7de50c963a
 ---
 # `ops/pipeline/engine/audit/progress.ps1`
 

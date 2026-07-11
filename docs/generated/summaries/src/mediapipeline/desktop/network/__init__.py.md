@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/__init__.py
 pipeline_stage: network
 token_priority: low
 owner_domain: network
-last_modified: 2026-07-02
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 1debd9a5648d176b6369ef33e04d3ea68388572e9472e75d3f009b0984532ccf
+sha256: 23d8bd2a9efc9d3a9a55f9df0a099cb5313e8f72ccbcd8049bce40bf219a85de
 ---
 # `src/mediapipeline/desktop/network/__init__.py`
 

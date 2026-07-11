@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_completed_validation_state.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-11
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 1d3783a6bf9af6d9eb88c2a286a55a363e1b5021d18982bafe25aa3bc681ad26
+sha256: 7dbd06f1f8e36699c9b4389ba059a3deee096017ebbe595a372144288f00092e
 ---
 # `tests/python/desktop/test_service_completed_validation_state.py`
 

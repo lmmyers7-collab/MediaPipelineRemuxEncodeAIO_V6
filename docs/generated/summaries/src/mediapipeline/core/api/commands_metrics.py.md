@@ -3,9 +3,9 @@ file: src/mediapipeline/core/api/commands_metrics.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-06-05
+last_modified: 2026-07-10
 last_reviewed: 2026-06-05
-sha256: c36e9790349585a41655a67a3354e81ba62fc39e10deadcefab706dc55e12b98
+sha256: 590164f712a885bca59371e6d5e650f7089a4b450b69dc88185332afd4e9bda3
 ---
 # `src/mediapipeline/core/api/commands_metrics.py`
 

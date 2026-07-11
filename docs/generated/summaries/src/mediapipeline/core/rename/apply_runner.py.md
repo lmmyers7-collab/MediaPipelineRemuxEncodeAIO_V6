@@ -3,9 +3,9 @@ file: src/mediapipeline/core/rename/apply_runner.py
 pipeline_stage: rename
 token_priority: high
 owner_domain: rename
-last_modified: 2026-07-09
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 6189526aad48bedcc33a9dc05bd327cc4e8625de7edc1ec46f6e78a74b327b4b
+sha256: 2bba313f4894ca0e0dc4dee629ae0dbc969b3b9bcb4c4b69fdc2037e6529dd38
 ---
 # `src/mediapipeline/core/rename/apply_runner.py`
 

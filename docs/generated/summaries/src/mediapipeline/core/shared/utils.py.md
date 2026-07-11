@@ -3,9 +3,9 @@ file: src/mediapipeline/core/shared/utils.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shared
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 5664d07c282d3798d15e07316c9a9024420a897c9ac51e249e49b74a1a864849
+sha256: 8411fe25b5c8686ddf0f9de7b167931aab1253f13c65950d1340cdd9b457f59b
 ---
 # `src/mediapipeline/core/shared/utils.py`
 

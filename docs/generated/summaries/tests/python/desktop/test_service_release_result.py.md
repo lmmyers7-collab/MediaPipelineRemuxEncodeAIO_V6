@@ -3,7 +3,7 @@ file: tests/python/desktop/test_service_release_result.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
 sha256: d3612679be666bdf2a40634b98606840d0da53870794892c1a05ea80013aa515
 ---

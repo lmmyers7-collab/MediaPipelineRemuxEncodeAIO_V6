@@ -3,9 +3,9 @@ file: src/mediapipeline/core/rename/bad_case_corpus.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: rename
-last_modified: 2026-06-25
+last_modified: 2026-07-10
 last_reviewed: 2026-06-17
-sha256: c6025de029417fe2a8e41e0cf37d84c6ddcba5c0250ef3e28a42519ee7ab144e
+sha256: 7c2d5090a5487009b35d1073cdbb7b379c597bc1ac62492a01e11f7930855c08
 ---
 # `src/mediapipeline/core/rename/bad_case_corpus.py`
 

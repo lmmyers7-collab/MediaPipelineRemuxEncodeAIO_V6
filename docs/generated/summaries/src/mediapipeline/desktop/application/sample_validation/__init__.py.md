@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/application/sample_validation/__init__.py
 pipeline_stage: n/a
 token_priority: low
 owner_domain: sample_validation
-last_modified: 2026-05-19
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 32dbab21b105a27179211cdeff83fd488d212c6bfdd4b742f145650c1629341e
+sha256: 7360d1588e686e0d795d05aae5a8dcedd1ab329f7fd160d760ae47be0448335d
 ---
 # `src/mediapipeline/desktop/application/sample_validation/__init__.py`
 

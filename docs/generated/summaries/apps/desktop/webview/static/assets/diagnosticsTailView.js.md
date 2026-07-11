@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/diagnosticsTailView.js
 pipeline_stage: observability
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-21
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 26ae23c4257e79a070c0ced95f01c362e1a1359106bfbe65fb46614c43448f9a
+sha256: 9b78dc5ef99513f0e2c5213b67c2c935828bd22cb5d913719944b71839d0618b
 ---
 # `apps/desktop/webview/static/assets/diagnosticsTailView.js`
 

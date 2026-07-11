@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-RuntimeConfigResolutionChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-05
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 0a39bc33425ccfa16185b20fc6fe9cf547505b08c17d215e44c9532f71b64f3f
+sha256: 83bc3670aaad85f77c152b8f700e8ec0e1793feeb6c50a9911280b7fe11d485e
 ---
 # `ops/pipeline/tests/Unit/Invoke-RuntimeConfigResolutionChecks.ps1`
 

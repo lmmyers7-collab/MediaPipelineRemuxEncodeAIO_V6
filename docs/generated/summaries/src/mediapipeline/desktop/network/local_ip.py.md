@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/local_ip.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-05-09
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: dfcceb16efeb528e08cedaed76d29d81744d028c6a5c1b4d92cbd9cd0def914a
+sha256: adcf77cf44298a3cb974b3730c79937e7266c1934221e29ed0e762e97eae5020
 ---
 # `src/mediapipeline/desktop/network/local_ip.py`
 

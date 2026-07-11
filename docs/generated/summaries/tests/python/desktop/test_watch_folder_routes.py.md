@@ -3,9 +3,9 @@ file: tests/python/desktop/test_watch_folder_routes.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-11
+last_modified: 2026-07-10
 last_reviewed: 2026-06-11
-sha256: 8a3e21883bf4b16889f577ee4f2d19d957a28a0f34ba9cb8f141415173803917
+sha256: a45c66075b26eaccb61f4dfd48eacecf976a60f740f2cf92de4013d9eb39f074
 ---
 # `tests/python/desktop/test_watch_folder_routes.py`
 

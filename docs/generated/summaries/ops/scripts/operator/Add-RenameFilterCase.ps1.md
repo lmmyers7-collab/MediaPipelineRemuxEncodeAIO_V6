@@ -3,9 +3,9 @@ file: ops/scripts/operator/Add-RenameFilterCase.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-17
+last_modified: 2026-07-10
 last_reviewed: 2026-06-17
-sha256: bd3191a7c5ac224f3fd85d61d637d8841e7b5602db273e0ca1bb8bd68b9cf3b5
+sha256: a62053c6caa6c81ad4cff152f6dcb733db8fa0abc5fbbbc136ac3d6fc39cb568
 ---
 # `ops/scripts/operator/Add-RenameFilterCase.ps1`
 

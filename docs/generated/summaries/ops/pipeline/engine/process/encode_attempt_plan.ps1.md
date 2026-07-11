@@ -3,9 +3,9 @@ file: ops/pipeline/engine/process/encode_attempt_plan.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-24
+last_modified: 2026-07-10
 last_reviewed: 2026-06-24
-sha256: 72a9207d4784f4fcf1da42d070a702e431acff5e8b093bc32e764e121ac7df6a
+sha256: a165936f30ff59c200e101a80f728a51f6a124abd714e4e9f86620247b94d779
 ---
 # `ops/pipeline/engine/process/encode_attempt_plan.ps1`
 

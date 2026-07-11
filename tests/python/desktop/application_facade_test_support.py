@@ -489,8 +489,10 @@ def exercise_local_api_route_workflow() -> SimpleNamespace:
                 {"library_root": str(root / "Outsource"), "include_sidecars": True},
                 token="workflow-token",
             )
+            rerun_source = root / "TV" / "Network Rerun Source.mkv"
+            rerun_source.write_bytes(b"rerun-media")
             rerun_csv = root / "rerun.csv"
-            rerun_csv.write_text("enabled,source_path\ntrue,C:\\Media\\Movie.mkv\n", encoding="utf-8")
+            rerun_csv.write_text(f"enabled,source_path\ntrue,{rerun_source}\n", encoding="utf-8")
             rerun_status, rerun_payload = client._post_json(
                 f"{server.url}/api/rerun/start",
                 {"csv_path": str(rerun_csv), "confirm_replace_final": True},

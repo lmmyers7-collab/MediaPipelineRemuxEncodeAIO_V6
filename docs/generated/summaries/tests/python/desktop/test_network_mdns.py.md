@@ -3,9 +3,9 @@ file: tests/python/desktop/test_network_mdns.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-29
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 7578a26b12af4daa53c188bb5cc4fff6e907a85825698d6097f75a7cef6dde91
+sha256: 74f8561aab9040d0daaa0f2c7cf738ff930d7d12369dd63b62b8b9eee099c200
 ---
 # `tests/python/desktop/test_network_mdns.py`
 

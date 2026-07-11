@@ -3,9 +3,9 @@ file: ops/pipeline/engine/publish/pending_repair.ps1
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
-last_modified: 2026-07-09
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ebeed3552615e9e3fbfb19d59cb394be3f0115bd5bc3c51915eb051b06f8f5b9
+sha256: 6b10e5f93838e6b8d70f55dc091ed93ab40ca7c15d1049e32314aacbdbec19d6
 ---
 # `ops/pipeline/engine/publish/pending_repair.ps1`
 

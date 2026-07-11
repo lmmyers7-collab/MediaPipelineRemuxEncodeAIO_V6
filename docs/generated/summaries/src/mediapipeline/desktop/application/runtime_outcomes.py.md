@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/application/runtime_outcomes.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: application
-last_modified: 2026-06-04
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: ce4c0cf6d3f24d1ae8068068e61ec1003c748167fe1be102bc10792b11bd8c64
+sha256: 93e2b18935e7bd60d4b5497e12dca3fe650cdbe90f7c2fa5e3e06363a9436128
 ---
 # `src/mediapipeline/desktop/application/runtime_outcomes.py`
 

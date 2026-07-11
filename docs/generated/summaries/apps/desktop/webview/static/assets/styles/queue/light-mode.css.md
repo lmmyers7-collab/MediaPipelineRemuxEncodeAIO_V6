@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/styles/queue/light-mode.css
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-07
+last_modified: 2026-07-10
 last_reviewed: 2026-06-25
-sha256: 0dd5bc4ba8f5897d084761c3533c6d1c2809621e9377bf39d345d885851a1639
+sha256: 60f1451506c096c560f50982814d71789fa51faed47cd90aa1205b09c13a81d8
 ---
 # `apps/desktop/webview/static/assets/styles/queue/light-mode.css`
 

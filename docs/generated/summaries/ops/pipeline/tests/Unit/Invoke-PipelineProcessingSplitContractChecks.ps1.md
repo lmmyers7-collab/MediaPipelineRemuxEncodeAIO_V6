@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-PipelineProcessingSplitContractChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-24
+last_modified: 2026-07-10
 last_reviewed: 2026-06-24
-sha256: d815fb8b39f59a1fdb241d7b95fa572b51071c4af1846c004fe1c73ffda9e4e2
+sha256: fda843f7363eb73c94e295ba8b7ce591f348e84126b8488b9fea046553279dc2
 ---
 # `ops/pipeline/tests/Unit/Invoke-PipelineProcessingSplitContractChecks.ps1`
 

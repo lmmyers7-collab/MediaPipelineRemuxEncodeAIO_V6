@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/domHelpers.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-19
+last_modified: 2026-07-10
 last_reviewed: 2026-06-04
-sha256: 43de527bf760cddd08337f6461d54b7e966d945a8d3bb22036d8641772fd42f9
+sha256: c25c09a87f595d032cb045517fc87cb758df8636a8770dda5263b624e7a498d1
 ---
 # `apps/desktop/webview/static/assets/domHelpers.js`
 
