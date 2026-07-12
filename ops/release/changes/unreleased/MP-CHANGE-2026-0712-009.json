@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0712-009",
+  "title": "Upgrade Babel tooling to 8",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "release",
+  "risk_level": "medium",
+  "date_started": "2026-07-12",
+  "date_completed": "2026-07-12",
+  "summary": "Upgrade the coupled Babel parser, generator, and traverse development toolchain to the compatible 8.x line in one review track.",
+  "reason": "Dependabot PRs #8, #9, and #10 update interdependent Babel packages independently, producing incomplete bot-only changes without repository change-control evidence. The related majors must resolve together while remaining separate from globals and ESLint majors.",
+  "affected_areas": [
+    "dependencies",
+    "generated-context",
+    "tooling",
+    "webview"
+  ],
+  "behavior_before": "Root WebView tooling resolved Babel parser, generator, traverse, and transitive helpers on 7.29.x.",
+  "behavior_after": "Root WebView tooling resolves parser 8.0.4, generator 8.0.0, traverse 8.0.4, and their npm-selected Babel 8 transitive graph. Application runtime code and the separate Tauri package graph are unchanged.",
+  "files_touched": [
+    "docs/generated/summaries/package.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0712-009.json",
+    "package-lock.json",
+    "package.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "OBSERVED: Babel 8 declares Node ^22.18 or >=24.11; root CI provisions Node 22 and local validation uses Node 24.15. The private-beta Node 20 job installs only apps/desktop/tauri/package-lock.json and does not consume root Babel tooling.",
+    "PASS: complete npm run webview:prework:check, including syntax, ESLint budget, generated WebView maps/contracts, DOM/routes/commands, and 282-script load order.",
+    "PASS: npm install resolved the coupled Babel 8 graph and npm audit reported zero vulnerabilities."
+  ],
+  "rollback_plan": "Restore the three Babel 7 ranges in package.json and regenerate package-lock.json with npm install; do not hand-edit lock metadata.",
+  "related_changes": [
+    "Dependabot PRs #8, #9, and #10",
+    "PR #30",
+    "PR #31"
+  ],
+  "notes": "This track intentionally groups only the mutually dependent Babel majors. It excludes globals 17 and the incompatible partial @eslint/js 10 update.\nUpgrade the coupled Babel parser, generator, and traverse development ranges to 8.x.\nRegenerate the complete coupled Babel 8 dependency graph with npm.\nRefresh the package manifest summary after the coupled Babel 8 upgrade."
+}
