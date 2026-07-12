@@ -78,14 +78,14 @@ def _completed_date_key(record: CompletedJobRecord) -> str:
     completed_at = record.completed_at
     if completed_at is None:
         return "unknown"
-    return completed_at.astimezone().date().isoformat()
+    return completed_at.date().isoformat()
 
 
 def _completed_at_text(record: CompletedJobRecord) -> str:
     completed_at = record.completed_at
     if completed_at is None:
         return ""
-    return completed_at.astimezone().isoformat(timespec="seconds")
+    return completed_at.isoformat(timespec="seconds")
 
 
 def _counter_mapping(values: Iterable[str]) -> dict[str, int]:

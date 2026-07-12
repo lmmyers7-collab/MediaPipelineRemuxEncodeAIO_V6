@@ -155,6 +155,7 @@ class MetricsFeatureTests(unittest.TestCase):
         self.assertEqual(payload["production"]["throughput"]["recent_completed_count"], 2)
         self.assertEqual(payload["production"]["throughput"]["recent_output_bytes"], 2000)
         self.assertEqual(payload["production"]["throughput"]["last_completed_at"], "2026-06-02T10:00:00-04:00")
+
         self.assertEqual(payload["workers"]["role"], "coordinator")
         self.assertEqual(payload["workers"]["session_completed"], 4)
         self.assertEqual(payload["workers"]["coordinator"]["session_failed"], 1)
@@ -169,6 +170,22 @@ class MetricsFeatureTests(unittest.TestCase):
         self.assertIn("worker-failures", attention_ids)
         self.assertEqual(payload["source_evidence"]["completed_manifest"]["proof_mode"], "summary")
         self.assertEqual(payload["source_evidence"]["metrics_backfill"]["source_count"], 0)
+
+    def test_metrics_payload_preserves_completed_timestamp_offset(self) -> None:
+        completed = [
+            CompletedJobRecord(
+                sidecar_path=Path("movie.pipeline.json"),
+                payload={"encoded_at": "2026-06-02T00:30:00+02:00", "route": "remux"},
+            )
+        ]
+
+        payload = build_metrics_payload(completed)
+
+        self.assertEqual(payload["production"]["throughput"]["last_completed_at"], "2026-06-02T00:30:00+02:00")
+        self.assertEqual(
+            payload["production"]["throughput"]["recent_daily_completion_series"][0]["date"],
+            "2026-06-02",
+        )
 
     def test_metrics_route_contracts_define_read_and_backfill_boundaries(self) -> None:
         routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}

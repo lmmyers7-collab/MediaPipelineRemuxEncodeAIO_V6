@@ -3,9 +3,9 @@ file: tests/python/desktop/test_real_media_validation_worksheet.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: fbb4a065bc0b3aa3d39ee0a7a0787e7e52bfcb94580e05915f1de42b75632c6b
+sha256: 3dbb28ca2bcbf68e262459b6a597ffbc5e24e46e940af4274cfa8cd543cd69b8
 ---
 # `tests/python/desktop/test_real_media_validation_worksheet.py`
 

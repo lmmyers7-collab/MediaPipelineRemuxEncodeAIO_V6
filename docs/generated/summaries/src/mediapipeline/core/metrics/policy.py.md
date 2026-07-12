@@ -3,9 +3,9 @@ file: src/mediapipeline/core/metrics/policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: metrics
-last_modified: 2026-07-02
+last_modified: 2026-07-12
 last_reviewed: 2026-06-05
-sha256: 6b980adc37ab5d2425996a40c7369bf91501a4b91ee1806f694c9b6cf4dc3843
+sha256: ce14d97ddca62b42ee61c27ee72f369c4edf5e2a98f25c641030a255f99c2eec
 ---
 # `src/mediapipeline/core/metrics/policy.py`
 

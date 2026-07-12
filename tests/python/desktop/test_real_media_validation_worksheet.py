@@ -30,6 +30,7 @@ class RealMediaValidationWorksheetTests(unittest.TestCase):
 
         self.assertIn("SupportsShouldProcess", source)
         self.assertIn("PositionalBinding = $false", source)
+        self.assertIn(r'\|\r?$", "| $Field | $valueText |"', source)
         self.assertIn("PlanOnly", source)
         self.assertIn("SampleCategory", source)
         self.assertIn("ExpectedRoute", source)

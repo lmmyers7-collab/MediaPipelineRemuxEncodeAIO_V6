@@ -7,41 +7,56 @@
   "risk_level": "medium",
   "date_started": "2026-07-12",
   "date_completed": "2026-07-12",
-  "summary": "Provision complete bundled Python, Node, core media tools, PgsToSrt/tessdata, and runner-initialized isolated temp/AppData state for Deep Audit and Generated Drift jobs.",
-  "reason": "The active Generated Drift jobs copied Python without installing bundled-runtime dependencies and did not provision media tools; the broad Python jobs also invoked bundled runtimes and Node tooling that their job setup did not provide.",
+  "summary": "Provision complete CI runtimes and remove host-timezone and checkout-line-ending dependence from release verification.",
+  "reason": "The active Generated Drift jobs copied Python without installing bundled-runtime dependencies and did not provision media tools; broad tests also exposed metrics serialization tied to the runner timezone and worksheet identity replacement tied to LF-only checkouts.",
   "affected_areas": [
     "ci",
-    "release",
+    "generated",
     "packaging",
+    "python",
+    "release",
+    "scripts",
+    "tests",
     "tooling"
   ],
-  "behavior_before": "CI release/package jobs failed on missing pydantic, psutil, pysubs2, FFmpeg, MKVToolNix, PgsToSrt/tessdata, and AppData prerequisites, while broad Python jobs could fail when browser/tooling tests spawned the unprovisioned bundled runtime.",
-  "behavior_after": "All relevant CI jobs provision and validate the required bundled runtime layout without skipping release checks; isolated paths are exported from RUNNER_TEMP through GITHUB_ENV after the runner starts; PgsToSrt 1.4.8 and English tessdata are downloaded from pinned upstream revisions with SHA-256 verification; package exclusion policy is unchanged.",
+  "behavior_before": "CI release/package jobs failed on missing runtime prerequisites; metrics completion timestamps changed with the host timezone; and CRLF checkouts prevented real-media worksheet identity fields from being populated.",
+  "behavior_after": "All relevant CI jobs provision and validate the required bundled runtime layout without skipping release checks; pipeline timestamp offsets are preserved; worksheet identity rows accept LF and CRLF templates; pinned downloads remain SHA-256 verified; package exclusion policy is unchanged.",
   "files_touched": [
-    "ops/release/changes/unreleased/MP-CHANGE-2026-0712-002.json",
     ".github/workflows/deep-audit.yml",
     ".github/workflows/phase1-drift.yml",
+    "docs/generated/DUPLICATE_TEST_NAMES.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0712-002.json.md",
+    "docs/generated/summaries/ops/scripts/operator/New-RealMediaValidationWorksheet.ps1.md",
+    "docs/generated/summaries/src/mediapipeline/core/metrics/policy.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_metrics_feature.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_real_media_validation_worksheet.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0712-002.json",
+    "ops/scripts/operator/New-RealMediaValidationWorksheet.ps1",
     "ops/scripts/release/Initialize-CiMediaTools.ps1",
+    "src/mediapipeline/core/metrics/policy.py",
+    "tests/python/desktop/test_metrics_feature.py",
+    "tests/python/desktop/test_real_media_validation_worksheet.py",
     "tests/python/tooling/test_release_ci_provisioning.py"
   ],
   "tests_added": [
+    "tests.python.tooling.test_release_ci_provisioning.ReleaseCiProvisioningTests.test_deep_audit_python_and_release_jobs_share_complete_runtime_provisioning",
     "tests.python.tooling.test_release_ci_provisioning.ReleaseCiProvisioningTests.test_generated_drift_release_jobs_provision_the_same_required_runtime",
-    "tests.python.tooling.test_release_ci_provisioning.ReleaseCiProvisioningTests.test_deep_audit_python_and_release_jobs_share_complete_runtime_provisioning"
+    "tests.python.desktop.test_metrics_feature.MetricsFeatureTests.test_metrics_payload_preserves_completed_timestamp_offset"
   ],
   "manual_validation": [
+    "CI-style bundled-Python discovery passed 3,131 tests with 1 expected skip after regenerating the duplicate-test report",
+    "Deployable lean package build and copied-folder plus extracted-ZIP acceptance passed with immutable package roots and zero leftover child processes",
+    "Full source release self-test passed every required Python, generated-context, dependency, lint, WebView, PowerShell, tool-integration, and end-to-end gate",
     "Initialize-CiMediaTools.ps1 -InstallMissing passed against an empty temporary repository root",
+    "Package ZIP SHA-256 E613662C012965FCD4E4ACEAD03729412658EBDF552D8A8D381AEB0C321813DB (616,615,735 bytes)",
     "Provisioned PgsToSrt.exe SHA-256 7CBCBCE199D1CBE2E4ED4556BB96336CD988D40A35E24EF92A9B0962037580AB",
     "Provisioned eng.traineddata SHA-256 DAA0C97D651C19FBA3B25E81317CD697E9908C8208090C94C3905381C23FC047",
-    "CI-style bundled-Python discovery passed 3,131 tests with 1 expected skip after regenerating the duplicate-test report",
-    "Full source release self-test passed every required Python, generated-context, dependency, lint, WebView, PowerShell, tool-integration, and end-to-end gate",
-    "Tauri CheckOnly, cargo check --locked, cargo test --locked (43 passed), and cargo build --release --locked passed",
-    "Deployable lean package build and copied-folder plus extracted-ZIP acceptance passed with immutable package roots and zero leftover child processes",
-    "Package ZIP SHA-256 E613662C012965FCD4E4ACEAD03729412658EBDF552D8A8D381AEB0C321813DB (616,615,735 bytes)"
+    "Tauri CheckOnly, cargo check --locked, cargo test --locked (43 passed), and cargo build --release --locked passed"
   ],
-  "rollback_plan": "Revert the workflow and CI media-provisioner changes; no packaged runtime, local operator config, or media state requires migration.",
+  "rollback_plan": "Revert the workflow, CI media-provisioner, metrics formatting, and worksheet regex changes; no packaged runtime, local operator config, or media state requires migration.",
   "related_changes": [
-    "GitHub issue #22",
-    "GitHub PR #29"
+    "GitHub PR #29",
+    "GitHub issue #22"
   ],
-  "notes": "Release gates remain strict. Live config, runtime state, credentials, source-control data, and optional FFplay/MKVToolNix GUI bulk exclusions were not changed. Job-level runner.temp expressions were replaced with runner-time GITHUB_ENV exports because the runner context is not available while GitHub constructs a job. Pinned downloads retry bounded transient transport failures, but every attempt must still pass the exact SHA-256 gate."
+  "notes": "Release gates remain strict. Live config, runtime state, credentials, source-control data, and optional FFplay/MKVToolNix GUI bulk exclusions were not changed. Job-level runner.temp expressions were replaced with runner-time GITHUB_ENV exports because the runner context is not available while GitHub constructs a job. Pinned downloads retry bounded transient transport failures, but every attempt must still pass the exact SHA-256 gate.\nPreserve pipeline timestamp offsets so metrics output is independent of the CI host timezone.\nCover timestamp offset and completion-date stability across host timezones.\nMake worksheet identity-row replacement work with CRLF and LF checkouts.\nGuard the worksheet CRLF-safe replacement expression.\nRegenerated canonical release-test evidence after the CI portability fixes."
 }
