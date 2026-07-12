@@ -96,9 +96,22 @@ jobs:
           npm ci
 
       - name: Run Python unit tests
+        shell: pwsh
         run: |
           python -m unittest discover -s tests/python -q
-          python -m unittest discover -s tests/webview -q
+          $nonBrowserModules = @(
+            Get-ChildItem tests/webview/test_*.py |
+              Where-Object { $_.Name -notlike 'test_webview_browser*.py' } |
+              ForEach-Object { "tests.webview.$($_.BaseName)" }
+          )
+          python -m unittest @nonBrowserModules -q
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          Get-ChildItem tests/webview/test_webview_browser*.py | ForEach-Object {
+            $module = "tests.webview.$($_.BaseName)"
+            python -m unittest $module -q
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
   webview-prework:
     name: WebView prework
