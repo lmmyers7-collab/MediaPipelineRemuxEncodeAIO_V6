@@ -246,27 +246,33 @@ def _browser_launch_queue_readiness_runner_source() -> str:
                 "posts=" + JSON.stringify(posts),
               ].join("\\n\\n"));
             }
+            function launchQueueScheduleReadinessChecks() {
+              return {
+                close: text("close-readiness").includes("Close:"),
+                launchSnapshot: text("launch-readiness").includes("Backend snapshot: ok"),
+                launchTiming: text("launch-timing").includes("Launch timing trust:"),
+                scopeReconciliation: text("launch-scope-reconciliation-summary").includes("Launch scope reconciliation:"),
+                startDecision: text("launch-start-decision-summary").includes("Launch start decision summary:"),
+                realMediaProof: text("launch-real-media-proof-summary").includes("Launch real-media sample proof handoff:"),
+                realMediaMatches: text("launch-real-media-proof-summary").includes("matches=1"),
+                historicalAcceptedRecords: text("launch-real-media-proof-summary").includes("historical accepted category records=1"),
+                sampleExecution: text("launch-sample-execution-summary").includes("Launch sample execution checklist:"),
+                pilotReadiness: text("launch-pilot-readiness-summary").includes("Launch pilot run readiness:"),
+                backendPreflight: text("launch-backend-preflight-summary").includes("backend preflight"),
+                backendPreflightSettled: !text("launch-backend-preflight-status").includes("Loading"),
+                queueDecision: text("queue-decision-summary").includes("Queue decision header:"),
+                queueAttention: text("queue-attention-summary").includes("Attention required:"),
+                queueLaunchDecision: text("queue-launch-decision-summary").includes("Queue-to-Launch handoff:"),
+                commandReview: text("launch-command-review-summary").includes("Launch command review:"),
+                scheduleGuidance: text("schedule-guidance").includes("Backend launch gating remains the source of truth."),
+              };
+            }
             function launchQueueScheduleReadinessReady() {
-              return text("close-readiness").includes("Close:")
-                && text("launch-readiness").includes("Backend snapshot: ok")
-                && text("launch-timing").includes("Launch timing trust:")
-                && text("launch-scope-reconciliation-summary").includes("Launch scope reconciliation:")
-                && text("launch-start-decision-summary").includes("Launch start decision summary:")
-                && text("launch-real-media-proof-summary").includes("Launch real-media sample proof handoff:")
-                && text("launch-real-media-proof-summary").includes("matches=1")
-                && text("launch-real-media-proof-summary").includes("historical accepted category records=1")
-                && text("launch-sample-execution-summary").includes("Launch sample execution checklist:")
-                && text("launch-pilot-readiness-summary").includes("Launch pilot run readiness:")
-                && text("launch-backend-preflight-summary").includes("backend preflight")
-                && !text("launch-backend-preflight-status").includes("Loading")
-                && text("queue-decision-summary").includes("Queue decision header:")
-                && text("queue-attention-summary").includes("Attention required:")
-                && text("queue-launch-decision-summary").includes("Queue-to-Launch handoff:")
-                && text("launch-command-review-summary").includes("Launch command review:")
-                && text("schedule-guidance").includes("Backend launch gating remains the source of truth.");
+              return Object.values(launchQueueScheduleReadinessChecks()).every(Boolean);
             }
             [
               "showPage",
+              "refreshAllNow",
               "renderAllLaunchPreflights",
               "renderLaunchScopeReconciliation",
               "launchScopeReconciliationRows",
@@ -332,9 +338,13 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             setInput("pipeline-start-mode", "continuous");
             setInput("pipeline-start-single-file", "E:\\\\Videos\\\\Scratch\\\\Encoded\\\\TV\\\\Sample Pilot.mkv");
             setInput("pipeline-start-schedule-override", "");
-            window.mediaPipelineLaunchView.renderAllLaunchPreflights();
-            await waitFor(launchQueueScheduleReadinessReady, "initial Launch/Queue/Schedule readiness baseline");
             const originalRefreshAll = window.refreshAll;
+            await window.refreshAllNow({ page: "home" });
+            window.mediaPipelineLaunchView.renderAllLaunchPreflights();
+            await waitFor(
+              launchQueueScheduleReadinessReady,
+              "initial Launch/Queue/Schedule readiness baseline " + JSON.stringify(launchQueueScheduleReadinessChecks())
+            );
             window.refreshAll = async () => {};
             const compactGateStrip = byId("pipeline-compact-gate-strip");
             const startButton = byId("pipeline-start-button");
@@ -1732,8 +1742,8 @@ class WebViewBrowserLaunchQueueReadinessSmoke(unittest.TestCase):
             self.assertEqual(service.started_pipeline["sleep_seconds"], 3)
             self.assertIsNone(service.started_pipeline["single_file"])
             self.assertIn("Started pipeline (once)", browser_result["launchPost"]["message"])
-            self.assertFalse(source.read_bytes() == b"")
-            self.assertFalse(output.read_bytes() == b"")
+            self.assertNotEqual(source.read_bytes(), b"")
+            self.assertNotEqual(output.read_bytes(), b"")
             assert_media_no_mutation(self, media_snapshot)
 
 

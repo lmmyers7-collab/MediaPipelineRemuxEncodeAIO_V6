@@ -141,7 +141,6 @@ def load_psd1_mapping(
         stdout = completed.stdout or ""
         stderr = completed.stderr or ""
         returncode = completed.returncode
-        kill_message = ""
 
     if timed_out:
         return Psd1LoadResult(

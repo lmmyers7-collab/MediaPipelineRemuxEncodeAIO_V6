@@ -73,7 +73,7 @@ class NetworkLibraryRelativeClaimTests(unittest.TestCase):
                 queue_records=[record],
                 failure_records=[],
             )
-            dispatcher._config = lambda: _config()  # type: ignore[assignment]
+            dispatcher._config = _config  # type: ignore[assignment]
             dispatcher._inflight_state_path = lambda: state_path
             dispatcher.log_cluster_event = lambda **_kwargs: None  # type: ignore[assignment]
             sent: list[tuple[dict, int]] = []
@@ -111,7 +111,7 @@ class NetworkLibraryRelativeClaimTests(unittest.TestCase):
                 queue_records=[record],
                 failure_records=[],
             )
-            dispatcher._config = lambda: _config()  # type: ignore[assignment]
+            dispatcher._config = _config  # type: ignore[assignment]
             dispatcher._inflight_state_path = lambda: state_path
             dispatcher.log_cluster_event = lambda **_kwargs: None  # type: ignore[assignment]
             sent: list[tuple[dict, int]] = []

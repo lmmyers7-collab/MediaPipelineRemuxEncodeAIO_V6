@@ -485,7 +485,7 @@ function csvRerunHomeIsActive(csvRerun = csvRerunTailEvidence(), closeReadiness 
   if (csvRerun.isActive === true || csvRerun.workerActive === true) return true;
   const terminalReader = window.mediaPipelineProgressView?.csvRerunTerminalLine;
   if (typeof terminalReader === "function") return !terminalReader(csvRerun.latestLine || "");
-  return !/^(PLAN ONLY complete|DRY RUN complete|Rerun batch complete|No CSV rows are executable)\b|PIPELINE SHUTDOWN CLEANLY|ROUND COMPLETE|Single-pass mode complete/i.test(String(csvRerun.latestLine || ""));
+  return !/^(?:PLAN ONLY complete|DRY RUN complete|Rerun batch complete|No CSV rows are executable|PIPELINE SHUTDOWN CLEANLY|ROUND COMPLETE|Single-pass mode complete)\b/i.test(String(csvRerun.latestLine || ""));
 }
 
 function renderCsvRerunHomeCompletionSummary(source = {}) {
@@ -525,7 +525,7 @@ function renderCsvRerunHomeCompletionSummary(source = {}) {
 }
 
 function renderCsvRerunHomeSummary(context = { stdoutTail: lastStdoutTail, snapshot: lastSnapshot, closeReadiness: lastCloseReadiness }) {
-  const source = context && typeof context === "object" && ("stdoutTail" in context || "snapshot" in context || "diagnostics" in context)
+  const source = context !== null && typeof context === "object" && ("stdoutTail" in context || "snapshot" in context || "diagnostics" in context)
     ? context
     : { stdoutTail: context || lastStdoutTail, snapshot: lastSnapshot, closeReadiness: lastCloseReadiness };
   if (renderCsvRerunHomeCompletionSummary(source)) return true;

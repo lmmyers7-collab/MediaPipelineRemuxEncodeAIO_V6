@@ -6,7 +6,6 @@ on:
     branches:
       - main
       - master
-      - "codex/**"
   schedule:
     - cron: "32 8 * * 2"
   workflow_dispatch:
@@ -36,10 +35,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@f58f0d11ebf5dedd870fab2f999275f7602cfa46 # codeql-bundle-v2.26.0
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
@@ -47,7 +46,7 @@ jobs:
 
       - name: Perform CodeQL analysis
         id: analyze
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@f58f0d11ebf5dedd870fab2f999275f7602cfa46 # codeql-bundle-v2.26.0
         with:
           category: /language:${{ matrix.language }}
           output: codeql-results
@@ -78,7 +77,7 @@ jobs:
 
       - name: Upload CodeQL SARIF artifact
         if: always() && hashFiles('codeql-results/*.sarif') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: codeql-${{ matrix.language }}-sarif
           path: codeql-results/*.sarif

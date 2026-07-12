@@ -646,7 +646,6 @@ def run_metrics_sidecar_backfill(resolved: ResolvedPaths, request: Mapping[str, 
     scanned_entries: list[dict[str, Any]] = []
     root_results: list[dict[str, Any]] = []
     for entry in entries:
-        source_id = _source_lookup_key(entry)
         stats, cache_entries = _scan_source_entry(entry, max_sidecars=max_sidecars, scanned_at=scanned_at)
         root_results.append(stats)
         scanned_entries.extend(cache_entries)

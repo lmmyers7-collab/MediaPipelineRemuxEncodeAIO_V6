@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: metrics
 last_modified: 2026-07-12
 last_reviewed: 2026-06-05
-sha256: ce14d97ddca62b42ee61c27ee72f369c4edf5e2a98f25c641030a255f99c2eec
+sha256: 468b7b48175662c1d8b90f47e8b8afc5a9f517488fd6372e9391a4b36a3a7f64
 ---
 # `src/mediapipeline/core/metrics/policy.py`
 

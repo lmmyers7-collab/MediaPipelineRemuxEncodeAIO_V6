@@ -340,6 +340,27 @@ class RenameBackendBrowseModeTests(unittest.TestCase):
 
         self.assertEqual(observed["selection_mode"], "files")
 
+    def test_command_mixin_reports_selected_folder(self) -> None:
+        import mediapipeline.desktop.api  # noqa: F401
+        from mediapipeline.core.api.commands_rename import LocalApiRenameCommandPayloadMixin
+
+        def fake_picker(*, selection_mode: str, initial_path: str) -> dict:
+            return {
+                "ok": True,
+                "canceled": False,
+                "paths": [r"C:\Media"],
+                "message": "",
+                "errors": [],
+            }
+
+        mixin = LocalApiRenameCommandPayloadMixin()
+        mixin._rename_path_picker = fake_picker  # type: ignore[attr-defined]
+
+        payload = mixin._rename_browse_payload({"selection_mode": "folder", "initial_path": ""})
+
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["message"], "Windows file browser selected 1 folder.")
+
     def test_filter_case_command_appends_to_configured_fixture(self) -> None:
         import mediapipeline.desktop.api  # noqa: F401
         from mediapipeline.core.api.commands_rename import LocalApiRenameCommandPayloadMixin
@@ -400,7 +421,7 @@ class RenameBackendPathDialogScriptTests(unittest.TestCase):
     """The PowerShell payload script branch should know about folder_files."""
 
     def test_powershell_script_branches_on_folder_files(self) -> None:
-        from mediapipeline.desktop.api import path_dialogs
+        import mediapipeline.desktop.api.path_dialogs as path_dialogs
 
         script = path_dialogs._powershell_dialog_script(
             {

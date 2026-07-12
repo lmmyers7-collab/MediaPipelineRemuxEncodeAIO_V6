@@ -55,7 +55,7 @@
   function diagnosticsStateSummaryPanelState(payload) {
     const rows = Array.isArray(payload?.targets) ? payload.targets : [];
     if (!rows.length) return "empty";
-    const statuses = rows.map((item) => String(diagnosticsStateOperatorStatus(item) || item?.status || "").toLowerCase());
+    const statuses = rows.map((item) => diagnosticsStateOperatorStatus(item).toLowerCase());
     if (statuses.includes("blocked") || statuses.includes("error")) return "blocked";
     if (statuses.some((status) => ["review", "warning", "missing", "unknown", "not available"].includes(status))) return "warning";
     return "ready";

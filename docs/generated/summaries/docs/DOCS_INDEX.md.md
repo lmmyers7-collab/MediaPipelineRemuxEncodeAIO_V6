@@ -3,9 +3,9 @@ file: docs/DOCS_INDEX.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-10
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: bb58ddb23ce9a25f857dbdac56627da98c8a7201e7c413fd0ab659621be2a82d
+sha256: fb53f9351f58c57640a011ea9dca6a2523cdee4aa18a55844c7c24fa244f0c35
 ---
 # `docs/DOCS_INDEX.md`
 

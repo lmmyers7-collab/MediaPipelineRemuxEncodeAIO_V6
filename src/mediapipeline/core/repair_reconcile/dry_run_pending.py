@@ -861,12 +861,9 @@ __all__ = [
     "STARTUP_RECONCILIATION_DRY_RUN_SCHEMA_VERSION",
     "active_work_precondition",
     "bounded_repair_reconcile_limit",
-    "completed_manifest_reconcile_dry_run",
-    "completed_sidecar_metadata_repair_dry_run",
     "dry_run_command_name",
     "normalize_repair_reconcile_scope",
     "pending_manifest_repair_dry_run",
     "pending_orphan_payload_reconcile_dry_run",
     "repair_reconcile_dry_run_fingerprint",
-    "startup_reconciliation_dry_run",
 ]

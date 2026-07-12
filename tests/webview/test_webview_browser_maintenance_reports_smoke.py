@@ -1341,6 +1341,9 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Failure rows needing operator/permanent review: 1",
               "Audit rerun/redownload/priority candidates: 1",
             ]);
+            if (text("report-triage-status") !== "Action needed") {
+              throw new Error("Reports triage did not identify the loaded actionable fixture: " + text("report-triage-status"));
+            }
             requireText("failure-review-board", [
               "Review State",
               "Action needed",
@@ -2351,7 +2354,6 @@ def _browser_maintenance_reports_runner_source() -> str:
               posts,
               gets,
               maintenanceStatus: text("maintenance-readiness-status"),
-              reportStatus: text("report-triage-status"),
               failureStatus: text("failure-review-status"),
               auditStatus: text("audit-review-status"),
             };
@@ -2598,7 +2600,6 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
         self.assertEqual(score_policy_post["body"]["policy"]["issue_code_weights"]["audio-default-policy-mismatch"], 222)
         self.assertEqual(score_policy_post["body"]["policy"]["issue_code_weights"]["bdpgs-subtitles-ocr-candidate"], 40)
         self.assertIn(browser_result["maintenanceStatus"], {"Ready", "Warnings", "Blocked"})
-        self.assertEqual(browser_result["reportStatus"], "Action needed")
         self.assertTrue(browser_result["failureStatus"].startswith("Unavailable"))
         self.assertIn("historical only", browser_result["failureStatus"])
         self.assertTrue(browser_result["auditStatus"].startswith("Unavailable"))

@@ -136,7 +136,7 @@ def build_backend(
 ) -> tuple[DesktopAppService, ResolvedPaths, LocalApiServer]:
     startup_steps: list[dict[str, Any]] = []
     root = (app_root or default_app_root()).resolve()
-    startup_progress = record_startup_step(
+    record_startup_step(
         startup_steps,
         "resolve_app_root",
         "Resolve app root",
@@ -144,7 +144,7 @@ def build_backend(
         callback=startup_progress_callback,
     )
     service = DesktopAppService(root)
-    startup_progress = record_startup_step(
+    record_startup_step(
         startup_steps,
         "create_service",
         "Create backend service",
@@ -152,7 +152,7 @@ def build_backend(
         callback=startup_progress_callback,
     )
     selected_pipeline_path = pipeline_path or service.default_pipeline_path()
-    startup_progress = record_startup_step(
+    record_startup_step(
         startup_steps,
         "resolve_pipeline_path",
         "Resolve pipeline path",
@@ -163,7 +163,7 @@ def build_backend(
         selected_config_path = config_path
     else:
         recovery = ensure_canonical_config(service.app_root, service.workspace_root)
-        startup_progress = record_startup_step(
+        record_startup_step(
             startup_steps,
             "recover_config",
             "Recover live config",
@@ -175,7 +175,7 @@ def build_backend(
         # rename, or points at the per-user config (packaged builds). Use it as
         # the selection so dev and packaged shells agree.
         selected_config_path = recovery.canonical_path
-    startup_progress = record_startup_step(
+    record_startup_step(
         startup_steps,
         "resolve_config_path",
         "Resolve config path",
@@ -193,7 +193,7 @@ def build_backend(
     )
     service.configure_active_job_reconciliation(resolved_state.get)
     resolved = resolved_state.get()
-    startup_progress = record_startup_step(
+    record_startup_step(
         startup_steps,
         "resolve_paths",
         "Resolve runtime paths",
@@ -211,7 +211,7 @@ def build_backend(
                 load_config_data=service.load_config_data,
                 local_base=resolved.local_base,
             )
-            startup_progress = record_startup_step(
+            record_startup_step(
                 startup_steps,
                 "repair_blocked_config",
                 "Repair blocked config",
@@ -222,7 +222,7 @@ def build_backend(
             if recovery.ok:
                 resolved = resolved_state.reload()
     config_loaded = bool(getattr(resolved, "config_data", None))
-    startup_progress = record_startup_step(
+    record_startup_step(
         startup_steps,
         "verify_config_loaded",
         "Verify settings loaded",
@@ -230,7 +230,7 @@ def build_backend(
         status="complete" if config_loaded else "warning",
         callback=startup_progress_callback,
     )
-    startup_progress = record_startup_step(
+    record_startup_step(
         startup_steps,
         "verify_powershell",
         "Verify PowerShell host",
@@ -241,28 +241,28 @@ def build_backend(
     pipeline_root = selected_pipeline_path.parent
     if pipeline_root.name.casefold() == "entrypoints":
         pipeline_root = pipeline_root.parent
-    startup_progress = record_startup_path_step(
+    record_startup_path_step(
         startup_steps,
         "verify_ffmpeg",
         "Verify FFmpeg",
         pipeline_root / "tools" / "ffmpeg" / "bin" / "ffmpeg.exe",
         callback=startup_progress_callback,
     )
-    startup_progress = record_startup_path_step(
+    record_startup_path_step(
         startup_steps,
         "verify_ffprobe",
         "Verify ffprobe",
         pipeline_root / "tools" / "ffmpeg" / "bin" / "ffprobe.exe",
         callback=startup_progress_callback,
     )
-    startup_progress = record_startup_path_step(
+    record_startup_path_step(
         startup_steps,
         "verify_mkvmerge",
         "Verify MKVToolNix",
         pipeline_root / "tools" / "MKVToolNix" / "mkvmerge.exe",
         callback=startup_progress_callback,
     )
-    startup_progress = record_startup_step(
+    record_startup_step(
         startup_steps,
         "resolve_state_paths",
         "Resolve state paths",

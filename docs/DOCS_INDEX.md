@@ -1,6 +1,6 @@
 # MediaPipelineRemuxEncodeAIO Documentation Index
 
-Last updated: 2026-07-04
+Last updated: 2026-07-12
 
 This is the active documentation map for the current promoted tree. It reflects the quarantine move plus the operator's later manual deletion of several active doc folders. The legacy desktop shell is not part of this current folder, and WebView/Tauri is the promoted operator surface.
 
@@ -96,6 +96,7 @@ No active standalone fix-checklist redirect remains; use
 - `reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md`: active reference for the fixed/deferred function-module audit disposition.
 - `reviews/network-coordinator-worker-mode-2026-06-15/FINDINGS_REGISTER.md`: active reference for the network coordinator/worker finding set.
 - `reviews/network-coordinator-worker-mode-2026-06-15/DISPOSITION_LEDGER.md`: active per-finding disposition ledger for the 2026-06-15 network coordinator/worker review.
+- `reviews/codeql-2026-07-12/DISPOSITION_LEDGER.md`: rule-complete disposition ledger for the 2026-07-12 authoritative-branch CodeQL baseline and local remediation.
 
 Other 2026-06 audit/review packs are historical evidence snapshots and should live under `archive/docs-housekeeping/2026-06-24-doc-prune/`.
 

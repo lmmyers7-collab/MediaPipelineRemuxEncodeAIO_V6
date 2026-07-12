@@ -3,9 +3,9 @@ file: src/mediapipeline/core/repair_reconcile/dry_run_pending.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-07-11
-sha256: f11ef7386f225e1beef0f3acdd78c5cc6980ed2bd55dd44fc78873f85965c875
+sha256: 74a8795541fa9735aa7817c73b5cb298c40adb32232f9f661be7e530503e7f88
 ---
 # `src/mediapipeline/core/repair_reconcile/dry_run_pending.py`
 

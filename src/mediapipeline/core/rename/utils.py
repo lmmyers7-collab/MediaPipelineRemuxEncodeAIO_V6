@@ -68,10 +68,10 @@ def rename_override_sidecar_path(media_path: Path) -> Path:
 
 def associated_sidecar_candidates(media_path: Path) -> list[tuple[Path, Callable[[Path], Path]]]:
     destination_patterns: tuple[tuple[Path, Callable[[Path], Path]], ...] = (
-        (mediapipeline_sidecar_path(media_path), lambda dest: mediapipeline_sidecar_path(dest)),
-        (pipeline_sidecar_path(media_path), lambda dest: pipeline_sidecar_path(dest)),
+        (mediapipeline_sidecar_path(media_path), mediapipeline_sidecar_path),
+        (pipeline_sidecar_path(media_path), pipeline_sidecar_path),
         (Path(str(media_path) + ".pipeline.json"), lambda dest: Path(str(dest) + ".pipeline.json")),
-        (rename_override_sidecar_path(media_path), lambda dest: rename_override_sidecar_path(dest)),
+        (rename_override_sidecar_path(media_path), rename_override_sidecar_path),
     )
     seen: set[str] = set()
     candidates: list[tuple[Path, Callable[[Path], Path]]] = []

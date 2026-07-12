@@ -10,13 +10,10 @@ from __future__ import annotations
 import http.server
 import json
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any, Protocol
 
 from ..auth import AUTH_FAILURE_CLOCK_SKEW
 from ..coordinator_http import MAX_COORDINATOR_BODY_BYTES, parse_query_params, validate_content_length
-
-if TYPE_CHECKING:
-    from ..coordinator import CoordinatorDispatcher
 
 _log = logging.getLogger("mediapipeline.desktop.network.coordinator")
 
@@ -27,7 +24,45 @@ _log = logging.getLogger("mediapipeline.desktop.network.coordinator")
 _COORDINATOR_PROTOCOL_VERSION = 2
 
 
-def _coordinator_health_heartbeat_timeout_mins(disp: CoordinatorDispatcher) -> float:
+class _CoordinatorDispatcherProtocol(Protocol):
+    _accepting_claims: bool
+
+    def _heartbeat_timeout_mins(self) -> float: ...
+
+    def _request_auth_result(
+        self,
+        headers: dict[str, str],
+        *,
+        method: str,
+        path_with_query: str,
+        body: bytes,
+    ) -> object: ...
+
+    def _validate_request_auth(
+        self,
+        headers: dict[str, str],
+        *,
+        method: str,
+        path_with_query: str,
+        body: bytes,
+    ) -> bool: ...
+
+    def _http_claim(self, handler: _CoordHandler, params: dict[str, str]) -> None: ...
+
+    def _http_libraries(self, handler: _CoordHandler, params: dict[str, str]) -> None: ...
+
+    def _http_ping(self, handler: _CoordHandler) -> None: ...
+
+    def _http_workers(self, handler: _CoordHandler, params: dict[str, str]) -> None: ...
+
+    def _http_done(self, handler: _CoordHandler, body: bytes) -> None: ...
+
+    def _http_heartbeat(self, handler: _CoordHandler, body: bytes) -> None: ...
+
+    def _http_log(self, handler: _CoordHandler, body: bytes) -> None: ...
+
+
+def _coordinator_health_heartbeat_timeout_mins(disp: _CoordinatorDispatcherProtocol) -> float:
     try:
         return disp._heartbeat_timeout_mins()
     except Exception as exc:
@@ -47,7 +82,7 @@ class _CoordServer(http.server.ThreadingHTTPServer):
     allow_reuse_address = True
 
     # Set by the dispatcher after server creation.
-    dispatcher: CoordinatorDispatcher
+    dispatcher: _CoordinatorDispatcherProtocol
 
 
 class _CoordHandler(http.server.BaseHTTPRequestHandler):
@@ -66,7 +101,7 @@ class _CoordHandler(http.server.BaseHTTPRequestHandler):
         pass
 
     @property
-    def _disp(self) -> CoordinatorDispatcher:
+    def _disp(self) -> _CoordinatorDispatcherProtocol:
         return self.server.dispatcher
 
     def _send_json(self, data: dict[str, Any], status: int = 200) -> None:

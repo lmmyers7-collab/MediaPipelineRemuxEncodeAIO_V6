@@ -402,7 +402,7 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
         self.assertIn(str(library_root), args)
         self.assertEqual(kwargs["cwd"], str(root))
         self.assertEqual(kwargs["timeout_seconds"], 5700)
-        self.assertTrue(str(root / "src") in str(kwargs["env"]["PYTHONPATH"]))
+        self.assertIn(str(root / "src"), str(kwargs["env"]["PYTHONPATH"]))
 
     def test_proof_pack_service_starts_background_run_without_capture(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -443,7 +443,7 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
         self.assertEqual(args[args.index("--run-id") + 1], result["run_id"])
         self.assertEqual(kwargs["cwd"], str(root))
         self.assertEqual(kwargs["stdin"], subprocess.DEVNULL)
-        self.assertTrue(str(root / "src") in str(kwargs["env"]["PYTHONPATH"]))
+        self.assertIn(str(root / "src"), str(kwargs["env"]["PYTHONPATH"]))
 
     def test_proof_pack_service_blocks_stale_incomplete_run_without_pid_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

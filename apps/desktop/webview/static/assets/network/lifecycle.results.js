@@ -94,7 +94,7 @@
           : key;
         const rawValue = redactedConfig[key];
         const value = normalized.includes("authtoken")
-          ? String(rawValue || "").replace("present_redacted", "present, hidden").replace("will_generate_on_start", "blank; coordinator can generate").replace("missing", "missing")
+          ? String(rawValue || "").replace("present_redacted", "present, hidden").replace("will_generate_on_start", "blank; coordinator can generate")
           : rawValue;
         lines.push(`- ${label}: ${value}`);
       });

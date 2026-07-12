@@ -18,6 +18,7 @@ from mediapipeline.core.processes.lifecycle_lease import LifecycleLeaseStore
 from mediapipeline.core.api.command_handlers import LocalApiCommandHandlerMixin
 from .handler import build_local_api_handler_class
 from .http_helpers import (
+    canonical_local_api_origin,
     host_header_authorized,
     is_client_disconnect_error,
     local_api_allowed_origins,
@@ -196,10 +197,15 @@ class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandHandlerMixin):
         )
 
     def _cors_response_origin(self, headers: Any) -> str:
-        origin = str(headers.get("Origin") or "").strip()
-        if origin and self._origin_header_authorized(headers):
-            return origin
         allowed_origins = local_api_allowed_origins(bind_host=self.host, port=self.port, shell_surface=self.shell_surface)
+        origin = canonical_local_api_origin(
+            str(headers.get("Origin") or ""),
+            bind_host=self.host,
+            port=self.port,
+            shell_surface=self.shell_surface,
+        )
+        if origin is not None:
+            return origin
         preferred_origin = f"http://127.0.0.1:{self.port}"
         if preferred_origin in allowed_origins:
             return preferred_origin

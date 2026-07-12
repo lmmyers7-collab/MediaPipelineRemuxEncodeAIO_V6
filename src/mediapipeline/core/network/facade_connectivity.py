@@ -7,6 +7,7 @@ from datetime import datetime, UTC
 import hashlib
 import ipaddress
 import logging
+import math
 from pathlib import Path
 import re
 import socket
@@ -236,7 +237,7 @@ def _clamped_percent(value: object) -> float | None:
         numeric = float(str(value))
     except (TypeError, ValueError):
         return None
-    if not (numeric == numeric):
+    if not math.isfinite(numeric):
         return None
     return max(0.0, min(100.0, numeric))
 

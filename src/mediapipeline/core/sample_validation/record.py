@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import datetime, UTC
 import json
+import math
 import os
 from pathlib import Path
 from typing import Any
@@ -246,7 +247,7 @@ def _optional_float(value: Any) -> float | None:
         parsed = float(value)
     except (TypeError, ValueError):
         return None
-    if parsed != parsed or parsed in (float("inf"), float("-inf")):
+    if not math.isfinite(parsed):
         return None
     return round(parsed, 3)
 

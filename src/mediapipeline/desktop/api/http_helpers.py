@@ -214,6 +214,27 @@ def local_api_allowed_origins(*, bind_host: str, port: int, shell_surface: str =
     return origins
 
 
+def canonical_local_api_origin(
+    origin_header: str,
+    *,
+    bind_host: str,
+    port: int,
+    shell_surface: str = "webview",
+) -> str | None:
+    """Return the server-authored origin matching an allowed request origin."""
+    supplied_origin = str(origin_header or "").strip()
+    if not supplied_origin:
+        return None
+    for allowed_origin in local_api_allowed_origins(
+        bind_host=bind_host,
+        port=port,
+        shell_surface=shell_surface,
+    ):
+        if secrets.compare_digest(supplied_origin, allowed_origin):
+            return allowed_origin
+    return None
+
+
 def origin_header_authorized(
     origin_header: str,
     *,
@@ -228,7 +249,12 @@ def origin_header_authorized(
     if not parsed.scheme or not parsed.hostname:
         return False
     if parsed.scheme == "tauri":
-        return origin in local_api_allowed_origins(bind_host=bind_host, port=port, shell_surface=shell_surface)
+        return canonical_local_api_origin(
+            origin,
+            bind_host=bind_host,
+            port=port,
+            shell_surface=shell_surface,
+        ) is not None
     if parsed.scheme != "http":
         return False
     try:
@@ -242,6 +268,12 @@ def origin_header_authorized(
         and not parsed.path
         and not parsed.query
         and not parsed.fragment
+        and canonical_local_api_origin(
+            origin,
+            bind_host=bind_host,
+            port=port,
+            shell_surface=shell_surface,
+        ) is not None
     )
 
 

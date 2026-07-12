@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0712-004",
+  "title": "Normalize authoritative branch governance",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "release",
+  "risk_level": "medium",
+  "date_started": "2026-07-12",
+  "date_completed": "2026-07-12",
+  "summary": "Fast-forward main to the already-authoritative promoted history, restore main as the repository default, retarget open dependency updates, and protect the authoritative baseline with the release-critical GitHub and code-scanning checks.",
+  "reason": "The refactor branch had become the default after its 19-commit promoted history could not be meaningfully reviewed against stale main, while workflow push filters still treated main as authoritative. Matching the two refs before restoring main removes misleading comparisons without rewriting shared history.",
+  "affected_areas": [
+    "release",
+    "github",
+    "ci",
+    "dependencies",
+    "documentation"
+  ],
+  "behavior_before": "refactor/mediapipeline-entrypoint-slice was the unprotected default branch, main was 19 commits behind with no unique commits, all 18 open Dependabot pull requests targeted the refactor branch, and neither branch had required checks or force-push/deletion protection.",
+  "behavior_after": "main and the preserved refactor branch both point to 34e4076720bde468ba9cb221ec617920724c587e; main is the protected default; all 18 open Dependabot pull requests target main; required checks are strict and include the seven repository gates, four CodeQL language jobs, and the aggregate GitHub Advanced Security CodeQL check; conversation resolution is required and force-pushes/deletions are disabled.",
+  "files_touched": [
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0712-004.json",
+    "docs/CURRENT_PROJECT_STATE.md"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PASS: git rev-list --left-right --count origin/main...origin/refactor/mediapipeline-entrypoint-slice returned 0 0 after reconciliation.",
+    "PASS: GitHub repository metadata reports main as the default branch.",
+    "PASS: all 18 open pull requests report main as their base branch.",
+    "PASS: main branch protection reports strict required checks, required conversation resolution, and disabled force-pushes/deletions.",
+    "PASS: git push used a normal fast-forward from c5519e6ae to 34e407672; no force push, rebase, history rewrite, merge commit, or branch deletion occurred."
+  ],
+  "rollback_plan": "If governance must be reverted, change the default branch back to the preserved refactor branch and retarget open pull requests; do not move main backward or force-push. Remove or adjust protection only through a separately reviewed GitHub governance change.",
+  "related_changes": [
+    "PR #29",
+    "34e4076720bde468ba9cb221ec617920724c587e"
+  ],
+  "notes": "PR #29 was closed as obsolete after its owner documented that the refactor head was already the promoted default and that comparing it to stale main produced misleading branch-level scanning results. Reconciliation used the existing ancestor relationship: main had zero unique commits and the refactor branch had 19. The aggregate CodeQL check is intentionally required even though current open findings keep it red; no alert, query, permission, upload, or security gate was weakened. Local origin/HEAD is refreshed separately with git remote set-head origin --auto."
+}

@@ -14,8 +14,8 @@ class ReleaseCiProvisioningTests(unittest.TestCase):
         pyproject = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
         dev_requirements = (REPO_ROOT / "requirements" / "dev.txt").read_text(encoding="utf-8")
 
-        self.assertIn('"pysubs2>=1.7,<2"', pyproject)
-        self.assertIn("pysubs2>=1.7,<2", dev_requirements)
+        self.assertIn('"pysubs2>=1.8.1,<2"', pyproject)
+        self.assertIn("pysubs2>=1.8.1,<2", dev_requirements)
 
     def test_python_runtime_provisioner_installs_dependencies_into_bundled_roots(self) -> None:
         script = (REPO_ROOT / "ops" / "scripts" / "release" / "Initialize-CiPythonRuntime.ps1").read_text(
