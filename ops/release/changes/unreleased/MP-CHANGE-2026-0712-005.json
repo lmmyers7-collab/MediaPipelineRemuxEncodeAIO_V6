@@ -10,7 +10,9 @@
   "summary": "Resolve the actionable security, error, and runtime-impact findings from the reconciled main-branch CodeQL baseline, replace mutable GitHub Action tags with reviewed immutable current-version pins, and retain evidence-backed compatibility dispositions for non-actionable split-script and mixin findings.",
   "reason": "The prior default-branch divergence obscured the true scan baseline. Reconciliation exposed security-ranked regex/header/action findings, correctness errors, stale split exports, import-cycle typing, and maintainability warnings that require fixes without weakening CodeQL queries, workflow permissions, upload behavior, or release gates.",
   "affected_areas": [
-    "code_scanning"
+    "code_scanning",
+    "generated-context",
+    "tests"
   ],
   "behavior_before": "CORS OPTIONS could reflect a request-origin string after separate authorization, a mutable third-party Rust toolchain tag and mutable first-party action tags remained in workflows, several regexes had ambiguous ranges or anchoring, coordinator typing created a scanner-visible import cycle, malformed maintenance rows relied on exception-driven tuple unpacking, and split repair exports referenced undefined names.",
   "behavior_after": "CORS responses select only server-authored allowlist origins, all workflow actions are pinned to reviewed immutable commits at current compatible releases, regexes are explicit and anchored, coordinator HTTP typing uses a local structural protocol without importing its owner, malformed rows are shape-checked, finite-number checks use math.isfinite, stale exports and redundant assignments are removed, and generated summaries track every source change.",
@@ -51,6 +53,7 @@
     "docs/generated/summaries/tests/python/desktop/test_api_handler_policy.py.md",
     "docs/generated/summaries/tests/python/desktop/test_app_config_contract.py.md",
     "docs/generated/summaries/tests/python/desktop/test_network_coordinator_http.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_rename_workbench.py.md",
     "docs/generated/summaries/tests/webview/test_webview_command_boundary_audit.py.md",
     "docs/reviews/codeql-2026-07-12/DISPOSITION_LEDGER.md",
     "ops/release/changes/unreleased/MP-CHANGE-2026-0712-005.json",
@@ -70,6 +73,7 @@
     "tests/python/desktop/test_api_handler_policy.py",
     "tests/python/desktop/test_app_config_contract.py",
     "tests/python/desktop/test_network_coordinator_http.py",
+    "tests/python/desktop/test_rename_workbench.py",
     "tests/webview/test_webview_command_boundary_audit.py"
   ],
   "tests_added": [
@@ -81,20 +85,20 @@
     "PASS: 47-test initial focused Python suite.",
     "PASS: bundled-Python Ruff checks on every edited Python source/test.",
     "PASS: check-github-audit-spine.ps1 after immutable action pinning.",
-    "PASS: exact browser-backed Launch/Queue readiness smoke locally in 5.4 seconds.",
-    "PASS: git diff --check.",
-    "PASS: npm run webview:prework:check, including all static asset, lint-budget, generated-map, contract, DOM, route, command, and script-order checks.",
-    "PASS: complete test discovery partitioned by canonical tests/python and tests/webview roots; all 3,139 tests ran successfully with one expected skip. The WebView root passed 239 tests, including all 29 browser-backed tests in 236 seconds.",
-    "PASS: full release self-test including generated/tooling guards, environment, Tauri prerequisites, WebView reliability, tool integration, and end-to-end smoke.",
     "PASS: complete pre-commit 4.6.0 --all-files suite without bypass.",
-    "PASS: deployable copied-folder and extracted-ZIP acceptance on the current Windows host; packaged startup/backend/WebView, isolated AppData, safe close, immutable roots, and zero leftover children passed. This is not claimed as a genuinely clean external VM."
+    "PASS: complete test discovery partitioned by canonical tests/python and tests/webview roots; all 3,139 tests ran successfully with one expected skip. The WebView root passed 239 tests, including all 29 browser-backed tests in 236 seconds.",
+    "PASS: deployable copied-folder and extracted-ZIP acceptance on the current Windows host; packaged startup/backend/WebView, isolated AppData, safe close, immutable roots, and zero leftover children passed. This is not claimed as a genuinely clean external VM.",
+    "PASS: exact browser-backed Launch/Queue readiness smoke locally in 5.4 seconds.",
+    "PASS: full release self-test including generated/tooling guards, environment, Tauri prerequisites, WebView reliability, tool integration, and end-to-end smoke.",
+    "PASS: git diff --check.",
+    "PASS: npm run webview:prework:check, including all static asset, lint-budget, generated-map, contract, DOM, route, command, and script-order checks."
   ],
   "rollback_plan": "Revert this packet's source/workflow changes as one reviewed change. Do not restore mutable action tags; if a pinned action must be rolled back, pin the exact prior reviewed commit. Preserve the server-authored CORS allowlist and do not reintroduce the coordinator owner import cycle.",
   "related_changes": [
     "Code Scanning alerts on refs/heads/main",
+    "CodeQL run 29202606386: actions, JavaScript/TypeScript, Python, Rust, and aggregate passed",
     "Dependabot PRs #1, #2, #3, and #4",
-    "PR #30 final head fa9d50fe",
-    "CodeQL run 29202606386: actions, JavaScript/TypeScript, Python, Rust, and aggregate passed"
+    "PR #30 final head fa9d50fe"
   ],
-  "notes": "Security-review guidance was applied to CORS input validation, immutable action supply-chain references, SQL/header/XSS triage, and dependency hygiene. Action pins use checkout v7.0.0 (9c091bb), setup-node v6.4.0 (48b55a0), setup-python v6.3.0 (ece7cb0), upload-artifact v7.0.1 (043fb46), CodeQL bundle v2.26.0 (f58f0d1), and dtolnay stable toolchain commit 4be7066. Two different browser/CDP waits timed out only under cross-root aggregate discovery; each unchanged test passed in isolation and the entire browser-backed suite passed separately. No timeout was widened. Deployable ZIP SHA-256 is 7fafd77f0670befa0ba4cde12d97f73e3d966365a8772e4e311697b29dc8ebc2; packaged shell SHA-256 is 8f5cfa5781d859cb1e44c0a28994e34646df48835ca9a1ab836478ac847f7346. No alert has been dismissed and no query, permission, SARIF upload, required check, or release gate has been weakened.\nRecord the rule-complete authoritative-branch CodeQL disposition baseline."
+  "notes": "Security-review guidance was applied to CORS input validation, immutable action supply-chain references, SQL/header/XSS triage, and dependency hygiene. Action pins use checkout v7.0.0 (9c091bb), setup-node v6.4.0 (48b55a0), setup-python v6.3.0 (ece7cb0), upload-artifact v7.0.1 (043fb46), CodeQL bundle v2.26.0 (f58f0d1), and dtolnay stable toolchain commit 4be7066. Two different browser/CDP waits timed out only under cross-root aggregate discovery; each unchanged test passed in isolation and the entire browser-backed suite passed separately. No timeout was widened. Deployable ZIP SHA-256 is 7fafd77f0670befa0ba4cde12d97f73e3d966365a8772e4e311697b29dc8ebc2; packaged shell SHA-256 is 8f5cfa5781d859cb1e44c0a28994e34646df48835ca9a1ab836478ac847f7346. No alert has been dismissed and no query, permission, SARIF upload, required check, or release gate has been weakened.\nRecord the rule-complete authoritative-branch CodeQL disposition baseline.\nUse one import form for the path_dialogs module and resolve the actionable CodeQL mixed-import thread.\nRefresh summary after the CodeQL mixed-import fix."
 }

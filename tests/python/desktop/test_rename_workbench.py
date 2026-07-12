@@ -421,7 +421,7 @@ class RenameBackendPathDialogScriptTests(unittest.TestCase):
     """The PowerShell payload script branch should know about folder_files."""
 
     def test_powershell_script_branches_on_folder_files(self) -> None:
-        from mediapipeline.desktop.api import path_dialogs
+        import mediapipeline.desktop.api.path_dialogs as path_dialogs
 
         script = path_dialogs._powershell_dialog_script(
             {
