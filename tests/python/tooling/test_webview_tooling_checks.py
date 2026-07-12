@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from mediapipeline.tools.paths import find_repo_root
 
@@ -26,6 +27,11 @@ def _require_webview_tooling_dependencies() -> None:
 
 
 class WebViewToolingCheckTests(unittest.TestCase):
+    def test_webview_dependency_guard_skips_package_without_node_modules(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir, patch(f"{__name__}.REPO_ROOT", Path(temp_dir)):
+            with self.assertRaises(unittest.SkipTest):
+                _require_webview_tooling_dependencies()
+
     def test_command_boundary_scans_split_command_contract_modules(self) -> None:
         source = (
             REPO_ROOT / "ops" / "scripts" / "dev" / "check-webview-command-boundary.mjs"
@@ -64,6 +70,7 @@ class WebViewToolingCheckTests(unittest.TestCase):
         )
 
     def test_shared_generated_output_check_is_line_ending_stable(self) -> None:
+        _require_webview_tooling_dependencies()
         with tempfile.TemporaryDirectory() as temp_dir:
             output_path = Path(temp_dir) / "generated.txt"
             output_path.write_bytes(b"one\r\ntwo\r\n")

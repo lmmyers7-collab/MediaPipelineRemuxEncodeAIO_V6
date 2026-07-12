@@ -73,6 +73,10 @@ class BetaTests:
 
         self.assertEqual(groups, {})
 
+    @unittest.skipIf(
+        (REPO_ROOT / "release_manifest.json").is_file(),
+        "The committed report describes the full source-checkout test tree, not the package test subset.",
+    )
     def test_current_generated_report_is_current(self) -> None:
         expected = generate_duplicate_test_name_report.render_duplicate_test_name_report(REPO_ROOT)
         actual = generate_duplicate_test_name_report.OUTPUT_PATH.read_text(encoding="utf-8")

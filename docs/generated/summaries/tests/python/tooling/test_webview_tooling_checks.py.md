@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-12
 last_reviewed: 2026-06-11
-sha256: a772a381d0e7f79b73b66376bc19fefb9e48dda3da740c17d380bf03ae08323c
+sha256: a31418fa2c76bd02375dfc0deb01dd8edb51c2880cdf54baec2684e1ee88aa3b
 ---
 # `tests/python/tooling/test_webview_tooling_checks.py`
 

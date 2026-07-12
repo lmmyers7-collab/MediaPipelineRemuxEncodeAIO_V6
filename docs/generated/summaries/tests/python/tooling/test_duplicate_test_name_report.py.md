@@ -3,9 +3,9 @@ file: tests/python/tooling/test_duplicate_test_name_report.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-17
+last_modified: 2026-07-12
 last_reviewed: 2026-06-17
-sha256: 57eada8d738da1572835c69bc5c02506f782218929c1e149047a1017dfea2ce7
+sha256: 6fe45e67d315bc1d47c6aa71eb6313e8c5a377bc5362218700d01e0602038654
 ---
 # `tests/python/tooling/test_duplicate_test_name_report.py`
 
