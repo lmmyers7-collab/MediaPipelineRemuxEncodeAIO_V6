@@ -67,7 +67,7 @@
           else delete row.dataset.prioritySelected;
         });
       }
-      updateQueueTableLegend(tbody);
+      updateQueueTableLegend();
       updateQueueManualOrderControls();
     }
 
@@ -211,7 +211,7 @@
         setRenderedQueueRows([]);
         clearRows(tbody, 9, state.rows.length ? "No queue rows match the filter." : state.emptyMessage);
         updateQueuePaginationControls(rows.length, 0, 0);
-        updateQueueTableLegend(tbody);
+        updateQueueTableLegend();
         updateQueueManualOrderControls();
         if (state.scanLoading) renderQueueLoadingTable();
         if (getSelectedQueueRowKey()) renderQueueDetail(getSelectedQueueRow());
@@ -234,7 +234,7 @@
         wireManualOrderRow,
       });
       updateQueuePaginationControls(rows.length, state.pageStart, renderedCount);
-      updateQueueTableLegend(tbody);
+      updateQueueTableLegend();
       updateQueueManualOrderControls();
       if (getSelectedQueueRowKey()) renderQueueDetail(getSelectedQueueRow());
       const commandHistory = typeof getCommandHistory === "function" ? getCommandHistory() : [];

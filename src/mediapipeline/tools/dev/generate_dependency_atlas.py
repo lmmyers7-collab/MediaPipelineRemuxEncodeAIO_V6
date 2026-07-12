@@ -398,12 +398,24 @@ def render_overview_dot(data: AtlasData, min_edge_count: int, min_files: int) ->
 
     lines = [
         "digraph G {",
-        '  graph [rankdir=LR, bgcolor="white", overlap=false, splines=polyline, '
-        'concentrate=true, nodesep=0.5, ranksep=1.0, pad=0.2];',
-        '  node [shape=box, style="rounded,filled", fontname="Segoe UI", fontsize=15, '
-        'margin="0.11,0.07", penwidth=1.2, color="#334155", fontcolor="#111827"];',
-        '  edge [fontname="Segoe UI", fontsize=10, color="#64748b", '
-        'fontcolor="#475569", arrowsize=0.75, penwidth=1.1];',
+        "".join(
+            (
+                '  graph [rankdir=LR, bgcolor="white", overlap=false, splines=polyline, ',
+                'concentrate=true, nodesep=0.5, ranksep=1.0, pad=0.2];',
+            )
+        ),
+        "".join(
+            (
+                '  node [shape=box, style="rounded,filled", fontname="Segoe UI", fontsize=15, ',
+                'margin="0.11,0.07", penwidth=1.2, color="#334155", fontcolor="#111827"];',
+            )
+        ),
+        "".join(
+            (
+                '  edge [fontname="Segoe UI", fontsize=10, color="#64748b", ',
+                'fontcolor="#475569", arrowsize=0.75, penwidth=1.1];',
+            )
+        ),
         f'  label="Python dependency atlas: major package/domain edges '
         f'({min_edge_count}+ source modules)"; labelloc=t; fontsize=22; fontname="Segoe UI";',
     ]
@@ -517,10 +529,18 @@ def render_detail_dot(data: AtlasData, category: str) -> tuple[str, int, int]:
 
     lines = [
         "digraph G {",
-        '  graph [rankdir=LR, bgcolor="white", overlap=false, splines=true, '
-        'nodesep=0.35, ranksep=0.78, pad=0.2];',
-        '  node [shape=box, style="rounded,filled", fontname="Segoe UI", fontsize=12, '
-        'margin="0.09,0.06", penwidth=1.1, color="#334155", fontcolor="#111827"];',
+        "".join(
+            (
+                '  graph [rankdir=LR, bgcolor="white", overlap=false, splines=true, ',
+                'nodesep=0.35, ranksep=0.78, pad=0.2];',
+            )
+        ),
+        "".join(
+            (
+                '  node [shape=box, style="rounded,filled", fontname="Segoe UI", fontsize=12, ',
+                'margin="0.09,0.06", penwidth=1.1, color="#334155", fontcolor="#111827"];',
+            )
+        ),
         '  edge [fontname="Segoe UI", fontsize=9, arrowsize=0.65, penwidth=1.05];',
         f"  label={dot_quote(category + ' module detail')}; "
         'labelloc=t; fontsize=20; fontname="Segoe UI";',
@@ -642,45 +662,69 @@ def render_html(
     lines = [
         "<!doctype html>",
         '<html lang="en"><head><meta charset="utf-8"><title>Dependency Atlas</title>',
-        "<style>"
-        "body{font-family:Segoe UI,Arial,sans-serif;margin:24px;color:#111827;background:#fff}"
-        "h1{margin:0 0 6px}h2{margin-top:32px}p{max-width:980px;line-height:1.45}"
-        ".meta{color:#475569}.links a{margin-right:16px}"
-        "img{max-width:100%;height:auto;border:1px solid #cbd5e1;border-radius:6px;background:white}"
-        "table{border-collapse:collapse;margin:12px 0 24px;width:100%;font-size:13px}"
-        "th,td{border:1px solid #d7dde5;padding:6px 8px;text-align:left;vertical-align:top}"
-        "th{background:#f1f5f9}"
-        "details{border:1px solid #d7dde5;border-radius:8px;margin:12px 0;padding:10px 12px;background:#fbfdff}"
-        "summary{cursor:pointer;font-weight:650}"
-        ".legend span{margin-right:14px}"
-        ".swatch{display:inline-block;width:12px;height:12px;border-radius:2px;border:1px solid #64748b;"
-        "vertical-align:-1px;margin-right:4px}"
-        "</style>",
+        "".join(
+            (
+                "<style>",
+                "body{font-family:Segoe UI,Arial,sans-serif;margin:24px;color:#111827;background:#fff}",
+                "h1{margin:0 0 6px}h2{margin-top:32px}p{max-width:980px;line-height:1.45}",
+                ".meta{color:#475569}.links a{margin-right:16px}",
+                "img{max-width:100%;height:auto;border:1px solid #cbd5e1;border-radius:6px;background:white}",
+                "table{border-collapse:collapse;margin:12px 0 24px;width:100%;font-size:13px}",
+                "th,td{border:1px solid #d7dde5;padding:6px 8px;text-align:left;vertical-align:top}",
+                "th{background:#f1f5f9}",
+                "details{border:1px solid #d7dde5;border-radius:8px;margin:12px 0;padding:10px 12px;background:#fbfdff}",
+                "summary{cursor:pointer;font-weight:650}",
+                ".legend span{margin-right:14px}",
+                ".swatch{display:inline-block;width:12px;height:12px;border-radius:2px;border:1px solid #64748b;",
+                "vertical-align:-1px;margin-right:4px}",
+                "</style>",
+            )
+        ),
         "</head><body>",
         "<h1>Dependency Atlas</h1>",
-        '<p class="meta">Generated from Python AST imports in <code>src/mediapipeline/</code>. Counts are source-module '
-        "import relationships, not runtime call counts.</p>",
-        '<p class="links">'
-        '<a href="dependency-atlas.png">Root PNG overview</a>'
-        '<a href="dependency-atlas.svg">Root SVG overview</a>'
-        '<a href="assets/dependency_summary.csv">Summary CSV</a>'
-        '<a href="assets/dependency_edges.csv">Domain edge CSV</a>'
-        '<a href="assets/dependency_module_edges.csv">Module edge CSV</a>'
-        "</p>",
-        '<p class="legend">'
-        '<span><i class="swatch" style="background:#dbeafe"></i>core domain</span>'
-        '<span><i class="swatch" style="background:#dcfce7"></i>other source domain</span>'
-        '<span><i class="swatch" style="background:#eff6ff"></i>focus modules</span>'
-        '<span><i class="swatch" style="background:#f8fafc"></i>external local domains</span>'
-        "</p>",
+        "".join(
+            (
+                '<p class="meta">Generated from Python AST imports in <code>src/mediapipeline/</code>. Counts are source-module ',
+                "import relationships, not runtime call counts.</p>",
+            )
+        ),
+        "".join(
+            (
+                '<p class="links">',
+                '<a href="dependency-atlas.png">Root PNG overview</a>',
+                '<a href="dependency-atlas.svg">Root SVG overview</a>',
+                '<a href="assets/dependency_summary.csv">Summary CSV</a>',
+                '<a href="assets/dependency_edges.csv">Domain edge CSV</a>',
+                '<a href="assets/dependency_module_edges.csv">Module edge CSV</a>',
+                "</p>",
+            )
+        ),
+        "".join(
+            (
+                '<p class="legend">',
+                '<span><i class="swatch" style="background:#dbeafe"></i>core domain</span>',
+                '<span><i class="swatch" style="background:#dcfce7"></i>other source domain</span>',
+                '<span><i class="swatch" style="background:#eff6ff"></i>focus modules</span>',
+                '<span><i class="swatch" style="background:#f8fafc"></i>external local domains</span>',
+                "</p>",
+            )
+        ),
         "<h2>Overview</h2>",
-        f"<p>The root overview intentionally shows only major cross-domain relationships "
-        f"with {min_overview_edge_count} or more source modules. Use the tables and focused "
-        "diagrams below for the full detail.</p>",
+        "".join(
+            (
+                "<p>The root overview intentionally shows only major cross-domain relationships ",
+                f"with {min_overview_edge_count} or more source modules. Use the tables and focused ",
+                "diagrams below for the full detail.</p>",
+            )
+        ),
         '<img src="dependency-atlas.svg" alt="dependency overview">',
         "<h2>Domain Summary</h2>",
-        "<table><thead><tr><th>Domain</th><th>Files</th><th>Internal module edges</th>"
-        "<th>Outgoing domain edges</th><th>Incoming domain edges</th></tr></thead><tbody>",
+        "".join(
+            (
+                "<table><thead><tr><th>Domain</th><th>Files</th><th>Internal module edges</th>",
+                "<th>Outgoing domain edges</th><th>Incoming domain edges</th></tr></thead><tbody>",
+            )
+        ),
     ]
 
     for category in summary_categories:
@@ -696,8 +740,12 @@ def render_html(
         [
             "</tbody></table>",
             "<h2>Top Cross-Domain Edges</h2>",
-            "<table><thead><tr><th>From</th><th>To</th><th>Source modules</th>"
-            "</tr></thead><tbody>",
+            "".join(
+                (
+                    "<table><thead><tr><th>From</th><th>To</th><th>Source modules</th>",
+                    "</tr></thead><tbody>",
+                )
+            ),
         ]
     )
 

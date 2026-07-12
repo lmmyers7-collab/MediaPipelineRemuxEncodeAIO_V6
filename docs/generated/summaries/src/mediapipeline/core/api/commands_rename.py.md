@@ -3,9 +3,9 @@ file: src/mediapipeline/core/api/commands_rename.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: api
-last_modified: 2026-06-29
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 5fc53e4768b84841209078c54df717ca19937ea9c7e5a7583d9e5d9707f21235
+sha256: 6b897fb09f8c815f9857971134397710c52e1fc44e43c7c24e222261adf775f4
 ---
 # `src/mediapipeline/core/api/commands_rename.py`
 

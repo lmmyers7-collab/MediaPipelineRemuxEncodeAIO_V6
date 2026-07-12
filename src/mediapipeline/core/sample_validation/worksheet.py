@@ -58,7 +58,7 @@ def sample_validation_worksheet_runs_payload(resolved: ResolvedPaths, *, limit: 
             "errors": [f"Could not list generated real-media validation worksheets: {exc}"],
             "guardrail": _worksheet_runs_guardrail(),
         }
-    candidates.sort(key=lambda item: _safe_mtime(item), reverse=True)
+    candidates.sort(key=_safe_mtime, reverse=True)
     rows = [_worksheet_run_row(path) for path in candidates[:normalized_limit]]
     warnings = [warning for row in rows for warning in row.get("warnings", [])]
     errors = [error for row in rows for error in row.get("errors", [])]

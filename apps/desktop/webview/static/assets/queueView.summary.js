@@ -18,7 +18,7 @@
       const text = String(value || "").trim();
       if (!text) return "";
       const leaf = text.split(/[\\/]/).filter(Boolean).pop() || text;
-      const match = leaf.match(/(\.[^.\\/.\s]+)$/);
+      const match = leaf.match(/(\.[^.\\/\s]+)$/);
       return match ? match[1].toLowerCase() : "";
     }
 

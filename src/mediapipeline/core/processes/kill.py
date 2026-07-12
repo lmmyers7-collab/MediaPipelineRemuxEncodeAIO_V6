@@ -203,7 +203,6 @@ def kill_process_tree(
     logger.warning("Force-killing %s process tree for PID %s", label, pid)
     if os.name == "nt":
         taskkill_timed_out = False
-        taskkill_detail = ""
         try:
             result = subprocess.run(
                 ["taskkill", "/PID", str(pid), "/T", "/F"],
@@ -212,7 +211,6 @@ def kill_process_tree(
                 check=False,
                 timeout=10,
             )
-            taskkill_detail = (result.stderr or result.stdout or "").strip()
         except subprocess.TimeoutExpired as exc:
             result = None
             taskkill_timed_out = True

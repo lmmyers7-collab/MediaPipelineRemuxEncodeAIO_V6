@@ -21,7 +21,7 @@
 
   function diagnosticsLineTimestamp(line) {
     const text = String(line || "");
-    const iso = text.match(/\b\d{4}-\d{2}-\d{2}[T ][0-9:.+-Z]+\b/);
+    const iso = text.match(/\b\d{4}-\d{2}-\d{2}[T ][0-9:.+Z-]+\b/);
     if (iso) return iso[0];
     const clock = text.match(/\b\d{1,2}:\d{2}:\d{2}(?:\.\d+)?\b/);
     return clock ? clock[0] : "";

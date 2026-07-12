@@ -718,7 +718,7 @@ class NetworkCoordinatorHttpTests(unittest.TestCase):
             raise BodyHttpError("http://coordinator:7830/api/done", 500, "failed", hdrs=None, fp=None)
 
         with patch("mediapipeline.desktop.network.http_json.urllib.request.urlopen", side_effect=fake_urlopen):
-            try:
+            with self.assertRaises(RuntimeError) as raised:
                 http_post_json(
                     "http://coordinator:7830",
                     "/api/done",
@@ -726,11 +726,8 @@ class NetworkCoordinatorHttpTests(unittest.TestCase):
                     headers={"Authorization": "Bearer token"},
                     timeout_seconds=8,
                 )
-            except RuntimeError as exc:
-                message = str(exc)
-            else:
-                self.fail("Expected HTTP error to raise RuntimeError")
 
+        message = str(raised.exception)
         self.assertIn("HTTP 500 from http://coordinator:7830/api/done: <html>", message)
         self.assertLess(len(message), 650)
         self.assertNotIn("tail-marker", message)

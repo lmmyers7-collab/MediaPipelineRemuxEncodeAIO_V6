@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime, UTC
+import math
 from typing import Any
 from collections.abc import Iterable, Mapping
 
@@ -45,7 +46,7 @@ def _float_value(value: Any) -> float:
         parsed = float(value)
     except (TypeError, ValueError):
         return 0.0
-    return parsed if parsed == parsed else 0.0
+    return parsed if math.isfinite(parsed) else 0.0
 
 
 def _signed_bytes_text(value: int | None) -> str:

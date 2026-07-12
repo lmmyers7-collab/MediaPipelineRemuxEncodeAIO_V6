@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/local_api_main.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-10
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: d018682d46af268f565a6be6805c129b5286b8719f0b6dcd4f5e02c7fdee9c4b
+sha256: 3beedd2ced8b95c4b5c38354cd53e8c6b758029a45c4913fdf227ca71e3d2729
 ---
 # `src/mediapipeline/desktop/local_api_main.py`
 

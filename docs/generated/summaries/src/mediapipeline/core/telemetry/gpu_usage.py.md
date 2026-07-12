@@ -3,9 +3,9 @@ file: src/mediapipeline/core/telemetry/gpu_usage.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-07-02
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: ea9cf972b5cd4cb207bdb9aea946c7bf46bf9e253e898a8e6a72d70b1602874c
+sha256: 8fad6205b1e5af71bf4fe7fa3eb5ec2639f4cbc165e96c70f7a4a74a14add5fe
 ---
 # `src/mediapipeline/core/telemetry/gpu_usage.py`
 

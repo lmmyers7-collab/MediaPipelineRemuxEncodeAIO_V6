@@ -3,9 +3,9 @@ file: tests/python/desktop/test_network_library_relative_claim.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-14
+last_modified: 2026-07-12
 last_reviewed: 2026-06-14
-sha256: 7e240ad6985b635e5f82abffe3d84be471f5f9eca3f7a61723eb3c2bf3941935
+sha256: f7d0dc84bfe8d1ec3b3ce720c04bd86fc2704dcc80dfec8d61503914477a921a
 ---
 # `tests/python/desktop/test_network_library_relative_claim.py`
 

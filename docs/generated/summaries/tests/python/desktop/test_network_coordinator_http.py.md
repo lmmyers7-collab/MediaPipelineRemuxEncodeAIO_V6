@@ -3,9 +3,9 @@ file: tests/python/desktop/test_network_coordinator_http.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-02
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 7eff4b73b9f55b2c8d0b733097d35052e4c20a7a3620608068d78e0d089308f9
+sha256: 85fd961573a5d601007bb55a128d4f08cec64f55805306e4e9dc44075dc093fe
 ---
 # `tests/python/desktop/test_network_coordinator_http.py`
 

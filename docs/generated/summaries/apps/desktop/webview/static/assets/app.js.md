@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/app.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 7b6a335954e70989b10a6e4da5e334008505b7edb52559fc551464ebfb208058
+sha256: 2c1311971a9d9cb1c8d1006a8ac631f72a58a89a9234c1ca3224ec367b49d3f3
 ---
 # `apps/desktop/webview/static/assets/app.js`
 

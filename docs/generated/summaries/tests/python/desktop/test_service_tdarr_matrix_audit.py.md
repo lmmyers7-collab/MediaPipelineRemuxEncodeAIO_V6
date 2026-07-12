@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_tdarr_matrix_audit.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-09
+last_modified: 2026-07-12
 last_reviewed: 2026-06-07
-sha256: 311b1b6297a5d7dbc8042ab9de5d96a3cecc233d15575d055a7a6f039213843d
+sha256: 04d87de847854bb172cc196d27c8edc4b9b3cb6b930d7dde7dc6453a578b0ee2
 ---
 # `tests/python/desktop/test_service_tdarr_matrix_audit.py`
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import math
 from typing import Any
 from collections.abc import Mapping
 
@@ -25,7 +26,7 @@ def _finite_float(value: object) -> float | None:
         result = float(value)
     except (TypeError, ValueError):
         return None
-    if result != result or result in (float("inf"), float("-inf")):
+    if not math.isfinite(result):
         return None
     return result
 

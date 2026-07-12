@@ -120,7 +120,7 @@ class DummyProcessLifecycleService(ProcessLifecycleServiceMixin):
         self.update_active_job_record(proc, status="killed", return_code=proc.returncode)
         return f"killed {label}"
 
-    def update_active_job_record(self, proc, status=None, return_code=None) -> None:
+    def update_active_job_record(self, proc, *, status=None, return_code=None) -> None:
         self.active_job_updates.append((proc, status, return_code))
 
 

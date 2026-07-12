@@ -1732,8 +1732,8 @@ class WebViewBrowserLaunchQueueReadinessSmoke(unittest.TestCase):
             self.assertEqual(service.started_pipeline["sleep_seconds"], 3)
             self.assertIsNone(service.started_pipeline["single_file"])
             self.assertIn("Started pipeline (once)", browser_result["launchPost"]["message"])
-            self.assertFalse(source.read_bytes() == b"")
-            self.assertFalse(output.read_bytes() == b"")
+            self.assertNotEqual(source.read_bytes(), b"")
+            self.assertNotEqual(output.read_bytes(), b"")
             assert_media_no_mutation(self, media_snapshot)
 
 

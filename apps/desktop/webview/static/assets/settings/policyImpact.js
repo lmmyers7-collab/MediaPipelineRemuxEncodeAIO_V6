@@ -295,7 +295,7 @@ function settingsCurrentPatchSignature() {
 function settingsPatchListValue(value) {
   if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
   if (typeof value === "string") return parseSettingsListText(value);
-  return value === undefined || value === null || value === "" ? [] : [String(value)];
+  return value === undefined || value === null ? [] : [String(value)];
 }
 
 function settingsPatchCandidateText(entries, key, fallback = "") {

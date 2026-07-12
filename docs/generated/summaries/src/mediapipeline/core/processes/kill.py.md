@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/kill.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-30
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 9fc31e780d6b61b2767f08a7c6e0d8db7acc6856d8cbb0f57c3cb8d19314cc79
+sha256: 7bb52a5449df69c8cb5780e163c57c123a565163932a7d7acf2722730342bd23
 ---
 # `src/mediapipeline/core/processes/kill.py`
 

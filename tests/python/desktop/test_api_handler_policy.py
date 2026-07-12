@@ -25,7 +25,11 @@ from mediapipeline.desktop.api.handler_policy import (
     should_record_validation_failure_journal,
     unauthorized_payload,
 )
-from mediapipeline.desktop.api.http_helpers import is_client_disconnect_error, send_bytes
+from mediapipeline.desktop.api.http_helpers import (
+    canonical_local_api_origin,
+    is_client_disconnect_error,
+    send_bytes,
+)
 
 
 class LocalApiHandlerPolicyTests(unittest.TestCase):
@@ -53,6 +57,32 @@ class LocalApiHandlerPolicyTests(unittest.TestCase):
 
         self.assertEqual(headers["Access-Control-Allow-Origin"], "tauri://localhost")
         self.assertEqual(headers["Vary"], "Origin")
+
+    def test_cors_origin_is_returned_from_server_authored_allowlist(self) -> None:
+        self.assertEqual(
+            canonical_local_api_origin(
+                "http://localhost:8765",
+                bind_host="127.0.0.1",
+                port=8765,
+            ),
+            "http://localhost:8765",
+        )
+        self.assertEqual(
+            canonical_local_api_origin(
+                "tauri://localhost",
+                bind_host="127.0.0.1",
+                port=8765,
+                shell_surface="tauri",
+            ),
+            "tauri://localhost",
+        )
+        self.assertIsNone(
+            canonical_local_api_origin(
+                "http://localhost:8765\r\nX-Injected: true",
+                bind_host="127.0.0.1",
+                port=8765,
+            )
+        )
 
     def test_error_payload_helpers_preserve_handler_contract(self) -> None:
         self.assertEqual(unauthorized_payload(), {"error": "unauthorized"})

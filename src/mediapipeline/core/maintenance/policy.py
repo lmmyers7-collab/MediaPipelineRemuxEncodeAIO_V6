@@ -272,10 +272,9 @@ def maintenance_toolchain_evidence(rows: list[dict[str, Any]]) -> dict[str, Any]
 
 
 def maintenance_health_row(raw_item: object) -> dict[str, Any] | None:
-    try:
-        name, ok, detail = raw_item  # type: ignore[misc]
-    except Exception:
+    if not isinstance(raw_item, (list, tuple)) or len(raw_item) != 3:
         return None
+    name, ok, detail = raw_item
     optional = "optional" in str(name).casefold()
     status = maintenance_status_for_row(str(name), bool(ok), str(detail), optional)
     guidance = maintenance_row_guidance(str(name), status, optional)

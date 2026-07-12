@@ -805,6 +805,7 @@ def main(argv: list[str]) -> int:
         return cmd_generate(sources)
 
     sources = collect_sources(args)
+    check_orphans = False
     if args.check:
         # In --check mode, always check the full inventory unless paths/changed/staged is set.
         check_orphans = not (args.paths or args.changed or args.staged)

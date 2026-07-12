@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settings/policyImpact.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: a35d37b16389b78b071d412af3a6b3afd5c243e575d05fd9c0dcefa5ea20b5e9
+sha256: 8c599ed54f06cbed044570b05b75a27b15fb94c4eed25965946f5a18f0019d28
 ---
 # `apps/desktop/webview/static/assets/settings/policyImpact.js`
 

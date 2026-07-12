@@ -31,6 +31,7 @@ def _contract_routes() -> set[tuple[str, str]]:
 
 class WebViewCommandBoundaryAuditTests(unittest.TestCase):
     def test_generated_audit_is_current_and_clean(self) -> None:
+        result: subprocess.CompletedProcess[str] | None = None
         try:
             result = subprocess.run(
                 ["node", str(AUDIT_SCRIPT), "--check"],
@@ -43,6 +44,8 @@ class WebViewCommandBoundaryAuditTests(unittest.TestCase):
         except FileNotFoundError:
             self.skipTest("Node.js is required for the WebView command-boundary audit")
 
+        if result is None:
+            return
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
         report = _load_report()

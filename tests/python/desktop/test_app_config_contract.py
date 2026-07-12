@@ -149,9 +149,13 @@ class AppConfigContractTests(unittest.TestCase):
             [
                 sys.executable,
                 "-c",
-                "import mediapipeline.core.shared.constants; "
-                "import mediapipeline.contracts.config; "
-                "print('ok')",
+                "; ".join(
+                    (
+                        "import mediapipeline.core.shared.constants",
+                        "import mediapipeline.contracts.config",
+                        "print('ok')",
+                    )
+                ),
             ],
             cwd=project_root / "apps" / "desktop",
             capture_output=True,

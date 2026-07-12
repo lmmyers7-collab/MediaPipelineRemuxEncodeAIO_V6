@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-12
 last_reviewed: 2026-07-11
-sha256: ae1534eca755a83681f7a0b83477acdb1ca0bb4f8dbe8783635d34c6eb49be55
+sha256: b59c575cff249c7efbb7db0e81c78b38f1f03b9dcefbd1d5a2f3c7a458de6b90
 ---
 # `apps/desktop/webview/static/assets/network/lifecycle.results.js`
 

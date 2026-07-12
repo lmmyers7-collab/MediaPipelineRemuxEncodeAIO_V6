@@ -91,10 +91,11 @@ class LocalApiRenameCommandPayloadMixin:
         elif ok:
             if source == "dropped_paths":
                 message = str(result.get("message") or f"Resolved dropped path(s) to {len(paths)} media file(s).")
-            elif selection_mode == "folder":
-                label = "folder"
             else:
-                label = "file from selected folder" if selection_mode == "folder_files" else "file"
+                if selection_mode == "folder":
+                    label = "folder"
+                else:
+                    label = "file from selected folder" if selection_mode == "folder_files" else "file"
                 message = f"Windows file browser selected {len(paths)} {label}{'' if len(paths) == 1 else 's'}."
                 if ignored_path_count:
                     message += (
