@@ -7,8 +7,8 @@
   "risk_level": "medium",
   "date_started": "2026-07-12",
   "date_completed": null,
-  "summary": "Run complete Python, non-browser WebView, and individually isolated browser-backed unittest partitions in hosted CI, and remove redundant codex-branch push runs when pull-request validation already covers the same head.",
-  "reason": "Hosted full-discovery attempts failed on different browser modules after long aggregate runs, while every unchanged module passed independently. Separating the Python and WebView roots made Deep Audit pass, but a later single Generated Drift run still exhausted Chromium networking state near the end of the 239-test WebView process and reported ERR_NO_BUFFER_SPACE. Browser modules therefore need fresh processes as well as event de-duplication; neither change removes coverage.",
+  "summary": "Run complete Python, non-browser WebView, and individually isolated browser-backed unittest partitions in hosted CI, remove redundant codex-branch push runs, and make the observed Launch/Reports browser assertions wait for their authoritative fixture states.",
+  "reason": "Hosted full-discovery attempts failed on different browser modules after long aggregate runs, while every unchanged module passed independently. Separating the roots removed Chromium ERR_NO_BUFFER_SPACE, then fresh-process jobs exposed two test synchronization defects: Launch awaited the coalescing refresh wrapper, which can return before a queued refresh, and Reports asserted an early actionable posture after the smoke intentionally transitioned its review boards to historical-unavailable state. The final changes preserve every assertion at the state where its contract applies.",
   "affected_areas": [
     "ci",
     "generated-context",
@@ -17,20 +17,26 @@
     "webview"
   ],
   "behavior_before": "Deep Audit and Generated Drift originally ran all 3,139 tests in one Python process; an initial two-root partition still ran 239 WebView tests in one process. Late browser/CDP tests failed non-deterministically, culminating in Chromium ERR_NO_BUFFER_SPACE on the hosted runner.",
-  "behavior_after": "Each workflow runs the complete tests/python root, all 31 non-browser WebView modules together, and every one of the 23 browser-backed modules in its own fresh Python process. Generated Drift and CodeQL run once for codex pull requests and again after merge through the retained main push trigger, rather than twice on the same PR head. No test, assertion, browser timeout, workflow permission, required context, main push check, or pull-request check is removed or weakened.",
+  "behavior_after": "Each workflow runs the complete tests/python root, all 31 non-browser WebView modules together, and every one of the 23 browser-backed modules in its own fresh Python process. Launch explicitly awaits refreshAllNow for the home evidence set, including sample validation and backend preflight, before checking readiness. Reports verifies Action needed immediately after loading its actionable fixture and separately verifies historical-unavailable review boards after later lifecycle operations. Generated Drift and CodeQL run once for codex pull requests and again after merge through retained main push triggers. No test, browser timeout, permission, required context, or safety assertion is removed or weakened.",
   "files_touched": [
     ".github/workflows/codeql.yml",
     ".github/workflows/deep-audit.yml",
     ".github/workflows/phase1-drift.yml",
     "docs/generated/summaries/.github/workflows/phase1-drift.yml.md",
-    "ops/release/changes/unreleased/MP-CHANGE-2026-0712-007.json"
+    "docs/generated/summaries/tests/webview/test_webview_browser_launch_queue_readiness_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_maintenance_reports_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0712-007.json",
+    "tests/webview/test_webview_browser_launch_queue_readiness_smoke.py",
+    "tests/webview/test_webview_browser_maintenance_reports_smoke.py"
   ],
   "tests_added": [],
   "manual_validation": [
     "OBSERVED: hosted failures rotated across Launch/Queue, Diagnostics handoff, Settings/Launch, Rename, Completed/Pending proof, and High Risk, demonstrating process-lifetime/resource sensitivity rather than one product assertion.",
+    "OBSERVED: the first hosted per-module run removed ERR_NO_BUFFER_SPACE but exposed Launch waiting on an intermediate coalesced refresh and Reports checking Action needed after its final historical-unavailable transition.",
     "OBSERVED: the later single Generated Drift run passed all 2,900 Python tests, then failed three late browser modules with Chromium ERR_NO_BUFFER_SPACE after 372 seconds, motivating per-browser-module process isolation.",
     "PASS: every browser module that failed in hosted aggregate discovery passed unchanged in local isolated/full-browser runs.",
     "PASS: exact final CI partition locally in 424.9s: 2,900 Python tests with one expected skip, 210 non-browser WebView tests, and all 29 browser-backed tests across 23 fresh processes; 3,139 total with no omitted tests.",
+    "PASS: focused final Launch/Queue and Maintenance/Reports browser modules, 3 tests in 16.376s; no timeout increase, retry, skip, or safety-assertion removal.",
     "PASS: full tests/webview root passed 239 tests, including all 29 browser-backed tests.",
     "PASS: identical partitioned discovery locally; tests/python and tests/webview both passed, preserving all 3,139 tests with one expected skip.",
     "PASS: partitioned hosted Deep Audit Python unit-test job passed all tests in 11m37s."
@@ -40,5 +46,5 @@
     "GitHub runs 29199791046, 29199791073, and 29199811094",
     "PR #30"
   ],
-  "notes": "The required check names and workflow permissions are unchanged. This is execution isolation within each existing Python unit-test job plus removal of redundant push/pull_request duplication on codex PR heads, not a reduction in test scope. Main push and pull-request validation remain enabled.\nRun non-browser WebView tests separately and isolate each real-browser module to prevent hosted Chromium socket exhaustion without reducing coverage.\nApply the same full-coverage browser-process isolation to deep audit.\nRefresh the canonical workflow summary after final test-process partitioning."
+  "notes": "The required check names and workflow permissions are unchanged. This is execution isolation within each existing Python unit-test job plus removal of redundant push/pull_request duplication on codex PR heads, not a reduction in test scope. Main push and pull-request validation remain enabled. Launch now awaits the non-coalescing refreshAllNow path for deterministic evidence. Reports retains both the initial actionable-fixture assertion and the final historical-unavailable assertions.\nRefresh summary for synchronized Launch browser smoke.\nRefresh summary for state-scoped Reports browser assertions."
 }
