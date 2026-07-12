@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-12
 last_reviewed: 2026-06-28
-sha256: ad3278dd1681f0ec5c321e564c5e021141ccc90321f89ffe73d2a2e9360639f8
+sha256: d26afcb152e6477da7dd7bd50838ae023659ce63a1c284f94456c4b94de98c69
 ---
 # `tests/python/tooling/test_release_ci_provisioning.py`
 

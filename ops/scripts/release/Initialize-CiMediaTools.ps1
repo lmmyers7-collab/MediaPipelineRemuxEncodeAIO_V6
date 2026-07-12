@@ -198,6 +198,34 @@ function Assert-FileSha256 {
     }
 }
 
+function Invoke-VerifiedDownload {
+    param(
+        [string] $Uri,
+        [string] $OutFile,
+        [string] $ExpectedSha256,
+        [string] $Label,
+        [int] $MaximumAttempts = 3
+    )
+
+    for ($attempt = 1; $attempt -le $MaximumAttempts; $attempt++) {
+        try {
+            Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue
+            Invoke-WebRequest -Uri $Uri -OutFile $OutFile
+            Assert-FileSha256 -Path $OutFile -ExpectedSha256 $ExpectedSha256 -Label $Label
+            return
+        }
+        catch {
+            Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue
+            if ($attempt -ge $MaximumAttempts) {
+                throw
+            }
+            $delaySeconds = 2 * $attempt
+            Write-Warning "$Label download attempt $attempt failed; retrying in $delaySeconds seconds. $($_.Exception.Message)"
+            Start-Sleep -Seconds $delaySeconds
+        }
+    }
+}
+
 function Install-PgsToSrtRuntime {
     if ((Test-Path -LiteralPath $pgsTargetExe -PathType Leaf) -and
         (Test-Path -LiteralPath $pgsEnglishData -PathType Leaf) -and
@@ -218,12 +246,10 @@ function Install-PgsToSrtRuntime {
 
     try {
         New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
-        Invoke-WebRequest -Uri $pgsArchiveUrl -OutFile $archivePath
-        Assert-FileSha256 -Path $archivePath -ExpectedSha256 $pgsArchiveSha256 -Label 'PgsToSrt archive'
+        Invoke-VerifiedDownload -Uri $pgsArchiveUrl -OutFile $archivePath -ExpectedSha256 $pgsArchiveSha256 -Label 'PgsToSrt archive'
         Expand-Archive -LiteralPath $archivePath -DestinationPath $expandedPath -Force
 
-        Invoke-WebRequest -Uri $pgsEnglishDataUrl -OutFile $downloadedEnglishData
-        Assert-FileSha256 -Path $downloadedEnglishData -ExpectedSha256 $pgsEnglishDataSha256 -Label 'PgsToSrt English tessdata'
+        Invoke-VerifiedDownload -Uri $pgsEnglishDataUrl -OutFile $downloadedEnglishData -ExpectedSha256 $pgsEnglishDataSha256 -Label 'PgsToSrt English tessdata'
 
         New-Item -ItemType Directory -Path $pgsTargetDir -Force | Out-Null
         foreach ($item in Get-ChildItem -LiteralPath $expandedPath -Force) {

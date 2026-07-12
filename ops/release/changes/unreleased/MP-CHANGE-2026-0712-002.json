@@ -43,5 +43,5 @@
     "GitHub issue #22",
     "GitHub PR #29"
   ],
-  "notes": "Release gates remain strict. Live config, runtime state, credentials, source-control data, and optional FFplay/MKVToolNix GUI bulk exclusions were not changed. Job-level runner.temp expressions were replaced with runner-time GITHUB_ENV exports because the runner context is not available while GitHub constructs a job."
+  "notes": "Release gates remain strict. Live config, runtime state, credentials, source-control data, and optional FFplay/MKVToolNix GUI bulk exclusions were not changed. Job-level runner.temp expressions were replaced with runner-time GITHUB_ENV exports because the runner context is not available while GitHub constructs a job. Pinned downloads retry bounded transient transport failures, but every attempt must still pass the exact SHA-256 gate."
 }

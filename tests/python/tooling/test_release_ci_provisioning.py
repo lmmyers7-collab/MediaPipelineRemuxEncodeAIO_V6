@@ -44,6 +44,9 @@ class ReleaseCiProvisioningTests(unittest.TestCase):
         self.assertIn("27c3e637fe777cabe55b063a5a454e124c395e727d6a270899be3b5a7b2a9c7a", script)
         self.assertIn("tesseract-ocr/tessdata/ced78752cc61322fb554c280d13360b35b8684e4/eng.traineddata", script)
         self.assertIn("daa0c97d651c19fba3b25e81317cd697e9908c8208090c94c3905381c23fc047", script)
+        self.assertIn("function Invoke-VerifiedDownload", script)
+        self.assertIn("[int] $MaximumAttempts = 3", script)
+        self.assertEqual(script.count("Invoke-VerifiedDownload -Uri $pgs"), 2)
 
     @unittest.skipIf(
         (REPO_ROOT / "release_manifest.json").is_file(),
