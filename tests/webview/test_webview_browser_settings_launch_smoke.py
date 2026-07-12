@@ -161,17 +161,24 @@ def _browser_settings_launch_runner_source() -> str:
               }
               async function setLibraryDesignation(card, value) {
                 const libraryId = card.dataset.libraryId || "library";
+                const select = card.querySelector('[data-library-field="designation"]');
+                if (!select) throw new Error("missing designation select for " + libraryId);
+                select.value = value;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
                 const deadline = Date.now() + 10000;
+                let lastRenderedValue = "";
                 while (Date.now() < deadline) {
                   const currentCard = libraryCard(libraryId);
-                  if (currentCard !== card) return currentCard;
-                  const select = currentCard.querySelector('[data-library-field="designation"]');
-                  if (!select) throw new Error("missing designation select for " + libraryId);
-                  select.value = value;
-                  select.dispatchEvent(new Event("change", { bubbles: true }));
+                  const currentSelect = currentCard.querySelector('[data-library-field="designation"]');
+                  if (!currentSelect) throw new Error("missing designation select for " + libraryId);
+                  lastRenderedValue = String(currentSelect.value || "");
+                  if (currentCard !== card && lastRenderedValue === value) return currentCard;
                   await new Promise((resolve) => setTimeout(resolve, 100));
                 }
-                throw new Error("designation change handler did not rerender library " + libraryId);
+                throw new Error(
+                  "designation change handler did not rerender library " + libraryId
+                  + " as " + value + "; last rendered value was " + lastRenderedValue
+                );
               }
               function setOverrideValue(row, value) {
                 const control = row.querySelector("[data-library-override-control]");

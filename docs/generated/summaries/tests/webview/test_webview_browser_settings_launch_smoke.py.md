@@ -3,9 +3,9 @@ file: tests/webview/test_webview_browser_settings_launch_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: ef5188d2590f92e913bd4978e79f9059974437857c2efba620fcc43577f55d55
+sha256: d3ad76e460402fb9fc1b53bdfe41a97b239db4ca63d3d204d8c1ab5d8bc045d7
 ---
 # `tests/webview/test_webview_browser_settings_launch_smoke.py`
 

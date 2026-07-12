@@ -1,0 +1,34 @@
+{
+  "id": "MP-CHANGE-2026-0712-013",
+  "title": "Synchronize Library designation browser smoke",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "test",
+  "risk_level": "low",
+  "date_started": "2026-07-12",
+  "date_completed": null,
+  "summary": "Synchronize the settings browser smoke with the completed Library designation rerender before asserting designation-specific override rows.",
+  "reason": "Hosted Phase 1 reproduced the same missing Auto-designation override row on two independent runs, showing that card replacement alone was an insufficient readiness signal.",
+  "affected_areas": [
+    "ci",
+    "generated-context",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The helper returned on any Library card replacement and repeatedly dispatched change events while waiting, allowing assertions to observe an intermediate card with the previous designation.",
+  "behavior_after": "The helper dispatches one designation change and returns only after a replacement card reports the requested designation; all designation-specific row assertions remain unchanged.",
+  "files_touched": [
+    "docs/generated/summaries/tests/webview/test_webview_browser_settings_launch_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0712-013.json",
+    "tests/webview/test_webview_browser_settings_launch_smoke.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PASS: exact browser-backed settings/launch smoke completed three consecutive local runs.",
+    "PASS: Ruff on the changed browser smoke.",
+    "PENDING: hosted Phase 1 proof."
+  ],
+  "rollback_plan": "Restore card-replacement-only readiness and repeated change dispatches; this also restores the observed race.",
+  "related_changes": [],
+  "notes": "This changes test synchronization only. It does not remove, retry, or weaken any settings, designation, override-row, or launch assertion.\nWait for the requested designation on the replacement Library card before row assertions.\nRefresh the settings browser smoke summary."
+}
