@@ -56,9 +56,10 @@ class ReleaseCiProvisioningTests(unittest.TestCase):
         workflow = (REPO_ROOT / ".github" / "workflows" / "deep-audit.yml").read_text(encoding="utf-8")
 
         self.assertNotIn("${{ runner.temp }}", workflow)
-        self.assertEqual(workflow.count("Initialize isolated CI environment"), 6)
-        self.assertEqual(workflow.count('"mediapipeline-$env:GITHUB_JOB"'), 6)
-        self.assertEqual(workflow.count("$env:GITHUB_ENV"), 6)
+        self.assertEqual(workflow.count("Initialize isolated CI environment"), 7)
+        self.assertEqual(workflow.count('"mediapipeline-$env:GITHUB_JOB"'), 7)
+        self.assertEqual(workflow.count("$env:GITHUB_ENV"), 7)
+        self.assertIn("Deep Audit browser smoke (${{ matrix.test_id }})", workflow)
         self.assertIn("Initialize-CiPythonRuntime.ps1 -InstallDependencies", workflow)
         self.assertIn("Initialize-CiMediaTools.ps1 -InstallMissing", workflow)
 
@@ -72,11 +73,12 @@ class ReleaseCiProvisioningTests(unittest.TestCase):
         )
 
         self.assertNotIn("${{ runner.temp }}", workflow)
-        self.assertEqual(workflow.count("Initialize isolated CI environment"), 3)
-        self.assertEqual(workflow.count('"mediapipeline-$env:GITHUB_JOB"'), 3)
-        self.assertEqual(workflow.count("$env:GITHUB_ENV"), 3)
-        self.assertEqual(workflow.count("Initialize-CiPythonRuntime.ps1 -InstallDependencies"), 3)
-        self.assertEqual(workflow.count("Initialize-CiMediaTools.ps1 -InstallMissing"), 3)
+        self.assertEqual(workflow.count("Initialize isolated CI environment"), 4)
+        self.assertEqual(workflow.count('"mediapipeline-$env:GITHUB_JOB"'), 4)
+        self.assertEqual(workflow.count("$env:GITHUB_ENV"), 4)
+        self.assertEqual(workflow.count("Initialize-CiPythonRuntime.ps1 -InstallDependencies"), 4)
+        self.assertEqual(workflow.count("Initialize-CiMediaTools.ps1 -InstallMissing"), 4)
+        self.assertIn("Browser smoke (${{ matrix.test_id }})", workflow)
 
     @unittest.skipIf(
         (REPO_ROOT / "release_manifest.json").is_file(),
@@ -101,9 +103,9 @@ class ReleaseCiProvisioningTests(unittest.TestCase):
         workflow = (REPO_ROOT / ".github" / "workflows" / "deep-audit.yml").read_text(encoding="utf-8")
 
         self.assertNotIn("${{ runner.temp }}", workflow)
-        self.assertEqual(workflow.count("Initialize isolated CI environment"), 6)
-        self.assertEqual(workflow.count("Initialize-CiPythonRuntime.ps1 -InstallDependencies"), 3)
-        self.assertEqual(workflow.count("Initialize-CiMediaTools.ps1 -InstallMissing"), 3)
+        self.assertEqual(workflow.count("Initialize isolated CI environment"), 7)
+        self.assertEqual(workflow.count("Initialize-CiPythonRuntime.ps1 -InstallDependencies"), 4)
+        self.assertEqual(workflow.count("Initialize-CiMediaTools.ps1 -InstallMissing"), 4)
 
 
 if __name__ == "__main__":

@@ -22,14 +22,17 @@
     ".github/workflows/deep-audit.yml",
     ".github/workflows/phase1-drift.yml",
     "docs/generated/summaries/.github/workflows/phase1-drift.yml.md",
-    "ops/release/changes/unreleased/MP-CHANGE-2026-0712-010.json"
+    "docs/generated/summaries/tests/python/tooling/test_release_ci_provisioning.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0712-010.json",
+    "tests/python/tooling/test_release_ci_provisioning.py"
   ],
   "tests_added": [],
   "manual_validation": [
     "OBSERVED: final main run 29205257255 attempt 1 failed diagnostics handoff with Chromium ERR_NO_BUFFER_SPACE after all 2,900 Python and 210 non-browser WebView tests passed.",
-    "OBSERVED: run 29205257255 attempt 2 failed a different prose-box browser module with the same ERR_NO_BUFFER_SPACE, proving the issue recurs across clean hosted VMs and is not one product assertion.",
     "OBSERVED: first hosted module matrix isolated the remaining failure to the second diagnostics test, which shared a VM only with the module's first browser test and reproduced ERR_NO_BUFFER_SPACE.",
+    "OBSERVED: run 29205257255 attempt 2 failed a different prose-box browser module with the same ERR_NO_BUFFER_SPACE, proving the issue recurs across clean hosted VMs and is not one product assertion.",
     "PASS: canonical unittest-discovery-to-matrix comparison confirmed all 29 browser test IDs appear exactly once in both Phase 1 and Deep Audit matrices.",
+    "PASS: updated release provisioning guardrail tests (7) and complete tooling Python suite (226) validate the additional fully provisioned matrix job in each workflow.",
     "PENDING: hosted Phase 1 and Deep Audit matrix proof."
   ],
   "rollback_plan": "Restore sequential browser execution only if an equivalent Windows runner proves its network stack stable across the complete browser suite. Do not replace isolation with retries, skipped modules, ignored console errors, or wider test timeouts.",
@@ -38,5 +41,5 @@
     "PR #30",
     "PR #32"
   ],
-  "notes": "The protected context remains Python unit tests and still represents all 3,139 tests. The individual-test browser matrix uses max-parallel 6 to bound runner demand. No test, assertion, timeout, workflow permission, or required check is removed.\nRefresh the canonical Phase 1 workflow summary for the browser runner matrix."
+  "notes": "The protected context remains Python unit tests and still represents all 3,139 tests. The individual-test browser matrix uses max-parallel 6 to bound runner demand. No test, assertion, timeout, workflow permission, or required check is removed.\nRefresh the canonical Phase 1 workflow summary for the browser runner matrix.\nUpdate release provisioning guardrails for the additional fully provisioned browser matrix job and assert test-level sharding.\nRefresh summary after expanding workflow runtime-provisioning guardrails for the browser matrix."
 }
