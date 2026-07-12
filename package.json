@@ -23,7 +23,7 @@
     "webview:prework:check": "npm run webview:check && npm run webview:lint:budget:check && npm run webview:map:check && npm run webview:contract:check && npm run webview:slices:check && npm run webview:dom-gaps:check && npm run webview:routes:check && npm run webview:commands:check && npm run webview:script-order:smoke"
   },
   "devDependencies": {
-    "@babel/generator": "^7.26.0",
+    "@babel/generator": "^8.0.0",
     "@babel/parser": "^7.26.0",
     "@babel/traverse": "^7.26.0",
     "@eslint/js": "^9.17.0",
