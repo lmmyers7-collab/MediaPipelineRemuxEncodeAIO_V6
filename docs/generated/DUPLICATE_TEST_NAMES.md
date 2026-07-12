@@ -7,7 +7,7 @@ This report groups exact bare Python test function/method names that appear in m
 ## Summary
 
 - Test roots: `tests/python`, `tests/webview`
-- Python test definitions scanned: **3146**
+- Python test definitions scanned: **3147**
 - Duplicate bare names across files: **9**
 
 ## Duplicate Names
