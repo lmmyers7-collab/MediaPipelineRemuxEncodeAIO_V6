@@ -34,7 +34,7 @@ jobs:
           @("TMP=$tempRoot", "TEMP=$tempRoot", "LOCALAPPDATA=$localAppData") | Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -72,7 +72,7 @@ jobs:
           @("TMP=$tempRoot", "TEMP=$tempRoot", "LOCALAPPDATA=$localAppData") | Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -174,7 +174,7 @@ jobs:
           @("TMP=$tempRoot", "TEMP=$tempRoot", "LOCALAPPDATA=$localAppData") | Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -220,7 +220,7 @@ jobs:
           @("TMP=$tempRoot", "TEMP=$tempRoot", "LOCALAPPDATA=$localAppData") | Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
