@@ -7,8 +7,8 @@
   "risk_level": "medium",
   "date_started": "2026-07-12",
   "date_completed": null,
-  "summary": "Run the complete Python and WebView unittest roots sequentially in hosted CI so browser/CDP suites do not inherit thousands of unrelated tests in the same Python process.",
-  "reason": "Four hosted full-discovery attempts failed on different browser modules after more than 500 seconds, while every unchanged module and the full 29-test browser suite passed independently. A single long-lived discovery process accumulates browser/subprocess pressure and produces non-deterministic wait failures.",
+  "summary": "Run the complete Python and WebView unittest roots sequentially in hosted CI and remove redundant codex-branch push runs when pull-request validation already covers the same head.",
+  "reason": "Four hosted full-discovery attempts failed on different browser modules after more than 500 seconds, while every unchanged module and the full 29-test browser suite passed independently. Partitioning made Deep Audit pass, but duplicate Generated Drift push/pull-request jobs then ran their browser roots concurrently and failed on different waits. The redundant event duplication creates cross-runner browser/CDP pressure without adding coverage.",
   "affected_areas": [
     "ci",
     "tests",
@@ -16,16 +16,18 @@
     "reliability"
   ],
   "behavior_before": "Deep Audit and Generated Drift each ran all 3,139 tests in one Python process with `python -m unittest discover -s tests -q`; late browser/CDP tests failed non-deterministically on different waits.",
-  "behavior_after": "Each workflow still discovers every test under tests/python and tests/webview, in that order, but uses a fresh Python process for the WebView root. No test, assertion, browser timeout, workflow permission, or required context is removed or weakened.",
+  "behavior_after": "Each workflow still discovers every test under tests/python and tests/webview, in that order, but uses a fresh Python process for the WebView root. Generated Drift and CodeQL run once for codex pull requests and again after merge through the retained main push trigger, rather than twice on the same PR head. No test, assertion, browser timeout, workflow permission, required context, main push check, or pull-request check is removed or weakened.",
   "files_touched": [
     "ops/release/changes/unreleased/MP-CHANGE-2026-0712-007.json",
     ".github/workflows/deep-audit.yml",
-    ".github/workflows/phase1-drift.yml"
+    ".github/workflows/phase1-drift.yml",
+    ".github/workflows/codeql.yml"
   ],
   "tests_added": [],
   "manual_validation": [
     "PASS: identical partitioned discovery locally; tests/python and tests/webview both passed, preserving all 3,139 tests with one expected skip.",
     "PASS: full tests/webview root passed 239 tests, including all 29 browser-backed tests.",
+    "PASS: partitioned hosted Deep Audit Python unit-test job passed all tests in 11m37s.",
     "PASS: every browser module that failed in hosted aggregate discovery passed unchanged in local isolated/full-browser runs.",
     "OBSERVED: hosted failures rotated across Launch/Queue, Diagnostics handoff, Settings/Launch, Rename, Completed/Pending proof, and High Risk, demonstrating process-lifetime/resource sensitivity rather than one product assertion."
   ],
@@ -34,5 +36,5 @@
     "PR #30",
     "GitHub runs 29199791046, 29199791073, and 29199811094"
   ],
-  "notes": "The required check names and workflow permissions are unchanged. This is execution isolation within each existing Python unit-test job, not a reduction in test scope."
+  "notes": "The required check names and workflow permissions are unchanged. This is execution isolation within each existing Python unit-test job plus removal of redundant push/pull_request duplication on codex PR heads, not a reduction in test scope. Main push and pull-request validation remain enabled."
 }
