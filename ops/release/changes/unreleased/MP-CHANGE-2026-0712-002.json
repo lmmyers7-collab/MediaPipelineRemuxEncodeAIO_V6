@@ -7,7 +7,7 @@
   "risk_level": "medium",
   "date_started": "2026-07-12",
   "date_completed": "2026-07-12",
-  "summary": "Provision complete bundled Python, Node, core media tools, PgsToSrt/tessdata, and isolated AppData state for Deep Audit and Generated Drift Python/release/package jobs.",
+  "summary": "Provision complete bundled Python, Node, core media tools, PgsToSrt/tessdata, and runner-initialized isolated temp/AppData state for Deep Audit and Generated Drift jobs.",
   "reason": "The active Generated Drift jobs copied Python without installing bundled-runtime dependencies and did not provision media tools; the broad Python jobs also invoked bundled runtimes and Node tooling that their job setup did not provide.",
   "affected_areas": [
     "ci",
@@ -16,7 +16,7 @@
     "tooling"
   ],
   "behavior_before": "CI release/package jobs failed on missing pydantic, psutil, pysubs2, FFmpeg, MKVToolNix, PgsToSrt/tessdata, and AppData prerequisites, while broad Python jobs could fail when browser/tooling tests spawned the unprovisioned bundled runtime.",
-  "behavior_after": "All relevant CI jobs provision and validate the required bundled runtime layout without skipping release checks; PgsToSrt 1.4.8 and English tessdata are downloaded from pinned upstream revisions with SHA-256 verification, and package exclusion policy is unchanged.",
+  "behavior_after": "All relevant CI jobs provision and validate the required bundled runtime layout without skipping release checks; isolated paths are exported from RUNNER_TEMP through GITHUB_ENV after the runner starts; PgsToSrt 1.4.8 and English tessdata are downloaded from pinned upstream revisions with SHA-256 verification; package exclusion policy is unchanged.",
   "files_touched": [
     "ops/release/changes/unreleased/MP-CHANGE-2026-0712-002.json",
     ".github/workflows/deep-audit.yml",
@@ -43,5 +43,5 @@
     "GitHub issue #22",
     "GitHub PR #29"
   ],
-  "notes": "Release gates remain strict. Live config, runtime state, credentials, source-control data, and optional FFplay/MKVToolNix GUI bulk exclusions were not changed."
+  "notes": "Release gates remain strict. Live config, runtime state, credentials, source-control data, and optional FFplay/MKVToolNix GUI bulk exclusions were not changed. Job-level runner.temp expressions were replaced with runner-time GITHUB_ENV exports because the runner context is not available while GitHub constructs a job."
 }
