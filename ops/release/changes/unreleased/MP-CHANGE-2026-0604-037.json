@@ -45,4 +45,3 @@
   "related_changes": [],
   "notes": "Full WebView script-order/static validation is blocked by apps/desktop/webview/static/assets/completed/table.js being NUL-filled before/aside from this packet. The file is covered by other local change state and was not restored from HEAD to avoid discarding unrelated edits."
 }
-

@@ -16,4 +16,3 @@ Write-Host 'Boundary: does not collect live GPU telemetry, process media, launch
 Write-Host 'Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit.'
 
 Invoke-WebViewBrowserSmokeUnittest -ProjectRoot $projectRoot -Module 'tests.webview.test_webview_browser_telemetry_smoke' -AllowSkippedTests:$AllowSkippedTests
-

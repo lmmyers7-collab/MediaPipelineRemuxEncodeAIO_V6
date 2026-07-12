@@ -34,4 +34,3 @@
   "related_changes": [],
   "notes": "WebView CSS/static-test-only fix. It does not change Local API routes, backend command authority, queue mutation, settings persistence, media policy, FFmpeg/subtitle/audio behavior, pending publish drain, source/scratch/output movement, or cleanup behavior. Affected Python scripts: tests/python/desktop/test_application_facade_web_static.py only. Existing broader stage7d folder-rule static test was not used as validation because this dirty worktree has already split folder-preview JavaScript into queue/fileOverrides.folderPreview.js while that test still expects the constants in queueView.js."
 }
-

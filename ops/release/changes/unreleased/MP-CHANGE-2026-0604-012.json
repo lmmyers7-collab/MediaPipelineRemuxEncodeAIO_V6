@@ -92,4 +92,3 @@
   "related_changes": [],
   "notes": "Docs-only archive pass. No runtime code, media policy, queue, publish, settings, or filesystem behavior changes.\nArchived 25 completed/superseded Markdown bodies plus archive README; kept redirect stubs for audit and UX paths still referenced by active notes.\nA narrow summary refresh also updated docs/generated/summaries/apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js.md to clear a pre-existing stale summary reported by refresh_summaries.py --check."
 }
-

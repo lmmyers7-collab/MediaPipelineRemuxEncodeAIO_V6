@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settingsLibraries/render.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-07-11
-sha256: 74438d127d8448debe664a538bca1ffa31463e40c68aaac9e7d7284a92189372
+sha256: 6b568eb81750a87433f3149b37ab4a28f3b77d639885b81760ded43b25dc4d46
 ---
 # `apps/desktop/webview/static/assets/settingsLibraries/render.js`
 

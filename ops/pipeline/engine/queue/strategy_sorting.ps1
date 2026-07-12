@@ -370,4 +370,3 @@ function _Sort-ManualPosition {
     foreach ($e in $unPositioned)     { $result.Add($e) }
     return $result
 }
-

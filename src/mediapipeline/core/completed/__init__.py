@@ -1,2 +1,1 @@
 """Completed-job domain helpers."""
-

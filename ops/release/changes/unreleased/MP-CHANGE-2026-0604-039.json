@@ -38,4 +38,3 @@
   ],
   "notes": "Follow-up to the publish ETA UI change after live SMB copy evidence showed the landed file size can jump to full size at copy start.\nRobocopy active-copy progress now treats full-size landed files as possible SMB preallocation and estimates progress from process write counters when available.\nValidation note: broad WebView static/browser suites currently have unrelated dirty-worktree failures outside this storage telemetry fix.\nImplemented and validated on 2026-06-04; active Robocopy polls no longer trust full-size landed files as complete copy progress."
 }
-

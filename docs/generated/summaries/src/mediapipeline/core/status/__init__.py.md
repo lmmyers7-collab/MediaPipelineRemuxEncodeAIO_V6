@@ -3,9 +3,9 @@ file: src/mediapipeline/core/status/__init__.py
 pipeline_stage: observability
 token_priority: low
 owner_domain: observability
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: e91b9d7581f7f57cbd042303d983008949165c03694aff00ac4987fe33b6bd7d
+sha256: a76536f3f9e50e056befd122e157e5a41506ff1692e2d4f00b61dd1a1fb58552
 ---
 # `src/mediapipeline/core/status/__init__.py`
 

@@ -3,9 +3,9 @@ file: ops/pipeline/engine/audit/policy.ps1
 pipeline_stage: observability
 token_priority: medium
 owner_domain: audit
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 08eb337ba72583f6bcaaaeda43069234e399a19a743567c3687ab4e9c7b27359
+sha256: 5dfbf640a90856d290b3b49daa7a8d7f8c09f6eb07c148e21c0264aafdfa8595
 ---
 # `ops/pipeline/engine/audit/policy.ps1`
 

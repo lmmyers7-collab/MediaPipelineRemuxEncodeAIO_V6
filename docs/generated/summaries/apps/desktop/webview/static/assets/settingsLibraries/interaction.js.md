@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settingsLibraries/interaction.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-07-11
-sha256: 96c9805510e5fd7d18c716ceaf9cfb7e4870f2daeba9e9e7ddf5755e478c1616
+sha256: 6c0d8120978ada4a34e0a4060ee756ac6709ae602fdc913078ab18024a29a262
 ---
 # `apps/desktop/webview/static/assets/settingsLibraries/interaction.js`
 

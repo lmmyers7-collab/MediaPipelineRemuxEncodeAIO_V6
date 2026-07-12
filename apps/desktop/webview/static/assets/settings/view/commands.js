@@ -130,15 +130,15 @@
         }
       });
     }
-  
+
     function settingsRenameLogCaseInput(id) {
       return byId(`settings-rename-log-case-${id}`);
     }
-  
+
     function settingsRenameLogCaseValue(id) {
       return String(settingsRenameLogCaseInput(id)?.value || "").trim();
     }
-  
+
     function settingsRenameLogCaseInteger(id, minValue, label) {
       const raw = settingsRenameLogCaseValue(id);
       if (!raw) return { value: null, error: "" };
@@ -149,7 +149,7 @@
       }
       return { value, error: "" };
     }
-  
+
     function settingsRenameLogCasePayload() {
       const seasonNumber = settingsRenameLogCaseInteger("season-number", 1, "Season number");
       const expectedSeason = settingsRenameLogCaseInteger("expected-season", 0, "Expected season");
@@ -169,7 +169,7 @@
       if (notes) payload.notes = notes;
       return { payload, issues: [seasonNumber.error, expectedSeason.error].filter(Boolean) };
     }
-  
+
     function settingsRenameLogCaseRequiredIssues(payload) {
       const issues = [];
       if (!payload.source_folder) issues.push("Source folder is required.");
@@ -178,17 +178,17 @@
       if (!["active", "pending"].includes(payload.status)) issues.push("Status must be pending or active.");
       return issues;
     }
-  
+
     function syncSettingsRenameLogCaseButton() {
       const button = byId("settings-rename-log-case-submit-button");
       if (button) button.disabled = state.settingsCommandInFlight || state.settingsRenameLogCaseInFlight;
     }
-  
+
     function setSettingsRenameLogCaseBusy(isBusy) {
       state.settingsRenameLogCaseInFlight = Boolean(isBusy);
       syncSettingsRenameLogCaseButton();
     }
-  
+
     async function submitSettingsRenameLogCase() {
       if (state.settingsRenameLogCaseInFlight) return;
       if (state.settingsCommandInFlight) {
@@ -226,7 +226,7 @@
         setSettingsRenameLogCaseBusy(false);
       }
     }
-  
+
     function initSettingsRenameLogCaseEvents() {
       const form = byId("settings-rename-log-case-form");
       if (form && !state.settingsRenameLogCaseEventsBound) {
@@ -238,7 +238,7 @@
       }
       syncSettingsRenameLogCaseButton();
     }
-  
+
     async function previewSettingsPatch() {
       if (rejectSettingsCommandWhileBusy("settings.preview_patch", "settings-patch-status", "settings-patch-detail")) return;
       const flushResult = flushDirtySettingsBuilders();
@@ -362,7 +362,7 @@
       if (requestId === state.settingsPatchPreviewRequestId) setSettingsCommandBusy(false);
     }
   }
-  
+
   async function saveSettingsPatch() {
     if (rejectSettingsCommandWhileBusy("settings.save_patch", "settings-patch-status", "settings-patch-detail")) return;
     const flushResult = flushDirtySettingsBuilders();
@@ -646,7 +646,7 @@
       setSettingsCommandBusy(false);
     }
   }
-  
+
 
     return {
       initSettingsRenameLogCaseEvents,

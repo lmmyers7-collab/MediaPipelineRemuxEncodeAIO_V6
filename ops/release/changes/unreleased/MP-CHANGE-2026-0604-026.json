@@ -37,4 +37,3 @@
   "related_changes": [],
   "notes": "UI-only WebView rendering change. No Local API, backend DTO, route, command, media policy, queue, publish, rename, settings, source, scratch, or output behavior changed."
 }
-

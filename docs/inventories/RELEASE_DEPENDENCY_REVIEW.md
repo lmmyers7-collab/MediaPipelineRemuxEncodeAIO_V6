@@ -8,17 +8,18 @@ does not replace it.
 
 | Field | Current record |
 |---|---|
-| Review evidence date | 2026-07-11 |
+| Review evidence date | 2026-07-12 |
 | Advisory scope | `GHSA-wrw7-89jp-8q8g` / `RUSTSEC-2024-0429`: unsound `glib::VariantStrIter` iterator implementations; affected `glib >=0.15,<0.20`, patched in `0.20.0` |
 | Affected distribution targets | Linux GTK/WebKit builds; not reachable by the Windows-only portable ZIP runtime path |
 | Locked chain | `tauri 2.11.1` -> `tauri-runtime-wry 2.11.1` -> `wry 0.55.1` -> `gtk 0.18.2` -> `glib 0.18.5` |
-| Normal upgrade attempt | An isolated `cargo update` resolved `tauri 2.11.5` and `tauri-runtime-wry 2.11.4`, but retained `wry 0.55.1`, `gtk 0.18.2`, and `glib 0.18.5`; no repository lockfile change was retained because it does not resolve the alert |
+| Normal upgrade attempt | `cargo update -p tauri --precise 2.11.5 --dry-run` resolves Tauri 2.11.5 and tauri-runtime-wry 2.11.4, but retains `wry 0.55.1`, `gtk 0.18.2`, and `glib 0.18.5`; `cargo update -p glib --precise 0.20.0 --dry-run` is rejected because GTK 0.18.2 requires `glib ^0.18`. No repository lockfile change was retained because the compatible update does not resolve the alert. |
 | Current upstream constraints | Tauri 2.11.5 and tauri-runtime-wry 2.11.4 require GTK `0.18`; tauri-runtime-wry requires Wry `0.55.0` and current Wry 0.55.1 requires GTK `0.18`; current upstream `dev` manifests retain those constraints |
 | Direct-use assessment | The application does not directly depend on glib. Static source scans found no `VariantStrIter` references in Tauri 2.11.5, tauri-runtime-wry 2.11.4, Wry 0.55.1, or GTK 0.18.2. This is reduced observed exposure, not a guarantee that every indirect runtime call is unreachable. |
 | Windows package posture | Monitor; do not force a glib override |
 | Linux package posture | Block Linux package promotion until a supported upstream chain reaches glib `>=0.20`, or perform a separate explicit Linux risk review and validation before distribution |
 | Owner | Release maintainer |
 | Review deadline | 2026-08-07 |
+| Alert state | GitHub Dependabot alert 1 remains open; no dismissal or risk-suppression action was taken |
 | Upgrade trigger | Re-run immediately when Tauri, tauri-runtime-wry, Wry, GTK/WebKit bindings, or the target set changes; the successful trigger is an upstream-compatible graph resolving glib `>=0.20` without local patches/overrides |
 
 Decision framework:
@@ -34,11 +35,11 @@ Decision framework:
    owner, expiry, and upgrade trigger are recorded here. It never waives
    package/open/close validation.
 5. Do not use `[patch]`, dependency replacement, or a direct glib `>=0.20`
-   constraint to mix incompatible GTK-rs generations. The 2026-07-11 supported
+   constraint to mix incompatible GTK-rs generations. The 2026-07-12 supported
    upgrade attempt proves that current upstream releases have not moved the
    chain.
 
-Authoritative sources checked 2026-07-11:
+Authoritative sources checked 2026-07-12:
 
 - [GitHub advisory GHSA-wrw7-89jp-8q8g](https://github.com/advisories/GHSA-wrw7-89jp-8q8g)
 - [Tauri current `dev` manifest](https://github.com/tauri-apps/tauri/blob/dev/crates/tauri/Cargo.toml)

@@ -338,8 +338,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     GENERATED_DOCS_ROOT.mkdir(parents=True, exist_ok=True)
-    INDEX_PATH.write_text(index, encoding="utf-8")
-    GRAPH_PATH.write_text(graph, encoding="utf-8")
+    INDEX_PATH.write_text(index, encoding="utf-8", newline="\n")
+    GRAPH_PATH.write_text(graph, encoding="utf-8", newline="\n")
     print(
         f"Wrote {INDEX_PATH.relative_to(REPO_ROOT)} and {GRAPH_PATH.relative_to(REPO_ROOT)} "
         f"from {len(summaries)} summaries."

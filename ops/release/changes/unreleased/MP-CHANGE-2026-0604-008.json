@@ -54,4 +54,3 @@
   ],
   "notes": "WebView-only Queue drawer interaction change. It uses the existing backend clear_fields command and does not change FFmpeg command generation, route policy, subtitle policy, audio policy, queue launch, pending publish drain, source/scratch/output movement, cleanup behavior, or source media files. Affected Python scripts: tests/python/desktop/test_application_facade_web_static.py and tests/python/desktop/test_webview_browser_queue_file_overrides_smoke.py."
 }
-

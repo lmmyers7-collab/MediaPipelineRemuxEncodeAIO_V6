@@ -37,4 +37,3 @@
   "related_changes": [],
   "notes": "WebView-only queue table interaction fix. It does not change Local API routes, backend command authority, queue mutation, launch scope, settings persistence, media policy, FFmpeg/subtitle/audio behavior, pending publish drain, source/scratch/output movement, cleanup behavior, or source media files. Affected Python scripts: tests/python/desktop/test_webview_browser_large_table_smoke.py only."
 }
-

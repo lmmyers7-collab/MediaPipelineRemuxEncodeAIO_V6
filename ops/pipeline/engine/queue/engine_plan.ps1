@@ -54,4 +54,3 @@ function Get-MediaPipelineQueueEntryProgressValue {
     } catch {}
     return 0
 }
-

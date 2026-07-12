@@ -266,7 +266,7 @@ function buildCandidates(declarations, file, minLines, maxGap) {
 
 function analyzeFile(file, options) {
   const absolute = resolve(repoRoot, file);
-  const source = readFileSync(absolute, "utf-8");
+  const source = normalizeLineEndings(readFileSync(absolute, "utf-8"));
   const ast = parseScript(source, file);
   const declarationPaths = [];
   const localNames = new Set();
@@ -332,6 +332,10 @@ function analyzeFile(file, options) {
   };
 }
 
+function normalizeLineEndings(text) {
+  return text.replace(/\r\n?/g, "\n");
+}
+
 function codeList(values, limit = 8) {
   if (!values?.length) return "-";
   const shown = values.slice(0, limit).map((item) => `\`${item}\``).join(", ");
@@ -390,7 +394,9 @@ function renderMarkdown(analyses, options) {
 function writeOrCheck(path, content, check) {
   const absolute = resolve(repoRoot, path);
   if (check) {
-    const current = existsSync(absolute) ? readFileSync(absolute, "utf-8") : "";
+    const current = existsSync(absolute)
+      ? normalizeLineEndings(readFileSync(absolute, "utf-8"))
+      : "";
     if (current === content) {
       console.log(`${repoRelative(path)} is current`);
       return 0;

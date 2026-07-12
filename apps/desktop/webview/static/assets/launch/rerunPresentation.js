@@ -61,13 +61,13 @@
         container.appendChild(item);
       });
     }
-  
+
     function rerunPreviewRowNumber(item) {
       const parsed = Number(item?.row_index);
       if (!Number.isFinite(parsed)) return "";
       return String(Math.max(0, Math.round(parsed)) + 1);
     }
-  
+
     function rerunPreviewRowText(item = {}) {
       return [
         item.status,
@@ -82,12 +82,12 @@
         item.bucket,
       ].map((value) => String(value || "").toLowerCase()).join(" ");
     }
-  
+
     function pushRerunCategory(tokens, key, label, severity = "info") {
       if (tokens.some((item) => item.key === key)) return;
       tokens.push({ key, label, severity });
     }
-  
+
     function rerunPreviewCategoryTokens(item = {}) {
       const tokens = [];
       const status = String(item.status || "unknown").toLowerCase();
@@ -111,7 +111,7 @@
       if (item.bucket) pushRerunCategory(tokens, "bucket", `bucket: ${item.bucket}`, "info");
       return tokens;
     }
-  
+
     function renderRerunPreviewCategoryChips(cell, item = {}) {
       const strip = document.createElement("div");
       strip.className = "rerun-category-strip";
@@ -126,7 +126,7 @@
       });
       cell.appendChild(strip);
     }
-  
+
     function renderRerunPreviewIdentity(cell, item = {}) {
       const rowNumber = rerunPreviewRowNumber(item);
       const sourcePath = String(item.source_path || "").trim();
@@ -143,7 +143,7 @@
       ].filter(Boolean).join(" · "));
       cell.appendChild(identity);
     }
-  
+
     function renderRerunPreviewStatus(cell, item = {}) {
       const stack = document.createElement("div");
       stack.className = "rerun-preview-state-stack";
@@ -160,7 +160,7 @@
       }
       cell.appendChild(stack);
     }
-  
+
     function renderRerunPreviewReason(cell, item = {}) {
       const lines = [
         item.reason || "",
@@ -175,7 +175,7 @@
       }
       lines.forEach((line) => appendRerunText(cell, "rerun-row-reason-line", line, line));
     }
-  
+
     function renderRerunPreviewDestination(cell, payload) {
       const stack = document.createElement("div");
       stack.className = "rerun-preview-destination-stack";
@@ -185,7 +185,7 @@
       appendRerunText(stack, "rerun-row-meta", execution, `Execution: ${execution}`);
       cell.appendChild(stack);
     }
-  
+
     function renderRerunPreviewRows(payload) {
       const tbody = byId("rerun-preview-rows");
       if (!tbody) return;
@@ -220,7 +220,7 @@
         tbody.appendChild(row);
       });
     }
-  
+
     function renderRerunHistorySummary() {
       const entries = rerunHistoryEntries()
         .filter((entry) => {
@@ -238,7 +238,7 @@
         return `${entry.started_at || entry.completed_at || entry.at || "recent"} | ${entry.ok ? "ok" : "failed"} | ${request.csv_path || data.csv_path || data.source_csv_path || ""} | ${entry.message || entry.raw?.message || ""}`;
       }).join("\n"));
     }
-  
+
     function renderRerunPolicyPanel(payload) {
       const counts = rerunPreviewCounts(payload);
       const request = collectRerunStartRequest();
@@ -259,7 +259,7 @@
       ];
       setText("rerun-policy-panel", lines.join("\n"));
     }
-  
+
     function selectedRerunCsvCandidate() {
       const current = String(byId("rerun-start-csv-path")?.value || "").trim().toLowerCase();
       const candidates = state.lastRerunPreviewPayload && Array.isArray(state.lastRerunPreviewPayload.recent_csvs)
@@ -267,7 +267,7 @@
         : [];
       return candidates.find((item) => String(item.path || "").trim().toLowerCase() === current) || null;
     }
-  
+
     function applyRerunOpenButtonState() {
       const selected = selectedRerunCsvCandidate();
       const canOpen = Boolean(selected?.csv_key);
@@ -288,7 +288,7 @@
         inspect.setAttribute("aria-label", "Inspect selected or typed CSV using the backend preview");
       }
     }
-  
+
     async function inspectSelectedRerunCsv() {
       const result = await refreshRerunPreview({ quiet: false });
       renderJsonDetail("rerun-queue-detail", {
@@ -297,7 +297,7 @@
         intro: "Backend read-only inspect of the selected rerun CSV.",
       });
     }
-  
+
     async function openSelectedRerunCsv(target) {
       const selected = selectedRerunCsvCandidate();
       if (!selected || !selected.csv_key) {
@@ -313,7 +313,7 @@
       appendCommandResult(result);
       renderLaunchCommandResult("rerun-queue-status", "rerun-queue-detail", result, { target, csv_key: selected.csv_key });
     }
-  
+
     function rerunResultCountsLine(manifest = {}) {
       const counts = manifest.row_status_counts && typeof manifest.row_status_counts === "object"
         ? manifest.row_status_counts
@@ -323,14 +323,14 @@
         .map((key) => `${key} ${counts[key]}`);
       return entries.length ? entries.join("; ") : "no row counts";
     }
-  
+
     function rerunManifestTitle(manifest = {}) {
       return [
         manifest.batch_id || "rerun manifest",
         manifest.status || "unknown",
       ].filter(Boolean).join(" | ");
     }
-  
+
     function renderRerunResults(payload) {
       state.lastRerunResultsPayload = payload && typeof payload === "object" ? payload : null;
       renderRerunLifecycleEvidence(state.lastRerunPreviewPayload, state.lastRerunCommandResult);
@@ -350,7 +350,7 @@
         const title = document.createElement("strong");
         title.textContent = rerunManifestTitle(manifest);
         item.appendChild(title);
-  
+
         const lines = [
           `Rows: ${manifest.row_count || 0}; remaining pending ${manifest.remaining_pending_count || 0}; ${rerunResultCountsLine(manifest)}.`,
           `Mode: ${rerunExecutionLabel(manifest.execution_mode || "one_at_a_time")}; window=${manifest.window_size || 1}; destination=${manifest.destination_mode || "unknown"}; collision=${manifest.collision_policy || "unknown"}.`,
@@ -365,7 +365,7 @@
         const detail = document.createElement("span");
         detail.textContent = lines.join(" ");
         item.appendChild(detail);
-  
+
         if (manifest.can_continue_pending) {
           const button = document.createElement("button");
           button.type = "button";
@@ -381,7 +381,7 @@
         container.appendChild(item);
       });
     }
-  
+
     async function refreshRerunResults(options = {}) {
       try {
         const result = await queueRerunRouteDispatcher("getRerunResults")();
@@ -395,7 +395,7 @@
         return null;
       }
     }
-  
+
     async function requestRerunContinue(manifestKey) {
       const key = String(manifestKey || "").trim();
       if (rejectLaunchCommandWhileBusy("rerun.continue", "rerun-queue-status", "rerun-queue-detail")) return;
@@ -451,7 +451,7 @@
         applyRerunPreviewButtonState();
       }
     }
-  
+
     function rerunPreviewBlockedReason(precollectedRequest = null) {
       const request = precollectedRequest && typeof precollectedRequest === "object"
         ? precollectedRequest
@@ -469,7 +469,7 @@
       if (Number(counts.effective_scoped_rows || 0) <= 0) return "No effective scoped rows are available.";
       return "";
     }
-  
+
     function applyRerunPreviewButtonState() {
       const busy = Boolean(launchCoordinatorState.launchCommandInFlight);
       const reason = rerunPreviewBlockedReason();
@@ -489,7 +489,7 @@
       renderRerunReviewHeader(state.lastRerunPreviewPayload);
       renderRerunLifecycleEvidence(state.lastRerunPreviewPayload, state.lastRerunCommandResult);
     }
-  
+
     async function refreshRerunPreview(options = {}) {
       const request = collectRerunPreviewRequest();
       renderLaunchPreflight("rerun-queue-preflight", rerunQueuePreflightLines(collectRerunStartRequest({ dry_run: false })));
@@ -531,7 +531,7 @@
         return result;
       }
     }
-  
+
     function scheduleRerunPreviewRefresh(delayMs = 350) {
       if (state.rerunPreviewRefreshTimer) window.clearTimeout(state.rerunPreviewRefreshTimer);
       state.rerunPreviewRefreshTimer = window.setTimeout(() => {
@@ -539,13 +539,13 @@
         refreshRerunPreview({ quiet: true }).catch(() => {});
       }, Math.max(0, Number(delayMs) || 0));
     }
-  
+
     function rerunCsvLeaf(value) {
       const text = String(value || "").trim();
       if (!text) return "";
       return text.split(/[\\/]/).filter(Boolean).pop() || text;
     }
-  
+
     function renderRerunTopbarPending(request, actionLabel, statusLabel, waitLabel) {
       const csvLeaf = rerunCsvLeaf(request.csv_path);
       const activity = csvLeaf ? `${actionLabel} ${statusLabel}: ${csvLeaf}` : `${actionLabel} ${statusLabel}`;
@@ -560,7 +560,7 @@
         wait_label: waitLabel,
       });
     }
-  
+
     function renderRerunTopbarFinished(request, actionLabel, message) {
       const csvLeaf = rerunCsvLeaf(request.csv_path);
       const activity = csvLeaf ? `${message}: ${csvLeaf}` : message;
@@ -571,7 +571,7 @@
         progress: { CurrentStage: "CSV rerun" },
       });
     }
-  
+
 
     return {
       renderRerunPreviewTiles,

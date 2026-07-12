@@ -52,17 +52,17 @@
       if (field?.label) return field.label;
       return choiceLabels[key] || key.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
     }
-  
+
     function fieldHelpText(field) {
       return String(field?.help_text || field?.help || "").trim();
     }
-  
+
     function metadataTags(value) {
       if (Array.isArray(value)) return value.map((item) => String(item || "").trim()).filter(Boolean);
       const textValue = String(value || "").trim();
       return textValue ? [textValue] : [];
     }
-  
+
     function fieldIsAdvanced(key, field) {
       const advancedVisibility = String(field?.advanced_visibility || "").trim().toLowerCase();
       const section = String(field?.section || "").trim().toLowerCase();
@@ -75,25 +75,25 @@
         || tags.includes("advanced")
         || advancedFallbackKeys.has(String(key || field?.key || ""));
     }
-  
+
     function choiceValueLabel(value) {
       const key = String(value ?? "");
       return choiceLabels[key] || key.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
     }
-  
+
     function inputTypeForField(field) {
       if (["integer", "number"].includes(field?.value_type)) return "number";
       if (field?.kind === "optional_float") return "number";
       if (["int", "optional_int", "combo_int"].includes(field?.kind)) return "number";
       return "text";
     }
-  
+
     function fieldOwnValue(field, key) {
       if (!field || !Object.prototype.hasOwnProperty.call(field, key)) return undefined;
       const value = field[key];
       return value === null || value === undefined || value === "" ? undefined : value;
     }
-  
+
     function buildOverrideControl(key, value, disabled = false) {
       const field = fieldDefinition(key);
       const kind = field?.kind || "";
@@ -128,7 +128,7 @@
       const textAttrs = inputType === "text" ? ' autocomplete="off" spellcheck="false"' : "";
       return `<input type="${inputType}"${min}${max}${step}${unit}${textAttrs}${disabledAttr} data-library-override-control data-library-override-key="${escapeHtml(key)}" value="${escapeHtml(formatValue(value))}">`;
     }
-  
+
     function effectiveOverrideValue(profile, groupKey, fieldKey) {
       const groupOverrides = profile.overrides?.[groupKey] || {};
       if (Object.prototype.hasOwnProperty.call(groupOverrides, fieldKey)) {
@@ -136,64 +136,64 @@
       }
       return defaultSettingValue(fieldKey);
     }
-  
+
     function settingOverrideEvidence(profile, groupKey, fieldKey) {
       const evidence = profileState(profile)?.setting_overrides?.[groupKey]?.[fieldKey];
       return evidence && typeof evidence === "object" && !Array.isArray(evidence) ? evidence : null;
     }
-  
+
     function overrideValuesEqual(left, right) {
       return JSON.stringify(stableComparable(left)) === JSON.stringify(stableComparable(right));
     }
-  
+
     function overrideStateText(isOverride, value, inheritedValue) {
       if (!isOverride) return "Inherited from global";
       if (overrideValuesEqual(value, inheritedValue)) return "Library override — currently same as global";
       return "Library override";
     }
-  
+
     function renderUseDefaultButton(groupKey, fieldKey, isOverride) {
       return `<button type="button" class="tertiary-button settings-library-override-use-default" data-library-use-default-override data-library-override-group="${escapeHtml(groupKey)}" data-library-override-key="${escapeHtml(fieldKey)}" title="Reset to inherited removes the persisted library override key; it does not write the global value into this library."${isOverride ? "" : " hidden disabled"}>Reset to inherited</button>`;
     }
-  
+
     function routeNumberValue(value, fallback = 0) {
       if (typeof routeModel.numberValue === "function") return routeModel.numberValue(value, fallback);
       const number = Number(value);
       return Number.isFinite(number) ? number : fallback;
     }
-  
+
     function routeFormatPercent(value) {
       if (typeof routeModel.formatPercent === "function") return routeModel.formatPercent(value);
       const number = Number(value);
       if (!Number.isFinite(number)) return "";
       return number.toFixed(6).replace(/\.?0+$/, "");
     }
-  
+
     function routeFormatHeight(value) {
       if (typeof routeModel.formatHeight === "function") return routeModel.formatHeight(value);
       const number = Number(value);
       return Number.isFinite(number) ? String(Math.round(number)) : "";
     }
-  
+
     function routeSafeIdPart(value) {
       return String(value || "library").replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "library";
     }
-  
+
     function routeElementId(profile, suffix) {
       return `settings-library-route-${routeSafeIdPart(profile?.id)}-${suffix}`;
     }
-  
+
     function routeValueAvailable(value) {
       return value !== undefined && value !== null && String(value).trim() !== "";
     }
-  
+
     function routeValueFromBackendSource(values, key) {
       if (values && Object.prototype.hasOwnProperty.call(values, key) && routeValueAvailable(values[key])) {
         return values[key];
       }
       return defaultSettingValue(key);
     }
-  
+
     function routeMetadataMissingKeys(values) {
       return routeSizeFields.filter((key) => {
         const field = fieldDefinition(key);
@@ -201,7 +201,7 @@
         return !hasMetadata || !routeValueAvailable(routeValueFromBackendSource(values, key));
       });
     }
-  
+
     function routeSourceSummary(values) {
       const missing = routeMetadataMissingKeys(values);
       if (missing.length) {
@@ -211,14 +211,14 @@
       }
       return "Readouts use backend field metadata and current config values. Library controls stage overrides only; backend Save remains authoritative.";
     }
-  
+
     function routeValuesFromObject(values) {
       return routeSizeFields.reduce((accumulator, key) => {
         accumulator[key] = routeValueFromBackendSource(values, key);
         return accumulator;
       }, {});
     }
-  
+
     function routeBoundariesFromValues(values) {
       if (typeof routeModel.boundariesFromValues === "function") return routeModel.boundariesFromValues(values);
       const withDefaults = routeValuesFromObject(values);
@@ -229,7 +229,7 @@
         route4kMinHeight: Math.round(2160 * (1 - (routeNumberValue(withDefaults.Route4KLowerHeightTolerancePercent, 0) / 100))),
       };
     }
-  
+
     function routeRailPercentages(boundaries) {
       if (typeof routeModel.railPercentages === "function") return routeModel.railPercentages(boundaries);
       const minHeight = 1080;
@@ -241,14 +241,14 @@
         secondPct: clamp(((routeNumberValue(boundaries?.route4kMinHeight, maxHeight) - minHeight) / span) * 100),
       };
     }
-  
+
     function routeValuesFromProfile(profile) {
       return routeSizeFields.reduce((accumulator, key) => {
         accumulator[key] = effectiveLibraryOverrideValue(profile, "editor", key);
         return accumulator;
       }, {});
     }
-  
+
     function routeValuesFromCard(card) {
       return routeSizeFields.reduce((accumulator, key) => {
         const control = card.querySelector(`[data-library-override-key="${key}"] [data-library-override-control]`);
@@ -256,7 +256,7 @@
         return accumulator;
       }, {});
     }
-  
+
     function effectiveLibraryOverrideValue(profile, groupKey, fieldKey) {
       const groupOverrides = profile.overrides?.[groupKey] || {};
       const evidence = settingOverrideEvidence(profile, groupKey, fieldKey);
@@ -264,41 +264,41 @@
       if (evidence && Object.prototype.hasOwnProperty.call(evidence, "effective_value")) return evidence.effective_value;
       return defaultSettingValue(fieldKey);
     }
-  
+
     function routeTriggerSummary(mode) {
       if (typeof routeModel.triggerSummary === "function") return routeModel.triggerSummary(mode);
       return "Routing trigger behavior follows the selected backend mode.";
     }
-  
+
     function routeHeightPixelSummary(boundaries) {
       if (typeof routeModel.heightPixelSummary === "function") return routeModel.heightPixelSummary(boundaries);
       return `Derived direct-copy buckets: 1080p <=${routeFormatHeight(boundaries.route1080pMaxHeight)}p, 1440p ${routeFormatHeight(boundaries.route1440pMinHeight)}-${routeFormatHeight(boundaries.route1440pMaxHeight)}p, 4K >=${routeFormatHeight(boundaries.route4kMinHeight)}p. Boundary values route to the higher bucket.`;
     }
-  
+
     function routeConsequenceSummary(boundaries, values) {
       if (typeof routeModel.consequenceSummary === "function") return routeModel.consequenceSummary(boundaries, values);
       const withDefaults = routeValuesFromObject(values);
       return `A ${routeFormatHeight(boundaries.route1440pMinHeight)}p source routes as 1440p: Movie ${withDefaults.MovieRoute1440pTargetSizeGB} GB / TV ${withDefaults.TVRoute1440pTargetSizeGB} GB, direct-copy cap ${withDefaults.Route1440pMaxVideoBitrateMbps} Mbps. A ${routeFormatHeight(boundaries.route4kMinHeight)}p source routes as 4K.`;
     }
-  
+
     function routeUnknownHeightSummary(values) {
       if (typeof routeModel.unknownHeightSummary === "function") return routeModel.unknownHeightSummary(values);
       return "Unknown-height routing remains backend-owned until ffprobe dimensions or backend fallback evidence is available.";
     }
-  
+
     function routeEstimatedGb(value, minutes) {
       if (typeof routeModel.estimatedSizeGb === "function") return routeModel.estimatedSizeGb(value, minutes);
       const mbps = routeNumberValue(value, 0);
       return mbps > 0 ? (mbps * routeNumberValue(minutes, 0) * 60) / 8 / 1024 : 0;
     }
-  
+
     function routeFormatEstimatedGb(value) {
       if (typeof routeModel.formatEstimatedGb === "function") return routeModel.formatEstimatedGb(value);
       const number = Number(value);
       if (!Number.isFinite(number) || number <= 0) return "0 GB";
       return number < 10 ? `${number.toFixed(1).replace(/\.0$/, "")} GB` : `${Math.round(number)} GB`;
     }
-  
+
     function renderLibraryRouteOverrideField(profile, groupKey, fieldKey, options = {}) {
       const status = overrideStatus(groupKey, fieldKey, profile);
       if (!status.render) return "";
@@ -353,7 +353,7 @@
         </label>
       `;
     }
-  
+
     function renderLibraryRouteRail(boundaries) {
       const firstBoundary = routeFormatHeight(boundaries.route1080pMaxHeight);
       const secondBoundary = routeFormatHeight(boundaries.route4kMinHeight);
@@ -377,7 +377,7 @@
         </div>
       `;
     }
-  
+
     function renderLibraryRouteBoundaryControls(boundaries, describedBy) {
       const firstBoundary = routeFormatHeight(boundaries.route1080pMaxHeight);
       const secondBoundary = routeFormatHeight(boundaries.route4kMinHeight);
@@ -405,7 +405,7 @@
         </div>
       `;
     }
-  
+
     function renderLibraryRouteBucket(profile, bucket, boundaries) {
       const movieTarget = renderLibraryRouteOverrideField(profile, "editor", bucket.movieTargetKey, {
         label: `Movie ${bucket.targetLabel} target output size`,
@@ -452,7 +452,7 @@
         </section>
       `;
     }
-  
+
     function renderLibraryRouteSizeLayout(profile, groupKey, block) {
       const fields = new Set(block.fields || []);
       const values = routeValuesFromProfile(profile);
@@ -503,7 +503,7 @@
         </div>
       `;
     }
-  
+
     function renderOverrideField(profile, groupKey, fieldKey, variant = "grid") {
       const status = overrideStatus(groupKey, fieldKey, profile);
       if (!status.render) return "";
@@ -569,11 +569,11 @@
         </label>
       `;
     }
-  
+
     function fieldsForGroup(profile, groupKey, fields) {
       return fields.filter((fieldKey) => overrideStatus(groupKey, fieldKey, profile).render);
     }
-  
+
     function renderFieldGrid(profile, groupKey, fields) {
       const rows = fieldsForGroup(profile, groupKey, fields).map((fieldKey) => {
         const field = fieldDefinition(fieldKey);
@@ -582,17 +582,17 @@
       if (!rows.length) return "";
       return `<div class="form-grid launch-form-grid">${rows.join("")}</div>`;
     }
-  
+
     function renderOptionGrid(profile, groupKey, fields) {
       const rows = fieldsForGroup(profile, groupKey, fields).map((fieldKey) => renderOverrideField(profile, groupKey, fieldKey, "check"));
       if (!rows.length) return "";
       return `<div class="option-grid option-grid-compact">${rows.join("")}</div>`;
     }
-  
+
     function renderFullFields(profile, groupKey, fields) {
       return fieldsForGroup(profile, groupKey, fields).map((fieldKey) => renderOverrideField(profile, groupKey, fieldKey, "full")).join("");
     }
-  
+
     function renderNestedOptionPanel(profile, groupKey, block) {
       const optionGrid = renderOptionGrid(profile, groupKey, block.fields || []);
       const formGrid = renderFieldGrid(profile, groupKey, block.gridFields || []);
@@ -608,7 +608,7 @@
         </section>
       `;
     }
-  
+
     function renderAdvancedOverrideDisclosure(profile, groupKey, block) {
       const formGrid = renderFieldGrid(profile, groupKey, block.fields || []);
       if (!formGrid) return "";
@@ -624,7 +624,7 @@
         </details>
       `;
     }
-  
+
     function renderOverrideLayout(profile, groupKey) {
       const blocks = overrideLayouts[groupKey] || [{ type: "grid", fields: overrideFieldsForGroup(groupKey) }];
       return blocks.map((block) => {
@@ -639,7 +639,7 @@
         return "";
       }).join("");
     }
-  
+
     function renderOverrideSection(profile, group) {
       const openSections = state.openOverrideSectionsByLibrary.get(profile.id);
       const isOpen = openSections instanceof Set && openSections.has(group.key);
@@ -654,12 +654,12 @@
         </details>
       `;
     }
-  
+
     function profileMp4CompatibilityActive(profile) {
       const overrides = normalizeOverrides(profile || {});
       return String(overrides.editor?.OutputContainer || "").trim().toLowerCase() === "mp4";
     }
-  
+
     function renderCompatibilityPresetEditorControl(profile) {
       const preset = mp4CompatibilityPreset();
       if (!preset) return "";
@@ -675,7 +675,7 @@
         </label>
       `;
     }
-  
+
     function captureOpenOverrideSections() {
       const list = byId("settings-library-profile-list");
       if (!list) return;
@@ -692,7 +692,7 @@
         state.openOverrideSectionsByLibrary.set(profileId, openSections);
       });
     }
-  
+
     function renderCard(profile) {
       const nonDeletable = profile.id === "movies" || profile.id === "tv";
       const inherited = inheritedSet(profile);
@@ -765,7 +765,7 @@
       syncLibraryCompatibilityAvailability(card);
       return card;
     }
-  
+
     function libraryEditorHasActiveControl() {
       const active = document.activeElement;
       if (!(active instanceof Element) || active === document.body) return false;
@@ -777,11 +777,11 @@
       if (!containers.some((container) => container.contains(active))) return false;
       return Boolean(active.closest?.("select, input, textarea"));
     }
-  
+
     function shouldDeferAutomaticLibraryRender(options = {}) {
       return Boolean(options?.automatic === true && profileCardsFromDom().length && libraryEditorHasActiveControl());
     }
-  
+
     function renderSettingsLibraries(settings, options = {}) {
       const incomingProfiles = currentProfilesFromSettings(settings);
       syncLibraryWatchControlsFromConfig(settings, options);
@@ -806,7 +806,7 @@
       state.profiles = incomingProfiles;
       renderProfileCards();
     }
-  
+
 
     return {
       choiceLabel,

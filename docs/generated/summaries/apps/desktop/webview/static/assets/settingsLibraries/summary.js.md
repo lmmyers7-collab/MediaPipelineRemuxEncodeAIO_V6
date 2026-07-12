@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settingsLibraries/summary.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-07-11
-sha256: 227304863aa6fa9ee474fbede8a30f15d625e469a7381224c1f38a0dfd9cd56d
+sha256: e91173a4f353669a55fe941f6ce0481de756b2873ce23e34de4e26728da54cc5
 ---
 # `apps/desktop/webview/static/assets/settingsLibraries/summary.js`
 

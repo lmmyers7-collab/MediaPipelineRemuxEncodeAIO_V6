@@ -268,5 +268,3 @@ def completed_sidecar_metadata_repair_dry_run(
         ],
         would_write_paths=would_write,
     )
-
-

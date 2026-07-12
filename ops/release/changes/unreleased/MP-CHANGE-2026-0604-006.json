@@ -45,4 +45,3 @@
   ],
   "notes": "Read-only API/UI correctness change only. It does not change FFmpeg command generation, route policy, subtitle policy, audio policy, queue mutation, pending publish drain, source/scratch/output movement, cleanup behavior, or source media files. Affected Python scripts: app/api/file_overrides/selectors.py, app/api/file_overrides/effective_fields.py, tests/python/desktop/test_file_override_tracks.py, tests/python/desktop/test_application_facade_local_api.py, and tests/python/desktop/test_application_facade_web_static.py."
 }
-

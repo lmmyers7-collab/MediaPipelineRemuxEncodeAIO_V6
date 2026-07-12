@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/rerun_preview_materialization.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-07-11
-sha256: 913ff47c70ca7e00f2756c97cea7ec864a979cf22a6a3eca0146e3dd3776a21f
+sha256: f9517c8326eb98a3eda80590f73144d1977199bd45627da34b13835cc7688eb8
 ---
 # `src/mediapipeline/core/processes/rerun_preview_materialization.py`
 

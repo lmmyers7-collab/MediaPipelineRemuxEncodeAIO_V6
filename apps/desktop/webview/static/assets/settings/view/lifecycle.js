@@ -62,11 +62,11 @@
       setSettingsCommandBusy(false);
     }
   }
-  
+
     function getLastSettings() {
       return state.lastSettings || {};
     }
-  
+
     function settingsBrowsePathDetailLines(result, fieldLabel) {
       const data = result?.data && typeof result.data === "object" ? result.data : {};
       const validation = data.validation && typeof data.validation === "object" ? data.validation : {};
@@ -81,7 +81,7 @@
       if (data.selected_path) lines.splice(1, 0, `Selected path: ${data.selected_path}`);
       return lines;
     }
-  
+
     async function browseSettingsPath(settingKey, inputId) {
       if (rejectSettingsCommandWhileBusy("settings.browse_path", "settings-file-safety-builder-status", "settings-file-safety-guidance")) return;
       const input = byId(inputId);
@@ -134,7 +134,7 @@
         setSettingsCommandBusy(false);
       }
     }
-  
+
     function initSettingsViewEvents() {
       const fn = settingsPatchReviewFunction("initSettingsViewEvents");
       if (fn) fn();
@@ -144,7 +144,7 @@
         state.settingsAdvancedToggleEventsBound = true;
       }
     }
-  
+
 
     return {
       browseSettingsPath,

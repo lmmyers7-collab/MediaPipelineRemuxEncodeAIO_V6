@@ -258,4 +258,3 @@
   "related_changes": [],
   "notes": "Move generated dependency atlas artifacts into a single repository-root folder.\nAtlas generator now consolidates outputs under docs/generated/dependency-atlas/ and removes the previous root files plus docs/generated/dependency-atlas_assets/ sibling.\nCompleted after generator, focused tests, browser smoke, and real facade command path validation.\nPacket also records the removed old root-level atlas files and old docs/generated/dependency-atlas_assets sibling paths."
 }
-

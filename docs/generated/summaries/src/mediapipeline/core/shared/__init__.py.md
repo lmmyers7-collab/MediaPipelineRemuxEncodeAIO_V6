@@ -3,9 +3,9 @@ file: src/mediapipeline/core/shared/__init__.py
 pipeline_stage: n/a
 token_priority: low
 owner_domain: shared
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 39af348f3db2f4f4ca1b661516b7830ffaee3429317854f5a7bd243c0ec1a9f1
+sha256: 1c8067199d9207ad7722fa401278898066e7ad71b05851e0d2ae8aa4662e3752
 ---
 # `src/mediapipeline/core/shared/__init__.py`
 

@@ -40,6 +40,10 @@ class ReleaseCiProvisioningTests(unittest.TestCase):
         self.assertIn("ffprobe.exe", script)
         self.assertIn("mkvmerge.exe", script)
         self.assertIn("'ffmpeg', 'mkvtoolnix'", script)
+        self.assertIn("Tentacule/PgsToSrt/releases/download/v1.4.8/PgsToStr-1.4.8.zip", script)
+        self.assertIn("27c3e637fe777cabe55b063a5a454e124c395e727d6a270899be3b5a7b2a9c7a", script)
+        self.assertIn("tesseract-ocr/tessdata/ced78752cc61322fb554c280d13360b35b8684e4/eng.traineddata", script)
+        self.assertIn("daa0c97d651c19fba3b25e81317cd697e9908c8208090c94c3905381c23fc047", script)
 
     @unittest.skipIf(
         (REPO_ROOT / "release_manifest.json").is_file(),
@@ -52,6 +56,34 @@ class ReleaseCiProvisioningTests(unittest.TestCase):
         self.assertIn("TEMP: ${{ runner.temp }}", workflow)
         self.assertIn("Initialize-CiPythonRuntime.ps1 -InstallDependencies", workflow)
         self.assertIn("Initialize-CiMediaTools.ps1 -InstallMissing", workflow)
+
+    @unittest.skipIf(
+        (REPO_ROOT / "release_manifest.json").is_file(),
+        "Source-checkout CI workflow metadata is intentionally omitted from release packages.",
+    )
+    def test_generated_drift_release_jobs_provision_the_same_required_runtime(self) -> None:
+        workflow = (REPO_ROOT / ".github" / "workflows" / "phase1-drift.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertEqual(workflow.count("TMP: ${{ runner.temp }}"), 3)
+        self.assertEqual(workflow.count("TEMP: ${{ runner.temp }}"), 3)
+        self.assertEqual(workflow.count("LOCALAPPDATA: ${{ runner.temp }}\\LocalAppData"), 3)
+        self.assertEqual(workflow.count("Initialize-CiPythonRuntime.ps1 -InstallDependencies"), 3)
+        self.assertEqual(workflow.count("Initialize-CiMediaTools.ps1 -InstallMissing"), 3)
+        self.assertEqual(workflow.count("Initialize isolated CI AppData"), 3)
+
+    @unittest.skipIf(
+        (REPO_ROOT / "release_manifest.json").is_file(),
+        "Source-checkout CI workflow metadata is intentionally omitted from release packages.",
+    )
+    def test_deep_audit_python_and_release_jobs_share_complete_runtime_provisioning(self) -> None:
+        workflow = (REPO_ROOT / ".github" / "workflows" / "deep-audit.yml").read_text(encoding="utf-8")
+
+        self.assertEqual(workflow.count("LOCALAPPDATA: ${{ runner.temp }}\\LocalAppData"), 3)
+        self.assertEqual(workflow.count("Initialize-CiPythonRuntime.ps1 -InstallDependencies"), 3)
+        self.assertEqual(workflow.count("Initialize-CiMediaTools.ps1 -InstallMissing"), 3)
+        self.assertEqual(workflow.count("Initialize isolated CI AppData"), 3)
 
 
 if __name__ == "__main__":

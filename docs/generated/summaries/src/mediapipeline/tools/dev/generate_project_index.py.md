@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/dev/generate_project_index.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: c6aa37827e25833179982d9cba054a681e2e76f7a1180065bfd7ed1ae3b35276
+sha256: 7f7357d9229b08f5f56d033bbdaff84d62807c2e419d5fffa84e3e4771bec962
 ---
 # `src/mediapipeline/tools/dev/generate_project_index.py`
 

@@ -54,4 +54,3 @@ AUTONOMY_CATEGORY_LABELS: dict[str, str] = {
     "subtitles_ocr": "Subtitle and OCR review",
     "audio_policy_reviews": "Audio policy review",
 }
-

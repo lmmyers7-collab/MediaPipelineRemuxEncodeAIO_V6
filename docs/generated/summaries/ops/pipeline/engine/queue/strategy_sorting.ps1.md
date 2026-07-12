@@ -3,9 +3,9 @@ file: ops/pipeline/engine/queue/strategy_sorting.ps1
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 902074f6e342cb16e23870fc753f814c71e84a074bb8ec245a300cdc6dbc3fc5
+sha256: e5073115311c65c1befd895c8f9a20305d9fb5f83d0cc2e35f2f931deb061b85
 ---
 # `ops/pipeline/engine/queue/strategy_sorting.ps1`
 

@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0712-002",
+  "title": "Provision complete release CI runtime",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-07-12",
+  "date_completed": "2026-07-12",
+  "summary": "Provision complete bundled Python, Node, core media tools, PgsToSrt/tessdata, and isolated AppData state for Deep Audit and Generated Drift Python/release/package jobs.",
+  "reason": "The active Generated Drift jobs copied Python without installing bundled-runtime dependencies and did not provision media tools; the broad Python jobs also invoked bundled runtimes and Node tooling that their job setup did not provide.",
+  "affected_areas": [
+    "ci",
+    "release",
+    "packaging",
+    "tooling"
+  ],
+  "behavior_before": "CI release/package jobs failed on missing pydantic, psutil, pysubs2, FFmpeg, MKVToolNix, PgsToSrt/tessdata, and AppData prerequisites, while broad Python jobs could fail when browser/tooling tests spawned the unprovisioned bundled runtime.",
+  "behavior_after": "All relevant CI jobs provision and validate the required bundled runtime layout without skipping release checks; PgsToSrt 1.4.8 and English tessdata are downloaded from pinned upstream revisions with SHA-256 verification, and package exclusion policy is unchanged.",
+  "files_touched": [
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0712-002.json",
+    ".github/workflows/deep-audit.yml",
+    ".github/workflows/phase1-drift.yml",
+    "ops/scripts/release/Initialize-CiMediaTools.ps1",
+    "tests/python/tooling/test_release_ci_provisioning.py"
+  ],
+  "tests_added": [
+    "tests.python.tooling.test_release_ci_provisioning.ReleaseCiProvisioningTests.test_generated_drift_release_jobs_provision_the_same_required_runtime",
+    "tests.python.tooling.test_release_ci_provisioning.ReleaseCiProvisioningTests.test_deep_audit_python_and_release_jobs_share_complete_runtime_provisioning"
+  ],
+  "manual_validation": [
+    "Initialize-CiMediaTools.ps1 -InstallMissing passed against an empty temporary repository root",
+    "Provisioned PgsToSrt.exe SHA-256 7CBCBCE199D1CBE2E4ED4556BB96336CD988D40A35E24EF92A9B0962037580AB",
+    "Provisioned eng.traineddata SHA-256 DAA0C97D651C19FBA3B25E81317CD697E9908C8208090C94C3905381C23FC047",
+    "CI-style bundled-Python discovery passed 3,131 tests with 1 expected skip after regenerating the duplicate-test report",
+    "Full source release self-test passed every required Python, generated-context, dependency, lint, WebView, PowerShell, tool-integration, and end-to-end gate",
+    "Tauri CheckOnly, cargo check --locked, cargo test --locked (43 passed), and cargo build --release --locked passed",
+    "Deployable lean package build and copied-folder plus extracted-ZIP acceptance passed with immutable package roots and zero leftover child processes",
+    "Package ZIP SHA-256 E613662C012965FCD4E4ACEAD03729412658EBDF552D8A8D381AEB0C321813DB (616,615,735 bytes)"
+  ],
+  "rollback_plan": "Revert the workflow and CI media-provisioner changes; no packaged runtime, local operator config, or media state requires migration.",
+  "related_changes": [
+    "GitHub issue #22",
+    "GitHub PR #29"
+  ],
+  "notes": "Release gates remain strict. Live config, runtime state, credentials, source-control data, and optional FFplay/MKVToolNix GUI bulk exclusions were not changed."
+}

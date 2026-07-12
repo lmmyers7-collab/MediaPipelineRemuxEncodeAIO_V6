@@ -58,4 +58,3 @@
   ],
   "notes": "Destination root must remain outside the repository. Do not use -IncludeTests, -IncludeDevDocs, or -KeepPersonalConfig for the normal portable artifact.\nPhase 4 candidate folder: C:/MediaPipelineReleases/2026.06.04.001/MediaPipelineRemuxEncodeAIO_2026.06.04.001_Portable_20260604_022751. Zip path: C:/MediaPipelineReleases/2026.06.04.001/MediaPipelineRemuxEncodeAIO_2026.06.04.001_Portable_20260604_022751.zip. Manifest path: C:/MediaPipelineReleases/2026.06.04.001/MediaPipelineRemuxEncodeAIO_2026.06.04.001_Portable_20260604_022751/release_manifest.json. Candidate is not accepted for release until Phase 5 package/open/close validation passes for this same folder."
 }
-

@@ -17,7 +17,7 @@
     function libraryPaneId(profileId) {
       return `settings-library-pane-${slug(profileId, "library")}`;
     }
-  
+
     function storedLibraryTabId(validIds) {
       try {
         const stored = localStorage.getItem("mediapipeline-library-profile") || localStorage.getItem("mediapipeline-library-tab") || "";
@@ -27,7 +27,7 @@
       if (validIds.includes("movies")) return "movies";
       return validIds[0] || "";
     }
-  
+
     function activateLibraryTab(libraryId, options = {}) {
       const tabBar = byId("settings-library-profile-nav");
       const list = byId("settings-library-profile-list");
@@ -55,11 +55,11 @@
       }
       if (typeof window.updatePagePanelEmptyStates === "function") window.updatePagePanelEmptyStates();
     }
-  
+
     function activateLibraryProfile(libraryId, options = {}) {
       activateLibraryTab(libraryId, options);
     }
-  
+
     function closeOverrideSections(profileId) {
       if (profileId) state.openOverrideSectionsByLibrary.set(profileId, new Set());
       const pane = byId(libraryPaneId(profileId));
@@ -68,43 +68,43 @@
         section.open = false;
       });
     }
-  
+
     function activeLibraryCard() {
       const activePane = byId("settings-library-profile-list")?.querySelector(".settings-library-profile-pane.is-active");
       return activePane?.querySelector(".settings-library-card") || null;
     }
-  
+
     function activeLibraryProfileId(card = activeLibraryCard()) {
       return card?.dataset.libraryId || state.activeLibraryTabId || "";
     }
-  
+
     function activeLibraryName(card = activeLibraryCard()) {
       const input = card?.querySelector('[data-library-field="name"]');
       const id = activeLibraryProfileId(card);
       return text(input?.value) || (id === "tv" ? "TV" : id === "movies" ? "Movies" : "Library");
     }
-  
+
     function activeLibraryCanDelete(card = activeLibraryCard()) {
       const id = activeLibraryProfileId(card);
       return Boolean(id && id !== "movies" && id !== "tv");
     }
-  
+
     function librarySummaryRows(payload = state.lastLibrarySummary) {
       return Array.isArray(payload?.rows) ? payload.rows : [];
     }
-  
+
     function librarySummaryTotals(payload = state.lastLibrarySummary) {
       const totals = payload?.totals;
       return totals && typeof totals === "object" && !Array.isArray(totals) ? totals : {};
     }
-  
+
     function librarySummaryCount(value) {
       if (value === null || value === undefined || value === "") return "-";
       const number = Number(value);
       if (!Number.isFinite(number)) return "-";
       return number.toLocaleString();
     }
-  
+
     function librarySummaryStatusLabel(value) {
       const status = text(value || "not_scanned").toLowerCase();
       const labels = {
@@ -117,7 +117,7 @@
       };
       return labels[status] || status.replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
     }
-  
+
     function librarySummaryTone(value) {
       const status = text(value || "not_scanned").toLowerCase();
       if (status === "complete") return "complete";
@@ -126,11 +126,11 @@
       if (status === "partial") return "partial";
       return "not_scanned";
     }
-  
+
     function librarySummaryStripItem(label, value, state = "ready") {
       return `<span data-state="${escapeHtml(state)}">${escapeHtml(label)}: ${escapeHtml(librarySummaryCount(value))}</span>`;
     }
-  
+
     function librarySummaryDesignationLabel(value) {
       const designation = text(value || "auto").toLowerCase();
       const labels = {
@@ -142,7 +142,7 @@
       };
       return labels[designation] || text(value || "Auto").replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
     }
-  
+
     function librarySummaryStatusSymbol(value) {
       const tone = librarySummaryTone(value);
       if (tone === "complete") return "OK";
@@ -151,7 +151,7 @@
       if (tone === "partial") return "~";
       return "?";
     }
-  
+
     function renderLibrarySummaryInspect(row, warnings, statusValue) {
       const statusLabel = librarySummaryStatusLabel(row.scan_status);
       const libraryName = text(row.name || row.library_id || "Library");
@@ -176,7 +176,7 @@
           </div>
         </details>`;
     }
-  
+
     function formatLibrarySummaryTimestamp(value) {
       const raw = text(value);
       if (!raw) return "-";
@@ -191,7 +191,7 @@
         timeZoneName: "short",
       });
     }
-  
+
     function setLibrarySummaryWarning(message) {
       const warning = byId("settings-library-summary-warning");
       if (!warning) return;
@@ -199,7 +199,7 @@
       warning.textContent = value;
       warning.hidden = !value;
     }
-  
+
     function updateLibrarySummarySelection() {
       const rows = Array.from(byId("settings-library-summary-rows")?.querySelectorAll("[data-library-summary-row]") || []);
       rows.forEach((row) => {
@@ -208,7 +208,7 @@
         row.setAttribute("aria-selected", selected ? "true" : "false");
       });
     }
-  
+
     function renderLibrarySummary(payload = state.lastLibrarySummary) {
       if (payload && typeof payload === "object") state.lastLibrarySummary = payload;
       const effectivePayload = state.lastLibrarySummary;
@@ -227,7 +227,7 @@
           : rows.length
             ? "complete"
             : "not_scanned";
-  
+
       if (status) {
         status.textContent = payloadError ? "Summary error" : rows.length ? `${rows.length} saved librar${rows.length === 1 ? "y" : "ies"}` : "No libraries loaded";
         status.dataset.state = statusTone;
@@ -248,7 +248,7 @@
           ? payloadError
           : `Scan evidence: ${scanStatus}; source inventory: ${sourceStatus}. Counts are backend-authored queue source inventory aggregates.`;
       }
-  
+
       if (payloadError) {
         container.innerHTML = `<div class="settings-library-summary-empty" role="status">${escapeHtml(payloadError)}</div>`;
         setLibrarySummaryWarning(payloadError);
@@ -259,7 +259,7 @@
         setLibrarySummaryWarning("");
         return;
       }
-  
+
       container.innerHTML = rows.map((row) => {
         const libraryId = text(row.library_id);
         const statusValue = librarySummaryTone(row.scan_status);
@@ -290,7 +290,7 @@
       setLibrarySummaryWarning((Array.isArray(effectivePayload?.warnings) ? effectivePayload.warnings : []).join("\n"));
       updateLibrarySummarySelection();
     }
-  
+
     async function requestLibrarySummaryScan() {
       const scan = window.mediaPipelineQueueView?.requestQueueScan;
       if (typeof scan !== "function") {
@@ -313,7 +313,7 @@
         if (button) button.disabled = false;
       }
     }
-  
+
     function renderActiveLibraryCommandState() {
       const card = activeLibraryCard();
       const name = activeLibraryName(card);
@@ -340,7 +340,7 @@
       }
       renderLibraryStateStrip();
     }
-  
+
     function renderProfileCards(options = {}) {
       const list = byId("settings-library-profile-list");
       const tabBar = byId("settings-library-profile-nav");
@@ -375,7 +375,7 @@
       renderLibrarySummary();
       renderLibraryWarningSummary();
     }
-  
+
 
     return {
       libraryPaneId,

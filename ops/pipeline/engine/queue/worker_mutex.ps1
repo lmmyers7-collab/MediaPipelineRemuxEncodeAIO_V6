@@ -127,4 +127,3 @@ function Read-MediaPipelineJsonFile {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
     return Get-Content -LiteralPath $Path -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
 }
-

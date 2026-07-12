@@ -46,4 +46,3 @@
   ],
   "notes": "Candidate under validation: C:/MediaPipelineReleases/2026.06.04.001/MediaPipelineRemuxEncodeAIO_2026.06.04.001_Portable_20260604_022751. Phase 5 validation ran in the Codex/dev environment, not on a separate clean Windows account or separate clean machine; PG-3 clean-machine proof was not claimed. Candidate status: rejected for Phase 5 due package-local runtime artifacts after packaged launch and missing tests/python/desktop for selected packaged smoke validation."
 }
-

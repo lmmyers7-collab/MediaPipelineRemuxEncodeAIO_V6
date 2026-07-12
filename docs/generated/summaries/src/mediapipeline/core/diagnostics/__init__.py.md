@@ -3,9 +3,9 @@ file: src/mediapipeline/core/diagnostics/__init__.py
 pipeline_stage: observability
 token_priority: low
 owner_domain: diagnostics
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 99ff1e4202e035a1048972608c32a2c9ec45cd5f4aad29ea5267087f1bdf025b
+sha256: ef619ca118ffff75bb50ba6eb3afe8af78ca1cffdc97484d0380cf6353ca3d11
 ---
 # `src/mediapipeline/core/diagnostics/__init__.py`
 

@@ -177,6 +177,72 @@ $targetByCommand = @{
     ffprobe = Join-Path $ffmpegTargetDir 'ffprobe.exe'
     mkvmerge = Join-Path $mkvTargetDir 'mkvmerge.exe'
 }
+$pgsTargetDir = Join-Path $repoRootPath 'ops\pipeline\tools\PgsToSrt'
+$pgsTargetExe = Join-Path $pgsTargetDir 'PgsToSrt.exe'
+$pgsEnglishData = Join-Path $pgsTargetDir 'tessdata\eng.traineddata'
+$pgsArchiveUrl = 'https://github.com/Tentacule/PgsToSrt/releases/download/v1.4.8/PgsToStr-1.4.8.zip'
+$pgsArchiveSha256 = '27c3e637fe777cabe55b063a5a454e124c395e727d6a270899be3b5a7b2a9c7a'
+$pgsEnglishDataUrl = 'https://raw.githubusercontent.com/tesseract-ocr/tessdata/ced78752cc61322fb554c280d13360b35b8684e4/eng.traineddata'
+$pgsEnglishDataSha256 = 'daa0c97d651c19fba3b25e81317cd697e9908c8208090c94c3905381c23fc047'
+
+function Assert-FileSha256 {
+    param(
+        [string] $Path,
+        [string] $ExpectedSha256,
+        [string] $Label
+    )
+
+    $actual = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actual -ne $ExpectedSha256) {
+        throw "$Label SHA-256 mismatch. Expected $ExpectedSha256 but found $actual."
+    }
+}
+
+function Install-PgsToSrtRuntime {
+    if ((Test-Path -LiteralPath $pgsTargetExe -PathType Leaf) -and
+        (Test-Path -LiteralPath $pgsEnglishData -PathType Leaf) -and
+        -not $Force) {
+        Write-Host "CI PgsToSrt runtime already present: $pgsTargetExe"
+        return
+    }
+
+    if (-not $InstallMissing) {
+        throw 'PgsToSrt or English tessdata is missing. Re-run with -InstallMissing on CI.'
+    }
+
+    $tempParent = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [IO.Path]::GetTempPath() }
+    $tempRoot = Join-Path $tempParent ("mediapipeline-pgstosrt-" + [guid]::NewGuid().ToString('N'))
+    $archivePath = Join-Path $tempRoot 'PgsToStr-1.4.8.zip'
+    $expandedPath = Join-Path $tempRoot 'expanded'
+    $downloadedEnglishData = Join-Path $tempRoot 'eng.traineddata'
+
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        Invoke-WebRequest -Uri $pgsArchiveUrl -OutFile $archivePath
+        Assert-FileSha256 -Path $archivePath -ExpectedSha256 $pgsArchiveSha256 -Label 'PgsToSrt archive'
+        Expand-Archive -LiteralPath $archivePath -DestinationPath $expandedPath -Force
+
+        Invoke-WebRequest -Uri $pgsEnglishDataUrl -OutFile $downloadedEnglishData
+        Assert-FileSha256 -Path $downloadedEnglishData -ExpectedSha256 $pgsEnglishDataSha256 -Label 'PgsToSrt English tessdata'
+
+        New-Item -ItemType Directory -Path $pgsTargetDir -Force | Out-Null
+        foreach ($item in Get-ChildItem -LiteralPath $expandedPath -Force) {
+            Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $pgsTargetDir $item.Name) -Recurse -Force
+        }
+        New-Item -ItemType Directory -Path (Split-Path -Parent $pgsEnglishData) -Force | Out-Null
+        Copy-Item -LiteralPath $downloadedEnglishData -Destination $pgsEnglishData -Force
+    }
+    finally {
+        if (Test-Path -LiteralPath $tempRoot) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath $pgsTargetExe -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $pgsEnglishData -PathType Leaf)) {
+        throw 'CI PgsToSrt provisioning did not produce the required executable and English tessdata.'
+    }
+}
 
 function Resolve-ProvisionSource {
     param([string] $Name)
@@ -214,6 +280,7 @@ if (-not $ffmpegSource -or -not $ffprobeSource -or -not $mkvmergeSource) {
 Copy-DirectoryContents -SourceDir (Split-Path -Parent $pwshSource) -TargetDir $pwshTargetDir -TargetExeNames @('pwsh.exe')
 Copy-DirectoryContents -SourceDir (Split-Path -Parent $ffmpegSource) -TargetDir $ffmpegTargetDir -TargetExeNames @('ffmpeg.exe', 'ffprobe.exe')
 Copy-DirectoryContents -SourceDir (Split-Path -Parent $mkvmergeSource) -TargetDir $mkvTargetDir -TargetExeNames @('mkvmerge.exe')
+Install-PgsToSrtRuntime
 
 $pwshTarget = Join-Path $pwshTargetDir 'pwsh.exe'
 $ffmpegTarget = Join-Path $ffmpegTargetDir 'ffmpeg.exe'

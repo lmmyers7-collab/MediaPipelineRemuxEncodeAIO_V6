@@ -178,4 +178,3 @@ function New-PlexDestinationPlan {
         -LibraryFolder $movieLibraryFolder
     return (Apply-RenameOverrideToDestinationPlan -Plan $plan -File $File -Extension $Extension)
 }
-

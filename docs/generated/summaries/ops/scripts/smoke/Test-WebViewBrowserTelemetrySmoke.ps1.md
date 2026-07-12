@@ -3,9 +3,9 @@ file: ops/scripts/smoke/Test-WebViewBrowserTelemetrySmoke.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 6ed4cc92be02ad5fd7bea4461e056d18d15d3690d2a61be0e5ca02a04f2ef488
+sha256: ab3891ba3678d8f3284b7646f8953cb0ac506ab2e4a5b8c57dfa476c111dcc8a
 ---
 # `ops/scripts/smoke/Test-WebViewBrowserTelemetrySmoke.ps1`
 

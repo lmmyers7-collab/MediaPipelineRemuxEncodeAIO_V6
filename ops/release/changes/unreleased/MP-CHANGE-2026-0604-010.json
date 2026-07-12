@@ -45,4 +45,3 @@
   "related_changes": [],
   "notes": "UI wording only. This does not change backend settings persistence, queue mutation, routing policy, FFmpeg/subtitle/audio behavior, pending publish drain, source/scratch/output movement, cleanup behavior, or source media files. A broader DesktopApp.tests.test_tauri_shell_scaffold run was attempted and failed on unrelated pre-existing route-contract and Maintenance/Reports smoke wording expectations."
 }
-

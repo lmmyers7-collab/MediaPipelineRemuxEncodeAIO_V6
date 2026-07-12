@@ -44,7 +44,7 @@
     const fn = state.settingsPatchReview && state.settingsPatchReview[name];
     return typeof fn === "function" ? fn(...args) : fallback;
   }
-  
+
   function settingsPatchSaveReadinessIssues(entries = []) { return settingsPatchReviewCall("settingsPatchSaveReadinessIssues", [entries], []); }
   function settingsPatchSaveReadinessStatus(issues = []) { return settingsPatchReviewCall("settingsPatchSaveReadinessStatus", [issues], "No changes"); }
   function settingsSaveReviewRows(entries = []) { return settingsPatchReviewCall("settingsSaveReviewRows", [entries], []); }
@@ -52,14 +52,14 @@
   function settingsSaveReviewDetailLines(row) { return settingsPatchReviewCall("settingsSaveReviewDetailLines", [row], []); }
   function renderSettingsSaveReviewFromEntries(entries = []) { settingsPatchReviewCall("renderSettingsSaveReviewFromEntries", [entries]); }
   function renderSettingsPatchSaveReadinessFromEntries(entries = []) { settingsPatchReviewCall("renderSettingsPatchSaveReadinessFromEntries", [entries]); }
-  
+
   function renderSettingsPatchImpactSummaryForError(message) {
     setText(
       "settings-patch-impact-summary",
       `Local impact unavailable because Changes JSON is invalid.\n${message}\nBackend preview cannot run until this is valid JSON.`
     );
   }
-  
+
   const settingsPolicyImpactModule = window.__settingsPolicyImpactModule || {};
   delete window.__settingsPolicyImpactModule;
   state.settingsPolicyImpact = typeof settingsPolicyImpactModule.createSettingsPolicyImpactModule === "function"
@@ -95,7 +95,7 @@
       settingsPatchSaveReadinessStatus,
     })
     : {};
-  
+
   function settingsLaunchImpactRows(entries = []) { return settingsPolicyImpactCall("settingsLaunchImpactRows", [entries], []); }
   function settingsLaunchImpactStatus(rows = []) { return settingsPolicyImpactCall("settingsLaunchImpactStatus", [rows], "Not evaluated"); }
   function settingsLaunchImpactSummaryLines(rows = [], latest = null, issues = []) { return settingsPolicyImpactCall("settingsLaunchImpactSummaryLines", [rows, latest, issues], []); }
@@ -129,7 +129,7 @@
       updateTableStatusLegend,
     })
     : {};
-  
+
   /*
    * Static smoke compatibility: settingsView.js remains the settings parent owner
    * while backend-result rendering lives in settings/backendResult.js.
@@ -143,12 +143,12 @@
    * settings-backend-result-rows
    * settings-backend-result-detail
    */
-  
+
   function settingsBackendResultCall(name, args, fallback) {
     const fn = settingsBackendResult && settingsBackendResult[name];
     return typeof fn === "function" ? fn(...args) : fallback;
   }
-  
+
   function settingsCommandProgressBars(result) { return settingsBackendResultCall("settingsCommandProgressBars", [result], []); }
   function renderSettingsSaveProgress(result) { settingsBackendResultCall("renderSettingsSaveProgress", [result]); }
   function settingsProgressDetailLines(result) { return settingsBackendResultCall("settingsProgressDetailLines", [result], []); }
@@ -159,13 +159,13 @@
   function settingsBackendResultSummaryLines(rows = []) { return settingsBackendResultCall("settingsBackendResultSummaryLines", [rows], []); }
   function renderSettingsBackendResultFromEntries(entries = []) { settingsBackendResultCall("renderSettingsBackendResultFromEntries", [entries]); }
   function renderSettingsBackendResultForError(message) { settingsBackendResultCall("renderSettingsBackendResultForError", [message]); }
-  
+
   function renderSettingsPatchSummary() {
     const fn = settingsPatchReviewFunction("renderSettingsPatchSummary");
     if (fn) fn();
     syncSaveHeaderStatus();
   }
-  
+
   function syncSaveHeaderStatus() {
     const patchStatusEl = byId("settings-patch-status");
     const headerPatchEl = byId("settings-save-header-patch-status");
@@ -186,17 +186,17 @@
       headerReloadEl.textContent = reloaded === true ? "Yes" : reloaded === false ? "No" : "—";
     }
   }
-  
+
   function renderSettingsBuilderGuidance() {
     const fn = settingsPatchReviewFunction("renderSettingsBuilderGuidance");
     if (fn) fn();
   }
-  
+
   function settingsProfileSummaryLines(settings) {
     const fn = settingsPatchReviewFunction("settingsProfileSummaryLines");
     return fn ? fn(settings) : "No profiles found.";
   }
-  
+
   function renderSettings(settings) {
     state.lastSettings = settings || {};
     const config = state.lastSettings.config || {};
@@ -215,7 +215,7 @@
     applySettingsFieldMetadataToControls();
     renderSettingsAdvancedControls();
   }
-  
+
   async function validateCurrentSettings() {
     if (rejectSettingsCommandWhileBusy("settings.validate", "settings-status", "")) return;
     setSettingsCommandBusy(true);
@@ -236,7 +236,7 @@
       setSettingsCommandBusy(false);
     }
   }
-  
+
   function appendSettingsRiskSummaryLines(lines, riskSummary) {
     const items = Array.isArray(riskSummary?.items) ? riskSummary.items : [];
     if (!items.length) return;
@@ -255,7 +255,7 @@
       lines.push(`- [${severity}] ${key} (${code}): ${message}`);
     });
   }
-  
+
 
     return {
       appendSettingsRiskSummaryLines,

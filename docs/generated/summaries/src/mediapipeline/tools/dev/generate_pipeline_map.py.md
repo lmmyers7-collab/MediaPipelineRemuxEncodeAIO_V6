@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/dev/generate_pipeline_map.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 2f37317e0ed7eda9d787e3b3a235e7b76f2b43fd7024e4dfb7952182304507b3
+sha256: d41f05f672ec475af05a3b49ab770a25aa764c633ed22a6c5f8495c3f96e2792
 ---
 # `src/mediapipeline/tools/dev/generate_pipeline_map.py`
 

@@ -118,4 +118,3 @@
   ],
   "notes": "Read-only Local API/WebView feature. It does not change media policy, queue launch, settings persistence, FFmpeg/subtitle/audio behavior, pending publish drain, source/scratch/output movement, or cleanup behavior. Affected Python scripts: app/maintenance/change_ledger.py, app/maintenance/facade.py, src/mediapipeline/desktop/api/read_payloads_workspace.py, src/mediapipeline/desktop/api/routes_read.py, src/mediapipeline/desktop/api/contract_read.py, and focused tests. Also normalized two concurrent in-progress packet metadata values from type fix to bugfix so change-control validation uses the documented schema."
 }
-

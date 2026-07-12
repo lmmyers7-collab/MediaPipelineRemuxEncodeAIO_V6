@@ -3,9 +3,9 @@ file: ops/pipeline/engine/queue/worker_mutex.ps1
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: dca64fdc7f5abdb1d256b51564e67b9c0965254f2353f6dd4e83459bf3e42dca
+sha256: 1b784758d15b46058b4089410d475ca5eb590d65367acd4d21ee6baebcf22491
 ---
 # `ops/pipeline/engine/queue/worker_mutex.ps1`
 

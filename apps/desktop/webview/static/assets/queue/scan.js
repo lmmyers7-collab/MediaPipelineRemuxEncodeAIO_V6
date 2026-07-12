@@ -75,4 +75,3 @@
   }
   window.__queueScanModule = { createQueueScanModule };
 })();
-

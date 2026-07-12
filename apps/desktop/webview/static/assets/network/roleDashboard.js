@@ -179,4 +179,3 @@
 
   window.__networkRoleDashboardModule = { createNetworkRoleDashboardModule };
 })();
-

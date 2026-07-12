@@ -125,4 +125,3 @@
   "related_changes": [],
   "notes": "Docs-only planning change. It does not modify Python, PowerShell, Rust, WebView, settings, queue, media policy, publish/drain, source/scratch/output movement, command journal, or close-readiness behavior."
 }
-

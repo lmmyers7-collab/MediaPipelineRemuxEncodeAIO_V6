@@ -3,9 +3,9 @@ file: src/mediapipeline/core/api/__init__.py
 pipeline_stage: api
 token_priority: low
 owner_domain: api
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 306354320610faa51effdcb9ea2a2bd2794a72f21e0367730219f39855858279
+sha256: 9efe9c2ae81dfb6c9b29bcb80d0fd4a94ed1af7f277b8ae3fa58242117cfe872
 ---
 # `src/mediapipeline/core/api/__init__.py`
 

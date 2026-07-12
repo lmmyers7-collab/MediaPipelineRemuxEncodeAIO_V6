@@ -60,4 +60,3 @@
   "related_changes": [],
   "notes": "Phase 3 target classification: active sample-validation docs are V6-neutral except explicit external V5 fallback references; docs/rewrite exists but contains no Markdown files; active audit docs are redirect stubs to archived bodies and current canonical docs.\nActive sample-validation docs are V6-neutral except explicit external V5 fallback references. docs/rewrite contains no Markdown files. docs/proposals and docs/active-plans are absent/empty active areas. Active audit docs are redirect stubs to archived bodies and current canonical docs."
 }
-

@@ -65,4 +65,3 @@
   "related_changes": [],
   "notes": "Backend publish-copy telemetry now carries a start timestamp; ETA and progress-bar payloads expose publish copy timing plus publish steps.\nWebView progress bars render publish steps and attach ETA/rate/remaining metadata to the active Push file bar.\nTargeted tests cover ETA math, stepped publish payloads, static WebView rendering, and the Home live-state smoke.\nImplemented and validated on 2026-06-04 with focused ETA, snapshot, WebView static, Home browser, process-control, and schema checks."
 }
-

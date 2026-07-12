@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-07-11
-sha256: 81f9061727461edbd70284950922a8e79bc35226e7461bbe852f9178d9840d85
+sha256: 7c0ed1b062037ae7ffa037ea2fd4ec7dc41a1cd39fb9c586f68f1f16b2543285
 ---
 # `ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1`
 

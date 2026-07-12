@@ -34,4 +34,3 @@
   "related_changes": [],
   "notes": "Progress bar update timestamps will display as date then time without fractional seconds or trailing UTC markers.\nAdded progress timestamp normalization and a Node-backed render smoke for progress-bar subtitles."
 }
-

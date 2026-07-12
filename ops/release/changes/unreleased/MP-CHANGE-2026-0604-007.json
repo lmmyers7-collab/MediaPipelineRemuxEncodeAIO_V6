@@ -55,4 +55,3 @@
   "related_changes": [],
   "notes": "Settings/WebView display and staging fix only. It does not change persisted config key names, LibraryProfiles override groups, Local API route authority, media policy, FFmpeg/subtitle/audio behavior, publish/drain, source/scratch/output movement, cleanup behavior, or source media files. Affected Python scripts: app/config/metadata_parts/field_definitions.py, app/config/settings_helpers_facade.py, app/config/library_profiles.py, tests/python/desktop/test_metadata_contract.py, tests/python/desktop/test_application_facade_settings_workspace.py, tests/python/desktop/test_library_profiles.py, tests/python/desktop/test_webview_settings_libraries.py, and tests/python/desktop/test_webview_browser_settings_launch_smoke.py."
 }
-

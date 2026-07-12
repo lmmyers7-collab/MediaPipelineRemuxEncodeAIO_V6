@@ -378,5 +378,3 @@ def _failure_infrastructure_text(payload: Mapping[str, Any]) -> str:
         if isinstance(value, str | int | float | bool):
             values.append(str(value))
     return " ".join(values).casefold()
-
-

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/network/readiness.js
 pipeline_stage: network
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-07-11
-sha256: df09dff06b4a319f9fa03aea83690a6e0ded1aa585f7610b785ab211b88b9a17
+sha256: b478fc89848a8f9dba1b3919c99a255f7088000eb83cea926957935f84be8ad7
 ---
 # `apps/desktop/webview/static/assets/network/readiness.js`
 

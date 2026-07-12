@@ -35,4 +35,3 @@
   "related_changes": [],
   "notes": "Diagnostics owner-handoff smoke was attempted but blocked before this code path by unrelated null-byte apps/desktop/webview/static/assets/completed/table.js in the dirty worktree.\nRefreshed summaries for touched WebView helper, DOM helper smoke, and change packet.\nStrict coverage failure is from unrelated uncovered dirty/untracked files outside this packet; MP-CHANGE-2026-0604-038 files are listed."
 }
-

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settings/view/impact.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-07-11
-sha256: 1354717b7c1f819ba262fce906aca94a5be20b33fe55c0565d6621c5568e3359
+sha256: 057f59f661313f1fb80b4184baf141c1dafce99a08585d4f14e631524c3c41a2
 ---
 # `apps/desktop/webview/static/assets/settings/view/impact.js`
 

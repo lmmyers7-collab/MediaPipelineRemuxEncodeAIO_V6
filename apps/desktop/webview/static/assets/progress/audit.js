@@ -141,4 +141,3 @@
 
   window.__progressAuditModule = { createProgressAuditModule };
 })();
-

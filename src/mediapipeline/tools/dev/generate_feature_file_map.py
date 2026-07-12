@@ -389,7 +389,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if check_file(expected) else 1
 
     GENERATED_DOCS_ROOT.mkdir(parents=True, exist_ok=True)
-    FEATURE_MAP_PATH.write_text(expected, encoding="utf-8")
+    FEATURE_MAP_PATH.write_text(expected, encoding="utf-8", newline="\n")
     findings = path_reference_findings(expected)
     if findings:
         print(render_findings(findings), file=sys.stderr)

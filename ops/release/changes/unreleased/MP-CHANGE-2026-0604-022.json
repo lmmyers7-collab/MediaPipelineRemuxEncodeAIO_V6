@@ -116,4 +116,3 @@
   "related_changes": [],
   "notes": "Backend product-version code and Tauri semver files were inspected as verification surfaces and intentionally left unchanged.\nPhase 1 inventory left Tauri semver 6.0.0 and backend product-version 2026.06.04.001 unchanged."
 }
-

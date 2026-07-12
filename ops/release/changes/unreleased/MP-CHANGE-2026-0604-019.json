@@ -112,4 +112,3 @@
   "related_changes": [],
   "notes": "No source media mutation behavior changed. Real-media substitute evidence is planner/API/browser-smoke validation with representative filenames, live read-only Dashboard-label reproduction against the operator local app-data config and scratch progress file, and no-mutation browser smoke coverage; no operator real-media sample was available in this coding session."
 }
-

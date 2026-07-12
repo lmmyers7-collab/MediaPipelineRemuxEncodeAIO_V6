@@ -3,9 +3,9 @@ file: src/mediapipeline/core/queue/policy_parts/rules.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 4f446931b3c1cba302494f96f20da9ac346bd1a166cab71bead667ebed80c048
+sha256: 68c543dd85699c0fe6371cee21d0d5d01b3e8fc2c61e849f1d85422fe8ef7070
 ---
 # `src/mediapipeline/core/queue/policy_parts/rules.py`
 

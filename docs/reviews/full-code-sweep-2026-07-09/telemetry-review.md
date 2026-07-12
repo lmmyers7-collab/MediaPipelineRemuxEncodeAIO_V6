@@ -137,4 +137,3 @@ Per docs/testing/VALIDATION_LADDER_RUNBOOK.md:9-20, a repair needs targeted Pyth
 - Static read-only review only: no pipeline start, mutation request, runtime-state change, or test execution.
 - The worktree had extensive unrelated uncommitted work. Telemetry-specific files were clean; app.js had unrelated in-progress changes and was inspected only for its active refresh path.
 - This review excludes real-media routing, FFmpeg/subtitle/audio policy, and production LocalBase runtime observation.
-

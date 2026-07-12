@@ -87,4 +87,3 @@
   "related_changes": [],
   "notes": "Implements current-queue-only TV series batch file overrides with row-level manual protection.\nImplemented current-queue TV series preview/apply with fingerprint recheck, exact manual row protection, prior batch replacement, drawer modal preview, route contracts, inventories, and targeted tests.\nStrict worktree coverage failed because of unrelated pre-existing dirty/untracked files outside this feature packet."
 }
-

@@ -37,7 +37,8 @@ generate_feature_file_map = _load_module(
 
 
 def _sha(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    content = path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return hashlib.sha256(content).hexdigest()
 
 
 def _summary_text(file_path: str, sha256: str = "0" * 64) -> str:
@@ -191,6 +192,32 @@ class SummaryIntegrityTests(unittest.TestCase):
             summary_path.relative_to(refresh_summaries.SUMMARY_ROOT).as_posix(),
             "docs/generated/FILE_SUMMARIES.md.md",
         )
+
+    def test_summary_hash_is_stable_across_text_line_endings(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            lf_source = root / "lf.py"
+            crlf_source = root / "crlf.py"
+            lf_source.write_bytes(b"print('one')\nprint('two')\n")
+            crlf_source.write_bytes(b"print('one')\r\nprint('two')\r\n")
+
+            self.assertEqual(
+                refresh_summaries.sha256_of(lf_source),
+                refresh_summaries.sha256_of(crlf_source),
+            )
+
+    def test_generated_context_writers_force_lf_output(self) -> None:
+        repo_root = Path(__file__).resolve().parents[3]
+        generator_paths = (
+            repo_root / "src/mediapipeline/tools/dev/refresh_summaries.py",
+            repo_root / "src/mediapipeline/tools/dev/generate_project_index.py",
+            repo_root / "src/mediapipeline/tools/dev/generate_feature_file_map.py",
+            repo_root / "src/mediapipeline/tools/dev/generate_pipeline_map.py",
+        )
+        for generator_path in generator_paths:
+            with self.subTest(generator=generator_path.name):
+                source = generator_path.read_text(encoding="utf-8")
+                self.assertIn('newline="\\n"', source)
 
     def test_existing_nonstandard_extension_summary_can_be_refreshed_explicitly(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

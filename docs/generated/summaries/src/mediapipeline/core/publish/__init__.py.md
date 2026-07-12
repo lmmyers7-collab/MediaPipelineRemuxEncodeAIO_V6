@@ -3,9 +3,9 @@ file: src/mediapipeline/core/publish/__init__.py
 pipeline_stage: publish
 token_priority: low
 owner_domain: publish
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 3715dbb751d8c9548fff2dc3c76707fd499edeb78bc0181ca2ecea1119f9e0ad
+sha256: 23fbb46f0dd06417f5027623a27be3b40119fadb9bf24982773111e8fc43807a
 ---
 # `src/mediapipeline/core/publish/__init__.py`
 

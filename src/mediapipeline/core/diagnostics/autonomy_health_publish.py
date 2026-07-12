@@ -429,5 +429,3 @@ def _workers_category(
         ],
         review_items=review_items,
     )
-
-

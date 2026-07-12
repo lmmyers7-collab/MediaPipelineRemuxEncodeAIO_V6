@@ -1,2 +1,1 @@
 """Diagnostics domain helpers."""
-

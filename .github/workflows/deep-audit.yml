@@ -58,6 +58,7 @@ jobs:
     env:
       TMP: ${{ runner.temp }}
       TEMP: ${{ runner.temp }}
+      LOCALAPPDATA: ${{ runner.temp }}\LocalAppData
 
     steps:
       - name: Check out repository
@@ -68,8 +69,28 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Provision CI Python runtime
+        shell: pwsh
+        run: .\ops\scripts\release\Initialize-CiPythonRuntime.ps1 -InstallDependencies
+
+      - name: Provision CI media tools
+        shell: pwsh
+        run: .\ops\scripts\release\Initialize-CiMediaTools.ps1 -InstallMissing
+
+      - name: Initialize isolated CI AppData
+        shell: pwsh
+        run: New-Item -ItemType Directory -Path (Join-Path $env:LOCALAPPDATA 'MediaPipelineRemuxEncodeAIO') -Force | Out-Null
+
       - name: Install test dependencies
-        run: python -m pip install -r requirements/dev.txt -e .
+        run: |
+          python -m pip install -r requirements/dev.txt -e .
+          npm ci
 
       - name: Run Python unit tests
         run: python -m unittest discover -s tests -q
@@ -132,6 +153,7 @@ jobs:
     env:
       TMP: ${{ runner.temp }}
       TEMP: ${{ runner.temp }}
+      LOCALAPPDATA: ${{ runner.temp }}\LocalAppData
 
     steps:
       - name: Check out repository
@@ -155,6 +177,10 @@ jobs:
       - name: Provision CI media tools
         shell: pwsh
         run: .\ops\scripts\release\Initialize-CiMediaTools.ps1 -InstallMissing
+
+      - name: Initialize isolated CI AppData
+        shell: pwsh
+        run: New-Item -ItemType Directory -Path (Join-Path $env:LOCALAPPDATA 'MediaPipelineRemuxEncodeAIO') -Force | Out-Null
 
       - name: Install dependencies
         shell: pwsh
@@ -174,6 +200,7 @@ jobs:
     env:
       TMP: ${{ runner.temp }}
       TEMP: ${{ runner.temp }}
+      LOCALAPPDATA: ${{ runner.temp }}\LocalAppData
 
     steps:
       - name: Check out repository
@@ -197,6 +224,10 @@ jobs:
       - name: Provision CI media tools
         shell: pwsh
         run: .\ops\scripts\release\Initialize-CiMediaTools.ps1 -InstallMissing
+
+      - name: Initialize isolated CI AppData
+        shell: pwsh
+        run: New-Item -ItemType Directory -Path (Join-Path $env:LOCALAPPDATA 'MediaPipelineRemuxEncodeAIO') -Force | Out-Null
 
       - name: Install dependencies
         shell: pwsh

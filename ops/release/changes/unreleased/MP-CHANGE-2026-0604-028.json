@@ -60,4 +60,3 @@
   "related_changes": [],
   "notes": "High-risk classification is because queue launch/progress metadata is release-sensitive. This change is intentionally limited to queue progress metadata and tests: it does not change queue ordering, queue mutation routes, media routing, FFmpeg command generation, source/scratch/output movement, pending publish drain behavior, subtitle handling, or audio policy.\nPre-existing dirty work was present in many files, including queue_plan.ps1 and related tests. This packet records only the global runnable queue count implementation and generated summary paths for this task."
 }
-

@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/use_cases/__init__.py
 pipeline_stage: network
 token_priority: low
 owner_domain: network
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: d09e1aa164cae55376f9110b55c52dd40537fa0afe2e4fa5ff39a9d783c4d2bb
+sha256: e513048458734218d8f1b5438a45e5d987a635661109ba87a493cfb07b57467f
 ---
 # `src/mediapipeline/desktop/network/use_cases/__init__.py`
 

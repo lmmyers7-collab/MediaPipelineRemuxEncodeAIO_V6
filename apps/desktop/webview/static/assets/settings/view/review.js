@@ -41,7 +41,7 @@
       const names = Array.isArray(failedBuilders) && failedBuilders.length ? failedBuilders.join(", ") : "unknown builder";
       return `Fix invalid Settings builder input before Save Settings. Failed builder(s): ${names}.`;
     }
-  
+
     function recordSettingsBuilderFlushFailure(command, flushResult) {
       const failedBuilders = Array.isArray(flushResult?.failedBuilders) ? flushResult.failedBuilders : [];
       const message = flushResult?.message || settingsBuilderFlushFailureMessage(failedBuilders);
@@ -58,7 +58,7 @@
       renderSettingsPatchSummary();
       if (typeof renderAllLaunchPreflights === "function") renderAllLaunchPreflights();
     }
-  
+
     function flushDirtySettingsBuilders() {
       // Merge any builder the operator edited (dirty) into the Changes JSON before
       // Save reads it. Without this, toggling a control only marks the builder
@@ -105,7 +105,7 @@
         failedBuilders: [],
       };
     }
-  
+
     function resetSettingsBuilderSyncState(options = {}) {
       state.settingsBuilderInitialized = false;
       state.settingsBuilderDirty = false;
@@ -128,14 +128,14 @@
         finalLibraryPromotionSettingsBuilderState.dirty = false;
       }
     }
-  
+
     function saveRenameCleaningFiltersFromSettingsSave(message = "Rename filter draft retained in this browser for local recovery.") {
       const releaseGroupsEditor = byId("settings-rename-filter-release-groups");
       const renameView = window.mediaPipelineRenameView || {};
       if (!releaseGroupsEditor || typeof renameView.saveRenameCleaningFilterDraft !== "function") return false;
       return renameView.saveRenameCleaningFilterDraft(message);
     }
-  
+
     function mergeRenameCleaningFiltersForSave(changes) {
       const releaseGroupsEditor = byId("settings-rename-filter-release-groups");
       const renameView = window.mediaPipelineRenameView || {};
@@ -174,7 +174,7 @@
       if (typeof renderAllLaunchPreflights === "function") renderAllLaunchPreflights();
       return { changes: nextChanges, included: true, keys, draftSaved };
     }
-  
+
   function settingsSaveReviewValueText(value) {
       if (value === undefined) return "(not previously set)";
       if (Array.isArray(value) && value.some((item) => item && typeof item === "object")) {
@@ -197,7 +197,7 @@
         }
       }
     }
-  
+
     const renameFilterTermKeys = new Set([
       "RenameMovieFilterTerms",
       "RenameTVFilterTerms",
@@ -210,7 +210,7 @@
       "RenameMovieRemoveTerms",
       "RenameTVRemoveTerms",
     ]);
-  
+
     function settingsSaveReviewObjectValue(value) {
       if (value && typeof value === "object" && !Array.isArray(value)) return value;
       if (typeof value !== "string") return null;
@@ -223,7 +223,7 @@
         return null;
       }
     }
-  
+
     function settingsSaveReviewTermList(value) {
       if (Array.isArray(value)) {
         return value.map((item) => String(item || "").trim()).filter(Boolean);
@@ -242,7 +242,7 @@
       }
       return [String(value).trim()].filter(Boolean);
     }
-  
+
     function settingsSaveReviewTermMap(value) {
       const map = new Map();
       settingsSaveReviewTermList(value).forEach((term) => {
@@ -251,7 +251,7 @@
       });
       return map;
     }
-  
+
     function settingsSaveReviewTermDeltas(currentValue, newValue) {
       const currentMap = settingsSaveReviewTermMap(currentValue);
       const newMap = settingsSaveReviewTermMap(newValue);
@@ -265,17 +265,17 @@
       });
       return { added, removed };
     }
-  
+
     function settingsSaveReviewRenameFilterLabel(value) {
       return String(value || "").replace(/_/g, " ").replace(/\s+/g, " ").trim() || "default";
     }
-  
+
     function settingsSaveReviewLimitedText(values, limit = 6) {
       const visible = values.slice(0, limit);
       const suffix = values.length > visible.length ? `, +${values.length - visible.length} more` : "";
       return `${visible.join(", ")}${suffix}`;
     }
-  
+
     function settingsSaveReviewRenameTermDictionaryText(currentValue, newValue, side) {
       const currentTerms = settingsSaveReviewObjectValue(currentValue);
       const newTerms = settingsSaveReviewObjectValue(newValue);
@@ -303,7 +303,7 @@
       }
       return "No added or removed terms after trim/case comparison; unchanged terms hidden.";
     }
-  
+
     function settingsSaveReviewOptionState(value) {
       if (value === undefined) return "(not set)";
       if (value === true) return "on";
@@ -313,7 +313,7 @@
       if (["false", "0", "no", "off"].includes(text)) return "off";
       return String(value);
     }
-  
+
     function settingsSaveReviewRenameOptionDictionaryText(currentValue, newValue) {
       const currentOptions = settingsSaveReviewObjectValue(currentValue);
       const newOptions = settingsSaveReviewObjectValue(newValue);
@@ -326,7 +326,7 @@
       if (!changed.length) return "No option toggles changed; unchanged options hidden.";
       return `Changed toggles: ${changed.join("; ")}. Unchanged options hidden.`;
     }
-  
+
     function settingsSaveReviewRenameRemoveTermsText(currentValue, newValue, side) {
       const delta = settingsSaveReviewTermDeltas(currentValue, newValue);
       const values = side === "current" ? delta.removed : delta.added;
@@ -339,7 +339,7 @@
       }
       return "No added or removed terms after trim/case comparison; unchanged terms hidden.";
     }
-  
+
     function settingsSaveReviewLibraryProfiles(value) {
       let candidate = value;
       if (typeof candidate === "string") {
@@ -354,25 +354,25 @@
       if (!Array.isArray(candidate)) return [];
       return candidate.filter((profile) => profile && typeof profile === "object" && !Array.isArray(profile));
     }
-  
+
     function settingsSaveReviewCanonicalProfileId(value, fallback) {
       const id = String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || fallback;
       if (id === "movie" || id === "movies") return "movies";
       if (id === "show" || id === "shows" || id === "tv") return "tv";
       return id;
     }
-  
+
     function settingsSaveReviewProfileId(profile, index = 0) {
       const raw = String(profile?.id || profile?.library_id || profile?.name || "").trim();
       return settingsSaveReviewCanonicalProfileId(raw, `profile-${index + 1}`);
     }
-  
+
     function settingsSaveReviewProfileLabel(profile, index = 0) {
       const id = settingsSaveReviewProfileId(profile, index);
       const name = String(profile?.name || "").trim();
       return name && name !== id ? `${name} (${id})` : id;
     }
-  
+
     function settingsSaveReviewPrimitiveText(value) {
       if (value === undefined) return "(not set)";
       if (value === null) return "null";
@@ -385,7 +385,7 @@
       }
       return String(value);
     }
-  
+
     function settingsSaveReviewProfileOverrideEntries(profile, index = 0) {
       const overrides = profile?.overrides && typeof profile.overrides === "object" && !Array.isArray(profile.overrides)
         ? profile.overrides
@@ -403,7 +403,7 @@
         }));
       });
     }
-  
+
     function settingsSaveReviewLibraryProfileSummary(value) {
       const profiles = settingsSaveReviewLibraryProfiles(value);
       if (!profiles.length) return settingsSaveReviewValueText(value);
@@ -422,7 +422,7 @@
         overrideEntries.length ? `Overrides: ${overrideLabels.join("; ")}${overrideSuffix}` : "Overrides: none",
       ].join(". ");
     }
-  
+
     function settingsSaveReviewProfileMap(profiles) {
       const map = new Map();
       profiles.forEach((profile, index) => {
@@ -430,7 +430,7 @@
       });
       return map;
     }
-  
+
     function settingsSaveReviewOverrideMap(profile, index = 0) {
       const map = new Map();
       settingsSaveReviewProfileOverrideEntries(profile, index).forEach((entry) => {
@@ -438,7 +438,7 @@
       });
       return map;
     }
-  
+
     function settingsSaveReviewValuesDiffer(left, right) {
       try {
         return !settingsValuesEqual(left, right);
@@ -446,7 +446,7 @@
         return JSON.stringify(left) !== JSON.stringify(right);
       }
     }
-  
+
     function settingsSaveReviewLibraryProfileDiffEntries(currentValue, newValue) {
       const currentProfiles = settingsSaveReviewLibraryProfiles(currentValue);
       const newProfiles = settingsSaveReviewLibraryProfiles(newValue);
@@ -508,7 +508,7 @@
       });
       return entries;
     }
-  
+
     function settingsSaveReviewLibraryProfileCellText(value, currentValue, newValue, side) {
       const summary = settingsSaveReviewLibraryProfileSummary(value);
       const deltas = settingsSaveReviewLibraryProfileDiffEntries(currentValue, newValue);
@@ -520,7 +520,7 @@
       const suffix = deltas.length > labels.length ? `, +${deltas.length - labels.length} more` : "";
       return `${summary}. ${side === "current" ? "Current" : "New"} changed values: ${labels.join("; ")}${suffix}`;
     }
-  
+
     function settingsSaveReviewCellText(key, value, currentValue, newValue, side) {
       if (key === "LibraryProfiles") {
         return settingsSaveReviewLibraryProfileCellText(value, currentValue, newValue, side);
@@ -536,21 +536,21 @@
       }
       return settingsSaveReviewValueText(value);
     }
-  
+
     function settingsSaveReviewBackendEntries(entries = []) {
       return (Array.isArray(entries) ? entries : [])
         .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry) && String(entry.key || "").trim());
     }
-  
+
     function settingsSaveReviewBackendEntryForKey(entries = [], key) {
       return settingsSaveReviewBackendEntries(entries).find((entry) => String(entry.key || "") === key) || null;
     }
-  
+
     function settingsReviewDigestShort(value) {
       const text = String(value || "").trim();
       return text ? `${text.slice(0, 12)}...` : "n/a";
     }
-  
+
     function settingsSaveReviewSourceLabel(source) {
       const value = String(source || "").trim();
       if (value === "mirrored_from_library_profiles") return "mirrored from LibraryProfiles";
@@ -559,7 +559,7 @@
       if (value === "submitted") return "submitted";
       return value || "backend";
     }
-  
+
     function settingsSaveReviewStatusLabel(entry) {
       const status = String(entry?.status || "").trim().toLowerCase();
       const statusLabel = status === "new" ? "New" : status === "removed" ? "Removed" : "Changed";
@@ -568,7 +568,7 @@
         ? `${statusLabel} (${sourceLabel})`
         : statusLabel;
     }
-  
+
     function settingsSaveReviewEntryCellText(entry, side) {
       const key = String(entry?.key || "");
       const currentExists = entry?.current_exists !== false;
@@ -583,7 +583,7 @@
       if (!newExists || String(entry?.status || "").toLowerCase() === "removed") return "(remove key)";
       return settingsSaveReviewCellText(key, newValue, currentValue, newValue, "new");
     }
-  
+
     function settingsSaveReviewLibraryProfileDetailLines(currentValue, newValue) {
       const deltas = settingsSaveReviewLibraryProfileDiffEntries(currentValue, newValue);
       if (!deltas.length) {
@@ -595,34 +595,34 @@
       if (deltas.length > lines.length) lines.push(`- +${deltas.length - lines.length} more LibraryProfiles change(s).`);
       return lines;
     }
-  
+
     function settingsSaveReviewLabel(key) {
       const field = settingsFieldDefinition(key);
       return settingsFieldLabel(key, field?.label || field?.name || key);
     }
-  
+
     function appendSettingsSaveReviewCell(row, value) {
       const cell = document.createElement("td");
       cell.textContent = value;
       row.appendChild(cell);
     }
-  
+
     function settingsUniqueKeys(keys = []) {
       return Array.from(new Set((Array.isArray(keys) ? keys : [])
         .map((key) => String(key || "").trim())
         .filter(Boolean)));
     }
-  
+
     function settingsSaveActualKeys(changedKeys = [], removedKeys = []) {
       return settingsUniqueKeys([...settingsUniqueKeys(changedKeys), ...settingsUniqueKeys(removedKeys)]);
     }
-  
+
     function clearSettingsPatchCandidate() {
       const patchNode = byId("settings-patch-json");
       if (patchNode) patchNode.value = "{}";
       state.settingsPatchTouched = false;
     }
-  
+
     function settingsSavePreviewDetailLines(result, localHintLines = [], options = {}) {
       const data = result?.data && typeof result.data === "object" ? result.data : {};
       const changedKeys = settingsUniqueKeys(data.changed_keys || []);
@@ -653,7 +653,7 @@
       }
       return lines;
     }
-  
+
     function renderSettingsSaveReviewDialogRows({ changes, changedKeys, removedKeys, libraryProfileResetCount, reviewEntries = [] }) {
       const tbody = byId("settings-save-review-dialog-rows");
       if (!tbody) return;
@@ -713,7 +713,7 @@
         tbody.appendChild(row);
       }
     }
-  
+
 
     return {
       appendSettingsSaveReviewCell,

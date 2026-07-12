@@ -117,76 +117,76 @@
     const fn = settingsPatchReviewFunction("setSettingsBuilderControl");
     if (fn) fn(id, value);
   }
-  
+
   function syncSettingsBuilderFromConfig() {
     const fn = settingsPatchReviewFunction("syncSettingsBuilderFromConfig");
     if (fn) fn();
   }
-  
+
   function markSettingsBuilderDirty() {
     const fn = settingsPatchReviewFunction("markSettingsBuilderDirty");
     if (fn) fn();
   }
-  
+
   function settingsBuilderInputValue(id) {
     const fn = settingsPatchReviewFunction("settingsBuilderInputValue");
     return fn ? fn(id) : "";
   }
-  
+
   function readSettingsBuilderNumber(id, label) {
     const fn = settingsPatchReviewFunction("readSettingsBuilderNumber");
     if (!fn) throw new Error(`${label} is required.`);
     return fn(id, label);
   }
-  
+
   function readSettingsBuilderFloat(id, label) {
     const fn = settingsPatchReviewFunction("readSettingsBuilderFloat");
     if (!fn) throw new Error(`${label} is required.`);
     return fn(id, label);
   }
-  
+
   function settingsRawConfigValue(key) {
     const fn = settingsPatchReviewFunction("settingsRawConfigValue");
     return fn ? fn(key) : undefined;
   }
-  
+
   function parseSettingsPatchJson() {
     const fn = settingsPatchReviewFunction("parseSettingsPatchJson");
     return fn ? fn() : {};
   }
-  
+
   function markSettingsPatchTouched() {
     const fn = settingsPatchReviewFunction("markSettingsPatchTouched");
     if (fn) fn();
   }
-  
+
   function settingsPatchIsTouched() {
     const fn = settingsPatchReviewFunction("settingsPatchIsTouched");
     return fn ? fn() : state.settingsPatchTouched;
   }
-  
+
   function settingsPatchEffectiveChangedEntries() {
     const fn = settingsPatchReviewFunction("settingsPatchEffectiveChangedEntries");
     return fn ? fn() : [];
   }
-  
+
   function settingsPatchHasUnsavedChanges() {
     const fn = settingsPatchReviewFunction("settingsPatchHasUnsavedChanges");
     return fn ? fn() : false;
   }
-  
+
   function writeSettingsPatchJson(patch, detail) {
     const fn = settingsPatchReviewFunction("writeSettingsPatchJson");
     if (fn) fn(patch, detail);
   }
-  
+
   state.settingsPatchReview = {};
-  
+
   function settingsPatchReviewFunction(name) {
     const fn = state.settingsPatchReview ? state.settingsPatchReview[name] : null;
     return typeof fn === "function" ? fn : null;
   }
-  
+
   function setFinalLibraryPromotionStatus(status, detail) {
     const fn = settingsPatchReviewFunction("setFinalLibraryPromotionStatus");
     if (fn) {
@@ -196,43 +196,43 @@
     setText("settings-final-library-status", status || "Not loaded");
     if (detail !== undefined) setText("settings-final-library-guidance", detail);
   }
-  
+
   function finalLibraryPromotionBrowseDetailLines(result, label) {
     const fn = settingsPatchReviewFunction("finalLibraryPromotionBrowseDetailLines");
     return fn ? fn(result, label) : [result?.message || `Folder browse returned for ${label}.`];
   }
-  
+
   function addFinalLibraryPromotionRule() {
     const fn = settingsPatchReviewFunction("addFinalLibraryPromotionRule");
     if (fn) fn();
   }
-  
+
   function syncFinalLibraryPromotionSettingsBuilderFromConfig() {
     const fn = settingsPatchReviewFunction("syncFinalLibraryPromotionSettingsBuilderFromConfig");
     if (fn) fn();
   }
-  
+
   function markFinalLibraryPromotionSettingsBuilderDirty() {
     const fn = settingsPatchReviewFunction("markFinalLibraryPromotionSettingsBuilderDirty");
     if (fn) fn();
   }
-  
+
   function collectFinalLibraryPromotionSettingsPatch() {
     const fn = settingsPatchReviewFunction("collectFinalLibraryPromotionSettingsPatch");
     if (!fn) throw new Error("Final Library Promotion settings module is unavailable.");
     return fn();
   }
-  
+
   function renderFinalLibraryPromotionSettingsGuidance() {
     const fn = settingsPatchReviewFunction("renderFinalLibraryPromotionSettingsGuidance");
     if (fn) fn();
   }
-  
+
   function finalLibraryPromotionSettingsResultLines(action, result, changes) {
     const fn = settingsPatchReviewFunction("finalLibraryPromotionSettingsResultLines");
     return fn ? fn(action, result, changes) : [`${action}: ${result?.message || "No backend message returned."}`];
   }
-  
+
   async function browseFinalLibraryPromotionRulePath(input, settingKey, label) {
     if (rejectSettingsCommandWhileBusy("settings.browse_path", "settings-final-library-status", "settings-final-library-guidance")) return;
     setSettingsCommandBusy(true);
@@ -274,11 +274,11 @@
       setSettingsCommandBusy(false);
     }
   }
-  
+
   function settingsSaveReviewModalHost() {
     return document.querySelector("[data-settings-modal-host]") || document.querySelector("main.workspace") || document.body;
   }
-  
+
   function ensureSettingsSaveReviewDialogGlobal(dialog) {
     const hiddenPage = dialog?.closest?.(".page:not(.is-visible)");
     if (!hiddenPage) return dialog;
@@ -290,7 +290,7 @@
     }
     return dialog;
   }
-  
+
   async function previewFinalLibraryPromotionSettings() {
     if (rejectSettingsCommandWhileBusy("settings.preview_patch", "settings-final-library-status", "settings-final-library-guidance")) return;
     let changes;
@@ -335,7 +335,7 @@
       setSettingsCommandBusy(false);
     }
   }
-  
+
   async function saveFinalLibraryPromotionSettings() {
     if (rejectSettingsCommandWhileBusy("settings.save_patch", "settings-final-library-status", "settings-final-library-guidance")) return;
     let changes;
@@ -435,32 +435,32 @@
       setSettingsCommandBusy(false);
     }
   }
-  
+
   function collectSettingsBuilderPatch() {
     const fn = settingsPatchReviewFunction("collectSettingsBuilderPatch");
     return fn ? fn() : {};
   }
-  
+
   function applySettingsBuilderToPatch() {
     const fn = settingsPatchReviewFunction("applySettingsBuilderToPatch");
     return fn ? fn() : true;
   }
-  
+
   state.settingsPolicyImpact = {};
   function settingsPolicyImpactFunction(name) {
     return state.settingsPolicyImpact && typeof state.settingsPolicyImpact[name] === "function" ? state.settingsPolicyImpact[name] : null;
   }
-  
+
   function settingsPolicyImpactCall(name, args, fallback) {
     const fn = settingsPolicyImpactFunction(name);
     return fn ? fn(...args) : fallback;
   }
-  
+
   function settingsPolicyImpactDo(name, args) {
     const fn = settingsPolicyImpactFunction(name);
     if (fn) fn(...args);
   }
-  
+
   function settingsMediaPolicyRows() { return settingsPolicyImpactCall("settingsMediaPolicyRows", [], []); }
   function settingsMediaPolicyStatus(rows = settingsMediaPolicyRows()) { return settingsPolicyImpactCall("settingsMediaPolicyStatus", [rows], "No policy"); }
   function settingsActiveMediaPolicyRows() { return settingsPolicyImpactCall("settingsActiveMediaPolicyRows", [], []); }
@@ -552,7 +552,7 @@
   function settingsPolicyDeltaSummaryLines(rows) { return settingsPolicyImpactCall("settingsPolicyDeltaSummaryLines", [rows], []); }
   function renderSettingsPolicyDeltaFromEntries(entries) { settingsPolicyImpactDo("renderSettingsPolicyDeltaFromEntries", [entries]); }
   function renderSettingsPolicyDeltaForError(message) { settingsPolicyImpactDo("renderSettingsPolicyDeltaForError", [message]); }
-  
+
   const settingsPatchReviewModule = window.__settingsPatchReviewModule || {};
   delete window.__settingsPatchReviewModule;
   state.settingsPatchReview = typeof settingsPatchReviewModule.createSettingsPatchReviewModule === "function"
@@ -695,7 +695,7 @@
       updateTableStatusLegend,
     })
     : {};
-  
+
 
     return {
       addFinalLibraryPromotionRule,

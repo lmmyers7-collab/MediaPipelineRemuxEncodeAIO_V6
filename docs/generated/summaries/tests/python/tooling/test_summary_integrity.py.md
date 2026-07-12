@@ -3,9 +3,9 @@ file: tests/python/tooling/test_summary_integrity.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 7c8ece476b0f8e6f0add8fcdb2df31ec0304a51d3d00ea89f193b1c6bffb13ff
+sha256: 602292db02cb593079337509fff48393c966a80f1ace24208a3dad8e09bd844e
 ---
 # `tests/python/tooling/test_summary_integrity.py`
 

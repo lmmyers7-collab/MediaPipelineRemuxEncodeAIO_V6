@@ -74,7 +74,7 @@
       renderActiveLibraryCommandState();
       if (typeof window.updatePagePanelEmptyStates === "function") window.updatePagePanelEmptyStates();
     }
-  
+
     function readOverrideControlValue(control, key) {
       const field = fieldDefinition(key);
       const kind = field?.kind || "";
@@ -96,7 +96,7 @@
       }
       return control.value;
     }
-  
+
     function setOverrideControlValue(control, key, value) {
       const field = fieldDefinition(key);
       if (control.type === "checkbox") {
@@ -116,11 +116,11 @@
       }
       control.value = field?.kind === "list" ? formatValue(value) : String(value ?? "");
     }
-  
+
     function libraryRouteRow(card, key) {
       return card.querySelector(`[data-library-override-row][data-library-override-key="${key}"]`);
     }
-  
+
     function setLibraryOverrideValue(card, key, value, options = {}) {
       const row = libraryRouteRow(card, key);
       const control = row?.querySelector("[data-library-override-control]");
@@ -137,17 +137,17 @@
       }
       return true;
     }
-  
+
     function setLibraryRouteOverrideValue(card, key, value, options = {}) {
       return setLibraryOverrideValue(card, key, value, options);
     }
-  
+
     function presetReasonForKey(preset, group, key) {
       const reasons = preset?.disabled_reasons?.[group];
       if (reasons && Object.prototype.hasOwnProperty.call(reasons, key)) return String(reasons[key] || "");
       return preset?.warning || "Managed by the selected library compatibility preset.";
     }
-  
+
     function syncLibraryCompatibilityAvailability(card) {
       if (!card) return;
       const preset = mp4CompatibilityPreset();
@@ -193,7 +193,7 @@
         }
       });
     }
-  
+
     function applyLibraryCompatibilityPreset(card, presetId) {
       const preset = libraryCompatibilityPresets().find((item) => String(item?.id || "") === presetId);
       if (!card || !preset?.overrides) return false;
@@ -206,7 +206,7 @@
       syncLibraryCompatibilityAvailability(card);
       return true;
     }
-  
+
     function clearLibraryCompatibilityPreset(card, presetId) {
       const preset = libraryCompatibilityPresets().find((item) => String(item?.id || "") === presetId);
       if (!card || !preset?.overrides) return false;
@@ -219,12 +219,12 @@
       syncLibraryCompatibilityAvailability(card);
       return true;
     }
-  
+
     function updateLibraryRouteText(card, selector, value) {
       const element = card.querySelector(selector);
       if (element) element.textContent = value;
     }
-  
+
     function syncLibraryRouteReadouts(card) {
       if (!card) return;
       const editor = card.querySelector("[data-library-route-editor]");
@@ -261,7 +261,7 @@
       updateLibraryRouteText(card, '[data-library-route-summary="consequence"]', routeConsequenceSummary(boundaries, values));
       updateLibraryRouteText(card, '[data-library-route-summary="unknown"]', routeUnknownHeightSummary(values));
     }
-  
+
     function applyLibraryRouteBoundary(card, boundary, rawHeight, options = {}) {
       const height = Number(rawHeight);
       if (!card || !Number.isFinite(height)) return false;
@@ -275,7 +275,7 @@
       syncLibraryRouteReadouts(card);
       return true;
     }
-  
+
     function resetLibraryRouteBoundary(card, boundary) {
       const keys = boundary === "first"
         ? ["Route1080pUpperHeightTolerancePercent", "Route1440pLowerHeightTolerancePercent"]
@@ -285,7 +285,7 @@
       });
       syncLibraryRouteReadouts(card);
     }
-  
+
     function localInheritedFields(card) {
       try {
         return new Set(JSON.parse(card.dataset.localInheritedFields || "[]").map(String));
@@ -293,11 +293,11 @@
         return new Set();
       }
     }
-  
+
     function setLocalInheritedFields(card, inherited) {
       card.dataset.localInheritedFields = JSON.stringify(Array.from(inherited));
     }
-  
+
     function updateOverrideRowState(row, isOverride) {
       row.dataset.libraryOverride = isOverride ? "true" : "false";
       row.classList.toggle("is-custom", isOverride);
@@ -316,7 +316,7 @@
         button.disabled = !isOverride;
       }
     }
-  
+
     function setPathRowState(card, field, inherited) {
       const row = card.querySelector(`[data-library-field="${field}"]`)?.closest(".settings-library-path-row");
       const state = card.querySelector(`[data-library-path-state="${field}"]`);
@@ -339,7 +339,7 @@
         button.disabled = !canReset || inherited;
       }
     }
-  
+
     function profileFromCard(card, index) {
       const currentId = card.dataset.libraryId || `library-${index}`;
       const inherited = localInheritedFields(card);
@@ -376,15 +376,15 @@
         },
       };
     }
-  
+
     function profileCardsFromDom() {
       return Array.from(document.querySelectorAll("#settings-library-profile-list .settings-library-card"));
     }
-  
+
     function collectProfilesFromDom() {
       return profileCardsFromDom().map((card, index) => profileFromCard(card, index + 1));
     }
-  
+
     function collectLibraryProfileResetsFromDom() {
       return profileCardsFromDom().map((card) => {
         const request = { library_id: card.dataset.libraryId || "" };
@@ -407,7 +407,7 @@
         return request;
       }).filter((request) => request.library_id && (Array.isArray(request.path_fields) || request.overrides));
     }
-  
+
     function currentPatchIncludesLibraryProfiles() {
       const raw = byId("settings-patch-json")?.value || "{}";
       try {
@@ -417,7 +417,7 @@
         return false;
       }
     }
-  
+
     function libraryPatchStateKind() {
       const hasLibraryProfiles = currentPatchIncludesLibraryProfiles();
       if (state.libraryProfilePatchSaved && !state.libraryEditorDirty) return "saved";
@@ -425,7 +425,7 @@
       if (state.libraryProfilePatchCurrent) return "staged";
       return "stale";
     }
-  
+
     function renderLibraryStateStrip() {
       const patchState = libraryPatchStateKind();
       const activeId = activeLibraryProfileId();
@@ -454,7 +454,7 @@
         patchCurrent: patchState === "staged",
       });
     }
-  
+
     function clearLibraryProfilesPatchJson(reason) {
       const textarea = byId("settings-patch-json");
       if (!textarea) return false;
@@ -478,13 +478,13 @@
       );
       return true;
     }
-  
+
     function libraryProfileResetRequest() {
       if (!currentPatchIncludesLibraryProfiles()) return [];
       state.lastLibraryProfileResetRequest = collectLibraryProfileResetsFromDom();
       return state.lastLibraryProfileResetRequest;
     }
-  
+
     function buildPatchFromLibraries() {
       try {
         const libraryProfiles = collectProfilesFromDom();
@@ -511,7 +511,7 @@
         return null;
       }
     }
-  
+
     function currentSettingsPatchKeys() {
       const raw = byId("settings-patch-json")?.value || "{}";
       try {
@@ -521,7 +521,7 @@
         return ["invalid JSON"];
       }
     }
-  
+
     function renderLibraryPatchHandoff(message) {
       const patchStatus = byId("settings-patch-status")?.textContent || "No changes";
       const keys = currentSettingsPatchKeys();
@@ -538,11 +538,11 @@
       ].filter(Boolean);
       setLibraryFeedback(lines.join("\n"));
     }
-  
+
     function sharedPatchStatus() {
       return text(byId("settings-patch-status")?.textContent || "");
     }
-  
+
     async function previewLibraryProfiles() {
       if (rejectLibraryProfileCommandWhileBusy("settings.preview_patch")) return;
       const patch = buildPatchFromLibraries();
@@ -575,7 +575,7 @@
         renderLibraryStateStrip();
       }
     }
-  
+
     async function saveLibraryProfiles() {
       if (rejectLibraryProfileCommandWhileBusy("settings.save_patch")) return;
       const patch = buildPatchFromLibraries();
@@ -611,7 +611,7 @@
         renderLibraryStateStrip();
       }
     }
-  
+
     function handleSettingsPostSaveRefreshFailure(message) {
       setText("settings-libraries-status", "Library save refresh failed");
       renderLibraryPatchHandoff([
@@ -620,11 +620,11 @@
       ].filter(Boolean).join(" "));
       renderLibraryStateStrip();
     }
-  
+
     function renderLibraryWarningSummary() {
       setLibraryFeedback([...mp4CompatibilityWarningLines(), ...prunedOverrideWarningLines()].join("\n"));
     }
-  
+
     function addLibraryCard() {
       const next = state.profiles.length + 1;
       const id = `library-${Date.now()}`;
@@ -649,7 +649,7 @@
       renderProfileCards({ activeProfileId: profile.id });
       setText("settings-libraries-status", `${state.profiles.length} library profile(s) staged`);
     }
-  
+
     function deleteActiveLibrary() {
       const card = activeLibraryCard();
       if (!card) return;
@@ -682,7 +682,7 @@
       setText("settings-libraries-status", `${name} library profile removed from staged editor`);
       renderLibraryWarningSummary();
     }
-  
+
     function replaceActiveLibraryValuesWithDefaults() {
       const card = activeLibraryCard();
       if (!card) return;
@@ -718,7 +718,7 @@
       ].filter(Boolean).join("\n"));
       renderLibraryStateStrip();
     }
-  
+
     function resetFromSaved() {
       closeOverrideSections(state.activeLibraryTabId);
       state.libraryEditorDirty = false;
@@ -733,7 +733,7 @@
         : "Reset From Current restored the editor from loaded settings. No LibraryProfiles patch was staged.");
       renderLibraryStateStrip();
     }
-  
+
     function initSettingsLibrariesEvents() {
       const summaryRows = byId("settings-library-summary-rows");
       if (summaryRows) {
@@ -932,7 +932,7 @@
       byId("settings-library-watch-preview-button")?.addEventListener("click", previewLibraryWatchAutoRunPatch);
       byId("settings-library-watch-save-button")?.addEventListener("click", saveLibraryWatchAutoRunPatch);
     }
-  
+
     /**
      * Public namespace for the settings libraries module.
      * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.

@@ -150,4 +150,3 @@ Contract inventories correctly advertise `/api/settings/preview-patch` as non-wr
 - Performed two in-memory bundled-Python validation probes only. Neither wrote files nor called HTTP routes: (1) relative custom profile roots returned no errors; (2) nested custom source/output/promotion roots returned warnings only. A separate in-memory normalization probe showed a stale `library-profile-concerts` rule surviving when promotion was turned off.
 - Did not run browser, API, PowerShell, or real-media test suites; did not start the local API; did not invoke Preview/Save or any other mutation route. Those omissions preserve the requested read-only scope.
 - This review did not inspect live operator settings, LocalBase state, actual source/output/final-library files, or external shares. It cannot prove behavior on a production filesystem or real media.
-

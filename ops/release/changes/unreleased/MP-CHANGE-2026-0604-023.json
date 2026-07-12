@@ -75,4 +75,3 @@
   "related_changes": [],
   "notes": "The in-app Browser control tool was not exposed by tool discovery, so visual validation used the repository's browser-backed large-table smoke."
 }
-

@@ -122,7 +122,7 @@
       renderPipelineStartSafetySummary(collectPipelineStartRequest());
       updateLaunchCommandButtonStates();
     }
-  
+
     function initLaunchRecoveryActionEvents() {
       if (!document || document.__launchRecoveryEventsBound === true) return;
       document.__launchRecoveryEventsBound = true;
@@ -141,7 +141,7 @@
         }
       });
     }
-  
+
     async function requestPipelineControl(action) {
       const normalized = String(action || "").trim().toLowerCase();
       if (rejectControlCommandWhileBusy(normalized || "unknown")) return;
@@ -210,7 +210,7 @@
         setControlCommandBusy(false);
       }
     }
-  
+
     async function browsePipelineSingleFile() {
       if (state.pipelineFileBrowseInFlight || state.launchCommandInFlight) {
         setPipelineSingleFileBrowseStatus("Single-file browser is busy. Wait for the current Launch command to finish.");
@@ -268,7 +268,7 @@
         updateLaunchCommandButtonStates();
       }
     }
-  
+
     function clearPipelineSingleFile() {
       const input = byId("pipeline-start-single-file");
       if (input) {
@@ -281,7 +281,7 @@
       renderAllLaunchPreflights();
       updateLaunchCommandButtonStates();
     }
-  
+
     function pipelineStartConfirmMessage(request, label) {
       const scope = request?.single_file ? "Single File" : "Queue";
       const parts = [
@@ -295,7 +295,7 @@
       }
       return parts.join("\n");
     }
-  
+
     function renderPipelineStartSafetySummary(request) {
       const target = byId("pipeline-start-safety-summary");
       if (!target) return;
@@ -310,7 +310,7 @@
       const mode = pipelineModeLabel(request?.mode || "once");
       target.textContent = `Selected scope: ${scope}. Readiness: ${readiness}. ${mode} will continue only after the backend rechecks readiness. Original source files stay read-only; completed results follow the existing backend review and publish safeguards.`;
     }
-  
+
     async function startPipelineFromForm() {
       if (rejectLaunchCommandWhileBusy("pipeline.start", "pipeline-launch-status", "pipeline-launch-detail")) return;
       const request = collectPipelineStartRequest();
@@ -373,7 +373,7 @@
         syncPipelineModeControls();
       }
     }
-  
+
     async function startPendingPublishDrain() {
       if (rejectLaunchCommandWhileBusy("pending_publish.drain", "pending-drain-status", "pending-drain-detail")) return;
       const guard = typeof pendingDrainGuardState === "function" ? pendingDrainGuardState() : null;
@@ -444,7 +444,7 @@
         if (drainBtn) drainBtn.textContent = drainBtnText || "Drain Parked Outputs";
       }
     }
-  
+
     async function startStateJournalArchive(sourceButton = null) {
       if (rejectLaunchCommandWhileBusy("maintenance.archive_state_journals", "launch-readiness-status", "launch-readiness-action-status")) return;
       const request = {
@@ -511,7 +511,7 @@
         }
       }
     }
-  
+
 
     return {
       initLaunchViewEvents,

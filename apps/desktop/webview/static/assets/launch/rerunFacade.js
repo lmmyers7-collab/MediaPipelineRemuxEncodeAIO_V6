@@ -104,7 +104,7 @@
       renderRerunSelectOptions,
       renderRerunFilterOptions,
     } = rerunEvidence;
-  
+
     const rerunPresentationFactory = window.__launchRerunPresentationModule || {};
     delete window.__launchRerunPresentationModule;
     rerunPresentation = rerunPresentationFactory.createLaunchRerunPresentationModule({
@@ -174,7 +174,7 @@
       renderRerunTopbarPending,
       renderRerunTopbarFinished,
     } = rerunPresentation;
-  
+
     const rerunOrchestrationFactory = window.__launchRerunOrchestrationModule || {};
     delete window.__launchRerunOrchestrationModule;
     rerunOrchestration = rerunOrchestrationFactory.createLaunchRerunOrchestrationModule({
@@ -224,7 +224,7 @@
       startNetworkRerunFromForm,
       startRerunFromForm,
     } = rerunOrchestration;
-  
+
 
     return {
       ...rerunEvidence,

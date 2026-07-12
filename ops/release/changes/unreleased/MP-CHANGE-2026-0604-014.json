@@ -44,4 +44,3 @@
   "related_changes": [],
   "notes": "Hide the file override drawer and drawer backdrop while the series preview modal is open; cancel restores the drawer and successful apply closes the edit surface.\nCompleted drawer/modal behavior update after targeted JS, static WebView, and browser Queue file-overrides smoke validation.\nStrict coverage failure is from unrelated pre-existing dirty/untracked files outside this drawer/modal behavior change."
 }
-

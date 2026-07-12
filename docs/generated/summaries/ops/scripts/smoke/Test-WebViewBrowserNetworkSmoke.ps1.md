@@ -3,9 +3,9 @@ file: ops/scripts/smoke/Test-WebViewBrowserNetworkSmoke.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 7a5a03a22f4eea28c9a6c659af7f8fd8feb56a5c1d95ab6db84f7f4fa6411b58
+sha256: 08613e60c69c7fe3850d4e87dba9496c816b8f55eb223f065511b94ec86b66b0
 ---
 # `ops/scripts/smoke/Test-WebViewBrowserNetworkSmoke.ps1`
 

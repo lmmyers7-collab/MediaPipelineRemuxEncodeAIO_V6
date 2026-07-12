@@ -56,6 +56,3 @@ finally {
     $env:PYTHONPATH = $previousPythonPath
     Pop-Location
 }
-
-
-

@@ -466,5 +466,3 @@ def _native_timeout_for_active_job(payload: Mapping[str, Any], config_data: Mapp
         if value > 0:
             return key, value
     return "", None
-
-

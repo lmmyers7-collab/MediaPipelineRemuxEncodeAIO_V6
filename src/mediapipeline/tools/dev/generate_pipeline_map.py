@@ -294,7 +294,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if check_file(expected) else 1
 
     GENERATED_DOCS_ROOT.mkdir(parents=True, exist_ok=True)
-    PIPELINE_MAP_PATH.write_text(expected, encoding="utf-8")
+    PIPELINE_MAP_PATH.write_text(expected, encoding="utf-8", newline="\n")
     print(f"Wrote {PIPELINE_MAP_PATH.relative_to(REPO_ROOT)} from src/mediapipeline/contracts/stages.py.")
     return 0
 

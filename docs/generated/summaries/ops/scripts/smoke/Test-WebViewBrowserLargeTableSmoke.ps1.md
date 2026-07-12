@@ -3,9 +3,9 @@ file: ops/scripts/smoke/Test-WebViewBrowserLargeTableSmoke.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 1d7f97959676f5b9349962cad1617d28bc18b8e559dbd59fb2c41524a5707707
+sha256: ca9df55b884be402192fcc6b82c7eb4b11fbd5849801d4635154a37cb5fcedcf
 ---
 # `ops/scripts/smoke/Test-WebViewBrowserLargeTableSmoke.ps1`
 

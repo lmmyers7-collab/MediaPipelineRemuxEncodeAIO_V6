@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0712-003",
+  "title": "Refresh glib upstream blocker disposition",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "medium",
+  "date_started": "2026-07-12",
+  "date_completed": "2026-07-12",
+  "summary": "Refresh the dated glib advisory disposition with current Dependabot, Cargo graph, compatible-update, target-scope, and upstream-manifest evidence.",
+  "reason": "Issue #15 requires a current, reproducible blocker and review trigger whenever the upstream Tauri/Wry/GTK graph still cannot accept the patched glib generation.",
+  "affected_areas": [
+    "security",
+    "tauri",
+    "release_dependencies",
+    "docs"
+  ],
+  "behavior_before": "The blocked disposition was dated 2026-07-11 and did not explicitly record the current GitHub alert state or exact Cargo dry-run command results from 2026-07-12.",
+  "behavior_after": "The active dependency review records the open alert, exact GTK ^0.18 blocker, Linux-only target scope, current upstream dev constraints, and the 2026-08-07 review deadline.",
+  "files_touched": [
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0712-003.json",
+    "docs/inventories/RELEASE_DEPENDENCY_REVIEW.md",
+    "docs/OPEN_WORK_CHECKLIST.md"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "GitHub Dependabot alert 1 remains open for GHSA-wrw7-89jp-8q8g",
+    "cargo tree --target all -i glib confirmed tauri 2.11.1 -> tauri-runtime-wry 2.11.1 -> wry 0.55.1/gtk 0.18.2 -> glib 0.18.5",
+    "cargo tree --target x86_64-pc-windows-msvc -i glib returned no Windows-target dependency",
+    "cargo update -p glib --precise 0.20.0 --dry-run was rejected by gtk 0.18.2 requiring glib ^0.18",
+    "Tauri and Wry dev manifests still specify GTK 0.18"
+  ],
+  "rollback_plan": "Revert the two documentation updates; Cargo.toml and Cargo.lock were not changed.",
+  "related_changes": [
+    "GitHub issue #15",
+    "Dependabot alert 1"
+  ],
+  "notes": "Issue remains open and externally blocked. Review on upstream dependency movement, before Linux packaging, or by 2026-08-07, whichever occurs first."
+}

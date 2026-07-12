@@ -36,4 +36,3 @@ __all__ = [
     "QUEUE_OPEN_TARGETS",
     "QUEUE_OPEN_SCOPES",
 ]
-

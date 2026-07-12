@@ -36,4 +36,3 @@
   "related_changes": [],
   "notes": "Queue table state now treats recent runtime success/skip as warning evidence for runnable snapshot rows."
 }
-

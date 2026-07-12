@@ -87,4 +87,3 @@
   ],
   "notes": "Tooling and read-only Maintenance hygiene change. It does not change media policy, FFmpeg/subtitle/audio behavior, queue launch, pending publish drain, settings persistence, source/scratch/output movement, cleanup behavior, or source media files. Affected Python scripts will include change-control tooling, Maintenance ledger reader, and focused tests.\nShared packet coverage tooling and Maintenance coverage warnings are being implemented.\nAgent rules, change-control docs, pre-commit, and CI now describe/enforce strict packet coverage.\nFocused coverage, helper, workflow, Maintenance API, static WebView, and browser smoke tests were added/updated.\nGenerated change-control docs and summaries for enforcement files were refreshed.\nFinal strict worktree coverage was run and reported uncovered unrelated dirty files rather than absorbing them into this packet."
 }
-

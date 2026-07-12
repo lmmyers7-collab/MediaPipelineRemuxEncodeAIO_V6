@@ -38,4 +38,3 @@
   "related_changes": [],
   "notes": "UI-only WebView rendering change; no backend media policy, queue, publish, rename, settings, source, scratch, or output file behavior changed."
 }
-

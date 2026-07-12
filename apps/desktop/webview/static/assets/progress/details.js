@@ -471,4 +471,3 @@
 
   window.__progressDetailsModule = { createProgressDetailsModule };
 })();
-

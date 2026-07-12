@@ -339,4 +339,3 @@ function Get-PriorityScore {
 
     return $score
 }
-

@@ -57,4 +57,3 @@
   ],
   "notes": "Read-only additive Local API/WebView feature. It keeps schema_version queue_file_override_tracks.v1, adds no POST route or frontend mutation path, and does not change FFmpeg command generation, route policy, subtitle policy, audio policy, queue mutation, pending publish drain, source/scratch/output movement, cleanup behavior, or source media files. Affected Python scripts: app/api/file_overrides/tracks.py, app/api/file_overrides/selectors.py, tests/python/desktop/test_file_override_tracks.py, and tests/python/desktop/test_application_facade_web_static.py."
 }
-

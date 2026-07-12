@@ -47,6 +47,21 @@ class WebViewToolingCheckTests(unittest.TestCase):
 
         self.assertIn('path.includes("/assets/settings/")', source)
 
+    def test_godfile_analyzer_normalizes_source_and_report_line_endings(self) -> None:
+        source = (
+            REPO_ROOT / "ops" / "scripts" / "dev" / "analyze-webview-godfiles.mjs"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("function normalizeLineEndings(text)", source)
+        self.assertIn(
+            'const source = normalizeLineEndings(readFileSync(absolute, "utf-8"));',
+            source,
+        )
+        self.assertIn(
+            '? normalizeLineEndings(readFileSync(absolute, "utf-8"))',
+            source,
+        )
+
     def test_shared_parse_script_fails_on_recoverable_parser_error(self) -> None:
         _require_webview_tooling_dependencies()
         script = (

@@ -48,4 +48,3 @@
   "related_changes": [],
   "notes": "WebView-only interaction fix. No backend settings persistence, queue mutation, media policy, FFmpeg/subtitle/audio behavior, pending publish drain, source/scratch/output movement, cleanup behavior, or source media files changed."
 }
-

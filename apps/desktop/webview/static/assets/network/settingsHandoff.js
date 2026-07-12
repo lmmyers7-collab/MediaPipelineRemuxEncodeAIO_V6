@@ -70,4 +70,3 @@
 
   window.__networkSettingsHandoffModule = { createNetworkSettingsHandoffModule };
 })();
-

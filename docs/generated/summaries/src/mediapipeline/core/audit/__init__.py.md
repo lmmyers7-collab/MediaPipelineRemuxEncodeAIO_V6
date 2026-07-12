@@ -3,9 +3,9 @@ file: src/mediapipeline/core/audit/__init__.py
 pipeline_stage: observability
 token_priority: low
 owner_domain: audit
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: bc96135cdb9de4d002eca221dbb38b2a4dbf580dc566969fa02f651b18012adb
+sha256: 1061d64582c9a6e0ae78701c4312f069b8dcaa4fd476222eddb5ad413664d15a
 ---
 # `src/mediapipeline/core/audit/__init__.py`
 

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/network/overviewTiles.js
 pipeline_stage: network
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-07-10
-sha256: 09254969dd87c32d3a97327c9eb46b4b73dc7e39dbbb096ef76b2c9a71d18272
+sha256: 8e51344d848b63fc8bb25c7632290c988c0afbc6d4077f9c282a699d3587bc40
 ---
 # `apps/desktop/webview/static/assets/network/overviewTiles.js`
 

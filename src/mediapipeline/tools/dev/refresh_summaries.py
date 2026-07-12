@@ -345,11 +345,11 @@ def iter_summary_files() -> Iterable[Path]:
 
 
 def sha256_of(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as fh:
-        for chunk in iter(lambda: fh.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    # Git may materialize the same tracked text with LF or CRLF depending on
+    # checkout policy. Summary freshness is a content check, so line-ending
+    # representation must not make every summary stale on another runner.
+    content = path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return hashlib.sha256(content).hexdigest()
 
 
 def frontmatter_value(summary_path: Path, key: str) -> str | None:
@@ -664,7 +664,7 @@ def write_summary(rel_path: str, source: Path) -> bool:
     if summary_path.exists() and summary_path.read_text(encoding="utf-8") == new_content:
         return False
     summary_path.parent.mkdir(parents=True, exist_ok=True)
-    summary_path.write_text(new_content, encoding="utf-8")
+    summary_path.write_text(new_content, encoding="utf-8", newline="\n")
     return True
 
 

@@ -59,4 +59,3 @@
 
   window.__networkOpenHistoryModule = { createNetworkOpenHistoryModule };
 })();
-

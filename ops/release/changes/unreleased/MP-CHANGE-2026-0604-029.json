@@ -57,4 +57,3 @@
   "related_changes": [],
   "notes": "No backend media policy, API contract, queue generation, completed manifest, launch, publish, or filesystem mutation behavior was changed. styles.pages.css had pre-existing unrelated Settings CSS edits; this packet only uses that shared file for Home selector replacement."
 }
-

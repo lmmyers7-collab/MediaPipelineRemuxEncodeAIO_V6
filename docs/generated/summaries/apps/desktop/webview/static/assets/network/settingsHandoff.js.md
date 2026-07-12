@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/network/settingsHandoff.js
 pipeline_stage: network
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-07-11
-sha256: b16b90d0ffda3b9e5efb41bb26b0b2489c4f0950c2954df2b29052cc04d015a7
+sha256: d64d50e83ce434728e02f50b36fee4d65e42eba452cf660ed25c81599de2fd33
 ---
 # `apps/desktop/webview/static/assets/network/settingsHandoff.js`
 

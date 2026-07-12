@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/dev/refresh_summaries.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-02
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 39b5a87a5f3ab2a58e50453afc805af7f127bd86969770ba9704a50f846a09fa
+sha256: 7b2c9430fc4666dcfb5af71a06abad587fc1d52fef01c62c9ebef81d8081f37f
 ---
 # `src/mediapipeline/tools/dev/refresh_summaries.py`
 

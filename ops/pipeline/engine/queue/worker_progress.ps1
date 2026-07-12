@@ -201,4 +201,3 @@ function Update-MediaPipelineParentCountersFromWorkerResult {
         $script:totalFailed++
     }
 }
-

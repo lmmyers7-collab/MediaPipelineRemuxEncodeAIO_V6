@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/dev/generate_feature_file_map.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-12
+last_modified: 2026-07-12
 last_reviewed: 2026-06-11
-sha256: ef180d6c7c57d435918262d83e5c4a71d8fb568ddca186d303a249090f2433c2
+sha256: a9ccd4c437be83972a78d0a98515b941607f530b05611e30aab51e0e012bb9a3
 ---
 # `src/mediapipeline/tools/dev/generate_feature_file_map.py`
 

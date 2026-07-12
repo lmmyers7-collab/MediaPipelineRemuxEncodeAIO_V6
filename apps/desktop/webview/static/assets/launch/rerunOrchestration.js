@@ -55,17 +55,17 @@
       applyRerunPreviewButtonState();
       applyRerunOpenButtonState();
     }
-  
+
     function networkDryRunFingerprint(result = {}) {
       const data = result && typeof result.data === "object" ? result.data : {};
       return String(data.dry_run_fingerprint || result.dry_run_fingerprint || "").trim();
     }
-  
+
     function networkDryRunSafeToApply(result = {}) {
       const data = result && typeof result.data === "object" ? result.data : {};
       return result.ok !== false && data.safe_to_apply === true && Boolean(networkDryRunFingerprint(result));
     }
-  
+
     async function checkNetworkRerunStartDryRunFromForm() {
       if (rejectLaunchCommandWhileBusy("rerun.network.start_dry_run", "rerun-queue-status", "rerun-queue-detail")) return;
       const request = collectRerunNetworkStartDryRunRequest();
@@ -115,7 +115,7 @@
         applyRerunPreviewButtonState();
       }
     }
-  
+
     async function startNetworkRerunFromForm(options = {}) {
       if (rejectLaunchCommandWhileBusy("rerun.network.start", "rerun-queue-status", "rerun-queue-detail")) return;
       const dryRunRequest = collectRerunNetworkStartDryRunRequest();
@@ -250,7 +250,7 @@
         applyRerunPreviewButtonState();
       }
     }
-  
+
     async function startRerunFromForm(options = {}) {
       if (rerunIsNetworkMode()) return startNetworkRerunFromForm(options);
       if (rejectLaunchCommandWhileBusy("rerun.start", "rerun-queue-status", "rerun-queue-detail")) return;
@@ -367,7 +367,7 @@
         applyRerunPreviewButtonState();
       }
     }
-  
+
 
     return {
       renderRerunPreview,
