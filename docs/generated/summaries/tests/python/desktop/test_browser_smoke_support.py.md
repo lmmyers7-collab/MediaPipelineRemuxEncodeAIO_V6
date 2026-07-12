@@ -3,9 +3,9 @@ file: tests/python/desktop/test_browser_smoke_support.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 82e3d2430dcb1548be6920b261a5fa0ae0557c0bb5c44d624422074104e063b3
+sha256: 12e30b04ad29b46614fed668dc6c8240a5ca48fcf74cbf38770f4ef497ad48d4
 ---
 # `tests/python/desktop/test_browser_smoke_support.py`
 
