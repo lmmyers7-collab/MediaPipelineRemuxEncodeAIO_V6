@@ -161,23 +161,27 @@ def _browser_settings_launch_runner_source() -> str:
               }
               async function setLibraryDesignation(card, value) {
                 const libraryId = card.dataset.libraryId || "library";
-                const select = card.querySelector('[data-library-field="designation"]');
-                if (!select) throw new Error("missing designation select for " + libraryId);
-                select.value = value;
-                select.dispatchEvent(new Event("change", { bubbles: true }));
                 const deadline = Date.now() + 10000;
                 let lastRenderedValue = "";
+                let dispatchCount = 0;
                 while (Date.now() < deadline) {
                   const currentCard = libraryCard(libraryId);
                   const currentSelect = currentCard.querySelector('[data-library-field="designation"]');
                   if (!currentSelect) throw new Error("missing designation select for " + libraryId);
                   lastRenderedValue = String(currentSelect.value || "");
                   if (currentCard !== card && lastRenderedValue === value) return currentCard;
+                  if (lastRenderedValue !== value && currentSelect.isConnected) {
+                    card = currentCard;
+                    currentSelect.value = value;
+                    currentSelect.dispatchEvent(new Event("change", { bubbles: true }));
+                    dispatchCount += 1;
+                  }
                   await new Promise((resolve) => setTimeout(resolve, 100));
                 }
                 throw new Error(
                   "designation change handler did not rerender library " + libraryId
                   + " as " + value + "; last rendered value was " + lastRenderedValue
+                  + "; dispatched " + dispatchCount + " connected change event(s)"
                 );
               }
               function setOverrideValue(row, value) {

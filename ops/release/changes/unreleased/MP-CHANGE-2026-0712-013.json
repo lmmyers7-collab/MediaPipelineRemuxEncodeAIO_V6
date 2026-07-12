@@ -16,7 +16,7 @@
     "webview"
   ],
   "behavior_before": "The helper returned on any Library card replacement and repeatedly dispatched change events while waiting, allowing assertions to observe an intermediate card with the previous designation.",
-  "behavior_after": "The helper dispatches one designation change and returns only after a replacement card reports the requested designation; all designation-specific row assertions remain unchanged.",
+  "behavior_after": "The helper reacquires the current connected Library card, dispatches only when its rendered designation differs from the target, and returns only after a replacement card reports the requested designation; all designation-specific row assertions remain unchanged.",
   "files_touched": [
     "docs/generated/summaries/tests/webview/test_webview_browser_settings_launch_smoke.py.md",
     "ops/release/changes/unreleased/MP-CHANGE-2026-0712-013.json",
@@ -24,11 +24,11 @@
   ],
   "tests_added": [],
   "manual_validation": [
-    "PASS: exact browser-backed settings/launch smoke completed three consecutive local runs.",
+    "PASS: exact browser-backed settings/launch smoke completed ten consecutive local runs after connected-card reacquisition.",
     "PASS: Ruff on the changed browser smoke.",
     "PENDING: hosted Phase 1 proof."
   ],
   "rollback_plan": "Restore card-replacement-only readiness and repeated change dispatches; this also restores the observed race.",
   "related_changes": [],
-  "notes": "This changes test synchronization only. It does not remove, retry, or weaken any settings, designation, override-row, or launch assertion.\nWait for the requested designation on the replacement Library card before row assertions.\nRefresh the settings browser smoke summary."
+  "notes": "This changes test synchronization only. It does not remove, retry, or weaken any settings, designation, override-row, or launch assertion.\nWait for the requested designation on the replacement Library card before row assertions.\nRefresh the settings browser smoke summary.\nHosted run 29211217268 showed the automatic-refresh guard could replace the test-held card before its change event reached the delegated handler; reacquire a connected card inside the bounded readiness loop."
 }
