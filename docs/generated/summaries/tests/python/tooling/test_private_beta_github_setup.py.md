@@ -3,9 +3,9 @@ file: tests/python/tooling/test_private_beta_github_setup.py
 pipeline_stage: setup
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-11
 last_reviewed: 2026-06-18
-sha256: d957de20a30cc6a8c7a64043374d7435b5e7ead63cdfe656774f9ba6e815d109
+sha256: 4179aa8bcd2a1065bb5b92bf3b0ef618e6de963c058ccd23c5d5f62460c40695
 ---
 # `tests/python/tooling/test_private_beta_github_setup.py`
 

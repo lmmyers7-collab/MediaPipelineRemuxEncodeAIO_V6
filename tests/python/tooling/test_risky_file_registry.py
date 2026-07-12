@@ -18,6 +18,10 @@ spec.loader.exec_module(registry_check)
 
 
 class RiskyFileRegistryTests(unittest.TestCase):
+    @unittest.skipIf(
+        (REPO_ROOT / "release_manifest.json").is_file(),
+        "Complete active-doc and generated-summary registry inputs are omitted from release packages.",
+    )
     def test_current_repository_registry_is_valid(self) -> None:
         registry = registry_check.load_registry()
 
@@ -136,6 +140,10 @@ class RiskyFileRegistryTests(unittest.TestCase):
         self.assertIn("settings_and_config", matched_ids)
         self.assertIn("ai_guardrails_and_generated_context", matched_ids)
 
+    @unittest.skipIf(
+        (REPO_ROOT / "release_manifest.json").is_file(),
+        "Complete active-doc and generated-summary registry inputs are omitted from release packages.",
+    )
     def test_current_registry_generated_summary_glob_matches_files(self) -> None:
         registry = registry_check.load_registry()
 
@@ -152,4 +160,3 @@ class RiskyFileRegistryTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

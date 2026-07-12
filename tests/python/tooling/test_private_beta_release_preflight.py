@@ -71,6 +71,10 @@ def _run_preflight(env: dict[str, str], config_path: Path) -> subprocess.Complet
 
 
 class PrivateBetaReleasePreflightTests(unittest.TestCase):
+    @unittest.skipIf(
+        (REPO_ROOT / "release_manifest.json").is_file(),
+        "Private-beta GitHub workflow metadata is intentionally omitted from release packages.",
+    )
     def test_preflight_passes_with_required_release_inputs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "tauri.beta.preflight.conf.json"

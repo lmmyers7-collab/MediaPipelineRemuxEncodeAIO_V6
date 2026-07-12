@@ -119,6 +119,10 @@ class AuditCheckManifestTests(unittest.TestCase):
         self.assertEqual(payload["suite"], "release-self-test")
         self.assertIn("checks", payload)
 
+    @unittest.skipIf(
+        (REPO_ROOT / "release_manifest.json").is_file(),
+        "Source-checkout workflow metadata is intentionally omitted from release packages.",
+    )
     def test_surfaces_reference_manifest_backed_suites(self) -> None:
         precommit = (REPO_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
         phase1 = (REPO_ROOT / ".github" / "workflows" / "phase1-drift.yml").read_text(encoding="utf-8")

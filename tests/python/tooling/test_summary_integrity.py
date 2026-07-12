@@ -263,6 +263,10 @@ class SummaryIntegrityTests(unittest.TestCase):
                 generate_project_index.REPO_ROOT = old_root
                 generate_project_index.SUMMARY_ROOT = old_summary
 
+    @unittest.skipIf(
+        (REPO_ROOT / "release_manifest.json").is_file(),
+        "Historical change-packet summary sources are intentionally omitted from release packages.",
+    )
     def test_root_schema_json_files_are_explicit_summary_sources(self) -> None:
         self.assertIn("ops/pipeline/entrypoints", refresh_summaries.SOURCE_ROOTS)
         self.assertIn("ops/pipeline/entrypoints/Audit-MediaLibrary.ps1", refresh_summaries.ROOT_SOURCE_FILES)

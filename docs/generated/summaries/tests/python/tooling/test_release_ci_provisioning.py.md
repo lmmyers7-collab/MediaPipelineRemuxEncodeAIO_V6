@@ -3,9 +3,9 @@ file: tests/python/tooling/test_release_ci_provisioning.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-28
+last_modified: 2026-07-11
 last_reviewed: 2026-06-28
-sha256: f6d817c4833e3134c6726dff377e530c9b0e8a19b551f8749eb883212438d5a9
+sha256: 10191488e375ae9a0f4ed5674aa3a0fb3fcefb374258f27f97114c156e53ed18
 ---
 # `tests/python/tooling/test_release_ci_provisioning.py`
 

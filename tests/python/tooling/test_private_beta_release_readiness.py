@@ -39,6 +39,10 @@ def _repository_for_static_preflight() -> str:
 
 
 class PrivateBetaReleaseReadinessTests(unittest.TestCase):
+    @unittest.skipIf(
+        (REPO_ROOT / "release_manifest.json").is_file(),
+        "Private-beta GitHub workflow metadata is intentionally omitted from release packages.",
+    )
     def test_release_readiness_runs_local_static_gates_without_live_github(self) -> None:
         result = subprocess.run(
             [

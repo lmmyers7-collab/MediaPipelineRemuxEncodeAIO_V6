@@ -41,6 +41,10 @@ class ReleaseCiProvisioningTests(unittest.TestCase):
         self.assertIn("mkvmerge.exe", script)
         self.assertIn("'ffmpeg', 'mkvtoolnix'", script)
 
+    @unittest.skipIf(
+        (REPO_ROOT / "release_manifest.json").is_file(),
+        "Source-checkout CI workflow metadata is intentionally omitted from release packages.",
+    )
     def test_deep_audit_provisions_bundled_runtime_tools_and_stable_temp_paths(self) -> None:
         workflow = (REPO_ROOT / ".github" / "workflows" / "deep-audit.yml").read_text(encoding="utf-8")
 

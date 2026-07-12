@@ -21,6 +21,10 @@ def _powershell() -> str:
 
 
 class PrivateBetaWorkflowDryRunTests(unittest.TestCase):
+    @unittest.skipIf(
+        (REPO_ROOT / "release_manifest.json").is_file(),
+        "Private-beta GitHub workflow metadata is intentionally omitted from release packages.",
+    )
     def test_workflow_dry_run_exercises_preflight_without_secret_leakage(self) -> None:
         result = subprocess.run(
             [
