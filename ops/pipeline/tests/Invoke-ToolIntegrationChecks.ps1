@@ -193,6 +193,7 @@ try {
             '-c:v', 'mpeg4',
             '-q:v', '5',
             '-c:a', 'aac',
+            '-disposition:a:0', '0',
             $encodedPath
         ) `
         -Label 'INTEGRATION-FFMPEG' `
