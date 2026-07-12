@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from mediapipeline.tools.paths import find_repo_root
 
@@ -275,6 +276,15 @@ class PendingPublishFacadePolicyTests(unittest.TestCase):
         self.assertEqual(scan_unavailable.message, PENDING_PUBLISH_SERVICE_UNAVAILABLE_MESSAGE)
         self.assertEqual(scan_unavailable.errors, [PENDING_PUBLISH_SERVICE_UNAVAILABLE_MESSAGE])
         self.assertEqual(scan_unavailable.data["row_key"], row_key)
+
+    def test_pending_publish_open_policy_preserves_unavailable_network_destination(self) -> None:
+        destination = Path(r"\\nas\Movies\Movie.mkv")
+
+        with patch.object(type(destination), "exists", side_effect=OSError("network unavailable")):
+            self.assertEqual(
+                pending_publish_open_path({"server_out": str(destination)}, "destination_folder"),
+                destination.parent,
+            )
 
     def test_recovery_plan_result_is_dry_run_and_classifies_rows(self) -> None:
         rows = pending_publish_rows(

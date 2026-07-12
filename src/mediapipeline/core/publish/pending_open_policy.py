@@ -42,9 +42,14 @@ def pending_publish_destination_folder_path(value: Any) -> Path | None:
     if destination is None:
         return None
     folder = destination.parent if destination.suffix.lower() in MEDIA_FILE_SUFFIXES else destination
-    if folder.exists() or not folder.is_absolute():
+    try:
+        if folder.exists() or not folder.is_absolute():
+            return folder
+        return next((candidate for candidate in folder.parents if candidate.exists()), folder)
+    except OSError:
+        # Keep the backend-authored destination when an unavailable network
+        # share prevents the read-only existence probe from completing.
         return folder
-    return next((candidate for candidate in folder.parents if candidate.exists()), folder)
 
 
 def pending_publish_open_path(row: Mapping[str, Any], target: str) -> Path | None:
