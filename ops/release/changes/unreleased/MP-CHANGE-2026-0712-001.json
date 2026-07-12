@@ -19,6 +19,7 @@
   "behavior_before": "Summary SHA-256 values hashed raw line endings and the WebView analyzer parsed and compared raw line endings, so logically identical Windows and CI checkouts produced different freshness results.",
   "behavior_after": "Both generators normalize text line endings before hashing, parsing, or report comparison; LF-only archive simulation and the local checkout now produce the same freshness result.",
   "files_touched": [
+    ".github/workflows/phase1-drift.yml",
     "apps/desktop/webview/static/assets/launch/commandOrchestration.js",
     "apps/desktop/webview/static/assets/launch/rerunEvidence.js",
     "apps/desktop/webview/static/assets/launch/rerunFacade.js",
@@ -298,6 +299,7 @@
     "tests/python/tooling/test_godfile_guard.py",
     "tests/python/tooling/test_lifecycle_map.py",
     "tests/python/tooling/test_lint_naming.py",
+    "tests/python/tooling/test_release_ci_provisioning.py",
     "tests/python/tooling/test_summary_integrity.py",
     "tests/python/tooling/test_webview_tooling_checks.py",
     "tests/webview/test_webview_browser_lifecycle_smoke.py"
@@ -305,7 +307,9 @@
   "tests_added": [
     "tests.python.tooling.test_summary_integrity.SummaryIntegrityTests.test_generated_context_writers_force_lf_output",
     "tests.python.tooling.test_summary_integrity.SummaryIntegrityTests.test_summary_hash_is_stable_across_text_line_endings",
-    "tests.python.tooling.test_webview_tooling_checks.WebViewToolingCheckTests.test_godfile_analyzer_normalizes_source_and_report_line_endings"
+    "tests.python.tooling.test_webview_tooling_checks.WebViewToolingCheckTests.test_godfile_analyzer_normalizes_source_and_report_line_endings",
+    "tests.python.tooling.test_webview_tooling_checks.WebViewToolingCheckTests.test_shared_generated_output_check_is_line_ending_stable",
+    "tests.python.tooling.test_release_ci_provisioning.ReleaseCiProvisioningTests.test_generated_drift_has_case_sensitive_generated_context_job"
   ],
   "manual_validation": [
     "Full bundled-Python discovery passed: 3,131 tests, 1 expected skip",
@@ -320,5 +324,5 @@
     "GitHub PR #29",
     "GitHub issue #21"
   ],
-  "notes": "Generated-context tooling only; no runtime media, mutation, strict-confirmation, journal, duplicate-command, or close-readiness behavior changed.\nCanonical pre-commit text-hygiene normalization and dependent generated refresh.\nCanonical generators now force LF so regeneration does not recreate mixed endings on Windows.\nNormalize shared generated-output comparisons across LF and CRLF."
+  "notes": "Generated-context tooling only; no runtime media, mutation, strict-confirmation, journal, duplicate-command, or close-readiness behavior changed.\nCanonical pre-commit text-hygiene normalization and dependent generated refresh.\nCanonical generators now force LF so regeneration does not recreate mixed endings on Windows.\nNormalize shared generated-output comparisons across LF and CRLF.\nAdd a case-sensitive Linux generated-context validation job for issue #21."
 }

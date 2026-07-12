@@ -79,6 +79,21 @@ class ReleaseCiProvisioningTests(unittest.TestCase):
         (REPO_ROOT / "release_manifest.json").is_file(),
         "Source-checkout CI workflow metadata is intentionally omitted from release packages.",
     )
+    def test_generated_drift_has_case_sensitive_generated_context_job(self) -> None:
+        workflow = (REPO_ROOT / ".github" / "workflows" / "phase1-drift.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("generated-context-linux:", workflow)
+        self.assertIn("name: Generated context drift (Linux)", workflow)
+        self.assertIn("runs-on: ubuntu-latest", workflow)
+        self.assertIn("Run generated context checks on a case-sensitive filesystem", workflow)
+        self.assertIn("npm run webview:contract:check", workflow)
+
+    @unittest.skipIf(
+        (REPO_ROOT / "release_manifest.json").is_file(),
+        "Source-checkout CI workflow metadata is intentionally omitted from release packages.",
+    )
     def test_deep_audit_python_and_release_jobs_share_complete_runtime_provisioning(self) -> None:
         workflow = (REPO_ROOT / ".github" / "workflows" / "deep-audit.yml").read_text(encoding="utf-8")
 
