@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0712-012",
+  "title": "Recognize bounded CDP readiness retries",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "test",
+  "risk_level": "low",
+  "date_started": "2026-07-12",
+  "date_completed": "2026-07-12",
+  "summary": "Recognize the bounded CDP readiness-port refusal as an existing single-retry browser-startup transient.",
+  "reason": "Deep Audit reproduced a browser process that never opened its selected localhost CDP port; the shared runner already permits one retry for CDP startup failures but did not match this precise readiness error shape.",
+  "affected_areas": [
+    "ci",
+    "docs",
+    "generated-context",
+    "release",
+    "reliability",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "A CDP websocket open error was retried once, while the equivalent bounded readiness timeout ending in localhost ECONNREFUSED failed immediately.",
+  "behavior_after": "Both explicit CDP startup signatures receive at most one retry; browser console errors, assertions, and non-startup failures still fail immediately.",
+  "files_touched": [
+    "docs/generated/DUPLICATE_TEST_NAMES.md",
+    "docs/generated/summaries/docs/testing/VALIDATION_LADDER_RUNBOOK.md.md",
+    "docs/generated/summaries/tests/python/desktop/test_browser_smoke_support.py.md",
+    "docs/generated/summaries/tests/webview/webview_browser_smoke_support.py.md",
+    "docs/testing/VALIDATION_LADDER_RUNBOOK.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0712-012.json",
+    "tests/python/desktop/test_browser_smoke_support.py",
+    "tests/webview/webview_browser_smoke_support.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_browser_smoke_support.py::BrowserSmokeSupportTests::test_retries_once_when_browser_never_opens_its_cdp_readiness_port"
+  ],
+  "manual_validation": [
+    "Bundled-Python browser smoke support suite: 10 passed.",
+    "Bundled-Python browser-backed prose-box audit: 1 passed.",
+    "Phase 1 run 29209057233 attempt 2: all browser shards and aggregate passed on a16166a4.",
+    "Deep Audit run 29209773155 attempt 2: all browser shards and aggregate passed on a16166a4.",
+    "Ruff on changed Python support and tests: passed."
+  ],
+  "rollback_plan": "Remove the readiness-timeout signature and its regression test, restoring immediate failure for that CDP startup condition.",
+  "related_changes": [],
+  "notes": "The retry remains capped at one and matches the full localhost ECONNREFUSED readiness signature. ERR_NO_BUFFER_SPACE, console noise, and product assertions remain actionable failures.\nDocument the bounded CDP startup/readiness retry contract.\nRecognize the precise localhost CDP readiness timeout as a startup transient.\nProve the readiness retry is single and signature-bounded.\nRefresh the shared browser support summary.\nRefresh the browser support test summary.\nRegenerate test inventory for the added regression test.\nRecord scope and validation for the bounded CDP readiness retry.\nRefresh the validation runbook summary."
+}

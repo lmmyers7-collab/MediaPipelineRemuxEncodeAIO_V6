@@ -192,6 +192,38 @@ class BrowserSmokeSupportTests(unittest.TestCase):
         self.assertEqual(len(calls), 2)
         sleep.assert_called_once_with(0.5)
 
+    def test_retries_once_when_browser_never_opens_its_cdp_readiness_port(self) -> None:
+        calls: list[list[str]] = []
+
+        def fake_run(args: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+            calls.append(args)
+            if len(calls) == 1:
+                return subprocess.CompletedProcess(
+                    args,
+                    1,
+                    stdout="",
+                    stderr=(
+                        "Timed out waiting for browser page websocket. "
+                        "Last error: connect ECONNREFUSED 127.0.0.1:56046\n"
+                    ),
+                )
+            return subprocess.CompletedProcess(args, 0, stdout='{"ok": true, "attempt": 2}\n', stderr="")
+
+        with patch.object(support.subprocess, "run", side_effect=fake_run), patch.object(
+            support.time, "sleep"
+        ) as sleep:
+            result = support.run_node_browser_smoke(
+                "browser support cdp readiness retry",
+                node="node",
+                runner_path=Path("runner.cjs"),
+                payload_path=Path("payload.json"),
+                timeout_seconds=5,
+            )
+
+        self.assertEqual(result, {"ok": True, "attempt": 2})
+        self.assertEqual(len(calls), 2)
+        sleep.assert_called_once_with(0.5)
+
     def test_stops_after_single_retry_for_repeated_transient_cdp_startup_failures(self) -> None:
         calls: list[list[str]] = []
 

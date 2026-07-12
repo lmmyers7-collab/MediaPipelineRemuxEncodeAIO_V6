@@ -78,7 +78,7 @@ $py = "apps\desktop\runtime\Python\python.exe"
 .\ops/scripts/smoke\Test-WebViewBrowserSettingsLaunchSmoke.ps1
 ```
 
-The browser-backed smoke modules share one Python/Node CDP runner support layer. It owns browser discovery, free-port allocation, bounded timeout/failure output, JSON result parsing, Chrome/Edge launch without undrained stdout/stderr pipes, bounded browser termination, and a single retry for the known no-output Windows native runner crash code (`3221226505` / `-1073740791`) or no-output CDP WebSocket open transient. If a browser smoke fails, prefer the bounded runner assertion text over manually rerunning random page snippets.
+The browser-backed smoke modules share one Python/Node CDP runner support layer. It owns browser discovery, free-port allocation, bounded timeout/failure output, JSON result parsing, Chrome/Edge launch without undrained stdout/stderr pipes, bounded browser termination, and a single retry for the known no-output Windows native runner crash code (`3221226505` / `-1073740791`) or an explicitly recognized CDP startup/readiness transient. Actionable browser console errors and test assertions are not retried. If a browser smoke fails, prefer the bounded runner assertion text over manually rerunning random page snippets.
 
 ### Release self-test (layout + syntax)
 

@@ -14,6 +14,7 @@ _TRANSIENT_NATIVE_CRASH_RETURN_CODES = {3221226505, -1073740791}
 _TRANSIENT_CDP_OPEN_STDERR_FRAGMENTS = (
     "[object ErrorEvent]",
     "CDP websocket error while opening",
+    "Timed out waiting for browser page websocket. Last error: connect ECONNREFUSED 127.0.0.1:",
 )
 _MEDIA_NO_MUTATION_SUFFIXES = (
     ".mkv",

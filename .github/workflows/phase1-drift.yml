@@ -113,8 +113,8 @@ jobs:
           npm run webview:map:check
           npm run webview:contract:check
 
-  python-tests:
-    name: Python unit tests
+  python-tests-core:
+    name: Python and non-browser WebView tests
     runs-on: windows-latest
     timeout-minutes: 45
 
@@ -154,7 +154,7 @@ jobs:
           python -m pip install -r requirements/dev.txt -e .
           npm ci
 
-      - name: Run Python unit tests
+      - name: Run Python and non-browser WebView tests
         shell: pwsh
         run: |
           python -m unittest discover -s tests/python -q
@@ -166,11 +166,100 @@ jobs:
           python -m unittest @nonBrowserModules -q
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          Get-ChildItem tests/webview/test_webview_browser*.py | ForEach-Object {
-            $module = "tests.webview.$($_.BaseName)"
-            python -m unittest $module -q
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+  browser-tests:
+    name: Browser smoke (${{ matrix.test_id }})
+    runs-on: windows-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        test_id:
+          - tests.webview.test_webview_browser_completed_pending_proof_smoke.WebViewBrowserCompletedPendingProofSmoke.test_real_browser_renders_completed_pending_proof_overlap_and_missing_output_detail
+          - tests.webview.test_webview_browser_diagnostics_handoff_smoke.WebViewBrowserDiagnosticsHandoffSmoke.test_real_browser_clicks_read_only_diagnostics_handoffs_for_backend_risk_rows
+          - tests.webview.test_webview_browser_diagnostics_handoff_smoke.WebViewBrowserDiagnosticsHandoffSmoke.test_real_browser_clicks_table_rows_before_read_only_diagnostics_handoffs
+          - tests.webview.test_webview_browser_high_risk_smoke.WebViewBrowserHighRiskSmoke.test_real_browser_renders_backend_produced_high_risk_rows
+          - tests.webview.test_webview_browser_high_risk_smoke.WebViewBrowserHighRiskSmoke.test_real_browser_renders_high_risk_selected_row_guidance
+          - tests.webview.test_webview_browser_home_live_state_smoke.WebViewBrowserHomeLiveStateSmoke.test_real_browser_renders_home_live_state_without_mutation_posts
+          - tests.webview.test_webview_browser_large_table_smoke.WebViewBrowserLargeTableSmoke.test_real_browser_discloses_large_daily_table_caps_without_mutation_posts
+          - tests.webview.test_webview_browser_launch_queue_readiness_smoke.WebViewBrowserLaunchQueueReadinessSmoke.test_real_browser_pipeline_start_button_posts_backend_start
+          - tests.webview.test_webview_browser_launch_queue_readiness_smoke.WebViewBrowserLaunchQueueReadinessSmoke.test_real_browser_renders_launch_queue_readiness_without_mutation_posts
+          - tests.webview.test_webview_browser_layout_manager_smoke.WebViewBrowserLayoutManagerSmoke.test_layout_editor_drawer_manages_tab_and_subsection_boxes
+          - tests.webview.test_webview_browser_library_profiles_save_smoke.WebViewBrowserLibraryProfilesSaveSmoke.test_real_browser_saves_library_profile_with_review_confirmation_and_reload
+          - tests.webview.test_webview_browser_lifecycle_smoke.WebViewBrowserLifecycleSmoke.test_real_browser_blocks_shutdown_while_schedule_stop_watcher_is_armed
+          - tests.webview.test_webview_browser_lifecycle_smoke.WebViewBrowserLifecycleSmoke.test_real_browser_requests_backend_shutdown_only_when_close_readiness_is_safe
+          - tests.webview.test_webview_browser_lifecycle_smoke.WebViewBrowserLifecycleSmoke.test_real_browser_treats_stop_requested_watcher_as_safe_shutdown_evidence
+          - tests.webview.test_webview_browser_maintenance_change_ledger_smoke.WebViewBrowserMaintenanceChangeLedgerSmoke.test_real_browser_renders_maintenance_change_ledger_without_mutation_posts
+          - tests.webview.test_webview_browser_maintenance_reports_smoke.WebViewBrowserMaintenanceReportsSmoke.test_real_browser_renders_maintenance_reports_and_clear_error_payloads
+          - tests.webview.test_webview_browser_metrics_degraded_state_smoke.WebViewBrowserMetricsDegradedStateSmoke.test_safe_unavailable_recovered_metrics_transition_fails_closed
+          - tests.webview.test_webview_browser_network_smoke.WebViewBrowserNetworkSmoke.test_real_browser_network_worker_filters_warn_when_hiding_review_rows
+          - tests.webview.test_webview_browser_pending_drain_guard_smoke.WebViewBrowserPendingDrainGuardSmoke.test_real_browser_refreshes_advisory_and_submits_drain_to_backend
+          - tests.webview.test_webview_browser_prose_box_audit.WebViewBrowserProseBoxAudit.test_prose_boxes_are_inventoried_and_slimmed
+          - tests.webview.test_webview_browser_queue_file_overrides_smoke.WebViewBrowserQueueFileOverridesSmoke.test_real_browser_exercises_queue_file_override_drawer_feedback_without_media_mutation
+          - tests.webview.test_webview_browser_rename_smoke.WebViewBrowserRenameSmoke.test_real_browser_renders_rename_readiness_and_blocks_duplicate_apply
+          - tests.webview.test_webview_browser_sample_validation_smoke.WebViewBrowserSampleValidationSmoke.test_real_browser_renders_sample_validation_pilot_and_preview_without_append
+          - tests.webview.test_webview_browser_schedule_smoke.WebViewBrowserScheduleSmoke.test_real_browser_saves_schedule_through_backend_and_updates_launch_timing
+          - tests.webview.test_webview_browser_settings_builder_flush_smoke.WebViewBrowserSettingsBuilderFlushSmoke.test_invalid_dirty_builder_blocks_preview_and_save_posts
+          - tests.webview.test_webview_browser_settings_launch_smoke.WebViewBrowserSettingsLaunchSmoke.test_real_browser_hands_staged_settings_patch_to_launch_without_saving
+          - tests.webview.test_webview_browser_telemetry_smoke.WebViewBrowserTelemetrySmoke.test_real_browser_keeps_zero_percent_nvenc_visible
+          - tests.webview.test_webview_browser_telemetry_smoke.WebViewBrowserTelemetrySmoke.test_telemetry_view_treats_blank_numeric_fields_as_unavailable
+          - tests.webview.test_webview_browser_visual_clutter_screenshots.WebViewBrowserVisualClutterScreenshots.test_all_pages_and_subtabs_have_screenshots_without_visible_evidence_prose_clutter
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Initialize isolated CI environment
+        shell: pwsh
+        run: |
+          $tempRoot = Join-Path $env:RUNNER_TEMP "mediapipeline-$env:GITHUB_JOB"
+          $localAppData = Join-Path $tempRoot 'LocalAppData'
+          New-Item -ItemType Directory -Path $tempRoot, (Join-Path $localAppData 'MediaPipelineRemuxEncodeAIO') -Force | Out-Null
+          @("TMP=$tempRoot", "TEMP=$tempRoot", "LOCALAPPDATA=$localAppData") | Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Provision CI Python runtime
+        shell: pwsh
+        run: .\ops\scripts\release\Initialize-CiPythonRuntime.ps1 -InstallDependencies
+
+      - name: Provision CI media tools
+        shell: pwsh
+        run: .\ops\scripts\release\Initialize-CiMediaTools.ps1 -InstallMissing
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install -r requirements/dev.txt -e .
+          npm ci
+
+      - name: Run isolated browser test
+        run: python -m unittest "${{ matrix.test_id }}" -q
+
+  python-tests:
+    name: Python unit tests
+    if: ${{ always() }}
+    needs:
+      - python-tests-core
+      - browser-tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify complete Python and browser matrix
+        env:
+          CORE_RESULT: ${{ needs.python-tests-core.result }}
+          BROWSER_RESULT: ${{ needs.browser-tests.result }}
+        shell: bash
+        run: |
+          test "$CORE_RESULT" = "success"
+          test "$BROWSER_RESULT" = "success"
 
   webview-prework:
     name: WebView prework
