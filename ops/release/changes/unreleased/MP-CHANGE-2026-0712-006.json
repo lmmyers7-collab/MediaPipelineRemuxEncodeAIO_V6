@@ -2,11 +2,11 @@
   "id": "MP-CHANGE-2026-0712-006",
   "title": "Integrate compatible dependency updates",
   "version_target": "2026.06.04.001",
-  "status": "in_progress",
+  "status": "complete",
   "type": "release",
   "risk_level": "medium",
   "date_started": "2026-07-12",
-  "date_completed": null,
+  "date_completed": "2026-07-12",
   "summary": "Integrate compatible same-major Python, Tauri CLI, and Cargo patch updates using their native resolvers, while isolating incompatible or unrelated major updates.",
   "reason": "Eighteen Dependabot pull requests were rebased onto the authoritative main branch. Runtime floors and Tauri patch releases have focused compatibility evidence; mypy 2.1 fails internally, @eslint/js 10 requires an unrequested ESLint 10 peer upgrade, and unrelated JavaScript majors require dedicated reviewable changes.",
   "affected_areas": [
@@ -45,7 +45,9 @@
   "related_changes": [
     "Dependabot PRs #5, #6, #8-#13, #16-#19, #26, and #27",
     "Dependabot alert 1",
-    "Issue #15"
+    "Issue #15",
+    "PR #30 final head fa9d50fe",
+    "Generated Drift run 29202606381: dependency-sensitive package, release, Tauri, Python/WebView, and prework jobs passed"
   ],
   "notes": "The glib advisory remains externally blocked after the Tauri update: tauri 2.11.3 -> tauri-runtime-wry 2.11.4 -> wry 0.55.1 -> gtk 0.18.2 -> glib 0.18.5. Cargo rejects glib 0.20.12 because gtk requires ^0.18; the edge is absent from the x86_64-pc-windows-msvc graph. Issue #15 was updated with the new edge and retains the 2026-08-07 review trigger. No dependency PR has been merged or closed yet.\nUpdate the CI provisioning contract to the compatible pysubs2 floor."
 }

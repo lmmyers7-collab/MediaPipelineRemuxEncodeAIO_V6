@@ -2,11 +2,11 @@
   "id": "MP-CHANGE-2026-0712-007",
   "title": "Partition full Python and WebView discovery",
   "version_target": "2026.06.04.001",
-  "status": "in_progress",
+  "status": "complete",
   "type": "test",
   "risk_level": "medium",
   "date_started": "2026-07-12",
-  "date_completed": null,
+  "date_completed": "2026-07-12",
   "summary": "Run complete Python, non-browser WebView, and individually isolated browser-backed unittest partitions in hosted CI, remove redundant codex-branch push runs, and make the observed Launch/Reports browser assertions wait for their authoritative fixture states.",
   "reason": "Hosted full-discovery attempts failed on different browser modules after long aggregate runs, while every unchanged module passed independently. Separating the roots removed Chromium ERR_NO_BUFFER_SPACE, then fresh-process jobs exposed two test synchronization defects: Launch awaited the coalescing refresh wrapper, which can return before a queued refresh, and Reports asserted an early actionable posture after the smoke intentionally transitioned its review boards to historical-unavailable state. The final changes preserve every assertion at the state where its contract applies.",
   "affected_areas": [
@@ -44,6 +44,7 @@
   "rollback_plan": "Restore the single discovery command only if a future runner proves it stable under equivalent browser load. Do not compensate by increasing timeouts or skipping browser tests.",
   "related_changes": [
     "GitHub runs 29199791046, 29199791073, and 29199811094",
+    "Final green Generated Drift run 29202606381: 3,139-test Python/WebView job passed in 12m11s",
     "PR #30"
   ],
   "notes": "The required check names and workflow permissions are unchanged. This is execution isolation within each existing Python unit-test job plus removal of redundant push/pull_request duplication on codex PR heads, not a reduction in test scope. Main push and pull-request validation remain enabled. Launch now awaits the non-coalescing refreshAllNow path for deterministic evidence. Reports retains both the initial actionable-fixture assertion and the final historical-unavailable assertions.\nRefresh summary for synchronized Launch browser smoke.\nRefresh summary for state-scoped Reports browser assertions."
