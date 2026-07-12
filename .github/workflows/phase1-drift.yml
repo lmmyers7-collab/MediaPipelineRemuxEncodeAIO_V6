@@ -156,7 +156,9 @@ jobs:
           npm ci
 
       - name: Run Python unit tests
-        run: python -m unittest discover -s tests -q
+        run: |
+          python -m unittest discover -s tests/python -q
+          python -m unittest discover -s tests/webview -q
 
   webview-prework:
     name: WebView prework

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-12
 last_reviewed: 2026-06-03
-sha256: da813bf913f1661150d1f91683684d53b50814aec8cf3a81a8f7cbe91880e3ff
+sha256: fda318df97fe9f5a77337642ace137277b2a61415c4dd884f823e21ff8214056
 ---
 # `.github/workflows/phase1-drift.yml`
 
