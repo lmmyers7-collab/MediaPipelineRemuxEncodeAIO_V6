@@ -1,4 +1,4 @@
-/* global byId, setText, setTextState, homeProgressPercent, lastCloseReadiness, lastSnapshot, lastStartupProgress, lastTauriBackendLifecycleEvent */
+/* global homeProgressPercent, lastCloseReadiness, lastSnapshot, lastStartupProgress, lastTauriBackendLifecycleEvent */
 (function () {
   function createAppLifecycleTopbar() {  const TOPBAR_PENDING_LAUNCH_TTL_MS = 120000;
   const TOPBAR_IDLE_PENDING_GRACE_MS = 45000;
@@ -80,9 +80,8 @@
     const activity = formatProgressValue(pendingActivity || payload.activity || "No active work reported.").trim();
     const cleanName = topbarCleanCurrentName(progress, currentWork);
     const activeSummary = formatProgressValue(
-      currentWork.summary_label
-      || currentWork.latest_evidence_label
-      || currentWork.current_stage_label
+      currentWork.current_stage_label
+      || currentWork.phase_label
       || ""
     ).trim();
     const phaseLabel = formatProgressValue(pendingLaunch?.label || currentWork.current_stage_label || currentWork.phase_label || "").trim();

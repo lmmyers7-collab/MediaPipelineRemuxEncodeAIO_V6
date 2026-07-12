@@ -3,9 +3,9 @@ file: tests/python/desktop/test_legacy_removal_readiness.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-12
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 1f68b5e6c0bf55d242f8c661002a2c6b79352b9bd903f9d1d31cf73b8df95051
+sha256: 694e1042f5c8a3f1a6c1480e14238cae89fcc5bacff61ac644db2b04c829101d
 ---
 # `tests/python/desktop/test_legacy_removal_readiness.py`
 

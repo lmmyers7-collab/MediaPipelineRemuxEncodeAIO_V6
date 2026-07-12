@@ -154,7 +154,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
         assets_root = static_root / "assets"
         pending_html = (static_root / "partials" / "page-pending.html").read_text(encoding="utf-8")
-        pending_publish_view_js = (assets_root / "pendingPublishView.js").read_text(encoding="utf-8")
+        pending_publish_view_js = _read_pending_publish_asset_bundle(assets_root)
         pending_publish_filters_js = (assets_root / "pendingPublish" / "filters.js").read_text(encoding="utf-8")
         styles_css = _read_components_css(assets_root)
 
@@ -329,7 +329,13 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               process.cwd(),
               "apps/desktop/webview/static/assets/progressView.js"
             );
-            const source = fs.readFileSync(progressPath, "utf8");
+            const source = [
+              "progress/barState.js", "progress/barPresentation.js", "progress/audit.js",
+              "progress/details.js", "progress/evidenceRows.js", "progress/worker.js",
+              "progress/ffmpegEta.js", "progress/diagnostics.js", "progress/evidence.js",
+              "progress/activeWork.js", "progress/csvRerun.js", "progress/timelineCore.js",
+              "progress/liveRun.js", "progress/timelineView.js", "progressView.js",
+            ].map((name) => fs.readFileSync(path.join(process.cwd(), "apps/desktop/webview/static/assets", name), "utf8")).join("\n");
             const progressChildren = ["barState.js", "barPresentation.js", "audit.js", "details.js", "worker.js", "csvRerun.js", "ffmpegEta.js", "activeWork.js", "diagnostics.js", "evidence.js", "evidenceRows.js", "timelineCore.js", "liveRun.js", "timelineView.js"].map((name) => {
               const childPath = path.join(process.cwd(), "apps/desktop/webview/static/assets/progress", name);
               return { childPath, source: fs.readFileSync(childPath, "utf8") };
@@ -555,7 +561,13 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               process.cwd(),
               "apps/desktop/webview/static/assets/progressView.js"
             );
-            const source = fs.readFileSync(progressPath, "utf8");
+            const source = [
+              "progress/barState.js", "progress/barPresentation.js", "progress/audit.js",
+              "progress/details.js", "progress/evidenceRows.js", "progress/worker.js",
+              "progress/ffmpegEta.js", "progress/diagnostics.js", "progress/evidence.js",
+              "progress/activeWork.js", "progress/csvRerun.js", "progress/timelineCore.js",
+              "progress/liveRun.js", "progress/timelineView.js", "progressView.js",
+            ].map((name) => fs.readFileSync(path.join(process.cwd(), "apps/desktop/webview/static/assets", name), "utf8")).join("\n");
             function makeElement(tag) {
               const node = {
                 tagName: String(tag || "").toUpperCase(),
@@ -598,6 +610,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               Date,
               document: { createElement: makeElement },
               byId(id) { return id === "progress-bar-list" ? container : null; },
+              clearRows(node) { if (node) node.textContent = ""; },
+              appendCells() {},
+              makeRowSelectable() {},
+              setText() {},
+              updateTableStatusLegend() {},
               mediaPipelineFormatters: { formatProgressValue(value) { return value == null ? "" : String(value); } },
             };
             context.window = context;
@@ -702,7 +719,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               process.cwd(),
               "apps/desktop/webview/static/assets/app/home.js"
             );
-            const source = fs.readFileSync(homePath, "utf8");
+            const source = [
+              "apps/desktop/webview/static/assets/app/home/dailyDriver.js",
+              "apps/desktop/webview/static/assets/app/home/queueProjection.js",
+              "apps/desktop/webview/static/assets/app/home.js",
+            ].map((name) => fs.readFileSync(path.join(process.cwd(), name), "utf8")).join("\n");
             function makeElement(tag) {
               const node = {
                 tagName: String(tag || "").toUpperCase(),
@@ -744,6 +765,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               console,
               document: { createElement: makeElement },
               byId(id) { return elements[id] || null; },
+              clearRows(node) { if (node) node.textContent = ""; },
+              makeRowSelectable() {},
               appendCells(row, values) {
                 values.forEach((value) => {
                   const cell = makeElement("td");
@@ -843,7 +866,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               window: {},
               console,
               Date,
+              clearRows() {},
+              appendCells() {},
+              makeRowSelectable() {},
               setText() {},
+              updateTableStatusLegend() {},
               byId() { return null; },
               mediaPipelineFormatters: { formatProgressValue(value) { return value == null ? "" : String(value); } },
             };
@@ -1207,7 +1234,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               process.cwd(),
               "apps/desktop/webview/static/assets/app/home.js"
             );
-            const source = fs.readFileSync(homePath, "utf8");
+            const source = [
+              "apps/desktop/webview/static/assets/app/home/dailyDriver.js",
+              "apps/desktop/webview/static/assets/app/home/queueProjection.js",
+              "apps/desktop/webview/static/assets/app/home.js",
+            ].map((name) => fs.readFileSync(path.join(process.cwd(), name), "utf8")).join("\n");
             function makeElement(tag) {
               const node = {
                 tagName: String(tag || "").toUpperCase(),
@@ -1248,7 +1279,9 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               console,
               document: { createElement: makeElement },
               byId(id) { return elements[id] || null; },
-              setText(id, value) { if (elements[id]) elements[id].textContent = value; },
+              appendCells() {},
+              clearRows() {},
+              makeRowSelectable() {},
               setText(id, value) { if (elements[id]) elements[id].textContent = value; },
               mediaPipelineFormatters: { formatProgressValue(value) { return value == null ? "" : String(value); } },
             };
@@ -1562,7 +1595,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertEqual((completed_route_targets - {"output_file"}) - completed_targets, set())
 
         pending_targets = row_open_targets("pending")
-        self.assertEqual(set(command_routes["/api/pending-publish/open"]["allowed_targets"]) - pending_targets, set())
+        self.assertIn("play_local_file", pending_targets)
+        self.assertNotIn("local_file", pending_targets)
+        pending_route_targets = set(command_routes["/api/pending-publish/open"]["allowed_targets"])
+        self.assertEqual((pending_route_targets - {"local_file"}) - pending_targets, set())
         self.assertEqual(set(command_routes["/api/pending-publish/recovery-plan"]["allowed_scopes"]), {"all", "selected"})
 
         control_actions = set(re.findall(r'data-control-action="([^"]+)"', html))
@@ -1657,7 +1693,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         desktop_root = find_repo_root(Path(__file__))
         static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
         html = _render_static_index_html(static_root)
-        app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
+        app_js = "\n".join(
+            (static_root / "assets" / name).read_text(encoding="utf-8")
+            for name in ("app.js", "app/refreshCoordinator.js")
+        )
         home_js = (static_root / "assets" / "app" / "home.js").read_text(encoding="utf-8")
         home_match = re.search(
             r'<section class="page is-visible" data-page-panel="home">(.*?)<section class="page" data-page-panel="live">',
@@ -1694,7 +1733,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("function renderHomeStorageHealth", home_js)
         self.assertIn("function setHomeFailureArtifactMetric", home_js)
         self.assertIn("homeFailureArtifactSummary(context)", home_js)
-        self.assertIn('["failure artifacts", refreshGet("/api/failures/artifacts", refreshOptions), false]', app_js)
+        self.assertIn('["failure artifacts", "/api/failures/artifacts", false]', app_js)
         self.assertIn('failureArtifacts: values["failure artifacts"] || {}', app_js)
         self.assertIn("homeActiveOutputPath", home_js)
         self.assertIn("renderHomeStorageHealth(dashboardContext)", app_js)
@@ -1709,9 +1748,18 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
         html = _render_static_index_html(static_root)
         launch_js = _read_launch_view_asset_bundle(static_root / "assets")
-        launch_scope_js = (static_root / "assets" / "launchView.scope.js").read_text(encoding="utf-8")
-        app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
-        app_lifecycle_js = (static_root / "assets" / "app" / "lifecycle.js").read_text(encoding="utf-8")
+        launch_scope_js = "\n".join(
+            (static_root / "assets" / name).read_text(encoding="utf-8")
+            for name in ("launch/scope/compactGate.js", "launchView.scope.js")
+        )
+        app_js = "\n".join(
+            (static_root / "assets" / name).read_text(encoding="utf-8")
+            for name in ("app.js", "app/refreshCoordinator.js")
+        )
+        app_lifecycle_js = "\n".join(
+            (static_root / "assets" / name).read_text(encoding="utf-8")
+            for name in ("app/lifecycle/navigation.js", "app/lifecycle.js")
+        )
         styles_css = _read_components_css(static_root / "assets")
         controls_css = (static_root / "assets" / "styles.controls.css").read_text(encoding="utf-8")
 
@@ -1726,8 +1774,9 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('document.querySelector(".launch-preflight-startup-alert")', app_js)
         self.assertIn("!refreshOptions.automatic || launchVisible || launchAlertVisible", app_js)
         self.assertIn("launchView.updateLaunchCommandButtonStates?.(", app_js)
-        self.assertIn('return ["pipeline", "rerun", "history"];', launch_js)
+        self.assertIn('return ["pipeline", "history"];', launch_js)
         self.assertIn('data-launch-tab="pipeline">Pipeline Processor</button>', html)
+        self.assertNotIn('data-launch-tab="rerun"', html)
         self.assertNotIn('data-launch-tab="audit">Audit</button>', html)
         self.assertNotIn('data-launch-tab-panel="audit"', html)
         self.assertIn('id="rerun-open-audit-tool-button"', html)
@@ -1781,7 +1830,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertNotIn("window.launchCompactGateRows =", launch_js)
         self.assertNotIn("window.renderLaunchCompactGate =", launch_js)
         self.assertNotIn("window.launchCompactGateOverallStatus =", launch_js)
-        self.assertIn("Submit ${label} for ${scope}? Backend will re-check queue, settings, schedule, and locks before starting.", launch_js)
+        self.assertIn("Submitting ${label} for ${scope}. Backend will re-check queue, settings, schedule, and locks before starting.", launch_js)
         self.assertIn("Resolve blocked Backend Preflight checks", launch_js)
         self.assertIn("Resolve blocked Launch Start Summary rows", launch_js)
         self.assertIn("Refresh Backend Preflight before using this control", launch_js)
@@ -1813,7 +1862,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             settings_js.index("async function reloadSettingsFromDisk()")
         ]
         self.assertIn("clearSettingsPatchCandidate();\n      resetSettingsBuilderSyncState();", save_block)
-        self.assertIn("if (result.ok) {\n      scheduleSettingsPostSaveRefresh();", save_block)
+        self.assertRegex(save_block, r"if \(result\.ok\) \{\s+scheduleSettingsPostSaveRefresh\(\);")
         self.assertLess(save_block.index("clearSettingsPatchCandidate();"), save_block.index("scheduleSettingsPostSaveRefresh();"))
         self.assertNotIn("await refreshAll();", save_block)
         self.assertNotIn('setText("settings-patch-status", "Saved")', settings_js)
@@ -1843,9 +1892,23 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             (static_root / "assets" / name).read_text(encoding="utf-8")
             for name in ("telemetry/gpuProjection.js", "telemetryView.js")
         )
-        progress_js = (static_root / "assets" / "progressView.js").read_text(encoding="utf-8")
+        progress_js = "\n".join(
+            (static_root / "assets" / name).read_text(encoding="utf-8")
+            for name in (
+                "progress/worker.js",
+                "progress/csvRerun.js",
+                "progress/ffmpegEta.js",
+                "progress/evidenceRows.js",
+                "progress/liveRun.js",
+                "progressView.js",
+            )
+        )
+        app_js += "\n" + (static_root / "assets" / "app" / "refreshCoordinator.js").read_text(encoding="utf-8")
         completed_review_js = _read_completed_review_asset_bundle(static_root / "assets")
-        completed_proof_js = (static_root / "assets" / "completedView.proof.js").read_text(encoding="utf-8")
+        completed_proof_js = "\n".join(
+            (static_root / "assets" / name).read_text(encoding="utf-8")
+            for name in ("completed/proof/pilotEvidence.js", "completedView.proof.js")
+        )
 
         self.assertIn("function applyDefaultActionTooltips", app_js)
         self.assertIn("function renderTelemetrySafely", app_js)
@@ -1879,7 +1942,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("renderHomeNextQueue({ ...liveRunContext, queue: lastQueue || {} })", app_js)
         self.assertIn("lastQueue = values.queue;", app_js)
         self.assertIn("renderHomePipelineState(\"csv_rerun_active\")", app_js)
-        home_js = (static_root / "assets" / "app" / "home.js").read_text(encoding="utf-8")
+        home_js = "\n".join(
+            (static_root / "assets" / name).read_text(encoding="utf-8")
+            for name in ("app/home/queueProjection.js", "app/home.js")
+        )
         self.assertIn("function renderHomeCsvRerunQueue", home_js)
         self.assertIn("function homeCsvRerunQueueContext", home_js)
         self.assertIn("csvRerunActivityEvidence", home_js)
@@ -1894,9 +1960,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("desktop_validation_state.v1", completed_review_js)
         self.assertIn("Validation state proof", completed_proof_js)
         self.assertIn("does not run ffprobe, hash files, or mark playback accepted", completed_review_js)
-        self.assertIn("renderDiagnosticsProgress?.(values.snapshot || lastSnapshot, values.diagnostics || null)", app_js)
+        self.assertIn("renderDiagnosticsProgress?.(values.snapshot || lastSnapshot, lastDiagnostics)", app_js)
         self.assertIn("progressWorkerPayload?.(snapshot, diagnostics)", app_js)
-        self.assertIn("CSV rerun stages files by copying to scratch first", html)
+        self.assertIn("Executable CSV rerun currently supports scratch-copy staging", launch_js)
+        self.assertIn("source files stay untouched unless source-path overwrite is explicitly confirmed", launch_js)
         self.assertIn("Custom negative terms are added to the backend rename planner", html)
 
     def test_webview_bootstrap_readiness_guards_are_static(self) -> None:
@@ -1950,7 +2017,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         desktop_root = find_repo_root(Path(__file__))
         assets_root = desktop_root / "apps" / "desktop" / "webview" / "static" / "assets"
 
-        for asset_name in ["completedView.evidence.js", "completedView.proof.js"]:
+        for asset_name in ["completed/evidence/routeAgreement.js", "completedView.proof.js"]:
             source = (assets_root / asset_name).read_text(encoding="utf-8")
             with self.subTest(asset=asset_name):
                 self.assertNotRegex(source, r"(?<!state\.)\bselectedCompletedRowKey\s=")
@@ -2106,8 +2173,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
         html = _render_static_index_html(static_root)
         assets_root = static_root / "assets"
-        settings_js = (assets_root / "settingsView.js").read_text(encoding="utf-8")
-        app_js = (assets_root / "app.js").read_text(encoding="utf-8")
+        settings_js = _read_settings_asset_bundle(assets_root)
+        app_js = "\n".join(
+            (assets_root / name).read_text(encoding="utf-8")
+            for name in ("app.js", "app/refreshCoordinator.js", "app/lifecycleOrchestration.js")
+        )
         settings_history_js = (assets_root / "settingsCommandHistory.js").read_text(encoding="utf-8")
 
         for key, input_id in [
@@ -2369,7 +2439,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         launch_view_risk_js = _read_launch_risk_asset_bundle(assets_root)
         launch_view_scope_js = (assets_root / "launchView.scope.js").read_text(encoding="utf-8")
         launch_view_preflight_js = (assets_root / "launchView.preflight.js").read_text(encoding="utf-8")
-        app_js = (assets_root / "app.js").read_text(encoding="utf-8")
+        app_js = "\n".join(
+            (assets_root / name).read_text(encoding="utf-8")
+            for name in ("app.js", "app/refreshCoordinator.js", "app/lifecycleOrchestration.js")
+        )
 
         for node_id in [
             "command-table-legend",
@@ -3136,7 +3209,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         diagnostics_bridge_js = (assets_root / "diagnosticsBridge.js").read_text(encoding="utf-8")
         command_history_js = _read_command_history_asset_bundle(assets_root)
         contract_view_js = (assets_root / "contractView.js").read_text(encoding="utf-8")
-        app_js = (assets_root / "app.js").read_text(encoding="utf-8")
+        app_js = "\n".join(
+            (assets_root / name).read_text(encoding="utf-8")
+            for name in ("app.js", "app/refreshCoordinator.js")
+        )
         diagnostics_html = (static_root / "partials" / "page-diagnostics.html").read_text(encoding="utf-8")
         styles_css = resolved_css_asset_bundle(assets_root)
 
@@ -3209,7 +3285,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         reports_failure_model_js = (assets_root / "reports" / "failureModel.js").read_text(encoding="utf-8")
         reports_failure_view_js = (assets_root / "reports" / "failureView.js").read_text(encoding="utf-8")
         command_history_js = _read_command_history_asset_bundle(assets_root)
-        diagnostics_view_js = (assets_root / "diagnosticsView.js").read_text(encoding="utf-8")
+        diagnostics_view_js = _read_diagnostics_asset_bundle(assets_root)
         diagnostics_view_investigation_js = (assets_root / "diagnosticsView.investigation.js").read_text(encoding="utf-8")
 
         for node_id in [

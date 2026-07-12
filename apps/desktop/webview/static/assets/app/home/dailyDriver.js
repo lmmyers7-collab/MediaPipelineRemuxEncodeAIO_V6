@@ -2,7 +2,10 @@
   function createHomeDailyDriverModule(deps = {}) {
     const {
       appendCells, byId, clearRows, commandHistoryView, externalDependencyOverallStatus,
-      externalDependencyEvidenceText, setHomePanelStatus, setText, settingsOperatorTrustStatus,    } = deps;
+      externalDependencyEvidenceText, getCommandHistory = () => [],
+      getLastRefreshCompletedAt = () => null, getLastRefreshDurationMs = () => null,
+      refreshTimeLabel = () => "not completed", setHomePanelStatus, setText, settingsOperatorTrustStatus,
+    } = deps;
   function dailyDriverCount(value) {
     const number = Number(value || 0);
     return Number.isFinite(number) ? Math.max(0, Math.round(number)) : 0;
@@ -72,7 +75,7 @@
   }
 
   function dailyDriverCommandIssues() {
-    const history = typeof getCommandHistory === "function" ? getCommandHistory() : [];
+    const history = getCommandHistory();
     if (!Array.isArray(history)) return [];
     return history.filter((entry) => {
       const level = typeof commandHistoryView.commandHistoryIssueLevel === "function" ? commandHistoryView.commandHistoryIssueLevel(entry) : (entry?.ok ? "ok" : (entry?.severity || "error"));
@@ -166,7 +169,7 @@
     rows.push(dailyDriverRow(
       "Refresh payloads",
       requiredFailures.length ? "blocked" : optionalFailures.length ? "review" : "ready",
-      `required failures=${requiredFailures.length}; supporting failures=${optionalFailures.length}; completed=${refreshTimeLabel(lastRefreshCompletedAt)}${Number.isFinite(lastRefreshDurationMs) ? `; duration=${lastRefreshDurationMs}ms` : ""}`,
+      `required failures=${requiredFailures.length}; supporting failures=${optionalFailures.length}; completed=${refreshTimeLabel(getLastRefreshCompletedAt())}${Number.isFinite(getLastRefreshDurationMs()) ? `; duration=${getLastRefreshDurationMs()}ms` : ""}`,
       requiredFailures.length
         ? "Open Diagnostics and resolve required backend reads before trusting the WebView."
         : optionalFailures.length
@@ -306,7 +309,7 @@
       "Daily-driver readiness checklist:",
       `Status: ${dailyDriverOverallStatus(rows)}`,
       `Rows: ${rows.length}; blocked=${counts.blocked || 0}; review=${counts.review || 0}; unknown=${counts.unknown || 0}; ready=${counts.ready || 0}.`,
-      `Refresh evidence: completed ${refreshTimeLabel(lastRefreshCompletedAt)}${Number.isFinite(lastRefreshDurationMs) ? ` in ${lastRefreshDurationMs} ms` : ""}.`,
+      `Refresh evidence: completed ${refreshTimeLabel(getLastRefreshCompletedAt())}${Number.isFinite(getLastRefreshDurationMs()) ? ` in ${getLastRefreshDurationMs()} ms` : ""}.`,
       "Real-media boundary: WebView readiness is not proof by itself. Daily-driver confidence still requires a known sample run whose Queue, Completed, Diagnostics, and Pending Publish evidence agree.",
     ];
     lines.push("", `Next operator action: ${firstAction ? `${firstAction.area}: ${firstAction.nextStep}` : "No checklist blocker is visible; refresh once before long unattended operation."}`);

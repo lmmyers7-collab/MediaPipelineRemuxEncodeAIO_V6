@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 1525a897d95f0df168024e68312c360ffc8c3c9ee62a4db757a0653d266ed30f
+sha256: 782b39be4afe433fda247cb1d9f0f19e2852d2314b1ed7e744e645b0c484f005
 ---
 # `apps/desktop/webview/static/assets/app/lifecycle/topbar.js`
 

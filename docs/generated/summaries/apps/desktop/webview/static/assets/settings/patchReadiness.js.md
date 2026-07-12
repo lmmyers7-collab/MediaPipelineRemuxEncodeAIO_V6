@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 6ce23773cfb0944b56491b98db16ee22419ab95d12567b1c6a74747f0c5e1d5f
+sha256: 9a102fb21700dd1f4d0fa7f580816088e9c14d87d87cf4821a48ebae695457ed
 ---
 # `apps/desktop/webview/static/assets/settings/patchReadiness.js`
 

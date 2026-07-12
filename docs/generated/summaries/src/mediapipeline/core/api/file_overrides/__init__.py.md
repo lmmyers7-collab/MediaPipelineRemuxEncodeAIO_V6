@@ -3,9 +3,9 @@ file: src/mediapipeline/core/api/file_overrides/__init__.py
 pipeline_stage: api
 token_priority: low
 owner_domain: api
-last_modified: 2026-06-03
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 5db35c6ea23223016bff4c8f80c24794397cbe7c1c60cb771a0cacf1e33568bd
+sha256: 3b76cf81827decf63846484991659382d8f7bad84ff6950b2bb1132d5ee03b1e
 ---
 # `src/mediapipeline/core/api/file_overrides/__init__.py`
 

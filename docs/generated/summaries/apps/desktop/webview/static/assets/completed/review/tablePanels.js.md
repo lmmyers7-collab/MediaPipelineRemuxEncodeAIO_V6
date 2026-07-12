@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 8d98068c0b5033828e0a533a78e956b009d1e6456b74988c75a1120e9075215c
+sha256: a1128dec1b0a505f1ceb6e9cd47126d38dda6bb9e6be805412dd436fc7e237f4
 ---
 # `apps/desktop/webview/static/assets/completed/review/tablePanels.js`
 

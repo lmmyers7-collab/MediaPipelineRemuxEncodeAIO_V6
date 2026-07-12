@@ -1,4 +1,3 @@
-/* global apiPost, byId, confirm, setText */
 (function () {
   function createMaintenanceReleaseCommands(deps) {
     const {

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from contextlib import redirect_stdout
-from datetime import datetime, timedelta, timezone, UTC
 import io
 import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from mediapipeline.tools.paths import find_repo_root
 import sys
@@ -135,29 +135,29 @@ class AutonomySoakTickToolTests(unittest.TestCase):
             root = Path(raw_root)
             payload = _paths_payload(root)
             _prepare_clean_state(payload)
-            Path(str(payload["log_file"])).unlink()
-            active_jobs = Path(str(payload["active_jobs_path"]))
-            active_jobs.mkdir(parents=True, exist_ok=True)
-            stale = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
-            (active_jobs / "pipeline.json").write_text(
-                json.dumps(
+            blocked_path_health = {
+                "operator_status": "blocked",
+                "operator_summary": "Configured output root is unavailable.",
+                "rows": [
                     {
-                        "schema_version": "active_job.v1",
-                        "job_kind": "pipeline",
-                        "status": "active",
-                        "pid": 43210,
-                        "launched_at": stale,
-                        "last_update": stale,
+                        "operator_status": "blocked",
+                        "path": str(root / "UnavailableOutput"),
+                        "message": "Configured output root did not respond.",
+                        "safe_next_action": "Restore the configured output root before launch.",
                     }
-                ),
-                encoding="utf-8",
-            )
+                ],
+            }
 
-            result = autonomy_soak_tick.run_tick_from_payload(payload, record_snapshot=False)
+            with patch.object(autonomy_soak_tick, "configured_path_health", return_value=blocked_path_health):
+                result = autonomy_soak_tick.run_tick_from_payload(payload, record_snapshot=False)
 
         self.assertFalse(result["ok"])
         self.assertEqual(result["exit_code"], autonomy_soak_tick.AUTONOMY_SOAK_BLOCKED_EXIT_CODE)
         self.assertEqual(result["health"]["overall_status"], "blocked")
+        self.assertIn(
+            "autonomy_configured_path_blocked",
+            {item["code"] for item in result["health"]["blockers"]},
+        )
         self.assertFalse(result["would_kill_active_work"])
 
     def test_main_records_snapshot_and_prints_json(self) -> None:

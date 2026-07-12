@@ -116,6 +116,7 @@ def _browser_sample_validation_runner_source() -> str:
             await waitFor(() => typeof window.showPage === "function", "showPage global");
             [
               "showPage",
+              "refreshAllNow",
               "renderCrossPageContext",
               "renderSampleValidationRecordPanel",
               "renderSampleValidationGapSummary",
@@ -148,7 +149,12 @@ def _browser_sample_validation_runner_source() -> str:
               }
             });
 
+            await waitFor(
+              () => window.performance?.getEntriesByName?.("mediapipeline-startup-critical-ready")?.length > 0,
+              "startup critical refresh",
+            );
             window.showPage("home");
+            await window.refreshAllNow({ page: "home" });
             await waitFor(
               () => text("sample-validation-summary").includes("Real-media pilot plan:")
                 && text("sample-validation-summary").includes("Read-only real-media pilot plan")

@@ -49,6 +49,7 @@ def _browser_maintenance_reports_runner_source() -> str:
             const gets = [];
             const originalApiGet = window.apiGet;
             const originalApiPost = window.apiPost;
+            const originalNamespacedApiPost = window.mediaPipelineApi.apiPost;
             const auditSourcesState = {
               schema_version: "desktop_audit_sources.v1",
               roots: [],
@@ -488,6 +489,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               }
               return { ok: false, message: "maintenance/reports smoke blocks mutation posts" };
             };
+            window.mediaPipelineApi.apiPost = window.apiPost;
             function byId(id) { return document.getElementById(id); }
             function text(id) { const node = byId(id); return node ? node.textContent || "" : ""; }
             function visiblePage(page) {
@@ -2203,8 +2205,15 @@ def _browser_maintenance_reports_runner_source() -> str:
               throw new Error("Reports audit score policy save did not include medium issue_code_weights.");
             }
             await waitFor(() => !byId("report-audit-export-rerun-csv-button").disabled, "audit command buttons re-enabled after score policy save");
+            window.mediaPipelineReportsView.markReportsComponentFresh("failures", { generated_at: "2026-07-09T12:02:00Z" });
             window.mediaPipelineReportsView.renderFailurePreview(reportFailurePreview);
+            if (text("failure-review-status") !== "Action needed") {
+              throw new Error("Reports failure review status did not recover with fresh preview: " + text("failure-review-status"));
+            }
             window.mediaPipelineReportsView.renderAuditPreview(reportAuditPreview);
+            if (text("audit-review-status") !== "Rerun review") {
+              throw new Error("Reports audit review status did not reflect fresh rerun evidence: " + text("audit-review-status"));
+            }
             window.mediaPipelineReportsView.renderAuditControls(reportAuditControls);
             const auditSelectAllButton = document.querySelector('[data-audit-selection-action="select-visible"]');
             if (auditSelectAllButton.disabled) {
@@ -2336,6 +2345,7 @@ def _browser_maintenance_reports_runner_source() -> str:
             if (forbiddenPosts.length) throw new Error("maintenance/reports smoke posted mutation routes: " + JSON.stringify(forbiddenPosts));
             window.apiGet = originalApiGet;
             window.apiPost = originalApiPost;
+            window.mediaPipelineApi.apiPost = originalNamespacedApiPost;
             return {
               ok: true,
               posts,
@@ -2589,8 +2599,10 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
         self.assertEqual(score_policy_post["body"]["policy"]["issue_code_weights"]["bdpgs-subtitles-ocr-candidate"], 40)
         self.assertIn(browser_result["maintenanceStatus"], {"Ready", "Warnings", "Blocked"})
         self.assertEqual(browser_result["reportStatus"], "Action needed")
-        self.assertEqual(browser_result["failureStatus"], "Action needed")
-        self.assertEqual(browser_result["auditStatus"], "Rerun review")
+        self.assertTrue(browser_result["failureStatus"].startswith("Unavailable"))
+        self.assertIn("historical only", browser_result["failureStatus"])
+        self.assertTrue(browser_result["auditStatus"].startswith("Unavailable"))
+        self.assertIn("historical only", browser_result["auditStatus"])
 
 
 if __name__ == "__main__":

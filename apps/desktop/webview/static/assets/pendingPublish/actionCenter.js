@@ -171,7 +171,14 @@ function pendingListText(value) {
       else if (status || item?.error) acc.failed += 1;
       return acc;
     }, { drained: 0, failed: 0, skipped: 0 });
-function renderPendingRows() {
+    return {
+      drained: counts.drained || itemCounts.drained,
+      failed: counts.failed || itemCounts.failed,
+      skipped: counts.skipped || itemCounts.skipped,
+    };
+  }
+
+  function renderPendingRows() {
     const filterText = byId("pending-filter")?.value || "";
     const statusFilter = byId("pending-status-filter")?.value || "all";
     const investigationFilter = byId("pending-investigation-filter")?.value || "all";
@@ -269,13 +276,6 @@ function renderPendingRows() {
     if (investigation) investigation.value = "all";
     renderPendingRows();
     setText("pending-open-status", "Pending Publish display filters cleared. Backend drain scope, recovery plans, manifests, and payloads are unchanged.");
-  }
-
-    return {
-      drained: counts.drained || itemCounts.drained,
-      failed: counts.failed || itemCounts.failed,
-      skipped: counts.skipped || itemCounts.skipped,
-    };
   }
 
   function pendingActionCenterTriage(rows, payload = getLastPendingPayload()) {
@@ -609,6 +609,14 @@ function renderPendingRows() {
     if (refreshButton) refreshButton.addEventListener("click", triggerPendingActionRefresh);
     const blockersButton = byId("pending-action-blockers-button");
     if (blockersButton) blockersButton.addEventListener("click", () => applyPendingActionFilter("blocked"));
+    const textFilter = byId("pending-filter");
+    if (textFilter) textFilter.addEventListener("input", renderPendingRows);
+    const statusFilter = byId("pending-status-filter");
+    if (statusFilter) statusFilter.addEventListener("change", renderPendingRows);
+    const investigationFilter = byId("pending-investigation-filter");
+    if (investigationFilter) investigationFilter.addEventListener("change", renderPendingRows);
+    const clearFiltersButton = byId("pending-clear-filters-button");
+    if (clearFiltersButton) clearFiltersButton.addEventListener("click", resetPendingFilters);
     eventsInitialized = true;
   }
     return {
@@ -637,6 +645,8 @@ function renderPendingRows() {
       activateQuickLink,
       triggerPendingActionRefresh,
       initPendingActionCenterEvents,
+      renderPendingRows,
+      resetPendingFilters,
     };
   }
 

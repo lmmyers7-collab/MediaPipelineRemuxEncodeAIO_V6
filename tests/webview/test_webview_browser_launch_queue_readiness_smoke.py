@@ -128,8 +128,8 @@ def _browser_launch_queue_readiness_runner_source() -> str:
           return `
           (async () => {
             const posts = [];
-            const originalApiPost = window.apiPost;
-            window.apiPost = async (path, body, options) => {
+            const originalApiPost = window.mediaPipelineApi.apiPost;
+            window.mediaPipelineApi.apiPost = async (path, body, options) => {
               posts.push({ path: String(path || ""), body: body || {}, options: options || {} });
               return { ok: false, message: "launch/queue readiness smoke blocks POST routes" };
             };
@@ -246,6 +246,25 @@ def _browser_launch_queue_readiness_runner_source() -> str:
                 "posts=" + JSON.stringify(posts),
               ].join("\\n\\n"));
             }
+            function launchQueueScheduleReadinessReady() {
+              return text("close-readiness").includes("Close:")
+                && text("launch-readiness").includes("Backend snapshot: ok")
+                && text("launch-timing").includes("Launch timing trust:")
+                && text("launch-scope-reconciliation-summary").includes("Launch scope reconciliation:")
+                && text("launch-start-decision-summary").includes("Launch start decision summary:")
+                && text("launch-real-media-proof-summary").includes("Launch real-media sample proof handoff:")
+                && text("launch-real-media-proof-summary").includes("matches=1")
+                && text("launch-real-media-proof-summary").includes("historical accepted category records=1")
+                && text("launch-sample-execution-summary").includes("Launch sample execution checklist:")
+                && text("launch-pilot-readiness-summary").includes("Launch pilot run readiness:")
+                && text("launch-backend-preflight-summary").includes("backend preflight")
+                && !text("launch-backend-preflight-status").includes("Loading")
+                && text("queue-decision-summary").includes("Queue decision header:")
+                && text("queue-attention-summary").includes("Attention required:")
+                && text("queue-launch-decision-summary").includes("Queue-to-Launch handoff:")
+                && text("launch-command-review-summary").includes("Launch command review:")
+                && text("schedule-guidance").includes("Backend launch gating remains the source of truth.");
+            }
             [
               "showPage",
               "renderAllLaunchPreflights",
@@ -314,6 +333,9 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             setInput("pipeline-start-single-file", "E:\\\\Videos\\\\Scratch\\\\Encoded\\\\TV\\\\Sample Pilot.mkv");
             setInput("pipeline-start-schedule-override", "");
             window.mediaPipelineLaunchView.renderAllLaunchPreflights();
+            await waitFor(launchQueueScheduleReadinessReady, "initial Launch/Queue/Schedule readiness baseline");
+            const originalRefreshAll = window.refreshAll;
+            window.refreshAll = async () => {};
             const compactGateStrip = byId("pipeline-compact-gate-strip");
             const startButton = byId("pipeline-start-button");
             if (!compactGateStrip || !startButton || (compactGateStrip.compareDocumentPosition(startButton) & Node.DOCUMENT_POSITION_PRECEDING)) {
@@ -356,26 +378,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             if (!text("pipeline-launch-preflight").includes("Single-file launch: WebView submits the path only")) {
               throw new Error("Launch preflight did not describe single-file backend boundary:\\n" + text("pipeline-launch-preflight"));
             }
-            await waitFor(
-              () => text("close-readiness").includes("Close:")
-                && text("launch-readiness").includes("Backend snapshot: ok")
-                && text("launch-timing").includes("Launch timing trust:")
-                && text("launch-scope-reconciliation-summary").includes("Launch scope reconciliation:")
-                && text("launch-start-decision-summary").includes("Launch start decision summary:")
-                && text("launch-real-media-proof-summary").includes("Launch real-media sample proof handoff:")
-                && text("launch-real-media-proof-summary").includes("matches=1")
-                && text("launch-real-media-proof-summary").includes("historical accepted category records=1")
-                && text("launch-sample-execution-summary").includes("Launch sample execution checklist:")
-                && text("launch-pilot-readiness-summary").includes("Launch pilot run readiness:")
-                && text("launch-backend-preflight-summary").includes("backend preflight")
-                && !text("launch-backend-preflight-status").includes("Loading")
-                && text("queue-decision-summary").includes("Queue decision header:")
-                && text("queue-attention-summary").includes("Attention required:")
-                && text("queue-launch-decision-summary").includes("Queue-to-Launch handoff:")
-                && text("launch-command-review-summary").includes("Launch command review:")
-                && text("schedule-guidance").includes("Backend launch gating remains the source of truth."),
-              "Launch/Queue/Schedule readiness panels",
-            );
+            await waitFor(launchQueueScheduleReadinessReady, "Launch/Queue/Schedule readiness panels");
 
             requireText("close-readiness", ["Close:"]);
             requireText("launch-readiness", [
@@ -626,6 +629,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "Unsafe if ignored:",
               "Launch boundary: this row does not start processing",
             ]);
+            const sampleExecutionDetail = text("launch-sample-execution-detail");
             requireText("launch-pilot-readiness-summary", [
               "Launch pilot run readiness:",
               "selected Queue sample, saved Settings policy, backend preflight, pilot category, pending-publish posture, and post-run proof plan",
@@ -1159,6 +1163,9 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "Queue-to-Launch handoff:",
               "Guardrail: only backend Launch routes can start processing",
             ]);
+            // The Scan Sources control intentionally refreshes Queue after the
+            // backend command returns; restore the real refresh path for it.
+            window.refreshAll = originalRefreshAll;
             const queueRefreshButton = document.querySelector("[data-queue-refresh-button]");
             if (!queueRefreshButton) throw new Error("missing Scan Sources button");
             const queueRowsBeforeScan = tableText("queue-rows");
@@ -1168,8 +1175,8 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             queueRefreshButton.click();
             const topbarPrimaryNode = document.querySelector("#activity .activity-primary");
             const topbarPrimary = topbarPrimaryNode && topbarPrimaryNode.textContent ? topbarPrimaryNode.textContent.trim() : "";
-            if (topbarPrimary !== "Scanning") {
-              throw new Error("Scan Sources did not update topbar activity immediately; got " + topbarPrimary);
+            if (topbarPrimary !== "Queue source scan") {
+              throw new Error("Scan Sources did not expose its current stage in the topbar immediately; got " + topbarPrimary);
             }
             if (!text("queue-source-inventory").includes("Queue source scan requested.")) {
               throw new Error("Scan Sources did not update source inventory status immediately:\\n" + text("queue-source-inventory"));
@@ -1250,7 +1257,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               throw new Error("Scan Sources posted unexpected scan payload: " + JSON.stringify(scanPosts[0]));
             }
             if (unexpectedPosts.length) throw new Error("Launch/Queue readiness render posted unexpected routes: " + JSON.stringify(unexpectedPosts));
-            window.apiPost = originalApiPost;
+            window.mediaPipelineApi.apiPost = originalApiPost;
             return {
               ok: true,
               posts,
@@ -1268,7 +1275,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               worksheetProofDetail,
               recordProofDetail,
               sampleExecution: text("launch-sample-execution-summary"),
-              sampleExecutionDetail: text("launch-sample-execution-detail"),
+              sampleExecutionDetail,
               pilotReadiness: text("launch-pilot-readiness-summary"),
               pilotReadinessDetail: pilotCategoryDetail,
               pilotPolicyDetail,
@@ -1395,8 +1402,8 @@ def _browser_pipeline_start_click_runner_source() -> str:
           return `
           (async () => {
             const posts = [];
-            const originalApiPost = window.apiPost;
-            window.apiPost = async (path, body, options) => {
+            const originalApiPost = window.mediaPipelineApi.apiPost;
+            window.mediaPipelineApi.apiPost = async (path, body, options) => {
               const result = await originalApiPost(path, body, options);
               posts.push({
                 path: String(path || ""),
@@ -1477,7 +1484,7 @@ def _browser_pipeline_start_click_runner_source() -> str:
                 disabledReason: text("pipeline-start-disabled-reason"),
               };
             } finally {
-              window.apiPost = originalApiPost;
+              window.mediaPipelineApi.apiPost = originalApiPost;
             }
           })()
           `;
@@ -1506,7 +1513,7 @@ def _browser_pipeline_start_click_runner_source() -> str:
             await client.send("Runtime.enable");
             await client.send("Log.enable");
             await client.send("Page.enable");
-            const readyExpression = `Boolean(document.getElementById("pipeline-start-button") && typeof window.apiPost === "function" && typeof window.showPage === "function" && typeof window.mediaPipelineLaunchView?.activateLaunchTab === "function" && typeof window.mediaPipelineLaunchView?.refreshLaunchBackendPreflight === "function" && typeof window.mediaPipelineLaunchView?.updateLaunchCommandButtonStates === "function")`;
+            const readyExpression = `Boolean(document.getElementById("pipeline-start-button")?.dataset.pipelineStartBound === "true" && typeof window.mediaPipelineApi?.apiPost === "function" && typeof window.showPage === "function" && typeof window.mediaPipelineLaunchView?.activateLaunchTab === "function" && typeof window.mediaPipelineLaunchView?.refreshLaunchBackendPreflight === "function" && typeof window.mediaPipelineLaunchView?.updateLaunchCommandButtonStates === "function")`;
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {

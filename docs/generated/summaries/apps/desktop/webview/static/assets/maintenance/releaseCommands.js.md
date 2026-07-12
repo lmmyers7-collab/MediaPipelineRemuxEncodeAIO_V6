@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 75ebcc7a4348990dfc5b11abdfb72cd7ddb365dc3d57d427a61e667ce08df897
+sha256: 819744b9b3a00a27a4851611aaa67818d24f74c11ec91b2c512e594420c3c09d
 ---
 # `apps/desktop/webview/static/assets/maintenance/releaseCommands.js`
 

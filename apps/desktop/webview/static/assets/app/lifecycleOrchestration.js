@@ -105,7 +105,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Standalone Rename workbench wiring: 3-step workflow, confirm + result dialogs,
   // mode-based field visibility, drop zone, modern folder picker via folder_files mode.
   renameView.renameInitWorkbenchEvents?.();
-  initSettingsViewEvents();
+  window.mediaPipelineSettingsView.initSettingsViewEvents();
   window.mediaPipelineSettingsLibraries?.initSettingsLibrariesEvents?.({ refreshAll });
   window.mediaPipelinePresetLibraryView?.initPresetLibraryEvents?.();
   window.mediaPipelineLibraryRouteMap?.initLibraryRouteMapEvents?.({ refreshAll });
@@ -129,7 +129,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.mediaPipelineRecoverySupportView?.initRecoverySupportEvents?.();
   if (typeof initSampleValidationViewEvents === "function") initSampleValidationViewEvents();
   const pipelineStartButton = byId("pipeline-start-button");
-  if (pipelineStartButton) pipelineStartButton.addEventListener("click", () => launchView.startPipelineFromForm?.());
+  if (pipelineStartButton) {
+    pipelineStartButton.addEventListener("click", () => launchView.startPipelineFromForm?.());
+    pipelineStartButton.dataset.pipelineStartBound = "true";
+  }
   const pendingDrainButton = byId("pending-drain-button");
   if (pendingDrainButton) pendingDrainButton.addEventListener("click", () => window.mediaPipelineLaunchView?.startPendingPublishDrain?.());
   const pendingRecoveryPlanSelectedButton = byId("pending-recovery-plan-selected-button");

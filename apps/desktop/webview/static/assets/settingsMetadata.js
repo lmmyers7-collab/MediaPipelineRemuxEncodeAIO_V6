@@ -86,6 +86,7 @@
     ["CpuEncodePreset", "settings-video-cpu-preset", "select"],
     ["CpuEncodeProcessPriority", "settings-video-cpu-priority", "select"],
     ["CpuEncodeMaxThreads", "settings-video-cpu-threads", "number"],
+    ["CpuEncodeMutexWaitSeconds", "settings-video-cpu-mutex-wait", "number"],
     ["ExtraVideoFlags", "settings-video-extra-flags", "list"],
   ];
 
@@ -353,6 +354,7 @@
         "CpuEncodePreset",
         "CpuEncodeProcessPriority",
         "CpuEncodeMaxThreads",
+        "CpuEncodeMutexWaitSeconds",
         "RemuxSafeVideoCodecs",
         "FFmpegEncodeTimeoutSeconds",
         "FFmpegRemuxTimeoutSeconds",
@@ -479,6 +481,7 @@
     CpuEncodePreset: "Slower CPU presets can run for many hours on large movies.",
     CpuEncodeProcessPriority: "Higher CPU priority can make the desktop less responsive during fallback encodes.",
     CpuEncodeMaxThreads: "Zero lets libx265 use all logical cores; a cap can keep the workstation responsive.",
+    CpuEncodeMutexWaitSeconds: "Maximum wait for the shared CPU-encode slot before the backend records a blocked attempt.",
     EnableQualityVerification: "Runs objective comparison only after lossy encodes; keep disabled until thresholds are validated on representative media.",
     QualityMetric: "Metric units differ: VMAF uses 0-100, SSIM uses 0-1, and PSNR uses dB.",
     QualitySampleMode: "Full-file verification can be expensive on long media; sampled mode is safer for routine unattended runs.",
@@ -676,6 +679,7 @@
     "CpuEncodePreset",
     "CpuEncodeProcessPriority",
     "CpuEncodeMaxThreads",
+    "CpuEncodeMutexWaitSeconds",
     "SubtitleExtractTimeoutSeconds",
     "SubtitleProbeTimeoutSeconds",
     "BdpgsOcrToolPath",

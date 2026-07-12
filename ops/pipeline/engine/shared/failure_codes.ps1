@@ -104,6 +104,8 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'FILE_OVERRIDE_INVALID',
         'FILE_ZERO_BYTES',
         'HDR_DETECTION_UNKNOWN',
+        'HDR10_OUTPUT_METADATA_MISMATCH',
+        'HDR10_OUTPUT_PROBE_FAILED',
         'HDR10PLUS_EXTRACT_FAILED',
         'INTEGRITY_DISABLED',
         'MEDIA_DURATION_MISSING',
@@ -123,12 +125,16 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'OPERATOR_REQUIRED',
         'OUTPUT_DESTINATION_LOW_SPACE',
         'OUTPUT_DESTINATION_SPACE_UNKNOWN',
+        'OUTPUT_HASH_INVALID',
+        'OUTPUT_MEDIA_TRACK_PROBE_FAILED',
+        'OUTPUT_MEDIA_TRACK_PROBE_INVALID',
         'OUTPUT_PATH_UNSUPPORTED',
         'OUTPUT_ROOT_MISSING',
         'OUTPUT_SIZE_INVALID',
         'OUTPUT_SIZE_MISSING',
         'OUTPUT_VIDEO_STREAM_COUNT_MISMATCH',
         'OUTPUT_VIDEO_STREAM_PROBE_FAILED',
+        'OUTPUT_VIDEO_STREAM_TOPOLOGY_MISMATCH',
         'PENDING_PARK_FAILED',
         'PERMANENT_FAILURE',
         'PROGRESS_PERSISTENCE_FAILED',
@@ -160,6 +166,7 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'SOURCE_MEDIA_PROBE_TIMEOUT',
         'SOURCE_MEDIA_UNREADABLE',
         'SOURCE_MEDIA_VIDEO_MISSING',
+        'SOURCE_OVERWRITE_CONFIRM_INVALID',
         'SOURCE_STILL_WRITING',
         'SOURCE_TV_PARSE_FAILED',
         'SOURCE_VIDEO_STREAM_MISSING',
@@ -228,10 +235,11 @@ function Get-MediaPipelineOutcomeCodeFamily {
     $codeText = if ($Code) { ([string]$Code).Trim().ToUpperInvariant() } else { '' }
     if ($codeText -match '^OK$|^ALREADY_PROCESSED$|^INTEGRITY_DISABLED$') { return 'non_failure_outcome' }
     if ($codeText -match '^ENCODE_CPU_') { return 'encode_cpu' }
-    if ($codeText -match '^ENCODE_|^ENCODER_|^HDR_|^DYNAMIC_HDR_|^DOVI_|^HDR10PLUS_') { return 'encode' }
+    if ($codeText -match '^ENCODE_|^ENCODER_|^HDR_|^HDR10_|^DYNAMIC_HDR_|^DOVI_|^HDR10PLUS_') { return 'encode' }
     if ($codeText -match '^REMUX_|^MKVMERGE_') { return 'remux' }
     if ($codeText -match '^SUBTITLE_') { return 'subtitle' }
     if ($codeText -match '^AUDIO_|^SOURCE_MEDIA_AUDIO_') { return 'audio' }
+    if ($codeText -eq 'SOURCE_OVERWRITE_CONFIRM_INVALID') { return 'publish' }
     if ($codeText -match '^SOURCE_|^MEDIA_|^FILE_|^SCRATCH_') { return 'source_media' }
     if ($codeText -match '^OUTPUT_|^PUBLISH_|^PENDING_|^SIDECAR_') { return 'publish' }
     if ($codeText -match '^PROGRESS_|^STOP_|^NATIVE_') { return 'process_lifecycle' }
@@ -264,9 +272,10 @@ function Get-MediaPipelineCodeStage {
         '^SUBTITLE_ASS_'   { return 'subtitle-ass' }
         '^SUBTITLE_'       { return 'subtitle' }
         '^ENCODE_CPU_'     { return 'encode-cpu' }
-        '^ENCODE_|^ENCODER_|^HDR_|^DYNAMIC_HDR_|^DOVI_|^HDR10PLUS_' { return 'encode' }
+        '^ENCODE_|^ENCODER_|^HDR_|^HDR10_|^DYNAMIC_HDR_|^DOVI_|^HDR10PLUS_' { return 'encode' }
         '^REMUX_|^MKVMERGE_' { return 'remux' }
         '^SOURCE_MEDIA_AUDIO_|^AUDIO_' { return 'audio' }
+        '^SOURCE_OVERWRITE_CONFIRM_INVALID$' { return 'publish' }
         '^SOURCE_|^MEDIA_|^FILE_|^SCRATCH_' { return 'source-intake' }
         '^OUTPUT_|^PUBLISH_|^PENDING_|^SIDECAR_' { return 'publish' }
         '^PROGRESS_|^STOP_|^NATIVE_' { return 'process-lifecycle' }
@@ -292,10 +301,10 @@ function Get-MediaPipelineCodeHandledBy {
         '^SUBTITLE_ASS_'   { return 'Subtitles.Ass.ps1' }
         '^SUBTITLE_'       { return 'Subtitles.ps1' }
         '^SOURCE_MEDIA_AUDIO_|^AUDIO_' { return 'Audio.ps1' }
-        '^OUTPUT_|^PUBLISH_|^PENDING_|^SIDECAR_' { return 'PublishCompletion.ps1 / PendingPush.ps1' }
+        '^SOURCE_OVERWRITE_CONFIRM_INVALID$|^OUTPUT_|^PUBLISH_|^PENDING_|^SIDECAR_' { return 'PublishCompletion.ps1 / PendingPush.ps1' }
         '^SOURCE_|^MEDIA_|^FILE_|^SCRATCH_' { return 'MediaProbe.ps1 / ScratchCopy.ps1 / FailureState.ps1' }
         '^REMUX_|^MKVMERGE_' { return 'PipelineProcessing.ps1 / Native.ps1' }
-        '^ENCODE_|^ENCODER_|^HDR_|^DYNAMIC_HDR_|^DOVI_|^HDR10PLUS_' { return 'PipelineProcessing.ps1 / DynamicHdr.ps1 / FfmpegProgress.ps1' }
+        '^ENCODE_|^ENCODER_|^HDR_|^HDR10_|^DYNAMIC_HDR_|^DOVI_|^HDR10PLUS_' { return 'PipelineProcessing.ps1 / DynamicHdr.ps1 / FfmpegProgress.ps1' }
         '^PROGRESS_|^STOP_|^NATIVE_' { return 'PipelineProcessing.ps1 / Native.ps1' }
         '^OK$|^ALREADY_PROCESSED$|^INTEGRITY_DISABLED$' { return 'PipelineProcessing.ps1' }
         default {
@@ -313,6 +322,9 @@ function Get-MediaPipelineCodeRetryable {
 
     $codeText = if ($Code) { ([string]$Code).Trim().ToUpperInvariant() } else { '' }
     if ($codeText -match '^OK$|^ALREADY_PROCESSED$|^BAD_EXTENSION$|^OPERATOR_REQUIRED$|^PERMANENT_FAILURE$|^TV_PARSE_UNRELIABLE$|^SOURCE_TV_PARSE_FAILED$|^OUTPUT_PATH_UNSUPPORTED$|^FILE_PATH_EMPTY$|^FILE_ZERO_BYTES$|^SOURCE_FILE_PATH_EMPTY$|^SOURCE_FILE_ZERO_BYTES$|QUALITY_BELOW_FLOOR') {
+        return $false
+    }
+    if ($codeText -match '^HDR10_OUTPUT_METADATA_MISMATCH$|^OUTPUT_HASH_INVALID$|^OUTPUT_MEDIA_TRACK_PROBE_INVALID$|^OUTPUT_VIDEO_STREAM_TOPOLOGY_MISMATCH$|^SOURCE_OVERWRITE_CONFIRM_INVALID$') {
         return $false
     }
     if ($codeText -match 'TRUNCATED|CONTAINER_INVALID|DECODE_FAILED|STREAM_UNSUPPORTED|AUDIO_MISSING|VIDEO_MISSING|AUDIO_OVERRIDE_STRIPPED|INTEGRITY_FAILED|ACCESS_DENIED') {
@@ -358,6 +370,9 @@ function Get-MediaPipelineCodeWhenFires {
         'AUDIO_MISSING|AUDIO_INVALID|AUDIO_OVERRIDE_STRIPPED' { return 'Audio policy could not produce an acceptable output audio stream.' }
         'VIDEO_MISSING' { return 'Source probing found no usable video stream for a source being processed by the video media pipeline.' }
         'SUBTITLE' { return 'Subtitle probing, extraction, conversion, OCR, validation, or sidecar publish failed.' }
+        '^HDR10_OUTPUT_' { return 'Post-encode HDR10 output probing or metadata verification rejected the generated output.' }
+        '^OUTPUT_MEDIA_TRACK_|^OUTPUT_VIDEO_STREAM_' { return 'Output stream probing or topology verification rejected the generated output.' }
+        '^OUTPUT_HASH_INVALID$|^SOURCE_OVERWRITE_CONFIRM_INVALID$' { return 'Pending-publish manifest trust validation rejected malformed output-integrity or overwrite-confirmation evidence.' }
         'PUBLISH|PENDING|SIDECAR' { return 'Publishing, deferred publish parking, drain, manifest, or sidecar work failed.' }
         'TRUNCATED|CONTAINER_INVALID|DECODE_FAILED|STREAM_UNSUPPORTED|PROBE_FAILED|PROBE_TIMEOUT' { return 'The source media could not be probed, decoded, or validated as healthy media.' }
         'DURATION_MISMATCH|OUTPUT_MISSING|SIZE_GUARD|QUALITY_BELOW_FLOOR|QUALITY_REVIEW' { return 'Post-processing verification rejected the generated output.' }
@@ -400,6 +415,12 @@ function Get-MediaPipelineCodeOperatorAction {
         }
         'VIDEO_MISSING' {
             return 'Inspect or replace the source media; do not clear the failure marker until source health is understood.'
+        }
+        '^HDR10_OUTPUT_|^OUTPUT_MEDIA_TRACK_|^OUTPUT_VIDEO_STREAM_' {
+            return 'Do not publish the output. Inspect output ffprobe and verification evidence, then regenerate or repair the output before retrying publish.'
+        }
+        '^OUTPUT_HASH_INVALID$|^SOURCE_OVERWRITE_CONFIRM_INVALID$' {
+            return 'Do not drain the pending item. Inspect and correct the manifest trust fields through the owning backend workflow before retrying.'
         }
         'TRUNCATED|CONTAINER_INVALID|DECODE_FAILED|STREAM_UNSUPPORTED|PROBE_FAILED|PROBE_TIMEOUT' {
             return 'Inspect or replace the source media; do not clear the failure marker until source health is understood.'

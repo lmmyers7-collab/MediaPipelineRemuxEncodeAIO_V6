@@ -156,7 +156,7 @@ class LocalApiProcessCommandTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertRegex(payload["error_id"], r"^[0-9a-f]{12}$")
         self.assertEqual(commands_status, 200)
         self.assertEqual(commands["schema_version"], "desktop_command_history.v1")
-        self.assertEqual(commands["count"], 1)
+        self.assertEqual(commands["count"], 2)
         entry = commands["entries"][0]
         self.assertEqual(entry["command"], "local_api.route_exception")
         self.assertFalse(entry["ok"])
@@ -169,6 +169,10 @@ class LocalApiProcessCommandTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertEqual(entry["request"]["mode"], "validate")
         self.assertEqual(entry["request"]["sleep_seconds"], 1)
         self.assertNotIn("backend exploded", json.dumps(entry, sort_keys=True))
+        accepted = commands["entries"][1]
+        self.assertEqual(accepted["command"], "pipeline.start")
+        self.assertEqual(accepted["data"]["evidence_phase"], "accepted")
+        self.assertTrue(accepted["ok"])
         persistence = commands["journal_persistence"]
         self.assertFalse(persistence["degraded"])
         self.assertEqual(persistence["json"]["status"], "ok")

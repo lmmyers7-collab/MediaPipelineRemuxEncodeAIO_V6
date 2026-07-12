@@ -163,7 +163,10 @@ class WebViewPathPickerBadgeTests(unittest.TestCase):
 
     def test_dynamic_path_picker_targets_are_allowlisted(self) -> None:
         for asset_name, target_keys in DYNAMIC_TARGETS_BY_ASSET.items():
-            source = (ASSETS_ROOT / asset_name).read_text(encoding="utf-8")
+            source_paths = [ASSETS_ROOT / asset_name]
+            if asset_name == "settingsLibraries/model.js":
+                source_paths.append(ASSETS_ROOT / "settingsLibraries/render.js")
+            source = "\n".join(path.read_text(encoding="utf-8") for path in source_paths)
             with self.subTest(asset=asset_name):
                 self.assertIn("path-picker-badge", source)
                 self.assertTrue("pathPickerInput" in source or "data-path-picker-input" in source)

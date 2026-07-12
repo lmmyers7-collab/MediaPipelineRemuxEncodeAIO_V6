@@ -3,9 +3,9 @@ file: src/mediapipeline/core/kernel/contracts/progress.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: kernel
-last_modified: 2026-07-02
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 8f09c4523f53018c3e700d1d46e01064569d4edbed4a7cbe6f11cbb2916cef9a
+sha256: 17cc4051ced2d8216a4a7cadb3c1fc8adbfc8d35fe9208660c5e75dcab0fc89a
 ---
 # `src/mediapipeline/core/kernel/contracts/progress.py`
 

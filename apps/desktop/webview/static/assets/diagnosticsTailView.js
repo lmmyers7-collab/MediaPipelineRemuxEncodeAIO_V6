@@ -362,7 +362,7 @@
     }
     try {
       const maxBytes = selectedDiagnosticsTailMaxBytes();
-      const payload = await apiGet(`/api/diagnostics/tail?target=${encodeURIComponent(normalized)}&max_bytes=${encodeURIComponent(maxBytes)}`, { timeoutMs: 15000 });
+      const payload = await window.mediaPipelineApi.apiGet(`/api/diagnostics/tail?target=${encodeURIComponent(normalized)}&max_bytes=${encodeURIComponent(maxBytes)}`, { timeoutMs: 15000 });
       renderDiagnosticsTail(payload);
       if (sourceButton && typeof setInlineActionStatus === "function") {
         setInlineActionStatus(sourceButton, payload?.truncated ? "Tail loaded; truncated." : "Tail loaded.", payload?.truncated ? "warning" : "ready");

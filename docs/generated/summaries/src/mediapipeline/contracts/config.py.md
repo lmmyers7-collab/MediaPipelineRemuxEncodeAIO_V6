@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: contracts
 last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: f9fe69672eb220006c6e9c93ef97eef96a69bb1a6c53709a57933d2cf02b138b
+sha256: e77e4981d601262ced1e035be1e33e0bf0656e5432d85cbf5ee62ea902755883
 ---
 # `src/mediapipeline/contracts/config.py`
 

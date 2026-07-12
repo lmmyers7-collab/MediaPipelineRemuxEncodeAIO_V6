@@ -3,9 +3,9 @@ file: src/mediapipeline/core/sample_validation/policy_alignment.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: sample_validation
-last_modified: 2026-06-29
+last_modified: 2026-07-11
 last_reviewed: 2026-06-29
-sha256: ff423d5173b7c9cd8aae0a7ddc94e7c0d1302da6b6ae0c9ff78627f3aa3ae694
+sha256: 28e8debbb525c8d9795647311d1ed437c2bfc654a687c40c27f4d358245fe50a
 ---
 # `src/mediapipeline/core/sample_validation/policy_alignment.py`
 

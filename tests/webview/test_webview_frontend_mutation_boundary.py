@@ -59,6 +59,7 @@ NETWORK_DYNAMIC_DISPATCH_ASSETS = {
     "network/lifecycle.commands.js",
     "network/setup.commands.js",
 }
+NAMESPACE_API_FORWARDER_ASSETS = {"launchView.js", "queueView.js", "settingsView.js"}
 SCHEDULE_ASSET_NAMES = (
     "schedule/watchFolder.js",
     "schedule/editor.js",
@@ -163,11 +164,11 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/rename/undo": {"renameView.js"},
     "/api/schedule/preview": {"schedule/editor.js"},
     "/api/schedule/save": {"schedule/editor.js"},
-    "/api/settings/validate": {"settingsView.js"},
-    "/api/settings/browse-path": {"settingsView.js"},
-    "/api/settings/preview-patch": {"settingsView.js"},
-    "/api/settings/save-patch": {"settingsView.js"},
-    "/api/settings/reload": {"settingsView.js"},
+    "/api/settings/validate": {"settings/view/impact.js"},
+    "/api/settings/browse-path": {"settings/view/builder.js", "settings/view/lifecycle.js"},
+    "/api/settings/preview-patch": {"settings/view/builder.js", "settings/view/commands.js"},
+    "/api/settings/save-patch": {"settings/view/builder.js", "settings/view/commands.js"},
+    "/api/settings/reload": {"settings/view/lifecycle.js"},
     "/api/settings/wizard/validate-paths": {"settingsWizard.js"},
     "/api/settings/wizard/validate-tools": {"settingsWizard.js"},
     "/api/settings/wizard/probe-hardware": {"settingsWizard.js"},
@@ -250,6 +251,14 @@ def _is_network_contract_dynamic_dispatch(name: str, source: str, dynamic_call_c
     )
 
 
+def _is_namespace_api_forwarder(name: str, source: str, dynamic_call_count: int) -> bool:
+    return (
+        name in NAMESPACE_API_FORWARDER_ASSETS
+        and dynamic_call_count > 0
+        and source.count("window.mediaPipelineApi.apiPost(...args)") == dynamic_call_count
+    )
+
+
 def _launch_risk_source(sources: dict[str, str] | None = None) -> str:
     loaded_sources = sources if sources is not None else _asset_sources()
     return "\n".join(
@@ -311,7 +320,9 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             all_calls = list(API_POST_CALL_RE.finditer(source))
             if len(literal_matches) != len(all_calls):
                 dynamic_call_count = len(all_calls) - len(literal_matches)
-                if _is_network_contract_dynamic_dispatch(name, source, dynamic_call_count):
+                if _is_network_contract_dynamic_dispatch(name, source, dynamic_call_count) or _is_namespace_api_forwarder(
+                    name, source, dynamic_call_count
+                ):
                     continue
                 unexpected.append(f"{name}: apiPost call must use a literal documented route")
                 continue
@@ -604,7 +615,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn("confirm_clear: !dryRun", reports_failure_commands_js)
         self.assertIn('apiPost("/api/failures/archive-evidence", request)', reports_failure_commands_js)
         self.assertIn("confirm_archive: !dryRun", reports_failure_commands_js)
-        settings_js = _asset_sources()["settingsView.js"]
+        settings_js = _asset_sources()["settings/view/commands.js"]
         self.assertIn('"/api/settings/save-patch"', settings_js)
         self.assertIn("review_confirmation: reviewConfirmation", settings_js)
         self.assertIn("confirm_save: true", settings_js)
@@ -680,7 +691,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
 
     def test_rename_filter_staging_uses_settings_patch_not_direct_psd1_save(self) -> None:
         rename_view = _rename_asset_source()
-        settings_view = _asset_sources()["settingsView.js"]
+        settings_commands = _asset_sources()["settings/view/commands.js"]
         settings_html = SETTINGS_PARTIAL.read_text(encoding="utf-8")
 
         for snippet in [
@@ -688,15 +699,15 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             "Save gathers these rename-filter values",
             "Browser storage is local draft recovery only; filesystem changes still require backend rename apply confirmation",
             "Save Settings",
-            "Rename Filter Case Workbench",
-            "stage new filter terms into the Settings draft",
+            "Backend comparison",
+            "Stage Selected Suggestions",
             "Retest With Staged Filters",
             "Save New Filters",
             "settings-rename-workbench-save-case-button",
             "settings-rename-workbench-stage-suggestions-button",
             "settings-rename-workbench-save-filters-button",
-            "Guided setup prepares the same PSD1-backed settings used by the manual editor.",
-            "Save goes through backend validation",
+            "Guided setup prepares saved settings through backend validation.",
+            "Review &amp; Save step as the single save path",
         ]:
             with self.subTest(asset="page-settings.html", snippet=snippet):
                 self.assertIn(snippet, settings_html)
@@ -712,13 +723,20 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
                 self.assertIn(snippet, rename_view)
         self.assertNotIn('/api/settings/preview-patch', rename_view)
         self.assertNotIn('/api/settings/save-patch', rename_view)
-        self.assertIn("function settingsRenameLogCasePayload()", settings_view)
-        self.assertIn("renameView.submitRenameBadCasePayload(payload)", settings_view)
-        self.assertNotIn('apiPost("/api/rename/filter-cases"', settings_view)
+        self.assertIn("function settingsRenameLogCasePayload()", settings_commands)
+        self.assertIn("renameView.submitRenameBadCasePayload(payload)", settings_commands)
+        self.assertNotIn('apiPost("/api/rename/filter-cases"', settings_commands)
 
     def test_settings_save_warns_active_runtime_keeps_startup_config(self) -> None:
-        settings_view = _asset_sources()["settingsView.js"]
-        settings_wizard = _asset_sources()["settingsWizard.js"]
+        sources = _asset_sources()
+        settings_view = "\n".join(
+            (
+                sources["settingsView.js"],
+                sources["settings/view/builder.js"],
+                sources["settings/view/commands.js"],
+            )
+        )
+        settings_wizard = sources["settingsWizard.js"]
         for token in (
             "function settingsRuntimeRestartConfirmationLine",
             "function settingsRuntimeRestartNoticeLines",
@@ -732,7 +750,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn("maybeShowSettingsRuntimeRestartNotice?.(result)", settings_wizard)
 
     def test_settings_path_browse_is_allowlisted_staging_only(self) -> None:
-        payload = _payload_for_route("settingsView.js", "/api/settings/browse-path")
+        payload = _payload_for_route("settings/view/lifecycle.js", "/api/settings/browse-path")
         self.assertIn("setting_key: settingKey", payload)
         self.assertIn('selection_mode: "folder"', payload)
         self.assertIn("initial_path: initialPath", payload)
@@ -1020,7 +1038,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
 
     def test_frontend_media_policy_risk_helpers_stay_advisory_not_authoritative(self) -> None:
         sources = _asset_sources()
-        settings_view = sources["settingsView.js"]
+        settings_policy_impact = sources["settings/policyImpact.js"]
         settings_metadata = sources["settingsMetadata.js"]
         launch_risk = _launch_risk_source(sources)
 
@@ -1031,8 +1049,8 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             "PSD1 writes",
             "settingsBackendPolicyImpact",
         ]:
-            with self.subTest(asset="settingsView.js", snippet=snippet):
-                self.assertIn(snippet, settings_view)
+            with self.subTest(asset="settings/policyImpact.js", snippet=snippet):
+                self.assertIn(snippet, settings_policy_impact)
 
         self.assertIn("UI arrays are display/order bindings", settings_metadata)
         self.assertIn("Backend field_definitions owns labels, options, defaults, constraints, validation, and persistence", settings_metadata)

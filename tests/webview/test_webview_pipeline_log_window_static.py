@@ -22,7 +22,14 @@ class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
         index = (WEBVIEW_ROOT / "index.html").read_text(encoding="utf-8")
         shell = (WEBVIEW_ROOT / "partials" / "app-shell-start.html").read_text(encoding="utf-8")
         launch = (WEBVIEW_ROOT / "partials" / "page-launch.html").read_text(encoding="utf-8")
-        app_js = (ASSETS_ROOT / "app.js").read_text(encoding="utf-8")
+        app_js = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in (
+                ASSETS_ROOT / "app" / "lifecycleOrchestration.js",
+                ASSETS_ROOT / "app" / "refreshCoordinator.js",
+                ASSETS_ROOT / "app.js",
+            )
+        )
 
         self.assertIn('/assets/floatingPipelineLog.js', index)
         self.assertIn('/assets/pipelineLogWindowBridge.js', index)
@@ -158,7 +165,13 @@ class WebViewPipelineLogWindowStaticTests(unittest.TestCase):
             self.assertNotIn(route, script)
 
     def test_diagnostics_pipeline_log_compacts_repeated_progress_lines(self) -> None:
-        script = (ASSETS_ROOT / "diagnosticsView.js").read_text(encoding="utf-8")
+        script = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in (
+                ASSETS_ROOT / "diagnostics" / "triage.js",
+                ASSETS_ROOT / "diagnosticsView.js",
+            )
+        )
 
         self.assertIn("function compactRepeatedProgressLines", script)
         self.assertIn("function compactedDiagnosticsTextLines", script)

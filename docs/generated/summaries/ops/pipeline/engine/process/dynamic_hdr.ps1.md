@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-11
 last_reviewed: 2026-06-12
-sha256: 4cc46e4bb7aca92baed316eaa9e07613c2afb8da3c7e95bdad2abbec62f5275e
+sha256: 79a17d08a0c48f8dac36b877f953d5b3962da22ce4862353d99b44c8087fd8f7
 ---
 # `ops/pipeline/engine/process/dynamic_hdr.ps1`
 

@@ -25,6 +25,9 @@ COMPLETED_VIEW_PATH = ASSETS_ROOT / "completedView.js"
 PENDING_VIEW_PATH = ASSETS_ROOT / "pendingPublishView.js"
 COMPLETED_TABLE_PATH = ASSETS_ROOT / "completed" / "table.js"
 APP_PATH = ASSETS_ROOT / "app.js"
+APP_LIFECYCLE_ORCHESTRATION_PATH = ASSETS_ROOT / "app" / "lifecycleOrchestration.js"
+APP_REFRESH_COORDINATOR_PATH = ASSETS_ROOT / "app" / "refreshCoordinator.js"
+APP_UI_PREFERENCES_PATH = ASSETS_ROOT / "app" / "uiPreferences.js"
 APP_LIFECYCLE_PATH = ASSETS_ROOT / "app" / "lifecycle.js"
 APP_LIFECYCLE_CHILD_PATHS = (
     ASSETS_ROOT / "app" / "lifecycle" / "topbar.js",
@@ -324,7 +327,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
 
     def test_shared_data_table_controls_are_wired(self) -> None:
         helpers = _read_dom_helpers_bundle()
-        app_js = (ASSETS_ROOT / "app.js").read_text(encoding="utf-8")
+        app_js = APP_LIFECYCLE_ORCHESTRATION_PATH.read_text(encoding="utf-8")
         components = _read_components_css()
 
         self.assertIn("function enhanceDataTables", helpers)
@@ -345,7 +348,10 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         helpers = _read_dom_helpers_bundle()
         controls = (ASSETS_ROOT / "styles.controls.css").read_text(encoding="utf-8")
         completed = COMPLETED_TABLE_PATH.read_text(encoding="utf-8")
-        pending = PENDING_VIEW_PATH.read_text(encoding="utf-8")
+        pending = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in (ASSETS_ROOT / "pendingPublish" / "actionCenter.js", PENDING_VIEW_PATH)
+        )
 
         self.assertIn("function makeStatusChip", helpers)
         self.assertIn("function setCellStatusChip", helpers)
@@ -442,7 +448,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
             'aria-label="Acceptance and evidence packet rows"',
             'aria-label="Queue rows"',
             'aria-label="Queue backend launch scope boundary rows"',
-            'aria-label="Pending publish rows"',
+            'aria-label="Pending publish file inventory"',
             'aria-label="Pending publish backend drain scope rows"',
             'aria-label="GPU telemetry detail rows"',
             'role="tablist" aria-label="Completed output sections"',
@@ -498,14 +504,14 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
     def test_theme_runtime_is_dark_only(self) -> None:
         html = _rendered_index_html()
         app_js = _read_lifecycle_bundle()
-        app_root_js = APP_PATH.read_text(encoding="utf-8")
+        app_root_js = APP_UI_PREFERENCES_PATH.read_text(encoding="utf-8")
 
         self.assertNotIn('id="theme-toggle"', html)
         self.assertIn("function initThemeToggle()", app_js)
         self.assertIn("applyThemePreference(false);", app_js)
         self.assertIn('document.body.classList.remove("light-mode");', app_js)
         self.assertIn('localStorage.setItem(THEME_STORAGE_KEY, "dark")', app_js)
-        self.assertIn("if (text === THEME_STORAGE_KEY) return false;", app_root_js)
+        self.assertIn("if (text === themeKey) return false;", app_root_js)
         self.assertNotIn("const preferLight = stored === \"light\";", app_js)
         self.assertNotIn("Toggle light/dark theme", app_js)
         self.assertNotIn('byId("theme-toggle")?.click()', app_js)

@@ -932,20 +932,29 @@
           "title": "Target Path",
           "type": "string"
         },
+        "scratch_root": {
+          "minLength": 1,
+          "title": "Scratch Root",
+          "type": "string"
+        },
+        "source_roots": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Roots",
+          "type": "array"
+        },
         "proposed_name": {
           "minLength": 1,
           "title": "Proposed Name",
           "type": "string"
         },
-        "aggressive_episode_parsing": {
-          "default": false,
-          "title": "Aggressive Episode Parsing",
-          "type": "boolean"
-        },
-        "is_tv": {
-          "default": false,
-          "title": "Is Tv",
-          "type": "boolean"
+        "operation": {
+          "const": "rename_within_scratch",
+          "default": "rename_within_scratch",
+          "title": "Operation",
+          "type": "string"
         },
         "intent": {
           "enum": [
@@ -959,10 +968,22 @@
           "default": false,
           "title": "Confirm Apply",
           "type": "boolean"
+        },
+        "operation_id": {
+          "default": "",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "dry_run_fingerprint": {
+          "default": "",
+          "title": "Dry Run Fingerprint",
+          "type": "string"
         }
       },
       "required": [
         "target_path",
+        "scratch_root",
+        "source_roots",
         "proposed_name",
         "intent"
       ],
@@ -972,6 +993,11 @@
     "RenameResult": {
       "additionalProperties": false,
       "properties": {
+        "original_path": {
+          "default": "",
+          "title": "Original Path",
+          "type": "string"
+        },
         "final_path": {
           "default": "",
           "title": "Final Path",
@@ -987,6 +1013,52 @@
         "undo_record_path": {
           "default": "",
           "title": "Undo Record Path",
+          "type": "string"
+        },
+        "dry_run_fingerprint": {
+          "default": "",
+          "title": "Dry Run Fingerprint",
+          "type": "string"
+        },
+        "content_sha256_before": {
+          "default": "",
+          "title": "Content Sha256 Before",
+          "type": "string"
+        },
+        "content_sha256_after": {
+          "default": "",
+          "title": "Content Sha256 After",
+          "type": "string"
+        },
+        "source_boundary_untouched": {
+          "default": false,
+          "title": "Source Boundary Untouched",
+          "type": "boolean"
+        },
+        "rollback_actions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Rollback Actions",
+          "type": "array"
+        },
+        "recovery_actions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Recovery Actions",
+          "type": "array"
+        },
+        "boundary_checks": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Boundary Checks",
+          "type": "array"
+        },
+        "operation_id": {
+          "default": "",
+          "title": "Operation Id",
           "type": "string"
         }
       },
@@ -1021,7 +1093,7 @@
       "type": "object"
     },
     "StageName": {
-      "description": "Canonical stage names dispatched by ops/pipeline/engine/entrypoint.ps1.",
+      "description": "Canonical stage names accepted by the Python dispatcher and PowerShell compatibility entrypoint.",
       "enum": [
         "ingest",
         "probe",
@@ -1251,41 +1323,28 @@
           "title": "Job Id",
           "type": "string"
         },
-        "scratch_path": {
+        "input_ass_path": {
           "minLength": 1,
-          "title": "Scratch Path",
+          "title": "Input Ass Path",
           "type": "string"
         },
-        "output_path": {
+        "scratch_root": {
           "minLength": 1,
-          "title": "Output Path",
+          "title": "Scratch Root",
           "type": "string"
         },
-        "keep_languages": {
+        "source_roots": {
           "items": {
             "type": "string"
           },
-          "title": "Keep Languages",
+          "minItems": 1,
+          "title": "Source Roots",
           "type": "array"
         },
-        "convert_tx3g_to_srt": {
-          "default": true,
-          "title": "Convert Tx3G To Srt",
-          "type": "boolean"
-        },
-        "convert_bdpgs_to_srt": {
-          "default": false,
-          "title": "Convert Bdpgs To Srt",
-          "type": "boolean"
-        },
-        "bdpgs_ocr_tool_path": {
-          "default": "",
-          "title": "Bdpgs Ocr Tool Path",
-          "type": "string"
-        },
-        "bdpgs_ocr_tessdata_path": {
-          "default": "",
-          "title": "Bdpgs Ocr Tessdata Path",
+        "operation": {
+          "const": "ass_sidecar_to_srt",
+          "default": "ass_sidecar_to_srt",
+          "title": "Operation",
           "type": "string"
         },
         "intent": {
@@ -1300,11 +1359,22 @@
           "default": false,
           "title": "Confirm Subtitle Convert",
           "type": "boolean"
+        },
+        "operation_id": {
+          "default": "",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "dry_run_fingerprint": {
+          "default": "",
+          "title": "Dry Run Fingerprint",
+          "type": "string"
         }
       },
       "required": [
-        "scratch_path",
-        "output_path",
+        "input_ass_path",
+        "scratch_root",
+        "source_roots",
         "intent"
       ],
       "title": "SubtitleConvertPayload",
@@ -1313,11 +1383,15 @@
     "SubtitleConvertResult": {
       "additionalProperties": false,
       "properties": {
-        "tracks_kept": {
-          "default": 0,
-          "minimum": 0,
-          "title": "Tracks Kept",
-          "type": "integer"
+        "input_ass_path": {
+          "default": "",
+          "title": "Input Ass Path",
+          "type": "string"
+        },
+        "output_srt_path": {
+          "default": "",
+          "title": "Output Srt Path",
+          "type": "string"
         },
         "tracks_converted": {
           "default": 0,
@@ -1332,6 +1406,47 @@
           "title": "Sidecars Written",
           "type": "array"
         },
+        "cues_written": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Cues Written",
+          "type": "integer"
+        },
+        "encoding": {
+          "default": "",
+          "title": "Encoding",
+          "type": "string"
+        },
+        "input_sha256_before": {
+          "default": "",
+          "title": "Input Sha256 Before",
+          "type": "string"
+        },
+        "input_sha256_after": {
+          "default": "",
+          "title": "Input Sha256 After",
+          "type": "string"
+        },
+        "output_sha256": {
+          "default": "",
+          "title": "Output Sha256",
+          "type": "string"
+        },
+        "evidence_path": {
+          "default": "",
+          "title": "Evidence Path",
+          "type": "string"
+        },
+        "dry_run_fingerprint": {
+          "default": "",
+          "title": "Dry Run Fingerprint",
+          "type": "string"
+        },
+        "source_boundary_untouched": {
+          "default": false,
+          "title": "Source Boundary Untouched",
+          "type": "boolean"
+        },
         "review_required": {
           "default": false,
           "title": "Review Required",
@@ -1340,6 +1455,32 @@
         "review_reason": {
           "default": "",
           "title": "Review Reason",
+          "type": "string"
+        },
+        "rollback_actions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Rollback Actions",
+          "type": "array"
+        },
+        "recovery_actions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Recovery Actions",
+          "type": "array"
+        },
+        "boundary_checks": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Boundary Checks",
+          "type": "array"
+        },
+        "operation_id": {
+          "default": "",
+          "title": "Operation Id",
           "type": "string"
         }
       },

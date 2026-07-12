@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: cf4151a321471135cdd7ba03b149367469e72cdc73f544bfda61f91884336b7d
+sha256: edbd5a9a4b09474f70d05ae137ecb10b337585cdaa5eb0911ecdb0ff8bdb266a
 ---
 # `apps/desktop/webview/static/assets/reports/audit/sources.js`
 

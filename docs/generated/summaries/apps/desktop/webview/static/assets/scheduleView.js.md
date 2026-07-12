@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: c0b612b01e8eef2963b59fd3ddb15a08efb81b15f113ab1d78914f95a74c0f31
+sha256: c0a37fdfae0e93d5e6857bda240da6d0e03c9869755ac4fe7fec742420260dcf
 ---
 # `apps/desktop/webview/static/assets/scheduleView.js`
 

@@ -143,6 +143,7 @@ $requiredLeaves = @(
     'apps\desktop\tauri\src-tauri\src\lib.rs',
     'apps\desktop\tauri\src-tauri\src\backend_process.rs',
     'apps\desktop\tauri\src-tauri\src\backend_contract.rs',
+    'apps\desktop\tauri\src-tauri\src\backend_contract\web_shell.rs',
     'apps\desktop\tauri\src-tauri\src\close_readiness.rs',
     'ops\scripts\release\build.ps1',
     'ops\scripts\release\test.ps1'
@@ -172,7 +173,11 @@ $serverText = Read-Text (Join-Path $apiRoot 'server.py')
 $handlerText = Read-Text (Join-Path $apiRoot 'handler.py')
 $httpHelpersText = Read-Text (Join-Path $apiRoot 'http_helpers.py')
 $routesCommandText = Read-Text (Join-Path $apiRoot 'routes_command.py')
-$contractCommandText = Read-Text (Join-Path $apiRoot 'contract_command.py')
+$contractCommandText = (@(
+        Get-ChildItem -LiteralPath $apiRoot -Filter 'contract_command*.py' -File |
+            Sort-Object -Property Name |
+            ForEach-Object { Read-Text $_.FullName }
+    )) -join "`n"
 $contractPayloadText = Read-Text (Join-Path $apiRoot 'contract_payload.py')
 $appApiRoot = Join-Path $projectRoot 'src\mediapipeline\core\api'
 $appApiCommandsText = Read-Text (Join-Path $appApiRoot 'commands.py')
@@ -190,6 +195,7 @@ $renameApplyRunnerText = Read-Text (Join-Path $projectRoot 'src\mediapipeline\co
 $tauriLibText = Read-Text (Join-Path $tauriSrcRoot 'lib.rs')
 $tauriBackendProcessText = Read-Text (Join-Path $tauriSrcRoot 'backend_process.rs')
 $tauriBackendContractText = Read-Text (Join-Path $tauriSrcRoot 'backend_contract.rs')
+$tauriBackendWebShellText = Read-Text (Join-Path $tauriSrcRoot 'backend_contract\web_shell.rs')
 $scheduleWatcherText = Read-Text (Join-Path $projectRoot 'src\mediapipeline\core\schedule\stop_watcher.py')
 $ffmpegProgressText = Read-Text (Join-Path $projectRoot 'ops\pipeline\engine\process\ffmpeg_progress.ps1')
 $nativeText = Read-Text (Join-Path $projectRoot 'ops\pipeline\engine\shared\native.ps1')
@@ -215,15 +221,24 @@ $endToEndSmokeText = Read-Text (Join-Path $pipelineRoot 'tests\Invoke-EndToEndSm
 $repoHygieneText = Read-Text (Join-Path $pipelineRoot 'tests\Unit\Invoke-RepoHygieneChecks.ps1')
 $legacyReliabilityPath = Join-Path $pipelineRoot 'tests\Legacy\Invoke-LegacyDesktopReliabilityRegressionChecks.ps1'
 $releaseBuilderText = Read-Text (Join-Path $projectRoot 'ops\scripts\release\build.ps1')
-$releaseVerifierText = Read-Text (Join-Path $projectRoot 'ops\scripts\release\test.ps1')
+$releaseVerifierText = (@(
+        'test.ps1',
+        'test_acceptance.ps1',
+        'test_contracts.ps1',
+        'test_policy.ps1',
+        'test_support.ps1'
+    ) | ForEach-Object {
+        Read-Text (Join-Path $projectRoot "ops\scripts\release\$_")
+    }) -join "`n"
 $browserSmokeCommonText = Read-Text (Join-Path $projectRoot 'ops\scripts\smoke\webview_browser_smoke_common.ps1')
 $worksheetHelperText = Read-Text (Join-Path $projectRoot 'ops\scripts\operator\New-RealMediaValidationWorksheet.ps1')
+$auditChecksText = Read-Text (Join-Path $projectRoot 'src\mediapipeline\tools\dev\audit_checks.py')
 
 Assert-True ($serverText -match 'Read and command API\s+routes require a per-run token') "LocalApiServer docstring must describe the current token-protected read/command API surface."
 Assert-True ($serverText -match 'CommandJournal' -and $serverText -match 'require_token') "LocalApiServer must keep token and command-journal wiring."
 Assert-True ($httpHelpersText -notmatch 'query_value\(query,\s*"token"' -and $contractPayloadText -match 'not URL query parameters') "Local API auth must avoid query-string tokens and document non-query token use."
 Assert-True ($httpHelpersText -match 'def discard_request_body' -and $handlerText -match 'discard_request_body' -and $handlerText -match 'if not owner\._request_authorized\(self\.headers, query\):\s+self\._discard_request_body\(\)\s+self\._send_json\(unauthorized_payload\(\), status=401\)') "Unauthorized POSTs must discard the raw body before sending 401 so token failures do not reset local clients or parse command JSON."
-Assert-True ($staticFilesText -match 'resolve_asset_path' -and $staticFilesText -match 'render_static_includes' -and $staticFilesPolicyText -match 'http-only-cookie' -and $staticFilesPolicyText -match 'tauri-initialization-script' -and $indexText -match '__MEDIA_PIPELINE_BOOTSTRAP__' -and $indexText -match 'media-pipeline-bootstrap' -and $httpHelpersText -match 'MediaPipelineAuth' -and $tauriLibText -match 'tauri_bootstrap_initialization_script\(\s*backend\.token\(\)' -and $tauriLibText -match '\.initialization_script\(initialization_script\)' -and $tauriBackendContractText -match 'Backend WebView index leaked the bearer token') "Static WebView assets must be rendered through backend helpers while browser mode uses an HttpOnly cookie and Tauri injects the token outside public index HTML."
+Assert-True ($staticFilesText -match 'resolve_asset_path' -and $staticFilesText -match 'render_static_includes' -and $staticFilesPolicyText -match 'http-only-cookie' -and $staticFilesPolicyText -match 'tauri-initialization-script' -and $indexText -match '__MEDIA_PIPELINE_BOOTSTRAP__' -and $indexText -match 'media-pipeline-bootstrap' -and $httpHelpersText -match 'MediaPipelineAuth' -and $tauriLibText -match 'tauri_bootstrap_initialization_script\(\s*backend\.token\(\)\s*,\s*backend\.startup_warnings\(\)\s*\)' -and $tauriLibText -match '\.initialization_script\(initialization_script\)' -and $tauriBackendContractText -match 'web_shell::validate_web_shell\(backend_url, token\)' -and $tauriBackendWebShellText -match 'Backend WebView index leaked the bearer token') "Static WebView assets must be rendered through backend helpers while browser mode uses an HttpOnly cookie and Tauri injects the token outside public index HTML."
 Assert-True ($apiClientText -match 'Authorization' -and $apiClientText -match 'Bearer' -and $apiClientText -match 'window\.apiGet' -and $apiClientText -match 'window\.apiPost') "WebView API client must attach the per-run token and expose shared request helpers."
 Assert-True ($apiBrowserLauncherText -match '\[switch\]\$NoTokenDevMode' -and $apiBrowserLauncherText -match 'Token auth: enabled \(browser receives a same-origin HttpOnly auth cookie\)' -and $apiBrowserLauncherText -match 'Token auth: DISABLED by explicit -NoTokenDevMode' -and $apiBrowserLauncherText -match 'if \(\$NoTokenDevMode\)[\s\S]+?\$apiArgs \+= ''--no-token''') "API browser launcher must keep token auth enabled by default and require an explicit dev-only no-token switch."
 Assert-True ($appJsText -match '/api/backend/shutdown' -and $appJsText -match 'Backend authority') "WebView close/shutdown path must call the backend-owned shutdown API and label backend authority."
@@ -263,7 +278,7 @@ Assert-True ($releaseBuilderText -match 'release_policy\.ps1' -and $releaseBuild
 Assert-True ($releaseBuilderText -match '\[switch\]\$AllowTestlessVerify' -and $releaseBuilderText -match 'Release verification requires -IncludeTests' -and $releaseBuilderText -match 'This is not release acceptance\.' -and $releaseBuilderText.Contains('$verifyArgs.Add(''-RequireTests'')')) "Release builder must make verified release packages run the required test gate unless an explicit dev-only testless bypass is used."
 Assert-True ($releaseVerifierText -match 'Invoke-WebViewReliabilityChecks\.ps1') "Release self-test must run the active WebView reliability gate."
 Assert-True ($releaseVerifierText -match 'tests\\python\\desktop' -and $releaseVerifierText -match 'tests\\python\\core' -and $releaseVerifierText -match 'tests\\python\\tooling') "Release self-test must run desktop, core, and tooling Python test suites when tests are required."
-Assert-True ($releaseVerifierText -match 'refresh_summaries' -and $releaseVerifierText -match 'generate_project_index' -and $releaseVerifierText -match 'generate_config_schema' -and $releaseVerifierText -match 'check_active_doc_references' -and $releaseVerifierText -match 'check_dependency_boundaries') "Release self-test must run package-safe generated-artifact, active-doc, schema, and dependency guardrails."
+Assert-True ($releaseVerifierText -match 'mediapipeline\.tools\.dev\.audit_checks emit release-self-test' -and $releaseVerifierText -match '\$auditCheckManifest\.checks' -and $releaseVerifierText -match 'Invoke-PythonModuleCheck' -and $releaseVerifierText -match 'source_tree_only' -and $auditChecksText -match '"release-self-test"' -and $auditChecksText -match 'mediapipeline\.tools\.dev\.refresh_summaries' -and $auditChecksText -match 'mediapipeline\.tools\.dev\.generate_project_index' -and $auditChecksText -match 'mediapipeline\.tools\.dev\.generate_config_schema' -and $auditChecksText -match 'mediapipeline\.tools\.dev\.check_active_doc_references' -and $auditChecksText -match 'mediapipeline\.tools\.dev\.check_dependency_boundaries') "Release self-test must run package-safe generated-artifact, active-doc, schema, and dependency guardrails."
 Assert-True ($releaseVerifierText -match 'Import-MediaPipelineReleasePolicy' -and $releaseVerifierText -match 'Get-MediaPipelineReleaseHygieneRules') "Release self-test must verify hygiene through the shared release policy module."
 Assert-True ($releaseVerifierText -match 'Record-ReleaseGateSkip' -and $releaseVerifierText -match 'Tool integration checks skipped by request.'' -Required:\(\[bool\]\$RequireTests\)' -and $releaseVerifierText -match 'End-to-end smoke checks skipped by request.'' -Required:\(\[bool\]\$RequireTests\)' -and $releaseVerifierText -match 'FailOnSkipOutput:\(\[bool\]\$RequireTests\)' -and $releaseVerifierText -match 'Required test gate mode: enabled') "Release self-test must fail requested skips in -RequireTests mode and report skipped/downshifted gate evidence."
 Assert-True ($releaseVerifierText -notmatch 'legacyDesktopEntryPoint') "Release self-test must not branch on removed desktop-shell entrypoints."

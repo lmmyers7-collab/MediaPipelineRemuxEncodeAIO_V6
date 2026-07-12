@@ -16,6 +16,8 @@
     const settingsCommandHistoryLine = deps.settingsCommandHistoryLine || function () { return ""; };
     const settingsFieldAllowedValues = deps.settingsFieldAllowedValues || function () { return []; };
     const settingsFieldDefinition = deps.settingsFieldDefinition || function () { return null; };
+    const settingsFriendlyPersistedKeyAliases = deps.settingsFriendlyPersistedKeyAliases || {};
+    const settingsHasBackendFieldDefinitions = deps.settingsHasBackendFieldDefinitions || function () { return false; };
     const settingsPatchCandidateValue = deps.settingsPatchCandidateValue || function () { return undefined; };
     const settingsPatchComplexBackendKeys = deps.settingsPatchComplexBackendKeys || new Set();
     const settingsPatchEffectiveChangedEntries = deps.settingsPatchEffectiveChangedEntries || function () { return []; };

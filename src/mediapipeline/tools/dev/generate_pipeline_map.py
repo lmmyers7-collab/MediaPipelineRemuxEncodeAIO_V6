@@ -2,7 +2,7 @@
 
 The stage registry in src/mediapipeline/contracts/stages.py is the source for stage
 order, stage wire name, payload class, result class, Pydantic field lists,
-and initial entrypoint enablement. This script adds static operator notes
+and dispatcher backend. This script adds static operator notes
 for each known stage so the generated Markdown stays useful without
 letting the contract table drift.
 """
@@ -53,25 +53,29 @@ STAGE_METADATA: dict[str, dict[str, object]] = {
         "notes": "FFmpeg invocation. Returns output path, size, and attempts.",
         "domains": "src/mediapipeline/core/processes/ and src/mediapipeline/core/orchestration/ (runner/plans), ops/pipeline/engine/process/ and ops/pipeline/entrypoints/MediaPipeline/ (invocation)",
         "detail": [
-            "Descriptive contract only; permanently disabled in the orchestration-only dispatcher.",
+            "Descriptive contract only; disabled pending the contract-recorded parity and validation gates.",
             "FFmpeg command generation and stream mapping are high-risk surfaces.",
             "Attempt records preserve encoder, timestamps, exit code, and log path.",
         ],
     },
     "subtitle-convert": {
-        "notes": "ASS/TX3G/BDPGS to SRT, language filtering, and review routing.",
-        "domains": "src/mediapipeline/contracts/source_media*.py (subtitle facts), ops/pipeline/engine/subtitles/",
+        "notes": "Convert one standalone scratch ASS/SSA artifact to a new SRT sidecar.",
+        "domains": "src/mediapipeline/core/subtitles/ (scratch-only Python stage); ops/pipeline/engine/subtitles/ (production engine)",
         "detail": [
-            "Descriptive contract only; permanently disabled in the orchestration-only dispatcher.",
+            "Enabled only for a standalone ASS/SSA file inside dispatcher-trusted scratch; no Local API route exists.",
+            "Input is bounded to 64 MiB and output must be a new sibling SRT sidecar.",
+            "TX3G extraction, BDPGS OCR, embedded streams, language selection, and publish integration remain disabled.",
+            "Execute requires strict confirmation, matching content-bound dry-run evidence, command/operation journals, and no-overwrite output.",
             "Original subtitles are preserved by default.",
             "OCR/conversion failure routes to review, never silent bad publish.",
+            "The PowerShell pipeline remains the production owner for integrated subtitle policy and real-media processing.",
         ],
     },
     "audio-mix": {
         "notes": "Passthrough, downmix, or transcode by profile.",
         "domains": "src/mediapipeline/contracts/source_media*.py (audio facts), ops/pipeline/engine/audio/",
         "detail": [
-            "Descriptive contract only; permanently disabled in the orchestration-only dispatcher.",
+            "Descriptive contract only; disabled pending the contract-recorded parity and validation gates.",
             "Audio routing is profile/config driven.",
             "Passthrough, downmix, and transcode policy changes require high validation.",
         ],
@@ -80,7 +84,7 @@ STAGE_METADATA: dict[str, dict[str, object]] = {
         "notes": "Move to final root, or park on final-root safety guard.",
         "domains": "src/mediapipeline/core/publish/, ops/pipeline/engine/publish/",
         "detail": [
-            "Descriptive contract only; permanently disabled in the orchestration-only dispatcher.",
+            "Descriptive contract only; disabled pending the contract-recorded parity and validation gates.",
             "Pending publish parks output when final placement is unsafe.",
             "Publish evidence is captured through manifest_path and pending_publish_id.",
         ],
@@ -89,18 +93,19 @@ STAGE_METADATA: dict[str, dict[str, object]] = {
         "notes": "Drain parked outputs to final root with manifest evidence.",
         "domains": "src/mediapipeline/core/publish/ (drain), ops/pipeline/engine/publish/",
         "detail": [
-            "Descriptive contract only; permanently disabled in the orchestration-only dispatcher.",
+            "Descriptive contract only; disabled pending the contract-recorded parity and validation gates.",
             "Drain moves only from pending-publish evidence, not from source media.",
             "Retry policy is expected to be conservative because final roots may be unavailable.",
         ],
     },
     "rename": {
-        "notes": "Plan, apply, or undo rename operations with sidecars.",
-        "domains": "src/mediapipeline/core/rename/, ops/pipeline/engine/naming/",
+        "notes": "Rename one scratch file in place with fingerprint and undo evidence.",
+        "domains": "src/mediapipeline/core/rename/ (scratch-only Python stage); ops/pipeline/engine/naming/ (production engine)",
         "detail": [
-            "Descriptive contract only; permanently disabled in the orchestration-only dispatcher.",
-            "Backend owns apply and undo behavior.",
-            "Every apply is expected to write an undo record.",
+            "Enabled only as a scratch-root-local Python executor; no Local API route exists.",
+            "Payload roots must match dispatcher-trusted scratch/source configuration and remain disjoint; sidecars and directory moves are excluded.",
+            "Execute requires strict confirmation, a matching dry-run fingerprint, operation journaling, and a scratch-local undo record.",
+            "The PowerShell pipeline remains the production owner for integrated naming and final-library behavior.",
         ],
     },
 }
@@ -161,8 +166,11 @@ def render_pipeline_map(module: ModuleType) -> str:
                 "domains": str(metadata.get("domains", "n/a")),
                 "detail": list(metadata.get("detail", [])),
                 "mutation": bool(contract.mutation_capable),
-                "enabled": bool(contract.enabled_in_entrypoint),
+                "enabled": bool(contract.enabled_in_dispatcher),
+                "backend": str(contract.execution_backend),
                 "journal_event_type": str(contract.journal_event_type),
+                "enablement_blocker": str(contract.enablement_blocker),
+                "required_validation": list(contract.required_validation),
             }
         )
 
@@ -177,7 +185,7 @@ def render_pipeline_map(module: ModuleType) -> str:
     lines.append("")
     lines.append("## Wire contract")
     lines.append("")
-    lines.append("Every stage runs via:")
+    lines.append("PowerShell-backed stages run via:")
     lines.append("")
     lines.append("```")
     lines.append("ops/pipeline/engine/entrypoint.ps1 -Stage <stage> -PayloadJson <json-or-path>")
@@ -190,18 +198,20 @@ def render_pipeline_map(module: ModuleType) -> str:
     lines.append(f"- All payloads and results carry `schema_version: \"{module.STAGE_SCHEMA_VERSION}\"`.")
     lines.append("- The engine rejects unknown schema versions.")
     lines.append("- The dispatcher is orchestration-only; no Local API stage-execute route exists.")
+    lines.append("- A stage may use the PowerShell entrypoint or a narrowly registered Python executor; the backend is listed below.")
     lines.append("- Only stages marked enabled below dispatch to behavior; disabled mutation DTOs are descriptive contracts, not future route commitments.")
     lines.append("")
     lines.append("## Stages")
     lines.append("")
-    lines.append("| # | Stage | Enabled | Mutation | Payload | Data | Payload fields | Data fields | Notes |")
-    lines.append("|---|---|---|---|---|---|---|---|---|")
+    lines.append("| # | Stage | Enabled | Backend | Mutation | Payload | Data | Payload fields | Data fields | Notes |")
+    lines.append("|---|---|---|---|---|---|---|---|---|---|")
     for row in rows:
         lines.append(
-            "| {index} | `{stage}` | {enabled} | {mutation} | `{payload}` | `{result}` | {payload_fields} | {result_fields} | {notes} |".format(
+            "| {index} | `{stage}` | {enabled} | `{backend}` | {mutation} | `{payload}` | `{result}` | {payload_fields} | {result_fields} | {notes} |".format(
                 index=row["index"],
                 stage=row["stage"],
                 enabled="yes" if row["enabled"] else "no",
+                backend=row["backend"],
                 mutation="yes" if row["mutation"] else "no",
                 payload=row["payload"],
                 result=row["result"],
@@ -218,9 +228,16 @@ def render_pipeline_map(module: ModuleType) -> str:
         lines.append("")
         lines.append(f"- **Payload:** `{row['payload']}`")
         lines.append(f"- **Data:** `{row['result']}`")
-        lines.append(f"- **Entrypoint enabled:** {'yes' if row['enabled'] else 'no'}")
+        lines.append(f"- **Dispatcher enabled:** {'yes' if row['enabled'] else 'no'}")
+        lines.append(f"- **Execution backend:** `{row['backend']}`")
         lines.append(f"- **Mutation capable:** {'yes' if row['mutation'] else 'no'}")
         lines.append(f"- **Journal event type:** `{row['journal_event_type']}`")
+        lines.append(
+            f"- **Enablement blocker:** `{row['enablement_blocker']}`"
+            if row["enablement_blocker"]
+            else "- **Enablement blocker:** none"
+        )
+        lines.append(f"- **Required validation:** {code_list(row['required_validation'])}")
         lines.append(f"- **Payload fields:** {code_list(row['payload_fields'])}")
         lines.append(f"- **Data fields:** {code_list(row['result_fields'])}")
         lines.append(f"- **Domain:** {row['domains']}")

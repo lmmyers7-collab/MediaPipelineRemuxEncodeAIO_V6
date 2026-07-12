@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 632bed39391b24e1583bb3866e94ecb00b7b66fdcbd4253e174a5e27e6e296ca
+sha256: c4d015e3a11ae7b0de05b777834db419b9052b1edb37dfaf95df634df0f0382d
 ---
 # `apps/desktop/webview/static/assets/maintenance/health.js`
 

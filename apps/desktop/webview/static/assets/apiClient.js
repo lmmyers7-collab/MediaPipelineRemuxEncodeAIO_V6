@@ -269,7 +269,7 @@
     text = text.replace(/\bBearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [redacted]");
     text = text.replace(/\b(token|password|secret|authorization|credential|api[_-]?key)\s*[:=]\s*["']?[^,;\s"']+/gi, "$1=[redacted]");
     text = text.replace(/[A-Za-z]:\\(?:[^\s\\/:*?"<>|]+\\?)+/g, "[local path]");
-    text = text.replace(/\\\\[^\s\\\/]+\\[^\s]+/g, "[network path]");
+    text = text.replace(/\\\\[^\s\\/]+\\[^\s]+/g, "[network path]");
     text = text.replace(/https?:\/\/(?!127\.0\.0\.1(?::|\/|$)|localhost(?::|\/|$)|\[::1\](?::|\/|$))[^\s)]+/gi, "[backend URL]");
     text = text.replace(/\b[A-Za-z0-9-]+(?:\.(?:local|lan|internal|corp|home))+(:\d+)?\b/gi, "[internal host]");
     return text;

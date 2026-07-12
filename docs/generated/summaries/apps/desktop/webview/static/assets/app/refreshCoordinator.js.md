@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: c53425f96bb060d4d52dd59f927a0424520e310728451e5b2befd20f3ccfe82e
+sha256: f162d5efd6385619e3a5082c1450ee2320fa149103f1ab1f9b0f71d8caa2a8b8
 ---
 # `apps/desktop/webview/static/assets/app/refreshCoordinator.js`
 

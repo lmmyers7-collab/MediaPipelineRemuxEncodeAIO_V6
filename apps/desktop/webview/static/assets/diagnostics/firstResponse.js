@@ -3,6 +3,7 @@
     const {
       appendCells,
       appendDiagnosticsActionGroup,
+      activeJobRowPosture,
       byId,
       clearRows,
       commandHistoryView,
@@ -19,7 +20,8 @@
       makeRowSelectable,
       setDiagnosticsPanelStatus,
       setText,
-      updateTableStatusLegend,    } = deps;
+      updateTableStatusLegend,
+    } = deps;
     let selectedDiagnosticsFirstResponseKey = "";
 
   function diagnosticsFirstResponsePostureStatus(posture) {

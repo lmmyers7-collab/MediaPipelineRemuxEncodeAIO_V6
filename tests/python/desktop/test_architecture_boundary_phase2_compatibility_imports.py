@@ -105,6 +105,8 @@ class ArchitectureBoundaryPhase2CompatibilityImportTests(unittest.TestCase):
                 "powershell_host",
                 "local_base",
                 "state_root",
+                "runtime_state_root",
+                "run_logs_root",
                 "active_jobs_path",
                 "app_state_path",
                 "source_movies",

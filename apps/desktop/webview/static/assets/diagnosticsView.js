@@ -63,7 +63,8 @@
   if (!diagnosticsMatrixConsoleModule?.createDiagnosticsMatrixConsoleModule) throw new Error("Missing Diagnostics Tdarr Matrix console module");
   delete window.__diagnosticsMatrixConsoleModule;
   const diagnosticsMatrixConsole = diagnosticsMatrixConsoleModule.createDiagnosticsMatrixConsoleModule({
-    appendCells, appendCommandResult, apiGet, apiPost, byId, setDiagnosticsPanelStatus,
+    appendCells, appendCommandResult, apiClient: window.mediaPipelineApi,
+    byId, setDiagnosticsPanelStatus,
     setInlineActionStatus: window.setInlineActionStatus, setText,
   });
   const {
@@ -418,8 +419,10 @@ const renderActiveJobDetail = diagnosticsActiveJobs.renderActiveJobDetail || fun
   delete window.__diagnosticsTriageModule;
   const diagnosticsTriage = diagnosticsTriageModule.createDiagnosticsTriageModule({
     appendDiagnosticsActionGroup, byId, diagnosticsActionGroups, diagnosticsActionPlanLines,
-    diagnosticsArtifactsForLine, diagnosticsLongRunReliabilityLines, diagnosticsTextLines,
-    compactedDiagnosticsTextLines, setDiagnosticsPanelStatus, setText,
+    diagnosticsArtifactTargets, diagnosticsArtifactsForLine, diagnosticsLongRunReliabilityLines,
+    diagnosticsMalformedStateLines, diagnosticsSeverityForLine, diagnosticsTextLines,
+    compactedDiagnosticsTextLines, requestDiagnosticsOpen, requestDiagnosticsTail,
+    setDiagnosticsPanelStatus, setText,
   });
   const {
     diagnosticsSourceLines, diagnosticsArtifactMatches, renderDiagnosticsDrilldownActions,
@@ -469,7 +472,7 @@ const renderDiagnosticsLogTable = diagnosticsLog.renderDiagnosticsLogTable || fu
   if (!diagnosticsFirstResponseModule?.createDiagnosticsFirstResponseModule) throw new Error("Missing Diagnostics first-response module");
   delete window.__diagnosticsFirstResponseModule;
   const diagnosticsFirstResponse = diagnosticsFirstResponseModule.createDiagnosticsFirstResponseModule({
-    appendCells, appendDiagnosticsActionGroup, byId, clearRows, commandHistoryView, diagnosticsActionGroups,
+    appendCells, appendDiagnosticsActionGroup, activeJobRowPosture, byId, clearRows, commandHistoryView, diagnosticsActionGroups,
     diagnosticsConflictSignalLabel: (...args) => diagnosticsConflictSignalLabel(...args), diagnosticsFirstResponseAdd, diagnosticsFormatCounts, diagnosticsLogRows,
     diagnosticsMalformedStateLines, diagnosticsRealMediaBoundaryLines, diagnosticsStateOperatorStatus: (...args) => diagnosticsStateOperatorStatus(...args),
     diagnosticsStateRecommendedFirstAction: (...args) => diagnosticsStateRecommendedFirstAction(...args), diagnosticsTextLines, makeRowSelectable, setDiagnosticsPanelStatus,
@@ -705,7 +708,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     }
     setDiagnosticsOpenStatus(`Opening ${normalized}...`, "loading");
     try {
-      const result = await apiPost("/api/diagnostics/open", { target: normalized });
+      const result = await window.mediaPipelineApi.apiPost("/api/diagnostics/open", { target: normalized });
       appendCommandResult(result);
       setDiagnosticsOpenStatus(result.message || "Open request sent.", result.ok === false ? "blocked" : "ready");
       if (sourceButton && typeof setInlineActionStatus === "function") {

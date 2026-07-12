@@ -359,7 +359,7 @@
     makeRowSelectable,
     normalizeFailureMarkerPaths,
     renderReportDiagnosticsActions,
-    renderReportTriage,
+    renderReportTriage: (...args) => renderReportTriage(...args),
     reportCompactPath,
     reportNumber,
     reportRenderedRows,
@@ -468,7 +468,7 @@
     hiddenSelectedCount,
     makeRowSelectable,
     renderReportDiagnosticsActions,
-    renderReportTriage,
+    renderReportTriage: (...args) => renderReportTriage(...args),
     reportAuditScoreFieldIds,
     reportAuditScoreGroupDefaultKeys,
     reportRenderedRows,
@@ -869,6 +869,8 @@
     });
     const page = document.querySelector('[data-page-panel="reports"]');
     if (page) page.dataset.availability = "available";
+    if (component === "failures") renderFailureReviewBoard();
+    if (component === "audit") renderAuditReviewBoard();
   }
 
   function renderReportsUnavailable(component, reason = "Reports evidence is unavailable.") {

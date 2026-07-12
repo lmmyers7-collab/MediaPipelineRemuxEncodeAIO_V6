@@ -486,18 +486,23 @@ def exercise_local_api_route_workflow() -> SimpleNamespace:
                 {"mode": "validate", "sleep_seconds": 3},
                 token="workflow-token",
             )
+            service.started_pipeline_proc.complete()
             audit_status, audit_payload = client._post_json(
                 f"{server.url}/api/audit/start",
                 {"library_root": str(root / "Outsource"), "include_sidecars": True},
                 token="workflow-token",
             )
+            service.started_audit_proc.complete()
             rerun_csv = root / "rerun.csv"
-            rerun_csv.write_text("enabled,source_path\ntrue,C:\\Media\\Movie.mkv\n", encoding="utf-8")
+            rerun_source = Path(str(rename_apply_payload["data"]["rows"][0]["destination"]))
+            rerun_csv.write_text(f"enabled,source_path\ntrue,{rerun_source}\n", encoding="utf-8")
             rerun_status, rerun_payload = client._post_json(
                 f"{server.url}/api/rerun/start",
                 {"csv_path": str(rerun_csv), "confirm_replace_final": True},
                 token="workflow-token",
             )
+            if hasattr(service, "started_rerun_proc"):
+                service.started_rerun_proc.complete()
             command_history_status, command_history_payload = client._get_json(
                 f"{server.url}/api/commands?limit=20",
                 token="workflow-token",
@@ -1986,6 +1991,11 @@ class DummyProc:
     def __init__(self, pid: int = 24680) -> None:
         self.pid = pid
 
+    def complete(self) -> None:
+        lease = getattr(self, "_mediapipeline_lifecycle_lease", None)
+        if lease is not None:
+            lease.release(outcome="completed")
+
 
 class DummyWorkflowFacadeService(DummyFacadeService, QueueServiceMixin, RenameServiceMixin, PendingPublishServiceMixin, CompletedJobsServiceMixin, ProcessLifecycleServiceMixin):
     def prepare_pipeline_runtime_for_launch(self, resolved: ResolvedPaths) -> list[str]:
@@ -2017,7 +2027,9 @@ class DummyWorkflowFacadeService(DummyFacadeService, QueueServiceMixin, RenameSe
             "show_console": show_console,
             "single_file": single_file,
         }
-        return DummyProc()
+        proc = DummyProc()
+        self.started_pipeline_proc = proc
+        return proc
 
     def prepare_audit_runtime_for_launch(self, resolved: ResolvedPaths) -> list[str]:
         _ = resolved
@@ -2036,7 +2048,9 @@ class DummyWorkflowFacadeService(DummyFacadeService, QueueServiceMixin, RenameSe
             "include_sidecars": include_sidecars,
             "show_console": show_console,
         }
-        return DummyProc(24681)
+        proc = DummyProc(24681)
+        self.started_audit_proc = proc
+        return proc
 
     def start_rerun_csv(
         self,
@@ -2078,7 +2092,9 @@ class DummyWorkflowFacadeService(DummyFacadeService, QueueServiceMixin, RenameSe
             "confirm_original_policy": confirm_original_policy,
             "confirm_delete_original": confirm_delete_original,
         }
-        return DummyProc(24682)
+        proc = DummyProc(24682)
+        self.started_rerun_proc = proc
+        return proc
 
 
 def _resolved(root: Path) -> ResolvedPaths:

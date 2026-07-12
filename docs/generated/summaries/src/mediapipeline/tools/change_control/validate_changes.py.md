@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/change_control/validate_changes.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: d0acce939f3517025b2bd45ea9d616313fecc46c6ad88bbcce8807287701e2b1
+sha256: 906710f973cb65e1bed30df54ef11f64210951adebc8ebe7eb048f6058139bff
 ---
 # `src/mediapipeline/tools/change_control/validate_changes.py`
 

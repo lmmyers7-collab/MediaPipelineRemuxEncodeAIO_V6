@@ -1,4 +1,4 @@
-/* global byId, setText, closeReadinessRequiresWarning, showPage, updatePagePanelEmptyStates */
+/* global closeReadinessRequiresWarning, showPage, updatePagePanelEmptyStates */
 (function () {
   function createLayoutManagerDrawer(deps) {
     const {

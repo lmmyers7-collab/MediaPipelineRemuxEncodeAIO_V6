@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0711-010",
+  "title": "Refresh recurring real-media and package evidence",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "release",
+  "risk_level": "medium",
+  "date_started": "2026-07-11",
+  "date_completed": "2026-07-11",
+  "summary": "Completed the recurring evidence refresh with a current clean-HEAD Tauri/package build, passing package hygiene prerequisites, and exact documented blockers and rerun commands for real-media execution and packaged launch/API/WebView/close acceptance without changing product behavior.",
+  "reason": "Recurring real-media and package/open/close evidence needed refresh after high-risk output verification and current Tauri/package work; missing owned fixtures and an already-running Tauri shell must be represented as blockers rather than replaced with synthetic proof.",
+  "affected_areas": [
+    "documentation",
+    "generated_context",
+    "policy_proof_pack",
+    "real_media",
+    "release_packaging",
+    "tauri_lifecycle",
+    "validation_evidence"
+  ],
+  "behavior_before": "Canonical records pointed to older accepted real-media and package evidence and did not state the prerequisites blocking a current rerun.",
+  "behavior_after": "Canonical records identify the 2026-07-11 clean-HEAD package artifact, hashes, passing package prerequisites, the single-instance packaged-launch blocker, the unprovisioned Policy Proof fixture blocker, and exact rerun commands. Product runtime behavior is unchanged.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/RealMediaValidationRuns/README.md",
+    "docs/generated/summaries/docs/RealMediaValidationRuns/README.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0711-010.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0711-010.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Clean detached-HEAD package build: ops/scripts/release/build.ps1 -Zip -IncludeTauriPreviewBinary \u2014 passed; 17,302 files included, 5,983 excluded, no live config, source revision 34c194219234fd0a535164038729f110fd7d0f2c",
+    "Clean package ZIP SHA-256 e74991c0e11f938a0dce3310c1701e16dbbcef1aa160aff044f4bcf872f661e9; packaged shell SHA-256 c4c1ac275668297f1e9ae7d5ea4083fd12b4aaafe898c17eeb24b8c148d86cdb",
+    "Copied-package release self-test with -SkipToolIntegration -SkipEndToEndSmoke — passed manifest, hygiene, environment, and Tauri prerequisite gates; test/dev-only freshness checks were advisory because tests and volatile developer docs are intentionally excluded from the package",
+    "Packaged Test-TauriShell-Launch.ps1 -Mode Packaged -TimeoutSeconds 180 -CloseTimeoutSeconds 30 \u2014 blocked before backend startup with exit 1 because an unrelated running Tauri dev shell held the per-user single-instance guard; API health, WebView load, runtime-state externalization, and safe close were not executed",
+    "Packaged Test-TauriShell-Prereqs.ps1 -CheckOnly \u2014 passed, including packaged backend Python runtime, Local API module import, and WebView2/runtime layout prerequisites",
+    "Post-failure process check \u2014 no packaged shell or packaged backend remained; unrelated pre-existing debug shell was left running and untouched",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.policy_proof_pack verify \u2014 blocked before materialization: all 15 catalog SHA-256 values are placeholders; configured external fixture root and policy_proof_sources.json mapping are absent; no media processed",
+    "npm run build in apps/desktop/tauri \u2014 passed; Tauri release executable and NSIS bundle built for clean commit 34c194219234fd0a535164038729f110fd7d0f2c before concurrent worktree edits began",
+    "ops/scripts/dev/start-tauri-preview.bat -CheckOnly \u2014 passed for source-tree Node/npm/Cargo/bundled-Python/backend-import prerequisites"
+  ],
+  "rollback_plan": "Revert only this packet and its three documentation updates. Delete local/external validation artifacts if no longer needed; do not alter media, manifests, source files, or the unrelated running Tauri shell.",
+  "related_changes": [
+    "MP-CHANGE-2026-0710-005"
+  ],
+  "notes": "Validation-only documentation change. No product implementation, source media, pending-publish manifest, queue, settings, or runtime policy was modified. Packet completion means the requested refresh produced current dated evidence or an exact blocker and rerun command for every unexecuted portion; it does not mean either recurring gate passed. Real-media rerun requires approved external fixtures, concrete catalog hashes, a local source mapping, strict verify/materialize/run, source/output hash and ffprobe evidence, backend-owned park/drain proof, and primary Plex-client observation. Package open/close rerun requires normally closing the existing dev shell first. The clean package manifest is deployable=false and verify_requested=false because the full deployable wrapper was externally interrupted during concurrent workspace/test activity before staging; this packet does not claim deployable package acceptance. Unrelated dirty paths and packets MP-CHANGE-2026-0711-008, -009, -011, -012, and -013 were not absorbed.\nRecorded current real-media blockers, package hashes, prerequisites, and rerun commands.\nRecorded partial recurring-gate state and current blockers.\nUpdated both recurring gates with dated outcomes and rerun commands.\nRefreshed generated summary for the dated validation anchor.\nGenerated summary for the validation change packet."
+}

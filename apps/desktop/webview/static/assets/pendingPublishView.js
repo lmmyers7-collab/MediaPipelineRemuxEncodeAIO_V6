@@ -246,7 +246,7 @@
       filterRows: typeof filterRows === "function" ? filterRows : window.filterRows,
       filterRowsByStatus: typeof filterRowsByStatus === "function" ? filterRowsByStatus : window.filterRowsByStatus,
       filterRowsByInvestigation: typeof filterRowsByInvestigation === "function" ? filterRowsByInvestigation : window.filterRowsByInvestigation,
-      filterResultSummaryLines: typeof filterResultSummaryLines === "function" ? filterResultSummaryLines : window.filterResultSummaryLines,
+      filterResultSummaryLines: window.mediaPipelineDom?.filterResultSummaryLines,
       tableScrollSnapshot,
       deferTableScrollRestore,
       pendingFilterFields: PENDING_FILTER_FIELDS,

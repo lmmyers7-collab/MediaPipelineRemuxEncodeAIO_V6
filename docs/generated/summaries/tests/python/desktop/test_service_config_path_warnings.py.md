@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_config_path_warnings.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-12
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 78b45fe824138cf888fa3cf11fd46375b462016f1103b1be229dc4e5b0894fe0
+sha256: 685d44d20839cc56cdd239dca3dcaa3ff5ccf157304f31687903474a5a3e22a4
 ---
 # `tests/python/desktop/test_service_config_path_warnings.py`
 

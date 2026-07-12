@@ -2,7 +2,7 @@
 
 Companion to `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
 
-Total routes: 163 (53 read, 110 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+Total routes: 168 (54 read, 114 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
 
 ---
 
@@ -25,6 +25,7 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | `GET /api/diagnostics/tdarr-matrix/runs` | `read` | No | Lists sentinel-marked Tdarr Matrix runs under the approved scratch run root |
 | `GET /api/diagnostics/tdarr-matrix/compare` | `read` | No | Compares existing Tdarr Matrix reports by run IDs; no file open or launch |
 | `GET /api/backend/close-readiness` | `read` | No | Backend has authority over safe-to-close; shell must not decide unilaterally |
+| `GET /api/backend/recovery-status` | `read` | No | Reads backend-owned lifecycle recovery classification and required operator action; no recovery mutation |
 | `GET /api/ui-preferences` | `read` | No | Reads shared UI customization only; no settings, queue, or media mutation |
 | `GET /api/launch/preflight` | `read` | No | Backend-authored pre-launch checks; no locks reserved, no processes started |
 | `GET /api/commands` | `read` | No | Recent command journal entries; bounded query |
@@ -127,6 +128,8 @@ Returns backend-authored previews. No files, manifests, config, or queue state a
 | `POST /api/queue/file-overrides/folder-preview` | `read-only-preview` | Frontend cannot scan or approve folder rules independently | Backend uses bounded known-file/cached-track evidence only; no source folder scan or state write |
 | `POST /api/subtitle-qa/preview` | `read-only-preview` | Frontend cannot probe, convert, repair, or author subtitle QA evidence | Backend reads already-loaded Queue and Completed subtitle QA evidence only; no sidecar rewrite, publish, drain, or media touch |
 | `POST /api/rerun/preview` | `read-only-preview` | Frontend cannot parse CSV scope or approve executable rows independently | Backend parses the selected CSV, classifies blocked/warning rows, returns recent candidates and scoped counts, and writes no scoped CSV or media/process state |
+| `POST /api/rerun/network-preview` | `read-only-preview` | Frontend cannot model Network CSV rerun claim or destination safety independently | Backend models claimable/skipped/blocked rows, source mapping, handoff readiness, and destination risk without writing Network state, launching work, or touching media |
+| `POST /api/rerun/network/start-dry-run` | `none` | Frontend cannot infer coordinator or worker readiness independently | Backend validates coordinator lifecycle, worker availability, duplicate-batch guards, destination safety, exact future state paths, and rollback evidence without writing state |
 | `POST /api/rerun/promote-dry-run` | `read-only-preview` | Frontend cannot decide review-output promotion safety independently | Backend computes dry-run evidence and a fingerprint for promoting an existing rerun review output into Pending Publish without moving files or writing manifests |
 
 ### failure-marker-write (medium risk, retry-blocker state)
@@ -319,6 +322,7 @@ Runs backend maintenance tooling. Dry runs write no ops/release/metadata/backfil
 | `POST /api/maintenance/release-dry-run` | `process-dry-run` | Frontend cannot invoke the release script directly | Runs release builder with dry-run semantics; no release folder or zip written |
 | `POST /api/maintenance/completed-backfill-dry-run` | `process-dry-run` | Frontend cannot invoke the backfill script directly | Runs backfill dry-run; no completed manifest written |
 | `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | Frontend cannot regenerate tooling artifacts directly | Writes generated dependency-atlas artifacts under `docs/generated/dependency-atlas/` only; no media, queue, settings, manifests, pending publish, or pipeline state touched |
+| `POST /api/diagnostics/encoder-capabilities/refresh` | `diagnostics-artifact-write` | Frontend cannot regenerate encoder capability evidence directly | Writes bounded backend diagnostic evidence only; cannot launch media processing or touch source media |
 | `POST /api/maintenance/support-export` | `diagnostics-artifact-write` | Frontend cannot assemble support bundles directly | Backend writes a redacted support export under per-user AppData DiagnosticsExports only; no config write, launch, queue, manifest, pending publish, or media mutation |
 | `POST /api/maintenance/archive-state-journals` | `runtime-evidence-archive` | Frontend cannot archive state journals directly | `confirm_archive` required; archives backend state-journal evidence only and does not mutate media, queue, settings, manifests, or pending publish state |
 | `POST /api/maintenance/release-build` | `deployment-write` | Frontend cannot create release packages directly | `confirm_create` required; backend checks active work, owns destination replacement, manifest creation, and optional zip creation |
@@ -351,6 +355,12 @@ Spawns backend processes. The backend owns launch locks, command journal entries
 | `POST /api/audit/start` | `process-launch` | Frontend cannot exec audit scripts directly | Backend owns audit script invocation |
 | `POST /api/rerun/start` | `process-launch` | Frontend cannot exec rerun scripts directly | Backend-owned CSV rerun default: `destination_mode=auto_replace_clean_else_pending_review`, `collision_policy=replace_final`, source originals kept; strict `confirm_replace_final=true` is still required before live replacement-capable starts |
 | `POST /api/rerun/continue` | `process-launch` | Frontend cannot materialize retry CSVs or exec rerun scripts directly | Requires `confirm_continue: true`; backend accepts stopped-after-current manifests only, writes a pending-only scoped CSV, and launches through CSV rerun locks |
+
+### network-state-write (high risk)
+
+| Route | Class | Frontend can own? | Key restriction |
+|---|---|---|---|
+| `POST /api/rerun/network/start` | `network-state-write` | Frontend cannot create Network CSV rerun batch state or worker claims | Requires matching backend dry-run fingerprint and strict `confirm_start`; writes coordinator-owned batch state and command evidence only, without directly launching workers or touching media |
 
 ---
 

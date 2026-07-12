@@ -3,9 +3,9 @@ file: tests/python/desktop/test_architecture_guardrails.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 4fd15c5778a595bafe34917a37d4c1fc3b4ce6845294e399d5539d827036d5d6
+sha256: 5312cfcc277430823211c2fa66a05a29cb97c77fcc12f47f0700bc0d8c7d7b2b
 ---
 # `tests/python/desktop/test_architecture_guardrails.py`
 

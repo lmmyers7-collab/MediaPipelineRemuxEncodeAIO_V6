@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-11
 last_reviewed: 2026-06-07
-sha256: d27d3c7223925bb0a9f8fc0b26572fc24f72381eb2a9d592dab0005943b0cade
+sha256: f0b08987c57b9b7746e93df881b76d425162d87b56e9714d2edf6186611067e8
 ---
 # `src/mediapipeline/tools/dev/tdarr_matrix_audit.py`
 

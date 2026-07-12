@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: decide
 last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 471388748d05414c438dbd04d5252d03ca694c27a49c64a2ef1b9e691aeb583c
+sha256: 2b3f83b8950a68f532b76c39ec1f12474336cd77cffef446681c4a378c59c80a
 ---
 # `ops/pipeline/engine/decide/encode_policy.ps1`
 

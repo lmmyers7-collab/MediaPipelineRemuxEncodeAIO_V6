@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_pending_publish_manifest.py
 pipeline_stage: publish
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-10
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 2f8690169e502e7045b46cb759f88b68bf1fa8d6612855b8813833828187c2e3
+sha256: 662eeedad4217438e8ba347804349a1451b5ea36f8fc6fe9141e9ec7b5f43593
 ---
 # `tests/python/desktop/test_service_pending_publish_manifest.py`
 

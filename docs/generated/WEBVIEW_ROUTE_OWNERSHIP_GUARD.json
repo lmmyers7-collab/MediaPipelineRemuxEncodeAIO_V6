@@ -103,6 +103,12 @@
       ]
     },
     {
+      "route": "/api/diagnostics/encoder-capabilities/refresh",
+      "files": [
+        "apps/desktop/webview/static/assets/launchView.preflight.js"
+      ]
+    },
+    {
       "route": "/api/diagnostics/open",
       "files": [
         "apps/desktop/webview/static/assets/diagnosticsView.js"
@@ -111,19 +117,19 @@
     {
       "route": "/api/diagnostics/tdarr-matrix-audit",
       "files": [
-        "apps/desktop/webview/static/assets/diagnosticsView.js"
+        "apps/desktop/webview/static/assets/diagnostics/matrixConsole.js"
       ]
     },
     {
       "route": "/api/diagnostics/tdarr-matrix/evidence/open",
       "files": [
-        "apps/desktop/webview/static/assets/diagnosticsView.js"
+        "apps/desktop/webview/static/assets/diagnostics/matrixConsole.js"
       ]
     },
     {
       "route": "/api/diagnostics/tdarr-matrix/rerun",
       "files": [
-        "apps/desktop/webview/static/assets/diagnosticsView.js"
+        "apps/desktop/webview/static/assets/diagnostics/matrixConsole.js"
       ]
     },
     {
@@ -146,6 +152,12 @@
     },
     {
       "route": "/api/failures/lifecycle",
+      "files": [
+        "apps/desktop/webview/static/assets/reports/failureCommands.js"
+      ]
+    },
+    {
+      "route": "/api/failures/open",
       "files": [
         "apps/desktop/webview/static/assets/reports/failureCommands.js"
       ]
@@ -177,49 +189,55 @@
     {
       "route": "/api/maintenance",
       "files": [
-        "apps/desktop/webview/static/assets/maintenanceView.js"
+        "apps/desktop/webview/static/assets/maintenance/dryRunReadiness.js"
       ]
     },
     {
       "route": "/api/maintenance/archive-state-journals",
       "files": [
-        "apps/desktop/webview/static/assets/launchView.js"
+        "apps/desktop/webview/static/assets/launch/commandOrchestration.js"
       ]
     },
     {
       "route": "/api/maintenance/completed-backfill-dry-run",
       "files": [
-        "apps/desktop/webview/static/assets/maintenanceView.js"
+        "apps/desktop/webview/static/assets/maintenance/releaseCommands.js"
       ]
     },
     {
       "route": "/api/maintenance/dependency-atlas",
       "files": [
-        "apps/desktop/webview/static/assets/maintenanceView.js"
+        "apps/desktop/webview/static/assets/maintenance/releaseCommands.js"
       ]
     },
     {
       "route": "/api/maintenance/dependency-atlas/open-folder",
       "files": [
-        "apps/desktop/webview/static/assets/maintenanceView.js"
+        "apps/desktop/webview/static/assets/maintenance/releaseCommands.js"
       ]
     },
     {
       "route": "/api/maintenance/progress",
       "files": [
-        "apps/desktop/webview/static/assets/maintenanceView.js"
+        "apps/desktop/webview/static/assets/maintenance/health.js"
       ]
     },
     {
       "route": "/api/maintenance/release-build",
       "files": [
-        "apps/desktop/webview/static/assets/maintenanceView.js"
+        "apps/desktop/webview/static/assets/maintenance/releaseCommands.js"
       ]
     },
     {
       "route": "/api/maintenance/release-dry-run",
       "files": [
-        "apps/desktop/webview/static/assets/maintenanceView.js"
+        "apps/desktop/webview/static/assets/maintenance/releaseCommands.js"
+      ]
+    },
+    {
+      "route": "/api/maintenance/support-export",
+      "files": [
+        "apps/desktop/webview/static/assets/recoverySupportView.js"
       ]
     },
     {
@@ -267,19 +285,19 @@
     {
       "route": "/api/pipeline/browse-file",
       "files": [
-        "apps/desktop/webview/static/assets/launchView.js"
+        "apps/desktop/webview/static/assets/launch/commandOrchestration.js"
       ]
     },
     {
       "route": "/api/pipeline/control",
       "files": [
-        "apps/desktop/webview/static/assets/launchView.js"
+        "apps/desktop/webview/static/assets/launch/commandOrchestration.js"
       ]
     },
     {
       "route": "/api/pipeline/start",
       "files": [
-        "apps/desktop/webview/static/assets/launchView.js"
+        "apps/desktop/webview/static/assets/launch/commandOrchestration.js"
       ]
     },
     {
@@ -339,19 +357,20 @@
     {
       "route": "/api/queue/priority",
       "files": [
-        "apps/desktop/webview/static/assets/queueView.js"
+        "apps/desktop/webview/static/assets/queue/manualOrder.js",
+        "apps/desktop/webview/static/assets/queue/priority.js"
       ]
     },
     {
       "route": "/api/queue/scan",
       "files": [
-        "apps/desktop/webview/static/assets/queueView.js"
+        "apps/desktop/webview/static/assets/queue/scan.js"
       ]
     },
     {
       "route": "/api/queue/strategy",
       "files": [
-        "apps/desktop/webview/static/assets/queueView.js"
+        "apps/desktop/webview/static/assets/queue/strategy.js"
       ]
     },
     {
@@ -363,37 +382,25 @@
     {
       "route": "/api/rename/browse",
       "files": [
-        "apps/desktop/webview/static/assets/renameView.js"
+        "apps/desktop/webview/static/assets/rename/paths.js"
       ]
     },
     {
       "route": "/api/rename/filter-cases",
       "files": [
-        "apps/desktop/webview/static/assets/renameView.js"
+        "apps/desktop/webview/static/assets/rename/selection.js"
       ]
     },
     {
       "route": "/api/rename/preview",
       "files": [
-        "apps/desktop/webview/static/assets/renameView.js"
+        "apps/desktop/webview/static/assets/rename/previewLifecycle.js"
       ]
     },
     {
       "route": "/api/rename/undo",
       "files": [
         "apps/desktop/webview/static/assets/renameView.js"
-      ]
-    },
-    {
-      "route": "/api/rerun/preview",
-      "files": [
-        "apps/desktop/webview/static/assets/launchView.js"
-      ]
-    },
-    {
-      "route": "/api/rerun/start",
-      "files": [
-        "apps/desktop/webview/static/assets/launchView.js"
       ]
     },
     {
@@ -411,49 +418,101 @@
     {
       "route": "/api/schedule/preview",
       "files": [
-        "apps/desktop/webview/static/assets/scheduleView.js"
+        "apps/desktop/webview/static/assets/schedule/editor.js"
       ]
     },
     {
       "route": "/api/schedule/save",
       "files": [
-        "apps/desktop/webview/static/assets/scheduleView.js"
+        "apps/desktop/webview/static/assets/schedule/editor.js"
       ]
     },
     {
       "route": "/api/settings/browse-path",
       "files": [
-        "apps/desktop/webview/static/assets/settingsView.js"
+        "apps/desktop/webview/static/assets/settings/view/builder.js",
+        "apps/desktop/webview/static/assets/settings/view/lifecycle.js"
+      ]
+    },
+    {
+      "route": "/api/settings/preset-library",
+      "files": [
+        "apps/desktop/webview/static/assets/settings/presetLibrary.js"
+      ]
+    },
+    {
+      "route": "/api/settings/preset-library/apply",
+      "files": [
+        "apps/desktop/webview/static/assets/settings/presetLibrary.js"
+      ]
+    },
+    {
+      "route": "/api/settings/preset-library/apply-preview",
+      "files": [
+        "apps/desktop/webview/static/assets/settings/presetLibrary.js"
+      ]
+    },
+    {
+      "route": "/api/settings/preset-library/compare",
+      "files": [
+        "apps/desktop/webview/static/assets/settings/presetLibrary.js"
+      ]
+    },
+    {
+      "route": "/api/settings/preset-library/export",
+      "files": [
+        "apps/desktop/webview/static/assets/settings/presetLibrary.js"
+      ]
+    },
+    {
+      "route": "/api/settings/preset-library/import-preview",
+      "files": [
+        "apps/desktop/webview/static/assets/settings/presetLibrary.js"
+      ]
+    },
+    {
+      "route": "/api/settings/preset-library/save",
+      "files": [
+        "apps/desktop/webview/static/assets/settings/presetLibrary.js"
+      ]
+    },
+    {
+      "route": "/api/settings/preset-library/validate",
+      "files": [
+        "apps/desktop/webview/static/assets/settings/presetLibrary.js"
       ]
     },
     {
       "route": "/api/settings/preview-patch",
       "files": [
-        "apps/desktop/webview/static/assets/settingsView.js"
+        "apps/desktop/webview/static/assets/settings/view/builder.js",
+        "apps/desktop/webview/static/assets/settings/view/commands.js"
       ]
     },
     {
       "route": "/api/settings/reload",
       "files": [
-        "apps/desktop/webview/static/assets/settingsView.js"
+        "apps/desktop/webview/static/assets/settings/view/lifecycle.js"
       ]
     },
     {
       "route": "/api/settings/save-patch",
       "files": [
-        "apps/desktop/webview/static/assets/settingsView.js"
+        "apps/desktop/webview/static/assets/settings/view/builder.js",
+        "apps/desktop/webview/static/assets/settings/view/commands.js"
       ]
     },
     {
       "route": "/api/settings/validate",
       "files": [
-        "apps/desktop/webview/static/assets/settingsView.js"
+        "apps/desktop/webview/static/assets/settings/view/impact.js"
       ]
     },
     {
       "route": "/api/ui-preferences",
       "files": [
-        "apps/desktop/webview/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js",
+        "apps/desktop/webview/static/assets/app/uiPreferences.js"
       ]
     }
   ],
@@ -465,7 +524,11 @@
       "note": "Settings persistence must remain explicitly backend-confirmed.",
       "files": [
         {
-          "path": "apps/desktop/webview/static/assets/settingsView.js",
+          "path": "apps/desktop/webview/static/assets/settings/view/builder.js",
+          "has_confirmation": true
+        },
+        {
+          "path": "apps/desktop/webview/static/assets/settings/view/commands.js",
           "has_confirmation": true
         }
       ],
@@ -478,7 +541,7 @@
       "note": "Schedule persistence must remain explicitly backend-confirmed.",
       "files": [
         {
-          "path": "apps/desktop/webview/static/assets/scheduleView.js",
+          "path": "apps/desktop/webview/static/assets/schedule/editor.js",
           "has_confirmation": true
         }
       ],
@@ -517,7 +580,7 @@
       "note": "Rename filter corpus writes must remain explicitly backend-confirmed.",
       "files": [
         {
-          "path": "apps/desktop/webview/static/assets/renameView.js",
+          "path": "apps/desktop/webview/static/assets/rename/selection.js",
           "has_confirmation": true
         }
       ],

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 7473c9640248938073ad0c16c68b865d6f0647934aba861c3d01d7dc60964cb5
+sha256: 6b0c30cce4c835dd12ac48d0fea2cc7fe5f5a3d9f9c3784d42d4c197b7830185
 ---
 # `apps/desktop/webview/static/assets/completed/review/workflowOverview.js`
 

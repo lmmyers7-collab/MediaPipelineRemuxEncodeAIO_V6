@@ -3,9 +3,9 @@ file: tests/webview/test_webview_browser_home_live_state_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-09
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 436618ed5398158a2abe605c175da3ab4e326be3a619ce7d9e14f6438010a4dd
+sha256: 09093cce94e8f8bd6a3e6b027da11cda7b01a3fa364f0f7de9feb1f0c2898645
 ---
 # `tests/webview/test_webview_browser_home_live_state_smoke.py`
 

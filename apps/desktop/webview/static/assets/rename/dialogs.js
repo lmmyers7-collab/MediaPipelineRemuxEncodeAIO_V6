@@ -5,6 +5,7 @@
   function createRenameDialogsModule(deps = {}) {
     const {
       byId = () => null,
+      previewRenderLimit = 250,
       renameConfirmBasename = (value) => String(value || ""),
       renameDialogById = () => null,
       renameLastApplyUndoCounts = () => ({ totalOps: 0 }),
@@ -29,9 +30,10 @@
     const warningEl = byId("rename-confirm-warning");
     if (warningEl) {
       const warnings = [];
-      if (lastRenameRows.length > RENAME_PREVIEW_RENDER_LIMIT) {
-        const hiddenChecked = rowsToApply.filter((row) => lastRenameRows.indexOf(row) >= RENAME_PREVIEW_RENDER_LIMIT).length;
-        warnings.push(`Render cap: ${RENAME_PREVIEW_RENDER_LIMIT} of ${lastRenameRows.length} preview rows are visible${hiddenChecked ? `; ${hiddenChecked} checked row(s) are not visible in the table` : ""}.`);
+      const previewRows = Array.isArray(state.rows) ? state.rows : [];
+      if (previewRows.length > previewRenderLimit) {
+        const hiddenChecked = rowsToApply.filter((row) => previewRows.indexOf(row) >= previewRenderLimit).length;
+        warnings.push(`Render cap: ${previewRenderLimit} of ${previewRows.length} preview rows are visible${hiddenChecked ? `; ${hiddenChecked} checked row(s) are not visible in the table` : ""}.`);
       }
       warningEl.textContent = warnings.join(" ");
       warningEl.hidden = !warnings.length;
@@ -293,4 +295,3 @@
 
   window.__renameDialogsModule = { createRenameDialogsModule };
 })();
-

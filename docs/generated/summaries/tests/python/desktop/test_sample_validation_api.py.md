@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: ef8ad0ead84a362c7ba417f381e22c2671f23dcd8cbbadc9c5225ba7b8b249e4
+sha256: ac3a7503e0406f2fb930b0e9a7dd34235ae4a202a4e0560f089dfd02fa3b68df
 ---
 # `tests/python/desktop/test_sample_validation_api.py`
 

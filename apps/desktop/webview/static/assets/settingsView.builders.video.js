@@ -180,6 +180,7 @@
       setVideoDetailBuilderControl("settings-video-cpu-preset", "CpuEncodePreset", "select", "medium");
       setVideoDetailBuilderControl("settings-video-cpu-priority", "CpuEncodeProcessPriority", "select", "belownormal");
       setVideoDetailBuilderControl("settings-video-cpu-threads", "CpuEncodeMaxThreads", "number", 0);
+      setVideoDetailBuilderControl("settings-video-cpu-mutex-wait", "CpuEncodeMutexWaitSeconds", "number", 3600);
       setVideoDetailBuilderControl("settings-video-extra-flags", "ExtraVideoFlags", "list", []);
       videoDetailSettingsBuilderState.initialized = true;
       videoDetailSettingsBuilderState.dirty = false;

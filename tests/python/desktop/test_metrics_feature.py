@@ -470,7 +470,7 @@ class MetricsFeatureTests(unittest.TestCase):
         shell = (WEBVIEW_ROOT / "partials" / "app-shell-start.html").read_text(encoding="utf-8")
         index = (WEBVIEW_ROOT / "index.html").read_text(encoding="utf-8")
         page = (WEBVIEW_ROOT / "partials" / "page-metrics.html").read_text(encoding="utf-8")
-        app_js = (WEBVIEW_ROOT / "assets" / "app.js").read_text(encoding="utf-8")
+        refresh_js = (WEBVIEW_ROOT / "assets" / "app" / "refreshCoordinator.js").read_text(encoding="utf-8")
         metrics_js = (WEBVIEW_ROOT / "assets" / "metricsView.js").read_text(encoding="utf-8")
         styles = resolve_css_imports(
             WEBVIEW_ROOT / "assets" / "styles.components.css",
@@ -480,8 +480,8 @@ class MetricsFeatureTests(unittest.TestCase):
         self.assertIn('data-page="metrics"', shell)
         self.assertIn("partials/page-metrics.html", index)
         self.assertIn('/assets/metricsView.js', index)
-        self.assertIn('refreshGet("/api/metrics"', app_js)
-        self.assertIn("window.mediaPipelineMetricsView?.renderMetrics?.(values.metrics)", app_js)
+        self.assertIn('["metrics", "/api/metrics", false]', refresh_js)
+        self.assertIn("window.mediaPipelineMetricsView?.renderMetrics?.(values.metrics)", refresh_js)
         self.assertIn('postMetricsCommand("/api/metrics/sources"', metrics_js)
         self.assertIn('postMetricsCommand("/api/metrics/backfill"', metrics_js)
         self.assertNotIn("data-control-action", page)
@@ -528,7 +528,7 @@ class MetricsFeatureTests(unittest.TestCase):
         self.assertIn("function renderMetricsUnavailable", metrics_js)
         self.assertIn('payload.schema_version !== "desktop_metrics.v1"', metrics_js)
         self.assertIn("Historical values remain visible", metrics_js)
-        self.assertIn("renderMetricsUnavailable?.(", app_js)
+        self.assertIn("renderMetricsUnavailable?.(", refresh_js)
 
 
 if __name__ == "__main__":

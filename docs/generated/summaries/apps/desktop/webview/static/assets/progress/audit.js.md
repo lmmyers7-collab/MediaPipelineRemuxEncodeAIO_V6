@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/progress/audit.js
 pipeline_stage: observability
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-10
+last_modified: 2026-07-11
 last_reviewed: 2026-07-10
-sha256: fbf3961087c799b114754dcd73a8949f5d0cbc4c1f80ffabf32aa02d7034a96f
+sha256: 4eaacaf0d772602cd87bec32c420f7d19a94b47fb598c6737eb03b7c5577c07d
 ---
 # `apps/desktop/webview/static/assets/progress/audit.js`
 

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/queue/excluded.js
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-10
+last_modified: 2026-07-11
 last_reviewed: 2026-07-10
-sha256: c4779b64c1ba7369f68add068e6e4509cc3cbbdbbccef53b296c9548909fea68
+sha256: a6ab40b915e3477352022e5fdd8079f5ff8635d75ec28f1cccfc13d7fa5fd83c
 ---
 # `apps/desktop/webview/static/assets/queue/excluded.js`
 

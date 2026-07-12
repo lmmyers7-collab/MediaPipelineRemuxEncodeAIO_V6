@@ -57,6 +57,24 @@ def _apply_request(dry_run_data: dict[str, object], *, reason: str = "operator c
     }
 
 
+def _assert_strict_apply_journal(
+    test: unittest.TestCase,
+    commands: dict[str, object],
+    *,
+    mutation_command: str,
+    route_command: str,
+) -> None:
+    entries = commands["entries"]
+    test.assertIsInstance(entries, list)
+    test.assertEqual(len(entries), 3)
+    command_names = [str(entry.get("command") or "") for entry in entries]
+    test.assertEqual(command_names.count(mutation_command), 2)
+    test.assertEqual(command_names.count(route_command), 1)
+    phases = [str((entry.get("data") or {}).get("evidence_phase") or "") for entry in entries]
+    test.assertIn("accepted", phases)
+    test.assertIn("completed", phases)
+
+
 def _psd1_literal(value: object) -> str:
     if isinstance(value, bool):
         return "$true" if value else "$false"
@@ -666,8 +684,12 @@ class RepairReconcileApplyTests(unittest.TestCase):
             self.assertEqual(_file_state(files["source"]), source_before)
             self.assertEqual(_file_state(files["output"]), output_before)
             self.assertTrue(apply_payload["data"]["source_payload_output_unchanged"])
-            self.assertEqual(len(commands["entries"]), 1)
-            self.assertEqual(commands["entries"][0]["command"], "completed.repair_sidecar_metadata")
+            _assert_strict_apply_journal(
+                self,
+                commands,
+                mutation_command="completed.repair_sidecar_metadata",
+                route_command="completed.repair-sidecar-metadata",
+            )
             self.assertFalse(any("drain" in str(entry.get("command", "")).lower() for entry in commands["entries"]))
 
     def test_local_api_completed_manifest_apply_is_journaled_without_touching_media(self) -> None:
@@ -757,8 +779,12 @@ class RepairReconcileApplyTests(unittest.TestCase):
             self.assertEqual(_file_state(files["output"]), output_before)
             self.assertEqual(_file_state(files["sidecar"]), sidecar_before)
             self.assertTrue(apply_payload["data"]["source_payload_output_unchanged"])
-            self.assertEqual(len(commands["entries"]), 1)
-            self.assertEqual(commands["entries"][0]["command"], "completed.reconcile_manifest")
+            _assert_strict_apply_journal(
+                self,
+                commands,
+                mutation_command="completed.reconcile_manifest",
+                route_command="completed.reconcile-manifest",
+            )
             self.assertFalse(any("drain" in str(entry.get("command", "")).lower() for entry in commands["entries"]))
 
     def test_local_api_pending_manifest_apply_is_journaled_without_draining_or_touching_media(self) -> None:
@@ -849,8 +875,12 @@ class RepairReconcileApplyTests(unittest.TestCase):
             self.assertEqual(_file_state(files["pending_payload"]), payload_before)
             self.assertEqual(_file_state(drain_summary), drain_summary_before)
             self.assertTrue(apply_payload["data"]["source_payload_output_unchanged"])
-            self.assertEqual(len(commands["entries"]), 1)
-            self.assertEqual(commands["entries"][0]["command"], "pending_publish.repair_manifest")
+            _assert_strict_apply_journal(
+                self,
+                commands,
+                mutation_command="pending_publish.repair_manifest",
+                route_command="pending-publish.repair-manifest",
+            )
             self.assertFalse(any("drain" in str(entry.get("command", "")).lower() for entry in commands["entries"]))
             pending_row = pending_payload["rows"][0]
             self.assertEqual(pending_row["state"], "parked")
@@ -950,8 +980,12 @@ class RepairReconcileApplyTests(unittest.TestCase):
             self.assertEqual(_file_state(files["pending_payload"]), payload_before)
             self.assertEqual(_file_state(drain_summary), drain_summary_before)
             self.assertTrue(apply_payload["data"]["source_payload_output_unchanged"])
-            self.assertEqual(len(commands["entries"]), 1)
-            self.assertEqual(commands["entries"][0]["command"], "pending_publish.reconcile_orphan_payloads")
+            _assert_strict_apply_journal(
+                self,
+                commands,
+                mutation_command="pending_publish.reconcile_orphan_payloads",
+                route_command="pending-publish.reconcile-orphan-payloads",
+            )
             self.assertFalse(any("drain" in str(entry.get("command", "")).lower() for entry in commands["entries"]))
             pending_row = pending_payload["rows"][0]
             self.assertEqual(pending_row["state"], "parked")
@@ -1048,8 +1082,12 @@ class RepairReconcileApplyTests(unittest.TestCase):
             self.assertEqual(_file_state(output), output_before)
             self.assertEqual(_file_state(payload), payload_before)
             self.assertTrue(apply_payload["data"]["source_payload_output_unchanged"])
-            self.assertEqual(len(commands["entries"]), 1)
-            self.assertEqual(commands["entries"][0]["command"], "pending_publish.reconcile_orphan_payloads")
+            _assert_strict_apply_journal(
+                self,
+                commands,
+                mutation_command="pending_publish.reconcile_orphan_payloads",
+                route_command="pending-publish.reconcile-orphan-payloads",
+            )
             self.assertFalse(any("drain" in str(entry.get("command", "")).lower() for entry in commands["entries"]))
 
             drain = _run_pending_drain(config_path)

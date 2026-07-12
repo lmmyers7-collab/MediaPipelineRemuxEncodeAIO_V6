@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 0a3a5df1825a4c124155da6d78a9804d566ae903007b28f8bd54decd1a325384
+sha256: 4b2b078c37cc972a14a2d0e785e3218e35d66fc449c958deea2efd5c781675e7
 ---
 # `apps/desktop/webview/static/assets/diagnostics/triage.js`
 

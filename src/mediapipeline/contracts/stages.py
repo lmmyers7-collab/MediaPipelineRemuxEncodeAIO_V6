@@ -102,7 +102,25 @@ class StageContract:
     result_model: type[StageData]
     journal_event_type: str
     mutation_capable: bool = False
-    enabled_in_entrypoint: bool = False
+    execution_backend: Literal["disabled", "powershell", "python"] = "disabled"
+    enablement_blocker: str = ""
+    required_validation: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.execution_backend == "disabled" and self.mutation_capable and not self.enablement_blocker:
+            raise ValueError("Disabled mutation-capable stages require an enablement blocker.")
+        if self.execution_backend != "disabled" and self.enablement_blocker:
+            raise ValueError("Enabled stages cannot retain an enablement blocker.")
+
+    @property
+    def enabled_in_dispatcher(self) -> bool:
+        return self.execution_backend != "disabled"
+
+    @property
+    def enabled_in_entrypoint(self) -> bool:
+        """Compatibility evidence for stages implemented by the PowerShell entrypoint."""
+
+        return self.execution_backend == "powershell"
 
 
 STAGE_REGISTRY: dict[StageName, StageContract] = {
@@ -111,55 +129,84 @@ STAGE_REGISTRY: dict[StageName, StageContract] = {
         IngestResult,
         "pipeline.stage.ingest",
         mutation_capable=True,
-        enabled_in_entrypoint=True,
+        execution_backend="powershell",
     ),
     StageName.probe: StageContract(
         ProbePayload,
         ProbeResult,
         "pipeline.stage.probe",
-        enabled_in_entrypoint=True,
+        execution_backend="powershell",
     ),
     StageName.decide: StageContract(
         DecidePayload,
         DecideResult,
         "pipeline.stage.decide",
-        enabled_in_entrypoint=True,
+        execution_backend="powershell",
     ),
     StageName.transcode: StageContract(
         TranscodePayload,
         TranscodeResult,
         "pipeline.stage.transcode",
         mutation_capable=True,
+        enablement_blocker="production_ffmpeg_policy_parity_and_real_media_required",
+        required_validation=(
+            "powershell_unit_and_reliability",
+            "tool_integration",
+            "representative_encode_and_remux_media",
+            "stream_mapping_and_recovery_parity",
+        ),
     ),
     StageName.subtitle_convert: StageContract(
         SubtitleConvertPayload,
         SubtitleConvertResult,
         "pipeline.stage.subtitle_convert",
         mutation_capable=True,
+        execution_backend="python",
     ),
     StageName.audio_mix: StageContract(
         AudioMixPayload,
         AudioMixResult,
         "pipeline.stage.audio_mix",
         mutation_capable=True,
+        enablement_blocker="production_audio_policy_parity_and_multi_audio_real_media_required",
+        required_validation=(
+            "audio_policy_unit_coverage",
+            "representative_multi_audio_media",
+            "passthrough_transcode_downmix_default_language_parity",
+        ),
     ),
     StageName.publish: StageContract(
         PublishPayload,
         PublishResult,
         "pipeline.stage.publish",
         mutation_capable=True,
+        enablement_blocker="manifest_publish_transaction_parity_and_real_media_required",
+        required_validation=(
+            "publish_partial_and_sidecar_transaction_parity",
+            "pending_park_and_recovery_fixture_coverage",
+            "representative_publish_media",
+            "final_placement_proof",
+        ),
     ),
     StageName.drain: StageContract(
         DrainPayload,
         DrainResult,
         "pipeline.stage.drain",
         mutation_capable=True,
+        enablement_blocker="pending_manifest_transaction_parity_and_deferred_publish_real_media_required",
+        required_validation=(
+            "trusted_pending_manifest_parity",
+            "copy_hash_sidecar_and_attempt_state_recovery",
+            "pending_publish_fixture_coverage",
+            "representative_deferred_publish_to_drain_media",
+        ),
     ),
     StageName.rename: StageContract(
         RenamePayload,
         RenameResult,
         "pipeline.stage.rename",
         mutation_capable=True,
+        execution_backend="python",
     ),
 }
 

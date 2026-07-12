@@ -964,7 +964,9 @@ class SampleValidationApiTests(unittest.TestCase):
         )
         self.assertEqual(rendered.status, 200)
         html = rendered.body.decode("utf-8")
-        app_js = (PROJECT_ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "app.js").read_text(encoding="utf-8")
+        app_js = (
+            PROJECT_ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "app" / "refreshCoordinator.js"
+        ).read_text(encoding="utf-8")
         cross_page_js = (
             PROJECT_ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "crossPageContextView.js"
         ).read_text(encoding="utf-8")
@@ -1142,4 +1144,3 @@ class SampleValidationApiTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

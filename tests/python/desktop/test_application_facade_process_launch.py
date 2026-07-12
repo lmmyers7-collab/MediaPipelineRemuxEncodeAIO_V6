@@ -1774,6 +1774,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             self.assertTrue(plan["data"]["plan_only"])
             self.assertEqual(service.started_rerun["plan_only"], True)
             self.assertEqual(service.started_rerun["return_mode"], "replace_original")
+            service.started_rerun_proc.complete()
 
             result = facade.start_rerun_csv_process(
                 resolved,

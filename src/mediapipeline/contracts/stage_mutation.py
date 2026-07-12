@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Literal
 from uuid import UUID
 
@@ -82,30 +83,51 @@ class TranscodeResult(StageData):
     attempts: list[TranscodeAttempt] = Field(default_factory=list)
 
 class SubtitleConvertPayload(StagePayload):
-    scratch_path: str = Field(min_length=1)
-    output_path: str = Field(min_length=1)
-    keep_languages: list[str] = Field(default_factory=list)
-    convert_tx3g_to_srt: bool = True
-    convert_bdpgs_to_srt: bool = False
-    bdpgs_ocr_tool_path: str = ""
-    bdpgs_ocr_tessdata_path: str = ""
+    input_ass_path: str = Field(min_length=1)
+    scratch_root: str = Field(min_length=1)
+    source_roots: list[str] = Field(min_length=1)
+    operation: Literal["ass_sidecar_to_srt"] = "ass_sidecar_to_srt"
     intent: MutationIntent
     confirm_subtitle_convert: StrictBool = False
+    operation_id: str = ""
+    dry_run_fingerprint: str = ""
 
     @model_validator(mode="after")
     def _require_execute_confirmation(self) -> SubtitleConvertPayload:
         if self.intent == "execute" and not self.confirm_subtitle_convert:
             raise ValueError("Subtitle conversion execute intent requires confirm_subtitle_convert=true.")
-        if self.convert_bdpgs_to_srt and not self.bdpgs_ocr_tool_path.strip():
-            raise ValueError("BDPGS conversion requires bdpgs_ocr_tool_path.")
+        if self.intent == "execute":
+            try:
+                UUID(self.operation_id)
+            except (TypeError, ValueError, AttributeError):
+                raise ValueError("Subtitle conversion execute intent requires a UUID operation_id.") from None
+            if len(self.dry_run_fingerprint) != 64 or any(
+                ch not in "0123456789abcdef" for ch in self.dry_run_fingerprint
+            ):
+                raise ValueError(
+                    "Subtitle conversion execute intent requires a lowercase SHA-256 dry_run_fingerprint."
+                )
         return self
 
 class SubtitleConvertResult(StageData):
-    tracks_kept: int = Field(default=0, ge=0)
+    input_ass_path: str = ""
+    output_srt_path: str = ""
     tracks_converted: int = Field(default=0, ge=0)
     sidecars_written: list[str] = Field(default_factory=list)
+    cues_written: int = Field(default=0, ge=0)
+    encoding: str = ""
+    input_sha256_before: str = ""
+    input_sha256_after: str = ""
+    output_sha256: str = ""
+    evidence_path: str = ""
+    dry_run_fingerprint: str = ""
+    source_boundary_untouched: bool = False
     review_required: bool = False
     review_reason: str = ""
+    rollback_actions: list[str] = Field(default_factory=list)
+    recovery_actions: list[str] = Field(default_factory=list)
+    boundary_checks: list[str] = Field(default_factory=list)
+    operation_id: str = ""
 
 class AudioMixPayload(StagePayload):
     scratch_path: str = Field(min_length=1)
@@ -173,19 +195,42 @@ class DrainResult(StageData):
 
 class RenamePayload(StagePayload):
     target_path: str = Field(min_length=1)
+    scratch_root: str = Field(min_length=1)
+    source_roots: list[str] = Field(min_length=1)
     proposed_name: str = Field(min_length=1)
-    aggressive_episode_parsing: bool = False
-    is_tv: bool = False
+    operation: Literal["rename_within_scratch"] = "rename_within_scratch"
     intent: MutationIntent
     confirm_apply: StrictBool = False
+    operation_id: str = ""
+    dry_run_fingerprint: str = ""
 
     @model_validator(mode="after")
     def _require_execute_confirmation(self) -> RenamePayload:
         if self.intent == "execute" and not self.confirm_apply:
             raise ValueError("Rename execute intent requires confirm_apply=true.")
+        if Path(self.proposed_name).name != self.proposed_name or self.proposed_name in {".", ".."}:
+            raise ValueError("Rename proposed_name must be one file name without path separators.")
+        if self.intent == "execute":
+            try:
+                UUID(self.operation_id)
+            except (TypeError, ValueError, AttributeError):
+                raise ValueError("Rename execute intent requires a UUID operation_id.") from None
+            if len(self.dry_run_fingerprint) != 64 or any(
+                ch not in "0123456789abcdef" for ch in self.dry_run_fingerprint
+            ):
+                raise ValueError("Rename execute intent requires a lowercase SHA-256 dry_run_fingerprint.")
         return self
 
 class RenameResult(StageData):
+    original_path: str = ""
     final_path: str = ""
     sidecars_renamed: list[str] = Field(default_factory=list)
     undo_record_path: str = ""
+    dry_run_fingerprint: str = ""
+    content_sha256_before: str = ""
+    content_sha256_after: str = ""
+    source_boundary_untouched: bool = False
+    rollback_actions: list[str] = Field(default_factory=list)
+    recovery_actions: list[str] = Field(default_factory=list)
+    boundary_checks: list[str] = Field(default_factory=list)
+    operation_id: str = ""

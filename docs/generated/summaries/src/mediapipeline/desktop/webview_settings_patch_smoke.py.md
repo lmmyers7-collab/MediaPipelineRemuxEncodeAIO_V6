@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/webview_settings_patch_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-02
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 55afc0ac86eeeeadef310674b3e95be2a6b7741aec6e32fe233916622c884c8e
+sha256: 8f5a81ae401413bfb6d0b3bd8fef2983aee2b51f39fdeb1234b7296dc54fa1d2
 ---
 # `src/mediapipeline/desktop/webview_settings_patch_smoke.py`
 

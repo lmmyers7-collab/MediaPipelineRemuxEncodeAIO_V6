@@ -3,7 +3,7 @@ file: ops/scripts/smoke/Test-WebViewBrowserScheduleSmoke.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-11
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
 sha256: 46a6fabb45ea7c575be0f5c46778f3d48ff897ee70b769500a98a1fae9541c25
 ---

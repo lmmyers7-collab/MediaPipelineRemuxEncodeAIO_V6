@@ -393,7 +393,8 @@ class RenameServiceTests(unittest.TestCase):
 
     def test_apply_same_leaf_noop_does_not_enqueue_media_operation(self) -> None:
         with tempfile.TemporaryDirectory() as td:
-            source = Path(td) / "Example - S01E01.mkv"
+            source = Path(td) / "Example" / "Season 01" / "Example - S01E01.mkv"
+            source.parent.mkdir(parents=True)
             source.write_text("x", encoding="utf-8")
 
             plan = self.service.plan_rename_paths(
@@ -429,10 +430,10 @@ class RenameServiceTests(unittest.TestCase):
             original_manifest_write = self.service._write_rename_undo_manifest
             undo_paths: list[Path] = []
 
-            def fail_second(source: Path, destination: Path) -> None:
+            def fail_second(source: Path, destination: Path, **kwargs: object) -> None:
                 if source.name == "two.mkv":
                     raise PermissionError("locked")
-                original_rename(source, destination)
+                original_rename(source, destination, **kwargs)
 
             def record_manifest(manifest: dict) -> Path:
                 path = original_manifest_write(manifest)
@@ -470,10 +471,10 @@ class RenameServiceTests(unittest.TestCase):
             original_manifest_write = self.service._write_rename_undo_manifest
             undo_paths: list[Path] = []
 
-            def fail_second(source: Path, destination: Path) -> None:
+            def fail_second(source: Path, destination: Path, **kwargs: object) -> None:
                 if source.name == "two.mkv":
                     raise PermissionError("locked media")
-                original_rename(source, destination)
+                original_rename(source, destination, **kwargs)
 
             def fail_rollback_started_manifest(manifest: dict) -> Path:
                 if manifest.get("status") == "rollback_started":

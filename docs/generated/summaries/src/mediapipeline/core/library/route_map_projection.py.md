@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 0ce16ca1da0ae3349cfbe767ed90713f5b94d54d311235e13e1704f16389c64d
+sha256: 412dd64201caf152d8323d7766a9863e4c8657a3e50aa2afd3e02958ca14b99a
 ---
 # `src/mediapipeline/core/library/route_map_projection.py`
 

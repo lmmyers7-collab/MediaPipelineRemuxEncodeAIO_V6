@@ -3,9 +3,9 @@ file: tests/python/desktop/test_stage_entrypoint.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-10
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: f35f8a2013038434fe3b4d4a662aa571038d8356567b5774583ceadcd8a61f7b
+sha256: a5c48c8c07386464b0dc7b611df7061d2456eb60ced6a6cbd0b2791b3fb86067
 ---
 # `tests/python/desktop/test_stage_entrypoint.py`
 

@@ -25,515 +25,16 @@
         "setTopbarPendingLaunch",
         "showPage"
       ],
-      "candidate_count": 4,
+      "candidate_count": 2,
       "candidates": [
         {
           "source_file": "apps/desktop/webview/static/assets/app.js",
-          "proposed_child_file": "apps/desktop/webview/static/assets/app.refresh.js",
-          "topic": "app-refresh",
-          "line_range": {
-            "start": 752,
-            "end": 1140,
-            "line_count": 389
-          },
-          "functions_to_move": [
-            "refreshGet",
-            "refreshLiveRunTail",
-            "refreshAll",
-            "refreshCurrentOutputStatus",
-            "refreshAllNow"
-          ],
-          "parent_wrappers_required": [
-            "refreshAll",
-            "refreshAllNow"
-          ],
-          "dependencies_to_resolve": [
-            "AUTOMATIC_OPTIONAL_GET_TIMEOUT_MS",
-            "AUTOMATIC_REFRESH_INTERVAL_MS",
-            "attachRefreshMetadata",
-            "bootstrap",
-            "lastCloseReadiness",
-            "lastQueue",
-            "lastRefreshCompletedAt",
-            "lastRefreshDurationMs",
-            "lastRefreshStartedAt",
-            "lastSchedule",
-            "lastSnapshot",
-            "lastStartupProgress",
-            "lastStdoutTail",
-            "mergeRefreshOptions",
-            "normalizeRefreshOptions",
-            "refreshFailure",
-            "refreshInFlight",
-            "refreshQueued",
-            "refreshQueuedOptions",
-            "renderBackendLifecycle",
-            "renderCloseReadiness",
-            "renderCsvRerunHomeSummary",
-            "renderDailyDriverReadiness",
-            "renderExternalDependencyDigest",
-            "renderHomeNextQueue",
-            "renderHomePendingCount",
-            "renderHomePipelineQueueOutcome",
-            "renderHomePromotionEntry",
-            "renderHomeQueueSnapshot",
-            "renderHomeReadiness"
-          ],
-          "globals_to_preserve": [
-            "clearTopbarPendingLaunch",
-            "externalDependencyEvidenceText",
-            "externalDependencyOverallStatus",
-            "externalDependencyRows",
-            "externalDependencySummaryLines",
-            "getLastSnapshot",
-            "refreshAll",
-            "refreshAllNow",
-            "renderExternalDependencyDigest",
-            "setTopbarPendingLaunch",
-            "showPage"
-          ],
-          "api_routes": [],
-          "dom_ids_touched": [
-            "audit-preview-priority-only",
-            "failure-source-markers",
-            "state-pill"
-          ],
-          "event_types": [],
-          "dependency_classification": {
-            "parent_state_reads": [
-              "AUTOMATIC_OPTIONAL_GET_TIMEOUT_MS",
-              "AUTOMATIC_REFRESH_INTERVAL_MS",
-              "bootstrap",
-              "lastCloseReadiness",
-              "lastQueue",
-              "lastSchedule",
-              "lastSnapshot",
-              "lastStdoutTail",
-              "refreshInFlight",
-              "refreshQueued",
-              "refreshQueuedOptions"
-            ],
-            "parent_state_writes": [],
-            "outside_local_functions": [
-              "attachRefreshMetadata",
-              "mergeRefreshOptions",
-              "normalizeRefreshOptions",
-              "refreshFailure",
-              "renderBackendLifecycle",
-              "renderCloseReadiness",
-              "renderCsvRerunHomeSummary",
-              "renderDailyDriverReadiness",
-              "renderExternalDependencyDigest",
-              "renderHomeNextQueue",
-              "renderHomePendingCount",
-              "renderHomePipelineQueueOutcome",
-              "renderHomePromotionEntry",
-              "renderHomeQueueSnapshot",
-              "renderHomeReadiness",
-              "renderHomeRecentCompleted",
-              "renderHomeStorageHealth",
-              "renderLaunchReadinessPanel",
-              "renderRefreshHealth",
-              "renderRefreshInProgress",
-              "renderSnapshot",
-              "renderTelemetrySafely",
-              "renderTopbarActivity"
-            ],
-            "dom_dependencies": [
-              "audit-preview-priority-only",
-              "failure-source-markers",
-              "state-pill"
-            ],
-            "api_dependencies": [],
-            "window_dependencies": [
-              "window.mediaPipelineAppRefresh",
-              "window.mediaPipelineCommandHistory",
-              "window.mediaPipelineCompletedView",
-              "window.mediaPipelineContractView",
-              "window.mediaPipelineDiagnosticsStateSummaryView",
-              "window.mediaPipelineDiagnosticsView",
-              "window.mediaPipelineDom",
-              "window.mediaPipelineFloatingPipelineLog",
-              "window.mediaPipelineLaunchView",
-              "window.mediaPipelineLibraryRouteMap",
-              "window.mediaPipelineMaintenanceView",
-              "window.mediaPipelineMetricsView",
-              "window.mediaPipelineNetworkView",
-              "window.mediaPipelineOperatorToast",
-              "window.mediaPipelineProgressView",
-              "window.mediaPipelineReportsView",
-              "window.mediaPipelineScheduleView",
-              "window.mediaPipelineSettingsLibraries",
-              "window.setTimeout"
-            ],
-            "browser_globals": [
-              "Boolean",
-              "Date",
-              "Error",
-              "Number",
-              "Promise",
-              "String",
-              "document",
-              "window"
-            ],
-            "unresolved_global_dependencies": [
-              "apiGet",
-              "applyProseBoxDispositions",
-              "byId",
-              "captureScrollablePositions",
-              "checked",
-              "final_library_promotion",
-              "getLastMaintenance",
-              "getLastSettings",
-              "message",
-              "renderAllLaunchPreflights",
-              "renderAuditControls",
-              "renderAuditPreview",
-              "renderCommandHistoryPayload",
-              "renderCompleted",
-              "renderContract",
-              "renderCrossPageContext",
-              "renderDiagnostics",
-              "renderDiagnosticsFirstResponse",
-              "renderDiagnosticsInvestigationTrail",
-              "renderDiagnosticsOwnerHandoff",
-              "renderDiagnosticsProgress",
-              "renderDiagnosticsRefreshFailures",
-              "renderDiagnosticsStateSummary",
-              "renderFailureArtifactSummary",
-              "renderFailurePreview",
-              "renderFinalLibraryPromotion",
-              "renderFloatingPipelineLog",
-              "renderHomeActiveWork",
-              "renderLaunchRealMediaProofHandoff",
-              "renderLibrarySummary",
-              "renderLiveRunStrip",
-              "renderMetrics",
-              "renderNetworkView",
-              "renderPendingPublish",
-              "renderProgressEvidence",
-              "renderQueue",
-              "renderReportAuditSources",
-              "renderReports",
-              "renderRouteMap",
-              "renderSchedule",
-              "renderSettings",
-              "renderSettingsLibraries",
-              "renderWatchFolderStatus",
-              "restoreScrollablePositions",
-              "showFailureArtifactWarning",
-              "startup_progress"
-            ],
-            "movement_assessment": "needs_wrapper_or_context",
-            "assessment_reasons": [
-              "depends on several parent/local helper functions",
-              "reads several parent-owned top-level state values",
-              "uses unresolved ordered-script globals"
-            ]
-          },
-          "route_ownership_notes": [],
-          "tests_affected": [
-            "tests.python.desktop.test_application_facade_web_static",
-            "tests.webview.test_webview_browser_layout_manager_smoke",
-            "tests.webview.test_webview_frontend_mutation_boundary",
-            "tests.webview.test_webview_inventory_docs"
-          ]
-        },
-        {
-          "source_file": "apps/desktop/webview/static/assets/app.js",
           "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 1170,
-            "end": 1477,
-            "line_count": 308
-          },
-          "functions_to_move": [
-            "initSettingsTabNav",
-            "initDiagnosticsTabNav",
-            "initCompletedTabNav",
-            "initNavigation",
-            "renderSparkline",
-            "initLaunchEvidenceToggle",
-            "initCollapsibleSummaries",
-            "initThemeToggle",
-            "applyThemePreference",
-            "UI_PREFERENCES_ROUTE",
-            "UI_PREFERENCE_KEY_RE",
-            "ADVANCED_MODE_STORAGE_KEY",
-            "EVIDENCE_HIDDEN_STORAGE_KEY",
-            "THEME_STORAGE_KEY",
-            "uiPreferenceSyncInstalled",
-            "uiPreferenceSyncTimer",
-            "uiPreferenceRemoteRefreshTimer",
-            "uiPreferenceSyncInFlight",
-            "uiPreferenceSyncPending",
-            "uiPreferenceApplyingRemote",
-            "uiPreferenceLocalDirty",
-            "uiPreferenceLastSerialized",
-            "uiPreferenceAwaitingRemoteEchoSerialized",
-            "isSharedUiPreferenceKey",
-            "collectSharedUiPreferences",
-            "currentUiPreferenceSurface",
-            "readBooleanUiPreference",
-            "sharedUiPreferencePayload",
-            "persistSharedUiPreferencesNow",
-            "applySharedUiPreferenceStorage",
-            "hasPendingSharedUiPreferenceWrite",
-            "scheduleSharedUiPreferenceSync",
-            "restoreSharedUiPreferences",
-            "startSharedUiPreferenceRemoteRefresh",
-            "installSharedUiPreferenceStorageSync",
-            "initAdvancedToggle",
-            "initEvidenceToggle",
-            "syncDiagnosticAdvancedCallouts",
-            "applyAdvancedModePreference",
-            "applyEvidenceHiddenPreference"
-          ],
-          "parent_wrappers_required": [],
-          "dependencies_to_resolve": [
-            "applySharedUiPreferenceRuntimeState",
-            "bootstrap",
-            "updatePagePanelEmptyStates"
-          ],
-          "globals_to_preserve": [
-            "clearTopbarPendingLaunch",
-            "externalDependencyEvidenceText",
-            "externalDependencyOverallStatus",
-            "externalDependencyRows",
-            "externalDependencySummaryLines",
-            "getLastSnapshot",
-            "refreshAll",
-            "refreshAllNow",
-            "renderExternalDependencyDigest",
-            "setTopbarPendingLaunch",
-            "showPage"
-          ],
-          "api_routes": [
-            "/api/ui-preferences"
-          ],
-          "dom_ids_touched": [
-            "advanced-toggle",
-            "evidence-toggle"
-          ],
-          "event_types": [
-            "click",
-            "focus",
-            "visibilitychange"
-          ],
-          "dependency_classification": {
-            "parent_state_reads": [
-              "bootstrap"
-            ],
-            "parent_state_writes": [],
-            "outside_local_functions": [
-              "applySharedUiPreferenceRuntimeState",
-              "updatePagePanelEmptyStates"
-            ],
-            "dom_dependencies": [
-              "advanced-toggle",
-              "evidence-toggle"
-            ],
-            "api_dependencies": [
-              "/api/ui-preferences"
-            ],
-            "window_dependencies": [
-              "window.MEDIA_PIPELINE_BOOTSTRAP",
-              "window.addEventListener",
-              "window.clearTimeout",
-              "window.localStorage",
-              "window.mediaPipelineAppLifecycle",
-              "window.setInterval",
-              "window.setTimeout"
-            ],
-            "browser_globals": [
-              "Boolean",
-              "Error",
-              "JSON",
-              "Object",
-              "String",
-              "document",
-              "localStorage",
-              "window"
-            ],
-            "unresolved_global_dependencies": [
-              "Storage",
-              "apiGet",
-              "apiPost",
-              "byId"
-            ],
-            "movement_assessment": "needs_wrapper_or_context",
-            "assessment_reasons": [
-              "uses unresolved ordered-script globals"
-            ]
-          },
-          "route_ownership_notes": [],
-          "tests_affected": [
-            "tests.python.desktop.test_application_facade_web_static",
-            "tests.webview.test_webview_frontend_mutation_boundary",
-            "tests.webview.test_webview_inventory_docs"
-          ]
-        },
-        {
-          "source_file": "apps/desktop/webview/static/assets/app.js",
-          "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
-          "topic": "app-core",
-          "line_range": {
-            "start": 96,
-            "end": 351,
-            "line_count": 256
-          },
-          "functions_to_move": [
-            "renderTauriBackendLifecycleAlert",
-            "renderLaunchReadinessPanel",
-            "renderSnapshot",
-            "dashboardText",
-            "dashboardCount",
-            "dashboardBoolean",
-            "dashboardEventData",
-            "dashboardEventIsStopRequested",
-            "dashboardEventIsFailure",
-            "dashboardProgressHasStopRequested",
-            "dashboardLatestStopRequestedOutcome",
-            "renderDashboardIssueMetric",
-            "dashboardHasOwn",
-            "dashboardPipelineStateAllowsEmptyScan",
-            "dashboardQueueScanStatus",
-            "dashboardQueueProgress",
-            "dashboardQueueScanRunning",
-            "dashboardQueueStale",
-            "dashboardQueueBlockingWarnings",
-            "dashboardQueueRunnableCount",
-            "dashboardQueueHasFreshEmptyProof",
-            "renderHomePipelineQueueOutcome",
-            "renderCloseReadiness",
-            "handleTauriBackendLifecycleEvent"
-          ],
-          "parent_wrappers_required": [],
-          "dependencies_to_resolve": [
-            "formatCloseReadiness",
-            "lastCloseReadiness",
-            "lastSchedule",
-            "lastSnapshot",
-            "lastStdoutTail",
-            "lastTauriBackendLifecycleEvent",
-            "normalizeTauriBackendLifecycleEvent",
-            "renderBackendLifecycle",
-            "renderBrandVersion",
-            "renderControlReadiness",
-            "renderHomePipelineState",
-            "renderSparkline",
-            "renderTopbarActivity",
-            "renderTopbarEventTicker"
-          ],
-          "globals_to_preserve": [
-            "clearTopbarPendingLaunch",
-            "externalDependencyEvidenceText",
-            "externalDependencyOverallStatus",
-            "externalDependencyRows",
-            "externalDependencySummaryLines",
-            "getLastSnapshot",
-            "refreshAll",
-            "refreshAllNow",
-            "renderExternalDependencyDigest",
-            "setTopbarPendingLaunch",
-            "showPage"
-          ],
-          "api_routes": [],
-          "dom_ids_touched": [
-            "close-readiness",
-            "pipeline-state",
-            "queue-count",
-            "state-pill"
-          ],
-          "event_types": [],
-          "dependency_classification": {
-            "parent_state_reads": [
-              "lastCloseReadiness",
-              "lastSchedule",
-              "lastSnapshot",
-              "lastStdoutTail",
-              "lastTauriBackendLifecycleEvent"
-            ],
-            "parent_state_writes": [],
-            "outside_local_functions": [
-              "formatCloseReadiness",
-              "normalizeTauriBackendLifecycleEvent",
-              "renderBackendLifecycle",
-              "renderBrandVersion",
-              "renderControlReadiness",
-              "renderHomePipelineState",
-              "renderSparkline",
-              "renderTopbarActivity",
-              "renderTopbarEventTicker"
-            ],
-            "dom_dependencies": [
-              "close-readiness",
-              "pipeline-state",
-              "queue-count",
-              "state-pill"
-            ],
-            "api_dependencies": [],
-            "window_dependencies": [
-              "window.mediaPipelineAppTauriLifecycle",
-              "window.mediaPipelineLaunchReadinessView",
-              "window.mediaPipelineProgressView",
-              "window.mediaPipelineReportsView"
-            ],
-            "browser_globals": [
-              "Array",
-              "Boolean",
-              "Math",
-              "Number",
-              "Object",
-              "String",
-              "window"
-            ],
-            "unresolved_global_dependencies": [
-              "byId",
-              "current_work",
-              "data",
-              "detail",
-              "event_type",
-              "getLastSettings",
-              "phase_label",
-              "pipeline_state",
-              "progress",
-              "queue_progress",
-              "queue_scan_status",
-              "recent_events",
-              "renderDiagnosticsProgress",
-              "renderLaunchReadiness",
-              "renderLiveRunStrip",
-              "renderPipelineEvents",
-              "renderProgressBars",
-              "renderProgressDetails",
-              "renderProgressEvidence",
-              "renderReports",
-              "setText",
-              "setTextState"
-            ],
-            "movement_assessment": "needs_wrapper_or_context",
-            "assessment_reasons": [
-              "depends on several parent/local helper functions",
-              "uses unresolved ordered-script globals"
-            ]
-          },
-          "route_ownership_notes": [],
-          "tests_affected": [
-            "tests.python.desktop.test_application_facade_web_static",
-            "tests.webview.test_webview_frontend_mutation_boundary",
-            "tests.webview.test_webview_inventory_docs"
-          ]
-        },
-        {
-          "source_file": "apps/desktop/webview/static/assets/app.js",
-          "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
-          "topic": "app-core",
-          "line_range": {
-            "start": 555,
-            "end": 750,
-            "line_count": 196
+            "start": 366,
+            "end": 614,
+            "line_count": 249
           },
           "functions_to_move": [
             "renderExternalDependencyDigest",
@@ -548,9 +49,9 @@
             "csvRerunTailEvidence",
             "csvRerunActivityEvidence",
             "csvRerunHomeIsActive",
+            "renderCsvRerunHomeCompletionSummary",
             "renderCsvRerunHomeSummary",
-            "normalizeRefreshOptions",
-            "mergeRefreshOptions"
+            "renderLiveWorkHomeSummary"
           ],
           "parent_wrappers_required": [
             "renderExternalDependencyDigest",
@@ -610,6 +111,7 @@
               "window.mediaPipelineTelemetryView"
             ],
             "browser_globals": [
+              "Array",
               "Boolean",
               "Error",
               "String",
@@ -619,12 +121,131 @@
             "unresolved_global_dependencies": [
               "appendCommandResult",
               "byId",
+              "closeReadiness",
+              "csvRerunCompletionSummary",
+              "csvRerunTerminalLine",
+              "dashboardCurrentWork",
+              "dashboardText",
+              "diagnostics",
               "hasEvidence",
+              "progress_bars",
+              "recent_events",
+              "renderHomeActiveWork",
+              "renderLiveRunStrip",
+              "renderProgressBars",
               "renderTelemetry",
               "safe_to_close",
               "setText",
               "setTextState",
+              "snapshot",
               "stdoutTail"
+            ],
+            "movement_assessment": "needs_wrapper_or_context",
+            "assessment_reasons": [
+              "uses unresolved ordered-script globals"
+            ]
+          },
+          "route_ownership_notes": [],
+          "tests_affected": [
+            "tests.python.desktop.test_application_facade_web_static",
+            "tests.webview.test_webview_frontend_mutation_boundary",
+            "tests.webview.test_webview_inventory_docs"
+          ]
+        },
+        {
+          "source_file": "apps/desktop/webview/static/assets/app.js",
+          "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
+          "topic": "app-core",
+          "line_range": {
+            "start": 644,
+            "end": 760,
+            "line_count": 117
+          },
+          "functions_to_move": [
+            "initSettingsTabNav",
+            "initDiagnosticsTabNav",
+            "initCompletedTabNav",
+            "initNavigation",
+            "renderSparkline",
+            "initLaunchEvidenceToggle",
+            "initCollapsibleSummaries",
+            "initThemeToggle",
+            "applyThemePreference",
+            "ADVANCED_MODE_STORAGE_KEY",
+            "EVIDENCE_HIDDEN_STORAGE_KEY",
+            "THEME_STORAGE_KEY",
+            "appUiPreferencesModule",
+            "appUiPreferences",
+            "currentUiPreferenceSurface",
+            "readBooleanUiPreference",
+            "persistSharedUiPreferencesNow",
+            "restoreSharedUiPreferences",
+            "startSharedUiPreferenceRemoteRefresh",
+            "installSharedUiPreferenceStorageSync",
+            "initAdvancedToggle",
+            "initEvidenceToggle",
+            "syncDiagnosticAdvancedCallouts",
+            "applyAdvancedModePreference",
+            "applyEvidenceHiddenPreference"
+          ],
+          "parent_wrappers_required": [],
+          "dependencies_to_resolve": [
+            "applySharedUiPreferenceRuntimeState",
+            "updatePagePanelEmptyStates"
+          ],
+          "globals_to_preserve": [
+            "clearTopbarPendingLaunch",
+            "externalDependencyEvidenceText",
+            "externalDependencyOverallStatus",
+            "externalDependencyRows",
+            "externalDependencySummaryLines",
+            "getLastSnapshot",
+            "refreshAll",
+            "refreshAllNow",
+            "renderExternalDependencyDigest",
+            "setTopbarPendingLaunch",
+            "showPage"
+          ],
+          "api_routes": [
+            "/api/ui-preferences"
+          ],
+          "dom_ids_touched": [
+            "advanced-toggle",
+            "evidence-toggle"
+          ],
+          "event_types": [
+            "click"
+          ],
+          "dependency_classification": {
+            "parent_state_reads": [],
+            "parent_state_writes": [],
+            "outside_local_functions": [
+              "applySharedUiPreferenceRuntimeState",
+              "updatePagePanelEmptyStates"
+            ],
+            "dom_dependencies": [
+              "advanced-toggle",
+              "evidence-toggle"
+            ],
+            "api_dependencies": [
+              "/api/ui-preferences"
+            ],
+            "window_dependencies": [
+              "window.__appUiPreferencesModule",
+              "window.localStorage",
+              "window.mediaPipelineAppLifecycle"
+            ],
+            "browser_globals": [
+              "Boolean",
+              "String",
+              "document",
+              "localStorage",
+              "window"
+            ],
+            "unresolved_global_dependencies": [
+              "apiGet",
+              "apiPost",
+              "byId"
             ],
             "movement_assessment": "needs_wrapper_or_context",
             "assessment_reasons": [
@@ -643,501 +264,22 @@
     {
       "source_file": "apps/desktop/webview/static/assets/settingsView.js",
       "globals_to_preserve": [
-        "getLastSettings",
-        "initSettingsViewEvents",
-        "mediaPipelineSettingsView",
-        "renderSettings",
-        "renderSettingsRawActionPlan"
+        "mediaPipelineSettingsView"
       ],
-      "candidate_count": 6,
+      "candidate_count": 2,
       "candidates": [
         {
           "source_file": "apps/desktop/webview/static/assets/settingsView.js",
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 2129,
-            "end": 2856,
-            "line_count": 728
+            "start": 119,
+            "end": 274,
+            "line_count": 156
           },
           "functions_to_move": [
-            "openSettingsSaveReviewDialog",
-            "settingsRenameLogCaseInput",
-            "settingsRenameLogCaseValue",
-            "settingsRenameLogCaseInteger",
-            "settingsRenameLogCasePayload",
-            "settingsRenameLogCaseRequiredIssues",
             "syncSettingsRenameLogCaseButton",
-            "setSettingsRenameLogCaseBusy",
-            "submitSettingsRenameLogCase",
-            "initSettingsRenameLogCaseEvents",
-            "previewSettingsPatch",
-            "saveSettingsPatch",
-            "reloadSettingsFromDisk",
-            "getLastSettings",
-            "settingsBrowsePathDetailLines",
-            "browseSettingsPath",
-            "initSettingsViewEvents"
-          ],
-          "parent_wrappers_required": [
-            "previewSettingsPatch",
-            "saveSettingsPatch",
-            "reloadSettingsFromDisk",
-            "getLastSettings",
-            "browseSettingsPath",
-            "initSettingsViewEvents"
-          ],
-          "dependencies_to_resolve": [
-            "SETTINGS_PREVIEW_POST_TIMEOUT_MS",
-            "SETTINGS_SAVE_POST_TIMEOUT_MS",
-            "appendSettingsRiskSummaryLines",
-            "blockStaleLibraryProfilesPatch",
-            "clearSettingsPatchCandidate",
-            "ensureSettingsSaveReviewDialogGlobal",
-            "flushDirtySettingsBuilders",
-            "handleSettingsAdvancedToggleClick",
-            "lastSettings",
-            "lastSettingsPatchPreviewEvidence",
-            "lastSettingsPatchSaveEvidence",
-            "lastSettingsReloadEvidence",
-            "lastSettingsValues",
-            "markFileSafetySettingsBuilderDirty",
-            "markSettingsPatchTouched",
-            "maybeShowSettingsRuntimeRestartNotice",
-            "mergeRenameCleaningFiltersForSave",
-            "recordSettingsBuilderFlushFailure",
-            "rejectSettingsCommandWhileBusy",
-            "renderSettingsActiveMediaPolicyHandoff",
-            "renderSettingsPatchSummary",
-            "renderSettingsSaveReviewDialogRows",
-            "resetSettingsBuilderSyncState",
-            "scheduleSettingsPostSaveRefresh",
-            "selectedSettingsBackendResultKey",
-            "setSettingsCommandBusy",
-            "settingsAdvancedToggleEventsBound",
-            "settingsBuilderConfigValue",
-            "settingsCommandInFlight",
-            "settingsFieldDefinition"
-          ],
-          "globals_to_preserve": [
-            "getLastSettings",
-            "initSettingsViewEvents",
-            "mediaPipelineSettingsView",
-            "renderSettings",
-            "renderSettingsRawActionPlan"
-          ],
-          "api_routes": [
-            "/api/settings/browse-path",
-            "/api/settings/preview-patch",
-            "/api/settings/reload",
-            "/api/settings/save-patch"
-          ],
-          "dom_ids_touched": [
-            "settings-handbrake-active-preset",
-            "settings-patch-json",
-            "settings-rename-log-case-form",
-            "settings-rename-log-case-status-select",
-            "settings-rename-log-case-submit-button",
-            "settings-save-review-dialog"
-          ],
-          "event_types": [
-            "click",
-            "close",
-            "submit"
-          ],
-          "dependency_classification": {
-            "parent_state_reads": [
-              "SETTINGS_PREVIEW_POST_TIMEOUT_MS",
-              "SETTINGS_SAVE_POST_TIMEOUT_MS",
-              "handleSettingsAdvancedToggleClick",
-              "lastSettings",
-              "lastSettingsValues",
-              "markFileSafetySettingsBuilderDirty",
-              "settingsCommandInFlight",
-              "settingsFieldDefinition",
-              "settingsPatchPreviewRequestId",
-              "settingsPersistedKeyDisplayList",
-              "settingsRenameLogCaseInFlight"
-            ],
-            "parent_state_writes": [],
-            "outside_local_functions": [
-              "appendSettingsRiskSummaryLines",
-              "blockStaleLibraryProfilesPatch",
-              "clearSettingsPatchCandidate",
-              "ensureSettingsSaveReviewDialogGlobal",
-              "flushDirtySettingsBuilders",
-              "markSettingsPatchTouched",
-              "maybeShowSettingsRuntimeRestartNotice",
-              "mergeRenameCleaningFiltersForSave",
-              "recordSettingsBuilderFlushFailure",
-              "rejectSettingsCommandWhileBusy",
-              "renderSettingsActiveMediaPolicyHandoff",
-              "renderSettingsPatchSummary",
-              "renderSettingsSaveReviewDialogRows",
-              "resetSettingsBuilderSyncState",
-              "scheduleSettingsPostSaveRefresh",
-              "setSettingsCommandBusy",
-              "settingsBuilderConfigValue",
-              "settingsPatchHasStaleLibraryProfiles",
-              "settingsPatchLocalValidationHintLines",
-              "settingsPatchRequestExtras",
-              "settingsPatchRequestSignature",
-              "settingsPatchReviewFunction",
-              "settingsPostErrorMessage",
-              "settingsResultStatusLabel",
-              "settingsReviewDigestShort",
-              "settingsRuntimeRestartConfirmationLine",
-              "settingsRuntimeRestartNoticeLines",
-              "settingsSaveActualKeys",
-              "settingsSavePreviewDetailLines",
-              "settingsSaveReviewBackendEntries",
-              "settingsSaveReviewBackendEntryForKey",
-              "settingsSaveReviewLibraryProfileDetailLines",
-              "settingsStableJsonValue",
-              "settingsUniqueKeys"
-            ],
-            "dom_dependencies": [
-              "settings-handbrake-active-preset",
-              "settings-patch-json",
-              "settings-rename-log-case-form",
-              "settings-rename-log-case-status-select",
-              "settings-rename-log-case-submit-button",
-              "settings-save-review-dialog"
-            ],
-            "api_dependencies": [
-              "/api/settings/browse-path",
-              "/api/settings/preview-patch",
-              "/api/settings/reload",
-              "/api/settings/save-patch"
-            ],
-            "window_dependencies": [
-              "window.mediaPipelineRenameView"
-            ],
-            "browser_globals": [
-              "Array",
-              "Boolean",
-              "Date",
-              "Error",
-              "JSON",
-              "Number",
-              "Object",
-              "Promise",
-              "String",
-              "document",
-              "window"
-            ],
-            "unresolved_global_dependencies": [
-              "LibraryProfiles",
-              "addEventListener",
-              "apiPost",
-              "appendCommandResult",
-              "byId",
-              "data",
-              "included",
-              "label",
-              "message",
-              "ok",
-              "preview_id",
-              "refreshAll",
-              "removeEventListener",
-              "renderAllLaunchPreflights",
-              "review_entries",
-              "setText",
-              "textContent",
-              "value",
-              "verified_from_reload",
-              "warnings"
-            ],
-            "movement_assessment": "needs_manual_review",
-            "assessment_reasons": [
-              "depends on several parent/local helper functions",
-              "reads several parent-owned top-level state values",
-              "touches confirmation-gated persistence route",
-              "touches settings-owned backend routes",
-              "uses unresolved ordered-script globals"
-            ]
-          },
-          "route_ownership_notes": [
-            "/api/settings/browse-path must remain settings-owned and backend-confirmed where applicable.",
-            "/api/settings/preview-patch must remain settings-owned and backend-confirmed where applicable.",
-            "/api/settings/reload must remain settings-owned and backend-confirmed where applicable.",
-            "/api/settings/save-patch must remain settings-owned and backend-confirmed where applicable."
-          ],
-          "tests_affected": [
-            "tests.python.desktop.test_application_facade_settings_workspace",
-            "tests.webview.test_webview_frontend_mutation_boundary",
-            "tests.webview.test_webview_inventory_docs",
-            "tests.webview.test_webview_settings_libraries",
-            "tests.webview.test_webview_settings_patch_smoke"
-          ]
-        },
-        {
-          "source_file": "apps/desktop/webview/static/assets/settingsView.js",
-          "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.patchReview.js",
-          "topic": "settings-patch-review",
-          "line_range": {
-            "start": 1626,
-            "end": 1959,
-            "line_count": 334
-          },
-          "functions_to_move": [
-            "settingsSaveReviewObjectValue",
-            "settingsSaveReviewTermList",
-            "settingsSaveReviewTermMap",
-            "settingsSaveReviewTermDeltas",
-            "settingsSaveReviewRenameFilterLabel",
-            "settingsSaveReviewLimitedText",
-            "settingsSaveReviewRenameTermDictionaryText",
-            "settingsSaveReviewOptionState",
-            "settingsSaveReviewRenameOptionDictionaryText",
-            "settingsSaveReviewRenameRemoveTermsText",
-            "settingsSaveReviewLibraryProfiles",
-            "settingsSaveReviewCanonicalProfileId",
-            "settingsSaveReviewProfileId",
-            "settingsSaveReviewProfileLabel",
-            "settingsSaveReviewPrimitiveText",
-            "settingsSaveReviewProfileOverrideEntries",
-            "settingsSaveReviewLibraryProfileSummary",
-            "settingsSaveReviewProfileMap",
-            "settingsSaveReviewOverrideMap",
-            "settingsSaveReviewValuesDiffer",
-            "settingsSaveReviewLibraryProfileDiffEntries",
-            "settingsSaveReviewLibraryProfileCellText",
-            "settingsSaveReviewCellText",
-            "settingsSaveReviewBackendEntries",
-            "settingsSaveReviewBackendEntryForKey"
-          ],
-          "parent_wrappers_required": [],
-          "dependencies_to_resolve": [
-            "parseSettingsListText",
-            "renameFilterOptionKeys",
-            "renameFilterRemoveTermKeys",
-            "renameFilterTermKeys",
-            "settingsSaveReviewValueText",
-            "settingsValuesEqual"
-          ],
-          "globals_to_preserve": [
-            "getLastSettings",
-            "initSettingsViewEvents",
-            "mediaPipelineSettingsView",
-            "renderSettings",
-            "renderSettingsRawActionPlan"
-          ],
-          "api_routes": [],
-          "dom_ids_touched": [],
-          "event_types": [],
-          "dependency_classification": {
-            "parent_state_reads": [
-              "parseSettingsListText",
-              "renameFilterOptionKeys",
-              "renameFilterRemoveTermKeys",
-              "renameFilterTermKeys",
-              "settingsValuesEqual"
-            ],
-            "parent_state_writes": [],
-            "outside_local_functions": [
-              "settingsSaveReviewValueText"
-            ],
-            "dom_dependencies": [],
-            "api_dependencies": [],
-            "window_dependencies": [],
-            "browser_globals": [
-              "Array",
-              "Boolean",
-              "JSON",
-              "Map",
-              "Object",
-              "Set",
-              "String",
-              "undefined"
-            ],
-            "unresolved_global_dependencies": [
-              "id",
-              "library_id",
-              "name"
-            ],
-            "movement_assessment": "needs_wrapper_or_context",
-            "assessment_reasons": [
-              "uses unresolved ordered-script globals"
-            ]
-          },
-          "route_ownership_notes": [],
-          "tests_affected": [
-            "tests.python.desktop.test_application_facade_settings_workspace",
-            "tests.webview.test_webview_frontend_mutation_boundary",
-            "tests.webview.test_webview_inventory_docs",
-            "tests.webview.test_webview_settings_libraries",
-            "tests.webview.test_webview_settings_patch_smoke"
-          ]
-        },
-        {
-          "source_file": "apps/desktop/webview/static/assets/settingsView.js",
-          "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
-          "topic": "settings-core",
-          "line_range": {
-            "start": 1412,
-            "end": 1588,
-            "line_count": 177
-          },
-          "functions_to_move": [
-            "validateCurrentSettings",
-            "appendSettingsRiskSummaryLines",
-            "settingsBuilderFlushFailureMessage",
-            "recordSettingsBuilderFlushFailure",
-            "flushDirtySettingsBuilders",
-            "resetSettingsBuilderSyncState",
-            "saveRenameCleaningFiltersFromSettingsSave",
-            "mergeRenameCleaningFiltersForSave"
-          ],
-          "parent_wrappers_required": [
-            "validateCurrentSettings"
-          ],
-          "dependencies_to_resolve": [
-            "applyAudioSettingsBuilderToPatch",
-            "applyFileSafetySettingsBuilderToPatch",
-            "applyNetworkSettingsBuilderToPatch",
-            "applyPendingPublishSettingsBuilderToPatch",
-            "applyQualityDetailSettingsBuilderToPatch",
-            "applyQueueSettingsBuilderToPatch",
-            "applyRuntimeSettingsBuilderToPatch",
-            "applySettingsBuilderToPatch",
-            "applySubtitleSettingsBuilderToPatch",
-            "applyVideoDetailSettingsBuilderToPatch",
-            "audioSettingsBuilderState",
-            "fileSafetySettingsBuilderState",
-            "finalLibraryPromotionSettingsBuilderState",
-            "lastSettingsValues",
-            "markSettingsPatchTouched",
-            "networkSettingsBuilderState",
-            "pendingPublishSettingsBuilderState",
-            "qualityDetailSettingsBuilderState",
-            "queueSettingsBuilderState",
-            "rejectSettingsCommandWhileBusy",
-            "renderSettingsPatchSummary",
-            "runtimeSettingsBuilderState",
-            "setSettingsCommandBusy",
-            "settingsBuilderDirty",
-            "settingsBuilderInitialized",
-            "settingsValuesEqual",
-            "subtitleSettingsBuilderState",
-            "videoDetailSettingsBuilderState"
-          ],
-          "globals_to_preserve": [
-            "getLastSettings",
-            "initSettingsViewEvents",
-            "mediaPipelineSettingsView",
-            "renderSettings",
-            "renderSettingsRawActionPlan"
-          ],
-          "api_routes": [
-            "/api/settings/validate"
-          ],
-          "dom_ids_touched": [
-            "settings-patch-detail",
-            "settings-patch-json",
-            "settings-rename-filter-release-groups"
-          ],
-          "event_types": [],
-          "dependency_classification": {
-            "parent_state_reads": [
-              "applyAudioSettingsBuilderToPatch",
-              "applyFileSafetySettingsBuilderToPatch",
-              "applyNetworkSettingsBuilderToPatch",
-              "applyPendingPublishSettingsBuilderToPatch",
-              "applyQualityDetailSettingsBuilderToPatch",
-              "applyQueueSettingsBuilderToPatch",
-              "applyRuntimeSettingsBuilderToPatch",
-              "applySubtitleSettingsBuilderToPatch",
-              "applyVideoDetailSettingsBuilderToPatch",
-              "audioSettingsBuilderState",
-              "fileSafetySettingsBuilderState",
-              "finalLibraryPromotionSettingsBuilderState",
-              "lastSettingsValues",
-              "networkSettingsBuilderState",
-              "pendingPublishSettingsBuilderState",
-              "qualityDetailSettingsBuilderState",
-              "queueSettingsBuilderState",
-              "runtimeSettingsBuilderState",
-              "settingsBuilderDirty",
-              "settingsValuesEqual",
-              "subtitleSettingsBuilderState",
-              "videoDetailSettingsBuilderState"
-            ],
-            "parent_state_writes": [],
-            "outside_local_functions": [
-              "applySettingsBuilderToPatch",
-              "markSettingsPatchTouched",
-              "rejectSettingsCommandWhileBusy",
-              "renderSettingsPatchSummary",
-              "setSettingsCommandBusy"
-            ],
-            "dom_dependencies": [
-              "settings-patch-detail",
-              "settings-patch-json",
-              "settings-rename-filter-release-groups"
-            ],
-            "api_dependencies": [
-              "/api/settings/validate"
-            ],
-            "window_dependencies": [
-              "window.mediaPipelineRenameView"
-            ],
-            "browser_globals": [
-              "Array",
-              "Boolean",
-              "Error",
-              "Event",
-              "JSON",
-              "Object",
-              "String",
-              "undefined",
-              "window"
-            ],
-            "unresolved_global_dependencies": [
-              "apiPost",
-              "appendCommandResult",
-              "byId",
-              "renderAllLaunchPreflights",
-              "setText",
-              "textContent"
-            ],
-            "movement_assessment": "needs_wrapper_or_context",
-            "assessment_reasons": [
-              "reads several parent-owned top-level state values",
-              "touches settings-owned backend routes",
-              "uses unresolved ordered-script globals"
-            ]
-          },
-          "route_ownership_notes": [
-            "/api/settings/validate must remain settings-owned and backend-confirmed where applicable."
-          ],
-          "tests_affected": [
-            "tests.python.desktop.test_application_facade_settings_workspace",
-            "tests.webview.test_webview_frontend_mutation_boundary",
-            "tests.webview.test_webview_inventory_docs",
-            "tests.webview.test_webview_settings_libraries",
-            "tests.webview.test_webview_settings_patch_smoke"
-          ]
-        },
-        {
-          "source_file": "apps/desktop/webview/static/assets/settingsView.js",
-          "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
-          "topic": "settings-core",
-          "line_range": {
-            "start": 84,
-            "end": 259,
-            "line_count": 176
-          },
-          "functions_to_move": [
-            "lastSettingsPatchPreviewEvidence",
-            "lastSettingsPatchSaveEvidence",
-            "lastSettingsReloadEvidence",
-            "settingsCommandButtonIds",
-            "settingsCommandInFlight",
-            "settingsRenameLogCaseInFlight",
-            "settingsRenameLogCaseEventsBound",
-            "SETTINGS_PREVIEW_POST_TIMEOUT_MS",
-            "SETTINGS_SAVE_POST_TIMEOUT_MS",
+            "writeSettingsPatchJson",
             "settingsRuntimeActiveStates",
             "settingsRuntimeInactiveStages",
             "settingsRuntimeState",
@@ -1173,14 +315,12 @@
           "parent_wrappers_required": [],
           "dependencies_to_resolve": [
             "renderSettingsPatchSummary",
-            "syncSettingsRenameLogCaseButton"
+            "settingsCommandButtonIds",
+            "settingsCommandInFlight",
+            "settingsViewParts"
           ],
           "globals_to_preserve": [
-            "getLastSettings",
-            "initSettingsViewEvents",
-            "mediaPipelineSettingsView",
-            "renderSettings",
-            "renderSettingsRawActionPlan"
+            "mediaPipelineSettingsView"
           ],
           "api_routes": [],
           "dom_ids_touched": [
@@ -1188,11 +328,14 @@
           ],
           "event_types": [],
           "dependency_classification": {
-            "parent_state_reads": [],
+            "parent_state_reads": [
+              "settingsCommandButtonIds",
+              "settingsCommandInFlight",
+              "settingsViewParts"
+            ],
             "parent_state_writes": [],
             "outside_local_functions": [
-              "renderSettingsPatchSummary",
-              "syncSettingsRenameLogCaseButton"
+              "renderSettingsPatchSummary"
             ],
             "dom_dependencies": [
               "settings-patch-detail"
@@ -1241,8 +384,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 467,
-            "end": 618,
+            "start": 482,
+            "end": 633,
             "line_count": 152
           },
           "functions_to_move": [
@@ -1320,11 +463,7 @@
             "settingsVobSubOcrPathEvidenceLines"
           ],
           "globals_to_preserve": [
-            "getLastSettings",
-            "initSettingsViewEvents",
-            "mediaPipelineSettingsView",
-            "renderSettings",
-            "renderSettingsRawActionPlan"
+            "mediaPipelineSettingsView"
           ],
           "api_routes": [],
           "dom_ids_touched": [],
@@ -1400,113 +539,6 @@
             ]
           },
           "route_ownership_notes": [],
-          "tests_affected": [
-            "tests.python.desktop.test_application_facade_settings_workspace",
-            "tests.webview.test_webview_frontend_mutation_boundary",
-            "tests.webview.test_webview_inventory_docs",
-            "tests.webview.test_webview_settings_libraries",
-            "tests.webview.test_webview_settings_patch_smoke"
-          ]
-        },
-        {
-          "source_file": "apps/desktop/webview/static/assets/settingsView.js",
-          "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.policyImpact.js",
-          "topic": "settings-final-library",
-          "line_range": {
-            "start": 832,
-            "end": 975,
-            "line_count": 144
-          },
-          "functions_to_move": [
-            "previewFinalLibraryPromotionSettings",
-            "saveFinalLibraryPromotionSettings"
-          ],
-          "parent_wrappers_required": [],
-          "dependencies_to_resolve": [
-            "SETTINGS_PREVIEW_POST_TIMEOUT_MS",
-            "SETTINGS_SAVE_POST_TIMEOUT_MS",
-            "collectFinalLibraryPromotionSettingsPatch",
-            "finalLibraryPromotionSettingsBuilderState",
-            "finalLibraryPromotionSettingsResultLines",
-            "lastSettingsPatchPreviewEvidence",
-            "lastSettingsPatchSaveEvidence",
-            "maybeShowSettingsRuntimeRestartNotice",
-            "rejectSettingsCommandWhileBusy",
-            "renderSettingsPatchSummary",
-            "scheduleSettingsPostSaveRefresh",
-            "setFinalLibraryPromotionStatus",
-            "setSettingsCommandBusy",
-            "settingsPatchSignature",
-            "settingsPostErrorMessage",
-            "settingsRuntimeRestartConfirmationLine",
-            "settingsRuntimeRestartNoticeLines",
-            "settingsStableJsonValue"
-          ],
-          "globals_to_preserve": [
-            "getLastSettings",
-            "initSettingsViewEvents",
-            "mediaPipelineSettingsView",
-            "renderSettings",
-            "renderSettingsRawActionPlan"
-          ],
-          "api_routes": [
-            "/api/settings/preview-patch",
-            "/api/settings/save-patch"
-          ],
-          "dom_ids_touched": [],
-          "event_types": [],
-          "dependency_classification": {
-            "parent_state_reads": [
-              "SETTINGS_PREVIEW_POST_TIMEOUT_MS",
-              "SETTINGS_SAVE_POST_TIMEOUT_MS",
-              "finalLibraryPromotionSettingsBuilderState"
-            ],
-            "parent_state_writes": [],
-            "outside_local_functions": [
-              "collectFinalLibraryPromotionSettingsPatch",
-              "finalLibraryPromotionSettingsResultLines",
-              "maybeShowSettingsRuntimeRestartNotice",
-              "rejectSettingsCommandWhileBusy",
-              "renderSettingsPatchSummary",
-              "scheduleSettingsPostSaveRefresh",
-              "setFinalLibraryPromotionStatus",
-              "setSettingsCommandBusy",
-              "settingsPatchSignature",
-              "settingsPostErrorMessage",
-              "settingsRuntimeRestartConfirmationLine",
-              "settingsRuntimeRestartNoticeLines",
-              "settingsStableJsonValue"
-            ],
-            "dom_dependencies": [],
-            "api_dependencies": [
-              "/api/settings/preview-patch",
-              "/api/settings/save-patch"
-            ],
-            "window_dependencies": [
-              "window.confirm"
-            ],
-            "browser_globals": [
-              "Date",
-              "Error",
-              "String",
-              "window"
-            ],
-            "unresolved_global_dependencies": [
-              "apiPost",
-              "appendCommandResult"
-            ],
-            "movement_assessment": "needs_manual_review",
-            "assessment_reasons": [
-              "depends on several parent/local helper functions",
-              "touches confirmation-gated persistence route",
-              "touches settings-owned backend routes",
-              "uses unresolved ordered-script globals"
-            ]
-          },
-          "route_ownership_notes": [
-            "/api/settings/preview-patch must remain settings-owned and backend-confirmed where applicable.",
-            "/api/settings/save-patch must remain settings-owned and backend-confirmed where applicable."
-          ],
           "tests_affected": [
             "tests.python.desktop.test_application_facade_settings_workspace",
             "tests.webview.test_webview_frontend_mutation_boundary",

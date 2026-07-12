@@ -3,12 +3,12 @@
     const {
       appendCells,
       appendCommandResult,
-      apiGet,
-      apiPost,
+      apiClient,
       byId,
       setDiagnosticsPanelStatus,
       setInlineActionStatus,
-      setText,    } = deps;
+      setText,
+    } = deps;
     let tdarrMatrixAuditInFlight = false;
     let tdarrMatrixBackgroundPollTimer = 0;
     const tdarrMatrixConsoleState = {
@@ -650,7 +650,7 @@
     query.set("finding_limit", "250");
     setTdarrMatrixAuditStatus("Loading latest...", "loading");
     try {
-      const payload = await apiGet(`/api/diagnostics/tdarr-matrix/latest?${query.toString()}`, { timeoutMs: 15000 });
+      const payload = await apiClient.apiGet(`/api/diagnostics/tdarr-matrix/latest?${query.toString()}`, { timeoutMs: 15000 });
       renderTdarrMatrixConsole(payload);
       if (tdarrMatrixConsoleState.runs.length >= 2) {
         await requestTdarrMatrixRunComparison();
@@ -677,7 +677,7 @@
     if (left) query.set("left_run_id", left);
     if (right) query.set("right_run_id", right);
     try {
-      const payload = await apiGet(`/api/diagnostics/tdarr-matrix/compare?${query.toString()}`, { timeoutMs: 15000 });
+      const payload = await apiClient.apiGet(`/api/diagnostics/tdarr-matrix/compare?${query.toString()}`, { timeoutMs: 15000 });
       renderTdarrMatrixRunComparison(payload);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -696,7 +696,7 @@
     const effectiveRunId = String(runId || selected?.run_id || tdarrMatrixConsoleState.latestRunId || "").trim();
     if (!effectiveFindingKey || !effectiveRunId || !normalized) return;
     try {
-      const result = await apiPost("/api/diagnostics/tdarr-matrix/evidence/open", {
+      const result = await apiClient.apiPost("/api/diagnostics/tdarr-matrix/evidence/open", {
         run_id: effectiveRunId,
         finding_key: effectiveFindingKey,
         target: normalized,
@@ -723,7 +723,7 @@
     setTdarrMatrixAuditStatus("Running...", "loading");
     setTdarrMatrixAuditDetail([normalized === "latest_failures" ? "Rerunning latest failure cases in a new Tdarr Proof Pack run root." : "Rerunning selected Tdarr Proof Pack cases in a new run root."]);
     try {
-      const result = await apiPost("/api/diagnostics/tdarr-matrix/rerun", {
+      const result = await apiClient.apiPost("/api/diagnostics/tdarr-matrix/rerun", {
         source_run_id: tdarrMatrixConsoleState.latestRunId,
         selection: normalized,
         finding_keys: keys,
@@ -808,7 +808,7 @@
     setTdarrMatrixAuditDetail([`${tdarrMatrixAuditActionLabel(normalized)} is running through the backend command route.`]);
     renderTdarrMatrixAuditFindings({ data: { finding_count: 0, findings_preview: [] } });
     try {
-      const result = await apiPost("/api/diagnostics/tdarr-matrix-audit", payload);
+      const result = await apiClient.apiPost("/api/diagnostics/tdarr-matrix-audit", payload);
       appendCommandResult(result);
       const resultOk = Boolean(result?.ok);
       if (resultOk) tdarrMatrixConsoleState.successfulActions[normalized] = true;

@@ -3,9 +3,9 @@ file: tests/python/desktop/test_telemetry_service.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-12
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 81dc4c1ab35b8f5d8d845dd15815029b09bc0b963a7f23a3d3cfd206dccae420
+sha256: ddb91fba9abf7eab95a72925d9055e66ee690e38514e7fc6402bc6e29d1d4910
 ---
 # `tests/python/desktop/test_telemetry_service.py`
 

@@ -5,12 +5,18 @@
       byId,
       diagnosticsActionGroups,
       diagnosticsActionPlanLines,
+      diagnosticsArtifactTargets,
       diagnosticsArtifactsForLine,
       diagnosticsLongRunReliabilityLines,
+      diagnosticsMalformedStateLines,
+      diagnosticsSeverityForLine,
       diagnosticsTextLines,
       compactedDiagnosticsTextLines,
+      requestDiagnosticsOpen,
+      requestDiagnosticsTail,
       setDiagnosticsPanelStatus,
-      setText,    } = deps;
+      setText,
+    } = deps;
   function diagnosticsSourceLines(diagnostics) {
     const groups = [
       ["Recent errors", diagnostics?.recent_errors],

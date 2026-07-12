@@ -56,7 +56,7 @@ function parseArgs(argv) {
 
 function settingsOwned(path) {
   const fileName = path.split("/").pop() || "";
-  return fileName.startsWith("settings");
+  return fileName.startsWith("settings") || path.includes("/assets/settings/");
 }
 
 function routeOwners(scripts) {

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/schedule/__init__.py
 pipeline_stage: orchestration
 token_priority: low
 owner_domain: schedule
-last_modified: 2026-05-28
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 5d27983acd8eddc902277b54983c2e9ac56e08473f6252a6869833cf5dad7ee7
+sha256: aeb9cd326945345a7a80b1c55325d5bc862d1bc19c9b198f63d1627d2c19d535
 ---
 # `src/mediapipeline/core/schedule/__init__.py`
 

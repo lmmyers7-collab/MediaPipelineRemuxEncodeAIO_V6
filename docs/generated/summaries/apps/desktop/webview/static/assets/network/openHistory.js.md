@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 4efe86dbe827847f59ae2541ee69d8d3ff629e7603ad560751b8d02f430ce8c6
+sha256: cb3f62e0c7b3fed6ce3579ad871e517de20894f9e772282048533bad603bb8e2
 ---
 # `apps/desktop/webview/static/assets/network/openHistory.js`
 

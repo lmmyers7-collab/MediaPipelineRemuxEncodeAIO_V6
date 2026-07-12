@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_process_active_job_runner.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 5cf1e0acdafee94222c01b15f49e81a0593965ca0d1489f08ee82fb8d3eb60d5
+sha256: 07032a3cbc9c22ee3aff2dc1ca6630179ca5cfedf5b23780e5bdc6966c6a9214
 ---
 # `tests/python/desktop/test_service_process_active_job_runner.py`
 

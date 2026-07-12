@@ -323,6 +323,9 @@ function Resolve-MediaEncoderDescriptorForFlags {
         if ($codec -eq 'h264_nvenc') {
             return Get-MediaEncoderDescriptor -Family 'h264' -Backend 'nvenc'
         }
+        if ($codec -eq 'av1_nvenc') {
+            return Get-MediaEncoderDescriptor -Family 'av1' -Backend 'nvenc'
+        }
         return $null
     }
 
@@ -335,6 +338,9 @@ function Resolve-MediaEncoderDescriptorForFlags {
     }
     if ($codec -eq 'h264_nvenc') {
         return Get-MediaEncoderDescriptor -Family 'h264' -Backend 'nvenc'
+    }
+    if ($codec -eq 'av1_nvenc') {
+        return Get-MediaEncoderDescriptor -Family 'av1' -Backend 'nvenc'
     }
     if ($codec -eq 'libx264') {
         return Get-MediaEncoderDescriptor -Family 'h264' -Backend 'cpu'

@@ -1,6 +1,6 @@
 # WebView Global Export Inventory
 
-Date: 2026-07-03
+Date: 2026-07-11
 
 Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.js`. Source: generated scan of `window.{name} =` assignments across all 82 JS files.
 
@@ -10,9 +10,9 @@ Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.
 
 - **82 JS files** total in `assets/`
 - **41 files** export a primary namespace object (`window.mediaPipeline* = { ... }`)
-- **49 files** also export flat functions directly onto `window`
+- **48 files** also export flat functions directly onto `window`
 - **41 files** have no primary namespace object: `app.js`, `completedView.diagnostics.js`, `completedView.evidence.js`, `completedView.proof.js`, `completedView.repair.js`, `completedView.review.js`, `crossPageContextView.conflict.js`, `crossPageContextView.sample.js`, `crossPageContextView.sampleValidation.js`, `crossPageContextView.sampleValidation.records.js`, `crossPageContextView.sampleValidation.runbook.js`, `crossPageContextView.sampleValidation.worksheet.js`, `crossPageContextView.settings.js`, `diagnosticsView.activejobs.js`, `diagnosticsView.investigation.js`, `diagnosticsView.log.js`, `launchView.preflight.js`, `launchView.realmedia.js`, `launchView.risk.js`, `launchView.scope.js`, `pendingPublishView.confidence.js`, `pendingPublishView.diagnostics.js`, `pendingPublishView.drain.js`, `pendingPublishView.recovery.js`, `pendingPublishView.repair.js`, `queueView.detail.js`, `queueView.launch.js`, `queueView.rerun.js`, `queueView.review.js`, `queueView.summary.js`, `settingsView.builders.audio.js`, `settingsView.builders.file_safety.js`, `settingsView.builders.network.js`, `settingsView.builders.pending.js`, `settingsView.builders.quality.js`, `settingsView.builders.queue.js`, `settingsView.builders.runtime.js`, `settingsView.builders.subtitle.js`, `settingsView.builders.video.js`, `settingsView.rawTriage.js`, `settingsView.safetyLocks.js`
-- **Flat export total:** 379
+- **Flat export total:** 375
 - **1 backend-injected bootstrap global** (`window.MEDIA_PIPELINE_BOOTSTRAP`) is read by `apiClient.js`
 - **All 40 object-literal namespace objects** have adjacent `Public namespace` JSDoc boundary comments. `test_webview_inventory_docs.py` fails if a future `window.mediaPipeline* = { ... }` namespace object is added without that boundary note. (`tauriLifecycleBridge.js` exports its `mediaPipelineTauriLifecycleBridge` namespace via `Object.freeze(...)`, which is outside that JSDoc check.)
 
@@ -97,7 +97,7 @@ Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.
 | `settingsView.builders.runtime.js` | - | 1 | Generated from current `window.* =` assignments |
 | `settingsView.builders.subtitle.js` | - | 1 | Generated from current `window.* =` assignments |
 | `settingsView.builders.video.js` | - | 1 | Generated from current `window.* =` assignments |
-| `settingsView.js` | mediaPipelineSettingsView | 4 | Generated from current `window.* =` assignments |
+| `settingsView.js` | mediaPipelineSettingsView | 0 | Generated from current `window.* =` assignments |
 | `settingsView.rawTriage.js` | - | 1 | Generated from current `window.* =` assignments |
 | `settingsView.safetyLocks.js` | - | 1 | Generated from current `window.* =` assignments |
 | `settingsWizard.js` | mediaPipelineSettingsWizard | 0 | Generated from current `window.* =` assignments |
@@ -122,7 +122,7 @@ Several modules call other modules' flat exports via `typeof window.X === "funct
 
 | Consumer | Reads From |
 |---|---|
-| `crossPageContextView.js` | `queueView.js` (`getSelectedQueueRow`, `selectQueueRow`), `completedView.js` (`mediaPipelineCompletedView.getSelectedCompletedRow`, `selectCompletedRow`), `pendingPublishView.js` (`getSelectedPendingRow`, `selectPendingRow`), `settingsView.js` (`getLastSettings`), `app.js` (`showPage`) |
+| `crossPageContextView.js` | `queueView.js` (`getSelectedQueueRow`, `selectQueueRow`), `completedView.js` (`mediaPipelineCompletedView.getSelectedCompletedRow`, `selectCompletedRow`), `pendingPublishView.js` (`getSelectedPendingRow`, `selectPendingRow`), `settingsView.js` (`mediaPipelineSettingsView.getLastSettings`), `app.js` (`showPage`) |
 | `crossPageContextView.sampleValidation.js` | `crossPageContextView.sampleValidation.worksheet.js` (`__crossPageSvWorksheetModule` nested split-child factory stash, consumed and deleted during load), `crossPageContextView.sampleValidation.runbook.js` (`__crossPageSvRunbookModule` nested split-child factory stash, consumed and deleted during load), `crossPageContextView.sampleValidation.records.js` (`__crossPageSvRecordsModule` nested split-child factory stash, consumed and deleted during load) |
 | `queueView.js` | `queueView.summary.js` (`__queueSummaryModule` split-child factory stash, consumed and deleted during load), `queueView.review.js` (`__queueReviewModule` split-child factory stash, consumed and deleted during load), `queueView.detail.js` (`__queueDetailModule` split-child factory stash, consumed and deleted during load), `queueView.launch.js` (`__queueLaunchModule` split-child factory stash, consumed and deleted during load), `queueView.rerun.js` (`__queueRerunModule` split-child factory stash, consumed and deleted during load) |
 | `reports/auditCommands.js` | `app.js` (`showPage`) and `queueView.js` (`mediaPipelineQueueView.activateQueueTab`, `mediaPipelineQueueView.selectRerunCsvPathForPreview`) for the Audit-to-Queue CSV Rerun handoff after backend CSV export |
@@ -160,9 +160,9 @@ This is an object-boundary rule, not a mandate to add JSDoc to every internal he
 
 | Criterion | Status |
 |---|---|
-| All 80 JS files inventoried | Pass |
-| Namespace objects identified per file | Pass - 39 namespace-owning files; 41 no-namespace files listed in Summary |
-| Namespace object JSDoc boundary present | Pass - 38/38 namespace objects have adjacent `Public namespace` comments guarded by `test_webview_inventory_docs.py` |
+| All 82 JS files inventoried | Pass |
+| Namespace objects identified per file | Pass - 41 namespace-owning files; 41 no-namespace files listed in Summary |
+| Namespace object JSDoc boundary present | Pass - 40/40 object-literal namespace objects have adjacent `Public namespace` comments guarded by `test_webview_inventory_docs.py`; the frozen Tauri lifecycle namespace is documented separately |
 | Cross-module consumption documented | Pass |
 | Backend-injected globals identified | Pass — 1 (MEDIA_PIPELINE_BOOTSTRAP) |
 | No anonymous or generic window.* globals found | Pass |
@@ -241,7 +241,7 @@ Risk: Low — documentation only.
 
 ---
 
-## Machine-Generated Flat Export Manifest - 2026-06-29
+## Machine-Generated Flat Export Manifest - 2026-07-11
 
 Generated from `apps/desktop/webview/static/assets/*.js` by scanning `window.* =` assignments. Namespace objects are listed separately from flat exports.
 
@@ -1233,12 +1233,8 @@ __settingsViewVideoBuilderModule
 
 Namespace objects: mediaPipelineSettingsView
 
-Flat exports (4):
+Flat exports (0):
 ```text
-renderSettingsRawActionPlan
-renderSettings
-getLastSettings
-initSettingsViewEvents
 ```
 
 ### settingsView.rawTriage.js

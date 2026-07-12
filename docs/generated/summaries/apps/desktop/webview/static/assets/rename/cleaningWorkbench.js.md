@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/rename/cleaningWorkbench.js
 pipeline_stage: rename
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-10
+last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 7c8d96aaa01eb2880316c3b2cbc1f252a40f6c956acc5be586dcf9767797283c
+sha256: 1005bc2f21d6e77a06d6feb061c3ecf124c0e9334dc83255c36dca95b2e116fc
 ---
 # `apps/desktop/webview/static/assets/rename/cleaningWorkbench.js`
 

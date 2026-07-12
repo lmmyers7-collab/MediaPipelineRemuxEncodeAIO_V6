@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/dev/check_architecture_guardrails.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-02
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 220bc4b9e5e5d5d9d7549c755d854afd92bcbffdc9daeb621e7a784f25116849
+sha256: 78dca764c4432af6b503b731def34b41a305b88bfd9c3703b85201aa5c206ab6
 ---
 # `src/mediapipeline/tools/dev/check_architecture_guardrails.py`
 

@@ -58,7 +58,7 @@ Files:  scratch → output → pending-publish → published
 | Probe, naming parse      | `ops/pipeline/engine/probe/`, `ops/pipeline/engine/naming/`, `src/mediapipeline/contracts/source_media*.py` | Keep source facts read-only before routing | 0001/2 |
 | Remux-vs-encode policy   | `src/mediapipeline/core/decide/`, `ops/pipeline/engine/decide/`                             | Keep decisions separate from FFmpeg args | 0001/2 |
 | FFmpeg invocation        | `ops/pipeline/entrypoints/MediaPipeline/`, `ops/pipeline/engine/process/`                | Keep tool execution in PowerShell   | 0002   |
-| Subtitle conversion      | `ops/pipeline/engine/subtitles/`, `src/mediapipeline/pipeline/ass_to_srt*`                 | Keep conversion failures review-bound | 0002 |
+| Subtitle conversion      | `src/mediapipeline/core/subtitles/`, `src/mediapipeline/pipeline/ass_to_srt*`, `ops/pipeline/engine/subtitles/` | Keep scratch conversion bounded and production failures review-bound | 0002 |
 | Audio policy             | `ops/pipeline/engine/audio/`                                             | Keep profile/config-driven routing  | 0002   |
 | Pending publish + drain  | `src/mediapipeline/core/publish/`, `ops/pipeline/engine/publish/`                           | Keep park/drain manifest-backed     | 0001/2 |
 | Rename plan/apply/undo   | `src/mediapipeline/core/rename/`, `ops/pipeline/engine/naming/`                             | Keep apply/undo backend-owned       | 0001   |
@@ -87,7 +87,7 @@ a same-named folder in the current compatibility window.
 | `subtitles/`     | Subtitle conversions, fallbacks                   | Audio, video                          |
 | `audio/`         | Channel/codec policy plus args                    | Subtitles, video                      |
 | `publish/`       | Pending park, drain, final placement, manifest    | Source/scratch                        |
-| `rename/`        | Plan/apply/undo, parsers                          | Pipeline orchestration                |
+| `rename/`        | Plan/apply/undo, parsers, scratch-only stage executor | Pipeline orchestration or production media policy |
 | `storage/`       | SQLite state DB, locks, path layout               | Business logic                        |
 | `network/`       | Coordinator/worker                                | Pipeline decisions                    |
 | `observability/` | Logs, journal, metrics, telemetry                 | Business decisions                    |
@@ -104,20 +104,33 @@ explicit `schema_version: "v1"`:
 → `audio-mix` → `publish` (or park) → `drain` (when parked) → `rename`.
 
 `../generated/PIPELINE_MAP.md` enumerates each stage with its payload and result
-types. The Phase 3 runner boundary calls
+types plus its registered execution backend. The dispatcher calls
 `ops/pipeline/engine/entrypoint.ps1 -Stage <stage> -PayloadJson <payload-json-or-path>`
-per ADR-0002. In the current.x maintenance state, the read-only `probe` and
-`decide` stages are enabled, and `ingest` is the only enabled
-mutation-capable stage. Guarded ingest may only copy a source file into a
-scratch-root child path with strict execute confirmation and evidence;
-`transcode`, `subtitle-convert`, `audio-mix`, `publish`, `drain`, and
-`rename` are permanently disabled in the stage dispatcher. The dispatcher is
-an orchestration-only PowerShell supervision boundary and is not a Local API
-mutation route. `ops/pipeline/entrypoints/MediaPipeline.ps1` remains the sole
-production owner for encode/remux, integrated subtitle/audio decisions, output
-verification/sidecars, pending-publish park/drain, queue claims, lifecycle,
-and recovery. No generic stage-execute API, frontend-selected mutation paths,
-or dispatcher-owned media/publish/rename policy is permitted.
+for PowerShell-backed stages and has separately registered Python executors for
+scratch-only rename and standalone ASS/SSA-to-SRT conversion. The read-only `probe` and `decide` stages are enabled;
+guarded `ingest` may only copy a source file into a scratch-root child path;
+and guarded `rename` may only change one regular file name within a scratch
+root registered by the dispatcher and disjoint from every dispatcher-protected
+source root. Payload roots must match that trusted configuration. Rename execute requires
+strict confirmation, operation identity, matching dry-run fingerprint, command
+and operation journals, no-overwrite path checks, and a scratch-local undo
+record. It does not rename sidecars, directories, source media, output media,
+pending-publish payloads, or final-library files. `transcode`,
+`audio-mix`, `publish`, and `drain` remain disabled in the
+dispatcher. The dispatcher is not a Local API mutation route.
+Guarded `subtitle-convert` may only read one standalone `.ass`/`.ssa` artifact
+inside dispatcher-trusted scratch and create one non-overwriting `.srt`
+sidecar beside it. It requires matching trusted source/scratch roots, strict
+confirmation, operation identity, content-bound dry-run evidence, command and
+operation journals, input/output hashes, and rollback evidence. TX3G
+extraction, BDPGS OCR, embedded subtitle streams, language routing, container
+mutation, and publish integration remain disabled and PowerShell-owned.
+`ops/pipeline/entrypoints/MediaPipeline.ps1` remains the sole production owner
+for encode/remux, integrated subtitle/audio decisions, production naming,
+output verification/sidecars, pending-publish park/drain, queue claims,
+lifecycle, and recovery. No generic stage-execute API, frontend-selected
+mutation paths, or dispatcher-owned production media/publish/rename policy is
+permitted.
 
 ## State and files
 

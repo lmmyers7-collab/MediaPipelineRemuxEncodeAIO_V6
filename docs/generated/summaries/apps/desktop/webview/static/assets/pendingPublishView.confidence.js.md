@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: e165fcde89eba1c8387d28d76b57288d820576b38d7634e3287ae4bc4708b270
+sha256: 7eb98b33a9f6a9039312fb7c1f47e806f0508c85605a408a4b6ccd3138797724
 ---
 # `apps/desktop/webview/static/assets/pendingPublishView.confidence.js`
 

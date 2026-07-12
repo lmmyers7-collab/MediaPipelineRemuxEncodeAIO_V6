@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/apiClient.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-03
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: b26c03b2a5588ca35414e242bb2eb9def76406969e2d0b4e2c8f96994f9154b2
+sha256: 03f951b59155636f00aadf4cb1e9cb58a426b4ed498a2eef05d2802637a7b232
 ---
 # `apps/desktop/webview/static/assets/apiClient.js`
 

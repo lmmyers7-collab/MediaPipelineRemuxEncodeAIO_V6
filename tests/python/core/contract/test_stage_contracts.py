@@ -58,8 +58,9 @@ VALID_PAYLOADS = {
         "intent": "dry_run",
     },
     StageName.subtitle_convert: {
-        "scratch_path": r"D:\scratch\source.mkv",
-        "output_path": r"D:\scratch\out.mkv",
+        "input_ass_path": r"D:\scratch\source.ass",
+        "scratch_root": r"D:\scratch",
+        "source_roots": [r"C:\media"],
         "intent": "dry_run",
     },
     StageName.audio_mix: {
@@ -69,7 +70,13 @@ VALID_PAYLOADS = {
     },
     StageName.publish: {"output_path": r"D:\scratch\out.mkv", "final_root": r"Z:\Library", "intent": "dry_run"},
     StageName.drain: {"pending_publish_id": "pending-1", "final_root": r"Z:\Library", "intent": "dry_run"},
-    StageName.rename: {"target_path": r"Z:\Library\Old.mkv", "proposed_name": "New.mkv", "intent": "dry_run"},
+    StageName.rename: {
+        "target_path": r"D:\scratch\Old.mkv",
+        "scratch_root": r"D:\scratch",
+        "source_roots": [r"C:\media"],
+        "proposed_name": "New.mkv",
+        "intent": "dry_run",
+    },
 }
 
 VALID_DATA = {
@@ -77,11 +84,14 @@ VALID_DATA = {
     StageName.probe: (ProbeResult, {"probe_ok": True, "tool_path": r"C:\Tools\ffprobe.exe", "video_codec": "hevc"}),
     StageName.decide: (DecideResult, {"route": "remux", "should_encode": False}),
     StageName.transcode: (TranscodeResult, {"output_path": r"D:\scratch\out.mkv", "output_size_bytes": 1}),
-    StageName.subtitle_convert: (SubtitleConvertResult, {"tracks_kept": 1}),
+    StageName.subtitle_convert: (
+        SubtitleConvertResult,
+        {"output_srt_path": r"D:\scratch\source.srt", "cues_written": 1, "source_boundary_untouched": True},
+    ),
     StageName.audio_mix: (AudioMixResult, {"tracks_passed_through": 1}),
     StageName.publish: (PublishResult, {"final_path": r"Z:\Library\out.mkv"}),
     StageName.drain: (DrainResult, {"moved": 1}),
-    StageName.rename: (RenameResult, {"final_path": r"Z:\Library\New.mkv"}),
+    StageName.rename: (RenameResult, {"final_path": r"D:\scratch\New.mkv", "source_boundary_untouched": True}),
 }
 
 EXPECTED_JOURNAL_EVENTS = {
@@ -126,6 +136,20 @@ class StageContractTests(unittest.TestCase):
 
         self.assertEqual(exceptions, [])
         self.assertTrue(STAGE_REGISTRY[StageName.ingest].enabled_in_entrypoint)
+        self.assertTrue(STAGE_REGISTRY[StageName.rename].enabled_in_dispatcher)
+        self.assertEqual(STAGE_REGISTRY[StageName.rename].execution_backend, "python")
+        self.assertTrue(STAGE_REGISTRY[StageName.subtitle_convert].enabled_in_dispatcher)
+        self.assertEqual(STAGE_REGISTRY[StageName.subtitle_convert].execution_backend, "python")
+
+    def test_disabled_mutation_contracts_explain_why_execution_is_blocked(self) -> None:
+        disabled = [
+            contract
+            for contract in STAGE_REGISTRY.values()
+            if contract.mutation_capable and not contract.enabled_in_dispatcher
+        ]
+        self.assertEqual(len(disabled), 4)
+        self.assertTrue(all(contract.enablement_blocker for contract in disabled))
+        self.assertTrue(all(contract.required_validation for contract in disabled))
 
     def test_stage_result_requires_structured_error_on_failure(self) -> None:
         now = datetime.now(UTC).isoformat()

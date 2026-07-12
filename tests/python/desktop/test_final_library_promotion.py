@@ -161,6 +161,7 @@ class FinalLibraryPromotionTests(unittest.TestCase):
                     "destination_root": str(destination),
                     "library_id": "movies",
                     "designation": "movie",
+                    "derived_from_library_profile": True,
                 },
             )
 
@@ -1385,7 +1386,11 @@ class FinalLibraryPromotionWebViewSettingsTests(unittest.TestCase):
         static_root = REPO_ROOT / "apps" / "desktop" / "webview" / "static"
         settings_html = (static_root / "partials" / "page-settings.html").read_text(encoding="utf-8")
         settings_js = (static_root / "assets" / "settingsView.js").read_text(encoding="utf-8")
-        settings_libraries_js = (static_root / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        settings_libraries_root = static_root / "assets" / "settingsLibraries"
+        settings_libraries_js = "\n".join(
+            [path.read_text(encoding="utf-8") for path in sorted(settings_libraries_root.glob("*.js"))]
+            + [(static_root / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")]
+        )
         metadata_js = (static_root / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
 
         self.assertIn('data-settings-tab="publish-recovery"', settings_html)
@@ -1407,14 +1412,24 @@ class FinalLibraryPromotionWebViewSettingsTests(unittest.TestCase):
         static_root = REPO_ROOT / "apps" / "desktop" / "webview" / "static"
         home_html = (static_root / "partials" / "page-home.html").read_text(encoding="utf-8")
         completed_html = (static_root / "partials" / "page-completed.html").read_text(encoding="utf-8")
-        app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
+        app_js = "\n".join(
+            (static_root / "assets" / name).read_text(encoding="utf-8")
+            for name in ("app/refreshCoordinator.js", "app/lifecycleOrchestration.js")
+        )
         home_js = (static_root / "assets" / "app" / "home.js").read_text(encoding="utf-8")
         refresh_js = (static_root / "assets" / "app" / "refresh.js").read_text(encoding="utf-8")
         completed_js = (static_root / "assets" / "completedView.js").read_text(encoding="utf-8")
         completed_promotion_js = (static_root / "assets" / "completed" / "promotionCommands.js").read_text(encoding="utf-8")
         completed_table_js = (static_root / "assets" / "completed" / "table.js").read_text(encoding="utf-8")
         completed_script_text = completed_js + "\n" + completed_promotion_js
-        lifecycle_js = (static_root / "assets" / "app" / "lifecycle.js").read_text(encoding="utf-8")
+        lifecycle_js = "\n".join(
+            (static_root / "assets" / name).read_text(encoding="utf-8")
+            for name in (
+                "app/lifecycle/navigation.js",
+                "app/lifecycle.js",
+                "app/lifecycleOrchestration.js",
+            )
+        )
 
         self.assertIn('data-cross-page-target="completed" data-home-promotion-entry disabled>Open Completed Output</button>', home_html)
         self.assertIn("function renderHomePromotionEntry", home_js)

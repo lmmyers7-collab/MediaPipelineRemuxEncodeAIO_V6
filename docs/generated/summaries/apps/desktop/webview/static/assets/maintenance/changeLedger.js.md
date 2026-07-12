@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: a8c5f86b97861e542f6025b5bc56083fb72382410b96db966722fc853f9cd67a
+sha256: aaf75c68f2627b35f5282779885319d9651dc6a6876b5bf7e9b56cb431778ac7
 ---
 # `apps/desktop/webview/static/assets/maintenance/changeLedger.js`
 

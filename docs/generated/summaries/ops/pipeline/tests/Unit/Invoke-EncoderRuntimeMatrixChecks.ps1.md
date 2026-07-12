@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-21
+last_modified: 2026-07-11
 last_reviewed: 2026-06-19
-sha256: 972300261c8c77a3668d254b04d30206a43edbb4556aeb308ae0c223ea7cc1ce
+sha256: 25af528c107944ced8c235f400cdb65900d4448df07c34f08f535f25c8c82e61
 ---
 # `ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1`
 

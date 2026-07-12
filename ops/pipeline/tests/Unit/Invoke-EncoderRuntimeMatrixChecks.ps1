@@ -158,6 +158,9 @@ $hdrPassed = 0
 $skipped = 0
 $hardwareRows = 0
 $hardwareRowsSkippedByDefault = 0
+$dormantHardwareRowsSkipped = 0
+$activeHardwareRowsExecuted = 0
+$activeAv1NvencRowsExecuted = 0
 $hardwareHdrTopologyRows = 0
 $hardwareHdrBlockedRows = 0
 
@@ -189,6 +192,9 @@ try {
         $caseLabel = "$($case.Family)/$($case.Backend)/$mode"
         $isHardware = $hardwareBackends -contains ([string]$case.Backend)
         if ($isHardware) { $hardwareRows += 1 }
+        $activeFlagsDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec ([string]$case.Codec)
+        $descriptorFlagsActive = $null -ne $activeFlagsDescriptor -and
+            ([string]$activeFlagsDescriptor.EncoderName).Trim().ToLowerInvariant() -eq ([string]$descriptor.EncoderName).Trim().ToLowerInvariant()
         if ($isHdr) {
             Assert-True ([bool]$descriptor.SupportsHdr10Metadata) "HDR runtime matrix case requires an HDR-capable descriptor: $caseLabel."
         }
@@ -232,6 +238,13 @@ try {
                 Assert-Contains -Items $videoFlags -Expected 'bt2020nc' -Message "HDR libav-side-data flags for $caseLabel must carry BT.2020 non-constant matrix."
             }
             if ($isHardware) { $hardwareHdrTopologyRows += 1 }
+        }
+
+        if ($isHardware -and -not $descriptorFlagsActive) {
+            $skipped += 1
+            $dormantHardwareRowsSkipped += 1
+            Write-Host "Skipping $caseLabel dormant hardware descriptor row; descriptor-owned flags are not active."
+            continue
         }
 
         if ($isHardware -and -not $runHardwareRows) {
@@ -278,10 +291,24 @@ try {
         Assert-Equal ([string]$stream.codec_name) ([string]$case.ExpectedCodec) "Runtime matrix codec mismatch for $caseLabel."
         if ($isHdr) {
             Assert-True ([string]$stream.pix_fmt -match '10') "HDR runtime matrix output for $caseLabel must be 10-bit; got pix_fmt=$($stream.pix_fmt)."
-            Assert-Equal ([string]$stream.color_primaries) 'bt2020' "HDR runtime matrix output for $caseLabel must preserve BT.2020 primaries."
-            Assert-Equal ([string]$stream.color_transfer) 'smpte2084' "HDR runtime matrix output for $caseLabel must preserve SMPTE 2084 transfer."
-            Assert-Equal ([string]$stream.color_space) 'bt2020nc' "HDR runtime matrix output for $caseLabel must preserve BT.2020 non-constant color space."
+            if ($isHardware) {
+                # Synthetic lavfi input has no HDR side data. The active hardware
+                # rows prove descriptor flag topology, 10-bit execution, and
+                # encoder availability, but must not be promoted to metadata
+                # preservation evidence. That requires representative HDR media.
+                Write-Host "Executed $caseLabel hardware HDR topology row; representative-media side-data preservation remains unproven."
+            } else {
+                Assert-Equal ([string]$stream.color_primaries) 'bt2020' "HDR runtime matrix output for $caseLabel must preserve BT.2020 primaries."
+                Assert-Equal ([string]$stream.color_transfer) 'smpte2084' "HDR runtime matrix output for $caseLabel must preserve SMPTE 2084 transfer."
+                Assert-Equal ([string]$stream.color_space) 'bt2020nc' "HDR runtime matrix output for $caseLabel must preserve BT.2020 non-constant color space."
+            }
             $hdrPassed += 1
+        }
+        if ($isHardware) {
+            $activeHardwareRowsExecuted += 1
+            if ([string]$case.Family -eq 'av1' -and [string]$case.Backend -eq 'nvenc') {
+                $activeAv1NvencRowsExecuted += 1
+            }
         }
         $passed += 1
     }
@@ -302,6 +329,7 @@ Assert-True ($hardwareRows -gt 0) 'Encoder runtime matrix must include hardware 
 Assert-True ($hardwareHdrTopologyRows -gt 0) 'Encoder runtime matrix must verify at least one HDR-capable hardware descriptor topology row before execution or skip.'
 Assert-True ($hardwareHdrBlockedRows -gt 0) 'Encoder runtime matrix must verify HDR-unsafe hardware descriptors fail closed.'
 if (-not $runHardwareRows) {
-    Assert-Equal $hardwareRowsSkippedByDefault $hardwareRows 'Default encoder runtime matrix must skip every hardware row unless MEDIAPIPELINE_ENCODER_RUNTIME_HARDWARE=1 is set.'
+    $hardwareRowsSkippedWithoutExecution = $hardwareRowsSkippedByDefault + $dormantHardwareRowsSkipped
+    Assert-Equal $hardwareRowsSkippedWithoutExecution $hardwareRows 'Default encoder runtime matrix must skip every hardware row unless MEDIAPIPELINE_ENCODER_RUNTIME_HARDWARE=1 is set.'
 }
-Write-Host "Encoder runtime matrix checks passed. Rows passed: $passed. HDR rows passed: $hdrPassed. Rows skipped: $skipped. Hardware rows: $hardwareRows. Default hardware skips: $hardwareRowsSkippedByDefault. Hardware HDR topology rows: $hardwareHdrTopologyRows. Hardware HDR-blocked rows: $hardwareHdrBlockedRows."
+Write-Host "Encoder runtime matrix checks passed. Rows passed: $passed. HDR rows passed: $hdrPassed. Rows skipped: $skipped. Hardware rows: $hardwareRows. Default hardware skips: $hardwareRowsSkippedByDefault. Dormant hardware skips: $dormantHardwareRowsSkipped. Active hardware rows executed: $activeHardwareRowsExecuted. Active AV1/NVENC rows executed: $activeAv1NvencRowsExecuted. Hardware HDR topology rows: $hardwareHdrTopologyRows. Hardware HDR-blocked rows: $hardwareHdrBlockedRows."

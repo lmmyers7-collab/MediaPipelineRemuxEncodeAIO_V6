@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/change_control/build_release_manifest.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-05
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: cb9721b653e307680dd12a369cbbf7a6450b0a7e272870725c759dbc380eded3
+sha256: e609c61b89fb2475ba739b6ca9912e4ee43273518ab456d021ea9dda2787ddae
 ---
 # `src/mediapipeline/tools/change_control/build_release_manifest.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-11
 last_reviewed: 2026-06-28
-sha256: 527a0cff18f883e321654c11b59847068e52fc982a36fe9f774410449e4521a4
+sha256: f085b38a25da0930f62606ad4f79a622f5bf084194bed17a91f9dcb78458bbba
 ---
 # `tests/webview/test_webview_path_picker_badges.py`
 

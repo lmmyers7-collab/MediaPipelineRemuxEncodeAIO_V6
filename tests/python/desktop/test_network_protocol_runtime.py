@@ -449,7 +449,7 @@ class NetworkProtocolRuntimeTests(unittest.TestCase):
             }
             registry._jobs["job-1"].progress_percent = float("nan")  # type: ignore[attr-defined]
 
-        with self.assertLogs("mediapipeline.desktop.network.registry", level="WARNING") as logs:
+        with self.assertLogs("mediapipeline.desktop.network.registry_support", level="WARNING") as logs:
             row = registry.snapshot()[0]
 
         self.assertEqual(row.files_completed, 0)
@@ -467,7 +467,7 @@ class NetworkProtocolRuntimeTests(unittest.TestCase):
         with registry._lock:  # type: ignore[attr-defined]
             registry._worker_stats["worker-2"] = "not-a-dict"  # type: ignore[attr-defined]
 
-        with self.assertLogs("mediapipeline.desktop.network.registry", level="WARNING") as logs:
+        with self.assertLogs("mediapipeline.desktop.network.registry_support", level="WARNING") as logs:
             row = registry.idle_workers_snapshot()[0]
 
         self.assertEqual(row.worker_id, "worker-2")

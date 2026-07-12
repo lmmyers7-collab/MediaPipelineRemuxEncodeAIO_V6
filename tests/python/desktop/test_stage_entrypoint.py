@@ -111,6 +111,67 @@ class StageEntrypointTests(unittest.TestCase):
         self.assertEqual(result.stage, "decide")
         self.assertEqual(result.error.code if result.error else "", "stage.invalid_payload")
 
+    def test_powershell_entrypoint_keeps_rename_disabled_for_production_compatibility(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mediapipeline-stage-rename-ps-compat-") as tmp:
+            root = Path(tmp)
+            scratch = root / "Scratch"
+            source_root = root / "Source"
+            scratch.mkdir()
+            source_root.mkdir()
+            target = scratch / "Old.mkv"
+            target.write_bytes(b"scratch fixture")
+            completed = self.run_entrypoint(
+                "rename",
+                {
+                    "schema_version": "v1",
+                    "stage": "rename",
+                    "payload": {
+                        "target_path": str(target),
+                        "scratch_root": str(scratch),
+                        "source_roots": [str(source_root)],
+                        "proposed_name": "New.mkv",
+                        "intent": "dry_run",
+                    },
+                },
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            result = StageResult.model_validate(json.loads(completed.stdout))
+            self.assertFalse(result.ok)
+            self.assertEqual(result.error.code if result.error else "", "stage.not_enabled")
+            self.assertTrue(target.exists())
+            self.assertFalse((scratch / "New.mkv").exists())
+
+    def test_powershell_entrypoint_keeps_subtitle_convert_disabled_for_production_compatibility(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mediapipeline-stage-subtitle-ps-compat-") as tmp:
+            root = Path(tmp)
+            scratch = root / "Scratch"
+            source_root = root / "Source"
+            scratch.mkdir()
+            source_root.mkdir()
+            input_path = scratch / "sample.ass"
+            input_path.write_text("[Script Info]\nScriptType: v4.00+\n", encoding="utf-8")
+            completed = self.run_entrypoint(
+                "subtitle-convert",
+                {
+                    "schema_version": "v1",
+                    "stage": "subtitle-convert",
+                    "payload": {
+                        "input_ass_path": str(input_path),
+                        "scratch_root": str(scratch),
+                        "source_roots": [str(source_root)],
+                        "intent": "dry_run",
+                    },
+                },
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            result = StageResult.model_validate(json.loads(completed.stdout))
+            self.assertFalse(result.ok)
+            self.assertEqual(result.error.code if result.error else "", "stage.not_enabled")
+            self.assertTrue(input_path.exists())
+            self.assertFalse(input_path.with_suffix(".srt").exists())
+
     def test_unknown_envelope_fields_are_rejected_before_dispatch(self) -> None:
         completed = self.run_entrypoint(
             "decide",

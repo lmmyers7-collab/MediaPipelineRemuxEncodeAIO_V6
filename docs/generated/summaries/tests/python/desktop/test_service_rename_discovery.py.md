@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_rename_discovery.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 5b68897f6d69ea05370b28825907d2e79da1d76cfc99c6b28bc479ad04733c4b
+sha256: f06402c59c93e78dda023a750e28f9272db58cee15b29a0e64a74f135f453cd3
 ---
 # `tests/python/desktop/test_service_rename_discovery.py`
 

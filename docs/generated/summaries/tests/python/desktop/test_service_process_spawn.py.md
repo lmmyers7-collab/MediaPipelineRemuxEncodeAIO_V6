@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_process_spawn.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-10
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 9361baa26316b8cf1331dfeebea9073e6995b89d652e58ffcd0094d20953a338
+sha256: 2239d3f5f5f4b8aaf5916707f03a4098fb5048f7ba29a68cec3bdf19830c3dcb
 ---
 # `tests/python/desktop/test_service_process_spawn.py`
 

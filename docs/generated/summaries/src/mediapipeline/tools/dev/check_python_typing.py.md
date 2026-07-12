@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/dev/check_python_typing.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: fd4fc1c6e58ef22bcfff92da8a011be3e55d6598d8aadcd750ae070f0d9ae7be
+sha256: 69264e2d09efd56f6286d2dc1ec977db3425370725812a499d95932b8eaf2c61
 ---
 # `src/mediapipeline/tools/dev/check_python_typing.py`
 

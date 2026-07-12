@@ -224,7 +224,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         static_root = PROJECT_ROOT / "apps" / "desktop" / "webview" / "static"
         index = (static_root / "index.html").read_text(encoding="utf-8")
         bridge = (static_root / "assets" / "tauriLifecycleBridge.js").read_text(encoding="utf-8")
-        app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
+        app_js = "\n".join(
+            (static_root / "assets" / name).read_text(encoding="utf-8")
+            for name in ("app/lifecycleOrchestration.js", "app.js")
+        )
 
         self.assertIn("mod single_instance_guard", source)
         self.assertIn("acquire_single_instance_guard()?", source)
@@ -452,7 +455,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("function renderDiagnosticsStateTriage", source)
         self.assertIn("function renderDiagnosticsStateTriageRows", source)
         self.assertIn("Backend read order:", source)
-        self.assertIn("settings: values.settings || getLastSettings()", source)
+        self.assertIn("settings: values.settings || window.mediaPipelineSettingsView.getLastSettings()", source)
         self.assertIn("function renderCrossPageRealMediaWorksheet", source)
         self.assertIn("function crossPageRealMediaWorksheetRows", source)
         self.assertIn("function buildSampleValidationRequest", source)
@@ -739,7 +742,14 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertNotIn("Start-Process", source)
 
     def test_release_self_test_runs_preview_prereqs_without_requiring_toolchain(self) -> None:
-        source = RELEASE_TEST_SCRIPT.read_text(encoding="utf-8")
+        source = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in (
+                RELEASE_TEST_SCRIPT,
+                PROJECT_ROOT / "ops" / "scripts" / "release" / "test_support.ps1",
+                PROJECT_ROOT / "ops" / "scripts" / "release" / "test_contracts.ps1",
+            )
+        )
         policy_source = (PROJECT_ROOT / "ops" / "scripts" / "release" / "release_policy.ps1").read_text(encoding="utf-8")
 
         self.assertIn("$tauriPrereqs", source)
@@ -812,7 +822,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Application facade sample validation mixin", source)
         self.assertIn("src\\mediapipeline\\core\\sample_validation\\policy.py", source)
         self.assertIn("Local API sample validation command handlers", source)
-        self.assertIn("tauri_preview_binary_included", source)
+        self.assertIn("include_tauri_preview_binary", policy_source)
         self.assertIn("Import-MediaPipelineReleasePolicy", source)
         self.assertIn("Get-MediaPipelineReleaseHygieneRules", source)
         self.assertIn("Tauri preview packaged executable", policy_source)
@@ -863,7 +873,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertNotIn("MediaPipeline.ps1", source)
 
     def test_release_self_test_child_script_checks_are_bounded(self) -> None:
-        source = RELEASE_TEST_SCRIPT.read_text(encoding="utf-8")
+        source = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in (RELEASE_TEST_SCRIPT, PROJECT_ROOT / "ops" / "scripts" / "release" / "test_support.ps1")
+        )
 
         self.assertIn("function Invoke-ReleaseScriptProcess", source)
         self.assertIn("[int]$TimeoutSeconds = 600", source)
@@ -895,7 +908,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
             self.assertNotIn(removed_contract, source)
 
     def test_release_self_test_validates_webview_static_asset_references(self) -> None:
-        source = RELEASE_TEST_SCRIPT.read_text(encoding="utf-8")
+        source = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in (RELEASE_TEST_SCRIPT, PROJECT_ROOT / "ops" / "scripts" / "release" / "test_contracts.ps1")
+        )
 
         self.assertIn("function Test-WebStaticAssetReferences", source)
         self.assertIn("Web Static Asset References", source)
@@ -907,7 +923,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Test-WebStaticAssetReferences -StaticRoot", source)
 
     def test_release_self_test_validates_api_browser_launcher_token_policy(self) -> None:
-        source = RELEASE_TEST_SCRIPT.read_text(encoding="utf-8")
+        source = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in (RELEASE_TEST_SCRIPT, PROJECT_ROOT / "ops" / "scripts" / "release" / "test_contracts.ps1")
+        )
 
         self.assertIn("function Test-ApiBrowserLauncherTokenPolicy", source)
         self.assertIn("API Browser Launcher Token Policy", source)
@@ -1603,8 +1622,8 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("renderPendingRecoveryPlanResult", source)
         self.assertIn("startPendingPublishDrain", source)
         self.assertIn("pendingDrainGuardState", source)
-        self.assertIn('drainPost.body?.mode !== "drain_pending_pushes"', source)
-        self.assertIn('post_paths.count("/api/pipeline/start")', source)
+        self.assertIn('self.assertEqual(service.started_pipeline["mode"], "drain_pending_pushes")', source)
+        self.assertIn('entry.path === "/api/pipeline/start"', source)
         self.assertIn("confirmCalls", source)
         self.assertIn("Decision: Do not drain", source)
         self.assertNotIn("playwright", source.casefold())
@@ -1764,7 +1783,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertNotIn("puppeteer", source.casefold())
         self.assertIn("/api/settings/save-patch", source)
         self.assertIn("settingsPosts", source)
-        self.assertIn("window.apiPost = originalSettingsApiPost", source)
+        self.assertIn("window.mediaPipelineApi.apiPost = originalSettingsApiPost", source)
         self.assertNotIn("/api/pending-publish/drain", source)
 
     def test_webview_browser_network_smoke_script_is_bounded(self) -> None:

@@ -3,9 +3,9 @@ file: tests/python/desktop/test_config_identity.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: d2409dd615460ea0c8f6e7a068060e16bde59dfb385be47102223f1905cb595f
+sha256: 8626c51c9b48c7fe24f1d88106868cc81df4b038538b54745345c926f5cb6dac
 ---
 # `tests/python/desktop/test_config_identity.py`
 

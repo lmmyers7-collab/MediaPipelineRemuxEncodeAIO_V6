@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_process_control_runner.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 656e11b0bdeee3b331e8e22a15bc3b0724e93a64eda773f7af614f7eb69ca015
+sha256: 3410ffc044d97c98b96a5cd6d6d9064e2e4b551364f3e4e79089c7974256570c
 ---
 # `tests/python/desktop/test_service_process_control_runner.py`
 

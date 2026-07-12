@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import unittest
 import uuid
 from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 from mediapipeline.tools.paths import find_repo_root
 
@@ -19,6 +21,7 @@ from mediapipeline.core.orchestration.runner import (
     run_decide_stage,
     run_ingest_stage,
     run_probe_stage,
+    run_rename_stage,
     run_stage,
 )
 
@@ -53,6 +56,13 @@ class StageRunnerTests(unittest.TestCase):
 
     def _existing_entrypoint(self) -> Path:
         return Path(__file__)
+
+    def _rename_options(self, scratch: Path, source_root: Path, **kwargs: Any) -> RunnerOptions:
+        return RunnerOptions(
+            allowed_scratch_roots=(scratch,),
+            protected_source_roots=(source_root,),
+            **kwargs,
+        )
 
     def test_run_stage_parses_success_json_with_stderr_noise(self) -> None:
         def fake_run(args, **kwargs):
@@ -395,6 +405,330 @@ class StageRunnerTests(unittest.TestCase):
         self.assertFalse(result.ok)
         self.assertEqual(result.error.code if result.error else "", "stage.operation_journal_required")
         self.assertFalse(called)
+
+    def test_rename_stage_missing_confirmation_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mediapipeline-stage-rename-confirm-") as tmp:
+            root = Path(tmp)
+            scratch = root / "Scratch"
+            source_root = root / "Source"
+            scratch.mkdir()
+            source_root.mkdir()
+            target = scratch / "Old.mkv"
+            target.write_bytes(b"scratch fixture")
+
+            result = run_rename_stage(
+                {
+                    "target_path": str(target),
+                    "scratch_root": str(scratch),
+                    "source_roots": [str(source_root)],
+                    "proposed_name": "New.mkv",
+                    "intent": "execute",
+                    "operation_id": str(uuid.uuid4()),
+                    "dry_run_fingerprint": "a" * 64,
+                },
+                self._rename_options(scratch, source_root),
+            )
+
+            self.assertFalse(result.ok)
+            self.assertEqual(result.error.code if result.error else "", "stage.invalid_payload")
+            self.assertTrue(target.exists())
+            self.assertFalse((scratch / "New.mkv").exists())
+
+    def test_rename_stage_rejects_source_root_overlap_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mediapipeline-stage-rename-source-boundary-") as tmp:
+            root = Path(tmp)
+            source_root = root / "Source"
+            scratch = source_root / "Scratch"
+            scratch.mkdir(parents=True)
+            target = scratch / "Old.mkv"
+            target.write_bytes(b"protected source fixture")
+
+            result = run_rename_stage(
+                {
+                    "target_path": str(target),
+                    "scratch_root": str(scratch),
+                    "source_roots": [str(source_root)],
+                    "proposed_name": "New.mkv",
+                    "intent": "dry_run",
+                },
+                self._rename_options(scratch, source_root),
+            )
+
+            self.assertFalse(result.ok)
+            self.assertEqual(result.error.code if result.error else "", "stage.source_boundary_violation")
+            self.assertTrue(target.exists())
+            self.assertFalse((scratch / "New.mkv").exists())
+
+    def test_rename_stage_rejects_target_outside_scratch_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mediapipeline-stage-rename-path-boundary-") as tmp:
+            root = Path(tmp)
+            scratch = root / "Scratch"
+            source_root = root / "Source"
+            outside = root / "Outside"
+            scratch.mkdir()
+            source_root.mkdir()
+            outside.mkdir()
+            target = outside / "Old.mkv"
+            target.write_bytes(b"outside fixture")
+
+            result = run_rename_stage(
+                {
+                    "target_path": str(target),
+                    "scratch_root": str(scratch),
+                    "source_roots": [str(source_root)],
+                    "proposed_name": "New.mkv",
+                    "intent": "dry_run",
+                },
+                self._rename_options(scratch, source_root),
+            )
+
+            self.assertFalse(result.ok)
+            self.assertEqual(result.error.code if result.error else "", "stage.path_boundary_violation")
+            self.assertTrue(target.exists())
+            self.assertFalse((outside / "New.mkv").exists())
+
+    def test_rename_stage_rejects_untrusted_source_root_declaration(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mediapipeline-stage-rename-source-config-") as tmp:
+            root = Path(tmp)
+            scratch = root / "Scratch"
+            source_root = root / "Source"
+            untrusted_root = root / "UntrustedDeclaration"
+            scratch.mkdir()
+            source_root.mkdir()
+            untrusted_root.mkdir()
+            target = scratch / "Old.mkv"
+            target.write_bytes(b"scratch fixture")
+
+            result = run_rename_stage(
+                {
+                    "target_path": str(target),
+                    "scratch_root": str(scratch),
+                    "source_roots": [str(untrusted_root)],
+                    "proposed_name": "New.mkv",
+                    "intent": "dry_run",
+                },
+                self._rename_options(scratch, source_root),
+            )
+
+            self.assertFalse(result.ok)
+            self.assertEqual(
+                result.error.code if result.error else "",
+                "stage.source_boundary_configuration_mismatch",
+            )
+            self.assertTrue(target.exists())
+            self.assertFalse((scratch / "New.mkv").exists())
+
+    def test_rename_stage_rejects_stale_dry_run_fingerprint_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mediapipeline-stage-rename-fingerprint-") as tmp:
+            root = Path(tmp)
+            scratch = root / "Scratch"
+            source_root = root / "Source"
+            scratch.mkdir()
+            source_root.mkdir()
+            target = scratch / "Old.mkv"
+            target.write_bytes(b"scratch fixture")
+
+            result = run_rename_stage(
+                {
+                    "target_path": str(target),
+                    "scratch_root": str(scratch),
+                    "source_roots": [str(source_root)],
+                    "proposed_name": "New.mkv",
+                    "intent": "execute",
+                    "confirm_apply": True,
+                    "operation_id": str(uuid.uuid4()),
+                    "dry_run_fingerprint": "0" * 64,
+                },
+                self._rename_options(
+                    scratch,
+                    source_root,
+                    journal_record=lambda payload: None,
+                    operation_journal_record=lambda payload: None,
+                ),
+            )
+
+            self.assertFalse(result.ok)
+            self.assertEqual(result.error.code if result.error else "", "stage.dry_run_fingerprint_mismatch")
+            self.assertTrue(target.exists())
+            self.assertFalse((scratch / "New.mkv").exists())
+
+    def test_rename_execute_requires_command_journal_before_mutation(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mediapipeline-stage-rename-journal-") as tmp:
+            root = Path(tmp)
+            scratch = root / "Scratch"
+            source_root = root / "Source"
+            scratch.mkdir()
+            source_root.mkdir()
+            target = scratch / "Old.mkv"
+            target.write_bytes(b"scratch fixture")
+            dry_run = run_rename_stage(
+                {
+                    "target_path": str(target),
+                    "scratch_root": str(scratch),
+                    "source_roots": [str(source_root)],
+                    "proposed_name": "New.mkv",
+                    "intent": "dry_run",
+                },
+                self._rename_options(scratch, source_root),
+            )
+
+            result = run_rename_stage(
+                {
+                    "target_path": str(target),
+                    "scratch_root": str(scratch),
+                    "source_roots": [str(source_root)],
+                    "proposed_name": "New.mkv",
+                    "intent": "execute",
+                    "confirm_apply": True,
+                    "operation_id": str(uuid.uuid4()),
+                    "dry_run_fingerprint": dry_run.data["dry_run_fingerprint"],
+                },
+                self._rename_options(scratch, source_root, operation_journal_record=lambda payload: None),
+            )
+
+            self.assertFalse(result.ok)
+            self.assertEqual(result.error.code if result.error else "", "stage.command_journal_required")
+            self.assertTrue(target.exists())
+            self.assertFalse((scratch / "New.mkv").exists())
+
+    def test_rename_stage_executes_once_with_journal_and_undo_evidence(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mediapipeline-stage-rename-execute-") as tmp:
+            root = Path(tmp)
+            scratch = root / "Scratch"
+            source_root = root / "Source"
+            scratch.mkdir()
+            source_root.mkdir()
+            target = scratch / "Old.mkv"
+            target.write_bytes(b"scratch fixture")
+            journal: list[dict[str, Any]] = []
+            operation_state: dict[str, dict[str, Any]] = {}
+
+            def operation_journal(payload: dict[str, Any]) -> dict[str, Any] | None:
+                operation_id = str(payload["operation_id"])
+                if payload["event"] == "accepted":
+                    previous = operation_state.get(operation_id)
+                    if previous is not None:
+                        return previous
+                    operation_state[operation_id] = {}
+                    return None
+                operation_state[operation_id] = {"result": payload["result"]}
+                return None
+
+            dry_run = run_rename_stage(
+                {
+                    "target_path": str(target),
+                    "scratch_root": str(scratch),
+                    "source_roots": [str(source_root)],
+                    "proposed_name": "New.mkv",
+                    "intent": "dry_run",
+                },
+                self._rename_options(scratch, source_root, journal_record=journal.append),
+            )
+            self.assertTrue(dry_run.ok, dry_run)
+            operation_id = str(uuid.uuid4())
+            execute_payload = {
+                "target_path": str(target),
+                "scratch_root": str(scratch),
+                "source_roots": [str(source_root)],
+                "proposed_name": "New.mkv",
+                "intent": "execute",
+                "confirm_apply": True,
+                "operation_id": operation_id,
+                "dry_run_fingerprint": dry_run.data["dry_run_fingerprint"],
+            }
+            result = run_rename_stage(
+                execute_payload,
+                self._rename_options(
+                    scratch,
+                    source_root,
+                    journal_record=journal.append,
+                    operation_journal_record=operation_journal,
+                ),
+            )
+
+            self.assertTrue(result.ok, result)
+            destination = scratch / "New.mkv"
+            self.assertFalse(target.exists())
+            self.assertEqual(destination.read_bytes(), b"scratch fixture")
+            undo_path = Path(result.data["undo_record_path"])
+            self.assertTrue(undo_path.exists())
+            undo = json.loads(undo_path.read_text(encoding="utf-8"))
+            self.assertEqual(undo["status"], "completed")
+            self.assertEqual(undo["source_media_mutation"], "forbidden")
+            self.assertTrue(result.data["source_boundary_untouched"])
+            self.assertEqual(journal[-1]["command"], "stage.rename")
+            self.assertEqual(journal[-1]["data"]["undo_record_path"], str(undo_path))
+
+            replay = run_rename_stage(
+                execute_payload,
+                self._rename_options(
+                    scratch,
+                    source_root,
+                    journal_record=journal.append,
+                    operation_journal_record=operation_journal,
+                ),
+            )
+            self.assertTrue(replay.ok)
+            self.assertEqual(replay.data["operation_id"], operation_id)
+            self.assertEqual(destination.read_bytes(), b"scratch fixture")
+
+    def test_rename_stage_rolls_back_when_terminal_evidence_write_fails(self) -> None:
+        from mediapipeline.core.rename import stage as rename_stage
+
+        with tempfile.TemporaryDirectory(prefix="mediapipeline-stage-rename-rollback-") as tmp:
+            root = Path(tmp)
+            scratch = root / "Scratch"
+            source_root = root / "Source"
+            scratch.mkdir()
+            source_root.mkdir()
+            target = scratch / "Old.mkv"
+            target.write_bytes(b"scratch fixture")
+            dry_run = run_rename_stage(
+                {
+                    "target_path": str(target),
+                    "scratch_root": str(scratch),
+                    "source_roots": [str(source_root)],
+                    "proposed_name": "New.mkv",
+                    "intent": "dry_run",
+                },
+                self._rename_options(scratch, source_root),
+            )
+            self.assertTrue(dry_run.ok)
+            real_write = rename_stage._write_manifest
+            write_count = 0
+
+            def fail_terminal_write(path: Path, payload: dict[str, Any]) -> None:
+                nonlocal write_count
+                write_count += 1
+                if write_count == 2:
+                    raise OSError("terminal evidence denied")
+                real_write(path, payload)
+
+            with patch.object(rename_stage, "_write_manifest", side_effect=fail_terminal_write):
+                result = run_rename_stage(
+                    {
+                        "target_path": str(target),
+                        "scratch_root": str(scratch),
+                        "source_roots": [str(source_root)],
+                        "proposed_name": "New.mkv",
+                        "intent": "execute",
+                        "confirm_apply": True,
+                        "operation_id": str(uuid.uuid4()),
+                        "dry_run_fingerprint": dry_run.data["dry_run_fingerprint"],
+                    },
+                    self._rename_options(
+                        scratch,
+                        source_root,
+                        journal_record=lambda payload: None,
+                        operation_journal_record=lambda payload: None,
+                    ),
+                )
+
+            self.assertFalse(result.ok)
+            self.assertEqual(result.error.code if result.error else "", "stage.recovery_required")
+            self.assertTrue(target.exists())
+            self.assertEqual(target.read_bytes(), b"scratch fixture")
+            self.assertFalse((scratch / "New.mkv").exists())
 
 
 if __name__ == "__main__":

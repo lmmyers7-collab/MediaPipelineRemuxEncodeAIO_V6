@@ -123,6 +123,26 @@ The release self-test verifies Tauri prerequisite availability:
   -File .\ops\scripts\release\test.ps1
 ```
 
+#### Tauri Linux GTK/glib advisory posture
+
+Reviewed 2026-07-11 against the locked graph, a normal Cargo update in an
+isolated copy, current crates.io releases, and the upstream Tauri/Wry `dev`
+manifests.
+
+| Field | Verified state |
+|---|---|
+| Advisory | `GHSA-wrw7-89jp-8q8g` / `RUSTSEC-2024-0429`; `glib >=0.15,<0.20` is affected and `0.20.0` is the first patched release |
+| Repository lock | `tauri 2.11.1` -> `tauri-runtime-wry 2.11.1` -> `wry 0.55.1` -> Linux-only `gtk 0.18.2` -> `glib 0.18.5` |
+| Latest normal compatible resolution tested | `tauri 2.11.5` -> `tauri-runtime-wry 2.11.4` -> `wry 0.55.1` -> Linux-only `gtk 0.18.2` -> `glib 0.18.5`; alert remains |
+| Current upstream dependency constraint | Tauri, tauri-runtime-wry, and Wry `dev` manifests still require GTK `0.18`; GTK 0.18 requires glib `0.18` |
+| Windows application | Not affected by this GTK/glib chain. The Windows target resolves Wry to WebView2 and does not include GTK or glib. |
+| Linux packaging | Affected if a Linux GTK/WebKit package is built; this repository's current Windows portable ZIP lane does not ship that target. |
+| Exposure note | The advisory is an unsoundness in `glib::VariantStrIter`. The application has no direct glib dependency, and a static scan found no `VariantStrIter` references in current Tauri, tauri-runtime-wry, Wry, or GTK sources. This lowers observed reachability but is not proof that all indirect runtime paths are unreachable. |
+| Required action | Do not force glib 0.20 with a patch or override. Re-test when Tauri/Wry moves off GTK 0.18, before adding Linux packaging, or by 2026-08-07, whichever comes first. |
+
+The detailed decision record and upgrade trigger are in
+`docs/inventories/RELEASE_DEPENDENCY_REVIEW.md`.
+
 ---
 
 ## Browser Smoke Skip Behavior

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 753b64682e8c77e71ace704e011ed97d998d67ab645e25ec75da741b46f648a0
+sha256: 8399fd5e7bd1fae747dabaddf48b02cfa2a7e1f3ad40fc96331080ea71f9cc31
 ---
 # `apps/desktop/webview/static/assets/settings/policyImpact/mediaProjection.js`
 

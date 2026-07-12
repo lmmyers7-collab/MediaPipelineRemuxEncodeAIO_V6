@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: f1ae57f548450f3f2870a76b54fc0a6e09ed5d379ae356c1b9243086214baa60
+sha256: 76fcdc3660959425f1b30871fd431981f072b895aca852069cc3b4fe547e513e
 ---
 # `apps/desktop/webview/static/assets/rename/previewLifecycle.js`
 

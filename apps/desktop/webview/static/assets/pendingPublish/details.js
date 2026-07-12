@@ -299,7 +299,10 @@ function pendingCompletedCorrelationLoadedRows() {
     const completedView = window.mediaPipelineCompletedView || {};
     if (typeof completedView.getLastCompletedRows === "function") {
       const rows = completedView.getLastCompletedRows();
-      return Array.isArray(rows) ? rows : [];
+      const loadedRows = Array.isArray(rows) ? rows : [];
+      return typeof completedView.completedCurrentRows === "function"
+        ? completedView.completedCurrentRows(loadedRows)
+        : loadedRows;
     }
     return [];
   }

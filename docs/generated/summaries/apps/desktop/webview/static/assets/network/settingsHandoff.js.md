@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: c70267943d7e9e09d80780b7d9b3ea490f627cac3e3587567a411af32aa9119d
+sha256: b16b90d0ffda3b9e5efb41bb26b0b2489c4f0950c2954df2b29052cc04d015a7
 ---
 # `apps/desktop/webview/static/assets/network/settingsHandoff.js`
 

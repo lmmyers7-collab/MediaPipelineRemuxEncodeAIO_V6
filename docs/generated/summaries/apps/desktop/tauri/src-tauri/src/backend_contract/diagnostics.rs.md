@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: shell
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 5a5ac2c5dfcf455e77812e1ace60388e8d0a1a797d2340b511a8e136110ac571
+sha256: dd95249fde27d3856e79546efbf3ece528352251a833fd243f1a80d7d710b099
 ---
 # `apps/desktop/tauri/src-tauri/src/backend_contract/diagnostics.rs`
 

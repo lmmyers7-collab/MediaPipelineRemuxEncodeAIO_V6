@@ -72,7 +72,12 @@ class WebViewDropdownRemediationStaticTests(unittest.TestCase):
 
     def test_dynamic_empty_selects_are_disabled_with_explanations(self) -> None:
         libraries_js = read_static("assets/librariesRouteMap.js")
-        diagnostics_js = read_static("assets/diagnosticsView.js")
+        diagnostics_js = "\n".join(
+            (
+                read_static("assets/diagnostics/matrixConsole.js"),
+                read_static("assets/diagnosticsView.js"),
+            )
+        )
         self.assertIn("No library profiles loaded", libraries_js)
         self.assertIn("No comparable profiles loaded", libraries_js)
         self.assertIn("No loaded rows to trace", libraries_js)

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: audit
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 050e31138036050e3ca59c332bc4f2ae1589c589a61049e21aa11387df07b55f
+sha256: 2582f53b8600ee06e0e073ee8aaca575bbeb9080e9ab38058d7b6c99ef991818
 ---
 # `ops/pipeline/engine/audit/library_lookup.ps1`
 

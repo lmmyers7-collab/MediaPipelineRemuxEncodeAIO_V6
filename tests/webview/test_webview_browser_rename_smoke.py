@@ -45,6 +45,8 @@ def _browser_rename_runner_source() -> str:
         function browserRenameScript() {
           return `
           (async () => {
+            const runtimeErrors = [];
+            window.addEventListener("error", (event) => runtimeErrors.push(event.message || String(event.error || "runtime error")));
             function byId(id) { return document.getElementById(id); }
             function text(id) { const node = byId(id); return node ? node.textContent || "" : ""; }
             function setValue(id, value) {
@@ -160,7 +162,7 @@ def _browser_rename_runner_source() -> str:
             if (typeof window.mediaPipelineRenameView?.renameOpenResultDialog !== "function") {
               throw new Error("missing rename result dialog namespace function");
             }
-            window.getLastSettings = () => ({
+            window.mediaPipelineSettingsView.getLastSettings = () => ({
               config: {
                 RoutingProfile: "plex_direct_stream",
                 SizeGuardMode: "advisory",
@@ -250,9 +252,9 @@ def _browser_rename_runner_source() -> str:
               }
               return current;
             }
-            const originalSettingsApiPost = window.apiPost;
+            const originalSettingsApiPost = window.mediaPipelineApi.apiPost;
             const settingsPosts = [];
-            window.apiPost = async (url, body) => {
+            window.mediaPipelineApi.apiPost = async (url, body) => {
               if (String(url || "").startsWith("/api/settings/")) {
                 settingsPosts.push({ url: String(url || ""), body: body || {} });
                 if (String(url || "") === "/api/settings/preview-patch") {
@@ -350,7 +352,7 @@ def _browser_rename_runner_source() -> str:
               throw new Error("settings save did not submit rename filter persisted keys with confirmation: " + JSON.stringify(savePost));
             }
             requireText("settings-patch-status", ["Saved"]);
-            window.apiPost = originalSettingsApiPost;
+            window.mediaPipelineApi.apiPost = originalSettingsApiPost;
 
             setCheckedBySelector('[data-rename-movie-filter="video_source"]', false);
             setCheckedBySelector('[data-rename-movie-filter="release_groups"]', true);
@@ -363,8 +365,14 @@ def _browser_rename_runner_source() -> str:
             requireText("settings-rename-workbench-output", ["Actual: Scary Movie 1080p DCPRip X264-FS (2026).mkv", "Expected: Scary Movie (2026).mkv", "Result: Needs review", "Source: backend rename cleaner"]);
             requireText("settings-rename-workbench-status", ["Needs review"]);
             requireText("settings-rename-workbench-suggestions", ["1080p", "DCPRip", "movie filter category is off"]);
+            if (byId("settings-rename-workbench-stage-suggestions-button").disabled) {
+              throw new Error("Stage Selected Suggestions remained disabled after backend preview completed.");
+            }
             click("#settings-rename-workbench-stage-suggestions-button", "stage backend workbench suggestions");
             await new Promise((resolve) => setTimeout(resolve, 150));
+            if (!text("settings-rename-workbench-message").includes("draft only") && runtimeErrors.length) {
+              throw new Error("Rename workbench staging raised: " + runtimeErrors.join("; "));
+            }
             requireText("settings-rename-workbench-message", ["draft only", "Retest"]);
             click("#settings-rename-workbench-retest-button", "retest staged backend workbench suggestions");
             await new Promise((resolve) => setTimeout(resolve, 700));
@@ -538,7 +546,7 @@ def _browser_rename_runner_source() -> str:
             setValue("rename-paths", "C:/TV/Season 02/Serial Experiments Lain E01 Weird.mkv");
             window.mediaPipelineRenameView.renderRenamePreview({ rows: [first], preview_fingerprint: "rename-preview-fp", counts: { total: 1, ready: 1 }, confidence_counts: { high: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { rename: 1 } });
             requireText("rename-apply-button", ["Check rows before apply"]);
-            requireText("rename-apply-status-hint", ["No rows checked", "Check Applicable"]);
+            requireText("rename-apply-status-hint", ["No rows checked", "Check visible ready rows"]);
             if (!byId("rename-apply-button").disabled) {
               throw new Error("unchecked rename apply button was not disabled");
             }
@@ -602,11 +610,11 @@ def _browser_rename_runner_source() -> str:
             }
             click("#rename-check-applicable-button", "check applicable rename rows");
             requireText("rename-selected-count", ["1 checked"]);
-            requireText("rename-apply-status-hint", ["Checked 1 ready/match row", "warning=1"]);
+            requireText("rename-apply-status-hint", ["Checked 1 visible ready/match row", "warning=1"]);
             click("#rename-clear-checks-button", "clear checked rename rows");
             click("#rename-check-all-button", "check all selectable rename rows");
             requireText("rename-selected-count", ["2 checked"]);
-            requireText("rename-apply-status-hint", ["Checked 2 selectable rows", "skipped 0"]);
+            requireText("rename-apply-status-hint", ["Checked 2 visible selectable rows", "skipped 0"]);
             requireText("rename-apply-button", ["Apply 2 checked renames"]);
             click("#rename-apply-button", "apply checked rename rows");
             await new Promise((resolve) => setTimeout(resolve, 100));
@@ -779,10 +787,10 @@ def _browser_rename_runner_source() -> str:
             requireRenameScrollPreservedOnSelection("S02E240");
             requireText("rename-detail", ["Serial Experiments Lain - S02E240.mkv"]);
             click("#rename-check-applicable-button", "check all applicable large rename rows");
-            requireText("rename-selected-count", ["260 checked"]);
-            requireText("rename-apply-button", ["Apply 260 checked renames"]);
-            requireText("rename-selection-audit", ["Rows in scope: 260", "Rendered rows: 250 of 260", "checked scope may include rows not currently rendered"]);
-            requireReadiness(["Render cap visibility", "250 of 260 preview row(s) are rendered", "unrendered backend preview rows"]);
+            requireText("rename-selected-count", ["250 checked"]);
+            requireText("rename-apply-button", ["Apply 250 checked renames"]);
+            requireText("rename-selection-audit", ["Rows in scope: 250", "Rendered rows: 250 of 260", "automatic selection is limited to rendered rows"]);
+            requireReadiness(["Render cap visibility", "250 of 260 preview row(s) are rendered", "Automatic selection is limited to rendered rows"]);
 
             const blockedExisting = { ...first, status: "blocked", errors: ["destination already exists"], warnings: [] };
             window.mediaPipelineRenameView.renderRenamePreview({ rows: [blockedExisting], preview_fingerprint: "rename-preview-fp", counts: { total: 1, blocked: 1 }, confidence_counts: { blocked: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { blocked: 1 } });
@@ -799,7 +807,7 @@ def _browser_rename_runner_source() -> str:
             requireText("rename-apply-readiness-status", ["Blocked"]);
             requireReadiness(["Duplicate destinations", "duplicate target", "selected_sources"]);
             requireText("rename-apply-button", ["Resolve blockers before apply"]);
-            requireText("rename-apply-status-hint", ["Checked 0 ready/match rows", "duplicate=2"]);
+            requireText("rename-apply-status-hint", ["Checked 0 visible ready/match rows", "duplicate=2"]);
             if (!byId("rename-apply-button").disabled) {
               throw new Error("duplicate-target scope did not disable Apply");
             }

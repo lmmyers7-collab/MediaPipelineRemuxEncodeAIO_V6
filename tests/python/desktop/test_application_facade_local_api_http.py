@@ -223,7 +223,7 @@ class LocalApiHttpTests(LocalApiHttpTestMixin, unittest.TestCase):
 
         self.assertEqual(status, 200)
         self.assertEqual(payload["pipeline_state"], "initializing")
-        self.assertIn("SNAPSHOT_READ_FAILED", payload["warnings"])
+        self.assertTrue(any(warning.startswith("SNAPSHOT_READ_FAILED:") for warning in payload["warnings"]))
 
     def test_local_api_server_suppresses_client_disconnect_tracebacks(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

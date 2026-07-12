@@ -66,7 +66,7 @@
       siblings.forEach((candidate) => {
         const selected = candidate === item;
         candidate.classList.toggle("is-selected", selected);
-        candidate.setAttribute("aria-pressed", selected ? "true" : "false");
+        candidate.setAttribute("aria-selected", selected ? "true" : "false");
       });
   }
 
@@ -122,6 +122,10 @@
     appendCells, byId, clearRows, commandHistoryView,
     externalDependencyOverallStatus: (...args) => externalDependencyOverallStatus(...args),
     externalDependencyEvidenceText: (...args) => externalDependencyEvidenceText(...args),
+    getCommandHistory: () => getCommandHistory(),
+    getLastRefreshCompletedAt: () => lastRefreshCompletedAt,
+    getLastRefreshDurationMs: () => lastRefreshDurationMs,
+    refreshTimeLabel: (...args) => refreshTimeLabel(...args),
     setHomePanelStatus, setText, settingsOperatorTrustStatus,
   });
   const {
@@ -135,9 +139,9 @@
   const homeQueueProjectionModule = window.__homeQueueProjectionModule;
   if (!homeQueueProjectionModule?.createHomeQueueProjectionModule) throw new Error("Missing Home queue projection module");
   delete window.__homeQueueProjectionModule;
-  const homeQueueProjection = homeQueueProjectionModule.createHomeQueueProjectionModule({ byId, clearRows, formatProgressValue, makeRowSelectable, selectHomeListItem, setText, shortenPath });
+  const homeQueueProjection = homeQueueProjectionModule.createHomeQueueProjectionModule({ byId, clearRows, formatProgressValue, makeRowSelectable, selectHomeListItem, setHomePanelStatus, setText, shortenPath });
   const {
-    homeProgressPercent, homeQueueTitle, homeQueueDisplayLabel, homeNormalizeQueueTitle, homeMovieTitleYear, homeQueueRoute, homeQueueMeta,
+    homeProgressPercent, homeCompactShortValue, homeQueueTitle, homeQueueDisplayLabel, homeNormalizeQueueTitle, homeMovieTitleYear, homeQueueRoute, homeQueueMeta,
     homeQueueRowIsRunnable, homeQueueGlobalOrder, homeCurrentQueueOrder, homeNextQueueRows, homeCsvRerunEvidence,
     homeCsvRerunActive, homeCsvRerunQueueContext, homeCsvRerunRows, renderHomeCsvRerunQueue,
     renderHomeCsvRerunCompletion, homeActiveWork, homeActiveWorkLine, homeQueueItemMatchesActiveWork,
@@ -763,7 +767,7 @@
     const queue = context?.queue && typeof context.queue === "object" ? context.queue : {};
     const list = byId("home-next-queue-list");
     if (!list) return;
-    list.setAttribute("role", "list");
+    list.setAttribute("role", "listbox");
     list.replaceChildren();
     if (renderHomeCsvRerunCompletion(context)) return;
     const rows = homeNextQueueRows(queue, homeCurrentQueueOrder(context, queue.rows), context);
@@ -787,8 +791,8 @@
       const rowOptions = { ...csvRerunQueue, activeWork };
       const li = document.createElement("li");
       li.tabIndex = 0;
-      li.setAttribute("role", "button");
-      li.setAttribute("aria-pressed", index === 0 ? "true" : "false");
+      li.setAttribute("role", "option");
+      li.setAttribute("aria-selected", index === 0 ? "true" : "false");
       li.classList.toggle("is-selected", index === 0);
       li.dataset.current = isCurrent ? "true" : "false";
       if (isCurrent) li.dataset.status = "running";

@@ -22,12 +22,12 @@
     function byId(id) {
       return document.getElementById(id);
     }
-  
+
     function setText(id, textValue) {
       const element = byId(id);
       if (element) element.textContent = textValue;
     }
-  
+
     function setLibraryFeedback(message) {
       const element = byId("settings-library-warning-summary");
       if (!element) return;
@@ -35,14 +35,14 @@
       element.textContent = value;
       element.hidden = !value;
     }
-  
+
     function setStateBadge(id, label, stateValue) {
       const element = byId(id);
       if (!element) return;
       element.textContent = label;
       element.dataset.state = stateValue;
     }
-  
+
     function setLibraryProfileCommandBusy(isBusy) {
       state.libraryProfileCommandInFlight = Boolean(isBusy);
       [
@@ -54,7 +54,7 @@
         if (button) button.disabled = state.libraryProfileCommandInFlight;
       });
     }
-  
+
     function rejectLibraryProfileCommandWhileBusy(command) {
       if (state.libraryProfileCommandInFlight) {
         setText("settings-libraries-status", "Busy");
@@ -70,61 +70,61 @@
       }
       return false;
     }
-  
+
     function config() {
       return (state.lastSettings && state.lastSettings.config) || {};
     }
-  
+
     function fieldDefinitions() {
       return Array.isArray(state.lastSettings?.field_definitions) ? state.lastSettings.field_definitions : [];
     }
-  
+
     function libraryProfileStates() {
       return Array.isArray(state.lastSettings?.library_profile_state) ? state.lastSettings.library_profile_state : [];
     }
-  
+
     function libraryCompatibilityPresets() {
       const dynamic = Array.isArray(state.lastSettings?.library_compatibility_presets)
         ? state.lastSettings.library_compatibility_presets
         : [];
       return dynamic.length ? dynamic : staticCompatibilityPresets;
     }
-  
+
     function mp4CompatibilityPreset() {
       return libraryCompatibilityPresets().find((preset) => String(preset?.id || "") === "mp4_compatibility") || null;
     }
-  
+
     function profileState(profile) {
       const profileId = canonicalLibraryProfileId(profile?.id, "");
       return libraryProfileStates().find((state) => (
         canonicalLibraryProfileId(state?.library_id, "") === profileId
       )) || null;
     }
-  
+
     function fieldDefinition(key) {
       return fieldDefinitions().find((field) => String(field?.key || "") === key) || null;
     }
-  
+
     function hasBackendFieldDefinitions() {
       return fieldDefinitions().length > 0;
     }
-  
+
     function fallbackOverrideGroup(groupKey) {
       return fallbackOverrideGroups.find((group) => group.key === groupKey) || null;
     }
-  
+
     function backendOverrideFieldsForGroup(groupKey) {
       return fieldDefinitions()
         .filter((field) => field?.library_override_allowed === true && String(field?.override_group || "") === groupKey)
         .map((field) => String(field?.key || ""))
         .filter(Boolean);
     }
-  
+
     function overrideFieldsForGroup(groupKey) {
       if (hasBackendFieldDefinitions()) return backendOverrideFieldsForGroup(groupKey);
       return fallbackOverrideGroup(groupKey)?.fields || [];
     }
-  
+
     function fieldLibraryDesignations(field) {
       const raw = field?.library_profile_designations;
       if (!Array.isArray(raw)) return [];
@@ -132,7 +132,7 @@
         .map((value) => String(value || "").trim().toLowerCase())
         .filter((value) => designationValues.includes(value));
     }
-  
+
     function fieldAppliesToProfile(profile, key) {
       const field = fieldDefinition(key);
       const designations = fieldLibraryDesignations(field);
@@ -140,13 +140,13 @@
       const designation = normalizeDesignation(profile?.designation, "auto");
       return designations.includes(designation);
     }
-  
+
     function designationScopeText(field) {
       const designations = fieldLibraryDesignations(field);
       if (!designations.length) return "";
       return designations.map((value) => choiceValueLabel(value)).join(" / ");
     }
-  
+
     function overrideGroupList() {
       return overrideGroupOrder.map((groupKey) => ({
         key: groupKey,
@@ -154,13 +154,13 @@
         fields: overrideFieldsForGroup(groupKey),
       }));
     }
-  
+
     function groupForField(key, fallbackGroup) {
       const field = fieldDefinition(key);
       if (field?.library_override_allowed === true && field?.override_group) return String(field.override_group);
       return fallbackGroupByField.get(key) || fallbackGroup;
     }
-  
+
     function overrideStatus(groupKey, key, profile = null) {
       const field = fieldDefinition(key);
       if (!hasBackendFieldDefinitions()) {
@@ -185,11 +185,11 @@
       }
       return { field, render: true, editable: true, reason: "" };
     }
-  
+
     function text(value) {
       return String(value ?? "").trim();
     }
-  
+
     function escapeHtml(value) {
       return String(value ?? "")
         .replace(/&/g, "&amp;")
@@ -198,30 +198,30 @@
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
     }
-  
+
     function boolValue(value, fallback = false) {
       if (typeof value === "boolean") return value;
       if (value === null || value === undefined || value === "") return fallback;
       if (typeof value === "number") return value !== 0;
       return ["1", "true", "yes", "on", "enabled"].includes(String(value).trim().toLowerCase());
     }
-  
+
     function slug(value, fallback) {
       const slugged = String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
       return slugged || fallback;
     }
-  
+
     function canonicalLibraryProfileId(value, fallback) {
       const id = slug(value, fallback);
       if (id === "movie" || id === "movies") return "movies";
       if (id === "show" || id === "shows" || id === "tv") return "tv";
       return id;
     }
-  
+
     function emptyOverrides() {
       return { editor: {}, video: {}, subtitles: {}, audio: {} };
     }
-  
+
     function defaultTracking(id) {
       const fieldDefaultKeys = { output_path: "Outsource" };
       const inheritedFields = ["output_path"];
@@ -247,14 +247,14 @@
         media_default_keys: [...videoFields, ...subtitleFields, ...audioFields],
       };
     }
-  
+
     function normalizeDesignation(value, fallback = "auto") {
       const candidate = text(value).toLowerCase();
       if (candidate === "mixed" || candidate === "custom") return "auto";
       if (designationValues.includes(candidate)) return candidate;
       return designationValues.includes(fallback) ? fallback : "auto";
     }
-  
+
     function fieldDefaultKey(profile, field) {
       const tracking = profile.default_tracking || {};
       const key = tracking.field_default_keys && tracking.field_default_keys[field];
@@ -264,18 +264,18 @@
       if (field === "source_path" && profile.id === "tv") return "SourceTV";
       return "";
     }
-  
+
     function fieldDefaultValue(profile, field) {
       const key = fieldDefaultKey(profile, field);
       if (key) return text(config()[key]);
       return "";
     }
-  
+
     function backendPathEvidence(profile, field) {
       const evidence = profileState(profile)?.path_fields?.[field];
       return evidence && typeof evidence === "object" && !Array.isArray(evidence) ? evidence : null;
     }
-  
+
     function fallbackPathEvidence(profile, field) {
       const inherited = inheritedSet(profile).has(field);
       const value = inherited ? fieldDefaultValue(profile, field) : text(profile?.[field]);
@@ -287,23 +287,23 @@
         explicit_value: inherited ? null : value,
       };
     }
-  
+
     function pathEvidence(profile, field) {
       return backendPathEvidence(profile, field) || fallbackPathEvidence(profile, field);
     }
-  
+
     function pathIsInherited(evidence) {
       const state = String(evidence?.state || "");
       return state === "inherited" || state === "synthesized_builtin_default";
     }
-  
+
     function pathCanReset(profile, field, evidence = pathEvidence(profile, field)) {
       if (field === "promotion_destination") return false;
       if (field === "source_path") return profile.id === "movies" || profile.id === "tv";
       if (field === "output_path") return Boolean(evidence);
       return false;
     }
-  
+
     function pathState(profile, field) {
       const evidence = pathEvidence(profile, field);
       const state = String(evidence?.state || "");
@@ -312,7 +312,7 @@
       if (pathIsInherited(evidence)) return "Inherited from global";
       return "Library-specific";
     }
-  
+
     function pathSourceText(evidence) {
       const state = String(evidence?.state || "");
       const sourceKey = text(evidence?.source_key);
@@ -322,20 +322,20 @@
       if (state === "invalid_unresolved") return "required path is unresolved";
       return "";
     }
-  
+
     function pathPickerTargetForLibraryField(field) {
       if (field === "source_path") return "settings.library.source_path";
       if (field === "output_path") return "settings.library.output_path";
       return "settings.library.promotion_destination";
     }
-  
+
     function pathStateClass(stateText) {
       if (stateText === "Library-specific") return "is-custom";
       if (stateText === "Invalid pending edit") return "is-invalid";
       if (stateText === "Read-only source/effective value") return "is-readonly";
       return "is-inherited";
     }
-  
+
     function defaultSettingValue(key) {
       const cfg = config();
       if (Object.prototype.hasOwnProperty.call(cfg, key)) return cfg[key];
@@ -344,14 +344,14 @@
       if (field && Object.prototype.hasOwnProperty.call(field, "default")) return field.default;
       return "";
     }
-  
+
     function inheritedSet(profile) {
       const fields = profile.default_tracking && Array.isArray(profile.default_tracking.inherited_fields)
         ? profile.default_tracking.inherited_fields
         : [];
       return new Set(fields.map(String));
     }
-  
+
     function normalizeOverrideMap(values) {
       if (!values || Array.isArray(values) || typeof values !== "object") return {};
       return Object.entries(values).reduce((result, [key, value]) => {
@@ -359,7 +359,7 @@
         return result;
       }, {});
     }
-  
+
     function mergeOverrideGroup(target, group, values) {
       const normalizedGroup = group === "subtitle" ? "subtitles" : group;
       if (!target[normalizedGroup]) return;
@@ -367,14 +367,14 @@
         target[normalizedGroup][key] = value;
       });
     }
-  
+
     function mergeLegacyOverrides(target, values, fallbackGroup) {
       Object.entries(normalizeOverrideMap(values)).forEach(([key, value]) => {
         const group = groupForField(key, fallbackGroup);
         target[group][key] = value;
       });
     }
-  
+
     function normalizeOverrides(raw) {
       const overrides = emptyOverrides();
       const nested = normalizeOverrideMap(raw?.overrides);
@@ -384,7 +384,7 @@
       mergeLegacyOverrides(overrides, raw?.media_overrides, "subtitles");
       return overrides;
     }
-  
+
     function inapplicableOverrideKeys(profile) {
       const overrides = normalizeOverrides(profile || {});
       const rows = [];
@@ -400,7 +400,7 @@
       });
       return rows;
     }
-  
+
     function prunedOverrideWarningLines() {
       return profileCardsFromDom().flatMap((card) => {
         let rows = [];
@@ -415,19 +415,19 @@
         return labels ? [`${name}: omitted designation-specific override(s) from staged LibraryProfiles: ${labels}.`] : [];
       });
     }
-  
+
     function mp4CompatibilityConsequences(preset = mp4CompatibilityPreset()) {
       const consequences = Array.isArray(preset?.consequences) ? preset.consequences : [];
       return consequences.map((item) => String(item?.message || "").trim()).filter(Boolean);
     }
-  
+
     function libraryCardMp4CompatibilityActive(card) {
       const row = card?.querySelector?.('[data-library-override-row][data-library-override-key="OutputContainer"]');
       const control = row?.querySelector?.("[data-library-override-control]");
       if (!row || !control || row.dataset.libraryOverride !== "true") return false;
       return String(readOverrideControlValue(control, "OutputContainer") || "").trim().toLowerCase() === "mp4";
     }
-  
+
     function mp4CompatibilityWarningLines() {
       return profileCardsFromDom().flatMap((card) => {
         if (!libraryCardMp4CompatibilityActive(card)) return [];
@@ -438,7 +438,7 @@
           : [`${name}: MP4 compatibility is enabled and will drop or rewrite media features MKV can preserve.`];
       });
     }
-  
+
     function normalizeProfile(raw, index) {
       const rawId = text(raw?.id || raw?.library_id || raw?.name);
       const id = canonicalLibraryProfileId(rawId, `library-${index}`);
@@ -472,14 +472,14 @@
       if (!normalized.output_path) normalized.output_path = text(config().Outsource);
       return normalized;
     }
-  
+
     function markLibraryEditorDirty() {
       state.libraryEditorDirty = true;
       state.libraryProfilePatchCurrent = false;
       state.libraryProfilePatchSaved = false;
       renderLibraryStateStrip();
     }
-  
+
     function stableComparable(value) {
       if (Array.isArray(value)) return value.map((item) => stableComparable(item));
       if (value && typeof value === "object") {
@@ -491,7 +491,7 @@
       }
       return value;
     }
-  
+
     function comparableTracking(profile) {
       const tracking = profile?.default_tracking || {};
       const fieldDefaultKeys = tracking.field_default_keys && typeof tracking.field_default_keys === "object"
@@ -508,7 +508,7 @@
         inherited_fields: inheritedFields,
       };
     }
-  
+
     function comparableProfile(profile) {
       return {
         id: text(profile?.id || profile?.library_id),
@@ -523,15 +523,15 @@
         default_tracking: comparableTracking(profile),
       };
     }
-  
+
     function profilesEquivalent(leftProfiles, rightProfiles) {
       const left = (Array.isArray(leftProfiles) ? leftProfiles : []).map(comparableProfile);
       const right = (Array.isArray(rightProfiles) ? rightProfiles : []).map(comparableProfile);
       return JSON.stringify(stableComparable(left)) === JSON.stringify(stableComparable(right));
     }
-  
+
     function currentProfilesFromSettings(settings) {
-      state.lastSettings = settings || state.lastSettings || (typeof window.getLastSettings === "function" ? window.getLastSettings() : null);
+      state.lastSettings = settings || state.lastSettings || (typeof window.mediaPipelineSettingsView?.getLastSettings === "function" ? window.mediaPipelineSettingsView.getLastSettings() : null);
       const cfg = config();
       const raw = Array.isArray(cfg.LibraryProfiles) ? cfg.LibraryProfiles : [];
       const normalized = raw.map((profile, index) => normalizeProfile(profile, index + 1));
@@ -544,20 +544,20 @@
       });
       return ordered;
     }
-  
+
     function formatValue(value) {
       if (Array.isArray(value)) return value.join(", ");
       if (value && typeof value === "object") return JSON.stringify(value);
       return String(value ?? "");
     }
-  
+
     function parseListText(value) {
       return String(value || "")
         .split(/[\n,]/)
         .map((item) => item.trim())
         .filter(Boolean);
     }
-  
+
     function libraryWatchConfig() {
       const cfg = config();
       const action = String(cfg.WatchAction || "enqueue_only").trim().toLowerCase();
@@ -572,13 +572,13 @@
         respectSchedule: boolValue(cfg.WatchRespectScheduleWindow, true),
       };
     }
-  
+
     function libraryWatchStatusLabel(watch = libraryWatchConfig()) {
       if (watch.autoRun) return "Auto-run enabled";
       if (watch.enabled) return "Watch only";
       return "Off";
     }
-  
+
     function libraryWatchSummaryLines(watch = libraryWatchConfig()) {
       return [
         `Auto-run: ${watch.autoRun ? "enabled" : "off"}`,
@@ -586,13 +586,13 @@
         "Backend authority: detection stays in the local API watch-folder manager and launches use the existing gated Run Once path.",
       ];
     }
-  
+
     function libraryWatchHasActiveControl() {
       const active = document.activeElement;
       const panel = byId("settings-library-watch-panel");
       return Boolean(active instanceof Element && panel?.contains(active));
     }
-  
+
     function syncLibraryWatchControlsFromConfig(settings = state.lastSettings, options = {}) {
       if (settings) state.lastSettings = settings;
       if (options?.automatic === true && libraryWatchHasActiveControl()) return;
@@ -604,7 +604,7 @@
       setText("settings-library-watch-status", libraryWatchStatusLabel(watch));
       setText("settings-library-watch-summary", libraryWatchSummaryLines(watch).join("\n"));
     }
-  
+
     function collectLibraryWatchAutoRunPatch() {
       const autoRun = Boolean(byId("settings-library-watch-auto-run")?.checked);
       const respectSchedule = Boolean(byId("settings-library-watch-respect-schedule")?.checked);
@@ -620,7 +620,7 @@
       }
       return patch;
     }
-  
+
     function renderLibraryWatchPatchHandoff(message, patch = null) {
       const pending = patch || collectLibraryWatchAutoRunPatch();
       const staged = Object.keys(pending);
@@ -632,7 +632,7 @@
       ];
       setText("settings-library-watch-summary", lines.join("\n"));
     }
-  
+
     function stageLibraryWatchAutoRunPatch() {
       const patch = collectLibraryWatchAutoRunPatch();
       if (typeof settingsView.writeSettingsPatchJson !== "function") {
@@ -648,7 +648,7 @@
       renderLibraryWatchPatchHandoff("Library auto-run toggle staged through the shared settings patch.", patch);
       return patch;
     }
-  
+
     async function previewLibraryWatchAutoRunPatch() {
       const patch = stageLibraryWatchAutoRunPatch();
       if (!patch) return;
@@ -662,7 +662,7 @@
       await preview();
       setText("settings-library-watch-status", "Auto-run preview finished");
     }
-  
+
     async function saveLibraryWatchAutoRunPatch() {
       const patch = stageLibraryWatchAutoRunPatch();
       if (!patch) return;
@@ -676,7 +676,7 @@
       await save();
       setText("settings-library-watch-status", "Auto-run save command finished");
     }
-  
+
 
     return {
       byId,

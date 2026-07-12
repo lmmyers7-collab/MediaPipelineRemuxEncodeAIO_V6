@@ -60,7 +60,7 @@ def _browser_large_table_runner_source() -> str:
               priorityConfirmMessages.push(String(message || ""));
               return priorityConfirmResponses.length ? priorityConfirmResponses.shift() : true;
             };
-            window.apiPost = async (path, body) => {
+            window.mediaPipelineApi.apiPost = async (path, body) => {
               const route = String(path || "");
               posts.push(route);
               if (route === "/api/queue/priority") {
@@ -244,6 +244,10 @@ def _browser_large_table_runner_source() -> str:
             if (typeof window.mediaPipelineCompletedView?.selectCompletedRow !== "function") {
               throw new Error("missing mediaPipelineCompletedView.selectCompletedRow");
             }
+            // This smoke owns synthetic table payloads. Disable page-navigation
+            // refreshes before any shortcut can start a competing Local API read.
+            const originalRefreshAll = window.refreshAll;
+            window.refreshAll = async () => {};
 
             const queueRows = Array.from({ length: 260 }, (_value, index) => {
               const label = "Large Queue " + pad(index);
@@ -411,6 +415,8 @@ def _browser_large_table_runner_source() -> str:
             enhancedTableState("queue-rows");
             if (!pressShortcut("2")) throw new Error("Queue page shortcut should be handled before scroll preservation check");
             requireActivePage("queue");
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            window.renderQueue(queuePayload);
             await requireTableScrollPreservedOnRender("[data-page-panel=\\"queue\\"] .queue-table-wrap", "queue table", () => window.renderQueue(queuePayload));
             requireQueueScrollPreservedOnSelection("Large Queue 240");
             requireText("queue-detail", ["Queue selected-row detail:", "Large Queue 240", "Mutation guardrail"]);
@@ -467,8 +473,13 @@ def _browser_large_table_runner_source() -> str:
               "All Loaded Movies and All Loaded TV apply to loaded queue rows regardless of display filters or render cap.",
               "They do not define Launch scope.",
             ]);
-            const originalRefreshAll = window.refreshAll;
-            window.refreshAll = async () => {};
+            // A page-navigation refresh may already be resolving against the
+            // local API. Let it finish before installing the synthetic
+            // 260-row snapshot so it cannot replace the fixture mid-action.
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            window.mediaPipelineQueueView.renderQueue(queuePayload);
+            setValue("queue-filter", "Large Queue 001");
+            window.mediaPipelineQueueView.renderQueueRows();
             const bulkPriorityPostStart = priorityPosts.length;
             click("#queue-priority-promote-movies-btn", "all loaded movie priority");
             await new Promise((resolve) => setTimeout(resolve, 150));
@@ -516,7 +527,6 @@ def _browser_large_table_runner_source() -> str:
             priorityConfirmResponses.push(true);
             click("#queue-priority-clear-all-btn", "clear all priority accept");
             await new Promise((resolve) => setTimeout(resolve, 150));
-            window.refreshAll = originalRefreshAll;
             if (priorityConfirmMessages.length !== 4) {
               throw new Error("expected movie, TV, and two Clear All confirmations: " + JSON.stringify(priorityConfirmMessages));
             }
@@ -651,6 +661,8 @@ def _browser_large_table_runner_source() -> str:
             setValue("completed-library-filter", "all");
             if (!pressShortcut("3")) throw new Error("Completed Output shortcut should be handled before scroll preservation check");
             requireActivePage("completed");
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            window.mediaPipelineCompletedView.renderCompleted(completedPayload);
             await requireTableScrollPreservedOnRender("[data-page-panel=\\"completed\\"] #completed-rows", "completed current table", () => window.mediaPipelineCompletedView.renderCompleted(completedPayload));
             requireCompletedScrollPreservedOnSelection("Large Completed 240");
             requireText("completed-detail", ["Completed selected-row detail:", "Large Completed 240", "Mutation guardrail"]);
@@ -809,6 +821,11 @@ def _browser_large_table_runner_source() -> str:
             enhancedTableState("pending-rows");
             if (!pressShortcut("4")) throw new Error("Pending Publish shortcut should be handled before scroll preservation check");
             requireActivePage("pending");
+            // Pending page navigation starts its own backend refresh. Let that
+            // request settle, then restore the large synthetic snapshot so a
+            // late local-API response cannot replace the fixture mid-check.
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            window.renderPendingPublish(pendingPayload, {});
             await requireTableScrollPreservedOnRender("[data-page-panel=\\"pending\\"] #pending-rows", "pending publish table", () => window.renderPendingPublish(pendingPayload, {}));
             requirePendingScrollPreservedOnSelection("Large Pending 240");
             requireText("pending-detail", ["Large Pending 240", "Mutation guardrail"]);
@@ -851,6 +868,12 @@ def _browser_large_table_runner_source() -> str:
             const forbidden = ["/api/pipeline/start", "/api/rerun/start", "/api/completed/open", "/api/queue/open", "/api/pending-publish/open", "/api/pending-publish/recovery-plan", "/api/rename/apply", "/api/settings/save-patch"];
             const forbiddenPosts = posts.filter((path) => forbidden.some((blocked) => path.includes(blocked)));
             if (forbiddenPosts.length) throw new Error("large-table smoke posted mutation routes: " + JSON.stringify(forbiddenPosts));
+            // Reassert the owned fixtures before collecting final status. Page
+            // navigation refreshes are read-only but may finish after their
+            // page-specific assertions and must not redefine this smoke's data.
+            window.mediaPipelineCompletedView.renderCompleted(completedPayload);
+            window.renderPendingPublish(pendingPayload, {});
+            window.refreshAll = originalRefreshAll;
             return {
               ok: true,
               queueStatus: text("queue-status"),

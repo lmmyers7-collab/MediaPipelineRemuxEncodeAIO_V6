@@ -3,9 +3,9 @@ file: tests/python/desktop/test_maintenance_health_expansion.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: e11b6dc978df76d18bd500ae30e6df6783b4e42d0885b916ef4c16649d7fd0f4
+sha256: 4b031ba9ab560fda97b63c6a7373fa7e144bbe135aea6baac89d426c578a98cf
 ---
 # `tests/python/desktop/test_maintenance_health_expansion.py`
 

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/styles/components/progress-live.css
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-02
+last_modified: 2026-07-11
 last_reviewed: 2026-06-25
-sha256: f15435c867f5ac09f7edc99c79cf8699b7b25efcf3f50e0491105bf830a8eab3
+sha256: 638a01b3c17fa2e2448342227d28f0d836069cdede0ba008ee391bff41d98c05
 ---
 # `apps/desktop/webview/static/assets/styles/components/progress-live.css`
 

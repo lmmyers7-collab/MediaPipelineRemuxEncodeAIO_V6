@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/queue/fileOverrides.drawer.tracks.js
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-09
+last_modified: 2026-07-11
 last_reviewed: 2026-06-05
-sha256: 2afeca72daa644e0e5f4fc90022bdcbf494d27b37ed55f0675a583950e8ab64b
+sha256: 7992ce9059ba847faf52b5dcd2c506f8f754c1eab566eb2531213da6ba85ee07
 ---
 # `apps/desktop/webview/static/assets/queue/fileOverrides.drawer.tracks.js`
 

@@ -3,9 +3,9 @@ file: ops/pipeline/engine/publish/pending_transactions.ps1
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
-last_modified: 2026-07-10
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 7e319e87d0ccf4ec480fbf6bf15edcc13e76b147390c4481038cc4f5ec8ee1d8
+sha256: 27d72ee32235ab84cd1b01bf4e25eb96889b25e507c556a2ba4ce74481a15dd7
 ---
 # `ops/pipeline/engine/publish/pending_transactions.ps1`
 

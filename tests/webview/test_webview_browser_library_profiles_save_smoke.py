@@ -79,12 +79,12 @@ def _browser_library_profiles_save_runner_source() -> str:
               await waitFor(() => Boolean(byId("settings-library-summary-rows") && byId("settings-library-scan-sources-button")), "library summary tiles");
               stage("cards loaded");
               const summaryTilesBefore = document.querySelectorAll("#settings-library-summary-rows [data-library-summary-row]").length;
-              const initialProfiles = window.getLastSettings?.()?.config?.LibraryProfiles || [];
+              const initialProfiles = window.mediaPipelineSettingsView.getLastSettings()?.config?.LibraryProfiles || [];
               const posts = [];
-              const originalApiPost = window.apiPost;
+              const originalApiPost = window.mediaPipelineApi.apiPost;
               const originalAlert = window.alert;
               window.alert = () => {};
-              window.apiPost = async (path, body, options) => {
+              window.mediaPipelineApi.apiPost = async (path, body, options) => {
                 if (String(path || "") === "/api/settings/preview-patch" || String(path || "") === "/api/settings/save-patch") {
                   posts.push({ path: String(path || ""), body: JSON.parse(JSON.stringify(body || {})) });
                 }
@@ -128,7 +128,7 @@ def _browser_library_profiles_save_runner_source() -> str:
               await waitFor(() => text("settings-patch-detail").includes("Reload verified: yes"), "reload verification detail");
               stage("reload verified");
               await waitFor(() => {
-                const profiles = window.getLastSettings?.()?.config?.LibraryProfiles || [];
+                const profiles = window.mediaPipelineSettingsView.getLastSettings()?.config?.LibraryProfiles || [];
                 return profiles.some((profile) => String(profile?.name || "") === "Browser Concerts");
               }, "reloaded settings include custom library profile");
               stage("settings reloaded");
@@ -153,7 +153,7 @@ def _browser_library_profiles_save_runner_source() -> str:
                 patchDetail: text("settings-patch-detail"),
               };
               } finally {
-                window.apiPost = originalApiPost;
+                window.mediaPipelineApi.apiPost = originalApiPost;
                 window.alert = originalAlert;
               }
             }

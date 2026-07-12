@@ -851,7 +851,15 @@
 
   function selectLaunchSampleExecutionRow(row) {
     state.selectedLaunchSampleExecutionKey = row?.key || "";
-    renderLaunchSampleExecutionChecklist();
+    const rows = launchSampleExecutionRows(currentLaunchRealMediaContext());
+    const selected = selectedLaunchSampleExecutionRow(rows);
+    setText("launch-sample-execution-detail", launchSampleExecutionDetailLines(selected).join("\n"));
+    const tbody = byId("launch-sample-execution-rows");
+    Array.from(tbody?.querySelectorAll("tr[data-launch-sample-execution-key]") || []).forEach((candidate) => {
+      const isSelected = candidate.dataset.launchSampleExecutionKey === state.selectedLaunchSampleExecutionKey;
+      candidate.classList.toggle("is-selected", isSelected);
+      candidate.setAttribute("aria-selected", isSelected ? "true" : "false");
+    });
   }
 
   function renderLaunchSampleExecutionChecklist(context = null) {
@@ -879,6 +887,7 @@
     tbody.replaceChildren();
     rows.forEach((item) => {
       const row = document.createElement("tr");
+      row.dataset.launchSampleExecutionKey = item.key;
       row.dataset.status = launchSampleExecutionRowStatus(item);
       appendCells(row, [item.phase, item.check, item.status, item.ownerPage, item.required ? "Yes" : "No"]);
       if (typeof makeRowSelectable === "function") {

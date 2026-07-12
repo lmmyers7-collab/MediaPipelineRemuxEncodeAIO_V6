@@ -152,8 +152,8 @@ Tests for the versioned stage contract, Python runner journal/event handoff, and
 
 | Test file | What it covers |
 |---|---|
-| `test_stage_contracts.py` | Stage request/result Pydantic contracts, generated schema parity, mutation intent requirements, strict execute confirmations, and the allowlist proving only `ingest` is enabled among mutation-capable stages |
-| `test_stage_runner.py` | Python stage runner result parsing, timeout/error classification, command-journal evidence summaries, stage-event mirror handoff, low-risk probe/decide helpers, and guarded ingest helper dispatch |
+| `test_stage_contracts.py` | Stage request/result Pydantic contracts, generated schema parity, mutation intent requirements, strict execute confirmations, backend registration, and the invariant that every disabled mutation stage has a machine-readable blocker plus required-validation list while enabled stages have no blocker |
+| `test_stage_runner.py` | Python stage runner result parsing, timeout/error classification, command/operation-journal evidence, duplicate replay, low-risk probe/decide helpers, guarded ingest, scratch-only rename, and standalone ASS/SSA subtitle dispatch |
 | `test_stage_entrypoint.py` | PowerShell stage entrypoint contract rejection, read-only probe/decide round trips, and guarded ingest dry-run/execute behavior using temporary source files, scratch-boundary checks, evidence files, and source-hash preservation |
 
 Targeted command:
@@ -162,7 +162,7 @@ Targeted command:
 & $py -m unittest tests.python.desktop.test_stage_contracts tests.python.desktop.test_stage_runner tests.python.desktop.test_stage_entrypoint -q
 ```
 
-Coverage gap: the ingest tests use temporary representative files and do not replace representative real-media validation for future source/scratch/output workflow changes.
+Coverage gap: temporary ingest/rename/ASS fixtures do not replace representative real-media validation. `transcode`, `audio-mix`, `publish`, and `drain` remain disabled; their registry metadata records the production-policy, manifest-transaction, recovery, and representative-media gates required before any backend registration change.
 
 ---
 
@@ -713,6 +713,18 @@ Run via `ops/scripts/smoke/` wrappers: `.\ops/scripts/smoke\Test-WebViewCommandE
 
 ---
 
+### Python Stage Dispatcher Mutation Tests
+
+| Test file | What it covers |
+|---|---|
+| `tests/python/core/subtitles/test_stage_subtitle_convert.py` | Standalone scratch ASS/SSA dry-run and SRT execute, strict confirmation, trusted path/source boundaries, content-bound fingerprint, command/operation journals, duplicate replay, input hash preservation, no-overwrite behavior, review routing, PowerShell-independent output, and rollback after terminal-evidence failure |
+
+This is temporary standalone-subtitle fixture coverage. It does not cover real
+TX3G extraction, BDPGS OCR, embedded streams, language routing, container
+mutation, or production PowerShell integration.
+
+---
+
 ## Known Coverage Gaps
 
 | Area | Gap | Priority |
@@ -721,7 +733,7 @@ Run via `ops/scripts/smoke/` wrappers: `.\ops/scripts/smoke\Test-WebViewCommandE
 | Pending Publish | Recovery-plan action coverage, completed-manifest/drain-summary cross-check depth, and coordinator-mode pending-publish handoff | Medium |
 | Process lifecycle | Broader abnormal-exit/orphan recovery UX beyond the generated-media force-kill safety smoke | Medium |
 | Real-media routing | No automated test covers FFmpeg encode/remux correctness on real files | High (needs real-media playbook) |
-| Subtitle conversion | No automated test converts a real TX3G/BDPGS file | High (needs real-media playbook) |
+| Subtitle conversion | Scratch ASS/SSA conversion has representative text-fixture coverage; no automated test converts a real embedded ASS, TX3G, or BDPGS stream through production policy | High (needs real-media playbook) |
 
 Coverage gaps are tracked as documentation observations. They do not require immediate code changes.
 

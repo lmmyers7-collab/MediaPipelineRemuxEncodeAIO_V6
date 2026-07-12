@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: b39f024a34a40118907a092c85c39e737074cfadec615b66b56176e1c896ad0b
+sha256: 45c1afc9bcf892cd65a3f2b79af27133f674292fdc2a6e914a63fa1495f437bb
 ---
 # `apps/desktop/webview/static/assets/pendingPublish/defaultAdapters.js`
 

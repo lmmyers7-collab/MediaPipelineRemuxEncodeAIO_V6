@@ -12,7 +12,7 @@ STAGE_SCHEMA_VERSION: Literal["v1"] = "v1"
 MutationIntent = Literal["dry_run", "execute"]
 
 class StageName(StrEnum):
-    """Canonical stage names dispatched by ops/pipeline/engine/entrypoint.ps1."""
+    """Canonical stage names accepted by the Python dispatcher and PowerShell compatibility entrypoint."""
 
     ingest = "ingest"
     probe = "probe"

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: b670274cfd3994335006316fc953b087994ed3bdfe120c7884c1289cc1120bd4
+sha256: 07daaaf579e0358abed2c97ae8c0620189a0b43b6f18fe66a7142f56d9854460
 ---
 # `apps/desktop/webview/static/assets/launch/preflight/pilotReadiness.js`
 

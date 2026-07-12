@@ -435,6 +435,10 @@ class WebViewRealMediaSmoke(unittest.TestCase):
                 server.start()
                 html_status, html, html_type = _get_text(f"{server.url}/")
                 app_status, app_js, app_type = _get_text(f"{server.url}/assets/app.js")
+                app_refresh_status, app_refresh_js, app_refresh_type = _get_text(
+                    f"{server.url}/assets/app/refreshCoordinator.js"
+                )
+                app_js = "\n".join((app_refresh_js, app_js))
                 cross_status, cross_js, cross_type = _get_text(f"{server.url}/assets/crossPageContextView.js")
                 cross_conflict_status, cross_conflict_js, cross_conflict_type = _get_text(f"{server.url}/assets/crossPageContextView.conflict.js")
                 cross_sample_child_status, cross_sample_child_js, cross_sample_child_type = _get_text(f"{server.url}/assets/crossPageContextView.sample.js")
@@ -534,10 +538,12 @@ class WebViewRealMediaSmoke(unittest.TestCase):
 
         self.assertEqual(app_status, 200)
         self.assertIn("javascript", app_type)
+        self.assertEqual(app_refresh_status, 200)
+        self.assertIn("javascript", app_refresh_type)
         self.assertIn("const crossPageContext = {", app_js)
         self.assertIn("renderCrossPageContext(crossPageContext)", app_js)
         self.assertIn("window.mediaPipelineLaunchView?.renderLaunchRealMediaProofHandoff?.(crossPageContext)", app_js)
-        self.assertIn("settings: values.settings || getLastSettings()", app_js)
+        self.assertIn("settings: values.settings || window.mediaPipelineSettingsView.getLastSettings()", app_js)
 
         self.assertEqual(cross_status, 200)
         self.assertIn("javascript", cross_type)
@@ -806,7 +812,7 @@ class WebViewRealMediaSmoke(unittest.TestCase):
             "function settingsBackendMediaPolicyReadiness",
             "function settingsPolicyDeltaRows",
         ):
-            self.assertIn(fragment, settings_view_js)
+            self.assertIn(fragment, settings_policy_impact_js)
 
         self.assertEqual(settings_overview_status, 200)
         self.assertIn("javascript", settings_overview_type)

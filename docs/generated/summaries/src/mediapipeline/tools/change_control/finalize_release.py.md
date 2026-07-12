@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/change_control/finalize_release.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-11
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: de4b2fd06517ff38a52555171250aa611eb1f1d92135b1eaceffb14fac4cf73b
+sha256: a1cb34161bc755a7713191c90188267d8ac98c9970d9acddaace9e9927a6f0a0
 ---
 # `src/mediapipeline/tools/change_control/finalize_release.py`
 

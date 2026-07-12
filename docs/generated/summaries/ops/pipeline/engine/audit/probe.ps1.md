@@ -3,9 +3,9 @@ file: ops/pipeline/engine/audit/probe.ps1
 pipeline_stage: observability
 token_priority: medium
 owner_domain: audit
-last_modified: 2026-07-10
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 8301f2218a0cdaa1390601c0c0a9702317badf420e33bb6cf0ec7afd09c8ada4
+sha256: c9a7833b009ebf6c98f57fa3990207dbf5f0fe7aef59eb01c2e4538a729f0323
 ---
 # `ops/pipeline/engine/audit/probe.ps1`
 

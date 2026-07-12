@@ -690,7 +690,7 @@ const renderSettingsSafetyLocks = settingsSafetyLocks.renderSettingsSafetyLocks 
   const settingsViewFacadeFactory = window.__settingsViewFacade || {};
   delete window.__settingsViewFacade;
   settingsViewParts = settingsViewFacadeFactory.createSettingsViewFacade({
-    apiPost: typeof apiPost !== "undefined" ? apiPost : window.apiPost,
+    apiPost: (...args) => window.mediaPipelineApi.apiPost(...args),
     appendCells: typeof appendCells !== "undefined" ? appendCells : window.appendCells,
     appendCommandResult: typeof appendCommandResult !== "undefined" ? appendCommandResult : window.appendCommandResult,
     applyAudioSettingsBuilderToPatch: typeof applyAudioSettingsBuilderToPatch !== "undefined" ? applyAudioSettingsBuilderToPatch : window.applyAudioSettingsBuilderToPatch,
@@ -738,7 +738,7 @@ const renderSettingsSafetyLocks = settingsSafetyLocks.renderSettingsSafetyLocks 
     qualityDetailSettingsBuilderState: typeof qualityDetailSettingsBuilderState !== "undefined" ? qualityDetailSettingsBuilderState : window.qualityDetailSettingsBuilderState,
     queueSettingsBuilderFields: typeof queueSettingsBuilderFields !== "undefined" ? queueSettingsBuilderFields : window.queueSettingsBuilderFields,
     queueSettingsBuilderState: typeof queueSettingsBuilderState !== "undefined" ? queueSettingsBuilderState : window.queueSettingsBuilderState,
-    refreshAll: typeof refreshAll !== "undefined" ? refreshAll : window.refreshAll,
+    refreshAll: (...args) => window.refreshAll(...args),
     refreshAudioSettingsBuilderChoices: typeof refreshAudioSettingsBuilderChoices !== "undefined" ? refreshAudioSettingsBuilderChoices : window.refreshAudioSettingsBuilderChoices,
     refreshSettingsBuilderChoices: typeof refreshSettingsBuilderChoices !== "undefined" ? refreshSettingsBuilderChoices : window.refreshSettingsBuilderChoices,
     refreshSettingsSelectChoices: typeof refreshSettingsSelectChoices !== "undefined" ? refreshSettingsSelectChoices : window.refreshSettingsSelectChoices,
@@ -756,7 +756,7 @@ const renderSettingsSafetyLocks = settingsSafetyLocks.renderSettingsSafetyLocks 
     renderSettingsEncoderCapabilityReport: typeof renderSettingsEncoderCapabilityReport !== "undefined" ? renderSettingsEncoderCapabilityReport : window.renderSettingsEncoderCapabilityReport,
     renderSettingsOperatorTrust: typeof renderSettingsOperatorTrust !== "undefined" ? renderSettingsOperatorTrust : window.renderSettingsOperatorTrust,
     renderSettingsOverview: typeof renderSettingsOverview !== "undefined" ? renderSettingsOverview : window.renderSettingsOverview,
-    renderSettingsRawActionPlan: typeof renderSettingsRawActionPlan !== "undefined" ? renderSettingsRawActionPlan : window.renderSettingsRawActionPlan,
+    renderSettingsRawActionPlan,
     renderSettingsRawTriage: typeof renderSettingsRawTriage !== "undefined" ? renderSettingsRawTriage : window.renderSettingsRawTriage,
     renderSettingsRows: typeof renderSettingsRows !== "undefined" ? renderSettingsRows : window.renderSettingsRows,
     renderSettingsSafetyLocks: typeof renderSettingsSafetyLocks !== "undefined" ? renderSettingsSafetyLocks : window.renderSettingsSafetyLocks,
@@ -839,7 +839,7 @@ const renderSettingsSafetyLocks = settingsSafetyLocks.renderSettingsSafetyLocks 
 
   /**
    * Public namespace for the settings view module.
-   * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
+   * Use this namespace for cross-module access; flat window.* exports are compatibility-only when present.
    */
 
   window.mediaPipelineSettingsView = {
@@ -875,10 +875,6 @@ const renderSettingsSafetyLocks = settingsSafetyLocks.renderSettingsSafetyLocks 
     settingsRenameLogCasePayload, submitSettingsRenameLogCase, initSettingsRenameLogCaseEvents,
     writeSettingsPatchJson, parseSettingsPatchJson, initSettingsViewEvents,
   };
-  window.renderSettingsRawActionPlan = renderSettingsRawActionPlan;
-  window.renderSettings = renderSettings; window.getLastSettings = getLastSettings;
-  window.initSettingsViewEvents = initSettingsViewEvents;
-
   (function () {
     const saveBtn = byId("settings-save-header-save-button");
     if (saveBtn) saveBtn.addEventListener("click", saveSettingsPatch);

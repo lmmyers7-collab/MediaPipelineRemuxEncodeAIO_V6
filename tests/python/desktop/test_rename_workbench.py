@@ -228,10 +228,11 @@ class RenameWorkbenchJsTests(unittest.TestCase):
         self.assertIn("renameOpenConfirmDialog", self.js)
         self.assertIn("renameOpenResultDialog", self.js)
         self.assertIn("renameSyncModeFieldVisibility", self.js)
-        # app.js calls the init.
-        self.assertIn("renameInitWorkbenchEvents", self.app_js)
-        self.assertIn("renameUsesStandaloneWorkbench", self.app_js)
-        self.assertIn("renameBrowseFolderButton && !renameUsesStandaloneWorkbench", self.app_js)
+        # The lifecycle orchestration slice calls the public Rename facade.
+        orchestration_js = _read(STATIC_ROOT / "assets" / "app" / "lifecycleOrchestration.js")
+        self.assertIn("renameView.renameInitWorkbenchEvents?.()", orchestration_js)
+        self.assertIn("renameUsesStandaloneWorkbench", orchestration_js)
+        self.assertIn("renameBrowseFolderButton && !renameUsesStandaloneWorkbench", orchestration_js)
 
     def test_apply_workbench_requires_checked_preview_rows(self) -> None:
         self.assertIn("applyRenameWorkbench", self.js)

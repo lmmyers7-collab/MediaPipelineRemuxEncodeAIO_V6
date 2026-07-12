@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: network
 last_modified: 2026-07-11
 last_reviewed: 2026-06-29
-sha256: 435767d8102c253abd3414442016dbff864d0c63455fad84b9fc7ba0d054f3f8
+sha256: 0886ea5b27668b01e64a36c472df78808953ed2432b557bd65d070a041864180
 ---
 # `src/mediapipeline/core/network/registry.py`
 

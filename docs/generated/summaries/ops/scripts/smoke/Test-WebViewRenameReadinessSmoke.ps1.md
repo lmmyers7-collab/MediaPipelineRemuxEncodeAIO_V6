@@ -3,9 +3,9 @@ file: ops/scripts/smoke/Test-WebViewRenameReadinessSmoke.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 2e2b15e4a1f6a03d0be106d17c3b5c38d33f9f63fbfb2c0a7e91a9a4ccccb82e
+sha256: d2d5776c02be03b16379debf1bd91e5fe82985a5cb7d53bcdd642274486c60d1
 ---
 # `ops/scripts/smoke/Test-WebViewRenameReadinessSmoke.ps1`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: c017cdf8118b571e828540173fb106c9089c75af578574cc71baef5a5722a28e
+sha256: 8abc83c36db4dbdb28f9d9c184c826a8df819921578a85cfa2ebdb77f04541bb
 ---
 # `apps/desktop/webview/static/assets/launch/scope/compactGate.js`
 

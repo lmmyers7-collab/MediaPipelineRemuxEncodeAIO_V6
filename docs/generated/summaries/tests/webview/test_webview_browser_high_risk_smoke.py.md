@@ -3,9 +3,9 @@ file: tests/webview/test_webview_browser_high_risk_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-23
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 02be512e21c6d97eb0212d13c160118ed7dbc0e90f5688763dee6e96f9d4f57b
+sha256: 61e99424757641ec5bc3c256ad977b746eb7d7e0dc55fc5076df8c88f566568b
 ---
 # `tests/webview/test_webview_browser_high_risk_smoke.py`
 

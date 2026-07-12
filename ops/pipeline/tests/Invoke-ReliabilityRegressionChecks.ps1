@@ -31,9 +31,9 @@ function Invoke-RequiredReliabilityScript {
 
     Write-Host "Running $Label..."
     & $scriptPath
-    $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
-    if ($exitCode -ne 0) {
-        throw "$Label failed with exit $exitCode."
+    $invocationSucceeded = $?
+    if (-not $invocationSucceeded) {
+        throw "$Label reported an unsuccessful PowerShell invocation."
     }
 }
 

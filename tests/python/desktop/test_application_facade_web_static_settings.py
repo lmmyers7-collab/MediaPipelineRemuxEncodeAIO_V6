@@ -271,6 +271,10 @@ class ApplicationFacadeWebStaticSettingsTests(unittest.TestCase):
                 "window.isSettingsCommand = isSettingsCommand",
                 "window.settingsCommandHistoryLine = settingsCommandHistoryLine",
                 "window.renderSettingsCommandHistory = renderSettingsCommandHistory",
+                "window.renderSettingsRawActionPlan = renderSettingsRawActionPlan",
+                "window.renderSettings = renderSettings",
+                "window.getLastSettings = getLastSettings",
+                "window.initSettingsViewEvents = initSettingsViewEvents",
             ),
         )
 
@@ -471,7 +475,7 @@ class ApplicationFacadeWebStaticSettingsTests(unittest.TestCase):
                 "Subtitle routing summary:",
                 'byId("settings-subtitle-languages")',
                 "ConvertTx3gToSrt",
-                'setSubtitleBuilderControl("settings-subtitle-convert-bdpgs", "ConvertBdpgsToSrt", "bool", false)',
+                'setSubtitleBuilderControl("settings-subtitle-convert-bdpgs", "ConvertBdpgsToSrt", "bool", true)',
                 "preferred-language TX3G/mov_text subtitles will not generate SRT without conversion enabled.",
                 "Drop TX3G is enabled while Convert TX3G to SRT is disabled.",
             ),
@@ -609,7 +613,7 @@ class ApplicationFacadeWebStaticSettingsTests(unittest.TestCase):
                 "previewSettingsPatch",
                 "let settingsPatchPreviewRequestId = 0",
                 "const rawAtRequest = raw",
-                "requestId !== settingsPatchPreviewRequestId",
+                "requestId !== state.settingsPatchPreviewRequestId",
                 "Preview replaced",
                 "saveSettingsPatch",
                 "function settingsCommandProgressBars",

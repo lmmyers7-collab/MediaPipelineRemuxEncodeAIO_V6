@@ -59,6 +59,8 @@
 │  │     core/queue/priority_manifest.py ─ priority_manifest.json │ │
 │  │     core/completed/manifest.py ── completed_jobs.jsonl       │ │
 │  │     core/publish/pending_service.py ─ PendingServerPush/...  │ │
+│  │     core/rename/stage.py       ── scratch-only rename stage  │ │
+│  │     core/subtitles/stage.py    ── scratch ASS/SSA→SRT stage │ │
 │  │     core/status/*.py            ── progress / events / files │ │
 │  │     config_keys.py             ── Python config-key registry │ │
 │  │     core/shared/protocols.py ── Protocol contracts for       │ │

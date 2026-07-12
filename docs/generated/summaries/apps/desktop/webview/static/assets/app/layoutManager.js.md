@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 5867d4cf7f15864bd4638139f42a72264fb5342a0682789ddc91f8f18d67d876
+sha256: 5e15375794ed0d86993db40e9a8938b868a5c5bdc866f30baa6e77e1aeacc673
 ---
 # `apps/desktop/webview/static/assets/app/layoutManager.js`
 

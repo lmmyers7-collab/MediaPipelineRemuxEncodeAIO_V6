@@ -50,23 +50,64 @@ comparison against authoritative JSON before implementation.
 
 ### PI-002: Python stage dispatcher is a narrow boundary, not the media engine
 
-Decision: retain the dispatcher as a supported probe/decision and guarded
-scratch-ingest boundary. `probe` and `decide` are read-only. Guarded `ingest`
-may only perform its separately validated scratch copy; transcode, subtitle,
-audio, publish, drain, rename, final placement, and source movement remain
-disabled in the dispatcher. The PowerShell engine remains the production owner
-of encode/remux/subtitle/audio/publish mutation and real-media policy.
+Decision: retain the dispatcher as a supported probe/decision plus narrowly
+guarded scratch-mutation boundary. `probe` and `decide` are read-only. Guarded
+`ingest` may only perform its separately validated source-to-scratch copy.
+Guarded `rename` may only rename one regular file within a dispatcher-allowed
+scratch root that is disjoint from all dispatcher-protected source roots;
+payload roots must match that trusted runner configuration. It excludes sidecars, directory moves,
+extension changes, overwrite, source/output/final-library paths, and any Local
+API or frontend route. Guarded `subtitle-convert` may only turn one standalone
+scratch `.ass`/`.ssa` artifact into one new sibling `.srt`, using the existing
+Python parser/filter/renderer with fixed conservative policy. It excludes
+TX3G extraction, BDPGS OCR, embedded streams, language routing, container or
+source mutation, output overwrite, publish integration, and any Local API or
+frontend route. Transcode, audio, publish, drain, final
+placement, and source movement remain disabled in the dispatcher. The
+PowerShell engine remains the production owner of encode/remux/subtitle/audio/
+publish mutation, integrated naming, and real-media policy.
 
-Evidence: `STAGE_REGISTRY` marks only `ingest`, `probe`, and `decide` enabled;
-the runner rejects disabled stages before spawning PowerShell. Ingest execute
-requires strict confirmation, operation identity, a scratch reservation,
-matching dry-run fingerprint, journaling, source-unchanged proof, and recovery
-evidence.
+The 2026-07-11 next-stage audit found no remaining stage that can be honestly
+bounded with temporary fixtures alone. The disabled contracts now carry stable
+machine-readable blocker codes and validation gates:
 
-Consequences and rollback: this avoids a shadow-engine cutover claim and keeps
-existing PowerShell real-media validation valid. A genuine cutover would be a
-separate phased migration with policy parity, rollback, and representative
-real-media gates; it is not authorized by this decision.
+| Stage | Blocker | Minimum unlock evidence |
+| --- | --- | --- |
+| `transcode` | `production_ffmpeg_policy_parity_and_real_media_required` | PowerShell unit/reliability and tool checks, representative encode and remux media, stream-mapping parity, failed-attempt cleanup, and recovery parity. |
+| `audio-mix` | `production_audio_policy_parity_and_multi_audio_real_media_required` | Profile-driven passthrough/transcode/downmix/default-language parity plus representative multi-audio validation. |
+| `publish` | `manifest_publish_transaction_parity_and_real_media_required` | Partial-copy/reveal, sidecar rollback, pending-park/recovery, final-placement proof, and representative publish validation. |
+| `drain` | `pending_manifest_transaction_parity_and_deferred_publish_real_media_required` | Trusted-manifest, attempt-state, copy/hash, sidecar rollback, crash recovery, fixture, and representative deferred-publish-to-drain validation. |
+
+These are review dispositions, not placeholders for generic execution. A
+future change must clear one complete row before changing that stage's
+`execution_backend`; temporary fixtures cannot establish production parity.
+
+Evidence: `STAGE_REGISTRY` identifies the PowerShell and Python dispatcher
+backends; the runner rejects disabled stages before spawning or mutation.
+Ingest execute requires strict confirmation, operation identity, a scratch
+reservation, matching dry-run fingerprint, journaling, source-unchanged proof,
+and recovery evidence. Rename execute requires strict boolean confirmation, a
+UUID operation identity, matching content-bound dry-run fingerprint, strict
+command and duplicate-operation journals, trusted scratch/source-root boundary checks,
+no-overwrite behavior, content-hash equality, and a scratch-local undo record.
+Focused temporary-fixture tests prove absent confirmation, source-root overlap,
+outside-scratch targets, untrusted root declarations, stale fingerprints, and missing command journals fail
+closed, and terminal-evidence failure rolls the scratch rename back.
+Subtitle-convert has the same trusted-root, strict confirmation, fingerprint,
+command/operation journal, duplicate replay, and no-overwrite gates. Temporary
+representative ASS fixtures prove dry-run parsing, deterministic SRT output,
+input-hash preservation, review routing for no-dialogue input, unsafe-path
+rejection, and output rollback when terminal evidence cannot commit.
+
+Consequences and rollback: the Python rename and standalone subtitle executors
+are validation-only infrastructure and do not change production pipeline
+routing. Their recovery records and immediate rollback cover the bounded
+scratch mutations; removing either Python backend registration disables that
+stage without changing PowerShell behavior. This
+avoids a shadow-engine cutover claim and keeps existing PowerShell real-media
+validation valid. A genuine cutover would be a separate phased migration with
+policy parity, rollback, and representative real-media gates; it is not
+authorized by this decision.
 
 ## Media Policy Decisions
 

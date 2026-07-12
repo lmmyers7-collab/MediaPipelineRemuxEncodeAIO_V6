@@ -2,7 +2,7 @@
 
 Documents all Local API routes, their mutation risk, auth requirements, backend owner confirmation, and primary frontend caller. Source of truth is `contract_read.py` and `contract_command.py`; handler dispatch is in `routes_read.py` and `routes_command.py`.
 
-Total routes: 163 (53 read, 110 command).
+Total routes: 168 (54 read, 114 command).
 
 All routes that mutate state are backend-owned. The WebView never resolves filesystem paths, selects output targets, chooses encode settings, or launches processes directly — it forwards requests with allowlisted parameters and the backend validates, plans, and executes.
 
@@ -27,6 +27,7 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/diagnostics/tdarr-matrix/runs` | Yes | `desktop_tdarr_matrix_runs.v1` | Diagnostics | Lists sentinel-marked Tdarr Matrix sample runs under the approved Scratch/TestLibraries/TdarrMatrixRuns root |
 | `GET /api/diagnostics/tdarr-matrix/compare` | Yes | `desktop_tdarr_matrix_compare.v1` | Diagnostics | Query params: `left_run_id`, `right_run_id`, `left`, `right`; compares existing reports without opening files or launching work |
 | `GET /api/backend/close-readiness` | Yes | `desktop_close_readiness.v1` | Tauri shell (close flow) | Backend has authority over whether it is safe to close; shell must not decide unilaterally |
+| `GET /api/backend/recovery-status` | Yes | `desktop_lifecycle_recovery.v1` | Diagnostics, startup recovery | Reads backend-owned lifecycle recovery classification, one-shot resume evidence, and required operator action; no recovery mutation |
 | `GET /api/ui-preferences` | Yes | `desktop_ui_preferences.v1` | Chrome WebView, Tauri shell | Shared UI preference state for layout/theme/tab parity; no settings, queue, or media mutation |
 | `GET /api/launch/preflight` | Yes | `desktop_launch_preflight.v1` | Launch | Backend-authored read-only pre-launch checks from start-intent query fields, including pipeline single-file intent, extra-argument posture, and existing encoder capability evidence; no artifact refresh, locks, process starts, or media touch |
 | `GET /api/commands` | Yes | `desktop_command_history.v1` | Diagnostics, Home | Recent command journal entries; query param: `limit` |

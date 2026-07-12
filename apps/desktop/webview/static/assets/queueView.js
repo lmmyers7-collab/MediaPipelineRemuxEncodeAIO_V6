@@ -166,7 +166,7 @@
   delete window.__queueOpenActionsModule;
   const _queueOpenActions = typeof __queueOpenActionsMod.createQueueOpenActionsModule === "function"
     ? __queueOpenActionsMod.createQueueOpenActionsModule({
-      apiPost: typeof apiPost === "function" ? apiPost : window.apiPost,
+      apiPost: (...args) => window.mediaPipelineApi.apiPost(...args),
       appendCommandResult: typeof appendCommandResult === "function" ? appendCommandResult : window.appendCommandResult,
       documentRef: document,
       getSelectedQueueExcludedRow,
@@ -322,7 +322,7 @@
       byId: typeof byId === "function" ? byId : window.byId,
       setText: typeof setText === "function" ? setText : window.setText,
       apiGet: typeof apiGet === "function" ? apiGet : window.apiGet,
-      apiPost: typeof apiPost === "function" ? apiPost : window.apiPost,
+      apiPost: (...args) => window.mediaPipelineApi.apiPost(...args),
     })
     : {};
   const {
@@ -655,11 +655,11 @@
   delete window.__queueScanModule;
   const _queueScan = typeof __queueScanMod.createQueueScanModule === "function"
     ? __queueScanMod.createQueueScanModule({
-      apiPost: typeof apiPost === "function" ? apiPost : window.apiPost,
+      apiPost: (...args) => window.mediaPipelineApi.apiPost(...args),
       appendCommandResult: typeof appendCommandResult === "function" ? appendCommandResult : window.appendCommandResult,
       getScanInFlight: () => queueScanInFlight,
       queueScanIsRunning,
-      refreshAll: typeof refreshAll === "function" ? refreshAll : window.refreshAll,
+      refreshAll: (...args) => window.refreshAll(...args),
       renderQueueRows: () => renderQueueRows(),
       renderQueueSourceInventoryMessage,
       scheduleQueueScanPoll,
@@ -896,8 +896,8 @@
   const _queueControls = typeof __queueControlsMod.createQueueControlsModule === "function"
     ? __queueControlsMod.createQueueControlsModule({
       appendCommandResult: typeof appendCommandResult === "function" ? appendCommandResult : window.appendCommandResult,
-      apiGet: typeof apiGet === "function" ? apiGet : window.apiGet,
-      apiPost: typeof apiPost === "function" ? apiPost : window.apiPost,
+      apiGet: (...args) => window.mediaPipelineApi.apiGet(...args),
+      apiPost: (...args) => window.mediaPipelineApi.apiPost(...args),
       byId: typeof byId === "function" ? byId : window.byId,
       documentRef: document,
       filteredRows: () => queueFilteredRowsForCurrentDisplay(),
@@ -908,8 +908,9 @@
       getSelectedPriorityRows: () => getSelectedQueuePriorityRows(),
       initQueueRerunEvents,
       initQueueTabNav,
+      moveQueueTablePage: (...args) => moveQueueTablePage(...args),
       overrideMarkers: displayedQueueFileOverrideMarkers,
-      refreshAll: typeof refreshAll === "function" ? refreshAll : window.refreshAll,
+      refreshAll: (...args) => window.refreshAll(...args),
       renderBreakdown: (payload, rows) => renderQueueBreakdown(payload, rows),
       renderRows: () => renderQueueRows(),
       renderSummary: (payload, rows) => renderQueueSummary(payload, rows),

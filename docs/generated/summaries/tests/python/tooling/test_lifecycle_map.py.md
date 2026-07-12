@@ -3,9 +3,9 @@ file: tests/python/tooling/test_lifecycle_map.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 00ff977ceff1debde19dd971c7df0f8ee9a1ec6878d0339bf62041cd63b14475
+sha256: 64da29552e1d861848dc41867a7842d0ddb26c04ffc908114515670b3b4cab60
 ---
 # `tests/python/tooling/test_lifecycle_map.py`
 

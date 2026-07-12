@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 8d2e949fd25021a225ab947e39c7056a17fb1a22dd1421d30a26f084a738cc32
+sha256: 7012d0b1bb1f254b7eb6ddad73892e091c1a3251a57a190722a705fe00fb026a
 ---
 # `apps/desktop/webview/static/assets/reports/audit/progress.js`
 

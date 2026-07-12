@@ -413,7 +413,7 @@
       getCommandHistory: typeof window.getCommandHistory === "function" ? () => window.getCommandHistory() : (typeof getCommandHistory === "function" ? () => getCommandHistory() : () => []),
       getLastLaunchReadinessPayload: typeof getLastLaunchReadinessPayload === "function" ? () => getLastLaunchReadinessPayload() : () => ({}),
       getLastQueueRows: typeof window.getLastQueueRows === "function" ? () => window.getLastQueueRows() : (typeof getLastQueueRows === "function" ? () => getLastQueueRows() : () => []),
-      getLastSettings: typeof window.getLastSettings === "function" ? () => window.getLastSettings() : (typeof getLastSettings === "function" ? () => getLastSettings() : () => ({})),
+      getLastSettings: typeof window.mediaPipelineSettingsView?.getLastSettings === "function" ? () => window.mediaPipelineSettingsView.getLastSettings() : () => ({}),
       isLaunchCommand,
       launchHistoryLine,
       makeRowSelectable: typeof makeRowSelectable === "function" ? makeRowSelectable : window.makeRowSelectable,
@@ -718,8 +718,8 @@
   delete window.__launchViewPreflightModule;
   const launchPreflight = typeof launchPreflightModule.createLaunchPreflightModule === "function"
     ? launchPreflightModule.createLaunchPreflightModule({
-      apiGet: typeof apiGet === "function" ? apiGet : window.apiGet,
-      apiPost: typeof apiPost === "function" ? apiPost : window.apiPost,
+      apiGet: (...args) => window.mediaPipelineApi.apiGet(...args),
+      apiPost: (...args) => window.mediaPipelineApi.apiPost(...args),
       appendCells: typeof appendCells === "function" ? appendCells : window.appendCells,
       byId: typeof byId === "function" ? byId : window.byId,
       clearRows: typeof clearRows === "function" ? clearRows : window.clearRows,
@@ -816,14 +816,14 @@
   delete window.__launchCommandOrchestrationModule;
   const launchCommandOrchestration = launchCommandOrchestrationFactory.createLaunchCommandOrchestrationModule({
     Event: window.Event,
-    apiPost: typeof apiPost === "function" ? apiPost : window.apiPost,
+    apiPost: (...args) => window.mediaPipelineApi.apiPost(...args),
     appendCommandResult: typeof appendCommandResult === "function" ? appendCommandResult : window.appendCommandResult,
     byId: typeof byId === "function" ? byId : window.byId,
     collectPipelineStartRequest, confirmControlAction, controlActionLabels, initLaunchTabNav,
     launchPipelineIsActive, launchRerunCsvIsActive, nextLaunchCommandFrame,
     pendingDrainGuardState: (...args) => pendingDrainGuardState(...args),
     pipelineLaunchPreflightLines, pipelineModeLabel, queueRerunRouteDispatcher,
-    refreshAll: typeof refreshAll === "function" ? refreshAll : window.refreshAll,
+    refreshAll: (...args) => window.refreshAll(...args),
     refreshLaunchBackendPreflight, refreshLaunchBackendPreflightEncoderCapability,
     refreshRerunResults: (...args) => rerunFacade.refreshRerunResults(...args),
     rejectControlCommandWhileBusy, rejectLaunchCommandWhileBusy, renderAllLaunchPreflights,
@@ -854,7 +854,7 @@
     collectRerunMinimumWorkerCount, collectRerunNetworkStartDryRunRequest, collectRerunNetworkStartRequest,
     collectRerunPreviewRequest, collectRerunScopeRequest, collectRerunStartRequest, launchCoordinatorState,
     nextLaunchCommandFrame, queueRerunRouteDispatcher,
-    refreshAll: typeof refreshAll === "function" ? refreshAll : window.refreshAll,
+    refreshAll: (...args) => window.refreshAll(...args),
     rejectLaunchCommandWhileBusy, renderAllLaunchPreflights, renderJsonDetail, renderLaunchCommandResult,
     renderLaunchPreflight, RERUN_EXECUTION_LABELS, RERUN_POLICY_CHOICES, rerunExecutionTargetLabel,
     rerunIsNetworkMode, rerunPreviewRouteName, rerunQueuePreflightLines, rerunStartRouteName,

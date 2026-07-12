@@ -10,6 +10,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable
 
+try:
+    import psutil
+except Exception:  # pragma: no cover - optional runtime dependency
+    psutil = None
+
+from mediapipeline.core.processes.active_jobs import active_job_pid_is_alive
+
 
 LIFECYCLE_LEASE_SCHEMA_VERSION = "desktop_lifecycle_lease.v1"
 LIFECYCLE_INDETERMINATE_SCHEMA_VERSION = "desktop_lifecycle_indeterminate.v1"
@@ -47,6 +54,11 @@ def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
 def _pid_liveness(pid: int) -> bool | None:
     if pid <= 0:
         return False
+    if os.name == "nt":
+        # Unlike POSIX, Windows implements os.kill(pid, 0) with
+        # TerminateProcess.  A liveness probe must never mutate the process it
+        # is inspecting, so use the existing psutil read boundary instead.
+        return active_job_pid_is_alive(pid, psutil)
     try:
         os.kill(pid, 0)
     except ProcessLookupError:

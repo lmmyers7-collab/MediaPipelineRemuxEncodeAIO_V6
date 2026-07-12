@@ -4,6 +4,7 @@ const AUTOMATIC_OPTIONAL_GET_TIMEOUT_MS = 12000;
 
 let lastSnapshot = null;
 let lastCloseReadiness = null;
+let lastDiagnostics = null;
 let lastStdoutTail = null;
 let lastSchedule = null;
 let lastQueue = null;
@@ -115,7 +116,7 @@ function renderCloseReadiness(closeReadiness) {
     setTextState("diagnostics-close-status", "Unknown", "empty");
     setText("diagnostics-close-readiness", "Close readiness has not loaded yet.");
     renderControlReadiness(lastSnapshot, lastCloseReadiness);
-    renderLaunchReadinessPanel({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, schedule: lastSchedule, settings: getLastSettings() });
+    renderLaunchReadinessPanel({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, schedule: lastSchedule, settings: window.mediaPipelineSettingsView.getLastSettings() });
     renderBackendLifecycle(lastCloseReadiness, lastSnapshot);
     return;
   }
@@ -129,7 +130,7 @@ function renderCloseReadiness(closeReadiness) {
   setTextState("diagnostics-close-status", safe ? "Safe" : "Blocked", safe ? "ok" : "blocked");
   setText("diagnostics-close-readiness", formatCloseReadiness(closeReadiness));
   renderControlReadiness(lastSnapshot, lastCloseReadiness);
-  renderLaunchReadinessPanel({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, schedule: lastSchedule, settings: getLastSettings() });
+  renderLaunchReadinessPanel({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, schedule: lastSchedule, settings: window.mediaPipelineSettingsView.getLastSettings() });
   renderBackendLifecycle(lastCloseReadiness, lastSnapshot);
 }
 
@@ -533,7 +534,10 @@ function renderCsvRerunHomeSummary(context = { stdoutTail: lastStdoutTail, snaps
   const currentWork = dashboardCurrentWork(source.snapshot || {});
   const workSummary = currentWork.summary_label || currentWork.latest_evidence_label || "";
   const workStage = currentWork.current_stage_label || currentWork.phase_label || "";
-  const item = currentWork.item_label || csvRerun.currentImport || csvRerun.lastImported || "CSV rerun staging";
+  const backendItem = ["", "none", "n/a", "unknown"].includes(dashboardText(currentWork.item_label))
+    ? ""
+    : currentWork.item_label;
+  const item = backendItem || csvRerun.currentImport || csvRerun.lastImported || "CSV rerun staging";
   const activity = workSummary || (csvRerun.currentImport ? `Importing ${csvRerun.currentImport}` : "CSV rerun active");
   const stage = workStage || (csvRerun.currentImport ? "Importing from CSV" : "CSV rerun");
   renderTopbarActivity({

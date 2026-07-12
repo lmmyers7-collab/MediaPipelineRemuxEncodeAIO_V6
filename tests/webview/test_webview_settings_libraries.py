@@ -32,6 +32,21 @@ SETTINGS_LIBRARIES_ASSET_NAMES = (
     "settingsLibraries/facade.js",
     "settingsLibraries.js",
 )
+SETTINGS_VIEW_ASSET_NAMES = (
+    "settings/policyImpact.js",
+    "settings/backendResult.js",
+    "settings/view/builder.js",
+    "settings/view/commands.js",
+    "settings/view/facade.js",
+    "settings/view/impact.js",
+    "settings/view/lifecycle.js",
+    "settings/view/review.js",
+    "settingsView.js",
+)
+APP_ASSET_NAMES = (
+    "app/refreshCoordinator.js",
+    "app.js",
+)
 VOBSUB_LIBRARY_OVERRIDE_KEYS = {
     "ConvertVobSubToSrt",
     "DropVobSubAfterConversion",
@@ -68,6 +83,20 @@ def _settings_libraries_bundle() -> str:
     return "\n".join(
         (STATIC_ROOT / "assets" / asset_name).read_text(encoding="utf-8")
         for asset_name in SETTINGS_LIBRARIES_ASSET_NAMES
+    )
+
+
+def _settings_view_bundle() -> str:
+    return "\n".join(
+        (STATIC_ROOT / "assets" / asset_name).read_text(encoding="utf-8")
+        for asset_name in SETTINGS_VIEW_ASSET_NAMES
+    )
+
+
+def _app_bundle() -> str:
+    return "\n".join(
+        (STATIC_ROOT / "assets" / asset_name).read_text(encoding="utf-8")
+        for asset_name in APP_ASSET_NAMES
     )
 
 
@@ -168,7 +197,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         )
 
     def test_settings_patch_posts_have_explicit_timeouts(self) -> None:
-        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        settings_js = _settings_view_bundle()
         calls = re.findall(r'apiPost\(\s*"/api/settings/(?:preview-patch|save-patch)"[\s\S]+?\);', settings_js)
 
         self.assertGreaterEqual(len(calls), 4)
@@ -601,12 +630,12 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
 
     def test_libraries_scan_summary_table_is_backend_evidence_only(self) -> None:
         libraries_js = _settings_libraries_bundle()
-        app_js = (STATIC_ROOT / "assets" / "app.js").read_text(encoding="utf-8")
+        app_js = _app_bundle()
         css = _read_pages_css()
 
         for token in (
             "lastLibrarySummary",
-            "function renderLibrarySummary(payload = lastLibrarySummary)",
+            "function renderLibrarySummary(payload = state.lastLibrarySummary)",
             "data-library-summary-row",
             "data-library-summary-inspect",
             "function librarySummaryStatusSymbol(value)",
@@ -629,7 +658,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
 
         self.assertNotIn("row.source_path", libraries_js)
 
-        self.assertIn('["libraries summary", refreshGet("/api/libraries/summary", refreshOptions), false]', app_js)
+        self.assertIn('["libraries summary", "/api/libraries/summary", false]', app_js)
         self.assertIn('window.mediaPipelineSettingsLibraries?.renderLibrarySummary?.(values["libraries summary"]);', app_js)
         self.assertNotIn("window.localStorage.getItem(\"mediapipeline-report-audit-locations", libraries_js)
         self.assertNotIn("showDirectoryPicker", libraries_js)
@@ -642,7 +671,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
 
         for token in (
             "function libraryWatchConfig()",
-            "function syncLibraryWatchControlsFromConfig(settings = lastSettings, options = {})",
+            "function syncLibraryWatchControlsFromConfig(settings = state.lastSettings, options = {})",
             "function collectLibraryWatchAutoRunPatch()",
             "function stageLibraryWatchAutoRunPatch()",
             "function previewLibraryWatchAutoRunPatch()",
@@ -711,7 +740,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "settings-library-state",
             "openOverrideSectionsByLibrary",
             "captureOpenOverrideSections",
-            "closeOverrideSections(activeLibraryTabId)",
+            "closeOverrideSections(state.activeLibraryTabId)",
             "Use global default",
             "Reset to inherited",
             "promotion_destination",
@@ -858,10 +887,10 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
 
     def test_phase4e_library_inheritance_display_and_reset_wiring_is_backend_evidence_based(self) -> None:
         libraries_js = _settings_libraries_bundle()
-        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        settings_js = _settings_view_bundle()
 
         for token in (
-            "return Array.isArray(lastSettings?.library_profile_state) ? lastSettings.library_profile_state : [];",
+            "return Array.isArray(state.lastSettings?.library_profile_state) ? state.lastSettings.library_profile_state : [];",
             "function profileState(profile)",
             "profileState(profile)?.path_fields?.[field]",
             "profileState(profile)?.setting_overrides?.[groupKey]?.[fieldKey]",
@@ -956,10 +985,10 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
 
     def test_settings_libraries_asset_preserves_unsaved_cards_during_refresh(self) -> None:
         js = _settings_libraries_bundle()
-        app_js = (STATIC_ROOT / "assets" / "app.js").read_text(encoding="utf-8")
+        app_js = _app_bundle()
 
         for token in (
-            "if (libraryEditorDirty && profileCardsFromDom().length)",
+            "if (state.libraryEditorDirty && profileCardsFromDom().length)",
             "function libraryEditorHasActiveControl()",
             "function shouldDeferAutomaticLibraryRender(options = {})",
             "options?.automatic === true && profileCardsFromDom().length && libraryEditorHasActiveControl()",
@@ -967,7 +996,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "const stagedProfiles = collectProfilesFromDom();",
             "if (!profilesEquivalent(stagedProfiles, incomingProfiles))",
             "default_tracking: comparableTracking(profile)",
-            'setText("settings-libraries-status", `${profiles.length} library profile(s) staged`);',
+            'setText("settings-libraries-status", `${state.profiles.length} library profile(s) staged`);',
             "renderActiveLibraryCommandState();",
             "libraryEditorDirty = false;",
             "markLibraryEditorDirty();",
@@ -982,7 +1011,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
     def test_libraries_tab_contains_read_only_route_map_panels_after_profile_editor(self) -> None:
         partial = (STATIC_ROOT / "partials" / "page-libraries.html").read_text(encoding="utf-8")
         route_map_js = (STATIC_ROOT / "assets" / "librariesRouteMap.js").read_text(encoding="utf-8")
-        app_js = (STATIC_ROOT / "assets" / "app.js").read_text(encoding="utf-8")
+        app_js = _app_bundle()
         route_panel_start = partial.index("settings-library-route-map-panel")
         route_panel = partial[route_panel_start:]
 
@@ -1050,7 +1079,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertNotIn("apiPost", route_map_js)
         self.assertNotIn("/api/settings/save-patch", route_map_js)
         self.assertNotIn("/api/pipeline/start", route_map_js)
-        self.assertIn('["libraries route map", refreshGet("/api/libraries/route-map", refreshOptions), false]', app_js)
+        self.assertIn('["libraries route map", "/api/libraries/route-map", false]', app_js)
         self.assertIn("window.mediaPipelineLibraryRouteMap?.renderRouteMap?", app_js)
         self.assertIn("queue: latestQueue", app_js)
         self.assertIn("completed: values.completed || {}", app_js)
@@ -1090,4 +1119,3 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

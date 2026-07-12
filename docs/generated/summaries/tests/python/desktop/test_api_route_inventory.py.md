@@ -3,9 +3,9 @@ file: tests/python/desktop/test_api_route_inventory.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: c8055e9e6aba5e42904b06247d0b318479773d254d4f40142a8cc6fcd2c01861
+sha256: d85014121209156054081f4aed206b0c4e5030bd38157177c77ee290afdc1843
 ---
 # `tests/python/desktop/test_api_route_inventory.py`
 

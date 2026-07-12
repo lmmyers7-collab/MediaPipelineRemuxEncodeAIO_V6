@@ -3,9 +3,9 @@ file: src/mediapipeline/core/kernel/dto_base.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: kernel
-last_modified: 2026-06-01
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 6e869b3f9a720bd512594bf46b2e98d7e82d1907e280a62a3da562f7c0f18969
+sha256: 17fdc91c290d3a89b940bd2ecf4b4010be200d9a4072936e684765b9ac543ad5
 ---
 # `src/mediapipeline/core/kernel/dto_base.py`
 

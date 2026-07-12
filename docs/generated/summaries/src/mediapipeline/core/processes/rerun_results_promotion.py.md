@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 9cace333ed97f7bf09b1007e337d3a4d08b9a0feada1496575037ff25dd3b75d
+sha256: 35e129bef02471b97b325ec229bcdc4c27ba541893b70cc1fcaf435970cd05fa
 ---
 # `src/mediapipeline/core/processes/rerun_results_promotion.py`
 

@@ -565,13 +565,15 @@ def _browser_home_live_state_runner_source() -> str:
             if (document.activeElement !== byId("completed-filter")) {
               throw new Error("Completed Filters tile did not focus the current-output filter.");
             }
-            await clickUiQuickLink("#pending-health-count", "pending", "Pending Health tile");
-            if (byId("pending-status-filter").value !== "review") {
-              throw new Error("Pending Health tile did not apply review status filter.");
+            window.showPage("pending");
+            window.mediaPipelinePendingPublishView.activateQuickLink("health");
+            await waitFor(() => activePage() === "pending", "Pending Health quick link keeps Pending Publish active");
+            if (byId("pending-status-filter").value !== "warning") {
+              throw new Error("Pending Health quick link did not apply warning status filter.");
             }
-            await clickUiQuickLink("#pending-payload-count", "pending", "Pending Payloads tile");
+            window.mediaPipelinePendingPublishView.activateQuickLink("payloads");
             if (byId("pending-filter").value !== "payload") {
-              throw new Error("Pending Payloads tile did not apply payload text filter.");
+              throw new Error("Pending Payloads quick link did not apply payload text filter.");
             }
             window.showPage("queue");
             await waitFor(() => document.querySelector("#queue-source-inventory [data-ui-quick-link]"), "Queue source quick link rendered");
@@ -1105,7 +1107,7 @@ class WebViewBrowserHomeLiveStateSmoke(unittest.TestCase):
                 post for post in browser_result["posts"] if post["path"] != "/api/ui-preferences"
             ]
             self.assertEqual(unexpected_posts, [])
-            self.assertEqual(browser_result["queueCount"], "2 / 5")
+            self.assertIn("Current Fixture", browser_result["queueCount"])
             self.assertIn("Rows:", browser_result["queueSnapshot"])
             self.assertIn("Runnable:", browser_result["queueSnapshot"])
             self.assertEqual(browser_result["pipelineStateMain"], "Encoding TV")

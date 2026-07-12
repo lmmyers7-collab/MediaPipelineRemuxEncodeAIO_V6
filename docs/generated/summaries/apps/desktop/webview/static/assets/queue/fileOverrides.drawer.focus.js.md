@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/queue/fileOverrides.drawer.focus.js
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-05
+last_modified: 2026-07-11
 last_reviewed: 2026-06-05
-sha256: a57a2980a2297b6cf64ed1a0175985c962229986131518d343dcec0b07015601
+sha256: 66dbd053ed945c8fbf2f3fefb22a95ba0aef8588da66fe95652b57af75ba304f
 ---
 # `apps/desktop/webview/static/assets/queue/fileOverrides.drawer.focus.js`
 

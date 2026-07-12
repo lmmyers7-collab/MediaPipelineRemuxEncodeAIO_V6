@@ -57,6 +57,7 @@ Both tests share the same fixture shape: a single TV episode row — `Serial Exp
 | `test_service_rename_preview_runner.py` | Python unittest | Preview script execution (subprocess mock) and output parsing |
 | `test_service_rename_apply_runner.py` | Python unittest | Apply operation execution plus undo-manifest reversal, sidecar metadata restore, and missing-destination preflight blocking |
 | `test_service_rename_apply.py` | Python unittest | Filesystem apply operations; Windows case-only rename (case-safe path handling); sidecar JSON reading (marks corrupt JSON with error flag); sidecar metadata update after rename (preserves error markers, appends to rename history capped at 25 entries, updates output path fields) |
+| `test_stage_runner.py` | Python unittest | Scratch-only dispatcher rename dry-run/execute, literal confirmation, source/scratch boundary rejection, stale fingerprint rejection, required command/operation journals, duplicate-operation replay, undo evidence, and rollback after terminal-evidence failure |
 | `test_service_rename_tv_folder.py` | Python unittest | TV folder structure handling |
 | `test_rename_bad_case_corpus.py` | Python unittest | JSONL bad rename regression corpus schema, unique IDs, and active case output expectations |
 
@@ -68,6 +69,7 @@ Most rename test data is inline:
 
 - **Inline Python dicts**: `test_service_rename_apply.py`, `test_facade_rename_policy.py` hardcode row structures like `{"source": ..., "destination": ..., "status": "ready", ...}` inside test methods.
 - **Temporary directories**: `test_rename_service.py` and `test_service_rename_discovery.py` create `tempfile.TemporaryDirectory()` instances and write minimal `.mkv`/sidecar files.
+- **Scratch-only dispatcher fixtures**: `test_stage_runner.py` creates separate temporary Source, Scratch, and Outside roots with byte fixtures; it never points the stage at operator media.
 - **Mocked subprocess**: `test_service_rename_preview_runner.py` and `test_rename_service.py` mock subprocess calls for pipeline preview scripts; `test_api_path_dialogs.py` mocks the Windows PowerShell dialog process so automated tests do not open an interactive picker.
 - **Mocked DOM**: `test_webview_rename_readiness_smoke.py` constructs in-memory mock DOM elements and a minimal `apiPost` spy function.
 - **Dynamic fixture state**: `test_webview_browser_rename_smoke.py` calls `_write_fixture_state()` to populate a temporary local API with queue/completed/rename fixture rows.
@@ -85,6 +87,10 @@ Most rename test data is inline:
 | Duplicate-destination detection blocks apply | `test_service_rename_planner.py`, `test_webview_rename_readiness_smoke`, `test_webview_browser_rename_smoke` | Covered at service and UI layers; backend planner blocks every colliding row |
 | Backend rebuilds plan independently before apply | Implicit in `test_rename_service` (apply path uses planner) | Service-level coverage; no explicit "backend ignores frontend plan" test |
 | `confirm_apply` required as literal JSON boolean `true` in API payload | Route contract (`contract_command.py` field list), `test_application_facade_rename.py`, `test_application_facade_local_api_rename.py` | Covered at facade and Local API route layers for absent, false, and non-boolean truthy confirmation values with no rename mutation |
+| Dispatcher rename requires literal `confirm_apply`, UUID operation ID, matching dry-run fingerprint, and command/operation journals | `test_stage_contracts.py`, `test_stage_runner.py` | Covered with temporary scratch fixtures; every missing/stale evidence case fails before rename |
+| Dispatcher rename is confined to scratch disjoint from protected source roots | `test_stage_runner.py` | Covered for source-root overlap and targets outside scratch; fixture bytes and original names remain unchanged |
+| Dispatcher duplicate operation replays its terminal result without a second rename | `test_stage_runner.py` | Covered through an atomic-operation-journal test adapter and destination-byte verification |
+| Dispatcher terminal-evidence failure rolls the scratch file back | `test_stage_runner.py` | Covered by injected terminal manifest-write failure; original name and bytes are restored |
 | Path casefolding for Windows case-insensitive match | `test_facade_rename_policy.py` | Covered |
 | Case-only rename (Windows-safe two-step) | `test_service_rename_apply.py` | Covered |
 | Sidecar metadata preserved after rename | `test_service_rename_apply.py` | Covered (error marker preservation, history cap) |

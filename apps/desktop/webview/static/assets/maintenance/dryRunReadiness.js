@@ -1,4 +1,4 @@
-/* global apiGet, byId, clearRows, commandHistoryCompactEvidenceLine, getCommandHistory, setText */
+/* global commandHistoryCompactEvidenceLine, getCommandHistory */
 (function () {
   function createMaintenanceDryRunReadiness(deps) {
     const {

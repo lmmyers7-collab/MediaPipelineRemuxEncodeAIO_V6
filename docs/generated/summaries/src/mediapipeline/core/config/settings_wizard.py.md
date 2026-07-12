@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: a59cec338e82a6de8f6f281c80241ae06b4bac6bab33a1402bbc72b69069b646
+sha256: a0c00a1dccd2b809075766c5de0c3884e2039a95378b612bd109076cbe76df53
 ---
 # `src/mediapipeline/core/config/settings_wizard.py`
 

@@ -3,9 +3,9 @@ file: tests/python/desktop/test_local_api_lifecycle_contract_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 79fb73d39f6b6278156a265ea3a3b4ef8c737f424d1a07ae21065a5010e6d824
+sha256: 9955bf2e9b02ed9f8958044f9913151fca9887639fb5f898610086d7ace68040
 ---
 # `tests/python/desktop/test_local_api_lifecycle_contract_smoke.py`
 

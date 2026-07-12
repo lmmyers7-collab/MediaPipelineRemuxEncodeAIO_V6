@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: ad2bf7dbb6dead809b62e220a05309dd48efd186627c1f058b8e8fe21656f245
+sha256: 2d36b2b6af432dcfdd65e83d04f8bebfd04dae3abd3274a1f1ca6f013e6ff7bf
 ---
 # `apps/desktop/webview/static/assets/network/roleDashboard.js`
 

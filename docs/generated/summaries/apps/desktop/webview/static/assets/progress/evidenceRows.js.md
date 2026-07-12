@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/progress/evidenceRows.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-10
+last_modified: 2026-07-11
 last_reviewed: 2026-07-10
-sha256: d3fdac3d43c62d2eb6eaa46db85de2d99b553692fa68bde376303c5e7d92ad9d
+sha256: fa3d1734c176a2e2caca11664b570e97f4eea3389b308ff13e3e188fdc53e123
 ---
 # `apps/desktop/webview/static/assets/progress/evidenceRows.js`
 

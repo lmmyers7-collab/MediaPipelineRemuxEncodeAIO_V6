@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 2dbd8ce8db4349f0efcc04d9d6c57b4f6129e2cd67501b3ddc1a3f51f10e762e
+sha256: a14665e89d61102ff782fe56a032614441077ae6b97f21ab763cc4e8c4447af6
 ---
 # `apps/desktop/webview/static/assets/app/layoutManager/drawer.js`
 

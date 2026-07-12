@@ -231,7 +231,7 @@ pub(super) fn validate_web_shell(backend_url: &str, token: &str) -> ShellResult<
         ),
         (
             "settings handoff",
-            "settings: values.settings || getLastSettings()",
+            "settings: values.settings || window.mediaPipelineSettingsView.getLastSettings()",
         ),
         (
             "floating pipeline log refresh handoff",

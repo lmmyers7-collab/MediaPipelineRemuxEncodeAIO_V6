@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: afb0922f1bc58efc3ebdaf993e34f6800b2627c22b88abe1cdcb27b5294301c6
+sha256: 7667796bae934152d2e5186371de93f9efa0b4f16341dbde1aafc7e13a417a80
 ---
 # `apps/desktop/webview/static/assets/app/home/queueProjection.js`
 

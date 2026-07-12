@@ -30,20 +30,19 @@ function renderSnapshot(snapshot) {
     closeReadiness: lastCloseReadiness,
     stdoutTail: lastStdoutTail,
   });
-  window.mediaPipelineProgressView?.renderProgressEvidence?.({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, diagnostics: null });
   window.mediaPipelineProgressView?.renderDiagnosticsProgress?.(lastSnapshot);
   window.mediaPipelineProgressView?.renderLiveRunStrip?.({
     snapshot: lastSnapshot,
-    diagnostics: null,
+    diagnostics: lastDiagnostics,
     closeReadiness: lastCloseReadiness,
     stdoutTail: lastStdoutTail,
   });
   const recentEvents = Array.isArray(snapshot.recent_events) ? snapshot.recent_events : [];
   window.mediaPipelineProgressView?.renderPipelineEvents?.(recentEvents);
   renderSparkline(recentEvents);
-  window.mediaPipelineReportsView?.renderReports?.(lastSnapshot, getLastSettings());
+  window.mediaPipelineReportsView?.renderReports?.(lastSnapshot, window.mediaPipelineSettingsView.getLastSettings());
   renderControlReadiness(lastSnapshot, lastCloseReadiness);
-  renderLaunchReadinessPanel({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, schedule: lastSchedule, settings: getLastSettings() });
+  renderLaunchReadinessPanel({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, schedule: lastSchedule, settings: window.mediaPipelineSettingsView.getLastSettings() });
   renderBackendLifecycle(lastCloseReadiness, lastSnapshot);
 }
 

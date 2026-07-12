@@ -3,9 +3,9 @@ file: ops/scripts/smoke/Test-LocalApiLifecycleContractSmoke.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: a7d4191913e28330aa635873edebf85f52bf411797b266e48fecccaf77ae63df
+sha256: 84d8a95783c61de1a6e499fe0b8fc72b73267751e9445fd41b02bcb0a71e080b
 ---
 # `ops/scripts/smoke/Test-LocalApiLifecycleContractSmoke.ps1`
 

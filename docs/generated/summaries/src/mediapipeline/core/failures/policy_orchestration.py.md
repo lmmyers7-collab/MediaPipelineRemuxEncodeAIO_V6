@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: failures
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 1f116b3ce7c2e4614446e9f146792a3175653297e33c39bce98b4a98f683becb
+sha256: ce09222b75896f38df6c8427eb18ab05edb25d98618f1fb8d9336465ccba41e5
 ---
 # `src/mediapipeline/core/failures/policy_orchestration.py`
 

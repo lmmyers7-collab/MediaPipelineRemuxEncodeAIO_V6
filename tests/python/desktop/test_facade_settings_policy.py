@@ -203,7 +203,7 @@ class SettingsFacadePolicyTests(unittest.TestCase):
         self.assertEqual(evidence["evidence"]["metadata_proof_state"], "not_collected")
         self.assertEqual(evidence["evidence"]["playback_proof_state"], "not_collected")
 
-    def test_encoder_capability_report_excludes_available_but_inactive_descriptor_rows_from_facts(self) -> None:
+    def test_encoder_capability_report_excludes_available_but_inactive_qsv_descriptor_rows_from_facts(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             report_path = root / "State" / "Progress" / "encoder_capabilities.json"
@@ -213,22 +213,22 @@ class SettingsFacadePolicyTests(unittest.TestCase):
                     {
                         "schema": "mediapipeline.encoder_capabilities.v1",
                         "generated_at": "2026-06-22T12:00:00Z",
-                        "video_codec": "av1_nvenc",
+                        "video_codec": "av1_qsv",
                         "encoder_backend": "auto",
-                        "selection": {"resolved": True, "reason": "resolved primary descriptor 'av1/nvenc'", "family": "av1"},
+                        "selection": {"resolved": True, "reason": "resolved primary descriptor 'av1/qsv'", "family": "av1"},
                         "encoders": [
                             {
-                                "encoder_name": "av1_nvenc",
-                                "probe_encoder_name": "av1_nvenc",
+                                "encoder_name": "av1_qsv",
+                                "probe_encoder_name": "av1_qsv",
                                 "family": "av1",
-                                "backend": "nvenc",
+                                "backend": "qsv",
                                 "roles": ["primary"],
                                 "descriptor_flags_active": False,
                                 "activation": [
                                     {
                                         "role": "primary",
                                         "active": False,
-                                        "descriptor_encoder": "av1_nvenc",
+                                        "descriptor_encoder": "av1_qsv",
                                         "active_descriptor_encoder": "",
                                         "reason": "descriptor flags are not active for primary attempt",
                                     }
@@ -237,7 +237,7 @@ class SettingsFacadePolicyTests(unittest.TestCase):
                                 "probed": True,
                                 "encoder_list_match": True,
                                 "runtime_ok": True,
-                                "reason": "encoder 'av1_nvenc' probe succeeded",
+                                "reason": "encoder 'av1_qsv' probe succeeded",
                             },
                             {
                                 "encoder_name": "libaom-av1",
@@ -271,9 +271,9 @@ class SettingsFacadePolicyTests(unittest.TestCase):
 
         self.assertEqual(evidence["operator_status"], "Review")
         self.assertEqual(evidence["operator_status_state"], "warning")
-        self.assertEqual(evidence["available_encoders"], ["av1_nvenc", "libaom-av1"])
+        self.assertEqual(evidence["available_encoders"], ["av1_qsv", "libaom-av1"])
         self.assertEqual(evidence["active_encoders"], ["libaom-av1"])
-        self.assertEqual(evidence["available_inactive_encoders"], ["av1_nvenc"])
+        self.assertEqual(evidence["available_inactive_encoders"], ["av1_qsv"])
         self.assertEqual(evidence["activation_unknown_encoders"], [])
         self.assertIn("Available but not active", "\n".join(evidence["summary_lines"]))
         self.assertEqual(

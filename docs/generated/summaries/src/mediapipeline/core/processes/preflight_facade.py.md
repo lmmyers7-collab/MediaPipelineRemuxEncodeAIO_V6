@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 3c2aa80092d2ee9538a11494b6f7e4d2b14d028d4267349d4fc211053971211e
+sha256: e43d1deb0afebd94d039474b652af190af33162bd8b05b5e34c78af03397639a
 ---
 # `src/mediapipeline/core/processes/preflight_facade.py`
 

@@ -6,32 +6,32 @@
   "ok": true,
   "violations": [],
   "summary": {
-    "scripts": 154,
-    "controls": 494,
-    "route_usages": 104,
-    "dynamic_api_posts": 1,
-    "route_contracts": 163,
-    "high_risk_route_usages": 51,
+    "scripts": 282,
+    "controls": 513,
+    "route_usages": 115,
+    "dynamic_api_posts": 8,
+    "route_contracts": 168,
+    "high_risk_route_usages": 52,
     "unclassified_high_risk_controls": 0,
     "controls_by_classification": {
       "backend-contract-dynamic-route": 4,
-      "backend-owned-route": 173,
+      "backend-owned-route": 180,
       "disabled-future-network-control": 5,
       "local-copy": 2,
-      "local-display-state": 71,
+      "local-display-state": 75,
       "local-form-staging": 3,
       "local-guided-setup": 8,
-      "local-launch-intent-staging": 6,
-      "local-navigation": 33,
+      "local-launch-intent-staging": 7,
+      "local-navigation": 34,
       "local-network-staging": 1,
-      "local-or-read-only": 62,
+      "local-or-read-only": 63,
       "local-queue-order-staging": 1,
-      "local-read-navigation": 43,
+      "local-read-navigation": 47,
       "local-rename-staging": 6,
       "local-sample-validation-staging": 2,
       "local-schedule-staging": 3,
       "local-settings-staging": 36,
-      "local-tab-navigation": 35
+      "local-tab-navigation": 36
     }
   },
   "controls": [
@@ -769,6 +769,45 @@
       "page": "diagnostics",
       "tag": "button",
       "id": "",
+      "text": "Find reason for a failed job",
+      "classification": "local-display-state",
+      "route": "",
+      "data_attrs": {
+        "data-quick-link-diag-tab": "logs",
+        "data-quick-link-focus": "#diagnostics-log-filter",
+        "data-quick-link-page": "diagnostics"
+      }
+    },
+    {
+      "page": "diagnostics",
+      "tag": "button",
+      "id": "",
+      "text": "Review work that seems stuck",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-quick-link-diag-tab": "progress",
+        "data-quick-link-focus": "#diagnostics-state-summary-rows",
+        "data-quick-link-page": "diagnostics"
+      }
+    },
+    {
+      "page": "diagnostics",
+      "tag": "button",
+      "id": "",
+      "text": "Check whether it is safe to close",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-quick-link-diag-tab": "triage",
+        "data-quick-link-focus": "#diagnostics-close-readiness-overview",
+        "data-quick-link-page": "diagnostics"
+      }
+    },
+    {
+      "page": "diagnostics",
+      "tag": "button",
+      "id": "",
       "text": "Read Active Jobs",
       "classification": "local-or-read-only",
       "route": "",
@@ -1128,7 +1167,7 @@
       "page": "home",
       "tag": "button",
       "id": "",
-      "text": "Start / Launch",
+      "text": "Review & start processing",
       "classification": "local-navigation",
       "route": "",
       "data_attrs": {
@@ -1601,33 +1640,11 @@
       "page": "launch",
       "tag": "button",
       "id": "",
-      "text": "Validate",
+      "text": "Check setup only — does not process media",
       "classification": "local-launch-intent-staging",
       "route": "",
       "data_attrs": {
         "data-pipeline-mode-preset": "validate"
-      }
-    },
-    {
-      "page": "launch",
-      "tag": "button",
-      "id": "",
-      "text": "History",
-      "classification": "local-tab-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-launch-tab": "history"
-      }
-    },
-    {
-      "page": "launch",
-      "tag": "button",
-      "id": "",
-      "text": "Pipeline Processor",
-      "classification": "local-tab-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-launch-tab": "pipeline"
       }
     },
     {
@@ -1638,6 +1655,28 @@
       "classification": "local-or-read-only",
       "route": "",
       "data_attrs": {}
+    },
+    {
+      "page": "launch",
+      "tag": "button",
+      "id": "launch-tab-history",
+      "text": "History",
+      "classification": "local-tab-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-launch-tab": "history"
+      }
+    },
+    {
+      "page": "launch",
+      "tag": "button",
+      "id": "launch-tab-pipeline",
+      "text": "Pipeline Processor",
+      "classification": "local-tab-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-launch-tab": "pipeline"
+      }
     },
     {
       "page": "launch",
@@ -1768,7 +1807,7 @@
       "page": "libraries",
       "tag": "button",
       "id": "settings-library-build-patch-button",
-      "text": "Stage Patch",
+      "text": "Prepare changes",
       "classification": "local-settings-staging",
       "route": "",
       "data_attrs": {}
@@ -1795,7 +1834,7 @@
       "page": "libraries",
       "tag": "button",
       "id": "settings-library-preview-button",
-      "text": "Preview",
+      "text": "Review changes",
       "classification": "local-settings-staging",
       "route": "",
       "data_attrs": {}
@@ -1813,7 +1852,7 @@
       "page": "libraries",
       "tag": "button",
       "id": "settings-library-save-button",
-      "text": "Save Library Profile",
+      "text": "Save changes",
       "classification": "local-settings-staging",
       "route": "",
       "data_attrs": {}
@@ -1831,7 +1870,7 @@
       "page": "libraries",
       "tag": "button",
       "id": "settings-library-watch-preview-button",
-      "text": "Preview",
+      "text": "Review auto-run change",
       "classification": "local-settings-staging",
       "route": "",
       "data_attrs": {}
@@ -1840,7 +1879,7 @@
       "page": "libraries",
       "tag": "button",
       "id": "settings-library-watch-save-button",
-      "text": "Save Auto-Run Toggle",
+      "text": "Save auto-run change",
       "classification": "local-settings-staging",
       "route": "",
       "data_attrs": {}
@@ -1849,7 +1888,7 @@
       "page": "libraries",
       "tag": "button",
       "id": "settings-library-watch-stage-button",
-      "text": "Stage Auto-Run Toggle",
+      "text": "Prepare auto-run change",
       "classification": "local-settings-staging",
       "route": "",
       "data_attrs": {}
@@ -1902,8 +1941,17 @@
     {
       "page": "maintenance",
       "tag": "button",
+      "id": "maintenance-support-create",
+      "text": "Create Support Bundle",
+      "classification": "local-or-read-only",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "maintenance",
+      "tag": "button",
       "id": "release-build-button",
-      "text": "Create Deployment",
+      "text": "Create support or share package",
       "classification": "backend-owned-route",
       "route": "/api/maintenance/release-build",
       "data_attrs": {}
@@ -1987,7 +2035,7 @@
       "page": "metrics",
       "tag": "button",
       "id": "metrics-backfill-button",
-      "text": "Backfill Enabled",
+      "text": "Refresh history from enabled sources",
       "classification": "backend-owned-route",
       "route": "/api/metrics/backfill",
       "data_attrs": {}
@@ -2219,7 +2267,7 @@
       "page": "network",
       "tag": "button",
       "id": "",
-      "text": "Needs Attention",
+      "text": "Active or needs attention",
       "classification": "local-read-navigation",
       "route": "",
       "data_attrs": {
@@ -2362,6 +2410,15 @@
       "id": "network-coordinator-join-create",
       "text": "Create Join Blob",
       "classification": "local-or-read-only",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "network",
+      "tag": "button",
+      "id": "network-open-queue-rerun-button",
+      "text": "Open Queue CSV Rerun",
+      "classification": "local-navigation",
       "route": "",
       "data_attrs": {}
     },
@@ -2571,11 +2628,33 @@
       "page": "pending",
       "tag": "button",
       "id": "",
+      "text": "Total pending 0 manifest rows loaded",
+      "classification": "local-display-state",
+      "route": "",
+      "data_attrs": {
+        "data-pending-action-filter": "all"
+      }
+    },
+    {
+      "page": "pending",
+      "tag": "button",
+      "id": "",
       "text": "Blocked 0 do-not-drain evidence",
       "classification": "backend-owned-route",
       "route": "/api/pipeline/start",
       "data_attrs": {
         "data-pending-action-filter": "blocked"
+      }
+    },
+    {
+      "page": "pending",
+      "tag": "button",
+      "id": "",
+      "text": "Drained 0 latest summary rows",
+      "classification": "backend-owned-route",
+      "route": "/api/pipeline/start",
+      "data_attrs": {
+        "data-pending-action-filter": "drained"
       }
     },
     {
@@ -2593,7 +2672,29 @@
       "page": "pending",
       "tag": "button",
       "id": "",
-      "text": "Ready to drain 0 backend-ready looking",
+      "text": "Failed 0 error severity rows",
+      "classification": "local-display-state",
+      "route": "",
+      "data_attrs": {
+        "data-pending-action-filter": "failed"
+      }
+    },
+    {
+      "page": "pending",
+      "tag": "button",
+      "id": "",
+      "text": "Total size 0 B 0 payloads; 0 health signals",
+      "classification": "local-display-state",
+      "route": "",
+      "data_attrs": {
+        "data-pending-action-filter": "payloads"
+      }
+    },
+    {
+      "page": "pending",
+      "tag": "button",
+      "id": "",
+      "text": "Ready to drain 0 backend-ready rows",
       "classification": "backend-owned-route",
       "route": "/api/pipeline/start",
       "data_attrs": {
@@ -2604,7 +2705,7 @@
       "page": "pending",
       "tag": "button",
       "id": "",
-      "text": "Needs review 0 warning or read-first rows",
+      "text": "Needs review 0 read-first rows",
       "classification": "local-display-state",
       "route": "",
       "data_attrs": {
@@ -2653,7 +2754,7 @@
       "page": "pending",
       "tag": "button",
       "id": "pending-clear-filters-button",
-      "text": "Clear Pending Filters",
+      "text": "Clear Filters",
       "classification": "local-display-state",
       "route": "",
       "data_attrs": {}
@@ -2915,28 +3016,6 @@
       "route": "",
       "data_attrs": {
         "data-fo-series-filter": "will_update"
-      }
-    },
-    {
-      "page": "queue",
-      "tag": "button",
-      "id": "",
-      "text": "Main Queue",
-      "classification": "local-tab-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-queue-tab": "main"
-      }
-    },
-    {
-      "page": "queue",
-      "tag": "button",
-      "id": "",
-      "text": "CSV Rerun",
-      "classification": "local-tab-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-queue-tab": "rerun"
       }
     },
     {
@@ -3251,6 +3330,28 @@
     {
       "page": "queue",
       "tag": "button",
+      "id": "queue-tab-main",
+      "text": "Main Queue",
+      "classification": "local-tab-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-queue-tab": "main"
+      }
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "queue-tab-rerun",
+      "text": "CSV Rerun",
+      "classification": "local-tab-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-queue-tab": "rerun"
+      }
+    },
+    {
+      "page": "queue",
+      "tag": "button",
       "id": "rerun-csv-path-picker-badge",
       "text": "Browse",
       "classification": "local-read-navigation",
@@ -3269,6 +3370,15 @@
       "text": "Inspect CSV",
       "classification": "backend-owned-route",
       "route": "/api/rerun/preview",
+      "data_attrs": {}
+    },
+    {
+      "page": "queue",
+      "tag": "button",
+      "id": "rerun-network-start-dry-run-button",
+      "text": "Check Network Start",
+      "classification": "backend-owned-route",
+      "route": "/api/rerun/network/start-dry-run",
       "data_attrs": {}
     },
     {
@@ -3449,7 +3559,7 @@
       "page": "rename",
       "tag": "button",
       "id": "rename-check-all-button",
-      "text": "Check All",
+      "text": "Check visible selectable rows",
       "classification": "local-rename-staging",
       "route": "",
       "data_attrs": {}
@@ -3458,7 +3568,7 @@
       "page": "rename",
       "tag": "button",
       "id": "rename-check-applicable-button",
-      "text": "Check Applicable",
+      "text": "Check visible ready rows",
       "classification": "local-rename-staging",
       "route": "",
       "data_attrs": {}
@@ -3712,39 +3822,6 @@
     {
       "page": "reports",
       "tag": "button",
-      "id": "",
-      "text": "Audit",
-      "classification": "local-tab-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-reports-tab": "audit"
-      }
-    },
-    {
-      "page": "reports",
-      "tag": "button",
-      "id": "",
-      "text": "Failures",
-      "classification": "local-tab-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-reports-tab": "failures"
-      }
-    },
-    {
-      "page": "reports",
-      "tag": "button",
-      "id": "",
-      "text": "Locations",
-      "classification": "local-tab-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-reports-tab": "files"
-      }
-    },
-    {
-      "page": "reports",
-      "tag": "button",
       "id": "failure-archive-confirm-button",
       "text": "Archive evidence",
       "classification": "local-display-state",
@@ -3818,7 +3895,7 @@
       "page": "reports",
       "tag": "button",
       "id": "report-audit-add-source-button",
-      "text": "Add Source",
+      "text": "1. Add this location",
       "classification": "local-or-read-only",
       "route": "",
       "data_attrs": {}
@@ -3877,7 +3954,7 @@
       "page": "reports",
       "tag": "button",
       "id": "report-audit-scan-selected-button",
-      "text": "Scan Selected",
+      "text": "2. Scan selected locations",
       "classification": "backend-owned-route",
       "route": "/api/audit/sources/scan",
       "data_attrs": {}
@@ -3913,7 +3990,7 @@
       "page": "reports",
       "tag": "button",
       "id": "report-audit-start-button",
-      "text": "Start Audit Selected",
+      "text": "3. Start audit for selected locations",
       "classification": "backend-owned-route",
       "route": "/api/audit/start",
       "data_attrs": {}
@@ -3926,6 +4003,39 @@
       "classification": "backend-owned-route",
       "route": "/api/audit/stop",
       "data_attrs": {}
+    },
+    {
+      "page": "reports",
+      "tag": "button",
+      "id": "reports-tab-audit",
+      "text": "Audit",
+      "classification": "local-tab-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-reports-tab": "audit"
+      }
+    },
+    {
+      "page": "reports",
+      "tag": "button",
+      "id": "reports-tab-failures",
+      "text": "Failures",
+      "classification": "local-tab-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-reports-tab": "failures"
+      }
+    },
+    {
+      "page": "reports",
+      "tag": "button",
+      "id": "reports-tab-files",
+      "text": "Locations",
+      "classification": "local-tab-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-reports-tab": "files"
+      }
     },
     {
       "page": "schedule",
@@ -4260,6 +4370,17 @@
       "page": "settings",
       "tag": "button",
       "id": "",
+      "text": "Presets",
+      "classification": "local-tab-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-settings-tab": "presets"
+      }
+    },
+    {
+      "page": "settings",
+      "tag": "button",
+      "id": "",
       "text": "Publish & Recovery",
       "classification": "local-tab-navigation",
       "route": "",
@@ -4577,6 +4698,78 @@
       "id": "settings-pending-reset-button",
       "text": "Reset From Current",
       "classification": "local-settings-staging",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "settings",
+      "tag": "button",
+      "id": "settings-preset-library-apply",
+      "text": "Apply for Future Launches",
+      "classification": "backend-owned-route",
+      "route": "/api/settings/preset-library/apply",
+      "data_attrs": {}
+    },
+    {
+      "page": "settings",
+      "tag": "button",
+      "id": "settings-preset-library-apply-preview",
+      "text": "Preview Apply",
+      "classification": "backend-owned-route",
+      "route": "/api/settings/preset-library/apply-preview",
+      "data_attrs": {}
+    },
+    {
+      "page": "settings",
+      "tag": "button",
+      "id": "settings-preset-library-compare",
+      "text": "Compare",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "settings",
+      "tag": "button",
+      "id": "settings-preset-library-export",
+      "text": "Export Preset",
+      "classification": "backend-owned-route",
+      "route": "/api/settings/preset-library/export",
+      "data_attrs": {}
+    },
+    {
+      "page": "settings",
+      "tag": "button",
+      "id": "settings-preset-library-import-preview",
+      "text": "Preview Import",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "settings",
+      "tag": "button",
+      "id": "settings-preset-library-load",
+      "text": "Load Presets",
+      "classification": "backend-owned-route",
+      "route": "/api/settings/preset-library",
+      "data_attrs": {}
+    },
+    {
+      "page": "settings",
+      "tag": "button",
+      "id": "settings-preset-library-save",
+      "text": "Save Preset",
+      "classification": "backend-owned-route",
+      "route": "/api/settings/preset-library/save",
+      "data_attrs": {}
+    },
+    {
+      "page": "settings",
+      "tag": "button",
+      "id": "settings-preset-library-validate",
+      "text": "Validate Candidate",
+      "classification": "local-launch-intent-staging",
       "route": "",
       "data_attrs": {}
     },
@@ -5137,7 +5330,7 @@
       "normalized_route": "/api/audit/export-rerun-csv",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 1160,
+      "line": 633,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5153,7 +5346,7 @@
       "normalized_route": "/api/audit/ignore",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 1050,
+      "line": 523,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5169,7 +5362,7 @@
       "normalized_route": "/api/audit/score-policy",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 1006,
+      "line": 479,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5185,7 +5378,7 @@
       "normalized_route": "/api/audit/sources",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 696,
+      "line": 168,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5201,7 +5394,7 @@
       "normalized_route": "/api/audit/sources",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 729,
+      "line": 201,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5217,7 +5410,7 @@
       "normalized_route": "/api/audit/sources/scan",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 761,
+      "line": 233,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5233,7 +5426,7 @@
       "normalized_route": "/api/audit/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 881,
+      "line": 354,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5249,7 +5442,7 @@
       "normalized_route": "/api/audit/stop",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 962,
+      "line": 435,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5281,7 +5474,7 @@
       "normalized_route": "/api/backend/shutdown",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/app.js",
-      "line": 474,
+      "line": 242,
       "script_owner": "App Shell",
       "allowed_owners": [
         "App Shell",
@@ -5458,11 +5651,27 @@
       "owner_ok": true
     },
     {
+      "route": "/api/diagnostics/encoder-capabilities/refresh",
+      "normalized_route": "/api/diagnostics/encoder-capabilities/refresh",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/launchView.preflight.js",
+      "line": 665,
+      "script_owner": "Launch",
+      "allowed_owners": [
+        "Diagnostics",
+        "Launch"
+      ],
+      "contract_effect": "diagnostics-artifact-write",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
       "route": "/api/diagnostics/open",
       "normalized_route": "/api/diagnostics/open",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 2235,
+      "line": 711,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -5476,8 +5685,8 @@
       "route": "/api/diagnostics/tdarr-matrix-audit",
       "normalized_route": "/api/diagnostics/tdarr-matrix-audit",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 2178,
+      "file": "apps/desktop/webview/static/assets/diagnostics/matrixConsole.js",
+      "line": 811,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -5491,8 +5700,8 @@
       "route": "/api/diagnostics/tdarr-matrix/evidence/open",
       "normalized_route": "/api/diagnostics/tdarr-matrix/evidence/open",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 2066,
+      "file": "apps/desktop/webview/static/assets/diagnostics/matrixConsole.js",
+      "line": 699,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -5506,8 +5715,8 @@
       "route": "/api/diagnostics/tdarr-matrix/rerun",
       "normalized_route": "/api/diagnostics/tdarr-matrix/rerun",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 2093,
+      "file": "apps/desktop/webview/static/assets/diagnostics/matrixConsole.js",
+      "line": 726,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -5686,8 +5895,8 @@
       "route": "/api/maintenance",
       "normalized_route": "/api/maintenance",
       "method": "GET",
-      "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 1088,
+      "file": "apps/desktop/webview/static/assets/maintenance/dryRunReadiness.js",
+      "line": 246,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -5701,8 +5910,8 @@
       "route": "/api/maintenance/archive-state-journals",
       "normalized_route": "/api/maintenance/archive-state-journals",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1216,
+      "file": "apps/desktop/webview/static/assets/launch/commandOrchestration.js",
+      "line": 488,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5717,8 +5926,8 @@
       "route": "/api/maintenance/completed-backfill-dry-run",
       "normalized_route": "/api/maintenance/completed-backfill-dry-run",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 1563,
+      "file": "apps/desktop/webview/static/assets/maintenance/releaseCommands.js",
+      "line": 461,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -5732,8 +5941,8 @@
       "route": "/api/maintenance/dependency-atlas",
       "normalized_route": "/api/maintenance/dependency-atlas",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 1654,
+      "file": "apps/desktop/webview/static/assets/maintenance/releaseCommands.js",
+      "line": 552,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -5747,8 +5956,8 @@
       "route": "/api/maintenance/dependency-atlas/open-folder",
       "normalized_route": "/api/maintenance/dependency-atlas/open-folder",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 1686,
+      "file": "apps/desktop/webview/static/assets/maintenance/releaseCommands.js",
+      "line": 584,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -5762,8 +5971,8 @@
       "route": "/api/maintenance/progress",
       "normalized_route": "/api/maintenance/progress",
       "method": "GET",
-      "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 529,
+      "file": "apps/desktop/webview/static/assets/maintenance/health.js",
+      "line": 126,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -5777,8 +5986,8 @@
       "route": "/api/maintenance/release-build",
       "normalized_route": "/api/maintenance/release-build",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 1480,
+      "file": "apps/desktop/webview/static/assets/maintenance/releaseCommands.js",
+      "line": 378,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -5792,14 +6001,29 @@
       "route": "/api/maintenance/release-dry-run",
       "normalized_route": "/api/maintenance/release-dry-run",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 1390,
+      "file": "apps/desktop/webview/static/assets/maintenance/releaseCommands.js",
+      "line": 288,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
       ],
       "contract_effect": "process-dry-run",
       "high_risk_effect": true,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/maintenance/support-export",
+      "normalized_route": "/api/maintenance/support-export",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/recoverySupportView.js",
+      "line": 59,
+      "script_owner": "Shared",
+      "allowed_owners": [
+        "Maintenance"
+      ],
+      "contract_effect": "diagnostics-artifact-write",
+      "high_risk_effect": false,
       "contract_found": true,
       "owner_ok": true
     },
@@ -5898,7 +6122,7 @@
       "normalized_route": "/api/pending-publish/recovery-plan",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/pendingPublishView.recovery.js",
-      "line": 351,
+      "line": 358,
       "script_owner": "Pending Publish",
       "allowed_owners": [
         "Pending Publish"
@@ -5972,8 +6196,8 @@
       "route": "/api/pipeline/browse-file",
       "normalized_route": "/api/pipeline/browse-file",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 959,
+      "file": "apps/desktop/webview/static/assets/launch/commandOrchestration.js",
+      "line": 232,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5988,8 +6212,8 @@
       "route": "/api/pipeline/control",
       "normalized_route": "/api/pipeline/control",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 918,
+      "file": "apps/desktop/webview/static/assets/launch/commandOrchestration.js",
+      "line": 188,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6004,8 +6228,8 @@
       "route": "/api/pipeline/start",
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1047,
+      "file": "apps/desktop/webview/static/assets/launch/commandOrchestration.js",
+      "line": 336,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6020,8 +6244,8 @@
       "route": "/api/pipeline/start",
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1145,
+      "file": "apps/desktop/webview/static/assets/launch/commandOrchestration.js",
+      "line": 417,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6037,7 +6261,7 @@
       "normalized_route": "/api/publish-reconciliation",
       "method": "GET",
       "file": "apps/desktop/webview/static/assets/completedView.evidence.js",
-      "line": 1086,
+      "line": 513,
       "script_owner": "Completed",
       "allowed_owners": [
         "Completed"
@@ -6216,8 +6440,8 @@
       "route": "/api/queue/priority",
       "normalized_route": "/api/queue/priority",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2266,
+      "file": "apps/desktop/webview/static/assets/queue/manualOrder.js",
+      "line": 208,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6231,8 +6455,8 @@
       "route": "/api/queue/priority",
       "normalized_route": "/api/queue/priority",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2291,
+      "file": "apps/desktop/webview/static/assets/queue/priority.js",
+      "line": 152,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6246,8 +6470,8 @@
       "route": "/api/queue/priority",
       "normalized_route": "/api/queue/priority",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2356,
+      "file": "apps/desktop/webview/static/assets/queue/priority.js",
+      "line": 166,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6261,8 +6485,8 @@
       "route": "/api/queue/priority",
       "normalized_route": "/api/queue/priority",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2553,
+      "file": "apps/desktop/webview/static/assets/queue/priority.js",
+      "line": 202,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6276,8 +6500,8 @@
       "route": "/api/queue/scan",
       "normalized_route": "/api/queue/scan",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 1784,
+      "file": "apps/desktop/webview/static/assets/queue/scan.js",
+      "line": 37,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6291,8 +6515,8 @@
       "route": "/api/queue/strategy",
       "normalized_route": "/api/queue/strategy",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2991,
+      "file": "apps/desktop/webview/static/assets/queue/strategy.js",
+      "line": 174,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6307,7 +6531,7 @@
       "normalized_route": "/api/rename/apply",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 3387,
+      "line": 803,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -6322,8 +6546,8 @@
       "route": "/api/rename/browse",
       "normalized_route": "/api/rename/browse",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 1576,
+      "file": "apps/desktop/webview/static/assets/rename/paths.js",
+      "line": 133,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -6338,8 +6562,8 @@
       "route": "/api/rename/browse",
       "normalized_route": "/api/rename/browse",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 1752,
+      "file": "apps/desktop/webview/static/assets/rename/paths.js",
+      "line": 309,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -6354,8 +6578,8 @@
       "route": "/api/rename/filter-cases",
       "normalized_route": "/api/rename/filter-cases",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 1362,
+      "file": "apps/desktop/webview/static/assets/rename/selection.js",
+      "line": 326,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -6370,8 +6594,8 @@
       "route": "/api/rename/preview",
       "normalized_route": "/api/rename/preview",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 2695,
+      "file": "apps/desktop/webview/static/assets/rename/previewLifecycle.js",
+      "line": 285,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -6387,7 +6611,7 @@
       "normalized_route": "/api/rename/undo",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 3421,
+      "line": 837,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -6434,8 +6658,8 @@
       "route": "/api/schedule/preview",
       "normalized_route": "/api/schedule/preview",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/scheduleView.js",
-      "line": 1488,
+      "file": "apps/desktop/webview/static/assets/schedule/editor.js",
+      "line": 874,
       "script_owner": "Schedule",
       "allowed_owners": [
         "Schedule"
@@ -6449,8 +6673,8 @@
       "route": "/api/schedule/save",
       "normalized_route": "/api/schedule/save",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/scheduleView.js",
-      "line": 1546,
+      "file": "apps/desktop/webview/static/assets/schedule/editor.js",
+      "line": 932,
       "script_owner": "Schedule",
       "allowed_owners": [
         "Schedule"
@@ -6464,8 +6688,8 @@
       "route": "/api/settings/browse-path",
       "normalized_route": "/api/settings/browse-path",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 2812,
+      "file": "apps/desktop/webview/static/assets/settings/view/builder.js",
+      "line": 245,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -6481,8 +6705,8 @@
       "route": "/api/settings/browse-path",
       "normalized_route": "/api/settings/browse-path",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 783,
+      "file": "apps/desktop/webview/static/assets/settings/view/lifecycle.js",
+      "line": 102,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -6495,11 +6719,130 @@
       "owner_ok": true
     },
     {
-      "route": "/api/settings/preview-patch",
-      "normalized_route": "/api/settings/preview-patch",
+      "route": "/api/settings/preset-library",
+      "normalized_route": "/api/settings/preset-library",
+      "method": "GET",
+      "file": "apps/desktop/webview/static/assets/settings/presetLibrary.js",
+      "line": 93,
+      "script_owner": "Settings",
+      "allowed_owners": [
+        "Settings",
+        "Settings Wizard",
+        "Network"
+      ],
+      "contract_effect": "none",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/settings/preset-library/apply",
+      "normalized_route": "/api/settings/preset-library/apply",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 2379,
+      "file": "apps/desktop/webview/static/assets/settings/presetLibrary.js",
+      "line": 139,
+      "script_owner": "Settings",
+      "allowed_owners": [
+        "Settings",
+        "Settings Wizard",
+        "Network"
+      ],
+      "contract_effect": "config-write",
+      "high_risk_effect": true,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/settings/preset-library/apply-preview",
+      "normalized_route": "/api/settings/preset-library/apply-preview",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/settings/presetLibrary.js",
+      "line": 134,
+      "script_owner": "Settings",
+      "allowed_owners": [
+        "Settings",
+        "Settings Wizard",
+        "Network"
+      ],
+      "contract_effect": "none",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/settings/preset-library/compare",
+      "normalized_route": "/api/settings/preset-library/compare",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/settings/presetLibrary.js",
+      "line": 113,
+      "script_owner": "Settings",
+      "allowed_owners": [
+        "Settings",
+        "Settings Wizard",
+        "Network"
+      ],
+      "contract_effect": "none",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/settings/preset-library/export",
+      "normalized_route": "/api/settings/preset-library/export",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/settings/presetLibrary.js",
+      "line": 127,
+      "script_owner": "Settings",
+      "allowed_owners": [
+        "Settings",
+        "Settings Wizard",
+        "Network"
+      ],
+      "contract_effect": "none",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/settings/preset-library/import-preview",
+      "normalized_route": "/api/settings/preset-library/import-preview",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/settings/presetLibrary.js",
+      "line": 118,
+      "script_owner": "Settings",
+      "allowed_owners": [
+        "Settings",
+        "Settings Wizard",
+        "Network"
+      ],
+      "contract_effect": "none",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/settings/preset-library/save",
+      "normalized_route": "/api/settings/preset-library/save",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/settings/presetLibrary.js",
+      "line": 122,
+      "script_owner": "Settings",
+      "allowed_owners": [
+        "Settings",
+        "Settings Wizard",
+        "Network"
+      ],
+      "contract_effect": "preset-library-state-write",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/settings/preset-library/validate",
+      "normalized_route": "/api/settings/preset-library/validate",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/settings/presetLibrary.js",
+      "line": 106,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -6515,8 +6858,8 @@
       "route": "/api/settings/preview-patch",
       "normalized_route": "/api/settings/preview-patch",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 2527,
+      "file": "apps/desktop/webview/static/assets/settings/view/builder.js",
+      "line": 313,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -6532,8 +6875,8 @@
       "route": "/api/settings/preview-patch",
       "normalized_route": "/api/settings/preview-patch",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 851,
+      "file": "apps/desktop/webview/static/assets/settings/view/builder.js",
+      "line": 385,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -6549,8 +6892,25 @@
       "route": "/api/settings/preview-patch",
       "normalized_route": "/api/settings/preview-patch",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 923,
+      "file": "apps/desktop/webview/static/assets/settings/view/commands.js",
+      "line": 296,
+      "script_owner": "Settings",
+      "allowed_owners": [
+        "Settings",
+        "Settings Wizard",
+        "Network"
+      ],
+      "contract_effect": "none",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/settings/preview-patch",
+      "normalized_route": "/api/settings/preview-patch",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/settings/view/commands.js",
+      "line": 444,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -6566,8 +6926,8 @@
       "route": "/api/settings/reload",
       "normalized_route": "/api/settings/reload",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 2738,
+      "file": "apps/desktop/webview/static/assets/settings/view/lifecycle.js",
+      "line": 28,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -6583,8 +6943,8 @@
       "route": "/api/settings/save-patch",
       "normalized_route": "/api/settings/save-patch",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 2643,
+      "file": "apps/desktop/webview/static/assets/settings/view/builder.js",
+      "line": 400,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -6600,8 +6960,8 @@
       "route": "/api/settings/save-patch",
       "normalized_route": "/api/settings/save-patch",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 938,
+      "file": "apps/desktop/webview/static/assets/settings/view/commands.js",
+      "line": 560,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -6617,8 +6977,8 @@
       "route": "/api/settings/validate",
       "normalized_route": "/api/settings/validate",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 1416,
+      "file": "apps/desktop/webview/static/assets/settings/view/impact.js",
+      "line": 223,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -6635,7 +6995,7 @@
       "normalized_route": "/api/settings/wizard/preview",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsWizard.js",
-      "line": 1023,
+      "line": 783,
       "script_owner": "Settings Wizard",
       "allowed_owners": [
         "Settings",
@@ -6652,7 +7012,7 @@
       "normalized_route": "/api/settings/wizard/probe-hardware",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsWizard.js",
-      "line": 947,
+      "line": 740,
       "script_owner": "Settings Wizard",
       "allowed_owners": [
         "Settings",
@@ -6669,7 +7029,7 @@
       "normalized_route": "/api/settings/wizard/save",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsWizard.js",
-      "line": 1053,
+      "line": 813,
       "script_owner": "Settings Wizard",
       "allowed_owners": [
         "Settings",
@@ -6686,7 +7046,7 @@
       "normalized_route": "/api/settings/wizard/validate-paths",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsWizard.js",
-      "line": 912,
+      "line": 705,
       "script_owner": "Settings Wizard",
       "allowed_owners": [
         "Settings",
@@ -6703,7 +7063,7 @@
       "normalized_route": "/api/settings/wizard/validate-tools",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsWizard.js",
-      "line": 928,
+      "line": 721,
       "script_owner": "Settings Wizard",
       "allowed_owners": [
         "Settings",
@@ -6720,7 +7080,7 @@
       "normalized_route": "/api/settings/wizard/validate-workers",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsWizard.js",
-      "line": 970,
+      "line": 764,
       "script_owner": "Settings Wizard",
       "allowed_owners": [
         "Settings",
@@ -6737,7 +7097,7 @@
       "normalized_route": "/api/ui-preferences",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/app.js",
-      "line": 1345,
+      "line": 689,
       "script_owner": "App Shell",
       "allowed_owners": [
         "App Shell"
@@ -6746,14 +7106,71 @@
       "high_risk_effect": true,
       "contract_found": true,
       "owner_ok": true
+    },
+    {
+      "route": "/api/ui-preferences",
+      "normalized_route": "/api/ui-preferences",
+      "method": "GET",
+      "file": "apps/desktop/webview/static/assets/app/uiPreferences.js",
+      "line": 130,
+      "script_owner": "App Shell",
+      "allowed_owners": [
+        "App Shell"
+      ],
+      "contract_effect": "none",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
     }
   ],
   "dynamic_api_posts": [
     {
-      "file": "apps/desktop/webview/static/assets/networkView.js",
-      "line": 2350,
+      "file": "apps/desktop/webview/static/assets/queueView.js",
+      "line": 169,
+      "allowed": true,
+      "reason": "late-bound mediaPipelineApi namespace forwarder"
+    },
+    {
+      "file": "apps/desktop/webview/static/assets/queueView.js",
+      "line": 325,
+      "allowed": true,
+      "reason": "late-bound mediaPipelineApi namespace forwarder"
+    },
+    {
+      "file": "apps/desktop/webview/static/assets/queueView.js",
+      "line": 658,
+      "allowed": true,
+      "reason": "late-bound mediaPipelineApi namespace forwarder"
+    },
+    {
+      "file": "apps/desktop/webview/static/assets/queueView.js",
+      "line": 900,
+      "allowed": true,
+      "reason": "late-bound mediaPipelineApi namespace forwarder"
+    },
+    {
+      "file": "apps/desktop/webview/static/assets/settingsView.js",
+      "line": 693,
+      "allowed": true,
+      "reason": "late-bound mediaPipelineApi namespace forwarder"
+    },
+    {
+      "file": "apps/desktop/webview/static/assets/network/lifecycle.commands.js",
+      "line": 128,
       "allowed": true,
       "reason": "contract-driven Network lifecycle dispatch"
+    },
+    {
+      "file": "apps/desktop/webview/static/assets/launchView.js",
+      "line": 722,
+      "allowed": true,
+      "reason": "late-bound mediaPipelineApi namespace forwarder"
+    },
+    {
+      "file": "apps/desktop/webview/static/assets/launchView.js",
+      "line": 819,
+      "allowed": true,
+      "reason": "late-bound mediaPipelineApi namespace forwarder"
     }
   ],
   "route_contracts": [
@@ -6790,6 +7207,16 @@
     {
       "method": "GET",
       "path": "/api/backend/close-readiness",
+      "effect": "none",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/backend/recovery-status",
       "effect": "none",
       "owner": "",
       "requires_confirmation": null,
@@ -7484,6 +7911,16 @@
     },
     {
       "method": "POST",
+      "path": "/api/diagnostics/encoder-capabilities/refresh",
+      "effect": "diagnostics-artifact-write",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": []
+    },
+    {
+      "method": "POST",
       "path": "/api/diagnostics/open",
       "effect": "shell-open",
       "owner": "",
@@ -8092,7 +8529,8 @@
       "frontend_exposed": null,
       "network_lifecycle": false,
       "request_keys": [
-        "action"
+        "action",
+        "confirm_force_stop"
       ]
     },
     {
@@ -8268,6 +8706,7 @@
         "items",
         "level",
         "path",
+        "position",
         "reason"
       ]
     },
@@ -8319,6 +8758,7 @@
         "movie_year",
         "paths",
         "powershell_host",
+        "preview_fingerprint",
         "remove_terms",
         "remove_terms_text",
         "rename_sidecars",
@@ -8428,7 +8868,98 @@
       "network_lifecycle": false,
       "request_keys": [
         "action",
+        "confirm_pause",
         "confirm_stop"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/rerun/network-preview",
+      "effect": "read-only-preview",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "bucket_filter",
+        "bucket_filters",
+        "collision_policy",
+        "confirm_replace_final",
+        "confirm_source_overwrite",
+        "csv_path",
+        "destination_mode",
+        "enabled_only",
+        "execution_mode",
+        "first_n",
+        "issue_filter",
+        "issue_filters",
+        "original_mode",
+        "preview_limit",
+        "return_mode",
+        "scope",
+        "skip_blocked",
+        "skip_warning_rows",
+        "stage_mode",
+        "status_filters",
+        "window_size"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/rerun/network/start",
+      "effect": "network-state-write",
+      "owner": "",
+      "requires_confirmation": true,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "bucket_filters",
+        "collision_policy",
+        "confirm_replace_final",
+        "confirm_source_overwrite",
+        "confirm_start",
+        "csv_path",
+        "destination_mode",
+        "dry_run_fingerprint",
+        "enabled_only",
+        "execution_mode",
+        "first_n",
+        "issue_filters",
+        "minimum_worker_count",
+        "preview_limit",
+        "reason",
+        "scope",
+        "skip_blocked",
+        "skip_warning_rows",
+        "window_size"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/rerun/network/start-dry-run",
+      "effect": "none",
+      "owner": "",
+      "requires_confirmation": false,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "bucket_filters",
+        "collision_policy",
+        "confirm_replace_final",
+        "confirm_source_overwrite",
+        "csv_path",
+        "destination_mode",
+        "enabled_only",
+        "execution_mode",
+        "first_n",
+        "issue_filters",
+        "minimum_worker_count",
+        "preview_limit",
+        "reason",
+        "scope",
+        "skip_blocked",
+        "skip_warning_rows",
+        "window_size"
       ]
     },
     {
@@ -8795,7 +9326,8 @@
         "changes",
         "confirm_save",
         "library_profile_resets",
-        "remove_keys"
+        "remove_keys",
+        "review_confirmation"
       ]
     },
     {

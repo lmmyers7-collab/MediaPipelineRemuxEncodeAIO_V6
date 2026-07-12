@@ -5,6 +5,7 @@
       byId = function () { return null; },
       captureCompletedEvidenceSelectionScroll = function () { return null; },
       clearRows = function () {},
+      completedCurrentRows = function (rows) { return Array.isArray(rows) ? rows : []; },
       getSelectedCompletedRow = function () { return null; },
       makeRowSelectable = function () {},
       proofModel = {},
@@ -408,7 +409,18 @@
 
     function renderCompletedPendingProof(completed, rows, pending) {
       const payload = completed || {};
-      const rowList = Array.isArray(rows) ? rows : completedProofRows(payload);
+      const sourceRows = Array.isArray(rows) ? rows : completedProofRows(payload);
+      const currentRows = completedCurrentRows(sourceRows);
+      const seenEvidenceRows = new Set();
+      const rowList = [...currentRows, ...sourceRows.filter(completedProofRowMissingOutput)].filter((row) => {
+        const identity = completedProofNormalizePath(completedProofCompletedOutputPath(row))
+          || completedProofRowKey(row)
+          || completedProofNormalizePath(completedProofCompletedSourcePath(row));
+        if (!identity) return true;
+        if (seenEvidenceRows.has(identity)) return false;
+        seenEvidenceRows.add(identity);
+        return true;
+      });
       state.lastCompletedPendingPayload = pending && typeof pending === "object" ? pending : {};
       const proofRows = completedPendingProofRows(payload, rowList, state.lastCompletedPendingPayload);
       state.lastCompletedPendingProofRows = proofRows;

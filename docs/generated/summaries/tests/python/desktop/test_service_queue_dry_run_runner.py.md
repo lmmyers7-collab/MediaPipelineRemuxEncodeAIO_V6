@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_queue_dry_run_runner.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-09
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 1dec19191eb3ecd2b8b2f3c4ea26cba6104a2777f41d5c43efe1379461ead1c6
+sha256: b18ab9c4f32fd745b8dcdf2b9bf6687b583f03a2ccfc338038d2d08507a1d085
 ---
 # `tests/python/desktop/test_service_queue_dry_run_runner.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 3f5d9b3a030094f80b86f6378b863e73999f83cb16bb6fb86a6955e4cd4509cf
+sha256: 62c2f61854c49ca37811621f94a8847a1e021f2d3c729a2669401c7c14e9720c
 ---
 # `apps/desktop/webview/static/assets/rename/editing.js`
 

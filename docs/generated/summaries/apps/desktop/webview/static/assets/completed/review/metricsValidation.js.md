@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 6721e62189e9f70e07b0dc6df70db6cb6a45398856b569ef63c8007eaf92443e
+sha256: d74197fcbb16ca8c7ce6866da14101679cdce8c095a3f7ba80895bb753fc7760
 ---
 # `apps/desktop/webview/static/assets/completed/review/metricsValidation.js`
 

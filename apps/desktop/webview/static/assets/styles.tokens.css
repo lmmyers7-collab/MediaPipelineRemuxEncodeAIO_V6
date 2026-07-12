@@ -160,6 +160,9 @@
   --opacity-layout-disabled-control: 0.72;
   --opacity-rename-activity-dim: 0.45;
   --opacity-rename-activity-full: 1;
+  --opacity-run-timeline-dim: 0.78;
+  --opacity-run-timeline-current: 1;
+  --opacity-run-timeline-next: 0.92;
 
   /* ===== RADIUS SCALE =====
      Keep desktop controls crisp and consistent. Cards/panels should stay at

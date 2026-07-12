@@ -53,11 +53,11 @@ graph LR
   verify["verify"]
   watch["watch"]
   webview["webview"]
-  tests -->|809| api
-  process -->|104| processes
+  tests -->|810| api
+  process -->|105| processes
   scripts -->|67| api
   tests -->|63| config
-  tests -->|44| processes
+  tests -->|45| processes
   observability -->|39| status
   contracts -->|32| api
   process -->|30| paths
@@ -68,6 +68,7 @@ graph LR
   tests -->|23| status
   unknown -->|19| kernel
   tests -->|18| publish
+  subtitles -->|16| api
   diagnostics -->|15| kernel
   unknown -->|15| config
   application -->|14| kernel
@@ -75,7 +76,6 @@ graph LR
   tests -->|13| paths
   diagnostics -->|12| status
   network -->|12| kernel
-  subtitles -->|12| api
   tests -->|12| completed
   decide -->|11| api
   network -->|11| config
@@ -118,6 +118,7 @@ graph LR
   tests -->|6| failures
   tests -->|6| final_library
   tests -->|6| folder_policy
+  tests -->|6| orchestration
   unknown -->|6| api
   application -->|5| api
   completed -->|5| files
@@ -129,7 +130,6 @@ graph LR
   orchestration -->|5| config
   process -->|5| audit
   tests -->|5| observability
-  tests -->|5| orchestration
   tests -->|5| telemetry
   tests -->|5| validation
   unknown -->|5| completed
@@ -141,6 +141,7 @@ graph LR
   maintenance -->|4| paths
   observability -->|4| rename
   queue -->|4| observability
+  rename -->|4| paths
   sample_validation -->|4| kernel
   tests -->|4| network
   unknown -->|4| paths
@@ -153,7 +154,6 @@ graph LR
   final_library -->|3| paths
   orchestration -->|3| decide
   paths -->|3| kernel
-  rename -->|3| paths
   schedule -->|3| kernel
   tests -->|3| files
   tests -->|3| schedule
@@ -174,6 +174,7 @@ graph LR
   queue -->|2| kernel
   scripts -->|2| processes
   scripts -->|2| publish
+  subtitles -->|2| paths
   tests -->|2| metrics
   tests -->|2| repair_reconcile
   unknown -->|2| failures
@@ -220,13 +221,13 @@ graph LR
   queue -->|1| files
   queue -->|1| status
   queue -->|1| subtitles
+  rename -->|1| api
   rename -->|1| validation
   schedule -->|1| paths
   scripts -->|1| observability
   scripts -->|1| paths
   scripts -->|1| rename
   subtitles -->|1| completed
-  subtitles -->|1| paths
   tests -->|1| library
   tests -->|1| subtitles
   tests -->|1| ui_preferences
@@ -243,11 +244,11 @@ graph LR
 
 | From | To | Edges |
 |---|---|---|
-| tests | api | 809 |
-| process | processes | 104 |
+| tests | api | 810 |
+| process | processes | 105 |
 | scripts | api | 67 |
 | tests | config | 63 |
-| tests | processes | 44 |
+| tests | processes | 45 |
 | observability | status | 39 |
 | contracts | api | 32 |
 | process | paths | 30 |
@@ -258,6 +259,7 @@ graph LR
 | tests | status | 23 |
 | unknown | kernel | 19 |
 | tests | publish | 18 |
+| subtitles | api | 16 |
 | diagnostics | kernel | 15 |
 | unknown | config | 15 |
 | application | kernel | 14 |
@@ -265,7 +267,6 @@ graph LR
 | tests | paths | 13 |
 | diagnostics | status | 12 |
 | network | kernel | 12 |
-| subtitles | api | 12 |
 | tests | completed | 12 |
 | decide | api | 11 |
 | network | config | 11 |
@@ -308,6 +309,7 @@ graph LR
 | tests | failures | 6 |
 | tests | final_library | 6 |
 | tests | folder_policy | 6 |
+| tests | orchestration | 6 |
 | unknown | api | 6 |
 | application | api | 5 |
 | completed | files | 5 |
@@ -319,7 +321,6 @@ graph LR
 | orchestration | config | 5 |
 | process | audit | 5 |
 | tests | observability | 5 |
-| tests | orchestration | 5 |
 | tests | telemetry | 5 |
 | tests | validation | 5 |
 | unknown | completed | 5 |
@@ -331,6 +332,7 @@ graph LR
 | maintenance | paths | 4 |
 | observability | rename | 4 |
 | queue | observability | 4 |
+| rename | paths | 4 |
 | sample_validation | kernel | 4 |
 | tests | network | 4 |
 | unknown | paths | 4 |
@@ -343,7 +345,6 @@ graph LR
 | final_library | paths | 3 |
 | orchestration | decide | 3 |
 | paths | kernel | 3 |
-| rename | paths | 3 |
 | schedule | kernel | 3 |
 | tests | files | 3 |
 | tests | schedule | 3 |
@@ -364,6 +365,7 @@ graph LR
 | queue | kernel | 2 |
 | scripts | processes | 2 |
 | scripts | publish | 2 |
+| subtitles | paths | 2 |
 | tests | metrics | 2 |
 | tests | repair_reconcile | 2 |
 | unknown | failures | 2 |
@@ -410,13 +412,13 @@ graph LR
 | queue | files | 1 |
 | queue | status | 1 |
 | queue | subtitles | 1 |
+| rename | api | 1 |
 | rename | validation | 1 |
 | schedule | paths | 1 |
 | scripts | observability | 1 |
 | scripts | paths | 1 |
 | scripts | rename | 1 |
 | subtitles | completed | 1 |
-| subtitles | paths | 1 |
 | tests | library | 1 |
 | tests | subtitles | 1 |
 | tests | ui_preferences | 1 |

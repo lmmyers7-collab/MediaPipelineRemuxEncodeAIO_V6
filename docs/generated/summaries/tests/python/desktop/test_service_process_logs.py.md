@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_process_logs.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 996e4af9ba97e0024606cbe30b235ef0db178229c082e3fd197b3b3ad4aa8fb9
+sha256: 234fcb930764d62a9589a1872d474972aae21e78433e13e316e9ab9b07b37ef9
 ---
 # `tests/python/desktop/test_service_process_logs.py`
 

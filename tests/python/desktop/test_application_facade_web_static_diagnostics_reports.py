@@ -883,7 +883,7 @@ REPORTS_SCHEDULE_MAINTENANCE_ASSERTIONS: tuple[AssertionRow, ...] = (('in', 'rep
  ('in', 'maintenance_view_js', 'updateTableStatusLegend'),
  ('in', 'maintenance_view_js', 'appendDiagnosticsBridgeGroupedButtons'),
  ('in', 'maintenance_view_js', 'function refreshMaintenance'),
- ('in', 'maintenance_view_js', 'let maintenanceRefreshInFlight = false'),
+ ('in', 'maintenance_view_js', 'maintenanceRefreshInFlight: false'),
  ('in', 'maintenance_view_js', 'maintenanceRefreshQueued = true'),
  ('in', 'maintenance_view_js', 'window.setTimeout(refreshMaintenance, 0)'),
  ('in', 'maintenance_view_js', 'const maintenanceDryRunButtonIds'),

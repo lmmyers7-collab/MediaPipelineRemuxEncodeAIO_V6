@@ -3,9 +3,9 @@ file: tests/python/tooling/test_webview_tooling_checks.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-10
+last_modified: 2026-07-11
 last_reviewed: 2026-06-11
-sha256: 47ade1ca53db9be40fffeacbf5e0254bada1eb415c5cdcad614a9efe86184075
+sha256: a30e5c2d8ea86699daac880e3348f801a141141f49ae640f992f6f5037b4dec5
 ---
 # `tests/python/tooling/test_webview_tooling_checks.py`
 

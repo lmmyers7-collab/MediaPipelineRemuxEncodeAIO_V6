@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/queue/manualOrder.js
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-10
+last_modified: 2026-07-11
 last_reviewed: 2026-07-10
-sha256: cc3faf66a044783e5e1a97b069eacebbee2bc65956739d096653007b15e96a19
+sha256: b34df828481852ba0a33b25c1727536d7b4610d132429c7e961a875a34105d1f
 ---
 # `apps/desktop/webview/static/assets/queue/manualOrder.js`
 

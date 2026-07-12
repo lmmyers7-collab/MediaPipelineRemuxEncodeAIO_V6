@@ -82,42 +82,6 @@ from mediapipeline.core.processes.rerun_results_support import *  # noqa: F403
 
 from mediapipeline.core.processes.rerun_results_destination_policy import *  # noqa: F403
 
-def _destination_error_code(message: str) -> str:
-    if "unavailable" in message:
-        return "rerun_final_output_root_unavailable"
-    return "rerun_final_output_outside_configured_root"
-
-
-def _promote_destination_violation(
-    resolved: ResolvedPaths,
-    row: Mapping[str, Any],
-    *,
-    final_output: str,
-    server_out: Path | None = None,
-) -> str:
-    source_path = str(row.get("source_path") or "")
-    violation = rerun_final_output_root_violation(
-        resolved,
-        row,
-        source_path=source_path,
-        final_output_path=final_output,
-        final_output_field=str(row.get("final_output_source_field") or "final_output_path"),
-        confirm_source_overwrite=_source_overwrite_confirmed(row),
-    )
-    if violation:
-        return violation
-    if server_out is None:
-        return ""
-    if _source_overwrite_confirmed(row) and source_path and rerun_paths_resolve_same(server_out, source_path):
-        return ""
-    root = rerun_effective_output_root_for_source(resolved, source_path)
-    if root is None:
-        return "configured output root is unavailable for Pending Publish server_out validation"
-    if not rerun_path_resolves_under_root(server_out, root):
-        return f"Pending Publish server_out resolves outside configured output root: {server_out}"
-    return ""
-
-
 def rerun_promote_dry_run(resolved: ResolvedPaths, request: Mapping[str, Any]) -> CommandResult:
     row_key = str(request.get("row_key") or "").strip()
     _manifest, row = _find_row(resolved, row_key)

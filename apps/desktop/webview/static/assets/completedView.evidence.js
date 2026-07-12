@@ -67,6 +67,7 @@
       byId,
       captureCompletedEvidenceSelectionScroll,
       clearRows,
+      completedCurrentRows,
       getSelectedCompletedRow,
       makeRowSelectable,
       proofModel: completedPendingProofModel,

@@ -189,7 +189,7 @@
     collectRenameRequest,
     getCheckedRenameRows,
     getLastRenameEmptyMessage: () => state.emptyMessage,
-    getLastSettings: () => (typeof windowRef.getLastSettings === "function" ? windowRef.getLastSettings() : {}),
+    getLastSettings: () => (typeof windowRef.mediaPipelineSettingsView?.getLastSettings === "function" ? windowRef.mediaPipelineSettingsView.getLastSettings() : {}),
     getRenameFinalOverrides: () => state.finalOverrides,
     getRenameForceOverrides: () => state.forceOverrides,
     renamePreviewSourceLabel,

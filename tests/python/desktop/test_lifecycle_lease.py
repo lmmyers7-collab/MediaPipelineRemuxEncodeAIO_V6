@@ -3,11 +3,24 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from mediapipeline.core.processes import lifecycle_lease
 from mediapipeline.core.processes.lifecycle_lease import LifecycleLeaseError, LifecycleLeaseStore
 
 
 class LifecycleLeaseTests(unittest.TestCase):
+    def test_windows_pid_probe_uses_read_only_process_boundary(self) -> None:
+        with (
+            patch.object(lifecycle_lease.os, "name", "nt"),
+            patch.object(lifecycle_lease.os, "kill") as kill,
+            patch.object(lifecycle_lease, "active_job_pid_is_alive", return_value=True) as pid_is_alive,
+        ):
+            self.assertTrue(lifecycle_lease._pid_liveness(24682))
+
+        kill.assert_not_called()
+        pid_is_alive.assert_called_once_with(24682, lifecycle_lease.psutil)
+
     def test_second_live_lease_is_rejected_and_terminal_release_reopens_scope(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)

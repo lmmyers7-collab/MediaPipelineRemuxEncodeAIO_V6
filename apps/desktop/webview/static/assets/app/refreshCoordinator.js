@@ -69,7 +69,7 @@ async function refreshLiveRunTail(refreshOptions = {}) {
     lastStdoutTail = attachRefreshMetadata("last stdout tail", stdoutTail);
     const liveRunContext = {
       snapshot: lastSnapshot,
-      diagnostics: null,
+      diagnostics: lastDiagnostics,
       closeReadiness: lastCloseReadiness,
       stdoutTail: lastStdoutTail,
     };
@@ -146,6 +146,9 @@ async function refreshAllNow(options = {}) {
     }
     values[name] = attachRefreshMetadata(name, result.value);
   });
+  if (Object.prototype.hasOwnProperty.call(values, "diagnostics")) {
+    lastDiagnostics = values.diagnostics;
+  }
   const pendingPublishFailure = failures.find((item) => item.name === "pending publish");
   const pendingPublishPayload = values["pending publish"] || (pendingPublishFailure ? {
     schema_version: "desktop_pending_publish_preview.v1",
@@ -309,10 +312,10 @@ async function refreshAllNow(options = {}) {
     });
   }
   if (values.settings) {
-    renderSettings(values.settings);
+    window.mediaPipelineSettingsView.renderSettings(values.settings);
     window.mediaPipelinePresetLibraryView?.renderLibrary?.(values["preset library"]?.data || values["preset library"] || {});
     window.mediaPipelineSettingsLibraries?.renderSettingsLibraries?.(values.settings, refreshOptions);
-    window.mediaPipelineReportsView?.renderReports?.(lastSnapshot, getLastSettings());
+    window.mediaPipelineReportsView?.renderReports?.(lastSnapshot, window.mediaPipelineSettingsView.getLastSettings());
     window.mediaPipelineLaunchView?.renderAllLaunchPreflights?.();
   }
   if (values["recovery status"]) window.mediaPipelineRecoverySupportView?.renderRecoveryStatus?.(values["recovery status"]);
@@ -331,7 +334,7 @@ async function refreshAllNow(options = {}) {
   const renderNetworkViewFn = window.mediaPipelineNetworkView?.renderNetworkView;
   if (typeof renderNetworkViewFn === "function") {
     renderNetworkViewFn({
-      settings: values.settings || getLastSettings(),
+      settings: values.settings || window.mediaPipelineSettingsView.getLastSettings(),
       contract: values.contract || {},
       closeReadiness: values["close readiness"] || lastCloseReadiness,
       snapshot: values.snapshot || lastSnapshot,
@@ -348,7 +351,7 @@ async function refreshAllNow(options = {}) {
     failures,
   });
   const dependencyContext = {
-    settings: values.settings || getLastSettings(),
+    settings: values.settings || window.mediaPipelineSettingsView.getLastSettings(),
     stateSummary: values["diagnostics state summary"] || {},
     maintenance: window.mediaPipelineMaintenanceView?.getLastMaintenance?.() || {},
   };
@@ -357,12 +360,12 @@ async function refreshAllNow(options = {}) {
     snapshot: values.snapshot || lastSnapshot,
     closeReadiness: values["close readiness"] || lastCloseReadiness,
     schedule: values.schedule || lastSchedule,
-    settings: values.settings || getLastSettings(),
+    settings: values.settings || window.mediaPipelineSettingsView.getLastSettings(),
     failures,
   });
   const liveRunContext = {
     snapshot: values.snapshot || lastSnapshot,
-    diagnostics: values.diagnostics || null,
+    diagnostics: lastDiagnostics,
     closeReadiness: values["close readiness"] || lastCloseReadiness,
     stdoutTail: values["last stdout tail"] || lastStdoutTail,
   };
@@ -393,9 +396,9 @@ async function refreshAllNow(options = {}) {
   window.mediaPipelineProgressView?.renderProgressEvidence?.({
     snapshot: values.snapshot || lastSnapshot,
     closeReadiness: values["close readiness"] || lastCloseReadiness,
-    diagnostics: values.diagnostics || null,
+    diagnostics: lastDiagnostics,
   });
-  window.mediaPipelineProgressView?.renderDiagnosticsProgress?.(values.snapshot || lastSnapshot, values.diagnostics || null);
+  window.mediaPipelineProgressView?.renderDiagnosticsProgress?.(values.snapshot || lastSnapshot, lastDiagnostics);
   if (typeof renderCrossPageContext === "function") {
     const crossPageContext = {
       snapshot: values.snapshot || lastSnapshot,
@@ -403,8 +406,8 @@ async function refreshAllNow(options = {}) {
       queue: latestQueue,
       completed: values.completed || {},
       pending: pendingPublishPayload,
-      diagnostics: values.diagnostics || {},
-      settings: values.settings || getLastSettings(),
+      diagnostics: lastDiagnostics || {},
+      settings: values.settings || window.mediaPipelineSettingsView.getLastSettings(),
       sampleValidation: values["sample validation"] || {},
       failures,
     };
@@ -415,13 +418,13 @@ async function refreshAllNow(options = {}) {
     const diagnosticsContext = {
       snapshot: values.snapshot || lastSnapshot,
       closeReadiness: values["close readiness"] || lastCloseReadiness,
-      diagnostics: values.diagnostics || {},
+      diagnostics: lastDiagnostics || {},
       stateSummary: values["diagnostics state summary"] || {},
       commands: values.commands || {},
       queue: latestQueue,
       completed: values.completed || {},
       pending: pendingPublishPayload,
-      settings: values.settings || getLastSettings(),
+      settings: values.settings || window.mediaPipelineSettingsView.getLastSettings(),
       sampleValidation: values["sample validation"] || {},
       maintenance: window.mediaPipelineMaintenanceView?.getLastMaintenance?.() || {},
       failures,
@@ -440,7 +443,7 @@ async function refreshAllNow(options = {}) {
       completed: values.completed || {},
       pending: pendingPublishPayload,
       sampleValidation: values["sample validation"] || {},
-      settings: values.settings || getLastSettings(),
+      settings: values.settings || window.mediaPipelineSettingsView.getLastSettings(),
     });
   }
   const renderDiagnosticsRefreshFailuresFn = window.mediaPipelineDiagnosticsView?.renderDiagnosticsRefreshFailures;
@@ -454,13 +457,13 @@ async function refreshAllNow(options = {}) {
     snapshot: values.snapshot || lastSnapshot,
     closeReadiness: values["close readiness"] || lastCloseReadiness,
     schedule: values.schedule || lastSchedule,
-    settings: values.settings || getLastSettings(),
+    settings: values.settings || window.mediaPipelineSettingsView.getLastSettings(),
     stateSummary: values["diagnostics state summary"] || {},
     maintenance: window.mediaPipelineMaintenanceView?.getLastMaintenance?.() || {},
     queue: latestQueue,
     completed: values.completed || {},
     pending: pendingPublishPayload,
-    diagnostics: values.diagnostics || {},
+    diagnostics: lastDiagnostics || {},
     networkWorkers: values["network workers"] || {},
     failuresPayload: values.failures || {},
     failureArtifacts: values["failure artifacts"] || {},

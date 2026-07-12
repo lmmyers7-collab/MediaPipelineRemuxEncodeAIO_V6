@@ -752,15 +752,12 @@ def _browser_pending_drain_guard_runner_source() -> str:
 
             await window.mediaPipelineLaunchView.startPendingPublishDrain();
             await waitFor(
-              () => text("pending-drain-status") !== "Confirming" && posts.some((entry) => entry.path === "/api/pipeline/start"),
+              () => text("pending-drain-status") !== "Confirming"
+                && window.getCommandHistory().some((entry) => entry.command === "pending_publish.drain"),
               "advisory drain submitted to backend",
             );
             const history = window.getCommandHistory().filter((entry) => entry.command === "pending_publish.drain");
             if (!history.length) throw new Error("backend drain result was not added to command history");
-            const drainPost = posts.find((entry) => entry.path === "/api/pipeline/start");
-            if (!drainPost || drainPost.body?.mode !== "drain_pending_pushes") {
-              throw new Error("advisory drain did not submit the unchanged all-scope backend mode: " + JSON.stringify(posts));
-            }
             if (confirmCalls !== 1) {
               throw new Error("advisory drain should ask for one operator confirmation; confirm calls=" + confirmCalls);
             }
@@ -918,6 +915,7 @@ class WebViewBrowserPendingDrainGuardSmoke(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             resolved, _source, _output = _write_fixture_state(root)
+            resolved.config_data["NetworkRole"] = "standalone"
             media_snapshot = capture_media_no_mutation_snapshot(root)
             service = DummyWorkflowFacadeService(root)
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
@@ -939,6 +937,8 @@ class WebViewBrowserPendingDrainGuardSmoke(unittest.TestCase):
                 )
             finally:
                 server.stop()
+            self.assertIsNotNone(service.started_pipeline)
+            self.assertEqual(service.started_pipeline["mode"], "drain_pending_pushes")
             assert_media_no_mutation(self, media_snapshot)
 
         self.assertTrue(result["ok"])
@@ -952,8 +952,6 @@ class WebViewBrowserPendingDrainGuardSmoke(unittest.TestCase):
         self.assertIn("Recovery dry-run cleared because Pending Publish evidence changed.", browser_result["staleRecoveryStatus"])
         self.assertNotIn("Decision: Do not drain", browser_result["staleGuardSummary"])
         self.assertIn("Blocked/review/read-first/unknown: 0/", browser_result["staleDecisionSummary"])
-        post_paths = browser_result["postPaths"]
-        self.assertEqual(post_paths.count("/api/pipeline/start"), 1)
         self.assertEqual(browser_result["confirmCalls"], 1)
 
 

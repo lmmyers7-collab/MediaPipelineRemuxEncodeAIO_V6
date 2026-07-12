@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 26fdd6406e1ef337af8d4d7dcd62835cbc7002c9554492112ee3012382c471d2
+sha256: 40ed647dbbb965d6d3897d1cdceb415fd01aa543e194286c4766176573ed29a3
 ---
 # `tests/webview/test_webview_settings_libraries.py`
 

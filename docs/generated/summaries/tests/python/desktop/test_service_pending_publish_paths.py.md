@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_pending_publish_paths.py
 pipeline_stage: publish
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 457d9af8b5ba95c030426385349fdac6316bd540d1ef87dce33daf3f4ba9d239
+sha256: 37d8fe3dbfd6095ac9bf931dd19e65cfb97121e67c04ca18be646947fe5f46ff
 ---
 # `tests/python/desktop/test_service_pending_publish_paths.py`
 

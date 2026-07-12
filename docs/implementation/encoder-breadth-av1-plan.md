@@ -608,6 +608,17 @@ operator's RTX machine); pending-publish/queue smokes for regression
 av1_nvenc requires an RTX 40-series or newer-capable NVIDIA path (the probe decides
 at runtime).
 
+**Current implementation record (2026-07-11):** Literal `av1_nvenc` selections
+with `EncoderBackend=auto` or `EncoderBackend=nvenc` are descriptor-active. Every
+hardware attempt still requires the descriptor-owned exact encoder-list plus
+one-frame runtime probe, and a runtime failure invalidates only the NVENC probe
+cache before the existing family CPU-fallback ladder is considered. The bundled
+FFmpeg 8.1 runtime probe succeeded on the current RTX 5080 host (driver 610.62),
+and synthetic SDR/HDR10 topology execution is required by the matrix gate. This
+is availability/topology evidence only: representative media, HDR10 side-data,
+playback, quality, and size validation remain open; no real-media HDR preservation
+claim is made here. QSV and AMF remain dormant.
+
 ### 7.1 Scope
 
 - Populate descriptors for the active config enum first: `(av1, cpu) = libaom-av1`

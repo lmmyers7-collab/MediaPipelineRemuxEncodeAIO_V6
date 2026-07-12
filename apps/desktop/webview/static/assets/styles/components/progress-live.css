@@ -603,7 +603,7 @@
   border-left: 3px solid var(--grey-600);
   border-radius: var(--radius-sm);
   background: var(--live-run-chip-bg);
-  opacity: 0.78;
+  opacity: var(--opacity-run-timeline-dim);
 }
 
 .run-timeline-header {
@@ -744,7 +744,7 @@
 .run-timeline-item[data-current="true"] .run-timeline-card {
   gap: var(--space-3);
   padding: var(--space-5);
-  opacity: 1;
+  opacity: var(--opacity-run-timeline-current);
 }
 
 .run-timeline-item[data-current="true"] .run-timeline-title {
@@ -757,7 +757,7 @@
 }
 
 .run-timeline-item[data-next="true"] .run-timeline-card {
-  opacity: 0.92;
+  opacity: var(--opacity-run-timeline-next);
 }
 
 .run-timeline-evidence {

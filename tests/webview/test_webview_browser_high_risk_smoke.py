@@ -178,8 +178,7 @@ def _browser_runner_source() -> str:
               "Selected diagnostic status: unreadable_manifest",
               "Drain recommendation: do_not_drain",
               "Recovery class: manifest_repair",
-              "Selected-row diagnostic order: open the row manifest, read Last Stderr, then open Run Logs before another drain attempt.",
-              "Diagnostics bridge:",
+              "Selected-row diagnostic order: open the row manifest, then open Run Logs before another drain attempt.",
             ]);
             return {
               ok: true,
@@ -277,8 +276,7 @@ def _browser_runner_source() -> str:
               "Selected diagnostic status: unreadable_manifest",
               "Drain recommendation: do_not_drain",
               "Recovery class: manifest_repair",
-              "Selected-row diagnostic order: open the row manifest, read Last Stderr, then open Run Logs before another drain attempt.",
-              "Diagnostics bridge:",
+              "Selected-row diagnostic order: open the row manifest, then open Run Logs before another drain attempt.",
             ]);
             return {
               ok: true,

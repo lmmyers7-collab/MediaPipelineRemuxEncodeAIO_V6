@@ -153,6 +153,14 @@ REPORTS_INVESTIGATION = (
     / "investigation.js"
 )
 APP_JS = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "app.js"
+
+
+def _read_app_source() -> str:
+    assets = APP_JS.parent
+    return "\n".join(
+        (assets / name).read_text(encoding="utf-8")
+        for name in ("app/refreshCoordinator.js", "app/lifecycleOrchestration.js", "app.js")
+    )
 OPERATOR_TOAST = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "operatorToast.js"
 INDEX_HTML = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "index.html"
 REPORTS_PAGE = (
@@ -182,7 +190,7 @@ def _read_component_styles() -> str:
 class ReportsViewStaticTests(unittest.TestCase):
     def test_reports_failed_reads_render_local_historical_only_state_and_disable_commands(self) -> None:
         source = REPORTS_VIEW.read_text(encoding="utf-8")
-        app_source = APP_JS.read_text(encoding="utf-8")
+        app_source = _read_app_source()
 
         self.assertIn("function renderReportsUnavailable", source)
         self.assertIn("Historical rows remain visible", source)
@@ -281,7 +289,7 @@ class ReportsViewStaticTests(unittest.TestCase):
 
     def test_failure_marker_source_is_default_failures_refresh_mode(self) -> None:
         html = REPORTS_PAGE.read_text(encoding="utf-8")
-        app_source = APP_JS.read_text(encoding="utf-8")
+        app_source = _read_app_source()
 
         self.assertIn('id="failure-source-markers" type="checkbox" checked', html)
         self.assertIn('const failureSourceMarkers = Boolean(byId("failure-source-markers")?.checked);', app_source)
@@ -293,7 +301,7 @@ class ReportsViewStaticTests(unittest.TestCase):
 
     def test_failure_artifact_storage_panel_and_toast_are_read_only(self) -> None:
         html = REPORTS_PAGE.read_text(encoding="utf-8")
-        app_source = APP_JS.read_text(encoding="utf-8")
+        app_source = _read_app_source()
         reports_source = REPORTS_VIEW.read_text(encoding="utf-8")
         reports_state_source = REPORTS_STATE.read_text(encoding="utf-8")
         failure_commands_source = REPORTS_FAILURE_COMMANDS.read_text(encoding="utf-8")
@@ -321,7 +329,7 @@ class ReportsViewStaticTests(unittest.TestCase):
             "<th scope=\"col\">Modified</th>",
         ):
             self.assertIn(snippet, html)
-        self.assertIn('["failure artifacts", refreshGet("/api/failures/artifacts", refreshOptions), false]', app_source)
+        self.assertIn('["failure artifacts", "/api/failures/artifacts", false]', app_source)
         self.assertIn('window.mediaPipelineReportsView?.renderFailureArtifactSummary?.(values["failure artifacts"])', app_source)
         self.assertIn('window.mediaPipelineOperatorToast?.showFailureArtifactWarning?.(values["failure artifacts"])', app_source)
         self.assertIn('failureArtifacts: values["failure artifacts"] || {}', app_source)

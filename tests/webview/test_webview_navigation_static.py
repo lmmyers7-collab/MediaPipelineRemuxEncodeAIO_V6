@@ -421,7 +421,13 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             (_STATIC_ROOT / "assets" / "queue" / "scan.js").read_text(encoding="utf-8"),
             (_STATIC_ROOT / "assets" / "queueView.js").read_text(encoding="utf-8"),
         ))
-        network_js = (_STATIC_ROOT / "assets" / "networkView.js").read_text(encoding="utf-8")
+        network_js = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in (
+                _STATIC_ROOT / "assets" / "network" / "overviewTiles.js",
+                _STATIC_ROOT / "assets" / "networkView.js",
+            )
+        )
         completed_table_js = (_STATIC_ROOT / "assets" / "completed" / "table.js").read_text(encoding="utf-8")
         for source, fragments in {
             "progressView.js": [

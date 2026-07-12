@@ -3,9 +3,9 @@ file: src/mediapipeline/core/maintenance/__init__.py
 pipeline_stage: n/a
 token_priority: low
 owner_domain: maintenance
-last_modified: 2026-05-28
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 0fdf54f30a754dc990311a48aa909054fe22431fbfb1945c25f8f53d0aa423f7
+sha256: 64bd8e92ad3b3938377d712afb7346173637517b84477e01de949e6aea9d9cc6
 ---
 # `src/mediapipeline/core/maintenance/__init__.py`
 

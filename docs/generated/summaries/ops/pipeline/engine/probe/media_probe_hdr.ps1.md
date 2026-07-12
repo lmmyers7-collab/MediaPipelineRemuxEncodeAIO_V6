@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: probe
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 0adacc33eceedf8bc398ef4daeab55a9ee1e58132528d3f51fdba4dd7fcd8b3b
+sha256: 967bada68f8f0648509d921b4cfbb257b26d0a432fb374f57bcbc49e5f78ae2d
 ---
 # `ops/pipeline/engine/probe/media_probe_hdr.ps1`
 

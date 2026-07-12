@@ -836,7 +836,6 @@ def _node_runner_source() -> str:
           "Diagnostics actions below use backend allowlists",
           "never sends arbitrary filesystem paths",
           "Selected-row diagnostic order:",
-          "Diagnostics bridge:",
         ]);
         const readyPendingSampleValidationHandoff = context.pendingSampleValidationHandoffLines({
           drain_recommendation: "ready",
@@ -1503,7 +1502,7 @@ def _node_runner_source() -> str:
             "Cross-check: Completed Manifest correlation -> Durable drain summary -> Queue/source route evidence before rerun -> Recovery class manifest_repair",
             "Decision: do not run Drain Parked Outputs for this row until pending artifacts and logs explain the blocker.",
             "Table status: blocked",
-            "Focused views: do not drain, missing payload, invalid manifest, missing sidecars",
+            "Focused views: do not drain, failed, missing payload, invalid manifest, missing sidecars, evidence missing",
             "Selected row visible in table: yes",
             "- do not drain: do_not_drain",
             "- missing payload:",
@@ -1518,8 +1517,7 @@ def _node_runner_source() -> str:
             "Selected diagnostic status: unreadable_manifest",
             "Drain recommendation: do_not_drain",
             "Recovery class: manifest_repair",
-            "Selected-row diagnostic order: open the row manifest, read Last Stderr, then open Run Logs before another drain attempt.",
-            "Diagnostics bridge:",
+            "Selected-row diagnostic order: open the row manifest, then open Run Logs before another drain attempt.",
           ]);
           context.document.getElementById("pending-filter").value = "definitely-no-pending-match";
           context.renderPendingRows();

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: b008a65bbc65c3c66fff31d37e413220651f64b1c2c6e1a071b88f9e7977b08a
+sha256: 905de5c05735de55df8b1c8db15e439173a9ce7789619cd88192b61b1d365600
 ---
 # `apps/desktop/webview/static/assets/settings/patchReview.js`
 

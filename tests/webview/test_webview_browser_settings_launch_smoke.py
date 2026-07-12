@@ -159,11 +159,19 @@ def _browser_settings_launch_runner_source() -> str:
                 if (!row) throw new Error("missing override row " + key + " in " + (card.dataset.libraryId || "library"));
                 return row;
               }
-              function setLibraryDesignation(card, value) {
-                const select = card.querySelector('[data-library-field="designation"]');
-                if (!select) throw new Error("missing designation select for " + (card.dataset.libraryId || "library"));
-                select.value = value;
-                select.dispatchEvent(new Event("change", { bubbles: true }));
+              async function setLibraryDesignation(card, value) {
+                const libraryId = card.dataset.libraryId || "library";
+                const deadline = Date.now() + 10000;
+                while (Date.now() < deadline) {
+                  const currentCard = libraryCard(libraryId);
+                  if (currentCard !== card) return currentCard;
+                  const select = currentCard.querySelector('[data-library-field="designation"]');
+                  if (!select) throw new Error("missing designation select for " + libraryId);
+                  select.value = value;
+                  select.dispatchEvent(new Event("change", { bubbles: true }));
+                  await new Promise((resolve) => setTimeout(resolve, 100));
+                }
+                throw new Error("designation change handler did not rerender library " + libraryId);
               }
               function setOverrideValue(row, value) {
                 const control = row.querySelector("[data-library-override-control]");
@@ -241,8 +249,7 @@ def _browser_settings_launch_runner_source() -> str:
                 throw new Error("Library route boundary control did not update backend tolerance override fields");
               }
 
-              setLibraryDesignation(tvCard, "auto");
-              tvCard = libraryCard("tv");
+              tvCard = await setLibraryDesignation(tvCard, "auto");
               const autoMovie1080pRow = requireRow(tvCard, "MovieRoute1080pTargetSizeGB");
               requireRow(tvCard, "TVRoute1080pTargetSizeGB");
               setOverrideValue(autoMovie1080pRow, "9");
@@ -250,8 +257,7 @@ def _browser_settings_launch_runner_source() -> str:
                 throw new Error("Edited movie 1080p target did not become an explicit override while TV profile was Auto");
               }
 
-              setLibraryDesignation(tvCard, "tv");
-              tvCard = libraryCard("tv");
+              tvCard = await setLibraryDesignation(tvCard, "tv");
               if (overrideRow(tvCard, "MovieRoute1080pTargetSizeGB")) {
                 throw new Error("TV profile kept Movie 1080p target visible after switching back from Auto");
               }
@@ -435,9 +441,7 @@ def _browser_settings_launch_runner_source() -> str:
             }
             [
               "showPage",
-              "renderSettings",
               "renderSettingsPatchSummary",
-              "renderSettingsRawActionPlan",
               "externalDependencyRows",
               "markSettingsPatchTouched",
               "settingsPatchHasUnsavedChanges",
@@ -449,6 +453,11 @@ def _browser_settings_launch_runner_source() -> str:
               "renderAllLaunchPreflights",
               "getCommandHistory",
             ].forEach(requireFunction);
+            ["renderSettings", "renderSettingsRawActionPlan"].forEach((name) => {
+              if (typeof window.mediaPipelineSettingsView?.[name] !== "function") {
+                throw new Error("Missing WebView function: mediaPipelineSettingsView." + name);
+              }
+            });
             ["settingsRawActionPlanRows", "settingsRawActionPlanStatus"].forEach((name) => {
               if (typeof window.mediaPipelineSettingsView?.[name] !== "function") {
                 throw new Error("missing Settings namespace function " + name);
@@ -482,7 +491,7 @@ def _browser_settings_launch_runner_source() -> str:
             setInput("queue-filter", "Launch Visible Ready");
             window.mediaPipelineQueueView.renderQueueRows();
 
-            window.renderSettings(payload.settings);
+            window.mediaPipelineSettingsView.renderSettings(payload.settings);
             window.showPage("settings");
             requireDefaultVisibleFreeSpaceReserves();
             requireDefaultVisibleAssSsaCheckboxes();
@@ -701,14 +710,14 @@ def _browser_settings_launch_runner_source() -> str:
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {
-                expression: `Boolean(document.readyState === "complete" && document.getElementById("settings-patch-json") && document.getElementById("launch-settings-intent-summary") && typeof window.renderSettings === "function" && typeof window.externalDependencyRows === "function" && typeof window.markSettingsPatchTouched === "function" && typeof window.getCommandHistory === "function" && typeof window.mediaPipelineLaunchView.renderAllLaunchPreflights === "function")`,
+                expression: `Boolean(document.readyState === "complete" && document.getElementById("settings-patch-json") && document.getElementById("launch-settings-intent-summary") && typeof window.mediaPipelineSettingsView?.renderSettings === "function" && typeof window.externalDependencyRows === "function" && typeof window.markSettingsPatchTouched === "function" && typeof window.getCommandHistory === "function" && typeof window.mediaPipelineLaunchView.renderAllLaunchPreflights === "function")`,
                 returnByValue: true,
               });
               if (ready.result?.value === true) break;
               await sleep(150);
             }
             const ready = await client.send("Runtime.evaluate", {
-              expression: `Boolean(document.readyState === "complete" && document.getElementById("settings-patch-json") && document.getElementById("launch-settings-intent-summary") && typeof window.renderSettings === "function" && typeof window.externalDependencyRows === "function" && typeof window.markSettingsPatchTouched === "function" && typeof window.getCommandHistory === "function" && typeof window.mediaPipelineLaunchView.renderAllLaunchPreflights === "function")`,
+              expression: `Boolean(document.readyState === "complete" && document.getElementById("settings-patch-json") && document.getElementById("launch-settings-intent-summary") && typeof window.mediaPipelineSettingsView?.renderSettings === "function" && typeof window.externalDependencyRows === "function" && typeof window.markSettingsPatchTouched === "function" && typeof window.getCommandHistory === "function" && typeof window.mediaPipelineLaunchView.renderAllLaunchPreflights === "function")`,
               returnByValue: true,
             });
             if (ready.result?.value !== true) {
@@ -726,7 +735,9 @@ def _browser_settings_launch_runner_source() -> str:
             });
             if (result.exceptionDetails) {
               const details = result.exceptionDetails;
-              throw new Error(details.exception?.description || details.exception?.value || details.text || "browser evaluation failed");
+              const evaluationError = details.exception?.description || details.exception?.value || details.text || "browser evaluation failed";
+              const browserNoise = client.exceptions.concat(client.consoleEvents).join("; ");
+              throw new Error(evaluationError + (browserNoise ? "\nBrowser events: " + browserNoise : ""));
             }
             await sleep(750);
             const errorEvents = client.consoleEvents.filter((entry) => entry.startsWith("error:") || entry.startsWith("warning:"));

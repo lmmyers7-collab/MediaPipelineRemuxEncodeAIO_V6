@@ -3,9 +3,9 @@ file: tests/webview/test_webview_browser_sample_validation_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-23
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: ca631fdb8700bf31b4f99c51e0e425f6c1ac8e10d9841084cedee1849a7d4cb4
+sha256: 2eb0353273793cd3b627d327abead337bc235139bd384266615cf7d4f3c45487
 ---
 # `tests/webview/test_webview_browser_sample_validation_smoke.py`
 

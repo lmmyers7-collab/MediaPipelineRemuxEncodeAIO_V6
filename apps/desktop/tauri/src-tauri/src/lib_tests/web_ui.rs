@@ -51,7 +51,7 @@ fn validate_backend_web_ui_requires_index_and_real_media_assets_without_leaking_
     let app_script = r#"async function refreshAllNow() {
   await apiGet("/api/sample-validation?limit=10");
   const crossPageContext = {
-    settings: values.settings || getLastSettings(),
+    settings: values.settings || window.mediaPipelineSettingsView.getLastSettings(),
   };
   renderCrossPageContext(crossPageContext);
   window.mediaPipelineFloatingPipelineLog?.renderFloatingPipelineLog?.(values.diagnostics);
@@ -658,7 +658,7 @@ fn validate_backend_web_ui_reports_missing_fragments_without_token() {
     let app_script = r#"async function refreshAllNow() {
   await apiGet("/api/sample-validation?limit=10");
   const crossPageContext = {
-    settings: values.settings || getLastSettings(),
+    settings: values.settings || window.mediaPipelineSettingsView.getLastSettings(),
   };
   renderCrossPageContext(crossPageContext);
   window.mediaPipelineFloatingPipelineLog?.renderFloatingPipelineLog?.(values.diagnostics);

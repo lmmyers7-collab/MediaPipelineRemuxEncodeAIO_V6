@@ -876,6 +876,8 @@
         settingsCommandHistoryLine,
         settingsFieldAllowedValues,
         settingsFieldDefinition,
+        settingsFriendlyPersistedKeyAliases,
+        settingsHasBackendFieldDefinitions,
         settingsPatchCandidateValue,
         settingsPatchComplexBackendKeys,
         settingsPatchEffectiveChangedEntries,

@@ -187,10 +187,14 @@
       collectRenameTvFilterTerms,
       documentRef: document,
       loadRenameMovieFilterCatalog,
+      parseRenameFilterTerms,
+      RENAME_CLEAN_FILENAME_PREVIEW_ROUTE,
       renameCleaningNode,
       renderRenameCleaningFilterEditor,
+      saveRenameCleaningFilterDraft,
       saveRenameCleaningFilterState,
       setText: typeof setText === "function" ? setText : window.setText,
+      submitRenameBadCasePayload: (...args) => window.mediaPipelineRenameView?.submitRenameBadCasePayload?.(...args),
       state: {
         get inFlight() { return renameWorkbenchInFlight; },
         set inFlight(value) { renameWorkbenchInFlight = Boolean(value); },
@@ -376,7 +380,7 @@
   delete window.__renamePathsModule;
   const _renamePaths = typeof __renamePathsMod.createRenamePathsModule === "function"
     ? __renamePathsMod.createRenamePathsModule({
-      apiPost: typeof apiPost === "function" ? apiPost : window.apiPost,
+      apiPost: (...args) => (typeof apiPost === "function" ? apiPost : window.apiPost)(...args),
       appendCommandResult: typeof appendCommandResult === "function" ? appendCommandResult : window.appendCommandResult,
       byId: typeof byId === "function" ? byId : window.byId,
       documentRef: document,
@@ -719,6 +723,7 @@
     ? __renameDialogsMod.createRenameDialogsModule({
       byId: typeof byId === "function" ? byId : window.byId,
       documentRef: document,
+      previewRenderLimit: RENAME_PREVIEW_RENDER_LIMIT,
       renameConfirmBasename,
       renameDialogById,
       renameLastApplyUndoCounts,
@@ -726,6 +731,7 @@
       renderRenameUndoConfirmSummary,
       setText: typeof setText === "function" ? setText : window.setText,
       state: {
+        get rows() { return lastRenameRows; },
         get lastUndoManifest() { return lastRenameUndoManifest; },
       },
       windowRef: window,

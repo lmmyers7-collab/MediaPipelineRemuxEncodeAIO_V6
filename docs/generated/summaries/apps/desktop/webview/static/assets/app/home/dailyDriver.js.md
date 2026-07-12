@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 447d287567c70a12af6192232a05f9a2e80b4ae626d5888d46f5b9697fbd361e
+sha256: eb99ac5153f8256d69759df83bd15abd8296cbbb5ca5fa28b1036291d1418d7e
 ---
 # `apps/desktop/webview/static/assets/app/home/dailyDriver.js`
 

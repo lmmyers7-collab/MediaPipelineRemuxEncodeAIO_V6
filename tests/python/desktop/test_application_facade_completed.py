@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -223,6 +224,8 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
                         "source_path": str(source),
                         "source_size": 8192,
                         "output_size": parked_file.stat().st_size,
+                        "output_sha256": hashlib.sha256(parked_file.read_bytes()).hexdigest(),
+                        "output_hash_algorithm": "SHA256",
                         "publish_mode": "deferred",
                         "sidecar_files": [],
                         "tx3g_srt_tracks": [],

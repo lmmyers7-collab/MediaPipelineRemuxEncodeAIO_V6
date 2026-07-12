@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_audit_rerun_records.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 8020bee3a905bdc681ded586a1bdfa6b6b6b7dab49ecb3d1aca311fa37fd539b
+sha256: e988a1db4d177f9431a356dcd83e5efa17e5d4fe9c81e8bf4a7744723de9d1d9
 ---
 # `tests/python/desktop/test_service_audit_rerun_records.py`
 

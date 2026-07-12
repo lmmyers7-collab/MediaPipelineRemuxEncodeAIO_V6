@@ -203,8 +203,18 @@ class _SmokeResolvedState:
 
 def _validate_patch_static_assets(base_url: str) -> None:
     _validate_static_assets(base_url)
-    status, settings_js = _get_json_text(f"{base_url}/assets/settingsView.js")
-    _require_status(status, "/assets/settingsView.js")
+    settings_parts = []
+    for asset_path in (
+        "assets/settingsView.js",
+        "assets/settings/policyImpact.js",
+        "assets/settings/backendResult.js",
+        "assets/settings/view/impact.js",
+        "assets/settings/view/commands.js",
+    ):
+        status, settings_js = _get_json_text(f"{base_url}/{asset_path}")
+        _require_status(status, f"/{asset_path}")
+        settings_parts.append(settings_js)
+    settings_js = "\n".join(settings_parts)
     for fragment, label in (
         ("lastSettingsPatchPreviewEvidence", "preview evidence tracking"),
         ("lastSettingsPatchSaveEvidence", "save evidence tracking"),

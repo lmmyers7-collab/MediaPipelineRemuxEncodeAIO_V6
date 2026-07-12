@@ -32,7 +32,7 @@ TAURI_SRC_ROOT = find_repo_root(Path(__file__)) / "apps" / "desktop" / "tauri" /
 
 
 def _read_tauri_sources() -> str:
-    return "\n".join(path.read_text(encoding="utf-8") for path in sorted(TAURI_SRC_ROOT.glob("*.rs")))
+    return "\n".join(path.read_text(encoding="utf-8") for path in sorted(TAURI_SRC_ROOT.rglob("*.rs")))
 
 
 class TestTauriPG1CloseAdversarialScaffold(unittest.TestCase):

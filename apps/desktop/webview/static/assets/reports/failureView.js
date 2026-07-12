@@ -119,6 +119,7 @@
       renderFailureDetail(getSelectedFailureRow());
       renderFailureRows();
       updateFailureClearConfirmState();
+      renderFailureReviewBoard();
       renderReportTriage();
     }
 

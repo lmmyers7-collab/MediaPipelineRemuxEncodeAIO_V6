@@ -436,13 +436,19 @@ foreach ($case in $snapshotCases) {
     Assert-True (@($plan.DescriptorSelection.ResolutionTrace).Count -gt 0) "Descriptor selection trace missing for $($case.Name)."
 }
 
-$av1LegacyPlan = New-PlanFromCase -Overrides @{ VideoCodec = 'av1_nvenc' }
-Assert-Equal ([string]$av1LegacyPlan.SelectedEncoder) 'av1_nvenc' 'Dormant AV1 primary plan should still expose the literal legacy encoder.'
-Assert-Equal ([bool]$av1LegacyPlan.DescriptorSelection.Resolved) $true 'Dormant AV1 descriptor selection should resolve as evidence.'
-Assert-Equal ([bool]$av1LegacyPlan.DescriptorSelection.Active) $false 'Dormant AV1 descriptor selection must not claim active descriptor flag ownership.'
-Assert-Equal ([string]$av1LegacyPlan.DescriptorSelection.PrimaryEncoder) 'av1_nvenc' 'Dormant AV1 descriptor primary evidence mismatch.'
-Assert-Equal ([string]$av1LegacyPlan.DescriptorSelection.CpuFallbackEncoder) 'libaom-av1' 'Dormant AV1 descriptor fallback evidence mismatch.'
-Assert-True ([string]$av1LegacyPlan.DescriptorSelection.Reason -match 'descriptor flags are not active') 'Dormant AV1 descriptor selection should explain that activation is still disabled.'
+$av1NvencPlan = New-PlanFromCase -Overrides @{ VideoCodec = 'av1_nvenc' }
+Assert-Equal ([string]$av1NvencPlan.SelectedEncoder) 'av1_nvenc' 'AV1/NVENC primary plan should expose the descriptor encoder.'
+Assert-Equal ([bool]$av1NvencPlan.DescriptorSelection.Resolved) $true 'AV1/NVENC descriptor selection should resolve.'
+Assert-Equal ([bool]$av1NvencPlan.DescriptorSelection.Active) $true 'AV1/NVENC descriptor selection must claim active descriptor flag ownership.'
+Assert-Equal ([string]$av1NvencPlan.DescriptorSelection.PrimaryEncoder) 'av1_nvenc' 'AV1/NVENC descriptor primary evidence mismatch.'
+Assert-Equal ([string]$av1NvencPlan.DescriptorSelection.CpuFallbackEncoder) 'libaom-av1' 'AV1/NVENC descriptor fallback evidence mismatch.'
+Assert-Equal ([string]$av1NvencPlan.DescriptorSelection.DescriptorBackend) 'nvenc' 'AV1/NVENC descriptor backend mismatch.'
+Assert-Equal (@($av1NvencPlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|av1_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'AV1/NVENC SDR command topology mismatch.'
+
+$av1NvencHdrPlan = New-PlanFromCase -Overrides @{ VideoCodec = 'av1_nvenc'; IsHDR = $true }
+Assert-Equal ([string]$av1NvencHdrPlan.SelectedEncoder) 'av1_nvenc' 'AV1/NVENC HDR plan should expose the descriptor encoder.'
+Assert-Equal ([bool]$av1NvencHdrPlan.DescriptorSelection.Active) $true 'AV1/NVENC HDR descriptor selection should be active.'
+Assert-Equal (@($av1NvencHdrPlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|av1_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M|-pix_fmt|p010le|-color_primaries|bt2020|-color_trc|smpte2084|-colorspace|bt2020nc|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'AV1/NVENC HDR command topology mismatch.'
 
 $av1CpuFallbackPlan = New-PlanFromCase -Overrides @{ VideoCodec = 'av1_nvenc'; UseCpuFallback = $true; CpuMaxThreads = 8 }
 Assert-Equal ([string]$av1CpuFallbackPlan.SelectedEncoder) 'libaom-av1' 'AV1/NVENC CPU fallback should use the AV1 CPU descriptor encoder.'
@@ -511,11 +517,11 @@ $libx265ExplicitNvencReadiness = Resolve-MediaEncoderActivationReadiness -VideoC
 Assert-Equal ([bool]$libx265ExplicitNvencReadiness.ok) $false 'Explicit NVENC backend must not newly activate libx265-to-NVENC override selection.'
 Assert-Equal ([string]$libx265ExplicitNvencReadiness.error_code) 'ENCODE_ENCODER_NOT_ACTIVE' 'Explicit libx265-to-NVENC inactive error code mismatch.'
 $av1Readiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'av1_nvenc'
-Assert-Equal ([bool]$av1Readiness.ok) $false 'AV1/NVENC should remain inactive until descriptor activation and validation.'
-Assert-Equal ([string]$av1Readiness.error_code) 'ENCODE_ENCODER_NOT_ACTIVE' 'AV1/NVENC inactive readiness error code mismatch.'
+Assert-Equal ([bool]$av1Readiness.ok) $true 'AV1/NVENC should be active for literal descriptor-owned selection.'
+Assert-Equal ([string]$av1Readiness.descriptor_encoder) 'av1_nvenc' 'AV1/NVENC readiness descriptor mismatch.'
 $av1ExplicitNvencReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'av1_nvenc' -EncoderBackend 'nvenc'
-Assert-Equal ([bool]$av1ExplicitNvencReadiness.ok) $false 'Explicit AV1/NVENC backend must remain inactive until hardware validation gates are complete.'
-Assert-Equal ([string]$av1ExplicitNvencReadiness.error_code) 'ENCODE_ENCODER_NOT_ACTIVE' 'Explicit AV1/NVENC inactive readiness error code mismatch.'
+Assert-Equal ([bool]$av1ExplicitNvencReadiness.ok) $true 'Explicit NVENC backend should preserve active AV1/NVENC literal selection.'
+Assert-Equal ([string]$av1ExplicitNvencReadiness.descriptor_encoder) 'av1_nvenc' 'Explicit AV1/NVENC readiness descriptor mismatch.'
 $libaomReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'libaom-av1'
 Assert-Equal ([bool]$libaomReadiness.ok) $true 'libaom AV1 primary should be active for descriptor-owned AV1 CPU flags.'
 Assert-Equal ([string]$libaomReadiness.descriptor_encoder) 'libaom-av1' 'libaom AV1 primary readiness descriptor mismatch.'
@@ -549,7 +555,7 @@ Assert-Throws {
 
 Assert-Throws {
     New-PlanFromCase -Overrides @{ VideoCodec = 'av1_nvenc'; IsHDR = $true; Hdr10PlusJsonPath = 'dynamic_hdr\hdr10plus.json' } | Out-Null
-} 'Dynamic HDR x265 params must not be accepted by dormant primary descriptor evidence paths.'
+} 'Dynamic HDR x265 params must not be accepted by AV1/NVENC primary descriptor paths.'
 
 Assert-Throws {
     New-PlanFromCase -Overrides @{ UseCpuFallback = $true; DolbyVisionRpuPath = 'dynamic_hdr\rpu.bin'; DolbyVisionTargetProfile = '8.1' } | Out-Null
@@ -675,18 +681,19 @@ Assert-Equal (@($h264CpuFlags) -join '|') '-c:v|libx264|-preset|medium|-crf|20|-
 Assert-Throws { New-EncoderVideoFlags -Descriptor $h264CpuDescriptor -IsHDR:$true -VideoCodec 'libx264' -VideoPreset 'p7' -VideoQuality 22 | Out-Null } 'H.264/CPU HDR use must fail closed until HDR preservation is proven.'
 
 $av1NvencDescriptor = Get-MediaEncoderDescriptor -Family 'av1' -Backend 'nvenc'
-Assert-True ($null -ne $av1NvencDescriptor) 'Dormant AV1/NVENC descriptor must exist before activation work.'
+Assert-True ($null -ne $av1NvencDescriptor) 'AV1/NVENC descriptor must exist for active selection.'
 Assert-Equal ([string]$av1NvencDescriptor.EncoderName) 'av1_nvenc' 'AV1/NVENC descriptor encoder mismatch.'
 Assert-Equal ([string]$av1NvencDescriptor.RateControlKind) 'nvenc_cq' 'AV1/NVENC descriptor rate-control mismatch.'
 Assert-Equal ([bool]$av1NvencDescriptor.SupportsHdr10Metadata) $true 'AV1/NVENC descriptor should be able to carry HDR10 color metadata.'
-Assert-True ($null -eq (Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'av1_nvenc' -UseCpuFallback:$false)) 'AV1/NVENC must keep the legacy branch until activation work.'
+Assert-Equal ([string](Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'av1_nvenc' -UseCpuFallback:$false).EncoderName) 'av1_nvenc' 'AV1/NVENC primary flags must be descriptor-owned.'
+Assert-Equal ([string](Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'av1_nvenc' -EncoderBackend 'nvenc').EncoderName) 'av1_nvenc' 'Explicit AV1/NVENC backend primary flags must be descriptor-owned.'
 
 $av1NvencSdrFlags = @(New-EncoderVideoFlags `
     -Descriptor $av1NvencDescriptor `
     -VideoCodec 'av1_nvenc' `
     -VideoPreset 'p7' `
     -VideoQuality 22)
-Assert-Equal (@($av1NvencSdrFlags) -join '|') '-c:v|av1_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M' 'Dormant AV1/NVENC SDR descriptor flags mismatch.'
+Assert-Equal (@($av1NvencSdrFlags) -join '|') '-c:v|av1_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M' 'AV1/NVENC SDR descriptor flags mismatch.'
 Assert-True (-not (@($av1NvencSdrFlags) -contains '-profile:v')) 'AV1/NVENC must not inherit HEVC profile flags for SDR.'
 
 $av1NvencHdrFlags = @(New-EncoderVideoFlags `
@@ -695,7 +702,7 @@ $av1NvencHdrFlags = @(New-EncoderVideoFlags `
     -VideoCodec 'av1_nvenc' `
     -VideoPreset 'p7' `
     -VideoQuality 22)
-Assert-Equal (@($av1NvencHdrFlags) -join '|') '-c:v|av1_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M|-pix_fmt|p010le|-color_primaries|bt2020|-color_trc|smpte2084|-colorspace|bt2020nc' 'Dormant AV1/NVENC HDR descriptor flags mismatch.'
+Assert-Equal (@($av1NvencHdrFlags) -join '|') '-c:v|av1_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M|-pix_fmt|p010le|-color_primaries|bt2020|-color_trc|smpte2084|-colorspace|bt2020nc' 'AV1/NVENC HDR descriptor flags mismatch.'
 Assert-True (-not (@($av1NvencHdrFlags) -contains '-profile:v')) 'AV1/NVENC HDR must omit HEVC-style main10 profile flags.'
 
 $av1CpuDescriptor = Get-MediaEncoderDescriptor -Family 'av1' -Backend 'cpu'

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 1329818bfaaf0dd5779cd7f0e25909aef695f79dfe9cc9c42997358db5e21530
+sha256: 601f60236bc512296d7932a1754e095c9354cee253b61837d5ee809d30656915
 ---
 # `src/mediapipeline/core/processes/preflight_support.py`
 

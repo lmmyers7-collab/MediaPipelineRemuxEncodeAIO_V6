@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 3bfe4f4626828e444a59662d090e3c13f51dee126485bf91c972729826cc99c3
+sha256: ff8378b6e00e07e140808e593f166e9db36584fb26aba9d38cef11935f5f751a
 ---
 # `apps/desktop/webview/static/assets/settings/patchInteractions.js`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 857a206f46954cd66792cc6953d7a955592419173292be8f87bf231898726e15
+sha256: 3407493ec2bd18d4b3bb0155f2687de1cacc6cfad8a1d762c9f2d08066b51d65
 ---
 # `apps/desktop/webview/static/assets/app/dashboard.js`
 

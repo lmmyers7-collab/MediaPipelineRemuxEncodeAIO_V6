@@ -3,9 +3,9 @@ file: tests/webview/test_webview_pipeline_log_window_static.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-24
-sha256: a9ad4776fd6114078c9bafd494a5b93c90453b2456d0b1c381eeaa82871c4dc4
+sha256: f9099893a504e677b25884acb46d69fd2b7cea533c35d982676dd187d761a146
 ---
 # `tests/webview/test_webview_pipeline_log_window_static.py`
 

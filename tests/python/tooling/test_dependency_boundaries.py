@@ -10,49 +10,10 @@ from mediapipeline.tools.paths import find_repo_root
 
 
 REPO_ROOT = find_repo_root(Path(__file__))
-PHASE0_LEDGER_PATH = REPO_ROOT / "docs" / "implementation" / "architecture-boundary-cleanup" / "EDGE_LEDGER.md"
+ALLOWLIST_PATH = REPO_ROOT / "docs" / "architecture" / "dependency_boundary_allowlist.txt"
 sys.path.insert(0, str(REPO_ROOT / "src" / "mediapipeline" / "tools" / "dev"))
 
 import check_dependency_boundaries as dependency_check  # noqa: E402
-
-
-def phase0_ledger_rows() -> list[dict[str, str]]:
-    lines = PHASE0_LEDGER_PATH.read_text(encoding="utf-8").splitlines()
-    header = "| id | source module | source path:line | target module | symbols |"
-    try:
-        section = lines.index("## Phase 0 Edge Ledger")
-        start = next(
-            index
-            for index, line in enumerate(lines[section:], start=section)
-            if line.startswith(header)
-        )
-    except (StopIteration, ValueError) as exc:  # pragma: no cover - failure message from assertion is enough.
-        raise AssertionError("Phase 0 edge ledger table header was not found.") from exc
-
-    rows: list[dict[str, str]] = []
-    for line in lines[start + 2 :]:
-        if not line.startswith("| "):
-            break
-        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        if len(cells) < 12:
-            continue
-        rows.append(
-            {
-                "id": cells[0],
-                "source_module": cells[1],
-                "source_path_line": cells[2],
-                "target_module": cells[3],
-                "symbols": cells[4],
-                "category": cells[5],
-                "final_owner": cells[6],
-                "phase": cells[7],
-                "compatibility_export": cells[8],
-                "tests": cells[9],
-                "allowlist_action": cells[10],
-                "status": cells[11],
-            }
-        )
-    return rows
 
 
 def write_module(root: Path, relative_path: str, body: str = "") -> None:
@@ -273,18 +234,14 @@ class DependencyBoundaryTests(unittest.TestCase):
             self.assertIn("permanently enforced", errors[0].detail)
             self.assertEqual(dependency_check.main(["--root", str(root), "--allowlist", str(allowlist)]), 1)
 
-    def test_phase7_ledger_closes_core_to_desktop_rows(self) -> None:
-        unfinished_rows = [
-            row
-            for row in phase0_ledger_rows()
-            if row["target_module"].startswith("mediapipeline.desktop")
-            and row["status"] in {"open", "migrating"}
-        ]
+    def test_phase7_no_core_to_desktop_boundary_is_permanently_enforced(self) -> None:
+        entries, errors = dependency_check.load_allowlist(ALLOWLIST_PATH)
 
-        self.assertEqual(
-            unfinished_rows,
-            [],
-            "All #23 NO_CORE_TO_DESKTOP ledger rows must be migrated, blocked with a separate issue, or out of scope.",
+        self.assertEqual(errors, [])
+        self.assertNotIn("NO_CORE_TO_DESKTOP", {entry.rule_id for entry in entries})
+        self.assertIn(
+            "NO_CORE_TO_DESKTOP is permanently enforced",
+            ALLOWLIST_PATH.read_text(encoding="utf-8"),
         )
 
     def test_current_repository_dependency_check_passes_with_allowlist(self) -> None:

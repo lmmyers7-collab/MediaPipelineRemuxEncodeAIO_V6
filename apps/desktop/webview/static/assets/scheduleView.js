@@ -372,7 +372,7 @@
   } = scheduleEditorModule.createScheduleEditorModule({
     appendCells,
     appendCommandResult: (...args) => window["appendCommandResult"](...args),
-    apiPost: (...args) => window["apiPost"](...args),
+    apiPost: window["apiPost"],
     byId,
     clearRows,
     getSchedule: () => lastSchedule,

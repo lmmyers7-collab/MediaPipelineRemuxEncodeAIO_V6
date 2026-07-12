@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: completed
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: e6ca6d1a48ca29fdb413cfcdafe73ed43640405e2614d7deff42633e6673235e
+sha256: 3baddc4e15143032ef82219e4a82c0eee84d9e6e6d884a20d027db21405a1191
 ---
 # `src/mediapipeline/core/completed/policy_quality.py`
 

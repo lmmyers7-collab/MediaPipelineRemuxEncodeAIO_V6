@@ -80,3 +80,64 @@ until representative encode and remux samples provide source/output ffprobe
 JSON, sidecar evidence, Dynamic HDR artifacts where applicable, source hashes,
 and playback observations. Dynamic HDR playback-device validation remains a
 per-profile gate; no new device compatibility claim is made here.
+
+## 2026-07-11 recurring refresh
+
+- Change packet: `MP-CHANGE-2026-0711-010`.
+- Target: branch `refactor/mediapipeline-entrypoint-slice`, clean commit
+  `34c194219234fd0a535164038729f110fd7d0f2c` for package evidence.
+- Real-media status: blocked before materialization or processing. The strict
+  Policy Proof Pack verifier reported that the checked-in catalog still uses
+  placeholder SHA-256 values; the configured external fixture root and local
+  `policy_proof_sources.json` mapping were also absent. All 15 catalog fixtures
+  are therefore unprovisioned. No source media was copied, processed, drained,
+  renamed, deleted, or modified, and no current source/output hashes or ffprobe
+  evidence were produced.
+- Blocked categories: representative remux; encode and size policy; ASS/SSA,
+  TX3G, and BDPGS subtitles; multi-language/default audio routing; deferred
+  pending publish and backend-owned drain; source-hash preservation; Dynamic
+  HDR/profile cases; interruption/rerun resilience; and primary Plex-client
+  playback observations.
+- Package status: the Tauri release shell built successfully, and clean-HEAD
+  portable candidate `MediaPipeline_HEAD_34c1942_Package_20260711` was created
+  with 17,302 included files, 5,983 exclusions, no live config, and source
+  revision `34c194219234fd0a535164038729f110fd7d0f2c`. Candidate prerequisite
+  checks and the copied-package release self-test passed; tool integration and
+  end-to-end media were explicitly skipped, and excluded developer-only
+  tests/freshness checks remained advisory. ZIP SHA-256 is
+  `e74991c0e11f938a0dce3310c1701e16dbbcef1aa160aff044f4bcf872f661e9`;
+  packaged shell SHA-256 is
+  `c4c1ac275668297f1e9ae7d5ea4083fd12b4aaafe898c17eeb24b8c148d86cdb`.
+- Package open/close status: blocked before backend startup because an unrelated
+  Tauri development shell already held the per-user single-instance guard.
+  The packaged process exited with the expected guard error; API health,
+  WebView load, runtime-state externalization, and safe close were not executed
+  and are not claimed.
+
+Real-media prerequisites and rerun commands:
+
+1. Provision approved owned/sanitized clips for all catalog fixture IDs under
+   an external sentinel-controlled PolicyProofPack root.
+2. Replace every catalog placeholder with the matching concrete SHA-256 and
+   create the external-root-only `policy_proof_sources.json` relative-path
+   mapping.
+3. Confirm each source matches its required ffprobe topology and that the
+   saved policy keeps source deletion/cleanup disabled.
+4. Run, substituting the approved external root and a fresh run ID:
+
+   ```powershell
+   .\ops\scripts\operator\Invoke-PolicyProofPack.ps1 -Action verify -FixtureRoot '<approved PolicyProofPack root>'
+   .\ops\scripts\operator\Invoke-PolicyProofPack.ps1 -Action materialize -RunId 'policy-proof-YYYYMMDD-001' -FixtureRoot '<approved PolicyProofPack root>'
+   .\ops\scripts\operator\Invoke-PolicyProofPack.ps1 -Action run -RunId 'policy-proof-YYYYMMDD-001' -FixtureRoot '<approved PolicyProofPack root>'
+   ```
+
+5. Complete the worksheet, source before/after hashes, source/output ffprobe
+   JSON, manifests/sidecars, pending-publish park/drain proof, and primary
+   Plex-client observations required by the active pilot checklist.
+
+Package open/close prerequisite and rerun command: close the existing Tauri
+development shell normally, then from the named candidate root run:
+
+```powershell
+.\apps\desktop\tauri\Test-TauriShell-Launch.ps1 -Mode Packaged -TimeoutSeconds 180 -CloseTimeoutSeconds 30
+```

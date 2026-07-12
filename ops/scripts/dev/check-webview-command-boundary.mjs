@@ -14,7 +14,11 @@ import {
 const outputPath = "docs/generated/WEBVIEW_COMMAND_BOUNDARY_AUDIT.json";
 const contractFiles = [
   "src/mediapipeline/desktop/api/contract_read.py",
-  "src/mediapipeline/desktop/api/contract_command.py",
+  "src/mediapipeline/desktop/api/contract_command_file.py",
+  "src/mediapipeline/desktop/api/contract_command_network.py",
+  "src/mediapipeline/desktop/api/contract_command_operations.py",
+  "src/mediapipeline/desktop/api/contract_command_process.py",
+  "src/mediapipeline/desktop/api/contract_command_settings_ui.py",
 ];
 
 const highRiskEffects = new Set([
@@ -57,9 +61,19 @@ const networkSetupCommandFiles = [
   "apps/desktop/webview/static/assets/network/setup.commands.js",
 ];
 
+const networkSetupEvidenceFiles = [
+  "apps/desktop/webview/static/assets/network/setup.commands.js",
+];
+
 const networkDynamicCommandFiles = new Set([
   ...networkLifecycleCommandFiles,
   ...networkSetupCommandFiles,
+]);
+
+const namespaceApiForwarderFiles = new Set([
+  "apps/desktop/webview/static/assets/launchView.js",
+  "apps/desktop/webview/static/assets/queueView.js",
+  "apps/desktop/webview/static/assets/settingsView.js",
 ]);
 
 const routeOwnerRules = [
@@ -72,6 +86,7 @@ const routeOwnerRules = [
   { route: /^\/api\/settings\//, owners: ["Settings", "Settings Wizard", "Network"] },
   { route: /^\/api\/schedule\//, owners: ["Schedule"] },
   { route: /^\/api\/sample-validation\//, owners: ["Home", "Cross Page"] },
+  { route: /^\/api\/diagnostics\/encoder-capabilities\/refresh$/, owners: ["Diagnostics", "Launch"] },
   { route: /^\/api\/diagnostics\//, owners: ["Diagnostics"] },
   { route: /^\/api\/maintenance\/archive-state-journals$/, owners: ["Launch", "Maintenance"] },
   { route: /^\/api\/maintenance\//, owners: ["Maintenance"] },
@@ -105,13 +120,13 @@ const confirmationRules = [
     route: "/api/network/coordinator/join-blob",
     confirmation: "confirm_create",
     pattern: /confirm_create\s*:\s*true/,
-    evidenceFiles: networkSetupCommandFiles,
+    evidenceFiles: networkSetupEvidenceFiles,
   },
   {
     route: "/api/network/worker/join-cluster",
     confirmation: "confirm_import",
     pattern: /confirm_import\s*:\s*true/,
-    evidenceFiles: networkSetupCommandFiles,
+    evidenceFiles: networkSetupEvidenceFiles,
   },
 ];
 
@@ -162,6 +177,7 @@ const highRiskControlTerms = [
 ];
 
 const localControlRules = [
+  { pattern: /network-open-queue-rerun-button/, classification: "local-navigation" },
   { pattern: /\bnav-button\b|data-page=|data-cross-page-target=/, classification: "local-navigation" },
   { pattern: /data-\w+-tab=|role=["']tab["']|settings-section-nav-btn|data-wizard-step-button=/, classification: "local-tab-navigation" },
   { pattern: /filter|search|column-mode|sort|show|hide|toggle|advanced|evidence|theme|layout-editor|customize-layout|reset-layout/, classification: "local-display-state" },
@@ -181,6 +197,12 @@ const localControlRules = [
 ];
 
 const routeHintRules = [
+  { pattern: /rerun-network-start-dry-run-button/, route: "/api/rerun/network/start-dry-run" },
+  { pattern: /settings-preset-library-load/, route: "/api/settings/preset-library" },
+  { pattern: /settings-preset-library-save/, route: "/api/settings/preset-library/save" },
+  { pattern: /settings-preset-library-export/, route: "/api/settings/preset-library/export" },
+  { pattern: /settings-preset-library-apply-preview/, route: "/api/settings/preset-library/apply-preview" },
+  { pattern: /settings-preset-library-apply/, route: "/api/settings/preset-library/apply" },
   { pattern: /backend-shutdown-button/, route: "/api/backend/shutdown" },
   { pattern: /data-control-action=|pipeline-control|force stop/i, route: "/api/pipeline/control" },
   { pattern: /pipeline-start-button|pipeline start|start pipeline/i, route: "/api/pipeline/start" },
@@ -525,9 +547,13 @@ function collectApiCalls(script) {
 }
 
 function dynamicApiPostAllowed(script, call) {
-  if (!networkDynamicCommandFiles.has(script.path)) return false;
   if (call.function !== "apiPost") return false;
-  const hasLifecycleGuards = script.source.includes("route?.network_lifecycle")
+  const callLine = script.source.split(/\r?\n/)[Math.max(0, call.line - 1)] || "";
+  if (namespaceApiForwarderFiles.has(script.path) && callLine.includes("window.mediaPipelineApi.apiPost(...args)")) {
+    return true;
+  }
+  if (!networkDynamicCommandFiles.has(script.path)) return false;
+  const hasLifecycleGuards = script.source.includes("networkLifecycleRoutePath")
     && script.source.includes("network_lifecycle_contracts")
     && script.source.includes("confirm_start")
     && script.source.includes("confirm_stop");
@@ -584,7 +610,16 @@ function buildReport() {
       }
       if (["apiPost", "apiPostLocal"].includes(call.function) && !call.literal_route) {
         const allowed = dynamicApiPostAllowed(script, call);
-        dynamicApiPosts.push({ file: script.path, line: call.line, allowed, reason: allowed ? "contract-driven Network lifecycle dispatch" : "non-literal apiPost route" });
+        const namespaceForwarder = namespaceApiForwarderFiles.has(script.path)
+          && (script.source.split(/\r?\n/)[Math.max(0, call.line - 1)] || "").includes("window.mediaPipelineApi.apiPost(...args)");
+        dynamicApiPosts.push({
+          file: script.path,
+          line: call.line,
+          allowed,
+          reason: allowed
+            ? (namespaceForwarder ? "late-bound mediaPipelineApi namespace forwarder" : "contract-driven Network lifecycle dispatch")
+            : "non-literal apiPost route",
+        });
         if (!allowed) {
           violations.push({
             rule: "nonliteral-api-post",

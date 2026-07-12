@@ -1,0 +1,38 @@
+{
+  "id": "MP-CHANGE-2026-0711-013",
+  "title": "Review Tauri GTK glib advisory",
+  "version_target": "2026.07.11.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-07-11",
+  "date_completed": "2026-07-11",
+  "summary": "Re-verified the Tauri/Wry GTK/glib Dependabot chain, attempted the supported Cargo upgrade path in isolation, and documented that the advisory remains blocked upstream without affecting the Windows WebView2 package lane.",
+  "reason": "Prevent an incompatible glib override while keeping the release decision, Linux exposure, upgrade trigger, and review deadline current.",
+  "affected_areas": [
+    "docs",
+    "generated-context"
+  ],
+  "behavior_before": "The active records listed the older locked versions and a general upstream-blocked posture without the latest compatible resolver result, advisory function scope, or explicit Linux promotion posture.",
+  "behavior_after": "The active records identify the advisory, exact locked and latest compatible chains, Windows versus Linux reachability, reduced-but-not-proven direct-use exposure, the no-override rule, and a 2026-08-07 re-review deadline.",
+  "files_touched": [
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/summaries/docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md.md",
+    "docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md",
+    "docs/inventories/RELEASE_DEPENDENCY_REVIEW.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0711-013.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "An isolated cargo update resolved tauri 2.11.5 and tauri-runtime-wry 2.11.4 but retained wry 0.55.1, gtk 0.18.2, and glib 0.18.5.",
+    "Current upstream Tauri, tauri-runtime-wry, and Wry dev manifests still require GTK 0.18.",
+    "Packet JSON, required documented evidence fields, the local review link target, and unchanged Cargo.toml/Cargo.lock were validated.",
+    "Static scans found no VariantStrIter references in current Tauri, tauri-runtime-wry, Wry, or GTK sources.",
+    "cargo check --locked --target x86_64-pc-windows-msvc passed for the repository lock.",
+    "cargo tree --locked for x86_64-unknown-linux-gnu and x86_64-pc-windows-msvc confirmed GTK/glib are Linux-target-only while Wry is cross-platform.",
+    "ops/scripts/dev/start-tauri-preview.bat -CheckOnly passed."
+  ],
+  "rollback_plan": "Revert only the #15 checklist text and the advisory sections added or updated in the two dependency inventories; no manifest or lockfile changed.",
+  "related_changes": [],
+  "notes": "Refresh only the #15 glib advisory row with verified upstream and platform evidence.\nDocument target-specific Tauri GTK/glib packaging posture.\nRecord supported upgrade attempt, exposure, trigger, and review deadline.\nNo glib override, Cargo patch, manifest edit, or repository lockfile update was made. Concurrent unrelated worktree changes were not included in this packet.\nThe docs-only release self-test was attempted in foreground and background runs but terminated without a final summary while entering the full desktop Python unit-test phase; no failure diagnostic was emitted. Strict worktree coverage was also run and is blocked only by unrelated MP-CHANGE-2026-0711-011 packet metadata plus uncovered concurrent files.\nRefresh the glib advisory inventory summary."
+}

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: a271dbe9d229cfaacbc341133e5de4b0e54f7e86b94d4a4dcf68bf7c0b135feb
+sha256: ee656031c67f283553f23fcf230a7c6395f269775d064724e82c25e97d18777d
 ---
 # `apps/desktop/webview/static/assets/completed/evidence/pendingProofView.js`
 

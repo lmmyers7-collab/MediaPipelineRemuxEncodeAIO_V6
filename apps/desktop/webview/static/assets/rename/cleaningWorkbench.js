@@ -13,11 +13,15 @@
       collectRenameTvFilterOptions = () => ({}),
       collectRenameTvFilterTerms = () => ({}),
       loadRenameMovieFilterCatalog = () => {},
+      parseRenameFilterTerms = () => [],
+      RENAME_CLEAN_FILENAME_PREVIEW_ROUTE = "",
       renameCleaningNode = () => null,
       renderRenameCleaningFilterEditor = () => {},
+      saveRenameCleaningFilterDraft = () => {},
       saveRenameCleaningFilterState = async () => false,
       setText = () => {},
       state = {},
+      submitRenameBadCasePayload = async () => ({}),
       updateRenameFilterPreview = () => {},
     } = deps;
     const documentRef = deps.documentRef || document;

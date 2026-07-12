@@ -42,6 +42,17 @@ SETTINGS_LIBRARIES_ASSET_NAMES = (
     "settingsLibraries/facade.js",
     "settingsLibraries.js",
 )
+SETTINGS_VIEW_ASSET_NAMES = (
+    "settings/policyImpact.js",
+    "settings/backendResult.js",
+    "settings/view/builder.js",
+    "settings/view/commands.js",
+    "settings/view/facade.js",
+    "settings/view/impact.js",
+    "settings/view/lifecycle.js",
+    "settings/view/review.js",
+    "settingsView.js",
+)
 
 
 def _settings_patch_review_bundle() -> str:
@@ -62,6 +73,13 @@ def _settings_wizard_bundle() -> str:
     return "\n".join(
         (ASSETS_ROOT / asset_name).read_text(encoding="utf-8")
         for asset_name in SETTINGS_WIZARD_ASSET_NAMES
+    )
+
+
+def _settings_view_bundle() -> str:
+    return "\n".join(
+        (ASSETS_ROOT / asset_name).read_text(encoding="utf-8")
+        for asset_name in SETTINGS_VIEW_ASSET_NAMES
     )
 
 
@@ -208,6 +226,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "Publish &amp; Recovery",
             "Naming",
             "Queue &amp; Runtime",
+            "Presets",
             "Evidence",
         ]
         cursor = -1
@@ -225,6 +244,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             'data-settings-tab="publish-recovery"',
             'data-settings-tab="naming"',
             'data-settings-tab="queue-runtime"',
+            'data-settings-tab="presets"',
             'data-settings-tab="advanced-evidence"',
         ):
             self.assertIn(tab, html)
@@ -239,7 +259,6 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             ">Subtitles</button>",
             ">Container</button>",
             ">Verification / Publish</button>",
-            ">Presets</button>",
             ">Rename</button>",
             ">Advanced</button>",
             ">Video / Audio / Subtitles</button>",
@@ -257,7 +276,6 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             'data-settings-tab="subtitles"',
             'data-settings-tab="container"',
             'data-settings-tab="paths"',
-            'data-settings-tab="presets"',
             'data-settings-tab="rename"',
             'data-settings-tab="advanced"',
             'data-settings-tab="media"',
@@ -465,7 +483,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
     def test_encoder_capability_report_is_read_only_settings_evidence(self) -> None:
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
-        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        settings_js = _settings_view_bundle()
         video_builder_js = (STATIC_ROOT / "assets" / "settingsView.builders.video.js").read_text(encoding="utf-8")
 
         for token in (
@@ -500,7 +518,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         ):
             self.assertIn(token, video_builder_js)
 
-        self.assertIn("renderSettingsEncoderCapabilityReport(lastSettings);", settings_js)
+        self.assertIn("renderSettingsEncoderCapabilityReport(state.lastSettings);", settings_js)
         self.assertIn("getLastSettings,", settings_js)
 
         render_block = re.search(
@@ -794,7 +812,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertIn('.settings-slider-field input[type="range"]', styles)
 
     def test_successful_settings_save_resyncs_saved_builder_values(self) -> None:
-        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        settings_js = _settings_view_bundle()
 
         self.assertIn("function resetSettingsBuilderSyncState(options = {})", settings_js)
         self.assertIn("videoDetailSettingsBuilderState,", settings_js)
@@ -807,18 +825,14 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertIn("clearSettingsPatchCandidate();\n      resetSettingsBuilderSyncState();", save_block)
         self.assertIn("scheduleSettingsPostSaveRefresh();", save_block)
         self.assertLess(save_block.index("resetSettingsBuilderSyncState();"), save_block.index("scheduleSettingsPostSaveRefresh();"))
-        self.assertIn(
-            "finalLibraryPromotionSettingsBuilderState.dirty = false;\n      scheduleSettingsPostSaveRefresh();",
-            settings_js,
-        )
-        self.assertIn(
-            "resetSettingsBuilderSyncState({ includeFinalLibraryPromotion: true });\n      await refreshAll();",
-            settings_js,
-        )
+        self.assertIn("finalLibraryPromotionSettingsBuilderState.dirty = false;", settings_js)
+        self.assertIn("scheduleSettingsPostSaveRefresh();", settings_js)
+        self.assertIn("resetSettingsBuilderSyncState({ includeFinalLibraryPromotion: true });", settings_js)
+        self.assertIn("await refreshAll();", settings_js)
 
     def test_advanced_fields_use_metadata_and_fallback_toggle(self) -> None:
         metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
-        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        settings_js = _settings_view_bundle()
         metadata_fields_js = (STATIC_ROOT / "assets" / "settings" / "metadataFields.js").read_text(encoding="utf-8")
         builder_controls_js = (STATIC_ROOT / "assets" / "settings" / "builderControls.js").read_text(encoding="utf-8")
         settings_support_js = settings_js + metadata_fields_js + builder_controls_js
@@ -934,7 +948,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertLessEqual(REPRESENTATIVE_SETTINGS_METADATA_KEYS, mentioned_keys)
 
     def test_main_settings_ui_prefers_backend_field_metadata(self) -> None:
-        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        settings_js = _settings_view_bundle()
         metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
         metadata_fields_js = (STATIC_ROOT / "assets" / "settings" / "metadataFields.js").read_text(encoding="utf-8")
         builder_controls_js = (STATIC_ROOT / "assets" / "settings" / "builderControls.js").read_text(encoding="utf-8")
@@ -993,7 +1007,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
     def test_patch_preview_keeps_persisted_keys_for_backend_labels(self) -> None:
         review_js = _settings_patch_review_bundle()
         metadata_fields_js = (STATIC_ROOT / "assets" / "settings" / "metadataFields.js").read_text(encoding="utf-8")
-        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        settings_js = _settings_view_bundle()
 
         for key in ("RoutingProfile", "RouteThresholdMode", "SizeGuardMode"):
             self.assertIn(f"{key}: settingsBuilderInputValue", review_js)
@@ -1017,7 +1031,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         backend = _backend_metadata_by_key()
         metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
         metadata_fields_js = (STATIC_ROOT / "assets" / "settings" / "metadataFields.js").read_text(encoding="utf-8")
-        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        settings_js = _settings_view_bundle()
         review_js = _settings_patch_review_bundle()
         video_builder_js = (STATIC_ROOT / "assets" / "settingsView.builders.video.js").read_text(encoding="utf-8")
         patch_sources = review_js + video_builder_js
@@ -1056,7 +1070,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
     def test_webview_validation_hints_are_advisory_and_share_backend_alias_policy(self) -> None:
         metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
         review_js = _settings_patch_review_bundle()
-        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        settings_js = _settings_view_bundle()
 
         self.assertEqual(_settings_friendly_alias_entries(), FRIENDLY_LABEL_PERSISTED_KEY_ALIASES)
         for token in (
@@ -1090,7 +1104,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             self.assertIn(token, settings_js)
 
     def test_webview_validation_hints_do_not_replace_backend_preview_or_save_authority(self) -> None:
-        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        settings_js = _settings_view_bundle()
         patch_review_js = _settings_patch_review_bundle()
 
         self.assertIn("const localHintLines = settingsPatchLocalValidationHintLines(changes);", settings_js)
@@ -1313,7 +1327,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertNotIn(f"{patch_writer_flat_alias} =", settings_js)
 
     def test_phase5_completion_gate_webview_surfaces_backend_errors_without_save_authority(self) -> None:
-        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        settings_js = _settings_view_bundle()
         patch_review_js = _settings_patch_review_bundle()
         settings_validation_js = settings_js + patch_review_js
         libraries_js = _settings_libraries_bundle()
@@ -1429,4 +1443,3 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

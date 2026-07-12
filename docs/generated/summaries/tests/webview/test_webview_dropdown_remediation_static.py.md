@@ -3,9 +3,9 @@ file: tests/webview/test_webview_dropdown_remediation_static.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-10
+last_modified: 2026-07-11
 last_reviewed: 2026-06-08
-sha256: 9e55052d3d045dfa1d9c305b6e8fba8e8a05c145124d143f9c3df8379f0b21b0
+sha256: a36cc188bf4acb46fae4325949b3aeaff3dd12ed503ad0f9af186a74fd523d79
 ---
 # `tests/webview/test_webview_dropdown_remediation_static.py`
 

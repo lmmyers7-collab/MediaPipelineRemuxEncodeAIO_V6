@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: b72ba6b2f114e6f97393d250ac9062dbfc983b3eedbc401778964d475bb4f8a1
+sha256: 4da08a3382dec94e0e22ed316d42e433dcf08b90e8f8ea24206978497dedcaad
 ---
 # `apps/desktop/webview/static/assets/app/layoutManager/normalization.js`
 

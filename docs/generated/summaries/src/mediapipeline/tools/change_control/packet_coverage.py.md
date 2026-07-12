@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/change_control/packet_coverage.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-02
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 01025665861c8de322e64566c3acc4bec1fe42ff40a60a6ae6f0fe5522e7eb26
+sha256: fb9dc0f5c1f078b6bcf992e3a0332eeedbe962ab7305f92376e214e90d60b0e0
 ---
 # `src/mediapipeline/tools/change_control/packet_coverage.py`
 

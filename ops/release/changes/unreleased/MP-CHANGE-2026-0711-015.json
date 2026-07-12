@@ -1,0 +1,60 @@
+{
+  "id": "MP-CHANGE-2026-0711-015",
+  "title": "Record blockers for remaining Python dispatcher stages",
+  "version_target": "2026.07.11.001",
+  "status": "complete",
+  "type": "schema",
+  "risk_level": "medium",
+  "date_started": "2026-07-11",
+  "date_completed": "2026-07-11",
+  "summary": "Record machine-readable blockers and validation gates for all four remaining disabled Python dispatcher mutation stages after the next-stage safety audit found none safely enableable from temporary fixtures.",
+  "reason": "Transcode and audio-mix require production media-policy parity plus representative media, while publish and drain require authoritative manifest/final-placement transaction and recovery parity. Enabling a reduced fixture-only executor would create a misleading shadow engine and violate PI-002.",
+  "affected_areas": [
+    "contracts",
+    "docs",
+    "generated-context",
+    "orchestration",
+    "tests"
+  ],
+  "behavior_before": "The four mutation contracts were disabled but exposed no machine-readable explanation of their distinct production-parity and validation prerequisites.",
+  "behavior_after": "Transcode, audio-mix, publish, and drain remain disabled. Each registry contract now carries a stable enablement_blocker and required_validation list, and the StageContract invariant rejects disabled mutation contracts without blockers or enabled contracts that retain blockers. Generated and authoritative docs expose the exact unlock evidence. PowerShell production behavior is unchanged.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/architecture/DECISIONS_AND_HISTORY.md",
+    "docs/generated/PIPELINE_MAP.md",
+    "docs/generated/summaries/docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0711-015.json.md",
+    "docs/generated/summaries/src/mediapipeline/contracts/stages.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/generate_pipeline_map.py.md",
+    "docs/generated/summaries/tests/python/core/contract/test_stage_contracts.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_stage_contracts.py.md",
+    "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+    "docs/testing/TEST_COVERAGE_MATRIX.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0711-015.json",
+    "src/mediapipeline/contracts/stages.py",
+    "src/mediapipeline/tools/dev/generate_pipeline_map.py",
+    "tests/python/core/contract/test_stage_contracts.py",
+    "tests/python/desktop/test_stage_contracts.py"
+  ],
+  "tests_added": [
+    "tests.python.desktop.test_stage_contracts: exact disabled-stage blocker codes, required-validation presence, and no blocker on enabled stages",
+    "tests.python.core.contract.test_stage_contracts: all four disabled mutation contracts expose blocker and validation metadata"
+  ],
+  "manual_validation": [
+    "PASS: focused desktop and core contract suite (15 tests)",
+    "PASS: stage contracts, runner, PowerShell entrypoint, core contracts, and subtitle regression suite (69 tests)",
+    "PASS: Ruff focused Python files",
+    "PASS: generate_stage_schema --check; the Pydantic wire schema is current and unchanged",
+    "PASS: generate_pipeline_map --check",
+    "PASS: Invoke-ContractSchemaChecks.ps1, Invoke-PendingPublishOwnershipChecks.ps1, and Invoke-PendingPublishSafetyChecks.ps1",
+    "PASS: all 17 packet-listed paths exist and the generated map explicitly reports all four remaining stages disabled",
+    "PASS: validate_changes reports all 1042 change packets structurally valid",
+    "PARTIAL: validate_changes --require-worktree-coverage is blocked by 94 unrelated changed paths not listed in any packet; none were absorbed into this packet",
+    "PARTIAL: global refresh_summaries --check reports 659 unrelated stale summaries; every summary owned by this packet was explicitly refreshed",
+    "NOT RUN: representative real-media validation because no remaining stage was enabled and the audit outcome records it as a prerequisite rather than claiming parity"
+  ],
+  "rollback_plan": "Remove enablement_blocker and required_validation from StageContract and the four disabled registry entries, revert the blocker documentation/tests/generator changes, regenerate PIPELINE_MAP and summaries, and rerun contract/schema checks. No PowerShell or media artifact rollback is required because no execution backend or production behavior changed.",
+  "related_changes": [],
+  "notes": "Architectural blocker outcome authorized by PI-002 and the goal: no stage was enabled. No media, source, scratch, output, pending-publish, or final-library path was accessed or mutated. No Local API or frontend route was added. Representative media validation was identified as required for every remaining stage and therefore was not simulated with fixtures. The worktree contains extensive unrelated concurrent changes owned by other packets; they are not absorbed here. Strict global worktree coverage remains an external repository-state gate rather than a defect in this packet: the validator identified 94 unrelated uncovered paths."
+}

@@ -128,6 +128,8 @@ def _schedule_runner_source() -> str:
           },
           addEventListener() {},
         };
+        context.__apiPost = async () => { throw new Error("apiPost fixture is not installed"); };
+        context.apiPost = (...args) => context.__apiPost(...args);
 
         vm.createContext(context);
         for (const asset of payload.assets) {
@@ -173,7 +175,7 @@ def _schedule_runner_source() -> str:
         function changedDays(left, right) {
           return SCHEDULE_DAYS.filter((day) => JSON.stringify(left[day] || []) !== JSON.stringify(right[day] || []));
         }
-        context.apiPost = async (url, body) => {
+        context.__apiPost = async (url, body) => {
           apiPosts.push({ url, body });
           if (url === "/api/schedule/preview") {
             const currentGrid = currentGridFixture();
@@ -460,9 +462,9 @@ def _schedule_runner_source() -> str:
           throw new Error("save button should be disabled after editing a previewed draft");
         }
         requireContains("post-edit save state", text("schedule-editor-save-state"), ["Draft changed", "Preview required"]);
-        const originalApiPost = context.apiPost;
+        const originalApiPost = context.__apiPost;
         let delayedPreviewCalls = 0;
-        context.apiPost = async (url, body) => {
+        context.__apiPost = async (url, body) => {
           if (url === "/api/schedule/preview") {
             delayedPreviewCalls += 1;
             await new Promise((resolve) => setTimeout(resolve, 50));
@@ -480,9 +482,9 @@ def _schedule_runner_source() -> str:
         if (delayedPreviewCalls !== 1) {
           throw new Error(`duplicate preview guard expected 1 backend call, got ${delayedPreviewCalls}`);
         }
-        context.apiPost = originalApiPost;
+        context.__apiPost = originalApiPost;
         let delayedSaveCalls = 0;
-        context.apiPost = async (url, body) => {
+        context.__apiPost = async (url, body) => {
           if (url === "/api/schedule/save") {
             delayedSaveCalls += 1;
             await new Promise((resolve) => setTimeout(resolve, 50));
@@ -500,7 +502,7 @@ def _schedule_runner_source() -> str:
         if (delayedSaveCalls !== 1) {
           throw new Error(`duplicate save guard expected 1 backend call, got ${delayedSaveCalls}`);
         }
-        context.apiPost = originalApiPost;
+        context.__apiPost = originalApiPost;
         if (!apiPosts.some((item) => item.url === "/api/schedule/preview")) {
           throw new Error("schedule preview did not call backend preview route");
         }

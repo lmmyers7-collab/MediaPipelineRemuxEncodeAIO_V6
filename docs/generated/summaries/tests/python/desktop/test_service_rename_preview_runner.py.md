@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_rename_preview_runner.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 2174f9f61875c4ad35243ab2530cde4b1325740d83e0517f472a9781a012480b
+sha256: 72b61998f4ccce406d045401937d3022e6cbe1b14161e071a0fee02d13d3264f
 ---
 # `tests/python/desktop/test_service_rename_preview_runner.py`
 

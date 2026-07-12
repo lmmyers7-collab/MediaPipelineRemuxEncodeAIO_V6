@@ -1,4 +1,4 @@
-/* global THEME_STORAGE_KEY, _layoutRenderDrawer, byId, refreshAll */
+/* global THEME_STORAGE_KEY, _layoutRenderDrawer, refreshAll */
 (function () {
   function createAppLifecycleNavigation(deps) {
     const { completedTabStorageKey: COMPLETED_TAB_STORAGE_KEY } = deps;
@@ -594,6 +594,7 @@
       initSettingsTabNav,
       activateDiagnosticsTab,
       initDiagnosticsTabNav,
+      activateCompletedTab,
       initCompletedTabNav,
       activateUiQuickLink,
       initUiQuickLinks,

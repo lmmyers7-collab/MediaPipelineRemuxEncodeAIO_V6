@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/crossPageContextView.settings.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-31
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 932885cebcced9860dfefc4b2ee0ba6c7fa485c66662a91fd01894857164dac2
+sha256: 2e322947a411c89246c62dfb9b74706546d86c9e904335c8b9fce5f1817b95e4
 ---
 # `apps/desktop/webview/static/assets/crossPageContextView.settings.js`
 

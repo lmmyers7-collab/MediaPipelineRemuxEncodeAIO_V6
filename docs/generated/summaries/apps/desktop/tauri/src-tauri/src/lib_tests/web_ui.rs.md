@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: shell
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 3980d4633a49e3982462cb0d1fb5543bf2ff4df457fe4e35d62584417cca9651
+sha256: 9d94a6985199e211fbf57451dcf78799c648c153743569f199c7e51be8bd727d
 ---
 # `apps/desktop/tauri/src-tauri/src/lib_tests/web_ui.rs`
 

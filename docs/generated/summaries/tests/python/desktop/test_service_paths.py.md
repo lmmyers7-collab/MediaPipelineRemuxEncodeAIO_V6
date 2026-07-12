@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_paths.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 6463ceffd9b8189d84ab130a86799e810219f1e11c4e095c729a26b5936a1a7e
+sha256: fb1eb1978bc4190b748cf4011bf287c9f1a4e4bf8f08a4b17982a7f8fa1d5dd0
 ---
 # `tests/python/desktop/test_service_paths.py`
 

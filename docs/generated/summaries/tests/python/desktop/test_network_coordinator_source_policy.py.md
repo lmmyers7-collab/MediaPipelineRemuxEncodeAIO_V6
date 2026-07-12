@@ -3,9 +3,9 @@ file: tests/python/desktop/test_network_coordinator_source_policy.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: ef24b2b0ba0be3b4bef556953a87a8c441c7eea13ce5d8e693cf2c97dbb02473
+sha256: d8be5a2044b3af95ee2e4da76068779e92bb1efbd8ddc48f14d3671dd798755a
 ---
 # `tests/python/desktop/test_network_coordinator_source_policy.py`
 

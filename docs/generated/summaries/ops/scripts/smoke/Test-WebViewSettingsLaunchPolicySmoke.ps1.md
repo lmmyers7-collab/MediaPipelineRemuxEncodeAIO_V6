@@ -3,9 +3,9 @@ file: ops/scripts/smoke/Test-WebViewSettingsLaunchPolicySmoke.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: b4cb283ac8c655da88e13725f76381cd24221143f338def3fc0b53fefb67db82
+sha256: 9590287cd27ffde862c4f751a6e4f491ab82b3fb6cd178aa13fd90a9a56625ea
 ---
 # `ops/scripts/smoke/Test-WebViewSettingsLaunchPolicySmoke.ps1`
 

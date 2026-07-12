@@ -2,7 +2,8 @@
   function createHomeQueueProjectionModule(deps = {}) {
     const {
       byId, clearRows, formatProgressValue, makeRowSelectable, selectHomeListItem,
-      setText, shortenPath,    } = deps;
+      setHomePanelStatus, setText, shortenPath,
+    } = deps;
   function homeProgressPercent(value) {
     const number = Number(value);
     if (!Number.isFinite(number)) return "";

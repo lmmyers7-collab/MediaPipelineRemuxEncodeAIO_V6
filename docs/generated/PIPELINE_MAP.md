@@ -8,7 +8,7 @@ surface per ADR-0002.
 
 ## Wire contract
 
-Every stage runs via:
+PowerShell-backed stages run via:
 
 ```
 ops/pipeline/engine/entrypoint.ps1 -Stage <stage> -PayloadJson <json-or-path>
@@ -21,21 +21,22 @@ ops/pipeline/engine/entrypoint.ps1 -Stage <stage> -PayloadJson <json-or-path>
 - All payloads and results carry `schema_version: "v1"`.
 - The engine rejects unknown schema versions.
 - The dispatcher is orchestration-only; no Local API stage-execute route exists.
+- A stage may use the PowerShell entrypoint or a narrowly registered Python executor; the backend is listed below.
 - Only stages marked enabled below dispatch to behavior; disabled mutation DTOs are descriptive contracts, not future route commitments.
 
 ## Stages
 
-| # | Stage | Enabled | Mutation | Payload | Data | Payload fields | Data fields | Notes |
-|---|---|---|---|---|---|---|---|---|
-| 1 | `ingest` | yes | yes | `IngestPayload` | `IngestResult` | `source_path`, `scratch_root`, `operation`, `intent`, `confirm_ingest`, `operation_id`, `scratch_reservation_id`, `dry_run_fingerprint` | `scratch_path`, `size_bytes`, `sha256`, `source_sha256`, `source_unchanged`, `evidence_path`, `rollback_actions`, `recovery_actions`, `boundary_checks`, `operation_id`, `scratch_reservation_id`, `dry_run_fingerprint` | Source to scratch copy. Returns scratch path, size, and sha256. |
-| 2 | `probe` | yes | no | `ProbePayload` | `ProbeResult` | `scratch_path` | `probe_ok`, `probe_error`, `tool_path`, `container`, `duration_seconds`, `bitrate_bps`, `video_codec`, `width`, `height`, `is_hdr`, `color_transfer`, `container_bitrate_mbps`, `estimated_bitrate_mbps`, `size_bytes`, `streams` | ffprobe on scratch. Returns container, duration, and stream summaries. |
-| 3 | `decide` | yes | no | `DecidePayload` | `DecideResult` | `file_size_bytes`, `is_tv`, `duration_seconds`, `video_codec`, `video_height`, `is_hdr`, `routing_profile`, `route_threshold_mode`, `size_guard_mode`, `encode_threshold_gb`, `tv_encode_threshold_gb`, `movie_route_1080p_size_limit_gb`, `movie_route_1440p_size_limit_gb`, `movie_route_4k_size_limit_gb`, `tv_route_1080p_size_limit_gb`, `tv_route_1440p_size_limit_gb`, `tv_route_4k_size_limit_gb`, `movie_route_max_video_bitrate_mbps`, `tv_route_max_video_bitrate_mbps`, `route_1080p_bucket_max_height`, `route_1080p_upper_height_tolerance_percent`, `route_1080p_max_video_bitrate_mbps`, `route_1440p_lower_height_tolerance_percent`, `route_1440p_upper_height_tolerance_percent`, `route_1440p_max_video_bitrate_mbps`, `route_4k_lower_height_tolerance_percent`, `route_4k_bucket_min_height`, `route_4k_max_video_bitrate_mbps`, `allow_h264_remux_if_plex_compatible`, `h264_remux_max_bitrate_mbps`, `h264_remux_max_height`, `route_hints`, `source_media_profile` | `route`, `should_encode`, `reason_code`, `reason`, `display_route`, `source_codec`, `size_gb`, `threshold_gb`, `requires_codec_probe`, `fallback_from_remux`, `estimated_bitrate_mbps`, `bitrate_threshold_mbps`, `size_over_threshold`, `bitrate_over_threshold`, `plex_compatibility_score`, `routing_profile`, `route_threshold_mode`, `size_guard_mode`, `encoder_profile`, `actions`, `decision_trace`, `route_hints`, `source_media_profile` | Remux vs encode vs skip. Returns route and encoder profile. |
-| 4 | `transcode` | no | yes | `TranscodePayload` | `TranscodeResult` | `scratch_path`, `output_path`, `decision`, `video_codec`, `video_preset`, `video_quality`, `output_container`, `extra_video_flags`, `timeout_seconds`, `intent`, `confirm_transcode` | `output_path`, `output_size_bytes`, `attempts` | FFmpeg invocation. Returns output path, size, and attempts. |
-| 5 | `subtitle-convert` | no | yes | `SubtitleConvertPayload` | `SubtitleConvertResult` | `scratch_path`, `output_path`, `keep_languages`, `convert_tx3g_to_srt`, `convert_bdpgs_to_srt`, `bdpgs_ocr_tool_path`, `bdpgs_ocr_tessdata_path`, `intent`, `confirm_subtitle_convert` | `tracks_kept`, `tracks_converted`, `sidecars_written`, `review_required`, `review_reason` | ASS/TX3G/BDPGS to SRT, language filtering, and review routing. |
-| 6 | `audio-mix` | no | yes | `AudioMixPayload` | `AudioMixResult` | `scratch_path`, `output_path`, `passthrough_profile`, `compatible_audio_codecs`, `preferred_default_languages`, `intent`, `confirm_audio_mix` | `tracks_passed_through`, `tracks_transcoded`, `tracks_downmixed`, `default_track_language` | Passthrough, downmix, or transcode by profile. |
-| 7 | `publish` | no | yes | `PublishPayload` | `PublishResult` | `output_path`, `final_root`, `is_tv`, `create_tv_subfolder`, `deferred_publish`, `robocopy_flags`, `min_free_space_gb`, `intent`, `confirm_publish` | `final_path`, `parked`, `pending_publish_id`, `manifest_path` | Move to final root, or park on final-root safety guard. |
-| 8 | `drain` | no | yes | `DrainPayload` | `DrainResult` | `pending_publish_id`, `final_root`, `allow_overwrite`, `parallelism`, `intent`, `confirm_drain` | `moved`, `skipped`, `failed`, `manifest_path` | Drain parked outputs to final root with manifest evidence. |
-| 9 | `rename` | no | yes | `RenamePayload` | `RenameResult` | `target_path`, `proposed_name`, `aggressive_episode_parsing`, `is_tv`, `intent`, `confirm_apply` | `final_path`, `sidecars_renamed`, `undo_record_path` | Plan, apply, or undo rename operations with sidecars. |
+| # | Stage | Enabled | Backend | Mutation | Payload | Data | Payload fields | Data fields | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | `ingest` | yes | `powershell` | yes | `IngestPayload` | `IngestResult` | `source_path`, `scratch_root`, `operation`, `intent`, `confirm_ingest`, `operation_id`, `scratch_reservation_id`, `dry_run_fingerprint` | `scratch_path`, `size_bytes`, `sha256`, `source_sha256`, `source_unchanged`, `evidence_path`, `rollback_actions`, `recovery_actions`, `boundary_checks`, `operation_id`, `scratch_reservation_id`, `dry_run_fingerprint` | Source to scratch copy. Returns scratch path, size, and sha256. |
+| 2 | `probe` | yes | `powershell` | no | `ProbePayload` | `ProbeResult` | `scratch_path` | `probe_ok`, `probe_error`, `tool_path`, `container`, `duration_seconds`, `bitrate_bps`, `video_codec`, `width`, `height`, `is_hdr`, `color_transfer`, `container_bitrate_mbps`, `estimated_bitrate_mbps`, `size_bytes`, `streams` | ffprobe on scratch. Returns container, duration, and stream summaries. |
+| 3 | `decide` | yes | `powershell` | no | `DecidePayload` | `DecideResult` | `file_size_bytes`, `is_tv`, `duration_seconds`, `video_codec`, `video_height`, `is_hdr`, `routing_profile`, `route_threshold_mode`, `size_guard_mode`, `encode_threshold_gb`, `tv_encode_threshold_gb`, `movie_route_1080p_size_limit_gb`, `movie_route_1440p_size_limit_gb`, `movie_route_4k_size_limit_gb`, `tv_route_1080p_size_limit_gb`, `tv_route_1440p_size_limit_gb`, `tv_route_4k_size_limit_gb`, `movie_route_max_video_bitrate_mbps`, `tv_route_max_video_bitrate_mbps`, `route_1080p_bucket_max_height`, `route_1080p_upper_height_tolerance_percent`, `route_1080p_max_video_bitrate_mbps`, `route_1440p_lower_height_tolerance_percent`, `route_1440p_upper_height_tolerance_percent`, `route_1440p_max_video_bitrate_mbps`, `route_4k_lower_height_tolerance_percent`, `route_4k_bucket_min_height`, `route_4k_max_video_bitrate_mbps`, `allow_h264_remux_if_plex_compatible`, `h264_remux_max_bitrate_mbps`, `h264_remux_max_height`, `route_hints`, `source_media_profile` | `route`, `should_encode`, `reason_code`, `reason`, `display_route`, `source_codec`, `size_gb`, `threshold_gb`, `requires_codec_probe`, `fallback_from_remux`, `estimated_bitrate_mbps`, `bitrate_threshold_mbps`, `size_over_threshold`, `bitrate_over_threshold`, `plex_compatibility_score`, `routing_profile`, `route_threshold_mode`, `size_guard_mode`, `encoder_profile`, `actions`, `decision_trace`, `route_hints`, `source_media_profile` | Remux vs encode vs skip. Returns route and encoder profile. |
+| 4 | `transcode` | no | `disabled` | yes | `TranscodePayload` | `TranscodeResult` | `scratch_path`, `output_path`, `decision`, `video_codec`, `video_preset`, `video_quality`, `output_container`, `extra_video_flags`, `timeout_seconds`, `intent`, `confirm_transcode` | `output_path`, `output_size_bytes`, `attempts` | FFmpeg invocation. Returns output path, size, and attempts. |
+| 5 | `subtitle-convert` | yes | `python` | yes | `SubtitleConvertPayload` | `SubtitleConvertResult` | `input_ass_path`, `scratch_root`, `source_roots`, `operation`, `intent`, `confirm_subtitle_convert`, `operation_id`, `dry_run_fingerprint` | `input_ass_path`, `output_srt_path`, `tracks_converted`, `sidecars_written`, `cues_written`, `encoding`, `input_sha256_before`, `input_sha256_after`, `output_sha256`, `evidence_path`, `dry_run_fingerprint`, `source_boundary_untouched`, `review_required`, `review_reason`, `rollback_actions`, `recovery_actions`, `boundary_checks`, `operation_id` | Convert one standalone scratch ASS/SSA artifact to a new SRT sidecar. |
+| 6 | `audio-mix` | no | `disabled` | yes | `AudioMixPayload` | `AudioMixResult` | `scratch_path`, `output_path`, `passthrough_profile`, `compatible_audio_codecs`, `preferred_default_languages`, `intent`, `confirm_audio_mix` | `tracks_passed_through`, `tracks_transcoded`, `tracks_downmixed`, `default_track_language` | Passthrough, downmix, or transcode by profile. |
+| 7 | `publish` | no | `disabled` | yes | `PublishPayload` | `PublishResult` | `output_path`, `final_root`, `is_tv`, `create_tv_subfolder`, `deferred_publish`, `robocopy_flags`, `min_free_space_gb`, `intent`, `confirm_publish` | `final_path`, `parked`, `pending_publish_id`, `manifest_path` | Move to final root, or park on final-root safety guard. |
+| 8 | `drain` | no | `disabled` | yes | `DrainPayload` | `DrainResult` | `pending_publish_id`, `final_root`, `allow_overwrite`, `parallelism`, `intent`, `confirm_drain` | `moved`, `skipped`, `failed`, `manifest_path` | Drain parked outputs to final root with manifest evidence. |
+| 9 | `rename` | yes | `python` | yes | `RenamePayload` | `RenameResult` | `target_path`, `scratch_root`, `source_roots`, `proposed_name`, `operation`, `intent`, `confirm_apply`, `operation_id`, `dry_run_fingerprint` | `original_path`, `final_path`, `sidecars_renamed`, `undo_record_path`, `dry_run_fingerprint`, `content_sha256_before`, `content_sha256_after`, `source_boundary_untouched`, `rollback_actions`, `recovery_actions`, `boundary_checks`, `operation_id` | Rename one scratch file in place with fingerprint and undo evidence. |
 
 ## Per-stage detail
 
@@ -43,9 +44,12 @@ ops/pipeline/engine/entrypoint.ps1 -Stage <stage> -PayloadJson <json-or-path>
 
 - **Payload:** `IngestPayload`
 - **Data:** `IngestResult`
-- **Entrypoint enabled:** yes
+- **Dispatcher enabled:** yes
+- **Execution backend:** `powershell`
 - **Mutation capable:** yes
 - **Journal event type:** `pipeline.stage.ingest`
+- **Enablement blocker:** none
+- **Required validation:** none
 - **Payload fields:** `source_path`, `scratch_root`, `operation`, `intent`, `confirm_ingest`, `operation_id`, `scratch_reservation_id`, `dry_run_fingerprint`
 - **Data fields:** `scratch_path`, `size_bytes`, `sha256`, `source_sha256`, `source_unchanged`, `evidence_path`, `rollback_actions`, `recovery_actions`, `boundary_checks`, `operation_id`, `scratch_reservation_id`, `dry_run_fingerprint`
 - **Domain:** src/mediapipeline/core/orchestration/ (stage boundary), ops/pipeline/engine/storage/ (scratch copy)
@@ -56,9 +60,12 @@ ops/pipeline/engine/entrypoint.ps1 -Stage <stage> -PayloadJson <json-or-path>
 
 - **Payload:** `ProbePayload`
 - **Data:** `ProbeResult`
-- **Entrypoint enabled:** yes
+- **Dispatcher enabled:** yes
+- **Execution backend:** `powershell`
 - **Mutation capable:** no
 - **Journal event type:** `pipeline.stage.probe`
+- **Enablement blocker:** none
+- **Required validation:** none
 - **Payload fields:** `scratch_path`
 - **Data fields:** `probe_ok`, `probe_error`, `tool_path`, `container`, `duration_seconds`, `bitrate_bps`, `video_codec`, `width`, `height`, `is_hdr`, `color_transfer`, `container_bitrate_mbps`, `estimated_bitrate_mbps`, `size_bytes`, `streams`
 - **Domain:** src/mediapipeline/contracts/source_media*.py (source facts), ops/pipeline/engine/probe/ (ffprobe)
@@ -69,9 +76,12 @@ ops/pipeline/engine/entrypoint.ps1 -Stage <stage> -PayloadJson <json-or-path>
 
 - **Payload:** `DecidePayload`
 - **Data:** `DecideResult`
-- **Entrypoint enabled:** yes
+- **Dispatcher enabled:** yes
+- **Execution backend:** `powershell`
 - **Mutation capable:** no
 - **Journal event type:** `pipeline.stage.decide`
+- **Enablement blocker:** none
+- **Required validation:** none
 - **Payload fields:** `file_size_bytes`, `is_tv`, `duration_seconds`, `video_codec`, `video_height`, `is_hdr`, `routing_profile`, `route_threshold_mode`, `size_guard_mode`, `encode_threshold_gb`, `tv_encode_threshold_gb`, `movie_route_1080p_size_limit_gb`, `movie_route_1440p_size_limit_gb`, `movie_route_4k_size_limit_gb`, `tv_route_1080p_size_limit_gb`, `tv_route_1440p_size_limit_gb`, `tv_route_4k_size_limit_gb`, `movie_route_max_video_bitrate_mbps`, `tv_route_max_video_bitrate_mbps`, `route_1080p_bucket_max_height`, `route_1080p_upper_height_tolerance_percent`, `route_1080p_max_video_bitrate_mbps`, `route_1440p_lower_height_tolerance_percent`, `route_1440p_upper_height_tolerance_percent`, `route_1440p_max_video_bitrate_mbps`, `route_4k_lower_height_tolerance_percent`, `route_4k_bucket_min_height`, `route_4k_max_video_bitrate_mbps`, `allow_h264_remux_if_plex_compatible`, `h264_remux_max_bitrate_mbps`, `h264_remux_max_height`, `route_hints`, `source_media_profile`
 - **Data fields:** `route`, `should_encode`, `reason_code`, `reason`, `display_route`, `source_codec`, `size_gb`, `threshold_gb`, `requires_codec_probe`, `fallback_from_remux`, `estimated_bitrate_mbps`, `bitrate_threshold_mbps`, `size_over_threshold`, `bitrate_over_threshold`, `plex_compatibility_score`, `routing_profile`, `route_threshold_mode`, `size_guard_mode`, `encoder_profile`, `actions`, `decision_trace`, `route_hints`, `source_media_profile`
 - **Domain:** src/mediapipeline/core/decide/
@@ -82,13 +92,16 @@ ops/pipeline/engine/entrypoint.ps1 -Stage <stage> -PayloadJson <json-or-path>
 
 - **Payload:** `TranscodePayload`
 - **Data:** `TranscodeResult`
-- **Entrypoint enabled:** no
+- **Dispatcher enabled:** no
+- **Execution backend:** `disabled`
 - **Mutation capable:** yes
 - **Journal event type:** `pipeline.stage.transcode`
+- **Enablement blocker:** `production_ffmpeg_policy_parity_and_real_media_required`
+- **Required validation:** `powershell_unit_and_reliability`, `tool_integration`, `representative_encode_and_remux_media`, `stream_mapping_and_recovery_parity`
 - **Payload fields:** `scratch_path`, `output_path`, `decision`, `video_codec`, `video_preset`, `video_quality`, `output_container`, `extra_video_flags`, `timeout_seconds`, `intent`, `confirm_transcode`
 - **Data fields:** `output_path`, `output_size_bytes`, `attempts`
 - **Domain:** src/mediapipeline/core/processes/ and src/mediapipeline/core/orchestration/ (runner/plans), ops/pipeline/engine/process/ and ops/pipeline/entrypoints/MediaPipeline/ (invocation)
-- **Note:** Descriptive contract only; permanently disabled in the orchestration-only dispatcher.
+- **Note:** Descriptive contract only; disabled pending the contract-recorded parity and validation gates.
 - **Note:** FFmpeg command generation and stream mapping are high-risk surfaces.
 - **Note:** Attempt records preserve encoder, timestamps, exit code, and log path.
 
@@ -96,27 +109,37 @@ ops/pipeline/engine/entrypoint.ps1 -Stage <stage> -PayloadJson <json-or-path>
 
 - **Payload:** `SubtitleConvertPayload`
 - **Data:** `SubtitleConvertResult`
-- **Entrypoint enabled:** no
+- **Dispatcher enabled:** yes
+- **Execution backend:** `python`
 - **Mutation capable:** yes
 - **Journal event type:** `pipeline.stage.subtitle_convert`
-- **Payload fields:** `scratch_path`, `output_path`, `keep_languages`, `convert_tx3g_to_srt`, `convert_bdpgs_to_srt`, `bdpgs_ocr_tool_path`, `bdpgs_ocr_tessdata_path`, `intent`, `confirm_subtitle_convert`
-- **Data fields:** `tracks_kept`, `tracks_converted`, `sidecars_written`, `review_required`, `review_reason`
-- **Domain:** src/mediapipeline/contracts/source_media*.py (subtitle facts), ops/pipeline/engine/subtitles/
-- **Note:** Descriptive contract only; permanently disabled in the orchestration-only dispatcher.
+- **Enablement blocker:** none
+- **Required validation:** none
+- **Payload fields:** `input_ass_path`, `scratch_root`, `source_roots`, `operation`, `intent`, `confirm_subtitle_convert`, `operation_id`, `dry_run_fingerprint`
+- **Data fields:** `input_ass_path`, `output_srt_path`, `tracks_converted`, `sidecars_written`, `cues_written`, `encoding`, `input_sha256_before`, `input_sha256_after`, `output_sha256`, `evidence_path`, `dry_run_fingerprint`, `source_boundary_untouched`, `review_required`, `review_reason`, `rollback_actions`, `recovery_actions`, `boundary_checks`, `operation_id`
+- **Domain:** src/mediapipeline/core/subtitles/ (scratch-only Python stage); ops/pipeline/engine/subtitles/ (production engine)
+- **Note:** Enabled only for a standalone ASS/SSA file inside dispatcher-trusted scratch; no Local API route exists.
+- **Note:** Input is bounded to 64 MiB and output must be a new sibling SRT sidecar.
+- **Note:** TX3G extraction, BDPGS OCR, embedded streams, language selection, and publish integration remain disabled.
+- **Note:** Execute requires strict confirmation, matching content-bound dry-run evidence, command/operation journals, and no-overwrite output.
 - **Note:** Original subtitles are preserved by default.
 - **Note:** OCR/conversion failure routes to review, never silent bad publish.
+- **Note:** The PowerShell pipeline remains the production owner for integrated subtitle policy and real-media processing.
 
 ### 6. audio-mix
 
 - **Payload:** `AudioMixPayload`
 - **Data:** `AudioMixResult`
-- **Entrypoint enabled:** no
+- **Dispatcher enabled:** no
+- **Execution backend:** `disabled`
 - **Mutation capable:** yes
 - **Journal event type:** `pipeline.stage.audio_mix`
+- **Enablement blocker:** `production_audio_policy_parity_and_multi_audio_real_media_required`
+- **Required validation:** `audio_policy_unit_coverage`, `representative_multi_audio_media`, `passthrough_transcode_downmix_default_language_parity`
 - **Payload fields:** `scratch_path`, `output_path`, `passthrough_profile`, `compatible_audio_codecs`, `preferred_default_languages`, `intent`, `confirm_audio_mix`
 - **Data fields:** `tracks_passed_through`, `tracks_transcoded`, `tracks_downmixed`, `default_track_language`
 - **Domain:** src/mediapipeline/contracts/source_media*.py (audio facts), ops/pipeline/engine/audio/
-- **Note:** Descriptive contract only; permanently disabled in the orchestration-only dispatcher.
+- **Note:** Descriptive contract only; disabled pending the contract-recorded parity and validation gates.
 - **Note:** Audio routing is profile/config driven.
 - **Note:** Passthrough, downmix, and transcode policy changes require high validation.
 
@@ -124,13 +147,16 @@ ops/pipeline/engine/entrypoint.ps1 -Stage <stage> -PayloadJson <json-or-path>
 
 - **Payload:** `PublishPayload`
 - **Data:** `PublishResult`
-- **Entrypoint enabled:** no
+- **Dispatcher enabled:** no
+- **Execution backend:** `disabled`
 - **Mutation capable:** yes
 - **Journal event type:** `pipeline.stage.publish`
+- **Enablement blocker:** `manifest_publish_transaction_parity_and_real_media_required`
+- **Required validation:** `publish_partial_and_sidecar_transaction_parity`, `pending_park_and_recovery_fixture_coverage`, `representative_publish_media`, `final_placement_proof`
 - **Payload fields:** `output_path`, `final_root`, `is_tv`, `create_tv_subfolder`, `deferred_publish`, `robocopy_flags`, `min_free_space_gb`, `intent`, `confirm_publish`
 - **Data fields:** `final_path`, `parked`, `pending_publish_id`, `manifest_path`
 - **Domain:** src/mediapipeline/core/publish/, ops/pipeline/engine/publish/
-- **Note:** Descriptive contract only; permanently disabled in the orchestration-only dispatcher.
+- **Note:** Descriptive contract only; disabled pending the contract-recorded parity and validation gates.
 - **Note:** Pending publish parks output when final placement is unsafe.
 - **Note:** Publish evidence is captured through manifest_path and pending_publish_id.
 
@@ -138,13 +164,16 @@ ops/pipeline/engine/entrypoint.ps1 -Stage <stage> -PayloadJson <json-or-path>
 
 - **Payload:** `DrainPayload`
 - **Data:** `DrainResult`
-- **Entrypoint enabled:** no
+- **Dispatcher enabled:** no
+- **Execution backend:** `disabled`
 - **Mutation capable:** yes
 - **Journal event type:** `pipeline.stage.drain`
+- **Enablement blocker:** `pending_manifest_transaction_parity_and_deferred_publish_real_media_required`
+- **Required validation:** `trusted_pending_manifest_parity`, `copy_hash_sidecar_and_attempt_state_recovery`, `pending_publish_fixture_coverage`, `representative_deferred_publish_to_drain_media`
 - **Payload fields:** `pending_publish_id`, `final_root`, `allow_overwrite`, `parallelism`, `intent`, `confirm_drain`
 - **Data fields:** `moved`, `skipped`, `failed`, `manifest_path`
 - **Domain:** src/mediapipeline/core/publish/ (drain), ops/pipeline/engine/publish/
-- **Note:** Descriptive contract only; permanently disabled in the orchestration-only dispatcher.
+- **Note:** Descriptive contract only; disabled pending the contract-recorded parity and validation gates.
 - **Note:** Drain moves only from pending-publish evidence, not from source media.
 - **Note:** Retry policy is expected to be conservative because final roots may be unavailable.
 
@@ -152,15 +181,19 @@ ops/pipeline/engine/entrypoint.ps1 -Stage <stage> -PayloadJson <json-or-path>
 
 - **Payload:** `RenamePayload`
 - **Data:** `RenameResult`
-- **Entrypoint enabled:** no
+- **Dispatcher enabled:** yes
+- **Execution backend:** `python`
 - **Mutation capable:** yes
 - **Journal event type:** `pipeline.stage.rename`
-- **Payload fields:** `target_path`, `proposed_name`, `aggressive_episode_parsing`, `is_tv`, `intent`, `confirm_apply`
-- **Data fields:** `final_path`, `sidecars_renamed`, `undo_record_path`
-- **Domain:** src/mediapipeline/core/rename/, ops/pipeline/engine/naming/
-- **Note:** Descriptive contract only; permanently disabled in the orchestration-only dispatcher.
-- **Note:** Backend owns apply and undo behavior.
-- **Note:** Every apply is expected to write an undo record.
+- **Enablement blocker:** none
+- **Required validation:** none
+- **Payload fields:** `target_path`, `scratch_root`, `source_roots`, `proposed_name`, `operation`, `intent`, `confirm_apply`, `operation_id`, `dry_run_fingerprint`
+- **Data fields:** `original_path`, `final_path`, `sidecars_renamed`, `undo_record_path`, `dry_run_fingerprint`, `content_sha256_before`, `content_sha256_after`, `source_boundary_untouched`, `rollback_actions`, `recovery_actions`, `boundary_checks`, `operation_id`
+- **Domain:** src/mediapipeline/core/rename/ (scratch-only Python stage); ops/pipeline/engine/naming/ (production engine)
+- **Note:** Enabled only as a scratch-root-local Python executor; no Local API route exists.
+- **Note:** Payload roots must match dispatcher-trusted scratch/source configuration and remain disjoint; sidecars and directory moves are excluded.
+- **Note:** Execute requires strict confirmation, a matching dry-run fingerprint, operation journaling, and a scratch-local undo record.
+- **Note:** The PowerShell pipeline remains the production owner for integrated naming and final-library behavior.
 
 ## Schemas
 

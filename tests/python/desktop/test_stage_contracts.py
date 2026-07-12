@@ -62,8 +62,9 @@ VALID_PAYLOADS = {
         "intent": "dry_run",
     },
     StageName.subtitle_convert: {
-        "scratch_path": r"D:\scratch\source.mkv",
-        "output_path": r"D:\scratch\out.mkv",
+        "input_ass_path": r"D:\scratch\source.ass",
+        "scratch_root": r"D:\scratch",
+        "source_roots": [r"C:\media"],
         "intent": "dry_run",
     },
     StageName.audio_mix: {
@@ -82,7 +83,9 @@ VALID_PAYLOADS = {
         "intent": "dry_run",
     },
     StageName.rename: {
-        "target_path": r"Z:\Library\Old.mkv",
+        "target_path": r"D:\scratch\Old.mkv",
+        "scratch_root": r"D:\scratch",
+        "source_roots": [r"C:\media"],
         "proposed_name": "New.mkv",
         "intent": "dry_run",
     },
@@ -104,11 +107,14 @@ VALID_DATA = {
     StageName.probe: (ProbeResult, {"probe_ok": True, "tool_path": r"C:\Tools\ffprobe.exe", "video_codec": "hevc"}),
     StageName.decide: (DecideResult, {"route": "remux", "should_encode": False}),
     StageName.transcode: (TranscodeResult, {"output_path": r"D:\scratch\out.mkv", "output_size_bytes": 1}),
-    StageName.subtitle_convert: (SubtitleConvertResult, {"tracks_kept": 1}),
+    StageName.subtitle_convert: (
+        SubtitleConvertResult,
+        {"output_srt_path": r"D:\scratch\source.srt", "cues_written": 1, "source_boundary_untouched": True},
+    ),
     StageName.audio_mix: (AudioMixResult, {"tracks_passed_through": 1}),
     StageName.publish: (PublishResult, {"final_path": r"Z:\Library\out.mkv"}),
     StageName.drain: (DrainResult, {"moved": 1}),
-    StageName.rename: (RenameResult, {"final_path": r"Z:\Library\New.mkv"}),
+    StageName.rename: (RenameResult, {"final_path": r"D:\scratch\New.mkv", "source_boundary_untouched": True}),
 }
 
 
@@ -148,11 +154,34 @@ class StageContractTests(unittest.TestCase):
             build_stage_request(StageName.publish, {"output_path": "out.mkv", "final_root": "Z:\\Library"})
         with self.assertRaises(ValidationError):
             build_stage_request(
+                StageName.subtitle_convert,
+                {
+                    "input_ass_path": "scratch/source.ass",
+                    "scratch_root": "scratch",
+                    "source_roots": ["source"],
+                    "intent": "execute",
+                },
+            )
+        with self.assertRaises(ValidationError):
+            build_stage_request(
                 StageName.rename,
                 {
                     "target_path": "old.mkv",
+                    "scratch_root": "scratch",
+                    "source_roots": ["source"],
                     "proposed_name": "new.mkv",
                     "intent": "execute",
+                },
+            )
+        with self.assertRaises(ValidationError):
+            build_stage_request(
+                StageName.subtitle_convert,
+                {
+                    "input_ass_path": "scratch/source.ass",
+                    "scratch_root": "scratch",
+                    "source_roots": ["source"],
+                    "intent": "execute",
+                    "confirm_subtitle_convert": "true",
                 },
             )
 
@@ -172,6 +201,8 @@ class StageContractTests(unittest.TestCase):
                 StageName.rename,
                 {
                     "target_path": "old.mkv",
+                    "scratch_root": "scratch",
+                    "source_roots": ["source"],
                     "proposed_name": "new.mkv",
                     "intent": "execute",
                     "confirm_apply": "true",
@@ -235,9 +266,34 @@ class StageContractTests(unittest.TestCase):
         self.assertEqual(exceptions, [])
         self.assertTrue(STAGE_REGISTRY[StageName.ingest].enabled_in_entrypoint)
         enabled_mutation_stages = [
-            stage for stage, contract in STAGE_REGISTRY.items() if contract.mutation_capable and contract.enabled_in_entrypoint
+            stage
+            for stage, contract in STAGE_REGISTRY.items()
+            if contract.mutation_capable and contract.enabled_in_dispatcher
         ]
-        self.assertEqual(enabled_mutation_stages, [StageName.ingest])
+        self.assertEqual(enabled_mutation_stages, [StageName.ingest, StageName.subtitle_convert, StageName.rename])
+        self.assertFalse(STAGE_REGISTRY[StageName.rename].enabled_in_entrypoint)
+        self.assertEqual(STAGE_REGISTRY[StageName.rename].execution_backend, "python")
+        self.assertEqual(STAGE_REGISTRY[StageName.subtitle_convert].execution_backend, "python")
+
+    def test_disabled_mutation_stages_record_machine_readable_blockers(self) -> None:
+        expected = {
+            StageName.transcode: "production_ffmpeg_policy_parity_and_real_media_required",
+            StageName.audio_mix: "production_audio_policy_parity_and_multi_audio_real_media_required",
+            StageName.publish: "manifest_publish_transaction_parity_and_real_media_required",
+            StageName.drain: "pending_manifest_transaction_parity_and_deferred_publish_real_media_required",
+        }
+        disabled = {
+            stage: contract
+            for stage, contract in STAGE_REGISTRY.items()
+            if contract.mutation_capable and not contract.enabled_in_dispatcher
+        }
+        self.assertEqual(set(disabled), set(expected))
+        for stage, contract in disabled.items():
+            self.assertEqual(contract.enablement_blocker, expected[stage])
+            self.assertTrue(contract.required_validation)
+        for contract in STAGE_REGISTRY.values():
+            if contract.enabled_in_dispatcher:
+                self.assertEqual(contract.enablement_blocker, "")
 
     def test_stage_result_requires_data_or_structured_error(self) -> None:
         now = datetime.now(UTC)

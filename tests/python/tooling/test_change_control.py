@@ -9,6 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from mediapipeline.tools.dev import audit_checks
 from mediapipeline.tools.paths import find_repo_root
 from mediapipeline.tools.change_control import (
     build_change_index,
@@ -423,9 +424,14 @@ class RecordChangeTouchTests(unittest.TestCase):
 class ChangeControlWorkflowStaticTests(unittest.TestCase):
     def test_pre_commit_includes_staged_change_packet_coverage_hook(self) -> None:
         text = (REPO_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+        checks = {check.id: check for check in audit_checks.suite_checks("precommit")}
 
-        self.assertIn("mediapipeline-change-packet-staged-coverage", text)
-        self.assertIn("mediapipeline.tools.change_control.validate_changes --require-staged-coverage", text)
+        self.assertIn("mediapipeline-audit-check-suite", text)
+        self.assertIn("mediapipeline.tools.dev.audit_checks run precommit", text)
+        self.assertIn("change-packet-staged-coverage", checks)
+        coverage_check = checks["change-packet-staged-coverage"]
+        self.assertEqual(coverage_check.module, "mediapipeline.tools.change_control.validate_changes")
+        self.assertEqual(coverage_check.arguments, ("--require-staged-coverage",))
 
     def test_github_workflow_includes_pr_diff_change_packet_coverage(self) -> None:
         workflow = REPO_ROOT / ".github" / "workflows" / "phase1-drift.yml"

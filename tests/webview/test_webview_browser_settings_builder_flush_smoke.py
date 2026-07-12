@@ -93,8 +93,8 @@ def _browser_settings_builder_flush_runner_source() -> str:
               arrangeInvalidBuilder();
 
               const invalidBuilderPosts = [];
-              const originalApiPost = window.apiPost;
-              window.apiPost = async (path, body) => {
+              const originalApiPost = window.mediaPipelineApi.apiPost;
+              window.mediaPipelineApi.apiPost = async (path, body) => {
                 invalidBuilderPosts.push({ path: String(path || ""), body: JSON.parse(JSON.stringify(body || {})) });
                 return { ok: true, command: "settings.mocked", message: name + " should not post" };
               };
@@ -102,7 +102,7 @@ def _browser_settings_builder_flush_runner_source() -> str:
                 click("settings-save-header-save-button");
                 await new Promise((resolve) => setTimeout(resolve, 250));
               } finally {
-                window.apiPost = originalApiPost;
+                window.mediaPipelineApi.apiPost = originalApiPost;
               }
 
               requireText("settings-patch-status", ["Builder invalid"]);
@@ -204,7 +204,7 @@ def _browser_settings_builder_flush_runner_source() -> str:
 
             const previewPosts = [];
             const savePosts = [];
-            const originalApiPost = window.apiPost;
+            const originalApiPost = window.mediaPipelineApi.apiPost;
             const originalRenamePatch = window.mediaPipelineRenameView?.renameCleaningFilterConfigPatch;
             const originalAlert = window.alert;
             window.alert = () => {};
@@ -214,7 +214,7 @@ def _browser_settings_builder_flush_runner_source() -> str:
             let saveCompletionStatus = "";
             let saveCompletionDetail = "";
             let headerPatchAfterSave = "";
-            window.apiPost = async (path, body, options) => {
+            window.mediaPipelineApi.apiPost = async (path, body, options) => {
               const clonedBody = JSON.parse(JSON.stringify(body || {}));
               if (String(path || "") === "/api/settings/preview-patch") {
                 previewPosts.push({ path: String(path || ""), body: clonedBody });
@@ -284,7 +284,7 @@ def _browser_settings_builder_flush_runner_source() -> str:
                 throw new Error("Same-value Save did not clear stale candidate JSON: " + (byId("settings-patch-json")?.value || ""));
               }
             } finally {
-              window.apiPost = originalApiPost;
+              window.mediaPipelineApi.apiPost = originalApiPost;
               window.alert = originalAlert;
               if (window.mediaPipelineRenameView && typeof originalRenamePatch === "function") {
                 window.mediaPipelineRenameView.renameCleaningFilterConfigPatch = originalRenamePatch;

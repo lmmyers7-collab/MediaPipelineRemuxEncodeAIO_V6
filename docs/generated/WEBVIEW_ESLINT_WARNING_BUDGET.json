@@ -3,15 +3,15 @@
   "generated_by": "ops/scripts/dev/check-webview-lint-budget.mjs",
   "target": "apps/desktop/webview/static/assets/**/*.js",
   "budget_policy": "Future checks fail on any ESLint error or on warning counts above this baseline by total or rule.",
-  "total_warnings": 624,
+  "total_warnings": 1402,
   "total_errors": 0,
   "by_rule": {
     "complexity": {
-      "warnings": 115,
+      "warnings": 133,
       "errors": 0
     },
     "max-lines-per-function": {
-      "warnings": 46,
+      "warnings": 121,
       "errors": 0
     },
     "no-extra-boolean-cast": {
@@ -19,11 +19,11 @@
       "errors": 0
     },
     "no-undef": {
-      "warnings": 268,
+      "warnings": 416,
       "errors": 0
     },
     "no-unused-vars": {
-      "warnings": 192,
+      "warnings": 729,
       "errors": 0
     },
     "parse-error": {
@@ -34,39 +34,141 @@
   "files": [
     {
       "path": "apps/desktop/webview/static/assets/app.js",
-      "warnings": 31,
+      "warnings": 54,
       "errors": 0,
       "rules": {
-        "complexity": 2,
-        "max-lines-per-function": 2,
-        "no-undef": 26,
-        "no-unused-vars": 1
+        "complexity": 1,
+        "no-undef": 5,
+        "no-unused-vars": 48
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/dashboard.js",
+      "warnings": 30,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "no-undef": 27,
+        "no-unused-vars": 2
       }
     },
     {
       "path": "apps/desktop/webview/static/assets/app/home.js",
-      "warnings": 3,
+      "warnings": 2,
       "errors": 0,
       "rules": {
-        "complexity": 2,
+        "complexity": 1,
         "no-undef": 1
       }
     },
     {
-      "path": "apps/desktop/webview/static/assets/app/lifecycle.js",
+      "path": "apps/desktop/webview/static/assets/app/home/dailyDriver.js",
+      "warnings": 7,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1,
+        "no-unused-vars": 5
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/home/queueProjection.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-unused-vars": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/layoutManager.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "no-unused-vars": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/layoutManager/drawer.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/layoutManager/normalization.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
         "no-unused-vars": 1
       }
     },
     {
-      "path": "apps/desktop/webview/static/assets/commandHistory.js",
-      "warnings": 26,
+      "path": "apps/desktop/webview/static/assets/app/lifecycle.js",
+      "warnings": 5,
       "errors": 0,
       "rules": {
-        "complexity": 2,
-        "no-undef": 24
+        "no-unused-vars": 5
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycle/topbar.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "warnings": 43,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1,
+        "no-undef": 41
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "warnings": 101,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1,
+        "no-undef": 97,
+        "no-unused-vars": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory.js",
+      "warnings": 21,
+      "errors": 0,
+      "rules": {
+        "no-undef": 16,
+        "no-unused-vars": 5
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory/diagnosticEvidence.js",
+      "warnings": 10,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1,
+        "no-undef": 8
       }
     },
     {
@@ -88,10 +190,47 @@
       }
     },
     {
+      "path": "apps/desktop/webview/static/assets/commandHistory/resolutionChecklist.js",
+      "warnings": 4,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/evidence/pendingProofModel.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/evidence/pendingProofView.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1
+      }
+    },
+    {
       "path": "apps/desktop/webview/static/assets/completed/filters.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/presentation.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
         "max-lines-per-function": 1
       }
     },
@@ -104,11 +243,31 @@
       }
     },
     {
+      "path": "apps/desktop/webview/static/assets/completed/proof/pilotEvidence.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1
+      }
+    },
+    {
       "path": "apps/desktop/webview/static/assets/completed/review/integrity.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
         "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/review/metricsValidation.js",
+      "warnings": 16,
+      "errors": 0,
+      "rules": {
+        "complexity": 3,
+        "max-lines-per-function": 1,
+        "no-undef": 10,
+        "no-unused-vars": 2
       }
     },
     {
@@ -121,11 +280,44 @@
       }
     },
     {
+      "path": "apps/desktop/webview/static/assets/completed/review/selectedAtAGlance.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-unused-vars": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/review/selectedEvidence.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/review/tablePanels.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
       "path": "apps/desktop/webview/static/assets/completed/selection.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
         "complexity": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/sizeMode.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "no-unused-vars": 1
       }
     },
     {
@@ -138,29 +330,29 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/completedView.evidence.js",
-      "warnings": 3,
+      "warnings": 2,
       "errors": 0,
       "rules": {
-        "complexity": 2,
+        "complexity": 1,
         "max-lines-per-function": 1
       }
     },
     {
       "path": "apps/desktop/webview/static/assets/completedView.js",
-      "warnings": 39,
+      "warnings": 47,
       "errors": 0,
       "rules": {
-        "complexity": 3,
-        "no-undef": 11,
-        "no-unused-vars": 25
+        "complexity": 1,
+        "no-undef": 10,
+        "no-unused-vars": 36
       }
     },
     {
       "path": "apps/desktop/webview/static/assets/completedView.proof.js",
-      "warnings": 13,
+      "warnings": 12,
       "errors": 0,
       "rules": {
-        "complexity": 4,
+        "complexity": 3,
         "max-lines-per-function": 1,
         "no-undef": 8
       }
@@ -175,13 +367,12 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/completedView.review.js",
-      "warnings": 11,
+      "warnings": 69,
       "errors": 0,
       "rules": {
-        "complexity": 5,
+        "complexity": 1,
         "max-lines-per-function": 1,
-        "no-undef": 1,
-        "no-unused-vars": 4
+        "no-unused-vars": 67
       }
     },
     {
@@ -260,6 +451,37 @@
       }
     },
     {
+      "path": "apps/desktop/webview/static/assets/diagnostics/firstResponse.js",
+      "warnings": 26,
+      "errors": 0,
+      "rules": {
+        "complexity": 3,
+        "max-lines-per-function": 1,
+        "no-undef": 21,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnostics/matrixConsole.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnostics/triage.js",
+      "warnings": 10,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "no-undef": 5,
+        "no-unused-vars": 4
+      }
+    },
+    {
       "path": "apps/desktop/webview/static/assets/diagnosticsBridge.js",
       "warnings": 3,
       "errors": 0,
@@ -303,12 +525,12 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "warnings": 16,
+      "warnings": 19,
       "errors": 0,
       "rules": {
-        "complexity": 5,
-        "no-undef": 8,
-        "no-unused-vars": 3
+        "complexity": 1,
+        "no-undef": 7,
+        "no-unused-vars": 11
       }
     },
     {
@@ -345,6 +567,58 @@
       }
     },
     {
+      "path": "apps/desktop/webview/static/assets/launch/commandOrchestration.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launch/preflight/pilotReadiness.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launch/rerunEvidence.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launch/rerunFacade.js",
+      "warnings": 51,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-unused-vars": 50
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launch/rerunOrchestration.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launch/rerunPresentation.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1
+      }
+    },
+    {
       "path": "apps/desktop/webview/static/assets/launch/risk/policyBoundary.js",
       "warnings": 1,
       "errors": 0,
@@ -353,11 +627,14 @@
       }
     },
     {
-      "path": "apps/desktop/webview/static/assets/launch/risk/riskRows.js",
-      "warnings": 1,
+      "path": "apps/desktop/webview/static/assets/launch/scope/compactGate.js",
+      "warnings": 8,
       "errors": 0,
       "rules": {
-        "no-unused-vars": 1
+        "complexity": 2,
+        "max-lines-per-function": 2,
+        "no-undef": 1,
+        "no-unused-vars": 3
       }
     },
     {
@@ -394,19 +671,20 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/launchView.js",
-      "warnings": 41,
+      "warnings": 31,
       "errors": 0,
       "rules": {
-        "complexity": 2,
-        "no-undef": 39
+        "complexity": 1,
+        "no-undef": 28,
+        "no-unused-vars": 2
       }
     },
     {
       "path": "apps/desktop/webview/static/assets/launchView.preflight.js",
-      "warnings": 3,
+      "warnings": 2,
       "errors": 0,
       "rules": {
-        "complexity": 2,
+        "complexity": 1,
         "max-lines-per-function": 1
       }
     },
@@ -431,21 +709,58 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/launchView.scope.js",
-      "warnings": 7,
+      "warnings": 4,
       "errors": 0,
       "rules": {
-        "complexity": 4,
-        "max-lines-per-function": 2,
+        "complexity": 3,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/maintenance/changeLedger.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/maintenance/dryRunReadiness.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-undef": 1,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/maintenance/health.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-undef": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/maintenance/releaseCommands.js",
+      "warnings": 4,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1,
         "no-undef": 1
       }
     },
     {
       "path": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "warnings": 7,
+      "warnings": 9,
       "errors": 0,
       "rules": {
-        "complexity": 3,
-        "no-undef": 4
+        "complexity": 1,
+        "no-unused-vars": 8
       }
     },
     {
@@ -457,13 +772,132 @@
       }
     },
     {
-      "path": "apps/desktop/webview/static/assets/networkView.js",
-      "warnings": 12,
+      "path": "apps/desktop/webview/static/assets/network/configDiagnostics.js",
+      "warnings": 1,
       "errors": 0,
       "rules": {
-        "complexity": 4,
-        "no-undef": 7,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/network/events.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "no-unused-vars": 3
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/network/evidence.js",
+      "warnings": 14,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1,
+        "no-unused-vars": 12
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/network/lifecycle.commands.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/network/lifecycle.model.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/network/lifecycle.results.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/network/lifecycle.view.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/network/overviewModel.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
         "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/network/stateFiles.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/network/status.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/network/workers.model.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/network/workers.view.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/networkView.js",
+      "warnings": 34,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "no-undef": 6,
+        "no-unused-vars": 27
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublish/actionCenter.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublish/confidence/postDrainTrust.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1
       }
     },
     {
@@ -484,6 +918,15 @@
       }
     },
     {
+      "path": "apps/desktop/webview/static/assets/pendingPublish/rendering.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1
+      }
+    },
+    {
       "path": "apps/desktop/webview/static/assets/pendingPublish/summary.js",
       "warnings": 1,
       "errors": 0,
@@ -493,10 +936,10 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/pendingPublishView.confidence.js",
-      "warnings": 5,
+      "warnings": 4,
       "errors": 0,
       "rules": {
-        "complexity": 4,
+        "complexity": 3,
         "max-lines-per-function": 1
       }
     },
@@ -510,21 +953,21 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/pendingPublishView.drain.js",
-      "warnings": 3,
+      "warnings": 4,
       "errors": 0,
       "rules": {
-        "complexity": 2,
+        "complexity": 3,
         "max-lines-per-function": 1
       }
     },
     {
       "path": "apps/desktop/webview/static/assets/pendingPublishView.js",
-      "warnings": 47,
+      "warnings": 52,
       "errors": 0,
       "rules": {
-        "complexity": 3,
-        "no-undef": 39,
-        "no-unused-vars": 5
+        "complexity": 1,
+        "no-undef": 16,
+        "no-unused-vars": 35
       }
     },
     {
@@ -544,13 +987,105 @@
       }
     },
     {
-      "path": "apps/desktop/webview/static/assets/progressView.js",
-      "warnings": 6,
+      "path": "apps/desktop/webview/static/assets/progress/audit.js",
+      "warnings": 1,
       "errors": 0,
       "rules": {
-        "complexity": 4,
-        "no-undef": 1,
+        "complexity": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/progress/barPresentation.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/progress/barState.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-undef": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/progress/csvRerun.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/progress/details.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/progress/evidenceRows.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/progress/liveRun.js",
+      "warnings": 4,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1,
         "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/progress/timelineCore.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/progress/timelineView.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/progressView.js",
+      "warnings": 21,
+      "errors": 0,
+      "rules": {
+        "no-unused-vars": 21
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queue/controls.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queue/decisionSummary.js",
+      "warnings": 8,
+      "errors": 0,
+      "rules": {
+        "no-undef": 4,
+        "no-unused-vars": 4
       }
     },
     {
@@ -570,6 +1105,58 @@
       }
     },
     {
+      "path": "apps/desktop/webview/static/assets/queue/manualOrder.js",
+      "warnings": 7,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-undef": 4,
+        "no-unused-vars": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queue/sourceModel.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queue/statusPanels.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queue/strategy.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "no-undef": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queue/tableView.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queue/tabs.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "no-undef": 1
+      }
+    },
+    {
       "path": "apps/desktop/webview/static/assets/queueView.detail.js",
       "warnings": 6,
       "errors": 0,
@@ -581,12 +1168,12 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/queueView.js",
-      "warnings": 42,
+      "warnings": 44,
       "errors": 0,
       "rules": {
-        "complexity": 2,
-        "no-undef": 15,
-        "no-unused-vars": 25
+        "complexity": 1,
+        "no-undef": 10,
+        "no-unused-vars": 33
       }
     },
     {
@@ -597,6 +1184,15 @@
         "complexity": 1,
         "max-lines-per-function": 1,
         "no-undef": 4
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.rerun.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1
       }
     },
     {
@@ -636,6 +1232,82 @@
       }
     },
     {
+      "path": "apps/desktop/webview/static/assets/rename/cleaningFilters.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-unused-vars": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/rename/cleaningWorkbench.js",
+      "warnings": 5,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1,
+        "no-unused-vars": 3
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/rename/commandEvidence.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/rename/dialogs.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/rename/editing.js",
+      "warnings": 6,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-undef": 3,
+        "no-unused-vars": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/rename/paths.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-unused-vars": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/rename/previewLifecycle.js",
+      "warnings": 5,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1,
+        "no-undef": 1,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/rename/selection.js",
+      "warnings": 7,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-undef": 4,
+        "no-unused-vars": 2
+      }
+    },
+    {
       "path": "apps/desktop/webview/static/assets/renameHistoryView.js",
       "warnings": 2,
       "errors": 0,
@@ -645,18 +1317,36 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/renameView.js",
-      "warnings": 3,
+      "warnings": 72,
       "errors": 0,
       "rules": {
-        "complexity": 3
+        "complexity": 1,
+        "no-unused-vars": 71
       }
     },
     {
-      "path": "apps/desktop/webview/static/assets/reports/auditCommands.js",
+      "path": "apps/desktop/webview/static/assets/reports/audit/progress.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
         "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/reports/audit/sources.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/reports/auditCommands.js",
+      "warnings": 29,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-unused-vars": 28
       }
     },
     {
@@ -688,12 +1378,12 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/reports/failureView.js",
-      "warnings": 12,
+      "warnings": 13,
       "errors": 0,
       "rules": {
         "complexity": 2,
         "max-lines-per-function": 1,
-        "no-unused-vars": 9
+        "no-unused-vars": 10
       }
     },
     {
@@ -714,21 +1404,37 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/reportsView.js",
-      "warnings": 45,
+      "warnings": 47,
       "errors": 0,
       "rules": {
         "no-undef": 7,
-        "no-unused-vars": 38
+        "no-unused-vars": 40
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/schedule/editor.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-extra-boolean-cast": 1,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/schedule/watchFolder.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
       }
     },
     {
       "path": "apps/desktop/webview/static/assets/scheduleView.js",
-      "warnings": 4,
+      "warnings": 2,
       "errors": 0,
       "rules": {
         "complexity": 1,
-        "no-extra-boolean-cast": 1,
-        "no-undef": 1,
         "no-unused-vars": 1
       }
     },
@@ -742,23 +1448,101 @@
       }
     },
     {
-      "path": "apps/desktop/webview/static/assets/settings/patchReview.js",
-      "warnings": 5,
+      "path": "apps/desktop/webview/static/assets/settings/finalLibraryPromotion.js",
+      "warnings": 1,
       "errors": 0,
       "rules": {
-        "complexity": 3,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settings/patchOverview.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settings/patchReadiness.js",
+      "warnings": 7,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1,
+        "no-unused-vars": 4
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settings/patchReview.js",
+      "warnings": 6,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1,
+        "no-undef": 1,
+        "no-unused-vars": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settings/policyImpact.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
         "max-lines-per-function": 1,
         "no-unused-vars": 1
       }
     },
     {
-      "path": "apps/desktop/webview/static/assets/settings/policyImpact.js",
-      "warnings": 6,
+      "path": "apps/desktop/webview/static/assets/settings/policyImpact/effectivePolicyView.js",
+      "warnings": 2,
       "errors": 0,
       "rules": {
-        "complexity": 4,
-        "max-lines-per-function": 1,
-        "no-unused-vars": 1
+        "complexity": 1,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settings/policyImpact/mediaProjection.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settings/view/builder.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settings/view/commands.js",
+      "warnings": 4,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settings/view/impact.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settings/view/review.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
       }
     },
     {
@@ -770,11 +1554,36 @@
       }
     },
     {
-      "path": "apps/desktop/webview/static/assets/settingsLibraries.js",
-      "warnings": 2,
+      "path": "apps/desktop/webview/static/assets/settingsLibraries/interaction.js",
+      "warnings": 1,
       "errors": 0,
       "rules": {
-        "complexity": 2
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settingsLibraries/model.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settingsLibraries/render.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settingsLibraries/summary.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
       }
     },
     {
@@ -820,13 +1629,12 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/settingsView.js",
-      "warnings": 15,
+      "warnings": 80,
       "errors": 0,
       "rules": {
-        "complexity": 3,
-        "max-lines-per-function": 1,
-        "no-undef": 10,
-        "no-unused-vars": 1
+        "complexity": 1,
+        "no-undef": 3,
+        "no-unused-vars": 76
       }
     },
     {
@@ -839,10 +1647,11 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/telemetryView.js",
-      "warnings": 1,
+      "warnings": 2,
       "errors": 0,
       "rules": {
-        "complexity": 1
+        "complexity": 1,
+        "no-unused-vars": 1
       }
     }
   ]

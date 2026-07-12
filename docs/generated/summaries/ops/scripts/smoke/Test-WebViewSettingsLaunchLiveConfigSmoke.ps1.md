@@ -3,9 +3,9 @@ file: ops/scripts/smoke/Test-WebViewSettingsLaunchLiveConfigSmoke.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: b1d0e2960eaa81f56b065aa92191356075d4a0d5e576938560c0b5a1b606bb48
+sha256: 21a51b8efadbde8ea0e75def9f4de600f2ae82fee01e0fdefc252b0887d31d07
 ---
 # `ops/scripts/smoke/Test-WebViewSettingsLaunchLiveConfigSmoke.ps1`
 

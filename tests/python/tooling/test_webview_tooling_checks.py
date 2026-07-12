@@ -25,6 +25,28 @@ def _require_webview_tooling_dependencies() -> None:
 
 
 class WebViewToolingCheckTests(unittest.TestCase):
+    def test_command_boundary_scans_split_command_contract_modules(self) -> None:
+        source = (
+            REPO_ROOT / "ops" / "scripts" / "dev" / "check-webview-command-boundary.mjs"
+        ).read_text(encoding="utf-8")
+
+        for module_name in (
+            "contract_command_file.py",
+            "contract_command_network.py",
+            "contract_command_operations.py",
+            "contract_command_process.py",
+            "contract_command_settings_ui.py",
+        ):
+            self.assertIn(module_name, source)
+        self.assertNotIn('"src/mediapipeline/desktop/api/contract_command.py"', source)
+
+    def test_route_ownership_recognizes_settings_split_directory(self) -> None:
+        source = (
+            REPO_ROOT / "ops" / "scripts" / "dev" / "check-webview-route-ownership.mjs"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('path.includes("/assets/settings/")', source)
+
     def test_shared_parse_script_fails_on_recoverable_parser_error(self) -> None:
         _require_webview_tooling_dependencies()
         script = (

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 7dff70a9f5543fd0cf0693578299ee4b095ddc6c2a3fe66a32150227b6b68e53
+sha256: 07cf053097e0f50b6ebe5b26262ef6267d51677d5b84272b6ee2eefe837de496
 ---
 # `apps/desktop/webview/static/assets/completed/sizeMode.js`
 

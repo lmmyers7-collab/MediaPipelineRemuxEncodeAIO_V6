@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/dev/generate_dependency_atlas.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-02
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: f805d4347d3b3a6f8490c7ce57a31189c74e68b2503e17c0f276944a18ed7561
+sha256: ebb838056aee6f48fe4169128fbec4c337b1c29c0a01734a62e5baf79eda719e
 ---
 # `src/mediapipeline/tools/dev/generate_dependency_atlas.py`
 

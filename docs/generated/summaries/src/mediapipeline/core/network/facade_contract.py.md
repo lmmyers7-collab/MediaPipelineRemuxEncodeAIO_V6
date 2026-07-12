@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: network
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 37d7c140eaabfec76a72d4e68b6de949e221a2c0ef5b6a04db1bf01e9e349f66
+sha256: 144065e66eff69c300b4c3ea8479fe374b8593cc47024b58aebf3ba14bffabe6
 ---
 # `src/mediapipeline/core/network/facade_contract.py`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: ce266039405a836f18d5e74d3d9a051eaa897891ad2c626845d8965110f8b822
+sha256: bd2f8b8dafb18385725988696e42f3c0faa68b297c100311af9832bf494703cc
 ---
 # `apps/desktop/webview/static/assets/commandHistory/resolutionChecklist.js`
 

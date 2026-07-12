@@ -25,6 +25,17 @@ PREFLIGHT_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "la
 PILOT_READINESS_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launch" / "preflight" / "pilotReadiness.js"
 START_REQUEST_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launch" / "startRequest.js"
 QUEUE_RERUN_REQUEST_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "queue" / "rerunRequest.js"
+LAUNCH_VIEW_ASSET_NAMES = (
+    "launch/rerunEvidence.js",
+    "launch/rerunPresentation.js",
+    "launch/commandOrchestration.js",
+    "launchView.js",
+)
+
+
+def _launch_view_bundle() -> str:
+    assets_root = ROOT / "apps" / "desktop" / "webview" / "static" / "assets"
+    return "\n".join((assets_root / name).read_text(encoding="utf-8") for name in LAUNCH_VIEW_ASSET_NAMES)
 
 
 def _run_launch_command_buttons_smoke() -> dict[str, object]:
@@ -905,7 +916,7 @@ def _run_launch_readiness_recovery_smoke() -> dict[str, object]:
 class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
     def test_csv_rerun_review_ui_contract_is_static_pinned(self) -> None:
         html = PAGE_QUEUE_HTML.read_text(encoding="utf-8")
-        js = LAUNCH_VIEW_JS.read_text(encoding="utf-8")
+        js = _launch_view_bundle()
 
         for snippet in (
             "rerun-review-header",
@@ -1096,7 +1107,7 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         self.assertEqual(archive["requiresConfirmation"], "true")
 
     def test_launch_recovery_archive_button_posts_allowlisted_backend_route(self) -> None:
-        launch_source = LAUNCH_VIEW_JS.read_text(encoding="utf-8")
+        launch_source = _launch_view_bundle()
         readiness_source = LAUNCH_READINESS_JS.read_text(encoding="utf-8")
         diagnostics_source = PAGE_DIAGNOSTICS_HTML.read_text(encoding="utf-8")
 

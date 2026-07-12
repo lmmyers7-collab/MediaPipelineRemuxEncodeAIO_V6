@@ -24,9 +24,9 @@
   ],
   "report_note": "Pre-split report only. IDs are collected from index.html with mp-include partials expanded. Missing IDs can be legitimate when markup is generated at runtime, but every future split should keep this report stable or deliberately update it.",
   "counts": {
-    "html_ids": 2005,
-    "js_touched_ids": 636,
-    "ids_present_in_index": 596,
+    "html_ids": 2070,
+    "js_touched_ids": 655,
+    "ids_present_in_index": 615,
     "ids_missing_from_index": 40,
     "likely_dynamic_missing_ids": 0,
     "review_missing_ids": 40
@@ -209,6 +209,7 @@
     "home-next-queue-list",
     "home-queue-snapshot",
     "home-recent-completed-tbody",
+    "home-recovery-banner",
     "home-refresh-button",
     "launch-backend-preflight-rows",
     "launch-backend-preflight-status",
@@ -258,6 +259,11 @@
     "maintenance-diagnostics-actions",
     "maintenance-refresh-button",
     "maintenance-rows",
+    "maintenance-support-create",
+    "maintenance-support-include-logs",
+    "maintenance-support-max-log-bytes",
+    "maintenance-support-reason",
+    "maintenance-support-status",
     "media-pipeline-bootstrap",
     "metrics-attention-rows",
     "metrics-backfill-button",
@@ -287,6 +293,8 @@
     "network-lifecycle-confirm-dialog",
     "network-lifecycle-confirm-submit",
     "network-lifecycle-rows",
+    "network-open-queue-rerun-button",
+    "network-rerun-rows",
     "network-role-coordinator-setup-button",
     "network-role-dashboards",
     "network-role-setup-close-button",
@@ -356,6 +364,7 @@
     "pipeline-sparkline",
     "pipeline-start-button",
     "pipeline-start-mode",
+    "pipeline-start-safety-summary",
     "pipeline-start-schedule-override",
     "pipeline-start-show-config",
     "pipeline-start-show-console",
@@ -476,6 +485,7 @@
     "rerun-inspect-csv-button",
     "rerun-lifecycle-evidence",
     "rerun-lifecycle-phase",
+    "rerun-network-minimum-workers",
     "rerun-preview-limit",
     "rerun-preview-rows",
     "rerun-preview-tiles",
@@ -492,6 +502,7 @@
     "rerun-start-csv-path",
     "rerun-start-destination-mode",
     "rerun-start-execution-mode",
+    "rerun-start-target-mode",
     "rerun-start-window-size",
     "reset-layout-btn",
     "sample-validation-acceptance-gate-rows",
@@ -585,6 +596,10 @@
     "settings-pending-robocopy-flags",
     "settings-pending-skip-stability",
     "settings-policy-delta-rows",
+    "settings-preset-library-compare-select",
+    "settings-preset-library-json",
+    "settings-preset-library-select",
+    "settings-preset-library-status",
     "settings-raw-action-plan-rows",
     "settings-raw-triage-rows",
     "settings-rename-filter-release-groups",
@@ -592,6 +607,7 @@
     "settings-route-height-slider",
     "settings-rows",
     "settings-safety-lock-rows",
+    "settings-save-header",
     "settings-save-header-patch-status",
     "settings-save-header-reload-button",
     "settings-save-header-reload-status",
@@ -611,6 +627,9 @@
     "settings-subtitle-languages",
     "settings-subtitle-vobsub-path-status",
     "settings-validate-button",
+    "settings-wizard-library-list",
+    "settings-wizard-path-rows",
+    "settings-wizard-summary-rows",
     "state-pill",
     "tdarr-matrix-audit-bucket-filter",
     "tdarr-matrix-audit-bucket-rows",
@@ -780,15 +799,102 @@
       "missing_from_index": []
     },
     {
-      "src": "/assets/progressView.js?v=20260630-csv-home-queue-fastpath",
-      "path": "apps/desktop/webview/static/assets/progressView.js",
+      "src": "/assets/progress/barState.js",
+      "path": "apps/desktop/webview/static/assets/progress/barState.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/progress/barPresentation.js",
+      "path": "apps/desktop/webview/static/assets/progress/barPresentation.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/progress/audit.js",
+      "path": "apps/desktop/webview/static/assets/progress/audit.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/progress/details.js",
+      "path": "apps/desktop/webview/static/assets/progress/details.js",
       "dom_ids_touched": [
-        "diagnostics-progress-rows",
         "pipeline-event-rows",
-        "progress-bar-list",
-        "progress-detail-rows",
+        "progress-detail-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/progress/diagnostics.js",
+      "path": "apps/desktop/webview/static/assets/progress/diagnostics.js",
+      "dom_ids_touched": [
+        "diagnostics-progress-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/progress/activeWork.js",
+      "path": "apps/desktop/webview/static/assets/progress/activeWork.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/progress/evidence.js",
+      "path": "apps/desktop/webview/static/assets/progress/evidence.js",
+      "dom_ids_touched": [
         "progress-evidence-rows"
       ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/progress/evidenceRows.js",
+      "path": "apps/desktop/webview/static/assets/progress/evidenceRows.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/progress/liveRun.js",
+      "path": "apps/desktop/webview/static/assets/progress/liveRun.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/progress/csvRerun.js",
+      "path": "apps/desktop/webview/static/assets/progress/csvRerun.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/progress/worker.js",
+      "path": "apps/desktop/webview/static/assets/progress/worker.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/progress/ffmpegEta.js",
+      "path": "apps/desktop/webview/static/assets/progress/ffmpegEta.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/progress/timelineCore.js",
+      "path": "apps/desktop/webview/static/assets/progress/timelineCore.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/progress/timelineView.js",
+      "path": "apps/desktop/webview/static/assets/progress/timelineView.js",
+      "dom_ids_touched": [
+        "progress-bar-list"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/progressView.js?v=20260630-csv-home-queue-fastpath",
+      "path": "apps/desktop/webview/static/assets/progressView.js",
+      "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
@@ -804,6 +910,21 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/commandHistory/diagnosticEvidence.js",
+      "path": "apps/desktop/webview/static/assets/commandHistory/diagnosticEvidence.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/commandHistory/resolutionChecklist.js",
+      "path": "apps/desktop/webview/static/assets/commandHistory/resolutionChecklist.js",
+      "dom_ids_touched": [
+        "diagnostics-command-resolution-rows",
+        "diagnostics-command-resolution-status"
+      ],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/commandHistory.js",
       "path": "apps/desktop/webview/static/assets/commandHistory.js",
       "dom_ids_touched": [
@@ -812,9 +933,7 @@
         "diagnostics-command-drilldown-actions",
         "diagnostics-command-drilldown-rows",
         "diagnostics-command-evidence-rows",
-        "diagnostics-command-owner-rows",
-        "diagnostics-command-resolution-rows",
-        "diagnostics-command-resolution-status"
+        "diagnostics-command-owner-rows"
       ],
       "missing_from_index": []
     },
@@ -854,11 +973,24 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/completed/evidence/pendingProofModel.js",
+      "path": "apps/desktop/webview/static/assets/completed/evidence/pendingProofModel.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/evidence/pendingProofView.js",
+      "path": "apps/desktop/webview/static/assets/completed/evidence/pendingProofView.js",
+      "dom_ids_touched": [
+        "completed-pending-proof-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/completedView.evidence.js",
       "path": "apps/desktop/webview/static/assets/completedView.evidence.js",
       "dom_ids_touched": [
         "completed-output-acceptance-rows",
-        "completed-pending-proof-rows",
         "completed-route-agreement-rows",
         "completed-route-agreement-status",
         "publish-reconciliation-refresh-button",
@@ -867,11 +999,18 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/completed/proof/pilotEvidence.js",
+      "path": "apps/desktop/webview/static/assets/completed/proof/pilotEvidence.js",
+      "dom_ids_touched": [
+        "completed-pilot-evidence-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/completedView.proof.js",
       "path": "apps/desktop/webview/static/assets/completedView.proof.js",
       "dom_ids_touched": [
         "completed-final-trust-rows",
-        "completed-pilot-evidence-rows",
         "completed-real-media-proof-rows"
       ],
       "missing_from_index": []
@@ -879,6 +1018,12 @@
     {
       "src": "/assets/completed/review/integrity.js",
       "path": "apps/desktop/webview/static/assets/completed/review/integrity.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/review/workflowOverview.js",
+      "path": "apps/desktop/webview/static/assets/completed/review/workflowOverview.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
@@ -912,19 +1057,45 @@
       "missing_from_index": []
     },
     {
-      "src": "/assets/completedView.review.js",
-      "path": "apps/desktop/webview/static/assets/completedView.review.js",
+      "src": "/assets/completed/review/tablePanels.js",
+      "path": "apps/desktop/webview/static/assets/completed/review/tablePanels.js",
       "dom_ids_touched": [
         "completed-review-rows",
-        "completed-selected-status",
-        "completed-selected-summary",
-        "completed-size-evidence-rows",
         "completed-size-review-rows"
       ],
       "missing_from_index": [
         "completed-review-rows",
         "completed-size-review-rows"
       ]
+    },
+    {
+      "src": "/assets/completed/review/metricsValidation.js",
+      "path": "apps/desktop/webview/static/assets/completed/review/metricsValidation.js",
+      "dom_ids_touched": [
+        "completed-size-evidence-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/review/selectedAtAGlance.js",
+      "path": "apps/desktop/webview/static/assets/completed/review/selectedAtAGlance.js",
+      "dom_ids_touched": [
+        "completed-selected-status",
+        "completed-selected-summary"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/review/selectedEvidence.js",
+      "path": "apps/desktop/webview/static/assets/completed/review/selectedEvidence.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completedView.review.js",
+      "path": "apps/desktop/webview/static/assets/completedView.review.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
     },
     {
       "src": "/assets/completedView.diagnostics.js",
@@ -999,8 +1170,14 @@
       "missing_from_index": []
     },
     {
-      "src": "/assets/completedView.js",
-      "path": "apps/desktop/webview/static/assets/completedView.js",
+      "src": "/assets/completed/sizeMode.js",
+      "path": "apps/desktop/webview/static/assets/completed/sizeMode.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/presentation.js",
+      "path": "apps/desktop/webview/static/assets/completed/presentation.js",
       "dom_ids_touched": [
         "completed-active-output-context",
         "completed-copy-evidence-button",
@@ -1014,6 +1191,12 @@
         "completed-trust-decision-chips",
         "completed-trust-decision-status"
       ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completedView.js",
+      "path": "apps/desktop/webview/static/assets/completedView.js",
+      "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
@@ -1057,6 +1240,12 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/queue/rerunApi.js",
+      "path": "apps/desktop/webview/static/assets/queue/rerunApi.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/queueView.rerun.js",
       "path": "apps/desktop/webview/static/assets/queueView.rerun.js",
       "dom_ids_touched": [
@@ -1084,28 +1273,108 @@
       "missing_from_index": []
     },
     {
-      "src": "/assets/queueView.js",
-      "path": "apps/desktop/webview/static/assets/queueView.js",
+      "src": "/assets/queue/tabs.js",
+      "path": "apps/desktop/webview/static/assets/queue/tabs.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/sourceModel.js",
+      "path": "apps/desktop/webview/static/assets/queue/sourceModel.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/sourceRender.js",
+      "path": "apps/desktop/webview/static/assets/queue/sourceRender.js",
+      "dom_ids_touched": [
+        "queue-source-inventory"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/decisionSummary.js",
+      "path": "apps/desktop/webview/static/assets/queue/decisionSummary.js",
       "dom_ids_touched": [
         "queue-attention-status",
-        "queue-decision-status",
-        "queue-excluded-rows",
+        "queue-decision-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/statusPanels.js",
+      "path": "apps/desktop/webview/static/assets/queue/statusPanels.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/tableView.js",
+      "path": "apps/desktop/webview/static/assets/queue/tableView.js",
+      "dom_ids_touched": [
         "queue-filter",
         "queue-filter-summary",
         "queue-investigation-filter",
-        "queue-loading-screen",
-        "queue-manual-order-status",
         "queue-page-next-btn",
         "queue-page-prev-btn",
         "queue-rows",
-        "queue-source-inventory",
         "queue-status-filter",
-        "queue-strategy-apply-btn",
-        "queue-strategy-select",
-        "queue-strategy-status",
         "queue-table-legend",
         "queue-table-page-status",
         "queue-table-pagination"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/priority.js",
+      "path": "apps/desktop/webview/static/assets/queue/priority.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/manualOrder.js",
+      "path": "apps/desktop/webview/static/assets/queue/manualOrder.js",
+      "dom_ids_touched": [
+        "queue-manual-order-status",
+        "queue-strategy-select"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/strategy.js",
+      "path": "apps/desktop/webview/static/assets/queue/strategy.js",
+      "dom_ids_touched": [
+        "queue-strategy-apply-btn",
+        "queue-strategy-select",
+        "queue-strategy-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/controls.js",
+      "path": "apps/desktop/webview/static/assets/queue/controls.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/excluded.js",
+      "path": "apps/desktop/webview/static/assets/queue/excluded.js",
+      "dom_ids_touched": [
+        "queue-excluded-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/scan.js",
+      "path": "apps/desktop/webview/static/assets/queue/scan.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queueView.js",
+      "path": "apps/desktop/webview/static/assets/queueView.js",
+      "dom_ids_touched": [
+        "queue-loading-screen",
+        "queue-rows"
       ],
       "missing_from_index": []
     },
@@ -1259,6 +1528,15 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/pendingPublish/confidence/postDrainTrust.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublish/confidence/postDrainTrust.js",
+      "dom_ids_touched": [
+        "pending-post-drain-trust-rows",
+        "pending-post-drain-trust-status"
+      ],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/pendingPublishView.confidence.js",
       "path": "apps/desktop/webview/static/assets/pendingPublishView.confidence.js",
       "dom_ids_touched": [
@@ -1267,9 +1545,7 @@
         "pending-drain-confidence-rows",
         "pending-drain-decision-rows",
         "pending-drain-decision-status",
-        "pending-drain-guard-status",
-        "pending-post-drain-trust-rows",
-        "pending-post-drain-trust-status"
+        "pending-drain-guard-status"
       ],
       "missing_from_index": []
     },
@@ -1282,6 +1558,18 @@
         "pending-repair-manifest-apply-button",
         "pending-repair-manifest-dry-run-button"
       ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/pendingPublish/tableSupport.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublish/tableSupport.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/pendingPublish/defaultAdapters.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublish/defaultAdapters.js",
+      "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
@@ -1311,22 +1599,36 @@
       "missing_from_index": []
     },
     {
-      "src": "/assets/pendingPublishView.js",
-      "path": "apps/desktop/webview/static/assets/pendingPublishView.js",
+      "src": "/assets/pendingPublish/actionCenter.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublish/actionCenter.js",
       "dom_ids_touched": [
         "pending-action-blockers-button",
         "pending-action-drain-button",
         "pending-action-refresh-button",
         "pending-action-status",
+        "pending-clear-filters-button",
         "pending-drain-button",
         "pending-drain-decision-chips",
         "pending-drain-overview",
-        "pending-file-inventory-rows",
         "pending-filter",
         "pending-investigation-filter",
         "pending-rows",
         "pending-status-filter"
       ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/pendingPublish/rendering.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublish/rendering.js",
+      "dom_ids_touched": [
+        "pending-file-inventory-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/pendingPublishView.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.js",
+      "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
@@ -1422,6 +1724,52 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/rename/cleaningFilters.js",
+      "path": "apps/desktop/webview/static/assets/rename/cleaningFilters.js",
+      "dom_ids_touched": [
+        "settings-patch-json",
+        "settings-rename-preview-input",
+        "settings-rename-preview-output",
+        "settings-rename-preview-status"
+      ],
+      "missing_from_index": [
+        "settings-rename-preview-input",
+        "settings-rename-preview-output",
+        "settings-rename-preview-status"
+      ]
+    },
+    {
+      "src": "/assets/rename/cleaningWorkbench.js",
+      "path": "apps/desktop/webview/static/assets/rename/cleaningWorkbench.js",
+      "dom_ids_touched": [
+        "settings-save-header-save-button"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/rename/selection.js",
+      "path": "apps/desktop/webview/static/assets/rename/selection.js",
+      "dom_ids_touched": [
+        "rename-log-bad-case-button",
+        "rename-log-bad-case-status",
+        "rename-log-case-status-select",
+        "rename-log-case-submit-button",
+        "rename-paths",
+        "rename-season",
+        "rename-table-legend"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/rename/paths.js",
+      "path": "apps/desktop/webview/static/assets/rename/paths.js",
+      "dom_ids_touched": [
+        "rename-add-path-input",
+        "rename-paths"
+      ],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/rename/preview.js",
       "path": "apps/desktop/webview/static/assets/rename/preview.js",
       "dom_ids_touched": [],
@@ -1436,6 +1784,31 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/rename/editing.js",
+      "path": "apps/desktop/webview/static/assets/rename/editing.js",
+      "dom_ids_touched": [
+        "rename-add-path-input",
+        "rename-bulk-find",
+        "rename-bulk-prefix",
+        "rename-bulk-replace",
+        "rename-bulk-scope",
+        "rename-bulk-suffix",
+        "rename-paths",
+        "rename-rows",
+        "rename-selected-final",
+        "rename-selected-force"
+      ],
+      "missing_from_index": [
+        "rename-bulk-find",
+        "rename-bulk-prefix",
+        "rename-bulk-replace",
+        "rename-bulk-scope",
+        "rename-bulk-suffix",
+        "rename-selected-final",
+        "rename-selected-force"
+      ]
+    },
+    {
       "src": "/assets/rename/applyResult.js",
       "path": "apps/desktop/webview/static/assets/rename/applyResult.js",
       "dom_ids_touched": [
@@ -1446,89 +1819,107 @@
       "missing_from_index": []
     },
     {
-      "src": "/assets/renameView.js",
-      "path": "apps/desktop/webview/static/assets/renameView.js",
+      "src": "/assets/rename/commandEvidence.js",
+      "path": "apps/desktop/webview/static/assets/rename/commandEvidence.js",
+      "dom_ids_touched": [
+        "rename-apply-progress-bars",
+        "rename-apply-status-panel",
+        "rename-undo-button",
+        "rename-undo-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/rename/previewLifecycle.js",
+      "path": "apps/desktop/webview/static/assets/rename/previewLifecycle.js",
       "dom_ids_touched": [
         "rename-add-path-button",
-        "rename-add-path-input",
         "rename-apply-button",
-        "rename-apply-progress-bars",
         "rename-apply-status-hint",
-        "rename-apply-status-panel",
         "rename-browse-files-button",
         "rename-browse-folder-button",
-        "rename-bulk-find",
-        "rename-bulk-prefix",
-        "rename-bulk-replace",
-        "rename-bulk-scope",
-        "rename-bulk-suffix",
         "rename-check-all-button",
         "rename-check-applicable-button",
         "rename-clear-checks-button",
         "rename-clear-paths-button",
+        "rename-move-checked-down-button",
+        "rename-move-checked-up-button",
+        "rename-natural-sort-button",
+        "rename-rows",
+        "rename-use-loaded-queue-button",
+        "rename-use-selected-queue-button"
+      ],
+      "missing_from_index": [
+        "rename-move-checked-down-button",
+        "rename-move-checked-up-button",
+        "rename-natural-sort-button",
+        "rename-use-loaded-queue-button",
+        "rename-use-selected-queue-button"
+      ]
+    },
+    {
+      "src": "/assets/rename/interactions.js",
+      "path": "apps/desktop/webview/static/assets/rename/interactions.js",
+      "dom_ids_touched": [
+        "rename-apply-button",
+        "rename-browse-files-button",
+        "rename-browse-folder-button",
+        "rename-clear-paths-button",
+        "rename-drop-zone",
+        "rename-log-bad-case-button",
+        "rename-log-case-cancel-button",
+        "rename-log-case-dialog",
+        "rename-log-case-submit-button",
+        "rename-mode",
+        "rename-preview-button",
+        "rename-undo-button"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/rename/confirmSummary.js",
+      "path": "apps/desktop/webview/static/assets/rename/confirmSummary.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/rename/dialogs.js",
+      "path": "apps/desktop/webview/static/assets/rename/dialogs.js",
+      "dom_ids_touched": [
         "rename-confirm-apply-button",
         "rename-confirm-cancel-button",
         "rename-confirm-count",
         "rename-confirm-list",
         "rename-confirm-warning",
-        "rename-drop-zone",
-        "rename-force-pipeline",
-        "rename-log-bad-case-button",
-        "rename-log-bad-case-status",
-        "rename-log-case-cancel-button",
-        "rename-log-case-dialog",
-        "rename-log-case-status-select",
-        "rename-log-case-submit-button",
-        "rename-mode",
-        "rename-move-checked-down-button",
-        "rename-move-checked-up-button",
-        "rename-movie-title",
-        "rename-movie-year",
-        "rename-natural-sort-button",
-        "rename-paths",
-        "rename-pipeline-preview",
-        "rename-preview-button",
         "rename-result-errors",
         "rename-result-open-log-button",
-        "rename-result-summary",
-        "rename-rows",
+        "rename-result-summary"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/renameView.js",
+      "path": "apps/desktop/webview/static/assets/renameView.js",
+      "dom_ids_touched": [
+        "rename-apply-status-hint",
+        "rename-force-pipeline",
+        "rename-mode",
+        "rename-movie-title",
+        "rename-movie-year",
+        "rename-paths",
+        "rename-pipeline-preview",
         "rename-season",
-        "rename-selected-final",
-        "rename-selected-force",
         "rename-show",
         "rename-sidecars",
         "rename-start",
-        "rename-table-legend",
         "rename-template-preset",
-        "rename-undo-button",
-        "rename-undo-status",
-        "rename-use-loaded-queue-button",
-        "rename-use-selected-queue-button",
-        "settings-patch-json",
         "settings-rename-preview-button",
-        "settings-rename-preview-input",
-        "settings-rename-preview-output",
-        "settings-rename-preview-status",
-        "settings-save-header-save-button"
+        "settings-rename-preview-input"
       ],
       "missing_from_index": [
-        "rename-bulk-find",
-        "rename-bulk-prefix",
-        "rename-bulk-replace",
-        "rename-bulk-scope",
-        "rename-bulk-suffix",
-        "rename-move-checked-down-button",
-        "rename-move-checked-up-button",
         "rename-movie-title",
-        "rename-natural-sort-button",
-        "rename-selected-final",
-        "rename-selected-force",
-        "rename-use-loaded-queue-button",
-        "rename-use-selected-queue-button",
         "settings-rename-preview-button",
-        "settings-rename-preview-input",
-        "settings-rename-preview-output",
-        "settings-rename-preview-status"
+        "settings-rename-preview-input"
       ]
     },
     {
@@ -1694,21 +2085,14 @@
       "missing_from_index": []
     },
     {
-      "src": "/assets/settings/patchReview.js",
-      "path": "apps/desktop/webview/static/assets/settings/patchReview.js",
+      "src": "/assets/settings/finalLibraryPromotion.js",
+      "path": "apps/desktop/webview/static/assets/settings/finalLibraryPromotion.js",
       "dom_ids_touched": [
-        "settings-filter",
         "settings-final-library-cleanup",
         "settings-final-library-enabled",
         "settings-final-library-overwrite",
         "settings-final-library-rules-rows",
-        "settings-final-library-verification-mode",
-        "settings-patch-json",
-        "settings-patch-summary-changed-only",
-        "settings-patch-summary-rows",
-        "settings-route-boundary-1080p-end-input",
-        "settings-route-height-slider",
-        "settings-save-review-rows"
+        "settings-final-library-verification-mode"
       ],
       "missing_from_index": [
         "settings-final-library-cleanup",
@@ -1719,36 +2103,106 @@
       ]
     },
     {
+      "src": "/assets/settings/patchOverview.js",
+      "path": "apps/desktop/webview/static/assets/settings/patchOverview.js",
+      "dom_ids_touched": [
+        "settings-patch-summary-changed-only",
+        "settings-patch-summary-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settings/patchInteractions.js",
+      "path": "apps/desktop/webview/static/assets/settings/patchInteractions.js",
+      "dom_ids_touched": [
+        "settings-filter",
+        "settings-patch-json",
+        "settings-patch-summary-changed-only",
+        "settings-route-boundary-1080p-end-input"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settings/patchReadiness.js",
+      "path": "apps/desktop/webview/static/assets/settings/patchReadiness.js",
+      "dom_ids_touched": [
+        "settings-save-review-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settings/patchReview.js",
+      "path": "apps/desktop/webview/static/assets/settings/patchReview.js",
+      "dom_ids_touched": [
+        "settings-patch-json",
+        "settings-route-height-slider"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settings/policyImpact/mediaProjection.js",
+      "path": "apps/desktop/webview/static/assets/settings/policyImpact/mediaProjection.js",
+      "dom_ids_touched": [
+        "settings-active-media-policy-rows",
+        "settings-media-policy-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settings/policyImpact/effectivePolicyView.js",
+      "path": "apps/desktop/webview/static/assets/settings/policyImpact/effectivePolicyView.js",
+      "dom_ids_touched": [
+        "settings-effective-policy-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/settings/policyImpact.js",
       "path": "apps/desktop/webview/static/assets/settings/policyImpact.js",
       "dom_ids_touched": [
-        "settings-active-media-policy-rows",
         "settings-backend-media-policy-rows",
-        "settings-effective-policy-rows",
         "settings-launch-impact-rows",
-        "settings-media-policy-rows",
         "settings-policy-delta-rows"
       ],
       "missing_from_index": []
     },
     {
-      "src": "/assets/settingsView.js",
-      "path": "apps/desktop/webview/static/assets/settingsView.js",
+      "src": "/assets/settings/view/builder.js",
+      "path": "apps/desktop/webview/static/assets/settings/view/builder.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settings/view/impact.js",
+      "path": "apps/desktop/webview/static/assets/settings/view/impact.js",
       "dom_ids_touched": [
-        "settings-handbrake-active-preset",
+        "settings-patch-status",
+        "settings-save-header-patch-status",
+        "settings-save-header-reload-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settings/view/review.js",
+      "path": "apps/desktop/webview/static/assets/settings/view/review.js",
+      "dom_ids_touched": [
         "settings-patch-detail",
         "settings-patch-json",
-        "settings-patch-status",
         "settings-rename-filter-release-groups",
+        "settings-save-review-dialog-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settings/view/commands.js",
+      "path": "apps/desktop/webview/static/assets/settings/view/commands.js",
+      "dom_ids_touched": [
+        "settings-handbrake-active-preset",
+        "settings-patch-json",
         "settings-rename-log-case-form",
         "settings-rename-log-case-status-select",
         "settings-rename-log-case-submit-button",
-        "settings-save-header-patch-status",
-        "settings-save-header-reload-button",
-        "settings-save-header-reload-status",
-        "settings-save-header-save-button",
-        "settings-save-review-dialog",
-        "settings-save-review-dialog-rows"
+        "settings-save-review-dialog"
       ],
       "missing_from_index": [
         "settings-rename-log-case-form",
@@ -1757,10 +2211,69 @@
       ]
     },
     {
-      "src": "/assets/settingsLibraries.js",
-      "path": "apps/desktop/webview/static/assets/settingsLibraries.js",
+      "src": "/assets/settings/view/lifecycle.js",
+      "path": "apps/desktop/webview/static/assets/settings/view/lifecycle.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settings/view/facade.js",
+      "path": "apps/desktop/webview/static/assets/settings/view/facade.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsView.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.js",
+      "dom_ids_touched": [
+        "settings-patch-detail",
+        "settings-save-header-reload-button",
+        "settings-save-header-save-button"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsLibraries/model.js",
+      "path": "apps/desktop/webview/static/assets/settingsLibraries/model.js",
+      "dom_ids_touched": [
+        "settings-library-warning-summary",
+        "settings-library-watch-auto-run",
+        "settings-library-watch-panel",
+        "settings-library-watch-respect-schedule"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsLibraries/render.js",
+      "path": "apps/desktop/webview/static/assets/settingsLibraries/render.js",
       "dom_ids_touched": [
         "settings-library-active-title",
+        "settings-library-profile-list",
+        "settings-library-profile-nav"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsLibraries/summary.js",
+      "path": "apps/desktop/webview/static/assets/settingsLibraries/summary.js",
+      "dom_ids_touched": [
+        "settings-library-defaults-button",
+        "settings-library-delete-button",
+        "settings-library-profile-list",
+        "settings-library-profile-nav",
+        "settings-library-scan-sources-button",
+        "settings-library-summary-detail",
+        "settings-library-summary-rows",
+        "settings-library-summary-status",
+        "settings-library-summary-strip",
+        "settings-library-summary-warning"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsLibraries/interaction.js",
+      "path": "apps/desktop/webview/static/assets/settingsLibraries/interaction.js",
+      "dom_ids_touched": [
         "settings-library-add-button",
         "settings-library-build-patch-button",
         "settings-library-defaults-button",
@@ -1771,20 +2284,37 @@
         "settings-library-reset-button",
         "settings-library-save-button",
         "settings-library-scan-sources-button",
-        "settings-library-summary-detail",
         "settings-library-summary-rows",
-        "settings-library-summary-status",
-        "settings-library-summary-strip",
-        "settings-library-summary-warning",
-        "settings-library-warning-summary",
         "settings-library-watch-auto-run",
-        "settings-library-watch-panel",
         "settings-library-watch-preview-button",
         "settings-library-watch-respect-schedule",
         "settings-library-watch-save-button",
         "settings-library-watch-stage-button",
         "settings-patch-json",
         "settings-patch-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsLibraries/facade.js",
+      "path": "apps/desktop/webview/static/assets/settingsLibraries/facade.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsLibraries.js",
+      "path": "apps/desktop/webview/static/assets/settingsLibraries.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settings/presetLibrary.js",
+      "path": "apps/desktop/webview/static/assets/settings/presetLibrary.js",
+      "dom_ids_touched": [
+        "settings-preset-library-compare-select",
+        "settings-preset-library-json",
+        "settings-preset-library-select",
+        "settings-preset-library-status"
       ],
       "missing_from_index": []
     },
@@ -1808,52 +2338,227 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/settings/wizard/libraryEditor.js",
+      "path": "apps/desktop/webview/static/assets/settings/wizard/libraryEditor.js",
+      "dom_ids_touched": [
+        "settings-wizard-library-list"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settings/wizard/previewRender.js",
+      "path": "apps/desktop/webview/static/assets/settings/wizard/previewRender.js",
+      "dom_ids_touched": [
+        "settings-wizard-path-rows",
+        "settings-wizard-summary-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/settingsWizard.js",
       "path": "apps/desktop/webview/static/assets/settingsWizard.js",
       "dom_ids_touched": [
+        "settings-save-header",
         "settings-validate-button"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/configDiagnostics.js",
+      "path": "apps/desktop/webview/static/assets/network/configDiagnostics.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/config.js",
+      "path": "apps/desktop/webview/static/assets/network/config.js",
+      "dom_ids_touched": [
+        "network-role-dashboards"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/queueProjection.js",
+      "path": "apps/desktop/webview/static/assets/network/queueProjection.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/overviewTiles.js",
+      "path": "apps/desktop/webview/static/assets/network/overviewTiles.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/overviewModel.js",
+      "path": "apps/desktop/webview/static/assets/network/overviewModel.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/lifecycleContract.js",
+      "path": "apps/desktop/webview/static/assets/network/lifecycleContract.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/stateFiles.js",
+      "path": "apps/desktop/webview/static/assets/network/stateFiles.js",
+      "dom_ids_touched": [
+        "network-state-files-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/readiness.js",
+      "path": "apps/desktop/webview/static/assets/network/readiness.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/lifecycle.view.js",
+      "path": "apps/desktop/webview/static/assets/network/lifecycle.view.js",
+      "dom_ids_touched": [
+        "network-coordinator-join-copy",
+        "network-coordinator-join-create",
+        "network-coordinator-join-output",
+        "network-coordinator-join-url",
+        "network-worker-discover",
+        "network-worker-join-blob",
+        "network-worker-join-import"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/status.js",
+      "path": "apps/desktop/webview/static/assets/network/status.js",
+      "dom_ids_touched": [
+        "network-action-readiness-gates",
+        "network-attention-stack",
+        "network-health-strip",
+        "network-topology-strip"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/lifecycle.model.js",
+      "path": "apps/desktop/webview/static/assets/network/lifecycle.model.js",
+      "dom_ids_touched": [
+        "network-lifecycle-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/lifecycle.results.js",
+      "path": "apps/desktop/webview/static/assets/network/lifecycle.results.js",
+      "dom_ids_touched": [
+        "network-worker-discovery-list",
+        "settings-network-role"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/lifecycle.commands.js",
+      "path": "apps/desktop/webview/static/assets/network/lifecycle.commands.js",
+      "dom_ids_touched": [
+        "network-lifecycle-command-result",
+        "network-lifecycle-confirm-cancel",
+        "network-lifecycle-confirm-dialog",
+        "network-lifecycle-confirm-submit"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/setup.commands.js",
+      "path": "apps/desktop/webview/static/assets/network/setup.commands.js",
+      "dom_ids_touched": [
+        "network-coordinator-join-output",
+        "network-coordinator-join-rotate",
+        "network-coordinator-join-url",
+        "network-worker-join-blob"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/settingsHandoff.js",
+      "path": "apps/desktop/webview/static/assets/network/settingsHandoff.js",
+      "dom_ids_touched": [
+        "settings-patch-json",
+        "settings-patch-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/openHistory.js",
+      "path": "apps/desktop/webview/static/assets/network/openHistory.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/evidence.js",
+      "path": "apps/desktop/webview/static/assets/network/evidence.js",
+      "dom_ids_touched": [
+        "network-evidence-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/workers.model.js",
+      "path": "apps/desktop/webview/static/assets/network/workers.model.js",
+      "dom_ids_touched": [
+        "network-settings-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/workers.view.js",
+      "path": "apps/desktop/webview/static/assets/network/workers.view.js",
+      "dom_ids_touched": [
+        "network-worker-detail",
+        "network-worker-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/roleDashboard.js",
+      "path": "apps/desktop/webview/static/assets/network/roleDashboard.js",
+      "dom_ids_touched": [
+        "network-coordinator-active-rows",
+        "network-coordinator-queue-rows",
+        "network-worker-claim-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/rerunEvidence.js",
+      "path": "apps/desktop/webview/static/assets/network/rerunEvidence.js",
+      "dom_ids_touched": [
+        "network-rerun-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/network/events.js",
+      "path": "apps/desktop/webview/static/assets/network/events.js",
+      "dom_ids_touched": [
+        "network-coordinator-join-copy",
+        "network-coordinator-join-create",
+        "network-open-queue-rerun-button",
+        "network-settings-preview-button",
+        "network-settings-save-button",
+        "network-worker-discover",
+        "network-worker-discovery-list",
+        "network-worker-filter",
+        "network-worker-join-blob",
+        "network-worker-join-import",
+        "network-worker-status-filter"
       ],
       "missing_from_index": []
     },
     {
       "src": "/assets/networkView.js",
       "path": "apps/desktop/webview/static/assets/networkView.js",
-      "dom_ids_touched": [
-        "network-action-readiness-gates",
-        "network-attention-stack",
-        "network-coordinator-active-rows",
-        "network-coordinator-join-copy",
-        "network-coordinator-join-create",
-        "network-coordinator-join-output",
-        "network-coordinator-join-rotate",
-        "network-coordinator-join-url",
-        "network-coordinator-queue-rows",
-        "network-evidence-rows",
-        "network-health-strip",
-        "network-lifecycle-command-result",
-        "network-lifecycle-confirm-cancel",
-        "network-lifecycle-confirm-dialog",
-        "network-lifecycle-confirm-submit",
-        "network-lifecycle-rows",
-        "network-role-dashboards",
-        "network-settings-preview-button",
-        "network-settings-rows",
-        "network-settings-save-button",
-        "network-state-files-rows",
-        "network-topology-strip",
-        "network-worker-claim-rows",
-        "network-worker-detail",
-        "network-worker-discover",
-        "network-worker-discovery-list",
-        "network-worker-filter",
-        "network-worker-join-blob",
-        "network-worker-join-import",
-        "network-worker-rows",
-        "network-worker-status-filter",
-        "settings-network-role",
-        "settings-patch-json",
-        "settings-patch-status"
-      ],
+      "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
@@ -1929,21 +2634,14 @@
       "missing_from_index": []
     },
     {
-      "src": "/assets/diagnosticsView.js",
-      "path": "apps/desktop/webview/static/assets/diagnosticsView.js",
+      "src": "/assets/diagnostics/matrixConsole.js",
+      "path": "apps/desktop/webview/static/assets/diagnostics/matrixConsole.js",
       "dom_ids_touched": [
-        "diagnostics-drilldown-actions",
-        "diagnostics-first-response-rows",
-        "diagnostics-investigation-actions",
-        "diagnostics-log-filter",
-        "diagnostics-log-severity",
-        "diagnostics-tail-refresh-button",
         "tdarr-matrix-audit-bucket-filter",
         "tdarr-matrix-audit-bucket-rows",
         "tdarr-matrix-audit-evidence-actions",
         "tdarr-matrix-audit-filter",
         "tdarr-matrix-audit-findings-rows",
-        "tdarr-matrix-audit-load-latest",
         "tdarr-matrix-audit-rerun-failures",
         "tdarr-matrix-audit-rerun-selected",
         "tdarr-matrix-audit-severity-filter",
@@ -1953,6 +2651,41 @@
         "tdarr-matrix-delete-confirm",
         "tdarr-matrix-proof-pack-rows",
         "tdarr-matrix-run-compare-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/diagnostics/triage.js",
+      "path": "apps/desktop/webview/static/assets/diagnostics/triage.js",
+      "dom_ids_touched": [
+        "diagnostics-drilldown-actions"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/diagnostics/firstResponse.js",
+      "path": "apps/desktop/webview/static/assets/diagnostics/firstResponse.js",
+      "dom_ids_touched": [
+        "diagnostics-first-response-rows",
+        "diagnostics-investigation-actions"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/diagnosticsView.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.js",
+      "dom_ids_touched": [
+        "diagnostics-log-filter",
+        "diagnostics-log-severity",
+        "diagnostics-tail-refresh-button",
+        "tdarr-matrix-audit-bucket-filter",
+        "tdarr-matrix-audit-filter",
+        "tdarr-matrix-audit-load-latest",
+        "tdarr-matrix-audit-rerun-failures",
+        "tdarr-matrix-audit-rerun-selected",
+        "tdarr-matrix-audit-severity-filter",
+        "tdarr-matrix-compare-refresh",
+        "tdarr-matrix-delete-confirm"
       ],
       "missing_from_index": []
     },
@@ -2035,19 +2768,34 @@
       "missing_from_index": []
     },
     {
-      "src": "/assets/reports/auditCommands.js",
-      "path": "apps/desktop/webview/static/assets/reports/auditCommands.js",
+      "src": "/assets/reports/audit/sources.js",
+      "path": "apps/desktop/webview/static/assets/reports/audit/sources.js",
       "dom_ids_touched": [
         "report-audit-clear-source-selection-button",
         "report-audit-scan-all-button",
         "report-audit-scan-selected-button",
-        "report-audit-score-redownload-bucket",
-        "report-audit-source-rows",
+        "report-audit-source-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/reports/audit/progress.js",
+      "path": "apps/desktop/webview/static/assets/reports/audit/progress.js",
+      "dom_ids_touched": [
+        "audit-preview-priority-only",
         "report-audit-start-button",
+        "report-audit-stop-button"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/reports/auditCommands.js",
+      "path": "apps/desktop/webview/static/assets/reports/auditCommands.js",
+      "dom_ids_touched": [
+        "report-audit-score-redownload-bucket",
         "report-audit-start-include-sidecars",
         "report-audit-start-library-root",
-        "report-audit-start-show-console",
-        "report-audit-stop-button"
+        "report-audit-start-show-console"
       ],
       "missing_from_index": []
     },
@@ -2055,6 +2803,14 @@
       "src": "/assets/reports/triage.js",
       "path": "apps/desktop/webview/static/assets/reports/triage.js",
       "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/reports/investigation.js",
+      "path": "apps/desktop/webview/static/assets/reports/investigation.js",
+      "dom_ids_touched": [
+        "failure-source-markers"
+      ],
       "missing_from_index": []
     },
     {
@@ -2072,7 +2828,6 @@
         "failure-lifecycle-reopen-confirm-button",
         "failure-lifecycle-resolve-confirm-button",
         "failure-lifecycle-start-button",
-        "failure-source-markers",
         "report-audit-add-source-button",
         "report-audit-clear-source-selection-button",
         "report-audit-export-rerun-csv-button",
@@ -2089,14 +2844,20 @@
       "missing_from_index": []
     },
     {
-      "src": "/assets/scheduleView.js",
-      "path": "apps/desktop/webview/static/assets/scheduleView.js",
+      "src": "/assets/schedule/watchFolder.js",
+      "path": "apps/desktop/webview/static/assets/schedule/watchFolder.js",
       "dom_ids_touched": [
-        "pipeline-start-mode",
-        "pipeline-start-schedule-override",
-        "schedule-allowed-state",
-        "schedule-coverage-rows",
-        "schedule-day-rows",
+        "schedule-watch-folder-event-rows",
+        "schedule-watch-folder-root-rows",
+        "schedule-watch-folder-scope",
+        "schedule-watch-folder-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/schedule/editor.js",
+      "path": "apps/desktop/webview/static/assets/schedule/editor.js",
+      "dom_ids_touched": [
         "schedule-editor-allow-all-button",
         "schedule-editor-clear-button",
         "schedule-editor-draft-summary",
@@ -2108,28 +2869,59 @@
         "schedule-editor-preview-button",
         "schedule-editor-rows",
         "schedule-editor-save-button",
-        "schedule-editor-save-state",
-        "schedule-enabled-state",
-        "schedule-watch-folder-event-rows",
-        "schedule-watch-folder-root-rows",
-        "schedule-watch-folder-scope",
-        "schedule-watch-folder-status"
+        "schedule-editor-save-state"
       ],
       "missing_from_index": [
         "schedule-editor-monday-windows"
       ]
     },
     {
-      "src": "/assets/maintenanceView.js",
-      "path": "apps/desktop/webview/static/assets/maintenanceView.js",
+      "src": "/assets/scheduleView.js",
+      "path": "apps/desktop/webview/static/assets/scheduleView.js",
       "dom_ids_touched": [
-        "dependency-atlas-detail",
-        "dependency-atlas-open-folder-button",
+        "pipeline-start-mode",
+        "pipeline-start-schedule-override",
+        "schedule-allowed-state",
+        "schedule-coverage-rows",
+        "schedule-day-rows",
+        "schedule-enabled-state"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/maintenance/changeLedger.js",
+      "path": "apps/desktop/webview/static/assets/maintenance/changeLedger.js",
+      "dom_ids_touched": [
+        "maintenance-change-ledger-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/maintenance/health.js",
+      "path": "apps/desktop/webview/static/assets/maintenance/health.js",
+      "dom_ids_touched": [
+        "maintenance-diagnostics-actions",
+        "maintenance-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/maintenance/dryRunReadiness.js",
+      "path": "apps/desktop/webview/static/assets/maintenance/dryRunReadiness.js",
+      "dom_ids_touched": [
         "maintenance-change-ledger-refresh-button",
         "maintenance-change-ledger-rows",
-        "maintenance-diagnostics-actions",
         "maintenance-refresh-button",
-        "maintenance-rows",
+        "maintenance-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/maintenance/releaseCommands.js",
+      "path": "apps/desktop/webview/static/assets/maintenance/releaseCommands.js",
+      "dom_ids_touched": [
+        "dependency-atlas-detail",
+        "maintenance-change-ledger-refresh-button",
         "release-build-force",
         "release-dry-run-destination",
         "release-dry-run-dev-docs",
@@ -2141,6 +2933,39 @@
         "release-dry-run-verify",
         "release-dry-run-zip"
       ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/maintenanceView.js",
+      "path": "apps/desktop/webview/static/assets/maintenanceView.js",
+      "dom_ids_touched": [
+        "dependency-atlas-open-folder-button"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/recoverySupportView.js",
+      "path": "apps/desktop/webview/static/assets/recoverySupportView.js",
+      "dom_ids_touched": [
+        "home-recovery-banner",
+        "maintenance-support-create",
+        "maintenance-support-include-logs",
+        "maintenance-support-max-log-bytes",
+        "maintenance-support-reason",
+        "maintenance-support-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/provenanceView.js",
+      "path": "apps/desktop/webview/static/assets/provenanceView.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/telemetry/gpuProjection.js",
+      "path": "apps/desktop/webview/static/assets/telemetry/gpuProjection.js",
+      "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
@@ -2243,14 +3068,21 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/launch/scope/compactGate.js",
+      "path": "apps/desktop/webview/static/assets/launch/scope/compactGate.js",
+      "dom_ids_touched": [
+        "pipeline-compact-gate-status"
+      ],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/launchView.scope.js",
       "path": "apps/desktop/webview/static/assets/launchView.scope.js",
       "dom_ids_touched": [
         "launch-scope-reconciliation-rows",
         "launch-scope-reconciliation-status",
         "launch-start-decision-rows",
-        "launch-start-decision-status",
-        "pipeline-compact-gate-status"
+        "launch-start-decision-status"
       ],
       "missing_from_index": []
     },
@@ -2266,13 +3098,20 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/launch/preflight/pilotReadiness.js",
+      "path": "apps/desktop/webview/static/assets/launch/preflight/pilotReadiness.js",
+      "dom_ids_touched": [
+        "launch-pilot-readiness-rows",
+        "launch-pilot-readiness-status"
+      ],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/launchView.preflight.js",
       "path": "apps/desktop/webview/static/assets/launchView.preflight.js",
       "dom_ids_touched": [
         "launch-backend-preflight-rows",
-        "launch-backend-preflight-status",
-        "launch-pilot-readiness-rows",
-        "launch-pilot-readiness-status"
+        "launch-backend-preflight-status"
       ],
       "missing_from_index": []
     },
@@ -2308,6 +3147,7 @@
       "src": "/assets/queue/rerunRequest.js",
       "path": "apps/desktop/webview/static/assets/queue/rerunRequest.js",
       "dom_ids_touched": [
+        "rerun-network-minimum-workers",
         "rerun-preview-limit",
         "rerun-scope-enabled-only",
         "rerun-scope-first-n",
@@ -2318,6 +3158,7 @@
         "rerun-start-csv-path",
         "rerun-start-destination-mode",
         "rerun-start-execution-mode",
+        "rerun-start-target-mode",
         "rerun-start-window-size"
       ],
       "missing_from_index": []
@@ -2344,28 +3185,65 @@
       "missing_from_index": []
     },
     {
-      "src": "/assets/launchView.js",
-      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "src": "/assets/launch/commandOrchestration.js",
+      "path": "apps/desktop/webview/static/assets/launch/commandOrchestration.js",
       "dom_ids_touched": [
         "launch-backend-preflight-status",
         "launch-encoder-capability-refresh-button",
         "pending-drain-button",
+        "pipeline-compact-gate-status",
         "pipeline-single-file-browse-button",
         "pipeline-single-file-clear-button",
         "pipeline-start-button",
-        "pipeline-start-single-file",
-        "rerun-inspect-csv-button",
+        "pipeline-start-safety-summary",
+        "pipeline-start-single-file"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/rerunEvidence.js",
+      "path": "apps/desktop/webview/static/assets/launch/rerunEvidence.js",
+      "dom_ids_touched": [
         "rerun-lifecycle-evidence",
         "rerun-lifecycle-phase",
-        "rerun-preview-rows",
-        "rerun-preview-tiles",
         "rerun-recent-csv-rows",
-        "rerun-results-panel",
         "rerun-review-header",
-        "rerun-start-button",
         "rerun-start-collision-policy",
         "rerun-start-csv-path",
         "rerun-start-destination-mode"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/rerunPresentation.js",
+      "path": "apps/desktop/webview/static/assets/launch/rerunPresentation.js",
+      "dom_ids_touched": [
+        "rerun-inspect-csv-button",
+        "rerun-preview-rows",
+        "rerun-preview-tiles",
+        "rerun-results-panel",
+        "rerun-start-button",
+        "rerun-start-csv-path"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/rerunOrchestration.js",
+      "path": "apps/desktop/webview/static/assets/launch/rerunOrchestration.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/rerunFacade.js",
+      "path": "apps/desktop/webview/static/assets/launch/rerunFacade.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launchView.js",
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "dom_ids_touched": [
+        "pipeline-start-single-file"
       ],
       "missing_from_index": []
     },
@@ -2382,14 +3260,19 @@
       "missing_from_index": []
     },
     {
-      "src": "/assets/app/lifecycle.js",
-      "path": "apps/desktop/webview/static/assets/app/lifecycle.js",
+      "src": "/assets/app/lifecycle/topbar.js",
+      "path": "apps/desktop/webview/static/assets/app/lifecycle/topbar.js",
       "dom_ids_touched": [
         "activity",
+        "topbar-event-ticker"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/lifecycle/navigation.js",
+      "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
+      "dom_ids_touched": [
         "advanced-toggle",
-        "backend-lifecycle-history-rows",
-        "backend-lifecycle-status",
-        "backend-shutdown-button",
         "close-readiness",
         "customize-layout-btn",
         "evidence-toggle",
@@ -2397,12 +3280,23 @@
         "launch-evidence-toggle",
         "pipeline-sparkline",
         "refresh-health",
-        "theme-toggle",
-        "topbar-event-ticker"
+        "settings-save-header",
+        "theme-toggle"
       ],
       "missing_from_index": [
         "theme-toggle"
       ]
+    },
+    {
+      "src": "/assets/app/lifecycle.js",
+      "path": "apps/desktop/webview/static/assets/app/lifecycle.js",
+      "dom_ids_touched": [
+        "advanced-toggle",
+        "backend-lifecycle-history-rows",
+        "backend-lifecycle-status",
+        "backend-shutdown-button"
+      ],
+      "missing_from_index": []
     },
     {
       "src": "/assets/app/topbar.js?v=20260630-csv-home-queue-fastpath",
@@ -2439,12 +3333,26 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/app/home/dailyDriver.js",
+      "path": "apps/desktop/webview/static/assets/app/home/dailyDriver.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/home/queueProjection.js",
+      "path": "apps/desktop/webview/static/assets/app/home/queueProjection.js",
+      "dom_ids_touched": [
+        "home-next-queue-detail",
+        "home-next-queue-list"
+      ],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/app/home.js?v=20260630-csv-home-queue-fastpath",
       "path": "apps/desktop/webview/static/assets/app/home.js",
       "dom_ids_touched": [
         "daily-driver-rows",
         "home-failure-artifact-storage-detail",
-        "home-next-queue-detail",
         "home-next-queue-list",
         "home-queue-snapshot",
         "home-recent-completed-tbody"
@@ -2464,34 +3372,72 @@
       "missing_from_index": []
     },
     {
-      "src": "/assets/app/layoutManager.js",
-      "path": "apps/desktop/webview/static/assets/app/layoutManager.js",
+      "src": "/assets/app/layoutManager/drawer.js",
+      "path": "apps/desktop/webview/static/assets/app/layoutManager/drawer.js",
       "dom_ids_touched": [
         "customize-layout-btn",
-        "layout-editor-done",
         "layout-editor-drawer",
-        "layout-editor-reset-all",
-        "layout-editor-reset-page",
-        "layout-editor-reset-subtab",
-        "layout-editor-status",
         "layout-editor-tree",
-        "layout-reset-warning",
-        "reset-layout-btn"
+        "layout-reset-warning"
       ],
       "missing_from_index": [
         "layout-reset-warning"
       ]
     },
     {
-      "src": "/assets/app.js?v=20260630-csv-home-queue-fastpath",
-      "path": "apps/desktop/webview/static/assets/app.js",
+      "src": "/assets/app/layoutManager/normalization.js",
+      "path": "apps/desktop/webview/static/assets/app/layoutManager/normalization.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/layoutManager.js",
+      "path": "apps/desktop/webview/static/assets/app/layoutManager.js",
       "dom_ids_touched": [
-        "advanced-toggle",
+        "customize-layout-btn",
+        "layout-editor-done",
+        "layout-editor-reset-all",
+        "layout-editor-reset-page",
+        "layout-editor-reset-subtab",
+        "layout-editor-status",
+        "reset-layout-btn"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/uiPreferences.js",
+      "path": "apps/desktop/webview/static/assets/app/uiPreferences.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/dashboard.js",
+      "path": "apps/desktop/webview/static/assets/app/dashboard.js",
+      "dom_ids_touched": [
+        "pipeline-state",
+        "queue-count",
+        "state-pill"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/refreshCoordinator.js",
+      "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
+      "dom_ids_touched": [
+        "audit-preview-priority-only",
+        "failure-source-markers",
+        "state-pill"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/lifecycleOrchestration.js",
+      "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
+      "dom_ids_touched": [
         "audit-preview-filter",
         "audit-preview-priority-only",
         "backend-shutdown-button",
         "backfill-dry-run-button",
-        "close-readiness",
         "completed-clear-filters-button",
         "completed-copy-evidence-button",
         "completed-filter",
@@ -2506,7 +3452,6 @@
         "completed-status-filter",
         "dependency-atlas-button",
         "dependency-atlas-open-folder-button",
-        "evidence-toggle",
         "failure-filter",
         "failure-source-markers",
         "final-library-pause-button",
@@ -2522,10 +3467,8 @@
         "pending-recovery-plan-selected-button",
         "pending-status-filter",
         "pipeline-start-button",
-        "pipeline-state",
         "publish-reconciliation-refresh-button",
         "queue-clear-filters-button",
-        "queue-count",
         "queue-filter",
         "queue-investigation-filter",
         "queue-status-filter",
@@ -2557,8 +3500,7 @@
         "rename-preview-top-button",
         "rename-save-override-button",
         "rename-use-loaded-queue-button",
-        "rename-use-selected-queue-button",
-        "state-pill"
+        "rename-use-selected-queue-button"
       ],
       "missing_from_index": [
         "rename-apply-selected-button",
@@ -2577,6 +3519,19 @@
         "rename-use-loaded-queue-button",
         "rename-use-selected-queue-button"
       ]
+    },
+    {
+      "src": "/assets/app.js?v=20260630-csv-home-queue-fastpath",
+      "path": "apps/desktop/webview/static/assets/app.js",
+      "dom_ids_touched": [
+        "advanced-toggle",
+        "close-readiness",
+        "evidence-toggle",
+        "pipeline-state",
+        "queue-count",
+        "state-pill"
+      ],
+      "missing_from_index": []
     }
   ]
 }

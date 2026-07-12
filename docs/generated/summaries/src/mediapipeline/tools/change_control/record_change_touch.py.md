@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/change_control/record_change_touch.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-02
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 9584c12f7f49cd49390efbc6332a415714dda49eda10c3b59c2ac3d6b3c16397
+sha256: af5967bebea58347a40a8415768809b95e664352dba3e1545d54c33dbcf1950e
 ---
 # `src/mediapipeline/tools/change_control/record_change_touch.py`
 

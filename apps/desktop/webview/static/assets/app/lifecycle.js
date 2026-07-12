@@ -38,6 +38,7 @@ const lifecycleNavigationModule = window.__appLifecycleNavigationModule;
     initSettingsTabNav,
     activateDiagnosticsTab,
     initDiagnosticsTabNav,
+    activateCompletedTab,
     initCompletedTabNav,
     activateUiQuickLink,
     initUiQuickLinks,

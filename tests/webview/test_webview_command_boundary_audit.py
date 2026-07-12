@@ -107,12 +107,19 @@ class WebViewCommandBoundaryAuditTests(unittest.TestCase):
         self.assertIn("process-launch", effects)
         self.assertIn("queue-state-write", effects)
 
-    def test_dynamic_api_post_dispatch_is_only_network_lifecycle(self) -> None:
+    def test_dynamic_api_post_dispatch_is_only_guarded_dispatch_or_namespace_forwarders(self) -> None:
         report = _load_report()
         dynamic_posts = report["dynamic_api_posts"]
 
-        self.assertEqual(len(dynamic_posts), 1)
-        dynamic_post = dynamic_posts[0]
+        self.assertTrue(dynamic_posts)
+        self.assertTrue(all(dynamic_post["allowed"] for dynamic_post in dynamic_posts))
+        network_posts = [
+            dynamic_post
+            for dynamic_post in dynamic_posts
+            if dynamic_post["reason"] == "contract-driven Network lifecycle dispatch"
+        ]
+        self.assertEqual(len(network_posts), 1)
+        dynamic_post = network_posts[0]
         self.assertIn(
             dynamic_post["file"],
             {
@@ -126,3 +133,18 @@ class WebViewCommandBoundaryAuditTests(unittest.TestCase):
             dynamic_post["reason"],
             "contract-driven Network lifecycle dispatch",
         )
+        namespace_forwarders = [
+            dynamic_post
+            for dynamic_post in dynamic_posts
+            if dynamic_post["reason"] == "late-bound mediaPipelineApi namespace forwarder"
+        ]
+        self.assertTrue(namespace_forwarders)
+        self.assertEqual(
+            {dynamic_post["file"] for dynamic_post in namespace_forwarders},
+            {
+                "apps/desktop/webview/static/assets/launchView.js",
+                "apps/desktop/webview/static/assets/queueView.js",
+                "apps/desktop/webview/static/assets/settingsView.js",
+            },
+        )
+        self.assertEqual(len(dynamic_posts), len(network_posts) + len(namespace_forwarders))

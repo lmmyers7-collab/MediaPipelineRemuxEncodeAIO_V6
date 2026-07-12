@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: caae016aa8598d9beae394e2065a9c22ca78a13346e09c0b4e21711f8dfb46dd
+sha256: b46512ac7209811f8f1a7de38b480f879c7aa4def26e497bcb15c13aa4993aac
 ---
 # `apps/desktop/webview/static/assets/rename/dialogs.js`
 

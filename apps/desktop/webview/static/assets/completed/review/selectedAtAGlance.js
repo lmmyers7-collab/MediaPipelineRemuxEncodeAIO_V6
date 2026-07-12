@@ -452,7 +452,7 @@
     }
 
     function selectCompletedSignal(signalKey, item) {
-      const scrollSnapshot = captureCompletedReviewSelectionScroll();
+      const scrollSnapshot = captureSelectionScroll();
       state.selectedCompletedSignalKey = signalKey || "size-change";
       renderCompletedSelectedAtAGlance(item || null);
       const summary = byId("completed-selected-summary");
@@ -462,7 +462,7 @@
       if (selectedButton && typeof selectedButton.focus === "function") {
         selectedButton.focus({ preventScroll: true });
       }
-      restoreCompletedReviewSelectionScroll(scrollSnapshot);
+      restoreSelectionScroll(scrollSnapshot);
     }
 
     function completedSelectedSignalDetailPanel(signal, item) {

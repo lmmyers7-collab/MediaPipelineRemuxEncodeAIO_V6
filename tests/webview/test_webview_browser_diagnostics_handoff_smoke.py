@@ -118,6 +118,7 @@ def _browser_diagnostics_handoff_runner_source() -> str:
                 "queue=" + text("queue-diagnostics-status"),
                 "completed=" + text("completed-diagnostics-status"),
                 "pending=" + text("pending-diagnostics-status"),
+                "pendingFilter=" + text("pending-filter-summary"),
                 "tailStatus=" + text("diagnostics-tail-status"),
                 "tailTarget=" + value("diagnostics-tail-target"),
                 "tailDetail=" + text("diagnostics-tail-detail"),
@@ -221,8 +222,8 @@ def _browser_diagnostics_handoff_runner_source() -> str:
               }
               checks.commandEvidence.contractRoutePresenceBoundary = true;
 
-              const originalApiGet = window.apiGet;
-              const originalApiPost = window.apiPost;
+              const originalApiGet = window.mediaPipelineApi.apiGet;
+              const originalApiPost = window.mediaPipelineApi.apiPost;
               const originalConfirm = window.confirm;
               try {
                 const duplicateTailButton = document.createElement("button");
@@ -231,7 +232,7 @@ def _browser_diagnostics_handoff_runner_source() -> str:
                 duplicateTailButton.textContent = "Duplicate Tail Fixture";
                 document.body.appendChild(duplicateTailButton);
                 let finishTail = null;
-                window.apiGet = async (path) => {
+                window.mediaPipelineApi.apiGet = async (path) => {
                   if (!String(path || "").includes("/api/diagnostics/tail")) throw new Error("unexpected duplicate tail path " + path);
                   return new Promise((resolve) => {
                     finishTail = () => resolve({
@@ -261,7 +262,7 @@ def _browser_diagnostics_handoff_runner_source() -> str:
                 duplicateOpenButton.textContent = "Duplicate Open Fixture";
                 document.body.appendChild(duplicateOpenButton);
                 let finishOpen = null;
-                window.apiPost = async (path, body) => {
+                window.mediaPipelineApi.apiPost = async (path, body) => {
                   if (path !== "/api/diagnostics/open") throw new Error("unexpected duplicate open path " + path);
                   return new Promise((resolve) => {
                     finishOpen = () => resolve({
@@ -282,8 +283,8 @@ def _browser_diagnostics_handoff_runner_source() -> str:
                 finishOpen();
                 await firstOpen;
               } finally {
-                window.apiGet = originalApiGet;
-                window.apiPost = originalApiPost;
+                window.mediaPipelineApi.apiGet = originalApiGet;
+                window.mediaPipelineApi.apiPost = originalApiPost;
                 window.confirm = originalConfirm;
               }
 
@@ -379,7 +380,7 @@ def _browser_diagnostics_handoff_runner_source() -> str:
               const tdarrPosts = [];
               let tdarrLatestCalls = 0;
               try {
-                window.apiGet = async (path) => {
+                window.mediaPipelineApi.apiGet = async (path) => {
                   const route = String(path || "");
                   if (route.includes("/api/diagnostics/tdarr-matrix/latest")) {
                     tdarrLatestCalls += 1;
@@ -390,7 +391,7 @@ def _browser_diagnostics_handoff_runner_source() -> str:
                   }
                   throw new Error("unexpected Tdarr apiGet " + route);
                 };
-                window.apiPost = async (path, body) => {
+                window.mediaPipelineApi.apiPost = async (path, body) => {
                   if (path !== "/api/diagnostics/tdarr-matrix-audit") throw new Error("unexpected Tdarr apiPost " + path);
                   tdarrPosts.push({ path, body: body || {} });
                   if (body?.action === "cleanup-delete") {
@@ -459,8 +460,8 @@ def _browser_diagnostics_handoff_runner_source() -> str:
                   posts: tdarrPosts.map((entry) => entry.body.action),
                 };
               } finally {
-                window.apiGet = originalApiGet;
-                window.apiPost = originalApiPost;
+                window.mediaPipelineApi.apiGet = originalApiGet;
+                window.mediaPipelineApi.apiPost = originalApiPost;
                 window.confirm = originalConfirm;
               }
               return checks;
@@ -474,10 +475,13 @@ def _browser_diagnostics_handoff_runner_source() -> str:
               "renderDiagnostics", "renderDiagnosticsProgress",
               "renderDiagnosticsFirstResponse", "diagnosticsFirstResponseDetailLines",
               "diagnosticsSamplePolicyReconciliation", "diagnosticsCompletedPolicyReconciliationLines",
-              "renderSettings", "externalDependencyRows",
+              "externalDependencyRows",
               "renderContract", "contractSafetyReviewRows", "renderContractSafetyReview",
               "getCommandHistory", "showPage"
             ].forEach(requireFunction);
+            if (typeof window.mediaPipelineSettingsView?.renderSettings !== "function") {
+              throw new Error("missing mediaPipelineSettingsView.renderSettings");
+            }
             if (typeof window.mediaPipelineCompletedView?.renderCompleted !== "function") {
               throw new Error("missing mediaPipelineCompletedView.renderCompleted");
             }
@@ -702,7 +706,7 @@ def _browser_diagnostics_handoff_runner_source() -> str:
               "Guardrail: action targets are backend allowlist identifiers",
             ]);
             window.mediaPipelineDiagnosticsStateSummaryView.renderDiagnosticsStateSummary(payload.stateSummary || {});
-            if (payload.settings) window.renderSettings(payload.settings);
+            if (payload.settings) window.mediaPipelineSettingsView.renderSettings(payload.settings);
             window.mediaPipelineDiagnosticsView.renderDiagnosticsFirstResponse({
               snapshot: payload.snapshot || {},
               closeReadiness: payload.closeReadiness || {},

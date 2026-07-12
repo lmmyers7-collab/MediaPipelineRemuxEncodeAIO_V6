@@ -3,9 +3,9 @@ file: ops/pipeline/config/setup/PathValidation.ps1
 pipeline_stage: setup
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-02
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 3a6a37c45017d027777c3221d9a29cfc6871b4ea287f63c7a2cf88ba0dfbf076
+sha256: f5b96290d505c8f202e553014824410853bbf93351c6594a6c639aae96a0dc27
 ---
 # `ops/pipeline/config/setup/PathValidation.ps1`
 

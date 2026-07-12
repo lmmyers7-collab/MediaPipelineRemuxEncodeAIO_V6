@@ -22,7 +22,9 @@
     function crossPageSettingsPayload(context = {}) {
       if (context.settings && typeof context.settings === "object") return context.settings;
       try {
-        if (typeof window.getLastSettings === "function") return window.getLastSettings() || {};
+        if (typeof window.mediaPipelineSettingsView?.getLastSettings === "function") {
+          return window.mediaPipelineSettingsView.getLastSettings() || {};
+        }
       } catch {
         return {};
       }

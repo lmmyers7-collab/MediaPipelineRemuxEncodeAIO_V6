@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 381c31a163997c00f22ad7940f1ae097b8158b688b1d91bfff39ea26abffdf35
+sha256: 53b7366887b2845ad2712b45aaab86694978398d37bf6b620ee96842a7b9833e
 ---
 # `ops/scripts/release/test.ps1`
 

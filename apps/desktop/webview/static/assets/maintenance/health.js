@@ -1,4 +1,3 @@
-/* global byId, clearRows, setText */
 (function () {
   function createMaintenanceHealth(deps) {
     const {

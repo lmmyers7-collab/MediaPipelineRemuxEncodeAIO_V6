@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/metadata_parts/__init__.py
 pipeline_stage: config
 token_priority: low
 owner_domain: config
-last_modified: 2026-05-30
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 70bf273c5408f053d0ff01c324ebe731c53e8261b6e4e9f57167babea2088634
+sha256: 445d7b23875dadb10b3314447ac00fa653788bdd4c99c375f8b086d44e0da03a
 ---
 # `src/mediapipeline/core/config/metadata_parts/__init__.py`
 

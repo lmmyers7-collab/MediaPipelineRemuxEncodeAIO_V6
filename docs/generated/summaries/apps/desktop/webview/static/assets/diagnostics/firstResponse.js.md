@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-07-11
 last_reviewed: 2026-07-11
-sha256: 075debebab994a6763ee2cbe7de0e4f489828ceba03f87c09ad52f668afa1e16
+sha256: 660a27fb3546a039ab180de5b2e4fd1f12ab84a3f9b6502c6b1d0a9b23250d62
 ---
 # `apps/desktop/webview/static/assets/diagnostics/firstResponse.js`
 

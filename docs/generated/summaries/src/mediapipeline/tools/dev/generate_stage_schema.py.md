@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/dev/generate_stage_schema.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-07-11
 last_reviewed: 2026-06-04
-sha256: 522011580bb439d58bd548257500bf9cb7edd6aa6dc413d61a80ef4ac975a6db
+sha256: 65a8788faf99ba2b3d321619da66b3491058f245f65fee846f41fc54df911040
 ---
 # `src/mediapipeline/tools/dev/generate_stage_schema.py`
 

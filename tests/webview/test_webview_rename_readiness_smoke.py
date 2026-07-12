@@ -177,19 +177,21 @@ def _rename_readiness_runner_source() -> str:
         };
         context.appendCommandResult = () => {};
         context.commandResultDisplayMessage = (value) => value?.message || "";
-        context.getLastSettings = () => ({
-          config: {
-            RoutingProfile: "plex_direct_stream",
-            SizeGuardMode: "advisory",
-            OutputContainer: "mkv",
-            ConvertTx3gToSrt: true,
-            DropTx3gAfterConversion: false,
-            ConvertBdpgsToSrt: true,
-            DropBdpgsAfterConversion: false,
-            DropAssAfterConversion: false,
-            DeferredPublish: true,
-          },
-        });
+        context.mediaPipelineSettingsView = {
+          getLastSettings: () => ({
+            config: {
+              RoutingProfile: "plex_direct_stream",
+              SizeGuardMode: "advisory",
+              OutputContainer: "mkv",
+              ConvertTx3gToSrt: true,
+              DropTx3gAfterConversion: false,
+              ConvertBdpgsToSrt: true,
+              DropBdpgsAfterConversion: false,
+              DropAssAfterConversion: false,
+              DeferredPublish: true,
+            },
+          }),
+        };
 
         vm.createContext(context);
         for (const asset of payload.assets) {
