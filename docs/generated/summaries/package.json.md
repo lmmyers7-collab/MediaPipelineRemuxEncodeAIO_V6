@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 4aaf82b5ed533badd3328eec765d27f950151dd5985967da0b9c9cdebca957b1
+sha256: 5267770ec623d7f784b61894e94dc40fdaa25646d65472ad40cc7c317117a8b0
 ---
 # `package.json`
 
