@@ -80,9 +80,14 @@ def parse_first(text: str, regex: re.Pattern[str]) -> str:
     return m.group(1).strip() if m else ""
 
 
+def canonical_path_sort_key(path: Path) -> tuple[str, str]:
+    normalized = path.as_posix()
+    return normalized.casefold(), normalized
+
+
 def iter_summaries() -> list[Path]:
     summaries: list[Path] = []
-    for summary in sorted(SUMMARY_ROOT.rglob("*.md")):
+    for summary in sorted(SUMMARY_ROOT.rglob("*.md"), key=canonical_path_sort_key):
         text = summary.read_text(encoding="utf-8", errors="replace")
         fm = parse_frontmatter(text)
         if fm.get("file", "").replace("\\", "/") in VOLATILE_GENERATED_SUMMARY_FILES:

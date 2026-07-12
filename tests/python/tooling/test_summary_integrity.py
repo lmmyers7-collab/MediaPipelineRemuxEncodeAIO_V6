@@ -219,6 +219,12 @@ class SummaryIntegrityTests(unittest.TestCase):
                 source = generator_path.read_text(encoding="utf-8")
                 self.assertIn('newline="\\n"', source)
 
+    def test_project_index_path_order_is_case_stable(self) -> None:
+        paths = [Path("zeta.md"), Path("Beta.md"), Path("alpha.md")]
+        ordered = sorted(paths, key=generate_project_index.canonical_path_sort_key)
+
+        self.assertEqual([path.name for path in ordered], ["alpha.md", "Beta.md", "zeta.md"])
+
     def test_existing_nonstandard_extension_summary_can_be_refreshed_explicitly(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

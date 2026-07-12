@@ -309,7 +309,8 @@
     "tests.python.tooling.test_summary_integrity.SummaryIntegrityTests.test_summary_hash_is_stable_across_text_line_endings",
     "tests.python.tooling.test_webview_tooling_checks.WebViewToolingCheckTests.test_godfile_analyzer_normalizes_source_and_report_line_endings",
     "tests.python.tooling.test_webview_tooling_checks.WebViewToolingCheckTests.test_shared_generated_output_check_is_line_ending_stable",
-    "tests.python.tooling.test_release_ci_provisioning.ReleaseCiProvisioningTests.test_generated_drift_has_case_sensitive_generated_context_job"
+    "tests.python.tooling.test_release_ci_provisioning.ReleaseCiProvisioningTests.test_generated_drift_has_case_sensitive_generated_context_job",
+    "tests.python.tooling.test_summary_integrity.SummaryIntegrityTests.test_project_index_path_order_is_case_stable"
   ],
   "manual_validation": [
     "Full bundled-Python discovery passed: 3,131 tests, 1 expected skip",
