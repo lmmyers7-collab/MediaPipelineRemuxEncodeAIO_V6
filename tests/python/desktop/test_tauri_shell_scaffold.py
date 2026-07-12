@@ -163,6 +163,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn('.arg("tauri")', source)
         self.assertIn("tauri_plugin_updater::Builder::new().build()", source)
         self.assertIn("MEDIAPIPELINE_PRODUCTIZED_APP", source)
+        self.assertIn('.env("PYTHONDONTWRITEBYTECODE", "1")', source)
         self.assertIn('.arg("--emit-startup-progress")', source)
         self.assertIn("desktop_local_api_bootstrap.v1", source)
         self.assertIn("MEDIA_PIPELINE_TAURI_TEST_AUTOMATION", source)
@@ -871,6 +872,15 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertNotIn("Start-Process", source)
         self.assertNotIn("/api/pipeline/start", source)
         self.assertNotIn("MediaPipeline.ps1", source)
+
+    def test_deployable_acceptance_keeps_process_id_sets_array_shaped(self) -> None:
+        source = (PROJECT_ROOT / "ops" / "scripts" / "release" / "test_acceptance.ps1").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("$baselineProcessIds = @(@(", source)
+        self.assertIn("$newProcessIds = @(@(", source)
+        self.assertGreaterEqual(source.count(") | Sort-Object -Unique)"), 2)
 
     def test_release_self_test_child_script_checks_are_bounded(self) -> None:
         source = "\n".join(

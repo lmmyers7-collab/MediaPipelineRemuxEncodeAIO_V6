@@ -25,11 +25,11 @@ function Invoke-DeployablePackageAcceptance {
     Invoke-ReleaseScriptCheck -Label 'Tauri production surface audit' -ScriptPath (Join-Path $tauriRoot 'Test-TauriShell-ProductionSurface.ps1') -Required -TimeoutSeconds 120
     $before = @(Get-ChildItem -LiteralPath $script:BundleRoot -Force -Recurse -File | ForEach-Object { $_.FullName.Substring($script:BundleRoot.Length) }) | Sort-Object
     $trackedProcessNames = @('ffmpeg', 'ffprobe', 'mkvmerge', 'pwsh', 'powershell')
-    $baselineProcessIds = @(
+    $baselineProcessIds = @(@(
         foreach ($name in $trackedProcessNames) {
             Get-Process -Name $name -ErrorAction SilentlyContinue | ForEach-Object { [int]$_.Id }
         }
-    ) | Sort-Object -Unique
+    ) | Sort-Object -Unique)
     $previousAppDataRoot = $env:MEDIAPIPELINE_APPDATA_ROOT
     $previousLocalAppData = $env:LOCALAPPDATA
     $acceptanceAppDataRoot = if ($PackageAcceptanceAppDataRoot) { [System.IO.Path]::GetFullPath($PackageAcceptanceAppDataRoot) } else { Join-Path ([System.IO.Path]::GetTempPath()) ("mediapipeline-package-acceptance-" + [guid]::NewGuid().ToString('N')) }
@@ -55,13 +55,13 @@ function Invoke-DeployablePackageAcceptance {
             $script:Failed = $true
         }
     }
-    $newProcessIds = @(
+    $newProcessIds = @(@(
         foreach ($name in $trackedProcessNames) {
             Get-Process -Name $name -ErrorAction SilentlyContinue |
                 Where-Object { $baselineProcessIds -notcontains [int]$_.Id } |
                 ForEach-Object { [int]$_.Id }
         }
-    ) | Sort-Object -Unique
+    ) | Sort-Object -Unique)
     if ($newProcessIds.Count -gt 0) {
         Write-Fail ('Package acceptance left runtime child process(es): ' + ($newProcessIds -join ', '))
         $script:Failed = $true

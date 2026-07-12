@@ -219,6 +219,7 @@ pub(crate) fn start_backend(desktop_root: &Path) -> ShellResult<BackendProcess> 
         .arg("--emit-startup-progress")
         .current_dir(desktop_root)
         .env("PYTHONPATH", python_path)
+        .env("PYTHONDONTWRITEBYTECODE", "1")
         .env(
             "MEDIAPIPELINE_PRODUCTIZED_APP",
             if cfg!(debug_assertions) { "0" } else { "1" },
