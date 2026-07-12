@@ -114,6 +114,29 @@ per-profile gate; no new device compatibility claim is made here.
   WebView load, runtime-state externalization, and safe close were not executed
   and are not claimed.
 
+### Final integrated package follow-up
+
+- Change packet: `MP-CHANGE-2026-0711-016`.
+- Final validated runtime commit: `52e9be6564aeb13571c0231e2b55ea2903cbc0c0`.
+- Deployable package: `MediaPipeline_52e9be65_Deployable_20260711_220735`;
+  17,307 files copied, 10,229 excluded, tests and live configuration omitted,
+  and `deployable=true` with verification requested in the release manifest.
+- Source validation passed with required Python, WebView, PowerShell, tool
+  integration, end-to-end, generated-context, environment, and Tauri gates.
+- Copied-package and extracted-ZIP acceptance both passed. Each acceptance run
+  detected the packaged window and backend, loaded the backend-served WebView,
+  externalized runtime state beneath an isolated temporary AppData root, closed
+  safely through backend close-readiness, left the install tree immutable, and
+  left no Tauri, Local API, PowerShell, or media-tool child process.
+- ZIP SHA-256:
+  `3a441adfe310fa460fa732b268e3dac8e9c3ba8db0eb1667d48d23f2aebd1a2d`.
+  Packaged shell SHA-256:
+  `7c1bd389e6f837459691e34510dc436fe51bd5c864eb14bf7700736cc6f10803`.
+- A separate launch against the operator's existing per-user runtime state was
+  correctly blocked at shutdown by backend close-readiness. That live-state
+  safety response was not bypassed and does not invalidate the isolated clean-
+  package acceptance above.
+
 Real-media prerequisites and rerun commands:
 
 1. Provision approved owned/sanitized clips for all catalog fixture IDs under
