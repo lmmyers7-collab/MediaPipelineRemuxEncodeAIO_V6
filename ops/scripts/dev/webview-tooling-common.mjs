@@ -188,7 +188,8 @@ export function writeOrCheckText(outputPath, content, check) {
   const absolute = resolve(repoRoot, outputPath);
   if (check) {
     const current = existsSync(absolute) ? readFileSync(absolute, "utf-8") : "";
-    if (current === content) {
+    const normalizeLineEndings = (text) => text.replace(/\r\n?/g, "\n");
+    if (normalizeLineEndings(current) === normalizeLineEndings(content)) {
       console.log(`${repoRelative(outputPath)} is current`);
       return 0;
     }

@@ -13,6 +13,7 @@
     "ci",
     "generated-context",
     "generated_context",
+    "webview-tooling",
     "webview_tooling"
   ],
   "behavior_before": "Summary SHA-256 values hashed raw line endings and the WebView analyzer parsed and compared raw line endings, so logically identical Windows and CI checkouts produced different freshness results.",
@@ -229,6 +230,7 @@
     "ops/release/changes/unreleased/MP-CHANGE-2026-0604-039.json",
     "ops/release/changes/unreleased/MP-CHANGE-2026-0712-001.json",
     "ops/scripts/dev/analyze-webview-godfiles.mjs",
+    "ops/scripts/dev/webview-tooling-common.mjs",
     "ops/scripts/smoke/Test-LocalApiLifecycleContractSmoke.ps1",
     "ops/scripts/smoke/Test-LocalApiSampleValidationContractSmoke.ps1",
     "ops/scripts/smoke/Test-WebViewBrowserCompletedPendingProofSmoke.ps1",
@@ -301,22 +303,22 @@
     "tests/webview/test_webview_browser_lifecycle_smoke.py"
   ],
   "tests_added": [
-    "tests.python.tooling.test_summary_integrity.SummaryIntegrityTests.test_summary_hash_is_stable_across_text_line_endings",
     "tests.python.tooling.test_summary_integrity.SummaryIntegrityTests.test_generated_context_writers_force_lf_output",
+    "tests.python.tooling.test_summary_integrity.SummaryIntegrityTests.test_summary_hash_is_stable_across_text_line_endings",
     "tests.python.tooling.test_webview_tooling_checks.WebViewToolingCheckTests.test_godfile_analyzer_normalizes_source_and_report_line_endings"
   ],
   "manual_validation": [
+    "Full bundled-Python discovery passed: 3,131 tests, 1 expected skip",
+    "Full installed pre-commit suite passed all hooks without bypass",
     "LF-only git-archive simulation reproduced the pre-fix 2,220-summary/WebView-map failures and passed after the normalization fix",
     "generate_project_index --check and generate_feature_file_map --check passed",
     "npm run webview:map:check passed",
-    "refresh_summaries --check passed for 2,331 source files",
-    "Full bundled-Python discovery passed: 3,131 tests, 1 expected skip",
-    "Full installed pre-commit suite passed all hooks without bypass"
+    "refresh_summaries --check passed for 2,331 source files"
   ],
   "rollback_plan": "Revert the generator and regression-test changes, regenerate summaries and maps with the prior tooling, and restore the previously committed generated artifacts.",
   "related_changes": [
     "GitHub PR #29",
     "GitHub issue #21"
   ],
-  "notes": "Generated-context tooling only; no runtime media, mutation, strict-confirmation, journal, duplicate-command, or close-readiness behavior changed.\nCanonical pre-commit text-hygiene normalization and dependent generated refresh.\nCanonical generators now force LF so regeneration does not recreate mixed endings on Windows."
+  "notes": "Generated-context tooling only; no runtime media, mutation, strict-confirmation, journal, duplicate-command, or close-readiness behavior changed.\nCanonical pre-commit text-hygiene normalization and dependent generated refresh.\nCanonical generators now force LF so regeneration does not recreate mixed endings on Windows.\nNormalize shared generated-output comparisons across LF and CRLF."
 }

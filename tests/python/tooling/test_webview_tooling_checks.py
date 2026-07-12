@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 import tempfile
@@ -61,6 +62,27 @@ class WebViewToolingCheckTests(unittest.TestCase):
             '? normalizeLineEndings(readFileSync(absolute, "utf-8"))',
             source,
         )
+
+    def test_shared_generated_output_check_is_line_ending_stable(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "generated.txt"
+            output_path.write_bytes(b"one\r\ntwo\r\n")
+            script = (
+                "import { writeOrCheckText } from "
+                "'./ops/scripts/dev/webview-tooling-common.mjs';"
+                f"process.exitCode = writeOrCheckText({json.dumps(str(output_path))}, "
+                "'one\\ntwo\\n', true);"
+            )
+            result = subprocess.run(
+                [_node(), "--input-type=module", "-e", script],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("is current", result.stdout)
 
     def test_shared_parse_script_fails_on_recoverable_parser_error(self) -> None:
         _require_webview_tooling_dependencies()

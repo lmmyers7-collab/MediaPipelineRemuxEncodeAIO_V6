@@ -3,9 +3,9 @@ file: ops/scripts/dev/webview-tooling-common.mjs
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-30
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 45d531fae372600417bed0322a40e54356d7407400abdfcde0691fbc4696aeef
+sha256: bf5f6ae4bcbbc85f19972e7a00677f5d6958b38027de0d2b2c1c255c5a55f98b
 ---
 # `ops/scripts/dev/webview-tooling-common.mjs`
 
