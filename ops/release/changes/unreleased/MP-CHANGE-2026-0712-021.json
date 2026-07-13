@@ -2,11 +2,11 @@
   "id": "MP-CHANGE-2026-0712-021",
   "title": "Update Tauri to 2.11.5",
   "version_target": "2026.06.04.001",
-  "status": "in_progress",
+  "status": "complete",
   "type": "tooling",
   "risk_level": "medium",
   "date_started": "2026-07-12",
-  "date_completed": null,
+  "date_completed": "2026-07-12",
   "summary": "Update the locked Tauri runtime from 2.11.3 to the newly available compatible 2.11.5 patch through Cargo resolution.",
   "reason": "From apps/desktop/tauri/src-tauri with Cargo 1.95, cargo update -p tauri@2.11.3 --precise 2.11.5 --dry-run previewed only the Tauri patch. Running the same Cargo command without --dry-run reproducibly wrote the current lockfile, including nine compatible dependency-edge rebindings to the already locked windows-sys 0.60.2. Cargo.lock was not hand-edited.",
   "affected_areas": [
@@ -31,6 +31,7 @@
     "PASS: optimized Tauri release build with tauri 2.11.5.",
     "PASS: root and Tauri npm audit reported zero vulnerabilities.",
     "PASS: strict source release self-test.",
+    "PASS: PR 38 Tauri shell check job 86724611327, Release self-test job 86724611314, and Package Verify job 86724611317 completed successfully.",
     "BLOCKED LOCALLY: copied-folder package launch was correctly rejected by the global single-instance guard because an unrelated Tauri shell from the user's primary checkout was already running; that process was not terminated or bypassed. GitHub Package Verify remains required."
   ],
   "rollback_plan": "Use Cargo to resolve Tauri back to 2.11.3, inspect the lockfile delta, and rerun locked Cargo and Tauri validation.",

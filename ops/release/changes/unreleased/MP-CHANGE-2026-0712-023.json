@@ -15,7 +15,7 @@
     "release-integrity"
   ],
   "behavior_before": "The locked root dependency graph audited cleanly, but npm could not serialize it as CycloneDX because the private root package lacked version metadata.",
-  "behavior_after": "package.json and package-lock.json identify the private root package as 2026.6.4-001, and npm emits a CycloneDX SBOM containing 104 dependency components.",
+  "behavior_after": "package.json and package-lock.json identify the private root package as 2026.6.4-001, and the integrated npm graph emits a CycloneDX SBOM containing 88 dependency components.",
   "files_touched": [
     "ops/release/changes/unreleased/MP-CHANGE-2026-0712-023.json",
     "docs/generated/summaries/package.json.md",
@@ -25,7 +25,7 @@
   "tests_added": [],
   "manual_validation": [
     "PASS: npm install --package-lock-only completed with zero vulnerabilities.",
-    "PASS: npm sbom --sbom-format cyclonedx emitted valid JSON with 104 components.",
+    "PASS: npm sbom --sbom-format cyclonedx emitted valid CycloneDX 1.5 JSON with 88 components after the integrated ESLint 10 graph update.",
     "PASS: npm audit --audit-level=moderate reported zero vulnerabilities."
   ],
   "rollback_plan": "Remove the root version fields through npm tooling and rerun npm ci/audit; doing so intentionally restores the documented npm SBOM limitation.",
