@@ -154,6 +154,24 @@ class PolicyProofPackTests(unittest.TestCase):
 
         self.assertEqual(facts["hdr"], "hdr10")
 
+    def test_ffprobe_facts_require_pq_base_transfer_for_hdr10plus(self) -> None:
+        for color_transfer, expected_hdr in (("", ""), ("arib-std-b67", "hlg")):
+            with self.subTest(color_transfer=color_transfer):
+                facts = policy_proof_pack.facts_from_ffprobe_payload(
+                    {
+                        "streams": [{"codec_type": "video", "color_transfer": color_transfer}],
+                        "frames": [
+                            {
+                                "side_data_list": [
+                                    {"side_data_type": "HDR Dynamic Metadata SMPTE2094-40 (HDR10+)"}
+                                ]
+                            }
+                        ],
+                    }
+                )
+
+                self.assertEqual(facts["hdr"], expected_hdr)
+
     def test_ffprobe_facts_infer_ten_bit_depth_from_pixel_format(self) -> None:
         facts = policy_proof_pack.facts_from_ffprobe_payload(
             {
@@ -217,7 +235,12 @@ class PolicyProofPackTests(unittest.TestCase):
                 stdout=json.dumps(
                     {
                         "streams": [
-                            {"codec_type": "video", "color_transfer": "smpte2084"},
+                            {
+                                "codec_type": "video",
+                                "height": 4000,
+                                "disposition": {"attached_pic": 1},
+                            },
+                            {"codec_type": "video", "height": 1080, "color_transfer": "smpte2084"},
                             {"codec_type": "audio", "channels": 6},
                         ],
                         "chapters": [{"id": 0}],
@@ -250,11 +273,28 @@ class PolicyProofPackTests(unittest.TestCase):
         frame_command = run_mock.call_args_list[1].args[0]
         self.assertIn("-show_streams", inventory_command)
         self.assertIn("-show_frames", frame_command)
-        self.assertEqual(frame_command[frame_command.index("-select_streams") + 1], "v:0")
-        self.assertEqual(frame_command[frame_command.index("-read_intervals") + 1], "%+#24")
-        self.assertEqual(facts["stream_counts"], {"audio": 1, "video": 1})
+        self.assertEqual(frame_command[frame_command.index("-select_streams") + 1], "V")
+        self.assertEqual(frame_command[frame_command.index("-read_intervals") + 1], "%+#120")
+        self.assertEqual(facts["stream_counts"], {"audio": 1, "video": 2})
         self.assertTrue(facts["chapters"])
         self.assertEqual(facts["hdr"], "hdr10plus")
+        self.assertEqual(facts["resolution"], "1080p")
+
+    @patch("mediapipeline.tools.dev.policy_proof_pack.subprocess.run")
+    def test_probe_source_skips_frame_metadata_for_non_pq_video(self, run_mock) -> None:
+        run_mock.return_value = CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=json.dumps(
+                {"streams": [{"codec_type": "video", "color_transfer": "arib-std-b67"}]}
+            ),
+            stderr="",
+        )
+
+        facts = policy_proof_pack.probe_source_ffprobe(Path("sample.mkv"), ffprobe="ffprobe-test")
+
+        self.assertEqual(run_mock.call_count, 1)
+        self.assertEqual(facts["hdr"], "hlg")
 
     @patch("mediapipeline.tools.dev.policy_proof_pack.subprocess.run")
     def test_probe_source_fails_closed_when_frame_metadata_probe_fails(self, run_mock) -> None:
@@ -262,7 +302,9 @@ class PolicyProofPackTests(unittest.TestCase):
             CompletedProcess(
                 args=[],
                 returncode=0,
-                stdout=json.dumps({"streams": [{"codec_type": "video"}]}),
+                stdout=json.dumps(
+                    {"streams": [{"codec_type": "video", "color_transfer": "smpte2084"}]}
+                ),
                 stderr="",
             ),
             CompletedProcess(args=[], returncode=1, stdout="", stderr="frame decode failed"),
@@ -277,13 +319,32 @@ class PolicyProofPackTests(unittest.TestCase):
             CompletedProcess(
                 args=[],
                 returncode=0,
-                stdout=json.dumps({"streams": [{"codec_type": "video"}]}),
+                stdout=json.dumps(
+                    {"streams": [{"codec_type": "video", "color_transfer": "smpte2084"}]}
+                ),
                 stderr="",
             ),
             CompletedProcess(args=[], returncode=0, stdout=json.dumps({"frames": []}), stderr=""),
         ]
 
         with self.assertRaisesRegex(RuntimeError, "frame metadata probe returned no video frames"):
+            policy_proof_pack.probe_source_ffprobe(Path("sample.mkv"), ffprobe="ffprobe-test")
+
+    @patch("mediapipeline.tools.dev.policy_proof_pack.subprocess.run")
+    def test_probe_source_fails_closed_when_frame_metadata_shape_is_invalid(self, run_mock) -> None:
+        run_mock.side_effect = [
+            CompletedProcess(
+                args=[],
+                returncode=0,
+                stdout=json.dumps(
+                    {"streams": [{"codec_type": "video", "color_transfer": "smpte2084"}]}
+                ),
+                stderr="",
+            ),
+            CompletedProcess(args=[], returncode=0, stdout=json.dumps({"frames": None}), stderr=""),
+        ]
+
+        with self.assertRaisesRegex(RuntimeError, "frame metadata probe returned invalid frames"):
             policy_proof_pack.probe_source_ffprobe(Path("sample.mkv"), ffprobe="ffprobe-test")
 
     def test_materialize_copies_owned_fixture_and_writes_sentinel_manifest(self) -> None:

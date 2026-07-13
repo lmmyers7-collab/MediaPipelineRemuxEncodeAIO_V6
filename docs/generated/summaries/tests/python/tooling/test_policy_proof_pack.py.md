@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-13
 last_reviewed: 2026-07-10
-sha256: c8a80a307e1e0856cc6b3db1ca810988665d6182e5aa6d313f203c5bcccb12c0
+sha256: ebb711a308312ed38f291be761743783363ca35a9667411792ac66ec2584ef7b
 ---
 # `tests/python/tooling/test_policy_proof_pack.py`
 
