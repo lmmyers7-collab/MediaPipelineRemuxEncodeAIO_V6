@@ -81,6 +81,7 @@ These must be installed separately and are not included in the release package.
 | Status | External — must be on operator PATH |
 | Root npm-tooling minimum | Node `^22.18.0 || >=24.11.0`; Babel 8 is the limiting dependency |
 | Root enforcement | Declared by root `package.json` and enforced by root `.npmrc` with `engine-strict=true` |
+| Root supply-chain quarantine | Root `.npmrc` sets `min-release-age=7`, so npm excludes dependency versions published within the previous seven days |
 | Standalone browser-smoke minimum | Node 18+ for global `WebSocket`; this capability does not install or execute the root npm toolchain |
 | Check | `node --version` |
 | Checked by | Smoke wrappers (`Test-WebView*.ps1`) check for `node` before running |

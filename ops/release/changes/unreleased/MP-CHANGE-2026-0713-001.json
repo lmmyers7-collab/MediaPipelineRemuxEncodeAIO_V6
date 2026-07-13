@@ -1,0 +1,38 @@
+{
+  "id": "MP-CHANGE-2026-0713-001",
+  "title": "Enforce npm dependency release age",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "tooling",
+  "risk_level": "low",
+  "date_started": "2026-07-13",
+  "date_completed": null,
+  "summary": "Require root npm dependency resolution to quarantine package releases for seven days.",
+  "reason": "The compatibility-floor change introduced a project .npmrc without npm's release-age supply-chain control, which GitHub Advanced Security reported as Semgrep alert 2114.",
+  "affected_areas": [
+    "dependencies",
+    "security",
+    "tooling"
+  ],
+  "behavior_before": "Root npm tooling enforced its Node engine floor but could resolve a dependency immediately after publication.",
+  "behavior_after": "Root npm tooling rejects dependency versions published less than seven days ago while preserving the existing locked dependency graph.",
+  "files_touched": [
+    ".npmrc",
+    "docs/generated/summaries/docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md.md",
+    "docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0713-001.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PASS: npm 11.12.1 loaded the project min-release-age=7 policy as the effective relative before cutoff while preserving engine-strict=true.",
+    "PASS: npm ci completed against the locked 88-package dependency graph under the seven-day policy.",
+    "PASS: npm audit --audit-level=moderate reported zero vulnerabilities.",
+    "PASS: complete npm run webview:prework:check with 1,397/1,402 ESLint warnings and zero errors."
+  ],
+  "rollback_plan": "Remove min-release-age from .npmrc and rerun npm configuration, clean install, audit, and WebView prework validation.",
+  "related_changes": [
+    "MP-CHANGE-2026-0712-025",
+    "GitHub code-scanning alert 2114"
+  ],
+  "notes": "Seven days follows GitHub Advanced Security's finding guidance and npm's documented day-based min-release-age semantics. No dependency, lint rule, audit, or release gate is exempted."
+}

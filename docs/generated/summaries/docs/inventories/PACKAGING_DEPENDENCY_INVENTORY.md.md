@@ -3,9 +3,9 @@ file: docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-12
+last_modified: 2026-07-13
 last_reviewed: 2026-06-02
-sha256: d5247a002414d9121de5cb7cb0ff2d83031b2a6c6a1d9d49b6f89c930454d6ee
+sha256: 7fea21c3545b1121181de18c10a412cb64ef3ff6ddb541c75260ab8aee193a68
 ---
 # `docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md`
 
