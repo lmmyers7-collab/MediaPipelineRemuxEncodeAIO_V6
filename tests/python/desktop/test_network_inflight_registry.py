@@ -31,17 +31,17 @@ class NetworkInFlightRegistryTests(unittest.TestCase):
             with self.subTest(registry=label), tempfile.TemporaryDirectory() as td:
                 path = Path(td) / "inflight_registry.json"
                 registry = registry_type()
-                errors: list[BaseException] = []
+                errors: list[Exception] = []
 
                 def save_many(
                     active_registry: CoreInFlightRegistry | InFlightRegistry,
                     active_path: Path,
-                    active_errors: list[BaseException],
+                    active_errors: list[Exception],
                 ) -> None:
                     try:
                         for _ in range(20):
                             active_registry.save(active_path)
-                    except BaseException as exc:
+                    except Exception as exc:
                         active_errors.append(exc)
 
                 threads = [

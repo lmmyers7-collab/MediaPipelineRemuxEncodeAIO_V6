@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: e55b3d01b5cfe902f0650855349bbd03bd3a02ce909f43415064812fbaffc125
+sha256: ddf1ce475a3984ddd2bfdb6ad88bd188f307ce6421ca55d8f634001ddb02a167
 ---
 # `tests/python/desktop/test_network_inflight_registry.py`
 
