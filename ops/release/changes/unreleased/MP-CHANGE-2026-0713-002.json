@@ -2,11 +2,11 @@
   "id": "MP-CHANGE-2026-0713-002",
   "title": "Correct policy proof HDR fact detection",
   "version_target": "2026.06.04.001",
-  "status": "in_progress",
+  "status": "complete",
   "type": "tooling",
   "risk_level": "medium",
   "date_started": "2026-07-13",
-  "date_completed": null,
+  "date_completed": "2026-07-13",
   "summary": "Harden Policy Proof Pack source/output facts for HDR10+, high-bit-depth video, frame-rate rationals, attached pictures, and clean-machine tool discovery.",
   "reason": "Mandatory HDR10+ and 10-bit catalog facts were false negatives on representative public files, equivalent frame-rate rationals produced false VFR evidence, cover art could be selected as primary video, and the documented clean-machine wrapper depended on ffprobe being on PATH.",
   "affected_areas": [
@@ -21,6 +21,7 @@
   "behavior_after": "The probe uses the bundled ffprobe by default, preserves full stream/chapter inventory, samples up to 120 packets from all non-attached PQ video streams, requires PQ plus SMPTE2094-40 for HDR10+, fails closed on failed/empty/malformed frame evidence, excludes attached pictures from technical video facts, and compares positive frame-rate rationals numerically.",
   "files_touched": [
     "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/DUPLICATE_TEST_NAMES.md",
     "docs/generated/summaries/src/mediapipeline/tools/dev/policy_proof_pack.py.md",
     "docs/generated/summaries/tests/python/tooling/test_policy_proof_pack.py.md",
     "ops/release/changes/unreleased/MP-CHANGE-2026-0713-002.json",
@@ -28,27 +29,30 @@
     "tests/python/tooling/test_policy_proof_pack.py"
   ],
   "tests_added": [
+    "CLI parsing defaults to the repository-bundled ffprobe while preserving an explicit override.",
     "Equivalent and unknown frame-rate rationals do not produce false VFR evidence.",
-    "Frame-level SMPTE2094-40 requires a PQ base transfer before normalizing as HDR10+; SMPTE2094-10 and non-PQ metadata remain non-HDR10+.",
-    "Pixel-format fallback infers yuv420p10le as 10-bit while an explicit positive bit depth retains precedence.",
-    "The ffprobe wrapper preserves full inventory while selecting all non-attached video streams for a bounded 120-packet PQ metadata sample.",
     "Failed, empty, and malformed frame metadata probes fail closed.",
-    "Non-PQ media skips the second probe, and attached pictures do not become the technical primary video.",
     "Frame-level HDR10+ metadata remains associated with PQ stream index zero when multiple real video streams exist.",
-    "CLI parsing defaults to the repository-bundled ffprobe while preserving an explicit override."
+    "Frame-level SMPTE2094-40 requires a PQ base transfer before normalizing as HDR10+; SMPTE2094-10 and non-PQ metadata remain non-HDR10+.",
+    "Non-PQ media skips the second probe, and attached pictures do not become the technical primary video.",
+    "Pixel-format fallback infers yuv420p10le as 10-bit while an explicit positive bit depth retains precedence.",
+    "The ffprobe wrapper preserves full inventory while selecting all non-attached video streams for a bounded 120-packet PQ metadata sample."
   ],
   "manual_validation": [
     "Canonical summary check passed for both changed Python files.",
     "Focused Ruff passed for the changed Policy Proof Pack source and tests.",
-    "GREEN: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.tooling.test_policy_proof_pack tests.python.core.contract.test_source_media_contract -v passed 29/29 tests.",
+    "GREEN: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.tooling.test_policy_proof_pack tests.python.core.contract.test_source_media_contract -v passed 30/30 tests.",
+    "Live post-hardening probing with the repository ffprobe re-confirmed the same four approved public source/output facts after non-attached-stream selection and the 120-packet bound.",
     "Live read-only probing normalized the approved public Dolby P8.1 source and its prior preserved output as Dolby Vision 8.1, HDR10-compatible, 10-bit, 480p, six-channel, and not VFR; SHA-256 source bbf334efef9866792f4ab0741c7ce6fbbe0f5d3a149d5941ebbc4d2a30f0d1b0 and output 58ce41aca260935590c6c09dc3f0265b07a07c125851abec85d9229390d3d63d.",
     "Live read-only probing with the bundled ffprobe normalized the approved public FFPictures Lake source and its prior preserved output as HDR10+, 10-bit, 2160p, and not VFR; SHA-256 source ff0aa117f4622387d7d76a33fb6094cb576dab8b8cb59fe18047a614c0e92a5f and output 6576df3dd5c7f700e1c74b691cc6d2335dc1dcb241c01170404254750607c731.",
-    "RED: focused Policy Proof Pack suite ran 14 tests with six intended failures covering frame-only HDR10+, missing pixel-format depth, bounded two-probe collection, fail-closed frame probing, and equivalent/unknown frame-rate rationals.",
+    "RED follow-up: a multi-video payload reproduced loss of HDR10+ association when the PQ stream and frame used numeric stream index zero.",
     "RED follow-ups reproduced acceptance of zero decoded frames, the bare-PATH ffprobe default, cover-art stream selection, non-PQ dynamic metadata acceptance, unnecessary non-PQ frame probing, and malformed frame payload handling.",
-    "Live post-hardening probing with the repository ffprobe re-confirmed the same four approved public source/output facts after non-attached-stream selection and the 120-packet bound.",
-    "RED follow-up: a multi-video payload reproduced loss of HDR10+ association when the PQ stream and frame used numeric stream index zero."
+    "RED: focused Policy Proof Pack suite ran 14 tests with six intended failures covering frame-only HDR10+, missing pixel-format depth, bounded two-probe collection, fail-closed frame probing, and equivalent/unknown frame-rate rationals.",
+    "GREEN follow-up: numeric stream index zero is preserved and the combined Policy Proof Pack/source-contract suite passed 30/30 unique tests.",
+    "Full bundled-Python tooling discovery passed 239/239 tests with three documented release-package dependency skips.",
+    "Ruff across src and tests passed; all 2,331 generated summaries and the duplicate-test-name report are current; strict worktree and origin/main diff packet coverage passed."
   ],
   "rollback_plan": "Revert the proof-normalization source and focused regressions together; no production media policy, source media, or package runtime state is changed.",
   "related_changes": [],
-  "notes": "Python impact: validation-tool fact normalization and ffprobe orchestration only; no dependency, schema, runtime API, FFmpeg command-generation, media-routing, publish, or filesystem-mutation change. Discovered with the repository's previously approved public Dolby Browser Test Kit and FFPictures HDR10+ sources. The bounded frame probe counts packets, not decoded frames, and intentionally fails closed when it cannot obtain usable PQ video evidence. The separate MP-CHANGE-2026-0713-003 packet corrects the shared P010 bit-depth fallback."
+  "notes": "Python impact: validation-tool fact normalization and ffprobe orchestration only; no dependency, schema, runtime API, FFmpeg command-generation, media-routing, publish, or filesystem-mutation change. Discovered with the repository's previously approved public Dolby Browser Test Kit and FFPictures HDR10+ sources. The bounded frame probe counts packets, not decoded frames, and intentionally fails closed when it cannot obtain usable PQ video evidence. The separate MP-CHANGE-2026-0713-003 packet corrects the shared P010 bit-depth fallback.\nRegenerate the canonical duplicate-test report after adding focused regressions."
 }
