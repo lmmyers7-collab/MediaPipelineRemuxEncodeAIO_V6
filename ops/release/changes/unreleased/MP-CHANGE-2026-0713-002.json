@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0713-002",
+  "title": "Correct policy proof HDR fact detection",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-07-13",
+  "date_completed": null,
+  "summary": "Correct Policy Proof Pack normalization for frame-level HDR10+ metadata and HEVC pixel-format bit depth.",
+  "reason": "The mandatory HDR10+ and 10-bit catalog facts could not be verified against representative public files because the proof probe ignored frame side data and treated an empty bits_per_raw_sample field as zero depth.",
+  "affected_areas": [
+    "generated-context",
+    "policy-proof tooling",
+    "real-media validation",
+    "tests",
+    "tooling tests"
+  ],
+  "behavior_before": "HDR10+ present only in ffprobe frame side data normalized as HDR10, and yuv420p10le sources without bits_per_raw_sample normalized as zero-bit.",
+  "behavior_after": "The bounded proof probe reads frame side data and normalizes supported high-bit-depth pixel formats when ffprobe omits the explicit raw depth.",
+  "files_touched": [
+    "docs/generated/summaries/tests/python/tooling/test_policy_proof_pack.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0713-002.json",
+    "tests/python/tooling/test_policy_proof_pack.py"
+  ],
+  "tests_added": [
+    "Policy Proof Pack captures HDR10+ from frame side data.",
+    "Policy Proof Pack infers 10-bit depth from yuv420p10le when raw depth is absent.",
+    "The ffprobe wrapper preserves the full stream inventory while requesting a separate bounded 24-frame video metadata sample.",
+    "The frame metadata probe fails closed.",
+    "Equivalent and unknown frame-rate rationals do not produce false VFR evidence."
+  ],
+  "manual_validation": [
+    "RED: focused Policy Proof Pack suite ran 14 tests with six intended failures covering frame-only HDR10+, missing pixel-format depth, bounded two-probe collection, fail-closed frame probing, and equivalent/unknown frame-rate rationals."
+  ],
+  "rollback_plan": "Revert the proof-normalization source and focused regressions together; no production media policy, source media, or package runtime state is changed.",
+  "related_changes": [],
+  "notes": "Discovered with the repository's previously approved public Dolby Browser Test Kit and FFPictures HDR10+ validation sources. This change does not alter FFmpeg command generation or publish policy.\nAdd RED regressions for frame HDR10+ and pixel-format bit-depth normalization.\nRefresh the canonical test summary after adding RED regressions."
+}
