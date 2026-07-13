@@ -8,7 +8,7 @@
   "date_started": "2026-07-12",
   "date_completed": null,
   "summary": "Raise the validated Ruff development and SARIF workflow floor from 0.8 to 0.15.20 while retaining the pre-1.0 ceiling.",
-  "reason": "Dependabot PR #36 proved Ruff 0.15.20 across the complete GitHub matrix, and the bundled repository runtime already executes Ruff 0.15.20 successfully. Aligning both installation surfaces prevents older unsupported lint behavior from satisfying the declared environment.",
+  "reason": "Dependabot PR #36 validated the declared ruff>=0.15.20,<1 range across the complete GitHub matrix, where Generated context drift job 86718577394 resolved Ruff 0.15.21. The bundled repository runtime separately proved exact Ruff 0.15.20 through lint and SARIF generation. Aligning both installation surfaces prevents older unsupported lint behavior from satisfying the declared environment.",
   "affected_areas": [
     "dependencies",
     "python-tooling",
@@ -24,8 +24,8 @@
   ],
   "tests_added": [],
   "manual_validation": [
-    "PASS: bundled Ruff 0.15.20 checks src and tests.",
-    "PASS: Dependabot PR #36 complete Generated Drift, browser, Release Self-Test, Package Verify, aggregate Python, and CodeQL matrix."
+    "PASS: bundled runtime reported Ruff 0.15.20 and completed repository lint and SARIF generation.",
+    "PASS: Dependabot PR #36 run 29218368707, job 86718577394, installed Ruff 0.15.21 from the new range; its complete required matrix passed."
   ],
   "rollback_plan": "Restore both Ruff floors to >=0.8,<1 and rerun lint, SARIF, and the complete GitHub matrix.",
   "related_changes": [

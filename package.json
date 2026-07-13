@@ -2,6 +2,9 @@
   "name": "mediapipeline-webview-tools",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
+  },
   "scripts": {
     "webview:check": "node ops/scripts/dev/check-webview-assets.mjs",
     "webview:lint": "node ops/scripts/dev/run-eslint.mjs \"apps/desktop/webview/static/assets/**/*.js\"",

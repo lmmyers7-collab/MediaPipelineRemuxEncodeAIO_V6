@@ -8,7 +8,7 @@
   "date_started": "2026-07-12",
   "date_completed": null,
   "summary": "Update the locked Tauri runtime from 2.11.3 to the newly available compatible 2.11.5 patch through Cargo resolution.",
-  "reason": "A fresh authoritative Cargo inventory found Tauri 2.11.5 after the earlier dependency PR merged; the narrow dry run reported only the compatible Tauri patch update.",
+  "reason": "From apps/desktop/tauri/src-tauri with Cargo 1.95, cargo update -p tauri@2.11.3 --precise 2.11.5 --dry-run previewed only the Tauri patch. Running the same Cargo command without --dry-run reproducibly wrote the current lockfile, including nine compatible dependency-edge rebindings to the already locked windows-sys 0.60.2. Cargo.lock was not hand-edited.",
   "affected_areas": [
     "tauri",
     "dependencies",
@@ -24,6 +24,8 @@
     "No tests added; existing locked Cargo, Tauri, and release/package gates validate the patch update."
   ],
   "manual_validation": [
+    "PASS: cargo 1.95.0 reported the narrow tauri 2.11.3 -> 2.11.5 update with cargo update -p tauri@2.11.3 --precise 2.11.5 --dry-run.",
+    "PASS: cargo update -p tauri@2.11.3 --precise 2.11.5 reproducibly wrote the checked-in Cargo.lock delta; git diff -- Cargo.lock matched the PR lockfile and no lockfile content was hand-edited.",
     "PASS: cargo check --locked.",
     "PASS: cargo test --locked: 43 tests.",
     "PASS: optimized Tauri release build with tauri 2.11.5.",
@@ -35,5 +37,5 @@
   "related_changes": [
     "MP-CHANGE-2026-0712-006"
   ],
-  "notes": "Cargo performed the lockfile update; Cargo.lock was not hand-edited. The resulting lock delta also reuses the already locked windows-sys 0.60.2 entry for transitive consumers that had selected 0.61.2."
+  "notes": "The --dry-run console preview did not disclose serialized dependency-edge rebindings; the non-dry-run Cargo command reproducibly wrote them. The affected packages are dirs-sys, errno, muda, rustix, rustls-platform-verifier, socket2, tempfile, tray-icon, and winapi-util. Cargo accepted windows-sys 0.60.2 for every edge, both 0.60.2 and 0.61.2 remain in the graph, and locked Cargo checks/tests plus the release build passed. The Linux graph remains gtk 0.18.2 -> glib 0.18.5, so issue #15 remains blocked."
 }
