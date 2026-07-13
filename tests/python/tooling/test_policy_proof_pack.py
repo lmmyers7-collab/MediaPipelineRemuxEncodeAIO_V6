@@ -172,6 +172,26 @@ class PolicyProofPackTests(unittest.TestCase):
 
                 self.assertEqual(facts["hdr"], expected_hdr)
 
+    def test_ffprobe_facts_associate_hdr10plus_with_zero_index_pq_stream(self) -> None:
+        facts = policy_proof_pack.facts_from_ffprobe_payload(
+            {
+                "streams": [
+                    {"index": 0, "codec_type": "video", "color_transfer": "smpte2084"},
+                    {"index": 1, "codec_type": "video", "color_transfer": "arib-std-b67"},
+                ],
+                "frames": [
+                    {
+                        "stream_index": 0,
+                        "side_data_list": [
+                            {"side_data_type": "HDR Dynamic Metadata SMPTE2094-40 (HDR10+)"}
+                        ],
+                    }
+                ],
+            }
+        )
+
+        self.assertEqual(facts["hdr"], "hdr10plus")
+
     def test_ffprobe_facts_infer_ten_bit_depth_from_pixel_format(self) -> None:
         facts = policy_proof_pack.facts_from_ffprobe_payload(
             {
