@@ -8,6 +8,8 @@ updates:
       day: monday
       time: "10:00"
       timezone: America/Indianapolis
+    cooldown:
+      default-days: 7
     labels:
       - source:dependabot
       - area:ci
@@ -20,6 +22,8 @@ updates:
       day: monday
       time: "10:20"
       timezone: America/Indianapolis
+    cooldown:
+      default-days: 7
     labels:
       - source:dependabot
       - area:webview
@@ -32,6 +36,8 @@ updates:
       day: monday
       time: "10:40"
       timezone: America/Indianapolis
+    cooldown:
+      default-days: 7
     labels:
       - source:dependabot
       - area:tauri
@@ -44,6 +50,8 @@ updates:
       day: monday
       time: "11:00"
       timezone: America/Indianapolis
+    cooldown:
+      default-days: 7
     labels:
       - source:dependabot
       - area:tauri
@@ -56,6 +64,8 @@ updates:
       day: monday
       time: "11:20"
       timezone: America/Indianapolis
+    cooldown:
+      default-days: 7
     labels:
       - source:dependabot
       - area:python

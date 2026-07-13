@@ -39,7 +39,7 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
                 return
             self.send_response(204)
             for name, value in options_response_headers(self._cors_response_origin()):
-                self.send_header(name, value)
+                self.send_header(name, value.replace("\n", "").replace("\r", ""))
             self.end_headers()
 
         def do_GET(self) -> None:

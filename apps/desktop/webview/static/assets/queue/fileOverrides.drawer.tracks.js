@@ -2,6 +2,9 @@
 // Exact-track selector and source/track metadata rendering for the Queue file override drawer.
 
 (function initFileOverridesDrawerTracksModule() {
+  const MAX_TRACK_TITLE_GLOB_LENGTH = 256;
+  const MAX_TRACK_TITLE_VALUE_LENGTH = 1024;
+
   // eslint-disable-next-line max-lines-per-function
   function createFileOverridesDrawerTracksModule(ctx) {
     const {
@@ -58,10 +61,31 @@
 
   function globPatternMatches(value, pattern) {
     const text = String(value || "").toLowerCase();
-    const rawPattern = String(pattern || "").toLowerCase();
-    if (!rawPattern) return true;
-    const escaped = rawPattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".");
-    return new RegExp(`^${escaped}$`).test(text);
+    const glob = String(pattern || "").toLowerCase();
+    if (!glob) return true;
+    if (glob.length > MAX_TRACK_TITLE_GLOB_LENGTH || text.length > MAX_TRACK_TITLE_VALUE_LENGTH) return false;
+    let textIndex = 0;
+    let globIndex = 0;
+    let starIndex = -1;
+    let starTextIndex = 0;
+    while (textIndex < text.length) {
+      if (globIndex < glob.length && (glob[globIndex] === "?" || glob[globIndex] === text[textIndex])) {
+        textIndex += 1;
+        globIndex += 1;
+      } else if (globIndex < glob.length && glob[globIndex] === "*") {
+        starIndex = globIndex;
+        globIndex += 1;
+        starTextIndex = textIndex;
+      } else if (starIndex >= 0) {
+        globIndex = starIndex + 1;
+        starTextIndex += 1;
+        textIndex = starTextIndex;
+      } else {
+        return false;
+      }
+    }
+    while (globIndex < glob.length && glob[globIndex] === "*") globIndex += 1;
+    return globIndex === glob.length;
   }
 
   function exactSelectorMatchesTrack(selector, track, kind) {

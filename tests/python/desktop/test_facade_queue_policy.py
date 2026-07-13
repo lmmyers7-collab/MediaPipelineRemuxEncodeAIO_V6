@@ -384,6 +384,10 @@ class QueueFacadePolicyTests(unittest.TestCase):
             ({"audio": {"keepTracks": ["eng"]}}, "'audio.keepTracks[0]' must be an object"),
             ({"audio": {"dropTracks": [{"language": 5}]}}, "'audio.dropTracks[0].language' must be a string"),
             ({"subtitles": {"keepTracks": [{"language": ""}]}}, "'subtitles.keepTracks[0].language' must not be empty"),
+            (
+                {"subtitles": {"keepTracks": [{"title": "x" * 257}]}},
+                "'subtitles.keepTracks[0].title' must be 256 characters or fewer",
+            ),
             ({"audio": {"keepTracks": [{"streamIndex": "1"}]}}, "'audio.keepTracks[0].streamIndex' must be an integer"),
             ({"audio": {"keepTracks": [{"streamIndex": -1}]}}, "'audio.keepTracks[0].streamIndex' must be zero or greater"),
             ({"audio": {"keepTracks": [{"streamIndex": 1, "map": "0:a:0"}]}}, "Unsupported audio.keepTracks[0] field(s): map"),

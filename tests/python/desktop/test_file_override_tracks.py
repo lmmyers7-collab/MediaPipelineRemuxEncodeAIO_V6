@@ -1821,6 +1821,31 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
         self.assertEqual(_resolved_track(payload, "subtitle", 6)["label"], "Resolved: drop by file override")
         self.assertEqual(_resolved_track(payload, "subtitle", 3)["label"], "Resolved: keep by normal subtitle policy")
 
+    def test_effective_payload_title_glob_fails_closed_for_oversized_probe_metadata(self) -> None:
+        payload = _effective_payload(
+            r"C:\Media\Movie.mkv",
+            {"audio": {"keepTracks": [{"title": "*"}]}},
+            track_payload={
+                "ok": True,
+                "probe_available": True,
+                "probe_source": "cache",
+                "audio_tracks": [
+                    {
+                        "stream_index": 1,
+                        "language": "eng",
+                        "title": "x" * 1025,
+                        "codec": "ac3",
+                        "channels": 6,
+                    }
+                ],
+                "subtitle_tracks": [],
+                "warnings": [],
+            },
+        )
+
+        self.assertEqual(payload["track_selection_preview"]["audio"]["kept_stream_indexes"], [])
+        self.assertEqual(payload["track_selection_preview"]["audio"]["dropped_stream_indexes"], [1])
+
     def test_effective_payload_burn_track_marks_one_subtitle_and_drops_others(self) -> None:
         payload = _effective_payload(
             r"C:\Media\Movie.mkv",

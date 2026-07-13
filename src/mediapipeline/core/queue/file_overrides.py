@@ -66,6 +66,8 @@ from mediapipeline.contracts.config import Config
 FILE_OVERRIDES_VERSION = 1
 _EMPTY: dict = {"version": FILE_OVERRIDES_VERSION, "entries": {}}
 FILE_OVERRIDE_BATCH_METADATA_KEY = "_batch"
+FILE_OVERRIDE_TRACK_TITLE_PATTERN_MAX_LENGTH = 256
+FILE_OVERRIDE_TRACK_TITLE_VALUE_MAX_LENGTH = 1024
 CLEARABLE_FILE_OVERRIDE_FIELDS: frozenset[str] = frozenset(
     {
         "audio.keepTracks",
@@ -617,7 +619,13 @@ def _validate_track_selector_object(errors: list[str], selector_path: str, selec
         return
     _validate_optional_track_selector_string(errors, selector_path, selector, "language")
     _validate_optional_track_selector_string(errors, selector_path, selector, "codec", scalar_safe=True)
-    _validate_optional_track_selector_string(errors, selector_path, selector, "title")
+    _validate_optional_track_selector_string(
+        errors,
+        selector_path,
+        selector,
+        "title",
+        max_length=FILE_OVERRIDE_TRACK_TITLE_PATTERN_MAX_LENGTH,
+    )
     if "streamIndex" in selector:
         _validate_stream_index(errors, f"{selector_path}.streamIndex", selector.get("streamIndex"))
     if kind == "audio" and "channels" in selector:
@@ -633,6 +641,7 @@ def _validate_optional_track_selector_string(
     key: str,
     *,
     scalar_safe: bool = False,
+    max_length: int | None = None,
 ) -> None:
     if key not in selector:
         return
@@ -643,6 +652,9 @@ def _validate_optional_track_selector_string(
     text = value.strip()
     if not text:
         errors.append(f"'{selector_path}.{key}' must not be empty; omit the selector field to inherit.")
+        return
+    if max_length is not None and len(text) > max_length:
+        errors.append(f"'{selector_path}.{key}' must be {max_length} characters or fewer.")
         return
     if scalar_safe and not SAFE_OVERRIDE_SCALAR_RE.fullmatch(text):
         errors.append(f"'{selector_path}.{key}' contains unsupported characters.")

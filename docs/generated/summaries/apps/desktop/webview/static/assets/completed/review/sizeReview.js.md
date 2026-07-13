@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/completed/review/sizeReview.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-04
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: ef62715c62e815fedc7cd5ec9cd55b5f51f4caa58300a7def3fd57258be171ed
+sha256: 10529f0cac71038e9d3ec79f217de65a5976e8ea832fbb9e42a689d3cd433914
 ---
 # `apps/desktop/webview/static/assets/completed/review/sizeReview.js`
 
