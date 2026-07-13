@@ -34,9 +34,12 @@
 
   function launchRealMediaProofBaseRows(context = currentLaunchRealMediaContext()) {
     const view = launchCrossPageView();
-    if (typeof view.crossPageRealMediaWorksheetRows === "function") return view.crossPageRealMediaWorksheetRows(context || {});
-    if (typeof window.crossPageRealMediaWorksheetRows === "function") return window.crossPageRealMediaWorksheetRows(context || {});
-    return [];
+    const rows = typeof view.crossPageRealMediaWorksheetRows === "function"
+      ? view.crossPageRealMediaWorksheetRows(context || {})
+      : typeof window.crossPageRealMediaWorksheetRows === "function"
+        ? window.crossPageRealMediaWorksheetRows(context || {})
+        : [];
+    return Array.isArray(rows) ? rows : [];
   }
 
   function launchRealMediaProofRowKey(row, index) {

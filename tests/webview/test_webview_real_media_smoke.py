@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -424,6 +426,45 @@ def _write_high_risk_fixture_state(root: Path) -> tuple[object, list[dict[str, o
 
 
 class WebViewRealMediaSmoke(unittest.TestCase):
+    def test_launch_real_media_proof_rows_fail_closed_when_provider_is_unavailable(self) -> None:
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("Node.js is required for the Launch real-media proof-row regression")
+        asset_path = (
+            find_repo_root(Path(__file__))
+            / "apps"
+            / "desktop"
+            / "webview"
+            / "static"
+            / "assets"
+            / "launchView.realmedia.js"
+        )
+        script = f"""
+const fs = require("fs");
+global.window = {{
+  mediaPipelineCrossPageContextView: {{
+    crossPageRealMediaWorksheetRows: () => undefined,
+  }},
+}};
+eval(fs.readFileSync({json.dumps(str(asset_path))}, "utf8"));
+const module = window.__launchViewRealMediaModule.createLaunchRealMediaModule({{ state: {{}} }});
+for (const value of [undefined, null, {{}}, "unavailable"]) {{
+  window.mediaPipelineCrossPageContextView.crossPageRealMediaWorksheetRows = () => value;
+  const rows = module.launchRealMediaProofRows({{}});
+  if (!Array.isArray(rows) || rows.length < 3) {{
+    throw new Error(`proof rows did not fail closed for ${{String(value)}}`);
+  }}
+}}
+"""
+        result = subprocess.run(
+            [node, "-e", script],
+            cwd=asset_path.parents[5],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+
     def test_backend_served_webview_fixture_has_real_media_validation_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
