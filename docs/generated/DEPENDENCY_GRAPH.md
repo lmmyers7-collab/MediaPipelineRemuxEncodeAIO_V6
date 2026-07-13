@@ -82,6 +82,7 @@ graph LR
   process -->|11| network
   tests -->|11| audit
   unknown -->|11| repair_reconcile
+  api -->|10| queue
   completed -->|10| observability
   config -->|10| paths
   contracts -->|10| kernel
@@ -90,7 +91,6 @@ graph LR
   observability -->|10| paths
   tests -->|10| kernel
   api -->|9| processes
-  api -->|9| queue
   sample_validation -->|9| paths
   tests -->|9| maintenance
   audit -->|8| paths
@@ -273,6 +273,7 @@ graph LR
 | process | network | 11 |
 | tests | audit | 11 |
 | unknown | repair_reconcile | 11 |
+| api | queue | 10 |
 | completed | observability | 10 |
 | config | paths | 10 |
 | contracts | kernel | 10 |
@@ -281,7 +282,6 @@ graph LR
 | observability | paths | 10 |
 | tests | kernel | 10 |
 | api | processes | 9 |
-| api | queue | 9 |
 | sample_validation | paths | 9 |
 | tests | maintenance | 9 |
 | audit | paths | 8 |

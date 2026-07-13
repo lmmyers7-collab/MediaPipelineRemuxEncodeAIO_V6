@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 927cd04adf0b50ed6fcdc1531827df3327be079b853231212886700f5b362298
+sha256: d0190fb44647d96a15f1814000c548b7d76c95ef044937ce89a1a4e1376553c2
 ---
 # `tests/python/desktop/test_api_handler_policy.py`
 

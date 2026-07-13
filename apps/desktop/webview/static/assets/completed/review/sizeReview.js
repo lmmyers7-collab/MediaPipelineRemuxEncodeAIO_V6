@@ -12,7 +12,7 @@
 
     function completedSizeDeltaPercent(item) {
       if (typeof item?.size_delta_percent === "number") return Number(item.size_delta_percent);
-      return Number.parseFloat(String(item?.size_delta_label || "").replace("%", ""));
+      return Number.parseFloat(String(item?.size_delta_label || "").replaceAll("%", ""));
     }
 
     function completedHasSmallHealthySizeDelta(item) {
