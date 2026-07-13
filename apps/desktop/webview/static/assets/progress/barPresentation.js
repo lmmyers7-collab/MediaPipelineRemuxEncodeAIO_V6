@@ -121,8 +121,9 @@
       }
 
       function progressCompactPrefixedCount(text, prefix, suffix) {
-        const match = String(text || "").trim().match(new RegExp(`^${prefix}\\s+(\\d+(?:\\.\\d+)?)$`, "i"));
-        return match ? `${match[1]} ${suffix}` : "";
+        const match = String(text || "").trim().match(/^(\S+)\s+(\d+(?:\.\d+)?)$/);
+        if (!match || match[1].toLowerCase() !== String(prefix || "").toLowerCase()) return "";
+        return `${match[2]} ${suffix}`;
       }
 
       function progressCompactPendingDrainDetailPieces(bar, snapshot = null, diagnostics = null) {

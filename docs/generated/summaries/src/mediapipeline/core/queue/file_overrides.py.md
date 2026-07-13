@@ -3,9 +3,9 @@ file: src/mediapipeline/core/queue/file_overrides.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-07-09
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: c786dde33ed10deadd8530c67a36382e5d4e999c1a059aacec50450af9dc4e9a
+sha256: dab78e41fb1ec0291dc9ea04bfbb75455c718352caee56d8ba0c5b4fa506c87f
 ---
 # `src/mediapipeline/core/queue/file_overrides.py`
 

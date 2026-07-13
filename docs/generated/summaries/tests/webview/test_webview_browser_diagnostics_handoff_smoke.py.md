@@ -3,9 +3,9 @@ file: tests/webview/test_webview_browser_diagnostics_handoff_smoke.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-11
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: a61ff3b316611d2f51759dacd5c9119270e4dad8905e5a96d0ce67341b776f09
+sha256: fd82168037e5638a4f808d62566127a00928385fb7b3c117a308560c44fb0d6d
 ---
 # `tests/webview/test_webview_browser_diagnostics_handoff_smoke.py`
 

@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0712-018",
+  "title": "Preserve diagnostics action feedback across rerenders",
+  "version_target": "2026.07.12.001",
+  "status": "in_progress",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-12",
+  "date_completed": null,
+  "summary": "Preserve diagnostics-tail action completion feedback when a background refresh replaces the initiating button.",
+  "reason": "The full browser matrix exposed a reproducible race: the backend tail loaded successfully, but inline feedback was written to a detached action button and the current UI never showed completion.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "An async diagnostics-tail request retained its original button reference. If state-summary rendering replaced that button before the request completed, success/failure and busy-state updates targeted the detached node.",
+  "behavior_after": "Diagnostics-tail completion resolves the current equivalent button by stable id or action/target datasets before applying inline status and clearing busy state, so background rerenders preserve operator-visible evidence.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/diagnosticsTailView.js",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/diagnosticsTailView.js.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_diagnostics_handoff_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0712-018.json",
+    "tests/webview/test_webview_browser_diagnostics_handoff_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_diagnostics_handoff_smoke.py"
+  ],
+  "manual_validation": [
+    "Ruff passed for tests/webview/test_webview_browser_diagnostics_handoff_smoke.py.",
+    "The browser-backed diagnostics handoff smoke passed 10 consecutive runs after the fix; the pre-fix audit failed twice in six observed runs.",
+    "The deterministic browser scenario replaces the initiating tail button while the API promise is pending and requires Tail loaded feedback on the live replacement.",
+    "node --check passed for apps/desktop/webview/static/assets/diagnosticsTailView.js.",
+    "Full WebView suites passed after the fix: 210 non-browser tests and 29 browser-backed tests.",
+    "npm run webview:prework:check and AI guardrail postflight passed after canonical generated-artifact refresh.",
+    "Release self-test passed with -RequireTests.",
+    "The complete installed pre-commit suite passed on the staged change set without bypass.",
+    "Exact-branch package acceptance remains blocked by the unrelated original-worktree Tauri preview holding the global single-instance guard; no bypass or forced termination was used."
+  ],
+  "rollback_plan": "Revert this packet's commit. Diagnostics tail content still loads, but inline completion feedback may again be lost during a state-summary rerender.",
+  "related_changes": [
+    "MP-CHANGE-2026-0712-017"
+  ],
+  "notes": "This preserves read-only behavior and backend allowlisted target ownership; it changes only where completion evidence is rendered after DOM replacement.\nRebind async diagnostics-tail feedback to the current action button after a rerender.\nReplace an action button mid-request and require completion feedback on the live replacement.\nRefresh the canonical source summary.\nRefresh the canonical test summary.\nRegenerate the WebView public contract for diagnostics feedback rebinding.\nRegenerate the canonical project index for changed source summaries.\nRegenerate the canonical dependency graph after source changes."
+}

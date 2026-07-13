@@ -366,7 +366,7 @@ def send_bytes(
         handler.send_header("X-Content-Type-Options", "nosniff")
         handler.send_header("Referrer-Policy", "no-referrer")
         for name, value in extra_headers or []:
-            handler.send_header(name, value)
+            handler.send_header(name, value.replace("\n", "").replace("\r", ""))
         handler.end_headers()
         handler.wfile.write(body)
     except OSError as exc:

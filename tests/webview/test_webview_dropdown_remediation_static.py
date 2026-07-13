@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import shutil
+import subprocess
 import sys
+import textwrap
 import unittest
 from pathlib import Path
 
@@ -100,16 +103,91 @@ class WebViewDropdownRemediationStaticTests(unittest.TestCase):
         self.assertIn("setTrackActionDisabledReason", form_js)
         self.assertIn(".fo-track-action-reason", queue_css)
 
-    def test_file_override_glob_patterns_escape_before_regex_creation(self) -> None:
+    def test_file_override_glob_patterns_use_bounded_literal_wildcard_matching(self) -> None:
         tracks_js = read_static("assets/queue/fileOverrides.drawer.tracks.js")
-        escape_index = tracks_js.index(r'rawPattern.replace(/[.+^${}()|[\]\\]/g, "\\$&")')
-        wildcard_index = tracks_js.index(r'.replace(/\*/g, ".*")', escape_index)
-        question_index = tracks_js.index(r'.replace(/\?/g, ".")', wildcard_index)
-        regex_index = tracks_js.index("new RegExp(`^${escaped}$`)", question_index)
+        self.assertIn('glob[globIndex] === "?"', tracks_js)
+        self.assertIn('glob[globIndex] === "*"', tracks_js)
+        self.assertIn("starIndex >= 0", tracks_js)
+        self.assertIn("MAX_TRACK_TITLE_GLOB_LENGTH = 256", tracks_js)
+        self.assertIn("MAX_TRACK_TITLE_VALUE_LENGTH = 1024", tracks_js)
+        self.assertNotIn("new RegExp(`^${escaped}$`)", tracks_js)
 
-        self.assertLess(escape_index, wildcard_index)
-        self.assertLess(wildcard_index, question_index)
-        self.assertLess(question_index, regex_index)
+        node = shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("Node.js is required for the file-override wildcard behavior check.")
+        script = textwrap.dedent(
+            r"""
+            const fs = require("fs");
+            const vm = require("vm");
+            const source = fs.readFileSync(
+              "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.tracks.js",
+              "utf8",
+            );
+            const context = { window: {}, console };
+            context.window = context;
+            vm.createContext(context);
+            vm.runInContext(source, context);
+            const isPlainObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+            const selectorStreamIndex = (rule) => {
+              const value = Number(rule?.streamIndex ?? rule?.stream_index);
+              return Number.isFinite(value) ? value : null;
+            };
+            const module = context.__queueFileOverridesDrawerTracksModule.createFileOverridesDrawerTracksModule({
+              documentRef: {},
+              state: {},
+              DRAWER_FIELD_PATHS: [],
+              TRACK_ACTION_FIELD_PATHS: [],
+              SOURCE_INFO_BASIS_LABELS: {},
+              byId() { return null; },
+              isPlainObject,
+              hasOwnValue(value, key) { return Object.prototype.hasOwnProperty.call(value, key); },
+              emptyExactSelectorState() { return {}; },
+              selectorStreamIndex,
+              isExactTrackSelector(value) { return selectorStreamIndex(value) !== null; },
+              currentFileOverridePathLooksFileLike() { return true; },
+              setStatus() {},
+              form: {
+                fileOverrideEffectiveSourceLabel() { return ""; },
+                syncSubFilterFields() {},
+              },
+            });
+            const track = {
+              index: 4,
+              language: "ENG",
+              codec: "AAC",
+              title: "Director + Cast [Final]",
+              channels: 6,
+            };
+            const cases = [
+              [{ streamIndex: 4, title: "director*final]", language: "eng", codec: "aac", channels: 6 }, true],
+              [{ streamIndex: 4, title: "Director + Cast [Final]" }, true],
+              [{ streamIndex: 4, title: "Director + Cast [Final?" }, true],
+              [{ streamIndex: 4, title: "Director + Cast [Final??" }, false],
+              [{ streamIndex: 4, title: "Director .+ Cast *" }, false],
+            ];
+            for (const [selector, expected] of cases) {
+              const actual = module.exactSelectorMatchesTrack(selector, track, "audio");
+              if (actual !== expected) {
+                throw new Error(JSON.stringify({ selector, expected, actual }));
+              }
+            }
+            if (module.exactSelectorMatchesTrack({ streamIndex: 4, title: "x".repeat(257) }, track, "audio")) {
+              throw new Error("Oversized title glob did not fail closed.");
+            }
+            const oversizedTrack = { ...track, title: "x".repeat(1025) };
+            if (module.exactSelectorMatchesTrack({ streamIndex: 4, title: "*" }, oversizedTrack, "audio")) {
+              throw new Error("Oversized probed title did not fail closed.");
+            }
+            """
+        )
+        result = subprocess.run(
+            [node, "-e", script],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
 
 if __name__ == "__main__":
