@@ -1,0 +1,33 @@
+{
+  "id": "MP-CHANGE-2026-0713-003",
+  "title": "Normalize P010 source bit depth",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-13",
+  "date_completed": null,
+  "summary": "Normalize common semiplanar P010 video as 10-bit in the shared source-media contract.",
+  "reason": "The canonical pixel-format fallback reported p010le as 8-bit when ffprobe omitted explicit bit fields, which could reject valid 10-bit proof fixtures and misstate SourceMediaInfo.",
+  "affected_areas": [
+    "generated-context",
+    "source media contracts",
+    "tests"
+  ],
+  "behavior_before": "A p010le video stream without bits_per_raw_sample or bits_per_sample normalized to 8-bit.",
+  "behavior_after": "P010-family semiplanar video streams normalize to 10-bit while explicit positive bit-depth fields retain precedence.",
+  "files_touched": [
+    "docs/generated/summaries/tests/python/core/contract/test_source_media_contract.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0713-003.json",
+    "tests/python/core/contract/test_source_media_contract.py"
+  ],
+  "tests_added": [
+    "The source-media contract recognizes p010le as 10-bit without an explicit raw-depth field."
+  ],
+  "manual_validation": [
+    "RED: the focused SourceMediaInfo adapter regression reported p010le as 8-bit instead of 10-bit while preserving an explicit 12-bit value."
+  ],
+  "rollback_plan": "Revert the narrow P010 pixel-format fallback and its contract regression together; no media files, FFmpeg commands, or runtime state are changed.",
+  "related_changes": [],
+  "notes": "Python impact: contract fact normalization only; no dependency, schema, API, FFmpeg command, or filesystem-mutation change. The bit-depth field is not currently consumed by core routing logic.\nAdd the P010 bit-depth regression.\nRefresh the canonical contract-test summary."
+}
