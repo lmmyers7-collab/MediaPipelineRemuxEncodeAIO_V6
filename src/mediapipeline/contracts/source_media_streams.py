@@ -181,6 +181,8 @@ def bit_depth(stream: Mapping[str, Any]) -> int:
     if explicit > 0:
         return explicit
     pix_fmt = normalize_text(stream.get("pix_fmt"))
+    if pix_fmt.startswith("p010"):
+        return 10
     if "p16" in pix_fmt:
         return 16
     if "p12" in pix_fmt:

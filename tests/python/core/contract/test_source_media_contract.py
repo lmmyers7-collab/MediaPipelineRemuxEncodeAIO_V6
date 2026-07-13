@@ -25,6 +25,27 @@ def load_fixture(name: str) -> dict[str, object]:
 
 
 class SourceMediaContractTests(unittest.TestCase):
+    def test_p010_pixel_format_normalizes_as_ten_bit(self) -> None:
+        p010 = source_media_from_ffprobe(
+            {"streams": [{"index": 0, "codec_type": "video", "pix_fmt": "p010le"}], "format": {}}
+        )
+        explicit = source_media_from_ffprobe(
+            {
+                "streams": [
+                    {
+                        "index": 0,
+                        "codec_type": "video",
+                        "pix_fmt": "p010le",
+                        "bits_per_raw_sample": "12",
+                    }
+                ],
+                "format": {},
+            }
+        )
+
+        self.assertEqual(p010.video_streams[0].bit_depth, 10)
+        self.assertEqual(explicit.video_streams[0].bit_depth, 12)
+
     def test_raw_ffprobe_fixture_normalizes_source_facts(self) -> None:
         source = source_media_from_ffprobe(load_fixture("tv_h264_1080p_12mbps_mkv.json"))
 

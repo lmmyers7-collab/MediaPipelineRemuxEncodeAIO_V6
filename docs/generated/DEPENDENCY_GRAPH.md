@@ -55,7 +55,7 @@ graph LR
   webview["webview"]
   tests -->|810| api
   process -->|105| processes
-  scripts -->|67| api
+  scripts -->|68| api
   tests -->|63| config
   tests -->|45| processes
   observability -->|39| status
@@ -246,7 +246,7 @@ graph LR
 |---|---|---|
 | tests | api | 810 |
 | process | processes | 105 |
-| scripts | api | 67 |
+| scripts | api | 68 |
 | tests | config | 63 |
 | tests | processes | 45 |
 | observability | status | 39 |
