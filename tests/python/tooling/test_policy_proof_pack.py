@@ -80,6 +80,14 @@ class PolicyProofPackTests(unittest.TestCase):
             }.issubset(fixture_ids)
         )
 
+    def test_cli_defaults_to_the_bundled_ffprobe(self) -> None:
+        args = policy_proof_pack.parse_args(["verify"])
+
+        self.assertEqual(
+            Path(args.ffprobe),
+            policy_proof_pack.REPO_ROOT / "ops" / "pipeline" / "tools" / "ffmpeg" / "bin" / "ffprobe.exe",
+        )
+
     def test_ffprobe_facts_capture_dynamic_hdr_and_stream_policy_axes(self) -> None:
         facts = policy_proof_pack.facts_from_ffprobe_payload(
             {
