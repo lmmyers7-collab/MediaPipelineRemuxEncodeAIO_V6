@@ -1,0 +1,59 @@
+{
+  "id": "MP-CHANGE-2026-0712-019",
+  "title": "Close remaining actionable CodeQL notes",
+  "version_target": "2026.07.12.001",
+  "status": "in_progress",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-07-12",
+  "date_completed": null,
+  "summary": "Remove seven behavior-free assignments that the final merged-main CodeQL reconciliation identified as genuinely dead rather than intentional compatibility patterns.",
+  "reason": "The post-merge inventory proved that seven remaining py/unused-local-variable notes were actionable cleanup findings. Leaving them classified as intentional would make the disposition ledger inaccurate and violate the requirement to resolve every actionable in-repository finding.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "network",
+    "tests"
+  ],
+  "behavior_before": "Network lease branches copied response fields into locals that were never read, and atomic registry saves reset a cleanup sentinel after the temporary path had already been replaced.",
+  "behavior_after": "Network lease branches use the authoritative response directly and atomic registry saves retain the existing exception cleanup path without redundant post-replace assignments; claim, rollback, persistence, and lifecycle behavior are unchanged.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/DUPLICATE_TEST_NAMES.md",
+    "docs/generated/summaries/src/mediapipeline/core/network/registry_persistence.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/coordinator_http_handlers.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/coordinator_queue.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/registry_persistence.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_inflight_registry.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_rerun_claims.py.md",
+    "docs/reviews/codeql-2026-07-12/DISPOSITION_LEDGER.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0712-019.json",
+    "src/mediapipeline/core/network/registry_persistence.py",
+    "src/mediapipeline/desktop/network/coordinator_http_handlers.py",
+    "src/mediapipeline/desktop/network/coordinator_queue.py",
+    "src/mediapipeline/desktop/network/registry_persistence.py",
+    "tests/python/desktop/test_network_inflight_registry.py",
+    "tests/python/desktop/test_network_rerun_claims.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_network_inflight_registry.py",
+    "tests/python/desktop/test_network_rerun_claims.py"
+  ],
+  "manual_validation": [
+    "With PYTHONPATH pinned to the isolated worktree src, Ruff passed on all changed Python source and tests.",
+    "With PYTHONPATH pinned to the isolated worktree src, 91 focused network claim, rollback, registry persistence, workflow, and facade tests passed.",
+    "Full bundled-Python/tooling discovery passed 2,905 tests with one expected skip.",
+    "The shard-style browser matrix passed all 23 modules and 29 tests with the isolated worktree import path.",
+    "The diagnostics rerender scenario passed 10 consecutive browser runs and the Maintenance/Reports scenario passed 11 consecutive browser runs after correcting cross-worktree import contamination; no extra product change was required.",
+    "Canonical summaries and the duplicate-test inventory were regenerated after adding the network regressions.",
+    "AI guardrail postflight passed, including generated maps, summaries, schemas, architecture, dependency boundaries, risky-file registry, and naming checks; strict worktree change-packet coverage and git diff --check passed.",
+    "Fresh CodeQL closure for alerts 764-768 and 2045-2046 remains pending a review-branch and merged-main scan."
+  ],
+  "rollback_plan": "Revert this packet's commit to restore the redundant assignments. No persisted schema, claim response, registry record, or external contract changes.",
+  "related_changes": [
+    "Code-scanning alerts 764-768 and 2045-2046",
+    "MP-CHANGE-2026-0712-017",
+    "PR 34"
+  ],
+  "notes": "The touched network files are high-risk by domain, so focused claim, rollback, recovery, and atomic-persistence tests are required even though the diff removes only unread assignments. No lifecycle route, media policy, filesystem destination, authentication rule, or safety gate changes."
+}

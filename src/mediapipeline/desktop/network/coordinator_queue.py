@@ -183,8 +183,6 @@ class CoordinatorQueueMixin:
             if network_lease is not None:
                 job_id = network_lease.response.job_id
                 source_path = network_lease.response.source_path
-                record = None
-                encode_config = dict(network_lease.response.encode_config)
                 ok = True
             else:
                 record, encode_config = _scan_for_next_record_for_claim(

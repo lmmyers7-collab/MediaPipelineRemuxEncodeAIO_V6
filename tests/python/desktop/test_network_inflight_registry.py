@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
+from mediapipeline.core.network.registry import InFlightRegistry as CoreInFlightRegistry
 from mediapipeline.desktop.network.coordinator import CoordinatorDispatcher
 from mediapipeline.desktop.network.encode_config_snapshot import snapshot_encode_config
 from mediapipeline.desktop.network.failure_policy import source_has_prior_failure
@@ -23,48 +24,73 @@ from mediapipeline.desktop.network.registry import InFlightRegistry
 
 class NetworkInFlightRegistryTests(unittest.TestCase):
     def test_inflight_registry_save_survives_concurrent_saves(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
-            path = Path(td) / "inflight_registry.json"
-            registry = InFlightRegistry()
-            errors: list[BaseException] = []
+        for label, registry_type in (
+            ("core", CoreInFlightRegistry),
+            ("desktop", InFlightRegistry),
+        ):
+            with self.subTest(registry=label), tempfile.TemporaryDirectory() as td:
+                path = Path(td) / "inflight_registry.json"
+                registry = registry_type()
+                errors: list[BaseException] = []
 
-            def save_many() -> None:
-                try:
-                    for _ in range(20):
-                        registry.save(path)
-                except BaseException as exc:
-                    errors.append(exc)
+                def save_many(
+                    active_registry: CoreInFlightRegistry | InFlightRegistry,
+                    active_path: Path,
+                    active_errors: list[BaseException],
+                ) -> None:
+                    try:
+                        for _ in range(20):
+                            active_registry.save(active_path)
+                    except BaseException as exc:
+                        active_errors.append(exc)
 
-            threads = [threading.Thread(target=save_many) for _ in range(4)]
-            for thread in threads:
-                thread.start()
-            for thread in threads:
-                thread.join()
+                threads = [
+                    threading.Thread(target=save_many, args=(registry, path, errors))
+                    for _ in range(4)
+                ]
+                for thread in threads:
+                    thread.start()
+                for thread in threads:
+                    thread.join()
 
-            self.assertEqual(errors, [])
-            data = json.loads(path.read_text(encoding="utf-8"))
-            self.assertIn("jobs", data)
-            leftovers = [p for p in path.parent.iterdir() if p.suffix == ".tmp"]
-            self.assertEqual(leftovers, [])
+                self.assertEqual(errors, [])
+                data = json.loads(path.read_text(encoding="utf-8"))
+                self.assertIn("jobs", data)
+                leftovers = [p for p in path.parent.iterdir() if p.suffix == ".tmp"]
+                self.assertEqual(leftovers, [])
 
     def test_inflight_registry_logs_temp_cleanup_failure_after_save_failure(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
-            path = Path(td) / "inflight_registry.json"
-            registry = InFlightRegistry()
+        for label, registry_type, replace_target, logger_name in (
+            (
+                "core",
+                CoreInFlightRegistry,
+                "mediapipeline.core.network.registry_persistence.os.replace",
+                "mediapipeline.core.network.registry",
+            ),
+            (
+                "desktop",
+                InFlightRegistry,
+                "mediapipeline.desktop.network.registry_persistence.os.replace",
+                "mediapipeline.desktop.network.registry",
+            ),
+        ):
+            with self.subTest(registry=label), tempfile.TemporaryDirectory() as td:
+                path = Path(td) / "inflight_registry.json"
+                registry = registry_type()
 
-            with (
-                patch("mediapipeline.desktop.network.registry.os.replace", side_effect=OSError("replace denied")),
-                patch("pathlib.Path.unlink", side_effect=OSError("cleanup denied")),
-                self.assertLogs("mediapipeline.desktop.network.registry", level="WARNING") as logs,
-            ):
-                with self.assertRaisesRegex(OSError, "replace denied"):
-                    registry.save(path)
+                with (
+                    patch(replace_target, side_effect=OSError("replace denied")),
+                    patch("pathlib.Path.unlink", side_effect=OSError("cleanup denied")),
+                    self.assertLogs(logger_name, level="WARNING") as logs,
+                ):
+                    with self.assertRaisesRegex(OSError, "replace denied"):
+                        registry.save(path)
 
-        combined = "\n".join(logs.output)
-        self.assertIn("Failed to remove temporary InFlightRegistry file", combined)
-        self.assertIn("cleanup denied", combined)
-        self.assertIn("Failed to save InFlightRegistry", combined)
-        self.assertIn("replace denied", combined)
+                combined = "\n".join(logs.output)
+                self.assertIn("Failed to remove temporary InFlightRegistry file", combined)
+                self.assertIn("cleanup denied", combined)
+                self.assertIn("Failed to save InFlightRegistry", combined)
+                self.assertIn("replace denied", combined)
 
     def test_inflight_registry_save_failure_propagates_to_coordinator_state_transition_diagnostics(self) -> None:
         events: list[dict[str, object]] = []
