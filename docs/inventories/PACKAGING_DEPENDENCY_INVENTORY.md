@@ -77,13 +77,16 @@ These must be installed separately and are not included in the release package.
 
 | Field | Value |
 |---|---|
-| Role | WebView smoke test runner (both browser-backed and non-browser smokes) |
+| Role | Root npm/WebView tooling and standalone WebView smoke execution |
 | Status | External — must be on operator PATH |
-| Minimum version | Node 18+ (required for global `WebSocket` in scope) |
+| Root npm-tooling minimum | Node `^22.18.0 || >=24.11.0`; Babel 8 is the limiting dependency |
+| Root enforcement | Declared by root `package.json` and enforced by root `.npmrc` with `engine-strict=true` |
+| Root supply-chain quarantine | Root `.npmrc` sets `min-release-age=7`, so npm excludes dependency versions published within the previous seven days |
+| Standalone browser-smoke minimum | Node 18+ for global `WebSocket`; this capability does not install or execute the root npm toolchain |
 | Check | `node --version` |
 | Checked by | Smoke wrappers (`Test-WebView*.ps1`) check for `node` before running |
 | Failure symptom | Smoke wrappers fail with `SkipTest: Node.js is required` and skip; no JavaScript evaluation possible |
-| Notes | Not required for pipeline operation — only for WebView validation |
+| Notes | Not required for pipeline operation. Root npm commands require the root tooling floor; standalone smoke wrappers retain the narrower Node 18 capability floor. |
 
 ### Chrome or Edge (for browser-backed smokes)
 
@@ -105,7 +108,7 @@ These are only needed when building the Tauri/WebView2 shell (`apps\desktop\taur
 
 | Dependency | Role | Check |
 |---|---|---|
-| Node.js (see above) | npm package management for Tauri WebView assets | `node --version` |
+| Node.js (root npm-tooling floor above) | npm package management for Tauri WebView assets | `node --version` |
 | npm | Package installation for Tauri build | `npm --version` |
 | Rust / Cargo | Builds the Tauri shell binary | `cargo --version` |
 | Tauri CLI | Tauri build tool | `cargo tauri --version` or `npx tauri --version` |

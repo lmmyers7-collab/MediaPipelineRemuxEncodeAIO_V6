@@ -1,0 +1,34 @@
+{
+  "id": "MP-CHANGE-2026-0712-023",
+  "title": "Enable root npm SBOM metadata",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "config",
+  "risk_level": "low",
+  "date_started": "2026-07-12",
+  "date_completed": "2026-07-12",
+  "summary": "Declare the private root npm tool project's release-aligned version so npm can emit a standards-based CycloneDX dependency SBOM.",
+  "reason": "npm sbom failed with EINVALIDPURLTYPE because the root package had no version and therefore could not produce a valid package URL.",
+  "affected_areas": [
+    "tooling",
+    "dependencies",
+    "release-integrity"
+  ],
+  "behavior_before": "The locked root dependency graph audited cleanly, but npm could not serialize it as CycloneDX because the private root package lacked version metadata.",
+  "behavior_after": "package.json and package-lock.json identify the private root package as 2026.6.4-001, and the integrated npm graph emits a CycloneDX SBOM containing 88 dependency components.",
+  "files_touched": [
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0712-023.json",
+    "docs/generated/summaries/package.json.md",
+    "package.json",
+    "package-lock.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PASS: npm install --package-lock-only completed with zero vulnerabilities.",
+    "PASS: npm sbom --sbom-format cyclonedx emitted valid CycloneDX 1.5 JSON with 88 components after the integrated ESLint 10 graph update.",
+    "PASS: npm audit --audit-level=moderate reported zero vulnerabilities."
+  ],
+  "rollback_plan": "Remove the root version fields through npm tooling and rerun npm ci/audit; doing so intentionally restores the documented npm SBOM limitation.",
+  "related_changes": [],
+  "notes": "The project remains private and non-published. This adds identity metadata only; it does not claim or alter a software license. SBOM evidence was generated outside the repository and is not a shipped artifact."
+}

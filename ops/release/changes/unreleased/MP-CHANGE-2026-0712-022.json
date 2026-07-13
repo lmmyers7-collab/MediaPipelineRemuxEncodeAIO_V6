@@ -1,0 +1,37 @@
+{
+  "id": "MP-CHANGE-2026-0712-022",
+  "title": "Enable GitHub security enforcement",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "config",
+  "risk_level": "low",
+  "date_started": "2026-07-12",
+  "date_completed": "2026-07-12",
+  "summary": "Enable supported GitHub secret scanning, push protection, and immutable Action SHA enforcement, and publish annotated governance recovery tags without moving branches.",
+  "reason": "The security inventory found repository secret scanning disabled and Action SHA pinning unenforced despite all checked-in workflows already using immutable references; the prior governance rollback plan also lacked named recovery refs.",
+  "affected_areas": [
+    "github",
+    "security",
+    "governance",
+    "release"
+  ],
+  "behavior_before": "GitHub secret scanning and push protection were disabled, Action references were not required to use full SHAs, and rollback commits were documented but had no annotated remote recovery tags.",
+  "behavior_after": "GitHub secret scanning and push protection are enabled, Actions require full commit SHA references, and annotated remote tags preserve the pre-governance main tip and normalized baseline.",
+  "files_touched": [
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0712-022.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PASS: repository security_and_analysis reports secret_scanning=enabled and secret_scanning_push_protection=enabled.",
+    "PASS: repository Actions permissions report sha_pinning_required=true; checked-in workflow audit found no non-SHA uses references.",
+    "PASS: secret-scanning open-alert query returned zero findings after enablement.",
+    "PASS: recovery/pre-governance-main-20260712 peels to c5519e6aeb4873dc33007833db5ce675b55554b2.",
+    "PASS: recovery/normalized-main-baseline-20260712 peels to 34e4076720bde468ba9cb221ec617920724c587e."
+  ],
+  "rollback_plan": "Do not move or delete the recovery tags during ordinary rollback. If the strengthened GitHub settings cause an evidenced platform incompatibility, change only the specific repository setting through a separately reviewed governance action; never weaken checked-in Action pins.",
+  "related_changes": [
+    "MP-CHANGE-2026-0712-004",
+    "PR #30"
+  ],
+  "notes": "GitHub accepted base secret scanning and push protection. Non-provider patterns and validity checks remain disabled because the repository API did not enable those advanced surfaces. No alert was dismissed, no branch moved, and no required check was changed."
+}
