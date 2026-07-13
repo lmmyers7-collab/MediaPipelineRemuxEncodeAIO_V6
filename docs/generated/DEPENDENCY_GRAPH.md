@@ -129,6 +129,7 @@ graph LR
   orchestration -->|5| api
   orchestration -->|5| config
   process -->|5| audit
+  tests -->|5| network
   tests -->|5| observability
   tests -->|5| telemetry
   tests -->|5| validation
@@ -143,7 +144,6 @@ graph LR
   queue -->|4| observability
   rename -->|4| paths
   sample_validation -->|4| kernel
-  tests -->|4| network
   unknown -->|4| paths
   unknown -->|4| queue
   unknown -->|4| status
@@ -320,6 +320,7 @@ graph LR
 | orchestration | api | 5 |
 | orchestration | config | 5 |
 | process | audit | 5 |
+| tests | network | 5 |
 | tests | observability | 5 |
 | tests | telemetry | 5 |
 | tests | validation | 5 |
@@ -334,7 +335,6 @@ graph LR
 | queue | observability | 4 |
 | rename | paths | 4 |
 | sample_validation | kernel | 4 |
-| tests | network | 4 |
 | unknown | paths | 4 |
 | unknown | queue | 4 |
 | unknown | status | 4 |
