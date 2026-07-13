@@ -537,6 +537,14 @@ class LocalApiHttpTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertIn("local API attempted to send a non-strict JSON response", "\n".join(logs.output))
         self.assertIn("Out of range float values", "\n".join(logs.output))
 
+    def test_handler_without_cors_resolver_never_reflects_request_origin(self) -> None:
+        owner = type("Owner", (), {"logger": logging.getLogger("test.local_api.cors_fallback")})()
+        handler_cls = build_local_api_handler_class(owner)
+        handler = handler_cls.__new__(handler_cls)
+        handler.headers = {"Origin": "http://localhost:8765\r\nX-Injected: true"}
+
+        self.assertEqual(handler._cors_response_origin(), "http://127.0.0.1")
+
     def test_local_api_rejects_wrong_json_content_type_without_command_journal_entry(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
