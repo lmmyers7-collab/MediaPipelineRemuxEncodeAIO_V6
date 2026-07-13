@@ -263,6 +263,21 @@ class PolicyProofPackTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "frame metadata probe failed"):
             policy_proof_pack.probe_source_ffprobe(Path("sample.mkv"), ffprobe="ffprobe-test")
 
+    @patch("mediapipeline.tools.dev.policy_proof_pack.subprocess.run")
+    def test_probe_source_fails_closed_when_frame_metadata_has_no_frames(self, run_mock) -> None:
+        run_mock.side_effect = [
+            CompletedProcess(
+                args=[],
+                returncode=0,
+                stdout=json.dumps({"streams": [{"codec_type": "video"}]}),
+                stderr="",
+            ),
+            CompletedProcess(args=[], returncode=0, stdout=json.dumps({"frames": []}), stderr=""),
+        ]
+
+        with self.assertRaisesRegex(RuntimeError, "frame metadata probe returned no video frames"):
+            policy_proof_pack.probe_source_ffprobe(Path("sample.mkv"), ffprobe="ffprobe-test")
+
     def test_materialize_copies_owned_fixture_and_writes_sentinel_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "PolicyProofPack"
