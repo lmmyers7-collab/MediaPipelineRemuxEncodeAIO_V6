@@ -29,6 +29,7 @@ function ConvertTo-MediaPipelineMovieTitleCase {
     $smallWords = @('a','an','and','as','at','but','by','for','from','in','into','nor','of','on','or','per','to','vs','via','with')
     $lowerTheAfter = @('by','for','from','in','into','of','on','to','with')
     $romanNumerals = @('i','ii','iii','iv','v','vi','vii','viii','ix','x')
+    $preservedUppercaseTokens = @('dc')
     $tokens = New-Object System.Collections.Generic.List[string]
     $rawTokens = @($Value -split '\s+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     $previousLower = ''
@@ -39,7 +40,9 @@ function ConvertTo-MediaPipelineMovieTitleCase {
             $word = $word.ToLowerInvariant()
         }
         $lower = $word.ToLowerInvariant()
-        if ($romanNumerals.Contains($lower)) {
+        if ($preservedUppercaseTokens.Contains($lower)) {
+            $formatted = $lower.ToUpperInvariant()
+        } elseif ($romanNumerals.Contains($lower)) {
             $formatted = $lower.ToUpperInvariant()
         } elseif ($lower -eq 'the') {
             if (($i -gt 0) -and $lowerTheAfter.Contains($previousLower)) {
@@ -48,7 +51,8 @@ function ConvertTo-MediaPipelineMovieTitleCase {
                 $formatted = 'The'
             }
         } elseif (($i -gt 0) -and $smallWords.Contains($lower)) {
-            $formatted = $lower
+            $previousRaw = [string]$rawTokens[$i - 1]
+            $formatted = if ($lower -eq 'a' -and $previousRaw -match '^\d+$') { 'A' } else { $lower }
         } elseif ($word.Contains('-')) {
             $parts = foreach ($part in $word.Split('-')) {
                 if ($part.Length -eq 0) { $part } else { $part.Substring(0,1).ToUpperInvariant() + $part.Substring(1) }
@@ -62,6 +66,114 @@ function ConvertTo-MediaPipelineMovieTitleCase {
     }
 
     return ($tokens -join ' ')
+}
+
+function Get-NamingMovieRightmostYearInfo {
+    param([string]$Text)
+
+    $maximumPlausibleYear = (Get-Date).Year + 1
+    $plausibleMatches = @([regex]::Matches([string]$Text, '(?<!\d)(?:18|19|20)\d{2}(?!\d)') | Where-Object {
+        $candidate = [int]$_.Value
+        $candidate -ge 1888 -and $candidate -le $maximumPlausibleYear
+    })
+    if ($plausibleMatches.Count -eq 0) { return $null }
+
+    $annotated = @($plausibleMatches | ForEach-Object {
+        $candidate = $_
+        $prefix = ([string]$Text).Substring(0, $candidate.Index)
+        $suffix = ([string]$Text).Substring($candidate.Index + $candidate.Length)
+        [pscustomobject]@{
+            Match       = $candidate
+            IsBracketed = [bool]($prefix -match '[\(\[\{]\s*$' -and $suffix -match '^\s*[\)\]\}]')
+        }
+    })
+    $bracketed = @($annotated | Where-Object { $_.IsBracketed })
+    $selected = if ($bracketed.Count -gt 0) { $bracketed[$bracketed.Count - 1] } else { $annotated[$annotated.Count - 1] }
+    $match = $selected.Match
+
+    # A lone plausible number is a numeric title, not evidence of a release
+    # year. A second title token (including an earlier number) is required.
+    if (-not $selected.IsBracketed) {
+        $withoutCandidate = ([string]$Text).Remove($match.Index, $match.Length)
+        $meaningfulRemainder = $withoutCandidate -replace '[\s._\-\(\)\[\]\{\}]+', ''
+        if ([string]::IsNullOrWhiteSpace($meaningfulRemainder)) { return $null }
+    }
+
+    return [pscustomobject]@{
+        Value       = [string]$match.Value
+        Index       = [int]$match.Index
+        Length      = [int]$match.Length
+        IsBracketed = [bool]$selected.IsBracketed
+    }
+}
+
+function Protect-NamingMovieAmbiguousTitleTerms {
+    param(
+        [string]$Text,
+        $YearInfo = $null
+    )
+
+    $protectedEnd = ([string]$Text).Length
+    if ($YearInfo -and -not [bool]$YearInfo.IsBracketed) {
+        $yearMatches = [regex]::Matches([string]$Text, "(?<!\d)$([regex]::Escape([string]$YearInfo.Value))(?!\d)")
+        if ($yearMatches.Count -gt 0) {
+            $protectedEnd = [int]$yearMatches[$yearMatches.Count - 1].Index
+        }
+    }
+
+    # A strong, non-ambiguous technical marker starts a verified release tail.
+    # Bare words such as Web, Cam, DC, Ma, Audio, and Proper are deliberately
+    # excluded because they can be legitimate title text.
+    $strongTail = [regex]::Match([string]$Text, '(?i)(?<![A-Za-z0-9])(?:2160p|1080[pi]|720[pi]|480p|4k|uhd|hdr10\+?|hdr|dovi|dolby[\s._-]*vision|hevc|h\.?264|h\.?265|x264|x265|av1|avc|xvid|divx|blu[\s._-]*ray|bluray|brrip|bdrip|webrip|web[\s._-]*dl|webdl|hdtv|dvdrip|dvd|remux|truehd|atmos|flac|opus|eac3|ac3|aac|ddp?|dts(?:[\s._-]*hd)?|dtshd|\d+(?:\.\d+)?[\s._-]*(?:mb|gb))(?![A-Za-z0-9])')
+    if ($strongTail.Success -and $strongTail.Index -lt $protectedEnd) {
+        $protectedEnd = [int]$strongTail.Index
+    }
+
+    # Revision flags immediately before the release year are verified tail
+    # metadata. Keep them outside the protected title region while preserving
+    # uses such as "A Proper Man".
+    if ($protectedEnd -gt 0) {
+        $prefix = ([string]$Text).Substring(0, $protectedEnd)
+        $revisionTail = [regex]::Match($prefix, '(?i)(?:[\s._-]+(?:proper|repack|rerip))+[\s._-]*$')
+        if ($revisionTail.Success) {
+            $protectedEnd = [int]$revisionTail.Index
+        }
+    }
+
+    $matches = @([regex]::Matches([string]$Text, '(?i)(?<![A-Za-z0-9])(?:web|cam|dc|ma|audio|proper)(?![A-Za-z0-9])') | Where-Object {
+        ($_.Index + $_.Length) -le $protectedEnd
+    })
+    if ($matches.Count -eq 0) {
+        return [pscustomobject]@{ Text = [string]$Text; Replacements = @() }
+    }
+
+    $result = [string]$Text
+    $replacements = New-Object System.Collections.Generic.List[object]
+    for ($i = $matches.Count - 1; $i -ge 0; $i--) {
+        $match = $matches[$i]
+        $placeholder = "MPAMBIGUOUSTITLE$($i)TOKEN"
+        $result = $result.Remove($match.Index, $match.Length).Insert($match.Index, $placeholder)
+        [void]$replacements.Add([pscustomobject]@{
+            Placeholder = $placeholder
+            Value       = [string]$match.Value
+        })
+    }
+    return [pscustomobject]@{ Text = $result; Replacements = $replacements.ToArray() }
+}
+
+function Restore-NamingMovieAmbiguousTitleTerms {
+    param([string]$Text, [array]$Replacements)
+
+    $result = [string]$Text
+    foreach ($replacement in @($Replacements)) {
+        $result = [regex]::Replace(
+            $result,
+            [regex]::Escape([string]$replacement.Placeholder),
+            [System.Text.RegularExpressions.MatchEvaluator]{ param($match) [string]$replacement.Value },
+            [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+        )
+    }
+    return $result
 }
 
 function Get-NamingRenameMovieFilterCategoryNames {
@@ -111,7 +223,7 @@ function Get-NamingRenameMovieFilterDefaultTerms {
         languages_subs_dubs = @(
             'eng','ita','fre','fra','ger','deu','spa','esp','jpn','jap','kor','chi','zho','rus','por','dut','nld','swe','dan','nor',
             'fin','pol','cze','ces','hun','gre','ell','tur','ara','hin','tha','vie','ukr','sub','subs','subbed','dub','dubs',
-            'dubbed','multi','multi audio','dual audio','dual-audio','vostfr','vose'
+            'dubbed','multi audio','dual audio','dual-audio','multi','audio','vostfr','vose'
         )
         release_groups = @(
             'rarbg','rbg','yify','yts','yts lt','galaxyrg','bone','psa','tigole','kris','sparks','ntb','evo','tepes','flux','framestor','cmrg','neonoir',
@@ -224,7 +336,20 @@ function Get-NamingRenameMovieFilterTermsForCategory {
 function Get-NamingRenameMovieRemoveTerms {
     $configured = Get-NamingScriptConfigValue -Name 'RenameMovieRemoveTerms'
     $terms = ConvertTo-NamingRenameMovieTermList -Value $configured
-    if ($terms.Count -gt 0) { return @($terms) }
+    if ($terms.Count -gt 0) {
+        $defaults = @(Get-NamingRenameMovieRemoveTermsDefault)
+        $legacyPackagedTerms = @($defaults) + @(1..12 | ForEach-Object { $_.ToString('00') })
+        if ($terms.Count -eq $legacyPackagedTerms.Count) {
+            $configuredKeys = @($terms | ForEach-Object { ([string]$_).ToLowerInvariant() })
+            $isExactLegacyList = -not @($legacyPackagedTerms | Where-Object {
+                ([string]$_).ToLowerInvariant() -notin $configuredKeys
+            }).Count
+            if ($isExactLegacyList) {
+                return $defaults
+            }
+        }
+        return @($terms)
+    }
     return @(Get-NamingRenameMovieRemoveTermsDefault)
 }
 
@@ -267,16 +392,12 @@ function Get-CleanMovieName {
     $base = Remove-PriorityMarkersFromName ([System.IO.Path]::GetFileNameWithoutExtension($FileName))
     $filterOptions = Get-NamingRenameMovieFilterOptions
 
-    # Year detection. Prefer a year that appears inside () or [] brackets,
-    # because some titles contain 4-digit numbers that look like years
-    # ("Blade Runner 2049"). Fall back to the first unbracketed 4-digit
-    # year only when no bracketed year exists.
-    $year = ''
-    if ($base -match '[\(\[](19|20)(\d{2})[\)\]]') {
-        $year = $Matches[1] + $Matches[2]
-    } elseif ($base -match '\b(19|20)\d{2}\b') {
-        $year = $Matches[0]
-    }
+    # Prefer a bracketed plausible release year; otherwise use the rightmost
+    # plausible year. Earlier values can be legitimate title text (2001,
+    # Blade Runner 2049, 1917, or 1984). Cinema predates 1888, future values
+    # beyond next year are title text, and a lone number is a numeric title.
+    $yearInfo = Get-NamingMovieRightmostYearInfo -Text $base
+    $year = if ($yearInfo) { [string]$yearInfo.Value } else { '' }
 
     # Strip ALL bracketed groups: (...), [...], {...}. Per user spec, any
     # text inside these is noise we don't want in the folder name (extended
@@ -304,6 +425,8 @@ function Get-CleanMovieName {
     # Release-tag vocabulary that frequently appears unbracketed in scene
     # filenames. Keep this aligned with the desktop rename scrubber so the
     # Rename tab's predictive movie name matches the eventual Plex path.
+    $ambiguousTitleProtection = Protect-NamingMovieAmbiguousTitleTerms -Text $title -YearInfo $yearInfo
+    $title = [string]$ambiguousTitleProtection.Text
     if (Test-NamingRenameMovieFilterCategoryEnabled -Options $filterOptions -Category 'file_size') {
         $title = $title -replace '\b\d+(?:\.\d+)?\s*(?:mb|gb)\b', ' '
         $title = Remove-NamingMovieFilterTerms -Text $title -Terms (Get-NamingRenameMovieFilterTermsForCategory -Category 'file_size')
@@ -337,8 +460,14 @@ function Get-CleanMovieName {
             if ([string]::IsNullOrWhiteSpace($groupPattern)) { continue }
             $title = $title -replace "(?i)^\s*[\[\(]?\s*$groupPattern\s*[\]\)]?[\s._-]+", ' '
             $title = $title -replace "(?i)[\s._-]+[\[\(]?\s*$groupPattern\s*[\]\)]?\s*$", ' '
+            if ($yearInfo -and -not [bool]$yearInfo.IsBracketed) {
+                $escapedYear = [regex]::Escape([string]$yearInfo.Value)
+                $title = $title -replace "(?i)[\s._-]+[\[\(]?\s*$groupPattern\s*[\]\)]?(?=[\s._-]+$escapedYear(?:[\s._-]*$))", ' '
+            }
         }
     }
+
+    $title = Restore-NamingMovieAmbiguousTitleTerms -Text $title -Replacements @($ambiguousTitleProtection.Replacements)
 
     # Convert separators (dots, underscores, hyphens-between-words) to spaces.
     # We handle hyphens carefully: "Spider-Man" should keep the hyphen,
@@ -349,12 +478,14 @@ function Get-CleanMovieName {
     $title = $title -replace '\s-\s', ' '      # " - " as separator
     $title = $title -replace '\s-|-\s',  ' '   # dangling hyphens
 
-    # Drop the year NOW (after bracket stripping) so it isn't duplicated
-    # once we reappend "(YYYY)" at the end. Only drop the year if it
-    # wasn't bracketed — otherwise the bracketed year is already gone and
-    # any remaining 4-digit number is part of the title (e.g. "2049").
-    if ($year -and $base -notmatch '[\(\[](19|20)\d{2}[\)\]]') {
-        $title = $title -replace "\b$year\b", ' '
+    # Drop exactly the selected unbracketed release-year occurrence. Removing
+    # every equal token would turn "1984 1984" into an empty title.
+    if ($yearInfo -and -not [bool]$yearInfo.IsBracketed) {
+        $yearMatches = [regex]::Matches($title, "(?<!\d)$([regex]::Escape($year))(?!\d)")
+        if ($yearMatches.Count -gt 0) {
+            $yearMatch = $yearMatches[$yearMatches.Count - 1]
+            $title = $title.Remove($yearMatch.Index, $yearMatch.Length).Insert($yearMatch.Index, ' ')
+        }
     }
 
     # Collapse whitespace and strip non-filename-safe characters.
@@ -367,8 +498,7 @@ function Get-CleanMovieName {
     $title = ConvertTo-MediaPipelineMovieTitleCase $title
 
     if ([string]::IsNullOrWhiteSpace($title)) {
-        # Fallback: raw base, sanitised, so we never return an empty string.
-        $title = ($base -replace '[<>:"/\\|?*]','').Trim()
+        return ''
     }
 
     if ($year) { return "$title ($year)" }

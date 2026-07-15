@@ -3,9 +3,9 @@ file: docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-04
+last_modified: 2026-07-13
 last_reviewed: 2026-05-29
-sha256: 08a71cc773f3080704867b8d8ef8606d5bd95fe12db5f499779122d7420a6af8
+sha256: a005681bae292cbb0a297fa8a30eebb65579b0368ad451e762ed34d87da408e2
 ---
 # `docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md`
 

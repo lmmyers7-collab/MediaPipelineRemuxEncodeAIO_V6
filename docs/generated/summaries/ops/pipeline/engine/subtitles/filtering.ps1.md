@@ -3,9 +3,9 @@ file: ops/pipeline/engine/subtitles/filtering.ps1
 pipeline_stage: subtitles
 token_priority: high
 owner_domain: subtitles
-last_modified: 2026-06-13
+last_modified: 2026-07-14
 last_reviewed: 2026-06-04
-sha256: 0e081609c6761803a5d6b6451a5547c6e63927679ae662ae77dfb55b4cfe258e
+sha256: d34b64b7415d5dc35ad4cdf56135b9f7f36b3ea2150a17bef96b5a2065a244a8
 ---
 # `ops/pipeline/engine/subtitles/filtering.ps1`
 

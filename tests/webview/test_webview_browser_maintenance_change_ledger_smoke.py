@@ -245,6 +245,7 @@ def _browser_change_ledger_runner_source() -> str:
               posts.push({ url: String(url || ""), body });
               throw new Error("unexpected mutation POST " + url);
             };
+            window.__mediaPipelineBrowserSmokeMaskGlobal("startMaintenanceProgressPolling");
 
             if (typeof window.showPage !== "function") throw new Error("missing showPage");
             if (typeof window.mediaPipelineMaintenanceView?.refreshChangeLedger !== "function") throw new Error("missing refreshChangeLedger");
@@ -252,6 +253,9 @@ def _browser_change_ledger_runner_source() -> str:
 
             window.showPage("maintenance");
             if (!visiblePage("maintenance")) throw new Error("Maintenance page did not become visible.");
+            await waitFor(() => gets.includes("/api/maintenance"), "initial Maintenance health request");
+            await waitFor(() => gets.includes("/api/maintenance/progress"), "initial Maintenance progress request");
+            await waitFor(() => !byId("maintenance-refresh-button")?.disabled, "Maintenance refresh controls to recover");
             await waitFor(() => text("maintenance-change-ledger-status") !== "Loading...", "initial ledger refresh to settle");
             await window.mediaPipelineMaintenanceView.refreshChangeLedger();
             await waitFor(() => text("maintenance-change-ledger-status").includes("ready (2)"), "fixture ledger refresh");

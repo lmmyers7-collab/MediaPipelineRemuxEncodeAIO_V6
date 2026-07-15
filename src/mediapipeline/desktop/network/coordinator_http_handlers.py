@@ -407,17 +407,34 @@ class CoordinatorHttpHandlersMixin:
             )
             if getattr(job, "job_kind", "") == NETWORK_RERUN_ROW_JOB_KIND:
                 try:
-                    update_network_rerun_row_released(
+                    row_updated = update_network_rerun_row_released(
                         app=self._app,
                         job=job,
                         worker_id=req.worker_id,
                         reason="worker release",
                     )
+                    if row_updated is not True:
+                        restorer = getattr(self._registry, "restore_rollback_snapshot", None)
+                        if rollback_snapshot is not None and callable(restorer):
+                            restorer(rollback_snapshot)
+                        self._registry.save(self._inflight_state_path())
+                        handler._send_json(
+                            {
+                                "error": "done state conflict",
+                                "reason": "Network rerun row release compare-and-set was rejected",
+                            },
+                            409,
+                        )
+                        return
                 except Exception as exc:
                     if rollback_snapshot is not None:
                         restorer = getattr(self._registry, "restore_rollback_snapshot", None)
                         if callable(restorer):
                             restorer(rollback_snapshot)
+                            try:
+                                self._registry.save(self._inflight_state_path())
+                            except Exception:
+                                _log.exception("Failed to persist restored registry after Network row release rejection.")
                     _log.warning(
                         "Failed to update Network CSV rerun row release state for job %s: %s",
                         req.job_id[:8],
@@ -666,12 +683,29 @@ class CoordinatorHttpHandlersMixin:
 
         if getattr(job, "job_kind", "") == NETWORK_RERUN_ROW_JOB_KIND:
             try:
-                update_network_rerun_row_done(app=self._app, job=job, request=req)
+                row_updated = update_network_rerun_row_done(app=self._app, job=job, request=req)
+                if row_updated is not True:
+                    restorer = getattr(self._registry, "restore_rollback_snapshot", None)
+                    if rollback_snapshot is not None and callable(restorer):
+                        restorer(rollback_snapshot)
+                    self._registry.save(self._inflight_state_path())
+                    handler._send_json(
+                        {
+                            "error": "done state conflict",
+                            "reason": "Network rerun row completion compare-and-set was rejected",
+                        },
+                        409,
+                    )
+                    return
                 self._registry.save(self._inflight_state_path())
             except Exception as exc:
                 restorer = getattr(self._registry, "restore_rollback_snapshot", None)
                 if rollback_snapshot is not None and callable(restorer):
                     restorer(rollback_snapshot)
+                    try:
+                        self._registry.save(self._inflight_state_path())
+                    except Exception:
+                        _log.exception("Failed to persist restored registry after Network row completion rejection.")
                 _log.warning(
                     "Done report for Network CSV rerun job %s from worker %s was not accepted because row state persistence failed: %s",
                     req.job_id[:8],

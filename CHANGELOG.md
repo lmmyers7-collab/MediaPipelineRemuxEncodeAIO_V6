@@ -318,6 +318,13 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Fixed
 
+- Audited operator workflows now keep Maintenance progress polling, Queue
+  strategy refresh, and Rename command gating inside their injected module
+  contracts; primary navigation activates consistently from Enter and Space;
+  Settings builders use display-unit constraints, reset owned patch keys,
+  preserve explicit-empty list intent, and guide Library edits to their exact
+  controls; release builds default to verified, test-inclusive packages while
+  leaving the optional Tauri binary opt-in.
 - Settings Preview/Save now rejects non-canonical casing for known persisted
   config keys, and settings/launch BDPGS OCR display fallbacks now match the
   contract default of disabled when `ConvertBdpgsToSrt` is missing.

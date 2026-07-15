@@ -3,9 +3,9 @@ file: tests/python/desktop/test_settings_store.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-23
+last_modified: 2026-07-12
 last_reviewed: 2026-06-23
-sha256: 185a40571cd5e51afe97bffcc6a459361024a96df7a2a1f57912d0aaad0ec5ae
+sha256: b6c004ee1123556abca50bd9901b28952931ceaaf204ecda4a69ab51a395b000
 ---
 # `tests/python/desktop/test_settings_store.py`
 

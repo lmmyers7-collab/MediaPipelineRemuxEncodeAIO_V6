@@ -2072,6 +2072,11 @@ class DummyWorkflowFacadeService(DummyFacadeService, QueueServiceMixin, RenameSe
         confirm_source_overwrite: bool = False,
         confirm_original_policy: bool = False,
         confirm_delete_original: bool = False,
+        command_id: str = "",
+        launch_id: str = "",
+        batch_id: str = "",
+        enrollment_path: Path | None = None,
+        manifest_path: Path | None = None,
     ) -> DummyProc:
         self.started_rerun = {
             "resolved": resolved,
@@ -2091,6 +2096,11 @@ class DummyWorkflowFacadeService(DummyFacadeService, QueueServiceMixin, RenameSe
             "confirm_source_overwrite": confirm_source_overwrite,
             "confirm_original_policy": confirm_original_policy,
             "confirm_delete_original": confirm_delete_original,
+            "command_id": command_id,
+            "launch_id": launch_id,
+            "batch_id": batch_id,
+            "enrollment_path": enrollment_path,
+            "manifest_path": manifest_path,
         }
         proc = DummyProc(24682)
         self.started_rerun_proc = proc

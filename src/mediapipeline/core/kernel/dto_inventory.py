@@ -34,6 +34,10 @@ class QueuePreviewDto:
     source_count_total: int = 0
     total_row_count: int = 0
     shown_row_count: int = 0
+    normal_queue_visible_count: int = 0
+    dedicated_rerun_visible_count: int = 0
+    queue_sources: list[str] = field(default_factory=list)
+    rerun_correlation: JsonMap = field(default_factory=dict)
     row_limit: int = 0
     rows_truncated: bool = False
     priority_count: int = 0

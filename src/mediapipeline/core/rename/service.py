@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from collections.abc import Mapping
 
 from mediapipeline.core.rename.apply import (
     build_rename_operations,
@@ -265,6 +266,7 @@ class RenameServiceMixin:
         media_kind: str,
         powershell_host: str | None = None,
         timeout_seconds: int = 8,
+        cleaning_policy: Mapping[str, Any] | None = None,
     ) -> tuple[dict[str, str], str]:
         return load_pipeline_name_previews_for_service(
             self,
@@ -273,6 +275,7 @@ class RenameServiceMixin:
             powershell_host=powershell_host,
             timeout_seconds=timeout_seconds,
             run_capture_func=run_capture,
+            cleaning_policy=cleaning_policy,
         )
 
     def _load_pipeline_movie_name_previews(
@@ -281,6 +284,7 @@ class RenameServiceMixin:
         *,
         powershell_host: str | None = None,
         timeout_seconds: int = 8,
+        cleaning_policy: Mapping[str, Any] | None = None,
     ) -> tuple[dict[str, str], str]:
         return load_pipeline_movie_name_previews_for_service(
             self,
@@ -288,6 +292,7 @@ class RenameServiceMixin:
             powershell_host=powershell_host,
             timeout_seconds=timeout_seconds,
             run_capture_func=run_capture,
+            cleaning_policy=cleaning_policy,
         )
 
     def _load_pipeline_tv_name_previews(
@@ -296,6 +301,7 @@ class RenameServiceMixin:
         *,
         powershell_host: str | None = None,
         timeout_seconds: int = 8,
+        cleaning_policy: Mapping[str, Any] | None = None,
     ) -> tuple[dict[str, str], str]:
         return load_pipeline_tv_name_previews_for_service(
             self,
@@ -303,6 +309,7 @@ class RenameServiceMixin:
             powershell_host=powershell_host,
             timeout_seconds=timeout_seconds,
             run_capture_func=run_capture,
+            cleaning_policy=cleaning_policy,
         )
 
     def _normalise_manual_final_name(self, source: Path, value: str) -> str:
@@ -334,6 +341,7 @@ class RenameServiceMixin:
         powershell_host: str | None = None,
         use_pipeline_naming_preview: bool = True,
         template_preset: str = "",
+        cleaning_policy: Mapping[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         return plan_rename_paths_for_service(
             self,
@@ -356,6 +364,7 @@ class RenameServiceMixin:
             powershell_host=powershell_host,
             use_pipeline_naming_preview=use_pipeline_naming_preview,
             template_preset=template_preset,
+            cleaning_policy=cleaning_policy,
         )
 
     def plan_batch_tv_rename(
@@ -426,14 +435,14 @@ class RenameServiceMixin:
     def _write_rename_undo_manifest(self, manifest: dict[str, Any], *, root: Path | None = None) -> Path:
         return write_rename_undo_manifest(manifest, root=root or self._rename_undo_manifest_root())
 
-    def _build_rename_operations(self, plan: list[dict[str, Any]]) -> list[dict[str, Path | str]]:
+    def _build_rename_operations(self, plan: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return build_rename_operations(
             plan,
             same_file=self._resolve_same_file,
             casefold_path=self._casefold_path,
         )
 
-    def _rollback_rename_operations(self, completed_ops: list[dict[str, Path | str]]) -> list[str]:
+    def _rollback_rename_operations(self, completed_ops: list[dict[str, Any]]) -> list[str]:
         return rollback_rename_operations(
             completed_ops,
             rename_path=self._rename_path_case_safe,

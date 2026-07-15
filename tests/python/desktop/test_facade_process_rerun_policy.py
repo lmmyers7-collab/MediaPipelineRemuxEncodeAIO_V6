@@ -125,11 +125,11 @@ class RerunLaunchPolicyTests(unittest.TestCase):
         self.assertEqual(rerun_run_label(True), "dry run")
         self.assertEqual(rerun_run_label(False), "run")
         self.assertEqual(rerun_run_label(False, True), "plan-only check")
-        self.assertEqual(rerun_start_success_message(24682, True), "Started CSV rerun dry run via PID 24682.")
-        self.assertEqual(rerun_start_success_message(24682, False), "Started CSV rerun run via PID 24682.")
+        self.assertEqual(rerun_start_success_message(24682, True), "CSV rerun dry run process spawned via PID 24682.")
+        self.assertEqual(rerun_start_success_message(24682, False), "CSV rerun run process spawned via PID 24682.")
         self.assertEqual(
             rerun_start_success_message(24682, False, True),
-            "Started CSV rerun plan-only check via PID 24682.",
+            "CSV rerun plan-only check process spawned via PID 24682.",
         )
         self.assertEqual(payload["csv_path"], str(csv_path))
         self.assertTrue(payload["dry_run"])
@@ -172,7 +172,7 @@ class RerunLaunchPolicyTests(unittest.TestCase):
         self.assertEqual(active.refresh_hint, "snapshot")
         self.assertEqual(failure.errors, ["rerun spawn failed"])
         self.assertTrue(success.ok)
-        self.assertEqual(success.message, "Started CSV rerun plan-only check via PID 24682.")
+        self.assertEqual(success.message, "CSV rerun plan-only check process spawned via PID 24682.")
         self.assertEqual(success.data["csv_path"], str(csv_path))
         self.assertTrue(success.data["plan_only"])
         self.assertFalse(success.data["confirm_replace_final"])

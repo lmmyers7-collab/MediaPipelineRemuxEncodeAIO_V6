@@ -1,0 +1,63 @@
+{
+  "id": "MP-CHANGE-2026-0714-002",
+  "title": "Fix encode and subtitle verification regressions",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-14",
+  "date_completed": "2026-07-14",
+  "summary": "Fixes encode-stage HDR verification context failures and false subtitle topology failures, while retaining completed encode output when an unexpected post-encode exception occurs.",
+  "reason": "Runtime evidence showed 58 encode failures caused by assigning an undeclared Hdr10Verification context property and 23 remux failures caused by missing ffprobe disposition data plus a source-track ordering mismatch against mkvmerge output order.",
+  "affected_areas": [
+    "generated-context",
+    "pipeline",
+    "subtitles",
+    "tests"
+  ],
+  "behavior_before": "Encode verification could throw after media creation because the context did not declare Hdr10Verification, and the catch path deleted the completed temporary output. Subtitle verification omitted default/forced dispositions and compared preserved streams in policy-plan order instead of mkvmerge source-TID order, producing false forced-flag mismatches.",
+  "behavior_after": "Encode contexts declare Hdr10Verification, and unexpected failures retain a non-empty completed temporary output as the failure artifact while cleaning the scratch input. Subtitle discovery requests disposition fields explicitly, and verification models preserved source tracks in mkvmerge source-TID order.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/process/encode_context.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/process/encode_orchestrator.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/subtitles/builders.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/subtitles/filtering.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-EncodeCoreSplitChecks.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1.md",
+    "ops/pipeline/engine/process/encode_context.ps1",
+    "ops/pipeline/engine/process/encode_orchestrator.ps1",
+    "ops/pipeline/engine/subtitles/builders.ps1",
+    "ops/pipeline/engine/subtitles/filtering.ps1",
+    "ops/pipeline/tests/Unit/Invoke-EncodeCoreSplitChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0714-002.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-EncodeCoreSplitChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1"
+  ],
+  "manual_validation": [
+    "RED: Invoke-EncodeCoreSplitChecks.ps1 failed before production edits because Hdr10Verification was absent; passed after the fix.",
+    "RED: Invoke-SubtitleBuilderDecisionChecks.ps1 failed before production edits for missing disposition selection and source-TID ordering; passed after the fix.",
+    "Invoke-MediaTrackOutputVerificationChecks.ps1 - passed",
+    "Invoke-MediaVerificationSafetyChecks.ps1 - passed",
+    "Invoke-RemuxSplitStageChecks.ps1 - passed",
+    "Invoke-EncodePublishOrderSplitChecks.ps1 - passed",
+    "Invoke-ConfigKeyRegistryChecks.ps1 - passed (204 keys across 162 files)",
+    "Invoke-ToolIntegrationChecks.ps1 - passed with bundled FFmpeg, ffprobe, and subtitle tooling",
+    "Invoke-ReliabilityRegressionChecks.ps1 - passed",
+    "Invoke-AdversarialForceKillEncodeChecks.ps1 - passed; interrupted output remained partial and source remained queued",
+    "Read-only Test-MediaTrackOutputVerification against one retained NIPPON artifact and one retained Wistoria artifact - both allowed with zero mismatches",
+    "Invoke-WebViewReliabilityChecks.ps1 - passed in isolation after an earlier full release self-test failed late with non-media WebView output",
+    "PSScriptAnalyzer on six changed PowerShell files - no errors",
+    "git diff --check on packet paths - passed; only repository line-ending notices were emitted",
+    "refresh_summaries --paths and --check for six changed source/test files - passed",
+    "validate_changes - passed (1072 packets)",
+    "validate_changes --require-worktree-coverage - passed (1072 packets)",
+    "ai_guardrail postflight - passed across 579 changed worktree paths",
+    "Release self-test with tool integration and end-to-end smoke skipped - failed only in pre-existing dirty WebView state: clean test_application_facade_web_static_cross_page.py expects a pendingInvestigationFilter listener absent from the modified static bundle"
+  ],
+  "rollback_plan": "Remove the Hdr10Verification context property, restore unconditional unexpected-failure TempOut cleanup, restore the previous ffprobe show_entries selector, restore policy-plan ordering for verification tracks, and remove the focused regression assertions. Runtime failure markers and source files are not modified by this change.",
+  "related_changes": [],
+  "notes": "Add RED coverage for the missing HDR context field and retained completed temp output.\nAdd RED coverage for subtitle disposition probing and mkvmerge output ordering.\nDeclare the HDR10 verification stage handoff field.\nRetain a completed temp encode on unexpected post-encode failure.\nRequest ffprobe subtitle default and forced dispositions explicitly.\nAlign mkvmerge verification tracks with source-TID output order.\nRefresh generated summary after source or test change.\nPython impact: none; the implementation and focused regression coverage are PowerShell-only.\nSource media, live failure markers, and retained artifacts were inspected read-only and were not mutated. Full operator-controlled live encode/publish was not run because it would mutate runtime state.\nThe release self-test's remaining WebView assertion is outside this packet: its Python test file is clean while the frontend static tree contains extensive pre-existing modifications."
+}

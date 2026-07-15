@@ -3,9 +3,9 @@ file: ops/pipeline/config/profiles/Default.psd1
 pipeline_stage: config
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-10
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 9b2c68cbe4d3f5a2add5429d95cd59710366e875b1097295e823a7ff7c585770
+sha256: 071b96bdd5c2d71fa678dda92edc8ddee2a5b2c3b0af32c13c59601bc2b0aee6
 ---
 # `ops/pipeline/config/profiles/Default.psd1`
 

@@ -196,6 +196,49 @@ Invoke-WithTempRoot {
 
 Invoke-WithTempRoot {
     param($Root)
+    $localCandidate = Join-Path $Root.FullName 'filesystem-root-candidate\nested'
+    $expectedLocalRoot = [System.IO.Path]::GetPathRoot([System.IO.Path]::GetFullPath($localCandidate))
+    $actualLocalRoot = Get-MediaPipelineFilesystemBoundaryRoot -Path $localCandidate
+    Assert-Equal (Normalize-MediaPipelinePathForBoundary $actualLocalRoot) (Normalize-MediaPipelinePathForBoundary $expectedLocalRoot) 'Filesystem boundary root should preserve local drive-root semantics.'
+
+    $uncCandidate = '\\server.example\media-share\library\movie.mkv'
+    $actualUncRoot = Get-MediaPipelineFilesystemBoundaryRoot -Path $uncCandidate
+    Assert-Equal (Normalize-MediaPipelinePathForBoundary $actualUncRoot) (Normalize-MediaPipelinePathForBoundary '\\server.example\media-share\') 'Filesystem boundary root should preserve UNC share-root semantics.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    $safeRoot = Join-Path $Root.FullName 'inspection-root'
+    $nested = Join-Path $safeRoot 'nested'
+    [System.IO.Directory]::CreateDirectory($nested) | Out-Null
+    $file = Join-Path $nested 'file.txt'
+    [System.IO.File]::WriteAllText($file, 'inspection fixture')
+    $script:BoundaryInspectionFailurePath = [System.IO.Path]::GetFullPath($nested)
+
+    $result = & {
+        function Get-Item {
+            [CmdletBinding()]
+            param(
+                [string[]] $LiteralPath,
+                [switch] $Force
+            )
+            $candidate = if (@($LiteralPath).Count -gt 0) { [System.IO.Path]::GetFullPath([string]$LiteralPath[0]) } else { '' }
+            if ($candidate -eq $script:BoundaryInspectionFailurePath) {
+                throw 'deterministic reparse-attribute inspection failure'
+            }
+            return Microsoft.PowerShell.Management\Get-Item @PSBoundParameters
+        }
+
+        Test-MediaPipelinePathBoundarySafe -Path $file -Root $safeRoot
+    }
+
+    Assert-True (-not [bool]$result.Ok) 'Boundary proof must fail closed when a path component cannot be inspected.'
+    Assert-Equal $result.ReasonCode 'REPARSE_INSPECTION_FAILED' 'Inspection failure should return stable proof-unavailable evidence.'
+    Remove-Variable -Name BoundaryInspectionFailurePath -Scope Script -ErrorAction SilentlyContinue
+}
+
+Invoke-WithTempRoot {
+    param($Root)
     $safeRoot = Join-Path $Root.FullName 'root'
     $target = Join-Path $Root.FullName 'target'
     $link = Join-Path $safeRoot 'link'
@@ -220,6 +263,60 @@ Invoke-WithTempRoot {
         Assert-Equal $unsafe.ReasonCode 'REPARSE_POINT_COMPONENT' 'Symlink or junction component should be rejected.'
     } else {
         Write-Host 'Skipping symlink/junction assertion; creation was not permitted in this environment.'
+    }
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    $safeRoot = Join-Path $Root.FullName 'dangling-root'
+    $missingTarget = Join-Path $Root.FullName 'missing-dangling-target'
+    $link = Join-Path $safeRoot 'dangling-link'
+    [System.IO.Directory]::CreateDirectory($safeRoot) | Out-Null
+
+    $created = $false
+    try {
+        New-Item -ItemType SymbolicLink -Path $link -Target $missingTarget -ErrorAction Stop | Out-Null
+        $created = $true
+    } catch {
+        $created = $false
+    }
+
+    if ($created) {
+        $unsafe = Test-MediaPipelinePathBoundarySafe -Path (Join-Path $link 'file.txt') -Root $safeRoot -AllowMissingLeaf
+        Assert-Equal $unsafe.ReasonCode 'REPARSE_POINT_COMPONENT' 'A dangling directory symlink must not be accepted as a legitimate missing leaf.'
+    } else {
+        $script:BoundaryDanglingLinkPath = [System.IO.Path]::GetFullPath($link)
+        $unsafe = & {
+            function Get-Item {
+                [CmdletBinding()]
+                param(
+                    [string[]] $LiteralPath,
+                    [switch] $Force
+                )
+                $candidate = if (@($LiteralPath).Count -gt 0) { [System.IO.Path]::GetFullPath([string]$LiteralPath[0]) } else { '' }
+                if ($candidate -eq $script:BoundaryDanglingLinkPath) {
+                    return [pscustomobject]@{
+                        FullName = $candidate
+                        Attributes = [System.IO.FileAttributes]::Directory -bor [System.IO.FileAttributes]::ReparsePoint
+                    }
+                }
+                return Microsoft.PowerShell.Management\Get-Item @PSBoundParameters
+            }
+            function Test-Path {
+                [CmdletBinding()]
+                param(
+                    [string[]] $LiteralPath,
+                    [string] $PathType
+                )
+                $candidate = if (@($LiteralPath).Count -gt 0) { [System.IO.Path]::GetFullPath([string]$LiteralPath[0]) } else { '' }
+                if ($candidate -eq $script:BoundaryDanglingLinkPath) { return $false }
+                return Microsoft.PowerShell.Management\Test-Path @PSBoundParameters
+            }
+
+            Test-MediaPipelinePathBoundarySafe -Path (Join-Path $link 'file.txt') -Root $safeRoot -AllowMissingLeaf
+        }
+        Assert-Equal $unsafe.ReasonCode 'REPARSE_POINT_COMPONENT' 'Deterministic dangling-link evidence must be inspected even when Test-Path reports false.'
+        Remove-Variable -Name BoundaryDanglingLinkPath -Scope Script -ErrorAction SilentlyContinue
     }
 }
 

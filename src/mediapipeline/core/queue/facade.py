@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -44,6 +45,11 @@ from mediapipeline.core.queue.policy import (
 from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.queue.contracts import QueueRecord
 from mediapipeline.core.status.active_jobs import active_job_detail_rows
+from mediapipeline.core.rerun.evidence import (
+    rerun_correlation_evidence,
+    rerun_enrollment_candidates,
+    rerun_execution_manifest_has_durable_exit_state,
+)
 
 if TYPE_CHECKING:
     from mediapipeline.core.kernel.dto_commands import CommandResult
@@ -124,7 +130,7 @@ def _queue_row_is_operator_runnable(row: dict[str, object]) -> bool:
     return str(row.get("operator_status") or "").strip().casefold() in {"ready", "priority ready"}
 
 
-def _active_csv_rerun_job_present(resolved: ResolvedPaths) -> bool:
+def _active_csv_rerun_job(resolved: ResolvedPaths) -> dict[str, object] | None:
     for row in active_job_detail_rows(resolved.active_jobs_path, max_items=20):
         text = " ".join(
             str(row.get(key) or "")
@@ -133,8 +139,8 @@ def _active_csv_rerun_job_present(resolved: ResolvedPaths) -> bool:
         if "rerun_csv" in text or "invoke-reruncsv.ps1" in text:
             status = str(row.get("status") or "").strip().casefold()
             if status not in {"completed", "exited", "failed", "killed", "stopped"}:
-                return True
-    return False
+                return row
+    return None
 
 
 def _latest_rerun_manifest_path(resolved: ResolvedPaths) -> Path | None:
@@ -154,17 +160,136 @@ def _latest_rerun_manifest_path(resolved: ResolvedPaths) -> Path | None:
     return manifests[0] if manifests else None
 
 
-def _read_latest_rerun_manifest(resolved: ResolvedPaths) -> tuple[Path, dict[str, object]] | None:
+_RERUN_TERMINAL_STATUSES = frozenset(
+    {
+        "complete",
+        "completed",
+        "completed_with_failures",
+        "completed_with_failed_rows",
+        "done",
+        "succeeded",
+        "success",
+        "failed",
+        "failed_before_manifest",
+        "retry_exhausted",
+        "cancelled",
+        "pending_publish",
+        "parked",
+        "review_workspace",
+        "review",
+        "awaiting_review",
+        "published_replace_final",
+        "published_non_overlap",
+        "returned",
+        "replaced",
+        "skipped",
+        "disabled",
+    }
+)
+
+
+def _semantic_rerun_status(payload: Mapping[str, object]) -> str:
+    lifecycle_state = str(payload.get("lifecycle_state") or "").strip().casefold()
+    status = str(payload.get("status") or "").strip().casefold()
+    if lifecycle_state == "terminal" and status:
+        return status
+    return lifecycle_state or status
+
+
+def _rerun_batch_is_terminal(payload: dict[str, object]) -> bool:
+    lifecycle_state = str(payload.get("lifecycle_state") or "").strip().casefold()
+    return lifecycle_state == "terminal" or _semantic_rerun_status(payload) in _RERUN_TERMINAL_STATUSES
+
+
+def _rerun_row_is_terminal(payload: Mapping[str, object]) -> bool:
+    lifecycle_state = str(payload.get("lifecycle_state") or "").strip().casefold()
+    return lifecycle_state == "terminal" or _semantic_rerun_status(payload) in _RERUN_TERMINAL_STATUSES
+
+
+def _rerun_payloads_correlate(
+    execution_manifest: Mapping[str, object],
+    enrollment: Mapping[str, object],
+) -> bool:
+    for key in ("batch_id", "launch_id", "command_id"):
+        execution_value = str(execution_manifest.get(key) or "").strip()
+        enrollment_value = str(enrollment.get(key) or "").strip()
+        if execution_value and enrollment_value and execution_value != enrollment_value:
+            return False
+    return bool(str(execution_manifest.get("batch_id") or enrollment.get("batch_id") or "").strip())
+
+
+def _read_latest_rerun_manifest(
+    resolved: ResolvedPaths,
+    *,
+    batch_id: str = "",
+) -> tuple[Path, dict[str, object]] | None:
+    candidates: dict[str, tuple[Path, dict[str, object], float]] = {}
     manifest_path = _latest_rerun_manifest_path(resolved)
-    if manifest_path is None:
-        return None
-    try:
-        payload = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-        return None
-    if not isinstance(payload, dict):
-        return None
-    return manifest_path, payload
+    if manifest_path is not None:
+        manifest_root = manifest_path.parent
+        try:
+            manifest_candidates = sorted(
+                manifest_root.glob("*.json"),
+                key=lambda item: item.stat().st_mtime,
+                reverse=True,
+            )
+        except OSError:
+            manifest_candidates = []
+        for candidate in manifest_candidates:
+            try:
+                payload = json.loads(candidate.read_text(encoding="utf-8-sig"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                continue
+            if not isinstance(payload, dict):
+                continue
+            candidate_batch_id = str(payload.get("batch_id") or candidate.stem)
+            if batch_id and candidate_batch_id != batch_id:
+                continue
+            try:
+                modified_at = candidate.stat().st_mtime
+            except OSError:
+                modified_at = 0.0
+            candidates[candidate_batch_id] = (candidate, payload, modified_at)
+    enrollments = rerun_enrollment_candidates(resolved, limit=100)
+    for enrollment_path, enrollment in enrollments:
+        enrollment_batch_id = str(enrollment.get("batch_id") or enrollment_path.stem)
+        if batch_id and enrollment_batch_id != batch_id:
+            continue
+        expected_manifest = Path(str(enrollment.get("manifest_path") or enrollment_path))
+        try:
+            modified_at = enrollment_path.stat().st_mtime
+        except OSError:
+            modified_at = 0.0
+        existing = candidates.get(enrollment_batch_id)
+        if existing is not None:
+            candidate_path, execution_manifest, manifest_modified_at = existing
+            if not _rerun_payloads_correlate(execution_manifest, enrollment):
+                continue
+            enrollment_is_terminal = _rerun_batch_is_terminal(dict(enrollment))
+            enrollment_wins = (
+                enrollment_is_terminal
+                and not rerun_execution_manifest_has_durable_exit_state(execution_manifest)
+            )
+            merged = (
+                {**execution_manifest, **dict(enrollment)}
+                if enrollment_wins
+                else {**dict(enrollment), **execution_manifest}
+            )
+            merged["enrollment_path"] = str(enrollment_path)
+            candidates[enrollment_batch_id] = (
+                candidate_path,
+                merged,
+                max(manifest_modified_at, modified_at),
+            )
+            continue
+        enrollment_payload = dict(enrollment)
+        enrollment_payload["enrollment_path"] = str(enrollment_path)
+        candidates[enrollment_batch_id] = (expected_manifest, enrollment_payload, modified_at)
+    ordered = sorted(candidates.values(), key=lambda item: item[2], reverse=True)
+    for candidate_path, payload, _modified_at in ordered:
+        if not _rerun_batch_is_terminal(payload):
+            return candidate_path, payload
+    return None
 
 
 def _rerun_manifest_text(value: object) -> str:
@@ -189,6 +314,55 @@ def _rerun_manifest_row_reason(raw_row: dict[str, object], metadata: dict[str, o
 def _rerun_manifest_operator_fields(status: str, reason: str) -> dict[str, str]:
     status_key = _rerun_manifest_text(status).casefold()
     reason_key = _rerun_manifest_text(reason).casefold()
+    if status_key == "spawn_transition_ambiguous":
+        return {
+            "operator_status": "CSV rerun child exit unverified",
+            "operator_status_state": "blocked",
+            "operator_severity": "error",
+            "operator_guidance": reason or "Inspect ActiveJobs and logs; do not launch duplicate work.",
+            "queue_status": "blocked",
+            "queue_status_label": "Child Exit Unverified",
+        }
+    if status_key in {"failed_before_manifest", "retry_exhausted"}:
+        label = "failed before manifest" if status_key == "failed_before_manifest" else "retry exhausted"
+        return {
+            "operator_status": f"CSV rerun {label}",
+            "operator_status_state": "failed",
+            "operator_severity": "error",
+            "operator_guidance": reason or "Review durable rerun evidence and request a safe retry when ready.",
+            "queue_status": "failed",
+            "queue_status_label": label.title(),
+        }
+    if status_key in {"waiting", "waiting_for_source", "retry_scheduled", "retrying"}:
+        label = status_key.replace("_", " ")
+        queue_status = "retrying" if status_key in {"retry_scheduled", "retrying"} else "waiting"
+        return {
+            "operator_status": f"CSV rerun {label}",
+            "operator_status_state": "waiting",
+            "operator_severity": "warning",
+            "operator_guidance": reason or "The backend retains this row and will follow its recorded retry policy.",
+            "queue_status": queue_status,
+            "queue_status_label": label.title(),
+        }
+    if status_key in {"requested", "accepted", "manifest_created"}:
+        label = status_key.replace("_", " ")
+        return {
+            "operator_status": f"CSV rerun {label}",
+            "operator_status_state": "pending",
+            "operator_severity": "ok",
+            "operator_guidance": reason or "The row is durably enrolled in the dedicated CSV rerun batch.",
+            "queue_status": "pending",
+            "queue_status_label": label.title(),
+        }
+    if status_key == "process_spawned":
+        return {
+            "operator_status": "CSV rerun process spawned",
+            "operator_status_state": "active",
+            "operator_severity": "warning",
+            "operator_guidance": reason or "A child process exists; wait for manifest or row-stage evidence before treating work as running.",
+            "queue_status": "active",
+            "queue_status_label": "Process Spawned",
+        }
     if status_key in {"skipped", "skip", "disabled"}:
         return {
             "operator_status": "CSV rerun skipped",
@@ -334,11 +508,21 @@ def _rerun_manifest_operator_fields(status: str, reason: str) -> dict[str, str]:
     }
 
 
-def _rerun_manifest_preview_rows(manifest: dict[str, object], manifest_path: Path) -> list[dict[str, object]]:
+def _rerun_manifest_preview_rows(
+    resolved: ResolvedPaths,
+    manifest: dict[str, object],
+    manifest_path: Path,
+) -> list[dict[str, object]]:
     raw_rows = manifest.get("rows")
     if not isinstance(raw_rows, list):
         return []
     total = len([row for row in raw_rows if isinstance(row, dict)])
+    correlation = rerun_correlation_evidence(
+        resolved,
+        manifest,
+        enrollment_path=str(manifest.get("enrollment_path") or ""),
+        manifest_path=manifest_path,
+    )
     rows: list[dict[str, object]] = []
     for index, raw_row in enumerate((row for row in raw_rows if isinstance(row, dict)), start=1):
         queue_item = raw_row.get("queue_item") if isinstance(raw_row.get("queue_item"), dict) else {}
@@ -349,6 +533,9 @@ def _rerun_manifest_preview_rows(manifest: dict[str, object], manifest_path: Pat
         media_kind = _rerun_manifest_text(raw_row.get("media_kind") or queue_item.get("media_kind") or "movie").casefold()
         media_type = "TV" if media_kind == "tv" else "Movie"
         status = _rerun_manifest_text(raw_row.get("status") or metadata.get("status") or "queued")
+        lifecycle_state = _rerun_manifest_text(
+            raw_row.get("lifecycle_state") or metadata.get("lifecycle_state") or status
+        )
         reason = _rerun_manifest_row_reason(raw_row, metadata)
         operator_fields = _rerun_manifest_operator_fields(status, reason)
         route_reason = "Manifest-backed CSV rerun queue; processing route is decided by the nested pipeline per item."
@@ -361,6 +548,7 @@ def _rerun_manifest_preview_rows(manifest: dict[str, object], manifest_path: Pat
             "queue_source": "csv_rerun",
             "queue_phase": "csv_rerun",
             "rerun_batch_id": _rerun_manifest_text(manifest.get("batch_id")),
+            **correlation,
             "source_path": stage_path or source_path,
             "original_source_path": source_path,
             "stage_path": stage_path,
@@ -389,6 +577,7 @@ def _rerun_manifest_preview_rows(manifest: dict[str, object], manifest_path: Pat
             "global_order": index,
             "phase": "CSV RERUN",
             "status": status,
+            "lifecycle_state": lifecycle_state,
             "reason": reason,
             "stage_mode": _rerun_manifest_text(raw_row.get("stage_mode") or metadata.get("stage_mode")),
             "original_mode": _rerun_manifest_text(raw_row.get("original_mode") or metadata.get("original_mode")),
@@ -400,6 +589,17 @@ def _rerun_manifest_preview_rows(manifest: dict[str, object], manifest_path: Pat
             "published_path": _rerun_manifest_text(raw_row.get("published_path") or metadata.get("published_path")),
             "replaced_final_hold_path": _rerun_manifest_text(raw_row.get("replaced_final_hold_path") or metadata.get("replaced_final_hold_path")),
             "manifest_path": str(manifest_path),
+            "evidence_links": {
+                "manifest": str(manifest_path),
+                "enrollment": correlation["enrollment_path"],
+                "active_jobs": {
+                    "key": correlation["active_jobs_key"],
+                    "path": correlation["active_jobs_path"],
+                },
+                "command_journal": {"key": correlation["command_evidence_key"]},
+                "stdout_log": correlation["stdout_log"],
+                "stderr_log": correlation["stderr_log"],
+            },
             "available_open_targets": [],
             "row_key": f"csv_rerun\x1f{manifest.get('batch_id')}\x1f{index}\x1f{stage_path or source_path}".casefold(),
             "metadata": {
@@ -427,6 +627,7 @@ def _rerun_manifest_preview_rows(manifest: dict[str, object], manifest_path: Pat
 def _rerun_manifest_preview_snapshot(
     resolved: ResolvedPaths,
     manifest: dict[str, object],
+    manifest_path: Path,
     rows: list[dict[str, object]],
 ) -> dict[str, object]:
     movie_count = sum(1 for row in rows if str(row.get("media_type") or "").casefold() == "movie")
@@ -441,9 +642,18 @@ def _rerun_manifest_preview_snapshot(
         "outsource": _rerun_manifest_text(manifest.get("output_root")),
         "movie_count_total": movie_count,
         "tv_count_total": tv_count,
-        "runnable_count": len(rows),
+        "runnable_count": 0,
         "total_row_count": len(rows),
         "shown_row_count": len(rows),
+        "normal_queue_visible_count": 0,
+        "dedicated_rerun_visible_count": len(rows),
+        "queue_sources": ["csv_rerun"] if rows else [],
+        "rerun_correlation": rerun_correlation_evidence(
+            resolved,
+            manifest,
+            enrollment_path=str(manifest.get("enrollment_path") or ""),
+            manifest_path=manifest_path,
+        ),
         "rows": rows,
     }
 
@@ -471,20 +681,27 @@ class QueueFacadeMixin:
         source_inventory: dict[str, object],
         reason: str,
     ) -> QueuePreviewDto | None:
-        if not _active_csv_rerun_job_present(resolved):
-            return None
-        manifest_info = _read_latest_rerun_manifest(resolved)
+        active_job = _active_csv_rerun_job(resolved)
+        active_metadata: dict[str, object] = (
+            dict(active_job.get("metadata"))
+            if active_job is not None and isinstance(active_job.get("metadata"), dict)
+            else {}
+        )
+        preferred_batch_id = str(active_metadata.get("batch_id") or "")
+        manifest_info = _read_latest_rerun_manifest(resolved, batch_id=preferred_batch_id)
+        if manifest_info is None and preferred_batch_id:
+            manifest_info = _read_latest_rerun_manifest(resolved)
         if manifest_info is None:
             return None
         manifest_path, manifest = manifest_info
-        rows = _rerun_manifest_preview_rows(manifest, manifest_path)
+        rows = _rerun_manifest_preview_rows(resolved, manifest, manifest_path)
         if not rows:
             return None
         warnings = [
             reason,
             "Showing active CSV rerun manifest queue rows; this read-only view does not launch, stop, drain, publish, or mutate media.",
         ]
-        metadata_snapshot = _rerun_manifest_preview_snapshot(resolved, manifest, rows)
+        metadata_snapshot = _rerun_manifest_preview_snapshot(resolved, manifest, manifest_path, rows)
         metadata = queue_preview_metadata(
             metadata_snapshot,
             rows,
@@ -508,6 +725,7 @@ class QueueFacadeMixin:
             source_inventory=source_inventory,
             queue_progress=queue_progress,
             progress_bars=list(queue_progress["progress_bars"]),
+            rerun_correlation=dict(metadata_snapshot["rerun_correlation"]),
             **metadata,
             warnings=warnings,
         )
@@ -602,7 +820,9 @@ class QueueFacadeMixin:
         elif resolved.event_file:
             runtime_outcome_warning = "Runtime outcome history reader is not available."
         rows = queue_apply_runtime_outcomes(rows, runtime_events)
-        if not any(_queue_row_is_operator_runnable(row) for row in rows):
+        normal_rows = rows
+        normal_runnable = any(_queue_row_is_operator_runnable(row) for row in normal_rows)
+        if not normal_runnable:
             rerun_preview = self._csv_rerun_manifest_preview(
                 resolved,
                 queue_scan_status=queue_scan_status,
@@ -611,7 +831,40 @@ class QueueFacadeMixin:
             )
             if rerun_preview is not None:
                 return rerun_preview
-        warnings = queue_preview_warnings(rows)
+        dedicated_rows: list[dict[str, object]] = []
+        dedicated_correlation: dict[str, object] = {}
+        active_rerun_job = _active_csv_rerun_job(resolved) if normal_runnable else None
+        if normal_runnable:
+            active_metadata: dict[str, object] = (
+                dict(active_rerun_job.get("metadata"))
+                if active_rerun_job is not None and isinstance(active_rerun_job.get("metadata"), dict)
+                else {}
+            )
+            preferred_batch_id = str(active_metadata.get("batch_id") or "")
+            manifest_info = _read_latest_rerun_manifest(resolved, batch_id=preferred_batch_id)
+            if manifest_info is None and preferred_batch_id:
+                manifest_info = _read_latest_rerun_manifest(resolved)
+            if manifest_info is not None:
+                manifest_path, manifest = manifest_info
+                dedicated_rows = [
+                    row
+                    for row in _rerun_manifest_preview_rows(resolved, manifest, manifest_path)
+                    if not _rerun_row_is_terminal(row)
+                ]
+                if dedicated_rows:
+                    dedicated_correlation = rerun_correlation_evidence(
+                        resolved,
+                        manifest,
+                        enrollment_path=str(manifest.get("enrollment_path") or ""),
+                        manifest_path=manifest_path,
+                    )
+                    rows = [*normal_rows, *dedicated_rows]
+        warnings = queue_preview_warnings(normal_rows)
+        if dedicated_rows:
+            warnings.append(
+                "Showing non-terminal rows from the active dedicated CSV rerun batch alongside the normal queue; "
+                "these rows do not use normal pipeline start."
+            )
         if runtime_outcome_warning:
             warnings.append(runtime_outcome_warning)
         metadata_snapshot = dict(snapshot)
@@ -626,6 +879,13 @@ class QueueFacadeMixin:
             runtime_outcome_source=str(resolved.event_file or ""),
             runtime_outcome_warning=runtime_outcome_warning,
         )
+        metadata["shown_row_count"] = len(rows)
+        metadata["total_row_count"] = int(metadata.get("total_row_count") or len(normal_rows)) + len(dedicated_rows)
+        metadata["runnable_count"] = sum(1 for row in normal_rows if _queue_row_is_operator_runnable(row))
+        metadata["normal_queue_visible_count"] = len(normal_rows)
+        metadata["dedicated_rerun_visible_count"] = len(dedicated_rows)
+        metadata["queue_sources"] = ["normal_queue", "csv_rerun"] if dedicated_rows else ["normal_queue"]
+        metadata["rerun_correlation"] = dedicated_correlation
         queue_progress = queue_source_scan_progress_payload(
             source=str(snapshot_path),
             row_count=len(rows),

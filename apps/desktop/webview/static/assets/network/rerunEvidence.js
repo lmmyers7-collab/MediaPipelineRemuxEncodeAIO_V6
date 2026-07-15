@@ -36,18 +36,52 @@
           : {};
       }
 
+      function networkRerunOptionalLine(label, value) {
+        return value ? `${label}: ${value}` : "";
+      }
+
+      function networkRerunAttemptLine(attemptCount, retryLimit) {
+        if (attemptCount === null) return "";
+        return `Attempts: ${attemptCount}${retryLimit !== null ? ` / ${retryLimit}` : ""}`;
+      }
+
+      function networkRerunReducerLine(accepted) {
+        if (accepted === true) return "Reducer accepted";
+        if (accepted === false) return "Reducer rejected";
+        return "";
+      }
+
+      function networkRerunPathLine(label, value) {
+        return value ? `${label}: ${networkRerunLeaf(value)}` : "";
+      }
+
       function networkRerunEvidenceLines(row = {}) {
         const reducer = row.network_reducer_result && typeof row.network_reducer_result === "object" ? row.network_reducer_result : {};
         const worker = row.network_worker_result && typeof row.network_worker_result === "object" ? row.network_worker_result : {};
         const destination = networkRerunDestinationResult(row);
+        const attemptCount = Number.isInteger(row.attempt_count) ? row.attempt_count : null;
+        const retryLimit = Number.isInteger(row.retry_limit) ? row.retry_limit : null;
+        const retryCount = Number.isInteger(row.retry_count) ? row.retry_count : null;
+        const timeline = Array.isArray(row.timeline) ? row.timeline : [];
         return [
-          reducer.classification ? `Reducer: ${reducer.classification}` : "",
-          reducer.accepted === true ? "Reducer accepted" : reducer.accepted === false ? "Reducer rejected" : "",
-          worker.worker_id || worker.worker_name ? `Worker: ${worker.worker_id || worker.worker_name}` : "",
-          destination.status || destination.action ? `Destination: ${[destination.status, destination.action].filter(Boolean).join(" / ")}` : "",
-          destination.pending_publish_manifest_path || row.pending_publish_manifest_path ? `Pending: ${networkRerunLeaf(destination.pending_publish_manifest_path || row.pending_publish_manifest_path)}` : "",
-          destination.published_path || row.published_path ? `Published: ${networkRerunLeaf(destination.published_path || row.published_path)}` : "",
-          row.claim_status ? `Claim: ${row.claim_status}` : "",
+          networkRerunAttemptLine(attemptCount, retryLimit),
+          retryCount !== null ? `Retries: ${retryCount}` : "",
+          networkRerunOptionalLine("Next retry", row.next_retry_at_utc),
+          networkRerunOptionalLine("Reason code", row.reason_code),
+          networkRerunOptionalLine("Error", row.last_error),
+          networkRerunOptionalLine("What", row.what),
+          networkRerunOptionalLine("Why", row.why),
+          networkRerunOptionalLine("When", row.when),
+          networkRerunOptionalLine("Next", row.next_action),
+          networkRerunOptionalLine("Operator action", row.operator_action),
+          timeline.length ? `Timeline events: ${timeline.length}` : "",
+          networkRerunOptionalLine("Reducer", reducer.classification),
+          networkRerunReducerLine(reducer.accepted),
+          networkRerunOptionalLine("Worker", worker.worker_id || worker.worker_name),
+          networkRerunOptionalLine("Destination", [destination.status, destination.action].filter(Boolean).join(" / ")),
+          networkRerunPathLine("Pending", destination.pending_publish_manifest_path || row.pending_publish_manifest_path),
+          networkRerunPathLine("Published", destination.published_path || row.published_path),
+          networkRerunOptionalLine("Claim", row.claim_status),
         ].filter(Boolean);
       }
 
@@ -56,14 +90,14 @@
         if (!tbody) return;
         const rows = networkRerunRows(rerunResults);
         setText("network-rerun-status", rows.length ? `${rows.length} row${rows.length === 1 ? "" : "s"}` : "No rows");
-        const counts = rerunResults?.queue_state?.status_counts && typeof rerunResults.queue_state.status_counts === "object"
-          ? rerunResults.queue_state.status_counts
+        const counts = rerunResults?.counts?.network_queue_status_counts && typeof rerunResults.counts.network_queue_status_counts === "object"
+          ? rerunResults.counts.network_queue_status_counts
           : {};
         const countText = Object.keys(counts).sort().map((key) => `${key} ${counts[key]}`).join("; ");
         setText("network-rerun-summary", [
           "Network CSV rerun read model: backend-owned /api/rerun/results.",
           `Batches: ${Array.isArray(rerunResults.network_manifests) ? rerunResults.network_manifests.length : 0}; rows: ${rows.length}.`,
-          countText ? `Queue-state counts: ${countText}.` : "No Network CSV rerun status counts loaded.",
+          countText ? `Network status counts: ${countText}.` : "No Network CSV rerun status counts loaded.",
         ].join(" "));
         if (!rows.length) {
           clearRows(tbody, 6, "No Network CSV rerun rows loaded.");

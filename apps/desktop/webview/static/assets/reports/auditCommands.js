@@ -27,7 +27,9 @@
     const jsonDetailText = typeof deps.jsonDetailText === "function" ? deps.jsonDetailText : null;
     const refreshAll = typeof deps.refreshAll === "function" ? deps.refreshAll : null;
     const renderAuditProgressInto = typeof deps.renderAuditProgressInto === "function" ? deps.renderAuditProgressInto : null;
-    const reportAuditCommandButtonIds = Array.isArray(deps.reportAuditCommandButtonIds) ? deps.reportAuditCommandButtonIds : [];
+    const reportAuditCommandButtonIds = deps.reportAuditCommandButtonIds && typeof deps.reportAuditCommandButtonIds === "object"
+      ? deps.reportAuditCommandButtonIds
+      : {};
     const reportAuditScoreFieldIds = deps.reportAuditScoreFieldIds && typeof deps.reportAuditScoreFieldIds === "object" ? deps.reportAuditScoreFieldIds : {};
     const reportNumber = typeof deps.reportNumber === "function" ? deps.reportNumber : function (value) { const numeric = Number(value); return Number.isFinite(numeric) ? numeric : 0; };
     const selectedAuditRowKeysList = typeof deps.selectedAuditRowKeysList === "function" ? deps.selectedAuditRowKeysList : function () { return []; };
@@ -35,19 +37,45 @@
     const setText = typeof deps.setText === "function" ? deps.setText : noop;
     const REPORT_AUDIT_POST_START_REFRESH_DELAYS_MS = [1000, 3000, 7000, 15000, 30000];
     const REPORT_AUDIT_BACKEND_ACTIVE_FRESH_MS = 10 * 60 * 1000;
+    const REPORT_AUDIT_REFRESH_TIMEOUT_MS = 15 * 1000;
 
-  function setReportAuditCommandBusy(command, activeId = "") {
-    reportsState.reportAuditCommandBusy = command || "";
-    setButtonsBusy(reportAuditCommandButtonIds, Boolean(reportsState.reportAuditCommandBusy), activeId);
+  function reportAuditBusyOperations() {
+    if (!reportsState.reportAuditBusyOperations || typeof reportsState.reportAuditBusyOperations !== "object") {
+      reportsState.reportAuditBusyOperations = {};
+    }
+    return reportsState.reportAuditBusyOperations;
+  }
+
+  function reportAuditOperationIsBusy(scope) {
+    return Boolean(reportAuditBusyOperations()[scope]);
+  }
+
+  function reportAuditBusyCommand(scopes = []) {
+    for (const scope of scopes) {
+      const command = String(reportAuditBusyOperations()[scope] || "").trim();
+      if (command) return command;
+    }
+    return "";
+  }
+
+  function setReportAuditOperationBusy(scope, command, activeId = "") {
+    const operations = reportAuditBusyOperations();
+    if (command) operations[scope] = command;
+    else delete operations[scope];
+    setButtonsBusy(reportAuditCommandButtonIds[scope] || [], Boolean(command), activeId);
+    if (typeof renderReportAuditSources === "function") {
+      renderReportAuditSources(reportsState.lastReportAuditSources);
+    }
     updateReportAuditStartButtonState();
   }
 
-  function reportAuditBusyResult(command) {
+  function reportAuditBusyResult(command, scopes = []) {
+    const activeCommand = reportAuditBusyCommand(scopes) || "another audit operation";
     return {
       command,
       ok: false,
       severity: "warning",
-      message: `Another Reports audit command is already in progress: ${reportsState.reportAuditCommandBusy}.`,
+      message: `Another Reports audit command is already in progress: ${activeCommand}.`,
     };
   }
   function reportAuditReviewCount() {
@@ -78,11 +106,51 @@
     return policy;
   }
 
-  async function refreshReportsAuditData() {
-    const refresh = typeof window.refreshAll === "function" ? window.refreshAll : refreshAll;
-    if (typeof refresh === "function") {
-      await refresh();
+  function appendReportsAuditRefreshWarning({ statusId, detailId, message }) {
+    const statusNode = byId(statusId);
+    const detailNode = byId(detailId);
+    const currentStatus = String(statusNode?.textContent || "Updated").replace(/\s*·\s*refresh warning$/i, "");
+    const currentDetail = String(detailNode?.textContent || "").trim();
+    if (statusId === "report-audit-launch-status" && detailId === "report-audit-launch-detail") {
+      reportsState.reportAuditRefreshWarning = message;
     }
+    setText(statusId, `${currentStatus || "Updated"} · refresh warning`);
+    setText(detailId, [
+      currentDetail,
+      "",
+      `Refresh warning: ${message}`,
+      "The backend command already completed. Command controls remain available. Wait for top-bar refresh activity to finish before retrying; reload the app if it does not return to idle.",
+    ].filter(Boolean).join("\n"));
+  }
+
+  async function refreshReportsAuditData({ automatic = false, statusId = "report-audit-launch-status", detailId = "report-audit-launch-detail" } = {}) {
+    const refresh = typeof window.refreshAll === "function" ? window.refreshAll : refreshAll;
+    if (typeof refresh !== "function") return { ok: true, skipped: true };
+    let timeoutId = 0;
+    try {
+      await Promise.race([
+        Promise.resolve().then(() => refresh({ automatic })),
+        new Promise((_, reject) => {
+          timeoutId = window.setTimeout(() => {
+            reject(new Error("Full Reports refresh timed out after 15 seconds."));
+          }, REPORT_AUDIT_REFRESH_TIMEOUT_MS);
+        }),
+      ]);
+      if (statusId === "report-audit-launch-status" && detailId === "report-audit-launch-detail") {
+        reportsState.reportAuditRefreshWarning = "";
+      }
+      return { ok: true, skipped: false };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      appendReportsAuditRefreshWarning({ statusId, detailId, message });
+      return { ok: false, skipped: false, message };
+    } finally {
+      if (timeoutId) window.clearTimeout(timeoutId);
+    }
+  }
+
+  function queueReportsAuditRefresh(options = {}) {
+    void refreshReportsAuditData(options);
   }
 
   function collectReportAuditStartRequest() {
@@ -142,8 +210,9 @@
   }
 
   async function addReportAuditSourceFromForm() {
-    if (reportsState.reportAuditCommandBusy) {
-      const result = reportAuditBusyResult("audit.sources");
+    const busyScopes = ["sourceEdit", "sourceScan", "start", "stop"];
+    if (reportAuditBusyCommand(busyScopes)) {
+      const result = reportAuditBusyResult("audit.sources", busyScopes);
       appendReportAuditCommandResult(result);
       renderReportAuditSourceCommandResult(result, null);
       return;
@@ -161,9 +230,10 @@
       return;
     }
     const request = { action: "add", path, enabled: true };
-    setReportAuditCommandBusy("audit.sources", "report-audit-add-source-button");
+    setReportAuditOperationBusy("sourceEdit", "audit.sources", "report-audit-add-source-button");
     setText("report-audit-launch-status", "Adding...");
     setText("report-audit-launch-detail", "Adding backend-owned audit source...");
+    let refreshAfterCommand = false;
     try {
       const result = await apiPost("/api/audit/sources", request, { timeoutMs: 15000 });
       appendReportAuditCommandResult(result);
@@ -172,20 +242,22 @@
       const addedId = reportAuditSourceId(added);
       if (result.ok && addedId) reportAuditSelectedSourceIds().add(addedId);
       renderReportAuditSourceCommandResult(result, request);
-      await refreshReportsAuditData();
+      refreshAfterCommand = true;
     } catch (error) {
       const text = error instanceof Error ? error.message : String(error);
       const result = { command: "audit.sources", ok: false, severity: "error", message: text };
       appendReportAuditCommandResult(result);
       renderReportAuditSourceCommandResult(result, request);
     } finally {
-      setReportAuditCommandBusy("");
+      setReportAuditOperationBusy("sourceEdit", "");
+      if (refreshAfterCommand) queueReportsAuditRefresh();
     }
   }
 
   async function removeReportAuditSource(sourceId) {
-    if (reportsState.reportAuditCommandBusy) {
-      const result = reportAuditBusyResult("audit.sources");
+    const busyScopes = ["sourceEdit", "sourceScan", "start", "stop"];
+    if (reportAuditBusyCommand(busyScopes)) {
+      const result = reportAuditBusyResult("audit.sources", busyScopes);
       appendReportAuditCommandResult(result);
       renderReportAuditSourceCommandResult(result, null);
       return;
@@ -194,28 +266,31 @@
     if (!source) return;
     if (!window.confirm(`Remove audit source?\n\n${source.path || source.label || sourceId}`)) return;
     const request = { action: "remove", source_id: sourceId };
-    setReportAuditCommandBusy("audit.sources");
+    setReportAuditOperationBusy("sourceEdit", "audit.sources");
     setText("report-audit-launch-status", "Removing...");
     setText("report-audit-launch-detail", "Removing backend-owned audit source...");
+    let refreshAfterCommand = false;
     try {
       const result = await apiPost("/api/audit/sources", request, { timeoutMs: 15000 });
       appendReportAuditCommandResult(result);
       reportAuditSelectedSourceIds().delete(sourceId);
       renderReportAuditSourceCommandResult(result, request);
-      await refreshReportsAuditData();
+      refreshAfterCommand = true;
     } catch (error) {
       const text = error instanceof Error ? error.message : String(error);
       const result = { command: "audit.sources", ok: false, severity: "error", message: text };
       appendReportAuditCommandResult(result);
       renderReportAuditSourceCommandResult(result, request);
     } finally {
-      setReportAuditCommandBusy("");
+      setReportAuditOperationBusy("sourceEdit", "");
+      if (refreshAfterCommand) queueReportsAuditRefresh();
     }
   }
 
   async function scanReportAuditSources(sourceIds = null) {
-    if (reportsState.reportAuditCommandBusy) {
-      const result = reportAuditBusyResult("audit.sources.scan");
+    const busyScopes = ["sourceEdit", "sourceScan", "start", "stop"];
+    if (reportAuditBusyCommand(busyScopes)) {
+      const result = reportAuditBusyResult("audit.sources.scan", busyScopes);
       appendReportAuditCommandResult(result);
       renderReportAuditSourceCommandResult(result, null);
       return;
@@ -226,21 +301,23 @@
     const request = selectedIds.length ? { source_ids: selectedIds } : { scope: "all" };
     const scopeText = selectedIds.length ? `${selectedIds.length} selected source(s)` : "all audit sources";
     if (!window.confirm(`Scan ${scopeText} for media, sidecars, and folders?`)) return;
-    setReportAuditCommandBusy("audit.sources.scan", selectedIds.length ? "report-audit-scan-selected-button" : "report-audit-scan-all-button");
+    setReportAuditOperationBusy("sourceScan", "audit.sources.scan", selectedIds.length ? "report-audit-scan-selected-button" : "report-audit-scan-all-button");
     setText("report-audit-launch-status", "Scanning...");
     setText("report-audit-launch-detail", `Scanning ${scopeText}...`);
+    let refreshAfterCommand = false;
     try {
       const result = await apiPost("/api/audit/sources/scan", request, { timeoutMs: 0 });
       appendReportAuditCommandResult(result);
       renderReportAuditSourceCommandResult(result, request);
-      await refreshReportsAuditData();
+      refreshAfterCommand = true;
     } catch (error) {
       const text = error instanceof Error ? error.message : String(error);
       const result = { command: "audit.sources.scan", ok: false, severity: "error", message: text };
       appendReportAuditCommandResult(result);
       renderReportAuditSourceCommandResult(result, request);
     } finally {
-      setReportAuditCommandBusy("");
+      setReportAuditOperationBusy("sourceScan", "");
+      if (refreshAfterCommand) queueReportsAuditRefresh();
     }
   }
 
@@ -304,9 +381,27 @@
     return lines.join("\n");
   }
 
+  function prepareReportAuditSnapshotForAcceptedStart() {
+    const snapshot = reportsState.lastReportSnapshot && typeof reportsState.lastReportSnapshot === "object"
+      ? reportsState.lastReportSnapshot
+      : {};
+    reportsState.lastReportSnapshot = {
+      ...snapshot,
+      audit_progress: {},
+      progress_bars: Array.isArray(snapshot.progress_bars)
+        ? snapshot.progress_bars.filter((bar) => {
+            const id = String(bar?.id || "").toLowerCase();
+            const source = String(bar?.source || "").toLowerCase();
+            return id !== "audit_progress" && id !== "audit_reports" && !source.includes("audit_progress");
+          })
+        : [],
+    };
+  }
+
   async function startReportAuditFromForm() {
-    if (reportsState.reportAuditStartBusy || reportsState.reportAuditCommandBusy) {
-      const result = reportAuditBusyResult("audit.start");
+    const busyScopes = ["start", "stop", "sourceEdit", "sourceScan"];
+    if (reportAuditBusyCommand(busyScopes)) {
+      const result = reportAuditBusyResult("audit.start", busyScopes);
       appendReportAuditCommandResult(result);
       setText("report-audit-launch-status", "Busy");
       setText("report-audit-launch-detail", formatReportAuditCommandDetail(result));
@@ -340,9 +435,9 @@
       setText("report-audit-launch-detail", formatReportAuditCommandDetail(result, request));
       return;
     }
-    reportsState.reportAuditStartBusy = true;
     reportsState.reportAuditAutoPriorityCsvPath = "";
-    setReportAuditCommandBusy("audit.start", "report-audit-start-button");
+    reportsState.reportAuditRefreshWarning = "";
+    setReportAuditOperationBusy("start", "audit.start", "report-audit-start-button");
     setText("report-audit-launch-status", "Starting...");
     setText("report-audit-launch-detail", formatReportAuditCommandDetail({
       command: "audit.start",
@@ -350,10 +445,12 @@
       severity: "info",
       message: "Submitting backend audit start request.",
     }, request));
+    let refreshAfterCommand = false;
     try {
       const result = await apiPost("/api/audit/start", request);
       appendReportAuditCommandResult(result);
       if (result.ok) {
+        prepareReportAuditSnapshotForAcceptedStart();
         reportsState.reportAuditAcceptedRun = {
           startedAtMs: Date.now(),
           request,
@@ -368,7 +465,7 @@
         updateReportAuditStartButtonState();
       }
       if ((result.refresh_hint || "") === "snapshot") {
-        await refreshReportsAuditData();
+        refreshAfterCommand = true;
       }
     } catch (error) {
       const text = error instanceof Error ? error.message : String(error);
@@ -378,15 +475,56 @@
       setText("report-audit-launch-status", "Error");
       setText("report-audit-launch-detail", formatReportAuditCommandDetail(result, request));
     } finally {
-      reportsState.reportAuditStartBusy = false;
-      setReportAuditCommandBusy("");
+      setReportAuditOperationBusy("start", "");
       renderReportAuditRunningState(reportsState.lastReportSnapshot);
+      if (refreshAfterCommand) queueReportsAuditRefresh();
     }
   }
 
+  function applyReportAuditStoppedSnapshot() {
+    const snapshot = reportsState.lastReportSnapshot && typeof reportsState.lastReportSnapshot === "object"
+      ? reportsState.lastReportSnapshot
+      : {};
+    const auditProgress = snapshot.audit_progress && typeof snapshot.audit_progress === "object"
+      ? snapshot.audit_progress
+      : {};
+    const now = new Date().toISOString();
+    const progressBars = Array.isArray(snapshot.progress_bars)
+      ? snapshot.progress_bars.filter((bar) => {
+          const id = String(bar?.id || "").toLowerCase();
+          const source = String(bar?.source || "").toLowerCase();
+          return id !== "audit_progress" && id !== "audit_reports" && !source.includes("audit_progress");
+        })
+      : [];
+    const workerProgress = snapshot.worker_progress && typeof snapshot.worker_progress === "object"
+      ? { ...snapshot.worker_progress }
+      : {};
+    if (Array.isArray(workerProgress.rows)) {
+      workerProgress.rows = workerProgress.rows.filter((row) => {
+        const kind = String(row?.job_kind || row?.kind || "").replace(/-/g, "_").toLowerCase();
+        return kind !== "audit";
+      });
+    }
+    reportsState.lastReportSnapshot = {
+      ...snapshot,
+      audit_progress: {
+        ...auditProgress,
+        status: "stopped",
+        completed: false,
+        failed: false,
+        current_operation: "Stopped by operator from Reports.",
+        last_update: now,
+        updated_at: now,
+      },
+      progress_bars: progressBars,
+      worker_progress: workerProgress,
+    };
+  }
+
   async function stopReportAuditFromForm() {
-    if (reportsState.reportAuditStartBusy || reportsState.reportAuditCommandBusy) {
-      const result = reportAuditBusyResult("audit.stop");
+    const busyScopes = ["start", "stop"];
+    if (reportAuditBusyCommand(busyScopes)) {
+      const result = reportAuditBusyResult("audit.stop", busyScopes);
       appendReportAuditCommandResult(result);
       setText("report-audit-launch-status", "Busy");
       setText("report-audit-launch-detail", formatReportAuditCommandDetail(result));
@@ -423,7 +561,7 @@
       updateReportAuditStartButtonState();
       return;
     }
-    setReportAuditCommandBusy("audit.stop", "report-audit-stop-button");
+    setReportAuditOperationBusy("stop", "audit.stop", "report-audit-stop-button");
     setText("report-audit-launch-status", "Stopping...");
     setText("report-audit-launch-detail", formatReportAuditCommandDetail({
       command: "audit.stop",
@@ -431,6 +569,7 @@
       severity: "info",
       message: "Submitting backend audit stop request.",
     }, request));
+    let refreshAfterCommand = false;
     try {
       const result = await apiPost("/api/audit/stop", {
         confirm_stop: true,
@@ -439,6 +578,7 @@
       appendReportAuditCommandResult(result);
       if (result.ok) {
         reportsState.reportAuditAcceptedRun = null;
+        applyReportAuditStoppedSnapshot();
         clearReportAuditRefreshTimers();
         stopReportAuditTimerIfIdle({});
         setText("report-audit-launch-status", "Stopped");
@@ -447,7 +587,7 @@
       }
       setText("report-audit-launch-detail", formatReportAuditCommandDetail(result, request));
       if ((result.refresh_hint || "") === "snapshot") {
-        await refreshReportsAuditData();
+        refreshAfterCommand = true;
       }
     } catch (error) {
       const text = error instanceof Error ? error.message : String(error);
@@ -456,14 +596,16 @@
       setText("report-audit-launch-status", "Error");
       setText("report-audit-launch-detail", formatReportAuditCommandDetail(result, request));
     } finally {
-      setReportAuditCommandBusy("");
+      setReportAuditOperationBusy("stop", "");
       renderReportAuditRunningState(reportsState.lastReportSnapshot);
+      if (refreshAfterCommand) queueReportsAuditRefresh();
     }
   }
 
   async function saveReportAuditScorePolicy(reset = false) {
-    if (reportsState.reportAuditCommandBusy) {
-      const result = reportAuditBusyResult("audit.score_policy");
+    const busyScopes = ["policy"];
+    if (reportAuditBusyCommand(busyScopes)) {
+      const result = reportAuditBusyResult("audit.score_policy", busyScopes);
       appendReportAuditCommandResult(result);
       setText("report-audit-score-policy-status", "Busy");
       setText("report-audit-score-policy-detail", formatReportAuditCommandDetail(result));
@@ -472,14 +614,16 @@
     const request = reset ? { reset: true } : { policy: collectReportAuditScorePolicyForm() };
     const message = reset ? "Reset audit score policy to defaults?" : "Save audit score policy for future audit runs?";
     if (!window.confirm(message)) return;
-    setReportAuditCommandBusy("audit.score_policy", reset ? "report-audit-score-policy-reset-button" : "report-audit-score-policy-save-button");
+    setReportAuditOperationBusy("policy", "audit.score_policy", reset ? "report-audit-score-policy-reset-button" : "report-audit-score-policy-save-button");
     setText("report-audit-score-policy-status", reset ? "Resetting..." : "Saving...");
     setText("report-audit-score-policy-detail", reset ? "Resetting audit score policy..." : "Saving audit score policy...");
+    let refreshAfterCommand = false;
     try {
       const result = await apiPost("/api/audit/score-policy", request);
       appendReportAuditCommandResult(result);
+      setText("report-audit-score-policy-status", result.ok ? (reset ? "Defaults" : "Saved") : "Blocked");
       setText("report-audit-score-policy-detail", formatReportAuditCommandDetail(result, request));
-      await refreshReportsAuditData();
+      refreshAfterCommand = true;
     } catch (error) {
       const text = error instanceof Error ? error.message : String(error);
       const result = { command: "audit.score_policy", ok: false, severity: "error", message: text };
@@ -487,13 +631,18 @@
       setText("report-audit-score-policy-status", "Error");
       setText("report-audit-score-policy-detail", formatReportAuditCommandDetail(result, request));
     } finally {
-      setReportAuditCommandBusy("");
+      setReportAuditOperationBusy("policy", "");
+      if (refreshAfterCommand) queueReportsAuditRefresh({
+        statusId: "report-audit-score-policy-status",
+        detailId: "report-audit-score-policy-detail",
+      });
     }
   }
 
   async function ignoreSelectedAuditRows() {
-    if (reportsState.reportAuditCommandBusy) {
-      const result = reportAuditBusyResult("audit.ignore");
+    const busyScopes = ["triage"];
+    if (reportAuditBusyCommand(busyScopes)) {
+      const result = reportAuditBusyResult("audit.ignore", busyScopes);
       appendReportAuditCommandResult(result);
       setText("report-audit-export-status", "Busy");
       setText("report-audit-export-detail", formatReportAuditCommandDetail(result));
@@ -516,9 +665,10 @@
       action: "add",
       reason: "Ignored from audit triage by operator.",
     };
-    setReportAuditCommandBusy("audit.ignore", "report-audit-ignore-selected-button");
+    setReportAuditOperationBusy("triage", "audit.ignore", "report-audit-ignore-selected-button");
     setText("report-audit-export-status", "Ignoring...");
     setText("report-audit-export-detail", "Saving audit ignore entries...");
+    let refreshAfterCommand = false;
     try {
       const result = await apiPost("/api/audit/ignore", request);
       appendReportAuditCommandResult(result);
@@ -526,7 +676,7 @@
       reportsState.selectedAuditRowKey = "";
       setText("report-audit-export-status", result.ok ? "Ignored" : "Blocked");
       setText("report-audit-export-detail", formatReportAuditCommandDetail(result, request));
-      await refreshReportsAuditData();
+      refreshAfterCommand = true;
     } catch (error) {
       const text = error instanceof Error ? error.message : String(error);
       const result = { command: "audit.ignore", ok: false, severity: "error", message: text };
@@ -534,7 +684,11 @@
       setText("report-audit-export-status", "Error");
       setText("report-audit-export-detail", formatReportAuditCommandDetail(result, request));
     } finally {
-      setReportAuditCommandBusy("");
+      setReportAuditOperationBusy("triage", "");
+      if (refreshAfterCommand) queueReportsAuditRefresh({
+        statusId: "report-audit-export-status",
+        detailId: "report-audit-export-detail",
+      });
     }
   }
 
@@ -609,8 +763,9 @@
   }
 
   async function exportAuditRerunCsv() {
-    if (reportsState.reportAuditCommandBusy) {
-      const result = reportAuditBusyResult("audit.export_rerun_csv");
+    const busyScopes = ["triage"];
+    if (reportAuditBusyCommand(busyScopes)) {
+      const result = reportAuditBusyResult("audit.export_rerun_csv", busyScopes);
       appendReportAuditCommandResult(result);
       setText("report-audit-export-status", "Busy");
       setText("report-audit-export-detail", formatReportAuditCommandDetail(result));
@@ -626,9 +781,10 @@
       ? `${request.row_keys.length} selected row(s)`
       : "all non-ignored rows in the latest audit CSV (current filter is display-only)";
     if (!window.confirm(`Build CSV rerun queue for ${scope}?`)) return;
-    setReportAuditCommandBusy("audit.export_rerun_csv", "report-audit-export-rerun-csv-button");
+    setReportAuditOperationBusy("triage", "audit.export_rerun_csv", "report-audit-export-rerun-csv-button");
     setText("report-audit-export-status", "Building...");
     setText("report-audit-export-detail", "Building backend-owned rerun CSV for Queue...");
+    let refreshAfterCommand = false;
     try {
       const result = await apiPost("/api/audit/export-rerun-csv", request);
       appendReportAuditCommandResult(result);
@@ -637,7 +793,7 @@
       if (result.ok) {
         await handoffAuditRerunCsvToQueue(result, request);
       } else {
-        await refreshReportsAuditData();
+        refreshAfterCommand = true;
       }
     } catch (error) {
       const text = error instanceof Error ? error.message : String(error);
@@ -646,7 +802,11 @@
       setText("report-audit-export-status", "Error");
       setText("report-audit-export-detail", formatReportAuditCommandDetail(result, request));
     } finally {
-      setReportAuditCommandBusy("");
+      setReportAuditOperationBusy("triage", "");
+      if (refreshAfterCommand) queueReportsAuditRefresh({
+        statusId: "report-audit-export-status",
+        detailId: "report-audit-export-detail",
+      });
     }
   }
 
@@ -686,6 +846,7 @@
       collectReportAuditStartRequest,
       formatReportAuditCommandDetail,
       postStartRefreshDelaysMs: REPORT_AUDIT_POST_START_REFRESH_DELAYS_MS,
+      queueReportsAuditRefresh,
       refreshAll,
       renderAuditProgressInto,
       selectedReportAuditSourceRows,
@@ -731,13 +892,15 @@
       renderReportAuditProgressPanel,
       renderReportAuditRunningState,
       reportAuditBusyResult,
+      reportAuditOperationIsBusy,
       reportAuditJsonDetail,
       reportAuditReviewCount,
       scanReportAuditSources,
       selectAllReportAuditSources,
       clearReportAuditSourceSelection,
+      queueReportsAuditRefresh,
       saveReportAuditScorePolicy,
-      setReportAuditCommandBusy,
+      setReportAuditOperationBusy,
       startReportAuditFromForm,
       stopReportAuditFromForm,
     };

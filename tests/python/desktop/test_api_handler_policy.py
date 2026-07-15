@@ -20,6 +20,7 @@ from mediapipeline.desktop.api.handler_policy import (
     route_exception_status,
     route_validation_error_payload,
     route_validation_journal_payload,
+    requires_strict_durable_command_journal,
     should_record_command_payload,
     should_record_route_exception_journal,
     should_record_validation_failure_journal,
@@ -33,6 +34,9 @@ from mediapipeline.desktop.api.http_helpers import (
 
 
 class LocalApiHandlerPolicyTests(unittest.TestCase):
+    def test_network_rerun_retry_requires_strict_durable_command_journal(self) -> None:
+        self.assertTrue(requires_strict_durable_command_journal("/api/rerun/network/retry"))
+
     def test_options_headers_preserve_cors_contract(self) -> None:
         headers = dict(OPTIONS_RESPONSE_HEADERS)
 

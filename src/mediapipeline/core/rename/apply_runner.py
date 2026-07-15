@@ -19,7 +19,7 @@ def apply_rename_path_plan_for_service(
         raise RuntimeError(f"Rename plan has {len(blockers)} blocked row(s). Preview and fix them before applying.")
 
     applied: list[dict[str, Any]] = []
-    completed_ops: list[dict[str, Path | str]] = []
+    completed_ops: list[dict[str, Any]] = []
     metadata_backups: dict[str, dict[str, str | None]] = {}
     operations = service._build_rename_operations(plan)
     undo_manifest = {
@@ -33,6 +33,15 @@ def apply_rename_path_plan_for_service(
                 "source": str(operation["source"]),
                 "destination": str(operation["destination"]),
                 "boundary_root": str(operation.get("boundary_root") or ""),
+                **(
+                    {
+                        "tv_identity": operation.get("tv_identity"),
+                        "parsed_identity": operation.get("parsed_identity"),
+                        "destination_identity_key": str(operation.get("destination_identity_key") or ""),
+                    }
+                    if operation.get("kind") == "media" and operation.get("parsed_identity")
+                    else {}
+                ),
             }
             for operation in operations
         ],
@@ -85,6 +94,8 @@ def apply_rename_path_plan_for_service(
                 "FinalName": destination.name,
                 "ForcePipelineName": force_pipeline_name,
                 "Mode": str(row.get("mode") or ""),
+                "TVIdentity": dict(row["tv_identity"]) if isinstance(row.get("tv_identity"), dict) else None,
+                "DestinationIdentityKey": str(row.get("destination_identity_key") or ""),
             }
             for pipeline_sidecar in service._pipeline_sidecar_paths_for_destination(destination):
                 if pipeline_sidecar.exists():
@@ -116,6 +127,13 @@ def apply_rename_path_plan_for_service(
                     "sidecar_count": sidecar_count,
                     "change_kind": "unchanged" if media_status == "unchanged" else str(row.get("change_kind") or "rename"),
                     "force_pipeline_name": force_pipeline_name,
+                    "tv_identity": dict(row["tv_identity"]) if isinstance(row.get("tv_identity"), dict) else None,
+                    "parsed_identity": (
+                        dict(row["parsed_identity"])
+                        if isinstance(row.get("parsed_identity"), dict)
+                        else None
+                    ),
+                    "destination_identity_key": str(row.get("destination_identity_key") or ""),
                 }
             )
         undo_manifest["metadata_backups"] = [

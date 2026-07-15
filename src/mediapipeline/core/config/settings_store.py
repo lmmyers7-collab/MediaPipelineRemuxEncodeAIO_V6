@@ -15,6 +15,8 @@ from collections.abc import Callable, Mapping
 from pydantic import ValidationError
 
 from mediapipeline.contracts.config import CONFIG_SCHEMA_VERSION, Config
+from mediapipeline.contracts.config_coercion import _normalize_config_term_list
+from mediapipeline.contracts.config_defaults import _is_exact_legacy_packaged_rename_movie_remove_terms
 from mediapipeline.core.config.file_io import atomic_write_text
 from mediapipeline.core.config.load import load_psd1_mapping
 from mediapipeline.core.config.validation import canonical_config_key_spelling_errors
@@ -180,6 +182,10 @@ def migrate_imported_settings_mapping(raw: Mapping[str, Any]) -> SettingsMigrati
             migrations_applied=sorted(set(migrations_applied)),
             errors=sorted(set(errors)),
         )
+
+    raw_movie_remove_terms = _normalize_config_term_list(settings_input.get("RenameMovieRemoveTerms"))
+    if _is_exact_legacy_packaged_rename_movie_remove_terms(raw_movie_remove_terms):
+        migrations_applied.append("normalize:RenameMovieRemoveTerms:legacy-packaged-default")
 
     try:
         model = Config.model_validate(settings_input)

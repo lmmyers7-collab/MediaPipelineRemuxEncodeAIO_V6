@@ -1,8 +1,8 @@
 # Rename Tool Edge Case Catalog
 
-Date: 2026-05-14
+Date: 2026-07-12
 
-Documents the expected rename output for Movie and TV rename modes, covering normal cases, edge cases, confidence levels, sidecar behavior, and blocking conditions. Source: `app/rename/movie.py`, `app/rename/tv.py`, `app/rename/tv_folder.py`, `app/rename/planner.py`, `app/rename/preview.py`, `app/rename/apply.py`, and `ops/pipeline/engine/naming/naming.ps1`.
+Documents the expected rename output for Movie and TV rename modes, covering normal cases, edge cases, confidence levels, sidecar behavior, and blocking conditions. Executable sources are under `src/mediapipeline/core/rename/` (especially `movie.py`, `tv.py`, `tv_folder.py`, `planner.py`, `preview.py`, and `apply.py`) and `ops/pipeline/engine/naming/`.
 
 ---
 
@@ -11,10 +11,10 @@ Documents the expected rename output for Movie and TV rename modes, covering nor
 ### TV Rename
 
 ```
-{show_name} - S{season:02d}E{episode:02d}[ - {episode_title}].{ext}
+{show_name} - S{season:02d}E{episode_start:02d}[-E{episode_end:02d}][ - {episode_title}].{ext}
 ```
 
-Season and episode are zero-padded to 2 digits (e.g., S01E05). Episode title is included only when detected and valid (non-numeric, under 80 characters, not a release tag).
+Season is zero-padded to two digits. Episodes are zero-padded to at least two digits and may run from E01 through E999. A multi-episode identity uses the canonical `S01E01-E02` form. Episode title is included only when detected and valid: pure numbers, titles longer than 80 characters, and verified release-only tails are omitted, while numeric-leading lexical titles are preserved.
 
 ### Movie Rename
 
@@ -37,6 +37,10 @@ Year is omitted if no year can be extracted from the filename. Title is cleaned 
 | `The.Wire.S03E12.Mission.Accomplished.mkv` | Show: The Wire, S03E12, Title: Mission Accomplished | `The Wire - S03E12 - Mission Accomplished.mkv` | medium |
 | `Game.of.Thrones.1x05.mkv` (NxM pattern) | Show: Game of Thrones, S01E05 | `Game of Thrones - S01E05.mkv` | medium |
 | S01E01 placed in `Breaking Bad/Season 01/` folder | Show: Breaking Bad (folder), S01E01 | `Breaking Bad - S01E01.mkv` | medium |
+| `[SubsPlease] Kanan-sama wa Akumade Choroi - 12v2 (1080p) [80A8418A].mkv` | Show: Kanan-sama wa Akumade Choroi, S01E12, revision: v2 | `Kanan-sama wa Akumade Choroi - S01E12.mkv` | medium |
+| `Example Show S01E01_E02v3.mkv` | Show: Example Show, S01E01-E02, revision: v3 | `Example Show - S01E01-E02.mkv` | medium |
+| `Example Show 4th Season - 01.mkv` | Show: Example Show, ordinal season 4, E01 | `Example Show - S04E01.mkv` | medium |
+| `Example Show OVA - 01.mkv` | Show: Example Show, special season 0, E01 | `Example Show - S00E01.mkv` | medium |
 
 ### Operator-Supplied Input (High Confidence)
 
@@ -53,18 +57,32 @@ Year is omitted if no year can be extracted from the filename. Title is cleaned 
 | `Show.S01E01.1080p.BluRay.mkv` | No title (removed by release tag filter) | `Show - S01E01.mkv` |
 | `Show.S01E01.TheTitle.mkv` | Title: TheTitle | `Show - S01E01 - TheTitle.mkv` |
 | `Show.S01E01.12345.mkv` | Title rejected (purely numeric) | `Show - S01E01.mkv` |
-| `Show.S01E01.A.Very.Long.Episode.Title.That.Exceeds.Eighty.Characters.In.Length.mkv` | Title rejected (>80 chars) | `Show - S01E01.mkv` |
+| `Show.S01E01.123.Reasons.mkv` | Title retained (numeric-leading lexical text) | `Show - S01E01 - 123 Reasons.mkv` |
+| `Show.S01E01.This.Episode.Title.Is.Intentionally.Longer.Than.Eighty.Characters.To.Verify.The.Length.Guard.Rejects.It.mkv` | Title rejected (103 characters after separator normalization) | `Show - S01E01.mkv` |
 | `Show.S01E01.HEVC.mkv` | Title rejected (looks like a codec tag) | `Show - S01E01.mkv` |
+| `Show.S01E01.A.Proper.Introduction.mkv` | Lexical title retained; `PROPER` is not a verified release-only tail here | `Show - S01E01 - A Proper Introduction.mkv` |
 
 ### Season/Episode Detection Priority
 
 | Input signal | Pattern | Priority |
 |---|---|---|
-| `S01E05` in filename | SxxEyy | Highest (1st) |
-| `1x05` in filename | NxM | 2nd |
-| `Season 01 Episode 05` in filename | Token pair | 3rd |
-| `Season XX` parent folder + filename number | Folder hint | 4th |
-| Folder name only | Fallback | Lowest |
+| `S01E05`, `S01E05v2`, or canonical range in filename | SxxEyy / revision / SxxEyy-Ezz | Highest; filename supplies season and episode identity |
+| `1x05` in filename | NxM | Next episode-token form |
+| `Episode 05`, `Ep 05`, or `E05` in filename | Explicit episode token | Next episode-token form; season is resolved separately |
+| Delimited anime-style ` - 05` or ` - 05v2` | Bare anime episode | Lowest accepted episode-token form; resolution/year/bit-depth lookalikes are rejected |
+| Explicit `Season XX` parent folder + episode-only filename | Folder season | Overrides ordinal/special/default season hints |
+| `4th Season`, `Third Season`, or `3rd Cour` in filename | Ordinal season | Used when no stronger filename/folder season exists |
+| `OVA`, `OAV`, `ONA`, or `Special` marker/folder | Special season | Maps to S00 unless an explicit filename/folder season is stronger |
+| Supplied/default season | Fallback | Used only when no stronger season signal exists |
+
+### Revisions And Multi-Episode Identity
+
+| Input syntax | Interpretation | Canonical result |
+|---|---|---|
+| `12v2`, `E12v3`, `S01E12v2` | Episode 12 plus uploader revision metadata | `S01E12`; revision is not title text |
+| `S01E01E02`, `S01E01-E02`, `S01E01_E02v3` | One file covering episodes 1 through 2 | `S01E01-E02`; revision is discarded from the Plex name |
+| `S01E01-E01`, `S01E02-E01`, `S01E01-02`, `Episode 1-2` | Invalid or noncanonical range | Preview is blocked with canonical-format guidance |
+| `Show 1-2 S01E03` or title `Part 1-2` | Legitimate numeric title text beside a canonical identity | S01E03 remains authoritative; `1-2` is not reinterpreted as an episode range |
 
 ---
 
@@ -79,6 +97,9 @@ Year is omitted if no year can be extracted from the filename. Title is cleaned 
 | `Parasite.2019.Korean.BluRay.mkv` | `Parasite (2019).mkv` | medium |
 | `The.Dark.Knight.2008.IMAX.mkv` | `The Dark Knight (2008).mkv` | medium (IMAX removed) |
 | `Oppenheimer.2023.EXTENDED.mkv` | `Oppenheimer (2023).mkv` | medium (EXTENDED removed) |
+| `2001.A.Space.Odyssey.1968.1080p.BluRay.x265.mkv` | `2001 A Space Odyssey (1968).mkv` | medium (rightmost plausible year is the release year) |
+| `12.Angry.Men.1957.1080p.BluRay.x264.mkv` | `12 Angry Men (1957).mkv` | medium (numeric title text retained) |
+| `A.Proper.Man.2024.mkv` | `A Proper Man (2024).mkv` | medium (metadata-like word retained in lexical title text) |
 
 ### Tags Removed From Movie Filename
 
@@ -86,7 +107,7 @@ Year is omitted if no year can be extracted from the filename. Title is cleaned 
 |---|---|
 | Video source | `1080p`, `2160p`, `BluRay`, `WEBRip`, `HEVC`, `x264`, `x265`, `av1`, `10bit`, `8bit` |
 | Audio | `TrueHD`, `Atmos`, `FLAC`, `Opus`, `EAC3`, `AC3`, `AAC`, `DTS`, `5.1`, `7.1`, `DDPlus` |
-| Edition | `EXTENDED`, `REMASTERED`, `PROPER`, `REPACK`, `UNRATED`, `IMAX`, `directors cut` |
+| Edition/revision metadata tail | `EXTENDED`, `REMASTERED`, `PROPER`, `REPACK`, `RERIP`, `UNRATED`, `IMAX`, `directors cut` when they occur in a verified metadata tail |
 | Service/container | `AMZN`, `NF`, `DSNP`, `HMAX`, `Hulu`, `iTunes`, `AppleTV`, `MKV`, `MP4`, `M4V` |
 | File size | `1400MB`, `2GB`, `4.7GB` |
 | Release group | `RARBG`, `YIFY`, `YTS`, `GalaxyRG`, `BONE`, `PSA`, `Tigole`, `Kris` |
@@ -100,6 +121,8 @@ Year is omitted if no year can be extracted from the filename. Title is cleaned 
 | `Movie [2010]` | 2010 (bracketed) |
 | `Movie 2010 Extra` | 2010 (bare year token) |
 | `Movie Without Year` | (none — title only, no year in output) |
+
+The rightmost plausible year is used for release names such as `2001.A.Space.Odyssey.1968`; bracketed/parenthesized years take precedence. Plausible numeric title text, years outside the release-year bounds, Roman numerals, and lexical uses of words such as `Proper`, `Web`, `Audio`, `MA`, or `CAM` are preserved unless release-tail evidence or an explicit operator remove term makes them metadata.
 
 ### Movie Without Year
 
@@ -172,6 +195,12 @@ No SxxEyy / NxM / episode token found and no operator-supplied fields.
 
 **Behavior**: Row produces a `blocked` result (cannot determine season/episode). Operator must supply `show_name`, `season`, and `start_episode` fields manually.
 
+### Semantic Episode Overlap
+
+Two different target paths still conflict when their parsed TV identities overlap for the same normalized show and season, such as `Show - S01E01-E02.mkv` and `Show - S01E02.mkv`.
+
+**Behavior**: Planning blocks both rows. Apply independently repeats the semantic-overlap check before filesystem mutation.
+
 ### Missing Movie Year
 
 No year found in filename and no operator-supplied year.
@@ -206,19 +235,20 @@ When `rename_sidecars=true` (default), the rename service discovers and renames 
 
 | Sidecar pattern | Renamed to |
 |---|---|
-| `{media_path}.mediapipeline.json` | `{destination}.mediapipeline.json` |
-| `{media_path}.pipeline.json` (legacy) | `{destination}.pipeline.json` |
-| `{media_path}.mediapipeline.rename.json` | `{destination}.mediapipeline.rename.json` |
+| `{media_stem}.mediapipeline.json` | `{destination_stem}.mediapipeline.json` |
+| `{media_stem}.pipeline.json` | `{destination_stem}.pipeline.json` |
+| `{media_path}.pipeline.json` (legacy appended form) | `{destination_path}.pipeline.json` |
+| `{media_stem}.mediapipeline.rename.json` | `{destination_stem}.mediapipeline.rename.json` |
 
 ### Atomic Rename Behavior
 
-- Media rename and sidecar rename(s) are applied together in a single transaction.
+- Media rename and sidecar rename(s) are executed as one guarded operation with rollback evidence.
 - If any sidecar destination already exists with different content, the operation is blocked.
 - If the media rename succeeds but a sidecar rename fails, the service attempts rollback.
 
 ### Post-Rename Sidecar Update
 
-After a successful apply, the backend updates the `.mediapipeline.json` sidecar with:
+After a successful apply, the backend updates existing pipeline metadata sidecars (`.mediapipeline.json`, `.pipeline.json`, and the legacy appended `.pipeline.json` form) with:
 
 - `output_path` → new destination path
 - `output_file` → new filename
@@ -257,6 +287,6 @@ The Rename table renders up to 250 rows of preview results. If the backend retur
 ## See Also
 
 - Rename command matrix: `docs/inventories/COMMAND_OWNERSHIP_MATRIX.md`
-- Rename readiness smoke: `Test-WebViewRenameReadinessSmoke.ps1`
-- Browser rename smoke: `Test-WebViewBrowserRenameSmoke.ps1`
+- Rename readiness smoke: `ops/scripts/smoke/Test-WebViewRenameReadinessSmoke.ps1`
+- Browser rename smoke: `ops/scripts/smoke/Test-WebViewBrowserRenameSmoke.ps1`
 - Test coverage: `docs/testing/TEST_COVERAGE_MATRIX.md`

@@ -549,8 +549,20 @@
     meta.className = "home-next-queue-meta";
     meta.textContent = detail;
     item.append(title, meta);
+    const detailMessage = `${detail}\n${summary.historical_evidence_note || "Historical progress evidence is available in Telemetry and Diagnostics."}`;
+    const activate = () => {
+      selectHomeListItem(item);
+      renderHomeQueueDetailMessage(detailMessage);
+    };
+    item.addEventListener("click", activate);
+    item.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        activate();
+      }
+    });
     list.appendChild(item);
-    renderHomeQueueDetailMessage(`${detail}\n${summary.historical_evidence_note || "Historical progress evidence is available in Telemetry and Diagnostics."}`);
+    renderHomeQueueDetailMessage(detailMessage);
     return true;
   }
 

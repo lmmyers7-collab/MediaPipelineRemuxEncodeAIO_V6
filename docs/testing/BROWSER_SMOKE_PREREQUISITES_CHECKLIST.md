@@ -11,8 +11,8 @@ For full coverage and failure interpretation, see `docs/testing/BROWSER_SMOKE_TE
 ## When Not To Run Browser Smokes
 
 - When doing docs-only changes — the release self-test with `-SkipEndToEndSmoke` is sufficient.
-- When Node.js is not on PATH — fix the PATH issue first; the smoke will skip cleanly, but a skip is not a pass.
-- In headless CI environments with no Chrome/Edge installation — browser smokes skip cleanly and are designed for this. Non-browser smokes are the CI-suitable alternative.
+- When Node.js is not on PATH — fix the PATH issue first. A direct module may report a skip, but canonical wrappers fail prerequisite skips by default.
+- In headless CI environments with no Chrome/Edge installation — use browser-free smokes or explicitly invoke a wrapper with `-AllowSkippedTests` for a non-gating environmental result. A skip is not browser evidence.
 - When you want to test only backend API shapes, use `test_api_read_payloads_policy.py` and `test_api_command_results_policy.py` instead.
 
 ---
@@ -51,7 +51,7 @@ Test-Path "C:\Program Files\Microsoft\Edge\Application\msedge.exe"
 If none return `True`:
 - Install Chrome or Edge from the official source.
 - If on a locked machine, check whether Chrome/Edge is installed to a non-standard path.
-- If a browser cannot be installed, use the non-browser smokes instead — they do not require a browser and cover the same JS behavior with mocked DOM state.
+- If a browser cannot be installed, use the non-browser smokes for their documented scope. They do not prove actual browser rendering, CDP interaction, focus behavior, or layout.
 
 ---
 
@@ -112,27 +112,31 @@ The browser smoke launches Chrome/Edge with `--remote-debugging-port` and connec
 
 ## Checklist 7: Smoke Skip vs Smoke Fail
 
-| Exit code | Outcome | Meaning |
+| Invocation/result | Outcome | Meaning |
 |---|---|---|
-| 0 with `OK` | Pass | Test assertions all passed |
-| 0 with `s` or `skipped` | Skip | Expected skip (no browser, no Node) — not a failure |
+| Canonical wrapper exits 0 with `OK` | Pass | Browser assertions all passed |
+| Direct Python module reports `s`, `skipped`, or `SkipTest` | Skip | Prerequisite absent; no browser proof |
+| Canonical wrapper, default, sees prerequisite skip | Gating failure | Wrapper converts the skip to nonzero; install/fix prerequisite |
+| Canonical wrapper with explicit `-AllowSkippedTests` reports skip | Non-gating skip | Record the environmental reason; do not count as a pass |
 | Nonzero with `FAIL` | Test failure | An assertion failed — read the traceback |
 | Nonzero with `ERROR` | Runtime error | The smoke crashed before assertions — read the traceback |
 
-Skips are not failures. A skip means the environment prerequisites were not met and the test exited cleanly without testing anything. Record skips in your smoke result log (`docs/testing/WEBVIEW_SMOKE_RESULT_TEMPLATE.md`).
+Canonical wrappers fail prerequisite skips by default. `-AllowSkippedTests` is an explicit exception for environmental evidence only. Record every skip in `docs/testing/WEBVIEW_SMOKE_RESULT_TEMPLATE.md`.
 
 ---
 
 ## Checklist 8: Non-Mutation Boundary Verification
 
-After a pass or skip, confirm the smoke did not mutate state:
+Run browser smokes only through their generated disposable roots and temporary local API instances. Do not point a browser smoke at live/operator roots merely to verify that it “does not mutate.”
 
-- No pipeline process was started (no new `State\ActiveJobs\` entries).
-- No settings were written (live config PSD1 modified time unchanged).
-- No files were renamed (check source folder modified time if concerned).
-- No pending publish was drained (no new drain summary or manifest changes).
+After a pass, verify the smoke's declared temporary mutations and fixture guards:
 
-If unexpected state changes appear after a smoke run, check the smoke's known mutation boundary in `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md` and compare against what you observed.
+- Source-like media/subtitle/sidecar/manifest fixtures covered by the SHA-256/size guard are unchanged.
+- Any allowed config, app-state, queue, command-journal, lifecycle archive, completed-manifest, or sidecar writes occurred only under the disposable root named by the smoke.
+- No pending publish drain, rename apply/undo, or real FFmpeg/remux/encode ran unless the smoke catalog explicitly adds and validates that behavior.
+- Prose/visual screenshots and manifests exist only in the disposable evidence directory.
+
+A prerequisite skip ran no scenario assertions and therefore supplies no non-mutation proof. Compare observed fixture changes with `docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md`; any undeclared write is a failure.
 
 ---
 
@@ -177,3 +181,9 @@ $py = "apps\desktop\runtime\Python\python.exe"
 - Smoke result template: `docs/testing/WEBVIEW_SMOKE_RESULT_TEMPLATE.md`
 - Validation ladder: `docs/testing/VALIDATION_LADDER_RUNBOOK.md`
 - PowerShell host expectations: `docs/operator/POWERSHELL_HOST_EXPECTATIONS.md`
+
+---
+
+## Current Inventory Note — 2026-07-13
+
+The canonical browser suite has 24 wrappers and 26 Python modules under `tests\webview\`. The metrics-degraded-state and Settings builder-flush modules are direct-only. Use `Get-ChildItem tests\webview -Filter "test_webview_browser*.py"` for discovery.

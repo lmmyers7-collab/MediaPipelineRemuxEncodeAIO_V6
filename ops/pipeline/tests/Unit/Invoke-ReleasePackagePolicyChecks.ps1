@@ -19,6 +19,7 @@ $repoRoot = Split-Path -Parent (Split-Path -Parent $pipelineRoot)
 $releasePolicyPath = Join-Path $repoRoot 'ops\scripts\release\release_policy.ps1'
 $buildScriptPath = Join-Path $repoRoot 'ops\scripts\release\build.ps1'
 $backupScriptPath = Join-Path $repoRoot 'ops\scripts\release\Backup-PreOverhaul.ps1'
+$releaseAdminInventoryPath = Join-Path $repoRoot 'docs\inventories\RELEASE_PACKAGE_ADMIN_INVENTORY.md'
 $setupLauncherPath = Join-Path $repoRoot 'ops\scripts\dev\setup.bat'
 $runLauncherPath = Join-Path $repoRoot 'ops\scripts\dev\run.bat'
 $gitignorePath = Join-Path $repoRoot '.gitignore'
@@ -213,6 +214,7 @@ function Assert-CustomRenameFilterConfig {
 Assert-True (Test-Path -LiteralPath $releasePolicyPath -PathType Leaf) 'release_policy.ps1 is missing.'
 Assert-True (Test-Path -LiteralPath $buildScriptPath -PathType Leaf) 'build.ps1 is missing.'
 Assert-True (Test-Path -LiteralPath $backupScriptPath -PathType Leaf) 'Backup-PreOverhaul.ps1 is missing.'
+Assert-True (Test-Path -LiteralPath $releaseAdminInventoryPath -PathType Leaf) 'Release package admin inventory is missing.'
 Assert-True (Test-Path -LiteralPath $setupLauncherPath -PathType Leaf) 'ops\scripts\dev\setup.bat is missing.'
 Assert-True (Test-Path -LiteralPath $runLauncherPath -PathType Leaf) 'ops\scripts\dev\run.bat is missing.'
 if ($inReleasePackage) {
@@ -233,6 +235,10 @@ Assert-Contains $buildScriptText 'This is not release acceptance.' 'Release buil
 Assert-Contains $buildScriptText 'Test-ReleaseTraversalDirectoryPruned' 'Release builder must prune known excluded directories before recursive package traversal.'
 Assert-Contains $buildScriptText 'Get-ReleaseSourceFileItems' 'Release builder must use the pruned release source traversal helper.'
 Assert-True (-not $buildScriptText.Contains('Get-ChildItem -LiteralPath $script:SourceRoot -Recurse -File -Force')) 'Release builder must not recurse through every source file before applying package exclusions.'
+
+$releaseAdminInventoryText = Get-Content -LiteralPath $releaseAdminInventoryPath -Raw
+Assert-True (-not $releaseAdminInventoryText.Contains('-Zip -KeepPersonalConfig')) 'Release package admin inventory must not recommend the rejected zipped personal-mirror combination.'
+Assert-Contains $releaseAdminInventoryText '`-KeepPersonalConfig` is directory-only and cannot be combined with `-Zip`.' 'Release package admin inventory must document that personal mirrors are directory-only.'
 
 $rgignoreText = Get-Content -LiteralPath $rgignorePath -Raw
 if (-not $inReleasePackage) {

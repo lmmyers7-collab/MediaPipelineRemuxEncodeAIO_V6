@@ -684,6 +684,65 @@
       renderAllLaunchPreflights();
     }
 
+    function settingsBuilderOwnedPatchKeys(fields) {
+      const canonicalKeys = new Set();
+      (Array.isArray(fields) ? fields : []).forEach(([key]) => {
+        const canonical = String(key || "").trim();
+        if (!canonical) return;
+        canonicalKeys.add(canonical.toLowerCase());
+        const persisted = String(settingsFieldDefinition(canonical)?.persisted_key || "").trim();
+        if (persisted) canonicalKeys.add(persisted.toLowerCase());
+      });
+      Object.entries(settingsFriendlyPersistedKeyAliases).forEach(([alias, canonical]) => {
+        if (canonicalKeys.has(String(canonical || "").toLowerCase())) {
+          canonicalKeys.add(String(alias || "").toLowerCase());
+        }
+      });
+      return canonicalKeys;
+    }
+
+    function resetSettingsBuilderFromConfig(fields, syncFromConfig) {
+      const textarea = byId("settings-patch-json");
+      if (!textarea) return false;
+      let current;
+      try {
+        current = parseSettingsPatchJson();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setText("settings-patch-status", "Reset blocked");
+        setText("settings-patch-detail", `Changes JSON is invalid. Fix it before resetting builder controls. ${message}`);
+        renderSettingsPatchSummary();
+        renderAllLaunchPreflights();
+        return false;
+      }
+
+      const ownedKeys = settingsBuilderOwnedPatchKeys(fields);
+      const retained = {};
+      let removed = 0;
+      Object.entries(current).forEach(([key, value]) => {
+        if (ownedKeys.has(String(key).toLowerCase())) {
+          removed += 1;
+        } else {
+          retained[key] = value;
+        }
+      });
+      if (typeof syncFromConfig === "function") syncFromConfig();
+      if (removed) {
+        textarea.value = JSON.stringify(retained, null, 2);
+        markSettingsPatchTouched();
+      }
+      setText("settings-patch-status", removed ? "Changes reset" : "No builder changes to reset");
+      setText(
+        "settings-patch-detail",
+        removed
+          ? `Reset From Current removed ${removed} builder-owned key(s) from Changes JSON and preserved unrelated staged changes.`
+          : "Reset From Current reloaded this builder from current settings; Changes JSON contained no keys owned by this builder."
+      );
+      renderSettingsPatchSummary();
+      renderAllLaunchPreflights();
+      return true;
+    }
+
     function collectSettingsBuilderPatch() {
       normalizeRouteHeightTolerancePair("settings-builder-1080p-upper-tolerance");
       normalizeRouteHeightTolerancePair("settings-builder-4k-lower-tolerance");
@@ -844,6 +903,7 @@
         renderAllLaunchPreflights,
         renderSettingsPatchSummary,
         renderSettingsRows,
+        resetSettingsBuilderFromConfig,
         routeClamp,
         routeRailBoundaryConfig,
         routeRailCurrentBoundaryHeight,
@@ -937,6 +997,8 @@
       settingsPatchEffectiveChangedEntries,
       settingsPatchHasUnsavedChanges,
       writeSettingsPatchJson,
+      settingsBuilderOwnedPatchKeys,
+      resetSettingsBuilderFromConfig,
       collectSettingsBuilderPatch,
       applySettingsBuilderToPatch,
       renderSettings,

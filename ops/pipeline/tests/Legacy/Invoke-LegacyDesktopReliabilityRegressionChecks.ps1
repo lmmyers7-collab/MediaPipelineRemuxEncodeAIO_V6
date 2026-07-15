@@ -866,7 +866,7 @@ Assert-True ($ffmpegProgressText -match '\$script:LastFFmpegPriorityRequested' -
 Assert-True ($audioText -match 'function Get-AudioTranscodeBitrateForChannels' -and $audioText -match 'function Get-EffectiveAudioTranscodeAutoBitrateByChannels' -and $audioText -match "1 = '96k';\s*2 = '192k'" -and $audioText -match "6 = '448k'") "Audio module must expose channel-aware bitrate helpers with codec-specific tables (Suggestion #7)."
 Assert-True ($audioText -match '\$autoScaleBitrate\s*=\s*Get-EffectiveAudioTranscodeAutoBitrateByChannels' -and $audioText -match 'if \(\$autoScaleBitrate\)\s*\{[\s\S]+?Get-AudioTranscodeBitrateForChannels') "Build-AudioArgs must use Get-AudioTranscodeBitrateForChannels when auto-scale is on, otherwise honor the static bitrate (Suggestion #7)."
 Assert-True ($mainText -match '\$script:AudioTranscodeAutoBitrateByChannels = Get-ConfigBool ''AudioTranscodeAutoBitrateByChannels'' \$false') "Main pipeline must load AudioTranscodeAutoBitrateByChannels (default off) (Suggestion #7)."
-Assert-True ($pipelineText -match 'AggressiveEpisodeParsing' -and $pipelineText -match 'Get-TVLooseSeasonEpisodeFromName' -and $pipelineText -match 'aggressive-default-season') "Aggressive TV episode parsing must be configurable and include default-season fallback."
+Assert-True ($pipelineText -match 'AggressiveEpisodeParsing' -and $pipelineText -match 'Get-TVLooseSeasonEpisodeFromName' -and $pipelineText -match 'default-season\+episode') "Aggressive TV episode parsing must be configurable and include canonical default-season fallback evidence."
 Assert-True ($pipelineText -match 'TransientFailureRetryLimit' -and $pipelineText -match 'operator_required') "Transient failures must persist retry counts and escalate to operator_required."
 Assert-True ($pipelineText -match 'Test-PendingPublishedServerCopy') "Pending-push validation helper is missing."
 Assert-True ($pipelineText -match 'publish_transaction_id') "Publish transaction metadata is missing."
@@ -3975,10 +3975,10 @@ try {
 
     Assert-TV -Path `$p1 -Show 'Golden Kamuy' -Season 1 -Episode 1
     Assert-TV -Path `$p2 -Show 'Golden Kamuy' -Season 2 -Episode 13
-    Assert-TV -Path `$p3 -Show 'Gyakkyou Burai Kaiji Ultimate Survivor' -Season 1 -Episode 1 -ModeLike 'aggressive-default-season'
+    Assert-TV -Path `$p3 -Show 'Gyakkyou Burai Kaiji Ultimate Survivor' -Season 1 -Episode 1 -ModeLike 'default-season\+episode'
     Assert-TV -Path `$p4 -Show 'Some Show' -Season 2 -Episode 3
-    Assert-TV -Path `$p5 -Show 'No Season Show' -Season 1 -Episode 1 -ModeLike 'aggressive-default-season'
-    Assert-TV -Path `$p8 -Show 'Serial Experiments Lain' -Season 1 -Episode 1 -ModeLike 'aggressive-default-season'
+    Assert-TV -Path `$p5 -Show 'No Season Show' -Season 1 -Episode 1 -ModeLike 'default-season\+episode'
+    Assert-TV -Path `$p8 -Show 'Serial Experiments Lain' -Season 1 -Episode 1 -ModeLike 'default-season\+episode'
     Assert-TV -Path `$p9 -Show 'Serial Experiments Lain' -Season 0 -Episode 1 -ModeLike 'folder-season'
     Assert-TV -Path `$p10 -Show 'Serial Experiments Lain' -Season 0 -Episode 2 -ModeLike 'folder-season'
     Assert-TV -Path `$p11 -Show 'Serial Experiments Lain' -Season 0 -Episode 3 -ModeLike 'folder-season'

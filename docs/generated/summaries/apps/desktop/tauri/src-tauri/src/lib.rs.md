@@ -3,9 +3,9 @@ file: apps/desktop/tauri/src-tauri/src/lib.rs
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shell
-last_modified: 2026-07-11
+last_modified: 2026-07-13
 last_reviewed: 2026-06-04
-sha256: a0ce8be88aa3e040fb4f4ab2fd83038bd7e722af4e5e29dfd2b9b1a4550aa544
+sha256: 0668c345585f3642c4fa854a008caa3aae5c29e766fac4dd3358366a2305d14e
 ---
 # `apps/desktop/tauri/src-tauri/src/lib.rs`
 

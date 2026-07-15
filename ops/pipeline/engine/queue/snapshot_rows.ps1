@@ -127,6 +127,13 @@ function Get-QueuePlanPreflightBlock {
                 -LibraryId $LibraryId `
                 -LibraryDesignation $LibraryDesignation
         }
+        if (-not $TvInfo) {
+            return [pscustomobject]@{
+                Code   = 'tv_parse_unreliable'
+                Reason = 'tv-parse: TV identity parser returned no result.'
+                TvInfo = $null
+            }
+        }
         if ($TvInfo -and -not $TvInfo.IsReliable) {
             return [pscustomobject]@{
                 Code   = 'tv_parse_unreliable'
@@ -177,14 +184,19 @@ function Build-QueuePlanSnapshotRows {
         $isTV  = [bool]$entry.IsTV
         $tvInfo = $null
         if ($isTV) {
-            try {
-                $tvInfo = Get-TVInfoFromFile `
-                    -file $file `
-                    -SourceRootPath ([string]$entry.RootPath) `
-                    -LibraryName ([string]$entry.LibraryName) `
-                    -LibraryId ([string]$entry.LibraryId) `
-                    -LibraryDesignation ([string]$entry.LibraryDesignation)
-            } catch {}
+            $hasCachedIdentity = $entry.PSObject.Properties['TVIdentityParsed'] -and [bool]$entry.TVIdentityParsed
+            if ($hasCachedIdentity) {
+                $tvInfo = $entry.TVInfo
+            } else {
+                try {
+                    $tvInfo = Get-TVInfoFromFile `
+                        -file $file `
+                        -SourceRootPath ([string]$entry.RootPath) `
+                        -LibraryName ([string]$entry.LibraryName) `
+                        -LibraryId ([string]$entry.LibraryId) `
+                        -LibraryDesignation ([string]$entry.LibraryDesignation)
+                } catch {}
+            }
         }
         $blocked = $null
         $blockedCode = ''

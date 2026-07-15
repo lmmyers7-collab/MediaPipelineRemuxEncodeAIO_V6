@@ -857,6 +857,40 @@ def _browser_home_live_state_runner_source() -> str:
             }
             const csvPipelineState = text("pipeline-state");
             const csvQueueCount = text("queue-count");
+            const completionDetail = "fixture.csv · 1 processed · 1 completed";
+            const completionRendered = window.mediaPipelineAppHome?.renderHomeCsvRerunCompletion?.({
+              snapshot: {
+                csv_rerun_summary: {
+                  schema_version: "desktop_csv_rerun_completion.v1",
+                  evidence_authority: "backend_manifest",
+                  terminal: true,
+                  display_label: "CSV rerun complete",
+                  display_state: "ok",
+                  csv_name: "fixture.csv",
+                  detail: completionDetail,
+                },
+              },
+            });
+            if (!completionRendered) throw new Error("Home CSV completion option did not render.");
+            let completionOption = document.querySelector("#home-next-queue-list [role='option']");
+            if (!completionOption || completionOption.tabIndex !== 0) throw new Error("Home CSV completion option is not keyboard focusable.");
+            completionOption.setAttribute("aria-selected", "false");
+            completionOption.classList.remove("is-selected");
+            byId("home-next-queue-detail").textContent = "stale completion detail";
+            completionOption.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+            completionOption = document.querySelector("#home-next-queue-list [role='option']");
+            if (completionOption?.getAttribute("aria-selected") !== "true" || !completionOption?.classList.contains("is-selected")) {
+              throw new Error("Enter did not select the Home CSV completion option.");
+            }
+            requireText("home-next-queue-detail", [completionDetail, "Historical progress evidence"]);
+            completionOption.setAttribute("aria-selected", "false");
+            completionOption.classList.remove("is-selected");
+            byId("home-next-queue-detail").textContent = "stale click detail";
+            completionOption.click();
+            if (completionOption.getAttribute("aria-selected") !== "true" || !completionOption.classList.contains("is-selected")) {
+              throw new Error("Click did not select the Home CSV completion option.");
+            }
+            requireText("home-next-queue-detail", [completionDetail]);
             window.renderSnapshot(activeSnapshot);
             if (text("pipeline-state").includes("_")) {
               throw new Error("Home pipeline state still contains underscores: " + text("pipeline-state"));

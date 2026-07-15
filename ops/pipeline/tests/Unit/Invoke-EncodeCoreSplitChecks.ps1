@@ -42,7 +42,8 @@ foreach ($relativePath in @(
         'ops\pipeline\engine\process\encode_preflight.ps1',
         'ops\pipeline\engine\process\encode_attempt_plan.ps1',
         'ops\pipeline\engine\process\encode_command_builder.ps1',
-        'ops\pipeline\engine\process\encode_execution.ps1'
+        'ops\pipeline\engine\process\encode_execution.ps1',
+        'ops\pipeline\engine\process\encode_orchestrator.ps1'
     )) {
     . (Join-Path $repoRoot $relativePath)
 }
@@ -66,6 +67,10 @@ function Ensure-ScratchCopy {
     param($File, [string] $SafeName)
     return $script:ScratchPath
 }
+
+function Remove-ScratchFingerprint { param([string] $ScratchPath) }
+
+function Remove-EmptyScratchContainer { param([string] $ScratchPath) }
 
 function Get-OutputPaths {
     param($File, [bool] $IsTV, $TvInfo, [string] $SafeName)
@@ -138,6 +143,7 @@ function Register-SourceFailure {
         $AdditionalProperties
     )
     $script:RegisteredFailures.Add($Stage) | Out-Null
+    $script:RegisteredFailureScratchPaths.Add($ScratchPath) | Out-Null
 }
 
 function New-EncodeAttemptPlan {
@@ -250,6 +256,7 @@ function Reset-EncodeHarness {
         ServerOut = $serverOut
     }
     $script:RegisteredFailures = [System.Collections.Generic.List[string]]::new()
+    $script:RegisteredFailureScratchPaths = [System.Collections.Generic.List[string]]::new()
     $script:OutputNeedsReprocess = $false
     $script:ExistingOutputSidecarOk = $true
     $script:DiskSpaceOk = $DiskSpacePasses
@@ -295,6 +302,7 @@ try {
             'DynamicHdrHdr10PlusJsonPath',
             'Hdr10MasterDisplay',
             'Hdr10MaxCll',
+            'Hdr10Verification',
             'NormalizedEncoderBackend',
             'ForceCpuBackendEncode',
             'SkipGpuDueToProbe',
@@ -391,6 +399,25 @@ try {
     Assert-Equal $script:LastFfmpegCall.ReproStage 'encode' 'Encode execution repro stage drifted.'
     Assert-Equal $script:LastFfmpegCall.OutputPath $attempt.OutputPath 'Encode execution output path drifted.'
     Assert-True ($script:LastFfmpegCall.WasteGuardContext -eq $wasteGuard) 'Encode execution waste guard context drifted.'
+
+    # A completed temp encode must be the retained failure artifact when an
+    # unexpected exception happens after FFmpeg. Re-registering the scratch
+    # source and deleting TempOut would discard hours of valid encode work.
+    function Invoke-MediaPipelineEncodePreflight {
+        param($Context)
+        $Context.LocalIn = $script:ScratchPath
+        $Context.TempOut = $script:CompletedTempOutput
+        throw 'simulated post-encode verification exception'
+    }
+
+    Reset-EncodeHarness
+    $script:CompletedTempOutput = Join-Path $script:processingDir 'completed-temp-output.mkv'
+    Set-Content -LiteralPath $script:CompletedTempOutput -Value 'completed encoded output' -NoNewline
+    $encoded = Invoke-MediaPipelineEncode -file $script:SourceFile -isTV:$false -tvInfo $null
+    Assert-False ([bool]$encoded) 'Unexpected post-encode exception should return a failed encode result.'
+    Assert-Equal $script:RegisteredFailureScratchPaths[0] $script:CompletedTempOutput 'Unexpected post-encode exception must retain the completed temp output as failure evidence.'
+    Assert-True (Test-Path -LiteralPath $script:CompletedTempOutput -PathType Leaf) 'Unexpected post-encode exception must not delete the completed temp output after it is handed to failure retention.'
+    Assert-False (Test-Path -LiteralPath $script:ScratchPath -PathType Leaf) 'Scratch input should still be cleaned after the completed temp output is retained.'
 } finally {
     foreach ($root in @($script:EncodeHarnessRoots.ToArray())) {
         if (-not [string]::IsNullOrWhiteSpace($root) -and $root.StartsWith([System.IO.Path]::GetTempPath(), [System.StringComparison]::OrdinalIgnoreCase)) {

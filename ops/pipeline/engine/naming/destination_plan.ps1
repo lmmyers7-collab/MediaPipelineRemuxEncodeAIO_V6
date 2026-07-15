@@ -27,9 +27,6 @@ function New-PlexMovieDestinationPlan {
     )
 
     $cleanBase = Get-CleanMovieName $OriginalName
-    if ([string]::IsNullOrWhiteSpace($cleanBase)) {
-        $cleanBase = ([System.IO.Path]::GetFileNameWithoutExtension($OriginalName) -replace '[<>:"/\\|?*]', '').Trim()
-    }
     if ([string]::IsNullOrWhiteSpace($cleanBase)) { $cleanBase = 'Unknown Movie' }
 
     if (-not [string]::IsNullOrWhiteSpace($Extension) -and -not $Extension.StartsWith('.')) {
@@ -72,7 +69,7 @@ function New-PlexTVDestinationPlan {
     )
 
     $rawShow = [string](Get-TVInfoField -TvInfo $TvInfo -Name 'ShowName' -Default '')
-    $show = Get-CleanTVOutputNamePart $rawShow
+    $show = Get-CleanTVOutputNamePart -Text $rawShow -PreserveTitleTerms
     if ([string]::IsNullOrWhiteSpace($show)) {
         $show = ($rawShow -replace '[<>:"/\\|?*]', '').Trim()
     }
@@ -106,7 +103,7 @@ function New-PlexTVDestinationPlan {
         $Extension = ".$Extension"
     }
     $fileName = if ($Extension) { "$fileBaseName$Extension" } else { $fileBaseName }
-    $seasonFolder = "Season $($season.ToString('00'))"
+    $seasonFolder = if ($season -eq 0) { 'Specials' } else { "Season $($season.ToString('00'))" }
     $relativeDirectory = if ($IncludeLibraryFolder) {
         Join-PlexRelativePathParts @($LibraryFolder, $show, $seasonFolder)
     } else {
@@ -134,7 +131,11 @@ function New-PlexTVDestinationPlan {
         LibraryFolder     = if ($IncludeLibraryFolder) { $LibraryFolder } else { '' }
         RelativeDirectory = $relativeDirectory
         RelativePath      = $relativePath
-        IdentityKey       = ("{0}_S{1}E{2}" -f $show, $season.ToString('00'), $episode.ToString('00'))
+        IdentityKey       = if ($episodeEnd -and $episodeEnd -gt $episode) {
+            ("{0}_S{1}E{2}-E{3}" -f $show, $season.ToString('00'), $episode.ToString('00'), $episodeEnd.ToString('00'))
+        } else {
+            ("{0}_S{1}E{2}" -f $show, $season.ToString('00'), $episode.ToString('00'))
+        }
         ParseMode         = [string](Get-TVInfoField -TvInfo $TvInfo -Name 'ParseMode' -Default '')
         SourceOriginalName = $sourceName
     }

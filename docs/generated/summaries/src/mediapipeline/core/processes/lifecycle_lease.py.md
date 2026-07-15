@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-07-15
 last_reviewed: 2026-07-10
-sha256: 694bf53ed5db0fc62b2c71a17a93ab554cb9f9c895fb6c26352691324be70b72
+sha256: 41f69e67841d7a739c3a36d094a275f092834648ac5ab27d89dd78fc2431d545
 ---
 # `src/mediapipeline/core/processes/lifecycle_lease.py`
 

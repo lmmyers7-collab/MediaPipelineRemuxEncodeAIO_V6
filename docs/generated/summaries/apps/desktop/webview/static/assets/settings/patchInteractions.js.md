@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settings/patchInteractions.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-13
 last_reviewed: 2026-07-11
-sha256: ff8378b6e00e07e140808e593f166e9db36584fb26aba9d38cef11935f5f751a
+sha256: c6aa83f31057fcbdd3f5b2b9668da30f5bab2dd922f08d6613c23a70c079983b
 ---
 # `apps/desktop/webview/static/assets/settings/patchInteractions.js`
 

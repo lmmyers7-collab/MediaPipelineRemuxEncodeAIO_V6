@@ -75,6 +75,7 @@ function New-MediaPipelineEncodeContext {
         PublishResult     = $null
         SizePolicyResult  = $null
         MediaVerification = $null
+        Hdr10Verification = $null
         AudioVerification = $null
         SubtitleVerification = $null
         MediaTrackVerificationPlan = $null

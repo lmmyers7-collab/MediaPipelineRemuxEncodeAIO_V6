@@ -490,6 +490,83 @@ class NetworkCoordinatorHttpTests(unittest.TestCase):
         self.assertIn("Failed to process /api/done release for job job-1 from worker worker-1", output)
         self.assertIn("release exploded", output)
 
+    def test_network_release_false_cas_restores_and_persists_registry_before_non_2xx(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            registry = InFlightRegistry()
+            self.assertTrue(
+                registry.claim(
+                    job_id="job-network-release",
+                    worker_id="worker-1",
+                    worker_name="Worker",
+                    source_path=str(root / "Movie.mkv"),
+                    encode_config={},
+                    job_kind="csv_rerun_row",
+                    claim_metadata={"rerun_batch_id": "batch-1", "rerun_row_key": "row-1"},
+                )
+            )
+            sent: list[tuple[dict[str, object], int]] = []
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._app = SimpleNamespace(resolved=SimpleNamespace(state_root=root / "State"))
+            dispatcher._registry = registry
+            dispatcher._inflight_state_path = lambda: root / "State" / "coordinator_inflight.json"  # type: ignore[method-assign]
+            dispatcher._safe_log_cluster_event = lambda *_args, **_kwargs: None  # type: ignore[method-assign]
+            handler = SimpleNamespace(_send_json=lambda response, status=200: sent.append((response, status)))
+            payload = {"job_id": "job-network-release", "worker_id": "worker-1", "released": True}
+
+            with patch(
+                "mediapipeline.desktop.network.coordinator_http_handlers.update_network_rerun_row_released",
+                return_value=False,
+            ):
+                CoordinatorDispatcher._http_done(dispatcher, handler, json.dumps(payload).encode("utf-8"))
+
+            self.assertIn("job-network-release", registry._jobs)
+            self.assertTrue((root / "State" / "coordinator_inflight.json").is_file())
+            self.assertEqual(len(sent), 1)
+            self.assertGreaterEqual(sent[0][1], 400)
+
+    def test_network_done_false_cas_restores_and_persists_registry_before_non_2xx(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            registry = InFlightRegistry()
+            self.assertTrue(
+                registry.claim(
+                    job_id="job-network-done",
+                    worker_id="worker-1",
+                    worker_name="Worker",
+                    source_path=str(root / "Movie.mkv"),
+                    encode_config={},
+                    job_kind="csv_rerun_row",
+                    claim_metadata={"rerun_batch_id": "batch-1", "rerun_row_key": "row-1"},
+                )
+            )
+            sent: list[tuple[dict[str, object], int]] = []
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._app = SimpleNamespace(resolved=SimpleNamespace(state_root=root / "State"))
+            dispatcher._registry = registry
+            dispatcher._inflight_state_path = lambda: root / "State" / "coordinator_inflight.json"  # type: ignore[method-assign]
+            dispatcher._safe_log_cluster_event = lambda *_args, **_kwargs: None  # type: ignore[method-assign]
+            handler = SimpleNamespace(_send_json=lambda response, status=200: sent.append((response, status)))
+            payload = {
+                "job_id": "job-network-done",
+                "worker_id": "worker-1",
+                "success": True,
+                "job_kind": "csv_rerun_row",
+                "rerun_batch_id": "batch-1",
+                "rerun_row_key": "row-1",
+            }
+
+            with patch(
+                "mediapipeline.desktop.network.coordinator_http_handlers.update_network_rerun_row_done",
+                return_value=False,
+            ):
+                CoordinatorDispatcher._http_done(dispatcher, handler, json.dumps(payload).encode("utf-8"))
+
+            self.assertIn("job-network-done", registry._jobs)
+            self.assertTrue((root / "State" / "coordinator_inflight.json").is_file())
+            self.assertEqual(len(sent), 1)
+            self.assertGreaterEqual(sent[0][1], 400)
+
     def test_coordinator_logs_cluster_log_missing_event_rejection(self) -> None:
         sent: list[tuple[dict[str, object], int]] = []
         dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)

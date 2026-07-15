@@ -15,6 +15,8 @@ from mediapipeline.core.audit.rerun_csv import (
     build_rerun_csv_row,
     disable_duplicate_planned_output_rows,
     rerun_output_container_from_config,
+    normalize_source_content_sha256,
+    normalize_source_content_sha256_algorithm,
     source_stat_to_rerun_values,
 )
 from mediapipeline.core.audit.rerun_file_io import atomic_write_text
@@ -52,8 +54,7 @@ def save_rerun_records_csv_for_service(
         if row is None:
             continue
         metadata = source_metadata.get(str(source_path).casefold())
-        if metadata:
-            row = apply_rerun_source_metadata(row, metadata)
+        row = apply_rerun_source_metadata(row, metadata)
         if not row["source_size"] or not row["source_mtime_utc"]:
             try:
                 stat = source_path.stat()
@@ -61,6 +62,20 @@ def save_rerun_records_csv_for_service(
             except OSError as exc:
                 row["enabled"] = "false"
                 append_rerun_note(row, f"source stat failed: {exc}")
+        row["source_content_sha256"] = normalize_source_content_sha256(
+            row.get("source_content_sha256")
+        )
+        row["source_content_sha256_algorithm"] = normalize_source_content_sha256_algorithm(
+            row.get("source_content_sha256_algorithm")
+        )
+        if not row["source_content_sha256"] or not row["source_content_sha256_algorithm"]:
+            row["source_content_sha256"] = ""
+            row["source_content_sha256_algorithm"] = ""
+            row["enabled"] = "false"
+            append_rerun_note(
+                row,
+                "automatic rerun disabled: durable full-content SHA-256 metadata is unavailable",
+            )
         rows.append(row)
 
     if not rows:

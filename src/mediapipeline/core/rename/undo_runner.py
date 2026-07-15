@@ -38,11 +38,11 @@ def _write_manifest(path: Path, manifest: dict[str, Any]) -> None:
     atomic_write_text(path, json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def _manifest_operations(manifest: dict[str, Any]) -> list[dict[str, str]]:
+def _manifest_operations(manifest: dict[str, Any]) -> list[dict[str, Any]]:
     raw_operations = manifest.get("operations")
     if not isinstance(raw_operations, list) or not raw_operations:
         raise RuntimeError("Rename undo manifest has no operations to undo.")
-    operations: list[dict[str, str]] = []
+    operations: list[dict[str, Any]] = []
     for index, raw_operation in enumerate(raw_operations, start=1):
         if not isinstance(raw_operation, dict):
             raise RuntimeError(f"Rename undo operation {index} is not an object.")
@@ -52,7 +52,22 @@ def _manifest_operations(manifest: dict[str, Any]) -> list[dict[str, str]]:
         boundary_root = str(raw_operation.get("boundary_root") or "").strip()
         if not kind or not source or not destination:
             raise RuntimeError(f"Rename undo operation {index} is missing kind, source, or destination.")
-        operations.append({"kind": kind, "source": source, "destination": destination, "boundary_root": boundary_root})
+        operation: dict[str, Any] = {
+            "kind": kind,
+            "source": source,
+            "destination": destination,
+            "boundary_root": boundary_root,
+        }
+        parsed_identity = raw_operation.get("parsed_identity")
+        if isinstance(parsed_identity, dict):
+            operation["parsed_identity"] = dict(parsed_identity)
+        tv_identity = raw_operation.get("tv_identity")
+        if isinstance(tv_identity, dict):
+            operation["tv_identity"] = dict(tv_identity)
+        destination_identity_key = str(raw_operation.get("destination_identity_key") or "").strip()
+        if destination_identity_key:
+            operation["destination_identity_key"] = destination_identity_key
+        operations.append(operation)
     return operations
 
 
@@ -68,7 +83,7 @@ def _manifest_metadata_backups(manifest: dict[str, Any]) -> list[dict[str, Any]]
     return [item for item in raw_backups if isinstance(item, dict) and str(item.get("path") or "").strip()]
 
 
-def _preflight_undo_operations(service: Any, operations: list[dict[str, str]]) -> list[str]:
+def _preflight_undo_operations(service: Any, operations: list[dict[str, Any]]) -> list[str]:
     errors: list[str] = []
     restore_targets: set[str] = set()
     for operation in operations:
@@ -95,8 +110,8 @@ def _preflight_undo_operations(service: Any, operations: list[dict[str, str]]) -
 
 def _metadata_backup_operation(
     backup: dict[str, Any],
-    operations: list[dict[str, str]],
-) -> dict[str, str] | None:
+    operations: list[dict[str, Any]],
+) -> dict[str, Any] | None:
     paired_destination = str(backup.get("operation_destination") or "").strip()
     if paired_destination:
         paired_key = _path_key(Path(paired_destination))
@@ -117,7 +132,7 @@ def _metadata_backup_operation(
     return None
 
 
-def _metadata_restore_path(backup: dict[str, Any], operation: dict[str, str]) -> Path:
+def _metadata_restore_path(backup: dict[str, Any], operation: dict[str, Any]) -> Path:
     backup_path = Path(str(backup.get("path") or ""))
     destination = Path(operation["destination"])
     source = Path(operation["source"])
@@ -133,7 +148,7 @@ def _metadata_restore_path(backup: dict[str, Any], operation: dict[str, str]) ->
 
 def _preflight_metadata_backups(
     manifest: dict[str, Any],
-    operations: list[dict[str, str]],
+    operations: list[dict[str, Any]],
 ) -> list[str]:
     errors: list[str] = []
     for backup in _manifest_metadata_backups(manifest):
@@ -155,7 +170,7 @@ def _preflight_metadata_backups(
 
 def _restore_metadata_backups(
     manifest: dict[str, Any],
-    operations: list[dict[str, str]],
+    operations: list[dict[str, Any]],
 ) -> list[str]:
     warnings: list[str] = []
     for backup in _manifest_metadata_backups(manifest):
@@ -228,6 +243,16 @@ def undo_rename_manifest_for_service(
                     "source": str(current),
                     "destination": str(original),
                     "status": status,
+                    **(
+                        {"parsed_identity": dict(operation["parsed_identity"])}
+                        if isinstance(operation.get("parsed_identity"), dict)
+                        else {}
+                    ),
+                    **(
+                        {"destination_identity_key": str(operation["destination_identity_key"])}
+                        if operation.get("destination_identity_key")
+                        else {}
+                    ),
                 }
             )
         warnings.extend(_restore_metadata_backups(manifest, operations))

@@ -320,6 +320,11 @@ pub(super) fn validate_web_shell(backend_url: &str, token: &str) -> ShellResult<
         ),
         ("pipeline log browser open", "window.open"),
         (
+            "pipeline log native window command",
+            "open_pipeline_log_window",
+        ),
+        ("pipeline log native Tauri bridge", "window.__TAURI__"),
+        (
             "pipeline log browser fallback",
             "function showDiagnosticsLogsFallback",
         ),

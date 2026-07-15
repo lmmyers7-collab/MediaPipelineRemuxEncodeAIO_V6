@@ -32,8 +32,10 @@ normalized release identity, then validates an extracted copy with
 ### Private backup / machine-to-machine mirror
 
 ```powershell
-.\ops\scripts\release\build.ps1 -Zip -KeepPersonalConfig
+.\ops\scripts\release\build.ps1 -KeepPersonalConfig
 ```
+
+`-KeepPersonalConfig` is directory-only and cannot be combined with `-Zip`.
 
 **Warning**: `-KeepPersonalConfig` includes `ops\pipeline\config\MediaPipeline_config.psd1` and the legacy `ops\pipeline\config\MediaPipeline_config_chatgpt.psd1` when present. These files may contain the operator's private UNC paths, source/output locations, and scheduling settings. Use only for private machine-to-machine mirrors — never for distribution.
 

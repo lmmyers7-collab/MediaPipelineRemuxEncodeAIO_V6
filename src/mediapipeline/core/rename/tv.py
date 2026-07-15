@@ -12,18 +12,31 @@ from mediapipeline.core.rename.tv_folder import (
 from mediapipeline.core.rename.utils import normalize_plex_filename_component, remove_default_priority_markers, strip_known_media_suffix
 
 
-TV_SEASON_EPISODE_PATTERN = re.compile(r"(?i)\bS(?P<season>\d{1,2})E(?P<episode>\d{1,3})(?:[-_]?E(?P<episode_end>\d{1,3}))?(?:v\d+)?\b")
+TV_SEASON_EPISODE_PATTERN = re.compile(
+    r"(?i)(?<![A-Za-z0-9])S(?P<season>\d{1,2})E(?P<episode>\d{1,4})"
+    r"(?:(?:E|-E|_E)(?P<episode_end>\d{1,4}))?(?P<revision>v\d+)?(?![A-Za-z0-9])"
+)
 TV_NXM_PATTERN = re.compile(r"(?i)(?<!\d)(?P<season>\d{1,2})x(?P<episode>\d{1,3})(?!\d)")
 TV_SEASON_ONLY_PATTERN = re.compile(r"(?i)(?<![A-Za-z0-9])(?:Season|S)[\s._-]*(?P<season>\d{1,2})(?![A-Za-z0-9])")
-TV_EXPLICIT_EPISODE_PATTERN = re.compile(r"(?i)(?<![A-Za-z0-9])(?:Episode|Ep|E)[\s._-]*(?P<episode>\d{1,3})(?:v\d+)?\b")
-TV_BARE_ANIME_EPISODE_PATTERN = re.compile(r"(?i)(?<=\s-\s)(?P<episode>\d{1,3})(?:v\d+)?(?=\s*(?:\(|\[|$|\s-\s))")
-TV_RELEASE_TAG_PATTERN = re.compile(
-    r"\b(?:2160p|1080p|720p|480p|uhd|hdr10\+?|hdr|dv|dolby[\s._-]*vision|"
-    r"hevc|h\.?264|h\.?265|x264|x265|av1|10\s*bit|8\s*bit|bd|bdrip|blu[\s._-]*ray|"
-    r"bluray|web[\s._-]*dl|webdl|webrip|web|hdtv|dvd|dvdrip|remux|proper|repack|rerip|"
-    r"dual[\s._-]*audio|multi[\s._-]*audio|eng[\s._-]*subs?|multi[\s._-]*subs?|subs?|"
-    r"subbed|dubbed|flac|aac|opus|ac3|eac3|ddp\d*|ddp|dts|truehd|atmos|mkv|mp4)\b",
-    re.IGNORECASE,
+TV_EXPLICIT_EPISODE_PATTERN = re.compile(
+    r"(?i)(?<![A-Za-z0-9])(?:Episode|Ep|E)[\s._-]*(?P<episode>\d{1,4})(?P<revision>v\d+)?(?![A-Za-z0-9])"
+)
+TV_BARE_ANIME_EPISODE_PATTERN = re.compile(
+    r"(?i)(?<=\s-\s)(?P<episode>\d{1,3})(?P<revision>v\d+)?(?=\s*(?:\(|\[|$|\s-\s))"
+)
+TV_STRUCTURED_RELEASE_TAIL_PATTERN = re.compile(
+    r"(?i)[\s._-]+(?:2160p|1080p|720p|480p|uhd|hdr10\+?|hdr|dv|dolby[\s._-]*vision|"
+    r"hevc|h\.?264|h\.?265|x264|x265|av1|10[\s._-]*bit|8[\s._-]*bit|bd|bdrip|"
+    r"blu[\s._-]*ray|bluray|web[\s._-]*dl|webdl|webrip|hdtv|dvd|dvdrip|remux|"
+    r"dual[\s._-]*audio|multi[\s._-]*audio|eng[\s._-]*subs?|multi[\s._-]*subs?|"
+    r"subbed|dubbed|flac|aac|opus|ac3|eac3|ddp\d*|ddp|dts|truehd|atmos|"
+    r"1\.0|2\.0|5\.1|7\.1|6[\s._-]*ch|8[\s._-]*ch|mkv|mp4)"
+    r"(?:[\s._-]+(?:2160p|1080p|720p|480p|uhd|hdr10\+?|hdr|dv|dolby[\s._-]*vision|"
+    r"hevc|h\.?264|h\.?265|x264|x265|av1|10[\s._-]*bit|8[\s._-]*bit|bd|bdrip|"
+    r"blu[\s._-]*ray|bluray|web[\s._-]*dl|webdl|webrip|hdtv|dvd|dvdrip|remux|"
+    r"dual[\s._-]*audio|multi[\s._-]*audio|eng[\s._-]*subs?|multi[\s._-]*subs?|"
+    r"subbed|dubbed|flac|aac|opus|ac3|eac3|ddp\d*|ddp|dts|truehd|atmos|"
+    r"1\.0|2\.0|5\.1|7\.1|6[\s._-]*ch|8[\s._-]*ch|mkv|mp4))*\s*$"
 )
 TV_AUDIO_CHANNEL_TAG_PATTERN = re.compile(r"\b(?:1\.0|2\.0|5\.1|7\.1|6\s*ch|8\s*ch|6ch|8ch)\b", re.IGNORECASE)
 TV_RELEASE_GROUP_SUFFIX_PATTERN = re.compile(
@@ -31,8 +44,34 @@ TV_RELEASE_GROUP_SUFFIX_PATTERN = re.compile(
     r"animetime|lostyears|nai|asw|sam|tnp|dedsec|mtbb|smugcat|commie|horriblesubs|"
     r"kametsu|db|kawaiika|tlacatlc6|ttga))+$"
 )
-TV_FORMATTED_TITLE_PATTERN = re.compile(r"(?i)^(?P<prefix>.+\s+-\s+S\d{2}E\d{2,3})(?:\s+-\s+.+)$")
-TV_TARGET_NAME_PATTERN = re.compile(r"(?i)^(?P<show>.+?)\s+-\s+S(?P<season>\d{2})E(?P<episode>\d{2,3})(?:\s+-\s+.*)?$")
+TV_FORMATTED_TITLE_PATTERN = re.compile(r"(?i)^(?P<prefix>.+\s+-\s+S\d{2}E\d{2,3}(?:-E\d{2,3})?)(?:\s+-\s+.+)$")
+TV_TARGET_NAME_PATTERN = re.compile(
+    r"(?i)^(?P<show>.+?)\s+-\s+S(?P<season>\d{2})E(?P<episode>\d{2,3})"
+    r"(?:-E(?P<episode_end>\d{2,3}))?(?:\s+-\s+(?P<episode_title>.*))?$"
+)
+TV_ORDINAL_SEASON_PATTERN = re.compile(
+    r"(?i)(?<![A-Za-z0-9])(?P<ordinal>first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|\d{1,2}(?:st|nd|rd|th))\s+(?:season|cour)(?![A-Za-z0-9])"
+)
+TV_SPECIAL_MARKER_PATTERN = re.compile(r"(?i)(?<![A-Za-z0-9])(?P<kind>OVA|OAV|ONA|Specials?)(?![A-Za-z0-9])")
+TV_NONCANONICAL_RANGE_PATTERN = re.compile(
+    r"(?i)(?<![A-Za-z0-9])(?:Episode|Ep)[\s._-]*\d{1,3}\s*-\s*(?:(?:Episode|Ep)[\s._-]*)?\d{1,3}(?![A-Za-z0-9])"
+    r"|(?<![A-Za-z0-9])\d{1,3}\s*-\s*\d{1,3}(?![A-Za-z0-9])"
+)
+TV_MALFORMED_SXX_RANGE_PATTERN = re.compile(
+    r"(?i)(?<![A-Za-z0-9])S\d{1,2}E\d{1,4}[-_]\d{1,4}(?![A-Za-z0-9])"
+)
+TV_ORDINAL_VALUES = {
+    "first": 1,
+    "second": 2,
+    "third": 3,
+    "fourth": 4,
+    "fifth": 5,
+    "sixth": 6,
+    "seventh": 7,
+    "eighth": 8,
+    "ninth": 9,
+    "tenth": 10,
+}
 RENAME_TV_FILTER_DEFAULT_TERMS: dict[str, tuple[str, ...]] = {
     "video_source": (
         "2160p",
@@ -337,16 +376,17 @@ def clean_pipeline_tv_name_part(
     text = TV_NXM_PATTERN.sub(" ", text)
     text = re.sub(r"(?i)\b(?:season|s)\s*\d{1,2}\s*(?:\+\s*(?:sp|specials?))?\b", " ", text)
     text = re.sub(r"(?i)\b(?:specials?|ova|oav|ona|cour)\b", " ", text)
-    if not preserve_title_terms:
-        if all(filter_options.values()):
+    if preserve_title_terms:
+        for category in RENAME_TV_FILTER_OPTION_KEYS:
+            if filter_options.get(category, True):
+                text = remove_movie_filter_terms(text, filter_terms.get(category, []))
+        text = strip_tv_release_groups(text, filter_options, filter_terms)
+    else:
+        for category in ("video_source", "audio_channels", "release_flags", "services_containers", "languages_subs_dubs"):
+            if filter_options.get(category, True):
+                text = remove_movie_filter_terms(text, collective_tv_filter_terms(filter_terms, category))
+        if filter_options.get("audio_channels", True):
             text = TV_AUDIO_CHANNEL_TAG_PATTERN.sub(" ", text)
-            text = TV_RELEASE_TAG_PATTERN.sub(" ", text)
-        else:
-            for category in ("video_source", "audio_channels", "release_flags", "services_containers", "languages_subs_dubs"):
-                if filter_options.get(category, True):
-                    text = remove_movie_filter_terms(text, collective_tv_filter_terms(filter_terms, category))
-            if filter_options.get("audio_channels", True):
-                text = TV_AUDIO_CHANNEL_TAG_PATTERN.sub(" ", text)
         text = strip_tv_release_groups(text, filter_options, filter_terms)
     text = remove_movie_filter_terms(text, remove_terms)
     text = re.sub(r"[\[\]{}()]", " ", text)
@@ -394,16 +434,215 @@ def extract_confident_tv_episode_title(
     title_fragment = hyphen_match.group(1) if hyphen_match else after
     if not title_fragment:
         return ""
-    source_tag = TV_RELEASE_TAG_PATTERN.search(title_fragment)
-    if source_tag:
-        title_fragment = title_fragment[: source_tag.start()]
-    title_fragment = re.sub(r"(?i)\b(?:v\d+|proper|repack|rerip)\b.*$", " ", title_fragment)
-    title = clean_pipeline_tv_name_part(title_fragment, remove_terms, tv_filter_options, tv_filter_terms)
+    title_fragment = strip_tv_release_groups(title_fragment, tv_filter_options, tv_filter_terms)
+    title_fragment = TV_STRUCTURED_RELEASE_TAIL_PATTERN.sub(" ", title_fragment)
+    title_fragment = re.sub(r"(?i)[\s._-]+(?:v\d+|proper|repack|rerip)\s*$", " ", title_fragment)
+    title = clean_pipeline_tv_name_part(
+        title_fragment,
+        remove_terms,
+        tv_filter_options,
+        tv_filter_terms,
+        preserve_title_terms=True,
+    )
     if not title or len(title) > 80:
         return ""
-    if re.fullmatch(r"(?i)(?:e?\d{1,3}|v\d+|audio|subs?|subtitles?|dubbed|subbed|english|japanese|bd|hevc|x264|x265)(?:\s+.*)?", title):
+    if re.fullmatch(r"\d+", title):
+        return ""
+    if re.fullmatch(r"(?i)(?:v\d+|audio|subs?|subtitles?|dubbed|subbed|english|japanese|bd|hevc|x264|x265)", title):
         return ""
     return title
+
+
+def _tv_identity_error(message: str, *, parse_mode: str = "invalid") -> dict[str, Any]:
+    return {
+        "show": "",
+        "season": 0,
+        "episode_start": 0,
+        "episode_end": None,
+        "episode_title": "",
+        "revision": "",
+        "parse_mode": parse_mode,
+        "reliable": False,
+        "parse_error": message,
+    }
+
+
+def _ordinal_season_number(match: re.Match[str] | None) -> int | None:
+    if match is None:
+        return None
+    value = match.group("ordinal").casefold()
+    if value in TV_ORDINAL_VALUES:
+        return TV_ORDINAL_VALUES[value]
+    numeric = re.match(r"\d{1,2}", value)
+    return int(numeric.group(0)) if numeric else None
+
+
+def _tv_revision_from_match(match: re.Match[str]) -> str:
+    group_names = match.re.groupindex
+    if "revision" in group_names:
+        return str(match.groupdict().get("revision") or "").casefold()
+    return ""
+
+
+def _tv_episode_code(identity: dict[str, Any]) -> str:
+    code = f"S{int(identity['season']):02d}E{int(identity['episode_start']):02d}"
+    episode_end = identity.get("episode_end")
+    if episode_end is not None:
+        code += f"-E{int(episode_end):02d}"
+    return code
+
+
+def tv_identity_key(identity: dict[str, Any]) -> str:
+    show_key = re.sub(r"[^a-z0-9]+", " ", str(identity.get("show") or "").casefold()).strip()
+    return f"{show_key}_{_tv_episode_code(identity)}"
+
+
+def parse_formatted_tv_identity(value: str) -> dict[str, Any] | None:
+    stem = strip_known_media_suffix(value)
+    match = TV_TARGET_NAME_PATTERN.fullmatch(stem)
+    if match is None:
+        return None
+    episode_start = int(match.group("episode"))
+    episode_end = int(match.group("episode_end")) if match.group("episode_end") else None
+    if episode_start < 1 or episode_start > 999 or (episode_end is not None and (episode_end > 999 or episode_end <= episode_start)):
+        return None
+    return {
+        "show": match.group("show").strip(),
+        "season": int(match.group("season")),
+        "episode_start": episode_start,
+        "episode_end": episode_end,
+        "episode_title": str(match.group("episode_title") or "").strip(),
+        "revision": "",
+        "parse_mode": "formatted-sxxexx-range" if episode_end is not None else "formatted-sxxexx",
+        "reliable": True,
+        "parse_error": "",
+    }
+
+
+def parse_tv_identity(
+    source: Path,
+    *,
+    season_number: int,
+    remove_terms: list[str] | None = None,
+    tv_filter_options: dict[str, bool] | None = None,
+    tv_filter_terms: dict[str, list[str]] | None = None,
+) -> dict[str, Any]:
+    stem = source.stem
+    token = find_tv_episode_token(stem)
+    has_canonical_identity = token is not None and token[0] == "season_episode"
+    if TV_MALFORMED_SXX_RANGE_PATTERN.search(stem) or (
+        not has_canonical_identity and TV_NONCANONICAL_RANGE_PATTERN.search(stem)
+    ):
+        return _tv_identity_error(
+            "Noncanonical TV episode range; use SxxEyy-Ezz (for example S01E01-E02).",
+            parse_mode="noncanonical-range",
+        )
+
+    folder_info = resolve_tv_folder_season_info(source, remove_terms, tv_filter_options, tv_filter_terms)
+    season = 0
+    episode_start = 0
+    episode_end: int | None = None
+    revision = ""
+    show_fragment = ""
+    parse_mode = "ambiguous"
+    special_kind = ""
+
+    if token is not None and token[0] == "season_episode":
+        _, match = token
+        season = int(match.group("season"))
+        episode_start = int(match.group("episode"))
+        episode_end = int(match.group("episode_end")) if match.group("episode_end") else None
+        revision = _tv_revision_from_match(match)
+        show_fragment = stem[: match.start()]
+        parse_mode = "sxxexx-range" if episode_end is not None else "sxxexx"
+    elif token is not None and token[0] == "nxm":
+        _, match = token
+        season = int(match.group("season"))
+        episode_start = int(match.group("episode"))
+        show_fragment = stem[: match.start()]
+        parse_mode = "nxm"
+    else:
+        season_match = TV_SEASON_ONLY_PATTERN.search(stem)
+        episode_match = token[1] if token is not None and token[0] in {"explicit", "bare_anime"} else None
+        if season_match and episode_match is not None and token is not None and token[0] == "explicit":
+            season = int(season_match.group("season"))
+            episode_start = int(episode_match.group("episode"))
+            revision = _tv_revision_from_match(episode_match)
+            show_fragment = stem[: season_match.start()]
+            parse_mode = "season+episode"
+        elif episode_match is not None:
+            episode_start = int(episode_match.group("episode"))
+            revision = _tv_revision_from_match(episode_match)
+            ordinal_match = TV_ORDINAL_SEASON_PATTERN.search(stem)
+            special_match = TV_SPECIAL_MARKER_PATTERN.search(stem)
+            if folder_info is not None:
+                season = int(folder_info["season"])
+                show_fragment = stem[: episode_match.start()]
+                parse_mode = "folder-season+episode"
+            elif ordinal_match is not None:
+                season = int(_ordinal_season_number(ordinal_match) or 0)
+                show_fragment = stem[: ordinal_match.start()]
+                parse_mode = "ordinal-season"
+            elif special_match is not None:
+                season = 0
+                special_kind = special_match.group("kind").upper().rstrip("S")
+                show_fragment = stem[: special_match.start()] if special_match.start() < episode_match.start() else stem[: episode_match.start()]
+                parse_mode = "filename-special"
+            else:
+                season = season_number if season_number >= 0 else 1
+                show_fragment = stem[: episode_match.start()]
+                parse_mode = "default-season+episode"
+
+    if episode_start <= 0:
+        return _tv_identity_error(
+            "TV auto preview needs SxxEyy, NxM, Episode N, Ep N, or E01 in the filename, or a canonical SxxEyy-Ezz range.",
+            parse_mode="missing-episode",
+        )
+    if season < 0 or season > 99 or episode_start > 999:
+        return _tv_identity_error(
+            "TV season/episode is outside S00-S99 and E001-E999; use SxxEyy-Ezz for ranges.",
+            parse_mode="out-of-range",
+        )
+    if episode_end is not None and (episode_end < 1 or episode_end > 999 or episode_end <= episode_start):
+        return _tv_identity_error(
+            "TV episode range must increase within E001-E999; use SxxEyy-Ezz (for example S01E01-E02).",
+            parse_mode="invalid-range",
+        )
+    show = clean_pipeline_tv_name_part(
+        show_fragment,
+        remove_terms,
+        tv_filter_options,
+        tv_filter_terms,
+        preserve_title_terms=True,
+    )
+    if not show and folder_info is not None:
+        show = str(folder_info.get("show") or "")
+    if not show:
+        show = clean_pipeline_tv_name_part(
+            source.parent.name,
+            remove_terms,
+            tv_filter_options,
+            tv_filter_terms,
+            preserve_title_terms=True,
+        )
+    if not show:
+        return _tv_identity_error(
+            "TV auto preview could not infer a show name before the episode token.",
+            parse_mode="missing-show",
+        )
+    episode_title = extract_confident_tv_episode_title(stem, remove_terms, tv_filter_options, tv_filter_terms)
+    return {
+        "show": show,
+        "season": season,
+        "episode_start": episode_start,
+        "episode_end": episode_end,
+        "episode_title": episode_title,
+        "revision": revision,
+        "special_kind": special_kind,
+        "parse_mode": parse_mode,
+        "reliable": True,
+        "parse_error": "",
+    }
 
 
 def build_auto_tv_rename_name(
@@ -415,57 +654,17 @@ def build_auto_tv_rename_name(
     tv_filter_terms: dict[str, list[str]] | None = None,
     include_episode_title: bool = True,
 ) -> str:
-    stem = source.stem
-    season = 0
-    episode = 0
-    show_fragment = ""
-    folder_info = resolve_tv_folder_season_info(source, remove_terms, tv_filter_options, tv_filter_terms)
-    token = find_tv_episode_token(stem)
-    if token is not None and token[0] == "season_episode":
-        _, marker_match = token
-        season = int(marker_match.group("season"))
-        episode = int(marker_match.group("episode"))
-        show_fragment = stem[: marker_match.start()]
-    elif token is not None and token[0] == "nxm":
-        _, marker_match = token
-        season = int(marker_match.group("season"))
-        episode = int(marker_match.group("episode"))
-        show_fragment = stem[: marker_match.start()]
-    else:
-        season_match = TV_SEASON_ONLY_PATTERN.search(stem)
-        episode_match = token[1] if token is not None and token[0] in {"explicit", "bare_anime"} else None
-        if season_match and episode_match and token is not None and token[0] == "explicit":
-            season = int(season_match.group("season"))
-            episode = int(episode_match.group("episode"))
-            show_fragment = stem[: season_match.start()]
-        elif episode_match:
-            if folder_info is not None:
-                season = int(folder_info["season"])
-            else:
-                season = season_number if season_number >= 0 else 1
-            episode = int(episode_match.group("episode"))
-            show_fragment = stem[: episode_match.start()]
-
-    if season <= 0 or episode <= 0:
-        if season == 0 and episode > 0:
-            pass
-        else:
-            raise ValueError("TV auto preview needs SxxEyy, NxM, Episode N, Ep N, or E01 in the filename, or a Show name in the TV fields.")
-    show = clean_pipeline_tv_name_part(
-        show_fragment,
-        remove_terms,
-        tv_filter_options,
-        tv_filter_terms,
-        preserve_title_terms=True,
+    identity = parse_tv_identity(
+        source,
+        season_number=season_number,
+        remove_terms=remove_terms,
+        tv_filter_options=tv_filter_options,
+        tv_filter_terms=tv_filter_terms,
     )
-    if not show and folder_info is not None:
-        show = str(folder_info.get("show") or "")
-    if not show:
-        show = clean_pipeline_tv_name_part(source.parent.name, remove_terms, tv_filter_options, tv_filter_terms)
-    if not show:
-        raise ValueError("TV auto preview could not infer a show name before the episode token.")
-    episode_title = extract_confident_tv_episode_title(stem, remove_terms, tv_filter_options, tv_filter_terms)
+    if not identity["reliable"]:
+        raise ValueError(str(identity["parse_error"]))
+    episode_title = str(identity["episode_title"])
     if not include_episode_title:
         episode_title = ""
     title_part = f" - {episode_title}" if episode_title else ""
-    return f"{show} - S{season:02d}E{episode:02d}{title_part}{source.suffix.lower()}"
+    return f"{identity['show']} - {_tv_episode_code(identity)}{title_part}{source.suffix.lower()}"

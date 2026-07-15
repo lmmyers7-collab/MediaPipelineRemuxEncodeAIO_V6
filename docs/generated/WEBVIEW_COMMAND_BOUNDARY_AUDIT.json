@@ -7,16 +7,16 @@
   "violations": [],
   "summary": {
     "scripts": 282,
-    "controls": 513,
-    "route_usages": 115,
+    "controls": 515,
+    "route_usages": 117,
     "dynamic_api_posts": 8,
-    "route_contracts": 168,
+    "route_contracts": 171,
     "high_risk_route_usages": 52,
     "unclassified_high_risk_controls": 0,
     "controls_by_classification": {
       "backend-contract-dynamic-route": 4,
-      "backend-owned-route": 180,
-      "disabled-future-network-control": 5,
+      "backend-owned-route": 179,
+      "disabled-future-network-control": 6,
       "local-copy": 2,
       "local-display-state": 75,
       "local-form-staging": 3,
@@ -24,9 +24,9 @@
       "local-launch-intent-staging": 7,
       "local-navigation": 34,
       "local-network-staging": 1,
-      "local-or-read-only": 63,
+      "local-or-read-only": 64,
       "local-queue-order-staging": 1,
-      "local-read-navigation": 47,
+      "local-read-navigation": 48,
       "local-rename-staging": 6,
       "local-sample-validation-staging": 2,
       "local-schedule-staging": 3,
@@ -359,7 +359,8 @@
       "classification": "local-display-state",
       "route": "",
       "data_attrs": {
-        "data-completed-size-column-mode": "bitrate"
+        "data-completed-size-column-mode": "bitrate",
+        "data-touchpoint-id": "completed-current-output-bitrate-column"
       }
     },
     {
@@ -370,7 +371,8 @@
       "classification": "local-display-state",
       "route": "",
       "data_attrs": {
-        "data-completed-size-column-mode": "bitrate"
+        "data-completed-size-column-mode": "bitrate",
+        "data-touchpoint-id": "completed-history-bitrate-column"
       }
     },
     {
@@ -381,7 +383,8 @@
       "classification": "local-display-state",
       "route": "",
       "data_attrs": {
-        "data-completed-size-column-mode": "size"
+        "data-completed-size-column-mode": "size",
+        "data-touchpoint-id": "completed-current-output-size-column"
       }
     },
     {
@@ -392,7 +395,8 @@
       "classification": "local-display-state",
       "route": "",
       "data_attrs": {
-        "data-completed-size-column-mode": "size"
+        "data-completed-size-column-mode": "size",
+        "data-touchpoint-id": "completed-history-size-column"
       }
     },
     {
@@ -1094,6 +1098,24 @@
     {
       "page": "diagnostics",
       "tag": "button",
+      "id": "diagnostics-recovery-preview-button",
+      "text": "Preview Lifecycle Reconcile",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "diagnostics",
+      "tag": "button",
+      "id": "diagnostics-recovery-reconcile-button",
+      "text": "Reconcile Stale Lifecycle Evidence",
+      "classification": "local-or-read-only",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "diagnostics",
+      "tag": "button",
       "id": "diagnostics-tail-refresh-button",
       "text": "Read Tail",
       "classification": "local-read-navigation",
@@ -1189,95 +1211,7 @@
       "page": "home",
       "tag": "button",
       "id": "",
-      "text": "Review Completed",
-      "classification": "local-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-cross-page-target": "completed"
-      }
-    },
-    {
-      "page": "home",
-      "tag": "button",
-      "id": "",
-      "text": "Review Completed",
-      "classification": "local-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-cross-page-target": "completed"
-      }
-    },
-    {
-      "page": "home",
-      "tag": "button",
-      "id": "",
-      "text": "Review Completed",
-      "classification": "local-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-cross-page-target": "completed"
-      }
-    },
-    {
-      "page": "home",
-      "tag": "button",
-      "id": "",
-      "text": "Review Diagnostics",
-      "classification": "local-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-cross-page-target": "diagnostics"
-      }
-    },
-    {
-      "page": "home",
-      "tag": "button",
-      "id": "",
-      "text": "Review Diagnostics",
-      "classification": "local-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-cross-page-target": "diagnostics"
-      }
-    },
-    {
-      "page": "home",
-      "tag": "button",
-      "id": "",
-      "text": "Review Diagnostics",
-      "classification": "local-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-cross-page-target": "diagnostics"
-      }
-    },
-    {
-      "page": "home",
-      "tag": "button",
-      "id": "",
       "text": "Open Pending Publish",
-      "classification": "local-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-cross-page-target": "pending"
-      }
-    },
-    {
-      "page": "home",
-      "tag": "button",
-      "id": "",
-      "text": "Review Pending Publish",
-      "classification": "local-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-cross-page-target": "pending"
-      }
-    },
-    {
-      "page": "home",
-      "tag": "button",
-      "id": "",
-      "text": "Review Pending Publish",
       "classification": "local-navigation",
       "route": "",
       "data_attrs": {
@@ -1315,6 +1249,102 @@
       "route": "/api/diagnostics/open",
       "data_attrs": {
         "data-open-diagnostics": "sample_validation_log"
+      }
+    },
+    {
+      "page": "home",
+      "tag": "button",
+      "id": "",
+      "text": "Review Completed",
+      "classification": "local-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-cross-page-target": "completed",
+        "data-touchpoint-id": "home-recent-output-review-completed"
+      }
+    },
+    {
+      "page": "home",
+      "tag": "button",
+      "id": "",
+      "text": "Review Diagnostics",
+      "classification": "local-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-cross-page-target": "diagnostics",
+        "data-touchpoint-id": "home-sample-validation-accepted-record-review-diagnostics"
+      }
+    },
+    {
+      "page": "home",
+      "tag": "button",
+      "id": "",
+      "text": "Review Completed",
+      "classification": "local-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-cross-page-target": "completed",
+        "data-touchpoint-id": "home-sample-validation-decision-review-completed"
+      }
+    },
+    {
+      "page": "home",
+      "tag": "button",
+      "id": "",
+      "text": "Review Diagnostics",
+      "classification": "local-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-cross-page-target": "diagnostics",
+        "data-touchpoint-id": "home-sample-validation-decision-review-diagnostics"
+      }
+    },
+    {
+      "page": "home",
+      "tag": "button",
+      "id": "",
+      "text": "Review Pending Publish",
+      "classification": "local-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-cross-page-target": "pending",
+        "data-touchpoint-id": "home-sample-validation-decision-review-pending"
+      }
+    },
+    {
+      "page": "home",
+      "tag": "button",
+      "id": "",
+      "text": "Review Completed",
+      "classification": "local-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-cross-page-target": "completed",
+        "data-touchpoint-id": "home-sample-validation-records-review-completed"
+      }
+    },
+    {
+      "page": "home",
+      "tag": "button",
+      "id": "",
+      "text": "Review Diagnostics",
+      "classification": "local-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-cross-page-target": "diagnostics",
+        "data-touchpoint-id": "home-sample-validation-records-review-diagnostics"
+      }
+    },
+    {
+      "page": "home",
+      "tag": "button",
+      "id": "",
+      "text": "Review Pending Publish",
+      "classification": "local-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-cross-page-target": "pending",
+        "data-touchpoint-id": "home-sample-validation-records-review-pending"
       }
     },
     {
@@ -2143,8 +2173,8 @@
       "tag": "button",
       "id": "",
       "text": "Drain",
-      "classification": "backend-owned-route",
-      "route": "/api/pipeline/start",
+      "classification": "disabled-future-network-control",
+      "route": "",
       "data_attrs": {
         "data-network-future-control": "drain"
       }
@@ -2206,28 +2236,6 @@
         "data-network-lifecycle-action": "stop",
         "data-network-lifecycle-guided": "true",
         "data-network-lifecycle-role": "worker"
-      }
-    },
-    {
-      "page": "network",
-      "tag": "button",
-      "id": "",
-      "text": "Configure",
-      "classification": "local-or-read-only",
-      "route": "",
-      "data_attrs": {
-        "data-network-open-drawer": "network-settings-drawer"
-      }
-    },
-    {
-      "page": "network",
-      "tag": "button",
-      "id": "",
-      "text": "Configure",
-      "classification": "local-or-read-only",
-      "route": "",
-      "data_attrs": {
-        "data-network-open-drawer": "network-settings-drawer"
       }
     },
     {
@@ -2322,55 +2330,11 @@
       "page": "network",
       "tag": "button",
       "id": "",
-      "text": "Open Cluster Log",
-      "classification": "backend-owned-route",
-      "route": "/api/diagnostics/open",
-      "data_attrs": {
-        "data-open-diagnostics": "cluster_log"
-      }
-    },
-    {
-      "page": "network",
-      "tag": "button",
-      "id": "",
-      "text": "Open Cluster Log",
-      "classification": "backend-owned-route",
-      "route": "/api/diagnostics/open",
-      "data_attrs": {
-        "data-open-diagnostics": "cluster_log"
-      }
-    },
-    {
-      "page": "network",
-      "tag": "button",
-      "id": "",
       "text": "Open Config",
       "classification": "backend-owned-route",
       "route": "/api/diagnostics/open",
       "data_attrs": {
         "data-open-diagnostics": "config"
-      }
-    },
-    {
-      "page": "network",
-      "tag": "button",
-      "id": "",
-      "text": "Open Logs",
-      "classification": "backend-owned-route",
-      "route": "/api/diagnostics/open",
-      "data_attrs": {
-        "data-open-diagnostics": "run_logs"
-      }
-    },
-    {
-      "page": "network",
-      "tag": "button",
-      "id": "",
-      "text": "Open Logs",
-      "classification": "backend-owned-route",
-      "route": "/api/diagnostics/open",
-      "data_attrs": {
-        "data-open-diagnostics": "run_logs"
       }
     },
     {
@@ -2393,6 +2357,78 @@
       "route": "/api/diagnostics/open",
       "data_attrs": {
         "data-open-diagnostics": "state"
+      }
+    },
+    {
+      "page": "network",
+      "tag": "button",
+      "id": "",
+      "text": "Open Cluster Log",
+      "classification": "backend-owned-route",
+      "route": "/api/diagnostics/open",
+      "data_attrs": {
+        "data-open-diagnostics": "cluster_log",
+        "data-touchpoint-id": "network-coordinator-open-cluster-log"
+      }
+    },
+    {
+      "page": "network",
+      "tag": "button",
+      "id": "",
+      "text": "Configure",
+      "classification": "local-or-read-only",
+      "route": "",
+      "data_attrs": {
+        "data-network-open-drawer": "network-settings-drawer",
+        "data-touchpoint-id": "network-coordinator-open-settings"
+      }
+    },
+    {
+      "page": "network",
+      "tag": "button",
+      "id": "",
+      "text": "Open Cluster Log",
+      "classification": "backend-owned-route",
+      "route": "/api/diagnostics/open",
+      "data_attrs": {
+        "data-open-diagnostics": "cluster_log",
+        "data-touchpoint-id": "network-mode-model-open-cluster-log"
+      }
+    },
+    {
+      "page": "network",
+      "tag": "button",
+      "id": "",
+      "text": "Open Logs",
+      "classification": "backend-owned-route",
+      "route": "/api/diagnostics/open",
+      "data_attrs": {
+        "data-open-diagnostics": "run_logs",
+        "data-touchpoint-id": "network-standalone-open-run-logs"
+      }
+    },
+    {
+      "page": "network",
+      "tag": "button",
+      "id": "",
+      "text": "Open Logs",
+      "classification": "backend-owned-route",
+      "route": "/api/diagnostics/open",
+      "data_attrs": {
+        "data-open-diagnostics": "run_logs",
+        "data-touchpoint-id": "network-worker-open-run-logs"
+      }
+    },
+    {
+      "page": "network",
+      "tag": "button",
+      "id": "",
+      "text": "Configure",
+      "classification": "local-or-read-only",
+      "route": "",
+      "data_attrs": {
+        "data-network-open-drawer": "network-settings-drawer",
+        "data-touchpoint-id": "network-worker-open-settings"
       }
     },
     {
@@ -5330,7 +5366,7 @@
       "normalized_route": "/api/audit/export-rerun-csv",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 633,
+      "line": 789,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5346,7 +5382,7 @@
       "normalized_route": "/api/audit/ignore",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 523,
+      "line": 673,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5362,7 +5398,7 @@
       "normalized_route": "/api/audit/score-policy",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 479,
+      "line": 622,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5378,7 +5414,7 @@
       "normalized_route": "/api/audit/sources",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 168,
+      "line": 238,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5394,7 +5430,7 @@
       "normalized_route": "/api/audit/sources",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 201,
+      "line": 274,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5410,7 +5446,7 @@
       "normalized_route": "/api/audit/sources/scan",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 233,
+      "line": 309,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5426,7 +5462,7 @@
       "normalized_route": "/api/audit/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 354,
+      "line": 450,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5442,7 +5478,7 @@
       "normalized_route": "/api/audit/stop",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
-      "line": 435,
+      "line": 574,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -5459,6 +5495,38 @@
       "method": "GET",
       "file": "apps/desktop/webview/static/assets/floatingPipelineLog.js",
       "line": 315,
+      "script_owner": "Shared",
+      "allowed_owners": [
+        "App Shell",
+        "Diagnostics"
+      ],
+      "contract_effect": "none",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/backend/lifecycle/reconcile",
+      "normalized_route": "/api/backend/lifecycle/reconcile",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/recoverySupportView.js",
+      "line": 124,
+      "script_owner": "Shared",
+      "allowed_owners": [
+        "App Shell",
+        "Diagnostics"
+      ],
+      "contract_effect": "lifecycle-evidence-reconciliation",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/backend/lifecycle/reconcile-dry-run",
+      "normalized_route": "/api/backend/lifecycle/reconcile-dry-run",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/recoverySupportView.js",
+      "line": 83,
       "script_owner": "Shared",
       "allowed_owners": [
         "App Shell",
@@ -5505,7 +5573,7 @@
       "normalized_route": "/api/completed/open",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/completed/openActions.js",
-      "line": 72,
+      "line": 76,
       "script_owner": "Completed",
       "allowed_owners": [
         "Completed"
@@ -5671,7 +5739,7 @@
       "normalized_route": "/api/diagnostics/open",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 711,
+      "line": 712,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -5686,7 +5754,7 @@
       "normalized_route": "/api/diagnostics/tdarr-matrix-audit",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnostics/matrixConsole.js",
-      "line": 811,
+      "line": 830,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -5701,7 +5769,7 @@
       "normalized_route": "/api/diagnostics/tdarr-matrix/evidence/open",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnostics/matrixConsole.js",
-      "line": 699,
+      "line": 718,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -5716,7 +5784,7 @@
       "normalized_route": "/api/diagnostics/tdarr-matrix/rerun",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnostics/matrixConsole.js",
-      "line": 726,
+      "line": 745,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -6017,7 +6085,7 @@
       "normalized_route": "/api/maintenance/support-export",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/recoverySupportView.js",
-      "line": 59,
+      "line": 166,
       "script_owner": "Shared",
       "allowed_owners": [
         "Maintenance"
@@ -6047,7 +6115,7 @@
       "normalized_route": "/api/pending-publish/open",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/pendingPublishView.diagnostics.js",
-      "line": 240,
+      "line": 244,
       "script_owner": "Pending Publish",
       "allowed_owners": [
         "Pending Publish"
@@ -6426,7 +6494,7 @@
       "normalized_route": "/api/queue/open",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/openActions.js",
-      "line": 86,
+      "line": 91,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6531,7 +6599,7 @@
       "normalized_route": "/api/rename/apply",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 803,
+      "line": 804,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -6595,7 +6663,7 @@
       "normalized_route": "/api/rename/preview",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/rename/previewLifecycle.js",
-      "line": 285,
+      "line": 286,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -6611,7 +6679,7 @@
       "normalized_route": "/api/rename/undo",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 837,
+      "line": 838,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -7821,6 +7889,32 @@
     },
     {
       "method": "POST",
+      "path": "/api/backend/lifecycle/reconcile",
+      "effect": "lifecycle-evidence-reconciliation",
+      "owner": "",
+      "requires_confirmation": true,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "confirm_apply",
+        "dry_run_fingerprint",
+        "reason"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/backend/lifecycle/reconcile-dry-run",
+      "effect": "none",
+      "owner": "",
+      "requires_confirmation": false,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "reason"
+      ]
+    },
+    {
+      "method": "POST",
       "path": "/api/backend/shutdown",
       "effect": "backend-lifecycle",
       "owner": "",
@@ -8855,7 +8949,8 @@
       "network_lifecycle": false,
       "request_keys": [
         "confirm_continue",
-        "manifest_key"
+        "manifest_key",
+        "request_id"
       ]
     },
     {
@@ -8902,6 +8997,22 @@
         "stage_mode",
         "status_filters",
         "window_size"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/rerun/network/retry",
+      "effect": "network-state-write",
+      "owner": "",
+      "requires_confirmation": true,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "batch_id",
+        "confirm_retry",
+        "reason",
+        "request_id",
+        "row_key"
       ]
     },
     {

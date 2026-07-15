@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/recoverySupportView.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-13
 last_reviewed: 2026-07-11
-sha256: 1b08c0367abe7ffa4465f5721838bdba1a5430e7ed5af655d1a8f79f271cfc71
+sha256: 2627989f4487e7f114b781b9ebc655ca824a4006f8557a2920e0314dae7b5c8d
 ---
 # `apps/desktop/webview/static/assets/recoverySupportView.js`
 

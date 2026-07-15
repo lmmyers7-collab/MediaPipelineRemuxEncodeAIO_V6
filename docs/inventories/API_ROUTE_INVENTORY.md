@@ -1,10 +1,10 @@
 # API Route Inventory
 
-Date: 2026-06-19
+Date: 2026-07-13
 
 Full inventory of all Local API routes: route, method, effect class, backend contract/handler, mutation risk, primary frontend caller, and test coverage. Source: `contract_read.py`, `contract_command.py`, `routes_read.py`, `routes_command.py`.
 
-Total: 168 routes — 54 GET (read) + 114 POST (command).
+Total: 171 routes — 54 GET (read) + 117 POST (command).
 
 All routes require the bootstrap token (`Authorization: Bearer` or `X-MediaPipeline-Token`) except `GET /api/health`.
 
@@ -14,7 +14,7 @@ All routes require the bootstrap token (`Authorization: Bearer` or `X-MediaPipel
 
 All GET routes return data only. None launch pipeline work, write config, drain pending outputs, rename files, or mutate queue or manifest state.
 
-### Status Group (15 routes)
+### Status Group (16 routes)
 
 | Route | Effect | Response Schema | Frontend Caller | Auth | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -37,7 +37,7 @@ All GET routes return data only. None launch pipeline work, write config, drain 
 
 Query params: `/api/diagnostics/tail` accepts `target` (allowlisted key) and `max_bytes` (1 KB–256 KB); backend tail evidence includes `evidence_authority=backend`, and any WebView fallback over older/no-evidence payloads must be labelled frontend advisory only. `/api/launch/preflight` accepts target-specific read-only start-intent fields (`target`, pipeline `mode`, `sleep_seconds`, `show_config`, `show_console`, `single_file`, `schedule_override`, `extra_args`, `allow_extra_args`, audit `library_root`/`include_sidecars`, and rerun `csv_path`/`dry_run` plus lifecycle fields `execution_mode`/`destination_mode`/`collision_policy`/`window_size`; legacy rerun `stage_mode`/`original_mode`/`return_mode` aliases are accepted for compatibility) and returns nested backend `operator_readiness` (`desktop_launch_readiness.v1`) plus pipeline encoder capability report evidence without creating or refreshing artifacts. `POST /api/diagnostics/encoder-capabilities/refresh` is the journaled, bounded diagnostic-artifact command; it cannot launch media work or touch source media. `/api/commands` accepts `limit`. `/api/failures` accepts `source` and `limit`. `/api/queue/file-overrides`, `/api/queue/file-overrides/effective`, and `/api/queue/file-overrides/tracks` accept `path` and validate it under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots).
 
-### Inventory Group (23 routes)
+### Inventory Group (21 routes)
 
 | Route | Effect | Response Schema | Frontend Caller | Auth | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -95,7 +95,7 @@ Network lifecycle start/stop now has backend-owned dry-run and confirmed command
 
 ---
 
-## POST Routes (Command — 111 routes)
+## POST Routes (Command — 116 routes)
 
 All POST routes require auth. File-open routes pass row keys or allowlisted target keys. Queue state routes accept only absolute paths under backend-configured `SourceMovies`/`SourceTV` roots and write non-destructive state manifests. Queue source scan is backend-owned and writes scan evidence plus an authoritative queue snapshot through the existing queue-plan dry run.
 
@@ -140,7 +140,7 @@ Priority and file override/folder-rule path writes are rejected unless the submi
 |---|---|---|---|---|---|
 | `POST /api/queue/open` | `shell-open` | `source_file`, `source_folder`, `source_root` | Queue | Low — OS open only | `test_facade_queue_policy.py`, `test_service_file_open.py` |
 | `POST /api/completed/open` | `shell-open` | `output_file`, `play_output_file`, `output_folder`, `sidecar`, `source_folder` | Completed | Low | `test_facade_completed_open_policy.py`, `test_service_file_open.py` |
-| `POST /api/pending-publish/open` | `shell-open` | `local_file`, `manifest`, `destination_folder`, `source_folder` | Pending Publish | Low | `test_facade_pending_publish_policy.py`, `test_service_file_open.py` |
+| `POST /api/pending-publish/open` | `shell-open` | `play_local_file`, `local_file`, `manifest`, `destination_folder`, `source_folder` | Pending Publish | Low | `test_facade_pending_publish_policy.py`, `test_service_file_open.py` |
 | `POST /api/pending-publish/recovery-plan` | `none` | `scope` (`all`/`selected`), `row_key` | Pending Publish | None — dry-run plan only | `test_facade_pending_publish_policy.py` |
 | `POST /api/completed/reconcile-manifest-dry-run` | `none` | `scope`, `row_key`, `limit`, `reason` | Completed | None — backend dry-run diff only; no manifest write | `test_repair_reconcile_dry_run.py`, `test_application_facade_local_api_repair.py` |
 | `POST /api/completed/reconcile-manifest` | `completed-manifest-write` | `scope`, `row_key`, `limit`, `reason`, `dry_run_fingerprint`, `confirm_apply` | Completed | Medium — backs up and atomically rewrites existing selected completed manifest rows only after matching dry-run fingerprint | `test_repair_reconcile_apply.py`, `test_api_command_contracts.py` |
@@ -172,7 +172,7 @@ Priority and file override/folder-rule path writes are rejected unless the submi
 
 Final-library promotion is backend-owned. The frontend can request the run, pause, or resume with allowlisted keys, but the backend owns destination resolution, completed-output eligibility, copy behavior, pause state, and any configured publish-output cleanup.
 
-### Diagnostics Commands (4 routes)
+### Diagnostics Commands (5 routes)
 
 | Route | Effect | Allowed Targets | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -320,7 +320,7 @@ for preview and `/api/rerun/start` for execution.
 
 Network lifecycle dry-runs, worker test-connection, and mDNS discovery are no-mutation evidence/setup routes. Confirmed start/stop routes require confirmation fields and backend provider preconditions. They do not use normal Launch, do not scan the full queue, do not silently release claims, and do not mutate source media. If the provider hook is unavailable, the route returns a blocked command result rather than starting a fake local run.
 
-### Process Commands (14 routes)
+### Process Commands (18 routes)
 
 | Route | Effect | Key Request Keys / Allowed Values | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -333,12 +333,15 @@ Network lifecycle dry-runs, worker test-connection, and mDNS discovery are no-mu
 | `POST /api/rerun/network-preview` | `read-only-preview` | `csv_path`, `execution_mode`, `destination_mode`, `collision_policy`, `window_size`, `confirm_replace_final`, `confirm_source_overwrite`, `scope` filters | Queue | None — models future network CSV rerun row claims from the backend CSV preview, including claimable/skipped/blocked/duplicate rows, source mapping readiness, `NetworkRerunHandoffRoot` readiness, destination policy risk, and explicit `writes_network_state=false` / `touches_media=false` evidence; it does not create handoff folders, start workers, or write batch state | `test_rerun_csv_preview.py`, `test_api_contract_payload.py`, `test_api_command_contracts.py` |
 | `POST /api/rerun/network/start-dry-run` | `none` | `csv_path`, `execution_mode`, `destination_mode`, `collision_policy`, `window_size`, `confirm_replace_final`, `confirm_source_overwrite`, `scope` filters, `minimum_worker_count`, `reason` | Queue | None — validates a future network CSV rerun batch start without writing state: NetworkRole=coordinator, coordinator lifecycle readiness, active-work and duplicate-batch guards, destination/collision preview safety, `NetworkRerunHandoffRoot` readiness, remote-worker UNC compatibility, worker availability evidence, exact state file paths the confirmed start would write, rollback expectations, and no-touch media evidence | `test_application_facade_process_launch.py`, `test_api_contract_payload.py`, `test_api_command_contracts.py` |
 | `POST /api/rerun/network/start` | `network-state-write` | `csv_path`, `dry_run_fingerprint`, `confirm_start` literal boolean `true`, network preview fields | Queue | High — after matching backend dry-run proof, strict confirmation, and a transient coordinator handoff-root create/read/list/delete probe, writes exactly one coordinator-owned `State\Rerun\Network\network-rerun-*.json` batch file plus strict command journal evidence with planned per-row handoff folders; rows become additive `csv_rerun_row` claim candidates for the coordinator, while the route itself does not directly launch workers, stage sources, mutate normal queue state, apply destination policy, mutate Pending Publish, replace final output, or touch source media | `test_application_facade_process_launch.py`, `test_application_facade_close_readiness.py`, `test_network_rerun_claims.py`, `test_api_contract_payload.py`, `test_api_command_contracts.py` |
+| `POST /api/rerun/network/retry` | `network-state-write` | `batch_id`, `row_key`, `request_id`, nonblank `reason`, `confirm_retry` literal boolean `true` | Queue | High — reopens exactly one terminal `retry_exhausted` source-access row only after fresh coordinator source verification, no active claim, no output-ownership ambiguity, strict confirmation, idempotent request evidence, and the configured retry bound; preserves prior failure history and writes Network batch state plus strict command journal evidence without touching source media or output files | `test_network_rerun_claims.py`, `test_api_contract_payload.py`, `test_api_command_contracts.py`, `test_process_rerun_results.py` |
 | `POST /api/rerun/start` | `process-launch` | `csv_path`, `dry_run`, `plan_only`, `execution_mode`, `destination_mode`, `collision_policy`, `window_size`, `confirm_replace_final`, `confirm_source_overwrite`, `scope` filters | Queue | **High** — spawns backend-owned CSV rerun v2; Queue posts the default normal-remediation mode `auto_replace_clean_else_pending_review`, scoped starts write under `State\Rerun\ScopedCsv`, backend rule-blocked rows cannot launch, WebView derives final-replacement confirmation from destination/collision selection, backend/PowerShell require strict boolean confirmation, clean/problem destination decisions stay backend-owned, and source-path overwrite additionally requires `confirm_source_overwrite` | `test_facade_process_rerun_policy.py`, `test_application_facade_process_launch.py`, `test_rerun_csv_preview.py` |
 | `POST /api/rerun/control` | `process-control` | `action`: `stop_after_current`; `confirm_stop` literal boolean `true` | Queue | Medium — writes only the backend-owned rerun stop marker under `State\Rerun\Control`; PowerShell owns manifest updates after the current row/window finishes | `test_api_command_contracts.py`, `test_api_contract_payload.py`, `test_process_rerun_results.py` |
 | `POST /api/rerun/continue` | `process-launch` | `manifest_key`, `confirm_continue` literal boolean `true` | Queue | **High** — writes a backend-owned pending-only scoped CSV under `State\Rerun\ScopedCsv` and launches through existing CSV rerun locks; failed/review rows are excluded | `test_api_command_contracts.py`, `test_api_contract_payload.py`, `test_process_rerun_results.py` |
 | `POST /api/rerun/open` | `shell-open` | `target`, `row_key`, `csv_key` | Queue | Low — opens only backend-derived rerun review outputs, manifests, import/scoped CSVs, or folders; arbitrary filesystem paths are rejected | `test_api_contract_payload.py` |
 | `POST /api/rerun/promote-dry-run` | `read-only-preview` | `row_key` | Queue | None — computes dry-run evidence for promoting an existing rerun review output into Pending Publish without moving files or writing manifests | `test_api_contract_payload.py` |
 | `POST /api/rerun/promote` | `pending-manifest-write` | `row_key`, `dry_run_fingerprint`, `confirm_promote` | Queue | Medium — after matching dry-run evidence and strict confirmation, writes a `pending_move` manifest, moves an existing rerun review output into Pending Publish, updates the manifest to `parked`, and preserves known sidecar evidence; it does not directly publish or touch source media | `test_api_contract_payload.py`, `test_process_rerun_results.py` |
+| `POST /api/backend/lifecycle/reconcile-dry-run` | `none` | `reason` | Diagnostics / Audit recovery | None — correlates the terminal failed-recovery chain, requires every recorded PID to be conclusively dead, and previews the exact archive transaction without writing lifecycle evidence or touching media files | `test_lifecycle_reconciliation_api.py`, `test_lifecycle_reconciliation.py` |
+| `POST /api/backend/lifecycle/reconcile` | `lifecycle-evidence-reconciliation` | `confirm_apply`, `dry_run_fingerprint`, `reason` | Diagnostics / Audit recovery | **High** — after a matching dry-run fingerprint and literal confirmation, archives only the correlated failed lifecycle evidence through a guarded transaction with strict durable command evidence; it never touches media files | `test_lifecycle_reconciliation_api.py`, `test_lifecycle_reconciliation.py` |
 | `POST /api/backend/shutdown` | `backend-lifecycle` | `reason`, `force_active_work_shutdown` | Tauri shell (close flow) | **Critical** — initiates shutdown only when close-readiness is safe, unless literal boolean `true` force cleanup is requested | `test_tauri_shell_scaffold.py`, `test_local_api_lifecycle_contract_smoke.py` |
 
 `rerun/preview` is no-write and drives auto-preview for the Queue CSV Rerun tab. It classifies rows through backend-owned CSV rerun rules such as `legacy_pipeline_standardize`, `subtitle_remediation`, `audio_language_remediation`, `container_codec_remediation`, `bad_download_full_rerun`, `manual_review_required`, and `blocked_missing_rule_input`; unsafe or ambiguous rows are blocked before launch. `rerun/results` returns a backend-authored CSV rerun `queue_state` read model with first-class Queue row statuses, rule decisions, destination/review/publish evidence, and `uses_pipeline_start=false`; failed rows expose a stable `failure_code` plus a plain-language `operator_message`/`operator_guidance`, while the WebView renders and filters this evidence but does not derive replacement safety. `rerun/start` is still the only live CSV rerun start path; CSV rerun rows are not converted into normal queue rows and are not submitted to `/api/pipeline/start`. The Queue tab keeps final replacement controls visible and posts the default normal-remediation selection (`destination_mode=auto_replace_clean_else_pending_review`, `collision_policy=replace_final`, `confirm_replace_final=true`) while source overwrite stays unchecked unless the operator explicitly enables it. Legacy `stage_mode`/`original_mode`/`return_mode` aliases remain compatibility inputs only. `rerun/control` is the CSV-rerun-specific Stop After Current route and writes only `State\Rerun\Control\stop_after_current.json`; the PowerShell wrapper remains the rerun manifest writer. `rerun/continue` accepts only stopped-after-current manifests and materializes pending rows only before launching through the existing CSV rerun start path. Source-path overwrite is opt-in; destination and collision determine verified-output placement. Final replacement remains strict-confirmation gated: the WebView derives `confirm_replace_final: true` from `destination_mode=auto_replace_clean_else_pending_review`, `destination_mode=publish_replace_final`, or `collision_policy=replace_final`; source-path overwrite additionally requires `confirm_source_overwrite: true`, and backend/PowerShell reject missing or non-boolean confirmation. The auto mode classifies issue evidence in the backend/PowerShell path: clean outputs replace the backend-planned final target and outputs with remaining issues are parked with a `pending_move` manifest before media movement, then marked `parked` after the move. Scope filters may narrow live starts by writing a backend-owned scoped CSV under `State\Rerun\ScopedCsv`; scoped CSVs include rule-evidence columns when written. `backend/shutdown` must be preceded by `GET /api/backend/close-readiness`; unsafe close-readiness returns an error unless `force_active_work_shutdown` is literal JSON boolean `true`.
@@ -349,14 +352,14 @@ Network lifecycle dry-runs, worker test-connection, and mDNS discovery are no-mu
 
 | Effect | Count | Routes |
 |---|---|---|
-| `none` (read-only) | 84 | All non-probing GET routes + preview/validate/reload POSTs + repair/reconcile dry-runs + startup reconcile dry-run + maintenance retention dry-run + preset library preview/export routes + Network lifecycle dry-runs + network CSV rerun start dry-run + worker test-connection/discovery |
+| `none` (read-only) | 86 | All non-probing GET routes + preview/validate/reload POSTs + repair/reconcile dry-runs + backend lifecycle reconciliation dry-run + startup reconcile dry-run + maintenance retention dry-run + preset library preview/export routes + Network lifecycle dry-runs + network CSV rerun start dry-run + worker test-connection/discovery |
 | `bounded-health-check` | 1 | `GET /api/maintenance` |
 | `read-only-preview` | 8 | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/series-clear-preview`, `POST /api/queue/file-overrides/folder-preview`, `POST /api/subtitle-qa/preview`, `POST /api/rerun/preview`, `POST /api/rerun/network-preview`, `POST /api/rerun/promote-dry-run` |
 | `shell-open` | 8 | `POST /api/queue/open`, `completed/open`, `pending-publish/open`, `diagnostics/open`, `diagnostics/tdarr-matrix/evidence/open`, `failures/open`, `maintenance/dependency-atlas/open-folder`, `rerun/open` |
 | `shell-dialog` | 4 | `POST /api/rename/browse`, `POST /api/settings/browse-path`, `POST /api/path-picker/browse`, `POST /api/pipeline/browse-file` |
 | `test-fixture-write` | 1 | `POST /api/rename/filter-cases` |
 | `diagnostic-process` | 2 | `POST /api/diagnostics/tdarr-matrix-audit`, `POST /api/diagnostics/tdarr-matrix/rerun` |
-| `diagnostics-artifact-write` | 1 | `POST /api/maintenance/support-export` |
+| `diagnostics-artifact-write` | 2 | `POST /api/diagnostics/encoder-capabilities/refresh`, `POST /api/maintenance/support-export` |
 | `runtime-evidence-archive` | 1 | `POST /api/maintenance/archive-state-journals` |
 | `ui-state-write` | 1 | `POST /api/ui-preferences` |
 | `metrics-state-write` | 1 | `POST /api/metrics/sources` |
@@ -387,7 +390,8 @@ Network lifecycle dry-runs, worker test-connection, and mDNS discovery are no-mu
 | `pending-orphan-manifest-write` | 1 | `POST /api/pending-publish/reconcile-orphan-payloads` |
 | `filesystem-mutation` | 3 | `POST /api/rename/apply`, `POST /api/rename/undo`, `final-library-promotion/promote-queue` |
 | `process-launch` | 4 | `POST /api/pipeline/start`, `audit/start`, `rerun/start`, `rerun/continue` |
-| `network-state-write` | 1 | `POST /api/rerun/network/start` |
+| `network-state-write` | 2 | `POST /api/rerun/network/start`, `POST /api/rerun/network/retry` |
+| `lifecycle-evidence-reconciliation` | 1 | `POST /api/backend/lifecycle/reconcile` |
 | `backend-lifecycle` | 5 | `POST /api/backend/shutdown`, `POST /api/network/coordinator/start`, `POST /api/network/coordinator/stop`, `POST /api/network/worker/start`, `POST /api/network/worker/stop` |
 
 ---
@@ -405,7 +409,7 @@ Network lifecycle dry-runs, worker test-connection, and mDNS discovery are no-mu
 | `test_contracts.py` | Data contract round-trip (all schema versions) |
 | Domain policy/facade tests (`test_*_policy.py`, `test_application_facade_*.py`) | Business logic and parameter validation per route group |
 | Domain service tests | Underlying service behavior exercised by route handlers |
-| WebView smokes (21 PS1 wrappers) | Integration rendering and mutation-boundary verification |
+| WebView smokes (24 PS1 wrappers) | Integration rendering and mutation-boundary verification |
 | `Test-LocalApiLifecycleContractSmoke.ps1` | Browser-free lifecycle route contract smoke for close-readiness/shutdown safe and watcher-blocked payloads |
 | `Test-LocalApiMaintenanceDryRunContractSmoke.ps1` | Browser-free Maintenance route contract smoke for dry-run-only ops/release/metadata/backfill POSTs, token enforcement, command history, and unchanged temp source/output bytes |
 | `Test-LocalApiSampleValidationContractSmoke.ps1` | Browser-free sample-validation route contract smoke for preview/append/read/tail, token enforcement, current-backend-evidence preview, command history, and temp-only validation-log writes |

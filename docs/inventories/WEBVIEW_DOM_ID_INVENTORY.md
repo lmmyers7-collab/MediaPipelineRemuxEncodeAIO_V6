@@ -4,7 +4,7 @@ Date: 2026-07-03
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `apps/desktop/webview/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 2070. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 2074. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -459,7 +459,11 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `diagnostics-first-response-legend` | `<p>` | First response checklist read-only guardrail |
 | `diagnostics-first-response-detail` | `<pre>` | Selected first-response row detail and read-only mutation boundary |
 | `diagnostics-recovery-status` | `<strong>` | Backend lifecycle recovery classification status |
-| `diagnostics-recovery-detail` | `<pre>` | Backend lifecycle recovery evidence and required action; never a lifecycle command surface |
+| `diagnostics-recovery-detail` | `<pre>` | Read-only backend lifecycle recovery evidence and required action |
+| `diagnostics-recovery-preview-button` | `<button>` | Request a backend-owned, non-journaled lifecycle reconciliation preview |
+| `diagnostics-recovery-reconcile-button` | `<button>` | Apply only a safe fingerprint-bound lifecycle evidence reconciliation |
+| `diagnostics-recovery-action-status` | `<p>` | Preview/apply command status announced to assistive technology |
+| `diagnostics-recovery-action-detail` | `<pre>` | Preview preconditions, blockers, and apply result evidence |
 | `diagnostics-provenance-detail` | `<pre>` | Cross-surface normalized effective-settings provenance troubleshooting view |
 | `diagnostics-close-readiness-overview` | `<div>` | Structured close-readiness status callout |
 | `diagnostics-close-readiness-facts` | `<dl>` | Compact close-readiness fact list |
@@ -871,7 +875,7 @@ and rename bad-case corpus example fields. Current ID count is 1943 unique
 
 This section is generated from `apps/desktop/webview/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 2070
+Count: 2074
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 ```text
@@ -1144,8 +1148,12 @@ diagnostics-progress-rows
 diagnostics-progress-status
 diagnostics-provenance-detail
 diagnostics-provenance-heading
+diagnostics-recovery-action-detail
+diagnostics-recovery-action-status
 diagnostics-recovery-detail
 diagnostics-recovery-heading
+diagnostics-recovery-preview-button
+diagnostics-recovery-reconcile-button
 diagnostics-recovery-status
 diagnostics-state-recovery
 diagnostics-state-recovery-status

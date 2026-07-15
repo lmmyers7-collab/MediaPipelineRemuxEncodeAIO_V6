@@ -83,6 +83,8 @@ MAINTENANCE_ASSET_NAMES = (
 )
 
 EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
+    "/api/backend/lifecycle/reconcile-dry-run": {"recoverySupportView.js"},
+    "/api/backend/lifecycle/reconcile": {"recoverySupportView.js"},
     "/api/backend/shutdown": {"app.js"},
     "/api/ui-preferences": {"app.js"},
     "/api/pipeline/control": {"launch/commandOrchestration.js"},
@@ -177,7 +179,12 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/settings/wizard/save": {"settingsWizard.js"},
 }
 REPAIR_RECONCILE_ROUTE_TERMS = ("repair", "reconcile", "reconciliation")
+LIFECYCLE_RECONCILE_ROUTES = {
+    "/api/backend/lifecycle/reconcile-dry-run",
+    "/api/backend/lifecycle/reconcile",
+}
 ALLOWED_TAURI_EVENT_BRIDGE = "tauriLifecycleBridge.js"
+ALLOWED_TAURI_WINDOW_BRIDGE = "pipelineLogWindowBridge.js"
 RENAME_ASSET_NAMES = (
     "rename/cleaningFilters.js",
     "rename/cleaningWorkbench.js",
@@ -639,7 +646,12 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn('requireApiPost(RERUN_CONTROL_ROUTE)("/api/rerun/control", { action: "pause", confirm_pause: true })', queue_rerun_api_js)
         self.assertIn('requireApiPost(RERUN_NETWORK_START_DRY_RUN_ROUTE)("/api/rerun/network/start-dry-run", request)', queue_rerun_api_js)
         self.assertIn('requireApiPost(RERUN_NETWORK_START_ROUTE)("/api/rerun/network/start", request)', queue_rerun_api_js)
-        self.assertIn("const request = { manifest_key: key, confirm_continue: true };", launch_rerun_presentation_js)
+        self.assertIn(
+            'request: { manifest_key: String(actionOrManifestKey || "").trim(), confirm_continue: true }',
+            launch_rerun_presentation_js,
+        )
+        self.assertIn('confirmation_field: "confirm_continue"', launch_rerun_presentation_js)
+        self.assertIn("requires_confirmation: false", launch_rerun_presentation_js)
         self.assertIn("confirm_start: true", queue_rerun_request_js)
         self.assertIn("dry_run_fingerprint: fingerprint", queue_rerun_request_js)
         self.assertIn('requireApiPost(RERUN_CONTINUE_ROUTE)("/api/rerun/continue", request)', queue_rerun_api_js)
@@ -888,6 +900,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             for route in LOCAL_API_ROUTE_CONTRACT
             if str(route.get("method", "")).upper() == "POST"
             and any(term in str(route.get("path", "")).lower() for term in REPAIR_RECONCILE_ROUTE_TERMS)
+            and route.get("path") not in LIFECYCLE_RECONCILE_ROUTES
         ]
         self.assertEqual({route["path"] for route in callable_routes}, allowed_dry_run_routes | set(allowed_apply_routes))
         for route in callable_routes:
@@ -909,6 +922,21 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
                 self.assertEqual(route["effect"], allowed_apply_routes[route["path"]])
                 self.assertTrue(route["mutation_enabled"])
                 self.assertTrue(route["frontend_exposed"])
+
+        lifecycle_routes = {
+            str(route.get("path")): route
+            for route in LOCAL_API_ROUTE_CONTRACT
+            if route.get("path") in LIFECYCLE_RECONCILE_ROUTES
+        }
+        self.assertEqual(set(lifecycle_routes), LIFECYCLE_RECONCILE_ROUTES)
+        lifecycle_dry_run = lifecycle_routes["/api/backend/lifecycle/reconcile-dry-run"]
+        self.assertEqual(lifecycle_dry_run["effect"], "none")
+        self.assertFalse(lifecycle_dry_run["journaled"])
+        lifecycle_apply = lifecycle_routes["/api/backend/lifecycle/reconcile"]
+        self.assertEqual(lifecycle_apply["effect"], "lifecycle-evidence-reconciliation")
+        self.assertEqual(lifecycle_apply["requires_strict_boolean"], ["confirm_apply"])
+        self.assertTrue(lifecycle_apply["requires_dry_run_fingerprint"])
+        self.assertTrue(lifecycle_apply["journaled"])
 
         read_only_publish_reconciliation = [
             route
@@ -936,6 +964,8 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
                 "/api/pending-publish/repair-manifest": {"pendingPublishView.repair.js"},
                 "/api/pending-publish/reconcile-orphan-payloads-dry-run": {"pendingPublishView.repair.js"},
                 "/api/pending-publish/reconcile-orphan-payloads": {"pendingPublishView.repair.js"},
+                "/api/backend/lifecycle/reconcile-dry-run": {"recoverySupportView.js"},
+                "/api/backend/lifecycle/reconcile": {"recoverySupportView.js"},
             },
         )
 
@@ -1100,12 +1130,36 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             if name != "apiClient.js" and re.search(r"\bfetch\s*\(", source):
                 failures.append(f"{name}: fetch must stay centralized in apiClient.js")
             for pattern, label in forbidden_patterns.items():
-                if label == "direct Tauri bridge access" and name == ALLOWED_TAURI_EVENT_BRIDGE:
+                if label == "direct Tauri bridge access" and name in {
+                    ALLOWED_TAURI_EVENT_BRIDGE,
+                    ALLOWED_TAURI_WINDOW_BRIDGE,
+                }:
                     continue
                 if re.search(pattern, source):
                     failures.append(f"{name}: direct frontend {label} use is forbidden")
 
         self.assertEqual(failures, [])
+
+    def test_pipeline_log_tauri_bridge_exposes_only_the_native_log_window_command(self) -> None:
+        bridge = _asset_sources()[ALLOWED_TAURI_WINDOW_BRIDGE]
+
+        self.assertIn("window.__TAURI__", bridge)
+        self.assertIn('await invoke("open_pipeline_log_window")', bridge)
+        self.assertEqual(bridge.count("open_pipeline_log_window"), 1)
+        for forbidden in [
+            "apiPost(",
+            "fetch(",
+            "shell",
+            "child_process",
+            "filesystem",
+            "openPath",
+            "writeTextFile",
+            "remove(",
+            "pipeline/start",
+            "backend/shutdown",
+        ]:
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, bridge)
 
     def test_tauri_lifecycle_bridge_is_read_only_event_listener(self) -> None:
         sources = _asset_sources()

@@ -2046,6 +2046,8 @@
       "/api/audit/start",
       "/api/audit/stop",
       "/api/backend/close-readiness",
+      "/api/backend/lifecycle/reconcile",
+      "/api/backend/lifecycle/reconcile-dry-run",
       "/api/backend/shutdown",
       "/api/completed/open",
       "/api/completed/reconcile-manifest",
@@ -2202,6 +2204,8 @@
       "diagnostics-owner-handoff-rows",
       "diagnostics-pipeline-log-status",
       "diagnostics-progress-rows",
+      "diagnostics-recovery-preview-button",
+      "diagnostics-recovery-reconcile-button",
       "diagnostics-state-summary-actions",
       "diagnostics-state-summary-rows",
       "diagnostics-state-triage-actions",
@@ -2808,7 +2812,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 2800
+    "top_level_declaration_count": 2821
   },
   "scripts": [
     {
@@ -6848,58 +6852,68 @@
           "kind": "const"
         },
         {
-          "name": "RERUN_START_ROUTE",
+          "name": "RERUN_NETWORK_RETRY_ROUTE",
           "line": 6,
           "kind": "const"
         },
         {
-          "name": "RERUN_RESULTS_ROUTE",
+          "name": "RERUN_START_ROUTE",
           "line": 7,
           "kind": "const"
         },
         {
-          "name": "RERUN_CONTROL_ROUTE",
+          "name": "RERUN_RESULTS_ROUTE",
           "line": 8,
           "kind": "const"
         },
         {
-          "name": "RERUN_CONTINUE_ROUTE",
+          "name": "RERUN_CONTROL_ROUTE",
           "line": 9,
           "kind": "const"
         },
         {
-          "name": "RERUN_OPEN_ROUTE",
+          "name": "RERUN_CONTINUE_ROUTE",
           "line": 10,
           "kind": "const"
         },
         {
-          "name": "RERUN_PROMOTE_DRY_RUN_ROUTE",
+          "name": "RERUN_OPEN_ROUTE",
           "line": 11,
           "kind": "const"
         },
         {
-          "name": "RERUN_PROMOTE_ROUTE",
+          "name": "RERUN_PROMOTE_DRY_RUN_ROUTE",
           "line": 12,
           "kind": "const"
         },
         {
-          "name": "DIAGNOSTICS_OPEN_ROUTE",
+          "name": "RERUN_PROMOTE_ROUTE",
           "line": 13,
           "kind": "const"
         },
         {
-          "name": "COMMAND_HISTORY_ROUTE",
+          "name": "DIAGNOSTICS_OPEN_ROUTE",
           "line": 14,
           "kind": "const"
         },
         {
-          "name": "RERUN_DIAGNOSTICS_TARGETS",
+          "name": "COMMAND_HISTORY_ROUTE",
           "line": 15,
           "kind": "const"
         },
         {
-          "name": "createQueueRerunApiModule",
+          "name": "RERUN_BACKEND_ACTION_ROUTES",
+          "line": 16,
+          "kind": "const"
+        },
+        {
+          "name": "RERUN_DIAGNOSTICS_TARGETS",
           "line": 17,
+          "kind": "const"
+        },
+        {
+          "name": "createQueueRerunApiModule",
+          "line": 19,
           "kind": "function"
         }
       ],
@@ -10409,47 +10423,47 @@
         },
         {
           "name": "__renameConfirmSummaryMod",
-          "line": 704,
+          "line": 705,
           "kind": "const"
         },
         {
           "name": "_renameConfirmSummary",
-          "line": 706,
+          "line": 707,
           "kind": "const"
         },
         {
           "name": "__renameDialogsMod",
-          "line": 720,
+          "line": 721,
           "kind": "const"
         },
         {
           "name": "_renameDialogs",
-          "line": 722,
+          "line": 723,
           "kind": "const"
         },
         {
           "name": "renameApplicablePreviewRows",
-          "line": 748,
+          "line": 749,
           "kind": "function"
         },
         {
           "name": "applyRenameWorkbench",
-          "line": 752,
+          "line": 753,
           "kind": "function"
         },
         {
           "name": "undoLastRenameApply",
-          "line": 822,
+          "line": 823,
           "kind": "function"
         },
         {
           "name": "renameInteractionsModule",
-          "line": 966,
+          "line": 967,
           "kind": "const"
         },
         {
           "name": "renameInteractions",
-          "line": 968,
+          "line": 969,
           "kind": "const"
         }
       ],
@@ -13222,13 +13236,23 @@
           "kind": "function"
         },
         {
-          "name": "focusLibraryControl",
+          "name": "hiddenRouteBoundaryByKey",
           "line": 551,
+          "kind": "const"
+        },
+        {
+          "name": "visibleLibraryRouteTarget",
+          "line": 558,
+          "kind": "function"
+        },
+        {
+          "name": "focusLibraryControl",
+          "line": 569,
           "kind": "function"
         },
         {
           "name": "initLibraryRouteMapEvents",
-          "line": 563,
+          "line": 622,
           "kind": "function"
         }
       ],
@@ -14673,122 +14697,122 @@
         },
         {
           "name": "renderCoverageRows",
-          "line": 329,
+          "line": 330,
           "kind": "function"
         },
         {
           "name": "renderReasonGroupRows",
-          "line": 351,
+          "line": 352,
           "kind": "function"
         },
         {
           "name": "renderThroughputRows",
-          "line": 374,
+          "line": 375,
           "kind": "function"
         },
         {
           "name": "renderWorkerPosture",
-          "line": 408,
+          "line": 409,
           "kind": "function"
         },
         {
           "name": "sourceEvidenceLines",
-          "line": 420,
+          "line": 421,
           "kind": "function"
         },
         {
           "name": "sourceBackfillRows",
-          "line": 439,
+          "line": 440,
           "kind": "function"
         },
         {
           "name": "sourceCachedCount",
-          "line": 443,
+          "line": 444,
           "kind": "function"
         },
         {
           "name": "sourceStateText",
-          "line": 447,
+          "line": 448,
           "kind": "function"
         },
         {
           "name": "appendSourceActionButton",
-          "line": 454,
+          "line": 455,
           "kind": "function"
         },
         {
           "name": "renderMetricsSourceRows",
-          "line": 466,
+          "line": 467,
           "kind": "function"
         },
         {
           "name": "renderSourceBackfill",
-          "line": 497,
+          "line": 498,
           "kind": "function"
         },
         {
           "name": "requestMetricsSourceAdd",
-          "line": 516,
+          "line": 517,
           "kind": "function"
         },
         {
           "name": "requestMetricsSourceAction",
-          "line": 536,
+          "line": 537,
           "kind": "function"
         },
         {
           "name": "requestMetricsBackfill",
-          "line": 555,
+          "line": 556,
           "kind": "function"
         },
         {
           "name": "renderOverview",
-          "line": 574,
+          "line": 575,
           "kind": "function"
         },
         {
           "name": "renderRouteSeries",
-          "line": 599,
+          "line": 600,
           "kind": "function"
         },
         {
           "name": "renderRoutes",
-          "line": 621,
+          "line": 622,
           "kind": "function"
         },
         {
           "name": "renderStorageBreakdown",
-          "line": 650,
+          "line": 651,
           "kind": "function"
         },
         {
           "name": "renderStorageTopRows",
-          "line": 675,
+          "line": 676,
           "kind": "function"
         },
         {
           "name": "renderStorage",
-          "line": 696,
+          "line": 697,
           "kind": "function"
         },
         {
           "name": "renderProduction",
-          "line": 711,
+          "line": 712,
           "kind": "function"
         },
         {
           "name": "renderWorkers",
-          "line": 735,
+          "line": 736,
           "kind": "function"
         },
         {
           "name": "renderWorkerRows",
-          "line": 772,
+          "line": 773,
           "kind": "function"
         },
         {
           "name": "renderMetrics",
-          "line": 795,
+          "line": 796,
           "kind": "function"
         }
       ],
@@ -15285,7 +15309,8 @@
       ],
       "event_types": [
         "change",
-        "click"
+        "click",
+        "keydown"
       ]
     },
     {
@@ -15450,482 +15475,482 @@
         },
         {
           "name": "diagnosticsTextLines",
-          "line": 80,
+          "line": 81,
           "kind": "function"
         },
         {
           "name": "diagnosticsLongRunReliabilityLines",
-          "line": 86,
+          "line": 87,
           "kind": "function"
         },
         {
           "name": "progressCompactionKey",
-          "line": 107,
+          "line": 108,
           "kind": "function"
         },
         {
           "name": "compactRepeatedProgressLines",
-          "line": 114,
+          "line": 115,
           "kind": "function"
         },
         {
           "name": "compactedDiagnosticsTextLines",
-          "line": 147,
+          "line": 148,
           "kind": "function"
         },
         {
           "name": "setTextIfChanged",
-          "line": 151,
+          "line": 152,
           "kind": "function"
         },
         {
           "name": "diagnosticsSeverityForLine",
-          "line": 158,
+          "line": 159,
           "kind": "function"
         },
         {
           "name": "diagnosticsMalformedStateLines",
-          "line": 172,
+          "line": 173,
           "kind": "function"
         },
         {
           "name": "boundedDiagnosticsText",
-          "line": 176,
+          "line": 177,
           "kind": "function"
         },
         {
           "name": "diagnosticsRealMediaBoundaryLines",
-          "line": 182,
+          "line": 183,
           "kind": "function"
         },
         {
           "name": "diagnosticsActionLabel",
-          "line": 191,
+          "line": 192,
           "kind": "function"
         },
         {
           "name": "diagnosticsOrderedActions",
-          "line": 201,
+          "line": 202,
           "kind": "function"
         },
         {
           "name": "diagnosticsActionGroups",
-          "line": 210,
+          "line": 211,
           "kind": "function"
         },
         {
           "name": "diagnosticsActionGroupText",
-          "line": 218,
+          "line": 219,
           "kind": "function"
         },
         {
           "name": "diagnosticsActionPlanLines",
-          "line": 222,
+          "line": 223,
           "kind": "function"
         },
         {
           "name": "appendDiagnosticsActionGroup",
-          "line": 236,
+          "line": 237,
           "kind": "function"
         },
         {
           "name": "diagnosticsArtifactsForLine",
-          "line": 262,
+          "line": 263,
           "kind": "function"
         },
         {
           "name": "initDiagnosticsViewEvents",
-          "line": 269,
+          "line": 270,
           "kind": "function"
         },
         {
           "name": "diagnosticsArtifactTargets",
-          "line": 315,
+          "line": 316,
           "kind": "const"
         },
         {
           "name": "diagnosticsActiveJobsModule",
-          "line": 390,
+          "line": 391,
           "kind": "const"
         },
         {
           "name": "diagnosticsActiveJobs",
-          "line": 392,
+          "line": 393,
           "kind": "const"
         },
         {
           "name": "activeJobRowKey",
-          "line": 406,
-          "kind": "const"
-        },
-        {
-          "name": "getSelectedActiveJobRow",
           "line": 407,
           "kind": "const"
         },
         {
-          "name": "selectActiveJobRow",
+          "name": "getSelectedActiveJobRow",
           "line": 408,
           "kind": "const"
         },
         {
-          "name": "activeJobDiagnosticsActions",
+          "name": "selectActiveJobRow",
           "line": 409,
           "kind": "const"
         },
         {
-          "name": "activeJobRowPosture",
+          "name": "activeJobDiagnosticsActions",
           "line": 410,
           "kind": "const"
         },
         {
-          "name": "activeJobRowsStatusText",
+          "name": "activeJobRowPosture",
           "line": 411,
           "kind": "const"
         },
         {
-          "name": "diagnosticsActiveJobRealMediaTraceLines",
+          "name": "activeJobRowsStatusText",
           "line": 412,
           "kind": "const"
         },
         {
-          "name": "renderActiveJobDiagnosticsActions",
+          "name": "diagnosticsActiveJobRealMediaTraceLines",
           "line": 413,
           "kind": "const"
         },
         {
-          "name": "renderActiveJobRows",
+          "name": "renderActiveJobDiagnosticsActions",
           "line": 414,
           "kind": "const"
         },
         {
-          "name": "renderActiveJobDetail",
+          "name": "renderActiveJobRows",
           "line": 415,
           "kind": "const"
         },
         {
+          "name": "renderActiveJobDetail",
+          "line": 416,
+          "kind": "const"
+        },
+        {
           "name": "diagnosticsTriageModule",
-          "line": 417,
+          "line": 418,
           "kind": "const"
         },
         {
           "name": "diagnosticsTriage",
-          "line": 420,
+          "line": 421,
           "kind": "const"
         },
         {
           "name": "diagnosticsLogModule",
-          "line": 433,
+          "line": 434,
           "kind": "const"
         },
         {
           "name": "diagnosticsLog",
-          "line": 435,
+          "line": 436,
           "kind": "const"
         },
         {
           "name": "diagnosticsLineTimestamp",
-          "line": 454,
-          "kind": "const"
-        },
-        {
-          "name": "diagnosticsLogRows",
           "line": 455,
           "kind": "const"
         },
         {
-          "name": "diagnosticsLogRowKey",
+          "name": "diagnosticsLogRows",
           "line": 456,
           "kind": "const"
         },
         {
-          "name": "diagnosticsLogRowActions",
+          "name": "diagnosticsLogRowKey",
           "line": 457,
           "kind": "const"
         },
         {
-          "name": "diagnosticsLogRowNextStep",
+          "name": "diagnosticsLogRowActions",
           "line": 458,
           "kind": "const"
         },
         {
-          "name": "diagnosticsLogRealMediaTraceLines",
+          "name": "diagnosticsLogRowNextStep",
           "line": 459,
           "kind": "const"
         },
         {
-          "name": "diagnosticsLogGuidanceLines",
+          "name": "diagnosticsLogRealMediaTraceLines",
           "line": 460,
           "kind": "const"
         },
         {
-          "name": "renderDiagnosticsLogActions",
+          "name": "diagnosticsLogGuidanceLines",
           "line": 461,
           "kind": "const"
         },
         {
-          "name": "filteredDiagnosticsLogRows",
+          "name": "renderDiagnosticsLogActions",
           "line": 462,
           "kind": "const"
         },
         {
-          "name": "getLastDiagnosticsLogRows",
+          "name": "filteredDiagnosticsLogRows",
           "line": 463,
           "kind": "const"
         },
         {
-          "name": "selectDiagnosticsLogRow",
+          "name": "getLastDiagnosticsLogRows",
           "line": 464,
           "kind": "const"
         },
         {
-          "name": "getSelectedDiagnosticsLogRow",
+          "name": "selectDiagnosticsLogRow",
           "line": 465,
           "kind": "const"
         },
         {
-          "name": "renderDiagnosticsLogRows",
+          "name": "getSelectedDiagnosticsLogRow",
           "line": 466,
           "kind": "const"
         },
         {
-          "name": "renderDiagnosticsLogDetail",
+          "name": "renderDiagnosticsLogRows",
           "line": 467,
           "kind": "const"
         },
         {
-          "name": "renderDiagnosticsLogTable",
+          "name": "renderDiagnosticsLogDetail",
           "line": 468,
           "kind": "const"
         },
         {
+          "name": "renderDiagnosticsLogTable",
+          "line": 469,
+          "kind": "const"
+        },
+        {
           "name": "diagnosticsFirstResponseModule",
-          "line": 471,
+          "line": 472,
           "kind": "const"
         },
         {
           "name": "diagnosticsFirstResponse",
-          "line": 474,
+          "line": 475,
           "kind": "const"
         },
         {
           "name": "diagnosticsInvestigationModule",
-          "line": 488,
+          "line": 489,
           "kind": "const"
         },
         {
           "name": "diagnosticsInvestigation",
-          "line": 490,
+          "line": 491,
           "kind": "const"
         },
         {
           "name": "diagnosticsStateIssueRows",
-          "line": 507,
-          "kind": "const"
-        },
-        {
-          "name": "diagnosticsPageReviewRows",
           "line": 508,
           "kind": "const"
         },
         {
-          "name": "diagnosticsCrossPageConflictRows",
+          "name": "diagnosticsPageReviewRows",
           "line": 509,
           "kind": "const"
         },
         {
-          "name": "diagnosticsConflictSignalLabel",
+          "name": "diagnosticsCrossPageConflictRows",
           "line": 510,
           "kind": "const"
         },
         {
-          "name": "diagnosticsCommandIssueRows",
+          "name": "diagnosticsConflictSignalLabel",
           "line": 511,
           "kind": "const"
         },
         {
-          "name": "diagnosticsInvestigationAddAction",
+          "name": "diagnosticsCommandIssueRows",
           "line": 512,
           "kind": "const"
         },
         {
-          "name": "diagnosticsInvestigationActions",
+          "name": "diagnosticsInvestigationAddAction",
           "line": 513,
           "kind": "const"
         },
         {
-          "name": "diagnosticsInvestigationStatus",
+          "name": "diagnosticsInvestigationActions",
           "line": 514,
           "kind": "const"
         },
         {
-          "name": "diagnosticsListText",
+          "name": "diagnosticsInvestigationStatus",
           "line": 515,
           "kind": "const"
         },
         {
-          "name": "diagnosticsRowLabel",
+          "name": "diagnosticsListText",
           "line": 516,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerDefaultAction",
+          "name": "diagnosticsRowLabel",
           "line": 517,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerRowSeverity",
+          "name": "diagnosticsOwnerDefaultAction",
           "line": 518,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerHandoffRowKey",
+          "name": "diagnosticsOwnerRowSeverity",
           "line": 519,
           "kind": "const"
         },
         {
-          "name": "diagnosticsCompletedFinalTrustStepForRow",
+          "name": "diagnosticsOwnerHandoffRowKey",
           "line": 520,
           "kind": "const"
         },
         {
-          "name": "diagnosticsCompletedFinalTrustLines",
+          "name": "diagnosticsCompletedFinalTrustStepForRow",
           "line": 521,
           "kind": "const"
         },
         {
-          "name": "diagnosticsCompletedPolicyReconciliationLines",
+          "name": "diagnosticsCompletedFinalTrustLines",
           "line": 522,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerHandoffRows",
+          "name": "diagnosticsCompletedPolicyReconciliationLines",
           "line": 523,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerHandoffStatus",
+          "name": "diagnosticsOwnerHandoffRows",
           "line": 524,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerHandoffSummaryLines",
+          "name": "diagnosticsOwnerHandoffStatus",
           "line": 525,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerHandoffActions",
+          "name": "diagnosticsOwnerHandoffSummaryLines",
           "line": 526,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerPageId",
+          "name": "diagnosticsOwnerHandoffActions",
           "line": 527,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerSelectFunction",
+          "name": "diagnosticsOwnerPageId",
           "line": 528,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerNavigationLabel",
+          "name": "diagnosticsOwnerSelectFunction",
           "line": 529,
           "kind": "const"
         },
         {
-          "name": "setDiagnosticsOwnerHandoffNavStatus",
+          "name": "diagnosticsOwnerNavigationLabel",
           "line": 530,
           "kind": "const"
         },
         {
-          "name": "navigateDiagnosticsOwnerHandoffRow",
+          "name": "setDiagnosticsOwnerHandoffNavStatus",
           "line": 531,
           "kind": "const"
         },
         {
-          "name": "getSelectedDiagnosticsOwnerHandoffRow",
+          "name": "navigateDiagnosticsOwnerHandoffRow",
           "line": 532,
           "kind": "const"
         },
         {
-          "name": "selectDiagnosticsOwnerHandoffRow",
+          "name": "getSelectedDiagnosticsOwnerHandoffRow",
           "line": 533,
           "kind": "const"
         },
         {
-          "name": "renderDiagnosticsOwnerHandoffActions",
+          "name": "selectDiagnosticsOwnerHandoffRow",
           "line": 534,
           "kind": "const"
         },
         {
-          "name": "diagnosticsSampleValidationComparisonLines",
+          "name": "renderDiagnosticsOwnerHandoffActions",
           "line": 535,
           "kind": "const"
         },
         {
-          "name": "renderDiagnosticsOwnerHandoffDetail",
+          "name": "diagnosticsSampleValidationComparisonLines",
           "line": 536,
           "kind": "const"
         },
         {
-          "name": "renderDiagnosticsOwnerHandoffTable",
+          "name": "renderDiagnosticsOwnerHandoffDetail",
           "line": 537,
           "kind": "const"
         },
         {
-          "name": "renderDiagnosticsOwnerHandoff",
+          "name": "renderDiagnosticsOwnerHandoffTable",
           "line": 538,
           "kind": "const"
         },
         {
-          "name": "isDiagnosticsOpenCommand",
+          "name": "renderDiagnosticsOwnerHandoff",
           "line": 539,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOpenHistoryLine",
+          "name": "isDiagnosticsOpenCommand",
           "line": 540,
           "kind": "const"
         },
         {
-          "name": "renderDiagnosticsOpenHistory",
+          "name": "diagnosticsOpenHistoryLine",
           "line": 541,
           "kind": "const"
         },
         {
-          "name": "diagnosticsPayloadFirstString",
+          "name": "renderDiagnosticsOpenHistory",
           "line": 542,
+          "kind": "const"
+        },
+        {
+          "name": "diagnosticsPayloadFirstString",
+          "line": 543,
           "kind": "function"
         },
         {
           "name": "diagnosticsPayloadFlag",
-          "line": 552,
+          "line": 553,
           "kind": "function"
         },
         {
           "name": "diagnosticsLogPanelStatus",
-          "line": 556,
+          "line": 557,
           "kind": "function"
         },
         {
           "name": "renderDiagnostics",
-          "line": 600,
+          "line": 601,
           "kind": "function"
         },
         {
           "name": "diagnosticsFailureMessage",
-          "line": 635,
+          "line": 636,
           "kind": "function"
         },
         {
           "name": "renderDiagnosticsRefreshFailures",
-          "line": 641,
+          "line": 642,
           "kind": "function"
         },
         {
           "name": "requestDiagnosticsOpen",
-          "line": 683,
+          "line": 684,
           "kind": "function"
         }
       ],
@@ -16266,6 +16291,7 @@
       ],
       "api_routes": [],
       "dom_ids_touched": [
+        "report-audit-add-source-button",
         "report-audit-clear-source-selection-button",
         "report-audit-scan-all-button",
         "report-audit-scan-selected-button",
@@ -16499,217 +16525,217 @@
         },
         {
           "name": "reportAuditScoreFieldIds",
-          "line": 397,
+          "line": 394,
           "kind": "const"
         },
         {
           "name": "reportAuditScoreGroupDefaultKeys",
-          "line": 407,
+          "line": 404,
           "kind": "const"
         },
         {
           "name": "reportsAuditModelModule",
-          "line": 408,
+          "line": 405,
           "kind": "const"
         },
         {
           "name": "reportsAuditViewModule",
-          "line": 430,
+          "line": 427,
           "kind": "const"
         },
         {
           "name": "reportsAuditCommandsModule",
-          "line": 483,
+          "line": 480,
           "kind": "const"
         },
         {
           "name": "reportsTriageModule",
-          "line": 526,
+          "line": 523,
           "kind": "const"
         },
         {
           "name": "reportsTabIds",
-          "line": 548,
+          "line": 545,
           "kind": "function"
         },
         {
           "name": "setButtonsBusy",
-          "line": 552,
+          "line": 549,
           "kind": "function"
         },
         {
           "name": "reportAuditCommandApi",
-          "line": 561,
+          "line": 558,
           "kind": "function"
         },
         {
           "name": "reportAuditJsonDetail",
-          "line": 566,
+          "line": 563,
           "kind": "function"
         },
         {
           "name": "renderReportAuditSources",
-          "line": 570,
+          "line": 567,
           "kind": "function"
         },
         {
           "name": "addReportAuditSourceFromForm",
-          "line": 574,
+          "line": 571,
           "kind": "function"
         },
         {
           "name": "scanReportAuditSources",
-          "line": 578,
+          "line": 575,
           "kind": "function"
         },
         {
           "name": "selectAllReportAuditSources",
-          "line": 582,
+          "line": 579,
           "kind": "function"
         },
         {
           "name": "clearReportAuditSourceSelection",
-          "line": 586,
+          "line": 583,
           "kind": "function"
         },
         {
           "name": "renderReportAuditProgressPanel",
-          "line": 590,
+          "line": 587,
           "kind": "function"
         },
         {
           "name": "renderReportAuditRunningState",
-          "line": 594,
+          "line": 591,
           "kind": "function"
         },
         {
           "name": "reportAuditReviewCount",
-          "line": 598,
+          "line": 595,
           "kind": "function"
         },
         {
           "name": "reportFailureReviewCount",
-          "line": 602,
+          "line": 599,
           "kind": "function"
         },
         {
           "name": "collectReportAuditStartRequest",
-          "line": 607,
+          "line": 604,
           "kind": "function"
         },
         {
           "name": "renderReportAuditLaunchPreflight",
-          "line": 611,
+          "line": 608,
           "kind": "function"
         },
         {
           "name": "startReportAuditFromForm",
-          "line": 615,
+          "line": 612,
           "kind": "function"
         },
         {
           "name": "stopReportAuditFromForm",
-          "line": 619,
+          "line": 616,
           "kind": "function"
         },
         {
           "name": "saveReportAuditScorePolicy",
-          "line": 623,
+          "line": 620,
           "kind": "function"
         },
         {
           "name": "ignoreSelectedAuditRows",
-          "line": 627,
+          "line": 624,
           "kind": "function"
         },
         {
           "name": "exportAuditRerunCsv",
-          "line": 631,
+          "line": 628,
           "kind": "function"
         },
         {
           "name": "reportsTriageApi",
-          "line": 635,
+          "line": 632,
           "kind": "function"
         },
         {
           "name": "reportTriageActionOwner",
-          "line": 640,
+          "line": 637,
           "kind": "function"
         },
         {
           "name": "reportTriageBandNextAction",
-          "line": 644,
+          "line": 641,
           "kind": "function"
         },
         {
           "name": "renderReportTriageBand",
-          "line": 648,
+          "line": 645,
           "kind": "function"
         },
         {
           "name": "renderReports",
-          "line": 653,
+          "line": 650,
           "kind": "function"
         },
         {
           "name": "failureReviewTileNode",
-          "line": 687,
+          "line": 684,
           "kind": "function"
         },
         {
           "name": "reportTriageStatus",
-          "line": 703,
+          "line": 700,
           "kind": "function"
         },
         {
           "name": "reportTriageNextStep",
-          "line": 707,
+          "line": 704,
           "kind": "function"
         },
         {
           "name": "reportTriageLines",
-          "line": 711,
+          "line": 708,
           "kind": "function"
         },
         {
           "name": "renderReportTriage",
-          "line": 715,
+          "line": 712,
           "kind": "function"
         },
         {
           "name": "reportInvestigationStatus",
-          "line": 719,
+          "line": 716,
           "kind": "function"
         },
         {
           "name": "reportInvestigationChecklistLines",
-          "line": 723,
+          "line": 720,
           "kind": "function"
         },
         {
           "name": "renderReportInvestigation",
-          "line": 727,
+          "line": 724,
           "kind": "function"
         },
         {
           "name": "initReportsViewEvents",
-          "line": 731,
+          "line": 728,
           "kind": "function"
         },
         {
           "name": "reportsComponentCommandSelectors",
-          "line": 850,
+          "line": 847,
           "kind": "function"
         },
         {
           "name": "markReportsComponentFresh",
-          "line": 861,
+          "line": 858,
           "kind": "function"
         },
         {
           "name": "renderReportsUnavailable",
-          "line": 876,
+          "line": 873,
           "kind": "function"
         }
       ],
@@ -17271,43 +17297,83 @@
           "kind": "let"
         },
         {
-          "name": "byId",
+          "name": "lifecycleReconcileBusy",
           "line": 4,
-          "kind": "function"
+          "kind": "let"
         },
         {
-          "name": "text",
+          "name": "lifecycleReconcilePreview",
           "line": 5,
-          "kind": "function"
+          "kind": "let"
         },
         {
-          "name": "safe",
+          "name": "byId",
           "line": 6,
           "kind": "function"
         },
         {
-          "name": "meaningfulRecovery",
+          "name": "text",
           "line": 7,
           "kind": "function"
         },
         {
+          "name": "safe",
+          "line": 8,
+          "kind": "function"
+        },
+        {
+          "name": "meaningfulRecovery",
+          "line": 9,
+          "kind": "function"
+        },
+        {
           "name": "renderRecoveryStatus",
-          "line": 13,
+          "line": 15,
           "kind": "function"
         },
         {
           "name": "renderProductization",
-          "line": 37,
+          "line": 39,
+          "kind": "function"
+        },
+        {
+          "name": "reconciliationReason",
+          "line": 51,
+          "kind": "function"
+        },
+        {
+          "name": "appendEvidence",
+          "line": 54,
+          "kind": "function"
+        },
+        {
+          "name": "setReconcileControls",
+          "line": 57,
+          "kind": "function"
+        },
+        {
+          "name": "renderReconcileResult",
+          "line": 64,
+          "kind": "function"
+        },
+        {
+          "name": "previewLifecycleReconcile",
+          "line": 77,
+          "kind": "function"
+        },
+        {
+          "name": "applyLifecycleReconcile",
+          "line": 117,
           "kind": "function"
         },
         {
           "name": "createSupportBundle",
-          "line": 49,
+          "line": 156,
           "kind": "function"
         },
         {
           "name": "initRecoverySupportEvents",
-          "line": 75,
+          "line": 182,
           "kind": "function"
         }
       ],
@@ -17316,9 +17382,13 @@
       ],
       "flat_window_exports": [],
       "api_routes": [
+        "/api/backend/lifecycle/reconcile",
+        "/api/backend/lifecycle/reconcile-dry-run",
         "/api/maintenance/support-export"
       ],
       "dom_ids_touched": [
+        "diagnostics-recovery-preview-button",
+        "diagnostics-recovery-reconcile-button",
         "home-recovery-banner",
         "maintenance-support-create",
         "maintenance-support-include-logs",
@@ -18159,23 +18229,28 @@
           "kind": "function"
         },
         {
-          "name": "showDiagnosticsLogsFallback",
+          "name": "openNativeLogWindow",
           "line": 30,
           "kind": "function"
         },
         {
+          "name": "showDiagnosticsLogsFallback",
+          "line": 40,
+          "kind": "function"
+        },
+        {
           "name": "openPipelineLogWindow",
-          "line": 42,
+          "line": 52,
           "kind": "function"
         },
         {
           "name": "bindOpenButton",
-          "line": 64,
+          "line": 78,
           "kind": "function"
         },
         {
           "name": "initPipelineLogWindowBridgeEvents",
-          "line": 71,
+          "line": 85,
           "kind": "function"
         }
       ],
@@ -21109,13 +21184,53 @@
       "path": "apps/desktop/webview/static/assets/app/rowOpenActions.js",
       "top_level_declarations": [
         {
-          "name": "rowOpenActionGroup",
+          "name": "rowOpenActionEventsBound",
           "line": 2,
+          "kind": "let"
+        },
+        {
+          "name": "rowOpenActionGroup",
+          "line": 4,
+          "kind": "function"
+        },
+        {
+          "name": "handleBackendRowOpenAction",
+          "line": 48,
+          "kind": "function"
+        },
+        {
+          "name": "normalizedAvailableTargets",
+          "line": 58,
+          "kind": "function"
+        },
+        {
+          "name": "rowOpenActionButtons",
+          "line": 70,
+          "kind": "function"
+        },
+        {
+          "name": "applyBackendRowOpenActionState",
+          "line": 76,
+          "kind": "function"
+        },
+        {
+          "name": "setBackendRowOpenActionAvailability",
+          "line": 88,
+          "kind": "function"
+        },
+        {
+          "name": "setBackendRowOpenActionBusy",
+          "line": 99,
+          "kind": "function"
+        },
+        {
+          "name": "bindBackendRowOpenActionEvents",
+          "line": 106,
           "kind": "function"
         },
         {
           "name": "initBackendRowOpenActions",
-          "line": 46,
+          "line": 112,
           "kind": "function"
         }
       ],
@@ -21125,7 +21240,9 @@
       "flat_window_exports": [],
       "api_routes": [],
       "dom_ids_touched": [],
-      "event_types": []
+      "event_types": [
+        "click"
+      ]
     },
     {
       "load_index": 274,
@@ -21802,20 +21919,15 @@
         "completed-status-filter",
         "dependency-atlas-button",
         "dependency-atlas-open-folder-button",
-        "failure-filter",
         "failure-source-markers",
         "final-library-pause-button",
         "final-library-promote-button",
         "final-library-resume-button",
         "home-refresh-button",
         "maintenance-refresh-button",
-        "pending-clear-filters-button",
         "pending-drain-button",
-        "pending-filter",
-        "pending-investigation-filter",
         "pending-recovery-plan-all-button",
         "pending-recovery-plan-selected-button",
-        "pending-status-filter",
         "pipeline-start-button",
         "publish-reconciliation-refresh-button",
         "queue-clear-filters-button",

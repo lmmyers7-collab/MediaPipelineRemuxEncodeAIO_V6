@@ -159,6 +159,11 @@ def build_rerun_csv_launch_plan(
     confirm_original_policy: bool = False,
     confirm_delete_original: bool = False,
     plan_only: bool = False,
+    command_id: str = "",
+    launch_id: str = "",
+    batch_id: str = "",
+    enrollment_path: Path | None = None,
+    manifest_path: Path | None = None,
 ) -> ProcessLaunchPlan:
     if not resolved.powershell_host:
         raise RuntimeError("PowerShell host could not be resolved.")
@@ -206,6 +211,16 @@ def build_rerun_csv_launch_plan(
         args.append("-ConfirmReplaceFinal")
     if confirm_source_overwrite:
         args.append("-ConfirmSourceOverwrite")
+    if command_id:
+        args.extend(["-CommandId", command_id])
+    if launch_id:
+        args.extend(["-LaunchId", launch_id])
+    if batch_id:
+        args.extend(["-BatchId", batch_id])
+    if enrollment_path is not None:
+        args.extend(["-EnrollmentPath", str(enrollment_path)])
+    if manifest_path is not None:
+        args.extend(["-ManifestPath", str(manifest_path)])
     mode = "plan_only" if plan_only else "dry_run" if dry_run else "run"
 
     return ProcessLaunchPlan(
@@ -228,5 +243,10 @@ def build_rerun_csv_launch_plan(
             "confirm_source_overwrite": bool(confirm_source_overwrite),
             "confirm_original_policy": bool(confirm_original_policy),
             "confirm_delete_original": bool(confirm_delete_original),
+            "command_id": command_id,
+            "launch_id": launch_id,
+            "batch_id": batch_id,
+            "enrollment_path": str(enrollment_path) if enrollment_path is not None else "",
+            "manifest_path": str(manifest_path) if manifest_path is not None else "",
         },
     )

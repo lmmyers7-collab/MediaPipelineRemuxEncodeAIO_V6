@@ -1,6 +1,6 @@
 # State File Schema Reference
 
-Date: 2026-06-02
+Date: 2026-07-14
 
 Schema-level documentation for runtime state contracts in MediaPipelineRemuxEncodeAIO. Each section gives the schema version, field names with types/defaults, valid enum values, and the artifact that holds the data. Primary dataclass contracts live under `src/mediapipeline/desktop/contracts/`; focused helper contracts are called out by file.
 
@@ -118,18 +118,79 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 
 ---
 
+## CsvRerunLocalEnrollment
+
+**Contract file**: `src/mediapipeline/core/processes/rerun_lifecycle.py`.
+**Artifact**: `State\Rerun\Local\<batch_id>.json` under `LocalBase`.
+**Schema version**: `desktop_rerun_local_enrollment.v1`.
+
+The backend writes this authority before spawning `Invoke-RerunCsv.ps1`. It
+closes the acceptance-to-manifest evidence gap while the PowerShell execution
+manifest is not yet available. PowerShell references this file but does not
+mutate it.
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `command_id` / `launch_id` / `batch_id` | `str` | — | Stable correlation chain shared with command journal, ActiveJobs, launch logs, and execution manifest |
+| `enrollment_path` / `manifest_path` | `str` | — | Backend enrollment path and expected PowerShell execution-manifest path |
+| `csv_path` / `source_csv_path` | `str` | — | Effective scoped CSV and original operator-selected CSV |
+| `queue_source` | `str` | `csv_rerun` | Dedicated-rerun read-model source; the batch is not inserted into the normal queue |
+| `uses_pipeline_start` / `inserted_into_normal_queue` | `bool` | `False` | Explicit ownership boundary |
+| `status` / `lifecycle_state` / `current_phase` | `str` | `accepted` | Durable lifecycle state such as `accepted`, `process_spawned`, `spawn_transition_ambiguous`, or `failed_before_manifest`. `spawn_transition_ambiguous` is nonterminal and duplicate-blocking until correlated child-exit proof exists |
+| `created_at` / `accepted_at` / `last_transition_at` / `completed_at` | `str` | — | UTC lifecycle timestamps when applicable |
+| `pid` / `return_code` | `int` | — | Child-process evidence when available |
+| `process_exit_verified` | `bool` | — | Literal `true` means correlated child exit was conclusively proved. Missing or `false` evidence never authorizes retry-generation supersession |
+| `duplicate_launch_blocked` | `bool` | — | `true` keeps an enrollment nonterminal and blocks duplicate work while child/tree cleanup is unknown. Only literal `false` paired with `process_exit_verified: true` can make a terminal premanifest failure supersedable |
+| `timeline[]` | `list[dict]` | `[]` | Ordered lifecycle evidence with state, timestamp, and stable reason code |
+| `evidence_links` | `dict` | `{}` | ActiveJobs, stdout/stderr log, expected manifest, and command evidence links |
+| `rows[]` | `list[dict]` | `[]` | Accepted CSV rows retained even if the wrapper exits before its execution manifest is complete |
+| `rows[].source_content_sha256` | `str` | — | Additive full-file SHA-256 proof used for identity-safe recovery; sampled `source_identity_v2` remains separately labeled and is not treated as a full-content hash |
+| `recovery_request_id` / `recovery_key` / `recovery_scope` | `str` | — | Exactly-once recovery provenance. Replaying the same request is idempotent; `recovery_key` identifies the selected generation within the logical recovery scope |
+| `recovery_root_key` / `recovery_generation` | mixed | — | Stable logical recovery namespace plus positive generation number. The namespace binds the correlated source batch, recovery scope, and canonicalized row-selector set. Selector paths use Windows-equivalent case, separator, and dot-segment normalization before sorting/hashing, so ordering or equivalent spellings cannot mint duplicate work |
+| `recovery_supersedes_enrollment_path` / `recovery_supersedes_recovery_key` / `recovery_supersedes_batch_id` | `str` | — | Exact prior failed-before-manifest generation superseded by this generation; empty for the first generation or when no prior generation is safely supersedable |
+| `recovery_source_command_id` / `recovery_source_launch_id` / `recovery_source_batch_id` | `str` | — | Immutable logical execution identity from which recovery was authorized |
+| `recovery_source_manifest_path` / `recovery_source_manifest_key` | `str` | — | Exact execution-manifest evidence path and compatibility key; neither defines the canonical logical recovery namespace |
+| `recovery_row_selectors[]` | `list[dict]` | `[]` | Canonically ordered durable row selectors used in the recovery namespace and identity-safe scoped CSV |
+
+### Notes
+
+- The enrollment is durable acceptance/process evidence, not media-policy or
+  destination authority. The PowerShell manifest owns planning, staging,
+  processing, destination, and terminal row evidence.
+- `GET /api/rerun/results` joins enrollment and execution evidence by
+  `batch_id`, preferring the execution manifest for later-stage row state while
+  retaining the shared correlation chain.
+- A child exit before an execution manifest exists becomes
+  `failed_before_manifest` only with conclusive exit proof. Unknown child state
+  or degraded tree cleanup remains `spawn_transition_ambiguous`, retains
+  duplicate blocking, and requires reconciliation.
+- Backend startup and waiting-row recovery require exact command, launch,
+  batch, enrollment-path, and manifest-path correlation. For v2 manifests, the
+  selected file path must equal the path declared by the writer; copied or
+  renamed manifests are not authoritative recovery evidence.
+- A later recovery generation may supersede only a prior
+  `failed_before_manifest` enrollment with literal `process_exit_verified:
+  true`, literal `duplicate_launch_blocked: false`, and an expected manifest
+  path proved absent. Files, directories, broken links/reparse points, and
+  metadata-access failures remain fail-closed.
+
+---
+
 ## CsvRerunManifest
 
 **Contract file**: helper-owned PowerShell/Python evidence; no formal generated JSON schema is currently emitted.
 **Artifact**: `RerunManifests\*.json` under `LocalBase`, plus temporary batch config files beside the manifest when a non-PlanOnly rerun starts.
-**Schema version**: no `schema_version` field is currently written; treat the manifest as runtime evidence, not standalone mutation authority.
+**Schema version**: `rerun_batch_manifest.v2`; treat the manifest as runtime evidence, not standalone mutation authority.
 
 ### Common Fields
 
 | Field | Type | Default | Notes |
 |---|---|---|---|
 | `batch_id` | `str` | — | Unique rerun batch identifier |
+| `command_id` / `launch_id` | `str` | — | Required stable backend/ActiveJobs/log correlation identifiers; resume preserves exact values and rejects blank/mismatched replacements |
+| `enrollment_path` | `str` | — | Read-only reference to the backend-owned local enrollment record |
 | `created_at` | `str` | — | ISO 8601 batch creation timestamp |
+| `started_at` / `last_transition_at` / `completed_at` | `str` | — | Execution lifecycle timestamps when applicable |
 | `csv_path` | `str` | — | CSV input path used for this batch |
 | `config_path` | `str` | — | Config or generated temp config path |
 | `dry_run` / `plan_only` | `bool` | `False` | Rerun execution mode evidence |
@@ -143,11 +204,14 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 | `current_chunk` | `int` | — | Last processed chunk/window index when status was recorded |
 | `remaining_pending_count` | `int` | — | Count of rows still marked `pending` when the manifest was last written |
 | `safe_next_action` | `str` | — | Operator-facing continuation guidance for cooperative stops |
+| `current_phase` / `current_row_index` | mixed | — | Current backend-authored lifecycle phase and CSV row |
+| `timeline[]` | `list[dict]` | `[]` | Strictly increasing lifecycle transitions with what/why/when/next evidence |
 | `rows` | `list[dict]` | `[]` | Per-row plan/result evidence |
+| `write_sequence` / `transition_sequence` | `int` | `0` | Per-manifest compare-and-swap and ordered lifecycle evidence; stale, skipped/future, cross-batch, and terminal-regressing writes are rejected |
 
 ### Row Fields
 
-Rows commonly include `source_path`, `media_kind`, `stage_mode`, `original_mode`, `return_mode`, `stage_path`, `planned_output_path`, `final_output_path`, `status`, `reason`, `source_size`, `source_mtime_utc`, `source_identity_v2`, `audit_issue_codes`, and a nested `queue_item` record when planning succeeded. Runtime/result rows may also include `verified_output_path`, `review_output_path`, `pending_publish_manifest_path`, `pending_publish_payload_path`, `published_path`, `replaced_final_hold_path`, and `updated_at`. Scoped CSVs written by the backend may also carry `rerun_rule_id`, `rerun_rule_label`, `rerun_rule_status`, `rerun_rule_reason`, `rerun_rule_destination_behavior`, `rerun_rule_replacement_eligible`, `rerun_rule_required_confirmations`, and `rerun_rule_runtime_options`; older CSVs/manifests without these fields are classified by the backend read model for Queue display. Auto-return rows may also include `auto_destination_policy`, `auto_destination_decision`, `auto_destination_issue_count`, and `auto_destination_issues`; these are written by `Invoke-RerunCsv.ps1` only and the WebView renders them as read-only evidence.
+Rows commonly include `source_path`, `media_kind`, `stage_mode`, `original_mode`, `return_mode`, `stage_path`, `planned_output_path`, `final_output_path`, `status`, `lifecycle_state`, `reason`, `reason_code`, `source_size`, `source_mtime_utc`, sampled `source_identity_v2`, additive `source_content_sha256` / `planned_source_content_sha256` / `staged_source_content_sha256`, `audit_issue_codes`, and a nested `queue_item` record when planning succeeded. Recoverable rows also retain `attempt_count`, `max_attempts`, `stage_attempt_id`, `stage_attempt_count`, `nested_launch_id`, `nested_launch_count`, `rerun_chunk_index`, first/last failure evidence, `next_retry_at`, operator guidance, and a per-row `timeline`. Runtime/result rows may also include `verified_output_path`, `review_output_path`, Pending Publish/final-placement evidence, and `updated_at`. Scoped CSVs written by the backend preserve the strong content hash and may also carry backend rerun-rule columns. Legacy offline rows without a persisted strong hash fail closed to review rather than establishing a new identity baseline after reconnect.
 
 ### Queue Read Model
 
@@ -168,16 +232,25 @@ Rows commonly include `source_path`, `media_kind`, `stage_mode`, `original_mode`
 | `rows[].network_reducer_result` / `network_worker_result` | `dict` | `{}` | Read-only Network CSV rerun reducer and worker evidence when projected from `NetworkCsvRerunBatch` |
 | `rows[].network_destination_policy_result` | `dict` | `{}` | Read-only Network CSV rerun Phase 6 destination-policy evidence, including action, terminal status, review output, Pending Publish manifest/payload, published path, hashes, transaction data, or failure reason |
 | `rows[].network_output_artifact` | `str` | `""` | Verified handoff output path for network reducer rows, when present |
-| `rows[].available_actions` | `list[dict]` | `[]` | Backend-declared row actions such as open artifact/folder/manifest or promote review output to Pending Publish |
+| `rows[].lifecycle_state` / `reason_code` / `lifecycle_evidence` | mixed | — | Backend-authored what/why/when/next state, stable reason, attempts, error, timestamps, and evidence links; the WebView does not infer recovery safety |
+| `rows[].available_actions` | `list[dict]` | `[]` | Backend-declared row actions such as open artifact/folder/manifest, promote review output, continue/retry an exact eligible scope, or request an exhausted Network-row retry |
+| `counts` | `dict` | `{}` | Disjoint local and Network lifecycle totals for executable, blocked, waiting, retrying, staged, active, completed, failed, review, and pending-publish operator buckets |
 
 ### Notes
 
-- Queue/Home use the newest active CSV rerun manifest only as read-only operator evidence when no normal queue snapshot is available and an active `rerun_csv` job is present. The Queue CSV Rerun tab also reads `GET /api/rerun/results` directly so CSV rerun rows remain visible even when normal queue rows are empty.
+- Queue/Home append nonterminal dedicated CSV rerun rows to the normal queue read model, including durable waiting/retry evidence after a wrapper exit or backend restart. These rows remain marked `queue_source=csv_rerun` and `uses_pipeline_start=false`; they never become normal pipeline-start work.
 - Network CSV rerun rows are projected from `State\Rerun\Network\*.json` as read-only Queue evidence with `network_manifest_root`, `network_manifests`, `network_row_count`, and `queue_state.contains_network_csv_rerun`. Phase 5 exposes reducer status and pending destination-policy evidence; Phase 6 may expose coordinator-applied review workspace, Pending Publish, final publish, or destination-policy failure evidence after a worker done report has been reduced.
 - Row `status` and `reason` drive operator-visible state; failed, blocked, held, completed, pending, staged, and review-workspace rows should not all render as ready. Current manifests include per-row `row_index` for the original CSV row position so continuation can exclude failed duplicate-source rows.
 - Queue-facing CSV rerun row statuses and rule decisions are normalized by the backend read model. The WebView filters and renders these labels but does not infer whether an output is clean enough to replace, should be pending-publish review, can be promoted, or is eligible for replacement.
-- `stopped_after_current` is a terminal clean-stop status for CSV rerun v1 continuation. `/api/rerun/continue` may materialize a new pending-only scoped CSV only from this status; failed/review/completed rows are not retried automatically.
-- CSV rerun start readiness is not delegated to stale manifests. `/api/rerun/preview`, `/api/launch/preflight?target=rerun`, `/api/rerun/start`, and `Invoke-RerunCsv.ps1` validate CSV rows against absolute paths, source existence, valid media extensions, and safe lifecycle modes before execution.
+- `stopped_after_current` is a terminal clean-stop status for CSV rerun continuation. `/api/rerun/continue` requires a nonblank `request_id` and strict `confirm_continue=true`; it may materialize a new pending-only or identity-preserving recovery CSV only from an exact backend-qualified scope. Request provenance makes replay idempotent and blocks a different request from duplicating the same recovery launch.
+- CSV rerun start readiness is not delegated to stale manifests. `/api/rerun/preview`, `/api/launch/preflight?target=rerun`, `/api/rerun/start`, and `Invoke-RerunCsv.ps1` validate absolute paths, media extensions, source health/identity, and safe lifecycle modes. A transient configured-root/access outage is retained as waiting/retry evidence rather than misreported as an empty queue or permanently missing file.
+- Scratch staging requires a proved drive/UNC-share trust root and a reparse-free
+  component chain through the batch path. Missing-leaf creation is
+  component-wise and re-proved; dangling reparse points, metadata uncertainty,
+  identity changes, or unexpected cleanup contents fail closed as boundary or
+  cleanup-ambiguity evidence. A verified full-hash scratch copy may continue
+  after the source disappears, while source-mutating Robocopy modes remain
+  forbidden.
 
 ---
 
@@ -191,7 +264,7 @@ Rows commonly include `source_path`, `media_kind`, `stage_mode`, `original_mode`
 |---|---|---|---|
 | `schema_version` | `str` | — | `desktop_rerun_network_batch.v1` |
 | `batch_id` | `str` | — | Backend-generated deterministic network CSV rerun batch id |
-| `status` | `str` | `active` | Phase 4B active state blocks close-readiness while worker row claims may be active |
+| `status` | `str` | `active` | Aggregate batch state such as `active`, `retry_exhausted`, `review_required`, `failed`, or `complete`; active work blocks close-readiness |
 | `phase` | `str` | — | Confirmed-start phase evidence; row-level reducer evidence carries `reducer_phase=phase_5_coordinator_result_reducer`, and row-level destination evidence carries `phase=phase_6_destination_policy_integration` |
 | `created_at_utc` / `updated_at_utc` | `str` | — | UTC state timestamps |
 | `command_id` | `str` | — | Backend command id recorded with command journal evidence |
@@ -205,7 +278,7 @@ Rows commonly include `source_path`, `media_kind`, `stage_mode`, `original_mode`
 | `rows[]` | `list[dict]` | `[]` | Coordinator-owned row records derived from preview rows |
 | `rows[].schema_version` | `str` | — | `desktop_rerun_network_batch_row.v1` |
 | `rows[].row_key` / `row_index` | `str` / mixed | — | Stable row identity from the network preview |
-| `rows[].status` | `str` | — | `pending_claim`, `claimed`, `worker_completed_pending_reduction`, `destination_policy_applying`, `review_workspace`, `pending_publish`, `published_non_overlap`, `published_replace_final`, `destination_policy_failed`, `worker_failed_pending_reduction`, `worker_review_pending_reduction`, `blocked`, or `skipped` |
+| `rows[].status` | `str` | — | Includes `pending_claim`, `claimed`, `retry_scheduled`, `retry_exhausted`, `review_required`, worker reduction states, destination-policy states, `blocked`, or `skipped` |
 | `rows[].claimable` | `bool` | `True` only for pending start-ready rows | Coordinator claim provider may hand the row to one worker when true |
 | `rows[].claim_status` | `str` | `pending_claim` | Worker claim lifecycle evidence such as `pending_claim`, `claimed`, `released`, or `done_reported` |
 | `rows[].planned_output_path` | `str` | `""` | Planned per-row handoff folder path under `<NetworkRerunHandoffRoot>/<batch_id>/<row_key>/` |
@@ -219,13 +292,26 @@ Rows commonly include `source_path`, `media_kind`, `stage_mode`, `original_mode`
 | `rows[].published_path` / `server_out` / `review_output_path` | `str` | `""` | Coordinator-authored final publish, requested server output, or handoff review workspace evidence |
 | `rows[].duplicate_done_count` / `late_done_count` | `int` | `0` | Idempotency counters for duplicate and late done reports |
 | `rows[].reducer_events[]` / `late_worker_results[]` | `list[dict]` | `[]` | Bounded evidence history for duplicate, late, and terminal-after-release reports |
+| `rows[].attempt_count` / `retry_count` / `retry_limit` | `int` | `0` | Durable bounded-attempt evidence; the retry limit reuses the coordinator retry configuration |
+| `rows[].retry_after_seconds` / `next_retry_at_utc` | mixed | — | Exponential bounded backoff evidence for a retry-scheduled row |
+| `rows[].first_failure` / `last_failure` / `retry_history[]` | mixed | — | First/last source or worker failure and bounded retry history with stable reason codes |
+| `rows[].source_replay_evidence` | `dict` | `{}` | Fresh root/file probe, observed size/mtime/identity, mismatch list, and typed `source_location_unavailable`, `source_missing`, `source_access_failed`, or changed-identity evidence |
+| `rows[].source_content_sha256` | `str` | — | Full-file SHA-256 baseline captured before claim/recovery and revalidated on reconnect; sampled identity remains separate |
+| `rows[].timeline[]` | `list[dict]` | `[]` | Backend-authored what/why/when/next/operator-action lifecycle history |
+| `rows[].manual_recovery_required` / `manual_recovery_available` | `bool` | `False` | Exhausted rows remain visible; only exact safe exhausted rows expose backend-owned retry action metadata |
+| `rows[].manual_retry_history[]` / `manual_retry_denials[]` | `list[dict]` | `[]` | Request-id idempotency, reason, fresh source proof, and denied retry evidence |
+| `row_count` / `claimable_row_count` / `active_row_count` / `terminal_row_count` | `int` | `0` | Aggregate claim/lifecycle totals recomputed under the batch-state lock |
+| `retry_scheduled_row_count` / `retry_exhausted_row_count` / `review_row_count` / `failed_row_count` | `int` | `0` | Disjoint recovery and terminal operator counts |
+| `batch_terminal` / `manual_recovery_row_count` | mixed | — | Whether every row is terminal and how many rows require operator recovery action |
 
 Notes:
 
 - Phase 4B writes this file and strict command journal evidence only after a transient coordinator handoff-root probe succeeds. Workers may claim one row at a time and write to the planned handoff folder only.
-- Phase 5 reduces done reports by verifying batch id, row key, claim id, worker id, source identity, worker artifact metadata, output presence, and handoff boundary. Success initially records `pending_destination_policy=true`; review, output-missing, corrupt, retryable failure, terminal failure, duplicate, and late reports are persisted as evidence without media movement.
+- Before every claim, the coordinator runs killable bounded root/file/identity probes. Unavailable roots and access failures schedule bounded retries; a reachable missing leaf or changed identity routes to review. Configured mapped-drive and UNC roots use the same typed contract without frontend path probing.
+- Phase 5 reduces done reports by verifying batch id, row key, exact active claim/job/worker identity, source identity, worker artifact metadata, output presence, and handoff boundary. Success initially records `pending_destination_policy=true`; review, output-missing, corrupt, retryable failure, terminal failure, duplicate, and late reports are persisted as evidence without media movement. A stale done or release cannot overwrite a newer claim.
 - Phase 6 applies destination policy only on the coordinator after Phase 5 acceptance. Workers still write only to row handoff folders. Coordinator policy may leave the verified output in review workspace, move it into manifest-backed Pending Publish, copy it to a non-overlapping final path, replace a final path only with confirmed replacement evidence, or fail closed with the source and handoff output preserved. Source media remains read-only.
 - Active `desktop_rerun_network_batch.v1` files with status `claim_disabled`, `active`, `running`, `stopping`, `stopped_after_current`, or `paused` make backend close-readiness unsafe until a later safe stop/drain state exists.
+- `POST /api/rerun/network/retry` requires exact `batch_id`, `row_key`, nonblank `request_id` and reason, plus strict `confirm_retry=true`. It revalidates the persisted source identity and reopens only one eligible `retry_exhausted` row; duplicate request IDs are idempotent and changed sources remain review-only.
 - Existing normal network queue claim/done/release protocol remains compatible; `csv_rerun_row` metadata is additive and source-identity duplicate prevention still shares the normal in-flight registry.
 
 ---
@@ -255,7 +341,7 @@ Notes:
 
 ## ActiveJobRecord
 
-**Contract file**: `src/mediapipeline/desktop/contracts/active_job.py`
+**Contract file**: `src/mediapipeline/core/kernel/contracts/active_job.py`
 **Artifact**: Active jobs state folder — one JSON file per in-progress job
 **Schema version**: `desktop_active_job.v1`
 
@@ -293,11 +379,15 @@ Notes:
 | `completed_immediate` | Completed before active-job file was polled |
 | `failed_immediate` | Failed before active-job file was polled |
 | `killed` | Process was terminated by a stop/kill signal |
+| `kill_degraded` | Root termination was attempted, but descendant/process-tree exit is unproved; the record remains nonterminal and reconciliation-required |
 | `orphaned` | Process record exists but no matching PID found |
 
 ### Notes
 
 - Active job records are written and updated by the backend process service.
+- `kill_degraded` is monotonic against heartbeat/stale reconciliation updates,
+  keeps close-readiness blocked, and projects as an operator warning until exact
+  process-tree ownership is reconciled.
 - The `GET /api/diagnostics/tail` and `POST /api/diagnostics/open` routes expose the active jobs folder (`active_jobs` target) read-only.
 - `stdout_log` and `stderr_log` paths correspond to `last_stdout_log` and `last_stderr_log` diagnostics targets.
 

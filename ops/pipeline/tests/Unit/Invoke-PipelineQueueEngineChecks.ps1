@@ -24,6 +24,8 @@ if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine') -Pa
 }
 
 . (Join-Path $repoRoot 'ops\pipeline\engine\queue\queue_plan.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\naming\naming.ps1')
+$script:QueueEngineActualGetTVInfoFromFile = ${function:Get-TVInfoFromFile}
 . (Join-Path $repoRoot 'ops\pipeline\engine\queue\pipeline_engine.ps1')
 
 function Assert-True {
@@ -37,6 +39,8 @@ function Assert-Equal {
         throw "$Message Expected '$Expected', got '$Actual'."
     }
 }
+
+Assert-Equal (Get-QueueEpisodeNumber '[SubsPlease] Kanan-sama wa Akumade Choroi - 12v2 (1080p) [80A8418A]') 12 'Queue ordering should ignore uploader revision suffixes.'
 
 function New-ManualOrderSortEntry {
     param(
@@ -225,11 +229,22 @@ function Get-TVInfoFromFile {
         [string] $LibraryId = '',
         [string] $LibraryDesignation = ''
     )
+    if ($script:QueueEngineUseRealTVParser) {
+        $script:QueueEngineTVParseCallCount++
+        return & $script:QueueEngineActualGetTVInfoFromFile `
+            -file $File `
+            -SourceRootPath $SourceRootPath `
+            -LibraryName $LibraryName `
+            -LibraryId $LibraryId `
+            -LibraryDesignation $LibraryDesignation
+    }
     return [pscustomobject]@{
         IsReliable = $true
         ShowName = 'Show'
         Season = 1
         Episode = 1
+        EpisodeEnd = $null
+        ParseMode = 'test-stub'
         ParseError = ''
     }
 }
@@ -340,6 +355,228 @@ function New-QueueEngineSyntheticEntry {
         LibraryOutputRoot      = ''
         LastWriteUtc           = [datetime]'2026-06-04T00:00:00Z'
         Metadata               = @{}
+    }
+}
+
+function Invoke-KananRevisionQueueSnapshotParseReuseCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('MediaPipelineQueueKananRevisionTest_' + [guid]::NewGuid().ToString('N'))
+    $previousAggressiveEpisodeParsing = $script:AggressiveEpisodeParsing
+    $previousUseRealTVParser = $script:QueueEngineUseRealTVParser
+    $previousTVParseCallCount = $script:QueueEngineTVParseCallCount
+    $previousValidExtensions = $script:ValidExtensions
+    $previousSourceTV = $script:SourceTV
+    $previousLocalBase = $script:LocalBase
+    try {
+        $tvRoot = Join-Path $tempRoot 'TV'
+        $showRoot = Join-Path $tvRoot 'Kanan-sama wa Akumade Choroi'
+        New-Item -ItemType Directory -Path $showRoot -Force | Out-Null
+        $episodeFiles = @(
+            '[SubsPlease] Kanan-sama wa Akumade Choroi - 09 (1080p) [23C50705].mkv',
+            '[SubsPlease] Kanan-sama wa Akumade Choroi - 10 (1080p) [219C7DF9].mkv',
+            '[SubsPlease] Kanan-sama wa Akumade Choroi - 11 (1080p) [911C7398].mkv',
+            '[SubsPlease] Kanan-sama wa Akumade Choroi - 12v2 (1080p) [80A8418A].mkv',
+            'Unparseable Bonus Clip.mkv'
+        )
+        foreach ($episodeFile in $episodeFiles) {
+            [System.IO.File]::WriteAllBytes((Join-Path $showRoot $episodeFile), [System.Text.Encoding]::UTF8.GetBytes("queue-$episodeFile"))
+        }
+
+        $script:AggressiveEpisodeParsing = $true
+        $script:QueueEngineUseRealTVParser = $true
+        $script:QueueEngineTVParseCallCount = 0
+        $script:ValidExtensions = @('.mkv')
+        $script:SourceTV = $tvRoot
+        $script:LocalBase = $tempRoot
+        $libraryProfile = @{
+            library_id = 'tv'
+            library_name = 'TV'
+            designation = 'tv'
+            output_root = ''
+        }
+        $manifest = @{ version = 1; entries = @{} }
+        $files = @(Get-ChildItem -LiteralPath $showRoot -File)
+        $entries = @(Get-QueuedEntries -Files $files -RootPath $tvRoot -IsTV -LibraryProfileMetadata $libraryProfile -PriorityManifest $manifest)
+
+        Assert-Equal (@($entries | Where-Object { $_.TVParseReliable } | ForEach-Object { [int]$_.EpisodeSortOrder }) -join '|') '9|10|11|12' 'Queue discovery should sort the revised episode after episodes 09-11 by canonical episode identity.'
+        Assert-Equal (@($entries | Where-Object { -not $_.TVParseReliable }).Count) 1 'An unreliable TV row should remain visible in discovery evidence.'
+        Assert-True (-not [bool]$entries[-1].TVParseReliable) 'Unreliable TV rows should sort after every reliable canonical identity.'
+
+        $plan = New-TestQueuePlan
+        $plan.NormalTVEntries = @(Set-QueueEntryRuntimeMetadata -Entries $entries -IsTV $true -PhaseOverride 'tv')
+        $plan.TVCount = $plan.NormalTVEntries.Count
+        $snapshot = Build-QueuePlanSnapshotRows -QueuePlan $plan -ProcessedIndex @{}
+        $revisionPath = Join-Path $showRoot '[SubsPlease] Kanan-sama wa Akumade Choroi - 12v2 (1080p) [80A8418A].mkv'
+        $revisionRow = @($snapshot.rows | Where-Object { [string]$_.source_path -eq $revisionPath })[0]
+        $unreliableRow = @($snapshot.rows | Where-Object { [string]$_.source_path -eq (Join-Path $showRoot 'Unparseable Bonus Clip.mkv') })[0]
+
+        Assert-Equal ([int]$snapshot.runnable_count) 4 'All four Kanan episodes should remain runnable in the Queue dry-run snapshot.'
+        Assert-True ($null -ne $revisionRow) 'Queue dry run should emit a row for the exact real-world 12v2 fixture.'
+        Assert-True ([string]$revisionRow.blocked_reason_code -ne 'tv_parse_unreliable') 'The exact real-world 12v2 fixture must not be blocked as tv_parse_unreliable.'
+        Assert-True ([string]::IsNullOrWhiteSpace([string]$revisionRow.blocked_reason)) 'The exact real-world 12v2 fixture should have no snapshot preflight block.'
+        Assert-Equal ([int]$revisionRow.season_number) 1 'Queue dry run should resolve the exact real-world fixture to season 1.'
+        Assert-Equal ([int]$revisionRow.episode_number) 12 'Queue dry run should resolve the exact real-world fixture to episode 12.'
+        Assert-Equal ([int]$revisionRow.run_queue_index) 4 'Queue dry run ordering should place episode 12v2 after episodes 09-11.'
+        Assert-Equal ([string]$unreliableRow.blocked_reason_code) 'tv_parse_unreliable' 'An unreliable cached TV identity should remain visible but blocked in Queue dry-run.'
+        Assert-Equal ([int]$script:QueueEngineTVParseCallCount) 5 'Queue discovery should parse each TV file once and the dry-run snapshot should reuse both reliable and unreliable canonical results.'
+    } finally {
+        $script:AggressiveEpisodeParsing = $previousAggressiveEpisodeParsing
+        $script:QueueEngineUseRealTVParser = $previousUseRealTVParser
+        $script:QueueEngineTVParseCallCount = $previousTVParseCallCount
+        $script:ValidExtensions = $previousValidExtensions
+        $script:SourceTV = $previousSourceTV
+        $script:LocalBase = $previousLocalBase
+        if (Test-Path -LiteralPath $tempRoot -PathType Container) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force
+        }
+    }
+}
+
+function Invoke-ActiveBadRenameCorpusQueueChecks {
+    $fixturePath = Join-Path $repoRoot 'tests\fixtures\rename\bad_rename_cases.jsonl'
+    Assert-True (Test-Path -LiteralPath $fixturePath -PathType Leaf) 'The authoritative bad-rename JSONL fixture should exist for Queue execution coverage.'
+    $cases = @(Get-Content -LiteralPath $fixturePath | ForEach-Object {
+        $line = ([string]$_).Trim()
+        if ($line -and -not $line.StartsWith('#')) { $line | ConvertFrom-Json }
+    } | Where-Object { [string]$_.status -eq 'active' -and [string]$_.kind -eq 'tv_auto' })
+    Assert-True ($cases.Count -gt 0) 'The authoritative bad-rename corpus should contain active TV cases for Queue execution coverage.'
+
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('MediaPipelineQueueBadRenameCorpusTest_' + [guid]::NewGuid().ToString('N'))
+    $previousAggressiveEpisodeParsing = $script:AggressiveEpisodeParsing
+    $previousUseRealTVParser = $script:QueueEngineUseRealTVParser
+    $previousTVParseCallCount = $script:QueueEngineTVParseCallCount
+    $previousValidExtensions = $script:ValidExtensions
+    $previousSourceTV = $script:SourceTV
+    $previousLocalBase = $script:LocalBase
+    $previousTVFilterOptions = $script:RenameTVFilterOptions
+    $previousTVFilterTerms = $script:RenameTVFilterTerms
+    $previousTVRemoveTerms = $script:RenameTVRemoveTerms
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        $script:AggressiveEpisodeParsing = $true
+        $script:QueueEngineUseRealTVParser = $true
+        $script:QueueEngineTVParseCallCount = 0
+        $script:ValidExtensions = @('.mkv','.mp4','.avi','.mov','.m4v','.ts','.m2ts')
+        $script:LocalBase = $tempRoot
+
+        foreach ($case in $cases) {
+            $caseId = [string]$case.id
+            $caseRoot = Join-Path (Join-Path $tempRoot $caseId) 'TV'
+            $sourceFolder = Join-Path $caseRoot ([string]$case.source_folder)
+            New-Item -ItemType Directory -Path $sourceFolder -Force | Out-Null
+            $sourcePath = Join-Path $sourceFolder ([string]$case.source_file)
+            [System.IO.File]::WriteAllBytes($sourcePath, [System.Text.Encoding]::UTF8.GetBytes("bad-rename-queue-$caseId"))
+            $script:SourceTV = $caseRoot
+
+            if ($case.PSObject.Properties['tv_filter_options']) { $script:RenameTVFilterOptions = $case.tv_filter_options } else { Remove-Variable -Name RenameTVFilterOptions -Scope Script -ErrorAction SilentlyContinue }
+            if ($case.PSObject.Properties['tv_filter_terms']) { $script:RenameTVFilterTerms = $case.tv_filter_terms } else { Remove-Variable -Name RenameTVFilterTerms -Scope Script -ErrorAction SilentlyContinue }
+            if ($case.PSObject.Properties['tv_remove_terms']) {
+                $script:RenameTVRemoveTerms = $case.tv_remove_terms
+            } elseif ($case.PSObject.Properties['remove_terms']) {
+                $script:RenameTVRemoveTerms = $case.remove_terms
+            } else {
+                Remove-Variable -Name RenameTVRemoveTerms -Scope Script -ErrorAction SilentlyContinue
+            }
+
+            $libraryProfile = @{
+                library_id = 'tv'
+                library_name = 'TV'
+                designation = 'tv'
+                output_root = ''
+            }
+            $manifest = @{ version = 1; entries = @{} }
+            $entries = @(Get-QueuedEntries -Files @((Get-Item -LiteralPath $sourcePath)) -RootPath $caseRoot -IsTV -LibraryProfileMetadata $libraryProfile -PriorityManifest $manifest)
+            Assert-Equal $entries.Count 1 "Bad-rename Queue case '$caseId' should produce one queue entry."
+            $entry = $entries[0]
+            $plan = New-TestQueuePlan
+            $plan.NormalTVEntries = @(Set-QueueEntryRuntimeMetadata -Entries $entries -IsTV $true -PhaseOverride 'tv')
+            $plan.TVCount = 1
+            $snapshot = Build-QueuePlanSnapshotRows -QueuePlan $plan -ProcessedIndex @{}
+            $row = @($snapshot.rows | Where-Object { [string]$_.source_path -eq $sourcePath })[0]
+            Assert-True ($null -ne $row) "Bad-rename Queue case '$caseId' should produce a dry-run snapshot row."
+
+            $expectedBlocked = $false
+            if ($case.PSObject.Properties['expected_queue_blocked']) {
+                $expectedBlocked = [bool]$case.expected_queue_blocked
+            } elseif ($case.PSObject.Properties['expected_blocked']) {
+                $expectedBlocked = [bool]$case.expected_blocked
+            }
+            $isBlocked = -not [string]::IsNullOrWhiteSpace([string]$row.blocked_reason_code)
+            Assert-Equal $isBlocked $expectedBlocked "Bad-rename Queue case '$caseId' blocked state should match the fixture."
+            Assert-Equal ([int]$snapshot.runnable_count) $(if ($expectedBlocked) { 0 } else { 1 }) "Bad-rename Queue case '$caseId' runnable count should match its blocked state."
+
+            $expectedReasonCode = ''
+            if ($case.PSObject.Properties['expected_queue_block_reason_code']) {
+                $expectedReasonCode = [string]$case.expected_queue_block_reason_code
+            } elseif ($case.PSObject.Properties['expected_block_reason_code']) {
+                $expectedReasonCode = [string]$case.expected_block_reason_code
+            }
+            if (-not [string]::IsNullOrWhiteSpace($expectedReasonCode)) {
+                Assert-Equal ([string]$row.blocked_reason_code) $expectedReasonCode "Bad-rename Queue case '$caseId' block reason code should match the fixture."
+            }
+            if ($case.PSObject.Properties['expected_error_contains']) {
+                Assert-True ([string]$row.blocked_reason -like "*$([string]$case.expected_error_contains)*") "Bad-rename Queue case '$caseId' should expose the expected error fragment."
+            }
+
+            if ($case.PSObject.Properties['expected_parse_mode']) {
+                Assert-Equal ([string]$entry.TVInfo.ParseMode) ([string]$case.expected_parse_mode) "Bad-rename Queue case '$caseId' parse mode should match the fixture."
+            }
+            if ($case.PSObject.Properties['expected_episode_end']) {
+                Assert-Equal ([int]$entry.TVInfo.EpisodeEnd) ([int]$case.expected_episode_end) "Bad-rename Queue case '$caseId' episode range end should match the fixture."
+            }
+
+            $expectedShowSortKey = ''
+            if ($case.PSObject.Properties['expected_queue_show_sort_key']) {
+                $expectedShowSortKey = [string]$case.expected_queue_show_sort_key
+            } elseif ($case.PSObject.Properties['expected_show']) {
+                $expectedShowSortKey = [string]$case.expected_show
+            } elseif ([string]$case.expected_name -match '^(?<show>.+?)\s+-\s+S\d{2}E\d{2,3}\b') {
+                $expectedShowSortKey = [string]$Matches['show']
+            }
+            if (-not [string]::IsNullOrWhiteSpace($expectedShowSortKey)) {
+                Assert-Equal ([string]$entry.ShowSortKey) $expectedShowSortKey "Bad-rename Queue case '$caseId' show sort key should match its expected identity."
+            }
+
+            $expectedSeasonSortOrder = $null
+            if ($case.PSObject.Properties['expected_queue_season_sort_order']) {
+                $expectedSeasonSortOrder = [int]$case.expected_queue_season_sort_order
+            } elseif ($case.PSObject.Properties['expected_season']) {
+                $expectedSeasonSortOrder = [int]$case.expected_season
+            } elseif ([string]$case.expected_name -match '\bS(?<season>\d{2})E\d{2,3}\b') {
+                $expectedSeasonSortOrder = [int]$Matches['season']
+            }
+            if ($null -ne $expectedSeasonSortOrder) {
+                Assert-Equal ([int]$entry.SeasonSortOrder) ([int]$expectedSeasonSortOrder) "Bad-rename Queue case '$caseId' season sort order should match the fixture."
+                Assert-Equal ([int]$row.season_number) ([int]$expectedSeasonSortOrder) "Bad-rename Queue case '$caseId' snapshot season should match the fixture."
+            }
+
+            $expectedEpisodeSortOrder = $null
+            if ($case.PSObject.Properties['expected_queue_episode_sort_order']) {
+                $expectedEpisodeSortOrder = [int]$case.expected_queue_episode_sort_order
+            } elseif ($case.PSObject.Properties['expected_episode']) {
+                $expectedEpisodeSortOrder = [int]$case.expected_episode
+            } elseif ([string]$case.expected_name -match '\bS\d{2}E(?<episode>\d{2,3})\b') {
+                $expectedEpisodeSortOrder = [int]$Matches['episode']
+            }
+            if ($null -ne $expectedEpisodeSortOrder) {
+                Assert-Equal ([int]$entry.EpisodeSortOrder) ([int]$expectedEpisodeSortOrder) "Bad-rename Queue case '$caseId' episode sort order should match the fixture."
+                Assert-Equal ([int]$row.episode_number) ([int]$expectedEpisodeSortOrder) "Bad-rename Queue case '$caseId' snapshot episode should match the fixture."
+            }
+        }
+
+        Assert-Equal ([int]$script:QueueEngineTVParseCallCount) $cases.Count 'Queue snapshot coverage should reuse the one canonical parser result created for each active bad-rename TV case.'
+    } finally {
+        $script:AggressiveEpisodeParsing = $previousAggressiveEpisodeParsing
+        $script:QueueEngineUseRealTVParser = $previousUseRealTVParser
+        $script:QueueEngineTVParseCallCount = $previousTVParseCallCount
+        $script:ValidExtensions = $previousValidExtensions
+        $script:SourceTV = $previousSourceTV
+        $script:LocalBase = $previousLocalBase
+        $script:RenameTVFilterOptions = $previousTVFilterOptions
+        $script:RenameTVFilterTerms = $previousTVFilterTerms
+        $script:RenameTVRemoveTerms = $previousTVRemoveTerms
+        if (Test-Path -LiteralPath $tempRoot -PathType Container) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force
+        }
     }
 }
 
@@ -755,6 +992,11 @@ function Invoke-PerFileUnexpectedExceptionContinuesSerialQueueCheck {
 Invoke-ManualOrderSortsHighPriorityBucketsCheck
 Invoke-ExplicitManifestNormalSuppressesFilesystemPriorityCheck
 Invoke-CorruptPriorityManifestFailsClosedCheck
+Invoke-KananRevisionQueueSnapshotParseReuseCheck
+Invoke-ActiveBadRenameCorpusQueueChecks
+Assert-Equal (Get-QueueSeasonNumber 'Example.Show.S01E12') 1 'Queue fallback season parsing should recognize a canonical SxxEyy token without requiring a trailing separator.'
+Assert-Equal (Get-QueueEpisodeNumber 'Example.Show.S01E100') 100 'Queue fallback ordering should accept a valid three-digit episode number.'
+Assert-Equal (Get-QueueEpisodeNumber 'Example.Show.S01E1000') 0 'Queue fallback ordering must reject E1000 rather than truncate it to a smaller episode number.'
 Invoke-GlobalRunnableQueueSnapshotMetadataCheck
 Invoke-QueueSnapshotRowsAreCappedButTotalsRemainAccurateCheck
 Invoke-QueueExecutionCapLimitsRunnableWindowCheck

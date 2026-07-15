@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/launch/statusRender.js
 pipeline_stage: observability
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-03
+last_modified: 2026-07-13
 last_reviewed: 2026-06-04
-sha256: d865006e29ce3fec23f2bb8979a908c021bf3f3456942e1352bda73007cfa9ba
+sha256: 62a1aa1d941b707dfe4f9e95728f2b62bf7abbe9f2d6ab2a199642c3b99e7667
 ---
 # `apps/desktop/webview/static/assets/launch/statusRender.js`
 

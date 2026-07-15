@@ -59,6 +59,39 @@ class MaintenanceCommandPolicyTests(unittest.TestCase):
         self.assertTrue(kwargs["dry_run"])
         self.assertEqual(kwargs["timeout_seconds"], 1800)
 
+    def test_release_defaults_form_a_builder_compatible_verified_request(self) -> None:
+        dry_run_kwargs = release_dry_run_builder_kwargs({}, timeout_seconds=900)
+        build_kwargs = release_build_builder_kwargs({}, timeout_seconds=900)
+        dry_run_result = release_dry_run_result(
+            {
+                "success": True,
+                "returncode": "0",
+                "stdout": "Copy files: 12\nExclude: 3",
+                "manifest_exists": False,
+                "zip_exists": False,
+            },
+            {},
+        )
+
+        for options in (dry_run_kwargs, build_kwargs, dry_run_result.data["options"]):
+            self.assertTrue(options["verify"])
+            self.assertTrue(options["include_tests"])
+            self.assertFalse(options["include_tauri_preview_binary"])
+        self.assertTrue(dry_run_kwargs["dry_run"])
+        self.assertFalse(build_kwargs["dry_run"])
+
+        explicit_options = release_build_builder_kwargs(
+            {
+                "verify": False,
+                "include_tests": False,
+                "include_tauri_preview_binary": True,
+            },
+            timeout_seconds=900,
+        )
+        self.assertFalse(explicit_options["verify"])
+        self.assertFalse(explicit_options["include_tests"])
+        self.assertTrue(explicit_options["include_tauri_preview_binary"])
+
     def test_release_dry_run_result_shapes_success_and_failure_payloads(self) -> None:
         success = release_dry_run_result(
             {

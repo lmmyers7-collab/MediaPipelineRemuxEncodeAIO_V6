@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0712-014",
+  "title": "Accept TV uploader revision suffixes in dry run",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-07-12",
+  "date_completed": "2026-07-12",
+  "summary": "Pipeline TV parsing and queue episode ordering now accept attached uploader revision suffixes such as v2 without changing the episode number.",
+  "reason": "The rename preview parser already handled revisions, but the PowerShell dry-run parser treated the supplied SubsPlease 12v2 release as unreliable and blocked it from launch.",
+  "affected_areas": [
+    "docs",
+    "naming",
+    "queue",
+    "tests"
+  ],
+  "behavior_before": "A bare anime episode token followed by an uploader revision suffix, such as '- 12v2', could fail PowerShell TV preflight and appear as tv_parse_unreliable in Queue dry run.",
+  "behavior_after": "Strong and bare TV episode forms may carry a trailing v-number revision; the parser captures only the episode number and queue ordering uses the same interpretation.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/naming/tv_parsing.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/queue/queue_entries.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-NamingSupportChecks.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0712-014.json.md",
+    "ops/pipeline/engine/naming/tv_parsing.ps1",
+    "ops/pipeline/engine/queue/queue_entries.ps1",
+    "ops/pipeline/tests/Unit/Invoke-NamingSupportChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0712-014.json"
+  ],
+  "tests_added": [
+    "Invoke-NamingSupportChecks: supplied SubsPlease 12v2 filename with 09-11 sibling releases",
+    "Invoke-PipelineQueueEngineChecks: queue ordering captures episode 12 from the supplied 12v2 filename"
+  ],
+  "manual_validation": [
+    "GREEN: Invoke-NamingSupportChecks passed after revision-suffix support was added.",
+    "Invoke-PipelineQueueEngineChecks passed.",
+    "RED: Invoke-NamingSupportChecks rejected the supplied 12v2 filename as an unreliable TV parse before the production change."
+  ],
+  "rollback_plan": "Revert the revision-suffix regex additions and regression fixture; no source media or runtime state is mutated by this change.",
+  "related_changes": [
+    "MP-CHANGE-2026-0710-032"
+  ],
+  "notes": "Keep queue episode sorting aligned with TV parsing for revision suffixes.\nTreat attached uploader revision tags as episode metadata.\nCover the supplied SubsPlease 12v2 filename and sibling episode layout.\nRefresh generated navigation summary.\nCover queue ordering for the supplied 12v2 filename."
+}

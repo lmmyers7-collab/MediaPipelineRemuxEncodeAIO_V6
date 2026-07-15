@@ -16,6 +16,7 @@ ACTIVE_JOB_STATUSES = frozenset(
         "failed",
         "completed_immediate",
         "failed_immediate",
+        "kill_degraded",
         "killed",
         "orphaned",
     }

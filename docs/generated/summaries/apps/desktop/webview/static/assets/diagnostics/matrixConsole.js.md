@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/diagnostics/matrixConsole.js
 pipeline_stage: observability
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-13
 last_reviewed: 2026-07-11
-sha256: 20dab7763fdd5c24dce9762b19e4adc411f449f90fc746e5c08834876b49526a
+sha256: 48954f3280b98329a61d91623a1636e77186cb32abff4db714d6790a9ee75449
 ---
 # `apps/desktop/webview/static/assets/diagnostics/matrixConsole.js`
 

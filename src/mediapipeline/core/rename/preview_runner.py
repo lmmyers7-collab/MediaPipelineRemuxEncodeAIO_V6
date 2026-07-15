@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
+from collections.abc import Mapping
 
 from mediapipeline.core.rename.contracts import RenamePreviewLoadServiceProtocol, RenamePreviewScriptServiceProtocol, RunCaptureFunc
 from mediapipeline.core.rename.preview import find_naming_preview_script, load_pipeline_name_previews
@@ -23,6 +24,7 @@ def load_pipeline_name_previews_for_service(
     powershell_host: str | None,
     timeout_seconds: int,
     run_capture_func: RunCaptureFunc,
+    cleaning_policy: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, str], str]:
     script_path = service._naming_preview_script_path()
     hidden_kwargs: dict[str, Any] = {}
@@ -38,6 +40,7 @@ def load_pipeline_name_previews_for_service(
         hidden_kwargs=hidden_kwargs,
         logger=service.logger,
         run_capture_func=run_capture_func,
+        cleaning_policy=cleaning_policy,
     )
 
 
@@ -48,6 +51,7 @@ def load_pipeline_movie_name_previews_for_service(
     powershell_host: str | None,
     timeout_seconds: int,
     run_capture_func: RunCaptureFunc,
+    cleaning_policy: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, str], str]:
     return load_pipeline_name_previews_for_service(
         service,
@@ -56,6 +60,7 @@ def load_pipeline_movie_name_previews_for_service(
         powershell_host=powershell_host,
         timeout_seconds=timeout_seconds,
         run_capture_func=run_capture_func,
+        cleaning_policy=cleaning_policy,
     )
 
 
@@ -66,6 +71,7 @@ def load_pipeline_tv_name_previews_for_service(
     powershell_host: str | None,
     timeout_seconds: int,
     run_capture_func: RunCaptureFunc,
+    cleaning_policy: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, str], str]:
     return load_pipeline_name_previews_for_service(
         service,
@@ -74,6 +80,7 @@ def load_pipeline_tv_name_previews_for_service(
         powershell_host=powershell_host,
         timeout_seconds=timeout_seconds,
         run_capture_func=run_capture_func,
+        cleaning_policy=cleaning_policy,
     )
 
 

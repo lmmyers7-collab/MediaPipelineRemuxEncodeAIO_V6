@@ -82,7 +82,7 @@ These must be installed separately and are not included in the release package.
 | Minimum version | Node 18+ (required for global `WebSocket` in scope) |
 | Check | `node --version` |
 | Checked by | Smoke wrappers (`Test-WebView*.ps1`) check for `node` before running |
-| Failure symptom | Smoke wrappers fail with `SkipTest: Node.js is required` and skip; no JavaScript evaluation possible |
+| Failure symptom | A direct Python smoke may report `SkipTest`; canonical PowerShell wrappers fail that prerequisite skip unless explicitly invoked with `-AllowSkippedTests` |
 | Notes | Not required for pipeline operation — only for WebView validation |
 
 ### Chrome or Edge (for browser-backed smokes)
@@ -90,11 +90,11 @@ These must be installed separately and are not included in the release package.
 | Field | Value |
 |---|---|
 | Role | Browser-backed WebView smoke tests via Chrome DevTools Protocol (CDP) |
-| Status | External — must be installed; smoke skips cleanly if absent |
+| Status | External — must be installed for canonical browser-smoke validation |
 | Required version | Any modern Chrome or Edge (no specific version requirement beyond CDP support) |
 | Check | `Test-Path "C:\Program Files\Google\Chrome\Application\chrome.exe"` |
 | Checked by | Browser smoke wrappers at startup |
-| Failure symptom | Smoke exits with `SkipTest: Chrome or Edge is required` (exit 0, not failure) |
+| Failure symptom | The Python module reports `SkipTest: Chrome or Edge is required`; the canonical wrapper converts that prerequisite skip into a failure unless `-AllowSkippedTests` was explicitly requested |
 | Notes | No Playwright or Puppeteer install needed; smokes use CDP directly |
 
 See `docs/testing/BROWSER_SMOKE_PREREQUISITES_CHECKLIST.md` for full browser discovery diagnostics.
@@ -147,7 +147,11 @@ The detailed decision record and upgrade trigger are in
 
 ## Browser Smoke Skip Behavior
 
-Browser-backed smokes (`Test-WebViewBrowser*.ps1`) are designed to skip cleanly when Chrome or Edge is unavailable. A skip exits with code 0 and is not a test failure. This is intentional for CI environments without a browser install.
+The repository currently has **24 canonical browser wrappers** and **26 browser-backed Python modules** under `ops\scripts\smoke\` and `tests\webview\`, respectively. The two additional direct modules are `test_webview_browser_metrics_degraded_state_smoke.py` and `test_webview_browser_settings_builder_flush_smoke.py`; they are exercised directly or through broader gates rather than one-to-one wrappers.
+
+Browser-backed Python modules may emit a `SkipTest:` result when Node.js, Chrome, Edge, or another declared prerequisite is unavailable. Canonical `Test-WebViewBrowser*.ps1` wrappers fail such prerequisite skips by default so a green wrapper is positive evidence that browser assertions executed. Use `-AllowSkippedTests` only when intentionally collecting a non-gating environmental result, and record the skip reason.
+
+The 24 wrappers include the lifecycle, lifecycle-reconciliation, Queue file-overrides, Queue→Launch→Completed, Settings launch, Settings field-matrix, Library Profiles save, Prose Box audit, and Visual Clutter screenshot surfaces. See `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md` and `docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md` for the complete command inventory.
 
 Non-browser WebView smokes (`Test-WebViewRealMediaEvidenceSmoke.ps1`, `Test-WebViewCommandEvidenceSmoke.ps1`, `Test-WebViewRowDetailSmoke.ps1`, `Test-WebViewScheduleSmoke.ps1`, `Test-WebViewRenameReadinessSmoke.ps1`, `Test-WebViewSettingsLaunchPolicySmoke.ps1`, `Test-WebViewSettingsLaunchLiveConfigSmoke.ps1`, `Test-WebViewSettingsPatchEvidenceSmoke.ps1`) require Python and, where the smoke evaluates WebView JavaScript, Node.js. They are suitable for lightweight automated checks and do not require Chrome/Edge.
 
@@ -181,7 +185,7 @@ Get-Content release_manifest.json | ConvertFrom-Json | Select-Object bundled_too
 | MKVToolNix (mkvmerge) | Yes | Yes | No | No |
 | PgsToSrt / tessdata | Yes | Only if OCR enabled | No | No |
 | Node.js | No | No | Yes | Yes |
-| Chrome or Edge | No | No | Browser smokes only (skips if absent) | No |
+| Chrome or Edge | No | No | Browser smokes only; canonical wrappers fail prerequisite skips unless explicitly allowed | No |
 | Rust / Cargo | No | No | No | Yes |
 | npm | No | No | No | Yes |
 

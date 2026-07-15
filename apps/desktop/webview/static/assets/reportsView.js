@@ -383,17 +383,14 @@
   function diagnosticsBridgeApi() {
     return window.mediaPipelineDiagnosticsBridge || {};
   }
-  const reportAuditCommandButtonIds = [
-    "report-audit-start-button",
-    "report-audit-stop-button",
-    "report-audit-add-source-button",
-    "report-audit-scan-selected-button",
-    "report-audit-scan-all-button",
-    "report-audit-score-policy-save-button",
-    "report-audit-score-policy-reset-button",
-    "report-audit-ignore-selected-button",
-    "report-audit-export-rerun-csv-button",
-  ];
+  const reportAuditCommandButtonIds = {
+    sourceEdit: ["report-audit-add-source-button"],
+    sourceScan: ["report-audit-scan-selected-button", "report-audit-scan-all-button"],
+    start: ["report-audit-start-button"],
+    stop: ["report-audit-stop-button"],
+    policy: ["report-audit-score-policy-save-button", "report-audit-score-policy-reset-button"],
+    triage: ["report-audit-ignore-selected-button", "report-audit-export-rerun-csv-button"],
+  };
   const reportAuditScoreFieldIds = {
     redownload_bucket: "report-audit-score-redownload-bucket",
     high_issue: "report-audit-score-high-issue",

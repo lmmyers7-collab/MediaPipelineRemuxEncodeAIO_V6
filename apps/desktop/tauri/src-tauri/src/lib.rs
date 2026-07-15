@@ -18,7 +18,8 @@ mod single_instance_guard;
 #[cfg(test)]
 use backend_contract::{
     format_list_preview, format_route_sample, validate_backend_contract, validate_backend_health,
-    validate_backend_web_ui, BackendRoute,
+    validate_backend_web_ui, validate_lifecycle_reconciliation_route, BackendRoute,
+    REQUIRED_LIFECYCLE_RECONCILIATION_ROUTES,
 };
 use backend_lifecycle_monitor::start_backend_lifecycle_monitor;
 #[cfg(test)]

@@ -11,14 +11,14 @@
   "summary": {
     "drift_finding_count": 0,
     "proof_tiers": {
-      "browser_smoke": 21,
+      "browser_smoke": 24,
       "local_api_contract_smoke": 4,
       "webview_non_browser_smoke": 8
     },
     "shared_support_files": [
       "ops/scripts/smoke/webview_browser_smoke_common.ps1"
     ],
-    "wrapper_count": 33
+    "wrapper_count": 36
   },
   "wrappers": [
     {
@@ -389,6 +389,35 @@
     {
       "allows_skipped_tests": true,
       "boundary_lines": [
+        "Boundary: creates lifecycle evidence only under a temporary state root by using production lease and recovery APIs.",
+        "Boundary: proves a real live helper PID blocks preview without journaling, then terminates and waits for that helper before recovery.",
+        "Boundary: proves stale fingerprints are rejected, exact evidence is applied once, archived journal evidence survives reload, and close-readiness becomes safe.",
+        "Boundary: does not process media, start FFmpeg, use network workers, publish, rename, save settings, mutate queue state, or change source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserLifecycleReconciliationSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserLifecycleReconciliationSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_lifecycle_reconciliation_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_lifecycle_reconciliation_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_lifecycle_reconciliation_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
         "Boundary: starts temporary local API instances against generated temporary state.",
         "Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView Diagnostics backend lifecycle controls.",
         "Boundary: validates close-readiness blocked shutdown rejection while the continuous schedule-stop watcher is armed.",
@@ -603,6 +632,36 @@
     {
       "allows_skipped_tests": true,
       "boundary_lines": [
+        "Boundary: starts a temporary Local API and real backend-served WebView against one runnable, one blocked, and one excluded temporary source row.",
+        "Boundary: the selected runnable row is staged as a single-file Launch request; the production duplicate-command and lifecycle guards reject a second start.",
+        "Boundary: a synchronized test-only runner writes only temporary Queue, progress, Completed Manifest, fake output, and sidecar evidence after duplicate rejection is durably journaled.",
+        "Boundary: does not launch FFmpeg, PowerShell pipeline children, media tools, network workers, Pending Publish work, or any source mutation.",
+        "Boundary: verifies persisted browser reload state, idle lifecycle evidence, safe close readiness, and unchanged source hashes.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_queue_launch_completed_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_queue_launch_completed_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_queue_launch_completed_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
         "Boundary: starts a temporary local API against generated temporary state.",
         "Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView Rename controls.",
         "Boundary: clicks actual Rename preview rows and Check Applicable Rows, then verifies Apply Readiness, Pipeline Handoff, and duplicate-target blocking.",
@@ -687,6 +746,35 @@
       "test_selector": "tests.webview.test_webview_browser_schedule_smoke",
       "test_selectors": [
         "tests.webview.test_webview_browser_schedule_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API, config, browser profile, and media sentinels.",
+        "Boundary: derives every field from backend field_definitions and the WebView metadata groups; no duplicate field list is maintained.",
+        "Boundary: covers all ten Settings panes, builder stage/reset behavior, library override semantics, and one confirmed temp-only save/reload.",
+        "Boundary: does not open native path dialogs, launch media tools, process media, use network workers, or mutate production settings/state.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_settings_field_matrix_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_settings_field_matrix_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_settings_field_matrix_smoke"
       ],
       "uses_shared_browser_support": true
     },

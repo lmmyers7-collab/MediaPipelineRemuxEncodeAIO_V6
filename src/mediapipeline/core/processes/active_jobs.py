@@ -24,7 +24,7 @@ class WarningLogger(Protocol):
     def warning(self, message: object, *args: object, **kwargs: object) -> None: ...
 
 
-ACTIVE_JOB_BLOCKING_STATUSES = frozenset({"launching", "active"})
+ACTIVE_JOB_BLOCKING_STATUSES = frozenset({"launching", "active", "kill_degraded"})
 VALIDATE_ONLY_ARG = "-validateonly"
 
 
@@ -75,7 +75,9 @@ def write_active_job_launch_record(
         return None
     stamp = datetime.now().astimezone().isoformat(timespec="seconds")
     safe_stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    launch_id = f"{safe_stamp}_{job_kind}_{proc.pid}_{uuid.uuid4().hex[:8]}"
+    requested_launch_id = str(metadata.get("launch_id") or "").strip()
+    launch_id = requested_launch_id or f"{safe_stamp}_{job_kind}_{proc.pid}_{uuid.uuid4().hex[:8]}"
+    launch_id = "".join(character if character.isalnum() or character in "-_." else "-" for character in launch_id)
     record_path = active_jobs_dir / f"{launch_id}.json"
     payload = {
         "schema_version": ACTIVE_JOB_SCHEMA_VERSION,
@@ -98,6 +100,7 @@ def write_active_job_launch_record(
     }
     write_active_job_payload(record_path, payload)
     proc._mediapipeline_active_job_record = str(record_path)
+    proc._mediapipeline_launch_id = launch_id
     if logger is not None:
         logger.info("Wrote active job launch record: %s", record_path)
     return record_path
@@ -139,7 +142,7 @@ def _stale_validate_only_reason(
     now: datetime,
     stale_after_seconds: float,
 ) -> str:
-    if record.status not in ACTIVE_JOB_BLOCKING_STATUSES:
+    if record.status not in {"launching", "active"}:
         return ""
     if str(record.job_kind or "").casefold() != "pipeline":
         return ""
@@ -293,6 +296,7 @@ def reconcile_active_job_records(
             continue
         if record.status not in {"launching", "active"}:
             continue
+        matches_record: bool | None
         if record.pid is None:
             reason = "missing pid"
             matches_record = False
@@ -467,8 +471,8 @@ def cleanup_stale_validate_active_jobs(
 
 
 class _NullWarningLogger:
-    def warning(self, _message: object, *args: object, **kwargs: object) -> None:
-        _ = args, kwargs
+    def warning(self, message: object, *args: object, **kwargs: object) -> None:
+        _ = message, args, kwargs
 
 
 def update_active_job_record(
@@ -513,9 +517,17 @@ def update_active_job_record(
     payload.setdefault("show_console", False)
     payload.setdefault("metadata", {})
     payload.setdefault("launched_at", now)
-    payload["status"] = status or ("completed" if return_code == 0 else "failed")
+    requested_status = status or ("completed" if return_code == 0 else "failed")
+    existing_status = str(payload.get("status") or "").strip().casefold()
+    if existing_status == "killed" and requested_status != "killed":
+        return
+    if existing_status == "kill_degraded" and requested_status not in {"kill_degraded", "killed"}:
+        return
+    if requested_status == "active" and existing_status not in {"", "launching", "active"}:
+        return
+    payload["status"] = requested_status
     payload["return_code"] = return_code
     payload["last_update"] = now
-    if payload["status"] not in {"active", "launching"}:
+    if payload["status"] not in {"active", "launching", "kill_degraded"}:
         payload["completed_at"] = now
     write_active_job_payload(record_path, payload)

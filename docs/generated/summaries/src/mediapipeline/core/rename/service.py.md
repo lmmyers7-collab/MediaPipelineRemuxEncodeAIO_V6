@@ -3,9 +3,9 @@ file: src/mediapipeline/core/rename/service.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: rename
-last_modified: 2026-07-07
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: cdbdfa4f46cc8e7a2a0035c5d9baa47ba2b81f3a21b92c3e2a6627f0abc15433
+sha256: 45fb414ede8563a0c9e853612571b5978b32d3fd542ac7033ab224b5123928b1
 ---
 # `src/mediapipeline/core/rename/service.py`
 

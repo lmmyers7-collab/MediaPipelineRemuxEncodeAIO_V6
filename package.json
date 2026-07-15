@@ -7,6 +7,7 @@
     "webview:lint": "node ops/scripts/dev/run-eslint.mjs \"apps/desktop/webview/static/assets/**/*.js\"",
     "webview:lint:budget": "node ops/scripts/dev/check-webview-lint-budget.mjs --write",
     "webview:lint:budget:check": "node ops/scripts/dev/check-webview-lint-budget.mjs --check",
+    "webview:lint:no-undef:ratchet": "node ops/scripts/dev/check-webview-lint-budget.mjs --ratchet-no-undef",
     "webview:map": "node ops/scripts/dev/analyze-webview-godfiles.mjs --write-default-report",
     "webview:map:check": "node ops/scripts/dev/analyze-webview-godfiles.mjs --check",
     "webview:contract": "node ops/scripts/dev/webview-public-contract.mjs --write",
@@ -17,10 +18,12 @@
     "webview:routes:check": "node ops/scripts/dev/check-webview-route-ownership.mjs --check",
     "webview:commands": "node ops/scripts/dev/check-webview-command-boundary.mjs --write",
     "webview:commands:check": "node ops/scripts/dev/check-webview-command-boundary.mjs --check",
+    "webview:touchpoints": "node ops/scripts/dev/generate-webview-touchpoint-ledger.mjs --write",
+    "webview:touchpoints:check": "node ops/scripts/dev/generate-webview-touchpoint-ledger.mjs --check",
     "webview:slices": "node ops/scripts/dev/webview-split-candidates.mjs --write",
     "webview:slices:check": "node ops/scripts/dev/webview-split-candidates.mjs --check",
     "webview:script-order:smoke": "node ops/scripts/dev/smoke-webview-script-order.mjs",
-    "webview:prework:check": "npm run webview:check && npm run webview:lint:budget:check && npm run webview:map:check && npm run webview:contract:check && npm run webview:slices:check && npm run webview:dom-gaps:check && npm run webview:routes:check && npm run webview:commands:check && npm run webview:script-order:smoke"
+    "webview:prework:check": "npm run webview:check && npm run webview:lint:budget:check && npm run webview:map:check && npm run webview:contract:check && npm run webview:slices:check && npm run webview:dom-gaps:check && npm run webview:routes:check && npm run webview:commands:check && npm run webview:touchpoints:check && npm run webview:script-order:smoke"
   },
   "devDependencies": {
     "@babel/generator": "^8.0.0",

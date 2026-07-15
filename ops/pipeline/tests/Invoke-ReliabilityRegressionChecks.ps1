@@ -80,6 +80,7 @@ Invoke-ArchitectureGuardrails
 Invoke-RequiredReliabilityScript -RelativePath 'Invoke-WebViewReliabilityChecks.ps1' -Label 'current WebView/backend reliability gate'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-ContractSchemaChecks.ps1' -Label 'contract schema checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-ConfigKeyRegistryChecks.ps1' -Label 'config-key registry checks'
+Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-AuditCommandSupportChecks.ps1' -Label 'audit command support checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-CompletedManifestBackfillDryRunChecks.ps1' -Label 'completed manifest backfill dry-run checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-FailureCodeRegistryChecks.ps1' -Label 'failure-code registry checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-FailureStateIdentityChecks.ps1' -Label 'failure-state identity checks'

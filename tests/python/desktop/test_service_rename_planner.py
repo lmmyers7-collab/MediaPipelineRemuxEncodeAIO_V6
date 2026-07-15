@@ -54,6 +54,32 @@ class RenamePlannerTests(unittest.TestCase):
             self.assertEqual(direct, via_service)
             self.assertEqual(direct[0]["target_name"], "Serial Experiments Lain - S01E01 - Weird.mkv")
 
+    def test_pipeline_tv_preview_receives_the_effective_cleaning_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            source = Path(td) / "Show E01 CustomSource.mkv"
+            source.write_text("x", encoding="utf-8")
+            captured: list[dict[str, object]] = []
+
+            def fake_preview(paths, *, powershell_host=None, cleaning_policy=None, timeout_seconds=8):
+                captured.append(dict(cleaning_policy or {}))
+                return {str(source).casefold(): "Show - S01E01.mkv"}, ""
+
+            self.service._load_pipeline_tv_name_previews = fake_preview  # type: ignore[method-assign]
+            plan = self.service.plan_rename_paths(
+                [source],
+                mode="tv",
+                use_pipeline_naming_preview=True,
+                tv_filter_options={"video_source": False},
+                tv_filter_terms={"video_source": ["CustomSource"]},
+                remove_terms=["GlobalCustom"],
+            )
+
+        self.assertEqual(plan[0]["preview_source"], "pipeline_tv_preview")
+        self.assertEqual(captured[0]["schema_version"], "rename_cleaning_policy.v1")
+        self.assertFalse(captured[0]["tv"]["options"]["video_source"])
+        self.assertEqual(captured[0]["tv"]["terms"]["video_source"], ["CustomSource"])
+        self.assertEqual(captured[0]["tv"]["remove_terms"], ["GlobalCustom"])
+
     def test_plan_helper_rejects_invalid_mode(self) -> None:
         with self.assertRaisesRegex(ValueError, "tv or movie"):
             plan_rename_paths_for_service(self.service, [Path("example.mkv")], mode="music")
@@ -107,6 +133,26 @@ class RenamePlannerTests(unittest.TestCase):
         self.assertTrue(
             all("two selected files would produce the same destination" in row["errors"] for row in plan)
         )
+
+    def test_multi_episode_plan_preserves_range_identity_and_blocks_overlaps(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            ranged = root / "Example Show S01E01-E02.mkv"
+            overlapping = root / "Example Show S01E02.mkv"
+            ranged.write_text("range", encoding="utf-8")
+            overlapping.write_text("single", encoding="utf-8")
+
+            plan = self.service.plan_rename_paths(
+                [ranged, overlapping],
+                mode="tv",
+                use_pipeline_naming_preview=False,
+            )
+
+        self.assertEqual(plan[0]["target_name"], "Example Show - S01E01-E02.mkv")
+        self.assertEqual(plan[0]["tv_identity"]["episode_end"], 2)
+        self.assertIn("S01E01-E02", plan[0]["destination_identity_key"])
+        self.assertEqual([row["status"] for row in plan], ["blocked", "blocked"])
+        self.assertTrue(all("overlapping TV episode interval" in row["errors"] for row in plan))
 
     def test_manual_tv_template_aligns_series_and_season_folder_destination(self) -> None:
         with tempfile.TemporaryDirectory() as td:

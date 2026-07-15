@@ -540,6 +540,20 @@ class ContractTests(unittest.TestCase):
 
         self.assertEqual(record.status, "orphaned")
 
+    def test_active_job_contract_accepts_kill_degraded_reconciliation_status(self) -> None:
+        record = ActiveJobRecord.from_mapping(
+            {
+                "schema_version": "desktop_active_job.v1",
+                "launch_id": "launch",
+                "job_kind": "rerun_csv",
+                "status": "kill_degraded",
+                "args": [],
+                "metadata": {},
+            }
+        )
+
+        self.assertEqual(record.status, "kill_degraded")
+
     def test_pending_push_manifest_rejects_unknown_current_state(self) -> None:
         with self.assertRaises(ContractError):
             PendingPushManifest.from_mapping(current_pending_manifest_payload(manifest_state="mystery_state"))

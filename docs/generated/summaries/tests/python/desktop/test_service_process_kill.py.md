@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_process_kill.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-30
+last_modified: 2026-07-14
 last_reviewed: 2026-06-04
-sha256: a9601e41d3185f2d073d40bff7e95ed4f20cfed73edef533303afde1b92dc02d
+sha256: 77b7fa6d8bfcc931fd2aa7871ac21cd58f41ae27371dbe17ac9d865778f7d4a4
 ---
 # `tests/python/desktop/test_service_process_kill.py`
 

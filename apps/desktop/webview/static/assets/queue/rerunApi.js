@@ -3,6 +3,7 @@
   const RERUN_NETWORK_PREVIEW_ROUTE = "/api/rerun/network-preview";
   const RERUN_NETWORK_START_DRY_RUN_ROUTE = "/api/rerun/network/start-dry-run";
   const RERUN_NETWORK_START_ROUTE = "/api/rerun/network/start";
+  const RERUN_NETWORK_RETRY_ROUTE = "/api/rerun/network/retry";
   const RERUN_START_ROUTE = "/api/rerun/start";
   const RERUN_RESULTS_ROUTE = "/api/rerun/results?limit=24";
   const RERUN_CONTROL_ROUTE = "/api/rerun/control";
@@ -12,6 +13,7 @@
   const RERUN_PROMOTE_ROUTE = "/api/rerun/promote";
   const DIAGNOSTICS_OPEN_ROUTE = "/api/diagnostics/open";
   const COMMAND_HISTORY_ROUTE = "/api/commands?limit=20";
+  const RERUN_BACKEND_ACTION_ROUTES = new Set([RERUN_CONTINUE_ROUTE, RERUN_NETWORK_RETRY_ROUTE]);
   const RERUN_DIAGNOSTICS_TARGETS = new Set(["run_logs", "last_stdout_log", "last_stderr_log", "active_jobs"]);
 
   function createQueueRerunApiModule(deps = {}) {
@@ -70,6 +72,14 @@
       return requireApiPost(RERUN_CONTINUE_ROUTE)("/api/rerun/continue", request);
     }
 
+    async function postBackendRerunAction(route, request) {
+      const routeName = String(route || "").trim();
+      if (!RERUN_BACKEND_ACTION_ROUTES.has(routeName)) {
+        throw new Error(`CSV rerun backend action route is not allowlisted: ${routeName || "<missing>"}.`);
+      }
+      return requireApiPost(routeName)(routeName, request && typeof request === "object" ? request : {});
+    }
+
     async function postRerunOpen(request) {
       return requireApiPost(RERUN_OPEN_ROUTE)("/api/rerun/open", request);
     }
@@ -99,6 +109,7 @@
       RERUN_NETWORK_PREVIEW_ROUTE,
       RERUN_NETWORK_START_DRY_RUN_ROUTE,
       RERUN_NETWORK_START_ROUTE,
+      RERUN_NETWORK_RETRY_ROUTE,
       RERUN_START_ROUTE,
       RERUN_RESULTS_ROUTE,
       RERUN_CONTROL_ROUTE,
@@ -108,6 +119,7 @@
       RERUN_PROMOTE_ROUTE,
       DIAGNOSTICS_OPEN_ROUTE,
       COMMAND_HISTORY_ROUTE,
+      RERUN_BACKEND_ACTION_ROUTES,
       RERUN_DIAGNOSTICS_TARGETS,
       currentApiPost,
       currentApiGet,
@@ -121,6 +133,7 @@
       postRerunControlStopAfterCurrent,
       postRerunControlPause,
       postRerunContinue,
+      postBackendRerunAction,
       postRerunOpen,
       postDiagnosticsOpen,
       postRerunPromoteDryRun,

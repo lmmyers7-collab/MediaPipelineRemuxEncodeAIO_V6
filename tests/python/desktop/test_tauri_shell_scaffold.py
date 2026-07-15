@@ -105,7 +105,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
             capability["remote"]["urls"],
             ["http://127.0.0.1:*", "http://localhost:*"],
         )
-        self.assertEqual(capability["permissions"], ["core:default"])
+        self.assertEqual(
+            capability["permissions"],
+            ["core:default", "allow-open-pipeline-log-window"],
+        )
         csp = config["app"]["security"]["csp"]
         self.assertIsInstance(csp, str)
         self.assertIn("default-src 'self'", csp)
@@ -587,6 +590,34 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("REQUIRED_NETWORK_LIFECYCLE_ROUTES", route_contract_rs)
         self.assertIn("REQUIRED_NETWORK_SETUP_ROUTES", route_contract_rs)
 
+    def test_tauri_shell_validates_lifecycle_reconciliation_route_semantics(self) -> None:
+        routes_rs = (TAURI_SRC_ROOT / "backend_contract" / "routes.rs").read_text(encoding="utf-8")
+        route_contract_rs = (TAURI_SRC_ROOT / "backend_contract" / "route_contract.rs").read_text(encoding="utf-8")
+        types_rs = (TAURI_SRC_ROOT / "backend_contract" / "types.rs").read_text(encoding="utf-8")
+
+        self.assertIn("struct RequiredLifecycleReconciliationRoute", routes_rs)
+        self.assertIn("REQUIRED_LIFECYCLE_RECONCILIATION_ROUTES", routes_rs)
+        for route in (
+            "/api/backend/lifecycle/reconcile-dry-run",
+            "/api/backend/lifecycle/reconcile",
+        ):
+            self.assertIn(route, routes_rs)
+        for semantic_field in (
+            "effect",
+            "request_keys",
+            "safe_defaults",
+            "requires_strict_boolean",
+            "requires_dry_run_fingerprint",
+            "requires_confirmation",
+            "journaled",
+            "response_schema",
+            "data_schema",
+        ):
+            self.assertIn(semantic_field, route_contract_rs)
+            self.assertIn(semantic_field, types_rs)
+        self.assertIn("Backend contract lifecycle reconciliation metadata drifted", route_contract_rs)
+        self.assertIn("REQUIRED_LIFECYCLE_RECONCILIATION_ROUTES", route_contract_rs)
+
     def test_tauri_shell_checks_close_readiness_before_shutdown(self) -> None:
         source = _tauri_rust_source()
 
@@ -881,6 +912,20 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("$baselineProcessIds = @(@(", source)
         self.assertIn("$newProcessIds = @(@(", source)
         self.assertGreaterEqual(source.count(") | Sort-Object -Unique)"), 2)
+
+    def test_deployable_acceptance_waits_for_short_lived_runtime_children(self) -> None:
+        source = (PROJECT_ROOT / "ops" / "scripts" / "release" / "test_acceptance.ps1").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("function Wait-ReleaseTrackedProcessExit", source)
+        self.assertIn("[int]$TimeoutSeconds = 10", source)
+        self.assertIn("Start-Sleep -Milliseconds 250", source)
+        self.assertIn("$newProcessIds = @(Wait-ReleaseTrackedProcessExit", source)
+        self.assertLess(
+            source.index("$newProcessIds = @(Wait-ReleaseTrackedProcessExit"),
+            source.index("if ($newProcessIds.Count -gt 0)"),
+        )
 
     def test_release_self_test_child_script_checks_are_bounded(self) -> None:
         source = "\n".join(
@@ -2354,6 +2399,14 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Get-UiAutomationRows", source)
         self.assertIn("UIAutomationClient", source)
         self.assertIn("AutomationElement", source)
+        self.assertIn("[string]$ExpectedWebView2UserDataFolder = ''", source)
+        self.assertIn("WEBVIEW2_USER_DATA_FOLDER must equal the expected isolated folder", source)
+        self.assertIn("$trackedProcessIds", source)
+        self.assertIn("forcing the isolated probe tree to stop", source)
+        self.assertNotIn(
+            "$remainingShellIds = @(Wait-ProcessIdsGone",
+            source,
+        )
         self.assertNotIn("/api/pipeline/start", source)
         self.assertNotIn("MEDIA_PIPELINE_TAURI_TEST_AUTOLAUNCH_SINGLE_FILE", source)
 

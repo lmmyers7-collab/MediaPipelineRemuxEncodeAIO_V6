@@ -3,9 +3,9 @@ file: tests/python/desktop/test_metrics_feature.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-12
+last_modified: 2026-07-13
 last_reviewed: 2026-06-05
-sha256: 8bf4826ff7d4abe28bd2cc8d8dc33706cc8b3e5aede4fd385e01ecfe35a1bf99
+sha256: 39c8a2b427cc126a3e6c95940ad4fe16f1a735beb08726e06749e45fed9e4623
 ---
 # `tests/python/desktop/test_metrics_feature.py`
 

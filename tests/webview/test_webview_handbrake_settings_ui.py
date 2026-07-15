@@ -970,6 +970,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "dataset.settingsKey",
             "dataset.settingsPersistedKey",
             "dataset.settingsValueType",
+            "dataset.settingsUnit",
             "dataset.settingsDefaultValue",
             "dataset.settingsAdvancedVisibility",
             "dataset.settingsSection",

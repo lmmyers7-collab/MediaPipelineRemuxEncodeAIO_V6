@@ -412,6 +412,28 @@ class RerunNetworkStartCommandPayload(RerunNetworkStartDryRunCommandPayload):
         return self
 
 
+class RerunNetworkRetryCommandPayload(StrictApiCommandPayload):
+    batch_id: StrictStr = Field(min_length=1, max_length=200)
+    row_key: StrictStr = Field(min_length=1, max_length=300)
+    request_id: StrictStr = Field(min_length=1, max_length=200)
+    reason: StrictStr = Field(min_length=1, max_length=500)
+    confirm_retry: StrictBool
+
+    @field_validator("batch_id", "row_key", "request_id", "reason")
+    @classmethod
+    def require_nonblank_text(cls, value: str) -> str:
+        text = value.strip()
+        if not text:
+            raise ValueError("value must not be blank")
+        return text
+
+    @model_validator(mode="after")
+    def require_retry_confirmation(self) -> RerunNetworkRetryCommandPayload:
+        if self.confirm_retry is not True:
+            raise ValueError("confirm_retry must be true")
+        return self
+
+
 class RerunControlCommandPayload(StrictApiCommandPayload):
     action: Literal["stop_after_current", "pause"] | None = None
     confirm_stop: StrictBool | None = None
@@ -429,13 +451,20 @@ class RerunControlCommandPayload(StrictApiCommandPayload):
 
 
 class RerunContinueCommandPayload(StrictApiCommandPayload):
-    manifest_key: Any = None
+    manifest_key: StrictStr = Field(min_length=1, max_length=200)
+    request_id: StrictStr = Field(min_length=1, max_length=200)
     confirm_continue: StrictBool | None = None
+
+    @field_validator("manifest_key", "request_id")
+    @classmethod
+    def require_nonblank_text(cls, value: str) -> str:
+        text = value.strip()
+        if not text:
+            raise ValueError("value must not be blank")
+        return text
 
     @model_validator(mode="after")
     def require_continue_confirmation(self) -> RerunContinueCommandPayload:
-        if self.manifest_key is None or (isinstance(self.manifest_key, str) and not self.manifest_key.strip()):
-            raise ValueError("manifest_key is required")
         if self.confirm_continue is not True:
             raise ValueError("confirm_continue must be true")
         return self
@@ -623,6 +652,26 @@ class AuditSourcesScanCommandPayload(StrictApiCommandPayload):
 class BackendShutdownCommandPayload(StrictApiCommandPayload):
     reason: Any = None
     force_active_work_shutdown: StrictBool | None = None
+
+
+class LifecycleReconciliationDryRunCommandPayload(StrictApiCommandPayload):
+    reason: Any = None
+
+
+class LifecycleReconciliationApplyCommandPayload(StrictApiCommandPayload):
+    confirm_apply: StrictBool | None = None
+    dry_run_fingerprint: Any = None
+    reason: Any = None
+
+    @model_validator(mode="after")
+    def require_confirmation_fields(self) -> LifecycleReconciliationApplyCommandPayload:
+        if self.confirm_apply is not True:
+            raise ValueError("confirm_apply must be true")
+        if self.dry_run_fingerprint is None or (
+            isinstance(self.dry_run_fingerprint, str) and not self.dry_run_fingerprint.strip()
+        ):
+            raise ValueError("dry_run_fingerprint is required")
+        return self
 
 
 class UiPreferencesCommandPayload(StrictApiCommandPayload):
@@ -893,12 +942,15 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/rerun/network-preview": RerunPreviewCommandPayload,
     "/api/rerun/network/start-dry-run": RerunNetworkStartDryRunCommandPayload,
     "/api/rerun/network/start": RerunNetworkStartCommandPayload,
+    "/api/rerun/network/retry": RerunNetworkRetryCommandPayload,
     "/api/rerun/start": RerunStartCommandPayload,
     "/api/rerun/control": RerunControlCommandPayload,
     "/api/rerun/continue": RerunContinueCommandPayload,
     "/api/rerun/open": RerunOpenCommandPayload,
     "/api/rerun/promote-dry-run": RerunPromoteDryRunCommandPayload,
     "/api/rerun/promote": RerunPromoteCommandPayload,
+    "/api/backend/lifecycle/reconcile-dry-run": LifecycleReconciliationDryRunCommandPayload,
+    "/api/backend/lifecycle/reconcile": LifecycleReconciliationApplyCommandPayload,
     "/api/backend/shutdown": BackendShutdownCommandPayload,
     "/api/ui-preferences": UiPreferencesCommandPayload,
     "/api/final-library-promotion/promote-queue": FinalLibraryPromoteQueueCommandPayload,

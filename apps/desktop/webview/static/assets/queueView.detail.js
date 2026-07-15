@@ -350,6 +350,10 @@
     }
 
     function renderQueueDetail(item) {
+      window.mediaPipelineAppRowOpenActions?.setBackendRowOpenActionAvailability?.(
+        "queue",
+        item?.available_open_targets
+      );
       renderQueueSelectedAtAGlance(item || null);
       const detailDrawer = window.mediaPipelineDom?.selectedRowDetailDrawerLines;
       if (!item) {
@@ -476,6 +480,10 @@
     }
 
     function renderQueueExcludedDetail(item) {
+      window.mediaPipelineAppRowOpenActions?.setBackendRowOpenActionAvailability?.(
+        "queue-excluded",
+        item?.available_open_targets
+      );
       if (!item) {
         setText("queue-excluded-detail", "No excluded source row selected. Select an excluded row to inspect why it is hidden from the runnable queue.");
         return;

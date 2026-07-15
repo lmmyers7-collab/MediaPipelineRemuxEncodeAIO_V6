@@ -28,6 +28,11 @@
 
     function setQueueOpenBusy(isBusy) {
       queueOpenInFlight = Boolean(isBusy);
+      if (typeof window.mediaPipelineAppRowOpenActions?.setBackendRowOpenActionBusy === "function") {
+        window.mediaPipelineAppRowOpenActions.setBackendRowOpenActionBusy("queue", queueOpenInFlight);
+        window.mediaPipelineAppRowOpenActions.setBackendRowOpenActionBusy("queue-excluded", queueOpenInFlight);
+        return;
+      }
       safeDocument.querySelectorAll("[data-open-queue], [data-open-queue-excluded]").forEach((button) => {
         button.disabled = queueOpenInFlight;
       });

@@ -78,31 +78,48 @@
       lastImported: "",
       processing: "",
       latestLine: "",
+      terminalLine: "",
     };
     if (!lines.length) return evidence;
 
     let stageIndex = -1;
     let stagedIndex = -1;
     let processingIndex = -1;
+    let terminalIndex = -1;
+    let lastActivityIndex = -1;
     lines.forEach((line, index) => {
       const plannedRows = csvRerunPlannedRows(line);
-      if (plannedRows) evidence.plannedRows = plannedRows;
+      if (plannedRows) {
+        evidence.plannedRows = plannedRows;
+        lastActivityIndex = index;
+      }
       const stageCopy = csvRerunStageCopy(line);
       if (stageCopy?.file) {
         stageIndex = index;
+        lastActivityIndex = index;
         evidence.currentImport = stageCopy.file;
       }
       const stagedCopy = csvRerunStagedCopy(line);
       if (stagedCopy) {
         stagedIndex = index;
+        lastActivityIndex = index;
         evidence.lastImported = stagedCopy;
       }
       const processing = hasExplicitCsvEvidence ? csvRerunProcessingMessage(line) : "";
       if (processing) {
         processingIndex = index;
+        lastActivityIndex = index;
         evidence.processing = processing;
       }
+      if (hasExplicitCsvEvidence && csvRerunTerminalLine(line)) {
+        terminalIndex = index;
+        evidence.terminalLine = csvRerunLineMessage(line);
+      }
     });
+
+    if (lastActivityIndex > terminalIndex) {
+      evidence.terminalLine = "";
+    }
 
     if (stagedIndex >= stageIndex && stagedIndex >= 0) {
       evidence.currentImport = stageIndex >= 0 ? "Waiting for next copy" : "";
@@ -199,8 +216,9 @@
     const worker = csvRerunWorkerEvidence(source);
     const activePipelineWorker = csvRerunActivePipelineWorkerPresent(allWorkerRows);
     const tailAllowed = Boolean(tail.hasEvidence && (!activePipelineWorker || worker.hasWorkerEvidence));
-    const isActive = Boolean(worker.workerActive)
-      || (tailAllowed && !csvRerunTerminalLine(tail.latestLine || ""));
+    const terminalLine = worker.terminalLine || tail.terminalLine || "";
+    const isActive = (Boolean(worker.workerActive) && !terminalLine)
+      || (tailAllowed && !terminalLine);
     return {
       hasEvidence: Boolean(tailAllowed || worker.hasEvidence || worker.hasWorkerEvidence),
       plannedRows: tail.plannedRows || worker.plannedRows || "",
@@ -208,6 +226,7 @@
       lastImported: tail.lastImported || worker.lastImported || "",
       processing: tail.processing || worker.processing || "",
       latestLine: worker.latestLine || tail.latestLine || "",
+      terminalLine,
       hasWorkerEvidence: Boolean(worker.hasWorkerEvidence),
       workerActive: Boolean(worker.workerActive),
       tailSuppressedByPipelineWorker: Boolean(tail.hasEvidence && activePipelineWorker && !worker.hasWorkerEvidence),
@@ -248,8 +267,8 @@
     if (/\bpublish|park|sidecar|pending\b/.test(activityText)) return "Waiting for output placement";
     if (/\bnested pipeline\b/.test(activityText)) return "Waiting for nested pipeline";
     if (evidence.isActive) return "Waiting for next CSV item";
-    if (evidence.latestLine && csvRerunTerminalLine(evidence.latestLine)) {
-      const terminalText = csvRerunLineMessage(evidence.latestLine).toLowerCase();
+    if (evidence.terminalLine || (evidence.latestLine && csvRerunTerminalLine(evidence.latestLine))) {
+      const terminalText = csvRerunLineMessage(evidence.terminalLine || evidence.latestLine).toLowerCase();
       return /\b(failed|failure|error|aborted|exited with code\s*[1-9]\d*)\b/.test(terminalText)
         ? "CSV rerun needs review"
         : "CSV rerun complete";

@@ -238,6 +238,12 @@ class LocalApiProcessCommandPayloadMixin:
             journal_recorder=journal_recorder,
         ).to_mapping()
 
+    def _rerun_network_retry_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("rerun.network.retry", "snapshot")
+        return self.facade.request_network_rerun_retry(resolved, request).to_mapping()
+
     def _rerun_open_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         resolved = self._resolved()
         if resolved is None:
@@ -280,6 +286,18 @@ class LocalApiProcessCommandPayloadMixin:
                 self.logger.exception("local API related process cleanup failed before backend shutdown: %s", exc)
                 messages.append(f"Related process cleanup failed: {exc}")
         return [message for message in messages if str(message).strip()]
+
+    def _backend_lifecycle_reconcile_dry_run_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("backend.lifecycle.reconcile_dry_run", "snapshot")
+        return self.facade.preview_lifecycle_reconciliation(resolved, request).to_mapping()
+
+    def _backend_lifecycle_reconcile_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("backend.lifecycle.reconcile", "snapshot")
+        return self.facade.apply_lifecycle_reconciliation(resolved, request).to_mapping()
 
     def _backend_shutdown_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         if self.shutdown_request is None:

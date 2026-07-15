@@ -113,8 +113,18 @@ class ServiceAuditRerunMetadataTests(unittest.TestCase):
                     json.dumps(
                         {
                             "rows": [
-                                {"source_path": str(first), "source_size": 100},
-                                {"source_path": str(second), "source_size": 200},
+                                {
+                                    "source_path": str(first),
+                                    "source_size": 100,
+                                    "source_content_sha256": "A" * 64,
+                                    "source_content_sha256_algorithm": "sha256-full-file",
+                                },
+                                {
+                                    "source_path": str(second),
+                                    "source_size": 200,
+                                    "source_content_sha256": "B" * 64,
+                                    "source_content_sha256_algorithm": "sha256-sample-v2",
+                                },
                                 {"source_path": "", "ignored": True},
                             ]
                         }
@@ -132,11 +142,20 @@ class ServiceAuditRerunMetadataTests(unittest.TestCase):
 
             self.assertEqual(calls[0]["request"]["source_paths"], [str(first), str(second)])
             self.assertEqual(calls[0]["kwargs"]["label"], "rerun source metadata")
-            self.assertEqual(calls[0]["kwargs"]["timeout_seconds"], 30.0)
+            self.assertEqual(calls[0]["kwargs"]["timeout_seconds"], 14700.0)
+            self.assertIn("kill_tree", calls[0]["kwargs"])
             self.assertTrue(service.environment_called)
             self.assertTrue(service.hidden_kwargs_called)
             self.assertEqual(metadata[str(first).casefold()]["source_size"], 100)
+            self.assertEqual(metadata[str(first).casefold()]["source_content_sha256"], "a" * 64)
+            self.assertEqual(
+                metadata[str(first).casefold()]["source_content_sha256_algorithm"],
+                "sha256-full-file",
+            )
             self.assertEqual(metadata[str(second).casefold()]["source_size"], 200)
+            self.assertEqual(metadata[str(second).casefold()]["source_content_sha256"], "")
+            self.assertEqual(metadata[str(second).casefold()]["source_content_sha256_algorithm"], "")
+            self.assertIn("invalid source_content_sha256_algorithm", metadata[str(second).casefold()]["error"])
 
     def test_load_rerun_source_metadata_warns_when_helper_unavailable(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -159,7 +178,7 @@ class ServiceAuditRerunMetadataTests(unittest.TestCase):
             self.assertEqual(metadata, {})
             self.assertEqual(
                 service.logger.warnings,
-                ["Rerun source metadata helper unavailable; exported CSV will rely on source size/mtime only."],
+                ["Rerun source metadata helper unavailable; exported CSV rows will be disabled without full-content SHA-256 evidence."],
             )
 
     def test_load_rerun_source_metadata_reports_timeout_and_nonzero_exit(self) -> None:

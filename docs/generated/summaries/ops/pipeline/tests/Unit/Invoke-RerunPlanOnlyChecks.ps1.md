@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-RerunPlanOnlyChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-11
+last_modified: 2026-07-14
 last_reviewed: 2026-06-22
-sha256: b38ff71aee15fb11b7622efa888444484858924c416e92fe0481378fc489a2f7
+sha256: 143cfe8896f6022a7c3525a6bc4bf3216ef63128c6390a89a720878161dde084
 ---
 # `ops/pipeline/tests/Unit/Invoke-RerunPlanOnlyChecks.ps1`
 

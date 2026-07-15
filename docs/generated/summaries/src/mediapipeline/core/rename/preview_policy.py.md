@@ -3,9 +3,9 @@ file: src/mediapipeline/core/rename/preview_policy.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: rename
-last_modified: 2026-07-09
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: e7a38186e05254cd69117821db059db9f0440af911b0179c86dc2835605f0646
+sha256: 8aac21299d33d6dd442ea05557027152b2b0d062c14763e9568306ddf2a9bbdd
 ---
 # `src/mediapipeline/core/rename/preview_policy.py`
 

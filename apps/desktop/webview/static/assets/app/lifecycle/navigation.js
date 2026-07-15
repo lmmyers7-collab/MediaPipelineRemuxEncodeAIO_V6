@@ -475,6 +475,13 @@
       button.addEventListener("click", () => {
         showPage(button.dataset.page);
       });
+      button.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.repeat) return;
+        showPage(button.dataset.page);
+      });
     });
     document.querySelectorAll("[data-cross-page-target]").forEach((button) => {
       button.addEventListener("click", () => activateCrossPageTarget(button));

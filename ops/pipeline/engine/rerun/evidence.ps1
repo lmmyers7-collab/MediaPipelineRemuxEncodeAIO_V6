@@ -393,26 +393,38 @@ function Update-RerunManifestCounts {
         [array]$Plans,
         [int]$PipelineExitFailures = 0
     )
-    $review = @($Plans | Where-Object { $_.status -eq 'review_workspace' }).Count
+    $reviewWorkspace = @($Plans | Where-Object { $_.status -eq 'review_workspace' }).Count
+    $manualReview = @($Plans | Where-Object { $_.status -eq 'review' }).Count
+    $review = $manualReview
     $pendingPublish = @($Plans | Where-Object { $_.status -eq 'pending_publish' }).Count
     $published = @($Plans | Where-Object { $_.status -in @('published_non_overlap','published_replace_final') }).Count
-    $failed = @($Plans | Where-Object { $_.status -eq 'failed' }).Count
-    $pending = @($Plans | Where-Object { $_.status -eq 'pending' }).Count
-    $success = $review + $pendingPublish + $published
-    $Manifest.pipeline_exit_failures = $PipelineExitFailures
-    $Manifest.success_count = $success
-    $Manifest.review_workspace_count = $review
-    $Manifest.pending_publish_count = $pendingPublish
-    $Manifest.published_count = $published
-    $Manifest.failed_count = $failed
-    $Manifest.remaining_pending_count = $pending
+    $failed = @($Plans | Where-Object { $_.status -in @('failed','retry_exhausted') }).Count
+    $pending = @($Plans | Where-Object { $_.status -in @('pending','waiting','retry_scheduled','staging','staged','processing','destination_policy') }).Count
+    $waiting = @($Plans | Where-Object { $_.status -in @('waiting','retry_scheduled') }).Count
+    $success = $reviewWorkspace + $pendingPublish + $published
+    $unfinished = $pending
+    $terminalBlockers = $failed + $manualReview + $unfinished + $PipelineExitFailures
+    Set-RerunObjectValue -Object $Manifest -Name 'pipeline_exit_failures' -Value $PipelineExitFailures
+    Set-RerunObjectValue -Object $Manifest -Name 'success_count' -Value $success
+    Set-RerunObjectValue -Object $Manifest -Name 'review_workspace_count' -Value $reviewWorkspace
+    Set-RerunObjectValue -Object $Manifest -Name 'manual_review_count' -Value $manualReview
+    Set-RerunObjectValue -Object $Manifest -Name 'pending_publish_count' -Value $pendingPublish
+    Set-RerunObjectValue -Object $Manifest -Name 'published_count' -Value $published
+    Set-RerunObjectValue -Object $Manifest -Name 'failed_count' -Value $failed
+    Set-RerunObjectValue -Object $Manifest -Name 'remaining_pending_count' -Value $pending
+    Set-RerunObjectValue -Object $Manifest -Name 'waiting_count' -Value $waiting
+    Set-RerunObjectValue -Object $Manifest -Name 'unfinished_count' -Value $unfinished
+    Set-RerunObjectValue -Object $Manifest -Name 'terminal_blocker_count' -Value $terminalBlockers
     return [pscustomobject][ordered]@{
         review = $review
         pending_publish = $pendingPublish
         published = $published
         failed = $failed
         pending = $pending
+        waiting = $waiting
+        unfinished = $unfinished
         success = $success
+        terminal_blockers = $terminalBlockers
     }
 }
 

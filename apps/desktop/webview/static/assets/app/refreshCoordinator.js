@@ -29,7 +29,7 @@ const PAGE_REFRESH_REQUESTS = {
   pending: new Set(["pending publish", "completed"]),
   rename: new Set([]),
   reports: new Set(["failures", "failure artifacts", "audit results", "audit controls", "audit sources"]),
-  network: new Set(["network workers", "settings"]),
+  network: new Set(["network workers", "settings", "rerun results"]),
   libraries: new Set(["libraries summary", "libraries route map", "settings"]),
   schedule: new Set(["schedule", "watch folders", "settings"]),
   settings: new Set(["settings", "preset library"]),

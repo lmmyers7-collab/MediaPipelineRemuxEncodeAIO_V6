@@ -3,9 +3,9 @@ file: ops/scripts/dev/check-webview-command-boundary.mjs
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-11
+last_modified: 2026-07-13
 last_reviewed: 2026-06-17
-sha256: fc809d4b8438b2ca057e8a99288f358ac4986b6d3b2a8dc479d2dc7ca3a58d54
+sha256: b430086205d6de560d3a79a0176e0266cee67f151e00ddea92506152abf31917
 ---
 # `ops/scripts/dev/check-webview-command-boundary.mjs`
 

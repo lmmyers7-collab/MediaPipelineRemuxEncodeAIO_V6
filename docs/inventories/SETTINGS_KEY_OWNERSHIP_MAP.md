@@ -1,10 +1,32 @@
 # Settings Key Ownership Map
 
-Date: 2026-06-11
+Date: 2026-07-13
 
-Maps the highest-impact configuration keys to: builder page/group, mutation risk, Settings-to-Launch handoff visibility, and test coverage. Source: `config_schema.py`, `settings_risk_policy_rules.py`, `docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`.
+Maps the highest-impact configuration keys to: builder page/group, mutation risk, Settings-to-Launch handoff visibility, and test coverage. Source: the config metadata registry under `src/mediapipeline/core/config/metadata_parts/`, `settings_risk_policy_rules.py`, `apps/desktop/webview/static/assets/settingsMetadata.js`, and `docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`.
 
-156 backend metadata keys are present in `CONFIG_FIELD_DEFINITIONS`. 136 are covered by structured WebView builder arrays, `LibraryProfiles` is handled by the dedicated Library Profiles editor, 17 non-secret keys are known advanced/direct-config metadata without routine builders, and 2 intentionally hidden auth keys remain excluded. This document covers the highest-impact subset plus all hidden keys.
+204 backend metadata keys are present in `CONFIG_FIELD_DEFINITIONS`. The WebView declares 155 structured bindings representing 145 unique keys; ten bindings are deliberate File Safety / Pending Publish duplicates. The dedicated Library Profiles editor supports 77 override-capable metadata keys with zero override-only keys. Of the 59 keys without a routine structured builder, one is `LibraryProfiles`, 56 are advanced/direct metadata, and two are intentionally hidden auth secrets. This map covers the highest-impact subset plus all hidden keys; advanced/direct examples are representative, not exhaustive.
+
+---
+
+## Current Coverage and Placement Snapshot
+
+| Builder group | Bindings |
+|---|---:|
+| Routing / Size | 18 |
+| Video Detail | 17 |
+| Quality Verification | 9 |
+| File Safety / Publish | 22 |
+| Network | 12 |
+| Queue / Reprocess | 4 |
+| Runtime / Diagnostics | 18 |
+| Pending Publish / Recovery | 12 |
+| Subtitle | 34 |
+| Audio | 9 |
+| **Total** | **155 bindings / 145 unique keys** |
+
+The ten Settings panes are `status`, `guided-setup`, `paths-safety`, `routing-size`, `media-output`, `publish-recovery`, `naming`, `queue-runtime`, `presets`, and `advanced-evidence`. Network's 12 bindings render on the separate Network page but use the same backend Preview/Save authority.
+
+`LibraryProfiles` is a dedicated editor rather than a static builder row. Reset restores the selected row's actual inherited value, not the schema default. Settings browser validation writes only generated temporary config and does not authorize live/operator config access.
 
 ---
 
@@ -152,22 +174,8 @@ These keys have no structured WebView builder panel because they are auth secret
 | `StateDbMaintenanceIntervalSeconds` | Low | Minimum interval for opportunistic SQLite mirror maintenance after successful mirror writes (default 21600s). JSON remains authoritative. | Diagnostics/Home read-only evidence only | `test_phase4_storage_observability.py` |
 | `StateDbWalReviewBytes` | Low | SQLite WAL size that triggers best-effort mirror maintenance/review evidence (default 33554432). JSON remains authoritative. | Diagnostics/Home read-only evidence only | `test_phase4_storage_observability.py`, `test_autonomy_health.py` |
 | `StateDbCompletedJobsMaxRows` | Low | Completed-job rows retained in SQLite mirror (default 250000). JSONL completed manifests remain authoritative and are not trimmed by this setting. | Diagnostics/Home read-only evidence only | `test_phase4_storage_observability.py`, `test_autonomy_health.py` |
-| `AutonomyPendingReviewSeconds` | Medium | Backend-only diagnostics threshold for pending-publish age review evidence (default 86400s). Does not drain, repair, or mutate manifests. | Diagnostics/Home read-only evidence only | `test_autonomy_health.py` |
-| `AutonomyPendingBlockSeconds` | **High** | Backend-only diagnostics threshold for pending-publish age blockers (default 259200s). Pending publish remains manifest-backed. | Diagnostics/Home read-only evidence only | `test_autonomy_health.py` |
-| `AutonomyPendingRetryBlockCount` | **High** | Backend-only diagnostics retry-count threshold for blocking unsafe pending-publish backlog (default follows pending-push retry limit). | Diagnostics/Home read-only evidence only | `test_autonomy_health.py` |
 | `AutonomyPendingTotalReviewBytes` | Medium | Diagnostics pending-publish byte threshold for review evidence (default 100 GiB). Editable from the Publish & Recovery builder as GiB; does not drain, repair, or mutate parked output. | Settings Publish & Recovery; Diagnostics/Home read-only evidence | `test_autonomy_health.py`, `test_config_keys.py`, `test_service_config_numeric_policy.py`, `test_application_facade_web_static_settings.py` |
 | `AutonomyPendingTotalBlockBytes` | **High** | Diagnostics pending-publish byte threshold for blocking new autonomous work (default 250 GiB). Editable from the Publish & Recovery builder as GiB; raising it allows more parked output before launch blocking. | Settings Publish & Recovery; Diagnostics/Home read-only evidence | `test_autonomy_health.py`, `test_config_keys.py`, `test_service_config_numeric_policy.py`, `test_application_facade_web_static_settings.py` |
-| `AutonomyFailureOperatorRequiredBlockSeconds` | Medium | Backend-only diagnostics age threshold for operator-required failure blockers (default 259200s). | Diagnostics/Home read-only evidence only | `test_autonomy_health.py` |
-| `AutonomyFailureOperatorRequiredBlockCount` | Medium | Backend-only diagnostics count threshold for operator-required failure blockers (default 10). | Diagnostics/Home read-only evidence only | `test_autonomy_health.py` |
-| `AutonomyFailureInfrastructureBlockCount` | Medium | Backend-only diagnostics count threshold for infrastructure failure blockers (default 3). | Diagnostics/Home read-only evidence only | `test_autonomy_health.py` |
-| `AutonomyActiveJobTimeoutGraceSeconds` | Medium | Backend-only passive ActiveJobs liveness grace after native timeout evidence (default 900s). ActiveJobs does not block launch by itself. | Diagnostics/Home read-only evidence only | `test_autonomy_health.py` |
-| `AutonomyActiveJobNoTimeoutBlockSeconds` | Medium | Backend-only passive ActiveJobs stale threshold when no native timeout exists (default 1800s). Stale evidence is review-only. | Diagnostics/Home read-only evidence only | `test_autonomy_health.py` |
-| `AutonomyStorageMinFreeGB` | Medium | Backend-only autonomy storage floor used when path-health rows do not provide a reserve (default 100 GB). | Diagnostics/Home read-only evidence only | `test_autonomy_health.py` |
-| `AutonomyStateFileReviewBytes` | Low | Backend-only diagnostics state/journal file size review threshold (default 104857600 bytes). | Diagnostics/Home read-only evidence only | `test_autonomy_health.py` |
-| `AutonomyStateFileBlockBytes` | Low | Backend-only diagnostics state/journal file size block threshold (default 524288000 bytes). | Diagnostics/Home read-only evidence only | `test_autonomy_health.py` |
-| `AutonomyScanLimit` | Low | Backend-only file enumeration cap for autonomy diagnostics (default 500); truncated scans are reported as lower bounds. | Diagnostics/Home read-only evidence only | `test_autonomy_health.py` |
-| `AutonomyGrowthSnapshotMaxCount` | Low | Backend-only retained diagnostics growth snapshot count (default 64). Snapshot writes remain explicit diagnostics-state writes. | Diagnostics/Home read-only evidence only | `test_autonomy_health.py` |
-| `AutonomyWatchdogRecordLimit` | Low | Backend-only cap for returned passive ActiveJobs watchdog records (default 50). Total/truncated counts remain visible. | Diagnostics/Home read-only evidence only | `test_autonomy_health.py` |
 | `AllowSystemTools` | Medium | Allow PATH-based fallback for FFmpeg/mkvmerge. Enabling can use wrong tool versions. | Yes — system tools warning | `test_settings_risk_policy_rules.py` |
 | `MinPipelineVersion` | Medium | Version floor for reprocessing. Sources processed by an older version are requeued. | Not surfaced | `test_service_config_validation.py` |
 | `RobocopyTimeoutSeconds` | Medium | File transfer timeout (default 14400s = 4h). Low value kills in-progress transfers. | Not surfaced | `test_service_config_numeric_policy.py` |

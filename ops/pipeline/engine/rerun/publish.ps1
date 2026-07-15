@@ -281,6 +281,11 @@ function New-RerunPendingPublishManifest {
     if ([string]::IsNullOrWhiteSpace($sourceIdentity)) {
         $sourceIdentity = 'rerun_csv:' + ([guid]::NewGuid().ToString('N'))
     }
+    $sourceContentSha256 = [string]$Plan.planned_source_content_sha256
+    if ([string]::IsNullOrWhiteSpace($sourceContentSha256)) {
+        $sourceContentSha256 = [string]$Plan.source_content_sha256
+    }
+    $sourceContentSha256 = $sourceContentSha256.Trim().ToLowerInvariant()
     $now = Get-Date -Format 'o'
     $transactionId = ('rerun-csv-{0}-{1}' -f $BatchId, [guid]::NewGuid().ToString('N'))
     $pipelineSidecar = Read-RerunPipelineSidecar -OutputPath $verified
@@ -315,6 +320,8 @@ function New-RerunPendingPublishManifest {
         source_identity = $sourceIdentity
         source_identity_v2 = $sourceIdentity
         source_identity_v2_algorithm = 'rerun_csv_v2'
+        source_content_sha256 = $sourceContentSha256
+        source_content_sha256_algorithm = 'sha256-full-file'
         confirm_source_overwrite = [bool]$Plan.source_overwrite_confirmed
         output_size = $verifiedOutputSize
         publish_mode = 'pending_publish'

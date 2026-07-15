@@ -657,6 +657,10 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertEqual(routes["/api/rerun/control"]["effect"], "process-control")
         self.assertEqual(routes["/api/rerun/control"]["requires_strict_boolean"], ["confirm_stop", "confirm_pause"])
         self.assertEqual(routes["/api/rerun/continue"]["effect"], "process-launch")
+        self.assertEqual(
+            routes["/api/rerun/continue"]["request_keys"],
+            ["manifest_key", "request_id", "confirm_continue"],
+        )
         self.assertEqual(routes["/api/rerun/continue"]["requires_strict_boolean"], ["confirm_continue"])
         self.assertEqual(routes["/api/rerun/promote-dry-run"]["effect"], "read-only-preview")
         self.assertEqual(routes["/api/rerun/promote"]["effect"], "pending-manifest-write")
@@ -689,13 +693,22 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertEqual(network_start["effect_flags"]["writes_queue"], False)
         self.assertEqual(network_start["effect_flags"]["launches_work"], False)
         self.assertIn("claim-disabled", network_start["purpose"])
+        network_retry = routes["/api/rerun/network/retry"]
+        self.assertEqual(network_retry["effect"], "network-state-write")
+        self.assertEqual(
+            network_retry["request_keys"],
+            ["batch_id", "row_key", "request_id", "reason", "confirm_retry"],
+        )
+        self.assertEqual(network_retry["requires_strict_boolean"], ["confirm_retry"])
+        self.assertTrue(network_retry["journaled"])
+        self.assertTrue(network_retry["duplicate_guarded"])
         self.assertEqual(
             [
                 path
                 for path in sorted(routes)
                 if path.startswith("/api/rerun/network") or path.startswith("/api/network/rerun")
             ],
-            ["/api/rerun/network-preview", "/api/rerun/network/start", "/api/rerun/network/start-dry-run"],
+            ["/api/rerun/network-preview", "/api/rerun/network/retry", "/api/rerun/network/start", "/api/rerun/network/start-dry-run"],
         )
 
     def test_effectful_post_routes_return_command_results_for_operator_history(self) -> None:
@@ -796,6 +809,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             "failure-evidence-archive",
             "failure-marker-write",
             "failure-resolution-journal-write",
+            "lifecycle-evidence-reconciliation",
             "metrics-backfill-state-write",
             "metrics-state-write",
             "network-state-write",

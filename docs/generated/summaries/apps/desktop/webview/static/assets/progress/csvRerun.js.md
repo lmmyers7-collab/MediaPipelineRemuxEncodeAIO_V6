@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/progress/csvRerun.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-10
+last_modified: 2026-07-14
 last_reviewed: 2026-07-10
-sha256: e8ddeaa5300f9db220ce16da714d333913982442a7cb3113f7db804cc720c876
+sha256: a63139688c6328d1f3921abb27418e262efdeafadce785457ac0db9ffe41746c
 ---
 # `apps/desktop/webview/static/assets/progress/csvRerun.js`
 

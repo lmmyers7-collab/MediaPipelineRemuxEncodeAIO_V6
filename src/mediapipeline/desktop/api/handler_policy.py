@@ -21,6 +21,7 @@ STRICT_DURABLE_COMMAND_ROUTES = frozenset(
         "/api/rerun/continue",
         "/api/rerun/promote",
         "/api/rerun/network/start",
+        "/api/rerun/network/retry",
         "/api/rename/apply",
         "/api/rename/undo",
         "/api/pending-publish/repair-manifest",
@@ -31,6 +32,7 @@ STRICT_DURABLE_COMMAND_ROUTES = frozenset(
         "/api/network/coordinator/stop",
         "/api/network/worker/start",
         "/api/network/worker/stop",
+        "/api/backend/lifecycle/reconcile",
         "/api/backend/shutdown",
         "/api/final-library-promotion/promote-queue",
     }

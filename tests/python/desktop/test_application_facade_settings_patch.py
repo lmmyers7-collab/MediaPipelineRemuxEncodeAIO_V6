@@ -12,6 +12,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.models import ConfigSaveResult
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
+from mediapipeline.core.config.load import config_from_mapping, config_to_flat_dict
 from mediapipeline.core.config.library_profiles import normalize_library_profile_config_values
 from tests.python.desktop.application_facade_test_support import DummyFacadeService, _resolved
 from tests.python.desktop.test_service_config_validation import (
@@ -89,6 +90,45 @@ LIBRARY_PROFILE_ROUND_TRIP_FIXTURE = (
 
 
 class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
+    def test_legacy_movie_remove_terms_persist_only_on_next_explicit_settings_save(self) -> None:
+        legacy_terms = [
+            "sample",
+            "trailer",
+            "extras",
+            "featurette",
+            "deleted scenes",
+            "behind the scenes",
+            *(f"{value:02d}" for value in range(1, 13)),
+        ]
+        expected_terms = legacy_terms[:6]
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            config_path = root / "config.psd1"
+            original_text = "@{ RenameMovieRemoveTerms = @('sample', '01', '12'); RoutingProfile = 'plex_direct_stream' }\n"
+            config_path.write_text(original_text, encoding="utf-8")
+            loaded_config = config_to_flat_dict(
+                config_from_mapping(
+                    {
+                        "RoutingProfile": "plex_direct_stream",
+                        "RenameMovieRemoveTerms": legacy_terms,
+                    }
+                )
+            )
+            self.assertEqual(loaded_config["RenameMovieRemoveTerms"], expected_terms)
+            self.assertEqual(config_path.read_text(encoding="utf-8"), original_text)
+
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            resolved = _resolved(root)
+            resolved.config_path = config_path
+            resolved.config_data = loaded_config
+            request = {"changes": {"RoutingProfile": "plex_direct_play"}}
+            saved = facade.save_settings_patch(resolved, _confirmed_patch_request(facade, resolved, request))
+
+            self.assertTrue(saved.ok)
+            self.assertEqual(service.saved_config_calls[-1]["config_values"]["RenameMovieRemoveTerms"], expected_terms)
+            self.assertNotEqual(config_path.read_text(encoding="utf-8"), original_text)
+
     def test_settings_save_rejects_stale_preview_when_authority_generation_changed(self) -> None:
         class CasService(DummyFacadeService):
             def __init__(self, root: Path) -> None:

@@ -404,6 +404,21 @@ def _browser_rename_runner_source() -> str:
             requireText("rename-confirm-title", ["Confirm filesystem rename"]);
             requireText("rename-confirm-mutation-warning", ["Backend rename.apply", "matching sidecars"]);
             requireText("rename-confirm-apply-button", ["Apply Renames"]);
+            window.__mediaPipelineBrowserSmokeMaskGlobal("renameBulkScopeRows");
+            const renameWiringErrorStart = runtimeErrors.length;
+            setValue("rename-paths", "C:/Disposable/Rename Wiring Probe.mkv");
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            const renameWiringErrors = runtimeErrors.slice(renameWiringErrorStart);
+            if (renameWiringErrors.length) {
+              throw new Error("rename input command gating raised with flat globals absent: " + renameWiringErrors.join("; "));
+            }
+            if (byId("rename-preview-button").disabled) {
+              throw new Error("valid staged rename input did not leave Preview enabled");
+            }
+            if (!byId("rename-apply-button").disabled || !byId("rename-undo-button").disabled) {
+              throw new Error("Rename Apply/Undo became available before preview and confirmation");
+            }
+            click("#rename-clear-paths-button", "clear rename wiring probe");
             const originalApiPost = window.apiPost;
             const browsePosts = [];
             window.apiPost = async (url, body) => {
@@ -932,6 +947,19 @@ def _run_browser_rename_smoke(*, browser_path: str, url: str) -> dict[str, objec
 
 
 class WebViewBrowserRenameSmoke(unittest.TestCase):
+    def test_degraded_editing_slice_uses_an_empty_bulk_scope_collection(self) -> None:
+        rename_view = (
+            find_repo_root(Path(__file__))
+            / "apps"
+            / "desktop"
+            / "webview"
+            / "static"
+            / "assets"
+            / "renameView.js"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("renameBulkScopeRows = function () { return []; },", rename_view)
+
     def test_real_browser_renders_rename_readiness_and_blocks_duplicate_apply(self) -> None:
         browser_path = _find_browser()
         if not browser_path:

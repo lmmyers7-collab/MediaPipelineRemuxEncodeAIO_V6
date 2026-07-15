@@ -124,7 +124,11 @@ pub(crate) const REQUIRED_ROUTES: &[(&str, &str, bool)] = &[
     ("POST", "/api/diagnostics/tdarr-matrix-audit", true),
     ("POST", "/api/diagnostics/tdarr-matrix/rerun", true),
     ("POST", "/api/diagnostics/tdarr-matrix/evidence/open", true),
-    ("POST", "/api/diagnostics/encoder-capabilities/refresh", true),
+    (
+        "POST",
+        "/api/diagnostics/encoder-capabilities/refresh",
+        true,
+    ),
     ("POST", "/api/ui-preferences", true),
     ("POST", "/api/rename/preview", true),
     ("POST", "/api/rename/browse", true),
@@ -172,12 +176,15 @@ pub(crate) const REQUIRED_ROUTES: &[(&str, &str, bool)] = &[
     ("POST", "/api/rerun/network-preview", true),
     ("POST", "/api/rerun/network/start-dry-run", true),
     ("POST", "/api/rerun/network/start", true),
+    ("POST", "/api/rerun/network/retry", true),
     ("POST", "/api/rerun/start", true),
     ("POST", "/api/rerun/control", true),
     ("POST", "/api/rerun/continue", true),
     ("POST", "/api/rerun/open", true),
     ("POST", "/api/rerun/promote-dry-run", true),
     ("POST", "/api/rerun/promote", true),
+    ("POST", "/api/backend/lifecycle/reconcile-dry-run", true),
+    ("POST", "/api/backend/lifecycle/reconcile", true),
     ("POST", "/api/backend/shutdown", true),
     ("POST", "/api/network/coordinator/start-dry-run", true),
     ("POST", "/api/network/coordinator/stop-dry-run", true),
@@ -191,6 +198,47 @@ pub(crate) const REQUIRED_ROUTES: &[(&str, &str, bool)] = &[
     ("POST", "/api/network/coordinator/stop", true),
     ("POST", "/api/network/worker/start", true),
     ("POST", "/api/network/worker/stop", true),
+];
+
+pub(crate) struct RequiredLifecycleReconciliationRoute {
+    pub(crate) path: &'static str,
+    pub(crate) effect: &'static str,
+    pub(crate) request_keys: &'static [&'static str],
+    pub(crate) safe_defaults: Option<&'static [(&'static str, bool)]>,
+    pub(crate) requires_strict_boolean: &'static [&'static str],
+    pub(crate) requires_dry_run_fingerprint: Option<bool>,
+    pub(crate) requires_confirmation: bool,
+    pub(crate) journaled: bool,
+    pub(crate) response_schema: &'static str,
+    pub(crate) data_schema: &'static str,
+}
+
+pub(crate) const REQUIRED_LIFECYCLE_RECONCILIATION_ROUTES:
+    &[RequiredLifecycleReconciliationRoute] = &[
+    RequiredLifecycleReconciliationRoute {
+        path: "/api/backend/lifecycle/reconcile-dry-run",
+        effect: "none",
+        request_keys: &["reason"],
+        safe_defaults: None,
+        requires_strict_boolean: &[],
+        requires_dry_run_fingerprint: None,
+        requires_confirmation: false,
+        journaled: false,
+        response_schema: "desktop_command_result.v1",
+        data_schema: "desktop_lifecycle_reconciliation.v1",
+    },
+    RequiredLifecycleReconciliationRoute {
+        path: "/api/backend/lifecycle/reconcile",
+        effect: "lifecycle-evidence-reconciliation",
+        request_keys: &["confirm_apply", "dry_run_fingerprint", "reason"],
+        safe_defaults: Some(&[("confirm_apply", false)]),
+        requires_strict_boolean: &["confirm_apply"],
+        requires_dry_run_fingerprint: Some(true),
+        requires_confirmation: true,
+        journaled: true,
+        response_schema: "desktop_command_result.v1",
+        data_schema: "desktop_lifecycle_reconciliation.v1",
+    },
 ];
 
 pub(crate) struct RequiredNetworkLifecycleRoute {

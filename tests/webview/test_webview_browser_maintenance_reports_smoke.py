@@ -447,6 +447,7 @@ def _browser_maintenance_reports_runner_source() -> str:
                   ok: true,
                   severity: "info",
                   message: "Started audit via PID 24681.",
+                  refresh_hint: "snapshot",
                   data: {
                     library_root: body?.library_root || "",
                     library_roots: libraryRoots,
@@ -2049,6 +2050,9 @@ def _browser_maintenance_reports_runner_source() -> str:
             await waitFor(() => !byId("report-audit-add-source-button").disabled, "reports second audit source add idle");
             requireText("report-audit-source-status", ["2/2 selected"]);
             requireText("report-audit-source-selection-status", ["2 selected", "2/2 enabled"]);
+            if (byId("report-audit-start-button").disabled) {
+              throw new Error("Reports audit start stayed disabled for selected sources when only stale progress existed.");
+            }
             if (!document.querySelector('[data-audit-source-action="run"]')) {
               throw new Error("Reports audit source table did not expose row run actions.");
             }
@@ -2062,6 +2066,45 @@ def _browser_maintenance_reports_runner_source() -> str:
             byId("report-audit-start-include-sidecars").checked = true;
             byId("report-audit-start-show-console").checked = false;
             window.confirm = () => true;
+            const originalApiPostForScopedAuditScan = window.apiPost;
+            const originalRefreshAllForScopedAuditScan = window.refreshAll;
+            window.refreshAll = async () => {};
+            let releaseScopedAuditScan = () => {};
+            let scopedAuditScanPending = false;
+            window.apiPost = (path, body, options) => {
+              if (!String(path || "").includes("/api/audit/sources/scan")) {
+                return originalApiPostForScopedAuditScan(path, body, options);
+              }
+              scopedAuditScanPending = true;
+              return new Promise((resolve, reject) => {
+                releaseScopedAuditScan = () => {
+                  originalApiPostForScopedAuditScan(path, body, options).then(resolve, reject);
+                };
+              });
+            };
+            window.mediaPipelineApi.apiPost = window.apiPost;
+            byId("report-audit-scan-selected-button").click();
+            await waitFor(() => scopedAuditScanPending, "reports scoped audit source scan pending");
+            if (!byId("report-audit-scan-selected-button").disabled || !byId("report-audit-scan-all-button").disabled) {
+              throw new Error("Reports source scan controls were not locked while their backend request was pending.");
+            }
+            if (byId("report-audit-score-policy-save-button").disabled || byId("report-audit-score-policy-reset-button").disabled) {
+              throw new Error("Reports source scan globally disabled unrelated audit policy controls.");
+            }
+            releaseScopedAuditScan();
+            window.apiPost = originalApiPostForScopedAuditScan;
+            window.mediaPipelineApi.apiPost = window.apiPost;
+            await waitFor(() => !byId("report-audit-scan-selected-button").disabled, "reports scoped audit source scan completed");
+            window.refreshAll = originalRefreshAllForScopedAuditScan;
+
+            const originalRefreshAllForAuditSourceScan = window.refreshAll;
+            const originalSetTimeoutForAuditSourceScan = window.setTimeout;
+            window.setTimeout = (callback, delay, ...args) => originalSetTimeoutForAuditSourceScan(
+              callback,
+              Number(delay) === 15000 ? 25 : delay,
+              ...args
+            );
+            window.refreshAll = () => new Promise(() => {});
             const beforeAuditSourceScanPosts = posts.filter((entry) => entry.path.includes("/api/audit/sources/scan")).length;
             byId("report-audit-scan-selected-button").click();
             await waitFor(() => posts.filter((entry) => entry.path.includes("/api/audit/sources/scan")).length === beforeAuditSourceScanPosts + 1, "reports audit source scan");
@@ -2080,10 +2123,60 @@ def _browser_maintenance_reports_runner_source() -> str:
               "6",
               "3",
             ]);
+            await waitFor(() => !byId("report-audit-start-button").disabled, "reports audit start enabled while source scan refresh is pending");
+            await waitFor(() => text("report-audit-launch-detail").includes("Full Reports refresh timed out"), "reports audit source scan refresh timeout warning");
+            requireText("report-audit-launch-detail", [
+              "Audit source scan refreshed 2 location(s)",
+              "Command controls remain available",
+            ]);
+            window.refreshAll = originalRefreshAllForAuditSourceScan;
+            window.setTimeout = originalSetTimeoutForAuditSourceScan;
             await waitFor(() => !byId("report-audit-start-button").disabled, "reports audit start enabled after source scan");
+
+            window.refreshAll = () => Promise.reject(new Error("smoke rejected Reports refresh"));
+            const beforeRejectedRefreshScanPosts = posts.filter((entry) => entry.path.includes("/api/audit/sources/scan")).length;
+            byId("report-audit-scan-selected-button").click();
+            await waitFor(() => posts.filter((entry) => entry.path.includes("/api/audit/sources/scan")).length === beforeRejectedRefreshScanPosts + 1, "reports second audit source scan");
+            await waitFor(() => text("report-audit-launch-detail").includes("smoke rejected Reports refresh"), "reports rejected refresh warning");
+            requireText("report-audit-launch-detail", [
+              "Audit source scan refreshed 2 location(s)",
+              "Command controls remain available",
+            ]);
+            window.refreshAll = originalRefreshAllForAuditSourceScan;
             const beforeAuditStartPosts = posts.filter((entry) => entry.path.includes("/api/audit/start")).length;
+            const originalRefreshAllForAuditStart = window.refreshAll;
+            let releaseAuditStartRefresh = () => {};
+            window.refreshAll = () => new Promise((resolve) => {
+              releaseAuditStartRefresh = resolve;
+            });
+            const originalApiPostForAuditStart = window.apiPost;
+            let releaseAuditStartPost = () => {};
+            let auditStartRequestsPending = 0;
+            window.apiPost = (path, body, options) => {
+              if (!String(path || "").includes("/api/audit/start")) {
+                return originalApiPostForAuditStart(path, body, options);
+              }
+              auditStartRequestsPending += 1;
+              return new Promise((resolve, reject) => {
+                releaseAuditStartPost = () => {
+                  originalApiPostForAuditStart(path, body, options).then(resolve, reject);
+                };
+              });
+            };
+            window.mediaPipelineApi.apiPost = window.apiPost;
             byId("report-audit-start-button").click();
             byId("report-audit-start-button").click();
+            await waitFor(() => auditStartRequestsPending === 1, "reports audit start request pending");
+            if (!byId("report-audit-add-source-button").disabled || !byId("report-audit-scan-selected-button").disabled) {
+              throw new Error("Reports audit start did not lock source-registry commands while its backend request was pending.");
+            }
+            const pendingStartRowActions = Array.from(document.querySelectorAll('[data-audit-source-action="scan"], [data-audit-source-action="remove"]'));
+            if (!pendingStartRowActions.length || pendingStartRowActions.some((button) => !button.disabled)) {
+              throw new Error("Reports audit start left a source row action enabled while its backend request was pending.");
+            }
+            releaseAuditStartPost();
+            window.apiPost = originalApiPostForAuditStart;
+            window.mediaPipelineApi.apiPost = window.apiPost;
             await waitFor(() => posts.some((entry) => entry.path.includes("/api/audit/start")), "reports audit start");
             if (posts.filter((entry) => entry.path.includes("/api/audit/start")).length !== beforeAuditStartPosts + 1) {
               throw new Error("Reports audit start duplicate click posted more than once.");
@@ -2112,7 +2205,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               throw new Error("Reports audit start button did not switch to Audit Running.");
             }
             if (byId("report-audit-stop-button").disabled) {
-              throw new Error("Reports audit stop button was not clickable while the accepted audit run was active.");
+              throw new Error("Reports audit stop button was not clickable while audit progress refresh was pending.");
             }
             requireText("report-audit-launch-detail", [
               "Running indicator:",
@@ -2121,6 +2214,15 @@ def _browser_maintenance_reports_runner_source() -> str:
               "ETA: unavailable",
               "Progress source:",
             ]);
+            releaseAuditStartRefresh();
+            window.refreshAll = () => Promise.reject(new Error("smoke active audit refresh rejected"));
+            await waitFor(() => text("report-audit-launch-detail").includes("smoke active audit refresh rejected"), "reports active audit refresh warning");
+            await new Promise((resolve) => originalSetTimeoutForAuditSourceScan(resolve, 1100));
+            requireText("report-audit-launch-detail", [
+              "Running indicator: active",
+              "Refresh warning: smoke active audit refresh rejected",
+            ]);
+            window.refreshAll = async () => {};
             requireText("report-progress-summary", [
               "Audit status: starting",
               "Backend accepted audit start",
@@ -2141,6 +2243,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Audit stop recorded",
               "confirm_stop",
             ]);
+            window.refreshAll = originalRefreshAllForAuditStart;
             const originalRefreshAllForPriorityTable = window.refreshAll;
             let priorityTableRefreshCount = 0;
             window.refreshAll = () => {
@@ -2151,6 +2254,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               byId("audit-preview-priority-only").checked = false;
               await window.mediaPipelineReportsView.startReportAuditFromForm();
               await waitFor(() => posts.filter((entry) => entry.path.includes("/api/audit/start")).length === beforeAuditStartPosts + 2, "reports priority audit start");
+              await waitFor(() => text("report-audit-start-button") === "Audit Running", "reports restart after accepted stop");
               const completedAt = new Date().toISOString();
               window.mediaPipelineReportsView.renderReports(
                 {
@@ -2192,6 +2296,8 @@ def _browser_maintenance_reports_runner_source() -> str:
             }
             refreshedHighScoreInput.value = "222";
             refreshedHighScoreInput.dispatchEvent(new Event("input", { bubbles: true }));
+            const originalRefreshAllForScorePolicySave = window.refreshAll;
+            window.refreshAll = async () => {};
             const beforeScorePolicyPosts = posts.filter((entry) => entry.path.includes("/api/audit/score-policy")).length;
             byId("report-audit-score-policy-save-button").click();
             byId("report-audit-score-policy-save-button").click();
@@ -2207,7 +2313,9 @@ def _browser_maintenance_reports_runner_source() -> str:
             if (scorePolicyPost.body?.policy?.issue_code_weights?.["bdpgs-subtitles-ocr-candidate"] !== 40) {
               throw new Error("Reports audit score policy save did not include medium issue_code_weights.");
             }
-            await waitFor(() => !byId("report-audit-export-rerun-csv-button").disabled, "audit command buttons re-enabled after score policy save");
+            requireText("report-audit-score-policy-status", ["Saved"]);
+            await waitFor(() => !byId("report-audit-score-policy-save-button").disabled, "audit policy controls re-enabled after score policy save");
+            window.refreshAll = originalRefreshAllForScorePolicySave;
             window.mediaPipelineReportsView.markReportsComponentFresh("failures", { generated_at: "2026-07-09T12:02:00Z" });
             window.mediaPipelineReportsView.renderFailurePreview(reportFailurePreview);
             if (text("failure-review-status") !== "Action needed") {
@@ -2486,12 +2594,14 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
         browser_result = result["result"]
         posts = browser_result["posts"]
         gets = browser_result["gets"]
-        self.assertEqual(len(posts), 17)
+        self.assertEqual(len(posts), 19)
         failure_get_paths = [get["path"] for get in gets if get["path"].startswith("/api/failures")]
         self.assertIn("/api/failures?limit=100&source=markers", failure_get_paths)
         self.assertIn("/api/failures?limit=100", failure_get_paths)
         audit_source_posts = [post for post in posts if post["path"] == "/api/audit/sources"]
-        audit_source_scan_post = next(post for post in posts if post["path"] == "/api/audit/sources/scan")
+        audit_source_scan_posts = [post for post in posts if post["path"] == "/api/audit/sources/scan"]
+        self.assertEqual(len(audit_source_scan_posts), 3)
+        audit_source_scan_post = audit_source_scan_posts[0]
         audit_start_posts = [post for post in posts if post["path"] == "/api/audit/start"]
         self.assertEqual(len(audit_start_posts), 2)
         audit_start_post = audit_start_posts[0]

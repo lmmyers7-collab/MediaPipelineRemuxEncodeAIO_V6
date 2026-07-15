@@ -9,16 +9,46 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from mediapipeline.core.rename.bad_case_corpus import RenameBadCaseCorpusError, append_bad_rename_case_from_request
-from mediapipeline.core.rename.tv import (
-    build_auto_tv_rename_name,
-    clean_pipeline_tv_name_part,
-    resolve_tv_folder_season_info,
+from mediapipeline.core.rename.bad_case_corpus import (
+    RenameBadCaseCorpusError,
+    append_bad_rename_case_from_request,
+    build_bad_rename_case,
+    validate_active_bad_rename_case,
 )
 
 
 FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "rename" / "bad_rename_cases.jsonl"
-REQUIRED_STRING_FIELDS = ("id", "status", "kind", "source_folder", "source_file", "expected_name")
+REQUIRED_STRING_FIELDS = ("id", "status", "kind", "source_folder", "source_file")
+REQUIRED_ACTIVE_CASE_IDS = {
+    "subsplease-kanan-sama-12v2",
+    "tv-canonical-range",
+    "tv-noncanonical-range-blocked",
+    "tv-invalid-range-blocked",
+    "tv-e100",
+    "tv-e1000-blocked",
+    "tv-ordinal-third-season",
+    "tv-ova-special",
+    "tv-revision-v2-title",
+    "tv-revision-v3-title",
+    "tv-legitimate-web-audio-proper",
+    "tv-policy-override",
+    "movie-proper-revision",
+    "movie-repack-revision",
+    "movie-rerip-revision",
+    "movie-a-proper-man",
+    "movie-the-web",
+    "movie-audio-drama",
+    "movie-12-angry-men",
+    "movie-10-cloverfield-lane",
+    "movie-dc-league",
+    "movie-ma",
+    "movie-cam",
+    "movie-2001-a-space-odyssey",
+    "movie-blade-runner-2049",
+    "movie-1917",
+    "movie-1984",
+    "movie-policy-override-hoppers",
+}
 
 
 def load_cases() -> list[dict[str, Any]]:
@@ -56,37 +86,160 @@ class RenameBadCaseCorpusTests(unittest.TestCase):
                 self.assertIsInstance(case.get("season_number", 1), int)
                 if "expected_season" in case:
                     self.assertIsInstance(case["expected_season"], int)
+                if case["status"] == "active" and case["kind"] == "tv_auto":
+                    self.assertIn("expected_episode", case)
+                    self.assertIsInstance(case["expected_episode"], int)
+                    self.assertIn("expected_episode_end", case)
+                    self.assertTrue(case["expected_episode_end"] is None or isinstance(case["expected_episode_end"], int))
+                for field in (
+                    "expected_queue_season_sort_order",
+                    "expected_queue_episode_sort_order",
+                ):
+                    if field in case:
+                        self.assertIsInstance(case[field], int)
+                for field in ("expected_blocked", "expected_queue_blocked"):
+                    if field in case:
+                        self.assertIsInstance(case[field], bool)
+                for field in (
+                    "expected_parse_mode",
+                    "expected_block_reason_code",
+                    "expected_error_contains",
+                    "expected_queue_show_sort_key",
+                    "expected_queue_block_reason_code",
+                ):
+                    if field in case:
+                        self.assertIsInstance(case[field], str)
+                for field in ("movie_filter_options", "movie_filter_terms", "tv_filter_options", "tv_filter_terms"):
+                    if field in case:
+                        self.assertIsInstance(case[field], dict)
+                for field in ("remove_terms", "tv_remove_terms"):
+                    if field in case:
+                        self.assertIsInstance(case[field], list)
                 for field in ("source_folder", "source_file"):
                     self.assertNotIn("\n", case[field])
 
-    def test_active_tv_auto_cases_match_expected_output(self) -> None:
-        active_cases = [case for case in load_cases() if case.get("status") == "active" and case.get("kind") == "tv_auto"]
-        self.assertGreaterEqual(len(active_cases), 1)
+    def test_required_regressions_are_active(self) -> None:
+        active_ids = {case["id"] for case in load_cases() if case.get("status") == "active"}
+
+        self.assertEqual(REQUIRED_ACTIVE_CASE_IDS - active_ids, set())
+
+    def test_every_active_auto_case_matches_python(self) -> None:
+        active_cases = [case for case in load_cases() if case.get("status") == "active"]
+        self.assertGreaterEqual(len(active_cases), len(REQUIRED_ACTIVE_CASE_IDS))
         for case in active_cases:
             with self.subTest(case=case["id"]):
-                source = Path("TV") / case["source_folder"] / case["source_file"]
-                remove_terms = case.get("remove_terms") or None
-                expected_clean_folder = str(case.get("expected_clean_folder") or "").strip()
-                if expected_clean_folder:
-                    self.assertEqual(clean_pipeline_tv_name_part(source.parent.name, remove_terms), expected_clean_folder)
+                self.assertEqual(validate_active_bad_rename_case(case), [])
 
-                folder_info = resolve_tv_folder_season_info(source, remove_terms)
-                if "expected_season" in case:
-                    self.assertIsNotNone(folder_info)
-                    self.assertEqual(folder_info["season"], case["expected_season"])
-                expected_show = str(case.get("expected_show") or "").strip()
-                if expected_show:
-                    self.assertIsNotNone(folder_info)
-                    self.assertEqual(folder_info["show"], expected_show)
+    def test_case_builder_preserves_identity_queue_and_policy_overrides(self) -> None:
+        case = build_bad_rename_case(
+            {
+                "kind": "tv_auto",
+                "status": "pending",
+                "source_folder": "Example Show",
+                "source_file": "Example Show S01E02-E01.mkv",
+                "expected_blocked": True,
+                "expected_block_reason_code": "tv_parse_unreliable",
+                "expected_error_contains": "range must increase",
+                "expected_episode": 2,
+                "expected_episode_end": 1,
+                "expected_parse_mode": "invalid-range",
+                "expected_queue_show_sort_key": "Example Show",
+                "expected_queue_season_sort_order": 1,
+                "expected_queue_episode_sort_order": 2,
+                "expected_queue_blocked": True,
+                "expected_queue_block_reason_code": "tv_parse_unreliable",
+                "tv_filter_options": {"video_source": True},
+                "tv_filter_terms": {"video_source": ["CustomSource"]},
+                "tv_remove_terms": ["sample"],
+            },
+            set(),
+        )
 
-                self.assertEqual(
-                    build_auto_tv_rename_name(
-                        source,
-                        season_number=int(case.get("season_number", 1)),
-                        remove_terms=remove_terms,
-                    ),
-                    case["expected_name"],
-                )
+        self.assertEqual(case["expected_name"], "")
+        self.assertEqual(case["expected_episode_end"], 1)
+        self.assertEqual(case["expected_parse_mode"], "invalid-range")
+        self.assertEqual(case["expected_queue_episode_sort_order"], 2)
+        self.assertTrue(case["expected_blocked"])
+        self.assertEqual(case["tv_filter_terms"], {"video_source": ["CustomSource"]})
+        self.assertEqual(case["tv_remove_terms"], ["sample"])
+
+    def test_active_blocked_tv_cases_require_and_validate_episode_gates(self) -> None:
+        base = {
+            "kind": "tv_auto",
+            "status": "active",
+            "source_folder": "Anime",
+            "source_file": "Example Show S01E01-01.mkv",
+            "expected_blocked": True,
+            "expected_parse_mode": "noncanonical-range",
+            "expected_error_contains": "Noncanonical TV episode range",
+        }
+
+        with self.assertRaisesRegex(RenameBadCaseCorpusError, "expected_episode"):
+            build_bad_rename_case(base, set())
+
+        case = build_bad_rename_case(
+            {**base, "status": "pending", "expected_episode": 999, "expected_episode_end": 998},
+            set(),
+        )
+        case["status"] = "active"
+        errors = validate_active_bad_rename_case(case)
+
+        self.assertTrue(any("expected_episode mismatch" in error for error in errors), errors)
+        self.assertTrue(any("expected_episode_end mismatch" in error for error in errors), errors)
+
+    def test_case_builder_uses_source_folder_for_clean_folder_expectation(self) -> None:
+        case = build_bad_rename_case(
+            {
+                "kind": "tv_auto",
+                "status": "active",
+                "source_folder": "Anime",
+                "source_file": "Example Show S01E01.mkv",
+                "expected_name": "Example Show - S01E01.mkv",
+                "expected_episode": 1,
+                "expected_episode_end": None,
+            },
+            set(),
+        )
+
+        self.assertEqual(case["expected_clean_folder"], "Anime")
+        self.assertEqual(validate_active_bad_rename_case(case), [])
+
+    def test_case_builder_rejects_malformed_nested_policy_overrides(self) -> None:
+        invalid_overrides = (
+            ("tv_filter_options", {"video_source": "false"}),
+            ("tv_filter_terms", {"video_source": "CustomSource"}),
+            ("tv_remove_terms", ["sample", 7]),
+        )
+        base = {
+            "kind": "tv_auto",
+            "status": "pending",
+            "source_folder": "Anime",
+            "source_file": "Example Show S01E01.mkv",
+            "expected_name": "Example Show - S01E01.mkv",
+        }
+
+        for field_name, value in invalid_overrides:
+            with self.subTest(field=field_name):
+                with self.assertRaisesRegex(RenameBadCaseCorpusError, field_name):
+                    build_bad_rename_case({**base, field_name: value}, set())
+
+    def test_explicit_empty_tv_remove_terms_override_legacy_remove_terms(self) -> None:
+        case = build_bad_rename_case(
+            {
+                "kind": "tv_auto",
+                "status": "active",
+                "source_folder": "Anime",
+                "source_file": "Sample Show S01E01.mkv",
+                "expected_name": "Sample Show - S01E01.mkv",
+                "expected_episode": 1,
+                "expected_episode_end": None,
+                "remove_terms": ["sample"],
+                "tv_remove_terms": [],
+            },
+            set(),
+        )
+
+        self.assertEqual(validate_active_bad_rename_case(case), [])
 
     def test_movie_auto_case_append_builds_expected_name(self) -> None:
         import tempfile

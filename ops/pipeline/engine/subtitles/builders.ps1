@@ -466,9 +466,14 @@ function Build-SubtitleTracksForMkvmerge {
 
     Set-SubtitleBuilderFallbackDefault -DefaultState $defaultState -Builder 'Mkvmerge'
 
+    # mkvmerge emits tracks selected from one source input in source-TID
+    # order, regardless of the order in --subtitle-tracks. Generated SRT
+    # inputs follow those source tracks in the order their input arguments
+    # are appended. Build verification evidence in that actual output order.
+    $orderedSourceTracks = @($sourceTracks | Sort-Object { [int]$_.MkvTid })
     $verificationTracks = [System.Collections.Generic.List[object]]::new()
     $subtitleOrdinal = 0
-    foreach ($track in @($sourceTracks) + @($externalTracks)) {
+    foreach ($track in @($orderedSourceTracks) + @($externalTracks)) {
         $verificationTracks.Add([pscustomobject][ordered]@{
             ordinal = $subtitleOrdinal
             output_location = 'embedded'
@@ -483,7 +488,7 @@ function Build-SubtitleTracksForMkvmerge {
     }
 
     return @{
-        SourceTracks   = @($sourceTracks)
+        SourceTracks   = @($orderedSourceTracks)
         ExternalTracks = @($externalTracks)
         Tx3gTracks     = @($tx3gTracks)
         BdpgsTracks    = @($bdpgsTracks)
@@ -642,6 +647,7 @@ function Build-SubtitleArgsForFFmpeg {
     $allTracks = [System.Collections.Generic.List[hashtable]]::new()
 
     $convertedSrtCodec = Get-ConvertedSrtCodecForFfmpegOutput
+    $convertedSrtExpectedCodec = if (([string]$convertedSrtCodec).Trim().ToLowerInvariant() -eq 'copy') { 'subrip' } else { [string]$convertedSrtCodec }
     $canPreserveTx3g = Test-CanPreserveTx3gInFfmpegOutput
     $canPreserveBdpgs = Test-CanPreserveBdpgsInFfmpegOutput
     $canPreserveVobSub = if (Get-Command -Name Test-CanPreserveVobSubInFfmpegOutput -ErrorAction SilentlyContinue) {
@@ -714,7 +720,7 @@ function Build-SubtitleArgsForFFmpeg {
             Disp    = $disp
             SrtPath = $srtPath
             Codec   = $convertedSrtCodec
-            ExpectedCodec = $convertedSrtCodec
+            ExpectedCodec = $convertedSrtExpectedCodec
             SourceStreamIndex = [int]$s.index
             Action = 'convert_ass'
         }
@@ -780,7 +786,7 @@ function Build-SubtitleArgsForFFmpeg {
             Disp    = $disp
             SrtPath = $extract.Path
             Codec   = $convertedSrtCodec
-            ExpectedCodec = $convertedSrtCodec
+            ExpectedCodec = $convertedSrtExpectedCodec
             SourceStreamIndex = [int]$s.index
             Action = 'convert_tx3g'
         }
@@ -840,7 +846,7 @@ function Build-SubtitleArgsForFFmpeg {
             Disp    = $disp
             SrtPath = $ocr.Path
             Codec   = $convertedSrtCodec
-            ExpectedCodec = $convertedSrtCodec
+            ExpectedCodec = $convertedSrtExpectedCodec
             SourceStreamIndex = [int]$s.index
             Action = 'convert_bdpgs'
         }
@@ -902,7 +908,7 @@ function Build-SubtitleArgsForFFmpeg {
             Disp    = $disp
             SrtPath = $ocr.Path
             Codec   = $convertedSrtCodec
-            ExpectedCodec = $convertedSrtCodec
+            ExpectedCodec = $convertedSrtExpectedCodec
             SourceStreamIndex = if ($s) { [int]$s.index } else { -1 }
             Action = 'convert_vobsub'
         }

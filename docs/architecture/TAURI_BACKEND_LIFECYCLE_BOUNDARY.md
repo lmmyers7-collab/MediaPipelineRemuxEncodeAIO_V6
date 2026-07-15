@@ -41,6 +41,7 @@ The WebView (JavaScript frontend) owns:
 - Read-only rendering of backend-served state
 - Operator UI (form inputs, selectors, table interactions)
 - A read-only Tauri lifecycle event bridge (`tauriLifecycleBridge.js`) that listens only for `mediapipeline://backend-lifecycle`, re-dispatches a DOM event, and renders a warning banner plus Diagnostics recovery guidance
+- One separately allowlisted, window-only WebView command bridge (`pipelineLogWindowBridge.js`) that may invoke only `open_pipeline_log_window` to show or focus the backend-served read-only Pipeline Log window; it cannot accept a path or start a process
 - Forwarding mutation commands to backend-owned Local API routes via `POST`/authenticated requests
 - Non-mutating operator assistance (checklists, handoff panels, readiness summaries)
 - Diagnostics open/tail requests via backend-allowlisted keys only
@@ -88,6 +89,7 @@ behavior changes still require representative real-media revalidation.
 
 - Implemented for the Tauri side on 2026-05-19: the lifecycle monitor checks the managed backend process and emits `mediapipeline://backend-lifecycle` with schema `mediapipeline_backend_lifecycle_event.v1` if the process exits unexpectedly.
 - Implemented for the WebView side on 2026-05-19: `tauriLifecycleBridge.js` listens only for that Tauri event and `app.js` renders a top-level lifecycle warning banner plus Diagnostics recovery guidance. The bridge does not call Local API POST routes, open files, invoke shell/process APIs, or mutate media/state.
+- The lifecycle bridge remains event-only. `pipelineLogWindowBridge.js` is the distinct narrow exception for direct Tauri invocation: it calls exactly `open_pipeline_log_window`, with no arguments, to create/show/focus a read-only window whose URL is derived from the validated loopback backend URL. Browser-hosted WebView uses `window.open` as a compatibility fallback. Neither path accepts an operator path or owns filesystem, process, pipeline, settings, queue, publish, or media mutation.
 
 ### 4. Orphan cleanup on abnormal exit
 
@@ -101,7 +103,7 @@ behavior changes still require representative real-media revalidation.
 ### 6. Token rotation
 
 - The bootstrap token is generated per process start and is not persisted. This is correct behavior. Verify that the token is not logged, stored in environment variables inherited by child processes, or exposed through WebView2 developer tools in the production build.
-- Current posture: Tauri does not pass the token through environment variables and does not log it in bounded operator-context errors. Rust reads the backend bootstrap token from stdout, uses it for backend validation requests, and injects it into the WebView through `window.MEDIA_PIPELINE_TAURI_BOOTSTRAP` in the Tauri initialization script. Tauri public index HTML must not contain the bearer token. `Test-TauriShell-ProductionSurface.ps1` statically checks that runtime Rust has no production devtools/debugging flags, no token-adjacent runtime logging, one dynamic main window, the single-instance mutex, and an event-only Tauri lifecycle bridge. Clean-machine PG-3 still requires operator confirmation that developer tools are not present on the target machine.
+- Current posture: Tauri does not pass the token through environment variables and does not log it in bounded operator-context errors. Rust reads the backend bootstrap token from stdout, uses it for backend validation requests, and injects it into the WebView through `window.MEDIA_PIPELINE_TAURI_BOOTSTRAP` in the Tauri initialization script. Tauri public index HTML must not contain the bearer token. `Test-TauriShell-ProductionSurface.ps1` statically checks that runtime Rust has no production devtools/debugging flags, no token-adjacent runtime logging, one dynamic main window, the single-instance mutex, an event-only Tauri lifecycle bridge, and the separately allowlisted read-only Pipeline Log window command. Clean-machine PG-3 still requires operator confirmation that developer tools are not present on the target machine.
 
 ---
 

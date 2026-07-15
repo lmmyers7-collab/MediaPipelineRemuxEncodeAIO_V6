@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -18,6 +20,35 @@ except ImportError:  # pragma: no cover - fallback for direct test execution
 
 
 class BrowserSmokeSupportTests(unittest.TestCase):
+    def test_namespace_promotion_respects_sticky_test_global_masks(self) -> None:
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is required for the browser namespace promotion test.")
+        promotion = support.browser_namespace_promotion_script()
+        script = f"""
+        globalThis.window = {{
+          mediaPipelineFixture: {{ faultedDependency: () => "restored" }},
+        }};
+        const promotion = {json.dumps(promotion)};
+        eval(promotion);
+        if (typeof window.faultedDependency !== "function") throw new Error("initial promotion failed");
+        window.__mediaPipelineBrowserSmokeMaskGlobal("faultedDependency");
+        if (window.faultedDependency !== undefined) throw new Error("mask did not delete global");
+        eval(promotion);
+        if (window.faultedDependency !== undefined) throw new Error("promotion restored masked global");
+        console.log(JSON.stringify(window.__mediaPipelineBrowserSmokeMaskedGlobals));
+        """
+
+        result = subprocess.run(
+            [node, "-e", script],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout), ["faultedDependency"])
+
     def test_media_no_mutation_snapshot_hashes_only_media_and_sidecar_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

@@ -104,6 +104,11 @@ def start_rerun_csv_for_service(
     confirm_delete_original: bool = False,
     show_console: bool,
     plan_only: bool = False,
+    command_id: str = "",
+    launch_id: str = "",
+    batch_id: str = "",
+    enrollment_path: Path | None = None,
+    manifest_path: Path | None = None,
 ) -> subprocess.Popen[Any]:
     plan = build_rerun_csv_launch_plan(
         resolved,
@@ -122,6 +127,11 @@ def start_rerun_csv_for_service(
         confirm_source_overwrite=confirm_source_overwrite,
         confirm_original_policy=confirm_original_policy,
         confirm_delete_original=confirm_delete_original,
+        command_id=command_id,
+        launch_id=launch_id,
+        batch_id=batch_id,
+        enrollment_path=enrollment_path,
+        manifest_path=manifest_path,
     )
     return service._spawn(
         plan.args,

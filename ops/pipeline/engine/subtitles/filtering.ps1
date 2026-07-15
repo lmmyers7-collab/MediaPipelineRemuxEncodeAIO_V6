@@ -50,7 +50,7 @@ function Filter-SubtitleStreams {
     $probeTimeoutSeconds = Get-SubtitleOperationTimeoutSeconds -ScriptVariableName 'SubtitleProbeTimeoutSeconds' -DefaultSeconds 30
     $r = Invoke-FFprobeCommand -ArgumentList @(
         "-v","error","-select_streams","s",
-        "-show_entries","stream=index,codec_name,codec_long_name,codec_tag_string,codec_tag,disposition:stream_tags=language,title",
+        "-show_entries","stream=index,codec_name,codec_long_name,codec_tag_string,codec_tag:stream_tags=language,title:stream_disposition=default,forced",
         "-of","json","--",$FilePath
     ) -TimeoutSeconds $probeTimeoutSeconds -Stage 'subtitle-stream-probe'
     if ($r.ExitCode -ne 0) {

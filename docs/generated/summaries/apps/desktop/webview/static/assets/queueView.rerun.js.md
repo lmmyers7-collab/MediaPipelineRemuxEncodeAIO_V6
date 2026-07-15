@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/queueView.rerun.js
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-14
 last_reviewed: 2026-07-03
-sha256: 21759a878779ea0590982bba067adb06ccd8865bb4ded69d59c1951fdedd9458
+sha256: 5d1bde4ec77138c58340053e976bdcb9d4e92814650f159dfc426108dc18d6eb
 ---
 # `apps/desktop/webview/static/assets/queueView.rerun.js`
 

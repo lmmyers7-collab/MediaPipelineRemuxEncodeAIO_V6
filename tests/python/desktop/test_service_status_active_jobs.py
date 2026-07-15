@@ -92,6 +92,43 @@ class StatusActiveJobsHelperTests(unittest.TestCase):
         self.assertEqual(rows[0]["args_count"], 3)
         self.assertEqual(rows[0]["metadata"], {"route": "encode"})
 
+    def test_active_job_detail_rows_projects_kill_degraded_as_reconciliation_warning(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            folder = root / "ActiveJobs"
+            folder.mkdir()
+            (folder / "degraded.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_active_job.v1",
+                        "launch_id": "launch-degraded",
+                        "job_kind": "rerun_csv",
+                        "mode": "rerun_csv",
+                        "status": "kill_degraded",
+                        "pid": 123,
+                        "app_pid": 456,
+                        "command_line": "pwsh -File rerun.ps1",
+                        "args": ["pwsh", "-File", "rerun.ps1"],
+                        "cwd": str(root),
+                        "stdout_log": str(root / "stdout.log"),
+                        "stderr_log": str(root / "stderr.log"),
+                        "show_console": False,
+                        "metadata": {},
+                        "launched_at": "2026-05-08T12:00:00-04:00",
+                        "last_update": "2026-05-08T12:00:01-04:00",
+                        "return_code": -9,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            rows = active_job_detail_rows(folder)
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["source"], "contract")
+        self.assertEqual(rows[0]["status"], "kill_degraded")
+        self.assertEqual(rows[0]["status_state"], "warning")
+
     def test_format_active_job_summary_reports_legacy_record(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             folder = Path(td) / "ActiveJobs"

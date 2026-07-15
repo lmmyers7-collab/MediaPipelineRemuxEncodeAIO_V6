@@ -230,6 +230,8 @@ true,"$source",Movie,copy,keep,park
     $expectedStageBatchRoot = Join-Path (Join-Path $workspaceRoot 'RerunQueue') ([string]$manifest.batch_id)
     $expectedStageMovies = Join-Path $expectedStageBatchRoot 'Movies'
     $expectedStageTv = Join-Path $expectedStageBatchRoot 'TV'
+    Assert-True (Test-Path -LiteralPath $expectedStageMovies -PathType Container) 'Live rerun must create the staged Movies root before launching the nested pipeline.'
+    Assert-True (Test-Path -LiteralPath $expectedStageTv -PathType Container) 'Live movie-only rerun must still create the empty staged TV root required by nested autonomy health.'
     Assert-True ($movieProfile.Count -eq 1) 'Temp config should preserve the movies library profile.'
     Assert-True ($tvProfile.Count -eq 1) 'Temp config should preserve the tv library profile.'
     Assert-Equal (ConvertTo-ComparablePath ([string]$movieProfile[0]['source_path'])) (ConvertTo-ComparablePath $expectedStageMovies) 'Movies profile should point at staged Movies.'

@@ -3,9 +3,9 @@ file: apps/desktop/tauri/src-tauri/src/lib_tests/mod.rs
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shell
-last_modified: 2026-07-11
+last_modified: 2026-07-13
 last_reviewed: 2026-07-11
-sha256: c132407cf8ef64890b91c15ed314d75198eefbd18d435abc0bd16165b7ff62b2
+sha256: 7b8deae426fb8da70a596a4eb5777a58f637ff2da3db92c5faf75e637eb189a6
 ---
 # `apps/desktop/tauri/src-tauri/src/lib_tests/mod.rs`
 

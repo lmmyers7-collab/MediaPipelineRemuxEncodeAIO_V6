@@ -1,0 +1,869 @@
+{
+  "schema_version": "webview_touchpoint_evidence.v1",
+  "note": "Human-curated classification and dynamic evidence overlay for the generated WebView/Tauri touchpoint ledger. Static entries are keyed overrides; runtime-generated and native controls are family records.",
+  "static_overrides": {},
+  "static_audit_runs": [
+    {
+      "run_id": "shell-launch-queue-rename-control-census",
+      "surfaces": [
+        "app-shell",
+        "launch",
+        "queue",
+        "rename"
+      ],
+      "status": "passed",
+      "tests": [
+        "tests/webview/test_webview_browser_shell_launch_queue_rename_control_census.py"
+      ],
+      "evidence": [
+        "Exact 205-control census: 157 physical/dedicated-flow activations, 18 intentional high-risk skips, 30 fixture-precondition blocks, zero failures or unclassified controls; generated controls and keyboard shortcuts were audited separately below."
+      ],
+      "exception_groups": [
+        {
+          "status": "skipped",
+          "blocker": "The control starts, stops, pauses, rescans, or force-terminates owned process work; this read-only census did not manufacture active media work or terminate process trees.",
+          "touchpoint_ids": [
+            "webview.static.app-shell.button-button-confirm-command-true-control-action-kill-emergency-force-stop-related-pipeline-audit-and-csv-rerun-processes",
+            "webview.static.pipeline-start-button",
+            "webview.static.launch.button-button-control-action-pause-pause-resume",
+            "webview.static.launch.button-button-confirm-command-true-control-action-rescan-rescan",
+            "webview.static.launch.button-button-confirm-command-true-control-action-stop-stop-after-current",
+            "webview.static.launch.button-button-confirm-command-true-control-action-kill-force-stop",
+            "webview.static.rerun-start-button",
+            "webview.static.rerun-stop-after-current-button"
+          ]
+        },
+        {
+          "status": "skipped",
+          "blocker": "The control persists queue priority, strategy, hold, or manual-order state; the control-only census did not perform persistent queue mutation.",
+          "touchpoint_ids": [
+            "webview.static.queue-priority-promote-btn",
+            "webview.static.queue-priority-normal-btn",
+            "webview.static.queue-priority-low-btn",
+            "webview.static.queue-priority-hold-btn",
+            "webview.static.queue-priority-promote-movies-btn",
+            "webview.static.queue-priority-promote-tv-btn",
+            "webview.static.queue-priority-clear-all-btn",
+            "webview.static.queue-strategy-apply-btn",
+            "webview.static.queue-manual-save-order-btn"
+          ]
+        },
+        {
+          "status": "skipped",
+          "blocker": "Submitting the rename bad-case form appends a persistent repository corpus entry, which is outside a disposable read-only control census.",
+          "touchpoint_ids": [
+            "webview.static.rename-log-case-submit-button"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "The authored launch mirror or backend-initialization-dependent control is intentionally hidden or disabled in the supported disposable state.",
+          "touchpoint_ids": [
+            "webview.static.pipeline-start-mode",
+            "webview.static.pipeline-single-file-browse-button",
+            "webview.static.pipeline-single-file-clear-button"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "The disposable rerun fixture did not contain backend-known issue/bucket dimensions or an imported CSV key required by this control.",
+          "touchpoint_ids": [
+            "webview.static.rerun-scope-issue-filter",
+            "webview.static.rerun-scope-bucket-filter",
+            "webview.static.rerun-open-csv-button",
+            "webview.static.rerun-open-csv-folder-button"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "The one-row, one-page queue fixture could not create a distinct manual-order draft or another results page.",
+          "touchpoint_ids": [
+            "webview.static.queue-manual-discard-order-btn",
+            "webview.static.queue-page-prev-btn",
+            "webview.static.queue-page-next-btn"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "The disposable queue row already inherited the saved policy and had no saved exact override to clear.",
+          "touchpoint_ids": [
+            "webview.static.queue.button-button-use-saved-policy-value-for-audio-keep-languages",
+            "webview.static.queue.button-button-use-saved-policy-value-for-audio-drop-languages",
+            "webview.static.queue.button-button-use-saved-policy-value-for-preferred-default-audio-language",
+            "webview.static.queue.button-button-use-saved-policy-value-for-subtitle-strip-all",
+            "webview.static.queue.button-button-use-saved-policy-value-for-subtitle-keep-languages",
+            "webview.static.queue.button-button-use-saved-policy-value-for-subtitle-drop-languages",
+            "webview.static.queue.button-button-use-saved-policy-value-for-routing-profile",
+            "webview.static.queue.button-button-use-saved-policy-value-for-output-container",
+            "webview.static.queue.button-button-use-saved-policy-value-for-video-codec",
+            "webview.static.queue.button-button-use-saved-policy-value-for-encode-preset",
+            "webview.static.queue.button-button-use-saved-policy-value-for-encode-ladder",
+            "webview.static.queue.button-button-use-saved-policy-value-for-route-threshold-mode"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "The single-row backend fixture had no detectable series scope, so the series-preview modal and its filters never became reachable.",
+          "touchpoint_ids": [
+            "webview.static.fo-series-modal-close",
+            "webview.static.queue.button-button-fo-series-filter-all-all",
+            "webview.static.queue.button-button-fo-series-filter-will-update-will-update",
+            "webview.static.queue.button-button-fo-series-filter-protected-protected",
+            "webview.static.queue.button-button-fo-series-filter-issues-issues"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "A non-mutating rename census does not open apply/undo confirmation or result dialogs and therefore cannot activate their controls.",
+          "touchpoint_ids": [
+            "webview.static.rename-confirm-cancel-button",
+            "webview.static.rename-result-open-log-button",
+            "webview.static.rename.button-submit-close-close"
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": "settings-libraries-schedule-control-census",
+      "surfaces": [
+        "settings",
+        "libraries",
+        "schedule"
+      ],
+      "status": "passed",
+      "tests": [
+        "tests/webview/test_webview_browser_settings_control_census_smoke.py"
+      ],
+      "evidence": [
+        "Exact 351-control census: 285 physical activations, every finite enabled select value, both checkbox states, zero failed or unclassified controls, and no prohibited backend POST. The raw run labeled 54 intentional non-invocations as skipped and 12 unavailable controls as blocked; the curated ledger conservatively records all 66 as blocked because none established its exact isolated full-effect, path-picker, persistence, or rollback preconditions."
+      ],
+      "exception_groups": [
+        {
+          "status": "blocked",
+          "blocker": "The local-control census did not invoke backend commands and therefore did not establish the command-specific isolated full-effect preconditions required to credit activation.",
+          "touchpoint_ids": [
+            "webview.static.schedule-editor-preview-button",
+            "webview.static.settings-deployment-verify-button",
+            "webview.static.settings-library-preview-button",
+            "webview.static.settings-library-scan-sources-button",
+            "webview.static.settings-library-watch-preview-button",
+            "webview.static.settings-preset-library-apply-preview",
+            "webview.static.settings-preset-library-compare",
+            "webview.static.settings-preset-library-export",
+            "webview.static.settings-preset-library-import-preview",
+            "webview.static.settings-preset-library-load",
+            "webview.static.settings-preset-library-validate",
+            "webview.static.settings-reload-button",
+            "webview.static.settings-rename-workbench-retest-button",
+            "webview.static.settings-rename-workbench-test-button",
+            "webview.static.settings-save-header-reload-button",
+            "webview.static.settings-save-header-save-button",
+            "webview.static.settings-save-patch-button",
+            "webview.static.settings-validate-button",
+            "webview.static.settings-wizard-detect-tools-button",
+            "webview.static.settings-wizard-next-button",
+            "webview.static.settings-wizard-preview-button",
+            "webview.static.settings-wizard-probe-hardware-button",
+            "webview.static.settings-wizard-validate-paths-button",
+            "webview.static.settings-wizard-validate-workers-button"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "The census did not invoke backend persistence and therefore did not establish each command's complete isolated rollback preconditions.",
+          "touchpoint_ids": [
+            "webview.static.settings-library-save-button",
+            "webview.static.settings-library-watch-save-button",
+            "webview.static.settings-preset-library-apply",
+            "webview.static.settings-preset-library-save",
+            "webview.static.settings-rename-workbench-save-case-button"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "The supported isolated state did not make this backend mutation ready, so the census left it disabled and did not manufacture state to bypass its guard.",
+          "touchpoint_ids": [
+            "webview.static.schedule-editor-save-button",
+            "webview.static.settings-rename-workbench-save-filters-button",
+            "webview.static.settings-wizard-save-button"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "The control remained disabled in the supported isolated state because its required upstream selection or mode was unavailable.",
+          "touchpoint_ids": [
+            "webview.static.library-route-compare-left",
+            "webview.static.library-route-compare-right",
+            "webview.static.library-route-map-profile-select",
+            "webview.static.library-route-trace-selector",
+            "webview.static.settings-rename-workbench-expected-episode",
+            "webview.static.settings-rename-workbench-expected-episode-title",
+            "webview.static.settings-rename-workbench-expected-season",
+            "webview.static.settings-rename-workbench-expected-show",
+            "webview.static.settings-rename-workbench-template"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "This authored control is a hidden derived mirror rather than a reachable operator input in the supported Settings state.",
+          "touchpoint_ids": [
+            "webview.static.settings-boundary-1080p-end",
+            "webview.static.settings-boundary-1440p-end",
+            "webview.static.settings-boundary-1440p-start",
+            "webview.static.settings-boundary-4k-start",
+            "webview.static.settings-builder-1080p-upper-tolerance",
+            "webview.static.settings-builder-1440p-lower-tolerance",
+            "webview.static.settings-builder-1440p-upper-tolerance",
+            "webview.static.settings-builder-4k-lower-tolerance",
+            "webview.static.settings-builder-routing-profile-key-readout"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "The browser census could not prove the native/backend picker boundary would remain isolated, so the picker did not earn activation evidence.",
+          "touchpoint_ids": [
+            "webview.static.settings-file-safety-local-base-browse",
+            "webview.static.settings-file-safety-local-base-picker-badge",
+            "webview.static.settings-file-safety-outsource-browse",
+            "webview.static.settings-file-safety-outsource-picker-badge",
+            "webview.static.settings-file-safety-source-movies-browse",
+            "webview.static.settings-file-safety-source-movies-picker-badge",
+            "webview.static.settings-file-safety-source-tv-browse",
+            "webview.static.settings-file-safety-source-tv-picker-badge",
+            "webview.static.settings-file-safety-watch-roots-picker-badge",
+            "webview.static.settings-subtitle-bdpgs-ocr-tool-picker-badge",
+            "webview.static.settings-subtitle-bdpgs-tessdata-picker-badge",
+            "webview.static.settings-subtitle-vobsub-ocr-tool-picker-badge",
+            "webview.static.wizard-ffmpeg-path-picker-badge",
+            "webview.static.wizard-ffprobe-path-picker-badge",
+            "webview.static.wizard-output-root-picker-badge",
+            "webview.static.wizard-scratch-path-picker-badge"
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": "completed-pending-reports-network-control-census",
+      "surfaces": [
+        "completed",
+        "pending",
+        "reports",
+        "network"
+      ],
+      "status": "passed",
+      "tests": [
+        "tests/webview/test_webview_browser_evidence_control_census.py"
+      ],
+      "evidence": [
+        "Exact 237-authored-control census: 189 physical activations, 33 intentional high-risk or unavailable-state skips, 15 disabled/derived/future-state blocks, zero failures or unclassified controls; 715 runtime-generated controls were audited separately below."
+      ],
+      "exception_groups": [
+        {
+          "status": "skipped",
+          "blocker": "Completed promotion/reconciliation/repair controls mutate published output or backend evidence, while pause/resume is unavailable without an active owned promotion.",
+          "touchpoint_ids": [
+            "webview.static.completed.button-button-promote-selected-reviewed-output",
+            "webview.static.completed-reconcile-manifest-apply-button",
+            "webview.static.completed-repair-sidecar-apply-button",
+            "webview.static.final-library-promote-button",
+            "webview.static.final-library-pause-button",
+            "webview.static.final-library-resume-button"
+          ]
+        },
+        {
+          "status": "skipped",
+          "blocker": "Pending-publish drain and confirmed repair/reconcile actions move parked payloads or persist manifest state and were not executed by the non-mutating census.",
+          "touchpoint_ids": [
+            "webview.static.pending-action-drain-button",
+            "webview.static.pending-drain-button",
+            "webview.static.pending-repair-manifest-apply-button",
+            "webview.static.pending-reconcile-orphan-apply-button"
+          ]
+        },
+        {
+          "status": "skipped",
+          "blocker": "Reports cleanup, archive, lifecycle journal, ignore, CSV export, score-save, and audit process controls mutate evidence/state or child-process lifecycle and were not executed by the non-mutating census.",
+          "touchpoint_ids": [
+            "webview.static.failure-artifact-cleanup-confirm-button",
+            "webview.static.failure-clear-confirm-button",
+            "webview.static.failure-archive-confirm-button",
+            "webview.static.failure-lifecycle-ack-button",
+            "webview.static.failure-lifecycle-start-button",
+            "webview.static.failure-lifecycle-resolve-confirm-button",
+            "webview.static.failure-lifecycle-reopen-confirm-button",
+            "webview.static.report-audit-start-button",
+            "webview.static.report-audit-stop-button",
+            "webview.static.report-audit-ignore-selected-button",
+            "webview.static.report-audit-export-rerun-csv-button",
+            "webview.static.report-audit-score-policy-save-button"
+          ]
+        },
+        {
+          "status": "skipped",
+          "blocker": "Network lifecycle, discovery, connection, shared-secret, join-import, and settings-save actions affect processes, external network state, credentials, or persisted config and were not executed by the hermetic census.",
+          "touchpoint_ids": [
+            "webview.static.network.button-button-network-lifecycle-action-start-check-start-coordinator",
+            "webview.static.network.button-button-network-lifecycle-action-stop-request-coordinator-stop",
+            "webview.static.network.button-button-test-connection",
+            "webview.static.network.button-button-network-lifecycle-action-start-check-start-worker",
+            "webview.static.network.button-button-network-lifecycle-action-stop-request-worker-stop",
+            "webview.static.network-coordinator-join-create",
+            "webview.static.network-worker-join-import",
+            "webview.static.network-worker-discover",
+            "webview.static.network-lifecycle-confirm-submit",
+            "webview.static.network-settings-save-button",
+            "webview.static.network-role-setup-save-button"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "The disposable report fixture did not produce the selection state required to enable these authored bulk-selection controls.",
+          "touchpoint_ids": [
+            "webview.static.failure-artifact-select-all",
+            "webview.static.reports.button-button-audit-selection-action-select-visible-select-all",
+            "webview.static.reports.button-button-audit-selection-action-select-score-at-least-select-score-or-higher",
+            "webview.static.reports.button-button-audit-selection-action-clear-clear-selection"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "The disposable network state left this control disabled/read-only, or it is a hidden JSON mirror behind the structured editor.",
+          "touchpoint_ids": [
+            "webview.static.network.button-button-all",
+            "webview.static.network-coordinator-join-copy",
+            "webview.static.network-coordinator-join-output",
+            "webview.static.settings-network-path-map",
+            "webview.static.network-role-setup-path-map"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "These explicitly authored future network actions are intentionally disabled and have no production handler in the current surface.",
+          "touchpoint_ids": [
+            "webview.static.network.button-button-network-future-control-drain-drain",
+            "webview.static.network.button-button-network-future-control-disable-new-work-disable-new-work",
+            "webview.static.network.button-button-network-future-control-pause-pause",
+            "webview.static.network.button-button-network-future-control-abort-current-abort-current",
+            "webview.static.network.button-button-network-future-control-reclaim-job-reclaim-job",
+            "webview.static.network.button-button-network-future-control-quarantine-worker-quarantine-worker"
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": "home-metrics-diagnostics-maintenance-control-census",
+      "surfaces": [
+        "home",
+        "metrics",
+        "diagnostics",
+        "maintenance",
+        "settings-save-dialog"
+      ],
+      "status": "passed",
+      "tests": [
+        "tests/webview/test_webview_browser_root_control_census.py"
+      ],
+      "evidence": [
+        "The root census discovered 206 authored controls including the 32-control app shell; this non-overlapping overlay credits only its 174 Home/Metrics/Diagnostics/Maintenance/Settings-save-dialog controls: 123 activated, 2 destructive skips, 49 blocked, zero failures or unclassified controls."
+      ],
+      "exception_groups": [
+        {
+          "status": "skipped",
+          "blocker": "Verified matrix deletion is destructive and was neither armed nor executed by the disposable control census.",
+          "touchpoint_ids": [
+            "webview.static.diagnostics.button-button-tdarr-matrix-audit-action-cleanup-delete-delete-verified-full-matrix",
+            "webview.static.tdarr-matrix-delete-confirm"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "Backend shutdown changes process lifecycle and was not executed by the control census.",
+          "touchpoint_ids": [
+            "webview.static.backend-shutdown-button"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "The route-specific backend effect requires its own isolated full-effect harness and was not invoked by this local-control census.",
+          "touchpoint_ids": [
+            "webview.static.backfill-dry-run-button",
+            "webview.static.dependency-atlas-button",
+            "webview.static.diagnostics.button-button-tdarr-matrix-audit-action-cleanup-archive-archive-matrix-evidence",
+            "webview.static.diagnostics.button-button-tdarr-matrix-audit-action-cleanup-plan-cleanup-full-matrix",
+            "webview.static.metrics-backfill-button",
+            "webview.static.metrics-source-add-button",
+            "webview.static.metrics-source-path-picker-badge",
+            "webview.static.release-build-button",
+            "webview.static.release-dry-run-button",
+            "webview.static.sample-validation-append-button",
+            "webview.static.sample-validation-preview-button"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "Opening an operator folder/file delegates to the OS shell and was not executed by the hermetic browser census.",
+          "touchpoint_ids": [
+            "webview.static.dependency-atlas-open-folder-button",
+            "webview.static.diagnostics.button-button-open-diagnostics-active-jobs-open-active-jobs",
+            "webview.static.diagnostics.button-button-open-diagnostics-audit-reports-open-audit-reports",
+            "webview.static.diagnostics.button-button-open-diagnostics-cluster-log-open-cluster-log",
+            "webview.static.diagnostics.button-button-open-diagnostics-completed-manifest-open-completed-manifest",
+            "webview.static.diagnostics.button-button-open-diagnostics-config-folder-open-config-folder",
+            "webview.static.diagnostics.button-button-open-diagnostics-config-open-config-file",
+            "webview.static.diagnostics.button-button-open-diagnostics-failed-markers-open-failure-markers",
+            "webview.static.diagnostics.button-button-open-diagnostics-failed-reports-open-failure-reports",
+            "webview.static.diagnostics.button-button-open-diagnostics-last-stderr-log-open-last-stderr",
+            "webview.static.diagnostics.button-button-open-diagnostics-last-stdout-log-open-last-stdout",
+            "webview.static.diagnostics.button-button-open-diagnostics-pending-publish-open-pending-folder",
+            "webview.static.diagnostics.button-button-open-diagnostics-pipeline-log-open-pipeline-log",
+            "webview.static.diagnostics.button-button-open-diagnostics-queue-snapshot-open-queue-snapshot",
+            "webview.static.diagnostics.button-button-open-diagnostics-run-logs-open-run-logs",
+            "webview.static.diagnostics.button-button-open-diagnostics-sample-validation-log-open-sample-validation-log",
+            "webview.static.diagnostics.button-button-open-diagnostics-state-open-state-folder",
+            "webview.static.diagnostics.button-button-open-diagnostics-workspace-open-workspace",
+            "webview.static.home.button-button-open-diagnostics-active-jobs-active-jobs",
+            "webview.static.home.button-button-open-diagnostics-completed-manifest-completed-manifest",
+            "webview.static.home.button-button-open-diagnostics-last-stderr-log-last-stderr",
+            "webview.static.home.button-button-open-diagnostics-pending-publish-pending-folder",
+            "webview.static.home.button-button-open-diagnostics-queue-snapshot-queue-snapshot",
+            "webview.static.home.button-button-open-diagnostics-run-logs-run-logs",
+            "webview.static.home.button-button-open-diagnostics-sample-validation-log-open-validation-log"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "Diagnostics recovery preview/reconcile requires lifecycle-specific isolated setup; reconcile can mutate backend evidence.",
+          "touchpoint_ids": [
+            "webview.static.diagnostics-recovery-preview-button",
+            "webview.static.diagnostics-recovery-reconcile-button"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "Diagnostics proof-pack, smoke-pack, strict-gate, and rerun actions require an isolated full-effect process harness.",
+          "touchpoint_ids": [
+            "webview.static.diagnostics.button-button-tdarr-matrix-audit-action-prepare-proof-pack-prepare-proof-pack",
+            "webview.static.diagnostics.button-button-tdarr-matrix-audit-action-proof-pack-proof-pack",
+            "webview.static.diagnostics.button-button-tdarr-matrix-audit-action-smoke-pack-smoke-pack",
+            "webview.static.diagnostics.button-button-tdarr-matrix-audit-action-strict-report-strict-proof-gate",
+            "webview.static.tdarr-matrix-audit-rerun-failures",
+            "webview.static.tdarr-matrix-audit-rerun-selected"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "These backend-owned refresh/support/preview actions are not local display transitions and require focused route-specific evidence.",
+          "touchpoint_ids": [
+            "webview.static.launch-encoder-capability-refresh-button",
+            "webview.static.maintenance-support-create",
+            "webview.static.sample-validation-strip-preview-button"
+          ]
+        },
+        {
+          "status": "blocked",
+          "blocker": "Strict Settings save confirmation requires a staged patch and confirmation-specific harness; the root census did not manufacture a persistence candidate.",
+          "touchpoint_ids": [
+            "webview.static.settings-save-review-confirm-button"
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": "pipeline-log-window-control-census",
+      "surfaces": [
+        "pipeline-log-window"
+      ],
+      "status": "passed",
+      "tests": [
+        "tests/webview/test_webview_browser_pipeline_log_window_control_census.py"
+      ],
+      "evidence": [
+        "All three auxiliary Pipeline Log controls were physically activated in a disposable browser/API root; both checkbox states and both display modes passed, refresh loading/success/failure/retry transitions passed, and media hashes were unchanged."
+      ]
+    }
+  ],
+  "generated_families": [
+    {
+      "touchpoint_id": "webview.runtime.workflow.generated-controls.activated",
+      "instance_count": 168,
+      "origin": "runtime_generated_family",
+      "surface": { "page": "launch-queue-rename", "panel": "runtime-generated", "dialog": null },
+      "label": "Workflow runtime-generated controls activated",
+      "locator": { "dom_id": null, "selector": "runtime-generated controls in Launch, Queue, and Rename", "tag": null, "role": null },
+      "source": [{ "path": "tests/webview/test_webview_browser_shell_launch_queue_rename_control_census.py", "line": 0, "event": "browser-census", "handler": null, "binding_scope": "runtime-generated" }],
+      "bindings": [],
+      "action": { "kind": "runtime_generated_ui", "method": null, "route": null, "command": null, "effect": "local/reversible browser interaction", "ownership_classification": "frontend-staging-and-display" },
+      "conditions": { "visibility": ["rendered from disposable workflow fixtures"], "enabled": [], "configuration": [] },
+      "classification": { "status": "safe_reversible", "reason": "Runtime-generated workflow controls were exercised against disposable state and restored where appropriate." },
+      "expected_transition": "Dispatch the production browser event and observe the generated control's local or read-only transition.",
+      "required_evidence": ["exact generated-control inventory", "physical browser event", "zero failed/unclassified outcomes"],
+      "audit": {
+        "status": "passed",
+        "tests": ["tests/webview/test_webview_browser_shell_launch_queue_rename_control_census.py"],
+        "evidence": ["CONTROL_CENSUS_JSON reported 168 discovered and 168 activated runtime-generated controls with zero blocked outcomes."],
+        "blocker": null,
+        "run_id": "shell-launch-queue-rename-control-census"
+      }
+    },
+    {
+      "touchpoint_id": "webview.runtime.workflow.global-shortcuts.activated",
+      "instance_count": 17,
+      "origin": "runtime_generated_family",
+      "surface": { "page": "app-shell-queue", "panel": "keyboard-shortcuts", "dialog": null },
+      "label": "Workflow global keyboard shortcuts activated",
+      "locator": { "dom_id": null, "selector": "runtime global keyboard shortcut contract", "tag": null, "role": null },
+      "source": [{ "path": "tests/webview/test_webview_browser_shell_launch_queue_rename_control_census.py", "line": 0, "event": "keydown", "handler": null, "binding_scope": "runtime-generated" }],
+      "bindings": [],
+      "action": { "kind": "keyboard_navigation", "method": null, "route": null, "command": null, "effect": "local navigation/staging", "ownership_classification": "frontend-display-state" },
+      "conditions": { "visibility": ["application shell loaded"], "enabled": [], "configuration": [] },
+      "classification": { "status": "safe", "reason": "Keyboard shortcuts change only local page/tab/staging state in the census." },
+      "expected_transition": "Activate the documented page, tab, or staging target for the key gesture.",
+      "required_evidence": ["physical keydown event", "target-state assertion", "exact shortcut denominator"],
+      "audit": {
+        "status": "passed",
+        "tests": ["tests/webview/test_webview_browser_shell_launch_queue_rename_control_census.py"],
+        "evidence": ["CONTROL_CENSUS_JSON reported all 17 global shortcut gestures activated."],
+        "blocker": null,
+        "run_id": "shell-launch-queue-rename-control-census"
+      }
+    },
+    {
+      "touchpoint_id": "webview.runtime.evidence-pages.generated-controls.activated",
+      "instance_count": 692,
+      "origin": "runtime_generated_family",
+      "surface": { "page": "completed-pending-reports-network", "panel": "runtime-generated", "dialog": null },
+      "label": "Evidence-page runtime-generated controls activated",
+      "locator": { "dom_id": null, "selector": "runtime-generated controls in Completed, Pending, Reports, and Network", "tag": null, "role": null },
+      "source": [{ "path": "tests/webview/test_webview_browser_evidence_control_census.py", "line": 0, "event": "browser-census", "handler": null, "binding_scope": "runtime-generated" }],
+      "bindings": [],
+      "action": { "kind": "runtime_generated_ui", "method": null, "route": null, "command": null, "effect": "local/read-only browser interaction", "ownership_classification": "frontend-staging-and-display" },
+      "conditions": { "visibility": ["rendered from disposable evidence fixtures"], "enabled": [], "configuration": [] },
+      "classification": { "status": "safe_reversible", "reason": "Generated evidence-page controls were physically activated against disposable backend fixtures." },
+      "expected_transition": "Dispatch the production DOM event and observe a stable local/read-only transition.",
+      "required_evidence": ["exact generated instance inventory", "physical DOM event", "media hash unchanged"],
+      "audit": {
+        "status": "passed",
+        "tests": ["tests/webview/test_webview_browser_evidence_control_census.py"],
+        "evidence": ["WEBVIEW_EVIDENCE_CONTROL_CENSUS reported 692 of 715 generated instances activated; the remaining 23 are represented by separate blocked/skipped aggregates."],
+        "blocker": null,
+        "run_id": "completed-pending-reports-network-control-census"
+      }
+    },
+    {
+      "touchpoint_id": "webview.runtime.evidence-pages.generated-controls.blocked",
+      "instance_count": 19,
+      "origin": "runtime_generated_family",
+      "surface": { "page": "completed-pending-reports-network", "panel": "runtime-generated", "dialog": null },
+      "label": "Evidence-page generated controls blocked by fixture prerequisites",
+      "locator": { "dom_id": null, "selector": "disabled runtime-generated panel-customization controls", "tag": null, "role": null },
+      "source": [{ "path": "tests/webview/test_webview_browser_evidence_control_census.py", "line": 0, "event": "browser-census", "handler": null, "binding_scope": "runtime-generated" }],
+      "bindings": [],
+      "action": { "kind": "runtime_generated_ui", "method": null, "route": null, "command": null, "effect": "local layout state", "ownership_classification": "frontend-display-state" },
+      "conditions": { "visibility": ["runtime-generated"], "enabled": ["disabled in the disposable fixture state"], "configuration": [] },
+      "classification": { "status": "unreachable", "reason": "The generated panel-move control had no legal move target in the supported disposable layout." },
+      "expected_transition": "Remain disabled until a valid panel movement target exists.",
+      "required_evidence": ["exact instance inventory", "disabled-state assertion", "concrete prerequisite reason"],
+      "audit": {
+        "status": "blocked",
+        "tests": ["tests/webview/test_webview_browser_evidence_control_census.py"],
+        "evidence": ["WEBVIEW_EVIDENCE_CONTROL_CENSUS identified exactly 19 disabled generated panel-customization instances and zero unclassified instances."],
+        "blocker": "The disposable layout did not provide the upstream panel order needed to enable these generated move controls.",
+        "run_id": "completed-pending-reports-network-control-census"
+      }
+    },
+    {
+      "touchpoint_id": "webview.runtime.evidence-pages.generated-promotion.skipped",
+      "instance_count": 1,
+      "origin": "runtime_generated_family",
+      "surface": { "page": "completed", "panel": "runtime-generated", "dialog": null },
+      "label": "Generated completed-output promotion skipped",
+      "locator": { "dom_id": null, "selector": "[data-completed-promote-selected]", "tag": "button", "role": null },
+      "source": [{ "path": "tests/webview/test_webview_browser_evidence_control_census.py", "line": 0, "event": "browser-census", "handler": null, "binding_scope": "runtime-generated" }],
+      "bindings": [],
+      "action": { "kind": "backend_mutation", "method": "POST", "route": null, "command": "completed promotion", "effect": "moves reviewed published output", "ownership_classification": "backend-owned-mutation" },
+      "conditions": { "visibility": ["generated reviewed-output action"], "enabled": [], "configuration": [] },
+      "classification": { "status": "destructive", "reason": "Promotion moves reviewed output into final-library state." },
+      "expected_transition": "Move reviewed output only through the confirmed backend promotion flow.",
+      "required_evidence": ["isolated final-library root", "confirmation contract", "manifest-backed placement proof"],
+      "audit": {
+        "status": "skipped",
+        "tests": ["tests/webview/test_webview_browser_evidence_control_census.py"],
+        "evidence": ["WEBVIEW_EVIDENCE_CONTROL_CENSUS classified completed:generated-instance:062 as the sole generated promotion skip."],
+        "blocker": "The non-mutating evidence census did not move reviewed output state.",
+        "run_id": "completed-pending-reports-network-control-census"
+      }
+    },
+    {
+      "touchpoint_id": "webview.runtime.evidence-pages.generated-effect-controls.skipped",
+      "instance_count": 3,
+      "origin": "runtime_generated_family",
+      "surface": { "page": "reports-network", "panel": "runtime-generated", "dialog": null },
+      "label": "Generated process/state/network effect controls skipped",
+      "locator": { "dom_id": null, "selector": "generated audit-source and network-test actions", "tag": "button", "role": null },
+      "source": [{ "path": "tests/webview/test_webview_browser_evidence_control_census.py", "line": 0, "event": "browser-census", "handler": null, "binding_scope": "runtime-generated" }],
+      "bindings": [],
+      "action": { "kind": "backend_or_external_effect", "method": "POST", "route": null, "command": null, "effect": "process lifecycle, persisted source state, or external network request", "ownership_classification": "backend-owned-effect" },
+      "conditions": { "visibility": ["runtime-generated"], "enabled": [], "configuration": [] },
+      "classification": { "status": "safe_reversible", "reason": "These effects require a command-specific isolated harness despite being recoverable when correctly scoped." },
+      "expected_transition": "Execute only with isolated process/state/network preconditions and backend evidence.",
+      "required_evidence": ["isolated command-specific harness", "owned process/state proof", "external-network containment"],
+      "audit": {
+        "status": "skipped",
+        "tests": ["tests/webview/test_webview_browser_evidence_control_census.py"],
+        "evidence": ["WEBVIEW_EVIDENCE_CONTROL_CENSUS identified two generated Reports audit-source actions and one generated Network connection-test action as intentional skips."],
+        "blocker": "The hermetic browser census did not launch child work, persist audit-source state, or contact a configured coordinator.",
+        "run_id": "completed-pending-reports-network-control-census"
+      }
+    },
+    {
+      "touchpoint_id": "webview.runtime.settings.generated-controls.activated",
+      "instance_count": 953,
+      "origin": "runtime_generated_family",
+      "surface": { "page": "settings-libraries-schedule", "panel": "runtime-generated", "dialog": null },
+      "label": "Settings/Libraries/Schedule generated controls activated",
+      "locator": { "dom_id": null, "selector": "runtime-generated Settings, Libraries, and Schedule controls", "tag": null, "role": null },
+      "source": [{ "path": "tests/webview/test_webview_browser_settings_generated_control_census.py", "line": 0, "event": "browser-census", "handler": null, "binding_scope": "runtime-generated" }],
+      "bindings": [],
+      "action": { "kind": "runtime_generated_ui", "method": null, "route": null, "command": null, "effect": "local/reversible staging", "ownership_classification": "frontend-staging-and-display" },
+      "conditions": { "visibility": ["runtime-generated from disposable settings projection"], "enabled": [], "configuration": ["all modeled finite values dispatched"] },
+      "classification": { "status": "safe_reversible", "reason": "Generated configuration controls were edited, toggled, or activated and restored against disposable state." },
+      "expected_transition": "Exercise the generated local editor/disclosure/table/schedule transition and restore reversible state.",
+      "required_evidence": ["exact instance inventory", "finite-domain coverage", "source/output snapshots unchanged"],
+      "audit": {
+        "status": "passed",
+        "tests": ["tests/webview/test_webview_browser_settings_generated_control_census.py"],
+        "evidence": ["%TEMP%\\MP-generated-settings-census-evidence.json records 953 activated generated instances, 214 finite-domain controls, 336 schedule blocks, zero failures/unclassified instances, and seven disposable media/sidecar files unchanged."],
+        "blocker": null,
+        "run_id": "settings-generated-control-census"
+      }
+    },
+    {
+      "touchpoint_id": "webview.runtime.settings.generated-controls.blocked",
+      "instance_count": 173,
+      "origin": "runtime_generated_family",
+      "surface": { "page": "settings-libraries-schedule", "panel": "runtime-generated", "dialog": null },
+      "label": "Settings/Libraries/Schedule generated controls blocked by supported state",
+      "locator": { "dom_id": null, "selector": "disabled/read-only generated settings controls", "tag": null, "role": null },
+      "source": [{ "path": "tests/webview/test_webview_browser_settings_generated_control_census.py", "line": 0, "event": "browser-census", "handler": null, "binding_scope": "runtime-generated" }],
+      "bindings": [],
+      "action": { "kind": "runtime_generated_ui", "method": null, "route": null, "command": null, "effect": "local settings state", "ownership_classification": "frontend-staging-and-display" },
+      "conditions": { "visibility": ["runtime-generated"], "enabled": ["blocked by inherited/protected/readonly/layout prerequisite"], "configuration": [] },
+      "classification": { "status": "unreachable", "reason": "The supported disposable state intentionally exposed no legal action for these controls." },
+      "expected_transition": "Remain disabled/read-only until its documented prerequisite becomes true.",
+      "required_evidence": ["exact blocker reason", "disabled/read-only assertion", "zero forced bypasses"],
+      "audit": {
+        "status": "blocked",
+        "tests": ["tests/webview/test_webview_browser_settings_generated_control_census.py"],
+        "evidence": ["%TEMP%\\MP-generated-settings-census-evidence.json records exactly 173 blocked instances: 148 inherited resets, 9 absent recovery controls, 6 no-target panel moves, 4 disabled, 4 read-only, and 2 protected removals."],
+        "blocker": "Inherited defaults, protected libraries, read-only identity fields, absent recovery state, or a single-panel layout left these controls unavailable without manufacturing unsupported state.",
+        "run_id": "settings-generated-control-census"
+      }
+    },
+    {
+      "touchpoint_id": "webview.runtime.settings.generated-path-pickers.skipped",
+      "instance_count": 12,
+      "origin": "runtime_generated_family",
+      "surface": { "page": "settings-libraries", "panel": "runtime-generated", "dialog": null },
+      "label": "Generated Settings/Libraries path pickers skipped",
+      "locator": { "dom_id": null, "selector": "runtime-generated library path-picker controls", "tag": "button", "role": null },
+      "source": [{ "path": "tests/webview/test_webview_browser_settings_generated_control_census.py", "line": 0, "event": "browser-census", "handler": null, "binding_scope": "runtime-generated" }],
+      "bindings": [],
+      "action": { "kind": "native_or_backend_picker", "method": "POST", "route": "/api/path-picker/browse", "command": null, "effect": "opens native/backend path selection", "ownership_classification": "backend-owned-picker" },
+      "conditions": { "visibility": ["runtime-generated"], "enabled": [], "configuration": [] },
+      "classification": { "status": "safe_reversible", "reason": "Path picking is reversible staging but crosses a native/backend boundary requiring separate isolation proof." },
+      "expected_transition": "Stage only a path returned from an isolated native/backend picker.",
+      "required_evidence": ["isolated picker root", "no operator-root access", "staged-value assertion"],
+      "audit": {
+        "status": "skipped",
+        "tests": ["tests/webview/test_webview_browser_settings_generated_control_census.py"],
+        "evidence": ["%TEMP%\\MP-generated-settings-census-evidence.json records six wizard-library and six Libraries path-picker instances as intentional skips."],
+        "blocker": "The generated-control browser census did not prove the native/backend picker boundary would remain inside its disposable roots.",
+        "run_id": "settings-generated-control-census"
+      }
+    },
+    {
+      "touchpoint_id": "webview.runtime.schedule.generated-hidden-state.skipped",
+      "instance_count": 7,
+      "origin": "runtime_generated_family",
+      "surface": { "page": "schedule", "panel": "runtime-generated", "dialog": null },
+      "label": "Generated Schedule hidden window-state mirrors skipped",
+      "locator": { "dom_id": null, "selector": "hidden per-day schedule window state", "tag": "input", "role": null },
+      "source": [{ "path": "tests/webview/test_webview_browser_settings_generated_control_census.py", "line": 0, "event": "browser-census", "handler": null, "binding_scope": "runtime-generated" }],
+      "bindings": [],
+      "action": { "kind": "derived_state_mirror", "method": null, "route": null, "command": null, "effect": "none", "ownership_classification": "frontend-derived-state" },
+      "conditions": { "visibility": ["hidden derived state"], "enabled": [], "configuration": [] },
+      "classification": { "status": "unreachable", "reason": "The seven per-day values are hidden derived mirrors, not operator inputs." },
+      "expected_transition": "Update only through the visible generated schedule-block editor.",
+      "required_evidence": ["hidden-state assertion", "visible editor coverage", "one record per weekday"],
+      "audit": {
+        "status": "skipped",
+        "tests": ["tests/webview/test_webview_browser_settings_generated_control_census.py"],
+        "evidence": ["%TEMP%\\MP-generated-settings-census-evidence.json records exactly seven hidden per-day state mirrors; all 336 visible schedule time blocks were activated."],
+        "blocker": "Hidden derived state has no direct operator activation path.",
+        "run_id": "settings-generated-control-census"
+      }
+    },
+    {
+      "touchpoint_id": "webview.runtime.root-surfaces.generated-controls.activated",
+      "instance_count": 1122,
+      "origin": "runtime_generated_family",
+      "surface": { "page": "home-metrics-diagnostics-maintenance", "panel": "runtime-generated", "dialog": null },
+      "label": "Root-surface generated controls activated",
+      "locator": { "dom_id": null, "selector": "runtime-generated Home, Metrics, Diagnostics, and Maintenance controls", "tag": null, "role": null },
+      "source": [{ "path": "tests/webview/test_webview_browser_root_control_census.py", "line": 0, "event": "browser-census", "handler": null, "binding_scope": "runtime-generated" }],
+      "bindings": [],
+      "action": { "kind": "runtime_generated_ui", "method": null, "route": null, "command": null, "effect": "local/read-only browser interaction", "ownership_classification": "frontend-staging-and-display" },
+      "conditions": { "visibility": ["runtime-generated from disposable root-surface fixtures"], "enabled": [], "configuration": [] },
+      "classification": { "status": "safe_reversible", "reason": "Generated root-surface controls were physically exercised or representative-family exercised against disposable state." },
+      "expected_transition": "Dispatch click/Enter/Space or finite-value events and observe the expected local/read-only transition.",
+      "required_evidence": ["stable semantic family inventory", "raw instance denominator", "event evidence for every audited family"],
+      "audit": {
+        "status": "passed",
+        "tests": ["tests/webview/test_webview_browser_root_control_census.py"],
+        "evidence": ["%TEMP%\\mediapipeline-root-control-census-evidence.json records 80 activated semantic records covering 1,122 raw instances across Home, Metrics, Diagnostics, Maintenance, and shared families; app-shell contributes no generated instance to this run."],
+        "blocker": null,
+        "run_id": "home-metrics-diagnostics-maintenance-control-census"
+      }
+    },
+    {
+      "touchpoint_id": "webview.runtime.root-surfaces.generated-controls.blocked",
+      "instance_count": 7,
+      "origin": "runtime_generated_family",
+      "surface": { "page": "home-diagnostics", "panel": "runtime-generated", "dialog": null },
+      "label": "Root-surface generated effect controls blocked",
+      "locator": { "dom_id": null, "selector": "runtime-generated Home/Diagnostics high-risk or external controls", "tag": "button", "role": null },
+      "source": [{ "path": "tests/webview/test_webview_browser_root_control_census.py", "line": 0, "event": "browser-census", "handler": null, "binding_scope": "runtime-generated" }],
+      "bindings": [],
+      "action": { "kind": "backend_or_external_effect", "method": "POST", "route": null, "command": null, "effect": "publish drain or external/process open", "ownership_classification": "backend-owned-effect" },
+      "conditions": { "visibility": ["runtime-generated"], "enabled": ["one disabled; six intercepted before effect"], "configuration": [] },
+      "classification": { "status": "unreachable", "reason": "One control was disabled and six required high-risk/external process effects outside the hermetic browser census." },
+      "expected_transition": "Execute only through a focused isolated backend/full-effect harness.",
+      "required_evidence": ["isolated full-effect root", "owned process or publish proof", "zero operator-root access"],
+      "audit": {
+        "status": "blocked",
+        "tests": ["tests/webview/test_webview_browser_root_control_census.py"],
+        "evidence": ["%TEMP%\\mediapipeline-root-control-census-evidence.json records seven blocked semantic records/instances: one disabled Home promotion control and six Diagnostics drain/open controls intercepted before execution."],
+        "blocker": "The disposable fixture did not enable promotion, and the census did not execute publish drain or OS/process-open effects.",
+        "run_id": "home-metrics-diagnostics-maintenance-control-census"
+      }
+    }
+  ],
+  "native_families": [
+    {
+      "touchpoint_id": "tauri.native.primary-navigation.keyboard",
+      "instance_count": 30,
+      "origin": "tauri_native_family",
+      "surface": { "page": "tauri-shell", "panel": "primary-navigation", "dialog": null },
+      "label": "Native WebView primary navigation keyboard activation",
+      "locator": { "dom_id": null, "selector": "UI Automation primary navigation elements", "tag": null, "role": "TabItem/Button" },
+      "source": [{ "path": "apps/desktop/tauri/Test-TauriShell-WebViewUiAutomationProbe.ps1", "line": 0, "event": "UIA keyboard", "handler": null, "binding_scope": "native" }],
+      "bindings": [],
+      "action": { "kind": "native_keyboard_navigation", "method": null, "route": null, "command": null, "effect": "local page navigation", "ownership_classification": "tauri-webview-display" },
+      "conditions": { "visibility": ["native Tauri shell and WebView loaded"], "enabled": [], "configuration": ["15 targets x Enter and Space"] },
+      "classification": { "status": "safe_reversible", "reason": "Keyboard navigation changes only the displayed page." },
+      "expected_transition": "Each of 15 primary navigation targets activates by Enter and by Space.",
+      "required_evidence": ["native UI Automation event", "selected-page assertion", "isolated WebView2 user-data folder"],
+      "audit": {
+        "status": "passed",
+        "tests": ["apps/desktop/tauri/Test-TauriShell-WebViewUiAutomationProbe.ps1"],
+        "evidence": ["%TEMP%\\MP-tauri-uia-final-20260713-235928-429d1e5d: 30/30 navigation cases passed (15 Enter, 15 Space), 350 UIA elements inspected, source/output file counts remained 0 to 0, WebView2 used the isolated EBWebView folder, and exact-process cleanup passed."],
+        "blocker": null,
+        "run_id": "tauri-native-uia-final"
+      }
+    },
+    {
+      "touchpoint_id": "tauri.native.main-window.close",
+      "instance_count": 1,
+      "origin": "tauri_native_family",
+      "surface": { "page": "tauri-shell", "panel": "window-chrome", "dialog": null },
+      "label": "Native main-window close",
+      "locator": { "dom_id": null, "selector": "main Tauri window close", "tag": null, "role": "Window" },
+      "source": [{ "path": "apps/desktop/tauri/Test-TauriShell-WebViewUiAutomationProbe.ps1", "line": 0, "event": "UIA WindowPattern.Close", "handler": null, "binding_scope": "native" }],
+      "bindings": [],
+      "action": { "kind": "native_window_lifecycle", "method": null, "route": null, "command": null, "effect": "close shell and owned backend", "ownership_classification": "tauri-owned-lifecycle" },
+      "conditions": { "visibility": ["isolated shell running"], "enabled": [], "configuration": [] },
+      "classification": { "status": "safe_reversible", "reason": "The probe owns the isolated shell/backend process tree and verifies cleanup." },
+      "expected_transition": "Close the main window and leave no owned shell/backend/WebView process residue.",
+      "required_evidence": ["exact process identity", "window-close event", "post-close process cleanup assertion"],
+      "audit": {
+        "status": "passed",
+        "tests": ["apps/desktop/tauri/Test-TauriShell-WebViewUiAutomationProbe.ps1"],
+        "evidence": ["%TEMP%\\MP-tauri-uia-final-20260713-235928-429d1e5d completed the native main-window close and exact-process cleanup checks without source/output files."],
+        "blocker": null,
+        "run_id": "tauri-native-uia-final"
+      }
+    },
+    {
+      "touchpoint_id": "tauri.native.pipeline-log-window.open",
+      "instance_count": 1,
+      "origin": "tauri_native_family",
+      "surface": { "page": "tauri-shell", "panel": "app-shell", "dialog": "pipeline-log-window" },
+      "label": "Open native Pipeline Log window",
+      "locator": { "dom_id": "pipeline-log-window-button", "selector": "#pipeline-log-window-button", "tag": "button", "role": "Button" },
+      "source": [
+        { "path": "apps/desktop/tauri/Test-TauriShell-WebViewUiAutomationProbe.ps1", "line": 0, "event": "UIA invoke", "handler": null, "binding_scope": "native" },
+        { "path": "tests/webview/test_webview_pipeline_log_window_static.py", "line": 0, "event": "static contract", "handler": null, "binding_scope": "tauri-command" }
+      ],
+      "bindings": [],
+      "action": { "kind": "native_window_open", "method": null, "route": null, "command": "open_pipeline_log_window", "effect": "open auxiliary native WebView window", "ownership_classification": "tauri-owned-window" },
+      "conditions": { "visibility": ["Tauri command manifest and loopback remote capability loaded"], "enabled": [], "configuration": [] },
+      "classification": { "status": "safe_reversible", "reason": "Opening an auxiliary read-only log window is reversible local window state." },
+      "expected_transition": "Invoke the registered Tauri command and display one native window titled Pipeline Log.",
+      "required_evidence": ["native command permission", "second-window title assertion", "isolated WebView2 user-data folder"],
+      "audit": {
+        "status": "passed",
+        "tests": [
+          "apps/desktop/tauri/Test-TauriShell-WebViewUiAutomationProbe.ps1",
+          "tests/webview/test_webview_pipeline_log_window_static.py"
+        ],
+        "evidence": ["After registering the custom command permission for the loopback remote WebView, isolated runs under %TEMP%\\MP-tauri-log-debug-20260714-001443-4e811967 observed a second native window titled Pipeline Log. This credits window creation only; content accessibility and independent close remain blocked below."],
+        "blocker": null,
+        "run_id": "tauri-pipeline-log-window-open"
+      }
+    },
+    {
+      "touchpoint_id": "tauri.native.pipeline-log-window.content-uia",
+      "instance_count": 3,
+      "origin": "tauri_native_family",
+      "surface": { "page": "tauri-shell", "panel": "pipeline-log-window", "dialog": "pipeline-log-window" },
+      "label": "Pipeline Log secondary-window controls exposed to native UI Automation",
+      "locator": { "dom_id": null, "selector": "secondary WRY_WEBVIEW UIA descendants", "tag": null, "role": "WebView" },
+      "source": [{ "path": "apps/desktop/tauri/Test-TauriShell-WebViewUiAutomationProbe.ps1", "line": 0, "event": "UIA tree inspection", "handler": null, "binding_scope": "native" }],
+      "bindings": [],
+      "action": { "kind": "native_accessibility_inspection", "method": null, "route": null, "command": null, "effect": "none", "ownership_classification": "native-accessibility" },
+      "conditions": { "visibility": ["secondary window visible"], "enabled": [], "configuration": [] },
+      "classification": { "status": "safe", "reason": "This is a read-only native accessibility observation; the same three controls have separate passing browser evidence." },
+      "expected_transition": "Expose the three Pipeline Log controls as inspectable UI Automation descendants.",
+      "required_evidence": ["secondary-window UIA tree", "three control locators", "native event evidence"],
+      "audit": {
+        "status": "blocked",
+        "tests": ["apps/desktop/tauri/Test-TauriShell-WebViewUiAutomationProbe.ps1"],
+        "evidence": ["The visible secondary WRY WebView exposed only a single WRY_WEBVIEW pane to UI Automation; its three HTML controls remained browser-proven but not natively inspectable."],
+        "blocker": "The secondary WebView2 provider did not expose content descendants to Windows UI Automation in the observed native run.",
+        "run_id": "tauri-pipeline-log-window-native-limitations"
+      }
+    },
+    {
+      "touchpoint_id": "tauri.native.pipeline-log-window.independent-close",
+      "instance_count": 1,
+      "origin": "tauri_native_family",
+      "surface": { "page": "tauri-shell", "panel": "pipeline-log-window", "dialog": "pipeline-log-window" },
+      "label": "Close Pipeline Log window independently",
+      "locator": { "dom_id": null, "selector": "secondary native window close", "tag": null, "role": "Window" },
+      "source": [{ "path": "apps/desktop/tauri/Test-TauriShell-WebViewUiAutomationProbe.ps1", "line": 0, "event": "UIA/WM_CLOSE", "handler": null, "binding_scope": "native" }],
+      "bindings": [],
+      "action": { "kind": "native_window_lifecycle", "method": null, "route": null, "command": null, "effect": "close auxiliary window only", "ownership_classification": "tauri-owned-window" },
+      "conditions": { "visibility": ["secondary window visible"], "enabled": [], "configuration": [] },
+      "classification": { "status": "safe_reversible", "reason": "Closing the read-only auxiliary window should not affect backend or media state." },
+      "expected_transition": "Close only the Pipeline Log window while the main shell remains available.",
+      "required_evidence": ["secondary-window identity", "close request", "secondary absent/main present assertion"],
+      "audit": {
+        "status": "blocked",
+        "tests": ["apps/desktop/tauri/Test-TauriShell-WebViewUiAutomationProbe.ps1"],
+        "evidence": ["UIA WindowPattern/WM_CLOSE attempts were issued, but the observed secondary window remained visible; no independent-close success is credited."],
+        "blocker": "The native probe could not prove that the Pipeline Log window closed independently of the main shell.",
+        "run_id": "tauri-pipeline-log-window-native-limitations"
+      }
+    }
+  ]
+}

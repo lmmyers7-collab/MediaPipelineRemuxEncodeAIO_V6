@@ -7,9 +7,9 @@ Machine-readable wrapper ownership and drift status lives in `docs/generated/SMO
 ## Important Scope Limits
 
 - Smoke tests prove WebView rendering, UI state transitions, and operator-facing text. They do not prove FFmpeg, remux/encode, subtitle, audio, or media policy behavior.
-- Browser-backed smokes require Node.js and an installed Chrome or Edge browser. They skip cleanly when those dependencies are absent.
+- Browser-backed smokes require Node.js and an installed Chrome or Edge browser. Canonical wrappers fail when either prerequisite is absent; `-AllowSkippedTests` is an explicit diagnostic opt-out and is not acceptance evidence.
 - Non-browser smokes require only Python and (for some) Node.js. They run faster and are suitable for routine pre-commit checks.
-- No smoke test processes real media, launches the pipeline, publishes parked outputs, saves settings permanently, renames files on disk, or mutates source/output/scratch paths.
+- No smoke test processes real media, launches the production PowerShell/FFmpeg pipeline, publishes parked outputs, saves settings permanently, renames files on disk, or mutates source/output/scratch paths.
 
 ---
 
@@ -79,9 +79,9 @@ These run Python/Node in a mocked or fixture-backed environment without opening 
 
 ## Browser-Backed Smokes
 
-These start a real temporary local API and open an installed Chrome or Edge browser in headless mode against the actual backend-served WebView page. They require Node.js and a Chrome or Edge installation. Each skips cleanly when the browser is not found.
+These start a real temporary local API and open an installed Chrome or Edge browser in headless mode against the actual backend-served WebView page. They require Node.js and a Chrome or Edge installation. Canonical wrappers fail closed when either prerequisite is missing unless the caller explicitly supplies `-AllowSkippedTests` for a diagnostic run.
 
-The Python browser-smoke modules share `tests\python\desktop\webview_browser_smoke_support.py` for browser discovery, free-port allocation, bounded subprocess output, timeout reporting, JSON result parsing, process-result assertions, and the generated Node/CDP runner prelude. Scenario logic remains inside each smoke, but runner failures should now consistently include return code, bounded stdout/stderr, and richer CDP exception description/value/detail text. The shared Node/CDP prelude launches Chrome/Edge with browser stdout/stderr ignored rather than piped, then terminates the browser with a bounded exit wait so a pre-exited browser cannot hang the Python smoke.
+The Python browser-smoke modules share `tests\webview\webview_browser_smoke_support.py` for browser discovery, free-port allocation, bounded subprocess output, timeout reporting, JSON result parsing, process-result assertions, and the generated Node/CDP runner prelude. Scenario logic remains inside each smoke, but runner failures should now consistently include return code, bounded stdout/stderr, and richer CDP exception description/value/detail text. The shared Node/CDP prelude launches Chrome/Edge with browser stdout/stderr ignored rather than piped, then terminates the browser with a bounded exit wait so a pre-exited browser cannot hang the Python smoke.
 
 ### `Test-WebViewBrowserHighRiskSmoke.ps1`
 
@@ -103,6 +103,13 @@ The Python browser-smoke modules share `tests\python\desktop\webview_browser_smo
 - **What it does:** Starts temporary local API instances, opens the real backend-served WebView in Chrome/Edge headless, and drives Diagnostics backend lifecycle controls in blocked, stop-requested, and safe close-readiness states.
 - **Verifies:** Backend lifecycle summary and Close Readiness render the continuous schedule-stop watcher, the shutdown button stays disabled and records only a local rejection while the watcher is armed, terminal `stop_requested` watcher state is visible without blocking safe close, no confirmation prompt or backend shutdown callback fires while blocked, and safe close-readiness posts only through backend-owned `/api/backend/shutdown` after confirmation.
 - **Does not:** Process media, launch pipeline commands, publish, rename files, save settings, mutate queue state, drain pending publish, or touch source/output/scratch paths. No Playwright or Puppeteer dependency.
+
+### `Test-WebViewBrowserLifecycleReconciliationSmoke.ps1`
+
+- **Unittest:** `tests.webview.test_webview_browser_lifecycle_reconciliation_smoke`
+- **What it does:** Uses production lifecycle lease/recovery APIs only under a temporary state root, starts a real helper process that holds an active lease, opens the backend-served Diagnostics reconciliation UI in Chrome/Edge headless, then terminates and waits for the helper before exercising recovery.
+- **Verifies:** A live helper PID keeps preview/apply fail-closed without adding command-journal evidence; terminal recovery produces a safe preview; stale fingerprints are rejected; exact evidence applies once with strict confirmation; the archived reconciliation manifest and command journal survive reload; and close-readiness becomes safe.
+- **Does not:** Start a real pipeline child or FFmpeg, process media, use network workers, publish, rename, save settings, mutate queue state, or change source/output/scratch media. The helper process and lifecycle evidence are temporary test resources, not real-media or native Tauri close proof.
 
 ### `Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1`
 
@@ -174,6 +181,13 @@ The Python browser-smoke modules share `tests\python\desktop\webview_browser_smo
 - **Verifies:** Launch readiness, Launch timing trust, Launch Scope Reconciliation, Launch Start Decision Summary row/detail rendering, Launch Real-Media Sample Proof Handoff mirroring the Home worksheet evidence, Launch generated-worksheet selected-sample match detail, Launch Sample Validation record selected-sample match/reconciliation detail, Launch Sample Execution Checklist mirroring Home sample-validation execution guidance, backend Launch preflight fetched through `GET /api/launch/preflight`, Queue Launch Decision checklist, Queue CSV Rerun state controls and `/api/rerun/results` read-model boundary text, Schedule guidance/timing trust, close-readiness chip, launch command-review correlation, `pipeline.start` command ownership as Launch, and no POST routes during read-only readiness rendering.
 - **Does not:** Process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths. No Playwright or Puppeteer dependency.
 
+### `Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1`
+
+- **Unittest:** `tests.webview.test_webview_browser_queue_launch_completed_smoke`
+- **What it does:** Starts a temporary Local API and backend-served WebView with one runnable, one blocked, and one excluded temporary source; stages the runnable row as a single-file once-mode Launch; submits a second start; and reloads Queue/Completed after a synchronized test-only runner finishes.
+- **Verifies:** The first request is accepted through the production launch boundary, the production duplicate-command/lifecycle guard durably rejects the second, the fake runner waits for that rejection before writing temporary Queue/progress/Completed Manifest/fake output/sidecar evidence, browser reload preserves the row transition, lifecycle returns idle, close-readiness is safe, Pending Publish/Network state stays absent, and all source hashes remain unchanged.
+- **Does not:** Launch FFmpeg, a PowerShell pipeline child, or any media tool; process or validate real media; use network workers; perform Pending Publish work; or mutate a source. Its fake output and sidecar prove UI/backend state flow only.
+
 ### `Test-WebViewBrowserLayoutManagerSmoke.ps1`
 
 - **Unittest:** `tests.webview.test_webview_browser_layout_manager_smoke`
@@ -223,6 +237,13 @@ The Python browser-smoke modules share `tests\python\desktop\webview_browser_smo
 - **Verifies:** Saved launch-active subtitle/audio/pending-publish policy is separated from staged candidates, Settings Effective Policy Trust shows staged Changes JSON as inactive until backend Preview/Save/reload, Launch Risk Handoff rows are selectable and show proof-chain detail, staged subtitle contradictions and staged audio/pending-publish review rows are visible before launch, Launch intent exposes Queue display-scope evidence when filters hide blocked rows, Preview Patch is called, cancelled Save Patch remains visible as `Save cancelled`, command history is not changed by cancellation, and Save Patch is not posted by the browser smoke. Settings-to-Launch intent and backend result handoff under real browser rendering.
 - **Does not:** Save settings permanently, process media, launch pipeline commands, publish, rename files, mutate queue state. No Playwright or Puppeteer dependency.
 
+### `Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1`
+
+- **Unittest:** `tests.webview.test_webview_browser_settings_field_matrix_smoke`
+- **What it does:** Starts an isolated temporary Local API, config, browser profile, and media sentinels; derives its expected field matrix from backend `field_definitions` plus WebView metadata groups; activates every Settings tab; drives all structured Settings bindings and eligible Library overrides; and confirms, saves, and reloads one two-key candidate after the existing rename-filter merge adds its six deterministic compatibility keys.
+- **Verifies:** All ten Settings tabs activate their pane content, all 204 backend fields are accounted for without maintaining a duplicate key list, the current 155 structured bindings remain an explicit guarded contract, metadata/control constraints agree, builder stage/reset behavior preserves unrelated and malformed staged JSON safely, representative field kinds round-trip, all 77 eligible Library overrides support inheritance/explicit-value semantics, and exactly one eight-key temp-config save plus reload is journaled from the two-key candidate and six rename-filter compatibility keys.
+- **Does not:** Open native path dialogs, launch media tools, process media, use network workers, or mutate production settings/state. The save is isolated to the generated temporary config and media sentinels remain unchanged.
+
 ### `Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1`
 
 - **Unittest:** `tests.webview.test_webview_browser_library_profiles_save_smoke`
@@ -247,12 +268,13 @@ Non-browser smokes (fast, no browser dependency):
 .\ops/scripts/smoke\Test-WebViewSettingsPatchEvidenceSmoke.ps1
 ```
 
-Browser-backed smokes (require Node + Chrome/Edge, skip cleanly if absent):
+Browser-backed smokes (require Node + Chrome/Edge; missing prerequisites fail by default):
 
 ```powershell
 .\ops/scripts/smoke\Test-WebViewBrowserHighRiskSmoke.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserScheduleSmoke.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserLifecycleSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserLifecycleReconciliationSmoke.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserPendingDrainGuardSmoke.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserCompletedPendingProofSmoke.ps1
@@ -262,12 +284,16 @@ Browser-backed smokes (require Node + Chrome/Edge, skip cleanly if absent):
 .\ops/scripts/smoke\Test-WebViewBrowserSampleValidationSmoke.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserHomeLiveStateSmoke.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserLayoutManagerSmoke.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserRenameSmoke.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserNetworkSmoke.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserQueueFileOverridesSmoke.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserTelemetrySmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserProseBoxAudit.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserVisualClutterScreenshots.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserSettingsLaunchSmoke.ps1
 ```
 
@@ -292,6 +318,6 @@ These are not WebView rendering smokes. The lifecycle smoke validates browser-fr
 - Real media routing decisions
 - Pending-publish drain behavior
 - Source-deletion safety or scratch-copy correctness
-- Queue scheduling, priority, or deferred start behavior
+- Production queue scheduling, priority, deferred-start behavior, or real pipeline execution
 
 For real-media validation, follow the real-media pilot checklist in `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md`.

@@ -146,6 +146,43 @@ class RenameApplyRunnerTests(unittest.TestCase):
             self.assertEqual(undone["sidecar_operations"], 1)
             self.assertEqual(undone["undone"], 2)
 
+    def test_multi_episode_apply_and_undo_preserve_range_identity_in_sidecar(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / "Example Show S01E01-E02.mkv"
+            sidecar = root / "Example Show S01E01-E02.pipeline.json"
+            undo_root = root / "State" / "RenameUndo"
+            source.write_text("media", encoding="utf-8")
+            sidecar.write_text(json.dumps({"output_path": str(source), "output_file": source.name}), encoding="utf-8")
+            plan = self.service.plan_rename_paths(
+                [source],
+                mode="tv",
+                use_pipeline_naming_preview=False,
+                rename_sidecars=True,
+            )
+
+            applied = apply_rename_path_plan_for_service(self.service, plan, undo_manifest_root=undo_root)
+            destination = root / "Example Show - S01E01-E02.mkv"
+            destination_sidecar = root / "Example Show - S01E01-E02.pipeline.json"
+            sidecar_payload = json.loads(destination_sidecar.read_text(encoding="utf-8"))
+            undo_manifest = Path(str(applied["undo_manifest"]))
+            undo_payload = json.loads(undo_manifest.read_text(encoding="utf-8"))
+            undone = self.service.undo_rename_manifest(undo_manifest, undo_manifest_root=undo_root)
+
+            self.assertTrue(source.exists())
+            self.assertTrue(sidecar.exists())
+            self.assertFalse(destination.exists())
+            self.assertFalse(destination_sidecar.exists())
+            self.assertEqual(sidecar_payload["RenameTool"]["TVIdentity"]["episode_end"], 2)
+            self.assertIn("S01E01-E02", sidecar_payload["RenameTool"]["DestinationIdentityKey"])
+            media_operation = next(item for item in undo_payload["operations"] if item["kind"] == "media")
+            self.assertEqual(media_operation["tv_identity"]["episode_end"], 2)
+            self.assertEqual(media_operation["parsed_identity"]["episode_end"], 2)
+            undone_media = next(item for item in undone["rows"] if item["kind"] == "media")
+            self.assertEqual(undone_media["parsed_identity"]["episode_end"], 2)
+            self.assertEqual(undone_media["destination_identity_key"], media_operation["destination_identity_key"])
+            self.assertEqual(undone["undone"], 2)
+
     def test_undo_manifest_blocks_missing_destination_before_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

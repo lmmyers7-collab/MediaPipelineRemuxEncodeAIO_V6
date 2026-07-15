@@ -19,7 +19,7 @@
             <span class="metric-label">Pending</span>
             <strong id="home-pending-count">—</strong>
           </section>
-          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="reports" data-quick-link-reports-tab="failures" data-quick-link-module="reports" data-quick-link-action="failure-needs-action" aria-label="Open Reports failures needing action" title="Open Reports failures">
+          <section class="metric" role="button" tabindex="0" data-touchpoint-id="home-primary-failure-quick-link" data-ui-quick-link data-quick-link-page="reports" data-quick-link-reports-tab="failures" data-quick-link-module="reports" data-quick-link-action="failure-needs-action" aria-label="Open Reports failures needing action" title="Open Reports failures">
             <span id="home-failed-label" class="metric-label">Failed</span>
             <strong id="home-failed-count">—</strong>
           </section>
@@ -114,7 +114,7 @@
           </div>
           <p id="home-recent-completed-detail" class="note" role="status" aria-live="polite" hidden></p>
           <div class="action-row action-row-left wrap-actions">
-            <button type="button" class="secondary-button" data-cross-page-target="completed">Review Completed</button>
+            <button type="button" class="secondary-button" data-touchpoint-id="home-recent-output-review-completed" data-cross-page-target="completed">Review Completed</button>
           </div>
         </section>
 
@@ -127,7 +127,7 @@
               <span class="metric-label">Processed</span>
               <strong id="processed-count">0</strong>
             </section>
-            <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="reports" data-quick-link-reports-tab="failures" data-quick-link-module="reports" data-quick-link-action="failure-needs-action" aria-label="Open Reports failures needing action" title="Open Reports failures">
+            <section class="metric" role="button" tabindex="0" data-touchpoint-id="home-advanced-failure-quick-link" data-ui-quick-link data-quick-link-page="reports" data-quick-link-reports-tab="failures" data-quick-link-module="reports" data-quick-link-action="failure-needs-action" aria-label="Open Reports failures needing action" title="Open Reports failures">
               <span id="failed-label" class="metric-label">Failed</span>
               <strong id="failed-count">0</strong>
             </section>
@@ -426,9 +426,9 @@
                 <div class="action-row action-row-left wrap-actions">
                   <button type="button" id="sample-validation-strip-preview-button" class="secondary-button">Preview Record</button>
                   <button type="button" id="sample-validation-strip-clear-checks-button" class="secondary-button">Clear Manual Checks</button>
-                  <button type="button" class="secondary-button" data-cross-page-target="completed">Review Completed</button>
-                  <button type="button" class="secondary-button" data-cross-page-target="pending">Review Pending Publish</button>
-                  <button type="button" class="secondary-button" data-cross-page-target="diagnostics">Review Diagnostics</button>
+                  <button type="button" class="secondary-button" data-touchpoint-id="home-sample-validation-decision-review-completed" data-cross-page-target="completed">Review Completed</button>
+                  <button type="button" class="secondary-button" data-touchpoint-id="home-sample-validation-decision-review-pending" data-cross-page-target="pending">Review Pending Publish</button>
+                  <button type="button" class="secondary-button" data-touchpoint-id="home-sample-validation-decision-review-diagnostics" data-cross-page-target="diagnostics">Review Diagnostics</button>
                 </div>
               </div>
               <div class="panel-heading panel-subheading">
@@ -750,7 +750,7 @@
                 <button type="button" id="sample-validation-preview-button" class="secondary-button">Preview Record</button>
                 <button type="button" id="sample-validation-append-button" class="secondary-button">Append Validation Record</button>
                 <button type="button" class="secondary-button" data-open-diagnostics="sample_validation_log">Open Validation Log</button>
-                <button type="button" class="secondary-button" data-cross-page-target="diagnostics">Review Diagnostics</button>
+                <button type="button" class="secondary-button" data-touchpoint-id="home-sample-validation-accepted-record-review-diagnostics" data-cross-page-target="diagnostics">Review Diagnostics</button>
               </div>
               <pre id="sample-validation-result" class="prose-block">Preview or append a backend-owned validation record after selecting a real sample row.</pre>
               <div class="table-wrap detail-table-wrap">
@@ -779,9 +779,9 @@
               <pre id="sample-validation-detail" class="prose-block">No sample validation record selected.</pre>
               <div class="action-row action-row-left wrap-actions">
                 <button type="button" class="secondary-button" data-cross-page-target="queue">Review Queue</button>
-                <button type="button" class="secondary-button" data-cross-page-target="completed">Review Completed</button>
-                <button type="button" class="secondary-button" data-cross-page-target="pending">Review Pending Publish</button>
-                <button type="button" class="secondary-button" data-cross-page-target="diagnostics">Review Diagnostics</button>
+                <button type="button" class="secondary-button" data-touchpoint-id="home-sample-validation-records-review-completed" data-cross-page-target="completed">Review Completed</button>
+                <button type="button" class="secondary-button" data-touchpoint-id="home-sample-validation-records-review-pending" data-cross-page-target="pending">Review Pending Publish</button>
+                <button type="button" class="secondary-button" data-touchpoint-id="home-sample-validation-records-review-diagnostics" data-cross-page-target="diagnostics">Review Diagnostics</button>
               </div>
               <p class="note">This panel correlates already-loaded backend payloads only. It does not start, repair, rerun, drain, delete, or rewrite files.</p>
             </div><!-- end inner data-advanced (SV sub-panels) -->

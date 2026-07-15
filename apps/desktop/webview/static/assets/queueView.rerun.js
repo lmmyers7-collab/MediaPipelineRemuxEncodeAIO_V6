@@ -15,6 +15,7 @@
       RERUN_NETWORK_PREVIEW_ROUTE,
       RERUN_NETWORK_START_DRY_RUN_ROUTE,
       RERUN_NETWORK_START_ROUTE,
+      RERUN_NETWORK_RETRY_ROUTE,
       RERUN_START_ROUTE,
       RERUN_RESULTS_ROUTE,
       RERUN_CONTROL_ROUTE,
@@ -33,6 +34,7 @@
       postRerunControlStopAfterCurrent,
       postRerunControlPause,
       postRerunContinue,
+      postBackendRerunAction,
       postRerunOpen,
       postDiagnosticsOpen,
       postRerunPromoteDryRun,
@@ -451,18 +453,22 @@
           });
           actionRow.appendChild(button);
         }
-        if (manifest.can_continue_pending) {
+        const backendActions = Array.isArray(manifest.available_actions) ? manifest.available_actions : [];
+        backendActions.slice(0, 3).forEach((action) => {
           const button = document.createElement("button");
           button.type = "button";
           button.className = "secondary-button rerun-continue-pending-button";
           button.dataset.manifestKey = manifest.manifest_key || "";
-          button.textContent = "Continue Pending Rows";
-          button.title = "Start a backend-owned CSV rerun scoped to pending rows only.";
+          button.dataset.rerunActionScope = String(action?.scope || "");
+          button.textContent = String(action?.label || action?.action || "Run backend action");
+          button.title = String(action?.confirmation_prompt || manifest.safe_next_action || "Run the backend-authored CSV rerun action.");
           button.addEventListener("click", () => {
-            requestRerunContinue(manifest.manifest_key || "").catch(() => {});
+            requestBackendRerunAction(action).catch((error) => {
+              statusText("rerun-queue-detail", error instanceof Error ? error.message : String(error));
+            });
           });
           actionRow.appendChild(button);
-        }
+        });
         if (actionRow.childNodes.length) {
           item.appendChild(actionRow);
         }
@@ -524,6 +530,12 @@
           const actionName = String(action?.action || "");
           if (actionName === "promote_to_pending_publish") {
             promoteRerunRowToPending(rowKey).catch((error) => {
+              statusText("rerun-queue-detail", error instanceof Error ? error.message : String(error));
+            });
+            return;
+          }
+          if (String(action?.route || "")) {
+            requestBackendRerunAction(action).catch((error) => {
               statusText("rerun-queue-detail", error instanceof Error ? error.message : String(error));
             });
             return;
@@ -815,6 +827,51 @@
       }
     }
 
+    function newRerunActionRequestId() {
+      if (typeof window.crypto?.randomUUID === "function") return window.crypto.randomUUID();
+      return `rerun-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+    }
+
+    function requireRerunActionBackendConfirmation(label, confirmationField, request) {
+      if (!confirmationField) return;
+      if (request[confirmationField] !== true) {
+        throw new Error(`${label} is missing strict backend confirmation ${confirmationField}=true.`);
+      }
+    }
+
+    async function requestBackendRerunAction(action = {}) {
+      const route = String(action?.route || "").trim();
+      const request = action?.request && typeof action.request === "object" ? { ...action.request } : {};
+      const confirmationField = String(action?.confirmation_field || "").trim();
+      const label = String(action?.label || action?.action || "CSV rerun action").trim();
+      if (!route) throw new Error(`${label} has no backend route.`);
+      requireRerunActionBackendConfirmation(label, confirmationField, request);
+      if (action?.requires_confirmation === true) {
+        const prompt = String(action?.confirmation_prompt || `Confirm ${label}?`).trim();
+        if (!window.confirm(prompt)) {
+          const canceled = { command: String(action?.action || "rerun.action"), ok: false, severity: "info", message: `${label} canceled.` };
+          statusText("rerun-queue-detail", canceled.message);
+          return canceled;
+        }
+      }
+      if (action?.reason_required === true) {
+        if (!String(request.reason || "").trim()) {
+          const reason = window.prompt(String(action?.reason_prompt || "Why is this retry safe now?").trim(), "");
+          if (reason === null || !String(reason).trim()) {
+            const canceled = { command: String(action?.action || "rerun.action"), ok: false, severity: "info", message: `${label} canceled: a reason is required.` };
+            statusText("rerun-queue-detail", canceled.message);
+            return canceled;
+          }
+          request.reason = String(reason).trim();
+        }
+      }
+      if (action?.request_id_required === true) request.request_id = newRerunActionRequestId();
+      const result = await postBackendRerunAction(route, request);
+      statusText("rerun-queue-detail", result?.message || `${label} request finished.`);
+      await refreshRerunResults({ quiet: true });
+      return result;
+    }
+
     async function stopRerunAfterCurrent() {
       if (!window.confirm("Request CSV rerun Stop After Current? The backend writes only the rerun stop marker.")) {
         const canceled = { command: "rerun.control", ok: false, severity: "info", message: "Stop After Current canceled." };
@@ -938,6 +995,7 @@
       RERUN_NETWORK_PREVIEW_ROUTE,
       RERUN_NETWORK_START_DRY_RUN_ROUTE,
       RERUN_NETWORK_START_ROUTE,
+      RERUN_NETWORK_RETRY_ROUTE,
       RERUN_START_ROUTE,
       RERUN_RESULTS_ROUTE,
       RERUN_CONTROL_ROUTE,
@@ -977,6 +1035,7 @@
       showRerunCommandHistory,
       promoteRerunRowToPending,
       requestRerunContinue,
+      requestBackendRerunAction,
       stopRerunAfterCurrent,
       checkNetworkRerunStartDryRun,
       startRerunFromForm,

@@ -52,22 +52,22 @@
             <div class="network-action-group" data-network-action-group="standalone">
               <span class="network-action-group-label">Standalone</span>
               <button type="button" class="secondary-button" data-network-open-drawer="network-settings-drawer">Configure Distributed Mode</button>
-              <button type="button" class="secondary-button" data-open-diagnostics="run_logs">Open Logs</button>
+              <button type="button" class="secondary-button" data-touchpoint-id="network-standalone-open-run-logs" data-open-diagnostics="run_logs">Open Logs</button>
             </div>
             <div class="network-action-group" data-network-action-group="coordinator">
               <span class="network-action-group-label">Coordinator</span>
               <button type="button" class="primary-button" data-network-lifecycle-role="coordinator" data-network-lifecycle-action="start" data-network-lifecycle-guided="true">Check &amp; Start Coordinator</button>
               <button type="button" class="secondary-button" data-network-lifecycle-role="coordinator" data-network-lifecycle-action="stop" data-network-lifecycle-guided="true">Request Coordinator Stop</button>
-              <button type="button" class="secondary-button" data-open-diagnostics="cluster_log">Open Cluster Log</button>
-              <button type="button" class="secondary-button" data-network-open-drawer="network-settings-drawer">Configure</button>
+              <button type="button" class="secondary-button" data-touchpoint-id="network-coordinator-open-cluster-log" data-open-diagnostics="cluster_log">Open Cluster Log</button>
+              <button type="button" class="secondary-button" data-touchpoint-id="network-coordinator-open-settings" data-network-open-drawer="network-settings-drawer">Configure</button>
             </div>
             <div class="network-action-group" data-network-action-group="worker">
               <span class="network-action-group-label">Worker</span>
               <button type="button" class="secondary-button" data-network-test-connection>Test Connection</button>
               <button type="button" class="primary-button" data-network-lifecycle-role="worker" data-network-lifecycle-action="start" data-network-lifecycle-guided="true">Check &amp; Start Worker</button>
               <button type="button" class="secondary-button" data-network-lifecycle-role="worker" data-network-lifecycle-action="stop" data-network-lifecycle-guided="true">Request Worker Stop</button>
-              <button type="button" class="secondary-button" data-open-diagnostics="run_logs">Open Logs</button>
-              <button type="button" class="secondary-button" data-network-open-drawer="network-settings-drawer">Configure</button>
+              <button type="button" class="secondary-button" data-touchpoint-id="network-worker-open-run-logs" data-open-diagnostics="run_logs">Open Logs</button>
+              <button type="button" class="secondary-button" data-touchpoint-id="network-worker-open-settings" data-network-open-drawer="network-settings-drawer">Configure</button>
             </div>
           </div>
           <div class="network-action-readiness-gates" id="network-action-readiness-gates" aria-label="Action readiness gates">
@@ -618,7 +618,7 @@
             </div>
             <div class="action-row action-row-left wrap-actions">
               <button type="button" class="secondary-button" data-open-diagnostics="run_logs">Open Run Logs</button>
-              <button type="button" class="secondary-button" data-open-diagnostics="cluster_log">Open Cluster Log</button>
+              <button type="button" class="secondary-button" data-touchpoint-id="network-mode-model-open-cluster-log" data-open-diagnostics="cluster_log">Open Cluster Log</button>
               <button type="button" class="secondary-button" data-open-diagnostics="active_jobs">Open Active Jobs</button>
               <button type="button" class="secondary-button" data-open-diagnostics="config">Open Config</button>
               <button type="button" class="secondary-button" data-open-diagnostics="state">Open State Folder</button>

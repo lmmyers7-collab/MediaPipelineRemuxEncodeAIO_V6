@@ -2,7 +2,7 @@
 
 Companion to `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
 
-Total routes: 168 (54 read, 114 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+Total routes: 171 (54 read, 117 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
 
 ---
 
@@ -327,6 +327,15 @@ Runs backend maintenance tooling. Dry runs write no ops/release/metadata/backfil
 | `POST /api/maintenance/archive-state-journals` | `runtime-evidence-archive` | Frontend cannot archive state journals directly | `confirm_archive` required; archives backend state-journal evidence only and does not mutate media, queue, settings, manifests, or pending publish state |
 | `POST /api/maintenance/release-build` | `deployment-write` | Frontend cannot create release packages directly | `confirm_create` required; backend checks active work, owns destination replacement, manifest creation, and optional zip creation |
 
+### lifecycle-evidence-reconciliation (high risk)
+
+Reconciles only a provably terminal failed backend lifecycle chain. The frontend cannot select evidence paths, PIDs, lease IDs, command IDs, or record IDs; the backend derives and correlates every artifact from the configured State root.
+
+| Route | Mutation class | Frontend cannot own? | Key restriction |
+|---|---|---|---|
+| `POST /api/backend/lifecycle/reconcile-dry-run` | `none` | Frontend cannot classify lifecycle evidence or PID liveness directly | Accepts only an optional reason; validates the correlated failed-recovery chain, proves recorded PIDs are dead, and previews the exact archive transaction without writing evidence or touching media files |
+| `POST /api/backend/lifecycle/reconcile` | `lifecycle-evidence-reconciliation` | Frontend cannot archive or clear lifecycle evidence directly | Requires literal `confirm_apply: true` and the current `dry_run_fingerprint`; uses a guarded archive transaction plus strict durable command evidence and never touches media files |
+
 ### backend-lifecycle (critical)
 
 Initiates guarded backend lifecycle operations. Network lifecycle routes are provider-guarded and confirmation-gated; they must not fall through to normal Launch, queue scanning, claim release, or media processing.
@@ -361,6 +370,7 @@ Spawns backend processes. The backend owns launch locks, command journal entries
 | Route | Class | Frontend can own? | Key restriction |
 |---|---|---|---|
 | `POST /api/rerun/network/start` | `network-state-write` | Frontend cannot create Network CSV rerun batch state or worker claims | Requires matching backend dry-run fingerprint and strict `confirm_start`; writes coordinator-owned batch state and command evidence only, without directly launching workers or touching media |
+| `POST /api/rerun/network/retry` | `network-state-write` | Frontend cannot reopen Network CSV rerun rows or infer safe retry eligibility | Requires exact row identity, idempotent request evidence, nonblank reason, and strict `confirm_retry`; backend permits only source-access `retry_exhausted` rows after fresh source verification and rejects active claims or any existing/ambiguous output evidence |
 
 ---
 

@@ -24,7 +24,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.core.api.commands_process import LocalApiProcessCommandPayloadMixin
 from mediapipeline.desktop.api.handler import build_local_api_handler_class
-from mediapipeline.desktop.application import MediaPipelineApplicationFacade
+from mediapipeline.desktop.application import CommandResult, MediaPipelineApplicationFacade
 from mediapipeline.desktop.local_api_main import BOOTSTRAP_SCHEMA_VERSION, bootstrap_payload, build_backend, main as local_api_main
 from mediapipeline.desktop.models import ResolvedPaths, Snapshot
 from tests.python.desktop.application_facade_test_support import (
@@ -41,6 +41,64 @@ from tests.python.desktop.application_facade_test_support import (
 
 
 class LocalApiProcessCommandTests(LocalApiHttpTestMixin, unittest.TestCase):
+    def test_network_rerun_retry_http_route_is_strict_and_dispatches_exact_request(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root), app_version="v6-test")
+            resolved = _resolved(root)
+            dispatched: list[dict[str, object]] = []
+
+            def request_retry(_resolved_paths: ResolvedPaths, request: dict[str, object]) -> CommandResult:
+                dispatched.append(dict(request))
+                return CommandResult(
+                    command="rerun.network.retry",
+                    ok=True,
+                    message="Network CSV rerun row reopened.",
+                    data={"batch_id": request["batch_id"], "row_key": request["row_key"]},
+                )
+
+            facade.request_network_rerun_retry = request_retry  # type: ignore[method-assign]
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: resolved,
+                command_journal_path=root / "RunLogs" / "local_api_command_history.json",
+            )
+            request = {
+                "batch_id": "batch-1",
+                "row_key": "row-1",
+                "request_id": "request-1",
+                "reason": "operator_requested_retry_after_source_restore",
+                "confirm_retry": True,
+            }
+            try:
+                server.start()
+                invalid_status, invalid = self._post_json(
+                    f"{server.url}/api/rerun/network/retry",
+                    {**request, "confirm_retry": "true"},
+                    token="test-token",
+                )
+                status, payload = self._post_json(
+                    f"{server.url}/api/rerun/network/retry",
+                    request,
+                    token="test-token",
+                )
+            finally:
+                server.stop()
+
+        self.assertEqual(invalid_status, 400)
+        self.assertEqual(invalid["path"], "/api/rerun/network/retry")
+        self.assertIn("confirm_retry", invalid["error"])
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["command"], "rerun.network.retry")
+        self.assertTrue(payload["data"]["strict_command_journal_recorded"])
+        self.assertRegex(payload["data"]["command_id"], r"^[0-9a-f]{32}$")
+        self.assertEqual(len(dispatched), 1)
+        self.assertEqual(
+            {key: dispatched[0][key] for key in request},
+            request,
+        )
+
     def test_local_api_process_commands_require_token_before_side_effects(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

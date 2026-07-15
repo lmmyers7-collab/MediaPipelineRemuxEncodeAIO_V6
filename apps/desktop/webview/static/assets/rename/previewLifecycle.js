@@ -14,6 +14,7 @@
       getSelectedRenameRow = () => null,
       makeRowSelectable = () => {},
       renameApplyScopeBlockers = () => [],
+      renameBulkScopeRows = () => [],
       renameConfidenceExplanation = () => "",
       renameConfidenceLabel = () => "",
       renameCurrentRequestSignature = () => "",

@@ -174,6 +174,10 @@ def _empty_counts() -> dict[str, int]:
         "relative_source_rows": 0,
         "nonexistent_source_rows": 0,
         "missing_file_rows": 0,
+        "source_location_unavailable_rows": 0,
+        "source_access_failed_rows": 0,
+        "source_missing_rows": 0,
+        "source_identity_changed_rows": 0,
         "invalid_extension_rows": 0,
         "warning_rows": 0,
         "rule_blocked_rows": 0,
@@ -193,6 +197,10 @@ def _row_reason_contains(row: RerunCsvRow, needle: str) -> bool:
     return any(needle in reason for reason in (*row.blocked_reasons, *row.warning_reasons))
 
 
+def _row_source_health_code(row: RerunCsvRow) -> str:
+    return str(row.source_health.code if row.source_health is not None else "")
+
+
 def _preview_counts(rows: list[RerunCsvRow], scoped: list[RerunCsvRow], blocked_in_scope: int) -> dict[str, int]:
     return {
         "total_rows": len(rows),
@@ -206,8 +214,16 @@ def _preview_counts(rows: list[RerunCsvRow], scoped: list[RerunCsvRow], blocked_
         "duplicate_planned_output_rows": sum(1 for row in rows if row.duplicate_planned_output),
         "missing_source_rows": sum(1 for row in rows if not row.source_path),
         "relative_source_rows": sum(1 for row in rows if _row_has_reason(row, "relative source_path")),
-        "nonexistent_source_rows": sum(1 for row in rows if _row_has_reason(row, "source file not found")),
-        "missing_file_rows": sum(1 for row in rows if _row_has_reason(row, "source file not found")),
+        "nonexistent_source_rows": sum(1 for row in rows if _row_source_health_code(row) == "source_missing"),
+        "missing_file_rows": sum(1 for row in rows if _row_source_health_code(row) == "source_missing"),
+        "source_location_unavailable_rows": sum(
+            1 for row in rows if _row_source_health_code(row) == "source_location_unavailable"
+        ),
+        "source_access_failed_rows": sum(1 for row in rows if _row_source_health_code(row) == "source_access_failed"),
+        "source_missing_rows": sum(1 for row in rows if _row_source_health_code(row) == "source_missing"),
+        "source_identity_changed_rows": sum(
+            1 for row in rows if _row_source_health_code(row) == "source_identity_changed"
+        ),
         "invalid_extension_rows": sum(1 for row in rows if _row_has_reason(row, "invalid media extension")),
         "warning_rows": sum(1 for row in rows if row.warning_reasons),
         "rule_blocked_rows": sum(1 for row in rows if row.rule_decision.status == "blocked"),
@@ -318,9 +334,24 @@ def _preview_warnings(rows: list[RerunCsvRow], scoped: list[RerunCsvRow], unsafe
     relative = sum(1 for row in rows if _row_has_reason(row, "relative source_path"))
     if relative:
         warnings.append(f"{relative} row(s) use relative source_path values.")
-    missing_file = sum(1 for row in rows if _row_has_reason(row, "source file not found"))
+    unavailable = sum(1 for row in rows if _row_source_health_code(row) == "source_location_unavailable")
+    if unavailable:
+        warnings.append(
+            f"{unavailable} row(s) are waiting because their configured source location is unavailable."
+        )
+    access_failed = sum(1 for row in rows if _row_source_health_code(row) == "source_access_failed")
+    if access_failed:
+        warnings.append(f"{access_failed} row(s) are waiting because the source access probe failed.")
+    missing_file = sum(1 for row in rows if _row_source_health_code(row) == "source_missing")
     if missing_file:
-        warnings.append(f"{missing_file} row(s) reference source files that were not found.")
+        warnings.append(
+            f"{missing_file} row(s) reference source files that were not found beneath reachable source roots."
+        )
+    identity_changed = sum(1 for row in rows if _row_source_health_code(row) == "source_identity_changed")
+    if identity_changed:
+        warnings.append(
+            f"{identity_changed} row(s) are blocked because source identity changed after the CSV was planned."
+        )
     invalid_extension = sum(1 for row in rows if _row_has_reason(row, "invalid media extension"))
     if invalid_extension:
         warnings.append(f"{invalid_extension} row(s) use invalid media extensions.")

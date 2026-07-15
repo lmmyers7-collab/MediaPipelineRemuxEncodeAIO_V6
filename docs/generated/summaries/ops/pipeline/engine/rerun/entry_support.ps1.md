@@ -3,14 +3,14 @@ file: ops/pipeline/engine/rerun/entry_support.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: rerun
-last_modified: 2026-07-11
+last_modified: 2026-07-14
 last_reviewed: 2026-07-11
-sha256: c5345ac45d087becd618149969253884d87ed48ced5614d942b2362d4310f87e
+sha256: 08bbbdf67c40143e1399652be5b5774cb19c2f530821830d04e6d5d88fcf6b22
 ---
 # `ops/pipeline/engine/rerun/entry_support.ps1`
 
 **Purpose:** (no .SYNOPSIS block)
 
-**Functions:** `Add-RerunCommandTail`, `Add-RerunCompletedJobsManifestEntry`, `ConvertTo-Psd1KeyLiteral`, `ConvertTo-Psd1Literal`, `ConvertTo-RerunBool`, `Copy-RerunConfigValue`, `Copy-RerunFileVerified`, `DebugLog`, `Get-RerunFreeSpaceGB`, `Get-RerunJsonLineMutexName`, `Get-RerunProfileField`, `Get-RerunUncShareRoot`, `Get-RerunValidExtensionSet`, `Get-RerunValue`, `Invoke-RerunStreamingCommand`, `Move-RerunFileReplaceWithRetry`, `New-RerunLibraryProfiles`, `Normalize-RerunChoiceValue`, `Resolve-RerunChoice`, `Resolve-RerunPath`, `Resolve-RerunRobocopyPath`, `Resolve-RerunSourcePath`, `Set-RerunProfileField`, `Test-RerunSourcePathFullyQualified`, `Test-RerunUncPath`
+**Functions:** `Add-RerunCommandTail`, `Add-RerunCompletedJobsManifestEntry`, `Assert-RerunRobocopyFlagsSafe`, `Assert-RerunScratchPathBoundary`, `Assert-RerunScratchTrustAnchor`, `Clear-RerunCopyAttemptArtifacts`, `ConvertTo-Psd1KeyLiteral`, `ConvertTo-Psd1Literal`, `ConvertTo-RerunBool`, `Copy-RerunConfigValue`, `Copy-RerunFileVerified`, `DebugLog`, `Get-RerunFreeSpaceGB`, `Get-RerunJsonLineMutexName`, `Get-RerunManifestMutexName`, `Get-RerunProfileField`, `Get-RerunScratchMutationItem`, `Get-RerunUncShareRoot`, `Get-RerunValidExtensionSet`, `Get-RerunValue`, `Invoke-RerunStreamingCommand`, `Move-RerunFileReplaceWithRetry`, `Move-RerunStageAttemptToDestination`, `New-RerunLibraryProfiles`, `New-RerunScratchDirectorySafe`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/engine/rerun/entry_support.ps1`._

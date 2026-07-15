@@ -71,7 +71,7 @@ function Get-QueueSeasonNumber {
     param([string]$Text)
 
     if ([string]::IsNullOrWhiteSpace($Text)) { return 0 }
-    $match = [regex]::Match($Text, '(?i)\b(?:season\s*|s)(\d{1,2})\b')
+    $match = [regex]::Match($Text, '(?i)(?<![A-Za-z0-9])(?:season\s*|s)(\d{1,2})(?!\d)')
     if (-not $match.Success) { return 0 }
     try {
         return [int]$match.Groups[1].Value
@@ -85,11 +85,11 @@ function Get-QueueEpisodeNumber {
 
     if ([string]::IsNullOrWhiteSpace($Text)) { return 0 }
     # Strong SxxExx / NxM patterns
-    $match = [regex]::Match($Text, '(?i)\bs\d{1,2}[ ._-]*e(\d{1,3})\b')
-    if (-not $match.Success) { $match = [regex]::Match($Text, '(?i)\b\d{1,2}x(\d{1,3})\b') }
+    $match = [regex]::Match($Text, '(?i)\bs\d{1,2}[ ._-]*e(\d{1,3})(?:v\d+)?\b')
+    if (-not $match.Success) { $match = [regex]::Match($Text, '(?i)\b\d{1,2}x(\d{1,3})(?:v\d+)?\b') }
     # Fansub-style explicit tokens
-    if (-not $match.Success) { $match = [regex]::Match($Text, '(?i)\bEpisode[\s._-]*(\d{1,3})\b') }
-    if (-not $match.Success) { $match = [regex]::Match($Text, '(?i)\bEp[\s._-]*(\d{1,3})\b') }
+    if (-not $match.Success) { $match = [regex]::Match($Text, '(?i)\bEpisode[\s._-]*(\d{1,3})(?:v\d+)?\b') }
+    if (-not $match.Success) { $match = [regex]::Match($Text, '(?i)\bEp[\s._-]*(\d{1,3})(?:v\d+)?\b') }
     if ($match.Success) {
         try { return [int]$match.Groups[1].Value } catch { return 0 }
     }
@@ -98,7 +98,7 @@ function Get-QueueEpisodeNumber {
     $stripped = $Text -replace '\([^()]*\)', '' -replace '\[[^\[\]]*\]', ''
     $stripped = $stripped -replace '(?i)\b(?:2160p|1080p|720p|480p|uhd|hdr|hdr10|hevc|h264|h265|x264|x265|av1|bluray|blu-ray|web-dl|webdl|webrip|remux|flac|aac|opus|ac3|dts|truehd|eac3|ddp)\b', ' '
     $stripped = ($stripped -replace '\s+', ' ').Trim()
-    $match = [regex]::Match($stripped, '[\s._-]+(\d{1,3})\s*$')
+    $match = [regex]::Match($stripped, '(?i)[\s._-]+(\d{1,3})(?:v\d+)?\s*$')
     if ($match.Success) {
         try {
             $ep = [int]$match.Groups[1].Value
@@ -128,6 +128,8 @@ function New-MediaQueueItem {
         [int] $SeasonSortOrder = 0,
         [string] $SeasonSortKey = '',
         [int] $EpisodeSortOrder = 0,
+        $TVInfo = $null,
+        [bool] $TVIdentityParsed = $false,
         [string] $RelativePathSort = '',
         [datetime] $LastWriteUtc = [datetime]::MinValue,
         [string] $LibraryId = '',
@@ -203,6 +205,10 @@ function New-MediaQueueItem {
         SeasonSortOrder        = $SeasonSortOrder
         SeasonSortKey          = $SeasonSortKey
         EpisodeSortOrder       = $EpisodeSortOrder
+        TVInfo                  = $TVInfo
+        TVIdentityParsed        = [bool]$TVIdentityParsed
+        TVParseReliable         = [bool]($TVIdentityParsed -and $TVInfo -and $TVInfo.IsReliable)
+        TVParseError            = if ($TVIdentityParsed -and $TVInfo) { [string]$TVInfo.ParseError } elseif ($TVIdentityParsed) { 'TV identity parser returned no result.' } else { '' }
         RelativePathSort       = $RelativePathSort
         LibraryId              = $LibraryId
         LibraryName            = $LibraryName
@@ -273,6 +279,8 @@ function Get-QueuedEntries {
         $seasonSortKey = ''
         $episodeSortOrder = 0
         $relativePathSort = [string]$file.FullName
+        $tvInfo = $null
+        $tvIdentityParsed = $false
         if ($IsTV) {
             $relativeParts = @($relativePath -split '[\\/]') | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
             $showSortKey = if ($relativeParts.Count -ge 1) {
@@ -285,22 +293,29 @@ function Get-QueuedEntries {
                 $sortName
             }
             $seasonSortKey = if ($relativeParts.Count -ge 2) { [string]$relativeParts[1] } else { '' }
-            $seasonSortOrder = Get-QueueSeasonNumber $seasonSortKey
-            if ($seasonSortOrder -le 0) {
-                $seasonSortOrder = Get-QueueSeasonNumber $file.BaseName
-            }
-            $episodeSortOrder = Get-QueueEpisodeNumber $file.BaseName
-            if ($seasonSortOrder -le 0 -or $episodeSortOrder -le 0) {
+            try {
                 $tvInfo = Get-TVInfoFromFile `
                     -file $file `
                     -SourceRootPath $RootPath `
                     -LibraryName ([string]($LibraryProfileMetadata['library_name'])) `
                     -LibraryId ([string]($LibraryProfileMetadata['library_id'])) `
                     -LibraryDesignation ([string]($LibraryProfileMetadata['designation']))
-                if ($tvInfo -and $tvInfo.IsReliable) {
-                    if ($seasonSortOrder -le 0) { $seasonSortOrder = [int]$tvInfo.Season }
-                    if ($episodeSortOrder -le 0) { $episodeSortOrder = [int]$tvInfo.Episode }
+                $tvIdentityParsed = $true
+            } catch {
+                $tvIdentityParsed = $true
+                $tvInfo = $null
+            }
+            if ($tvInfo -and $tvInfo.IsReliable) {
+                $showSortKey = [string]$tvInfo.ShowName
+                $seasonSortOrder = [int]$tvInfo.Season
+                $seasonSortKey = if ($seasonSortOrder -eq 0) { 'Specials' } else { "Season $($seasonSortOrder.ToString('00'))" }
+                $episodeSortOrder = [int]$tvInfo.Episode
+            } else {
+                $seasonSortOrder = Get-QueueSeasonNumber $seasonSortKey
+                if ($seasonSortOrder -le 0) {
+                    $seasonSortOrder = Get-QueueSeasonNumber $file.BaseName
                 }
+                $episodeSortOrder = Get-QueueEpisodeNumber $file.BaseName
             }
             $relativePathSort = $relativePath
         }
@@ -315,6 +330,8 @@ function Get-QueuedEntries {
             -SeasonSortOrder $seasonSortOrder `
             -SeasonSortKey $seasonSortKey `
             -EpisodeSortOrder $episodeSortOrder `
+            -TVInfo $tvInfo `
+            -TVIdentityParsed:$tvIdentityParsed `
             -RelativePathSort $relativePathSort `
             -LastWriteUtc $file.LastWriteTimeUtc `
             -LibraryId ([string]($LibraryProfileMetadata['library_id'])) `
@@ -334,8 +351,9 @@ function Get-QueuedEntries {
         $entries | Sort-Object `
             @{ Expression = { switch ($_.EffectivePriorityLevel) { 'high' { 0 } 'low' { 2 } 'hold' { 3 } default { 1 } } } }, `
             @{ Descending = $true; Expression = { if ($_.EffectivePriorityLevel -eq 'high') { $_.PriorityOrderTicks } else { 0L } } }, `
+            @{ Expression = { if (-not $_.IsTV -or $_.TVParseReliable) { 0 } else { 1 } } }, `
             @{ Expression = { $_.ShowSortKey } }, `
-            @{ Expression = { if ($_.SeasonSortOrder -gt 0) { $_.SeasonSortOrder } else { 9999 } } }, `
+            @{ Expression = { if ($_.IsTV -and $_.TVParseReliable) { $_.SeasonSortOrder } elseif ($_.SeasonSortOrder -gt 0) { $_.SeasonSortOrder } else { 9999 } } }, `
             @{ Expression = { $_.SeasonSortKey } }, `
             @{ Expression = { if ($_.EpisodeSortOrder -gt 0) { $_.EpisodeSortOrder } else { 999999 } } }, `
             @{ Expression = { $_.RelativePathSort } }, `

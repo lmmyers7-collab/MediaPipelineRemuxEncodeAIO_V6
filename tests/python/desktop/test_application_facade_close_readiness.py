@@ -530,6 +530,189 @@ class ApplicationFacadeCloseReadinessTests(unittest.TestCase):
         self.assertTrue(readiness.active_work)
         self.assertIn("network CSV rerun batch network-rerun-test", readiness.reason)
 
+    def test_close_readiness_blocks_unverified_local_rerun_child_exit(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            service.find_related_pipeline_processes = lambda _resolved, job_kinds=None: []  # type: ignore[method-assign]
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+            enrollment_root = resolved.state_root / "Rerun" / "Local"
+            enrollment_root.mkdir(parents=True)
+            (enrollment_root / "rerun-ambiguous.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_rerun_enrollment.v1",
+                        "batch_id": "rerun-ambiguous",
+                        "status": "spawn_transition_ambiguous",
+                        "lifecycle_state": "spawn_transition_ambiguous",
+                        "pid": 24682,
+                        "duplicate_launch_blocked": True,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            idle_snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="Ready.",
+                status_summary="Idle",
+                log_tail="",
+                progress={"ProgressVersion": 2, "Status": "Completed", "CurrentStage": "completed"},
+                audit_progress=None,
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+            )
+
+            readiness = facade.get_close_readiness(resolved, idle_snapshot)
+
+        self.assertFalse(readiness.safe_to_close)
+        self.assertTrue(readiness.active_work)
+        self.assertIn("local CSV rerun batch rerun-ambiguous", readiness.reason)
+        self.assertIn("child exit is unverified", readiness.reason)
+
+    def test_close_readiness_allows_terminal_network_csv_rerun_batch_states(self) -> None:
+        for status in ("complete", "review_required", "retry_exhausted"):
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as raw_root:
+                root = Path(raw_root)
+                service = DummyFacadeService(root)
+                facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+                resolved = _resolved(root)
+                resolved.local_base = root / "LocalBase"
+                resolved.state_root = resolved.local_base / "State"
+                batch_root = resolved.state_root / "Rerun" / "Network"
+                batch_root.mkdir(parents=True)
+                (batch_root / "network-rerun-terminal.json").write_text(
+                    json.dumps(
+                        {
+                            "schema_version": "desktop_rerun_network_batch.v1",
+                            "batch_id": "network-rerun-terminal",
+                            "status": status,
+                            "terminal_at_utc": "2026-07-13T20:00:30Z",
+                            "terminal_row_count": 1,
+                            "row_count": 1,
+                            "claim_provider_enabled": True,
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                idle_snapshot = Snapshot(
+                    resolved=resolved,
+                    current_activity="Ready.",
+                    status_summary="Idle",
+                    log_tail="",
+                    progress={"ProgressVersion": 2, "Status": "Completed", "CurrentStage": "completed"},
+                    audit_progress=None,
+                    latest_failure_report=None,
+                    latest_failure_json=None,
+                    latest_audit_csv=None,
+                    latest_priority_csv=None,
+                )
+
+                readiness = facade.get_close_readiness(resolved, idle_snapshot)
+
+                self.assertTrue(readiness.safe_to_close, readiness.reason)
+                self.assertFalse(readiness.active_work)
+
+    def test_close_readiness_allows_durable_network_retry_wait_only_after_coordinator_stops(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+            batch_root = resolved.state_root / "Rerun" / "Network"
+            batch_root.mkdir(parents=True)
+            batch_path = batch_root / "network-rerun-waiting.json"
+            batch_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_rerun_network_batch.v1",
+                        "batch_id": "network-rerun-waiting",
+                        "status": "active",
+                        "claim_provider_enabled": True,
+                        "rows": [
+                            {
+                                "row_key": "row-waiting",
+                                "status": "retry_scheduled",
+                                "claim_status": "retry_scheduled",
+                                "claimable": True,
+                                "terminal": False,
+                                "next_retry_at_utc": "2099-01-01T00:00:00+00:00",
+                            },
+                            {
+                                "row_key": "row-skipped",
+                                "status": "skipped",
+                                "claimable": False,
+                                "terminal": True,
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            idle_snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="Ready.",
+                status_summary="Idle",
+                log_tail="",
+                progress={"ProgressVersion": 2, "Status": "Completed", "CurrentStage": "completed"},
+                audit_progress=None,
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+            )
+
+            facade._network_lifecycle_state_commit(
+                "coordinator",
+                {"role": "coordinator", "status": "running"},
+            )
+            running = facade.get_close_readiness(resolved, idle_snapshot)
+            facade._network_lifecycle_state_commit(
+                "coordinator",
+                {"role": "coordinator", "status": "stopped"},
+            )
+            stopped = facade.get_close_readiness(resolved, idle_snapshot)
+            data = json.loads(batch_path.read_text(encoding="utf-8"))
+            data["rows"][0].update(
+                {
+                    "status": "claimed",
+                    "claim_status": "claimed",
+                    "claimable": False,
+                    "active_claim": {"job_id": "job-live", "worker_id": "worker-live"},
+                }
+            )
+            batch_path.write_text(json.dumps(data), encoding="utf-8")
+            claimed = facade.get_close_readiness(resolved, idle_snapshot)
+
+        self.assertFalse(running.safe_to_close)
+        self.assertTrue(stopped.safe_to_close, stopped.reason)
+        self.assertFalse(stopped.active_work)
+        self.assertFalse(claimed.safe_to_close)
+        self.assertIn("network CSV rerun batch network-rerun-waiting", claimed.reason)
+
+    def test_network_waiting_close_safety_rejects_inconsistent_terminal_flags(self) -> None:
+        for status in ("claimed", "processing", "destination_policy_applying", "unknown_state"):
+            with self.subTest(status=status):
+                self.assertFalse(
+                    MediaPipelineApplicationFacade._network_csv_rerun_waiting_close_safe(
+                        {
+                            "rows": [
+                                {
+                                    "row_key": "row-inconsistent",
+                                    "status": status,
+                                    "terminal": True,
+                                }
+                            ]
+                        }
+                    )
+                )
+
     def test_close_readiness_blocks_while_schedule_stop_watcher_is_armed(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

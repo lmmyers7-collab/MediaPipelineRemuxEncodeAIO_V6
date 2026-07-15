@@ -124,9 +124,11 @@ def _write_launch_sample_validation_log(path: Path, *, source: Path, output: Pat
 def _browser_launch_queue_readiness_runner_source() -> str:
     return browser_cdp_runner_prelude() + textwrap.dedent(
         r"""
-        function launchQueueReadinessScript() {
+        function launchQueueReadinessScript(sampleSourcePath) {
+          const sampleSourcePathLiteral = JSON.stringify(sampleSourcePath);
           return `
           (async () => {
+            const sampleSourcePath = ${sampleSourcePathLiteral};
             const posts = [];
             const originalApiPost = window.mediaPipelineApi.apiPost;
             window.mediaPipelineApi.apiPost = async (path, body, options) => {
@@ -336,7 +338,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             requireLaunchTab("pipeline");
             clickLaunchTab("pipeline");
             setInput("pipeline-start-mode", "continuous");
-            setInput("pipeline-start-single-file", "E:\\\\Videos\\\\Scratch\\\\Encoded\\\\TV\\\\Sample Pilot.mkv");
+            setInput("pipeline-start-single-file", sampleSourcePath);
             setInput("pipeline-start-schedule-override", "");
             const originalRefreshAll = window.refreshAll;
             await window.refreshAllNow({ page: "home" });
@@ -382,7 +384,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             window.showPage("launch");
             clickLaunchTab("pipeline");
             const singleFileRequest = window.mediaPipelineLaunchView.collectPipelineStartRequest();
-            if (singleFileRequest.single_file !== "E:\\\\Videos\\\\Scratch\\\\Encoded\\\\TV\\\\Sample Pilot.mkv") {
+            if (singleFileRequest.single_file !== sampleSourcePath) {
               throw new Error("Launch single-file request was not collected correctly: " + JSON.stringify(singleFileRequest));
             }
             if (!text("pipeline-launch-preflight").includes("Single-file launch: WebView submits the path only")) {
@@ -1346,7 +1348,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             });
             if (ready.result?.value !== true) throw new Error("Launch/Queue readiness WebView globals or DOM nodes did not become ready.");
             const result = await client.send("Runtime.evaluate", {
-              expression: launchQueueReadinessScript(),
+              expression: launchQueueReadinessScript(payload.sampleSourcePath),
               awaitPromise: true,
               returnByValue: true,
             });
@@ -1374,7 +1376,9 @@ def _browser_launch_queue_readiness_runner_source() -> str:
     )
 
 
-def _run_browser_launch_queue_readiness_smoke(*, browser_path: str, url: str) -> dict[str, object]:
+def _run_browser_launch_queue_readiness_smoke(
+    *, browser_path: str, url: str, sample_source_path: Path
+) -> dict[str, object]:
     node = shutil.which("node")
     if not node:
         raise unittest.SkipTest("Node.js is required for the browser-backed WebView Launch/Queue readiness smoke.")
@@ -1388,6 +1392,7 @@ def _run_browser_launch_queue_readiness_smoke(*, browser_path: str, url: str) ->
                 {
                     "browserPath": browser_path,
                     "port": port,
+                    "sampleSourcePath": str(sample_source_path),
                     "tmpRoot": str(tmp),
                     "url": url,
                 },
@@ -1631,7 +1636,11 @@ class WebViewBrowserLaunchQueueReadinessSmoke(unittest.TestCase):
             }
             try:
                 server.start()
-                result = _run_browser_launch_queue_readiness_smoke(browser_path=browser_path, url=server.url)
+                result = _run_browser_launch_queue_readiness_smoke(
+                    browser_path=browser_path,
+                    url=server.url,
+                    sample_source_path=source,
+                )
             finally:
                 server.stop()
 
@@ -1650,7 +1659,7 @@ class WebViewBrowserLaunchQueueReadinessSmoke(unittest.TestCase):
             self.assertIs(scan_posts[0]["body"]["force"], True)
             self.assertEqual(
                 browser_result["singleFileRequest"]["single_file"],
-                r"E:\Videos\Scratch\Encoded\TV\Sample Pilot.mkv",
+                str(source),
             )
             self.assertIn(
                 "Single-file launch: WebView submits the path only",

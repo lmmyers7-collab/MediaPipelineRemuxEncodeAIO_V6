@@ -21,6 +21,14 @@ pub(crate) struct BackendRoute {
     #[serde(default)]
     pub(crate) effect: Option<String>,
     #[serde(default)]
+    pub(crate) request_keys: Vec<String>,
+    #[serde(default)]
+    pub(crate) safe_defaults: Option<serde_json::Value>,
+    #[serde(default)]
+    pub(crate) requires_strict_boolean: Vec<String>,
+    #[serde(default)]
+    pub(crate) requires_dry_run_fingerprint: Option<bool>,
+    #[serde(default)]
     pub(crate) requires_confirmation: Option<bool>,
     #[serde(default)]
     pub(crate) owner: Option<String>,
@@ -30,6 +38,10 @@ pub(crate) struct BackendRoute {
     pub(crate) journaled: Option<bool>,
     #[serde(default)]
     pub(crate) network_lifecycle: Option<NetworkLifecycleRoute>,
+    #[serde(default)]
+    pub(crate) response_schema: Option<String>,
+    #[serde(default)]
+    pub(crate) data_schema: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

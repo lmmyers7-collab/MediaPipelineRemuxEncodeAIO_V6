@@ -179,7 +179,7 @@
         appendCommandResult(payload);
         // Reload the strategy display to confirm round-trip
         await loadQueueStrategy();
-        updateQueueManualOrderControls();
+        updateManualOrderControls();
       } else {
         const msg = (payload && payload.message) ? payload.message : "Unknown error.";
         if (status) status.textContent = `Error: ${msg} Selector reset to active strategy "${getActiveStrategy()}".`;

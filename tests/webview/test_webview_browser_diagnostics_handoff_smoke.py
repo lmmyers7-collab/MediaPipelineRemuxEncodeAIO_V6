@@ -413,6 +413,19 @@ def _browser_diagnostics_handoff_runner_source() -> str:
 
                 click("#tdarr-matrix-audit-load-latest", "tdarr load latest");
                 await waitFor(() => text("tdarr-matrix-audit-status").includes("Latest loaded"), "tdarr latest loaded");
+                let findingRow = document.querySelector('#tdarr-matrix-audit-findings-rows tr[data-finding-key="fixture-finding"]');
+                if (!findingRow || findingRow.dataset.selectableRow !== "true" || findingRow.tabIndex !== 0 || findingRow.getAttribute("role") !== "row") {
+                  throw new Error("Tdarr Matrix finding row is not exposed as a keyboard-selectable row.");
+                }
+                const findingCheckbox = findingRow.querySelector('input[type="checkbox"]');
+                if (!findingCheckbox?.getAttribute("aria-label")?.includes("fixture-finding")) {
+                  throw new Error("Tdarr Matrix finding rerun checkbox has no finding-specific accessible name.");
+                }
+                findingRow.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+                findingRow = document.querySelector('#tdarr-matrix-audit-findings-rows tr[data-finding-key="fixture-finding"]');
+                if (findingRow?.getAttribute("aria-selected") !== "true" || !findingRow?.classList.contains("is-selected")) {
+                  throw new Error("Enter did not select the Tdarr Matrix finding row.");
+                }
                 checks.tdarr.afterLatest = {
                   proof: assertTdarrGate("proof-pack", false, "after latest Tdarr gate"),
                   strict: assertTdarrGate("strict-report", false, "after latest Tdarr gate"),

@@ -19,7 +19,21 @@ WORKER_PROGRESS_SCHEMA_VERSION = "desktop_worker_progress.v1"
 def active_job_status_state(status: str = "", issue: str = "", source: str = "") -> str:
     combined = " ".join(str(value or "").strip().casefold() for value in (status, issue, source))
     normalized_status = str(status or "").strip().casefold()
-    if any(term in combined for term in ("invalid", "unreadable", "failed", "failure", "killed", "orphan", "blocked", "malformed", "corrupt")):
+    if any(
+        term in combined
+        for term in (
+            "invalid",
+            "unreadable",
+            "failed",
+            "failure",
+            "killed",
+            "degraded",
+            "orphan",
+            "blocked",
+            "malformed",
+            "corrupt",
+        )
+    ):
         return "warning"
     if any(term in normalized_status for term in ("launching", "active", "running", "processing")):
         return "running"

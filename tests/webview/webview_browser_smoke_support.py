@@ -198,8 +198,60 @@ def run_node_browser_smoke(
     return parsed
 
 
-def browser_cdp_runner_prelude() -> str:
+def browser_namespace_promotion_script() -> str:
+    """Promote namespace exports while preserving deliberate test-only global faults."""
     return textwrap.dedent(
+        r"""
+        (function () {
+          const maskKey = "__mediaPipelineBrowserSmokeMaskedGlobals";
+          const maskHelper = "__mediaPipelineBrowserSmokeMaskGlobal";
+          if (!Array.isArray(window[maskKey])) {
+            Object.defineProperty(window, maskKey, {
+              value: [],
+              configurable: true,
+            });
+          }
+          const maskedGlobals = window[maskKey];
+          function removeMaskedGlobal(name) {
+            try { delete window[name]; } catch (_) {}
+            if (window[name] !== undefined) {
+              try { window[name] = undefined; } catch (_) {}
+            }
+            if (window[name] !== undefined) {
+              throw new Error(`Browser smoke could not mask global: ${name}`);
+            }
+          }
+          function maskGlobal(name) {
+            const normalized = String(name || "").trim();
+            if (!normalized) throw new Error("Browser smoke global mask requires a name.");
+            if (!maskedGlobals.includes(normalized)) {
+              maskedGlobals.push(normalized);
+              maskedGlobals.sort();
+            }
+            removeMaskedGlobal(normalized);
+          }
+          Object.defineProperty(window, maskHelper, {
+            value: maskGlobal,
+            configurable: true,
+          });
+          maskedGlobals.forEach(removeMaskedGlobal);
+          Object.keys(window)
+            .filter((key) => key.startsWith("mediaPipeline"))
+            .forEach((namespace) => {
+              const namespaceExports = window[namespace];
+              if (!namespaceExports || typeof namespaceExports !== "object") return;
+              Object.entries(namespaceExports).forEach(([name, value]) => {
+                if (!maskedGlobals.includes(name) && window[name] === undefined) window[name] = value;
+              });
+            });
+          maskedGlobals.forEach(removeMaskedGlobal);
+        })();
+        """
+    ).strip()
+
+
+def browser_cdp_runner_prelude() -> str:
+    prelude = textwrap.dedent(
         r"""
         const fs = require("fs");
         const http = require("http");
@@ -273,19 +325,7 @@ def browser_cdp_runner_prelude() -> str:
           }
         }
 
-        const MEDIA_PIPELINE_NAMESPACE_PROMOTION = `
-        (function () {
-          Object.keys(window)
-            .filter((key) => key.startsWith("mediaPipeline"))
-            .forEach((namespace) => {
-              const namespaceExports = window[namespace];
-              if (!namespaceExports || typeof namespaceExports !== "object") return;
-              Object.entries(namespaceExports).forEach(([name, value]) => {
-                if (window[name] === undefined) window[name] = value;
-              });
-            });
-        })();
-        `;
+        const MEDIA_PIPELINE_NAMESPACE_PROMOTION = __MEDIA_PIPELINE_NAMESPACE_PROMOTION__;
 
         function createCdpClient(wsUrl) {
           let nextId = 1;
@@ -352,4 +392,8 @@ def browser_cdp_runner_prelude() -> str:
           };
         }
         """
+    )
+    return prelude.replace(
+        "__MEDIA_PIPELINE_NAMESPACE_PROMOTION__",
+        json.dumps(browser_namespace_promotion_script()),
     )

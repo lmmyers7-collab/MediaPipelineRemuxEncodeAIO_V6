@@ -18,6 +18,7 @@ from mediapipeline.contracts.config_coercion import (
 )
 from mediapipeline.contracts.config_defaults import (
     _list_default,
+    _normalize_legacy_packaged_rename_movie_remove_terms,
     _rename_movie_filter_options_default,
     _rename_movie_remove_terms_default,
     _rename_tv_filter_options_default,
@@ -448,7 +449,8 @@ class Config(BaseModel):
     @field_validator("RenameMovieRemoveTerms")
     @classmethod
     def _normalize_rename_movie_remove_terms(cls, value: list[str]) -> list[str]:
-        return _normalize_config_term_list(value)
+        normalized = _normalize_config_term_list(value)
+        return _normalize_legacy_packaged_rename_movie_remove_terms(normalized)
 
     @field_validator("RenameTVFilterOptions", mode="before")
     @classmethod

@@ -296,6 +296,24 @@ class SettingsStoreTests(unittest.TestCase):
         self.assertIn("alias:OutputRoot->Outsource", renamed.migrations_applied)
         self.assertTrue(any("duplicate keys for RoutingProfile" in error for error in duplicate.errors))
 
+    def test_migration_reports_only_exact_legacy_movie_remove_term_normalization(self) -> None:
+        defaults = ["sample", "trailer", "extras", "featurette", "deleted scenes", "behind the scenes"]
+        legacy = [*defaults, *(f"{value:02d}" for value in range(1, 13))]
+        exact = migrate_imported_settings_mapping(
+            {"RenameMovieRemoveTerms": [term.upper() for term in reversed(legacy)]}
+        )
+        incomplete = migrate_imported_settings_mapping({"RenameMovieRemoveTerms": legacy[:-1]})
+        extended = migrate_imported_settings_mapping(
+            {"RenameMovieRemoveTerms": [*legacy, "operator custom term"]}
+        )
+
+        self.assertEqual(exact.settings["RenameMovieRemoveTerms"], defaults)
+        self.assertIn("normalize:RenameMovieRemoveTerms:legacy-packaged-default", exact.migrations_applied)
+        self.assertEqual(incomplete.settings["RenameMovieRemoveTerms"], legacy[:-1])
+        self.assertNotIn("normalize:RenameMovieRemoveTerms:legacy-packaged-default", incomplete.migrations_applied)
+        self.assertEqual(extended.settings["RenameMovieRemoveTerms"], [*legacy, "operator custom term"])
+        self.assertNotIn("normalize:RenameMovieRemoveTerms:legacy-packaged-default", extended.migrations_applied)
+
     def test_import_preview_does_not_write_and_import_apply_requires_confirmation(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

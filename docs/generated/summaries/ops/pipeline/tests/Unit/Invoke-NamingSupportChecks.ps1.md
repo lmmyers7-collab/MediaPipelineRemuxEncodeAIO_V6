@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-NamingSupportChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-05
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: 08464df87a6a42079d1da2aeb8eb45a99ad85b88a715e002586fc18b7b0e7a8c
+sha256: f39589334a1166f9e77665496fa1e1dc79dd82d64fbd4c2a18eba1b76f4d15bf
 ---
 # `ops/pipeline/tests/Unit/Invoke-NamingSupportChecks.ps1`
 

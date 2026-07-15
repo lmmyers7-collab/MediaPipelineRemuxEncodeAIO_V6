@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -13,7 +14,7 @@ REPO_ROOT = find_repo_root(Path(__file__))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from mediapipeline.core.config.metadata_parts.field_definitions import CONFIG_FIELD_DEFINITIONS
-from mediapipeline.core.config.load import config_to_flat_dict
+from mediapipeline.core.config.load import config_from_mapping, config_to_flat_dict
 from mediapipeline.core.config.library_profiles import LIBRARY_OVERRIDE_KEYS_BY_GROUP as BACKEND_LIBRARY_OVERRIDE_KEYS_BY_GROUP
 from mediapipeline.contracts.config import (
     CONFIG_SCHEMA_VERSION,
@@ -63,9 +64,59 @@ REMOVED_ROUTING_FALLBACK_KEYS = {
     "Route1080pBucketMaxHeight",
     "Route4KBucketMinHeight",
 }
+RENAME_MOVIE_REMOVE_TERMS_DEFAULT = [
+    "sample",
+    "trailer",
+    "extras",
+    "featurette",
+    "deleted scenes",
+    "behind the scenes",
+]
+LEGACY_PACKAGED_RENAME_MOVIE_REMOVE_TERMS = [
+    *RENAME_MOVIE_REMOVE_TERMS_DEFAULT,
+    *(f"{value:02d}" for value in range(1, 13)),
+]
 
 
 class ConfigContractTests(unittest.TestCase):
+    def test_packaged_movie_remove_term_defaults_do_not_remove_episode_numbers(self) -> None:
+        self.assertEqual(Config().RenameMovieRemoveTerms, RENAME_MOVIE_REMOVE_TERMS_DEFAULT)
+        for relative_path in (
+            Path("ops/pipeline/config/MediaPipeline_config_template.psd1"),
+            Path("ops/pipeline/config/profiles/Default.psd1"),
+        ):
+            with self.subTest(path=str(relative_path)):
+                text = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+                match = re.search(r"RenameMovieRemoveTerms\s*=\s*@\((?P<body>.*?)\)", text, re.DOTALL)
+                self.assertIsNotNone(match)
+                assert match is not None
+                self.assertEqual(re.findall(r"'([^']*)'", match.group("body")), RENAME_MOVIE_REMOVE_TERMS_DEFAULT)
+
+    def test_exact_legacy_packaged_movie_remove_terms_normalize_at_load(self) -> None:
+        variants = (
+            LEGACY_PACKAGED_RENAME_MOVIE_REMOVE_TERMS,
+            [term.upper() for term in reversed(LEGACY_PACKAGED_RENAME_MOVIE_REMOVE_TERMS)],
+            ["", *LEGACY_PACKAGED_RENAME_MOVIE_REMOVE_TERMS, "SAMPLE"],
+        )
+        for terms in variants:
+            with self.subTest(terms=terms):
+                config = config_from_mapping({"RenameMovieRemoveTerms": terms})
+                self.assertEqual(config.RenameMovieRemoveTerms, RENAME_MOVIE_REMOVE_TERMS_DEFAULT)
+
+    def test_customized_movie_remove_term_lists_are_not_legacy_normalized(self) -> None:
+        customized_lists = (
+            LEGACY_PACKAGED_RENAME_MOVIE_REMOVE_TERMS[:-1],
+            [*LEGACY_PACKAGED_RENAME_MOVIE_REMOVE_TERMS, "operator custom term"],
+            [*RENAME_MOVIE_REMOVE_TERMS_DEFAULT, "01"],
+        )
+        for terms in customized_lists:
+            with self.subTest(terms=terms):
+                config = config_from_mapping({"RenameMovieRemoveTerms": terms})
+                self.assertEqual(config.RenameMovieRemoveTerms, terms)
+
+        tv_config = config_from_mapping({"RenameTVRemoveTerms": LEGACY_PACKAGED_RENAME_MOVIE_REMOVE_TERMS})
+        self.assertEqual(tv_config.RenameTVRemoveTerms, LEGACY_PACKAGED_RENAME_MOVIE_REMOVE_TERMS)
+
     def test_representative_config_payload_validates_and_preserves_unknown_keys(self) -> None:
         config = Config.model_validate(
             {

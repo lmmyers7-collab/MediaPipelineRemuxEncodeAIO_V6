@@ -1,6 +1,6 @@
 # Browser Smoke Failure Triage Cheatsheet
 
-Date: 2026-05-14
+Date: 2026-07-13
 
 Quick reference for interpreting browser-backed WebView smoke failures. For the full runbook, see `docs\testing\BROWSER_SMOKE_TEST_RUNBOOK.md`.
 
@@ -8,13 +8,15 @@ Quick reference for interpreting browser-backed WebView smoke failures. For the 
 
 ## Skip Vs Fail Distinction
 
-| Exit | Meaning | Action needed |
+| Invocation/result | Meaning | Action needed |
 |---|---|---|
-| Exit 0 + `SkipTest` message | Environment prerequisite missing | Install missing tool; not a code failure |
-| Exit 0 + `ok` | Test passed | None |
+| Direct Python module reports `SkipTest` | Environment prerequisite missing; no browser assertions ran | Install/fix the prerequisite; do not count as a pass |
+| Canonical wrapper exits non-zero after a prerequisite skip | Expected gating behavior | Install/fix the prerequisite |
+| Canonical wrapper with explicit `-AllowSkippedTests` reports skip | Intentionally non-gating environmental result | Record the skip reason; do not count as a pass |
+| Exit 0 + `ok` after assertions | Test passed | None |
 | Non-zero exit + `FAIL` | Assertion failure or runtime error | Read traceback; investigate code |
 
-**Key rule**: A `SkipTest` is not a failure. Browser smokes are designed to skip cleanly on CI agents without Chrome/Edge. Only non-zero exits require investigation.
+**Key rule**: canonical wrappers fail prerequisite skips by default. Use `-AllowSkippedTests` only when a non-gating skip is explicitly intended.
 
 ---
 
@@ -43,7 +45,7 @@ Test-Path "C:\Program Files\Google\Chrome\Application\chrome.exe"
 Test-Path "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 ```
 
-**Fix**: Install Google Chrome or Microsoft Edge. On CI agents without a browser, this skip is intentional and expected.
+**Fix**: Install Google Chrome or Microsoft Edge. A direct module may skip on a browserless CI agent, but the canonical wrapper treats the missing prerequisite as a gating failure unless `-AllowSkippedTests` was explicit.
 
 ---
 
@@ -196,11 +198,11 @@ Smoke runner JSON result was not an object.
 
 ## What Browser Smoke Failures Do NOT Prove
 
-A browser smoke failure means the WebView UI assertion failed — it does not mean the backend pipeline is broken. Specifically, browser smokes do not exercise:
+A browser smoke failure identifies a browser scenario, temporary-backend contract, or assertion failure; it does not by itself mean the media engine is broken. Browser smokes do not exercise:
 
 - FFmpeg behavior, encoder choices, subtitle conversion, audio routing
 - Real media files, source paths, output paths, or scratch paths
-- Settings persistence (config file is never written)
+- Live/operator Settings persistence (the Settings field-matrix and Library Profiles save smokes write only generated temporary config)
 - Rename filesystem operations (`rename.apply` is verified NOT called)
 - Pending publish drain (no files are moved or published)
 - Live telemetry (fixture payloads only)
@@ -231,6 +233,13 @@ For real-media behavior, use `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.
 | `Test-WebViewBrowserHomeLiveStateSmoke.ps1` | Home Daily-Driver / Operator Readiness rendering; ActiveJobs fixture shape; generated command journal; Sample Validation posture panel DOM IDs |
 | `Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1` | Launch readiness/preflight DOM IDs; Launch Scope Reconciliation rows; Launch Real-Media Sample Proof rows; Launch Sample Validation record evidence rows; generated validation-record fixture shape; temporary validation record creation |
 | `Test-WebViewBrowserLayoutManagerSmoke.ps1` | Customize button, generated panel wrapping, inactive subtab visibility, and draggable panel handle selectors |
+| `Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1` | Library profile identity, inherited/reset value, strict confirmation, temporary config save, and reload evidence |
+| `Test-WebViewBrowserLifecycleReconciliationSmoke.ps1` | Reconciliation preview/apply contract, confirmation modal, and disposable ActiveJobs archive evidence |
+| `Test-WebViewBrowserQueueFileOverridesSmoke.ps1` | File Settings drawer payload/interception, dirty-state guard, full-clear confirmation, and series preview |
+| `Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1` | Stateful queue mutation, Launch start confirmation, command journal, Completed manifest, and sidecar correlation in disposable state |
+| `Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1` | Field-type matrix, inherited Library Profile reset behavior, strict save confirmation, reload persistence, and journal evidence |
+| `Test-WebViewBrowserProseBoxAudit.ps1` | Page/subtab navigation, screenshot manifest, and prose/status/diagnostic box selectors |
+| `Test-WebViewBrowserVisualClutterScreenshots.ps1` | Desktop/mobile viewport capture, screenshot manifest, overflow, and clutter selectors |
 
 ### Launch/Queue Readiness Smoke — Failure Detail
 
@@ -257,7 +266,7 @@ Added triage entries for three newer browser smokes (`SampleValidation`, `HomeLi
 
 ```
 Task ID: CLN3-027
-Files inspected: docs\testing\BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md, docs\testing\BROWSER_SMOKE_TEST_RUNBOOK.md, tests\python\desktop\test_webview_browser_launch_queue_readiness_smoke.py (reference)
+Files inspected: docs\testing\BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md, docs\testing\BROWSER_SMOKE_TEST_RUNBOOK.md, tests\webview\test_webview_browser_launch_queue_readiness_smoke.py (reference; current path)
 Files changed: docs\testing\BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md (3 smoke entries added to "Which Smoke Covers What"; Launch/Queue readiness detail section added)
 Validation: Select-String -Path docs\testing\BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md -Pattern "LaunchQueue|Launch/Queue|validation record|worksheet"
 Findings: Cheatsheet was missing entries for 3 newer smokes. Added triage guidance. No generic failure categories changed.
@@ -286,3 +295,9 @@ Findings: All failure categories from the runbook are represented. Skip vs fail 
 Open questions: None.
 Risk: Low — documentation only.
 ```
+
+---
+
+## Current Inventory Review — 2026-07-13
+
+The triage table covers all 24 canonical browser wrappers. Browser Python discovery lives under `tests\webview\`; the suite has 26 browser modules because metrics-degraded-state and Settings builder-flush are direct modules without one-to-one wrappers. All fixture investigation must remain inside the generated disposable root.

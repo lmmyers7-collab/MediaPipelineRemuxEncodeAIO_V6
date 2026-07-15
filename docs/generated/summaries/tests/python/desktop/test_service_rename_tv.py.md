@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_rename_tv.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-10
+last_modified: 2026-07-12
 last_reviewed: 2026-06-04
-sha256: b2366be50596185381848d2d6b063a8acc6836888c02e207798c7b0d5cd7a78b
+sha256: 89233706a2846709b93d7a7fc031c1c8ea36cb69b351c0547d0571bd45bfd1dd
 ---
 # `tests/python/desktop/test_service_rename_tv.py`
 

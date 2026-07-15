@@ -21,6 +21,7 @@ from mediapipeline.core.rename.policy import (
     remove_terms_from_request,
     rename_clean_filename_preview_from_request,
     rename_cleaning_policy_from_config,
+    rename_cleaning_policy_fingerprint,
     rename_apply_blockers_result,
     rename_apply_confirmation_required_result,
     rename_apply_exception_result,
@@ -34,6 +35,7 @@ from mediapipeline.core.rename.policy import (
     rename_preview_change_kind_counts,
     rename_preview_confidence_counts,
     rename_preview_counts,
+    rename_preview_fingerprint,
     rename_preview_source_counts,
     rename_preview_warnings,
     rename_request_paths,
@@ -42,6 +44,7 @@ from mediapipeline.core.rename.policy import (
     selected_rename_sources,
 )
 from mediapipeline.core.rename.movie import clean_pipeline_movie_name
+from mediapipeline.core.rename.tv import clean_pipeline_tv_name_part
 
 
 class RenameFacadePolicyTests(unittest.TestCase):
@@ -65,6 +68,57 @@ class RenameFacadePolicyTests(unittest.TestCase):
             {"auto_tv_heuristic": 1, "error": 1, "manual_tv_sequence": 1, "pipeline_tv_preview": 1, "unknown": 1},
         )
         self.assertEqual(rename_preview_change_kind_counts(rows), {"blocked": 1, "rename": 2, "unchanged": 1, "unknown": 1})
+
+    def test_preview_fingerprint_is_bound_to_the_applied_cleaning_policy(self) -> None:
+        base = {
+            "source": "C:/Media/Movie.mkv",
+            "destination": "C:/Media/Movie (2024).mkv",
+            "target_name": "Movie (2024).mkv",
+            "status": "ready",
+            "mode": "movie",
+            "errors": [],
+            "sidecar_moves": [],
+        }
+
+        left = rename_preview_fingerprint([{**base, "rename_cleaning_policy_fingerprint": "a" * 64}])
+        right = rename_preview_fingerprint([{**base, "rename_cleaning_policy_fingerprint": "b" * 64}])
+
+        self.assertNotEqual(left, right)
+
+    def test_preview_fingerprint_is_bound_to_parsed_identity_evidence(self) -> None:
+        base = {
+            "source": "C:/Media/Example Show S01E01.mkv",
+            "destination": "C:/Media/Example Show - S01E01.mkv",
+            "target_name": "Example Show - S01E01.mkv",
+            "status": "ready",
+            "mode": "tv",
+            "errors": [],
+            "sidecar_moves": [],
+            "parsed_identity": {
+                "show": "Example Show",
+                "season": 1,
+                "episode_start": 1,
+                "episode_end": None,
+            },
+            "destination_identity_key": "example show_S01E01",
+        }
+
+        with self.subTest("parsed identity"):
+            changed_identity = {
+                **base,
+                "parsed_identity": {**base["parsed_identity"], "episode_end": 2},
+            }
+            self.assertNotEqual(
+                rename_preview_fingerprint([base]),
+                rename_preview_fingerprint([changed_identity]),
+            )
+
+        with self.subTest("destination identity key"):
+            changed_key = {**base, "destination_identity_key": "example show_S01E01-E02"}
+            self.assertNotEqual(
+                rename_preview_fingerprint([base]),
+                rename_preview_fingerprint([changed_key]),
+            )
 
     def test_selected_sources_and_plan_matching_use_backend_path_keys(self) -> None:
         first = "  C:/Media/Show E01.mkv  "
@@ -228,6 +282,14 @@ class RenameFacadePolicyTests(unittest.TestCase):
             }
         )
 
+        self.assertEqual(policy["schema_version"], "rename_cleaning_policy.v1")
+        self.assertEqual(policy["policy_fingerprint"], rename_cleaning_policy_fingerprint(policy))
+        self.assertEqual(len(policy["policy_fingerprint"]), 64)
+        self.assertTrue(policy["movie"]["options"]["release_groups"])
+        self.assertEqual(policy["movie"]["terms"]["release_groups"], ["SupaCvnt", "BYNDR"])
+        self.assertEqual(policy["movie"]["remove_terms"], ["sample", "behind the scenes"])
+        self.assertEqual(policy["tv"]["terms"]["release_groups"], ["TTGA"])
+        self.assertEqual(policy["tv"]["remove_terms"], ["ova", "special"])
         self.assertTrue(policy["movie_filter_options"]["release_groups"])
         self.assertFalse(policy["movie_filter_options"]["audio_channels"])
         self.assertNotIn("unknown", policy["movie_filter_options"])
@@ -245,6 +307,42 @@ class RenameFacadePolicyTests(unittest.TestCase):
         self.assertEqual(policy["tv_filter_terms"]["release_flags"], ["uncensored"])
         self.assertNotIn("unknown", policy["tv_filter_terms"])
         self.assertEqual(policy["tv_remove_terms"], ["ova", "special"])
+
+    def test_rename_cleaning_policy_fingerprint_is_deterministic_and_content_bound(self) -> None:
+        left = rename_cleaning_policy_from_config(
+            {
+                "RenameMovieFilterOptions": {"release_groups": True, "audio_channels": False},
+                "RenameMovieFilterTerms": {"release_groups": ["SupaCvnt", "BYNDR"]},
+            }
+        )
+        reordered = rename_cleaning_policy_from_config(
+            {
+                "RenameMovieFilterTerms": {"release_groups": ["SupaCvnt", "BYNDR"]},
+                "RenameMovieFilterOptions": {"audio_channels": False, "release_groups": True},
+            }
+        )
+        changed = rename_cleaning_policy_from_config(
+            {
+                "RenameMovieFilterOptions": {"release_groups": True, "audio_channels": False},
+                "RenameMovieFilterTerms": {"release_groups": ["SupaCvnt", "OTHER"]},
+            }
+        )
+
+        self.assertEqual(left["policy_fingerprint"], reordered["policy_fingerprint"])
+        self.assertNotEqual(left["policy_fingerprint"], changed["policy_fingerprint"])
+
+    def test_all_enabled_categories_still_apply_custom_movie_and_tv_terms(self) -> None:
+        movie = clean_pipeline_movie_name(
+            "Movie.CustomSource.2024.mkv",
+            movie_filter_terms={"video_source": ["CustomSource"]},
+        )
+        tv = clean_pipeline_tv_name_part(
+            "Show CustomSource",
+            tv_filter_terms={"video_source": ["CustomSource"]},
+        )
+
+        self.assertEqual(movie, "Movie (2024)")
+        self.assertEqual(tv, "Show")
 
     def test_clean_filename_preview_reports_staged_and_saved_policy_sources(self) -> None:
         staged = rename_clean_filename_preview_from_request(
@@ -331,6 +429,37 @@ class RenameFacadePolicyTests(unittest.TestCase):
         self.assertFalse(any(destination.startswith("movie_filter_terms.") for destination in suggestion["destinations"]))
         self.assertNotIn("remove_terms", suggestion["destinations"])
 
+    def test_clean_filename_preview_reports_range_end_and_preserves_tv_case_policy(self) -> None:
+        from mediapipeline.core.rename.tv import build_auto_tv_rename_name
+
+        preview = rename_clean_filename_preview_from_request(
+            {
+                "mode": "tv",
+                "source_folder": "Anime",
+                "filename": "Example Show S01E01-E02 CustomSource.mkv",
+                "expected_show": "Example Show",
+                "expected_season": 1,
+                "expected_episode": 1,
+                "expected_episode_end": 2,
+                "tv_filter_options": {"video_source": True},
+                "tv_filter_terms": {"video_source": ["CustomSource"]},
+                "tv_remove_terms": ["sample"],
+                "include_case_analysis": True,
+            },
+            clean_movie_name=clean_pipeline_movie_name,
+            build_auto_tv_name=build_auto_tv_rename_name,
+        )
+
+        self.assertTrue(preview["comparison"]["ok"], preview["comparison"])
+        self.assertEqual(preview["actual_fields"]["episode_end"], 2)
+        self.assertEqual(preview["expected_fields"]["episode_end"], 2)
+        self.assertIn("episode_end", preview["comparison"]["checked_fields"])
+        self.assertEqual(preview["case_payload"]["expected_episode_end"], 2)
+        self.assertEqual(preview["case_payload"]["expected_clean_folder"], "Anime")
+        self.assertEqual(preview["case_payload"]["tv_filter_options"], {"video_source": True})
+        self.assertEqual(preview["case_payload"]["tv_filter_terms"], {"video_source": ["CustomSource"]})
+        self.assertEqual(preview["case_payload"]["tv_remove_terms"], ["sample"])
+
     def test_clean_filename_preview_honors_tv_no_episode_title_template(self) -> None:
         from mediapipeline.core.rename.tv import build_auto_tv_rename_name
 
@@ -380,6 +509,20 @@ class RenameFacadePolicyTests(unittest.TestCase):
             self.assertIn("remove_terms", item["destinations"])
             self.assertFalse(any(destination.startswith("tv_filter_terms.") for destination in item["destinations"]))
             self.assertNotIn("tv_remove_terms", item["destinations"])
+
+    def test_clean_filename_preview_blocks_metadata_only_movie_fallback(self) -> None:
+        preview = rename_clean_filename_preview_from_request(
+            {
+                "mode": "movie",
+                "filename": "1080p.WEB-DL.x265.2024.mkv",
+            },
+            clean_movie_name=clean_pipeline_movie_name,
+        )
+
+        self.assertFalse(preview["ok"])
+        self.assertEqual(preview["cleaned_title"], "")
+        self.assertEqual(preview["target_name"], "")
+        self.assertEqual(preview["errors"], ["Filename is empty after backend movie cleaning."])
 
     def test_clean_filename_preview_marks_missing_movie_terms_as_stage_recommended(self) -> None:
         preview = rename_clean_filename_preview_from_request(

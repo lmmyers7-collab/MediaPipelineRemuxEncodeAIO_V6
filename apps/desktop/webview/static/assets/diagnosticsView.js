@@ -65,6 +65,7 @@
   const diagnosticsMatrixConsole = diagnosticsMatrixConsoleModule.createDiagnosticsMatrixConsoleModule({
     appendCells, appendCommandResult, apiClient: window.mediaPipelineApi,
     byId, setDiagnosticsPanelStatus,
+    makeRowSelectable: typeof makeRowSelectable === "function" ? makeRowSelectable : window.makeRowSelectable,
     setInlineActionStatus: window.setInlineActionStatus, setText,
   });
   const {

@@ -127,6 +127,7 @@ function Get-SubtitleLanguagePolicy {
 }
 
 function Get-ConvertedSrtCodecForFfmpegOutput {
+    if ($script:ConvertedSrtCodec) { return [string]$script:ConvertedSrtCodec }
     return 'srt'
 }
 
@@ -312,6 +313,48 @@ function Convert-VobSubToSrt {
     return [pscustomobject]@{ Ok = $true; Path = $DestinationPath; CueCount = 1 }
 }
 
+function Invoke-FFprobeCommand {
+    param([array] $ArgumentList, [int] $TimeoutSeconds, [string] $Stage)
+    $script:SubtitleProbeArgumentList = @($ArgumentList)
+    $showEntriesIndex = [array]::IndexOf($ArgumentList, '-show_entries')
+    $showEntries = if ($showEntriesIndex -ge 0) { [string]$ArgumentList[$showEntriesIndex + 1] } else { '' }
+    $stream = [ordered]@{
+        index = 3
+        codec_name = 'subrip'
+        codec_long_name = 'SubRip subtitle'
+        codec_tag_string = ''
+        codec_tag = '0x0000'
+        tags = [ordered]@{ language = 'eng'; title = 'Forced' }
+    }
+    # Mirror current ffprobe behavior: disposition fields are emitted only
+    # when the stream_disposition section is requested explicitly.
+    if ($showEntries -match 'stream_disposition=default,forced') {
+        $stream['disposition'] = [ordered]@{ default = 0; forced = 1 }
+    }
+    return [pscustomobject]@{
+        ExitCode = 0
+        Output = (@{ streams = @([pscustomobject]$stream) } | ConvertTo-Json -Depth 6 -Compress)
+        Error = ''
+    }
+}
+
+function Get-FileOverrideSubtitleSettings { return @{} }
+
+function Test-SubtitleTrackKeptByOverride {
+    param([string] $Language, [bool] $IsForced, [string] $Title, [string] $Codec, $StreamIndex, $SubtitleOverride)
+    return $true
+}
+
+function Get-SubtitleTrackTitleOverride {
+    param([string] $Language, [bool] $IsForced, $SubtitleOverride)
+    return ''
+}
+
+function Get-SubtitleOperationTimeoutSeconds {
+    param([string] $ScriptVariableName, [int] $DefaultSeconds)
+    return $DefaultSeconds
+}
+
 $script:LogRows = [System.Collections.Generic.List[object]]::new()
 $script:ConversionCalls = [System.Collections.Generic.List[string]]::new()
 $script:SubtitleSwitches = @{
@@ -340,6 +383,41 @@ try {
     . (Join-Path $repoRoot 'ops\pipeline\engine\subtitles\routing_decisions.ps1')
     . (Join-Path $repoRoot 'ops\pipeline\engine\subtitles\filtering.ps1')
     . (Join-Path $repoRoot 'ops\pipeline\engine\subtitles\builders.ps1')
+
+    function Get-MkvmergeTidMap {
+        param([string] $FilePath, [string] $Context)
+        return $script:MkvmergeTidMap
+    }
+
+    # mkvmerge emits selected source tracks in source-TID order even when the
+    # builder discovers converted/preserved tracks before a kept source track.
+    # The verification plan must use the actual mux order, then append external
+    # generated subtitle inputs in their argument order.
+    $script:MkvmergeTidMap = @{ 3 = 3; 4 = 4; 5 = 5 }
+    $script:ConversionCalls.Clear()
+    $mkvOrderFilter = @{
+        Convert = @(
+            (New-TestSubtitleEntry -Index 4 -Lang 'eng' -Title 'English' -Codec 'ass'),
+            (New-TestSubtitleEntry -Index 5 -Lang 'eng' -Title 'English CC' -Codec 'ass')
+        )
+        Tx3gConvert = @()
+        BdpgsConvert = @()
+        VobSubConvert = @()
+        Keep = @(
+            (New-TestSubtitleEntry -Index 3 -Lang 'eng' -Title 'English Signs' -Codec 'ass' -Forced -Supplemental)
+        )
+    }
+    $mkvOrderBuild = Build-SubtitleTracksForMkvmerge -FilterResult $mkvOrderFilter -DefaultAudioLang 'jpn' -SourceFile (Join-Path $script:processingDir 'source.mkv') -Context 'TEST: '
+    Assert-Equal ((@($mkvOrderBuild.SourceTracks) | ForEach-Object { $_.MkvTid }) -join ',') '3,4,5' 'mkvmerge source tracks must be returned in the order they appear in output.'
+    Assert-Equal ((@($mkvOrderBuild.VerificationTracks) | ForEach-Object { $_.source_stream_index }) -join ',') '3,4,5,4,5' 'mkvmerge verification tracks must mirror source-TID output order before generated SRT inputs.'
+    Assert-Equal ((@($mkvOrderBuild.VerificationTracks) | ForEach-Object { if ($_.is_forced) { '1' } else { '0' } }) -join ',') '1,0,0,0,0' 'mkvmerge verification order must keep the forced source track aligned to output ordinal zero.'
+    @($mkvOrderBuild.TempFiles) | ForEach-Object { Remove-Item -LiteralPath $_ -Force -ErrorAction SilentlyContinue }
+    $script:ConversionCalls.Clear()
+
+    $probeFilter = Filter-SubtitleStreams -FilePath (Join-Path $script:processingDir 'source.mkv') -Context 'TEST: '
+    Assert-True ($script:SubtitleProbeArgumentList -contains 'stream=index,codec_name,codec_long_name,codec_tag_string,codec_tag:stream_tags=language,title:stream_disposition=default,forced') 'Subtitle discovery must explicitly request ffprobe default/forced dispositions.'
+    Assert-Equal @($probeFilter.Keep).Count 1 'Forced English SRT fixture should remain in the keep plan.'
+    Assert-True ([bool]$probeFilter.Keep[0].IsForced) 'Subtitle discovery must carry the source forced disposition into the resolved plan.'
 
     $literalKeywordResults = & {
         . (Join-Path $repoRoot 'ops\pipeline\engine\subtitles\language_policy.ps1')
@@ -637,6 +715,16 @@ try {
     Assert-Equal $build.MapArgs[$disp0 + 1] 'default' 'Preserved ASS should receive default disposition when ASS styling is preserved.'
     Assert-Equal $build.MapArgs[$disp1 + 1] '0' 'Converted preferred-language ASS SRT should remain an embedded fallback option.'
     Assert-Equal $build.MapArgs[$disp2 + 1] '0' 'Later converted TX3G should not take default after preferred ASS succeeds.'
+
+    # MKV can stream-copy the generated SRT input, but ffprobe still reports
+    # the resulting codec as subrip. Verification must model the media codec,
+    # not the literal FFmpeg encoder argument.
+    $script:ConvertedSrtCodec = 'copy'
+    $script:ConversionCalls.Clear()
+    $copyCodecBuild = Build-SubtitleArgsForFFmpeg -FilterResult $filter -DefaultAudioLang 'jpn' -SourceFile (Join-Path $script:processingDir 'source.mkv') -Context 'TEST COPY: '
+    $copyCodecConvertedTracks = @($copyCodecBuild.VerificationTracks | Where-Object { $_.action -in @('convert_ass', 'convert_tx3g', 'convert_bdpgs') })
+    Assert-Equal ($copyCodecConvertedTracks.output_codec -join ',') 'subrip,subrip,subrip' 'Stream-copied generated SRT tracks must verify as subrip output codecs.'
+    $script:ConvertedSrtCodec = 'srt'
 
     $script:ConversionCalls.Clear()
     $script:AssConversionMode = 'fail'

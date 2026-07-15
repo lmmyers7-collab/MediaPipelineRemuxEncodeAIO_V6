@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/queue/strategy.js
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-10
+last_modified: 2026-07-13
 last_reviewed: 2026-07-10
-sha256: 7c150c3da1739c3d5a0230912ab8000f6a8ed132ec5619b1179eb8460827e380
+sha256: dd814e018552807f258ff1e63c6ed2d159fb1fffafa8f75b4f3a516abcaa5bf8
 ---
 # `apps/desktop/webview/static/assets/queue/strategy.js`
 

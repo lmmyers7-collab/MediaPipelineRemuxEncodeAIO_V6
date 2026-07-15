@@ -15,6 +15,7 @@ from mediapipeline.core.rename.tv import (
     clean_pipeline_tv_name_part,
     extract_confident_tv_episode_title,
     resolve_tv_folder_season_info,
+    parse_tv_identity,
 )
 
 
@@ -92,6 +93,104 @@ class RenameTvHelperTests(unittest.TestCase):
             build_auto_tv_rename_name(Path("Example Show E12v3 - Revision Title.mkv"), season_number=1, remove_terms=None),
             "Example Show - S01E12 - Revision Title.mkv",
         )
+
+    def test_canonical_multi_episode_forms_share_one_identity_and_output(self) -> None:
+        for source_name in (
+            "Example Show S01E01E02.mkv",
+            "Example Show S01E01-E02.mkv",
+            "Example Show S01E01_E02v3.mkv",
+        ):
+            with self.subTest(source_name=source_name):
+                identity = parse_tv_identity(Path(source_name), season_number=1)
+                self.assertTrue(identity["reliable"], identity)
+                self.assertEqual(identity["season"], 1)
+                self.assertEqual(identity["episode_start"], 1)
+                self.assertEqual(identity["episode_end"], 2)
+                self.assertEqual(identity["revision"], "v3" if "v3" in source_name else "")
+                self.assertEqual(
+                    build_auto_tv_rename_name(Path(source_name), season_number=1, remove_terms=None),
+                    "Example Show - S01E01-E02.mkv",
+                )
+
+    def test_tv_identity_supports_three_digit_episode_and_rejects_out_of_range(self) -> None:
+        identity = parse_tv_identity(Path("Example Show S01E100 - Century.mkv"), season_number=1)
+        self.assertTrue(identity["reliable"], identity)
+        self.assertEqual(identity["episode_start"], 100)
+        self.assertEqual(
+            build_auto_tv_rename_name(Path("Example Show S01E100 - Century.mkv"), season_number=1, remove_terms=None),
+            "Example Show - S01E100 - Century.mkv",
+        )
+
+        for source_name in (
+            "Example Show S01E1000.mkv",
+            "Example Show S01E01-E01.mkv",
+            "Example Show S01E02-E01.mkv",
+            "Example Show S01E01-02.mkv",
+            "Example Show Episode 1-2.mkv",
+            "Example Show Ep 1-2.mkv",
+            "Example Show - 01-02.mkv",
+        ):
+            with self.subTest(source_name=source_name):
+                identity = parse_tv_identity(Path(source_name), season_number=1)
+                self.assertFalse(identity["reliable"])
+                self.assertIn("SxxEyy-Ezz", identity["parse_error"])
+                with self.assertRaisesRegex(ValueError, "SxxEyy-Ezz"):
+                    build_auto_tv_rename_name(Path(source_name), season_number=1, remove_terms=None)
+
+    def test_filename_ordinal_seasons_are_used_without_stronger_folder_or_explicit_season(self) -> None:
+        cases = {
+            "Example Show 4th Season - 01.mkv": "Example Show - S04E01.mkv",
+            "Example Show Third Season - 02.mkv": "Example Show - S03E02.mkv",
+            "Example Show 3rd Cour E03.mkv": "Example Show - S03E03.mkv",
+        }
+        for source_name, expected in cases.items():
+            with self.subTest(source_name=source_name):
+                self.assertEqual(build_auto_tv_rename_name(Path(source_name), season_number=1, remove_terms=None), expected)
+
+    def test_filename_special_markers_use_season_zero_only_without_stronger_season(self) -> None:
+        cases = {
+            "Example Show OVA - 01.mkv": "Example Show - S00E01.mkv",
+            "Example Show OAV Episode 02.mkv": "Example Show - S00E02.mkv",
+            "Example Show ONA E03.mkv": "Example Show - S00E03.mkv",
+            "Example Show Special - 04.mkv": "Example Show - S00E04.mkv",
+            "Example Show OVA S02E05.mkv": "Example Show - S02E05.mkv",
+        }
+        for source_name, expected in cases.items():
+            with self.subTest(source_name=source_name):
+                self.assertEqual(build_auto_tv_rename_name(Path(source_name), season_number=1, remove_terms=None), expected)
+
+    def test_episode_titles_reject_only_pure_numbers(self) -> None:
+        self.assertEqual(
+            build_auto_tv_rename_name(Path("Example Show S01E01 - 12345.mkv"), season_number=1, remove_terms=None),
+            "Example Show - S01E01.mkv",
+        )
+        self.assertEqual(
+            build_auto_tv_rename_name(Path("Example Show S01E01 - 123 Reasons.mkv"), season_number=1, remove_terms=None),
+            "Example Show - S01E01 - 123 Reasons.mkv",
+        )
+
+    def test_episode_title_metadata_words_are_only_cleaned_in_a_release_tail(self) -> None:
+        cases = {
+            "Example Show S01E01 - A Proper Introduction.mkv": "Example Show - S01E01 - A Proper Introduction.mkv",
+            "Example Show S01E02 - The Repack Plan.mkv": "Example Show - S01E02 - The Repack Plan.mkv",
+            "Example Show S01E03 - Rerip the Past.mkv": "Example Show - S01E03 - Rerip the Past.mkv",
+            "Example Show S01E04 - The Web of Lies.mkv": "Example Show - S01E04 - The Web of Lies.mkv",
+            "Example Show S01E05 - Finale PROPER.mkv": "Example Show - S01E05 - Finale.mkv",
+        }
+        for source_name, expected in cases.items():
+            with self.subTest(source_name=source_name):
+                self.assertEqual(build_auto_tv_rename_name(Path(source_name), season_number=1, remove_terms=None), expected)
+
+    def test_canonical_identity_takes_precedence_over_numeric_ranges_in_title_text(self) -> None:
+        cases = {
+            "Show 1-2 S01E03.mkv": "Show 1-2 - S01E03.mkv",
+            "Show S01E03 - Part 1-2.mkv": "Show - S01E03 - Part 1-2.mkv",
+        }
+        for source_name, expected in cases.items():
+            with self.subTest(source_name=source_name):
+                identity = parse_tv_identity(Path(source_name), season_number=1)
+                self.assertTrue(identity["reliable"], identity)
+                self.assertEqual(build_auto_tv_rename_name(Path(source_name), season_number=1, remove_terms=None), expected)
 
     def test_auto_tv_name_accepts_delimited_bare_anime_episode_numbers(self) -> None:
         self.assertEqual(

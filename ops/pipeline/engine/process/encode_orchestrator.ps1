@@ -27,8 +27,21 @@ function Invoke-MediaPipelineEncode {
         Write-Log "Stack: $($_.ScriptStackTrace)" "DEBUG"
         if ($file) {
             $reason = "Do-Encode unexpected error: $($_.Exception.Message)"
-            Register-SourceFailure -SourceFile $file -ScratchPath $encodeContext.LocalIn -Classification 'transient' -Reason $reason -Stage 'encode-exception' -ErrorCode 'ENCODE_UNEXPECTED_EXCEPTION' -SuggestedAction 'Inspect the pipeline log stack trace and failure artifact, then clear the marker after fixing the root cause.' | Out-Null
-            $encodeContext.LocalIn = $null
+            $failureScratchPath = $encodeContext.LocalIn
+            $retainCompletedTempOutput = $false
+            if (-not [string]::IsNullOrWhiteSpace([string]$encodeContext.TempOut)) {
+                $tempOutputItem = Get-Item -LiteralPath $encodeContext.TempOut -ErrorAction SilentlyContinue
+                if ($tempOutputItem -and $tempOutputItem.Length -gt 0) {
+                    $failureScratchPath = $tempOutputItem.FullName
+                    $retainCompletedTempOutput = $true
+                }
+            }
+            Register-SourceFailure -SourceFile $file -ScratchPath $failureScratchPath -Classification 'transient' -Reason $reason -Stage 'encode-exception' -ErrorCode 'ENCODE_UNEXPECTED_EXCEPTION' -SuggestedAction 'Inspect the pipeline log stack trace and failure artifact, then clear the marker after fixing the root cause.' | Out-Null
+            if ($retainCompletedTempOutput) {
+                $encodeContext.TempOut = $null
+            } else {
+                $encodeContext.LocalIn = $null
+            }
         }
         return $false
     } finally {

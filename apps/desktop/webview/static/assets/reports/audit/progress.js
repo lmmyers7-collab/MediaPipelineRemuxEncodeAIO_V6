@@ -10,6 +10,7 @@
     const formatReportAuditCommandDetail = typeof deps.formatReportAuditCommandDetail === "function" ? deps.formatReportAuditCommandDetail : function () { return ""; };
     const refreshAll = typeof deps.refreshAll === "function" ? deps.refreshAll : null;
     const renderAuditProgressInto = typeof deps.renderAuditProgressInto === "function" ? deps.renderAuditProgressInto : null;
+    const queueReportsAuditRefresh = typeof deps.queueReportsAuditRefresh === "function" ? deps.queueReportsAuditRefresh : null;
     const selectedReportAuditSourceRows = typeof deps.selectedReportAuditSourceRows === "function" ? deps.selectedReportAuditSourceRows : function () { return []; };
     const setText = typeof deps.setText === "function" ? deps.setText : function () {};
     const REPORT_AUDIT_POST_START_REFRESH_DELAYS_MS = Array.isArray(deps.postStartRefreshDelaysMs) ? deps.postStartRefreshDelaysMs : [1000, 3000, 7000, 15000, 30000];
@@ -32,6 +33,11 @@
 
   function reportAuditProgressPayload(snapshot = {}) {
     return snapshot?.audit_progress && typeof snapshot.audit_progress === "object" ? snapshot.audit_progress : {};
+  }
+
+  function reportAuditOperationIsBusy(scope) {
+    const operations = reportsState.reportAuditBusyOperations;
+    return Boolean(operations && typeof operations === "object" && operations[scope]);
   }
 
   function reportAuditProgressBars(snapshot = {}) {
@@ -250,8 +256,16 @@
     clearReportAuditRefreshTimers();
     reportsState.reportAuditRefreshTimerIds = REPORT_AUDIT_POST_START_REFRESH_DELAYS_MS.map((delayMs) => window.setTimeout(() => {
       if (!reportsState.reportAuditAcceptedRun) return;
+      if (typeof queueReportsAuditRefresh === "function") {
+        queueReportsAuditRefresh({
+          automatic: true,
+          statusId: "report-audit-launch-status",
+          detailId: "report-audit-launch-detail",
+        });
+        return;
+      }
       const refresh = window.refreshAll;
-      if (typeof refresh === "function") refresh({ automatic: true });
+      if (typeof refresh === "function") Promise.resolve(refresh({ automatic: true })).catch(() => {});
     }, delayMs));
   }
 
@@ -274,18 +288,20 @@
     const stopButton = byId("report-audit-stop-button");
     const evidence = reportAuditCurrentRunEvidence(snapshot || {});
     const hasSelectedSources = selectedReportAuditSourceRows().length > 0;
-    const disabled = reportsState.reportAuditStartBusy || Boolean(reportsState.reportAuditCommandBusy) || Boolean(evidence) || !hasSelectedSources;
+    const lifecycleBusy = reportAuditOperationIsBusy("start") || reportAuditOperationIsBusy("stop");
+    const sourceRegistryBusy = reportAuditOperationIsBusy("sourceEdit") || reportAuditOperationIsBusy("sourceScan");
+    const disabled = lifecycleBusy || sourceRegistryBusy || Boolean(evidence) || !hasSelectedSources;
     if (button) {
       button.disabled = disabled;
-      button.setAttribute("aria-busy", String(Boolean(reportsState.reportAuditStartBusy || evidence)));
+      button.setAttribute("aria-busy", String(Boolean(reportAuditOperationIsBusy("start") || evidence)));
       button.textContent = evidence ? "Audit Running" : "Start Audit Selected";
       button.title = hasSelectedSources
         ? "Start an audit for the selected Locations table rows."
         : "Select one or more Locations table rows before starting an audit.";
     }
     if (stopButton) {
-      const stopBusy = reportsState.reportAuditCommandBusy === "audit.stop";
-      stopButton.disabled = reportsState.reportAuditStartBusy || Boolean(reportsState.reportAuditCommandBusy) || !evidence;
+      const stopBusy = reportAuditOperationIsBusy("stop");
+      stopButton.disabled = lifecycleBusy || !evidence;
       stopButton.setAttribute("aria-busy", String(stopBusy));
       stopButton.textContent = stopBusy ? "Stopping..." : "Stop Audit";
     }
@@ -301,74 +317,88 @@
     });
   }
 
-  function renderReportAuditRunningState(snapshot = reportsState.lastReportSnapshot) {
-    if (reportAuditProgressIsTerminal(snapshot || {}) && reportAuditSnapshotCoversAcceptedRun(snapshot || {})) {
-      const priorityTableSelected = selectReportAuditPriorityTable(snapshot || {});
-      reportsState.reportAuditAcceptedRun = null;
-      clearReportAuditRefreshTimers();
-      if (reportAuditProgressSucceeded(snapshot || {})) {
-        const priorityCsvPath = reportAuditPriorityCsvPath(snapshot || {});
-        setText("report-audit-launch-status", "Completed");
-        setText(
-          "report-audit-launch-detail",
-          priorityCsvPath
-            ? (priorityTableSelected
-              ? `Audit completed. Loaded priority table from ${priorityCsvPath}.`
-              : `Audit completed. Priority table is already selected from ${priorityCsvPath}.`)
-            : "Audit completed. No priority table was generated for this audit.",
-        );
-      }
-    }
-    const evidence = reportAuditCurrentRunEvidence(snapshot || {});
-    if (evidence) {
-      setText("report-audit-launch-status", `${evidence.stale ? "Stale" : "Running"} ${evidence.elapsed}`);
-      const result = evidence.result || {
-        command: "audit.start",
+  function settleReportAuditTerminalState(snapshot) {
+    if (!reportAuditProgressIsTerminal(snapshot) || !reportAuditSnapshotCoversAcceptedRun(snapshot)) return;
+    const priorityTableSelected = selectReportAuditPriorityTable(snapshot);
+    reportsState.reportAuditAcceptedRun = null;
+    clearReportAuditRefreshTimers();
+    if (!reportAuditProgressSucceeded(snapshot)) return;
+    const priorityCsvPath = reportAuditPriorityCsvPath(snapshot);
+    setText("report-audit-launch-status", "Completed");
+    setText(
+      "report-audit-launch-detail",
+      priorityCsvPath
+        ? (priorityTableSelected
+          ? `Audit completed. Loaded priority table from ${priorityCsvPath}.`
+          : `Audit completed. Priority table is already selected from ${priorityCsvPath}.`)
+        : "Audit completed. No priority table was generated for this audit.",
+    );
+  }
+
+  function renderReportAuditActiveState(snapshot, evidence) {
+    const refreshWarning = String(reportsState.reportAuditRefreshWarning || "").trim();
+    setText("report-audit-launch-status", `${evidence.stale ? "Stale" : "Running"} ${evidence.elapsed}${refreshWarning ? " · refresh warning" : ""}`);
+    const result = evidence.result || {
+      command: "audit.start",
+      ok: true,
+      severity: "info",
+      message: evidence.stale
+        ? "Audit process evidence is active, but audit progress is stale in the backend snapshot."
+        : "Audit progress is active in the backend snapshot.",
+    };
+    const request = evidence.request || collectReportAuditStartRequest();
+    setText("report-audit-launch-detail", [
+      formatReportAuditCommandDetail(result, request),
+      "",
+      `Running indicator: ${evidence.stale ? "stale active" : "active"}`,
+      `Elapsed: ${evidence.elapsed}`,
+      `PID: ${evidence.pid || "not reported"}`,
+      `Locations: ${(evidence.libraryRoots || request.library_roots || []).length || 1}`,
+      `Primary location: ${evidence.libraryRoot || request.library_root || "(backend configured Outsource fallback)"}`,
+      "ETA: unavailable until backend audit progress reports file count and elapsed evidence.",
+      `Progress source: backend audit_progress.json when present; otherwise local accepted-start state.${evidence.stale ? " Snapshot is stale." : ""}`,
+      ...(refreshWarning ? [
+        "",
+        `Refresh warning: ${refreshWarning}`,
+        "The backend audit command remains accepted. Wait for top-bar refresh activity to finish; reload the app if it does not return to idle.",
+      ] : []),
+    ].join("\n"));
+    renderReportAuditProgressPanel(snapshot);
+    ensureReportAuditTimer();
+  }
+
+  function renderReportAuditStaleState(snapshot) {
+    const staleProgress = reportAuditStaleProgressEvidence(snapshot);
+    if (staleProgress) {
+      const result = {
+        command: "audit.status",
         ok: true,
-        severity: "info",
-        message: evidence.stale
-          ? "Audit process evidence is active, but audit progress is stale in the backend snapshot."
-          : "Audit progress is active in the backend snapshot.",
+        severity: "warning",
+        message: "Audit progress is stale and no active audit process is visible in the backend snapshot.",
       };
-      const request = evidence.request || collectReportAuditStartRequest();
+      const request = collectReportAuditStartRequest();
+      setText("report-audit-launch-status", `Review ${staleProgress.elapsed}`);
       setText("report-audit-launch-detail", [
         formatReportAuditCommandDetail(result, request),
         "",
-        `Running indicator: ${evidence.stale ? "stale active" : "active"}`,
-        `Elapsed: ${evidence.elapsed}`,
-        `PID: ${evidence.pid || "not reported"}`,
-        `Locations: ${(evidence.libraryRoots || request.library_roots || []).length || 1}`,
-        `Primary location: ${evidence.libraryRoot || request.library_root || "(backend configured Outsource fallback)"}`,
-        "ETA: unavailable until backend audit progress reports file count and elapsed evidence.",
-        `Progress source: backend audit_progress.json when present; otherwise local accepted-start state.${evidence.stale ? " Snapshot is stale." : ""}`,
+        "Running indicator: stale progress only",
+        `Last progress update age: ${staleProgress.elapsed}`,
+        `Locations: ${(staleProgress.libraryRoots || []).length || 1}`,
+        `Primary location: ${staleProgress.libraryRoot || request.library_root || "(backend configured Outsource fallback)"}`,
+        "Stop Audit is unavailable until backend active-run evidence appears.",
+        "Safe action: refresh Reports, inspect ActiveJobs if close-readiness blocks, or start a new audit when ready.",
       ].join("\n"));
-      renderReportAuditProgressPanel(snapshot || {});
-      ensureReportAuditTimer();
-    } else {
-      const staleProgress = reportAuditStaleProgressEvidence(snapshot || {});
-      if (staleProgress) {
-        setText("report-audit-launch-status", `Review ${staleProgress.elapsed}`);
-        const result = {
-          command: "audit.status",
-          ok: true,
-          severity: "warning",
-          message: "Audit progress is stale and no active audit process is visible in the backend snapshot.",
-        };
-        const request = collectReportAuditStartRequest();
-        setText("report-audit-launch-detail", [
-          formatReportAuditCommandDetail(result, request),
-          "",
-          "Running indicator: stale progress only",
-          `Last progress update age: ${staleProgress.elapsed}`,
-          `Locations: ${(staleProgress.libraryRoots || []).length || 1}`,
-          `Primary location: ${staleProgress.libraryRoot || request.library_root || "(backend configured Outsource fallback)"}`,
-          "Stop Audit is unavailable until backend active-run evidence appears.",
-          "Safe action: refresh Reports, inspect ActiveJobs if close-readiness blocks, or start a new audit when ready.",
-        ].join("\n"));
-      }
-      stopReportAuditTimerIfIdle(snapshot || {});
     }
-    updateReportAuditStartButtonState(snapshot || {});
+    stopReportAuditTimerIfIdle(snapshot);
+  }
+
+  function renderReportAuditRunningState(snapshot = reportsState.lastReportSnapshot) {
+    const currentSnapshot = snapshot || {};
+    settleReportAuditTerminalState(currentSnapshot);
+    const evidence = reportAuditCurrentRunEvidence(currentSnapshot);
+    if (evidence) renderReportAuditActiveState(currentSnapshot, evidence);
+    else renderReportAuditStaleState(currentSnapshot);
+    updateReportAuditStartButtonState(currentSnapshot);
   }
 
 

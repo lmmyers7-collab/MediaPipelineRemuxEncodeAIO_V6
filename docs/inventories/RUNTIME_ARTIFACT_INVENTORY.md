@@ -59,6 +59,15 @@ The SQLite mirror is additive diagnostic evidence only. Do not use it as the sou
 
 ---
 
+## Backend Lifecycle Reconciliation
+
+| Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
+|---|---|---|---|---|---|---|
+| Lifecycle reconciliation transaction guard | `State\LifecycleReconciliationPending.json` | Local API (Python) | Confirmed `POST /api/backend/lifecycle/reconcile` while the archive transaction is in progress | Lifecycle lease guard and later reconciliation review if a transaction is interrupted | No — its presence deliberately blocks new lifecycle leases until transaction recovery is reviewed | N/A |
+| Lifecycle reconciliation archive and manifest | `State\LifecycleArchive\<transaction-id>\Lifecycle\*`, `reconciliation-intent.json`, and `reconciliation-manifest.json` | Local API (Python) | Confirmed lifecycle reconciliation after exact dry-run correlation and strict command evidence | Operator recovery review and durable proof of the archived failed-recovery chain | No — retain the manifest and archived evidence together; never manually restore or delete individual files | N/A |
+
+---
+
 ## Local Worker Slots
 
 | Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |

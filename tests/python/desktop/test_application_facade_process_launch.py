@@ -27,7 +27,15 @@ from mediapipeline.desktop.network.rerun_claims import (
 from mediapipeline.core.kernel.runtime.subprocess_runner import CapturedCommandResult
 from mediapipeline.core.processes.path_evidence import LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS
 from mediapipeline.core.processes.preflight_facade import LAUNCH_PREFLIGHT_PATH_HEALTH_TIMEOUT_SECONDS
+from mediapipeline.core.processes.rerun_control import (
+    _recovery_enrollment_can_be_superseded,
+    _recovery_row_selectors,
+    _rerun_recovery_key,
+)
+from mediapipeline.core.processes.rerun_facade import _spawn_stop_exit_verified
 from mediapipeline.core.processes.rerun_results import rerun_results_payload
+from mediapipeline.core.processes.rerun_lifecycle import transition_rerun_enrollment
+from mediapipeline.core.processes.spawn_runner import _mark_launch_cleanup_reconciliation_required
 from tests.python.desktop.application_facade_test_support import DummyProc, DummyWorkflowFacadeService, _resolved
 
 
@@ -40,6 +48,55 @@ def _media_file(root: Path, name: str, *, suffix: str = ".mkv") -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(b"media")
     return path
+
+
+def _retry_exhausted_continue_case(
+    root: Path,
+    *,
+    service: DummyWorkflowFacadeService | None = None,
+) -> tuple[MediaPipelineApplicationFacade, DummyWorkflowFacadeService, object, str, Path]:
+    movie = _media_file(root, "Exactly Once Retry")
+    source_stat = movie.stat()
+    source_mtime = datetime.fromtimestamp(source_stat.st_mtime, UTC).isoformat()
+    source_content_sha256 = _sha256(movie)
+    csv_path = root / "rerun.csv"
+    csv_path.write_text(
+        "enabled,source_path,source_size,source_mtime_utc,source_identity_v2,source_content_sha256,source_content_sha256_algorithm\n"
+        f"true,{movie},{source_stat.st_size},{source_mtime},exactly-once-source-v2,{source_content_sha256},sha256-full-file\n",
+        encoding="utf-8",
+    )
+    selected_service = service or DummyWorkflowFacadeService(root)
+    facade = MediaPipelineApplicationFacade(selected_service, app_version="v5-test")
+    resolved = _resolved(root)
+    resolved.local_base = root / "LocalBase"
+    resolved.state_root = resolved.local_base / "State"
+    manifest_root = resolved.local_base / "RerunManifests"
+    manifest_root.mkdir(parents=True)
+    manifest_path = manifest_root / "source-exactly-once.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "batch_id": "source-exactly-once",
+                "status": "completed_with_failures",
+                "csv_path": str(csv_path),
+                "rows": [
+                    {
+                        "row_index": 0,
+                        "status": "retry_exhausted",
+                        "source_path": str(movie),
+                        "source_size": source_stat.st_size,
+                        "source_mtime_utc": source_mtime,
+                        "source_identity_v2": "exactly-once-source-v2",
+                        "source_content_sha256": source_content_sha256,
+                        "source_content_sha256_algorithm": "sha256-full-file",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    manifest_key = rerun_results_payload(resolved)["manifests"][0]["manifest_key"]
+    return facade, selected_service, resolved, manifest_key, manifest_path
 
 
 def _sha256(path: Path) -> str:
@@ -1216,6 +1273,1225 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertFalse(missing["ok"])
         self.assertIn("csv_path", missing["message"])
 
+    def test_rerun_start_durably_enrolls_batch_before_spawn_with_one_correlation_chain(self) -> None:
+        class EnrollmentProbeService(DummyWorkflowFacadeService):
+            def start_rerun_csv(self, resolved: object, csv_path: Path, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                enrollment_path = Path(str(kwargs["enrollment_path"]))
+                self.enrollment_existed_before_spawn = enrollment_path.exists()
+                self.enrollment_before_spawn = json.loads(enrollment_path.read_text(encoding="utf-8"))
+                self.started_rerun = {"resolved": resolved, "csv_path": csv_path, **kwargs}
+                proc = DummyProc(24682)
+                self.started_rerun_proc = proc
+                return proc
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            local_base = root / "LocalBase"
+            movie = _media_file(root, "Movie")
+            csv_path = root / "rerun.csv"
+            csv_path.write_text(f"enabled,source_path,source_size\ntrue,{movie},{movie.stat().st_size}\n", encoding="utf-8")
+            service = EnrollmentProbeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = local_base
+            resolved.state_root = local_base / "State"
+
+            result = facade.start_rerun_csv_process(
+                resolved,
+                {
+                    "_command_id": "command-rerun-123",
+                    "csv_path": str(csv_path),
+                    "confirm_replace_final": True,
+                },
+            ).to_mapping()
+
+            enrollment_path = Path(str(result["data"]["enrollment_path"]))
+            enrollment = json.loads(enrollment_path.read_text(encoding="utf-8"))
+            manifest_path = Path(str(result["data"]["manifest_path"]))
+
+        self.assertTrue(result["ok"])
+        self.assertTrue(service.enrollment_existed_before_spawn)
+        self.assertTrue(result["data"]["durably_enrolled"])
+        self.assertFalse(result["data"]["inserted_into_normal_queue"])
+        self.assertEqual(result["data"]["queue_source"], "csv_rerun")
+        self.assertEqual(result["data"]["lifecycle_state"], "process_spawned")
+        self.assertNotIn("Started", result["message"])
+        self.assertEqual(result["data"]["command_id"], "command-rerun-123")
+        self.assertEqual(enrollment["command_id"], "command-rerun-123")
+        self.assertEqual(enrollment["launch_id"], result["data"]["launch_id"])
+        self.assertEqual(enrollment["batch_id"], result["data"]["batch_id"])
+        self.assertEqual(enrollment["manifest_path"], str(manifest_path))
+        self.assertEqual(enrollment_path, Path(str(service.started_rerun["enrollment_path"])))
+        self.assertEqual(manifest_path, Path(str(service.started_rerun["manifest_path"])))
+        self.assertEqual(service.started_rerun["command_id"], "command-rerun-123")
+        self.assertEqual(service.started_rerun["launch_id"], enrollment["launch_id"])
+        self.assertEqual(service.started_rerun["batch_id"], enrollment["batch_id"])
+        self.assertEqual(service.enrollment_before_spawn["status"], "accepted")
+        self.assertEqual(enrollment["status"], "process_spawned")
+        self.assertEqual(len(enrollment["rows"]), 1)
+        self.assertEqual(enrollment["rows"][0]["status"], "process_spawned")
+        self.assertEqual(enrollment["rows"][0]["source_path"], str(movie))
+
+    def test_continue_retry_exhausted_uses_hardened_start_and_new_correlation_chain(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            movie = _media_file(root, "Retry Exhausted")
+            source_stat = movie.stat()
+            source_mtime = datetime.fromtimestamp(source_stat.st_mtime, UTC).isoformat()
+            source_content_sha256 = _sha256(movie)
+            csv_path = root / "rerun.csv"
+            csv_path.write_text(
+                "enabled,source_path,source_size,source_mtime_utc,source_identity_v2,source_content_sha256,source_content_sha256_algorithm\n"
+                f"true,{movie},{source_stat.st_size},{source_mtime},stable-source-v2,{source_content_sha256},sha256-full-file\n",
+                encoding="utf-8",
+            )
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+            manifest_root = resolved.local_base / "RerunManifests"
+            manifest_root.mkdir(parents=True)
+            source_batch_id = "rerun-source-completed-with-failures"
+            manifest_path = manifest_root / f"{source_batch_id}.json"
+            manifest_path.write_text(
+                json.dumps(
+                    {
+                        "batch_id": source_batch_id,
+                        "status": "completed_with_failures",
+                        "csv_path": str(csv_path),
+                        "execution_mode": "one_at_a_time",
+                        "destination_mode": "pending_publish",
+                        "collision_policy": "suffix",
+                        "rows": [
+                            {
+                                "row_index": 0,
+                                "status": "retry_exhausted",
+                                "source_path": str(movie),
+                                "source_size": source_stat.st_size,
+                                "source_mtime_utc": source_mtime,
+                                "source_identity_v2": "stable-source-v2",
+                                "source_content_sha256": source_content_sha256,
+                                "source_content_sha256_algorithm": "sha256-full-file",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            manifest_key = rerun_results_payload(resolved)["manifests"][0]["manifest_key"]
+
+            result = facade.continue_rerun_pending_rows(
+                resolved,
+                {
+                    "_command_id": "command-retry-exhausted-123",
+                    "manifest_key": manifest_key,
+                    "request_id": "retry-request-123",
+                    "confirm_continue": True,
+                },
+            ).to_mapping()
+            launch = result["data"]["launch"]
+            launch_data = launch["data"]
+            enrollment = json.loads(Path(launch_data["enrollment_path"]).read_text(encoding="utf-8"))
+
+        self.assertTrue(result["ok"])
+        self.assertIn("Accepted", result["message"])
+        self.assertIn("durably enrolled", result["message"])
+        self.assertNotIn("Started", result["message"])
+        self.assertTrue(result["data"]["launches_work"])
+        self.assertTrue(result["data"]["durably_enrolled"])
+        self.assertEqual(result["data"]["recovery_scope"], "retry_exhausted")
+        self.assertEqual(result["data"]["command_id"], "command-retry-exhausted-123")
+        self.assertEqual(result["data"]["batch_id"], launch_data["batch_id"])
+        self.assertEqual(launch_data["command_id"], "command-retry-exhausted-123")
+        self.assertNotEqual(launch_data["batch_id"], source_batch_id)
+        self.assertEqual(enrollment["command_id"], "command-retry-exhausted-123")
+        self.assertEqual(enrollment["batch_id"], launch_data["batch_id"])
+        self.assertEqual(enrollment["launch_id"], launch_data["launch_id"])
+        self.assertEqual(enrollment["recovery_request_id"], "retry-request-123")
+        self.assertEqual(enrollment["recovery_source_batch_id"], source_batch_id)
+        self.assertEqual(enrollment["recovery_source_manifest_path"], str(manifest_path))
+        self.assertEqual(enrollment["recovery_source_manifest_key"], manifest_key)
+        self.assertEqual(enrollment["recovery_scope"], "retry_exhausted")
+        self.assertEqual(enrollment["recovery_row_selectors"][0]["row_index"], 0)
+        self.assertEqual(
+            enrollment["recovery_row_selectors"][0]["source_content_sha256"],
+            source_content_sha256,
+        )
+        self.assertTrue(enrollment["recovery_key"])
+        self.assertEqual(enrollment["rows"][0]["source_identity_v2"], "stable-source-v2")
+        self.assertEqual(enrollment["rows"][0]["source_content_sha256"], source_content_sha256)
+
+    def test_continue_retry_is_restart_durable_and_exactly_once_across_sequential_requests(self) -> None:
+        class CountingService(DummyWorkflowFacadeService):
+            def __init__(self, root: Path) -> None:
+                super().__init__(root)
+                self.rerun_start_count = 0
+
+            def start_rerun_csv(self, resolved: object, csv_path: Path, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                self.rerun_start_count += 1
+                return super().start_rerun_csv(resolved, csv_path, **kwargs)  # type: ignore[arg-type]
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            counting_service = CountingService(root)
+            facade, service, resolved, manifest_key, _manifest_path = _retry_exhausted_continue_case(
+                root,
+                service=counting_service,
+            )
+            request = {
+                "_command_id": "command-exactly-once-first",
+                "manifest_key": manifest_key,
+                "request_id": "recovery-request-stable",
+                "confirm_continue": True,
+            }
+
+            first = facade.continue_rerun_pending_rows(resolved, request).to_mapping()  # type: ignore[arg-type]
+            service.started_rerun_proc.complete()
+            same_request = facade.continue_rerun_pending_rows(
+                resolved,  # type: ignore[arg-type]
+                {**request, "_command_id": "command-exactly-once-replay"},
+            ).to_mapping()
+            different_request = facade.continue_rerun_pending_rows(
+                resolved,  # type: ignore[arg-type]
+                {**request, "_command_id": "command-exactly-once-other", "request_id": "recovery-request-other"},
+            ).to_mapping()
+
+        self.assertTrue(first["ok"])
+        self.assertTrue(first["data"]["launches_work"])
+        self.assertTrue(same_request["ok"])
+        self.assertTrue(same_request["data"]["idempotent_replay"])
+        self.assertFalse(same_request["data"]["launches_work"])
+        self.assertEqual(same_request["data"]["batch_id"], first["data"]["batch_id"])
+        self.assertFalse(different_request["ok"])
+        self.assertTrue(different_request["data"]["already_enrolled"])
+        self.assertEqual(different_request["data"]["batch_id"], first["data"]["batch_id"])
+        self.assertIn("rerun_recovery_already_enrolled", different_request["errors"])
+        self.assertEqual(counting_service.rerun_start_count, 1)
+
+    def test_continue_retry_rejects_copied_v2_manifest_after_valid_original_launch(self) -> None:
+        class CountingService(DummyWorkflowFacadeService):
+            def __init__(self, root: Path) -> None:
+                super().__init__(root)
+                self.rerun_start_count = 0
+
+            def start_rerun_csv(self, resolved: object, csv_path: Path, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                self.rerun_start_count += 1
+                return super().start_rerun_csv(resolved, csv_path, **kwargs)  # type: ignore[arg-type]
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = CountingService(root)
+            facade, _service, resolved, manifest_key, manifest_path = _retry_exhausted_continue_case(
+                root,
+                service=service,
+            )
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest.update(
+                {
+                    "schema_version": "rerun_batch_manifest.v2",
+                    "command_id": "source-command-v2",
+                    "launch_id": "source-launch-v2",
+                    "manifest_path": str(manifest_path),
+                }
+            )
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            first = facade.continue_rerun_pending_rows(
+                resolved,  # type: ignore[arg-type]
+                {
+                    "_command_id": "copied-v2-first-command",
+                    "manifest_key": manifest_key,
+                    "request_id": "copied-v2-first-request",
+                    "confirm_continue": True,
+                },
+            ).to_mapping()
+            service.started_rerun_proc.complete()
+            copied_path = manifest_path.with_name("copied-v2-manifest.json")
+            copied_path.write_text(manifest_path.read_text(encoding="utf-8"), encoding="utf-8")
+            manifest_path.unlink()
+            copied_projection = next(
+                item
+                for item in rerun_results_payload(resolved)["manifests"]
+                if item["manifest_path"] == str(copied_path)
+            )
+
+            copied = facade.continue_rerun_pending_rows(
+                resolved,  # type: ignore[arg-type]
+                {
+                    "_command_id": "copied-v2-second-command",
+                    "manifest_key": copied_projection["manifest_key"],
+                    "request_id": "copied-v2-second-request",
+                    "confirm_continue": True,
+                },
+            ).to_mapping()
+
+        self.assertTrue(first["ok"])
+        self.assertFalse(copied["ok"])
+        self.assertIn("rerun_manifest_path_mismatch", copied["errors"])
+        self.assertEqual(service.rerun_start_count, 1)
+
+    def test_continue_retry_copied_v1_manifest_reuses_logical_exactly_once_namespace(self) -> None:
+        class CountingService(DummyWorkflowFacadeService):
+            def __init__(self, root: Path) -> None:
+                super().__init__(root)
+                self.rerun_start_count = 0
+
+            def start_rerun_csv(self, resolved: object, csv_path: Path, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                self.rerun_start_count += 1
+                return super().start_rerun_csv(resolved, csv_path, **kwargs)  # type: ignore[arg-type]
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = CountingService(root)
+            facade, _service, resolved, manifest_key, manifest_path = _retry_exhausted_continue_case(
+                root,
+                service=service,
+            )
+            first = facade.continue_rerun_pending_rows(
+                resolved,  # type: ignore[arg-type]
+                {
+                    "_command_id": "copied-v1-first-command",
+                    "manifest_key": manifest_key,
+                    "request_id": "copied-v1-first-request",
+                    "confirm_continue": True,
+                },
+            ).to_mapping()
+            service.started_rerun_proc.complete()
+            copied_path = manifest_path.with_name("copied-v1-manifest.json")
+            copied_path.write_text(manifest_path.read_text(encoding="utf-8"), encoding="utf-8")
+            copied_projection = next(
+                item
+                for item in rerun_results_payload(resolved)["manifests"]
+                if item["manifest_path"] == str(copied_path)
+            )
+
+            copied = facade.continue_rerun_pending_rows(
+                resolved,  # type: ignore[arg-type]
+                {
+                    "_command_id": "copied-v1-second-command",
+                    "manifest_key": copied_projection["manifest_key"],
+                    "request_id": "copied-v1-second-request",
+                    "confirm_continue": True,
+                },
+            ).to_mapping()
+
+        self.assertTrue(first["ok"])
+        self.assertFalse(copied["ok"])
+        self.assertIn("rerun_recovery_already_enrolled", copied["errors"])
+        self.assertEqual(copied["data"]["recovery_root_key"], first["data"]["recovery_root_key"])
+        self.assertEqual(service.rerun_start_count, 1)
+
+    def test_continue_retry_copied_v1_windows_equivalent_path_cannot_split_namespace(self) -> None:
+        class CountingService(DummyWorkflowFacadeService):
+            def __init__(self, root: Path) -> None:
+                super().__init__(root)
+                self.rerun_start_count = 0
+
+            def start_rerun_csv(self, resolved: object, csv_path: Path, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                self.rerun_start_count += 1
+                return super().start_rerun_csv(resolved, csv_path, **kwargs)  # type: ignore[arg-type]
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = CountingService(root)
+            facade, _service, resolved, manifest_key, manifest_path = _retry_exhausted_continue_case(
+                root,
+                service=service,
+            )
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            source_path = Path(str(manifest["rows"][0]["source_path"]))
+            equivalent_parent = str(source_path.parent).upper().replace("\\", "/")
+            equivalent_source_path = f"{equivalent_parent}/./{source_path.name.swapcase()}"
+            equivalent_manifest = json.loads(json.dumps(manifest))
+            equivalent_manifest["rows"][0]["source_path"] = equivalent_source_path
+
+            original_selectors = _recovery_row_selectors(manifest["rows"])
+            equivalent_selectors = _recovery_row_selectors(equivalent_manifest["rows"])
+            distinct_manifest = json.loads(json.dumps(manifest))
+            distinct_manifest["rows"][0]["source_path"] = str(source_path.with_name("Different.mkv"))
+            distinct_selectors = _recovery_row_selectors(distinct_manifest["rows"])
+
+            first = facade.continue_rerun_pending_rows(
+                resolved,  # type: ignore[arg-type]
+                {
+                    "_command_id": "equivalent-v1-first-command",
+                    "manifest_key": manifest_key,
+                    "request_id": "equivalent-v1-first-request",
+                    "confirm_continue": True,
+                },
+            ).to_mapping()
+            service.started_rerun_proc.complete()
+            copied_path = manifest_path.with_name("copied-equivalent-v1-manifest.json")
+            copied_path.write_text(json.dumps(equivalent_manifest), encoding="utf-8")
+            copied_projection = next(
+                item
+                for item in rerun_results_payload(resolved)["manifests"]
+                if item["manifest_path"] == str(copied_path)
+            )
+            copied = facade.continue_rerun_pending_rows(
+                resolved,  # type: ignore[arg-type]
+                {
+                    "_command_id": "equivalent-v1-second-command",
+                    "manifest_key": copied_projection["manifest_key"],
+                    "request_id": "equivalent-v1-second-request",
+                    "confirm_continue": True,
+                },
+            ).to_mapping()
+
+        self.assertEqual(equivalent_selectors, original_selectors)
+        self.assertNotEqual(distinct_selectors, original_selectors)
+        self.assertTrue(first["ok"])
+        self.assertFalse(copied["ok"])
+        self.assertIn("rerun_recovery_already_enrolled", copied["errors"])
+        self.assertEqual(copied["data"]["recovery_root_key"], first["data"]["recovery_root_key"])
+        self.assertEqual(service.rerun_start_count, 1)
+
+    def test_continue_retry_row_reordering_keeps_same_exactly_once_namespace(self) -> None:
+        class CountingService(DummyWorkflowFacadeService):
+            def __init__(self, root: Path) -> None:
+                super().__init__(root)
+                self.rerun_start_count = 0
+
+            def start_rerun_csv(self, resolved: object, csv_path: Path, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                self.rerun_start_count += 1
+                return super().start_rerun_csv(resolved, csv_path, **kwargs)  # type: ignore[arg-type]
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = CountingService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+            sources = [_media_file(root, "Reorder A"), _media_file(root, "Reorder B")]
+            csv_path = root / "rerun-reordered.csv"
+            csv_rows: list[str] = []
+            manifest_rows: list[dict[str, object]] = []
+            for row_index, source in enumerate(sources):
+                source_stat = source.stat()
+                source_mtime = datetime.fromtimestamp(source_stat.st_mtime, UTC).isoformat()
+                source_hash = _sha256(source)
+                source_identity = f"reordered-source-{row_index}-v2"
+                csv_rows.append(
+                    f"true,{source},{source_stat.st_size},{source_mtime},{source_identity},{source_hash},sha256-full-file"
+                )
+                manifest_rows.append(
+                    {
+                        "row_index": row_index,
+                        "status": "retry_exhausted",
+                        "source_path": str(source),
+                        "source_size": source_stat.st_size,
+                        "source_mtime_utc": source_mtime,
+                        "source_identity_v2": source_identity,
+                        "source_content_sha256": source_hash,
+                        "source_content_sha256_algorithm": "sha256-full-file",
+                    }
+                )
+            csv_path.write_text(
+                "enabled,source_path,source_size,source_mtime_utc,source_identity_v2,source_content_sha256,source_content_sha256_algorithm\n"
+                + "\n".join(csv_rows)
+                + "\n",
+                encoding="utf-8",
+            )
+            manifest_root = resolved.local_base / "RerunManifests"
+            manifest_root.mkdir(parents=True)
+            manifest_path = manifest_root / "reordered-v2.json"
+            manifest = {
+                "schema_version": "rerun_batch_manifest.v2",
+                "batch_id": "reordered-v2",
+                "command_id": "reordered-source-command",
+                "launch_id": "reordered-source-launch",
+                "manifest_path": str(manifest_path),
+                "status": "completed_with_failures",
+                "csv_path": str(csv_path),
+                "rows": list(reversed(manifest_rows)),
+            }
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            manifest_key = rerun_results_payload(resolved)["manifests"][0]["manifest_key"]
+
+            first = facade.continue_rerun_pending_rows(
+                resolved,
+                {
+                    "_command_id": "reordered-first-command",
+                    "manifest_key": manifest_key,
+                    "request_id": "reordered-first-request",
+                    "confirm_continue": True,
+                },
+            ).to_mapping()
+            service.started_rerun_proc.complete()
+            first_enrollment_path = Path(first["data"]["enrollment_path"])
+            first_enrollment = json.loads(first_enrollment_path.read_text(encoding="utf-8"))
+            legacy_ordered_selectors = _recovery_row_selectors(
+                list(reversed(manifest_rows)),
+                canonical_order=False,
+            )
+            legacy_root_key = _rerun_recovery_key(
+                manifest_key=manifest_key,
+                recovery_scope="retry_exhausted",
+                row_selectors=legacy_ordered_selectors,
+            )
+            first_enrollment.update(
+                {
+                    "recovery_key": legacy_root_key,
+                    "recovery_root_key": legacy_root_key,
+                    "recovery_row_selectors": legacy_ordered_selectors,
+                }
+            )
+            first_enrollment_path.write_text(json.dumps(first_enrollment), encoding="utf-8")
+            manifest["rows"] = manifest_rows
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            second = facade.continue_rerun_pending_rows(
+                resolved,
+                {
+                    "_command_id": "reordered-second-command",
+                    "manifest_key": manifest_key,
+                    "request_id": "reordered-second-request",
+                    "confirm_continue": True,
+                },
+            ).to_mapping()
+
+        self.assertTrue(first["ok"])
+        self.assertFalse(second["ok"])
+        self.assertIn("rerun_recovery_already_enrolled", second["errors"])
+        self.assertEqual(service.rerun_start_count, 1)
+
+    def test_continue_retry_supersedes_only_exit_verified_failed_before_manifest_generation(self) -> None:
+        class CountingService(DummyWorkflowFacadeService):
+            def __init__(self, root: Path) -> None:
+                super().__init__(root)
+                self.rerun_start_count = 0
+
+            def start_rerun_csv(self, resolved: object, csv_path: Path, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                self.rerun_start_count += 1
+                return super().start_rerun_csv(resolved, csv_path, **kwargs)  # type: ignore[arg-type]
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            counting_service = CountingService(root)
+            facade, service, resolved, manifest_key, _manifest_path = _retry_exhausted_continue_case(
+                root,
+                service=counting_service,
+            )
+            first_request = {
+                "_command_id": "command-recovery-generation-one",
+                "manifest_key": manifest_key,
+                "request_id": "recovery-request-generation-one",
+                "confirm_continue": True,
+            }
+            first = facade.continue_rerun_pending_rows(resolved, first_request).to_mapping()  # type: ignore[arg-type]
+            service.started_rerun_proc.complete()
+            first_enrollment_path = Path(first["data"]["enrollment_path"])
+            transition_rerun_enrollment(
+                first_enrollment_path,
+                "failed_before_manifest",
+                expected_states={"process_spawned"},
+                reason_code="rerun_process_exit_nonzero",
+                reason="Child exited before creating an execution manifest.",
+                extra_fields={"process_exit_verified": True, "duplicate_launch_blocked": False},
+            )
+            same_request = facade.continue_rerun_pending_rows(
+                resolved,  # type: ignore[arg-type]
+                {**first_request, "_command_id": "command-recovery-generation-one-replay"},
+            ).to_mapping()
+            second = facade.continue_rerun_pending_rows(
+                resolved,  # type: ignore[arg-type]
+                {
+                    **first_request,
+                    "_command_id": "command-recovery-generation-two",
+                    "request_id": "recovery-request-generation-two",
+                },
+            ).to_mapping()
+
+            self.assertTrue(first["ok"])
+            self.assertTrue(same_request["ok"])
+            self.assertTrue(same_request["data"]["idempotent_replay"])
+            self.assertFalse(same_request["data"]["launches_work"])
+            self.assertEqual(same_request["data"]["batch_id"], first["data"]["batch_id"])
+            self.assertTrue(second["ok"])
+
+            second_enrollment_path = Path(second["data"]["enrollment_path"])
+            second_enrollment = json.loads(second_enrollment_path.read_text(encoding="utf-8"))
+            self.assertNotEqual(second["data"]["batch_id"], first["data"]["batch_id"])
+            self.assertNotEqual(second_enrollment_path, first_enrollment_path)
+            self.assertEqual(second["data"]["recovery_generation"], 2)
+            self.assertEqual(
+                second["data"]["recovery_supersedes_enrollment_path"],
+                str(first_enrollment_path),
+            )
+            self.assertNotEqual(second["data"]["recovery_key"], first["data"]["recovery_key"])
+            self.assertEqual(second_enrollment["recovery_key"], second["data"]["recovery_key"])
+            self.assertEqual(
+                second_enrollment["recovery_root_key"],
+                second["data"]["recovery_root_key"],
+            )
+            self.assertEqual(second_enrollment["recovery_generation"], 2)
+            self.assertEqual(
+                second_enrollment["recovery_supersedes_enrollment_path"],
+                str(first_enrollment_path),
+            )
+            self.assertEqual(
+                second_enrollment["recovery_supersedes_recovery_key"],
+                first["data"]["recovery_key"],
+            )
+            self.assertEqual(
+                second_enrollment["recovery_supersedes_batch_id"],
+                first["data"]["batch_id"],
+            )
+
+            live_duplicate = facade.continue_rerun_pending_rows(
+                resolved,  # type: ignore[arg-type]
+                {
+                    **first_request,
+                    "_command_id": "command-recovery-generation-three-live",
+                    "request_id": "recovery-request-generation-three-live",
+                },
+            ).to_mapping()
+            self.assertFalse(live_duplicate["ok"])
+            self.assertIn("rerun_recovery_already_enrolled", live_duplicate["errors"])
+            self.assertEqual(counting_service.rerun_start_count, 2)
+
+            service.started_rerun_proc.complete()
+            transition_rerun_enrollment(
+                second_enrollment_path,
+                "completed",
+                expected_states={"process_spawned"},
+            )
+            completed_duplicate = facade.continue_rerun_pending_rows(
+                resolved,  # type: ignore[arg-type]
+                {
+                    **first_request,
+                    "_command_id": "command-recovery-generation-three-completed",
+                    "request_id": "recovery-request-generation-three-completed",
+                },
+            ).to_mapping()
+
+        self.assertFalse(completed_duplicate["ok"])
+        self.assertIn("rerun_recovery_already_enrolled", completed_duplicate["errors"])
+        self.assertEqual(counting_service.rerun_start_count, 2)
+
+    def test_continue_retry_does_not_supersede_stale_failed_before_manifest_with_execution_evidence(self) -> None:
+        class CountingService(DummyWorkflowFacadeService):
+            def __init__(self, root: Path) -> None:
+                super().__init__(root)
+                self.rerun_start_count = 0
+
+            def start_rerun_csv(self, resolved: object, csv_path: Path, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                self.rerun_start_count += 1
+                return super().start_rerun_csv(resolved, csv_path, **kwargs)  # type: ignore[arg-type]
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            counting_service = CountingService(root)
+            facade, service, resolved, manifest_key, _manifest_path = _retry_exhausted_continue_case(
+                root,
+                service=counting_service,
+            )
+            first_request = {
+                "_command_id": "command-stale-pre-manifest-one",
+                "manifest_key": manifest_key,
+                "request_id": "recovery-request-stale-pre-manifest-one",
+                "confirm_continue": True,
+            }
+            first = facade.continue_rerun_pending_rows(resolved, first_request).to_mapping()  # type: ignore[arg-type]
+            service.started_rerun_proc.complete()
+            enrollment_path = Path(first["data"]["enrollment_path"])
+            execution_manifest_path = Path(first["data"]["manifest_path"])
+            execution_manifest_path.parent.mkdir(parents=True, exist_ok=True)
+            execution_manifest_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "rerun_batch_manifest.v2",
+                        "command_id": first["data"]["command_id"],
+                        "launch_id": first["data"]["launch_id"],
+                        "batch_id": first["data"]["batch_id"],
+                        "enrollment_path": str(enrollment_path),
+                        "manifest_path": str(execution_manifest_path),
+                        "status": "failed",
+                        "lifecycle_state": "terminal",
+                        "rows": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            transition_rerun_enrollment(
+                enrollment_path,
+                "failed_before_manifest",
+                expected_states={"process_spawned"},
+                reason_code="stale_pre_manifest_label",
+                reason="The enrollment label is stale even though execution evidence exists.",
+                extra_fields={"process_exit_verified": True, "duplicate_launch_blocked": False},
+            )
+
+            second = facade.continue_rerun_pending_rows(
+                resolved,  # type: ignore[arg-type]
+                {
+                    **first_request,
+                    "_command_id": "command-stale-pre-manifest-two",
+                    "request_id": "recovery-request-stale-pre-manifest-two",
+                },
+            ).to_mapping()
+
+        self.assertFalse(second["ok"])
+        self.assertIn("rerun_recovery_already_enrolled", second["errors"])
+        self.assertEqual(counting_service.rerun_start_count, 1)
+
+    def test_recovery_supersession_requires_explicit_exit_and_duplicate_guard_booleans(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            absent_manifest = Path(raw_root) / "absent-manifest.json"
+            valid = {
+                "lifecycle_state": "failed_before_manifest",
+                "process_exit_verified": True,
+                "duplicate_launch_blocked": False,
+                "manifest_path": str(absent_manifest),
+            }
+            cases: list[tuple[str, dict[str, object]]] = [
+                ("missing_process_exit_verified", {"process_exit_verified": None}),
+                ("null_process_exit_verified", {"process_exit_verified": None}),
+                ("string_process_exit_verified", {"process_exit_verified": "true"}),
+                ("missing_duplicate_launch_blocked", {"duplicate_launch_blocked": None}),
+                ("null_duplicate_launch_blocked", {"duplicate_launch_blocked": None}),
+                ("string_duplicate_launch_blocked", {"duplicate_launch_blocked": "false"}),
+            ]
+            for case, replacement in cases:
+                with self.subTest(case=case):
+                    enrollment = dict(valid)
+                    field = next(iter(replacement))
+                    if case.startswith("missing_"):
+                        enrollment.pop(field)
+                    else:
+                        enrollment.update(replacement)
+                    self.assertFalse(_recovery_enrollment_can_be_superseded(enrollment))
+
+            self.assertTrue(_recovery_enrollment_can_be_superseded(valid))
+
+    def test_recovery_supersession_allows_only_filenotfound_manifest_stat(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            absent_manifest = root / "absent-manifest.json"
+            enrollment = {
+                "lifecycle_state": "failed_before_manifest",
+                "process_exit_verified": True,
+                "duplicate_launch_blocked": False,
+                "manifest_path": str(absent_manifest),
+            }
+            self.assertTrue(_recovery_enrollment_can_be_superseded(enrollment))
+
+            existing_file = root / "existing-manifest.json"
+            existing_file.write_text("{}", encoding="utf-8")
+            self.assertFalse(
+                _recovery_enrollment_can_be_superseded(
+                    {**enrollment, "manifest_path": str(existing_file)}
+                )
+            )
+
+            existing_directory = root / "manifest-directory"
+            existing_directory.mkdir()
+            self.assertFalse(
+                _recovery_enrollment_can_be_superseded(
+                    {**enrollment, "manifest_path": str(existing_directory)}
+                )
+            )
+            self.assertFalse(
+                _recovery_enrollment_can_be_superseded({**enrollment, "manifest_path": ""})
+            )
+            broken_reparse_path = root / "broken-reparse-manifest.json"
+            with (
+                patch.object(Path, "lstat", return_value=object()),
+                patch.object(Path, "stat", side_effect=FileNotFoundError("reparse target missing")),
+            ):
+                self.assertFalse(
+                    _recovery_enrollment_can_be_superseded(
+                        {**enrollment, "manifest_path": str(broken_reparse_path)}
+                    )
+                )
+            with patch.object(Path, "lstat", side_effect=PermissionError("manifest lstat denied")):
+                self.assertFalse(_recovery_enrollment_can_be_superseded(enrollment))
+
+    def test_continue_retry_is_exactly_once_for_concurrent_same_request(self) -> None:
+        class CountingService(DummyWorkflowFacadeService):
+            def __init__(self, root: Path) -> None:
+                super().__init__(root)
+                self.rerun_start_count = 0
+                self.count_lock = threading.Lock()
+
+            def start_rerun_csv(self, resolved: object, csv_path: Path, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                with self.count_lock:
+                    self.rerun_start_count += 1
+                return super().start_rerun_csv(resolved, csv_path, **kwargs)  # type: ignore[arg-type]
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            counting_service = CountingService(root)
+            facade, _service, resolved, manifest_key, _manifest_path = _retry_exhausted_continue_case(
+                root,
+                service=counting_service,
+            )
+            barrier = threading.Barrier(3)
+            results: list[dict[str, object]] = []
+            results_lock = threading.Lock()
+
+            def invoke(command_id: str) -> None:
+                barrier.wait()
+                result = facade.continue_rerun_pending_rows(
+                    resolved,  # type: ignore[arg-type]
+                    {
+                        "_command_id": command_id,
+                        "manifest_key": manifest_key,
+                        "request_id": "concurrent-recovery-request",
+                        "confirm_continue": True,
+                    },
+                ).to_mapping()
+                with results_lock:
+                    results.append(result)
+
+            threads = [
+                threading.Thread(target=invoke, args=("concurrent-command-a",)),
+                threading.Thread(target=invoke, args=("concurrent-command-b",)),
+            ]
+            for thread in threads:
+                thread.start()
+            barrier.wait()
+            for thread in threads:
+                thread.join(timeout=5)
+
+        self.assertEqual(len(results), 2)
+        self.assertEqual(counting_service.rerun_start_count, 1)
+        self.assertEqual(sum(result["data"]["launches_work"] is True for result in results), 1)  # type: ignore[index]
+        self.assertEqual(sum(result["data"].get("idempotent_replay") is True for result in results), 1)  # type: ignore[union-attr]
+        self.assertEqual(len({str(result["data"]["batch_id"]) for result in results}), 1)  # type: ignore[index]
+
+    def test_rerun_start_does_not_report_process_spawned_after_enrollment_already_terminalized(self) -> None:
+        class ImmediateExitService(DummyWorkflowFacadeService):
+            def start_rerun_csv(self, resolved: object, csv_path: Path, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                enrollment_path = Path(str(kwargs["enrollment_path"]))
+                transition_rerun_enrollment(
+                    enrollment_path,
+                    "failed_before_manifest",
+                    expected_states={"accepted"},
+                    reason_code="rerun_process_exit_nonzero",
+                    reason="Child exited before manifest creation.",
+                )
+                self.enrollment_path = enrollment_path
+                return DummyProc(24682)
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            movie = _media_file(root, "Movie")
+            csv_path = root / "rerun.csv"
+            csv_path.write_text(f"enabled,source_path\ntrue,{movie}\n", encoding="utf-8")
+            service = ImmediateExitService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+
+            result = facade.start_rerun_csv_process(
+                resolved,
+                {"csv_path": str(csv_path), "confirm_replace_final": True},
+            ).to_mapping()
+            enrollment = json.loads(service.enrollment_path.read_text(encoding="utf-8"))
+
+        self.assertFalse(result["ok"])
+        self.assertNotIn("process spawned", result["message"].casefold())
+        self.assertEqual(enrollment["status"], "failed_before_manifest")
+
+    def test_rerun_start_stops_child_when_post_spawn_enrollment_cannot_be_read_or_updated(self) -> None:
+        class StopProbeService(DummyWorkflowFacadeService):
+            def start_rerun_csv(self, resolved: object, csv_path: Path, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                self.enrollment_path = Path(str(kwargs["enrollment_path"]))
+                self.proc = DummyProc(24682)
+                return self.proc
+
+            def kill_process_tree(self, proc: object, label: str) -> str:  # type: ignore[override]
+                self.stopped_proc = proc
+                self.stop_label = label
+                return "stopped"
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            movie = _media_file(root, "Movie")
+            csv_path = root / "rerun.csv"
+            csv_path.write_text(f"enabled,source_path\ntrue,{movie}\n", encoding="utf-8")
+            service = StopProbeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+
+            with (
+                patch("mediapipeline.core.processes.rerun_facade.transition_rerun_enrollment", return_value=None),
+                patch("mediapipeline.core.processes.rerun_facade.read_rerun_enrollment", return_value=None),
+            ):
+                result = facade.start_rerun_csv_process(
+                    resolved,
+                    {"csv_path": str(csv_path), "confirm_replace_final": True},
+                ).to_mapping()
+            enrollment = json.loads(service.enrollment_path.read_text(encoding="utf-8"))
+
+        self.assertFalse(result["ok"])
+        self.assertIs(service.stopped_proc, service.proc)
+        self.assertEqual(service.stop_label, "CSV rerun enrollment transition failure")
+        self.assertEqual(enrollment["status"], "failed_before_manifest")
+        self.assertEqual(enrollment["reason_code"], "rerun_process_spawn_transition_unpersisted")
+        self.assertIn("safe child stop", enrollment["reason"])
+
+    def test_rerun_start_stops_child_when_spawn_transition_write_leaves_only_accepted_state(self) -> None:
+        class StopProbeService(DummyWorkflowFacadeService):
+            def kill_process_tree(self, proc: object, label: str) -> str:  # type: ignore[override]
+                self.stopped_proc = proc
+                self.stop_label = label
+                return "stopped"
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            movie = _media_file(root, "Movie")
+            csv_path = root / "rerun.csv"
+            csv_path.write_text(f"enabled,source_path\ntrue,{movie}\n", encoding="utf-8")
+            service = StopProbeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+
+            with patch(
+                "mediapipeline.core.processes.rerun_facade.transition_rerun_enrollment",
+                side_effect=OSError("state write unavailable"),
+            ):
+                result = facade.start_rerun_csv_process(
+                    resolved,
+                    {"csv_path": str(csv_path), "confirm_replace_final": True},
+                ).to_mapping()
+            enrollment = json.loads(Path(result["data"]["enrollment_path"]).read_text(encoding="utf-8"))
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["data"]["lifecycle_state"], "failed_before_manifest")
+        self.assertNotIn("process spawned", result["message"].casefold())
+        self.assertIs(service.stopped_proc, service.started_rerun_proc)
+        self.assertEqual(service.stop_label, "CSV rerun enrollment transition failure")
+        self.assertEqual(enrollment["status"], "failed_before_manifest")
+        self.assertEqual(enrollment["reason_code"], "rerun_process_spawn_transition_unpersisted")
+
+    def test_rerun_start_preserves_nonterminal_ambiguity_when_spawn_transition_and_child_exit_are_unverified(self) -> None:
+        class AmbiguousProc(DummyProc):
+            def poll(self) -> None:
+                return None
+
+        class AmbiguousStopService(DummyWorkflowFacadeService):
+            def start_rerun_csv(self, resolved: object, csv_path: Path, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                self.enrollment_path = Path(str(kwargs["enrollment_path"]))
+                self.proc = AmbiguousProc(24682)
+                return self.proc
+
+            def kill_process_tree(self, proc: object, label: str) -> str:  # type: ignore[override]
+                self.stopped_proc = proc
+                return (
+                    "Kill requested, but taskkill timed out and exit could not be verified. "
+                    "Fallback attempts completed."
+                )
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            movie = _media_file(root, "Movie")
+            csv_path = root / "rerun.csv"
+            csv_path.write_text(f"enabled,source_path\ntrue,{movie}\n", encoding="utf-8")
+            service = AmbiguousStopService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+
+            with (
+                patch("mediapipeline.core.processes.rerun_facade.transition_rerun_enrollment", return_value=None),
+                patch("mediapipeline.core.processes.rerun_facade.read_rerun_enrollment", return_value=None),
+            ):
+                result = facade.start_rerun_csv_process(
+                    resolved,
+                    {"csv_path": str(csv_path), "confirm_replace_final": True},
+                ).to_mapping()
+            enrollment = json.loads(service.enrollment_path.read_text(encoding="utf-8"))
+
+        self.assertFalse(result["ok"])
+        self.assertIs(service.stopped_proc, service.proc)
+        self.assertEqual(enrollment["status"], "spawn_transition_ambiguous")
+        self.assertFalse(enrollment["process_exit_verified"])
+        self.assertTrue(enrollment["operator_action_required"])
+        self.assertEqual(enrollment["pid"], 24682)
+        self.assertNotIn(enrollment["status"], {"failed", "failed_before_manifest"})
+
+    def test_spawn_stop_exit_verification_rejects_degraded_tree_evidence_after_root_exit(self) -> None:
+        proc = SimpleNamespace(poll=lambda: -9)
+        degraded_results = (
+            "Kill requested for process tree, but taskkill timed out and descendant exit could not be verified.",
+            "taskkill returned a nonzero exit status after the root stopped.",
+            "App-owned CSV rerun process already exited.",
+            "kill_degraded: root stopped but descendant state is unknown.",
+        )
+
+        for stop_result in degraded_results:
+            with self.subTest(stop_result=stop_result):
+                self.assertFalse(_spawn_stop_exit_verified(proc, stop_result))
+        self.assertTrue(_spawn_stop_exit_verified(proc, "Stopped process tree; descendant exit verified."))
+
+    def test_rerun_start_outer_exception_preserves_live_child_as_spawn_transition_ambiguity(self) -> None:
+        class LiveProc(DummyProc):
+            def poll(self) -> None:
+                return None
+
+        class LiveChildService(DummyWorkflowFacadeService):
+            def start_rerun_csv(self, resolved: object, csv_path: Path, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                self.proc = LiveProc(24683)
+                return self.proc
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            movie = _media_file(root, "Live Outer Exception")
+            csv_path = root / "rerun.csv"
+            csv_path.write_text(f"enabled,source_path\ntrue,{movie}\n", encoding="utf-8")
+            service = LiveChildService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+
+            with patch.object(
+                facade,
+                "_transfer_process_launch_lease",
+                side_effect=RuntimeError("post-spawn lease transfer failed"),
+            ):
+                result = facade.start_rerun_csv_process(
+                    resolved,
+                    {"csv_path": str(csv_path), "confirm_replace_final": True},
+                ).to_mapping()
+            enrollment = json.loads(Path(result["data"]["enrollment_path"]).read_text(encoding="utf-8"))
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(enrollment["status"], "spawn_transition_ambiguous")
+        self.assertFalse(enrollment["process_exit_verified"])
+        self.assertTrue(enrollment["duplicate_launch_blocked"])
+        self.assertEqual(enrollment["pid"], service.proc.pid)
+
+    def test_rerun_start_outer_exception_uses_nonconsuming_spawn_cleanup_marker(self) -> None:
+        class MarkerAmbiguousService(DummyWorkflowFacadeService):
+            def __init__(self, root: Path) -> None:
+                super().__init__(root)
+                self._pending_lifecycle_lease_lock = threading.Lock()
+                self._pending_lifecycle_lease = None
+
+            def start_rerun_csv(self, resolved: object, csv_path: Path, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                lease = self._consume_pending_lifecycle_lease()
+                if lease is None:
+                    raise AssertionError("expected facade lifecycle lease")
+                _mark_launch_cleanup_reconciliation_required(lease)
+                raise RuntimeError("spawn cleanup could not verify descendant exit")
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            movie = _media_file(root, "Marked Outer Exception")
+            csv_path = root / "rerun.csv"
+            csv_path.write_text(f"enabled,source_path\ntrue,{movie}\n", encoding="utf-8")
+            service = MarkerAmbiguousService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+
+            result = facade.start_rerun_csv_process(
+                resolved,
+                {"csv_path": str(csv_path), "confirm_replace_final": True},
+            ).to_mapping()
+            enrollment = json.loads(Path(result["data"]["enrollment_path"]).read_text(encoding="utf-8"))
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(enrollment["status"], "spawn_transition_ambiguous")
+        self.assertFalse(enrollment["process_exit_verified"])
+        self.assertTrue(enrollment["duplicate_launch_blocked"])
+
+    def test_rerun_start_outer_exception_marker_vetoes_exited_root_process_proof(self) -> None:
+        class ExitedProc(DummyProc):
+            def poll(self) -> int:
+                return -9
+
+        class MarkedExitedRootService(DummyWorkflowFacadeService):
+            def __init__(self, root: Path) -> None:
+                super().__init__(root)
+                self._pending_lifecycle_lease_lock = threading.Lock()
+                self._pending_lifecycle_lease = None
+
+            def start_rerun_csv(self, resolved: object, csv_path: Path, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                lease = self._consume_pending_lifecycle_lease()
+                if lease is None:
+                    raise AssertionError("expected facade lifecycle lease")
+                _mark_launch_cleanup_reconciliation_required(lease)
+                self.proc = ExitedProc(24684)
+                return self.proc
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            movie = _media_file(root, "Marked Exited Root")
+            csv_path = root / "rerun.csv"
+            csv_path.write_text(f"enabled,source_path\ntrue,{movie}\n", encoding="utf-8")
+            service = MarkedExitedRootService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+
+            with patch.object(
+                facade,
+                "_transfer_process_launch_lease",
+                side_effect=RuntimeError("post-spawn lease transfer failed"),
+            ):
+                result = facade.start_rerun_csv_process(
+                    resolved,
+                    {"csv_path": str(csv_path), "confirm_replace_final": True},
+                ).to_mapping()
+            enrollment = json.loads(Path(result["data"]["enrollment_path"]).read_text(encoding="utf-8"))
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(enrollment["status"], "spawn_transition_ambiguous")
+        self.assertFalse(enrollment["process_exit_verified"])
+        self.assertTrue(enrollment["duplicate_launch_blocked"])
+        self.assertEqual(enrollment["pid"], service.proc.pid)
+
+    def test_rerun_start_outer_exception_process_tree_marker_vetoes_exited_root_process_proof(self) -> None:
+        class ExitedProc(DummyProc):
+            def poll(self) -> int:
+                return -9
+
+        class MarkedExitedRootService(DummyWorkflowFacadeService):
+            def start_rerun_csv(self, resolved: object, csv_path: Path, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                self.proc = ExitedProc(24685)
+                return self.proc
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            movie = _media_file(root, "Process Tree Marked Exited Root")
+            csv_path = root / "rerun.csv"
+            csv_path.write_text(f"enabled,source_path\ntrue,{movie}\n", encoding="utf-8")
+            service = MarkedExitedRootService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+
+            with (
+                patch.object(
+                    facade,
+                    "_transfer_process_launch_lease",
+                    side_effect=RuntimeError("post-spawn lease transfer failed"),
+                ),
+                patch(
+                    "mediapipeline.core.processes.rerun_facade._process_tree_cleanup_reconciliation_required",
+                    return_value=True,
+                    create=True,
+                ),
+            ):
+                result = facade.start_rerun_csv_process(
+                    resolved,
+                    {"csv_path": str(csv_path), "confirm_replace_final": True},
+                ).to_mapping()
+            enrollment = json.loads(Path(result["data"]["enrollment_path"]).read_text(encoding="utf-8"))
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(enrollment["status"], "spawn_transition_ambiguous")
+        self.assertFalse(enrollment["process_exit_verified"])
+        self.assertTrue(enrollment["duplicate_launch_blocked"])
+        self.assertEqual(enrollment["pid"], service.proc.pid)
+
+    def test_rerun_start_degraded_stop_veto_survives_ambiguity_persistence_failure(self) -> None:
+        class ExitedProc(DummyProc):
+            def poll(self) -> int:
+                return -9
+
+        class DegradedStopService(DummyWorkflowFacadeService):
+            def start_rerun_csv(self, resolved: object, csv_path: Path, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                self.enrollment_path = Path(str(kwargs["enrollment_path"]))
+                self.proc = ExitedProc(24686)
+                return self.proc
+
+            def kill_process_tree(self, proc: object, label: str) -> str:  # type: ignore[override]
+                self.stopped_proc = proc
+                return (
+                    "Kill requested for CSV rerun process tree; taskkill reported a nonzero exit status. "
+                    "The root process exited, but descendant state is unknown."
+                )
+
+        real_transition = transition_rerun_enrollment
+
+        def transition_with_unpersisted_spawn(
+            path: Path | None,
+            state: str,
+            **kwargs: object,
+        ) -> dict[str, object] | None:
+            if state == "process_spawned":
+                return None
+            return real_transition(path, state, **kwargs)
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            movie = _media_file(root, "Degraded Stop Persistence Failure")
+            csv_path = root / "rerun.csv"
+            csv_path.write_text(f"enabled,source_path\ntrue,{movie}\n", encoding="utf-8")
+            service = DegradedStopService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+
+            with (
+                patch(
+                    "mediapipeline.core.processes.rerun_facade.transition_rerun_enrollment",
+                    side_effect=transition_with_unpersisted_spawn,
+                ),
+                patch(
+                    "mediapipeline.core.processes.rerun_facade.record_rerun_spawn_transition_ambiguity",
+                    side_effect=OSError("ambiguity state unavailable"),
+                ),
+                patch(
+                    "mediapipeline.core.processes.rerun_facade.read_rerun_enrollment",
+                    return_value=None,
+                ),
+            ):
+                result = facade.start_rerun_csv_process(
+                    resolved,
+                    {"csv_path": str(csv_path), "confirm_replace_final": True},
+                ).to_mapping()
+            enrollment = json.loads(service.enrollment_path.read_text(encoding="utf-8"))
+
+        self.assertFalse(result["ok"])
+        self.assertIs(service.stopped_proc, service.proc)
+        self.assertNotIn(enrollment["status"], {"failed", "failed_before_manifest"})
+        self.assertIn(enrollment["status"], {"accepted", "spawn_transition_ambiguous"})
+        self.assertIn("reconcil", f"{result['message']} {' '.join(result['errors'])}".casefold())
+
+    def test_rerun_start_outer_exception_before_lease_activation_records_verified_failure(self) -> None:
+        class BeforeChildFailureService(DummyWorkflowFacadeService):
+            def start_rerun_csv(self, resolved: object, csv_path: Path, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                raise RuntimeError("spawn failed before a child was created")
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            movie = _media_file(root, "No Child Outer Exception")
+            csv_path = root / "rerun.csv"
+            csv_path.write_text(f"enabled,source_path\ntrue,{movie}\n", encoding="utf-8")
+            service = BeforeChildFailureService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.local_base = root / "LocalBase"
+            resolved.state_root = resolved.local_base / "State"
+
+            result = facade.start_rerun_csv_process(
+                resolved,
+                {"csv_path": str(csv_path), "confirm_replace_final": True},
+            ).to_mapping()
+            enrollment = json.loads(Path(result["data"]["enrollment_path"]).read_text(encoding="utf-8"))
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(enrollment["status"], "failed_before_manifest")
+        self.assertTrue(enrollment["process_exit_verified"])
+        self.assertFalse(enrollment["duplicate_launch_blocked"])
+
     def test_network_rerun_start_dry_run_reports_state_files_without_writing(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -1439,8 +2715,11 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             final_output = profile_out / "Phase8 Movie (2026).mkv"
             csv_path = root / "phase8-rerun.csv"
             csv_path.write_text(
-                "enabled,source_path,audit_issue_codes,plex_planned_path\n"
-                f"true,{movie},AUDIO,{final_output}\n",
+                "enabled,source_path,audit_issue_codes,plex_planned_path,"
+                "source_identity_v2,source_identity_v2_algorithm,"
+                "source_content_sha256,source_content_sha256_algorithm\n"
+                f"true,{movie},AUDIO,{final_output},{source_hash_before},sha256,"
+                f"{source_hash_before},sha256-full-file\n",
                 encoding="utf-8",
             )
             resolved.config_data = {
@@ -1577,6 +2856,10 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertEqual(len(journal), 1)
         self.assertEqual(journal[0]["payload"]["command"], "rerun.network.start")
         self.assertEqual(first_lease.response.job_kind, "csv_rerun_row")
+        self.assertEqual(
+            first_lease.response.source_identity["source_content_sha256"],
+            source_hash_before,
+        )
         self.assertIsNone(duplicate)
         self.assertEqual(second_lease.response.job_kind, "csv_rerun_row")
         self.assertEqual(row["status"], "pending_publish")

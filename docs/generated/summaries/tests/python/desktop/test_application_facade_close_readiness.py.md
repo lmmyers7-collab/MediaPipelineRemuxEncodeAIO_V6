@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-15
 last_reviewed: 2026-06-04
-sha256: a4e508d5e09739f94cec576b443e7399a87c4d2b025d3c2bb75a215b6761dd69
+sha256: d69dd345eca84707349fa97b47dbd08781411e214c3220642a3b72d86a90359a
 ---
 # `tests/python/desktop/test_application_facade_close_readiness.py`
 

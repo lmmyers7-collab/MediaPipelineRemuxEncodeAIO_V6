@@ -3,9 +3,9 @@ file: ops/pipeline/engine/audit/command_support.ps1
 pipeline_stage: observability
 token_priority: medium
 owner_domain: audit
-last_modified: 2026-07-11
+last_modified: 2026-07-13
 last_reviewed: 2026-07-11
-sha256: bd19f7559f373431738bdca0f53b41ecccee11c12940bd042b2017609e8f42c7
+sha256: 836a2bcf6d422e2281644205bbdf8acc17a99ffb4b1038c9e10ff740cba7f402
 ---
 # `ops/pipeline/engine/audit/command_support.ps1`
 

@@ -449,7 +449,7 @@ def rerun_run_label(dry_run: bool, plan_only: bool = False) -> str:
 
 
 def rerun_start_success_message(pid: int, dry_run: bool, plan_only: bool = False) -> str:
-    return f"Started CSV rerun {rerun_run_label(dry_run, plan_only)} via PID {pid}."
+    return f"CSV rerun {rerun_run_label(dry_run, plan_only)} process spawned via PID {pid}."
 
 
 def rerun_start_success_data(
@@ -473,6 +473,13 @@ def rerun_start_success_data(
     scoped_csv_path: Path | None = None,
     scope: dict[str, Any] | None = None,
     preview_counts: dict[str, Any] | None = None,
+    command_id: str = "",
+    launch_id: str = "",
+    batch_id: str = "",
+    enrollment_path: Path | None = None,
+    manifest_path: Path | None = None,
+    durably_enrolled: bool | None = None,
+    lifecycle_state: str = "",
 ) -> dict[str, Any]:
     data = {
         "csv_path": str(csv_path),
@@ -499,6 +506,24 @@ def rerun_start_success_data(
         data["scope"] = dict(scope)
     if preview_counts is not None:
         data["preview_counts"] = dict(preview_counts)
+    if command_id:
+        data["command_id"] = command_id
+    if launch_id:
+        data["launch_id"] = launch_id
+    if batch_id:
+        data["batch_id"] = batch_id
+    if enrollment_path is not None:
+        data["enrollment_path"] = str(enrollment_path)
+    if manifest_path is not None:
+        data["manifest_path"] = str(manifest_path)
+    if durably_enrolled is not None:
+        data["durably_enrolled"] = bool(durably_enrolled)
+        data["inserted_into_normal_queue"] = False
+        data["queue_source"] = "csv_rerun"
+        data["uses_pipeline_start"] = False
+        data["evidence_authority"] = "backend_enrollment" if durably_enrolled else "process_launch"
+    if lifecycle_state:
+        data["lifecycle_state"] = lifecycle_state
     return data
 
 
@@ -601,11 +626,22 @@ def rerun_start_success_result(
     scoped_csv_path: Path | None = None,
     scope: dict[str, Any] | None = None,
     preview_counts: dict[str, Any] | None = None,
+    command_id: str = "",
+    launch_id: str = "",
+    batch_id: str = "",
+    enrollment_path: Path | None = None,
+    manifest_path: Path | None = None,
+    durably_enrolled: bool | None = None,
+    lifecycle_state: str = "",
 ) -> CommandResult:
+    message = rerun_start_success_message(pid, dry_run, plan_only)
+    if lifecycle_state:
+        evidence = "durable enrollment recorded" if durably_enrolled else "launch evidence recorded"
+        message = f"CSV rerun {rerun_run_label(dry_run, plan_only)} process spawned via PID {pid}; {evidence}."
     return _command_result(
         command=CSV_RERUN_START_COMMAND,
         ok=True,
-        message=rerun_start_success_message(pid, dry_run, plan_only),
+        message=message,
         severity="info",
         refresh_hint="snapshot",
         data=rerun_start_success_data(
@@ -628,6 +664,13 @@ def rerun_start_success_result(
             scoped_csv_path=scoped_csv_path,
             scope=scope,
             preview_counts=preview_counts,
+            command_id=command_id,
+            launch_id=launch_id,
+            batch_id=batch_id,
+            enrollment_path=enrollment_path,
+            manifest_path=manifest_path,
+            durably_enrolled=durably_enrolled,
+            lifecycle_state=lifecycle_state,
         ),
     )
 

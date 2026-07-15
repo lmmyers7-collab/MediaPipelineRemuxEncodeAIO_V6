@@ -77,6 +77,13 @@ def rename_preview_fingerprint(rows: Iterable[Mapping[str, Any]]) -> str:
                 "destination": str(row.get("destination") or ""),
                 "mutation_root": str(row.get("mutation_root") or ""),
                 "mode": str(row.get("mode") or ""),
+                "rename_cleaning_policy_fingerprint": str(row.get("rename_cleaning_policy_fingerprint") or ""),
+                "parsed_identity": (
+                    dict(row["parsed_identity"])
+                    if isinstance(row.get("parsed_identity"), Mapping)
+                    else None
+                ),
+                "destination_identity_key": str(row.get("destination_identity_key") or ""),
                 "target_name": str(row.get("target_name") or ""),
                 "status": str(row.get("status") or ""),
                 "errors": sorted(str(item) for item in row.get("errors") or []),

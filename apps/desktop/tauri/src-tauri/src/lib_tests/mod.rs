@@ -191,11 +191,17 @@ fn capability_and_route_samples_are_bounded() {
             path: format!("/api/test-{index}"),
             auth_required: true,
             effect: None,
+            request_keys: Vec::new(),
+            safe_defaults: None,
+            requires_strict_boolean: Vec::new(),
+            requires_dry_run_fingerprint: None,
             requires_confirmation: None,
             journaled: None,
             owner: None,
             frontend_exposed: None,
             network_lifecycle: None,
+            response_schema: None,
+            data_schema: None,
         })
         .collect::<Vec<BackendRoute>>();
     let route_preview = format_route_sample(&routes, 2);
@@ -475,6 +481,291 @@ fn validate_backend_contract_missing_route_reports_route_sample_without_token() 
         error.contains("backend reported 1 route(s); sample: GET /api/health auth_required=false")
     );
     assert!(!error.contains("secret-token"));
+}
+
+fn lifecycle_reconciliation_dry_run_route_payload() -> serde_json::Value {
+    serde_json::json!({
+        "method": "POST",
+        "path": "/api/backend/lifecycle/reconcile-dry-run",
+        "auth_required": true,
+        "effect": "none",
+        "request_keys": ["reason"],
+        "requires_confirmation": false,
+        "journaled": false,
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "desktop_lifecycle_reconciliation.v1"
+    })
+}
+
+fn lifecycle_reconciliation_apply_route_payload() -> serde_json::Value {
+    serde_json::json!({
+        "method": "POST",
+        "path": "/api/backend/lifecycle/reconcile",
+        "auth_required": true,
+        "effect": "lifecycle-evidence-reconciliation",
+        "request_keys": ["confirm_apply", "dry_run_fingerprint", "reason"],
+        "safe_defaults": {"confirm_apply": false},
+        "requires_strict_boolean": ["confirm_apply"],
+        "requires_dry_run_fingerprint": true,
+        "requires_confirmation": true,
+        "journaled": true,
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "desktop_lifecycle_reconciliation.v1"
+    })
+}
+
+fn lifecycle_route_from_payload(payload: serde_json::Value) -> BackendRoute {
+    serde_json::from_value(payload).expect("deserialize lifecycle reconciliation route")
+}
+
+fn assert_lifecycle_route_drift(payload: serde_json::Value, required_index: usize, field: &str) {
+    let route = lifecycle_route_from_payload(payload);
+    let required = &REQUIRED_LIFECYCLE_RECONCILIATION_ROUTES[required_index];
+    let error = validate_lifecycle_reconciliation_route(&route, required)
+        .expect_err("lifecycle reconciliation metadata drift should fail")
+        .to_string();
+
+    assert!(
+        error.contains("Backend contract lifecycle reconciliation metadata drifted"),
+        "unexpected {field} drift error: {error}"
+    );
+    assert!(error.contains(required.path));
+}
+
+fn replace_route_field(
+    mut payload: serde_json::Value,
+    key: &str,
+    value: serde_json::Value,
+) -> serde_json::Value {
+    payload
+        .as_object_mut()
+        .expect("route payload should be an object")
+        .insert(key.to_string(), value);
+    payload
+}
+
+fn remove_route_field(mut payload: serde_json::Value, key: &str) -> serde_json::Value {
+    payload
+        .as_object_mut()
+        .expect("route payload should be an object")
+        .remove(key);
+    payload
+}
+
+#[test]
+fn lifecycle_reconciliation_route_semantics_accept_exact_contracts() {
+    let payloads = [
+        lifecycle_reconciliation_dry_run_route_payload(),
+        lifecycle_reconciliation_apply_route_payload(),
+    ];
+
+    assert_eq!(REQUIRED_LIFECYCLE_RECONCILIATION_ROUTES.len(), 2);
+    for (payload, required) in payloads
+        .into_iter()
+        .zip(REQUIRED_LIFECYCLE_RECONCILIATION_ROUTES)
+    {
+        let route = lifecycle_route_from_payload(payload);
+        validate_lifecycle_reconciliation_route(&route, required)
+            .expect("exact lifecycle reconciliation contract should validate");
+    }
+}
+
+#[test]
+fn lifecycle_reconciliation_apply_route_rejects_request_guard_drift() {
+    let cases = [
+        (
+            "request_keys order",
+            replace_route_field(
+                lifecycle_reconciliation_apply_route_payload(),
+                "request_keys",
+                serde_json::json!(["dry_run_fingerprint", "confirm_apply", "reason"]),
+            ),
+        ),
+        (
+            "request_keys expansion",
+            replace_route_field(
+                lifecycle_reconciliation_apply_route_payload(),
+                "request_keys",
+                serde_json::json!([
+                    "confirm_apply",
+                    "dry_run_fingerprint",
+                    "reason",
+                    "caller_selected_path"
+                ]),
+            ),
+        ),
+        (
+            "safe_defaults missing",
+            remove_route_field(
+                lifecycle_reconciliation_apply_route_payload(),
+                "safe_defaults",
+            ),
+        ),
+        (
+            "confirm_apply unsafe default",
+            replace_route_field(
+                lifecycle_reconciliation_apply_route_payload(),
+                "safe_defaults",
+                serde_json::json!({"confirm_apply": true}),
+            ),
+        ),
+        (
+            "strict boolean missing",
+            replace_route_field(
+                lifecycle_reconciliation_apply_route_payload(),
+                "requires_strict_boolean",
+                serde_json::json!([]),
+            ),
+        ),
+        (
+            "fingerprint guard missing",
+            remove_route_field(
+                lifecycle_reconciliation_apply_route_payload(),
+                "requires_dry_run_fingerprint",
+            ),
+        ),
+        (
+            "fingerprint guard disabled",
+            replace_route_field(
+                lifecycle_reconciliation_apply_route_payload(),
+                "requires_dry_run_fingerprint",
+                serde_json::json!(false),
+            ),
+        ),
+        (
+            "confirmation guard disabled",
+            replace_route_field(
+                lifecycle_reconciliation_apply_route_payload(),
+                "requires_confirmation",
+                serde_json::json!(false),
+            ),
+        ),
+    ];
+
+    for (field, payload) in cases {
+        assert_lifecycle_route_drift(payload, 1, field);
+    }
+}
+
+#[test]
+fn lifecycle_reconciliation_apply_route_rejects_evidence_contract_drift() {
+    let cases = [
+        (
+            "effect",
+            replace_route_field(
+                lifecycle_reconciliation_apply_route_payload(),
+                "effect",
+                serde_json::json!("none"),
+            ),
+        ),
+        (
+            "journal disabled",
+            replace_route_field(
+                lifecycle_reconciliation_apply_route_payload(),
+                "journaled",
+                serde_json::json!(false),
+            ),
+        ),
+        (
+            "journal declaration missing",
+            remove_route_field(lifecycle_reconciliation_apply_route_payload(), "journaled"),
+        ),
+        (
+            "response schema",
+            replace_route_field(
+                lifecycle_reconciliation_apply_route_payload(),
+                "response_schema",
+                serde_json::json!("desktop_command_result.v2"),
+            ),
+        ),
+        (
+            "data schema",
+            replace_route_field(
+                lifecycle_reconciliation_apply_route_payload(),
+                "data_schema",
+                serde_json::json!("desktop_lifecycle_reconciliation.v2"),
+            ),
+        ),
+        (
+            "data schema missing",
+            remove_route_field(
+                lifecycle_reconciliation_apply_route_payload(),
+                "data_schema",
+            ),
+        ),
+    ];
+
+    for (field, payload) in cases {
+        assert_lifecycle_route_drift(payload, 1, field);
+    }
+}
+
+#[test]
+fn lifecycle_reconciliation_preview_route_remains_unconfirmed_and_unjournaled() {
+    let cases = [
+        (
+            "preview safe default metadata",
+            replace_route_field(
+                lifecycle_reconciliation_dry_run_route_payload(),
+                "safe_defaults",
+                serde_json::json!({}),
+            ),
+        ),
+        (
+            "preview strict boolean metadata",
+            replace_route_field(
+                lifecycle_reconciliation_dry_run_route_payload(),
+                "requires_strict_boolean",
+                serde_json::json!(["confirm_apply"]),
+            ),
+        ),
+        (
+            "preview fingerprint guard",
+            replace_route_field(
+                lifecycle_reconciliation_dry_run_route_payload(),
+                "requires_dry_run_fingerprint",
+                serde_json::json!(true),
+            ),
+        ),
+        (
+            "preview confirmation",
+            replace_route_field(
+                lifecycle_reconciliation_dry_run_route_payload(),
+                "requires_confirmation",
+                serde_json::json!(true),
+            ),
+        ),
+        (
+            "preview journal",
+            replace_route_field(
+                lifecycle_reconciliation_dry_run_route_payload(),
+                "journaled",
+                serde_json::json!(true),
+            ),
+        ),
+    ];
+
+    for (field, payload) in cases {
+        assert_lifecycle_route_drift(payload, 0, field);
+    }
+}
+
+#[test]
+fn lifecycle_reconciliation_safe_default_requires_a_json_boolean() {
+    let payload = replace_route_field(
+        lifecycle_reconciliation_apply_route_payload(),
+        "safe_defaults",
+        serde_json::json!({"confirm_apply": "false"}),
+    );
+
+    let route = lifecycle_route_from_payload(payload);
+    let error = validate_lifecycle_reconciliation_route(
+        &route,
+        &REQUIRED_LIFECYCLE_RECONCILIATION_ROUTES[1],
+    )
+    .expect_err("string safe default should fail exact semantic validation")
+    .to_string();
+    assert!(error.contains("Backend contract lifecycle reconciliation metadata drifted"));
 }
 
 #[cfg(debug_assertions)]

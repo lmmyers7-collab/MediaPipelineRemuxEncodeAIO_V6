@@ -22,6 +22,7 @@ from mediapipeline.core.queue.source_inventory import (
 )
 from mediapipeline.core.queue.policy_parts.operator_guidance import queue_row_operator_guidance
 from mediapipeline.core.queue.priority_manifest import set_manifest_entry
+from mediapipeline.core.queue.facade import _read_latest_rerun_manifest
 from tests.python.desktop.application_facade_test_support import DummyWorkflowFacadeService, _resolved
 
 
@@ -191,7 +192,7 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
                         "launch_id": "rerun-1",
                         "job_kind": "rerun_csv",
                         "mode": "rerun_csv",
-                        "status": "active",
+                        "status": "completed",
                         "pid": 1234,
                         "app_pid": 5678,
                         "command_line": "pwsh -File Invoke-RerunCsv.ps1",
@@ -203,8 +204,8 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
                         "metadata": {},
                         "launched_at": "2026-06-30T01:00:00",
                         "last_update": "2026-06-30T01:01:00",
-                        "completed_at": "",
-                        "return_code": None,
+                        "completed_at": "2026-07-13T20:02:01Z",
+                        "return_code": 0,
                     }
                 ),
                 encoding="utf-8",
@@ -219,6 +220,296 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
         self.assertEqual(preview["rows"][0]["queue_position"], "1/1")
         self.assertEqual(preview["rows"][0]["display_name"], "Paprika (2006).mkv")
         self.assertIn("active CSV rerun manifest queue rows", "\n".join(preview["warnings"]))
+
+    def test_queue_preview_does_not_revive_terminal_rerun_history_without_active_job(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            local_base = root / "LocalBase"
+            manifest_root = local_base / "RerunManifests"
+            manifest_root.mkdir(parents=True)
+            (manifest_root / "completed-batch.json").write_text(
+                json.dumps(
+                    {
+                        "batch_id": "completed-batch",
+                        "status": "completed",
+                        "rows": [{"source_path": str(root / "Movie.mkv"), "status": "completed"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            resolved = _resolved(root)
+            resolved.local_base = local_base
+            resolved.state_root = local_base / "State"
+            resolved.queue_snapshot_path = local_base / "State" / "Progress" / "missing.json"
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+
+            preview = facade.get_queue_preview(resolved).to_mapping()
+
+        self.assertEqual(preview["rows"], [])
+        self.assertEqual(preview["source"], str(resolved.queue_snapshot_path))
+        self.assertIn("No queue snapshot is available", "\n".join(preview["warnings"]))
+
+    def test_queue_preview_projects_waiting_enrollment_without_snapshot_or_active_job(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            local_base = root / "LocalBase"
+            state_root = local_base / "State"
+            enrollment_root = state_root / "Rerun" / "Local"
+            enrollment_root.mkdir(parents=True)
+            expected_manifest = local_base / "RerunManifests" / "batch-waiting.json"
+            source = root / "Offline" / "Movie.mkv"
+            (enrollment_root / "batch-waiting.json").write_text(
+                json.dumps(
+                    {
+                        "batch_id": "batch-waiting",
+                        "command_id": "command-waiting",
+                        "launch_id": "launch-waiting",
+                        "status": "waiting_for_source",
+                        "lifecycle_state": "waiting_for_source",
+                        "manifest_path": str(expected_manifest),
+                        "reason": "Configured source root is temporarily unavailable.",
+                        "rows": [
+                            {
+                                "source_path": str(source),
+                                "status": "waiting_for_source",
+                                "reason": "Configured source root is temporarily unavailable.",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            resolved = _resolved(root)
+            resolved.local_base = local_base
+            resolved.state_root = state_root
+            resolved.queue_snapshot_path = state_root / "Progress" / "missing.json"
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+
+            preview = facade.get_queue_preview(resolved).to_mapping()
+
+        self.assertEqual(preview["source"], str(expected_manifest))
+        self.assertEqual(preview["rows"][0]["queue_source"], "csv_rerun")
+        self.assertEqual(preview["rows"][0]["queue_status"], "waiting")
+        self.assertEqual(preview["rows"][0]["queue_status_label"], "Waiting For Source")
+        self.assertEqual(preview["rows"][0]["operator_status_state"], "waiting")
+
+    def test_queue_preview_combines_runnable_normal_rows_with_active_csv_rerun_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            local_base = root / "LocalBase"
+            normal_source = root / "TV" / "Show" / "Show - S01E01.mkv"
+            normal_source.parent.mkdir(parents=True)
+            normal_source.write_bytes(b"normal")
+            rerun_source = root / "Movies" / "Movie.mkv"
+            rerun_source.parent.mkdir(parents=True)
+            rerun_source.write_bytes(b"rerun")
+
+            snapshot_path = local_base / "State" / "Progress" / "queue_snapshot.json"
+            snapshot_path.parent.mkdir(parents=True)
+            snapshot_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "queue_plan_snapshot.v1",
+                        "produced_at": "2026-07-13T20:00:00Z",
+                        "config_path": str(root / "config.psd1"),
+                        "local_base": str(local_base),
+                        "source_movies": str(root / "Movies"),
+                        "source_tv": str(root / "TV"),
+                        "outsource": str(root / "Outsource"),
+                        "movie_count_total": 0,
+                        "tv_count_total": 1,
+                        "priority_count": 0,
+                        "runnable_count": 1,
+                        "rows": [
+                            {
+                                "global_order": 1,
+                                "phase": "tv",
+                                "media_kind": "tv",
+                                "queue_index": 1,
+                                "queue_total": 1,
+                                "is_priority": False,
+                                "source_path": str(normal_source),
+                                "root_path": str(root / "TV"),
+                                "relative_path": "Show\\Show - S01E01.mkv",
+                                "display_name": normal_source.name,
+                                "size_gb": 1.0,
+                                "route": "remux",
+                                "route_reason_code": "copy_compatible",
+                                "route_reason": "already compatible",
+                                "blocked_reason": "",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            manifest_root = local_base / "RerunManifests"
+            manifest_root.mkdir(parents=True)
+            terminal_sources = [root / "History" / f"Terminal-{index}.mkv" for index in range(4)]
+            terminal_manifest = manifest_root / "batch-terminal-history.json"
+            terminal_manifest.write_text(
+                json.dumps(
+                    {
+                        "batch_id": "batch-terminal-history",
+                        "lifecycle_state": "terminal",
+                        "status": "completed_with_failures",
+                        "rows": [
+                            {"source_path": str(terminal_sources[0]), "lifecycle_state": "terminal", "status": "published_replace_final"},
+                            {"source_path": str(terminal_sources[1]), "lifecycle_state": "terminal", "status": "review_workspace"},
+                            {"source_path": str(terminal_sources[2]), "lifecycle_state": "terminal", "status": "pending_publish"},
+                            {"source_path": str(terminal_sources[3]), "lifecycle_state": "terminal", "status": "failed"},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            enrollment_root = local_base / "State" / "Rerun" / "Local"
+            enrollment_root.mkdir(parents=True)
+            expected_manifest = manifest_root / "batch-visible.json"
+            (enrollment_root / "batch-visible.json").write_text(
+                json.dumps(
+                    {
+                        "batch_id": "batch-visible",
+                        "command_id": "command-visible",
+                        "launch_id": "launch-visible",
+                        "created_at": "2026-07-13T20:01:00Z",
+                        "status": "retry_scheduled",
+                        "lifecycle_state": "retry_scheduled",
+                        "manifest_path": str(expected_manifest),
+                        "rows": [
+                            {
+                                "row_index": 0,
+                                "source_path": str(rerun_source),
+                                "media_kind": "movie",
+                                "status": "retry_scheduled",
+                                "lifecycle_state": "retry_scheduled",
+                                "reason": "Configured source root is temporarily unavailable.",
+                                "stage_path": str(local_base.parent / "LocalBase_RerunWorkspace" / "stage" / rerun_source.name),
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            active_jobs = local_base / "State" / "ActiveJobs"
+            active_jobs.mkdir(parents=True)
+            (active_jobs / "launch-visible.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_active_job.v1",
+                        "launch_id": "launch-visible",
+                        "job_kind": "rerun_csv",
+                        "mode": "rerun_csv",
+                        "status": "completed",
+                        "pid": 1234,
+                        "app_pid": 5678,
+                        "command_line": "pwsh -File Invoke-RerunCsv.ps1",
+                        "args": [],
+                        "cwd": str(root),
+                        "stdout_log": str(root / "rerun.stdout.log"),
+                        "stderr_log": str(root / "rerun.stderr.log"),
+                        "show_console": False,
+                        "metadata": {
+                            "command_id": "command-visible",
+                            "batch_id": "batch-visible",
+                            "enrollment_path": str(enrollment_root / "batch-visible.json"),
+                            "manifest_path": str(expected_manifest),
+                        },
+                        "launched_at": "2026-07-13T20:01:00Z",
+                        "last_update": "2026-07-13T20:02:00Z",
+                        "completed_at": "2026-07-13T20:02:01Z",
+                        "return_code": 0,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            resolved = _resolved(root)
+            resolved.local_base = local_base
+            resolved.state_root = local_base / "State"
+            resolved.active_jobs_path = active_jobs
+            resolved.queue_snapshot_path = snapshot_path
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+
+            preview = facade.get_queue_preview(resolved).to_mapping()
+
+        sources = [str(row.get("queue_source") or "normal_queue") for row in preview["rows"]]
+        self.assertEqual(sources, ["normal_queue", "csv_rerun"])
+        self.assertEqual(preview["shown_row_count"], 2)
+        self.assertEqual(preview["normal_queue_visible_count"], 1)
+        self.assertEqual(preview["dedicated_rerun_visible_count"], 1)
+        self.assertEqual(preview["queue_sources"], ["normal_queue", "csv_rerun"])
+        self.assertEqual(preview["runnable_count"], 1)
+        rerun_row = preview["rows"][1]
+        self.assertFalse(rerun_row["uses_pipeline_start"])
+        self.assertEqual(rerun_row["rerun_batch_id"], "batch-visible")
+        self.assertEqual(rerun_row["batch_id"], "batch-visible")
+        self.assertEqual(rerun_row["command_id"], "command-visible")
+        self.assertEqual(rerun_row["launch_id"], "launch-visible")
+        self.assertEqual(rerun_row["manifest_path"], str(expected_manifest))
+        self.assertEqual(rerun_row["enrollment_path"], str(enrollment_root / "batch-visible.json"))
+        self.assertEqual(rerun_row["active_jobs_key"], "launch-visible")
+        self.assertEqual(rerun_row["active_jobs_path"], str(active_jobs / "launch-visible.json"))
+        self.assertEqual(rerun_row["stdout_log"], str(root / "rerun.stdout.log"))
+        self.assertEqual(rerun_row["stderr_log"], str(root / "rerun.stderr.log"))
+        self.assertEqual(rerun_row["command_evidence_key"], "command-visible")
+        self.assertEqual(preview["rerun_correlation"]["batch_id"], "batch-visible")
+        self.assertEqual(preview["rerun_correlation"]["active_jobs_path"], str(active_jobs / "launch-visible.json"))
+        self.assertEqual(rerun_row["queue_status"], "retrying")
+        self.assertEqual(rerun_row["operator_status_state"], "waiting")
+        visible_paths = {str(row.get("original_source_path") or row.get("source_path") or "") for row in preview["rows"]}
+        self.assertTrue(all(str(path) not in visible_paths for path in terminal_sources))
+        self.assertIn("dedicated CSV rerun batch", "\n".join(preview["warnings"]))
+
+    def test_queue_authority_hides_stale_progress_when_newer_enrollment_failed(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            local_base = root / "LocalBase"
+            manifest_root = local_base / "RerunManifests"
+            enrollment_root = local_base / "State" / "Rerun" / "Local"
+            manifest_root.mkdir(parents=True)
+            enrollment_root.mkdir(parents=True)
+            manifest_path = manifest_root / "batch-stale.json"
+            enrollment_path = enrollment_root / "batch-stale.json"
+            manifest_payload = {
+                "batch_id": "batch-stale",
+                "command_id": "command-stale",
+                "launch_id": "launch-stale",
+                "status": "processing",
+                "rows": [{"row_index": 0, "status": "processing", "source_path": str(root / "Movie.mkv")}],
+            }
+            enrollment_payload = {
+                "batch_id": "batch-stale",
+                "command_id": "command-stale",
+                "launch_id": "launch-stale",
+                "status": "failed_before_manifest",
+                "lifecycle_state": "failed_before_manifest",
+                "manifest_path": str(manifest_path),
+                "last_transition_at": "2026-07-14T01:00:00Z",
+                "rows": [
+                    {
+                        "row_index": 0,
+                        "status": "failed_before_manifest",
+                        "lifecycle_state": "failed_before_manifest",
+                        "source_path": str(root / "Movie.mkv"),
+                    }
+                ],
+            }
+            manifest_path.write_text(json.dumps(manifest_payload), encoding="utf-8")
+            enrollment_path.write_text(json.dumps(enrollment_payload), encoding="utf-8")
+            os.utime(manifest_path, (1, 1))
+            os.utime(enrollment_path, (2, 2))
+            resolved = _resolved(root)
+            resolved.local_base = local_base
+            resolved.state_root = local_base / "State"
+
+            selected = _read_latest_rerun_manifest(resolved)
+            manifest_after = json.loads(manifest_path.read_text(encoding="utf-8"))
+            enrollment_after = json.loads(enrollment_path.read_text(encoding="utf-8"))
+
+        self.assertIsNone(selected)
+        self.assertEqual(manifest_after, manifest_payload)
+        self.assertEqual(enrollment_after, enrollment_payload)
 
     def test_csv_rerun_manifest_status_and_reason_drive_operator_state(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -248,6 +539,11 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
                             {"source_path": str(root / "i.mkv"), "status": "stopped"},
                             {"source_path": str(root / "j.mkv"), "status": "skipped"},
                             {"source_path": str(root / "k.mkv"), "status": "review", "reason": "manual status review"},
+                            {
+                                "source_path": str(root / "l.mkv"),
+                                "status": "spawn_transition_ambiguous",
+                                "reason": "Spawn proof and child exit could not be verified.",
+                            },
                         ],
                     }
                 ),
@@ -301,6 +597,10 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
         self.assertEqual(by_source["k.mkv"]["operator_status_state"], "review")
         self.assertEqual(by_source["k.mkv"]["operator_severity"], "warning")
         self.assertEqual(by_source["k.mkv"]["queue_status_label"], "Review")
+        self.assertEqual(by_source["l.mkv"]["queue_status"], "blocked")
+        self.assertEqual(by_source["l.mkv"]["queue_status_label"], "Child Exit Unverified")
+        self.assertEqual(by_source["l.mkv"]["operator_status_state"], "blocked")
+        self.assertEqual(by_source["l.mkv"]["operator_severity"], "error")
         self.assertFalse(by_source["g.mkv"]["uses_pipeline_start"])
 
     def test_queue_preview_reads_existing_snapshot_without_dry_run(self) -> None:

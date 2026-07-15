@@ -25,6 +25,10 @@
 
     function setCompletedOpenBusy(isBusy) {
       completedOpenInFlight = Boolean(isBusy);
+      if (typeof window.mediaPipelineAppRowOpenActions?.setBackendRowOpenActionBusy === "function") {
+        window.mediaPipelineAppRowOpenActions.setBackendRowOpenActionBusy("completed", completedOpenInFlight);
+        return;
+      }
       document.querySelectorAll("[data-open-completed]").forEach((button) => {
         button.disabled = completedOpenInFlight;
       });

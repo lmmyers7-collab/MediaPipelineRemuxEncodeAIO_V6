@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-10
+last_modified: 2026-07-13
 last_reviewed: 2026-06-04
-sha256: 63df05fa3254ce9118f7a161dbc0097a47bfba7820d4dd27e907d4ecb32d150b
+sha256: cedd8a246c91f6f6f2bf100abfcb7daf07d715b8d9627c8d9e46fd4582ee744d
 ---
 # `ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1`
 

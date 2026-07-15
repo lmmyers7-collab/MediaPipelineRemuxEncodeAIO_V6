@@ -14,6 +14,7 @@ from collections.abc import Sequence
 from mediapipeline.core.config.identity import config_identity_block_reasons
 from mediapipeline.core.config.recovery import ensure_canonical_config, restore_verified_last_good_config
 from mediapipeline.core.processes.recovery import LifecycleRecoveryCoordinator
+from mediapipeline.core.processes.rerun_lifecycle import reconcile_local_rerun_enrollments
 from mediapipeline.core.api.file_overrides.remux_pilot import file_override_remux_pilot_auto_promote_payload
 
 from .api import LocalApiServer
@@ -34,6 +35,7 @@ class BackendResolvedState:
         self.pipeline_path = pipeline_path
         self.config_path = config_path
         self._lock = threading.Lock()
+        self._reload_callbacks: list[Callable[[ResolvedPaths], None]] = []
         self._resolved = self._resolve()
 
     def _resolve(self) -> ResolvedPaths:
@@ -47,7 +49,14 @@ class BackendResolvedState:
         resolved = self._resolve()
         with self._lock:
             self._resolved = resolved
+            callbacks = list(self._reload_callbacks)
+        for callback in callbacks:
+            callback(resolved)
         return resolved
+
+    def add_reload_callback(self, callback: Callable[[ResolvedPaths], None]) -> None:
+        with self._lock:
+            self._reload_callbacks.append(callback)
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -269,6 +278,25 @@ def build_backend(
         detail=f"state={resolved.state_root or ''}; progress={resolved.progress_file or ''}",
         callback=startup_progress_callback,
     )
+    rerun_reconciliation = reconcile_local_rerun_enrollments(resolved)
+    record_startup_step(
+        startup_steps,
+        "reconcile_local_reruns",
+        "Reconcile local CSV reruns",
+        detail=(
+            f"checked={rerun_reconciliation.get('checked_count', 0)}; "
+            f"alive={rerun_reconciliation.get('alive_count', 0)}; "
+            f"terminalized={rerun_reconciliation.get('terminalized_count', 0)}; "
+            f"replayed={rerun_reconciliation.get('replayed_count', 0)}"
+        ),
+        status="complete" if rerun_reconciliation.get("persisted") is not False else "warning",
+        callback=startup_progress_callback,
+    )
+
+    def _reconcile_local_reruns_after_reload(reloaded: ResolvedPaths) -> None:
+        reconcile_local_rerun_enrollments(reloaded)
+
+    resolved_state.add_reload_callback(_reconcile_local_reruns_after_reload)
     facade = MediaPipelineApplicationFacade(service)
     startup_progress = record_startup_step(
         startup_steps,

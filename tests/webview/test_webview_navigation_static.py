@@ -25,6 +25,7 @@ from mediapipeline.desktop.api.static_files import render_index
 
 _STATIC_ROOT = find_repo_root(Path(__file__)) / "apps" / "desktop" / "webview" / "static"
 _INDEX_HTML = _STATIC_ROOT / "index.html"
+_NAVIGATION_JS = _STATIC_ROOT / "assets" / "app" / "lifecycle" / "navigation.js"
 
 _EXPECTED_NAV_PAGES = [
     "home",
@@ -289,6 +290,27 @@ class WebViewNavigationStaticTests(unittest.TestCase):
         html = response.body.decode("utf-8")
         self.assertIn('data-page="home" aria-current="page"', html)
         self.assertEqual(html.count('aria-current="page"'), 1)
+
+    def test_primary_nav_handles_enter_directly_and_leaves_space_native(self) -> None:
+        source = _NAVIGATION_JS.read_text(encoding="utf-8")
+        init_source = source[source.index("function initNavigation()") : source.index("function sparkKind")]
+        handler_match = re.search(
+            r'button\.addEventListener\("keydown", \(event\) => \{.*?\n\s*\}\);',
+            init_source,
+            re.S,
+        )
+        self.assertIsNotNone(handler_match)
+        handler = handler_match.group(0)
+        for fragment in [
+            'button.addEventListener("keydown", (event) => {',
+            'if (event.key !== "Enter") return;',
+            "event.preventDefault();",
+            "event.stopPropagation();",
+            "if (event.repeat) return;",
+            "showPage(button.dataset.page);",
+        ]:
+            self.assertIn(fragment, handler)
+        self.assertNotIn('" "', handler)
 
     def test_initial_visible_page_panel_is_home(self) -> None:
         visible_panels = [p["panel"] for p in self.parsed.page_panels if "is-visible" in p["classes"]]

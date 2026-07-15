@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0715-001",
+  "title": "Fix converted subtitle codec verification",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-15",
+  "date_completed": "2026-07-15",
+  "summary": "Normalize converted subtitle verification expectations so an SRT input copied into the output is verified as the resulting subrip media codec instead of the FFmpeg command token copy.",
+  "reason": "A representative Kanan encode completed video encoding and muxing but was blocked during output verification because converted ASS-to-SRT tracks used -c:s copy while the verifier incorrectly expected ffprobe to report codec_name=copy. ffprobe correctly reports subrip for that output stream.",
+  "affected_areas": [
+    "generated-context",
+    "subtitles",
+    "tests"
+  ],
+  "behavior_before": "Converted ASS, TX3G, BDPGS, and VobSub tracks could record copy as their expected output codec when the converted SRT input was stream-copied, causing valid subrip output streams to fail media-track verification.",
+  "behavior_after": "Converted subtitle tracks still use the configured FFmpeg codec command, but verification maps copy to the resulting subrip codec while preserving explicit non-copy codec expectations.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/subtitles/builders.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1.md",
+    "ops/pipeline/engine/subtitles/builders.ps1",
+    "ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0715-001.json"
+  ],
+  "tests_added": [
+    "Invoke-SubtitleBuilderDecisionChecks.ps1 now covers converted ASS, TX3G, and BDPGS tracks when the FFmpeg output codec command is copy and requires subrip verification expectations."
+  ],
+  "manual_validation": [
+    "A fresh real-media Kanan encode completed with exit code 0, passed duration and media-track verification, and published successfully.",
+    "GREEN: Invoke-SubtitleBuilderDecisionChecks.ps1 passed after the production change.",
+    "Invoke-MediaTrackOutputVerificationChecks.ps1 passed.",
+    "Invoke-ReliabilityRegressionChecks.ps1 passed the full active reliability regression suite.",
+    "Invoke-ToolIntegrationChecks.ps1 passed bundled FFmpeg, ffprobe, and subtitle integration checks.",
+    "PSScriptAnalyzer reported no errors for the changed PowerShell implementation and test.",
+    "RED: Invoke-SubtitleBuilderDecisionChecks.ps1 failed with expected subrip,subrip,subrip but actual copy,copy,copy before the production change.",
+    "The production verifier passed the retained failed Kanan encode artifact against its corrected in-memory plan with zero mismatches."
+  ],
+  "rollback_plan": "Revert the verification-only expected-codec normalization and its regression test. Existing published media does not need to be changed; the rollback would restore the prior false-negative verification behavior for stream-copied converted SRT tracks.",
+  "related_changes": [],
+  "notes": "Python impact: none. Source media was not mutated. Failure-marker clears were dry-run scoped first and manifest-backed; they did not touch media. No commit was created.\nRefresh generated summary after regression coverage update.\nRefresh generated summary after subtitle verification fix."
+}

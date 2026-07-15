@@ -1867,7 +1867,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertNotIn("await refreshAll();", save_block)
         self.assertNotIn('setText("settings-patch-status", "Saved")', settings_js)
 
-        self.assertIn('if (result.ok) return result.severity === "warning" ? "Warning" : successLabel;', launch_js)
+        self.assertIn('if (result.severity === "warning") return "Warning";', launch_js)
+        self.assertIn('return launchCommandIsAcceptedRerun(result) ? "Accepted" : successLabel;', launch_js)
         self.assertIn('return result.severity || "Blocked";', launch_js)
         self.assertIn('`Result: ${payload.ok ? "ok" : "blocked"}', launch_js)
         self.assertIn('command: "pending_publish.drain"', launch_js)
@@ -3426,11 +3427,21 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             app_root = Path(raw_root) / "apps" / "desktop"
             app_root.mkdir(parents=True)
             emitted_progress: list[dict[str, object]] = []
-            service, resolved, server = build_backend(
-                app_root=app_root,
-                token="headless-token",
-                startup_progress_callback=emitted_progress.append,
-            )
+            with patch(
+                "mediapipeline.desktop.local_api_main.reconcile_local_rerun_enrollments",
+                return_value={
+                    "checked_count": 0,
+                    "alive_count": 0,
+                    "terminalized_count": 0,
+                    "replayed_count": 0,
+                    "persisted": True,
+                },
+            ):
+                service, resolved, server = build_backend(
+                    app_root=app_root,
+                    token="headless-token",
+                    startup_progress_callback=emitted_progress.append,
+                )
             try:
                 server.start()
                 payload = bootstrap_payload(server, resolved, include_token=True)
@@ -3455,6 +3466,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("verify_ffmpeg", steps_by_id)
         self.assertIn("verify_ffprobe", steps_by_id)
         self.assertIn("verify_mkvmerge", steps_by_id)
+        self.assertIn("reconcile_local_reruns", steps_by_id)
         self.assertIn("create_local_api", steps_by_id)
         elapsed_values = [float(step["elapsed_ms"]) for step in payload["startup_progress"]["steps"]]
         self.assertEqual(elapsed_values, sorted(elapsed_values))
@@ -3463,6 +3475,32 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             detail = str(steps_by_id[step_id].get("detail") or "")
             self.assertIn("ops\\pipeline\\tools", detail)
             self.assertNotIn("entrypoints\\Tools", detail)
+
+    def test_headless_backend_reconciles_local_reruns_on_startup_and_explicit_reload(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            app_root = Path(raw_root) / "apps" / "desktop"
+            app_root.mkdir(parents=True)
+            with patch(
+                "mediapipeline.desktop.local_api_main.reconcile_local_rerun_enrollments",
+                return_value={
+                    "schema_version": "desktop_rerun_startup_reconciliation.v1",
+                    "checked_count": 0,
+                    "terminalized_count": 0,
+                    "replayed_count": 0,
+                    "items": [],
+                },
+            ) as reconcile:
+                service, _resolved_paths, server = build_backend(app_root=app_root, token="reload-token")
+                try:
+                    self.assertTrue(callable(server.resolved_reload))
+                    server.resolved_reload()
+                finally:
+                    service.stop_background_tasks()
+                    for handler in list(service.logger.handlers):
+                        service.logger.removeHandler(handler)
+                        handler.close()
+
+        self.assertEqual(reconcile.call_count, 2)
 
 
 if __name__ == "__main__":

@@ -94,6 +94,10 @@
         const value = Number.parseFloat(control.value);
         return Number.isFinite(value) ? value : control.value;
       }
+      if (kind === "float" || field?.value_type === "number") {
+        const value = Number.parseFloat(control.value);
+        return Number.isFinite(value) ? value : control.value;
+      }
       return control.value;
     }
 
@@ -126,7 +130,8 @@
       const control = row?.querySelector("[data-library-override-control]");
       if (!row || !control) return false;
       const wasOverride = row.dataset.libraryOverride === "true";
-      setOverrideControlValue(control, key, value);
+      const nextValue = options.reset === true ? overrideRowInheritedValue(row, key) : value;
+      setOverrideControlValue(control, key, nextValue);
       if (options.reset === true) {
         updateOverrideRowState(row, false);
         if (wasOverride) row.dataset.libraryResetPending = "true";
@@ -148,7 +153,32 @@
       return preset?.warning || "Managed by the selected library compatibility preset.";
     }
 
-    function syncLibraryCompatibilityAvailability(card) {
+    function captureLibraryForcedRowState(row, control, key) {
+      if (!row || !control || row.dataset.libraryForcedByPreset) return;
+      row.dataset.libraryForcedPreviousValue = JSON.stringify(readOverrideControlValue(control, key));
+      row.dataset.libraryForcedPreviousOverride = row.dataset.libraryOverride === "true" ? "true" : "false";
+      row.dataset.libraryForcedPreviousResetPending = row.dataset.libraryResetPending === "true" ? "true" : "false";
+    }
+
+    function restoreLibraryForcedRowState(row, control, key) {
+      if (!row || !control || !row.dataset.libraryForcedByPreset) return;
+      try {
+        setOverrideControlValue(control, key, JSON.parse(row.dataset.libraryForcedPreviousValue || "null"));
+      } catch (_error) {
+        setOverrideControlValue(control, key, overrideRowInheritedValue(row, key));
+      }
+      updateOverrideRowState(row, row.dataset.libraryForcedPreviousOverride === "true");
+      if (row.dataset.libraryForcedPreviousResetPending === "true") row.dataset.libraryResetPending = "true";
+      else delete row.dataset.libraryResetPending;
+    }
+
+    function clearLibraryForcedRowState(row) {
+      delete row.dataset.libraryForcedPreviousValue;
+      delete row.dataset.libraryForcedPreviousOverride;
+      delete row.dataset.libraryForcedPreviousResetPending;
+    }
+
+    function syncLibraryCompatibilityAvailability(card, options = {}) {
       if (!card) return;
       const preset = mp4CompatibilityPreset();
       const active = libraryCardMp4CompatibilityActive(card);
@@ -168,10 +198,13 @@
         const key = row.getAttribute("data-library-override-key") || "";
         const control = row.querySelector("[data-library-override-control]");
         const forced = Boolean(active && preset?.overrides?.[group] && Object.prototype.hasOwnProperty.call(preset.overrides[group], key));
+        const wasForced = row.dataset.libraryForcedByPreset === "mp4_compatibility";
+        const drivesPreset = key === "OutputContainer";
         row.classList.toggle("is-forced", forced);
         if (forced) {
           const reason = presetReasonForKey(preset, group, key);
           if (control) {
+            if (!drivesPreset) captureLibraryForcedRowState(row, control, key);
             setOverrideControlValue(control, key, preset.overrides[group][key]);
             updateOverrideRowState(row, true);
           }
@@ -183,7 +216,11 @@
             control.title = reason;
           }
         } else {
+          if (wasForced && row.dataset.libraryForcedPreviousOverride !== undefined && options.preserveCurrentOnUnforce !== true) {
+            restoreLibraryForcedRowState(row, control, key);
+          }
           delete row.dataset.libraryForcedByPreset;
+          clearLibraryForcedRowState(row);
           delete row.dataset.libraryDisabledReason;
           row.removeAttribute("title");
           if (control && row.getAttribute("data-library-override-eligible") === "true") {
@@ -212,11 +249,11 @@
       if (!card || !preset?.overrides) return false;
       Object.values(preset.overrides).forEach((values) => {
         Object.keys(values || {}).forEach((key) => {
-          setLibraryOverrideValue(card, key, defaultSettingValue(key), { reset: true });
+          setLibraryOverrideValue(card, key, undefined, { reset: true });
         });
       });
       syncLibraryRouteReadouts(card);
-      syncLibraryCompatibilityAvailability(card);
+      syncLibraryCompatibilityAvailability(card, { preserveCurrentOnUnforce: true });
       return true;
     }
 
@@ -281,7 +318,7 @@
         ? ["Route1080pUpperHeightTolerancePercent", "Route1440pLowerHeightTolerancePercent"]
         : ["Route1440pUpperHeightTolerancePercent", "Route4KLowerHeightTolerancePercent"];
       keys.forEach((key) => {
-        setLibraryRouteOverrideValue(card, key, defaultSettingValue(key), { reset: true });
+        setLibraryRouteOverrideValue(card, key, undefined, { reset: true });
       });
       syncLibraryRouteReadouts(card);
     }
@@ -298,6 +335,24 @@
       card.dataset.localInheritedFields = JSON.stringify(Array.from(inherited));
     }
 
+    function overrideRowInheritedValue(row, key) {
+      try {
+        return JSON.parse(row.dataset.libraryInheritedValue || "null");
+      } catch (_error) {
+        return defaultSettingValue(key);
+      }
+    }
+
+    function overrideRowValuesEqual(left, right, key = "") {
+      const kind = String(fieldDefinition(key)?.kind || "");
+      if (kind.startsWith("optional_")) {
+        const leftBlank = left === null || left === undefined || String(left).trim() === "";
+        const rightBlank = right === null || right === undefined || String(right).trim() === "";
+        if (leftBlank && rightBlank) return true;
+      }
+      return JSON.stringify(left) === JSON.stringify(right);
+    }
+
     function updateOverrideRowState(row, isOverride) {
       row.dataset.libraryOverride = isOverride ? "true" : "false";
       row.classList.toggle("is-custom", isOverride);
@@ -306,7 +361,7 @@
       const control = row.querySelector("[data-library-override-control]");
       const state = row.querySelector("[data-library-override-state-label]");
       if (state && control) {
-        state.textContent = overrideStateText(isOverride, readOverrideControlValue(control, key), defaultSettingValue(key));
+        state.textContent = overrideStateText(isOverride, readOverrideControlValue(control, key), overrideRowInheritedValue(row, key));
         state.classList.toggle("is-custom", isOverride);
         state.classList.toggle("is-inherited", !isOverride);
       }
@@ -315,6 +370,20 @@
         button.hidden = !isOverride;
         button.disabled = !isOverride;
       }
+    }
+
+    function updateEditedOverrideRowState(row) {
+      const key = row.getAttribute("data-library-override-key") || "";
+      const control = row.querySelector("[data-library-override-control]");
+      if (!control) return;
+      const persistedOverride = row.dataset.libraryPersistedOverride === "true";
+      const matchesInherited = overrideRowValuesEqual(
+        readOverrideControlValue(control, key),
+        overrideRowInheritedValue(row, key),
+        key
+      );
+      delete row.dataset.libraryResetPending;
+      updateOverrideRowState(row, persistedOverride || !matchesInherited);
     }
 
     function setPathRowState(card, field, inherited) {
@@ -692,7 +761,7 @@
         const wasOverride = row.dataset.libraryOverride === "true";
         const key = row.getAttribute("data-library-override-key") || "";
         const control = row.querySelector("[data-library-override-control]");
-        if (control) setOverrideControlValue(control, key, defaultSettingValue(key));
+        if (control) setOverrideControlValue(control, key, overrideRowInheritedValue(row, key));
         updateOverrideRowState(row, false);
         if (wasOverride) {
           row.dataset.libraryResetPending = "true";
@@ -795,7 +864,7 @@
             const key = row?.getAttribute("data-library-override-key") || "";
             const control = row?.querySelector("[data-library-override-control]");
             if (row && control) {
-              setOverrideControlValue(control, key, defaultSettingValue(key));
+              setOverrideControlValue(control, key, overrideRowInheritedValue(row, key));
               updateOverrideRowState(row, false);
               row.dataset.libraryResetPending = "true";
             }
@@ -829,10 +898,7 @@
           }
           if (target.matches?.("[data-library-override-control]")) {
             const row = target.closest("[data-library-override-row]");
-            if (row) {
-              delete row.dataset.libraryResetPending;
-              updateOverrideRowState(row, true);
-            }
+            if (row) updateEditedOverrideRowState(row);
             syncLibraryRouteReadouts(card);
             syncLibraryCompatibilityAvailability(card);
           }
@@ -884,10 +950,7 @@
           }
           if (target instanceof Element && target.matches?.("[data-library-override-control]")) {
             const row = target.closest("[data-library-override-row]");
-            if (row) {
-              delete row.dataset.libraryResetPending;
-              updateOverrideRowState(row, true);
-            }
+            if (row) updateEditedOverrideRowState(row);
             const card = target.closest?.(".settings-library-card");
             if (card) {
               syncLibraryRouteReadouts(card);
@@ -955,7 +1018,10 @@
       resetLibraryRouteBoundary,
       localInheritedFields,
       setLocalInheritedFields,
+      overrideRowInheritedValue,
+      overrideRowValuesEqual,
       updateOverrideRowState,
+      updateEditedOverrideRowState,
       setPathRowState,
       profileFromCard,
       profileCardsFromDom,

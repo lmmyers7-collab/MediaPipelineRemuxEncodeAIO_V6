@@ -38,6 +38,14 @@
       target.nodeValue = `${leading}${labelText}${trailing || " "}`;
     }
 
+    function settingsDisplayConstraint(value, fallbackKind, unit, boundary) {
+      if (fallbackKind !== "bytes_gib" || String(unit || "").toLowerCase() !== "bytes") {
+        return String(value);
+      }
+      const gib = Number(value) / (1024 ** 3);
+      return String(boundary === "max" ? Math.max(1, Math.floor(gib)) : Math.max(1, Math.ceil(gib)));
+    }
+
     // eslint-disable-next-line complexity -- metadata sync owns several independent control attributes.
     function applySettingsFieldMetadataToControl([key, id, fallbackKind]) {
       const field = settingsFieldDefinition(key);
@@ -53,6 +61,7 @@
       element.dataset.settingsKey = key;
       element.dataset.settingsPersistedKey = persistedKey;
       element.dataset.settingsValueType = valueType;
+      element.dataset.settingsUnit = String(field.unit || "");
       element.dataset.settingsAdvancedVisibility = advancedVisibility;
       element.dataset.settingsAdvancedControl = String(isAdvanced);
       if (field.short_label) element.dataset.settingsShortLabel = String(field.short_label);
@@ -91,9 +100,15 @@
           if (!preserveInputType && element.type !== "range") element.type = "number";
         }
         const preserveRangeLimits = element.type === "range" && element.dataset.settingsPreserveRangeLimits === "true";
-        if (!preserveRangeLimits && field.min !== null && field.min !== undefined) element.min = String(field.min);
-        if (!preserveRangeLimits && field.max !== null && field.max !== undefined) element.max = String(field.max);
-        if (!preserveRangeLimits && field.step !== null && field.step !== undefined) element.step = String(field.step);
+        if (!preserveRangeLimits && field.min !== null && field.min !== undefined) {
+          element.min = settingsDisplayConstraint(field.min, fallbackKind, field.unit, "min");
+        }
+        if (!preserveRangeLimits && field.max !== null && field.max !== undefined) {
+          element.max = settingsDisplayConstraint(field.max, fallbackKind, field.unit, "max");
+        }
+        if (!preserveRangeLimits && field.step !== null && field.step !== undefined) {
+          element.step = settingsDisplayConstraint(field.step, fallbackKind, field.unit, "step");
+        }
       }
     }
 

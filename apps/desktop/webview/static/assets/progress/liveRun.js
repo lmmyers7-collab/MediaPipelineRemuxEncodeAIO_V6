@@ -46,7 +46,7 @@
     if (activeWorkSummary && !activeWorkSummary.toLowerCase().includes("csv") && !timelineLooksIdleWaiting(activeWorkSummary)) {
       return { label: "Active work", state: "running" };
     }
-    if (csvRerun.hasEvidence) return { label: "CSV rerun active", state: "running" };
+    if (csvRerun.isActive) return { label: "CSV rerun active", state: "running" };
     if (closeReadiness?.safe_to_close === false || ["processing", "running", "active", "publishing"].includes(state)) {
       return { label: "Active work", state: "running" };
     }
@@ -154,7 +154,7 @@
       liveRunItem("Reliability", reliabilityStatus === "ok" ? "Ready" : reliabilityStatus === "blocked" ? "Blocked" : reliabilityStatus === "warning" ? "Review" : "Unknown", reliabilitySummary || "Long-run reliability counters are backend-owned and read-only.", reliabilityStatus),
       liveRunItem("Close", closeReadiness ? (closeReadiness.safe_to_close ? "Safe" : "Not safe") : "Unknown", closeReadiness?.reason || "Close-readiness is backend-owned.", closeReadiness?.safe_to_close ? "ok" : closeReadiness?.safe_to_close === false ? "blocked" : "unknown"),
     ];
-    if (csvRerun.hasEvidence) {
+    if (csvRerun.isActive) {
       items.unshift(
         liveRunItem("CSV rows", csvRerun.plannedRows || "CSV rerun active", "From the bounded last stdout log.", csvRerun.plannedRows ? "ok" : "running"),
         liveRunItem(
@@ -351,7 +351,7 @@
       : active
         ? "Monitor Run Progress and wait for close-readiness to report safe before closing."
         : "No active work is reported; refresh before starting a long unattended operation.";
-    const csvLines = csvRerun.hasEvidence ? [
+    const csvLines = csvRerun.isActive ? [
       `CSV rerun: ${csvRerun.plannedRows || "active"}.`,
       `Importing: ${csvRerun.currentImport || "no active copy line in stdout tail"}.`,
       `Last imported: ${csvRerun.lastImported || "none in stdout tail"}.`,
@@ -425,7 +425,7 @@
     const stateActive = ["processing", "running", "active", "publishing"].includes(String(state || "").toLowerCase());
     const currentWorkSummary = String(currentWork.summary_label || currentWork.latest_evidence_label || "").trim();
     const currentWorkActive = Boolean(currentWorkSummary) && !timelineLooksIdleWaiting(currentWorkSummary);
-    const active = activeJobs.length > 0 || closeReadiness?.safe_to_close === false || stateActive || csvRerun.hasEvidence || currentWorkActive;
+    const active = activeJobs.length > 0 || closeReadiness?.safe_to_close === false || stateActive || csvRerun.isActive || currentWorkActive;
     setProgressPanelStatus("home-active-work-status", active ? "Active work" : closeReadiness?.safe_to_close === true ? "Idle" : "Checking", active ? "running" : closeReadiness?.safe_to_close === true ? "ok" : "loading");
     const lines = [
       currentWork.summary_label ? `Now: ${currentWork.summary_label}` : "",
@@ -442,7 +442,7 @@
       progressWorkerSummaryLine(snapshot, diagnostics),
       progressEtaSummaryLine(snapshot, diagnostics),
       longRunReliabilitySummary(snapshot) ? `Long-run reliability: ${longRunReliabilitySummary(snapshot)}` : "",
-      csvRerun.hasEvidence ? `CSV rerun: ${csvRerun.plannedRows || "active"}` : "",
+      csvRerun.isActive ? `CSV rerun: ${csvRerun.plannedRows || "active"}` : "",
       csvRerun.currentImport ? `Importing: ${csvRerun.currentImport}` : "",
       csvRerun.lastImported ? `Last imported: ${csvRerun.lastImported}` : "",
       csvRerun.processing ? `Processing: ${csvRerun.processing}` : "",

@@ -55,6 +55,18 @@
       ]
     },
     {
+      "route": "/api/backend/lifecycle/reconcile",
+      "files": [
+        "apps/desktop/webview/static/assets/recoverySupportView.js"
+      ]
+    },
+    {
+      "route": "/api/backend/lifecycle/reconcile-dry-run",
+      "files": [
+        "apps/desktop/webview/static/assets/recoverySupportView.js"
+      ]
+    },
+    {
       "route": "/api/backend/shutdown",
       "files": [
         "apps/desktop/webview/static/assets/app.js"

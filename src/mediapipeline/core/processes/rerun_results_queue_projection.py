@@ -23,6 +23,24 @@ from mediapipeline.core.kernel.dto_commands import CommandResult
 from mediapipeline.core.paths.contracts import ResolvedPaths
 from mediapipeline.core.processes.file_io import atomic_write_text
 from mediapipeline.core.processes.rerun_preview import recent_rerun_csv_candidates
+from mediapipeline.core.processes.rerun_control import (
+    COMPLETED_WITH_FAILURES_STATUSES,
+    WAITING_RESTART_STATUSES,
+    rerun_pending_recovery_posture,
+    rerun_retry_exhausted_recovery_posture,
+    rerun_waiting_restart_posture,
+)
+from mediapipeline.core.processes.rerun_lifecycle import (
+    read_rerun_startup_reconciliation,
+    rerun_correlation_evidence,
+    rerun_enrollment_candidates,
+    rerun_execution_manifest_has_durable_exit_state,
+    rerun_execution_manifest_root,
+    rerun_lifecycle_counts,
+    rerun_manifest_declared_path_matches_actual,
+    rerun_manifest_matches_enrollment,
+    rerun_manifest_path_matches_canonical_batch,
+)
 from mediapipeline.core.processes.rerun_policy import (
     rerun_effective_output_root_for_source,
     rerun_final_output_root_violation,
@@ -33,6 +51,7 @@ from mediapipeline.core.processes.rerun_rules import (
     RERUN_RULE_DECISION_SCHEMA_VERSION,
     rerun_rule_decision_from_mapping,
 )
+from mediapipeline.core.processes.source_probe import run_source_probe
 
 
 RERUN_RESULTS_SCHEMA_VERSION = "desktop_rerun_results.v1"
@@ -77,12 +96,83 @@ PENDING_MANIFEST_OPTIONAL_EVIDENCE_FIELDS = (
 )
 
 
+def _has_durable_row_index(row: Mapping[str, Any]) -> bool:
+    try:
+        return int(row.get("row_index")) >= 0
+    except (TypeError, ValueError):
+        return False
+
+
+def _recovery_row_selector(row: Mapping[str, Any]) -> tuple[int | None, str]:
+    try:
+        row_index = int(row.get("row_index"))
+    except (TypeError, ValueError):
+        row_index = None
+    source_path = _clean_text(row.get("source_path")).replace("/", "\\").casefold()
+    return row_index, source_path
+
+
 
 from mediapipeline.core.processes.rerun_results_support import *  # noqa: F403
 
-def rerun_manifest_queue_rows(manifest_path: Path, data: Mapping[str, Any]) -> list[dict[str, Any]]:
+def rerun_manifest_queue_rows(
+    resolved: ResolvedPaths,
+    manifest_path: Path,
+    data: Mapping[str, Any],
+    *,
+    retry_posture: Mapping[str, Any] | None = None,
+    pending_posture: Mapping[str, Any] | None = None,
+    recovery_actions_allowed: bool = True,
+) -> list[dict[str, Any]]:
     batch_id = str(data.get("batch_id") or manifest_path.stem)
     manifest_status = _clean_text(data.get("status"))
+    retry_exhausted_batch = (
+        recovery_actions_allowed and manifest_status.casefold() in COMPLETED_WITH_FAILURES_STATUSES
+    )
+    effective_retry_posture = dict(
+        retry_posture
+        or (
+            rerun_retry_exhausted_recovery_posture(resolved, data)
+            if retry_exhausted_batch
+            else {}
+        )
+    )
+    recoverable_retry_exhausted_batch_count = int(effective_retry_posture.get("recoverable_count") or 0)
+    recoverable_selectors = {
+        _recovery_row_selector(row)
+        for row in effective_retry_posture.get("recoverable_rows") or []
+        if isinstance(row, Mapping)
+    }
+    blocked_by_selector = {
+        _recovery_row_selector(row): dict(row)
+        for row in effective_retry_posture.get("blocked_rows") or []
+        if isinstance(row, Mapping)
+    }
+    pending_recovery_batch = recovery_actions_allowed and manifest_status.casefold() == "stopped_after_current"
+    effective_pending_posture = dict(
+        pending_posture
+        or (
+            rerun_pending_recovery_posture(resolved, data)
+            if pending_recovery_batch
+            else {}
+        )
+    )
+    recoverable_pending_selectors = {
+        _recovery_row_selector(row)
+        for row in effective_pending_posture.get("recoverable_rows") or []
+        if isinstance(row, Mapping)
+    }
+    blocked_pending_by_selector = {
+        _recovery_row_selector(row): dict(row)
+        for row in effective_pending_posture.get("blocked_rows") or []
+        if isinstance(row, Mapping)
+    }
+    correlation = rerun_correlation_evidence(
+        resolved,
+        data,
+        enrollment_path=str(data.get("enrollment_path") or ""),
+        manifest_path=manifest_path,
+    )
     rows: list[dict[str, Any]] = []
     for index, raw_row in enumerate(data.get("rows") or []):
         if not isinstance(raw_row, Mapping):
@@ -92,6 +182,12 @@ def rerun_manifest_queue_rows(manifest_path: Path, data: Mapping[str, Any]) -> l
         stage_path = _clean_text(raw_row.get("stage_path"))
         planned_output_path = _clean_text(raw_row.get("planned_output_path"))
         status = _clean_text(raw_row.get("status"))
+        lifecycle_state = _clean_text(raw_row.get("lifecycle_state") or status)
+        timeline = [dict(item) for item in raw_row.get("timeline") or [] if isinstance(item, Mapping)]
+        latest_timeline_what = next(
+            (_clean_text(item.get("what")) for item in reversed(timeline) if _clean_text(item.get("what"))),
+            "",
+        )
         status_model = _queue_status_for_row(raw_row, manifest_status=manifest_status)
         try:
             row_index = int(raw_row.get("row_index"))
@@ -118,10 +214,15 @@ def rerun_manifest_queue_rows(manifest_path: Path, data: Mapping[str, Any]) -> l
             "schema_version": RERUN_QUEUE_STATE_ROW_SCHEMA_VERSION,
             "row_key": key,
             "row_index": row_index,
+            "has_durable_row_index": _has_durable_row_index(raw_row),
             "queue_source": "csv_rerun",
             "queue_kind": "csv_rerun_row",
             "uses_pipeline_start": False,
             "status": status,
+            "lifecycle_state": lifecycle_state,
+            **correlation,
+            "command_id": _clean_text(raw_row.get("command_id") or data.get("command_id")),
+            "launch_id": _clean_text(raw_row.get("launch_id") or data.get("launch_id")),
             "queue_status": status_model["status_key"],
             "queue_status_label": status_model["label"],
             "operator_status": f"CSV rerun {status_model['label']}",
@@ -162,9 +263,28 @@ def rerun_manifest_queue_rows(manifest_path: Path, data: Mapping[str, Any]) -> l
             "completed_manifest_append": _clean_text(raw_row.get("completed_manifest_append")),
             "source_size": raw_row.get("source_size"),
             "source_mtime_utc": _clean_text(raw_row.get("source_mtime_utc")),
-            "source_identity_v2": _clean_text(raw_row.get("source_identity_v2")),
+            "source_identity_v2": _clean_text(
+                raw_row.get("planned_source_identity_v2") or raw_row.get("source_identity_v2")
+            ),
             "source_identity_v2_algorithm": _clean_text(raw_row.get("source_identity_v2_algorithm")),
+            "source_content_sha256": _clean_text(raw_row.get("source_content_sha256")),
+            "source_content_sha256_algorithm": _clean_text(
+                raw_row.get("source_content_sha256_algorithm")
+            ),
+            "planned_source_content_sha256": _clean_text(
+                raw_row.get("planned_source_content_sha256") or raw_row.get("source_content_sha256")
+            ),
+            "planned_source_content_sha256_algorithm": _clean_text(
+                raw_row.get("planned_source_content_sha256_algorithm")
+                or raw_row.get("source_content_sha256_algorithm")
+            ),
+            "staged_source_content_sha256": _clean_text(raw_row.get("staged_source_content_sha256")),
+            "staged_source_content_sha256_algorithm": _clean_text(
+                raw_row.get("staged_source_content_sha256_algorithm")
+            ),
+            "recovery_blocked_reason": "",
             "reason": status_model["reason"],
+            "reason_code": _clean_text(raw_row.get("reason_code") or data.get("reason_code")),
             "failure_code": failure_code,
             "operator_message": operator_message,
             "blocking_reason": status_model["blocking_reason"],
@@ -179,6 +299,32 @@ def rerun_manifest_queue_rows(manifest_path: Path, data: Mapping[str, Any]) -> l
             "batch_id": batch_id,
             "manifest_status": manifest_status,
             "created_at": _clean_text(data.get("created_at")),
+            "started_at": _clean_text(data.get("started_at")),
+            "last_transition_at": _clean_text(raw_row.get("last_transition_at") or data.get("last_transition_at")),
+            "attempt_count": raw_row.get("attempt_count", 0),
+            "max_attempts": raw_row.get("max_attempts", 0),
+            "first_failure_at": _clean_text(raw_row.get("first_failure_at")),
+            "last_failure_at": _clean_text(raw_row.get("last_failure_at")),
+            "next_retry_at": _clean_text(raw_row.get("next_retry_at")),
+            "last_error": _clean_text(raw_row.get("last_error")),
+            "lifecycle_what": _clean_text(
+                raw_row.get("lifecycle_what") or raw_row.get("what") or latest_timeline_what
+            ),
+            "automatic_next_action": _clean_text(raw_row.get("automatic_next_action")),
+            "operator_action_required": raw_row.get("operator_action_required") is True,
+            "available_operator_action": _clean_text(raw_row.get("available_operator_action")),
+            "timeline": timeline,
+            "evidence_links": {
+                "manifest": str(manifest_path),
+                "enrollment": correlation["enrollment_path"],
+                "active_jobs": {
+                    "key": correlation["active_jobs_key"],
+                    "path": correlation["active_jobs_path"],
+                },
+                "command_journal": {"key": correlation["command_evidence_key"]},
+                "stdout_log": correlation["stdout_log"],
+                "stderr_log": correlation["stderr_log"],
+            },
             "completed_at": _clean_text(data.get("completed_at") or raw_row.get("completed_at")),
             "stopped_at": _clean_text(data.get("stopped_at")),
             "destination_state": {
@@ -217,9 +363,170 @@ def rerun_manifest_queue_rows(manifest_path: Path, data: Mapping[str, Any]) -> l
                 "completed_manifest_append": _clean_text(raw_row.get("completed_manifest_append")),
             },
         }
+        pending_recovery_blocked = (
+            lifecycle_state.casefold() == "pending"
+            and pending_recovery_batch
+            and _recovery_row_selector(raw_row) not in recoverable_pending_selectors
+        )
+        if pending_recovery_blocked:
+            blocked = blocked_pending_by_selector.get(_recovery_row_selector(raw_row), {})
+            row["queue_status_label"] = "Blocked"
+            row["operator_status_state"] = "review"
+            row["recovery_blocked_reason_code"] = _clean_text(blocked.get("reason_code"))
+            row["recovery_blocked_reason"] = _clean_text(blocked.get("reason")) or (
+                "This pending row lacks the durable strong-identity evidence required for safe continuation."
+            )
         row["available_actions"] = _available_actions(row)
+        if recovery_actions_allowed and lifecycle_state.casefold() in {
+            "retry_exhausted",
+            "retry_scheduled",
+            "waiting_for_source",
+        }:
+            retry_exhausted_recoverable = (
+                lifecycle_state.casefold() == "retry_exhausted"
+                and retry_exhausted_batch
+                and _recovery_row_selector(raw_row) in recoverable_selectors
+            )
+            retry_exhausted_blocked = (
+                lifecycle_state.casefold() == "retry_exhausted"
+                and retry_exhausted_batch
+                and not retry_exhausted_recoverable
+            )
+            if retry_exhausted_blocked:
+                blocked = blocked_by_selector.get(_recovery_row_selector(raw_row), {})
+                row["queue_status"] = "blocked"
+                row["queue_status_label"] = "Blocked"
+                row["operator_status_state"] = "review"
+                row["recovery_blocked_reason_code"] = _clean_text(blocked.get("reason_code"))
+                row["recovery_blocked_reason"] = _clean_text(blocked.get("reason")) or (
+                    "This exhausted row did not pass the backend's durable source-CSV and identity checks."
+                )
+                row["recovery_blocked_reason"] = (
+                    "This exhausted row is not eligible for automatic recovery because its durable selector, "
+                    "source identity, or enabled source-CSV row no longer qualifies."
+                )
+            row["available_actions"].append(
+                {
+                    "action": "retry",
+                    "label": (
+                        f"Retry Exhausted Rows ({recoverable_retry_exhausted_batch_count})"
+                        if retry_exhausted_recoverable
+                        else row["available_operator_action"] or "Retry"
+                    ),
+                    "route": "/api/rerun/continue" if retry_exhausted_recoverable else "",
+                    "request": (
+                        {"manifest_key": row["manifest_key"], "confirm_continue": True}
+                        if retry_exhausted_recoverable
+                        else {}
+                    ),
+                    "requires_confirmation": False,
+                    "request_id_required": retry_exhausted_recoverable,
+                    "confirmation_field": "confirm_continue" if retry_exhausted_recoverable else "",
+                    "confirmation_prompt": (
+                        "Retry only backend-qualified exhausted CSV rerun rows? Review rows stay untouched."
+                        if retry_exhausted_recoverable
+                        else ""
+                    ),
+                    "availability": (
+                        "available"
+                        if retry_exhausted_recoverable
+                        else "blocked"
+                        if retry_exhausted_blocked
+                        else "operator_intent"
+                    ),
+                    "scope": "batch_retry_exhausted" if retry_exhausted_recoverable else "row_intent",
+                    "selected_row_count": (
+                        recoverable_retry_exhausted_batch_count if retry_exhausted_recoverable else 0
+                    ),
+                }
+            )
+        row["lifecycle_evidence"] = {
+            "what": row["lifecycle_what"] or lifecycle_state,
+            "why": row["reason"] or row["reason_code"] or row["last_error"],
+            "when": row["last_transition_at"] or row["created_at"],
+            "next": row["automatic_next_action"] or row["available_operator_action"],
+            "attempt": {"count": row["attempt_count"], "max": row["max_attempts"], "next_retry_at": row["next_retry_at"]},
+            "evidence_links": dict(row["evidence_links"]),
+        }
         rows.append(row)
     return rows
+
+
+def _apply_waiting_restart_actions(
+    rows: list[dict[str, Any]],
+    posture: Mapping[str, Any],
+) -> tuple[int, str]:
+    waiting_rows = [
+        row
+        for row in rows
+        if str(row.get("lifecycle_state") or row.get("status") or "").strip().casefold()
+        in WAITING_RESTART_STATUSES
+    ]
+    if not waiting_rows:
+        return 0, ""
+    manual_available = posture.get("manual_retry_available") is True
+    state = str(posture.get("state") or "")
+    source_posture = (
+        dict(posture.get("source_recovery_posture") or {})
+        if isinstance(posture.get("source_recovery_posture"), Mapping)
+        else {}
+    )
+    recoverable_selectors = {
+        _recovery_row_selector(row)
+        for row in source_posture.get("recoverable_rows") or []
+        if isinstance(row, Mapping)
+    }
+    blocked_by_selector = {
+        _recovery_row_selector(row): dict(row)
+        for row in source_posture.get("blocked_rows") or []
+        if isinstance(row, Mapping)
+    }
+    recoverable_count = len(recoverable_selectors)
+    if manual_available:
+        label = f"Retry Waiting Rows ({recoverable_count})"
+    elif state == "child_active":
+        label = "Automatic Retry Owned by Active Child"
+    else:
+        label = "Reconcile Before Retry"
+    for row in waiting_rows:
+        selector = _recovery_row_selector(row)
+        row_recoverable = selector in recoverable_selectors
+        row["waiting_restart_evidence"] = dict(posture)
+        for action in row.get("available_actions") or []:
+            if not isinstance(action, dict) or action.get("action") != "retry":
+                continue
+            action.update(
+                {
+                    "label": label,
+                    "route": "/api/rerun/continue" if manual_available and row_recoverable else "",
+                    "request": (
+                        {"manifest_key": row["manifest_key"], "confirm_continue": True}
+                        if manual_available and row_recoverable
+                        else {}
+                    ),
+                    "availability": "available" if manual_available and row_recoverable else state,
+                    "scope": "batch_waiting_restart",
+                    "selected_row_count": recoverable_count,
+                    "requires_confirmation": False,
+                    "request_id_required": manual_available and row_recoverable,
+                    "evidence": dict(posture),
+                }
+            )
+        if manual_available and row_recoverable:
+            row["available_operator_action"] = label
+            evidence = row.get("lifecycle_evidence")
+            if isinstance(evidence, dict):
+                evidence["next"] = label
+        elif state == "source_identity_unqualified" or (manual_available and not row_recoverable):
+            blocked = blocked_by_selector.get(selector, {})
+            row["queue_status"] = "blocked"
+            row["queue_status_label"] = "Blocked"
+            row["operator_status_state"] = "review"
+            row["recovery_blocked_reason_code"] = _clean_text(blocked.get("reason_code"))
+            row["recovery_blocked_reason"] = _clean_text(blocked.get("reason")) or str(
+                posture.get("reason") or "Waiting row lacks strong recovery evidence."
+            )
+    return len(waiting_rows), label
 
 
 def _remaining_pending_count(data: Mapping[str, Any], row_counts: Mapping[str, int]) -> int:
@@ -233,56 +540,339 @@ def _remaining_pending_count(data: Mapping[str, Any], row_counts: Mapping[str, i
 
 def _manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> list[dict[str, Any]]:
     root = _manifest_root(resolved)
+    enrollment_items = rerun_enrollment_candidates(resolved, limit=max(limit, 100))
+    enrollment_by_batch = {
+        str(data.get("batch_id") or path.stem): (path, data)
+        for path, data in enrollment_items
+    }
+    enrollment_by_manifest_path = {
+        _path_key(
+            Path(
+                str(
+                    data.get("manifest_path")
+                    or rerun_execution_manifest_root(resolved)
+                    / f"{str(data.get('batch_id') or path.stem)}.json"
+                )
+            )
+        ): (path, data)
+        for path, data in enrollment_items
+    }
     if root is None or not root.exists():
-        return []
-    try:
-        paths = sorted(root.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
-    except OSError:
-        return []
+        paths: list[Path] = []
+    else:
+        try:
+            paths = sorted(root.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+        except OSError:
+            paths = []
     manifests: list[dict[str, Any]] = []
-    for path in paths[:limit]:
+    represented_batches: set[str] = set()
+    for path in paths[: max(limit, 100)]:
         data = _read_json(path)
         if not isinstance(data, dict):
             continue
-        rows = rerun_manifest_queue_rows(path, data)
-        batch_id = str(data.get("batch_id") or path.stem)
+        manifest_batch_id = str(data.get("batch_id") or path.stem)
+        enrollment_path, enrollment = enrollment_by_batch.get(
+            manifest_batch_id,
+            enrollment_by_manifest_path.get(_path_key(path), (None, {})),
+        )
+        batch_id = str(enrollment.get("batch_id") or manifest_batch_id)
+        represented_batches.add(batch_id)
+        manifest_correlation_degraded = (
+            not rerun_manifest_declared_path_matches_actual(data, path)
+            or not rerun_manifest_path_matches_canonical_batch(resolved, data, path)
+            or bool(enrollment)
+            and not rerun_manifest_matches_enrollment(
+                data,
+                enrollment,
+                enrollment_path=enrollment_path,
+                manifest_path=path,
+            )
+        )
+        enrollment_state = str(enrollment.get("lifecycle_state") or enrollment.get("status") or "").casefold()
+        terminal_enrollment_overrides_skeleton = not manifest_correlation_degraded and bool(enrollment) and enrollment_state in {
+            "failed",
+            "failed_before_manifest",
+            "retry_exhausted",
+            "cancelled",
+        } and not rerun_execution_manifest_has_durable_exit_state(data)
+        if manifest_correlation_degraded:
+            effective_data = dict(enrollment)
+        else:
+            effective_data = (
+                {**data, **dict(enrollment)}
+                if terminal_enrollment_overrides_skeleton
+                else {**dict(enrollment), **data}
+            )
+        trusted_execution_data = {} if manifest_correlation_degraded else data
+        if enrollment_path is not None:
+            effective_data["enrollment_path"] = str(enrollment_path)
+        try:
+            sort_mtime = path.stat().st_mtime
+        except OSError:
+            sort_mtime = 0.0
+        if enrollment_path is not None:
+            try:
+                sort_mtime = max(sort_mtime, enrollment_path.stat().st_mtime)
+            except OSError:
+                pass
+        effective_status = str(effective_data.get("status") or "").strip().casefold()
+        retry_posture = (
+            rerun_retry_exhausted_recovery_posture(resolved, effective_data)
+            if not manifest_correlation_degraded and effective_status in COMPLETED_WITH_FAILURES_STATUSES
+            else {}
+        )
+        pending_posture = (
+            rerun_pending_recovery_posture(resolved, effective_data)
+            if not manifest_correlation_degraded and effective_status == "stopped_after_current"
+            else {}
+        )
+        rows = rerun_manifest_queue_rows(
+            resolved,
+            path,
+            effective_data,
+            retry_posture=retry_posture,
+            pending_posture=pending_posture,
+            recovery_actions_allowed=not manifest_correlation_degraded,
+        )
+        waiting_restart_evidence = (
+            rerun_waiting_restart_posture(resolved, effective_data)
+            if not manifest_correlation_degraded and effective_status in WAITING_RESTART_STATUSES
+            else {}
+        )
+        waiting_restart_count, waiting_restart_action_label = _apply_waiting_restart_actions(
+            rows,
+            waiting_restart_evidence,
+        )
         row_counts = _row_status_counts(rows)
         queue_status_counts = _row_queue_status_counts(rows)
         destination_summary = _destination_summary(rows)
-        remaining_pending_count = _remaining_pending_count(data, row_counts)
-        status = str(data.get("status") or "")
+        remaining_pending_count = _remaining_pending_count(effective_data, row_counts)
+        recoverable_pending_count = int(pending_posture.get("recoverable_count") or 0)
+        unrecoverable_pending_count = int(pending_posture.get("unrecoverable_count") or 0)
+        status = str(effective_data.get("status") or "")
+        retry_exhausted_count = sum(
+            1 for row in rows if str(row.get("lifecycle_state") or "").casefold() == "retry_exhausted"
+        )
+        recoverable_retry_exhausted_count = int(retry_posture.get("recoverable_count") or 0)
+        unrecoverable_retry_exhausted_count = int(retry_posture.get("unrecoverable_count") or 0)
+        manifest_key = _hash_text(str(path))
+        can_continue_pending = (
+            not manifest_correlation_degraded
+            and status.casefold() == "stopped_after_current"
+            and remaining_pending_count > 0
+            and recoverable_pending_count > 0
+        )
+        can_retry_exhausted = (
+            not manifest_correlation_degraded
+            and status.casefold() in COMPLETED_WITH_FAILURES_STATUSES
+            and recoverable_retry_exhausted_count > 0
+        )
+        available_actions: list[dict[str, Any]] = []
+        if can_continue_pending:
+            available_actions.append(
+                {
+                    "action": "continue_pending",
+                    "label": "Continue Pending Rows",
+                    "route": "/api/rerun/continue",
+                    "request": {"manifest_key": manifest_key, "confirm_continue": True},
+                    "confirmation_field": "confirm_continue",
+                    "confirmation_prompt": "Continue pending CSV rerun rows only? Failed and review rows stay untouched.",
+                    "requires_confirmation": False,
+                    "request_id_required": True,
+                    "scope": "batch_pending_only",
+                    "backend_owned": True,
+                    "selected_row_count": recoverable_pending_count,
+                }
+            )
+        if can_retry_exhausted:
+            available_actions.append(
+                {
+                    "action": "retry",
+                    "label": f"Retry Exhausted Rows ({recoverable_retry_exhausted_count})",
+                    "route": "/api/rerun/continue",
+                    "request": {"manifest_key": manifest_key, "confirm_continue": True},
+                    "confirmation_field": "confirm_continue",
+                    "confirmation_prompt": "Retry only backend-qualified exhausted CSV rerun rows? Review rows stay untouched.",
+                    "requires_confirmation": False,
+                    "request_id_required": True,
+                    "scope": "batch_retry_exhausted",
+                    "backend_owned": True,
+                }
+            )
+        correlation = rerun_correlation_evidence(
+            resolved,
+            effective_data,
+            enrollment_path=enrollment_path,
+            manifest_path=path,
+        )
         manifests.append(
             {
-                "manifest_key": _hash_text(str(path)),
+                "manifest_key": manifest_key,
                 "manifest_path": str(path),
                 "batch_id": batch_id,
+                "command_id": str(effective_data.get("command_id") or ""),
+                "launch_id": str(effective_data.get("launch_id") or ""),
+                "enrollment_path": str(enrollment_path or ""),
+                **correlation,
+                "manifest_available": not manifest_correlation_degraded,
+                "execution_manifest_available": True,
+                "evidence_authority": (
+                    "backend_enrollment_manifest_correlation_degraded"
+                    if manifest_correlation_degraded
+                    else "backend_enrollment_terminal_over_incomplete_execution_manifest"
+                    if terminal_enrollment_overrides_skeleton
+                    else "execution_manifest"
+                ),
+                "manifest_correlation_status": (
+                    "degraded" if manifest_correlation_degraded else "matched"
+                ),
+                "manifest_correlation_warnings": (
+                    [
+                        "Execution manifest correlation or its declared v2 path did not match durable evidence; "
+                        "execution data is not authoritative and recovery actions are withheld."
+                    ]
+                    if manifest_correlation_degraded
+                    else []
+                ),
+                "execution_manifest_status": str(data.get("status") or ""),
                 "status": status,
-                "created_at": str(data.get("created_at") or ""),
-                "completed_at": str(data.get("completed_at") or ""),
-                "stopped_at": str(data.get("stopped_at") or ""),
-                "current_chunk": data.get("current_chunk"),
-                "execution_mode": str(data.get("execution_mode") or ""),
-                "destination_mode": str(data.get("destination_mode") or ""),
-                "original_policy": str(data.get("original_policy") or ""),
-                "collision_policy": str(data.get("collision_policy") or ""),
-                "window_size": data.get("window_size"),
-                "output_root": str(data.get("output_root") or ""),
-                "pending_publish_root": str(data.get("pending_publish_root") or ""),
-                "completed_jobs_manifest": str(data.get("completed_jobs_manifest") or ""),
+                "created_at": str(effective_data.get("created_at") or ""),
+                "started_at": str(effective_data.get("started_at") or ""),
+                "completed_at": str(effective_data.get("completed_at") or ""),
+                "stopped_at": str(effective_data.get("stopped_at") or ""),
+                "current_chunk": effective_data.get("current_chunk"),
+                "current_phase": str(
+                    effective_data.get("current_phase")
+                    or effective_data.get("phase")
+                    or effective_data.get("status")
+                    or enrollment.get("current_phase")
+                    or ""
+                ),
+                "current_row_index": effective_data.get("current_row_index"),
+                "last_transition_at": str(effective_data.get("last_transition_at") or ""),
+                "execution_mode": str(trusted_execution_data.get("execution_mode") or ""),
+                "destination_mode": str(trusted_execution_data.get("destination_mode") or ""),
+                "original_policy": str(trusted_execution_data.get("original_policy") or ""),
+                "collision_policy": str(trusted_execution_data.get("collision_policy") or ""),
+                "window_size": trusted_execution_data.get("window_size"),
+                "output_root": str(trusted_execution_data.get("output_root") or ""),
+                "pending_publish_root": str(trusted_execution_data.get("pending_publish_root") or ""),
+                "completed_jobs_manifest": str(trusted_execution_data.get("completed_jobs_manifest") or ""),
                 "row_status_counts": row_counts,
                 "queue_status_counts": queue_status_counts,
                 "destination_summary": destination_summary,
                 "remaining_pending_count": remaining_pending_count,
-                "can_continue_pending": status == "stopped_after_current" and remaining_pending_count > 0,
-                "stop_request_id": str(data.get("stop_request_id") or ""),
-                "stop_requested_at": str(data.get("stop_requested_at") or ""),
-                "stop_request_marker_path": str(data.get("stop_request_marker_path") or ""),
-                "safe_next_action": str(data.get("safe_next_action") or ""),
+                "recoverable_pending_count": recoverable_pending_count,
+                "unrecoverable_pending_count": unrecoverable_pending_count,
+                "pending_recovery_posture": pending_posture,
+                "can_continue_pending": can_continue_pending,
+                "can_retry_exhausted": can_retry_exhausted,
+                "available_actions": available_actions,
+                "retry_exhausted_count": retry_exhausted_count,
+                "recoverable_retry_exhausted_count": recoverable_retry_exhausted_count,
+                "unrecoverable_retry_exhausted_count": unrecoverable_retry_exhausted_count,
+                "retry_exhausted_action_label": (
+                    f"Retry Exhausted Rows ({recoverable_retry_exhausted_count})"
+                    if recoverable_retry_exhausted_count
+                    else ""
+                ),
+                "waiting_restart_evidence": waiting_restart_evidence,
+                "waiting_restart_count": waiting_restart_count,
+                "can_retry_waiting_after_restart": (
+                    waiting_restart_count > 0
+                    and waiting_restart_evidence.get("manual_retry_available") is True
+                ),
+                "waiting_restart_action_label": waiting_restart_action_label,
+                "stop_request_id": str(trusted_execution_data.get("stop_request_id") or ""),
+                "stop_requested_at": str(trusted_execution_data.get("stop_requested_at") or ""),
+                "stop_request_marker_path": str(trusted_execution_data.get("stop_request_marker_path") or ""),
+                "safe_next_action": str(trusted_execution_data.get("safe_next_action") or ""),
                 "rows": rows,
                 "row_count": len(rows),
+                "lifecycle_counts": rerun_lifecycle_counts(rows),
+                "_sort_mtime": sort_mtime,
             }
         )
-    return manifests
+    for enrollment_path, enrollment in enrollment_items:
+        batch_id = str(enrollment.get("batch_id") or enrollment_path.stem)
+        if batch_id in represented_batches:
+            continue
+        expected_manifest = Path(str(enrollment.get("manifest_path") or (rerun_execution_manifest_root(resolved) / f"{batch_id}.json")))
+        enrollment_data = {**enrollment, "enrollment_path": str(enrollment_path)}
+        rows = rerun_manifest_queue_rows(resolved, expected_manifest, enrollment_data)
+        row_counts = _row_status_counts(rows)
+        queue_status_counts = _row_queue_status_counts(rows)
+        status = str(enrollment.get("status") or "accepted")
+        try:
+            enrollment_mtime = enrollment_path.stat().st_mtime
+        except OSError:
+            enrollment_mtime = 0.0
+        correlation = rerun_correlation_evidence(
+            resolved,
+            enrollment_data,
+            enrollment_path=enrollment_path,
+            manifest_path=expected_manifest,
+        )
+        manifests.append(
+            {
+                "manifest_key": _hash_text(str(expected_manifest)),
+                "manifest_path": str(expected_manifest),
+                "batch_id": batch_id,
+                "command_id": str(enrollment.get("command_id") or ""),
+                "launch_id": str(enrollment.get("launch_id") or ""),
+                "enrollment_path": str(enrollment_path),
+                **correlation,
+                "manifest_available": False,
+                "evidence_authority": "backend_enrollment",
+                "status": status,
+                "created_at": str(enrollment.get("created_at") or ""),
+                "started_at": str(enrollment.get("started_at") or ""),
+                "completed_at": str(enrollment.get("completed_at") or ""),
+                "stopped_at": str(enrollment.get("stopped_at") or ""),
+                "current_chunk": enrollment.get("current_chunk"),
+                "current_phase": str(enrollment.get("current_phase") or ""),
+                "current_row_index": enrollment.get("current_row_index"),
+                "last_transition_at": str(enrollment.get("last_transition_at") or ""),
+                "execution_mode": str(enrollment.get("execution_mode") or ""),
+                "destination_mode": str(enrollment.get("destination_mode") or ""),
+                "original_policy": str(enrollment.get("original_policy") or ""),
+                "collision_policy": str(enrollment.get("collision_policy") or ""),
+                "window_size": enrollment.get("window_size"),
+                "output_root": str(enrollment.get("output_root") or ""),
+                "pending_publish_root": str(enrollment.get("pending_publish_root") or ""),
+                "completed_jobs_manifest": str(enrollment.get("completed_jobs_manifest") or ""),
+                "row_status_counts": row_counts,
+                "queue_status_counts": queue_status_counts,
+                "destination_summary": _destination_summary(rows),
+                "remaining_pending_count": _remaining_pending_count(enrollment, row_counts),
+                "recoverable_pending_count": 0,
+                "unrecoverable_pending_count": 0,
+                "pending_recovery_posture": {},
+                "can_continue_pending": False,
+                "can_retry_exhausted": False,
+                "retry_exhausted_count": 0,
+                "recoverable_retry_exhausted_count": 0,
+                "unrecoverable_retry_exhausted_count": 0,
+                "retry_exhausted_action_label": "",
+                "waiting_restart_evidence": {},
+                "waiting_restart_count": 0,
+                "can_retry_waiting_after_restart": False,
+                "waiting_restart_action_label": "",
+                "stop_request_id": "",
+                "stop_requested_at": "",
+                "stop_request_marker_path": "",
+                "safe_next_action": str(enrollment.get("automatic_next_action") or "Wait for execution manifest evidence."),
+                "rows": rows,
+                "row_count": len(rows),
+                "lifecycle_counts": rerun_lifecycle_counts(rows),
+                "_sort_mtime": enrollment_mtime,
+            }
+        )
+    manifests.sort(key=lambda item: float(item.get("_sort_mtime") or 0.0), reverse=True)
+    selected = manifests[:limit]
+    for manifest in selected:
+        manifest.pop("_sort_mtime", None)
+    return selected
 
 
 def _network_row_key(batch_id: str, row_key: str, state_path: Path) -> str:
@@ -314,6 +904,98 @@ def _network_verified_output(row: Mapping[str, Any], worker_result: Mapping[str,
     return _clean_text(worker_result.get("output_path"))
 
 
+def _network_output_probe(path_text: str) -> dict[str, Any]:
+    path_raw = _clean_text(path_text)
+    evidence: dict[str, Any] = {
+        "path": path_raw,
+        "status": "not_supplied",
+        "exists": False,
+        "is_file": False,
+        "stale": False,
+        "error": "",
+    }
+    if not path_raw:
+        return evidence
+    try:
+        probe = run_source_probe("stat", Path(path_raw), timeout_seconds=2.0)
+    except FileNotFoundError:
+        evidence["status"] = "missing"
+    except (TimeoutError, PermissionError, OSError) as exc:
+        evidence.update({"status": "access_failed", "stale": True, "error": str(exc)})
+    else:
+        is_file = probe.get("kind") == "file"
+        evidence.update(
+            {
+                "status": "ok" if is_file else "not_file",
+                "exists": is_file,
+                "is_file": is_file,
+                "size_bytes": _network_nonnegative_int(probe.get("size")),
+            }
+        )
+    return evidence
+
+
+def _network_lifecycle_counts(rows: list[Mapping[str, Any]]) -> dict[str, int]:
+    counts = {
+        "total": len(rows),
+        "executable": 0,
+        "blocked": 0,
+        "waiting": 0,
+        "retrying": 0,
+        "staged": 0,
+        "active": 0,
+        "completed": 0,
+        "failed": 0,
+        "review": 0,
+        "pending_publish": 0,
+        "pending": 0,
+        "retry_scheduled": 0,
+        "retry_exhausted": 0,
+        "review_required": 0,
+        "skipped": 0,
+        "terminal": 0,
+    }
+    for row in rows:
+        status = _clean_text(row.get("status")).casefold()
+        if row.get("is_terminal") is True:
+            counts["terminal"] += 1
+        if status in {"pending_claim", "retryable"}:
+            counts["executable"] += 1
+            counts["pending"] += 1
+        elif status in {"blocked", "invalid", "source_missing", "source_identity_changed"}:
+            counts["blocked"] += 1
+        elif status == "retry_scheduled":
+            counts["waiting"] += 1
+            counts["retrying"] += 1
+            counts["retry_scheduled"] += 1
+        elif status == "staged":
+            counts["staged"] += 1
+        elif status in {"claimed", "destination_policy_applying", "running", "active", "worker_completed_pending_reduction"}:
+            counts["active"] += 1
+        elif status in {"complete", "completed", "done", "success", "succeeded", "destination_policy_applied", "published_non_overlap", "published_replace_final"}:
+            counts["completed"] += 1
+        elif status in {"skipped", "disabled"}:
+            counts["skipped"] += 1
+        elif status == "retry_exhausted":
+            counts["failed"] += 1
+            counts["retry_exhausted"] += 1
+        elif status in {"failed", "destination_policy_failed", "worker_failed_pending_reduction"}:
+            counts["failed"] += 1
+        elif status in {"review_required", "review_workspace", "worker_review_pending_reduction"}:
+            counts["review"] += 1
+            counts["review_required"] += 1
+        elif status in {"pending_publish", "parked"}:
+            counts["pending_publish"] += 1
+    return counts
+
+
+def _network_nonnegative_int(value: Any) -> int:
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
 def _network_batch_queue_rows(state_path: Path, data: Mapping[str, Any]) -> list[dict[str, Any]]:
     batch_id = str(data.get("batch_id") or state_path.stem)
     manifest_status = _clean_text(data.get("status"))
@@ -340,6 +1022,7 @@ def _network_batch_queue_rows(state_path: Path, data: Mapping[str, Any]) -> list
             and not destination_terminal
         )
         verified_output = _network_verified_output(raw_row, worker_result, reducer_result)
+        output_probe = _network_output_probe(verified_output)
         output_artifact = reducer_result.get("output_artifact") if isinstance(reducer_result, Mapping) else {}
         destination_policy = raw_row.get("destination_policy")
         pending_manifest_path = (
@@ -351,6 +1034,16 @@ def _network_batch_queue_rows(state_path: Path, data: Mapping[str, Any]) -> list
             or _clean_text(destination_result.get("pending_publish_payload_path"))
         )
         published_path = _clean_text(raw_row.get("published_path")) or _clean_text(destination_result.get("published_path"))
+        attempt_count = _network_nonnegative_int(raw_row.get("attempt_count"))
+        retry_count = _network_nonnegative_int(raw_row.get("retry_count"))
+        retry_limit = _network_nonnegative_int(raw_row.get("retry_limit"))
+        reason_code = _clean_text(raw_row.get("reason_code") or reducer_result.get("reason_code"))
+        what = _clean_text(raw_row.get("what") or reducer_result.get("what"))
+        why = _clean_text(raw_row.get("why") or raw_row.get("last_error") or reducer_result.get("why") or reducer_result.get("reason"))
+        when = _clean_text(raw_row.get("when") or reducer_result.get("when") or reducer_result.get("reduced_at_utc"))
+        next_action = _clean_text(raw_row.get("next_action") or raw_row.get("automatic_next_action") or reducer_result.get("next_action"))
+        operator_action = _clean_text(raw_row.get("operator_action") or raw_row.get("available_operator_action") or reducer_result.get("operator_action"))
+        timeline = [deepcopy(item) for item in raw_row.get("timeline") or [] if isinstance(item, Mapping)]
         row = {
             "schema_version": RERUN_QUEUE_STATE_ROW_SCHEMA_VERSION,
             "row_key": _network_row_key(batch_id, raw_row_key, state_path),
@@ -372,6 +1065,30 @@ def _network_batch_queue_rows(state_path: Path, data: Mapping[str, Any]) -> list
                 or _clean_text(reducer_result.get("reason"))
             ),
             "is_terminal": bool(status_model["terminal"]),
+            "attempt_count": attempt_count,
+            "retry_count": retry_count,
+            "retry_limit": retry_limit,
+            "retry_after_seconds": _network_nonnegative_int(raw_row.get("retry_after_seconds")),
+            "next_retry_at": _clean_text(raw_row.get("next_retry_at_utc") or raw_row.get("next_retry_at")),
+            "next_retry_at_utc": _clean_text(raw_row.get("next_retry_at_utc") or raw_row.get("next_retry_at")),
+            "manual_recovery_required": raw_row.get("manual_recovery_required") is True,
+            "manual_recovery_available": raw_row.get("manual_recovery_available") is True,
+            "operator_action_required": raw_row.get("operator_action_required") is True,
+            "reason_code": reason_code,
+            "last_error": _clean_text(raw_row.get("last_error") or reducer_result.get("reason")),
+            "what": what,
+            "why": why,
+            "when": when,
+            "next_action": next_action,
+            "automatic_next_action": _clean_text(raw_row.get("automatic_next_action")),
+            "operator_action": operator_action,
+            "available_operator_action": _clean_text(raw_row.get("available_operator_action") or operator_action),
+            "first_failure": deepcopy(raw_row.get("first_failure")) if isinstance(raw_row.get("first_failure"), Mapping) else {},
+            "last_failure": deepcopy(raw_row.get("last_failure")) if isinstance(raw_row.get("last_failure"), Mapping) else {},
+            "timeline": timeline,
+            "retry_history": [deepcopy(item) for item in raw_row.get("retry_history") or [] if isinstance(item, Mapping)],
+            "attempt_history": [deepcopy(item) for item in raw_row.get("attempt_history") or [] if isinstance(item, Mapping)],
+            "source_replay_evidence": deepcopy(raw_row.get("source_replay_evidence")) if isinstance(raw_row.get("source_replay_evidence"), Mapping) else {},
             "source_path": _clean_text(raw_row.get("source_path")),
             "original_source_path": _clean_text(raw_row.get("source_path")),
             "stage_path": "",
@@ -388,13 +1105,22 @@ def _network_batch_queue_rows(state_path: Path, data: Mapping[str, Any]) -> list
             "source_mtime_utc": _clean_text(raw_row.get("source_mtime_utc")),
             "source_identity_v2": _clean_text(raw_row.get("source_identity_v2")),
             "source_identity_v2_algorithm": _clean_text(raw_row.get("source_identity_v2_algorithm")),
+            "source_content_sha256": _clean_text(raw_row.get("source_content_sha256")),
+            "source_content_sha256_algorithm": _clean_text(
+                raw_row.get("source_content_sha256_algorithm")
+            ),
+            "source_content_hash_evidence": deepcopy(
+                raw_row.get("source_content_hash_evidence")
+            ) if isinstance(raw_row.get("source_content_hash_evidence"), Mapping) else {},
             "reason": status_model["reason"] or _clean_text(reducer_result.get("reason")),
             "blocking_reason": status_model["blocking_reason"],
             "warning_reason": status_model["warning_reason"] or _clean_text(reducer_result.get("reason")),
             "audit_issue_codes": _clean_text(raw_row.get("audit_issue_codes")),
             "audit_issue_code_list": _string_list(raw_row.get("audit_issue_codes")),
             "media_kind": _clean_text(raw_row.get("media_kind")),
-            "can_open_output": _path_exists(verified_output),
+            "can_open_output": output_probe.get("is_file") is True,
+            "output_probe": output_probe,
+            "output_evidence_stale": output_probe.get("stale") is True,
             "can_promote_to_pending_publish": False,
             "manifest_key": _hash_text(str(state_path)),
             "manifest_path": str(state_path),
@@ -436,9 +1162,64 @@ def _network_batch_queue_rows(state_path: Path, data: Mapping[str, Any]) -> list
                 "reducer_result": reducer_result,
                 "worker_result": worker_result,
                 "destination_policy_result": destination_result,
+                "attempt_count": attempt_count,
+                "retry_count": retry_count,
+                "retry_limit": retry_limit,
+                "reason_code": reason_code,
+                "first_failure": deepcopy(raw_row.get("first_failure")) if isinstance(raw_row.get("first_failure"), Mapping) else {},
+                "last_failure": deepcopy(raw_row.get("last_failure")) if isinstance(raw_row.get("last_failure"), Mapping) else {},
             },
             "available_actions": [],
         }
+        row["lifecycle_evidence"] = {
+            "schema_version": "desktop_rerun_network_lifecycle_evidence.v1",
+            "state": status,
+            "terminal": row["is_terminal"],
+            "what": what,
+            "why": why,
+            "when": when,
+            "next": next_action,
+            "operator_action": operator_action,
+            "reason_code": reason_code,
+            "attempt": {
+                "count": attempt_count,
+                "retry_count": retry_count,
+                "retry_limit": retry_limit,
+                "next_retry_at_utc": row["next_retry_at_utc"],
+            },
+            "timeline": timeline,
+            "source_replay_evidence": dict(row["source_replay_evidence"]),
+            "evidence_links": {"manifest": str(state_path)},
+        }
+        if status == "retry_exhausted" and row["manual_recovery_available"]:
+            row["available_actions"].append(
+                {
+                    "action": "retry",
+                    "label": "Request manual retry",
+                    "route": "/api/rerun/network/retry",
+                    "confirmation_field": "confirm_retry",
+                    "confirmation_prompt": "Retry this exhausted Network row after verifying the source is restored?",
+                    "requires_confirmation": False,
+                    "request": {
+                        "batch_id": batch_id,
+                        "row_key": raw_row_key,
+                        "confirm_retry": True,
+                        "reason": "operator_requested_retry_after_source_restore",
+                    },
+                    "request_id_required": True,
+                    "reason_required": True,
+                    "backend_owned": True,
+                }
+            )
+        elif row["operator_action_required"]:
+            row["available_actions"].append(
+                {
+                    "action": "review",
+                    "label": "Review evidence",
+                    "route": "",
+                    "backend_owned": True,
+                }
+            )
         rows.append(row)
     return rows
 
@@ -460,6 +1241,7 @@ def _network_manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> li
             continue
         rows = _network_batch_queue_rows(path, data)
         batch_id = str(data.get("batch_id") or path.stem)
+        lifecycle_counts = _network_lifecycle_counts(rows)
         manifests.append(
             {
                 "manifest_key": _hash_text(str(path)),
@@ -470,6 +1252,11 @@ def _network_manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> li
                 "phase": str(data.get("phase") or ""),
                 "created_at": str(data.get("created_at_utc") or data.get("created_at") or ""),
                 "updated_at": str(data.get("updated_at_utc") or ""),
+                "terminal_at": str(data.get("terminal_at_utc") or ""),
+                "completed_at": str(data.get("completed_at_utc") or ""),
+                "failed_at": str(data.get("failed_at_utc") or ""),
+                "review_required_at": str(data.get("review_required_at_utc") or ""),
+                "batch_terminal": data.get("batch_terminal") is True,
                 "queue_source": "network_csv_rerun",
                 "uses_pipeline_start": False,
                 "claim_provider_enabled": data.get("claim_provider_enabled") is True,
@@ -477,6 +1264,13 @@ def _network_manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> li
                 "rows_claimable": data.get("rows_claimable") is True,
                 "row_status_counts": _row_status_counts(rows),
                 "queue_status_counts": _row_queue_status_counts(rows),
+                "lifecycle_counts": lifecycle_counts,
+                "terminal_row_count": _network_nonnegative_int(data.get("terminal_row_count")),
+                "active_row_count": _network_nonnegative_int(data.get("active_row_count")),
+                "retry_scheduled_row_count": _network_nonnegative_int(data.get("retry_scheduled_row_count")),
+                "retry_exhausted_row_count": _network_nonnegative_int(data.get("retry_exhausted_row_count")),
+                "review_row_count": _network_nonnegative_int(data.get("review_row_count")),
+                "manual_recovery_row_count": _network_nonnegative_int(data.get("manual_recovery_row_count")),
                 "row_count": len(rows),
                 "rows": rows,
             }
@@ -496,12 +1290,24 @@ def rerun_results_payload(resolved: ResolvedPaths, *, service: Any | None = None
     rows = [row for manifest in manifests for row in manifest.get("rows", [])]
     rows.extend(row for manifest in network_manifests for row in manifest.get("rows", []))
     queue_status_counts = _row_queue_status_counts(rows)
+    local_lifecycle_counts = rerun_lifecycle_counts(
+        [row for manifest in manifests for row in manifest.get("rows", []) if isinstance(row, Mapping)]
+    )
+    network_rows = [
+        row
+        for manifest in network_manifests
+        for row in manifest.get("rows", [])
+        if isinstance(row, Mapping)
+    ]
+    network_queue_status_counts = _row_queue_status_counts(network_rows)
+    network_lifecycle_counts = _network_lifecycle_counts(network_rows)
     return {
         "schema_version": RERUN_RESULTS_SCHEMA_VERSION,
         "manifest_root": str(_manifest_root(resolved) or ""),
         "network_manifest_root": str(_network_manifest_root(resolved) or ""),
         "manifests": manifests,
         "network_manifests": network_manifests,
+        "startup_reconciliation": read_rerun_startup_reconciliation(resolved),
         "rows": rows,
         "queue_state": {
             "schema_version": RERUN_QUEUE_STATE_SCHEMA_VERSION,
@@ -512,9 +1318,15 @@ def rerun_results_payload(resolved: ResolvedPaths, *, service: Any | None = None
             "rows": rows,
             "row_count": row_count,
             "status_counts": queue_status_counts,
+            "queue_status_counts": queue_status_counts,
+            "lifecycle_counts": local_lifecycle_counts,
+            "network_status_counts": network_queue_status_counts,
+            "network_lifecycle_counts": network_lifecycle_counts,
             "available_statuses": [
                 {"key": "pending", "label": "Pending"},
                 {"key": "active", "label": "Active"},
+                {"key": "waiting", "label": "Waiting"},
+                {"key": "retrying", "label": "Retrying"},
                 {"key": "blocked", "label": "Blocked"},
                 {"key": "warning", "label": "Warning"},
                 {"key": "failed", "label": "Failed"},
@@ -537,6 +1349,13 @@ def rerun_results_payload(resolved: ResolvedPaths, *, service: Any | None = None
             "promotable_rows": sum(1 for manifest in manifests for row in manifest.get("rows", []) if row.get("can_promote_to_pending_publish")),
             "csv_candidate_count": len(csvs),
             "queue_status_counts": queue_status_counts,
+            "lifecycle_counts": local_lifecycle_counts,
+            "network_queue_status_counts": network_queue_status_counts,
+            "network_lifecycle_counts": network_lifecycle_counts,
+            "network_retry_scheduled_count": network_lifecycle_counts["retry_scheduled"],
+            "network_retry_exhausted_count": network_lifecycle_counts["retry_exhausted"],
+            "network_review_required_count": network_lifecycle_counts["review_required"],
+            "network_terminal_count": network_lifecycle_counts["terminal"],
         },
         "touches_media": False,
         "writes_queue": False,

@@ -56,28 +56,45 @@ $py = "apps\desktop\runtime\Python\python.exe"
 .\ops/scripts/smoke\Test-WebViewSettingsPatchEvidenceSmoke.ps1
 ```
 
-### Browser-backed smokes (Chrome or Edge required; skip cleanly if absent)
+`Test-WebViewSettingsLaunchLiveConfigSmoke.ps1` reads the selected saved config. Do not use it in a disposable-root-only task unless its config input is explicitly redirected to a generated temporary config.
+
+### Browser-backed smokes (24 wrappers / 26 Python modules; Chrome or Edge required)
+
+Canonical wrappers fail prerequisite skips by default. A green wrapper therefore means browser assertions executed. Use `-AllowSkippedTests` only for an explicitly non-gating environmental result and record that it is not a pass.
 
 ```powershell
-.\ops/scripts/smoke\Test-WebViewBrowserHighRiskSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserScheduleSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserLifecycleSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserPendingDrainGuardSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserCompletedPendingProofSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserLargeTableSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserMaintenanceReportsSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserSampleValidationSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserHomeLiveStateSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserLayoutManagerSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserRenameSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserNetworkSmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserTelemetrySmoke.ps1
-.\ops/scripts/smoke\Test-WebViewBrowserSettingsLaunchSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserCompletedPendingProofSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserHighRiskSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserHomeLiveStateSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserLargeTableSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserLayoutManagerSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserLifecycleReconciliationSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserLifecycleSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserMaintenanceReportsSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserNetworkSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserPendingDrainGuardSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserProseBoxAudit.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserQueueFileOverridesSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserRenameSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserSampleValidationSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserScheduleSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserSettingsLaunchSmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserTelemetrySmoke.ps1
+.\ops\scripts\smoke\Test-WebViewBrowserVisualClutterScreenshots.ps1
 ```
 
+The two additional direct modules are `test_webview_browser_metrics_degraded_state_smoke.py` and `test_webview_browser_settings_builder_flush_smoke.py`. Discover all 26 modules with:
+
+```powershell
+$py = "apps\desktop\runtime\Python\python.exe"
+& $py -m unittest discover -s tests\webview -p "test_webview_browser*.py" -q
+```
 The browser-backed smoke modules share one Python/Node CDP runner support layer. It owns browser discovery, free-port allocation, bounded timeout/failure output, JSON result parsing, Chrome/Edge launch without undrained stdout/stderr pipes, bounded browser termination, and a single retry for the known no-output Windows native runner crash code (`3221226505` / `-1073740791`) or an explicitly recognized CDP startup/readiness transient. Actionable browser console errors and test assertions are not retried. If a browser smoke fails, prefer the bounded runner assertion text over manually rerunning random page snippets.
 
 ### Release self-test (layout + syntax)
@@ -158,7 +175,11 @@ $py = "apps\desktop\runtime\Python\python.exe"
 
 ```powershell
 .\ops/scripts/smoke\Test-WebViewSettingsPatchEvidenceSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1
 ```
+
+The browser Settings save smokes write only generated temporary config/state and verify strict confirmation plus reload evidence.
 
 ### Browser-backed rename smoke (verifies apply is not called on blocked scope)
 
@@ -166,7 +187,7 @@ $py = "apps\desktop\runtime\Python\python.exe"
 .\ops/scripts/smoke\Test-WebViewBrowserRenameSmoke.ps1
 ```
 
-What these prove: service and facade logic for command routing, guard logic. What they do not prove: actual config write safety on real config files; real rename on production media.
+What these prove: service/facade routing and guard logic, plus confirmed Settings persistence only in generated temporary config for the field-matrix and Library Profiles scenarios. They do not prove safety of live config writes or production-media rename.
 
 ### Browser-backed large daily-table smoke (verifies large payload visibility only)
 
@@ -332,7 +353,7 @@ This rung is the only rung that proves FFmpeg behavior. No smoke test, no unit t
 ## Common Mistakes
 
 - Running only the release self-test for WebView JS changes — it does not execute WebView JS or browser rendering.
-- Skipping browser smokes because Chrome is unavailable — note the skip in your test record and re-run on a machine with a browser before final acceptance.
+- Treating a prerequisite skip as green evidence — canonical wrappers fail skips by default; `-AllowSkippedTests` is a documented non-gating exception, and final acceptance still requires a machine where assertions run.
 - Treating clean smokes as real-media proof — smokes use fixture data and never run FFmpeg.
 - Running `Invoke-ToolIntegrationChecks.ps1` for docs-only changes — that test requires live tools and is not needed.
 
@@ -391,3 +412,16 @@ Risk: Low — documentation only.
 - Real-media pilot: `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md`
 - Release package inventory: `docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`
 - PowerShell host expectations: `docs/operator/POWERSHELL_HOST_EXPECTATIONS.md`
+
+---
+
+## Current Inventory Review — 2026-07-13
+
+| Check | Result |
+|---|---|
+| Browser wrapper inventory | 24 canonical wrappers listed in Rung 1 |
+| Browser Python inventory | 26 modules under `tests\webview`; discovery command uses the correct root |
+| Skip semantics | Canonical wrappers fail prerequisite skips unless `-AllowSkippedTests` is explicit |
+| Mutation boundary | Browser scenarios use generated disposable roots; permitted temporary writes are scenario-specific, never blanket live/operator access |
+
+Use `docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md` for exact allowed temporary writes by wrapper.

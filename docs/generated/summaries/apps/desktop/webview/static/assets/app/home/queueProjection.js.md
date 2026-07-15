@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/app/home/queueProjection.js
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-13
 last_reviewed: 2026-07-11
-sha256: 7667796bae934152d2e5186371de93f9efa0b4f16341dbde1aafc7e13a417a80
+sha256: 1c9c1d0c6fbe84f27f748c9df586bc425c85c28e49050e621824a4ba988d29c9
 ---
 # `apps/desktop/webview/static/assets/app/home/queueProjection.js`
 

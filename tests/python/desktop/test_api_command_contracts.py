@@ -13,12 +13,18 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from mediapipeline.contracts.api_commands import COMMAND_ROUTE_PAYLOAD_MODELS, validate_api_command_payload  # noqa: E402
+from mediapipeline.contracts.api_routes_command_operations import (  # noqa: E402
+    LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT as SHARED_MAINTENANCE_COMMAND_ROUTE_CONTRACT,
+)
 from mediapipeline.core.api.commands import COMMAND_ROUTE_METHODS  # noqa: E402
 from mediapipeline.core.validation.boundary import ValidationFailure, validate_api_payload  # noqa: E402
 from mediapipeline.desktop.api.command_journal_policy import bounded_command_evidence  # noqa: E402
 from mediapipeline.desktop.api.handler_policy import should_record_validation_failure_journal  # noqa: E402
 from mediapipeline.desktop.api.routes_command import POST_ROUTE_HANDLERS  # noqa: E402
 from mediapipeline.desktop.api.contract import LOCAL_API_ROUTE_CONTRACT  # noqa: E402
+from mediapipeline.desktop.api.contract_command_operations import (  # noqa: E402
+    LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT as DESKTOP_MAINTENANCE_COMMAND_ROUTE_CONTRACT,
+)
 
 
 FIXTURE_ROOT = REPO_ROOT / "tests" / "fixtures" / "source_media"
@@ -32,6 +38,20 @@ def _source_media_payload() -> dict:
 
 
 class ApiCommandContractsTests(unittest.TestCase):
+    def test_release_route_contracts_publish_builder_compatible_safe_defaults(self) -> None:
+        for contract in (SHARED_MAINTENANCE_COMMAND_ROUTE_CONTRACT, DESKTOP_MAINTENANCE_COMMAND_ROUTE_CONTRACT):
+            routes = {
+                str(item.get("path")): item
+                for item in contract
+                if item.get("path") in {"/api/maintenance/release-dry-run", "/api/maintenance/release-build"}
+            }
+            self.assertEqual(set(routes), {"/api/maintenance/release-dry-run", "/api/maintenance/release-build"})
+            for route in routes.values():
+                defaults = route["safe_defaults"]
+                self.assertTrue(defaults["verify"])
+                self.assertTrue(defaults["include_tests"])
+                self.assertFalse(defaults["include_tauri_preview_binary"])
+
     def test_queue_priority_position_is_in_canonical_route_contract(self) -> None:
         route = next(
             item
@@ -318,7 +338,12 @@ class ApiCommandContractsTests(unittest.TestCase):
             },
             "/api/rerun/start": {"csv_path": r"C:\Media\runs.csv", "dry_run": True, "path": r"C:\Other.csv"},
             "/api/rerun/control": {"action": "stop_after_current", "confirm_stop": True, "path": r"C:\Other.csv"},
-            "/api/rerun/continue": {"manifest_key": "manifest-1", "confirm_continue": True, "path": r"C:\Other.csv"},
+            "/api/rerun/continue": {
+                "manifest_key": "manifest-1",
+                "request_id": "continue-request-1",
+                "confirm_continue": True,
+                "path": r"C:\Other.csv",
+            },
             "/api/final-library-promotion/promote-queue": {"confirm_promote": True, "row_key": "client-owned"},
             "/api/final-library-promotion/pause": {"run_id": "run-1", "row_key": "client-owned"},
             "/api/final-library-promotion/resume": {"run_id": "run-1", "row_key": "client-owned"},
@@ -575,8 +600,19 @@ class ApiCommandContractsTests(unittest.TestCase):
             {"action": "pause", "confirm_pause": True},
         )
         self.assertEqual(
-            validate_api_payload("/api/rerun/continue", {"manifest_key": "manifest-1", "confirm_continue": True}),
-            {"manifest_key": "manifest-1", "confirm_continue": True},
+            validate_api_payload(
+                "/api/rerun/continue",
+                {
+                    "manifest_key": "manifest-1",
+                    "request_id": "continue-request-1",
+                    "confirm_continue": True,
+                },
+            ),
+            {
+                "manifest_key": "manifest-1",
+                "request_id": "continue-request-1",
+                "confirm_continue": True,
+            },
         )
         self.assertEqual(
             validate_api_payload("/api/rerun/promote", {"row_key": "abc", "dry_run_fingerprint": "fp", "confirm_promote": True}),
@@ -607,9 +643,25 @@ class ApiCommandContractsTests(unittest.TestCase):
         with self.assertRaises(ValidationFailure):
             validate_api_payload("/api/rerun/continue", {"manifest_key": "manifest-1"})
         with self.assertRaises(ValidationFailure):
-            validate_api_payload("/api/rerun/continue", {"manifest_key": "manifest-1", "confirm_continue": "true"})
+            validate_api_payload(
+                "/api/rerun/continue",
+                {"manifest_key": "manifest-1", "request_id": "continue-request-1", "confirm_continue": "true"},
+            )
         with self.assertRaises(ValidationFailure):
-            validate_api_payload("/api/rerun/continue", {"manifest_key": "", "confirm_continue": True})
+            validate_api_payload(
+                "/api/rerun/continue",
+                {"manifest_key": "", "request_id": "continue-request-1", "confirm_continue": True},
+            )
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload(
+                "/api/rerun/continue",
+                {"manifest_key": "manifest-1", "confirm_continue": True},
+            )
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload(
+                "/api/rerun/continue",
+                {"manifest_key": "manifest-1", "request_id": "   ", "confirm_continue": True},
+            )
         with self.assertRaises(ValidationFailure):
             validate_api_payload("/api/rerun/promote", {"row_key": "abc", "dry_run_fingerprint": "fp", "confirm_promote": "true"})
         self.assertEqual(
@@ -976,6 +1028,26 @@ class ApiCommandContractsTests(unittest.TestCase):
     def test_non_object_payload_still_fails_at_api_boundary(self) -> None:
         with self.assertRaises(ValidationFailure):
             validate_api_payload("/api/queue/priority", ["not", "an", "object"])  # type: ignore[arg-type]
+
+    def test_network_rerun_manual_retry_requires_strict_confirmation_and_identity(self) -> None:
+        request = {
+            "batch_id": "batch-1",
+            "row_key": "row-1",
+            "request_id": "retry-request-1",
+            "reason": "Source share restored.",
+            "confirm_retry": True,
+        }
+        self.assertEqual(validate_api_payload("/api/rerun/network/retry", request), request)
+        for invalid in (
+            {key: value for key, value in request.items() if key != "confirm_retry"},
+            {**request, "confirm_retry": False},
+            {**request, "confirm_retry": "true"},
+            {**request, "request_id": ""},
+            {**request, "reason": ""},
+            {**request, "unexpected": True},
+        ):
+            with self.subTest(invalid=invalid), self.assertRaises(ValidationFailure):
+                validate_api_payload("/api/rerun/network/retry", invalid)
 
     def test_settings_pipeline_plan_preview_rejects_malformed_source_and_unknown_keys(self) -> None:
         with self.assertRaises(ValidationFailure):

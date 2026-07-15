@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/queue/openActions.js
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-03
+last_modified: 2026-07-13
 last_reviewed: 2026-06-04
-sha256: 396d2795de2e30fa000566955b696182a2d8f22baf5292765e25433cd80ef322
+sha256: 6a56c29a51ef42be149d05873c7b5b4f4b2c592dd0b1738fe7fae81044b2243e
 ---
 # `apps/desktop/webview/static/assets/queue/openActions.js`
 

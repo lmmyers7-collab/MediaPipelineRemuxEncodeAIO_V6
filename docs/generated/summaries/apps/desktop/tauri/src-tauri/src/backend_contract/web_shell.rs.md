@@ -3,9 +3,9 @@ file: apps/desktop/tauri/src-tauri/src/backend_contract/web_shell.rs
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shell
-last_modified: 2026-07-11
+last_modified: 2026-07-14
 last_reviewed: 2026-07-11
-sha256: bc56a1ab2cc48e425010195f60db5e1a97a0552d303c803ceaa8c30a64c0cccd
+sha256: a1a79a4f2ba8be0f6fc3486d121553e58ced6f6fdc509f310a16bd191a918122
 ---
 # `apps/desktop/tauri/src-tauri/src/backend_contract/web_shell.rs`
 

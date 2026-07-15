@@ -1,5 +1,39 @@
 # Extracted from ops/scripts/release/test.ps1. Responsibility: deployable package acceptance orchestration
 
+function Get-NewReleaseTrackedProcessIds {
+    param(
+        [Parameter(Mandatory)][string[]]$TrackedProcessNames,
+        [Parameter(Mandatory)][int[]]$BaselineProcessIds
+    )
+
+    $newProcessIds = @(@(
+        foreach ($name in $TrackedProcessNames) {
+            Get-Process -Name $name -ErrorAction SilentlyContinue |
+                Where-Object { $BaselineProcessIds -notcontains [int]$_.Id } |
+                ForEach-Object { [int]$_.Id }
+        }
+    ) | Sort-Object -Unique)
+    return $newProcessIds
+}
+
+function Wait-ReleaseTrackedProcessExit {
+    param(
+        [Parameter(Mandatory)][string[]]$TrackedProcessNames,
+        [Parameter(Mandatory)][int[]]$BaselineProcessIds,
+        [int]$TimeoutSeconds = 10
+    )
+
+    $deadline = [DateTimeOffset]::UtcNow.AddSeconds($TimeoutSeconds)
+    while ($true) {
+        $remaining = @(Get-NewReleaseTrackedProcessIds `
+            -TrackedProcessNames $TrackedProcessNames `
+            -BaselineProcessIds $BaselineProcessIds)
+        if ($remaining.Count -eq 0) { return @() }
+        if ([DateTimeOffset]::UtcNow -ge $deadline) { return $remaining }
+        Start-Sleep -Milliseconds 250
+    }
+}
+
 function Invoke-DeployablePackageAcceptance {
     param([Parameter(Mandatory)][string]$ManifestPath)
 
@@ -55,13 +89,9 @@ function Invoke-DeployablePackageAcceptance {
             $script:Failed = $true
         }
     }
-    $newProcessIds = @(@(
-        foreach ($name in $trackedProcessNames) {
-            Get-Process -Name $name -ErrorAction SilentlyContinue |
-                Where-Object { $baselineProcessIds -notcontains [int]$_.Id } |
-                ForEach-Object { [int]$_.Id }
-        }
-    ) | Sort-Object -Unique)
+    $newProcessIds = @(Wait-ReleaseTrackedProcessExit `
+        -TrackedProcessNames $trackedProcessNames `
+        -BaselineProcessIds $baselineProcessIds)
     if ($newProcessIds.Count -gt 0) {
         Write-Fail ('Package acceptance left runtime child process(es): ' + ($newProcessIds -join ', '))
         $script:Failed = $true

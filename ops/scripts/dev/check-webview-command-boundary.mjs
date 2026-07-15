@@ -141,8 +141,8 @@ const selectorRouteRules = [
 
 const directMutationApiRules = [
   { label: "direct fetch outside apiClient", pattern: /\bfetch\s*\(/, allowed: ["apps/desktop/webview/static/assets/apiClient.js"] },
-  { label: "direct Tauri bridge access", pattern: /window\.__TAURI__|\b__TAURI__\b/, allowed: ["apps/desktop/webview/static/assets/tauriLifecycleBridge.js"] },
-  { label: "Tauri invoke", pattern: /\binvoke\s*\(|\.invoke\s*\(/, allowed: [] },
+  { label: "direct Tauri bridge access", pattern: /window\.__TAURI__|\b__TAURI__\b/, allowed: ["apps/desktop/webview/static/assets/tauriLifecycleBridge.js", "apps/desktop/webview/static/assets/pipelineLogWindowBridge.js"] },
+  { label: "Tauri invoke", pattern: /\binvoke\s*\(|\.invoke\s*\(/, allowed: ["apps/desktop/webview/static/assets/pipelineLogWindowBridge.js"] },
   { label: "Tauri shell/fs/process capability", pattern: /\b(writeTextFile|writeFile|removeFile|removeDir|renameFile|Command|openPath|openUrl)\s*\(/, allowed: [] },
   { label: "Node filesystem/process import", pattern: /\b(require|import)\s*\(\s*["'](?:fs|node:fs|child_process|node:child_process)["']|from\s+["'](?:fs|node:fs|child_process|node:child_process)["']/, allowed: [] },
   { label: "direct filesystem path mutation wording", pattern: /\b(unlink|rm|rmdir|rename|moveFile|copyFile)\s*\(/, allowed: [] },
@@ -443,6 +443,9 @@ function controlIdentity(control) {
 
 function classifyControl(control) {
   const identity = controlIdentity(control);
+  if (Object.hasOwn(control.attrs, "data-network-future-control")) {
+    return { classification: "disabled-future-network-control", route: "" };
+  }
   for (const rule of routeHintRules) {
     if (rule.pattern.test(identity)) {
       return {

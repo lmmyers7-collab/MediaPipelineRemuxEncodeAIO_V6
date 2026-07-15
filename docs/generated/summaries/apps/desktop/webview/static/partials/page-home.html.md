@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/partials/page-home.html
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-13
 last_reviewed: 2026-06-04
-sha256: 1181d5a57aba9eefc57c144447e05ccf767658853c42d148ce590025ca10e134
+sha256: 822d28bc983e8c04e48a65429b1a669b587bc44994737941be4d0b1dc7440cdb
 ---
 # `apps/desktop/webview/static/partials/page-home.html`
 

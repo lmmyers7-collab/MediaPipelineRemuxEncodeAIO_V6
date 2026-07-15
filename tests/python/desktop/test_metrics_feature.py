@@ -547,6 +547,12 @@ class MetricsFeatureTests(unittest.TestCase):
         self.assertIn("Historical values remain visible", metrics_js)
         self.assertIn("renderMetricsUnavailable?.(", refresh_js)
 
+    def test_webview_metrics_attention_action_exposes_stable_target_selector(self) -> None:
+        metrics_js = (WEBVIEW_ROOT / "assets" / "metricsView.js").read_text(encoding="utf-8")
+
+        self.assertIn("action.dataset.metricsAttentionTarget = targetTab;", metrics_js)
+        self.assertIn("activateMetricsTab(targetTab);", metrics_js)
+
 
 if __name__ == "__main__":
     unittest.main()

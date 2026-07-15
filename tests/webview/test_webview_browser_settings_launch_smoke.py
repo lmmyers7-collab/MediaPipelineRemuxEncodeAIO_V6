@@ -145,6 +145,195 @@ def _browser_settings_launch_runner_source() -> str:
               }
               clickSettingsTab("status");
             }
+            function requirePendingPublishGibConstraints() {
+              const review = byId("settings-pending-review-budget-gib");
+              const block = byId("settings-pending-block-budget-gib");
+              for (const [control, expectedValue, label] of [
+                [review, "100", "review"],
+                [block, "250", "block"],
+              ]) {
+                if (!control) throw new Error("missing pending-publish " + label + " budget control");
+                if (control.value !== expectedValue) {
+                  throw new Error(label + " budget did not render in GiB: " + control.value);
+                }
+                if (control.min !== "1" || control.max !== "10240" || control.step !== "1") {
+                  throw new Error(label + " budget kept byte-unit constraints: min=" + control.min + " max=" + control.max + " step=" + control.step);
+                }
+                if (!control.checkValidity()) throw new Error(label + " budget default is invalid in display units");
+              }
+              setInput("settings-pending-review-budget-gib", "1");
+              setInput("settings-pending-block-budget-gib", "10240");
+              click("settings-pending-apply-button");
+              const staged = JSON.parse(byId("settings-patch-json").value || "{}");
+              if (staged.AutonomyPendingTotalReviewBytes !== 1073741824) {
+                throw new Error("review GiB boundary did not stage exact bytes: " + staged.AutonomyPendingTotalReviewBytes);
+              }
+              if (staged.AutonomyPendingTotalBlockBytes !== 10995116277760) {
+                throw new Error("block GiB boundary did not stage exact bytes: " + staged.AutonomyPendingTotalBlockBytes);
+              }
+              setTextarea("settings-patch-json", "{}");
+
+              const alreadyGibMetadata = JSON.parse(JSON.stringify(payload.settings));
+              for (const key of ["AutonomyPendingTotalReviewBytes", "AutonomyPendingTotalBlockBytes"]) {
+                const field = alreadyGibMetadata.field_definitions?.find((item) => item?.key === key);
+                if (!field) throw new Error("missing pending-publish metadata for " + key);
+                field.unit = "gib";
+                field.min = 1;
+                field.max = 10240;
+                field.step = 1;
+              }
+              window.mediaPipelineSettingsView.renderSettings(alreadyGibMetadata);
+              for (const id of ["settings-pending-review-budget-gib", "settings-pending-block-budget-gib"]) {
+                const control = byId(id);
+                if (control.min !== "1" || control.max !== "10240" || control.step !== "1") {
+                  throw new Error(id + " converted constraints that were already expressed in GiB");
+                }
+              }
+              window.mediaPipelineSettingsView.renderSettings(payload.settings);
+              window.showPage("settings");
+            }
+            function requireSettingsBuilderResetPruning() {
+              const resetCases = [
+                ["settings-builder-reset-button", "RoutingProfile"],
+                ["settings-video-reset-button", "OutputContainer"],
+                ["settings-quality-reset-button", "EnableQualityVerification"],
+                ["settings-file-safety-reset-button", "SourceMovies"],
+                ["settings-network-reset-button", "NetworkRole"],
+                ["settings-queue-reset-button", "PriorityMarkers"],
+                ["settings-runtime-reset-button", "DebugMode"],
+                ["settings-pending-reset-button", "DeferredPublish"],
+                ["settings-subtitle-reset-button", "ConvertTx3gToSrt"],
+                ["settings-audio-reset-button", "AudioDownmixMode"],
+              ];
+              for (const [buttonId, ownedKey] of resetCases) {
+                const candidate = { LibraryProfiles: [{ id: "unrelated-marker" }] };
+                candidate[ownedKey] = "stale-builder-value";
+                byId("settings-patch-json").value = JSON.stringify(candidate, null, 2);
+                click(buttonId);
+                const reset = JSON.parse(byId("settings-patch-json").value || "{}");
+                if (Object.prototype.hasOwnProperty.call(reset, ownedKey)) {
+                  throw new Error(buttonId + " retained owned key " + ownedKey);
+                }
+                if (reset.LibraryProfiles?.[0]?.id !== "unrelated-marker") {
+                  throw new Error(buttonId + " removed an unrelated staged key");
+                }
+              }
+
+              const fileSafetyControl = byId("settings-file-safety-source-movies");
+              if (!fileSafetyControl) throw new Error("missing file-safety source control for malformed JSON reset guard");
+              fileSafetyControl.value = "C:/sentinel/must-not-reset";
+              byId("settings-patch-json").value = "{ malformed";
+              click("settings-file-safety-reset-button");
+              if (byId("settings-patch-json").value !== "{ malformed") {
+                throw new Error("malformed Changes JSON was rewritten by Reset From Current");
+              }
+              if (fileSafetyControl.value !== "C:/sentinel/must-not-reset") {
+                throw new Error("builder controls reset despite malformed Changes JSON");
+              }
+              requireText("settings-patch-status", ["Reset blocked"]);
+              setTextarea("settings-patch-json", "{}");
+              window.mediaPipelineSettingsView.renderSettings(payload.settings);
+            }
+            function requireLibraryOptionalEmptyOverrideSemantics() {
+              const originalSettings = JSON.parse(JSON.stringify(payload.settings));
+              const caseSettings = JSON.parse(JSON.stringify(payload.settings));
+              const config = caseSettings.config || (caseSettings.config = {});
+              const profiles = Array.isArray(config.LibraryProfiles) ? config.LibraryProfiles : [];
+              config.LibraryProfiles = profiles;
+              let tvProfile = profiles.find((profile) => profile && profile.id === "tv");
+              if (!tvProfile) {
+                tvProfile = {
+                  id: "tv",
+                  name: "TV",
+                  enabled: true,
+                  designation: "tv",
+                  source_path: config.SourceTV || "",
+                  output_path: config.Outsource || "",
+                  promotion_enabled: false,
+                  promotion_destination: "",
+                  overrides: {},
+                };
+                profiles.push(tvProfile);
+              }
+              tvProfile.overrides = tvProfile.overrides || {};
+              tvProfile.overrides.video = { ...(tvProfile.overrides.video || {}) };
+              tvProfile.overrides.subtitles = { ...(tvProfile.overrides.subtitles || {}) };
+              delete tvProfile.overrides.video.ExtraVideoFlags;
+              tvProfile.overrides.subtitles.IncludeSubtitleStyles = [];
+              delete tvProfile.overrides.subtitles.ExcludeSubtitleStyles;
+              config.ExtraVideoFlags = [];
+              config.IncludeSubtitleStyles = ["Signs"];
+              config.ExcludeSubtitleStyles = ["Dialogue"];
+              const tvState = (Array.isArray(caseSettings.library_profile_state) ? caseSettings.library_profile_state : [])
+                .find((profile) => (profile?.library_id || profile?.id) === "tv");
+              if (tvState?.setting_overrides?.video) delete tvState.setting_overrides.video.ExtraVideoFlags;
+              if (tvState?.setting_overrides?.subtitles) {
+                delete tvState.setting_overrides.subtitles.IncludeSubtitleStyles;
+                delete tvState.setting_overrides.subtitles.ExcludeSubtitleStyles;
+              }
+
+              window.showPage("libraries");
+              window.mediaPipelineSettingsLibraries.renderSettingsLibraries(caseSettings);
+              window.mediaPipelineSettingsLibraries.activateLibraryProfile("tv", { source: "browser-regression" });
+              const card = document.querySelector('[data-library-id="tv"]');
+              if (!card) throw new Error("missing TV card for optional-empty override regression");
+              const row = (key) => card.querySelector('[data-library-override-row][data-library-override-key="' + key + '"]');
+              const setRowValue = (overrideRow, value) => {
+                const control = overrideRow?.querySelector("[data-library-override-control]");
+                if (!control) throw new Error("missing optional-empty override control");
+                control.value = value;
+                control.dispatchEvent(new Event("input", { bubbles: true }));
+                control.dispatchEvent(new Event("change", { bubbles: true }));
+              };
+
+              const inheritedEmpty = row("ExtraVideoFlags");
+              if (!inheritedEmpty || inheritedEmpty.dataset.libraryOverride !== "false") {
+                throw new Error("ExtraVideoFlags did not begin as inherited empty");
+              }
+              setRowValue(inheritedEmpty, "-metadata title=temporary");
+              setRowValue(inheritedEmpty, "");
+              if (inheritedEmpty.dataset.libraryOverride !== "false") {
+                throw new Error("initially inherited empty list remained an explicit empty override after clear: " + JSON.stringify({
+                  persisted: inheritedEmpty.dataset.libraryPersistedOverride,
+                  inherited: inheritedEmpty.dataset.libraryInheritedValue,
+                  value: inheritedEmpty.querySelector("[data-library-override-control]")?.value,
+                }));
+              }
+
+              const explicitEmpty = row("IncludeSubtitleStyles");
+              if (!explicitEmpty || explicitEmpty.dataset.libraryOverride !== "true") {
+                throw new Error("IncludeSubtitleStyles did not begin as persisted explicit empty");
+              }
+              setRowValue(explicitEmpty, "");
+              if (explicitEmpty.dataset.libraryOverride !== "true") {
+                throw new Error("persisted explicit-empty override incorrectly returned to inheritance");
+              }
+
+              const inheritedNonEmpty = row("ExcludeSubtitleStyles");
+              if (!inheritedNonEmpty || inheritedNonEmpty.dataset.libraryOverride !== "false") {
+                throw new Error("ExcludeSubtitleStyles did not begin as inherited non-empty");
+              }
+              setRowValue(inheritedNonEmpty, "");
+              if (inheritedNonEmpty.dataset.libraryOverride !== "true") {
+                throw new Error("clearing a non-empty inherited global did not create an explicit empty override");
+              }
+
+              const patch = window.mediaPipelineSettingsLibraries.buildPatchFromLibraries();
+              const patchedTv = patch.LibraryProfiles.find((profile) => profile.id === "tv");
+              if (Object.prototype.hasOwnProperty.call(patchedTv.overrides.video, "ExtraVideoFlags")) {
+                throw new Error("LibraryProfiles patch retained returned-to-inherited ExtraVideoFlags");
+              }
+              for (const key of ["IncludeSubtitleStyles", "ExcludeSubtitleStyles"]) {
+                if (!Array.isArray(patchedTv.overrides.subtitles[key]) || patchedTv.overrides.subtitles[key].length) {
+                  throw new Error("LibraryProfiles patch lost explicit-empty " + key);
+                }
+              }
+
+              click("settings-library-reset-button");
+              window.mediaPipelineSettingsLibraries.renderSettingsLibraries(originalSettings);
+              setTextarea("settings-patch-json", "{}");
+              window.showPage("settings");
+            }
             async function requireLibraryProfileDesignationFiltering() {
               function libraryCard(id) {
                 const card = document.querySelector('[data-library-id="' + id + '"]');
@@ -214,6 +403,7 @@ def _browser_settings_launch_runner_source() -> str:
                 throw new Error("missing Library Profiles renderer");
               }
               window.mediaPipelineSettingsLibraries.renderSettingsLibraries(payload.settings);
+              window.mediaPipelineSettingsLibraries.activateLibraryProfile("movies", { source: "browser-regression" });
               const movieCard = libraryCard("movies");
               requireFocusedLibrarySelectSurvivesAutomaticRefresh(movieCard);
               let tvCard = libraryCard("tv");
@@ -430,13 +620,97 @@ def _browser_settings_launch_runner_source() -> str:
                   "Library Route Map compare rows with semantic data-state coloring"
                 );
               }
-              const navigation = panel.querySelector("[data-library-route-navigate]");
-              if (!navigation) throw new Error("Library Route Map did not render guided navigation");
-              navigation.click();
-              await waitFor(
-                () => Boolean(document.querySelector("[data-library-profile-nav]")),
-                "Library Route Map guided navigation target"
+              const navigationActions = Array.from(panel.querySelectorAll("[data-library-route-navigate]")).map((link) => ({
+                libraryId: link.getAttribute("data-library-id") || "",
+                selector: link.getAttribute("data-library-route-selector") || "",
+              }));
+              if (!navigationActions.length) throw new Error("Library Route Map did not render guided navigation");
+              const commandCountBeforeNavigation = window.getCommandHistory().length;
+              const changesBeforeNavigation = byId("settings-patch-json").value;
+              const patchStateBeforeNavigation = window.mediaPipelineSettingsLibraries.libraryPatchStateKind();
+              const editorStateBeforeNavigation = text("settings-library-editor-state");
+              const boundaryForHiddenRouteKey = (key) => (
+                ["Route1080pUpperHeightTolerancePercent", "Route1440pLowerHeightTolerancePercent"].includes(key)
+                  ? "first"
+                  : ["Route1440pUpperHeightTolerancePercent", "Route4KLowerHeightTolerancePercent"].includes(key)
+                    ? "second"
+                    : ""
               );
+              for (const action of navigationActions) {
+                window.showPage("settings");
+                const currentLink = Array.from(panel.querySelectorAll("[data-library-route-navigate]")).find((link) => (
+                  (link.getAttribute("data-library-id") || "") === action.libraryId
+                    && (link.getAttribute("data-library-route-selector") || "") === action.selector
+                ));
+                if (!currentLink) throw new Error("guided navigation action disappeared before activation: " + JSON.stringify(action));
+                currentLink.click();
+                await waitFor(
+                  () => document.querySelector('[data-page-panel="libraries"]')?.classList.contains("is-visible"),
+                  "Library Route Map guided navigation page activation"
+                );
+                const initialTarget = action.selector ? document.querySelector(action.selector) : null;
+                if (!initialTarget) throw new Error("guided navigation selector did not resolve: " + action.selector);
+                const hiddenRouteFields = initialTarget.closest(".settings-library-route-hidden-fields");
+                const hiddenRouteKey = initialTarget.getAttribute("data-library-override-key") || "";
+                const boundary = hiddenRouteFields ? boundaryForHiddenRouteKey(hiddenRouteKey) : "";
+                await waitFor(() => {
+                  const sourceTarget = action.selector ? document.querySelector(action.selector) : null;
+                  if (!sourceTarget) throw new Error("guided navigation target disappeared: " + action.selector);
+                  const target = boundary
+                    ? sourceTarget.closest("[data-library-id]")?.querySelector('[data-library-route-boundary-input="' + boundary + '"]')
+                    : sourceTarget;
+                  if (!target) throw new Error("guided navigation visible target did not resolve: " + action.selector);
+                  const details = [];
+                  let ancestor = target.parentElement;
+                  while (ancestor) {
+                    if (ancestor.matches?.("details")) details.push(ancestor);
+                    ancestor = ancestor.parentElement;
+                  }
+                  const active = document.activeElement;
+                  const ready = details.every((detail) => detail.open)
+                    && target.classList.contains("is-selected")
+                    && (active === target || target.contains(active));
+                  if (hiddenRouteFields && !hiddenRouteFields.hidden) {
+                    throw new Error("guided navigation exposed intentionally hidden route fields for " + action.selector);
+                  }
+                  if (!ready) {
+                    throw new Error(JSON.stringify({
+                      detailsOpen: details.map((detail) => detail.open),
+                      selected: target.classList.contains("is-selected"),
+                      active: active?.outerHTML?.slice(0, 180) || active?.tagName || "none",
+                      containsActive: Boolean(active && target.contains(active)),
+                      libraryStatus: text("settings-libraries-status"),
+                    }));
+                  }
+                  return true;
+                }, "Library Route Map guided navigation focus " + action.selector);
+              }
+              if (window.getCommandHistory().length !== commandCountBeforeNavigation) {
+                throw new Error("guided read-only navigation recorded a backend command");
+              }
+              if (byId("settings-patch-json").value !== changesBeforeNavigation) {
+                throw new Error("guided navigation changed Settings Changes JSON");
+              }
+              if (window.mediaPipelineSettingsLibraries.libraryPatchStateKind() !== patchStateBeforeNavigation) {
+                throw new Error("guided navigation changed the Library patch state");
+              }
+              if (text("settings-library-editor-state") !== editorStateBeforeNavigation) {
+                throw new Error("guided navigation changed the Library editor dirty state");
+              }
+
+              const invalidNavigation = document.createElement("a");
+              invalidNavigation.href = "#settings-library-profile-list";
+              invalidNavigation.dataset.libraryRouteNavigate = "true";
+              invalidNavigation.dataset.libraryId = navigationActions[0].libraryId || "movies";
+              invalidNavigation.dataset.libraryRouteSelector = '[data-library-id="missing-guided-target"]';
+              panel.appendChild(invalidNavigation);
+              window.showPage("settings");
+              invalidNavigation.click();
+              await waitFor(
+                () => text("settings-libraries-status").includes("Guided target unavailable"),
+                "Library Route Map missing-target fallback"
+              );
+              invalidNavigation.remove();
               await waitFor(
                 () => byId("library-route-validation-rows").textContent.includes("Sample Validation proof"),
                 "Library Route Map validation handoff"
@@ -504,8 +778,12 @@ def _browser_settings_launch_runner_source() -> str:
 
             window.mediaPipelineSettingsView.renderSettings(payload.settings);
             window.showPage("settings");
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            requirePendingPublishGibConstraints();
+            requireSettingsBuilderResetPruning();
             requireDefaultVisibleFreeSpaceReserves();
             requireDefaultVisibleAssSsaCheckboxes();
+            requireLibraryOptionalEmptyOverrideSemantics();
             await requireLibraryProfileDesignationFiltering();
             await requireLibraryRouteMapEvidence();
             requireText("settings-raw-action-plan-summary", [

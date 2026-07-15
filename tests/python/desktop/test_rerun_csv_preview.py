@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import sys
 import tempfile
+import threading
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
@@ -20,6 +23,9 @@ from mediapipeline.core.processes.rerun_preview import (  # noqa: E402
     rerun_csv_preview_payload,
     rerun_network_csv_preview_payload,
 )
+from mediapipeline.core.processes.rerun_preview_network import (  # noqa: E402
+    _network_source_content_hash,
+)
 from mediapipeline.core.network.rerun_handoff import (  # noqa: E402
     network_rerun_handoff_root_evidence,
     probe_network_rerun_handoff_root,
@@ -32,6 +38,7 @@ from mediapipeline.core.processes.rerun_rules import (  # noqa: E402
     SUBTITLE_REMEDIATION,
 )
 from mediapipeline.desktop.models import ResolvedPaths  # noqa: E402
+from mediapipeline.core.processes import rerun_source_health  # noqa: E402
 
 
 def _resolved(root: Path) -> ResolvedPaths:
@@ -81,6 +88,33 @@ def _media_file(root: Path, name: str, *, suffix: str = ".mkv") -> Path:
 
 
 class RerunCsvPreviewTests(unittest.TestCase):
+    def test_network_preview_offline_hash_reuse_rejects_noncanonical_or_malformed_baselines(self) -> None:
+        valid_digest = hashlib.sha256(b"media").hexdigest()
+        invalid_baselines = (
+            (valid_digest, "full-sha256"),
+            ("g" * 64, "sha256-full-file"),
+            (valid_digest[:-1], "sha256-full-file"),
+        )
+
+        for digest, algorithm in invalid_baselines:
+            with self.subTest(digest=digest, algorithm=algorithm), patch(
+                "mediapipeline.core.processes.rerun_preview_network.run_source_probe",
+                side_effect=TimeoutError("full hash timed out"),
+            ):
+                evidence = _network_source_content_hash(
+                    {
+                        "source_path": r"\\offline\media\Movie.mkv",
+                        "source_content_sha256": digest,
+                        "source_content_sha256_algorithm": algorithm,
+                    },
+                    required=True,
+                )
+
+            self.assertEqual(evidence["status"], "unavailable")
+            self.assertFalse(evidence["ready"])
+            self.assertEqual(evidence["source_content_sha256"], "")
+            self.assertNotIn("provenance", evidence)
+
     def test_preview_blocks_outside_root_plex_planned_path(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -306,15 +340,124 @@ class RerunCsvPreviewTests(unittest.TestCase):
         self.assertEqual(payload["counts"]["claimable_rows"], 1)
         self.assertEqual(payload["counts"]["start_ready_rows"], 1)
         self.assertEqual(payload["counts"]["output_handoff_ready_rows"], 1)
+        self.assertEqual(payload["counts"]["source_content_sha256_ready_rows"], 1)
+        self.assertEqual(payload["counts"]["source_content_sha256_unavailable_rows"], 0)
         self.assertEqual(payload["output_handoff"]["status"], "ready")
         row = payload["rows"][0]
         self.assertTrue(row["start_ready"])
+        self.assertEqual(row["source_content_sha256"], hashlib.sha256(b"media").hexdigest())
+        self.assertEqual(row["source_content_sha256_algorithm"], "sha256-full-file")
+        self.assertEqual(row["source_content_hash_evidence"]["status"], "captured")
         self.assertEqual(row["output_handoff"]["status"], "ready")
         self.assertEqual(row["output_handoff"]["cleanup_owner"], "coordinator")
         self.assertIn("{batch_id}", row["output_handoff"]["planned_batch_relative_path"])
         self.assertTrue(row["output_handoff"]["planned_row_handoff_path_template"].endswith(row["row_key"]))
         self.assertEqual(row["output_handoff"]["planned_row_handoff_path"], "")
         self.assertEqual(handoff_entries, [])
+
+    def test_network_preview_is_review_only_when_full_source_hash_is_unavailable(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            csv_path = root / "rerun.csv"
+            source_root = root / "ProfileSource"
+            source = source_root / "Movie.mkv"
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b"media")
+            handoff_root = root / "NetworkRerunHandoff"
+            handoff_root.mkdir()
+            _write_csv(
+                csv_path,
+                [{"enabled": "true", "source_path": str(source), "audit_issue_codes": "AUDIO"}],
+            )
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "Outsource": str(root / "Outsource"),
+                "NetworkRerunHandoffRoot": str(handoff_root),
+                "LibraryProfiles": [
+                    {
+                        "id": "profile",
+                        "enabled": True,
+                        "source_path": str(source_root),
+                        "output_path": str(root / "ProfileOut"),
+                    }
+                ],
+            }
+
+            with patch(
+                "mediapipeline.core.processes.rerun_preview_network.run_source_probe",
+                side_effect=TimeoutError("full hash timed out"),
+            ):
+                payload = rerun_network_csv_preview_payload(
+                    resolved,
+                    {"csv_path": str(csv_path), "confirm_replace_final": True},
+                )
+
+        self.assertFalse(payload["can_start_network_batch"])
+        self.assertIn("source_content_sha256_unavailable", payload["start_blockers"])
+        self.assertEqual(payload["counts"]["source_content_sha256_unavailable_rows"], 1)
+        row = payload["rows"][0]
+        self.assertTrue(row["claimable"])
+        self.assertFalse(row["start_ready"])
+        self.assertEqual(row["source_content_sha256"], "")
+        self.assertEqual(row["source_content_hash_evidence"]["status"], "unavailable")
+        self.assertEqual(payload["state_files_would_write"], [])
+
+    def test_network_preview_reuses_only_valid_planned_full_hash_when_probe_is_unavailable(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            csv_path = root / "rerun.csv"
+            source_root = root / "ProfileSource"
+            source = source_root / "Movie.mkv"
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b"media")
+            planned_hash = hashlib.sha256(b"media").hexdigest()
+            handoff_root = root / "NetworkRerunHandoff"
+            handoff_root.mkdir()
+            _write_csv(
+                csv_path,
+                [
+                    {
+                        "enabled": "true",
+                        "source_path": str(source),
+                        "audit_issue_codes": "AUDIO",
+                        "source_content_sha256": planned_hash,
+                        "source_content_sha256_algorithm": "sha256-full-file",
+                    }
+                ],
+            )
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "Outsource": str(root / "Outsource"),
+                "NetworkRerunHandoffRoot": str(handoff_root),
+                "LibraryProfiles": [
+                    {
+                        "id": "profile",
+                        "enabled": True,
+                        "source_path": str(source_root),
+                        "output_path": str(root / "ProfileOut"),
+                    }
+                ],
+            }
+
+            with patch(
+                "mediapipeline.core.processes.rerun_preview_network.run_source_probe",
+                side_effect=TimeoutError("full hash timed out"),
+            ):
+                payload = rerun_network_csv_preview_payload(
+                    resolved,
+                    {"csv_path": str(csv_path), "confirm_replace_final": True},
+                )
+
+        self.assertTrue(payload["can_start_network_batch"])
+        self.assertNotIn("source_content_sha256_unavailable", payload["start_blockers"])
+        row = payload["rows"][0]
+        self.assertTrue(row["start_ready"])
+        self.assertEqual(row["source_content_sha256"], planned_hash)
+        evidence = row["source_content_hash_evidence"]
+        self.assertEqual(evidence["status"], "planned_baseline_unverified")
+        self.assertEqual(evidence["provenance"], "planned_existing_baseline")
+        self.assertEqual(evidence["probe_failure_reason"], "full hash timed out")
+        self.assertEqual(payload["state_files_would_write"], [])
 
     def test_network_handoff_probe_creates_reads_lists_and_deletes_temp_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -796,6 +939,245 @@ class RerunCsvPreviewTests(unittest.TestCase):
         self.assertIn("relative source_path", reasons)
         self.assertIn("source file not found", reasons)
         self.assertIn("invalid media extension", reasons)
+
+    def test_preview_distinguishes_unavailable_configured_root_from_missing_leaf(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            offline_root = root / "OfflineSource"
+            unavailable_source = offline_root / "Movie.mkv"
+            csv_path = root / "rerun.csv"
+            _write_csv(
+                csv_path,
+                [
+                    {
+                        "enabled": "true",
+                        "source_path": str(unavailable_source),
+                        "source_size": "5",
+                        "source_identity_v2": "fixture-source-identity",
+                        "source_identity_v2_algorithm": "fixture_v2",
+                        "source_content_sha256": "a" * 64,
+                        "source_content_sha256_algorithm": "sha256-full-file",
+                        "audit_issue_codes": "AUDIO",
+                    }
+                ],
+            )
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "SourceTV": str(offline_root),
+                "Outsource": str(root / "Outsource"),
+            }
+
+            unavailable = rerun_csv_preview_payload(
+                resolved,
+                {"csv_path": str(csv_path), "confirm_replace_final": True},
+            )
+
+            offline_root.mkdir()
+            missing = rerun_csv_preview_payload(
+                resolved,
+                {"csv_path": str(csv_path), "confirm_replace_final": True},
+            )
+
+        self.assertEqual(unavailable["status"], "review")
+        self.assertTrue(unavailable["ok"])
+        self.assertEqual(unavailable["counts"]["source_location_unavailable_rows"], 1)
+        self.assertEqual(unavailable["counts"]["source_missing_rows"], 0)
+        self.assertEqual(unavailable["rows"][0]["source_health_code"], "source_location_unavailable")
+        self.assertEqual(unavailable["rows"][0]["status"], "warning")
+        self.assertEqual(unavailable["rows"][0]["source_content_sha256"], "a" * 64)
+        self.assertEqual(
+            unavailable["rows"][0]["source_content_sha256_algorithm"],
+            "sha256-full-file",
+        )
+        self.assertEqual(
+            unavailable["rows"][0]["source_content_hash_evidence"]["authority"],
+            "persisted_csv_input",
+        )
+        self.assertIn("wait", unavailable["rows"][0]["automatic_next_action"].casefold())
+
+        self.assertEqual(missing["status"], "blocked")
+        self.assertFalse(missing["ok"])
+        self.assertEqual(missing["counts"]["source_location_unavailable_rows"], 0)
+        self.assertEqual(missing["counts"]["source_missing_rows"], 1)
+        self.assertEqual(missing["rows"][0]["source_health_code"], "source_missing")
+
+    def test_preview_classifies_an_unreachable_configured_unc_root_without_touching_a_share(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            source_root = r"\\fixture-server\Media"
+            source = source_root + r"\Movie.mkv"
+            csv_path = root / "rerun.csv"
+            _write_csv(
+                csv_path,
+                [
+                    {
+                        "enabled": "true",
+                        "source_path": source,
+                        "source_identity_v2": "fixture-source-identity",
+                        "audit_issue_codes": "AUDIO",
+                    }
+                ],
+            )
+            resolved = _resolved(root)
+            resolved.config_data = {"SourceMovies": source_root, "Outsource": str(root / "Outsource")}
+
+            with patch(
+                "mediapipeline.core.processes.rerun_source_health._bounded_stat",
+                side_effect=FileNotFoundError("fixture UNC root is offline"),
+            ):
+                payload = rerun_csv_preview_payload(
+                    resolved,
+                    {"csv_path": str(csv_path), "confirm_replace_final": True},
+                )
+
+        row = payload["rows"][0]
+        self.assertEqual(payload["status"], "review")
+        self.assertEqual(row["source_health_code"], "source_location_unavailable")
+        self.assertEqual(row["source_root"], source_root)
+        self.assertTrue(row["source_retryable"])
+
+    def test_preview_classifies_source_permission_failure_separately_from_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            source_root = root / "Protected"
+            source = source_root / "Movie.mkv"
+            csv_path = root / "rerun.csv"
+            _write_csv(
+                csv_path,
+                [
+                    {
+                        "enabled": "true",
+                        "source_path": str(source),
+                        "source_identity_v2": "fixture-source-identity",
+                        "audit_issue_codes": "AUDIO",
+                    }
+                ],
+            )
+            resolved = _resolved(root)
+            resolved.config_data = {"SourceMovies": str(source_root), "Outsource": str(root / "Outsource")}
+
+            with patch(
+                "mediapipeline.core.processes.rerun_source_health._bounded_stat",
+                side_effect=PermissionError("fixture access denied"),
+            ):
+                payload = rerun_csv_preview_payload(
+                    resolved,
+                    {"csv_path": str(csv_path), "confirm_replace_final": True},
+                )
+
+        row = payload["rows"][0]
+        self.assertEqual(payload["status"], "review")
+        self.assertEqual(row["source_health_code"], "source_access_failed")
+        self.assertTrue(row["source_retryable"])
+        self.assertIn("permission", row["available_operator_action"].casefold())
+
+    def test_preview_blocks_changed_source_identity_before_staging(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            source_root = root / "Source"
+            source = source_root / "Movie.mkv"
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b"changed-media")
+            csv_path = root / "rerun.csv"
+            _write_csv(
+                csv_path,
+                [
+                    {
+                        "enabled": "true",
+                        "source_path": str(source),
+                        "source_size": "5",
+                        "audit_issue_codes": "AUDIO",
+                    }
+                ],
+            )
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "SourceMovies": str(source_root),
+                "Outsource": str(root / "Outsource"),
+            }
+
+            payload = rerun_csv_preview_payload(
+                resolved,
+                {"csv_path": str(csv_path), "confirm_replace_final": True},
+            )
+
+        self.assertEqual(payload["status"], "blocked")
+        self.assertEqual(payload["counts"]["source_identity_changed_rows"], 1)
+        self.assertEqual(payload["rows"][0]["source_health_code"], "source_identity_changed")
+        self.assertTrue(payload["rows"][0]["operator_action_required"])
+
+    def test_preview_reuses_one_bounded_root_probe_for_rows_on_the_same_source_root(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            source_root = root / "Source"
+            first = _media_file(source_root, "First")
+            second = _media_file(source_root, "Second")
+            csv_path = root / "rerun.csv"
+            _write_csv(
+                csv_path,
+                [
+                    {"enabled": "true", "source_path": str(first), "audit_issue_codes": "AUDIO"},
+                    {"enabled": "true", "source_path": str(second), "audit_issue_codes": "AUDIO"},
+                ],
+            )
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "SourceMovies": str(source_root),
+                "Outsource": str(root / "Outsource"),
+            }
+            probed_paths: list[Path] = []
+
+            def record_stat(path: Path, **_kwargs: object):
+                probed_paths.append(path)
+                return path.stat()
+
+            with patch(
+                "mediapipeline.core.processes.rerun_source_health._bounded_stat",
+                side_effect=record_stat,
+            ):
+                payload = rerun_csv_preview_payload(
+                    resolved,
+                    {"csv_path": str(csv_path), "confirm_replace_final": True},
+                )
+
+        self.assertTrue(payload["ok"])
+        self.assertEqual(probed_paths.count(source_root), 1)
+
+    def test_local_bounded_stat_uses_killable_probe_without_accumulating_threads_on_timeout(self) -> None:
+        before = {thread.ident for thread in threading.enumerate()}
+
+        with patch.object(
+            rerun_source_health,
+            "run_source_probe",
+            side_effect=TimeoutError("stat source probe exceeded 0.01 seconds"),
+        ) as probe:
+            for _ in range(5):
+                with self.assertRaises(TimeoutError):
+                    rerun_source_health._bounded_stat(Path(r"\\fixture-server\Media"), timeout_seconds=0.01)
+
+        after_threads = [thread for thread in threading.enumerate() if thread.ident not in before]
+        self.assertEqual(probe.call_count, 5)
+        self.assertEqual(after_threads, [])
+
+    def test_preview_does_not_repeat_an_unbounded_source_stat_after_health_classification(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            source = _media_file(root, "Movie")
+            expected_size = source.stat().st_size
+            csv_path = root / "rerun.csv"
+            _write_csv(csv_path, [{"enabled": "true", "source_path": str(source), "audit_issue_codes": "AUDIO"}])
+
+            with patch(
+                "mediapipeline.core.processes.rerun_preview_support._source_stat_fields",
+                side_effect=AssertionError("preview must reuse bounded source-health evidence"),
+            ):
+                payload = rerun_csv_preview_payload(
+                    _resolved(root),
+                    {"csv_path": str(csv_path), "confirm_replace_final": True},
+                )
+
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["rows"][0]["source_size"], expected_size)
 
     def test_preview_correlates_completed_pending_publish_and_prior_rerun_state(self) -> None:
         class PendingScanService:

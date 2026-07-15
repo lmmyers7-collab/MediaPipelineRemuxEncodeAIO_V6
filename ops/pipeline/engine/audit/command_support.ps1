@@ -22,8 +22,16 @@ function Resolve-ExecutablePath {
         [string[]]$RelativeCandidates = @()
     )
 
+    # Candidate paths belong to the audit entrypoint contract.  This helper now
+    # lives below engine\audit, so its own $PSScriptRoot is not a valid bundle
+    # anchor after the promoted-layout refactor.
+    $candidateRoot = if ($script:PipelineRoot) {
+        Join-Path $script:PipelineRoot 'entrypoints'
+    } else {
+        $PSScriptRoot
+    }
     foreach ($relative in $RelativeCandidates) {
-        $candidate = Join-Path $PSScriptRoot $relative
+        $candidate = [System.IO.Path]::GetFullPath((Join-Path $candidateRoot $relative))
         if (Test-Path -LiteralPath $candidate) {
             return (Resolve-Path -LiteralPath $candidate).Path
         }
