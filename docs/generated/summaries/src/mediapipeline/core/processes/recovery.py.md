@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/recovery.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-07-10
+last_modified: 2026-07-15
 last_reviewed: 2026-07-10
-sha256: 45600a79421e66dad96766b56fd28904a61120981bfba6fa688ac513d53d22f7
+sha256: b1c8621fe5799271c3fcd2da41fa003a593d15d962d7edce68e2c59cf8446021
 ---
 # `src/mediapipeline/core/processes/recovery.py`
 

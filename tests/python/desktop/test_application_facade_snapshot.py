@@ -306,7 +306,7 @@ class ApplicationFacadeSnapshotTests(unittest.TestCase):
         self.assertEqual(snapshot.current_work["item_label"], "Hoppers (2026)")
         self.assertNotIn("Route selected", snapshot.current_work["summary_label"])
 
-    def test_snapshot_marks_stale_progress_as_review_not_active_work(self) -> None:
+    def test_snapshot_keeps_stale_progress_as_quiet_idle_history(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             resolved = _resolved(root)
@@ -336,16 +336,16 @@ class ApplicationFacadeSnapshotTests(unittest.TestCase):
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             snapshot = facade.get_snapshot(resolved)
 
-        self.assertEqual(snapshot.pipeline_state, "stale")
+        self.assertEqual(snapshot.pipeline_state, "idle")
+        self.assertEqual(snapshot.activity, "No active work reported.")
         self.assertEqual(snapshot.current_work["schema_version"], "desktop_current_work.v1")
-        self.assertEqual(snapshot.current_work["item_label"], "Stale progress from previous run")
-        self.assertEqual(snapshot.current_work["phase_label"], "Review stale progress")
+        self.assertEqual(snapshot.current_work["item_label"], "")
+        self.assertEqual(snapshot.current_work["phase_label"], "No active work")
+        self.assertEqual(snapshot.current_work["summary_label"], "No active work reported.")
         self.assertEqual(snapshot.progress["CurrentStage"], "encode")
-        bars = {bar["id"]: bar for bar in snapshot.progress_bars}
-        self.assertEqual(bars["current_stage"]["status"], "warning")
-        self.assertTrue(bars["current_stage"]["stale"])
-        self.assertIn("The Hobbit", bars["current_stage"]["detail"])
-        self.assertTrue(any("stale from a previous run" in warning for warning in snapshot.warnings))
+        self.assertTrue(snapshot.progress_health["stale_evidence"])
+        self.assertFalse(any(bar.get("source") == "pipeline_progress.json" for bar in snapshot.progress_bars))
+        self.assertFalse(any("stale from a previous run" in warning for warning in snapshot.warnings))
 
     def test_snapshot_progress_bars_include_pipeline_publish_and_audit(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

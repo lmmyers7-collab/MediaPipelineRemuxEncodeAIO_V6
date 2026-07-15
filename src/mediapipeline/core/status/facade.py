@@ -18,7 +18,7 @@ from mediapipeline.core.rename.policy import rename_cleaning_policy_from_resolve
 from mediapipeline.core.status.active_jobs import worker_progress_payload
 from mediapipeline.core.status.eta import eta_payload
 from mediapipeline.core.status.ffmpeg_progress import ffmpeg_progress_payload
-from mediapipeline.core.status.presentation import build_current_work, build_stale_current_work
+from mediapipeline.core.status.presentation import build_current_work
 from mediapipeline.core.status.runtime_health import runtime_reliability_counters
 from mediapipeline.core.status.rerun_completion import csv_rerun_completion_summary
 from mediapipeline.core.status.progress import TERMINAL_PROGRESS_STAGES, datetime_is_stale
@@ -80,11 +80,12 @@ class StatusFacadeMixin:
     def snapshot_to_dto(self, snapshot: Snapshot) -> AppSnapshotDto:
         progress = dict(snapshot.progress or {})
         audit_progress = dict(snapshot.audit_progress or {})
-        pipeline_state = self._pipeline_state(snapshot)
+        observed_pipeline_state = self._pipeline_state(snapshot)
+        stale_progress = observed_pipeline_state == "stale"
+        pipeline_state = "idle" if stale_progress else observed_pipeline_state
         worker_progress = worker_progress_payload(snapshot.resolved.active_jobs_path, progress, snapshot.log_tail)
         warnings = snapshot_warnings(snapshot)
         warnings.extend(path_health_warning_lines(configured_path_health(snapshot.resolved)))
-        stale_progress = pipeline_state == "stale"
         read_health = progress.get("ReadHealth") if isinstance(progress.get("ReadHealth"), dict) else None
         stage = str(progress.get("CurrentStage") or "").strip().casefold()
         progress_health = dict(read_health or {})
@@ -100,16 +101,17 @@ class StatusFacadeMixin:
             progress_health["terminal"]
             and datetime_is_stale(str(progress.get("LastUpdate") or ""), 5.0)
         )
+        progress_health["stale_evidence"] = stale_progress
         if progress_health.get("available") is False:
             warnings.append(
                 "Pipeline progress is unavailable or invalid; idle/current work cannot be inferred from this evidence."
             )
-        if stale_progress:
-            warnings.append("Pipeline progress is stale from a previous run; raw progress is retained for review.")
         progress_bars = snapshot_progress_bars(snapshot, pipeline_state=pipeline_state)
+        if stale_progress:
+            progress_bars = [bar for bar in progress_bars if bar.get("source") != "pipeline_progress.json"]
         recent_events = snapshot_recent_events(snapshot)
         current_work = (
-            build_stale_current_work()
+            build_current_work({}, pipeline_state="idle")
             if stale_progress
             else build_current_work(
                 progress,
@@ -123,7 +125,7 @@ class StatusFacadeMixin:
         counts["long_run_reliability"] = runtime_reliability_counters(snapshot.resolved, progress=progress)
         return AppSnapshotDto(
             app_version=self.app_version,
-            activity=str(snapshot.current_activity or ""),
+            activity="No active work reported." if stale_progress else str(snapshot.current_activity or ""),
             pipeline_state=pipeline_state,
             status_summary=str(snapshot.status_summary or ""),
             current_work=current_work,

@@ -42,7 +42,7 @@
     const currentWork = snapshot?.current_work && typeof snapshot.current_work === "object" ? snapshot.current_work : {};
     const activeWorkSummary = String(currentWork.summary_label || currentWork.latest_evidence_label || currentWork.current_stage_label || "").trim();
     const csvRerun = csvRerunActivityEvidence({ snapshot, diagnostics, closeReadiness, stdoutTail });
-    if (activity.includes("stale progress")) return { label: "Stale/review", state: "warning" };
+    if (activity.includes("stale progress") && closeReadiness?.safe_to_close === true) return { label: "Idle", state: "ok" };
     if (activeWorkSummary && !activeWorkSummary.toLowerCase().includes("csv") && !timelineLooksIdleWaiting(activeWorkSummary)) {
       return { label: "Active work", state: "running" };
     }
@@ -423,7 +423,9 @@
     const state = snapshot?.pipeline_state || closeReadiness?.state || "unknown";
     const csvRerun = csvRerunActivityEvidence({ snapshot, diagnostics, stdoutTail });
     const stateActive = ["processing", "running", "active", "publishing"].includes(String(state || "").toLowerCase());
-    const active = activeJobs.length > 0 || closeReadiness?.safe_to_close === false || stateActive || csvRerun.hasEvidence || Boolean(currentWork.summary_label || currentWork.latest_evidence_label);
+    const currentWorkSummary = String(currentWork.summary_label || currentWork.latest_evidence_label || "").trim();
+    const currentWorkActive = Boolean(currentWorkSummary) && !timelineLooksIdleWaiting(currentWorkSummary);
+    const active = activeJobs.length > 0 || closeReadiness?.safe_to_close === false || stateActive || csvRerun.hasEvidence || currentWorkActive;
     setProgressPanelStatus("home-active-work-status", active ? "Active work" : closeReadiness?.safe_to_close === true ? "Idle" : "Checking", active ? "running" : closeReadiness?.safe_to_close === true ? "ok" : "loading");
     const lines = [
       currentWork.summary_label ? `Now: ${currentWork.summary_label}` : "",

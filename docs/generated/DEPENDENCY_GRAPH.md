@@ -57,7 +57,7 @@ graph LR
   process -->|105| processes
   scripts -->|67| api
   tests -->|63| config
-  tests -->|45| processes
+  tests -->|47| processes
   observability -->|39| status
   contracts -->|32| api
   process -->|30| paths
@@ -248,7 +248,7 @@ graph LR
 | process | processes | 105 |
 | scripts | api | 67 |
 | tests | config | 63 |
-| tests | processes | 45 |
+| tests | processes | 47 |
 | observability | status | 39 |
 | contracts | api | 32 |
 | process | paths | 30 |

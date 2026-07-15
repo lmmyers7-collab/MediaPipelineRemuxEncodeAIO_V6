@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from mediapipeline.tools.paths import find_repo_root
 from unittest.mock import patch
@@ -14,6 +15,8 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import ResolvedPaths, Snapshot
+from mediapipeline.core.processes.lifecycle_lease import LifecycleLeaseStore
+from mediapipeline.core.processes.recovery import LifecycleRecoveryCoordinator
 from tests.python.desktop.application_facade_test_support import DummyFacadeService, DummyProc, DummyWorkflowFacadeService, _resolved
 
 
@@ -213,6 +216,53 @@ class ApplicationFacadeCloseReadinessTests(unittest.TestCase):
         self.assertFalse(readiness.active_work)
         self.assertEqual(readiness.state, "stale")
         self.assertIn("No active pipeline", readiness.reason)
+
+    def test_auto_retired_interrupted_lease_does_not_report_active_work_or_block_preflight(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            resolved.state_root = root / "State"
+            store = LifecycleLeaseStore(resolved.state_root, pid_alive=lambda _pid: False)
+            lease = store.acquire(scope="Pipeline start", command_id="interrupted-command")
+            lease.set_recovery_descriptor(route="/api/pipeline/start", request={"mode": "once"})
+            recovery = LifecycleRecoveryCoordinator(
+                store_factory=lambda state_root: LifecycleLeaseStore(
+                    state_root,
+                    pid_alive=lambda _pid: False,
+                )
+            ).run(
+                SimpleNamespace(state_root=resolved.state_root),
+                resume=lambda *_args: {"ok": True},
+            )
+            service = DummyFacadeService(root)
+            service.find_related_pipeline_processes = lambda _resolved, job_kinds=None: []  # type: ignore[method-assign]
+            service.read_progress = lambda _resolved: {}
+            service.is_progress_stale = lambda _progress: True
+            service.read_audit_progress = lambda _resolved: {}
+            service.is_audit_progress_stale = lambda _progress: True
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            facade.set_recovery_status(recovery)
+            idle_snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="Ready.",
+                status_summary="Idle",
+                log_tail="",
+                progress={"ProgressVersion": 2, "Status": "Completed", "CurrentStage": "completed"},
+                audit_progress=None,
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+            )
+
+            readiness = facade.get_close_readiness(resolved, idle_snapshot)
+            preflight = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "validate"})
+
+        active_work = next(row for row in preflight["checks"] if row["key"] == "active_work")
+        self.assertEqual(recovery["classification"], "interrupted")
+        self.assertTrue(readiness.safe_to_close, readiness.reason)
+        self.assertFalse(readiness.active_work)
+        self.assertNotEqual(active_work["status"], "blocked")
 
     def test_close_readiness_allows_stale_audit_progress_without_live_work(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

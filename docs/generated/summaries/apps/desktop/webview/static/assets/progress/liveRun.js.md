@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/progress/liveRun.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-12
+last_modified: 2026-07-15
 last_reviewed: 2026-07-10
-sha256: 206d0cd6c2aa167f810a95d796a27ab62e61b67a9d330806867a90460271df9d
+sha256: 8524386c0a4922989bbef5f9c126a46677915daa9498674946d32826d7abc3fb
 ---
 # `apps/desktop/webview/static/assets/progress/liveRun.js`
 

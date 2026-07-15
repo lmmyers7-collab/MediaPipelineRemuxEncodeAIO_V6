@@ -277,6 +277,32 @@ class LifecycleLeaseStore:
             **recovery,
         }
 
+    def retire_stale_without_replay(self, *, reason: str) -> dict[str, Any]:
+        """Preserve a dead lease as terminal history without replaying media work."""
+        posture = self.status()
+        if str(posture.get("status") or "") != "stale":
+            raise LifecycleLeaseError("Only a conclusively stale lifecycle lease can be retired without replay.")
+        current_value = posture.get("lease")
+        current: dict[str, Any] = dict(current_value) if isinstance(current_value, dict) else {}
+        lease_id = str(current.get("lease_id") or "")
+        if not lease_id:
+            raise LifecycleLeaseError("Stale lifecycle lease identity could not be verified.")
+        pid = int(current.get("child_pid") or current.get("owner_pid") or 0)
+        if self._pid_alive(pid) is not False:
+            raise LifecycleLeaseError("Stale lifecycle lease owner is no longer conclusively absent.")
+        terminal = {
+            **current,
+            "status": "interrupted",
+            "released_utc": _utc_now(),
+            "recovery_replayed": False,
+            "recovery_disposition": "retired_without_replay",
+            "recovery_disposition_reason": str(reason or "Interrupted work was not replayed."),
+        }
+        _atomic_write_json(self.root / f"{lease_id}.terminal.json", terminal)
+        self.record_path.unlink(missing_ok=True)
+        self.lock_path.unlink(missing_ok=True)
+        return terminal
+
     def mark_indeterminate(self, *, command_id: str, route: str, reason: str) -> None:
         _atomic_write_json(
             self.indeterminate_path,

@@ -1,0 +1,61 @@
+{
+  "id": "MP-CHANGE-2026-0715-002",
+  "title": "Simplify stale progress and recovery readiness",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-07-15",
+  "date_completed": "2026-07-15",
+  "summary": "Treat stale pipeline progress as quiet historical evidence and automatically retire conclusively dead interrupted lifecycle leases without replaying media work.",
+  "reason": "Old progress and a dead lifecycle lease were promoted into Review stale progress, Close: active work, and a blocked Launch active-work guard even when no backend process remained alive.",
+  "affected_areas": [
+    "generated_context",
+    "lifecycle_and_webview"
+  ],
+  "behavior_before": "Stale progress rendered as current review work, while an interrupted non-replayable lifecycle lease remained blocked until manual reconciliation and caused close-readiness and Launch preflight to report active work.",
+  "behavior_after": "Stale progress remains available as raw historical evidence but presents as idle with no stale warning bars. A conclusively dead interrupted lease is written as terminal interrupted evidence, its obsolete lock is removed, no recovery replay occurs, and close-readiness/Launch preflight remain unblocked when all live-work guards are clear.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launch/controllerState.js",
+    "apps/desktop/webview/static/assets/progress/liveRun.js",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launch/controllerState.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/progress/liveRun.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0715-002.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/lifecycle_lease.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/recovery.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/status/facade.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_close_readiness.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_snapshot.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_lifecycle_recovery.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_status_rerun_completion.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_launch_command_buttons_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0715-002.json",
+    "src/mediapipeline/core/processes/lifecycle_lease.py",
+    "src/mediapipeline/core/processes/recovery.py",
+    "src/mediapipeline/core/status/facade.py",
+    "tests/python/desktop/test_application_facade_close_readiness.py",
+    "tests/python/desktop/test_application_facade_snapshot.py",
+    "tests/python/desktop/test_lifecycle_recovery.py",
+    "tests/python/desktop/test_status_rerun_completion.py",
+    "tests/webview/test_webview_launch_command_buttons_smoke.py"
+  ],
+  "tests_added": [
+    "Lifecycle recovery retires unsafe-to-replay interrupted work without invoking replay and preserves terminal evidence.",
+    "Close-readiness and Launch preflight stay unblocked after automatic retirement of a conclusively dead lease.",
+    "Stale snapshot presentation returns idle/current-work output while retaining raw progress and an explicit stale_evidence health flag.",
+    "Launch controller treats stale historical progress as idle unless a separate live/stuck guard is present."
+  ],
+  "manual_validation": [
+    "Bundled Python targeted lifecycle, close-readiness, snapshot, and WebView unit suites: 75 tests passed.",
+    "Browser-backed Home live-state, Launch/Queue readiness, backend lifecycle, and lifecycle reconciliation smokes: 8 tests passed across four wrappers.",
+    "Generated-media adversarial force-kill encode check passed; the partial output was not accepted, the source remained queued, and one temporary partial was retained as evidence.",
+    "Generated project index and dependency graph freshness checks passed for the isolated commit candidate.",
+    "Targeted Ruff and WebView ESLint completed with no errors; ESLint reported four pre-existing liveRun.js warnings.",
+    "Broad release self-test did not pass because the unchanged cross-page static bundle is missing the pre-existing renderPendingRows app-shell token; this is outside the stale-progress/lifecycle scope."
+  ],
+  "rollback_plan": "Revert the listed lifecycle recovery, status presentation, WebView controller/live-run, test, and generated-summary changes. This restores manual lifecycle reconciliation and stale-progress review presentation without touching runtime media or state during rollback.",
+  "related_changes": [],
+  "notes": "Quiet stale progress presentation and automatically retire conclusively dead interrupted leases without replay.\nRefreshed generated summaries for files changed by this fix.\nPython impact: backend lifecycle recovery and snapshot presentation behavior changed; no contract route, schema file, PowerShell media policy, source mutation, publish, subtitle, audio, or FFmpeg command behavior changed. Real-media validation is not required because media processing policy is unchanged; the required generated-media adversarial force-kill recovery check passed.\nPre-existing edits in lifecycle_lease.py, liveRun.js, and test_application_facade_close_readiness.py were preserved. The worktree contains many additional pre-existing changes that are not part of this packet."
+}

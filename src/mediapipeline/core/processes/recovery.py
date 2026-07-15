@@ -73,11 +73,27 @@ class LifecycleRecoveryCoordinator:
         request_value = recovery.get("request")
         request: dict[str, Any] = dict(request_value) if isinstance(request_value, dict) else {}
         if not _safe_auto_resume(route, request):
+            reason = "Interrupted work was conclusively stopped and was not replayed. Existing media and progress evidence remain unchanged."
+            try:
+                terminal = store.retire_stale_without_replay(reason=reason)
+            except Exception as exc:
+                return self._set_status(
+                    status="blocked",
+                    classification="blocked",
+                    operator_action_required=f"Interrupted work could not be retired safely: {exc}",
+                    items=[dict(posture)],
+                )
             return self._set_status(
-                status="blocked",
-                classification="parked",
-                operator_action_required="Interrupted media work is not at a provably safe restart boundary; it is parked for backend reconciliation.",
-                items=[dict(posture)],
+                status="complete",
+                classification="interrupted",
+                operator_action_required="",
+                items=[
+                    {
+                        "status": "interrupted",
+                        "reason": reason,
+                        "terminal_lease": terminal,
+                    }
+                ],
             )
         try:
             descriptor = store.begin_one_recovery_attempt()
@@ -105,7 +121,8 @@ class LifecycleRecoveryCoordinator:
 
 def _safe_auto_resume(route: str, request: dict[str, Any]) -> bool:
     # Only no-media or plan-only work has a proven restart boundary today.
-    # All potentially partial media/manifests are deliberately parked.
+    # Potentially partial media work is never replayed; a conclusively dead
+    # lease is retired as interrupted evidence by run() instead.
     if route == "/api/pipeline/start":
         return str(request.get("mode") or "").casefold() == "validate"
     if route == "/api/audit/start":

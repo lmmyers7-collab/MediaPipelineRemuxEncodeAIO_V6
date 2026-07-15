@@ -612,7 +612,11 @@ def _run_launch_controller_state_smoke() -> dict[str, object]:
         vm.runInContext(source, context);
 
         const launchControllerStateModule = context.window.__launchControllerStateModule.createLaunchControllerStateModule();
-        const staleSnapshot = {{ pipeline_state: "idle", progress: {{ CurrentStage: "encoding", Status: "last update old" }} }};
+        const staleSnapshot = {{
+          pipeline_state: "idle",
+          progress_health: {{ stale_evidence: true }},
+          progress: {{ CurrentStage: "encoding", Status: "last update old" }},
+        }};
         const stuckSnapshot = {{ pipeline_state: "idle", progress: {{ CurrentStage: "encoding", Status: "stuck without active worker" }} }};
         const activeClose = {{ safe_to_close: false, active_work: true, state: "running" }};
         process.stdout.write(JSON.stringify({{
@@ -1083,13 +1087,13 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         self.assertEqual(result["blockedBackendStatus"], "blocked")
         self.assertEqual(result["blockedBackendValue"], "Will Fail")
 
-    def test_stale_progress_does_not_count_as_stuck_without_backend_stuck_signal(self) -> None:
+    def test_stale_progress_is_quiet_idle_without_backend_stuck_signal(self) -> None:
         result = _run_launch_controller_state_smoke()
 
         self.assertFalse(result["staleIsStuck"])
-        self.assertTrue(result["staleIsStale"])
-        self.assertEqual(result["staleController"], "stale")
-        self.assertIn("Stale progress evidence", result["staleSummary"])
+        self.assertFalse(result["staleIsStale"])
+        self.assertEqual(result["staleController"], "idle")
+        self.assertNotIn("Stale progress evidence", result["staleSummary"])
         self.assertTrue(result["stuckIsStuck"])
         self.assertTrue(result["activeIsActive"])
 

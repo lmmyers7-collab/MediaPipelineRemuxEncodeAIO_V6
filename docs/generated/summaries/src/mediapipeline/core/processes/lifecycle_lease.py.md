@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/lifecycle_lease.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-07-11
+last_modified: 2026-07-15
 last_reviewed: 2026-07-10
-sha256: a1bfd76167fb47e75737bcd27ecae618dffa7ee0df05f2d02aad7893c9359ccb
+sha256: 694bf53ed5db0fc62b2c71a17a93ab554cb9f9c895fb6c26352691324be70b72
 ---
 # `src/mediapipeline/core/processes/lifecycle_lease.py`
 
