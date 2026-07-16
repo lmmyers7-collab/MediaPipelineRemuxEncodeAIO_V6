@@ -3,9 +3,9 @@ file: tests/python/desktop/test_process_rerun_results.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-15
+last_modified: 2026-07-16
 last_reviewed: 2026-07-02
-sha256: 446405c561dc14eca8ceef3882901e2c77f95948df12b13ddf029d6ac548fd44
+sha256: dfb34f9231947f5c7158222fcb5dc47db9fd9e639236de79e47d7644dd7accd7
 ---
 # `tests/python/desktop/test_process_rerun_results.py`
 

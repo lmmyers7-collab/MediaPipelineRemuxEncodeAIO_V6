@@ -54,7 +54,7 @@ graph LR
   watch["watch"]
   webview["webview"]
   tests -->|852| api
-  process -->|123| processes
+  process -->|121| processes
   scripts -->|67| api
   tests -->|66| processes
   tests -->|64| config
@@ -76,11 +76,11 @@ graph LR
   network -->|14| kernel
   tests -->|13| paths
   diagnostics -->|12| status
+  process -->|12| network
   tests -->|12| audit
   tests -->|12| completed
   decide -->|11| api
   network -->|11| config
-  process -->|11| network
   unknown -->|11| repair_reconcile
   completed -->|10| observability
   config -->|10| paths
@@ -88,12 +88,12 @@ graph LR
   network -->|10| api
   network -->|10| application
   observability -->|10| paths
-  tests -->|10| application
   tests -->|10| kernel
   api -->|9| processes
   api -->|9| queue
   network -->|9| processes
   sample_validation -->|9| paths
+  tests -->|9| application
   tests -->|9| diagnostics
   tests -->|9| maintenance
   audit -->|8| paths
@@ -215,13 +215,12 @@ graph LR
   observability -->|1| api
   observability -->|1| config
   orchestration -->|1| paths
+  process -->|1| application
   process -->|1| completed
   process -->|1| files
   publish -->|1| completed
   queue -->|1| api
   queue -->|1| files
-  queue -->|1| rerun
-  queue -->|1| status
   queue -->|1| subtitles
   rename -->|1| api
   rename -->|1| validation
@@ -247,7 +246,7 @@ graph LR
 | From | To | Edges |
 |---|---|---|
 | tests | api | 852 |
-| process | processes | 123 |
+| process | processes | 121 |
 | scripts | api | 67 |
 | tests | processes | 66 |
 | tests | config | 64 |
@@ -269,11 +268,11 @@ graph LR
 | network | kernel | 14 |
 | tests | paths | 13 |
 | diagnostics | status | 12 |
+| process | network | 12 |
 | tests | audit | 12 |
 | tests | completed | 12 |
 | decide | api | 11 |
 | network | config | 11 |
-| process | network | 11 |
 | unknown | repair_reconcile | 11 |
 | completed | observability | 10 |
 | config | paths | 10 |
@@ -281,12 +280,12 @@ graph LR
 | network | api | 10 |
 | network | application | 10 |
 | observability | paths | 10 |
-| tests | application | 10 |
 | tests | kernel | 10 |
 | api | processes | 9 |
 | api | queue | 9 |
 | network | processes | 9 |
 | sample_validation | paths | 9 |
+| tests | application | 9 |
 | tests | diagnostics | 9 |
 | tests | maintenance | 9 |
 | audit | paths | 8 |
@@ -408,13 +407,12 @@ graph LR
 | observability | api | 1 |
 | observability | config | 1 |
 | orchestration | paths | 1 |
+| process | application | 1 |
 | process | completed | 1 |
 | process | files | 1 |
 | publish | completed | 1 |
 | queue | api | 1 |
 | queue | files | 1 |
-| queue | rerun | 1 |
-| queue | status | 1 |
 | queue | subtitles | 1 |
 | rename | api | 1 |
 | rename | validation | 1 |

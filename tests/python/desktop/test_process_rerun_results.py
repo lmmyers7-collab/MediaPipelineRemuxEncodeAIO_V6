@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import sys
 import tempfile
 import unittest
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -88,6 +89,264 @@ def _write_active_job(resolved: ResolvedPaths, *, launch_id: str, job_kind: str 
 
 
 class RerunResultsTests(unittest.TestCase):
+    def test_current_local_resolves_exact_live_job_outside_history_window(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            manifest_root = resolved.local_base / "RerunManifests"
+            manifest_root.mkdir(parents=True)
+            batch_id = "live-outside-window"
+            launch_id = "live-outside-window-launch"
+            command_id = "live-outside-window-command"
+            manifest_path = manifest_root / f"{batch_id}.json"
+            enrollment_path = resolved.state_root / "Rerun" / "Local" / f"{batch_id}.json"
+            manifest_path.write_text(
+                json.dumps(
+                    {
+                        "batch_id": batch_id,
+                        "launch_id": launch_id,
+                        "command_id": command_id,
+                        "status": "running",
+                        "rows": [{"status": "running", "source_path": str(root / "live.mkv")}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            os.utime(manifest_path, (1, 1))
+            for index in range(101):
+                terminal_path = manifest_root / f"terminal-{index:03d}.json"
+                terminal_path.write_text(
+                    json.dumps(
+                        {
+                            "batch_id": f"terminal-{index:03d}",
+                            "status": "completed",
+                            "rows": [{"status": "completed", "source_path": str(root / f"done-{index}.mkv")}],
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                os.utime(terminal_path, (1000 + index, 1000 + index))
+            active_job_path = _write_active_job(resolved, launch_id=launch_id)
+            active_job = json.loads(active_job_path.read_text(encoding="utf-8"))
+            active_job["metadata"] = {
+                "batch_id": batch_id,
+                "command_id": command_id,
+                "manifest_path": str(manifest_path),
+                "enrollment_path": str(enrollment_path),
+            }
+            active_job_path.write_text(json.dumps(active_job), encoding="utf-8")
+
+            with mock.patch(
+                "mediapipeline.core.processes.rerun_results_queue_projection.active_job_pid_matches_record",
+                return_value=True,
+            ):
+                payload = rerun_results_payload(resolved, limit=24)
+
+        current = payload["queue_state"]["current_local"]
+        self.assertEqual(current["batch_id"], batch_id)
+        self.assertEqual(current["selection_reason"], "exact_live_process")
+        self.assertEqual(current["activity_state"], "active")
+        self.assertNotIn(batch_id, [item["batch_id"] for item in payload["manifests"]])
+
+    def test_manifest_stat_failure_does_not_blank_other_history(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            manifest_root = resolved.local_base / "RerunManifests"
+            manifest_root.mkdir(parents=True)
+            good = manifest_root / "good.json"
+            good.write_text(
+                json.dumps(
+                    {
+                        "batch_id": "good",
+                        "status": "completed",
+                        "rows": [{"status": "completed", "source_path": str(root / "good.mkv")}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            broken = manifest_root / "broken.json"
+            broken.write_text("{}", encoding="utf-8")
+            original_stat = Path.stat
+
+            def flaky_stat(path: Path, *args: object, **kwargs: object):
+                if path.name == "broken.json":
+                    raise OSError("simulated manifest stat failure")
+                return original_stat(path, *args, **kwargs)
+
+            with mock.patch.object(Path, "stat", flaky_stat):
+                payload = rerun_results_payload(resolved)
+
+        self.assertEqual([item["batch_id"] for item in payload["manifests"]], ["good"])
+        self.assertTrue(payload["history_window"]["scan_warnings"])
+        self.assertEqual(payload["history_window"]["local"]["loaded_count"], 1)
+
+    def test_history_window_discloses_loaded_and_discovered_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            manifest_root = resolved.local_base / "RerunManifests"
+            manifest_root.mkdir(parents=True)
+            for index in range(3):
+                (manifest_root / f"history-{index}.json").write_text(
+                    json.dumps(
+                        {
+                            "batch_id": f"history-{index}",
+                            "status": "completed",
+                            "rows": [{"status": "completed", "source_path": str(root / f"history-{index}.mkv")}],
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+
+            payload = rerun_results_payload(resolved, limit=2)
+
+        window = payload["history_window"]
+        self.assertEqual(window["requested_limit"], 2)
+        self.assertEqual(window["local"]["loaded_count"], 2)
+        self.assertEqual(window["local"]["discovered_candidate_count"], 3)
+        self.assertTrue(window["local"]["truncated"])
+        self.assertEqual(window["network"]["loaded_count"], 0)
+
+    def test_network_current_requires_exact_fresh_persisted_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            resolved.app_state_path = resolved.state_root / "App" / "desktop_app_state.json"
+            resolved.config_data["CoordinatorHeartbeatTimeoutMins"] = 5
+            state_dir = resolved.app_state_path.parent
+            state_dir.mkdir(parents=True)
+            source_path = root / "network-live.mkv"
+            job_id = "network-job-live"
+            worker_id = "network-worker-live"
+            (state_dir / "coordinator_inflight.json").write_text(
+                json.dumps(
+                    {
+                        "jobs": [
+                            {
+                                "job_id": job_id,
+                                "worker_id": worker_id,
+                                "worker_name": "Worker Live",
+                                "source_path": str(source_path),
+                                "claimed_at": (datetime.now(UTC) - timedelta(seconds=30)).isoformat(),
+                                "last_heartbeat": datetime.now(UTC).isoformat(),
+                                "progress_percent": 25,
+                                "current_stage": "encoding",
+                                "encode_config": {},
+                                "priority": False,
+                                "estimated_size_gb": 1,
+                            }
+                        ],
+                        "worker_stats": {},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            network_root = resolved.state_root / "Rerun" / "Network"
+            network_root.mkdir(parents=True)
+            (network_root / "network-live.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_rerun_network_batch.v1",
+                        "batch_id": "network-live",
+                        "status": "active",
+                        "batch_terminal": False,
+                        "rows": [
+                            {
+                                "row_key": "row-live",
+                                "row_index": 0,
+                                "status": "claimed",
+                                "claim_status": "claimed",
+                                "source_path": str(source_path),
+                                "active_claim": {"job_id": job_id, "worker_id": worker_id},
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            payload = rerun_results_payload(resolved, service=object())
+
+        manifest = payload["network_manifests"][0]
+        current = payload["queue_state"]["current_network"]
+        self.assertEqual(manifest["runtime_activity"]["status"], "active")
+        self.assertEqual(manifest["runtime_activity"]["matched_claim_count"], 1)
+        self.assertTrue(manifest["runtime_active"])
+        self.assertEqual(current["selection_reason"], "exact_live_network_claim")
+        self.assertEqual(current["activity_state"], "active")
+
+    def test_network_open_manifest_without_persisted_claim_is_unverified(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            network_root = resolved.state_root / "Rerun" / "Network"
+            network_root.mkdir(parents=True)
+            (network_root / "network-open.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_rerun_network_batch.v1",
+                        "batch_id": "network-open",
+                        "status": "active",
+                        "batch_terminal": False,
+                        "rows": [
+                            {
+                                "row_key": "row-open",
+                                "row_index": 0,
+                                "status": "claimed",
+                                "claim_status": "claimed",
+                                "source_path": str(root / "network-open.mkv"),
+                                "active_claim": {"job_id": "missing-job", "worker_id": "missing-worker"},
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            payload = rerun_results_payload(resolved)
+
+        manifest = payload["network_manifests"][0]
+        current = payload["queue_state"]["current_network"]
+        self.assertFalse(manifest["runtime_active"])
+        self.assertEqual(manifest["runtime_activity"]["status"], "unverified")
+        self.assertEqual(current["selection_reason"], "newest_nonterminal")
+        self.assertEqual(current["activity_state"], "open_unverified")
+
+    def test_multiple_exact_live_local_jobs_report_ambiguity(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            manifest_root = resolved.local_base / "RerunManifests"
+            manifest_root.mkdir(parents=True)
+            for index in range(2):
+                batch_id = f"live-conflict-{index}"
+                launch_id = f"live-conflict-launch-{index}"
+                manifest_path = manifest_root / f"{batch_id}.json"
+                manifest_path.write_text(
+                    json.dumps({"batch_id": batch_id, "launch_id": launch_id, "status": "running", "rows": []}),
+                    encoding="utf-8",
+                )
+                active_job_path = _write_active_job(resolved, launch_id=launch_id)
+                active_job = json.loads(active_job_path.read_text(encoding="utf-8"))
+                active_job["metadata"] = {
+                    "batch_id": batch_id,
+                    "manifest_path": str(manifest_path),
+                    "enrollment_path": str(resolved.state_root / "Rerun" / "Local" / f"{batch_id}.json"),
+                }
+                active_job_path.write_text(json.dumps(active_job), encoding="utf-8")
+
+            with mock.patch(
+                "mediapipeline.core.processes.rerun_results_queue_projection.active_job_pid_matches_record",
+                return_value=True,
+            ):
+                payload = rerun_results_payload(resolved)
+
+        current = payload["queue_state"]["current_local"]
+        self.assertEqual(current["selection_reason"], "ambiguous_live_process")
+        self.assertEqual(current["activity_state"], "review")
+        self.assertEqual(current["conflict_count"], 2)
+
     def test_exact_live_rerun_activity_requires_identity_matched_process_and_paths(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

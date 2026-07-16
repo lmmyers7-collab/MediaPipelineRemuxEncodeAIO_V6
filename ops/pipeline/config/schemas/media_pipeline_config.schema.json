@@ -1646,6 +1646,13 @@
       "title": "Queueexecutionmaxrunnableperround",
       "type": "integer"
     },
+    "QueueLaunchSnapshotFreshnessSeconds": {
+      "default": 60,
+      "maximum": 3600,
+      "minimum": 15,
+      "title": "Queuelaunchsnapshotfreshnessseconds",
+      "type": "integer"
+    },
     "StateDbMaintenanceIntervalSeconds": {
       "default": 21600,
       "maximum": 604800,

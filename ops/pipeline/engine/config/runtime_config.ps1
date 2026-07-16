@@ -129,6 +129,7 @@ $script:PauseFlagReviewSeconds = Get-ConfigInt 'PauseFlagReviewSeconds' 1800 60 
 $script:PauseFlagBlockSeconds = Get-ConfigInt 'PauseFlagBlockSeconds' 21600 300 604800
 $script:LocalWorkerHeartbeatGraceSeconds = Get-ConfigInt 'LocalWorkerHeartbeatGraceSeconds' 900 60 86400
 $script:QueueExecutionMaxRunnablePerRound = Get-ConfigInt 'QueueExecutionMaxRunnablePerRound' 500 1 1000000
+$script:QueueLaunchSnapshotFreshnessSeconds = Get-ConfigInt 'QueueLaunchSnapshotFreshnessSeconds' 60 15 3600
 $script:StateDbMaintenanceIntervalSeconds = Get-ConfigInt 'StateDbMaintenanceIntervalSeconds' 21600 60 604800
 $script:StateDbWalReviewBytes = Get-ConfigInt 'StateDbWalReviewBytes' 33554432 1048576 2147483647
 $script:StateDbCompletedJobsMaxRows = Get-ConfigInt 'StateDbCompletedJobsMaxRows' 250000 1000 10000000

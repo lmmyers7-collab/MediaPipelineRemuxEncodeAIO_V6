@@ -613,6 +613,7 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
         @{ Kind = 'int'; Key = 'PauseFlagBlockSeconds'; Label = 'PauseFlagBlockSeconds'; Min = 300; Max = 604800 },
         @{ Kind = 'int'; Key = 'LocalWorkerHeartbeatGraceSeconds'; Label = 'LocalWorkerHeartbeatGraceSeconds'; Min = 60; Max = 86400 },
         @{ Kind = 'int'; Key = 'QueueExecutionMaxRunnablePerRound'; Label = 'QueueExecutionMaxRunnablePerRound'; Min = 1; Max = 1000000 },
+        @{ Kind = 'int'; Key = 'QueueLaunchSnapshotFreshnessSeconds'; Label = 'QueueLaunchSnapshotFreshnessSeconds'; Min = 15; Max = 3600 },
         @{ Kind = 'int'; Key = 'StateDbMaintenanceIntervalSeconds'; Label = 'StateDbMaintenanceIntervalSeconds'; Min = 60; Max = 604800 },
         @{ Kind = 'int'; Key = 'StateDbWalReviewBytes'; Label = 'StateDbWalReviewBytes'; Min = 1048576; Max = 2147483647 },
         @{ Kind = 'int'; Key = 'StateDbCompletedJobsMaxRows'; Label = 'StateDbCompletedJobsMaxRows'; Min = 1000; Max = 10000000 },

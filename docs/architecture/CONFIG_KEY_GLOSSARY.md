@@ -196,6 +196,7 @@ Bitrate route decisions use bitrate estimated from `file_size_bytes` and `durati
 | `PauseFlagBlockSeconds` | Pause-flag age for blocked autonomy health | Does not auto-clear pause; high values delay unattended blocked-health visibility | Raw/Advanced |
 | `LocalWorkerHeartbeatGraceSeconds` | Grace window for stale local worker child heartbeat evidence | Too low can reclaim slow-but-live workers; too high delays stale slot recovery | Raw/Advanced |
 | `QueueExecutionMaxRunnablePerRound` | Maximum runnable queue items processed in one engine round | Too high increases per-round memory/work; too low increases round churn | Raw/Advanced |
+| `QueueLaunchSnapshotFreshnessSeconds` | Maximum age for both queue-snapshot generation and file timestamps before blank Run Once stops treating empty-scope evidence as authoritative (default `60`, range `15`–`3600`) | Too low creates advisory refresh churn; too high can trust an outdated empty queue snapshot | Builder/Advanced |
 | `StateDbMaintenanceIntervalSeconds` | Best-effort SQLite mirror maintenance interval | JSON remains authoritative; low values add maintenance overhead | Raw/Advanced |
 | `StateDbWalReviewBytes` | SQLite mirror WAL review/maintenance threshold | JSON remains authoritative; high values allow larger WAL growth before review | Raw/Advanced |
 | `StateDbCompletedJobsMaxRows` | Maximum completed-job rows retained in the SQLite mirror | JSONL completed manifests remain authoritative; too low reduces mirror history, too high increases SQLite growth | Raw/Advanced |

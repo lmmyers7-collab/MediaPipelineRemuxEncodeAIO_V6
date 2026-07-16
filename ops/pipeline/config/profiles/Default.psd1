@@ -293,6 +293,7 @@
     PauseFlagBlockSeconds = 21600
     LocalWorkerHeartbeatGraceSeconds = 900
     QueueExecutionMaxRunnablePerRound = 500
+    QueueLaunchSnapshotFreshnessSeconds = 60
     StateDbMaintenanceIntervalSeconds = 21600
     StateDbWalReviewBytes = 33554432
     StateDbCompletedJobsMaxRows = 250000

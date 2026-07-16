@@ -221,10 +221,11 @@ Rows commonly include `source_path`, `media_kind`, `stage_mode`, `original_mode`
 |---|---|---|---|
 | `queue_state.schema_version` | `str` | — | `desktop_rerun_queue_state.v1` |
 | `queue_state.row_schema_version` | `str` | — | `desktop_rerun_queue_state_row.v1` |
+| `history_window` | `dict` | `{}` | Bounded response metadata: requested limit, local/Network loaded and discovered candidate counts, truncation flags, skipped counts, and bounded per-file scan warnings. One unreadable manifest does not suppress readable history. |
 | `queue_state.uses_pipeline_start` | `bool` | `False` | Explicit boundary marker: CSV rerun rows are not normal `/api/pipeline/start` rows |
 | `queue_state.current_local` | `dict` | empty current summary | Backend-selected local batch for the current table. Selection order is exact identity-matched live process, newest recovery-actionable batch, newest nonterminal review batch, then none. Terminal-only history is never current. |
-| `queue_state.current_network` | `dict` | empty current summary | Backend-selected Network batch using the same actionable/nonterminal rules; Network manifests are not called active without exact live-process evidence. |
-| `queue_state.rows[]` | `list[dict]` | `[]` | Aggregate backend-enriched local and Network history rows. The WebView current table uses only `current_local.rows` and `current_network.rows`. |
+| `queue_state.current_network` | `dict` | empty current summary | Backend-selected Network batch. `activity_state=active` requires an exact fresh claim from persisted `coordinator_inflight.json`; an open manifest without that proof is `open_unverified`, not active. |
+| `queue_state.rows[]` | `list[dict]` | `[]` | Backend-enriched rows from the bounded recent local and Network history window. The WebView current table uses only `current_local.rows` and `current_network.rows`. |
 | `rows[].queue_source` / `queue_kind` | `str` | — | Distinguishes local CSV rerun rows from Network CSV rerun reducer rows; network rows use `network_csv_rerun` and `network_csv_rerun_row` |
 | `rows[].queue_status` / `queue_status_label` | `str` | — | Normalized operator status, such as `pending`, `active`, `pending_reduction`, `blocked`, `warning`, `failed`, `stopped`, `completed`, `awaiting_review`, `pending_publish`, `replaced_returned`, or `skipped`; Network CSV rerun destination policy application is rendered as `active`, and destination-policy failures render as `failed` |
 | `rows[].rule_decision` | `dict` | `{}` | Backend-owned CSV rerun rule decision with `desktop_rerun_rule_decision.v1`; includes rule id, label, status, reason, destination behavior, replacement eligibility, required confirmations, runtime options, and evidence |
@@ -544,7 +545,7 @@ The snapshot contains a container record and two row lists: queue display rows a
 
 - The queue snapshot is rebuilt each time a dry-run or queue evaluation is performed. It is not an append-only log.
 - `GET /api/queue` projects only normal queue rows and preserves compatibility metadata with `queue_sources=["normal_queue"]`, `dedicated_rerun_visible_count=0`, and an empty `rerun_correlation`; CSV rerun state is never merged into the normal queue projection.
-- Blank Run Once launch preflight treats a matching queue snapshot no older than 60 seconds as authoritative scope evidence. A fresh zero-runnable snapshot blocks with `no_runnable_work`; stale, missing, mismatched, or actively scanning evidence is review/unknown rather than a scope block.
+- Blank Run Once launch preflight treats a matching queue snapshot as authoritative only when both `produced_at` and the file modification time are within `QueueLaunchSnapshotFreshnessSeconds` (default 60; range 15–3600). A future-skewed timestamp or stale, missing, mismatched, unreadable, or actively scanning evidence is review/unknown rather than a scope block; only fresh zero-runnable evidence blocks with `no_runnable_work`.
 - The `blocked_reason_code` on `QueuePlanRow` drives the blocked-row warning signals in the Queue table.
 - The `route` field is a prediction at queue-plan time. The final route in the completed manifest may differ if runtime conditions change.
 

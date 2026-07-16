@@ -22,7 +22,6 @@ from mediapipeline.core.queue.source_inventory import (
 )
 from mediapipeline.core.queue.policy_parts.operator_guidance import queue_row_operator_guidance
 from mediapipeline.core.queue.priority_manifest import set_manifest_entry
-from mediapipeline.core.queue.facade import _read_latest_rerun_manifest
 from tests.python.desktop.application_facade_test_support import DummyWorkflowFacadeService, _resolved
 
 
@@ -445,56 +444,6 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
         self.assertTrue(all(str(path) not in visible_paths for path in terminal_sources))
         self.assertNotIn(str(rerun_source), visible_paths)
         self.assertNotIn("dedicated CSV rerun batch", "\n".join(preview["warnings"]))
-
-    def test_queue_authority_hides_stale_progress_when_newer_enrollment_failed(self) -> None:
-        with tempfile.TemporaryDirectory() as raw_root:
-            root = Path(raw_root)
-            local_base = root / "LocalBase"
-            manifest_root = local_base / "RerunManifests"
-            enrollment_root = local_base / "State" / "Rerun" / "Local"
-            manifest_root.mkdir(parents=True)
-            enrollment_root.mkdir(parents=True)
-            manifest_path = manifest_root / "batch-stale.json"
-            enrollment_path = enrollment_root / "batch-stale.json"
-            manifest_payload = {
-                "batch_id": "batch-stale",
-                "command_id": "command-stale",
-                "launch_id": "launch-stale",
-                "status": "processing",
-                "rows": [{"row_index": 0, "status": "processing", "source_path": str(root / "Movie.mkv")}],
-            }
-            enrollment_payload = {
-                "batch_id": "batch-stale",
-                "command_id": "command-stale",
-                "launch_id": "launch-stale",
-                "status": "failed_before_manifest",
-                "lifecycle_state": "failed_before_manifest",
-                "manifest_path": str(manifest_path),
-                "last_transition_at": "2026-07-14T01:00:00Z",
-                "rows": [
-                    {
-                        "row_index": 0,
-                        "status": "failed_before_manifest",
-                        "lifecycle_state": "failed_before_manifest",
-                        "source_path": str(root / "Movie.mkv"),
-                    }
-                ],
-            }
-            manifest_path.write_text(json.dumps(manifest_payload), encoding="utf-8")
-            enrollment_path.write_text(json.dumps(enrollment_payload), encoding="utf-8")
-            os.utime(manifest_path, (1, 1))
-            os.utime(enrollment_path, (2, 2))
-            resolved = _resolved(root)
-            resolved.local_base = local_base
-            resolved.state_root = local_base / "State"
-
-            selected = _read_latest_rerun_manifest(resolved)
-            manifest_after = json.loads(manifest_path.read_text(encoding="utf-8"))
-            enrollment_after = json.loads(enrollment_path.read_text(encoding="utf-8"))
-
-        self.assertIsNone(selected)
-        self.assertEqual(manifest_after, manifest_payload)
-        self.assertEqual(enrollment_after, enrollment_payload)
 
     def test_queue_preview_excludes_csv_rerun_manifest_operator_states(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

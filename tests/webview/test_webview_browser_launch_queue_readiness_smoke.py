@@ -889,11 +889,11 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             requireText("rerun-open-active-jobs-button", ["Open Active Jobs"]);
             requireText("rerun-show-command-history-button", ["Show Rerun Commands"]);
             await waitFor(
-              () => text("rerun-history-summary").includes("Aggregate history is backend-owned"),
+              () => text("rerun-history-summary").includes("Recent bounded history is backend-owned"),
               "CSV rerun backend-owned current/history summary",
             );
             requireText("rerun-history-summary", [
-              "Aggregate history is backend-owned",
+              "Recent bounded history is backend-owned",
               "Current CSV rerun batch count",
               "/api/rerun/results",
               "not normal /api/pipeline/start queue rows",
@@ -1096,6 +1096,13 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             }
             window.mediaPipelineQueueView.renderRerunResults({
               manifests: [],
+              network_manifests: [],
+              history_window: {
+                requested_limit: 24,
+                local: { loaded_count: 24, discovered_candidate_count: 101, truncated: true },
+                network: { loaded_count: 1, discovered_candidate_count: 1, truncated: false },
+                scan_warning_count: 1,
+              },
               queue_state: {
                 current_local: {
                   queue_source: "csv_rerun",
@@ -1121,6 +1128,17 @@ def _browser_launch_queue_readiness_runner_source() -> str:
                     },
                   ],
                 },
+                current_network: {
+                  queue_source: "network_csv_rerun",
+                  manifest_key: "browser-smoke-network-rerun",
+                  batch_id: "browser-smoke-network-rerun",
+                  selection_reason: "newest_nonterminal",
+                  activity_state: "open_unverified",
+                  runtime_activity: { status: "unverified", evidence_source: "coordinator_inflight" },
+                  row_count: 0,
+                  available_actions: [],
+                  rows: [],
+                },
                 rows: [
                   {
                     row_key: "browser-smoke-rerun-row",
@@ -1142,6 +1160,13 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             const subtitleChip = document.querySelector('.rerun-issue-chip[data-issue-family="subtitle"]');
             if (!audioChip || !subtitleChip) throw new Error("CSV rerun issue chips did not render expected families");
             requireText("rerun-state-rows", ["Failed", "A", "default policy", "S", "ocr candidate"]);
+            requireText("rerun-history-summary", [
+              "Local recent history: loaded 24 of 101",
+              "older records are outside this response window",
+              "Network recent history: loaded 1 of 1",
+              "History scan warnings: 1",
+            ]);
+            requireText("rerun-queue-detail", ["network_csv_rerun", "open; live worker unverified"]);
             const compactStateText = text("rerun-state-rows");
             if (compactStateText.includes("Rule detail") || compactStateText.includes("Rule reason") || compactStateText.includes("destination policy failed")) {
               throw new Error("CSV rerun details leaked into compact state rows");

@@ -304,6 +304,35 @@
         .filter((summary) => summary && typeof summary === "object" && summary.selection_reason !== "none");
     }
 
+    function currentRerunActivityLabel(summary = {}) {
+      const activity = summary.runtime_activity && typeof summary.runtime_activity === "object"
+        ? summary.runtime_activity
+        : {};
+      if (summary.queue_source !== "network_csv_rerun") return summary.activity_state || "review";
+      if (activity.status === "active") return "active; fresh exact persisted worker claim";
+      if (activity.status === "stale") return "open; persisted worker claim is stale";
+      if (activity.status === "unverified" || summary.activity_state === "open_unverified") {
+        return "open; live worker unverified";
+      }
+      return summary.activity_state || "review";
+    }
+
+    function rerunHistoryWindowLines(payload = lastRerunResultsPayload) {
+      const windowState = payload?.history_window && typeof payload.history_window === "object"
+        ? payload.history_window
+        : {};
+      const lines = [];
+      [["Local", windowState.local], ["Network", windowState.network]].forEach(([label, state]) => {
+        if (!state || typeof state !== "object") return;
+        const loaded = Number(state.loaded_count || 0);
+        const discovered = Number(state.discovered_candidate_count || 0);
+        lines.push(`${label} recent history: loaded ${loaded} of ${discovered} discovered candidate(s)${state.truncated ? "; older records are outside this response window" : ""}.`);
+      });
+      const warningCount = Number(windowState.scan_warning_count || 0);
+      if (warningCount) lines.push(`History scan warnings: ${warningCount}; readable records remain visible.`);
+      return lines;
+    }
+
     function queueStateRows(payload = lastRerunResultsPayload) {
       return currentRerunSummaries(payload)
         .flatMap((summary) => Array.isArray(summary.rows) ? summary.rows : []);
@@ -425,13 +454,13 @@
       const container = nodeById("rerun-results-panel");
       if (!container) return;
       clearNode(container);
-      container.dataset.scope = "aggregate-history";
+      container.dataset.scope = "bounded-recent-history";
       const manifests = [
         ...(Array.isArray(payload?.manifests) ? payload.manifests : []),
         ...(Array.isArray(payload?.network_manifests) ? payload.network_manifests : []),
       ];
       if (!manifests.length) {
-        container.textContent = "No rerun manifests loaded.";
+        container.textContent = "No recent rerun manifests loaded.";
         return;
       }
       manifests.slice(0, 8).forEach((manifest) => {
@@ -608,15 +637,16 @@
       statusText("rerun-queue-detail", current.length
         ? [
             "Current CSV rerun batch state:",
-            ...current.map((summary) => `${summary.queue_source}: ${summary.batch_id || "unknown"} | ${summary.activity_state || "review"} | ${summary.row_count || 0} row(s).`),
+            ...current.map((summary) => `${summary.queue_source}: ${summary.batch_id || "unknown"} | ${currentRerunActivityLabel(summary)} | ${summary.row_count || 0} row(s).`),
           ].join("\n")
-        : "Current CSV rerun batch: none. Terminal runs remain available in aggregate history.");
+        : "Current CSV rerun batch: none. Terminal runs remain available in recent bounded history.");
       const counts = lastRerunResultsPayload?.queue_state?.status_counts || {};
       const countText = Object.keys(counts).sort().map((key) => `${key} ${counts[key]}`).join("; ");
       statusText("rerun-history-summary", [
-        "Aggregate history is backend-owned and rendered from /api/rerun/results.",
+        "Recent bounded history is backend-owned and rendered from /api/rerun/results.",
         `Current CSV rerun batch count: ${current.length}.`,
         "Local and Network CSV rerun rows shown here are not normal /api/pipeline/start queue rows.",
+        ...rerunHistoryWindowLines(lastRerunResultsPayload),
         countText ? `Status counts: ${countText}.` : "No CSV rerun rows loaded.",
         lastRerunResultsPayload?.queue_state?.contains_network_csv_rerun ? "Network CSV rerun reducer and destination-policy evidence is backend-authored." : "",
       ].join("\n"));

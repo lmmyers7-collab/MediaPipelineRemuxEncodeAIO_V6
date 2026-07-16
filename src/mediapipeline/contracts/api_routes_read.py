@@ -303,7 +303,7 @@ LOCAL_API_INVENTORY_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "effect": "none",
         "query_keys": ["limit"],
         "response_schema": "desktop_rerun_results.v1",
-        "purpose": "Read aggregate local and Network CSV rerun history plus backend-selected current_local/current_network batches, row rule decisions, status counts, exact-live correlation, backend-authored recovery actions, review outputs, and import/scoped CSV candidates without accepting arbitrary paths, publishing, moving, deleting, launching work, or touching media files.",
+        "purpose": "Read bounded recent local and Network CSV rerun history with discovered/loaded counts and scan warnings, plus backend-selected current_local/current_network batches. Local current activity requires exact live-process correlation; Network current activity requires an exact fresh persisted coordinator claim. Includes row rule decisions, recovery actions, review outputs, and import/scoped CSV candidates without accepting arbitrary paths, publishing, moving, deleting, launching work, or touching media files.",
     },
     {
         "method": "GET",

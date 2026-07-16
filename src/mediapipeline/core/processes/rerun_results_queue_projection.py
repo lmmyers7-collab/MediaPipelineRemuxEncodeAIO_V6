@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 from collections import Counter
 from collections.abc import Mapping
@@ -26,8 +27,10 @@ from mediapipeline.core.final_library.promotion_parts.transfer import (
 from mediapipeline.core.kernel.contracts.pending_publish import PendingPushManifest
 from mediapipeline.core.kernel.contracts import ActiveJobRecord, ContractError
 from mediapipeline.core.kernel.dto_commands import CommandResult
+from mediapipeline.core.network.facade_connectivity import _heartbeat_timeout_seconds, _runtime_state_dir
+from mediapipeline.core.network.registry import InFlightRegistry
 from mediapipeline.core.paths.contracts import ResolvedPaths
-from mediapipeline.core.processes.active_jobs import active_job_pid_matches_record
+from mediapipeline.core.processes.active_jobs import active_job_pid_matches_record, active_jobs_dir_for_resolved
 from mediapipeline.core.processes.file_io import atomic_write_text
 from mediapipeline.core.processes.rerun_preview import recent_rerun_csv_candidates
 from mediapipeline.core.processes.rerun_control import (
@@ -40,7 +43,6 @@ from mediapipeline.core.processes.rerun_control import (
 from mediapipeline.core.processes.rerun_lifecycle import (
     read_rerun_startup_reconciliation,
     rerun_correlation_evidence,
-    rerun_enrollment_candidates,
     rerun_execution_manifest_has_durable_exit_state,
     rerun_execution_manifest_root,
     rerun_lifecycle_counts,
@@ -59,7 +61,7 @@ from mediapipeline.core.processes.rerun_rules import (
     rerun_rule_decision_from_mapping,
 )
 from mediapipeline.core.processes.source_probe import run_source_probe
-from mediapipeline.core.rerun.evidence import exact_rerun_active_job_payload
+from mediapipeline.core.rerun.evidence import exact_rerun_active_job_payload, read_rerun_enrollment, rerun_enrollment_root
 
 
 RERUN_RESULTS_SCHEMA_VERSION = "desktop_rerun_results.v1"
@@ -102,6 +104,121 @@ PENDING_MANIFEST_OPTIONAL_EVIDENCE_FIELDS = (
     "encode_selected_encoder_kind",
     "encode_selected_gpu_device",
 )
+RERUN_SCAN_WARNING_LIMIT = 20
+NETWORK_RERUN_OPEN_STATUSES = frozenset(
+    {"starting", "running", "active", "stopping", "stopped_after_current", "paused", "claim_disabled"}
+)
+
+
+def _scan_warning(source: str, code: str, path: Path | None, message: object) -> dict[str, str]:
+    return {
+        "source": source,
+        "code": code,
+        "path": str(path or ""),
+        "message": str(message or "")[:500],
+    }
+
+
+def _safe_json_candidates(root: Path | None, *, source: str) -> tuple[list[Path], dict[str, Any]]:
+    info: dict[str, Any] = {
+        "source": source,
+        "discovered_candidate_count": 0,
+        "scannable_candidate_count": 0,
+        "skipped_candidate_count": 0,
+        "warning_count": 0,
+        "scan_warnings": [],
+    }
+    if root is None or not root.exists():
+        return [], info
+    candidates: list[tuple[float, Path]] = []
+    try:
+        discovered = list(root.glob("*.json"))
+    except OSError as exc:
+        info["warning_count"] = 1
+        info["scan_warnings"] = [_scan_warning(source, "manifest_root_scan_failed", root, exc)]
+        return [], info
+    info["discovered_candidate_count"] = len(discovered)
+    for path in discovered:
+        try:
+            modified_at = path.stat().st_mtime
+        except OSError as exc:
+            info["skipped_candidate_count"] += 1
+            info["warning_count"] += 1
+            if len(info["scan_warnings"]) < RERUN_SCAN_WARNING_LIMIT:
+                info["scan_warnings"].append(_scan_warning(source, "manifest_stat_failed", path, exc))
+            continue
+        candidates.append((modified_at, path))
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    info["scannable_candidate_count"] = len(candidates)
+    return [path for _modified_at, path in candidates], info
+
+
+def _merge_scan_warning(info: dict[str, Any], warning: dict[str, str]) -> None:
+    info["warning_count"] = int(info.get("warning_count") or 0) + 1
+    warnings = info.setdefault("scan_warnings", [])
+    if len(warnings) < RERUN_SCAN_WARNING_LIMIT:
+        warnings.append(warning)
+
+
+def _direct_live_local_jobs(resolved: ResolvedPaths) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    root = active_jobs_dir_for_resolved(resolved)
+    paths, scan = _safe_json_candidates(root, source="active_jobs")
+    warnings = list(scan.get("scan_warnings") or [])
+    live: list[dict[str, Any]] = []
+    for path in paths:
+        raw = _read_json(path)
+        if not isinstance(raw, dict):
+            warnings.append(_scan_warning("active_jobs", "active_job_unreadable", path, "ActiveJobs JSON is unreadable."))
+            continue
+        try:
+            record = ActiveJobRecord.from_mapping(raw)
+        except ContractError as exc:
+            warnings.append(_scan_warning("active_jobs", "active_job_invalid", path, exc))
+            continue
+        if record.job_kind.casefold() != "rerun_csv" or record.status.casefold() not in {"launching", "active"}:
+            continue
+        if active_job_pid_matches_record(record, psutil) is not True:
+            continue
+        metadata = dict(raw.get("metadata") or {}) if isinstance(raw.get("metadata"), Mapping) else {}
+        batch_id = _clean_text(metadata.get("batch_id"))
+        launch_id = _clean_text(raw.get("launch_id"))
+        if not batch_id or not launch_id:
+            warnings.append(
+                _scan_warning("active_jobs", "active_rerun_correlation_missing", path, "Live rerun lacks batch or launch identity.")
+            )
+            continue
+        manifest_path = Path(
+            _clean_text(metadata.get("manifest_path"))
+            or str(rerun_execution_manifest_root(resolved) / f"{batch_id}.json")
+        )
+        enrollment_path = Path(
+            _clean_text(metadata.get("enrollment_path"))
+            or str(rerun_enrollment_root(resolved) / f"{batch_id}.json")
+        )
+        canonical_manifest_path = rerun_execution_manifest_root(resolved) / f"{batch_id}.json"
+        if _path_key(manifest_path) != _path_key(canonical_manifest_path):
+            warnings.append(
+                _scan_warning("active_jobs", "active_rerun_manifest_noncanonical", manifest_path, "Live rerun manifest path is not canonical.")
+            )
+            continue
+        if _path_key(enrollment_path.parent) != _path_key(rerun_enrollment_root(resolved)):
+            warnings.append(
+                _scan_warning("active_jobs", "active_rerun_enrollment_noncanonical", enrollment_path, "Live rerun enrollment path is not canonical.")
+            )
+            continue
+        live.append(
+            {
+                "record_path": path,
+                "record": raw,
+                "metadata": metadata,
+                "batch_id": batch_id,
+                "launch_id": launch_id,
+                "command_id": _clean_text(metadata.get("command_id")),
+                "manifest_path": manifest_path,
+                "enrollment_path": enrollment_path,
+            }
+        )
+    return live, warnings
 
 
 def _has_durable_row_index(row: Mapping[str, Any]) -> bool:
@@ -546,6 +663,21 @@ def _remaining_pending_count(data: Mapping[str, Any], row_counts: Mapping[str, i
     return max(0, parsed)
 
 
+def _exact_live_rerun_activity(resolved: ResolvedPaths, payload: Mapping[str, Any]) -> bool:
+    """Return true only for an exactly correlated, identity-matched live rerun process."""
+
+    _record_path, raw_record = exact_rerun_active_job_payload(resolved, payload)
+    if not isinstance(raw_record, Mapping):
+        return False
+    if _clean_text(raw_record.get("status")).casefold() not in {"launching", "active"}:
+        return False
+    try:
+        record = ActiveJobRecord.from_mapping(raw_record)
+    except ContractError:
+        return False
+    return active_job_pid_matches_record(record, psutil) is True
+
+
 _TERMINAL_RERUN_BATCH_STATUSES = frozenset(
     {
         "cancelled",
@@ -577,21 +709,6 @@ _TERMINAL_RERUN_BATCH_STATUSES = frozenset(
 )
 
 
-def _exact_live_rerun_activity(resolved: ResolvedPaths, payload: Mapping[str, Any]) -> bool:
-    """Return true only for an exactly correlated, identity-matched live rerun process."""
-
-    _record_path, raw_record = exact_rerun_active_job_payload(resolved, payload)
-    if not isinstance(raw_record, Mapping):
-        return False
-    if _clean_text(raw_record.get("status")).casefold() not in {"launching", "active"}:
-        return False
-    try:
-        record = ActiveJobRecord.from_mapping(raw_record)
-    except ContractError:
-        return False
-    return active_job_pid_matches_record(record, psutil) is True
-
-
 def _manifest_has_nonterminal_work(manifest: Mapping[str, Any], *, network: bool = False) -> bool:
     if network and manifest.get("batch_terminal") is True:
         return False
@@ -616,6 +733,8 @@ def _empty_current_rerun(queue_source: str) -> dict[str, Any]:
         "queue_status_counts": {},
         "available_actions": [],
         "rows": [],
+        "runtime_activity": {"status": "none", "evidence_source": "none"},
+        "conflict_count": 0,
     }
 
 
@@ -628,12 +747,33 @@ def _current_rerun_summary(
     selected: Mapping[str, Any] | None = None
     selection_reason = "none"
     activity_state = "none"
-    for manifest in manifests:
-        if manifest.get("runtime_active") is True:
-            selected = manifest
-            selection_reason = "exact_live_process"
-            activity_state = "active"
-            break
+    live_manifests = [manifest for manifest in manifests if manifest.get("runtime_active") is True]
+    live_conflict_count = len(live_manifests)
+    if not network:
+        live_conflict_count = sum(
+            max(1, _network_nonnegative_int((manifest.get("runtime_activity") or {}).get("matched_count")))
+            for manifest in live_manifests
+        )
+    if live_conflict_count > 1:
+        conflict = _empty_current_rerun(queue_source)
+        conflict.update(
+            {
+                "selection_reason": "ambiguous_live_process",
+                "activity_state": "review",
+                "status": "ambiguous_live_process",
+                "conflict_count": live_conflict_count,
+                "runtime_activity": {
+                    "status": "ambiguous",
+                    "evidence_source": "active_jobs" if not network else "coordinator_inflight",
+                    "matched_count": live_conflict_count,
+                },
+            }
+        )
+        return conflict
+    if live_manifests:
+        selected = live_manifests[0]
+        selection_reason = "exact_live_network_claim" if network else "exact_live_process"
+        activity_state = "active"
     if selected is None:
         for manifest in manifests:
             if manifest.get("available_actions"):
@@ -650,6 +790,9 @@ def _current_rerun_summary(
                 break
     if selected is None:
         return _empty_current_rerun(queue_source)
+    runtime_activity = dict(selected.get("runtime_activity") or {})
+    if network and activity_state == "review" and runtime_activity.get("status") in {"stale", "unverified"}:
+        activity_state = "open_unverified"
     return {
         "queue_source": queue_source,
         "manifest_key": _clean_text(selected.get("manifest_key")),
@@ -669,12 +812,60 @@ def _current_rerun_summary(
             if isinstance(action, Mapping)
         ],
         "rows": [dict(row) for row in selected.get("rows") or [] if isinstance(row, Mapping)],
+        "runtime_activity": runtime_activity or {"status": "none", "evidence_source": "none"},
+        "conflict_count": 0,
     }
 
 
-def _manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> list[dict[str, Any]]:
+def _manifest_entries(
+    resolved: ResolvedPaths,
+    *,
+    limit: int = 24,
+    scan_info: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     root = _manifest_root(resolved)
-    enrollment_items = rerun_enrollment_candidates(resolved, limit=max(limit, 100))
+    paths, manifest_scan = _safe_json_candidates(root, source="local_rerun_manifests")
+    live_jobs, active_job_warnings = _direct_live_local_jobs(resolved)
+    enrollment_paths, enrollment_scan = _safe_json_candidates(
+        rerun_enrollment_root(resolved),
+        source="local_rerun_enrollments",
+    )
+    enrollment_items: list[tuple[Path, dict[str, Any]]] = []
+    for enrollment_path in enrollment_paths[: max(limit, 100)]:
+        enrollment = read_rerun_enrollment(enrollment_path)
+        if enrollment is None:
+            _merge_scan_warning(
+                manifest_scan,
+                _scan_warning(
+                    "local_rerun_enrollments",
+                    "enrollment_unreadable",
+                    enrollment_path,
+                    "Rerun enrollment JSON is unreadable.",
+                ),
+            )
+            continue
+        enrollment_items.append((enrollment_path, enrollment))
+    for warning in enrollment_scan.get("scan_warnings") or []:
+        if isinstance(warning, dict):
+            _merge_scan_warning(manifest_scan, warning)
+    manifest_scan["skipped_candidate_count"] = int(manifest_scan.get("skipped_candidate_count") or 0) + int(
+        enrollment_scan.get("skipped_candidate_count") or 0
+    )
+    manifest_scan["enrollment_discovered_candidate_count"] = int(
+        enrollment_scan.get("discovered_candidate_count") or 0
+    )
+    manifest_scan["discovered_candidate_count"] = len(
+        {path.stem.casefold() for path in paths} | {path.stem.casefold() for path in enrollment_paths}
+    )
+    known_enrollment_paths = {_path_key(path) for path, _data in enrollment_items}
+    for live_job in live_jobs:
+        enrollment_path = Path(live_job["enrollment_path"])
+        if _path_key(enrollment_path) in known_enrollment_paths or not enrollment_path.is_file():
+            continue
+        enrollment = read_rerun_enrollment(enrollment_path)
+        if enrollment is not None:
+            enrollment_items.append((enrollment_path, enrollment))
+            known_enrollment_paths.add(_path_key(enrollment_path))
     enrollment_by_batch = {
         str(data.get("batch_id") or path.stem): (path, data)
         for path, data in enrollment_items
@@ -691,16 +882,22 @@ def _manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> list[dict[
         ): (path, data)
         for path, data in enrollment_items
     }
-    if root is None or not root.exists():
-        paths: list[Path] = []
-    else:
-        try:
-            paths = sorted(root.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
-        except OSError:
-            paths = []
+    preferred_paths = [Path(item["manifest_path"]) for item in live_jobs]
+    processing_paths = list(paths[: max(limit, 100)])
+    processing_path_keys = {_path_key(path) for path in processing_paths}
+    scannable_path_by_key = {_path_key(path): path for path in paths}
+    for preferred_path in preferred_paths:
+        preferred_key = _path_key(preferred_path)
+        if preferred_key in processing_path_keys or preferred_key not in scannable_path_by_key:
+            continue
+        processing_paths.append(scannable_path_by_key[preferred_key])
+        processing_path_keys.add(preferred_key)
+    for warning in active_job_warnings:
+        _merge_scan_warning(manifest_scan, warning)
+    direct_live_count_by_manifest = Counter(_path_key(Path(item["manifest_path"])) for item in live_jobs)
     manifests: list[dict[str, Any]] = []
     represented_batches: set[str] = set()
-    for path in paths[: max(limit, 100)]:
+    for path in processing_paths:
         data = _read_json(path)
         if not isinstance(data, dict):
             continue
@@ -839,14 +1036,8 @@ def _manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> list[dict[
             enrollment_path=enrollment_path,
             manifest_path=path,
         )
-        runtime_active = _exact_live_rerun_activity(
-            resolved,
-            {
-                **effective_data,
-                "enrollment_path": str(enrollment_path or ""),
-                "manifest_path": str(path),
-            },
-        )
+        direct_live_count = direct_live_count_by_manifest[_path_key(path)]
+        runtime_active = direct_live_count > 0
         manifests.append(
             {
                 "manifest_key": manifest_key,
@@ -869,6 +1060,11 @@ def _manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> list[dict[
                     "degraded" if manifest_correlation_degraded else "matched"
                 ),
                 "runtime_active": runtime_active,
+                "runtime_activity": {
+                    "status": "active" if runtime_active else "none",
+                    "evidence_source": "active_jobs",
+                    "matched_count": direct_live_count,
+                },
                 "manifest_correlation_warnings": (
                     [
                         "Execution manifest correlation or its declared v2 path did not match durable evidence; "
@@ -956,13 +1152,8 @@ def _manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> list[dict[
             enrollment_path=enrollment_path,
             manifest_path=expected_manifest,
         )
-        runtime_active = _exact_live_rerun_activity(
-            resolved,
-            {
-                **enrollment_data,
-                "manifest_path": str(expected_manifest),
-            },
-        )
+        direct_live_count = direct_live_count_by_manifest[_path_key(expected_manifest)]
+        runtime_active = direct_live_count > 0
         manifests.append(
             {
                 "manifest_key": _hash_text(str(expected_manifest)),
@@ -975,6 +1166,11 @@ def _manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> list[dict[
                 "manifest_available": False,
                 "evidence_authority": "backend_enrollment",
                 "runtime_active": runtime_active,
+                "runtime_activity": {
+                    "status": "active" if runtime_active else "none",
+                    "evidence_source": "active_jobs",
+                    "matched_count": direct_live_count,
+                },
                 "status": status,
                 "created_at": str(enrollment.get("created_at") or ""),
                 "started_at": str(enrollment.get("started_at") or ""),
@@ -1019,10 +1215,71 @@ def _manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> list[dict[
                 "_sort_mtime": enrollment_mtime,
             }
         )
+    for live_job in live_jobs:
+        batch_id = str(live_job.get("batch_id") or "")
+        if not batch_id or batch_id in represented_batches:
+            continue
+        manifest_path = Path(live_job["manifest_path"])
+        enrollment_path = Path(live_job["enrollment_path"])
+        record = dict(live_job.get("record") or {})
+        manifests.append(
+            {
+                "manifest_key": _hash_text(str(manifest_path)),
+                "manifest_path": str(manifest_path),
+                "batch_id": batch_id,
+                "command_id": str(live_job.get("command_id") or ""),
+                "launch_id": str(live_job.get("launch_id") or ""),
+                "enrollment_path": str(enrollment_path),
+                "manifest_available": False,
+                "execution_manifest_available": False,
+                "evidence_authority": "exact_live_active_job",
+                "manifest_correlation_status": "active_job_only",
+                "runtime_active": True,
+                "runtime_activity": {
+                    "status": "active",
+                    "evidence_source": "active_jobs",
+                    "matched_count": direct_live_count_by_manifest[_path_key(manifest_path)],
+                },
+                "status": str(record.get("status") or "active"),
+                "created_at": str(record.get("launched_at") or ""),
+                "started_at": str(record.get("launched_at") or ""),
+                "completed_at": "",
+                "stopped_at": "",
+                "row_status_counts": {},
+                "queue_status_counts": {},
+                "remaining_pending_count": 0,
+                "available_actions": [],
+                "safe_next_action": "Wait for the correlated rerun manifest or enrollment evidence.",
+                "rows": [],
+                "row_count": 0,
+                "lifecycle_counts": {},
+                "_history_eligible": False,
+                "_sort_mtime": float("inf"),
+            }
+        )
+        represented_batches.add(batch_id)
     manifests.sort(key=lambda item: float(item.get("_sort_mtime") or 0.0), reverse=True)
-    selected = manifests[:limit]
+    history_selected = [
+        manifest for manifest in manifests if manifest.get("_history_eligible") is not False
+    ][:limit]
+    selected_manifest_paths = {
+        _path_key(Path(str(manifest.get("manifest_path") or ""))) for manifest in history_selected
+    }
+    current_only = [
+        manifest
+        for manifest in manifests
+        if manifest.get("runtime_active") is True
+        and _path_key(Path(str(manifest.get("manifest_path") or ""))) not in selected_manifest_paths
+    ]
+    selected = history_selected + current_only
     for manifest in selected:
         manifest.pop("_sort_mtime", None)
+        manifest.pop("_history_eligible", None)
+    if scan_info is not None:
+        scan_info.clear()
+        scan_info.update(manifest_scan)
+        scan_info["loaded_candidate_count"] = len(history_selected)
+        scan_info["current_only_count"] = len(current_only)
     return selected
 
 
@@ -1375,22 +1632,141 @@ def _network_batch_queue_rows(state_path: Path, data: Mapping[str, Any]) -> list
     return rows
 
 
-def _network_manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> list[dict[str, Any]]:
-    root = _network_manifest_root(resolved)
-    if root is None or not root.exists():
-        return []
+def _network_claim_key(job_id: object, worker_id: object, source_path: object) -> tuple[str, str, str]:
+    source = _clean_text(source_path)
+    return (
+        _clean_text(job_id),
+        _clean_text(worker_id),
+        os.path.normcase(os.path.normpath(source)) if source else "",
+    )
+
+
+def _network_claim_registry_evidence(resolved: ResolvedPaths, service: Any | None) -> dict[str, Any]:
+    timeout_seconds = _heartbeat_timeout_seconds(resolved) or 300
+    state_dir = _runtime_state_dir(resolved, service or object())
+    path = state_dir / "coordinator_inflight.json"
+    evidence: dict[str, Any] = {
+        "path": str(path),
+        "status": "missing",
+        "heartbeat_timeout_seconds": timeout_seconds,
+        "claims": {},
+        "warning": "",
+    }
+    if not path.is_file():
+        return evidence
+    registry = InFlightRegistry()
     try:
-        paths = sorted(root.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
-    except OSError:
-        return []
+        loaded = registry.load(path)
+    except Exception as exc:
+        evidence.update(status="unavailable", warning=f"Coordinator in-flight evidence could not be read: {exc}")
+        return evidence
+    if not loaded:
+        evidence.update(status="unavailable", warning="Coordinator in-flight evidence could not be read.")
+        return evidence
+    claims: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for claim in registry.active_claims_snapshot():
+        key = _network_claim_key(claim.get("job_id"), claim.get("worker_id"), claim.get("source_path"))
+        if not all(key):
+            continue
+        claims[key] = dict(claim)
+    evidence.update(status="loaded", claims=claims)
+    return evidence
+
+
+def _network_manifest_runtime_activity(
+    data: Mapping[str, Any],
+    rows: list[dict[str, Any]],
+    registry_evidence: Mapping[str, Any],
+) -> dict[str, Any]:
+    timeout_seconds = _network_nonnegative_int(registry_evidence.get("heartbeat_timeout_seconds")) or 300
+    claims = dict(registry_evidence.get("claims") or {})
+    matched_count = 0
+    stale_count = 0
+    unverified_count = 0
+    claimed_row_count = 0
+    for row in rows:
+        active_claim = row.get("active_claim")
+        if not isinstance(active_claim, Mapping):
+            continue
+        claimed_row_count += 1
+        key = _network_claim_key(
+            active_claim.get("job_id"),
+            active_claim.get("worker_id"),
+            row.get("source_path"),
+        )
+        claim = claims.get(key)
+        if not isinstance(claim, Mapping):
+            unverified_count += 1
+            continue
+        age = claim.get("heartbeat_age_seconds")
+        if isinstance(age, int) and 0 <= age <= timeout_seconds:
+            matched_count += 1
+        elif isinstance(age, int) and age > timeout_seconds:
+            stale_count += 1
+        else:
+            unverified_count += 1
+    batch_open = data.get("batch_terminal") is not True and (
+        _clean_text(data.get("status")).casefold() in NETWORK_RERUN_OPEN_STATUSES
+        or any(row.get("is_terminal") is not True for row in rows)
+    )
+    if matched_count:
+        status = "active"
+    elif stale_count:
+        status = "stale"
+    elif batch_open:
+        status = "unverified"
+    else:
+        status = "none"
+    return {
+        "status": status,
+        "evidence_source": "coordinator_inflight",
+        "evidence_path": _clean_text(registry_evidence.get("path")),
+        "registry_status": _clean_text(registry_evidence.get("status")),
+        "heartbeat_timeout_seconds": timeout_seconds,
+        "claimed_row_count": claimed_row_count,
+        "matched_claim_count": matched_count,
+        "stale_claim_count": stale_count,
+        "unverified_claim_count": unverified_count,
+    }
+
+
+def _network_manifest_entries(
+    resolved: ResolvedPaths,
+    *,
+    service: Any | None = None,
+    limit: int = 24,
+    scan_info: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    root = _network_manifest_root(resolved)
+    paths, manifest_scan = _safe_json_candidates(root, source="network_rerun_manifests")
+    registry_evidence = _network_claim_registry_evidence(resolved, service)
+    if registry_evidence.get("warning"):
+        _merge_scan_warning(
+            manifest_scan,
+            _scan_warning(
+                "coordinator_inflight",
+                "network_claim_registry_unavailable",
+                Path(str(registry_evidence.get("path") or "")),
+                registry_evidence.get("warning"),
+            ),
+        )
     manifests: list[dict[str, Any]] = []
     for path in paths[:limit]:
         data = _read_json(path)
         if not isinstance(data, dict):
+            _merge_scan_warning(
+                manifest_scan,
+                _scan_warning("network_rerun_manifests", "manifest_unreadable", path, "Network rerun manifest is unreadable."),
+            )
             continue
         if str(data.get("schema_version") or "") != "desktop_rerun_network_batch.v1":
+            _merge_scan_warning(
+                manifest_scan,
+                _scan_warning("network_rerun_manifests", "manifest_schema_invalid", path, "Unexpected Network rerun schema."),
+            )
             continue
         rows = _network_batch_queue_rows(path, data)
+        runtime_activity = _network_manifest_runtime_activity(data, rows, registry_evidence)
         batch_id = str(data.get("batch_id") or path.stem)
         lifecycle_counts = _network_lifecycle_counts(rows)
         available_actions = [
@@ -1414,7 +1790,8 @@ def _network_manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> li
                 "failed_at": str(data.get("failed_at_utc") or ""),
                 "review_required_at": str(data.get("review_required_at_utc") or ""),
                 "batch_terminal": data.get("batch_terminal") is True,
-                "runtime_active": False,
+                "runtime_active": runtime_activity["status"] == "active",
+                "runtime_activity": runtime_activity,
                 "queue_source": "network_csv_rerun",
                 "uses_pipeline_start": False,
                 "claim_provider_enabled": data.get("claim_provider_enabled") is True,
@@ -1437,13 +1814,24 @@ def _network_manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> li
                 "rows": rows,
             }
         )
+    if scan_info is not None:
+        scan_info.clear()
+        scan_info.update(manifest_scan)
+        scan_info["loaded_candidate_count"] = len(manifests)
     return manifests
 
 
 def rerun_results_payload(resolved: ResolvedPaths, *, service: Any | None = None, limit: int = 24) -> dict[str, Any]:
     candidate_limit = max(limit, 100)
-    local_candidates = _manifest_entries(resolved, limit=candidate_limit)
-    network_candidates = _network_manifest_entries(resolved, limit=candidate_limit)
+    local_scan: dict[str, Any] = {}
+    network_scan: dict[str, Any] = {}
+    local_candidates = _manifest_entries(resolved, limit=candidate_limit, scan_info=local_scan)
+    network_candidates = _network_manifest_entries(
+        resolved,
+        service=service,
+        limit=candidate_limit,
+        scan_info=network_scan,
+    )
     manifests = local_candidates[:limit]
     network_manifests = network_candidates[:limit]
     current_local = _current_rerun_summary(
@@ -1475,10 +1863,39 @@ def rerun_results_payload(resolved: ResolvedPaths, *, service: Any | None = None
     ]
     network_queue_status_counts = _row_queue_status_counts(network_rows)
     network_lifecycle_counts = _network_lifecycle_counts(network_rows)
+    scan_warnings = [
+        dict(warning)
+        for warning in [
+            *(local_scan.get("scan_warnings") or []),
+            *(network_scan.get("scan_warnings") or []),
+        ][:RERUN_SCAN_WARNING_LIMIT]
+        if isinstance(warning, Mapping)
+    ]
+    history_window = {
+        "requested_limit": limit,
+        "local": {
+            "loaded_count": len(manifests),
+            "discovered_candidate_count": int(local_scan.get("discovered_candidate_count") or 0),
+            "scannable_candidate_count": int(local_scan.get("scannable_candidate_count") or 0),
+            "skipped_candidate_count": int(local_scan.get("skipped_candidate_count") or 0),
+            "truncated": int(local_scan.get("discovered_candidate_count") or 0) > len(manifests),
+        },
+        "network": {
+            "loaded_count": len(network_manifests),
+            "discovered_candidate_count": int(network_scan.get("discovered_candidate_count") or 0),
+            "scannable_candidate_count": int(network_scan.get("scannable_candidate_count") or 0),
+            "skipped_candidate_count": int(network_scan.get("skipped_candidate_count") or 0),
+            "truncated": int(network_scan.get("discovered_candidate_count") or 0) > len(network_manifests),
+        },
+        "scan_warning_count": int(local_scan.get("warning_count") or 0)
+        + int(network_scan.get("warning_count") or 0),
+        "scan_warnings": scan_warnings,
+    }
     return {
         "schema_version": RERUN_RESULTS_SCHEMA_VERSION,
         "manifest_root": str(_manifest_root(resolved) or ""),
         "network_manifest_root": str(_network_manifest_root(resolved) or ""),
+        "history_window": history_window,
         "manifests": manifests,
         "network_manifests": network_manifests,
         "startup_reconciliation": read_rerun_startup_reconciliation(resolved),

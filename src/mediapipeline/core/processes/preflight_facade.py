@@ -60,7 +60,10 @@ LAUNCH_PREFLIGHT_TARGETS = frozenset({"pipeline", "audit", "rerun"})
 LAUNCH_PREFLIGHT_PATH_HEALTH_TIMEOUT_SECONDS = LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS
 ENCODER_CAPABILITY_REFRESH_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
 ENCODER_CAPABILITY_REFRESH_TIMEOUT_SECONDS = 60.0
-NORMAL_QUEUE_SCOPE_FRESH_SECONDS = 60.0
+QUEUE_LAUNCH_SNAPSHOT_FRESHNESS_DEFAULT_SECONDS = 60
+QUEUE_LAUNCH_SNAPSHOT_FRESHNESS_MIN_SECONDS = 15
+QUEUE_LAUNCH_SNAPSHOT_FRESHNESS_MAX_SECONDS = 3600
+QUEUE_LAUNCH_SNAPSHOT_CLOCK_SKEW_SECONDS = 5
 
 
 
@@ -223,6 +226,21 @@ class ProcessFacadeMixin:
         )
 
     def _normal_queue_scope_preflight_check(self, resolved: ResolvedPaths) -> dict[str, Any]:
+        raw_freshness = (resolved.config_data or {}).get(
+            "QueueLaunchSnapshotFreshnessSeconds",
+            QUEUE_LAUNCH_SNAPSHOT_FRESHNESS_DEFAULT_SECONDS,
+        )
+        try:
+            freshness_seconds = int(raw_freshness)
+        except (TypeError, ValueError):
+            freshness_seconds = QUEUE_LAUNCH_SNAPSHOT_FRESHNESS_DEFAULT_SECONDS
+        if not (
+            QUEUE_LAUNCH_SNAPSHOT_FRESHNESS_MIN_SECONDS
+            <= freshness_seconds
+            <= QUEUE_LAUNCH_SNAPSHOT_FRESHNESS_MAX_SECONDS
+        ):
+            freshness_seconds = QUEUE_LAUNCH_SNAPSHOT_FRESHNESS_DEFAULT_SECONDS
+        freshness_detail = f"freshness_seconds={freshness_seconds}"
         scan_blocker = getattr(self.service, "queue_source_scan_active_block_message", None)
         if callable(scan_blocker):
             try:
@@ -267,7 +285,7 @@ class ProcessFacadeMixin:
                 detail=["queue_snapshot_unreadable"],
             )
         try:
-            QueuePlanSnapshot.from_mapping(snapshot)
+            snapshot_contract = QueuePlanSnapshot.from_mapping(snapshot)
         except ContractError:
             return _preflight_check(
                 "normal_queue_scope",
@@ -278,17 +296,56 @@ class ProcessFacadeMixin:
                 detail=["queue_snapshot_invalid"],
             )
         try:
+            produced_at = datetime.fromisoformat(snapshot_contract.produced_at.replace("Z", "+00:00"))
+            if produced_at.tzinfo is None:
+                produced_at = produced_at.replace(tzinfo=UTC)
+            produced_age_seconds = (datetime.now(UTC) - produced_at.astimezone(UTC)).total_seconds()
+        except (TypeError, ValueError):
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "review",
+                "Normal queue snapshot has an invalid produced_at timestamp.",
+                "Refresh the Main Queue; invalid generation evidence does not prove the queue is empty.",
+                detail=["queue_snapshot_produced_at_invalid", freshness_detail, f"snapshot_path={snapshot_path}"],
+            )
+        if produced_age_seconds < -QUEUE_LAUNCH_SNAPSHOT_CLOCK_SKEW_SECONDS:
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "review",
+                f"Normal queue snapshot timestamp is in the future; skew_seconds={abs(produced_age_seconds):.1f}.",
+                "Refresh the Main Queue after checking the system clock.",
+                detail=["queue_snapshot_clock_skew", freshness_detail, f"snapshot_path={snapshot_path}"],
+            )
+        if produced_age_seconds > freshness_seconds:
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "review",
+                f"Normal queue snapshot generation evidence is stale; age_seconds={produced_age_seconds:.1f}.",
+                "Refresh the Main Queue; stale generation evidence does not prove the queue is empty.",
+                detail=["queue_snapshot_produced_stale", freshness_detail, f"snapshot_path={snapshot_path}"],
+            )
+        try:
             age_seconds = max(0.0, time.time() - snapshot_path.stat().st_mtime)
-        except OSError:
-            age_seconds = NORMAL_QUEUE_SCOPE_FRESH_SECONDS + 1.0
-        if age_seconds > NORMAL_QUEUE_SCOPE_FRESH_SECONDS:
+        except OSError as exc:
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "unknown",
+                f"Normal queue snapshot file age could not be verified: {exc}",
+                "Refresh the Main Queue before Run Once.",
+                detail=["queue_snapshot_mtime_unavailable", freshness_detail, f"snapshot_path={snapshot_path}"],
+            )
+        if age_seconds > freshness_seconds:
             return _preflight_check(
                 "normal_queue_scope",
                 "Normal queue scope",
                 "review",
                 f"Normal queue snapshot is stale; age_seconds={age_seconds:.1f}.",
                 "Refresh the Main Queue; stale evidence does not prove the queue is empty.",
-                detail=["queue_snapshot_stale", f"snapshot_path={snapshot_path}"],
+                detail=["queue_snapshot_stale", freshness_detail, f"snapshot_path={snapshot_path}"],
             )
 
         def path_key(value: object) -> str:
@@ -300,7 +357,11 @@ class ProcessFacadeMixin:
             "source_movies": path_key(resolved.source_movies),
             "source_tv": path_key(resolved.source_tv),
         }
-        actual = {key: path_key(snapshot.get(key)) for key in expected}
+        actual = {
+            "config_path": path_key(snapshot_contract.config_path),
+            "source_movies": path_key(snapshot_contract.source_movies),
+            "source_tv": path_key(snapshot_contract.source_tv),
+        }
         mismatches = [key for key in expected if actual[key] != expected[key]]
         if mismatches:
             return _preflight_check(
@@ -311,16 +372,14 @@ class ProcessFacadeMixin:
                 "Refresh the Main Queue for the active config and source roots.",
                 detail=[
                     "queue_snapshot_scope_mismatch",
+                    freshness_detail,
                     *[
                         f"{key}: snapshot={actual[key] or '(empty)'}; active={expected[key] or '(empty)'}"
                         for key in mismatches
                     ],
                 ],
             )
-        try:
-            runnable_count = max(0, int(snapshot.get("runnable_count") or 0))
-        except (TypeError, ValueError):
-            runnable_count = len(snapshot.get("rows") or [])
+        runnable_count = max(0, snapshot_contract.runnable_count)
         if runnable_count == 0:
             return _preflight_check(
                 "normal_queue_scope",
@@ -328,7 +387,7 @@ class ProcessFacadeMixin:
                 "blocked",
                 "Fresh authoritative normal queue snapshot has zero runnable rows.",
                 "Refresh the Main Queue or choose a specific Single File; Run Once has no work to start.",
-                detail=["no_runnable_work", f"snapshot_path={snapshot_path}"],
+                detail=["no_runnable_work", freshness_detail, f"snapshot_path={snapshot_path}"],
             )
         return _preflight_check(
             "normal_queue_scope",
@@ -336,7 +395,7 @@ class ProcessFacadeMixin:
             "ready",
             f"Fresh authoritative normal queue snapshot has {runnable_count} runnable row(s).",
             "Run Once will use backend-owned normal queue scope.",
-            detail=[f"snapshot_path={snapshot_path}"],
+            detail=[freshness_detail, f"snapshot_path={snapshot_path}"],
         )
 
     def _config_identity_preflight_check(self, resolved: ResolvedPaths) -> dict[str, Any]:

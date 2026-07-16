@@ -190,7 +190,7 @@ function Get-MediaPipelineConfigOrderedKeys {
         'PendingPublishBacklogBlockThreshold','PendingPublishDeferredBlockThreshold',
         'AutonomyPendingTotalReviewBytes','AutonomyPendingTotalBlockBytes',
         'PauseFlagReviewSeconds','PauseFlagBlockSeconds',
-        'LocalWorkerHeartbeatGraceSeconds','QueueExecutionMaxRunnablePerRound',
+        'LocalWorkerHeartbeatGraceSeconds','QueueExecutionMaxRunnablePerRound','QueueLaunchSnapshotFreshnessSeconds',
         'StateDbMaintenanceIntervalSeconds','StateDbWalReviewBytes','StateDbCompletedJobsMaxRows',
         'IndexScanTimeoutSeconds','SourceScanTimeoutSeconds','CleanupScanTimeoutSeconds',
         'CleanupRemoteStaging','CleanupStaleAgeHours',

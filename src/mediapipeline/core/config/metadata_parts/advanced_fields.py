@@ -451,6 +451,15 @@ ADVANCED_CONFIG_FIELD_DEFINITIONS = (
     {
         "page": "Advanced",
         "section": "Long-Run Reliability",
+        "key": "QueueLaunchSnapshotFreshnessSeconds",
+        "label": "Queue Launch Snapshot Freshness (s)",
+        "kind": "int",
+        "default": 60,
+        "help": "Maximum age of both the queue snapshot generation timestamp and file timestamp before blank-scope Run Once treats the evidence as advisory instead of authoritatively empty.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Long-Run Reliability",
         "key": "StateDbMaintenanceIntervalSeconds",
         "label": "State DB Maintenance Interval (s)",
         "kind": "int",

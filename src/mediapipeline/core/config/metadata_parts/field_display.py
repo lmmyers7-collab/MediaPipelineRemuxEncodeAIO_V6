@@ -765,6 +765,7 @@ _NUMERIC_LIMITS_BY_KEY = {
     "PauseFlagBlockSeconds": {"min": 300, "max": 604800, "step": 1, "unit": "seconds"},
     "LocalWorkerHeartbeatGraceSeconds": {"min": 60, "max": 86400, "step": 1, "unit": "seconds"},
     "QueueExecutionMaxRunnablePerRound": {"min": 1, "max": 1000000, "step": 1},
+    "QueueLaunchSnapshotFreshnessSeconds": {"min": 15, "max": 3600, "step": 1, "unit": "seconds"},
     "StateDbMaintenanceIntervalSeconds": {"min": 60, "max": 604800, "step": 1, "unit": "seconds"},
     "StateDbWalReviewBytes": {"min": 1048576, "max": 2147483647, "step": 1, "unit": "bytes"},
     "StateDbCompletedJobsMaxRows": {"min": 1000, "max": 10000000, "step": 1},

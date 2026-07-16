@@ -178,6 +178,7 @@ $script:MediaPipelineConfigKeyRegistry = [ordered]@{
     PauseFlagBlockSeconds = 'PauseFlagBlockSeconds'
     LocalWorkerHeartbeatGraceSeconds = 'LocalWorkerHeartbeatGraceSeconds'
     QueueExecutionMaxRunnablePerRound = 'QueueExecutionMaxRunnablePerRound'
+    QueueLaunchSnapshotFreshnessSeconds = 'QueueLaunchSnapshotFreshnessSeconds'
     StateDbMaintenanceIntervalSeconds = 'StateDbMaintenanceIntervalSeconds'
     StateDbWalReviewBytes = 'StateDbWalReviewBytes'
     StateDbCompletedJobsMaxRows = 'StateDbCompletedJobsMaxRows'

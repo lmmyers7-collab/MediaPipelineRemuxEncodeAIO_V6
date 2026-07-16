@@ -50,7 +50,7 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | `GET /api/audit-results` | `read` | No | Audit CSV preview; no rerun CSV written |
 | `GET /api/audit-controls` | `read` | No | Reads audit score policy and audit-only ignore state; no save/export/media mutation |
 | `GET /api/audit-sources` | `read` | No | Reads backend-owned Audit source registry and scan status only; no scan, save, launch, or media mutation |
-| `GET /api/rerun/results` | `read` | No | Reads completed/current CSV rerun manifests, row status counts, stop evidence, continuation eligibility, review outputs, and import/scoped CSV candidates; no media mutation |
+| `GET /api/rerun/results` | `read` | No | Reads bounded recent rerun manifests with scan-window metadata, direct current local process evidence, fresh exact persisted Network claim evidence, recovery actions, review outputs, and import/scoped CSV candidates; no media mutation |
 | `GET /api/rename/cleaning-filters` | `read` | No | Reads backend-owned movie and TV cleaning filter catalogs only |
 | `GET /api/rename/movie-cleaning-filters` | `read` | No | Reads backend-owned movie filename cleaning filter catalog only |
 | `GET /api/rename/clean-filename-preview` | `read` | No | Read-only clean-filename preview plus optional workbench comparison/suggestions; marks suggestions as already covered or stage-recommended and writes nothing |

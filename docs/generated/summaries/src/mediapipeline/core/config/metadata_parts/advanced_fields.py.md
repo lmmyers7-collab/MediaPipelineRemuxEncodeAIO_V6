@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/metadata_parts/advanced_fields.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-07-15
+last_modified: 2026-07-16
 last_reviewed: 2026-06-04
-sha256: 7d546bc15fd00fb354f38a7397ec74231716fb7e2b11b2f023965d52bfc57b14
+sha256: 9f9b59e3e7a8474cbdc3ef0b5f2ec627ec2043576da23e97983efb1d1b34531d
 ---
 # `src/mediapipeline/core/config/metadata_parts/advanced_fields.py`
 

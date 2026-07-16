@@ -373,6 +373,7 @@ class Config(BaseModel):
     PauseFlagBlockSeconds: int = Field(default=21600, ge=300, le=604800)
     LocalWorkerHeartbeatGraceSeconds: int = Field(default=900, ge=60, le=86400)
     QueueExecutionMaxRunnablePerRound: int = Field(default=500, ge=1, le=1000000)
+    QueueLaunchSnapshotFreshnessSeconds: int = Field(default=60, ge=15, le=3600)
     StateDbMaintenanceIntervalSeconds: int = Field(default=21600, ge=60, le=604800)
     StateDbWalReviewBytes: int = Field(default=33554432, ge=1048576, le=2147483647)
     StateDbCompletedJobsMaxRows: int = Field(default=250000, ge=1000, le=10000000)

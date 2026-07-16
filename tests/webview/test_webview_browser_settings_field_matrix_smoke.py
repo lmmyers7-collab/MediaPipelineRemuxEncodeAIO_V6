@@ -885,11 +885,11 @@ class WebViewBrowserSettingsFieldMatrixSmoke(unittest.TestCase):
             1 for field in settings["field_definitions"] if field.get("library_override_allowed") is True
         )
         self.assertEqual(browser_result["backendFieldCount"], expected_field_count)
-        self.assertEqual(expected_field_count, 204)
-        self.assertEqual(browser_result["builderBindingCount"], 155)
-        self.assertEqual(browser_result["builderKeyCount"], 145)
+        self.assertEqual(expected_field_count, 206)
+        self.assertEqual(browser_result["builderBindingCount"], 156)
+        self.assertEqual(browser_result["builderKeyCount"], 146)
         self.assertEqual(browser_result["profileOwnedCount"], 0)
-        self.assertEqual(browser_result["jsonOnlyCount"], 59)
+        self.assertEqual(browser_result["jsonOnlyCount"], 60)
         self.assertEqual(
             browser_result["builderKeyCount"]
             + browser_result["profileOwnedCount"]

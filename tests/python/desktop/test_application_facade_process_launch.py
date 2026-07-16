@@ -3380,12 +3380,19 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                 "SourceMovies": str(resolved.source_movies),
                 "SourceTV": str(resolved.source_tv),
                 "Outsource": str(root / "Outsource"),
+                "QueueLaunchSnapshotFreshnessSeconds": 60,
             }
             snapshot_path = root / "State" / "Progress" / "queue_snapshot.json"
             snapshot_path.parent.mkdir(parents=True)
             resolved.queue_snapshot_path = snapshot_path
 
-            def write_snapshot(*, runnable_count: int, config_path: Path | None = None) -> None:
+            def write_snapshot(
+                *,
+                runnable_count: int,
+                config_path: Path | None = None,
+                produced_at: str | None = None,
+                mtime_age_seconds: int = 0,
+            ) -> None:
                 rows = []
                 if runnable_count:
                     rows.append(
@@ -3411,7 +3418,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                     json.dumps(
                         {
                             "schema_version": "queue_plan_snapshot.v1",
-                            "produced_at": _fresh_generated_at(),
+                            "produced_at": produced_at or _fresh_generated_at(),
                             "config_path": str(config_path or resolved.config_path),
                             "local_base": str(resolved.local_base),
                             "source_movies": str(resolved.source_movies),
@@ -3426,6 +3433,9 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                     ),
                     encoding="utf-8",
                 )
+                if mtime_age_seconds:
+                    timestamp = time.time() - mtime_age_seconds
+                    os.utime(snapshot_path, (timestamp, timestamp))
 
             def queue_scope(payload: dict[str, object]) -> dict[str, object]:
                 return next(
@@ -3439,6 +3449,27 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
 
             os.utime(snapshot_path, (time.time() - 61, time.time() - 61))
             stale_empty = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
+
+            write_snapshot(
+                runnable_count=0,
+                produced_at=(datetime.now(UTC) - timedelta(seconds=120)).isoformat(),
+            )
+            stale_produced_empty = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
+
+            write_snapshot(
+                runnable_count=0,
+                produced_at=(datetime.now(UTC) + timedelta(seconds=30)).isoformat(),
+            )
+            future_produced_empty = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
+
+            resolved.config_data["QueueLaunchSnapshotFreshnessSeconds"] = 120
+            write_snapshot(
+                runnable_count=0,
+                produced_at=(datetime.now(UTC) - timedelta(seconds=90)).isoformat(),
+                mtime_age_seconds=90,
+            )
+            configured_fresh_empty = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
+            resolved.config_data["QueueLaunchSnapshotFreshnessSeconds"] = 60
 
             write_snapshot(runnable_count=0, config_path=root / "other.psd1")
             mismatched_empty = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
@@ -3461,6 +3492,15 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertFalse(fresh_empty["can_request_start"])
         self.assertEqual(queue_scope(stale_empty)["status"], "review")
         self.assertTrue(stale_empty["can_request_start"])
+        self.assertEqual(queue_scope(stale_produced_empty)["status"], "review")
+        self.assertIn("queue_snapshot_produced_stale", queue_scope(stale_produced_empty)["detail"])
+        self.assertTrue(stale_produced_empty["can_request_start"])
+        self.assertEqual(queue_scope(future_produced_empty)["status"], "review")
+        self.assertIn("queue_snapshot_clock_skew", queue_scope(future_produced_empty)["detail"])
+        self.assertTrue(future_produced_empty["can_request_start"])
+        self.assertEqual(queue_scope(configured_fresh_empty)["status"], "blocked")
+        self.assertIn("freshness_seconds=120", queue_scope(configured_fresh_empty)["detail"])
+        self.assertFalse(configured_fresh_empty["can_request_start"])
         self.assertEqual(queue_scope(mismatched_empty)["status"], "review")
         self.assertTrue(mismatched_empty["can_request_start"])
         self.assertEqual(queue_scope(fresh_ready)["status"], "ready")
