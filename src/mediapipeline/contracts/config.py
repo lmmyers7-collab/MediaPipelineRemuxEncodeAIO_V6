@@ -293,6 +293,7 @@ class Config(BaseModel):
 
     DebugMode: bool = True
     LogRetentionDays: int = Field(default=7, ge=0)
+    InterruptedToolLogRetentionDays: int = Field(default=3, ge=1, le=365)
     PipelineDebugLogMaxBytes: int = Field(default=104857600, ge=1048576, le=2147483647)
     FailureArtifactWarningThresholdGB: int = Field(default=100, ge=0)
     FailureArtifactRetentionDays: int = Field(default=0, ge=0)

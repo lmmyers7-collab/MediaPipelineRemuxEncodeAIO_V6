@@ -2725,6 +2725,7 @@ settings-runtime-file-log
 settings-runtime-guidance
 settings-runtime-index-scan-timeout
 settings-runtime-log-retention
+settings-runtime-interrupted-tool-log-retention
 settings-runtime-mkvmerge-timeout
 settings-runtime-reset-button
 settings-runtime-robocopy-timeout

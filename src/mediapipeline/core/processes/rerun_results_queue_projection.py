@@ -6,11 +6,16 @@ import hashlib
 import json
 import shutil
 from collections import Counter
+from collections.abc import Mapping
 from copy import deepcopy
 from datetime import datetime, UTC
 from pathlib import Path, PureWindowsPath
 from typing import Any
-from collections.abc import Mapping
+
+try:
+    import psutil
+except ImportError:  # pragma: no cover - optional runtime dependency
+    psutil = None
 
 from mediapipeline.core.final_library.promotion_parts.planning import PromotionFileTarget
 from mediapipeline.core.final_library.promotion_parts.transfer import (
@@ -19,8 +24,10 @@ from mediapipeline.core.final_library.promotion_parts.transfer import (
     sha256_file,
 )
 from mediapipeline.core.kernel.contracts.pending_publish import PendingPushManifest
+from mediapipeline.core.kernel.contracts import ActiveJobRecord, ContractError
 from mediapipeline.core.kernel.dto_commands import CommandResult
 from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.processes.active_jobs import active_job_pid_matches_record
 from mediapipeline.core.processes.file_io import atomic_write_text
 from mediapipeline.core.processes.rerun_preview import recent_rerun_csv_candidates
 from mediapipeline.core.processes.rerun_control import (
@@ -52,6 +59,7 @@ from mediapipeline.core.processes.rerun_rules import (
     rerun_rule_decision_from_mapping,
 )
 from mediapipeline.core.processes.source_probe import run_source_probe
+from mediapipeline.core.rerun.evidence import exact_rerun_active_job_payload
 
 
 RERUN_RESULTS_SCHEMA_VERSION = "desktop_rerun_results.v1"
@@ -538,6 +546,132 @@ def _remaining_pending_count(data: Mapping[str, Any], row_counts: Mapping[str, i
     return max(0, parsed)
 
 
+_TERMINAL_RERUN_BATCH_STATUSES = frozenset(
+    {
+        "cancelled",
+        "complete",
+        "completed",
+        "completed_with_failed_rows",
+        "completed_with_failures",
+        "disabled",
+        "done",
+        "failed",
+        "failed_before_manifest",
+        "invalid",
+        "missing",
+        "parked",
+        "pending_publish",
+        "published_non_overlap",
+        "published_replace_final",
+        "replaced",
+        "retry_exhausted",
+        "review",
+        "review_workspace",
+        "returned",
+        "skipped",
+        "stopped_after_current",
+        "succeeded",
+        "success",
+        "awaiting_review",
+    }
+)
+
+
+def _exact_live_rerun_activity(resolved: ResolvedPaths, payload: Mapping[str, Any]) -> bool:
+    """Return true only for an exactly correlated, identity-matched live rerun process."""
+
+    _record_path, raw_record = exact_rerun_active_job_payload(resolved, payload)
+    if not isinstance(raw_record, Mapping):
+        return False
+    if _clean_text(raw_record.get("status")).casefold() not in {"launching", "active"}:
+        return False
+    try:
+        record = ActiveJobRecord.from_mapping(raw_record)
+    except ContractError:
+        return False
+    return active_job_pid_matches_record(record, psutil) is True
+
+
+def _manifest_has_nonterminal_work(manifest: Mapping[str, Any], *, network: bool = False) -> bool:
+    if network and manifest.get("batch_terminal") is True:
+        return False
+    rows = [row for row in manifest.get("rows") or [] if isinstance(row, Mapping)]
+    if rows:
+        return any(row.get("is_terminal") is not True for row in rows)
+    status = _clean_text(manifest.get("status")).casefold()
+    return bool(status) and status not in _TERMINAL_RERUN_BATCH_STATUSES
+
+
+def _empty_current_rerun(queue_source: str) -> dict[str, Any]:
+    return {
+        "queue_source": queue_source,
+        "manifest_key": "",
+        "manifest_path": "",
+        "batch_id": "",
+        "status": "",
+        "selection_reason": "none",
+        "activity_state": "none",
+        "row_count": 0,
+        "remaining_pending_count": 0,
+        "queue_status_counts": {},
+        "available_actions": [],
+        "rows": [],
+    }
+
+
+def _current_rerun_summary(
+    manifests: list[Mapping[str, Any]],
+    *,
+    queue_source: str,
+    network: bool = False,
+) -> dict[str, Any]:
+    selected: Mapping[str, Any] | None = None
+    selection_reason = "none"
+    activity_state = "none"
+    for manifest in manifests:
+        if manifest.get("runtime_active") is True:
+            selected = manifest
+            selection_reason = "exact_live_process"
+            activity_state = "active"
+            break
+    if selected is None:
+        for manifest in manifests:
+            if manifest.get("available_actions"):
+                selected = manifest
+                selection_reason = "recovery_actionable"
+                activity_state = "recoverable"
+                break
+    if selected is None:
+        for manifest in manifests:
+            if _manifest_has_nonterminal_work(manifest, network=network):
+                selected = manifest
+                selection_reason = "newest_nonterminal"
+                activity_state = "review"
+                break
+    if selected is None:
+        return _empty_current_rerun(queue_source)
+    return {
+        "queue_source": queue_source,
+        "manifest_key": _clean_text(selected.get("manifest_key")),
+        "manifest_path": _clean_text(selected.get("manifest_path")),
+        "batch_id": _clean_text(selected.get("batch_id")),
+        "status": _clean_text(selected.get("status")),
+        "selection_reason": selection_reason,
+        "activity_state": activity_state,
+        "row_count": len(selected.get("rows") or []),
+        "remaining_pending_count": _network_nonnegative_int(
+            selected.get("remaining_pending_count")
+        ),
+        "queue_status_counts": dict(selected.get("queue_status_counts") or {}),
+        "available_actions": [
+            dict(action)
+            for action in selected.get("available_actions") or []
+            if isinstance(action, Mapping)
+        ],
+        "rows": [dict(row) for row in selected.get("rows") or [] if isinstance(row, Mapping)],
+    }
+
+
 def _manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> list[dict[str, Any]]:
     root = _manifest_root(resolved)
     enrollment_items = rerun_enrollment_candidates(resolved, limit=max(limit, 100))
@@ -705,6 +839,14 @@ def _manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> list[dict[
             enrollment_path=enrollment_path,
             manifest_path=path,
         )
+        runtime_active = _exact_live_rerun_activity(
+            resolved,
+            {
+                **effective_data,
+                "enrollment_path": str(enrollment_path or ""),
+                "manifest_path": str(path),
+            },
+        )
         manifests.append(
             {
                 "manifest_key": manifest_key,
@@ -726,6 +868,7 @@ def _manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> list[dict[
                 "manifest_correlation_status": (
                     "degraded" if manifest_correlation_degraded else "matched"
                 ),
+                "runtime_active": runtime_active,
                 "manifest_correlation_warnings": (
                     [
                         "Execution manifest correlation or its declared v2 path did not match durable evidence; "
@@ -813,6 +956,13 @@ def _manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> list[dict[
             enrollment_path=enrollment_path,
             manifest_path=expected_manifest,
         )
+        runtime_active = _exact_live_rerun_activity(
+            resolved,
+            {
+                **enrollment_data,
+                "manifest_path": str(expected_manifest),
+            },
+        )
         manifests.append(
             {
                 "manifest_key": _hash_text(str(expected_manifest)),
@@ -824,6 +974,7 @@ def _manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> list[dict[
                 **correlation,
                 "manifest_available": False,
                 "evidence_authority": "backend_enrollment",
+                "runtime_active": runtime_active,
                 "status": status,
                 "created_at": str(enrollment.get("created_at") or ""),
                 "started_at": str(enrollment.get("started_at") or ""),
@@ -1242,6 +1393,12 @@ def _network_manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> li
         rows = _network_batch_queue_rows(path, data)
         batch_id = str(data.get("batch_id") or path.stem)
         lifecycle_counts = _network_lifecycle_counts(rows)
+        available_actions = [
+            dict(action)
+            for row in rows
+            for action in row.get("available_actions") or []
+            if isinstance(action, Mapping) and _clean_text(action.get("route"))
+        ]
         manifests.append(
             {
                 "manifest_key": _hash_text(str(path)),
@@ -1257,6 +1414,7 @@ def _network_manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> li
                 "failed_at": str(data.get("failed_at_utc") or ""),
                 "review_required_at": str(data.get("review_required_at_utc") or ""),
                 "batch_terminal": data.get("batch_terminal") is True,
+                "runtime_active": False,
                 "queue_source": "network_csv_rerun",
                 "uses_pipeline_start": False,
                 "claim_provider_enabled": data.get("claim_provider_enabled") is True,
@@ -1271,6 +1429,10 @@ def _network_manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> li
                 "retry_exhausted_row_count": _network_nonnegative_int(data.get("retry_exhausted_row_count")),
                 "review_row_count": _network_nonnegative_int(data.get("review_row_count")),
                 "manual_recovery_row_count": _network_nonnegative_int(data.get("manual_recovery_row_count")),
+                "remaining_pending_count": sum(
+                    1 for row in rows if row.get("is_terminal") is not True
+                ),
+                "available_actions": available_actions,
                 "row_count": len(rows),
                 "rows": rows,
             }
@@ -1279,8 +1441,20 @@ def _network_manifest_entries(resolved: ResolvedPaths, *, limit: int = 24) -> li
 
 
 def rerun_results_payload(resolved: ResolvedPaths, *, service: Any | None = None, limit: int = 24) -> dict[str, Any]:
-    manifests = _manifest_entries(resolved, limit=limit)
-    network_manifests = _network_manifest_entries(resolved, limit=limit)
+    candidate_limit = max(limit, 100)
+    local_candidates = _manifest_entries(resolved, limit=candidate_limit)
+    network_candidates = _network_manifest_entries(resolved, limit=candidate_limit)
+    manifests = local_candidates[:limit]
+    network_manifests = network_candidates[:limit]
+    current_local = _current_rerun_summary(
+        local_candidates,
+        queue_source="csv_rerun",
+    )
+    current_network = _current_rerun_summary(
+        network_candidates,
+        queue_source="network_csv_rerun",
+        network=True,
+    )
     csvs = recent_rerun_csv_candidates(resolved, service, limit=limit)
     for item in csvs:
         item["csv_key"] = _hash_text(str(item.get("path") or ""))
@@ -1315,6 +1489,8 @@ def rerun_results_payload(resolved: ResolvedPaths, *, service: Any | None = None
             "queue_source": "csv_rerun",
             "contains_network_csv_rerun": bool(network_manifests),
             "uses_pipeline_start": False,
+            "current_local": current_local,
+            "current_network": current_network,
             "rows": rows,
             "row_count": row_count,
             "status_counts": queue_status_counts,

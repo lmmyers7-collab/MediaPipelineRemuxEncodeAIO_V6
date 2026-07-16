@@ -739,6 +739,7 @@ _NUMERIC_LIMITS_BY_KEY = {
     "PendingPublishDrainBatchSize": {"min": 1, "max": 1000000, "step": 1},
     "FailureArtifactWarningThresholdGB": {"min": 0, "step": 1, "unit": "GB"},
     "FailureArtifactRetentionDays": {"min": 0, "step": 1, "unit": "days"},
+    "InterruptedToolLogRetentionDays": {"min": 1, "max": 365, "step": 1, "unit": "days"},
     "FailureArtifactCleanupTargetGB": {"min": 0, "step": 1, "unit": "GB"},
     "VideoQuality": {"min": 1, "max": 51, "step": 1},
     "AudioMaxChannels": {"min": 1, "max": 16, "step": 1, "unit": "channels"},

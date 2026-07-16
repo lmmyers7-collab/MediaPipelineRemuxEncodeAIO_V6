@@ -127,6 +127,7 @@ $script:MediaPipelineConfigKeyRegistry = [ordered]@{
     RobocopyFlags = 'RobocopyFlags'
     DebugMode = 'DebugMode'
     LogRetentionDays = 'LogRetentionDays'
+    InterruptedToolLogRetentionDays = 'InterruptedToolLogRetentionDays'
     PipelineDebugLogMaxBytes = 'PipelineDebugLogMaxBytes'
     FailureArtifactWarningThresholdGB = 'FailureArtifactWarningThresholdGB'
     FailureArtifactRetentionDays = 'FailureArtifactRetentionDays'

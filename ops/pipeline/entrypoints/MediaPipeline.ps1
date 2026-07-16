@@ -635,6 +635,29 @@ if ($DumpEncoderCapabilitiesPath) {
         exit 1
     }
 }
+if (-not $DrainPendingPushes) {
+    $encodeContextContract = Test-MediaPipelineEncodeContextFactoryContract
+    if (-not [bool]$encodeContextContract.Ok) {
+        $missingEncodeContextProperties = @($encodeContextContract.MissingProperties)
+        $encodeContextContractMessage = "Encode context contract is incomplete; missing properties: $($missingEncodeContextProperties -join ', ')"
+        Write-Log "STARTUP: $encodeContextContractMessage" 'ERROR'
+        if (-not $ValidateOnly -and (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue)) {
+            try {
+                Write-PipelineEvent -EventType 'pipeline_contract_selfcheck_failed' -Stage 'startup' -Status 'blocked' -Data @{
+                    error_code = 'ENCODE_CONTEXT_CONTRACT_INVALID'
+                    contract = 'encode_context'
+                    missing_properties = $missingEncodeContextProperties
+                } | Out-Null
+            } catch {}
+        }
+        if (-not $ValidateOnly) {
+            Set-ProgressStage -Stage 'blocked' -Status $encodeContextContractMessage -Percent $null -SaveNow
+        }
+        & $Script:ExitCleanup
+        exit 76
+    }
+    Write-Log 'Encode context contract: OK' 'DEBUG'
+}
 if ($ValidateOnly) {
     # -ValidateOnly holds no instance lock, so it must not write the shared
     # progress file a concurrent live run may own.

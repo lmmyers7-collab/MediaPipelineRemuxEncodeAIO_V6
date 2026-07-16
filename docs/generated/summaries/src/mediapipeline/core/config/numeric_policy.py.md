@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/numeric_policy.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-07-05
+last_modified: 2026-07-15
 last_reviewed: 2026-06-04
-sha256: ccb38850baeee508143e23a966a5a66d97d84561af10c5c51c82b830965e227e
+sha256: 45b8b81dae258a795cb5a358d57948c409a30e1631b00026b7a5c12874cc4ee3
 ---
 # `src/mediapipeline/core/config/numeric_policy.py`
 

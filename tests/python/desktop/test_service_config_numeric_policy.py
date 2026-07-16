@@ -44,6 +44,7 @@ def _numeric_baseline() -> dict:
         "FailureArtifactWarningThresholdGB": 100,
         "FailureArtifactRetentionDays": 0,
         "FailureArtifactCleanupTargetGB": 0,
+        "InterruptedToolLogRetentionDays": 3,
         "VideoQuality": 22,
         "MergeThresholdMs": 100,
         "FFmpegEncodeTimeoutSeconds": 3600,
@@ -104,6 +105,7 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
             "FailureArtifactWarningThresholdGB": {"min": 0, "max": None, "step": 1, "unit": "GB"},
             "FailureArtifactRetentionDays": {"min": 0, "max": None, "step": 1, "unit": "days"},
             "FailureArtifactCleanupTargetGB": {"min": 0, "max": None, "step": 1, "unit": "GB"},
+            "InterruptedToolLogRetentionDays": {"min": 1, "max": 365, "step": 1, "unit": "days"},
             "AudioMaxChannels": {"min": 1, "max": 16, "step": 1, "unit": "channels"},
             "SubtitleExtractTimeoutSeconds": {"min": 30, "max": 3600, "step": 1, "unit": "seconds"},
             "SubtitleProbeTimeoutSeconds": {"min": 5, "max": 600, "step": 1, "unit": "seconds"},
@@ -169,6 +171,7 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
                 "FailureArtifactWarningThresholdGB": -1,
                 "FailureArtifactRetentionDays": -1,
                 "FailureArtifactCleanupTargetGB": -1,
+                "InterruptedToolLogRetentionDays": 0,
                 "EncodeWasteGuardMinProgressPercent": 96,
                 "EncodeWasteGuardConsecutiveSamples": 0,
                 "EncodeWasteGuardPollSeconds": 0,
@@ -198,6 +201,7 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
         self.assertIn("FailureArtifactWarningThresholdGB must be >= 0.", errors)
         self.assertIn("FailureArtifactRetentionDays must be >= 0.", errors)
         self.assertIn("FailureArtifactCleanupTargetGB must be >= 0.", errors)
+        self.assertIn("InterruptedToolLogRetentionDays must be >= 1.", errors)
         self.assertIn("EncodeWasteGuardMinProgressPercent must be <= 95.", errors)
         self.assertIn("EncodeWasteGuardConsecutiveSamples must be >= 1.", errors)
         self.assertIn("EncodeWasteGuardPollSeconds must be >= 1.", errors)
@@ -236,6 +240,7 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
         values["FailureArtifactWarningThresholdGB"] = "large"
         values["FailureArtifactRetentionDays"] = "many"
         values["FailureArtifactCleanupTargetGB"] = "large"
+        values["InterruptedToolLogRetentionDays"] = "many"
         errors: list[str] = []
 
         validate_required_and_numeric_config(values, errors)
@@ -243,6 +248,16 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
         self.assertIn("FailureArtifactWarningThresholdGB must be an integer.", errors)
         self.assertIn("FailureArtifactRetentionDays must be an integer.", errors)
         self.assertIn("FailureArtifactCleanupTargetGB must be an integer.", errors)
+        self.assertIn("InterruptedToolLogRetentionDays must be an integer.", errors)
+
+    def test_interrupted_tool_log_retention_rejects_values_above_one_year(self) -> None:
+        values = _numeric_baseline()
+        values["InterruptedToolLogRetentionDays"] = 366
+        errors: list[str] = []
+
+        validate_required_and_numeric_config(values, errors)
+
+        self.assertIn("InterruptedToolLogRetentionDays must be <= 365.", errors)
 
     def test_numeric_policy_bounds_optional_cpu_fields_when_present(self) -> None:
         values = _numeric_baseline()

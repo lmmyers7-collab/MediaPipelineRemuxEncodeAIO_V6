@@ -37,12 +37,16 @@ function New-MediaPipelineStateLayout {
     $completed = Join-Path $stateRoot 'Completed'
     $failures = Join-Path $stateRoot 'Failures'
     $pendingPush = Join-Path $stateRoot 'PendingServerPush'
+    $toolLogs = Join-Path $pipeline 'ToolLogs'
 
     [pscustomobject]@{
         SchemaVersion    = 'media_pipeline_state_layout.v1'
         Root             = $stateRoot
         App              = $app
         Pipeline         = $pipeline
+        ToolLogs         = $toolLogs
+        ActiveToolLogs   = Join-Path $toolLogs 'Active'
+        InterruptedToolLogs = Join-Path $toolLogs 'Interrupted'
         Progress         = $progress
         ActiveJobs       = $activeJobs
         Workers          = $workers
@@ -98,6 +102,9 @@ function Get-MediaPipelineStateDirectories {
         $Layout.Root,
         $Layout.App,
         $Layout.Pipeline,
+        $Layout.ToolLogs,
+        $Layout.ActiveToolLogs,
+        $Layout.InterruptedToolLogs,
         $Layout.Progress,
         $Layout.ActiveJobs,
         $Layout.Workers,

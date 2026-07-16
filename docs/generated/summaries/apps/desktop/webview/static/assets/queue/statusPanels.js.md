@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/queue/statusPanels.js
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-10
+last_modified: 2026-07-15
 last_reviewed: 2026-07-10
-sha256: f4acf9f0d4efec984de8af3bb6c6552afece222f84fe8ef45e05d6ef8b36bda7
+sha256: 7ecde59dd976350271094ffd220c3f919b8376a007ec3b83e4d2ec54b4e3b6c4
 ---
 # `apps/desktop/webview/static/assets/queue/statusPanels.js`
 

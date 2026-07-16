@@ -586,6 +586,7 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
         @{ Kind = 'int'; Key = 'FailureArtifactWarningThresholdGB'; Label = 'FailureArtifactWarningThresholdGB'; Min = 0 },
         @{ Kind = 'int'; Key = 'FailureArtifactRetentionDays'; Label = 'FailureArtifactRetentionDays'; Min = 0 },
         @{ Kind = 'int'; Key = 'FailureArtifactCleanupTargetGB'; Label = 'FailureArtifactCleanupTargetGB'; Min = 0 },
+        @{ Kind = 'int'; Key = 'InterruptedToolLogRetentionDays'; Label = 'InterruptedToolLogRetentionDays'; Min = 1; Max = 365 },
         @{ Kind = 'int'; Key = 'VideoQuality'; Label = 'VideoQuality'; Min = 1; Max = 51 },
         @{ Kind = 'int'; Key = 'MergeThresholdMs'; Label = 'MergeThresholdMs'; Min = 0; Max = 5000 },
         @{ Kind = 'int'; Key = 'FFmpegEncodeTimeoutSeconds'; Label = 'FFmpegEncodeTimeoutSeconds'; Min = 1 },

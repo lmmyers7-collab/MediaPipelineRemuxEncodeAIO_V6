@@ -3,9 +3,9 @@ file: ops/pipeline/engine/queue/worker_claim_store.ps1
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-06-30
+last_modified: 2026-07-15
 last_reviewed: 2026-06-04
-sha256: 67c480dcdf325c0033b4b08397b8ede281b6326b6ac8db88f54d075c61f03f16
+sha256: de3801955a0ab4847d8d9980a32c47c5c1cb410ae9afb0ea816e4af94466a818
 ---
 # `ops/pipeline/engine/queue/worker_claim_store.ps1`
 

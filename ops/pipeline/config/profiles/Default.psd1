@@ -234,6 +234,7 @@
     )
     DebugMode = $true
     LogRetentionDays = 7
+    InterruptedToolLogRetentionDays = 3
     PipelineDebugLogMaxBytes = 104857600
     FailureArtifactWarningThresholdGB = 100
     FailureArtifactRetentionDays = 0

@@ -318,6 +318,7 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Fixed
 
+- Main Queue now contains normal pipeline rows only; dedicated local/Network CSV rerun state stays in the CSV Rerun tab with deterministic current-batch selection and separate aggregate history. Blank Run Once blocks only on a fresh matching zero-runnable snapshot, stale queue age is advisory, and rerun recovery controls use backend-authored actions instead of synthesized frontend requests.
 - Audited operator workflows now keep Maintenance progress polling, Queue
   strategy refresh, and Rename command gating inside their injected module
   contracts; primary navigation activates consistently from Enter and Space;

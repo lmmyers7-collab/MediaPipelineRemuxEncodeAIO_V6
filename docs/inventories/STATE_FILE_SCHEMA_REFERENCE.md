@@ -1,6 +1,6 @@
 # State File Schema Reference
 
-Date: 2026-07-14
+Date: 2026-07-15
 
 Schema-level documentation for runtime state contracts in MediaPipelineRemuxEncodeAIO. Each section gives the schema version, field names with types/defaults, valid enum values, and the artifact that holds the data. Primary dataclass contracts live under `src/mediapipeline/desktop/contracts/`; focused helper contracts are called out by file.
 
@@ -222,7 +222,9 @@ Rows commonly include `source_path`, `media_kind`, `stage_mode`, `original_mode`
 | `queue_state.schema_version` | `str` | — | `desktop_rerun_queue_state.v1` |
 | `queue_state.row_schema_version` | `str` | — | `desktop_rerun_queue_state_row.v1` |
 | `queue_state.uses_pipeline_start` | `bool` | `False` | Explicit boundary marker: CSV rerun rows are not normal `/api/pipeline/start` rows |
-| `queue_state.rows[]` | `list[dict]` | `[]` | Backend-enriched rows rendered by the Queue CSV Rerun tab |
+| `queue_state.current_local` | `dict` | empty current summary | Backend-selected local batch for the current table. Selection order is exact identity-matched live process, newest recovery-actionable batch, newest nonterminal review batch, then none. Terminal-only history is never current. |
+| `queue_state.current_network` | `dict` | empty current summary | Backend-selected Network batch using the same actionable/nonterminal rules; Network manifests are not called active without exact live-process evidence. |
+| `queue_state.rows[]` | `list[dict]` | `[]` | Aggregate backend-enriched local and Network history rows. The WebView current table uses only `current_local.rows` and `current_network.rows`. |
 | `rows[].queue_source` / `queue_kind` | `str` | — | Distinguishes local CSV rerun rows from Network CSV rerun reducer rows; network rows use `network_csv_rerun` and `network_csv_rerun_row` |
 | `rows[].queue_status` / `queue_status_label` | `str` | — | Normalized operator status, such as `pending`, `active`, `pending_reduction`, `blocked`, `warning`, `failed`, `stopped`, `completed`, `awaiting_review`, `pending_publish`, `replaced_returned`, or `skipped`; Network CSV rerun destination policy application is rendered as `active`, and destination-policy failures render as `failed` |
 | `rows[].rule_decision` | `dict` | `{}` | Backend-owned CSV rerun rule decision with `desktop_rerun_rule_decision.v1`; includes rule id, label, status, reason, destination behavior, replacement eligibility, required confirmations, runtime options, and evidence |
@@ -238,7 +240,7 @@ Rows commonly include `source_path`, `media_kind`, `stage_mode`, `original_mode`
 
 ### Notes
 
-- Queue/Home append nonterminal dedicated CSV rerun rows to the normal queue read model, including durable waiting/retry evidence after a wrapper exit or backend restart. These rows remain marked `queue_source=csv_rerun` and `uses_pipeline_start=false`; they never become normal pipeline-start work.
+- `GET /api/queue` and the Main Queue table contain normal pipeline rows only. Dedicated local and Network CSV rerun rows, including durable waiting/retry evidence after a wrapper exit or backend restart, remain under `GET /api/rerun/results` and the Queue CSV Rerun tab.
 - Network CSV rerun rows are projected from `State\Rerun\Network\*.json` as read-only Queue evidence with `network_manifest_root`, `network_manifests`, `network_row_count`, and `queue_state.contains_network_csv_rerun`. Phase 5 exposes reducer status and pending destination-policy evidence; Phase 6 may expose coordinator-applied review workspace, Pending Publish, final publish, or destination-policy failure evidence after a worker done report has been reduced.
 - Row `status` and `reason` drive operator-visible state; failed, blocked, held, completed, pending, staged, and review-workspace rows should not all render as ready. Current manifests include per-row `row_index` for the original CSV row position so continuation can exclude failed duplicate-source rows.
 - Queue-facing CSV rerun row statuses and rule decisions are normalized by the backend read model. The WebView filters and renders these labels but does not infer whether an output is clean enough to replace, should be pending-publish review, can be promoted, or is eligible for replacement.
@@ -541,6 +543,8 @@ The snapshot contains a container record and two row lists: queue display rows a
 ### Notes
 
 - The queue snapshot is rebuilt each time a dry-run or queue evaluation is performed. It is not an append-only log.
+- `GET /api/queue` projects only normal queue rows and preserves compatibility metadata with `queue_sources=["normal_queue"]`, `dedicated_rerun_visible_count=0`, and an empty `rerun_correlation`; CSV rerun state is never merged into the normal queue projection.
+- Blank Run Once launch preflight treats a matching queue snapshot no older than 60 seconds as authoritative scope evidence. A fresh zero-runnable snapshot blocks with `no_runnable_work`; stale, missing, mismatched, or actively scanning evidence is review/unknown rather than a scope block.
 - The `blocked_reason_code` on `QueuePlanRow` drives the blocked-row warning signals in the Queue table.
 - The `route` field is a prediction at queue-plan time. The final route in the completed manifest may differ if runtime conditions change.
 
@@ -639,6 +643,25 @@ The snapshot contains a container record and two row lists: queue display rows a
 
 ---
 
+## Native-Tool Diagnostic Log Lifecycle
+
+**Contract file**: `ops/pipeline/engine/process/tool_log_lifecycle.ps1`
+**Artifacts**: `State\Pipeline\ToolLogs\Active\*.log`, `State\Pipeline\ToolLogs\Interrupted\*.log`, and failure-promoted logs under `State\Failures\Artifacts\`
+**State layout schema**: `media_pipeline_state_layout.v1` (additive directories; no version bump)
+
+These artifacts are plain-text diagnostic streams, not JSON contracts. Their directory and disposition carry the lifecycle contract:
+
+| Disposition | Terminal path | Meaning |
+|---|---|---|
+| `active` | `Pipeline\ToolLogs\Active` | Tool work is live, or the previous process ended before it finalized the capture. Presence is not failure evidence. |
+| `deleted` | None | Tool completed successfully; its temporary capture was removed. |
+| `interrupted` | `Pipeline\ToolLogs\Interrupted` | Operator stop, or orphaned active capture reconciled by the next exclusive startup. |
+| `failure` | `Failures\Artifacts` | Tool failure, timeout, policy abort, or runner exception promoted the capture as failure evidence. |
+
+Worker children use equivalent slot-local paths under `State\Workers\slot-<n>`. Interrupted captures are pruned on exclusive startup using `InterruptedToolLogRetentionDays`, default 3 and bounded to 1–365. `-ValidateOnly` and lockless diagnostic dump modes do not run this maintenance.
+
+---
+
 ## PipelineEvent
 
 **Contract file**: `src/mediapipeline/desktop/contracts/pipeline_events.py`
@@ -669,6 +692,7 @@ The snapshot contains a container record and two row lists: queue display rows a
 
 - `correlation_id` links events to their corresponding `CompletedJob` and `ActiveJobRecord` via the same field.
 - `data` is event-type specific and not schema-validated beyond being a dict.
+- FFmpeg `tool_started` and `tool_completed` events add `diagnostic_log_path` and `diagnostic_log_disposition`; these fields describe the native-tool log lifecycle without changing `pipeline_event.v1`.
 - Pipeline events are read-only from the WebView perspective. They are not editable or deletable through any API route.
 
 ---

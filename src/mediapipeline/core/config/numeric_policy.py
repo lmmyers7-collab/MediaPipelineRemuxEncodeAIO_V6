@@ -33,6 +33,7 @@ from mediapipeline.core.kernel.config_keys import (
     KEY_H264_REMUX_MAX_BITRATE_MBPS,
     KEY_H264_REMUX_MAX_HEIGHT,
     KEY_INDEX_SCAN_TIMEOUT_SECONDS,
+    KEY_INTERRUPTED_TOOL_LOG_RETENTION_DAYS,
     KEY_LOCAL_WORKER_HEARTBEAT_GRACE_SECONDS,
     KEY_LOCAL_BASE,
     KEY_MAX_ENCODE_GROWTH_PERCENT,
@@ -197,6 +198,14 @@ def validate_required_and_numeric_config(values: dict[str, Any], errors: list[st
         minimum=0,
     )
     validate_int(values, errors, KEY_FAILURE_ARTIFACT_RETENTION_DAYS, "FailureArtifactRetentionDays", minimum=0)
+    validate_int(
+        values,
+        errors,
+        KEY_INTERRUPTED_TOOL_LOG_RETENTION_DAYS,
+        "InterruptedToolLogRetentionDays",
+        minimum=1,
+        maximum=365,
+    )
     validate_int(
         values,
         errors,

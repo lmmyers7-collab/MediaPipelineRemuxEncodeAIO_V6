@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone, UTC
 import hashlib
 import json
+import os
 import sys
 import tempfile
 import threading
@@ -3362,6 +3363,112 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertEqual(blocked_rerun["status"], "blocked")
         self.assertTrue(any(row["key"] == "lifecycle_policy" and row["status"] == "blocked" for row in blocked_rerun["checks"]))
         self.assertTrue(any(row["key"] == "csv_rerun_rows" and row["status"] == "blocked" for row in blocked_rerun["checks"]))
+
+    def test_run_once_preflight_blocks_only_authoritative_fresh_empty_normal_queue(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.source_movies = root / "Movies"
+            resolved.source_tv = root / "TV"
+            resolved.source_movies.mkdir(parents=True)
+            resolved.source_tv.mkdir(parents=True)
+            (root / "Outsource").mkdir()
+            resolved.config_data = {
+                "NetworkRole": "standalone",
+                "SourceMovies": str(resolved.source_movies),
+                "SourceTV": str(resolved.source_tv),
+                "Outsource": str(root / "Outsource"),
+            }
+            snapshot_path = root / "State" / "Progress" / "queue_snapshot.json"
+            snapshot_path.parent.mkdir(parents=True)
+            resolved.queue_snapshot_path = snapshot_path
+
+            def write_snapshot(*, runnable_count: int, config_path: Path | None = None) -> None:
+                rows = []
+                if runnable_count:
+                    rows.append(
+                        {
+                            "global_order": 1,
+                            "phase": "movie",
+                            "media_kind": "movie",
+                            "queue_index": 1,
+                            "queue_total": 1,
+                            "is_priority": False,
+                            "source_path": str(resolved.source_movies / "Movie.mkv"),
+                            "root_path": str(resolved.source_movies),
+                            "relative_path": "Movie.mkv",
+                            "display_name": "Movie.mkv",
+                            "size_gb": 1.0,
+                            "route": "remux",
+                            "route_reason_code": "copy_compatible",
+                            "route_reason": "already compatible",
+                            "blocked_reason": "",
+                        }
+                    )
+                snapshot_path.write_text(
+                    json.dumps(
+                        {
+                            "schema_version": "queue_plan_snapshot.v1",
+                            "produced_at": _fresh_generated_at(),
+                            "config_path": str(config_path or resolved.config_path),
+                            "local_base": str(resolved.local_base),
+                            "source_movies": str(resolved.source_movies),
+                            "source_tv": str(resolved.source_tv),
+                            "outsource": str(root / "Outsource"),
+                            "movie_count_total": runnable_count,
+                            "tv_count_total": 0,
+                            "priority_count": 0,
+                            "runnable_count": runnable_count,
+                            "rows": rows,
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+
+            def queue_scope(payload: dict[str, object]) -> dict[str, object]:
+                return next(
+                    check
+                    for check in payload["checks"]  # type: ignore[index]
+                    if check["key"] == "normal_queue_scope"
+                )
+
+            write_snapshot(runnable_count=0)
+            fresh_empty = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
+
+            os.utime(snapshot_path, (time.time() - 61, time.time() - 61))
+            stale_empty = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
+
+            write_snapshot(runnable_count=0, config_path=root / "other.psd1")
+            mismatched_empty = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
+
+            write_snapshot(runnable_count=1)
+            fresh_ready = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
+            service.queue_source_scan_active_block_message = lambda _action: "Queue scan is running."  # type: ignore[method-assign]
+            scanning = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
+            service.queue_source_scan_active_block_message = lambda _action: ""  # type: ignore[method-assign]
+            validate = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "validate"})
+            single_file = resolved.source_movies / "Single.mkv"
+            single_file.write_bytes(b"media")
+            scoped_once = facade.get_launch_preflight(
+                resolved,
+                {"target": "pipeline", "mode": "once", "single_file": str(single_file)},
+            )
+
+        self.assertEqual(queue_scope(fresh_empty)["status"], "blocked")
+        self.assertIn("no_runnable_work", queue_scope(fresh_empty)["detail"])
+        self.assertFalse(fresh_empty["can_request_start"])
+        self.assertEqual(queue_scope(stale_empty)["status"], "review")
+        self.assertTrue(stale_empty["can_request_start"])
+        self.assertEqual(queue_scope(mismatched_empty)["status"], "review")
+        self.assertTrue(mismatched_empty["can_request_start"])
+        self.assertEqual(queue_scope(fresh_ready)["status"], "ready")
+        self.assertTrue(fresh_ready["can_request_start"])
+        self.assertEqual(queue_scope(scanning)["status"], "review")
+        self.assertIn("queue_scan_running", queue_scope(scanning)["detail"])
+        self.assertFalse(any(check["key"] == "normal_queue_scope" for check in validate["checks"]))
+        self.assertFalse(any(check["key"] == "normal_queue_scope" for check in scoped_once["checks"]))
 
     def test_rerun_launch_preflight_mirrors_csv_preview_blockers_without_writes(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

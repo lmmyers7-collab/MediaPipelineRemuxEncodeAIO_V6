@@ -175,19 +175,19 @@ class WebViewRerunLifecycleContractTests(unittest.TestCase):
             """
         )
 
-    def test_launch_legacy_continue_action_generates_request_id_without_redundant_modal(self) -> None:
+    def test_launch_continue_requires_backend_authored_action_without_legacy_fallback(self) -> None:
         repo_root = find_repo_root(Path(__file__))
         source = (repo_root / "apps/desktop/webview/static/assets/launch/rerunPresentation.js").read_text(
             encoding="utf-8"
         )
         function_start = source.index("async function requestRerunContinue")
-        fallback_start = source.index('route: "/api/rerun/continue"', function_start)
-        fallback_end = source.index("const request =", fallback_start)
-        fallback = source[fallback_start:fallback_end]
+        function_end = source.index("function rerunPreviewBlockedReason", function_start)
+        function_source = source[function_start:function_end]
 
-        self.assertIn("confirm_continue: true", fallback)
-        self.assertIn("request_id_required: true", fallback)
-        self.assertIn("requires_confirmation: false", fallback)
+        self.assertIn("backend-authored available_actions entry", function_source)
+        self.assertIn('queueRerunRouteDispatcher("requestBackendRerunAction")(action)', function_source)
+        self.assertNotIn('route: "/api/rerun/continue"', function_source)
+        self.assertNotIn("confirm_continue: true", function_source)
 
     def test_backend_authored_local_and_network_retry_actions_dispatch_without_redundant_modals(self) -> None:
         self._run_node(

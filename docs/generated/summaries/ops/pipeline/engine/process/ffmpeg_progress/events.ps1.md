@@ -3,9 +3,9 @@ file: ops/pipeline/engine/process/ffmpeg_progress/events.ps1
 pipeline_stage: transcode
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-30
+last_modified: 2026-07-15
 last_reviewed: 2026-06-04
-sha256: 1281402d86997e4bc41c2e0cb0770adf1a409375cee2950443b488e4691df4f0
+sha256: 0643f4c20d2b92a3a7bec38f47dfbbc66a0cd5f50283e7e72dab8ea6a9edac71
 ---
 # `ops/pipeline/engine/process/ffmpeg_progress/events.ps1`
 

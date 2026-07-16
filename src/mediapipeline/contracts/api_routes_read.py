@@ -144,7 +144,7 @@ LOCAL_API_STATUS_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         ],
         "allowed_targets": ["pipeline", "audit", "rerun"],
         "response_schema": "desktop_launch_preflight.v1",
-        "purpose": "Read backend-authored launch preflight checks for pipeline, audit, or CSV rerun. This route is strictly read-only: it does not reserve locks, launch work, write control flags, regenerate capability evidence, mutate config, or touch media files.",
+        "purpose": "Read backend-authored launch preflight checks for pipeline, audit, or CSV rerun. Blank Run Once pipeline scope adds a normal_queue_scope check: only a fresh, matching snapshot with zero runnable rows blocks as no_runnable_work; missing, stale, mismatched, or scanning evidence stays advisory. This route is strictly read-only: it does not reserve locks, launch work, write control flags, regenerate capability evidence, mutate config, or touch media files.",
     },
     {
         "method": "GET",
@@ -164,7 +164,7 @@ LOCAL_API_INVENTORY_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "auth_required": True,
         "effect": "none",
         "response_schema": "desktop_queue_preview.v1",
-        "purpose": "Read the latest backend-owned queue snapshot plus latest queue scan status/source-inventory evidence without spawning a dry run.",
+        "purpose": "Read the latest backend-owned normal queue snapshot plus queue scan/source-inventory evidence without spawning a dry run. Dedicated local and Network CSV rerun rows are intentionally excluded and remain available from /api/rerun/results.",
     },
     {
         "method": "GET",
@@ -303,7 +303,7 @@ LOCAL_API_INVENTORY_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "effect": "none",
         "query_keys": ["limit"],
         "response_schema": "desktop_rerun_results.v1",
-        "purpose": "Read backend-derived CSV rerun manifests, backend-owned row rule decisions, row status counts, stop-after-current evidence, continuation eligibility, review outputs, and import/scoped CSV candidates without accepting arbitrary paths, publishing, moving, deleting, launching work, or touching media files.",
+        "purpose": "Read aggregate local and Network CSV rerun history plus backend-selected current_local/current_network batches, row rule decisions, status counts, exact-live correlation, backend-authored recovery actions, review outputs, and import/scoped CSV candidates without accepting arbitrary paths, publishing, moving, deleting, launching work, or touching media files.",
     },
     {
         "method": "GET",

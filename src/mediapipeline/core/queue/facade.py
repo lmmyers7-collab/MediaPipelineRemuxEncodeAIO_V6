@@ -735,14 +735,6 @@ class QueueFacadeMixin:
         queue_scan_status, source_inventory = self._queue_scan_artifacts(resolved)
         snapshot_path = resolved.queue_snapshot_path
         if not snapshot_path or not snapshot_path.exists():
-            rerun_preview = self._csv_rerun_manifest_preview(
-                resolved,
-                queue_scan_status=queue_scan_status,
-                source_inventory=source_inventory,
-                reason=NO_QUEUE_SNAPSHOT_WARNING,
-            )
-            if rerun_preview is not None:
-                return rerun_preview
             return self._queue_preview_with_progress_warning(
                 str(snapshot_path or ""),
                 NO_QUEUE_SNAPSHOT_WARNING,
@@ -821,50 +813,7 @@ class QueueFacadeMixin:
             runtime_outcome_warning = "Runtime outcome history reader is not available."
         rows = queue_apply_runtime_outcomes(rows, runtime_events)
         normal_rows = rows
-        normal_runnable = any(_queue_row_is_operator_runnable(row) for row in normal_rows)
-        if not normal_runnable:
-            rerun_preview = self._csv_rerun_manifest_preview(
-                resolved,
-                queue_scan_status=queue_scan_status,
-                source_inventory=source_inventory,
-                reason="Normal queue preview has no runnable rows while a CSV rerun is active.",
-            )
-            if rerun_preview is not None:
-                return rerun_preview
-        dedicated_rows: list[dict[str, object]] = []
-        dedicated_correlation: dict[str, object] = {}
-        active_rerun_job = _active_csv_rerun_job(resolved) if normal_runnable else None
-        if normal_runnable:
-            active_metadata: dict[str, object] = (
-                dict(active_rerun_job.get("metadata"))
-                if active_rerun_job is not None and isinstance(active_rerun_job.get("metadata"), dict)
-                else {}
-            )
-            preferred_batch_id = str(active_metadata.get("batch_id") or "")
-            manifest_info = _read_latest_rerun_manifest(resolved, batch_id=preferred_batch_id)
-            if manifest_info is None and preferred_batch_id:
-                manifest_info = _read_latest_rerun_manifest(resolved)
-            if manifest_info is not None:
-                manifest_path, manifest = manifest_info
-                dedicated_rows = [
-                    row
-                    for row in _rerun_manifest_preview_rows(resolved, manifest, manifest_path)
-                    if not _rerun_row_is_terminal(row)
-                ]
-                if dedicated_rows:
-                    dedicated_correlation = rerun_correlation_evidence(
-                        resolved,
-                        manifest,
-                        enrollment_path=str(manifest.get("enrollment_path") or ""),
-                        manifest_path=manifest_path,
-                    )
-                    rows = [*normal_rows, *dedicated_rows]
         warnings = queue_preview_warnings(normal_rows)
-        if dedicated_rows:
-            warnings.append(
-                "Showing non-terminal rows from the active dedicated CSV rerun batch alongside the normal queue; "
-                "these rows do not use normal pipeline start."
-            )
         if runtime_outcome_warning:
             warnings.append(runtime_outcome_warning)
         metadata_snapshot = dict(snapshot)
@@ -880,12 +829,12 @@ class QueueFacadeMixin:
             runtime_outcome_warning=runtime_outcome_warning,
         )
         metadata["shown_row_count"] = len(rows)
-        metadata["total_row_count"] = int(metadata.get("total_row_count") or len(normal_rows)) + len(dedicated_rows)
+        metadata["total_row_count"] = int(metadata.get("total_row_count") or len(normal_rows))
         metadata["runnable_count"] = sum(1 for row in normal_rows if _queue_row_is_operator_runnable(row))
         metadata["normal_queue_visible_count"] = len(normal_rows)
-        metadata["dedicated_rerun_visible_count"] = len(dedicated_rows)
-        metadata["queue_sources"] = ["normal_queue", "csv_rerun"] if dedicated_rows else ["normal_queue"]
-        metadata["rerun_correlation"] = dedicated_correlation
+        metadata["dedicated_rerun_visible_count"] = 0
+        metadata["queue_sources"] = ["normal_queue"]
+        metadata["rerun_correlation"] = {}
         queue_progress = queue_source_scan_progress_payload(
             source=str(snapshot_path),
             row_count=len(rows),
@@ -922,6 +871,10 @@ class QueueFacadeMixin:
             source=source,
             queue_scan_status=dict(queue_scan_status or {}),
             source_inventory=dict(source_inventory or {}),
+            normal_queue_visible_count=0,
+            dedicated_rerun_visible_count=0,
+            queue_sources=["normal_queue"],
+            rerun_correlation={},
             warnings=[warning],
             queue_progress=progress,
             progress_bars=list(progress["progress_bars"]),

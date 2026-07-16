@@ -32,6 +32,7 @@
       setRuntimeBuilderControl("settings-runtime-console-log", "ConsoleLogLevel", "select", "");
       setRuntimeBuilderControl("settings-runtime-file-log", "FileLogLevel", "select", "");
       setRuntimeBuilderControl("settings-runtime-log-retention", "LogRetentionDays", "number", 7);
+      setRuntimeBuilderControl("settings-runtime-interrupted-tool-log-retention", "InterruptedToolLogRetentionDays", "number", 3);
       setRuntimeBuilderControl("settings-runtime-failure-artifact-threshold", "FailureArtifactWarningThresholdGB", "number", 100);
       setRuntimeBuilderControl("settings-runtime-failure-artifact-retention", "FailureArtifactRetentionDays", "number", 0);
       setRuntimeBuilderControl("settings-runtime-failure-artifact-cleanup-target", "FailureArtifactCleanupTargetGB", "number", 0);

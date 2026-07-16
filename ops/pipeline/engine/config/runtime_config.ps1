@@ -71,6 +71,7 @@ $script:DoviToolPath = if ($config.ContainsKey('DoviToolPath')) { [string]$confi
 $script:Hdr10PlusToolPath = if ($config.ContainsKey('Hdr10PlusToolPath')) { [string]$config['Hdr10PlusToolPath'] } else { '' }
 $script:MergeThresholdMs  = Get-ConfigInt  'MergeThresholdMs'  150 0 5000
 $script:LogRetentionDays  = Get-ConfigInt  'LogRetentionDays'  7   1 365
+$script:InterruptedToolLogRetentionDays = Get-ConfigInt 'InterruptedToolLogRetentionDays' 3 1 365
 $script:FFmpegEncodeTimeoutSeconds = Get-ConfigInt 'FFmpegEncodeTimeoutSeconds' 21600 300 172800
 # CPU encodes can be 5-15x slower than NVENC. A separate ceiling lets the GPU
 # timeout stay tight without strangling a long-running libx265 fallback. If the

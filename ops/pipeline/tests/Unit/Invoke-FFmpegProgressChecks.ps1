@@ -32,6 +32,15 @@ function Assert-Equal {
     }
 }
 
+function Assert-PathUnderRoot {
+    param([string] $Path, [string] $Root, [string] $Message)
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    $fullRoot = [System.IO.Path]::GetFullPath($Root).TrimEnd('\') + '\'
+    if (-not $fullPath.StartsWith($fullRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "$Message Path '$fullPath' is outside '$fullRoot'."
+    }
+}
+
 function Write-Log {
     param(
         [string]$Message,
@@ -101,6 +110,7 @@ function Save-ReproCommand {
 
 . (Join-Path $repoRoot 'ops\pipeline\engine\shared\native_process_contracts.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\decide\size_policy.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\process\tool_log_lifecycle.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\process\ffmpeg_progress.ps1')
 
 $script:CapturedLogs = @()
@@ -209,6 +219,13 @@ try {
     $ffmpegPath = 'ffmpeg.exe'
     $LocalFailed = Join-Path ([System.IO.Path]::GetTempPath()) ("mediapipeline-ffmpeg-waste-guard-{0}" -f ([Guid]::NewGuid().ToString('N')))
     New-Item -ItemType Directory -Path $LocalFailed | Out-Null
+    $LocalActiveToolLogs = Join-Path $LocalFailed 'ActiveToolLogs'
+    $LocalInterruptedToolLogs = Join-Path $LocalFailed 'InterruptedToolLogs'
+    $LocalFailureArtifacts = Join-Path $LocalFailed 'FailureArtifacts'
+    foreach ($path in @($LocalActiveToolLogs, $LocalInterruptedToolLogs, $LocalFailureArtifacts)) {
+        New-Item -ItemType Directory -Path $path -Force | Out-Null
+    }
+    $script:PipelineRunId = 'ffmpeg-progress-check'
     $PauseFlag = Join-Path $LocalFailed 'pause.flag'
     $StopFlag = Join-Path $LocalFailed 'stop.flag'
     $sourcePath = Join-Path $LocalFailed 'source.bin'
@@ -293,6 +310,94 @@ try {
     $ffmpegCompleted = @($script:CapturedEvents | Where-Object { $_.EventType -eq 'tool_completed' -and $_.Data.tool_name -eq 'ffmpeg' })[-1]
     Assert-Equal ([string]$ffmpegStarted.Data.working_directory) $LocalFailed 'FFmpeg started event did not retain the requested working directory.'
     Assert-Equal ([string]$ffmpegCompleted.Data.working_directory) $LocalFailed 'FFmpeg completed event did not retain the requested working directory.'
+    Assert-Equal ([string]$ffmpegCompleted.Data.diagnostic_log_disposition) 'failure' 'Waste-guard abort must promote the live capture as failure evidence.'
+    Assert-PathUnderRoot -Path ([string]$script:LastFFmpegErrorLog) -Root $LocalFailureArtifacts -Message 'FFmpeg failure log must be stored under failure artifacts.'
+    Assert-True (@(Get-ChildItem -LiteralPath $LocalActiveToolLogs -File -ErrorAction SilentlyContinue).Count -eq 0) 'FFmpeg failure left a capture in the active directory.'
+
+    $script:CapturedEvents = @()
+    $script:StopRequested = $false
+    function Invoke-NativeProcess {
+        param(
+            [string]$FilePath,
+            [array]$ArgumentList,
+            [int]$TimeoutSeconds = 0,
+            [string]$StopFlagPath = '',
+            [string]$Label = '',
+            [int]$MaxStdoutChars = 0,
+            [int]$MaxStderrChars = 0,
+            [scriptblock]$StderrLineHandler,
+            [scriptblock]$PollHandler,
+            [scriptblock]$ProcessStartedHandler,
+            [int]$IdleTimeoutSeconds = 0,
+            [string]$WorkingDirectory = ''
+        )
+        if ($StderrLineHandler) { & $StderrLineHandler 'successful diagnostic line' 'stderr' }
+        return New-NativeCommandResult -ExitCode 0 -Stdout '' -Stderr 'successful diagnostic line' -ErrorCode 'OK'
+    }
+    $successOk = Invoke-FFmpegWithProgress -FFArgs @('-i', $sourcePath, $outputPath) -Label 'TEST-FFMPEG-SUCCESS' -InputFile $sourcePath -WorkingDirectory $LocalFailed
+    Assert-True ([bool]$successOk) 'Successful FFmpeg run did not return true.'
+    $successCompleted = @($script:CapturedEvents | Where-Object { $_.EventType -eq 'tool_completed' -and $_.Data.tool_name -eq 'ffmpeg' })[-1]
+    Assert-Equal ([string]$successCompleted.Status) 'succeeded' 'Successful FFmpeg event status changed.'
+    Assert-Equal ([string]$successCompleted.Data.diagnostic_log_disposition) 'deleted' 'Successful FFmpeg capture must be deleted.'
+    Assert-True ([string]::IsNullOrWhiteSpace([string]$successCompleted.Data.diagnostic_log_path)) 'Successful FFmpeg event must not retain a diagnostic path.'
+    Assert-True (@(Get-ChildItem -LiteralPath $LocalActiveToolLogs -File -ErrorAction SilentlyContinue).Count -eq 0) 'Successful FFmpeg run left a capture in the active directory.'
+
+    $script:CapturedEvents = @()
+    $script:StopRequested = $false
+    $script:LastFFmpegErrorLog = ''
+    function Invoke-NativeProcess {
+        param(
+            [string]$FilePath,
+            [array]$ArgumentList,
+            [int]$TimeoutSeconds = 0,
+            [string]$StopFlagPath = '',
+            [string]$Label = '',
+            [int]$MaxStdoutChars = 0,
+            [int]$MaxStderrChars = 0,
+            [scriptblock]$StderrLineHandler,
+            [scriptblock]$PollHandler,
+            [scriptblock]$ProcessStartedHandler,
+            [int]$IdleTimeoutSeconds = 0,
+            [string]$WorkingDirectory = ''
+        )
+        if ($StderrLineHandler) { & $StderrLineHandler 'operator stopped' 'stderr' }
+        return New-NativeCommandResult -ExitCode -1 -Stdout '' -Stderr 'operator stopped' -Stopped:$true -ErrorCode 'NATIVE_STOPPED'
+    }
+    $stopOk = Invoke-FFmpegWithProgress -FFArgs @('-i', $sourcePath, $outputPath) -Label 'TEST-FFMPEG-STOP' -InputFile $sourcePath -WorkingDirectory $LocalFailed
+    Assert-Equal ([bool]$stopOk) $false 'Stopped FFmpeg run should return false.'
+    $stopCompleted = @($script:CapturedEvents | Where-Object { $_.EventType -eq 'tool_completed' -and $_.Data.tool_name -eq 'ffmpeg' })[-1]
+    Assert-Equal ([string]$stopCompleted.Status) 'stopped' 'Operator stop must not emit a failed tool status.'
+    Assert-Equal ([string]$stopCompleted.Data.diagnostic_log_disposition) 'interrupted' 'Operator stop must retain diagnostic output as interrupted.'
+    Assert-PathUnderRoot -Path ([string]$stopCompleted.Data.diagnostic_log_path) -Root $LocalInterruptedToolLogs -Message 'Stopped FFmpeg diagnostic must stay outside failure artifacts.'
+    Assert-True ([string]::IsNullOrWhiteSpace([string]$script:LastFFmpegErrorLog)) 'Operator stop must not create a failure-log reference.'
+
+    $script:CapturedEvents = @()
+    $script:StopRequested = $false
+    $script:LastFFmpegErrorLog = ''
+    function Invoke-NativeProcess {
+        param(
+            [string]$FilePath,
+            [array]$ArgumentList,
+            [int]$TimeoutSeconds = 0,
+            [string]$StopFlagPath = '',
+            [string]$Label = '',
+            [int]$MaxStdoutChars = 0,
+            [int]$MaxStderrChars = 0,
+            [scriptblock]$StderrLineHandler,
+            [scriptblock]$PollHandler,
+            [scriptblock]$ProcessStartedHandler,
+            [int]$IdleTimeoutSeconds = 0,
+            [string]$WorkingDirectory = ''
+        )
+        throw 'synthetic runner exception'
+    }
+    $exceptionOk = Invoke-FFmpegWithProgress -FFArgs @('-i', $sourcePath, $outputPath) -Label 'TEST-FFMPEG-RUNNER-EXCEPTION' -InputFile $sourcePath -WorkingDirectory $LocalFailed
+    Assert-Equal ([bool]$exceptionOk) $false 'FFmpeg runner exception should return false.'
+    $exceptionCompleted = @($script:CapturedEvents | Where-Object { $_.EventType -eq 'tool_completed' -and $_.Data.tool_name -eq 'ffmpeg' })[-1]
+    Assert-Equal ([string]$exceptionCompleted.Status) 'failed' 'FFmpeg runner exception must emit a failed tool status.'
+    Assert-Equal ([string]$exceptionCompleted.Data.diagnostic_log_disposition) 'failure' 'FFmpeg runner exception must promote diagnostic output to failure evidence.'
+    Assert-PathUnderRoot -Path ([string]$script:LastFFmpegErrorLog) -Root $LocalFailureArtifacts -Message 'FFmpeg runner exception log must be stored under failure artifacts.'
+    Assert-True (@(Get-ChildItem -LiteralPath $LocalActiveToolLogs -File -ErrorAction SilentlyContinue).Count -eq 0) 'FFmpeg runner exception left a capture in the active directory.'
 
     Remove-Item -LiteralPath $LocalFailed -Recurse -Force -ErrorAction SilentlyContinue
 } finally {

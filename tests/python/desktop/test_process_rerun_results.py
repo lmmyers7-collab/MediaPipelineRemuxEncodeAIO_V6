@@ -29,6 +29,8 @@ from mediapipeline.core.processes.rerun_control import (  # noqa: E402
     rerun_waiting_restart_posture,
 )
 from mediapipeline.core.processes.rerun_results_queue_projection import (  # noqa: E402
+    _current_rerun_summary,
+    _exact_live_rerun_activity,
     _network_lifecycle_counts,
     _network_output_probe,
 )
@@ -86,6 +88,114 @@ def _write_active_job(resolved: ResolvedPaths, *, launch_id: str, job_kind: str 
 
 
 class RerunResultsTests(unittest.TestCase):
+    def test_exact_live_rerun_activity_requires_identity_matched_process_and_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            launch_id = "launch-current"
+            batch_id = "batch-current"
+            command_id = "command-current"
+            manifest_path = resolved.local_base / "RerunManifests" / f"{batch_id}.json"
+            enrollment_path = resolved.state_root / "Rerun" / "Local" / f"{batch_id}.json"
+            active_job_path = _write_active_job(resolved, launch_id=launch_id)
+            active_job = json.loads(active_job_path.read_text(encoding="utf-8"))
+            active_job["metadata"] = {
+                "batch_id": batch_id,
+                "command_id": command_id,
+                "manifest_path": str(manifest_path),
+                "enrollment_path": str(enrollment_path),
+            }
+            active_job_path.write_text(json.dumps(active_job), encoding="utf-8")
+            payload = {
+                "launch_id": launch_id,
+                "batch_id": batch_id,
+                "command_id": command_id,
+                "manifest_path": str(manifest_path),
+                "enrollment_path": str(enrollment_path),
+            }
+
+            with mock.patch(
+                "mediapipeline.core.processes.rerun_results_queue_projection.active_job_pid_matches_record",
+                return_value=True,
+            ) as pid_matches:
+                self.assertTrue(_exact_live_rerun_activity(resolved, payload))
+                self.assertFalse(
+                    _exact_live_rerun_activity(
+                        resolved,
+                        {**payload, "manifest_path": str(root / "copied.json")},
+                    )
+                )
+
+        pid_matches.assert_called_once()
+
+    def test_current_rerun_summary_ignores_terminal_only_history(self) -> None:
+        current = _current_rerun_summary(
+            [
+                {
+                    "manifest_key": "terminal",
+                    "batch_id": "terminal-batch",
+                    "status": "stopped_after_current",
+                    "rows": [{"status": "completed", "is_terminal": True}],
+                    "available_actions": [],
+                }
+            ],
+            queue_source="csv_rerun",
+        )
+
+        self.assertEqual(current["selection_reason"], "none")
+        self.assertEqual(current["activity_state"], "none")
+        self.assertEqual(current["rows"], [])
+
+        network_current = _current_rerun_summary(
+            [
+                {
+                    "manifest_key": "network-terminal",
+                    "batch_id": "network-terminal-batch",
+                    "status": "completed",
+                    "batch_terminal": True,
+                    "rows": [{"queue_status": "completed", "is_terminal": True}],
+                    "available_actions": [],
+                }
+            ],
+            queue_source="network_csv_rerun",
+            network=True,
+        )
+
+        self.assertEqual(network_current["selection_reason"], "none")
+        self.assertEqual(network_current["rows"], [])
+
+    def test_current_rerun_summary_prioritizes_live_then_actionable_then_review(self) -> None:
+        manifests = [
+            {
+                "manifest_key": "review",
+                "batch_id": "review-batch",
+                "status": "running",
+                "rows": [{"status": "pending", "is_terminal": False}],
+                "available_actions": [],
+            },
+            {
+                "manifest_key": "actionable",
+                "batch_id": "actionable-batch",
+                "status": "stopped_after_current",
+                "rows": [{"status": "pending", "is_terminal": False}],
+                "available_actions": [{"action": "continue_pending", "route": "/api/rerun/continue"}],
+            },
+            {
+                "manifest_key": "live",
+                "batch_id": "live-batch",
+                "status": "running",
+                "runtime_active": True,
+                "rows": [{"status": "running", "is_terminal": False}],
+                "available_actions": [],
+            },
+        ]
+
+        current = _current_rerun_summary(manifests, queue_source="csv_rerun")
+
+        self.assertEqual(current["manifest_key"], "live")
+        self.assertEqual(current["selection_reason"], "exact_live_process")
+        self.assertEqual(current["activity_state"], "active")
+
     def test_network_destination_hash_marks_bounded_probe_timeout_stale(self) -> None:
         with mock.patch(
             "mediapipeline.core.processes.rerun_results_destination_policy.run_source_probe",
@@ -261,7 +371,8 @@ class RerunResultsTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            manifest = rerun_results_payload(resolved)["manifests"][0]
+            payload = rerun_results_payload(resolved)
+            manifest = payload["manifests"][0]
 
             self.assertEqual(manifest["status"], "stopped_after_current")
             self.assertEqual(manifest["current_chunk"], 2)
@@ -272,6 +383,16 @@ class RerunResultsTests(unittest.TestCase):
             action = next(item for item in manifest["available_actions"] if item["action"] == "continue_pending")
             self.assertTrue(action["request_id_required"])
             self.assertFalse(action["requires_confirmation"])
+            current = payload["queue_state"]["current_local"]
+            self.assertEqual(current["manifest_key"], manifest["manifest_key"])
+            self.assertEqual(current["batch_id"], "rerun-stopped")
+            self.assertEqual(current["selection_reason"], "recovery_actionable")
+            self.assertEqual(current["activity_state"], "recoverable")
+            self.assertEqual(current["row_count"], 3)
+            self.assertEqual(current["remaining_pending_count"], 1)
+            self.assertEqual(current["queue_status_counts"], manifest["queue_status_counts"])
+            self.assertEqual(current["available_actions"], manifest["available_actions"])
+            self.assertEqual(payload["queue_state"]["current_network"]["selection_reason"], "none")
 
     def test_rerun_results_exposes_first_class_queue_state_rows(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

@@ -3,9 +3,9 @@ file: ops/pipeline/engine/config/schema_keys.ps1
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-07-05
+last_modified: 2026-07-15
 last_reviewed: 2026-06-04
-sha256: 7a8da09e22dbef70fa90ed641ca84900a004362ff86c8a4164d70fdd5b5c2129
+sha256: a42ebdabe0cff7f8e9e87ce985e6dcb2c10692e527497dc84e67cb5d5ffc955e
 ---
 # `ops/pipeline/engine/config/schema_keys.ps1`
 

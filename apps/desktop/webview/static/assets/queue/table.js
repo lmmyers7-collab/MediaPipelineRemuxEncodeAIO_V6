@@ -49,7 +49,7 @@
     if (status === "launch-check") return queueLaunchCheckEvidenceText(item, routeParts, false);
     const candidates = [];
     if (status === "blocked" || status === "failed") {
-      candidates.push(item.blocked_reason_code, item.blocked_reason, item.operator_status);
+      candidates.push(item.blocked_reason_code, item.blocking_reason, item.blocked_reason, item.error, item.operator_status);
     }
     if (queueRuntimeStoppedByRequest(item)) {
       candidates.push(item.operator_status, item.runtime_outcome_reason, item.runtime_outcome_error_code);

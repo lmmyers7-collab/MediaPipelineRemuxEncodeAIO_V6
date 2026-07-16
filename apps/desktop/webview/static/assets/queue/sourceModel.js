@@ -1,6 +1,6 @@
 (function () {
   function createQueueSourceModelModule(deps = {}) {
-    const { shortenPath, queueDisplayRowStatus, queueFilteredRowsForCurrentDisplay, queuePathExtension, getLastQueuePayload, getLastQueueRows } = deps;
+    const { shortenPath, queueBlockerEvidence, queueDisplayRowStatus, queueFilteredRowsForCurrentDisplay, queuePathExtension, getLastQueuePayload, getLastQueueRows } = deps;
       function queueScanStatus(queue = getLastQueuePayload()) {
         const payload = queue && typeof queue === "object" ? queue : {};
         const status = payload.queue_scan_status;
@@ -184,7 +184,8 @@
       function queueRowReadinessCounts(rows) {
         return (Array.isArray(rows) ? rows : []).reduce((counts, row) => {
           const status = String(queueDisplayRowStatus(row) || "").toLowerCase();
-          if (status.includes("blocked") || status.includes("failed") || status.includes("error")) {
+          const blocker = typeof queueBlockerEvidence === "function" ? queueBlockerEvidence(row) : { blocked: false };
+          if (blocker.blocked || status.includes("blocked") || status.includes("failed") || status.includes("error")) {
             counts.blocked += 1;
           } else if (
             status.includes("warning")

@@ -100,7 +100,8 @@
 │        decide/routing.ps1, decide/encode_policy.ps1                │
 │        policy/folder_policy.ps1, queue/file_overrides.ps1          │
 │        audio/audio.ps1, subtitles/*.ps1                            │
-│        shared/native.ps1, process/ffmpeg_progress.ps1              │
+│        shared/native.ps1, process/ffmpeg_progress.ps1,             │
+│        process/tool_log_lifecycle.ps1                              │
 │        status/progress_state.ps1, queue/queue_plan.ps1             │
 │        naming/naming.ps1, shared/source_identity.ps1               │
 │        publish/*.ps1, library/library_index.ps1                    │
@@ -213,6 +214,7 @@ Each persistent state file is read by both the Python backend and PS1 in differe
 | `Progress/pipeline_events.jsonl` | PS1 (`ops/pipeline/engine/queue/pipeline_engine.ps1`) | `src/mediapipeline/core/status/events.py` and desktop read payloads (GET `/api/snapshot`, GET `/api/diagnostics`) |
 | `Progress/queue_snapshot.json` | PS1 (`ops/pipeline/engine/queue/pipeline_engine.ps1`) | `src/mediapipeline/core/queue/*` and desktop read payloads (GET `/api/queue`) |
 | `Pipeline/pipeline_{pause,stop,rescan}.flag` | `src/mediapipeline/core/processes/control_flags.py` (POST `/api/pipeline/control`) | PS1 main loop (`ops/pipeline/entrypoints/MediaPipeline.ps1`) |
+| `Pipeline/ToolLogs/{Active,Interrupted}/*.log` | PS1 native-tool runner and exclusive-startup reconciliation (`ops/pipeline/engine/process/tool_log_lifecycle.ps1`) | PS1 lifecycle only; paths are linked from pipeline-event evidence and have no direct mutation route |
 | `ActiveJobs/*.json` | PS1 (`ops/pipeline/engine/status/progress_state.ps1`) | `src/mediapipeline/core/processes/active_jobs.py` |
 | `Completed/completed_jobs.jsonl` | PS1 (`ops/pipeline/engine/publish/publish_completion.ps1`) and `ops/pipeline/entrypoints/Backfill-CompletedManifest.ps1` | `src/mediapipeline/core/completed/manifest.py` |
 | `Failures/{Markers,Reports,Artifacts}/` | PS1 (`ops/pipeline/engine/failures/failure_state.ps1`, `ops/pipeline/engine/publish/publish_completion.ps1`) | `src/mediapipeline/core/failures/markers.py`, `src/mediapipeline/core/failures/facade.py` |

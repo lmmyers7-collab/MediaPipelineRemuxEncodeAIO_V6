@@ -85,6 +85,8 @@ Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-CompletedManifestBac
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-FailureCodeRegistryChecks.ps1' -Label 'failure-code registry checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-FailureStateIdentityChecks.ps1' -Label 'failure-state identity checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-FFmpegProgressChecks.ps1' -Label 'FFmpeg/mkvmerge progress checks'
+Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-ToolLogLifecycleChecks.ps1' -Label 'native-tool log lifecycle checks'
+Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-TransientRetryLifecycleChecks.ps1' -Label 'transient retry lifecycle checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-LoggingJsonLineChecks.ps1' -Label 'logging JSONL lock checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-MediaVerificationSafetyChecks.ps1' -Label 'media verification safety checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-MultiVideoTopologyChecks.ps1' -Label 'multi-video preserve-all topology checks'

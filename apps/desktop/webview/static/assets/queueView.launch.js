@@ -529,7 +529,7 @@
         rowsOut,
         "freshness",
         "Snapshot freshness",
-        queueSnapshotIsStale(payload) ? "Refresh first" : "Ready",
+        queueSnapshotIsStale(payload) ? "Snapshot age advisory" : "Ready",
         `Snapshot: ${payload.snapshot_file_age_text || "unknown"} (${payload.snapshot_file_freshness_status || "unknown"}); produced: ${payload.produced_age_text || "unknown"} (${payload.produced_freshness_status || "unknown"}).`,
         queueSnapshotIsStale(payload) ? "Refresh queue preview from Launch before processing; stale snapshots can hide moved, completed, or half-copied files." : "Use the loaded queue freshness as current-enough preview evidence.",
         [
@@ -552,13 +552,15 @@
         rowsOut,
         "runtime-context",
         "Runtime and deferred checks",
-        payload.runtime_outcome_warning || Number(runtimeFreshness.stale || 0) > 0 ? "Read evidence" : Number(payload.runtime_check_deferred_count || 0) > 0 ? "Review first" : "Ready",
+        payload.runtime_outcome_warning ? "Read evidence" : Number(payload.runtime_check_deferred_count || 0) > 0 ? "Review first" : Number(runtimeFreshness.stale || 0) > 0 ? "Context only" : "Ready",
         `Deferred=${payload.runtime_check_deferred_count || 0}; matched=${payload.runtime_outcome_match_count || 0}; freshness=${queueFormatCounts(runtimeFreshness)}; statuses=${queueFormatCounts(runtimeStatuses)}.`,
-        payload.runtime_outcome_warning || Number(runtimeFreshness.stale || 0) > 0
-          ? "Treat runtime history as context only; Run Logs/Last Stderr can explain stale runtime evidence."
+        payload.runtime_outcome_warning
+          ? "Read Run Logs/Last Stderr to explain the runtime-history warning."
           : Number(payload.runtime_check_deferred_count || 0) > 0
             ? "Expect backend runtime checks to still stop unstable sources or unsafe output paths after launch."
-            : "No runtime-history warning is visible in the loaded payload.",
+            : Number(runtimeFreshness.stale || 0) > 0
+              ? "Stale runtime history is advisory context only and does not create a review checkpoint."
+              : "No runtime-history warning is visible in the loaded payload.",
         queueRuntimeLines(payload, rowList).slice(0, 10),
       );
 
@@ -609,9 +611,9 @@
         rowsOut,
         "diagnostics-order",
         "Diagnostics read order",
-        warnings.length || queueSnapshotIsStale(payload) || reviewRows.length ? "Read evidence" : "Ready",
+        warnings.length || reviewRows.length ? "Read evidence" : "Ready",
         "Read Queue Snapshot first, then Last Stderr, Run Logs, Active Jobs, Completed, and Pending Publish when row state conflicts with disk state.",
-        warnings.length || queueSnapshotIsStale(payload) || reviewRows.length ? "Use backend-allowlisted Diagnostics before Launch." : "Diagnostics are optional unless the Launch page raises a blocker.",
+        warnings.length || reviewRows.length ? "Use backend-allowlisted Diagnostics before Launch." : "Diagnostics are optional unless the Launch page raises a blocker.",
         [
           "Read first: Queue Snapshot and Last Stderr.",
           "Open next: Run Logs and Active Jobs for stale/active runtime state.",

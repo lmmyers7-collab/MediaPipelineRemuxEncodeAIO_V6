@@ -298,10 +298,15 @@
       cell.appendChild(strip);
     }
 
+    function currentRerunSummaries(payload = lastRerunResultsPayload) {
+      const queueState = payload?.queue_state && typeof payload.queue_state === "object" ? payload.queue_state : {};
+      return [queueState.current_local, queueState.current_network]
+        .filter((summary) => summary && typeof summary === "object" && summary.selection_reason !== "none");
+    }
+
     function queueStateRows(payload = lastRerunResultsPayload) {
-      const stateRows = payload?.queue_state && Array.isArray(payload.queue_state.rows) ? payload.queue_state.rows : null;
-      if (stateRows) return stateRows;
-      return Array.isArray(payload?.rows) ? payload.rows : [];
+      return currentRerunSummaries(payload)
+        .flatMap((summary) => Array.isArray(summary.rows) ? summary.rows : []);
     }
 
     function queueStatusFilter() {
@@ -401,7 +406,14 @@
     }
 
     function latestManifestRowKey(payload = lastRerunResultsPayload) {
-      const manifests = Array.isArray(payload?.manifests) ? payload.manifests : [];
+      for (const summary of currentRerunSummaries(payload)) {
+        const rowKey = firstManifestRowKey(summary);
+        if (rowKey) return rowKey;
+      }
+      const manifests = [
+        ...(Array.isArray(payload?.manifests) ? payload.manifests : []),
+        ...(Array.isArray(payload?.network_manifests) ? payload.network_manifests : []),
+      ];
       for (const manifest of manifests) {
         const rowKey = firstManifestRowKey(manifest);
         if (rowKey) return rowKey;
@@ -413,7 +425,11 @@
       const container = nodeById("rerun-results-panel");
       if (!container) return;
       clearNode(container);
-      const manifests = Array.isArray(payload?.manifests) ? payload.manifests : [];
+      container.dataset.scope = "aggregate-history";
+      const manifests = [
+        ...(Array.isArray(payload?.manifests) ? payload.manifests : []),
+        ...(Array.isArray(payload?.network_manifests) ? payload.network_manifests : []),
+      ];
       if (!manifests.length) {
         container.textContent = "No rerun manifests loaded.";
         return;
@@ -422,7 +438,8 @@
         const item = document.createElement("div");
         item.className = "command-history-entry";
         const title = document.createElement("strong");
-        title.textContent = [manifest.batch_id || "rerun manifest", manifest.status || "unknown"].filter(Boolean).join(" | ");
+        const sourceLabel = manifest.queue_source === "network_csv_rerun" ? "Network CSV rerun" : "Local CSV rerun";
+        title.textContent = [sourceLabel, manifest.batch_id || "rerun manifest", manifest.status || "unknown"].filter(Boolean).join(" | ");
         item.appendChild(title);
         const counts = manifest.queue_status_counts && typeof manifest.queue_status_counts === "object"
           ? Object.keys(manifest.queue_status_counts).sort().map((key) => `${key} ${manifest.queue_status_counts[key]}`)
@@ -453,22 +470,6 @@
           });
           actionRow.appendChild(button);
         }
-        const backendActions = Array.isArray(manifest.available_actions) ? manifest.available_actions : [];
-        backendActions.slice(0, 3).forEach((action) => {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = "secondary-button rerun-continue-pending-button";
-          button.dataset.manifestKey = manifest.manifest_key || "";
-          button.dataset.rerunActionScope = String(action?.scope || "");
-          button.textContent = String(action?.label || action?.action || "Run backend action");
-          button.title = String(action?.confirmation_prompt || manifest.safe_next_action || "Run the backend-authored CSV rerun action.");
-          button.addEventListener("click", () => {
-            requestBackendRerunAction(action).catch((error) => {
-              statusText("rerun-queue-detail", error instanceof Error ? error.message : String(error));
-            });
-          });
-          actionRow.appendChild(button);
-        });
         if (actionRow.childNodes.length) {
           item.appendChild(actionRow);
         }
@@ -515,7 +516,26 @@
 
     function renderRerunRowActions(cell, row) {
       const rowKey = String(row?.row_key || "");
-      const actions = Array.isArray(row?.available_actions) ? row.available_actions : [];
+      const summary = currentRerunSummaries().find((item) => (
+        String(item?.manifest_key || "") === String(row?.manifest_key || "")
+        && firstManifestRowKey(item) === rowKey
+      ));
+      const summaryActions = (Array.isArray(summary?.available_actions) ? summary.available_actions : [])
+        .filter((action) => {
+          const actionRowKey = String(action?.request?.row_key || "").trim();
+          return !actionRowKey || actionRowKey === rowKey;
+        });
+      const actionCandidates = [
+        ...(Array.isArray(row?.available_actions) ? row.available_actions : []),
+        ...summaryActions,
+      ];
+      const seenActions = new Set();
+      const actions = actionCandidates.filter((action) => {
+        const key = JSON.stringify([action?.action || "", action?.route || "", action?.request || {}]);
+        if (seenActions.has(key)) return false;
+        seenActions.add(key);
+        return true;
+      });
       if (!rowKey || !actions.length) {
         cell.textContent = "No actions";
         return;
@@ -584,10 +604,18 @@
       setQueueStatusFilterOptions(lastRerunResultsPayload);
       renderRerunManifestCards(lastRerunResultsPayload);
       renderRerunQueueStateRows(lastRerunResultsPayload);
+      const current = currentRerunSummaries(lastRerunResultsPayload);
+      statusText("rerun-queue-detail", current.length
+        ? [
+            "Current CSV rerun batch state:",
+            ...current.map((summary) => `${summary.queue_source}: ${summary.batch_id || "unknown"} | ${summary.activity_state || "review"} | ${summary.row_count || 0} row(s).`),
+          ].join("\n")
+        : "Current CSV rerun batch: none. Terminal runs remain available in aggregate history.");
       const counts = lastRerunResultsPayload?.queue_state?.status_counts || {};
       const countText = Object.keys(counts).sort().map((key) => `${key} ${counts[key]}`).join("; ");
       statusText("rerun-history-summary", [
-        "CSV rerun queue-state is backend-owned and rendered from /api/rerun/results.",
+        "Aggregate history is backend-owned and rendered from /api/rerun/results.",
+        `Current CSV rerun batch count: ${current.length}.`,
         "Local and Network CSV rerun rows shown here are not normal /api/pipeline/start queue rows.",
         countText ? `Status counts: ${countText}.` : "No CSV rerun rows loaded.",
         lastRerunResultsPayload?.queue_state?.contains_network_csv_rerun ? "Network CSV rerun reducer and destination-policy evidence is backend-authored." : "",
@@ -817,10 +845,13 @@
       return result;
     }
 
-    async function requestRerunContinue(manifestKey) {
+    async function requestRerunContinue(action) {
+      if (!action || typeof action !== "object" || !String(action.route || "").trim()) {
+        throw new Error("CSV rerun continuation requires a backend-authored available_actions entry.");
+      }
       setQueueRerunBusy(true);
       try {
-          return await callRerunWorkflowHelper("requestRerunContinue", RERUN_CONTINUE_ROUTE, [manifestKey]);
+          return await callRerunWorkflowHelper("requestRerunContinue", RERUN_CONTINUE_ROUTE, [action]);
       } finally {
         setQueueRerunBusy(false);
         refreshRerunResults({ quiet: true }).catch(() => {});

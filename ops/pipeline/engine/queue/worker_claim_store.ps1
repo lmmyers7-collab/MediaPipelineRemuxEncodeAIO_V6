@@ -25,6 +25,7 @@ function New-MediaPipelineWorkerSlotLayout {
     $workersRoot = if ($StateLayout.PSObject.Properties['Workers']) { [string]$StateLayout.Workers } else { Join-Path $StateLayout.Root 'Workers' }
     $root = Join-Path $workersRoot "slot-$SlotId"
     $logs = Join-Path $root 'Logs'
+    $toolLogs = Join-Path $logs 'ToolLogs'
     $progress = Join-Path $root 'Progress'
     $failures = Join-Path $root 'Failures'
     $resultArchive = Join-Path $root 'ResultArchive'
@@ -36,6 +37,9 @@ function New-MediaPipelineWorkerSlotLayout {
         Encoded          = Join-Path $root 'Encoded'
         RemuxTemp        = Join-Path $root 'RemuxTemp'
         Logs             = $logs
+        ToolLogs         = $toolLogs
+        ActiveToolLogs   = Join-Path $toolLogs 'Active'
+        InterruptedToolLogs = Join-Path $toolLogs 'Interrupted'
         LogFile          = Join-Path $logs 'pipeline_debug.log'
         StdoutLog        = Join-Path $logs 'worker_stdout.log'
         StderrLog        = Join-Path $logs 'worker_stderr.log'
@@ -62,6 +66,9 @@ function Initialize-MediaPipelineWorkerSlotLayout {
         $SlotLayout.Encoded,
         $SlotLayout.RemuxTemp,
         $SlotLayout.Logs,
+        $SlotLayout.ToolLogs,
+        $SlotLayout.ActiveToolLogs,
+        $SlotLayout.InterruptedToolLogs,
         $SlotLayout.Progress,
         $SlotLayout.ResultArchive,
         $SlotLayout.Failures,

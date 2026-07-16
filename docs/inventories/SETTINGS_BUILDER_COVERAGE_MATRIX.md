@@ -2,21 +2,21 @@
 
 Current inventory of backend configuration metadata, structured WebView builder bindings, dedicated editors, and intentionally direct-only fields. Backend metadata and validation remain authoritative; frontend arrays define display/order bindings and stage patches for backend Preview/Save.
 
-Last verified: 2026-07-13.
+Last verified: 2026-07-15.
 
 ## Coverage Summary
 
 | Measure | Count | Meaning |
 |---|---:|---|
-| Backend metadata keys | 204 | Keys in `CONFIG_FIELD_DEFINITIONS` / the config contract |
-| Structured builder bindings | 155 | Entries across the ten builder arrays in `settingsMetadata.js` |
-| Unique structured builder keys | 145 | Distinct backend keys represented by those bindings |
+| Backend metadata keys | 205 | Keys in `CONFIG_FIELD_DEFINITIONS` / the config contract |
+| Structured builder bindings | 156 | Entries across the ten builder arrays in `settingsMetadata.js` |
+| Unique structured builder keys | 146 | Distinct backend keys represented by those bindings |
 | Duplicate bindings | 10 | Deliberate File Safety / Pending Publish workflow overlap |
 | Library Profile override-capable keys | 77 | Keys supported by the dedicated inheritance/override editor |
 | Override-only keys | 0 | Every override-capable key also exists in backend metadata |
 | No routine structured builder | 59 | 1 dedicated `LibraryProfiles` editor + 56 advanced/direct keys + 2 hidden secrets |
 
-The arithmetic is intentional: `145` structured keys + `59` keys without a routine structured builder = `204` backend metadata keys. Binding count is higher than unique-key count because ten keys appear in two workflow-specific builders.
+The arithmetic is intentional: `146` structured keys + `59` keys without a routine structured builder = `205` backend metadata keys. Binding count is higher than unique-key count because ten keys appear in two workflow-specific builders.
 
 ## Builder Groups
 
@@ -28,11 +28,11 @@ The arithmetic is intentional: `145` structured keys + `59` keys without a routi
 | File Safety / Publish | 22 | Source/output/scratch paths, free-space/stability/watch policy, integrity, and deferred-publish posture |
 | Network | 12 | Coordinator/worker non-secret configuration; rendered on the separate Network page while using the same backend patch contract |
 | Queue / Reprocess | 4 | Priority markers, processed-index refresh, version floor, and reprocess mode |
-| Runtime / Diagnostics | 18 | Logging, artifact retention, FFmpeg/tool/copy/scan timeouts, retry, and system-tool fallback |
+| Runtime / Diagnostics | 19 | Logging, active/interrupted tool diagnostics, artifact retention, FFmpeg/tool/copy/scan timeouts, retry, and system-tool fallback |
 | Pending Publish / Recovery | 12 | Deferred publish, retry/copy/cleanup policy, free-space and size policy, integrity/stability, and review/block budgets |
 | Subtitle | 34 | TX3G, BDPGS, VobSub, ASS/SSA language, OCR, preservation, conversion, and classification policy |
 | Audio | 9 | Passthrough profile, codec/language policy, transcode bitrate, downmix, channels, and no-audio posture |
-| **Total** | **155** | 145 unique keys plus 10 deliberate duplicate bindings |
+| **Total** | **156** | 146 unique keys plus 10 deliberate duplicate bindings |
 
 ### Deliberate Duplicate Bindings
 

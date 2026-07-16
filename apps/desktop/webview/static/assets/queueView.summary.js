@@ -88,7 +88,27 @@
 
 
     function queueBlockedRows(rows) {
-      return (Array.isArray(rows) ? rows : []).filter((row) => row?.blocked_reason || row?.blocked_reason_code);
+      return (Array.isArray(rows) ? rows : []).filter((row) => queueBlockerEvidence(row).blocked);
+    }
+
+
+    function queueBlockerEvidence(row) {
+      const status = String(row?.status || row?.queue_status || row?.operator_status || "").trim().toLowerCase();
+      const code = String(row?.blocked_reason_code || row?.failure_code || "").trim();
+      const explicitReason = String(
+        row?.blocking_reason
+        || row?.blocked_reason
+        || row?.error
+        || row?.last_error
+        || ""
+      ).trim();
+      const failedStatus = status.includes("failed") || status.includes("blocked") || status.includes("error");
+      const blocked = Boolean(code || explicitReason || row?.blocked === true || failedStatus);
+      return {
+        blocked,
+        code: code || (failedStatus ? status.replace(/\s+/g, "_") : ""),
+        reason: explicitReason || (blocked ? "Backend reported blocked or failed work without a specific reason." : ""),
+      };
     }
 
 
@@ -157,8 +177,13 @@
       display.phase_counts = queueCountRowsBy(rows, "phase");
       display.media_type_counts = queueCountRowsBy(rows, "media_type");
       display.source_root_counts = queueCountRowsBy(rows, "source_root");
-      display.blocked_reason_code_counts = queueCountRowsBy(blockedRows, "blocked_reason_code");
-      display.blocked_reason_counts = queueCountRowsBy(blockedRows, "blocked_reason");
+      display.blocked_reason_code_counts = {};
+      display.blocked_reason_counts = {};
+      blockedRows.forEach((row) => {
+        const blocker = queueBlockerEvidence(row);
+        queueIncrementCount(display.blocked_reason_code_counts, blocker.code || "unspecified");
+        queueIncrementCount(display.blocked_reason_counts, blocker.reason || "Backend reported blocked or failed work without a specific reason.");
+      });
       display.queue_progress = queueDisplayProgressForVisibleRows(display, rows, hidden);
       return display;
     }
@@ -236,7 +261,10 @@
       const statuses = [progressStatus, ...bars.map((bar) => String(bar?.status || "").toLowerCase())].filter(Boolean);
       if (!statuses.length) return "Not loaded";
       if (statuses.includes("blocked")) return "Blocked";
-      if (statuses.includes("warning")) return "Review";
+      if (statuses.includes("warning")) {
+        const warnings = Array.isArray(queue?.warnings) ? queue.warnings.filter(Boolean) : [];
+        return queueSnapshotIsStale(queue) && !warnings.length ? "Refresh advised" : "Review";
+      }
       if (statuses.includes("active")) return "Running";
       if (statuses.includes("complete")) return "Complete";
       if (statuses.includes("idle")) return "Idle";
@@ -362,13 +390,12 @@
       const warnings = Array.isArray(queue?.warnings) ? queue.warnings.filter(Boolean) : [];
       const counts = queueCounts(queue || {}, rowList);
       if (queue?.error) return "Unavailable";
-      if (queueSnapshotIsStale(queue)) return "Snapshot stale";
       if (!counts.sourceCount && !rowList.length) return "No candidates";
       if (!rowList.length || counts.runnable <= 0) return "Empty";
       if (Number(queue?.invalid_row_count || 0) > 0 || counts.invalidRows > 0) return "Snapshot review";
       if (warnings.length) return "Warnings";
-      if (counts.priorityRows) return "Priority ready";
-      return "Ready";
+      if (counts.priorityRows) return queueSnapshotIsStale(queue) ? "Priority ready - refresh advised" : "Priority ready";
+      return queueSnapshotIsStale(queue) ? "Ready - refresh advised" : "Ready";
     }
 
 
@@ -445,11 +472,10 @@
       const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
       const counts = queueCounts(payload, rowList);
       if (payload.error) return "Diagnostics first";
-      if (queueSnapshotIsStale(payload)) return "Refresh queue";
       if (Number(payload.invalid_row_count || 0) > 0 || Number(payload.blocked_row_count || 0) > 0 || counts.invalidRows > 0) return "Review rows";
       if (!rowList.length && (counts.completedExcluded > 0 || Number(payload.excluded_row_count || 0) > 0)) return "Check exclusions";
       if (!rowList.length || counts.runnable <= 0) return "No launch";
-      if (warnings.length || payload.runtime_outcome_warning || Number((payload.runtime_outcome_freshness_counts || {}).stale || 0) > 0) return "Review context";
+      if (warnings.length || payload.runtime_outcome_warning) return "Review context";
       return "Launch path clear";
     }
 
@@ -474,16 +500,18 @@
       lines.push("");
       if (payload.error) {
         lines.push("Next step: open Diagnostics > State Artifact Summary, Queue Snapshot, Run Logs, and Last Stderr before launching work.");
-      } else if (queueSnapshotIsStale(payload)) {
-        lines.push("Next step: refresh the queue preview from Launch before starting a run. Stale queue data can hide completed outputs, moved files, or half-copied sources.");
       } else if (Number(payload.invalid_row_count || 0) > 0 || counts.invalidRows > 0 || Number(payload.blocked_row_count || 0) > 0) {
         lines.push("Next step: select the affected row, read Queue Diagnostics Cross-Links, then use Diagnostics > Queue Snapshot / Last Stderr / Active Jobs.");
       } else if (!rowList.length && (counts.completedExcluded > 0 || Number(payload.excluded_row_count || 0) > 0)) {
         lines.push("Next step: check Completed for manifest exclusions and Excluded Source Rows before assuming source files were missed.");
       } else if (!rowList.length || counts.runnable <= 0) {
         lines.push("Next step: do not launch from an empty queue. Check Source settings, Completed, schedule state, and Run Logs first.");
-      } else if (warnings.length || payload.runtime_outcome_warning || staleHistory > 0) {
+      } else if (queueSnapshotIsStale(payload)) {
+        lines.push("Advisory: refresh the queue preview from Launch before starting a run. Snapshot age does not outrank concrete blocked or failed row evidence.");
+      } else if (warnings.length || payload.runtime_outcome_warning) {
         lines.push("Next step: review warnings and runtime-history context. If the selected row has a stale or failed outcome, use its diagnostics links before launch.");
+      } else if (staleHistory > 0) {
+        lines.push("Advisory: stale runtime history is context only and does not create a queue review state by itself.");
       } else {
         lines.push("Next step: queue context is coherent. Use Launch for the backend-owned start command when schedule/readiness allows.");
       }
@@ -515,6 +543,7 @@
       queueCountRowsByExtension,
       queueIsMovieRow,
       queueIsTvRow,
+      queueBlockerEvidence,
       queueBlockedRows,
       queueVisibleRunnableCount,
       queueDisplayPayloadForVisibleRows,

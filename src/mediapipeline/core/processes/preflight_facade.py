@@ -2,18 +2,23 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime, UTC
+import os
 from pathlib import Path
+import time
 from typing import Any
 
 from mediapipeline.core.config.settings_policy import settings_encoder_capability_report
 from mediapipeline.core.kernel.dto_commands import CommandResult
 from mediapipeline.core.kernel.runtime.subprocess_runner import run_capture
 from mediapipeline.core.kernel.dto_base import JsonMap, json_safe
+from mediapipeline.core.kernel.contracts import ContractError, QueuePlanSnapshot
 from mediapipeline.core.paths.contracts import ResolvedPaths
 
 from mediapipeline.core.config.identity import config_identity_block_reasons
 from mediapipeline.core.processes.audit_policy import AUDIT_LIBRARY_ROOT_ERROR, resolve_audit_library_root
+from mediapipeline.core.processes.file_io import read_json_file
 from mediapipeline.core.processes.pipeline_policy import (
     PIPELINE_EXTRA_ARGS_ERROR,
     PIPELINE_NETWORK_MODE_BLOCK_ERROR,
@@ -55,6 +60,7 @@ LAUNCH_PREFLIGHT_TARGETS = frozenset({"pipeline", "audit", "rerun"})
 LAUNCH_PREFLIGHT_PATH_HEALTH_TIMEOUT_SECONDS = LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS
 ENCODER_CAPABILITY_REFRESH_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
 ENCODER_CAPABILITY_REFRESH_TIMEOUT_SECONDS = 60.0
+NORMAL_QUEUE_SCOPE_FRESH_SECONDS = 60.0
 
 
 
@@ -214,6 +220,123 @@ class ProcessFacadeMixin:
             "ready",
             "No active-work block is currently reported.",
             "Start route will re-check active work at submission time.",
+        )
+
+    def _normal_queue_scope_preflight_check(self, resolved: ResolvedPaths) -> dict[str, Any]:
+        scan_blocker = getattr(self.service, "queue_source_scan_active_block_message", None)
+        if callable(scan_blocker):
+            try:
+                scan_message = str(scan_blocker("Run Once preflight") or "").strip()
+            except Exception as exc:
+                return _preflight_check(
+                    "normal_queue_scope",
+                    "Normal queue scope",
+                    "unknown",
+                    f"Queue scan state could not be verified: {exc}",
+                    "Refresh the Main Queue; the backend start route remains authoritative.",
+                    detail=["queue_scan_state_unknown"],
+                )
+            if scan_message:
+                return _preflight_check(
+                    "normal_queue_scope",
+                    "Normal queue scope",
+                    "review",
+                    scan_message,
+                    "Wait for the queue scan to finish, then refresh preflight.",
+                    detail=["queue_scan_running"],
+                )
+
+        snapshot_path = resolved.queue_snapshot_path
+        if snapshot_path is None or not snapshot_path.is_file():
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "unknown",
+                "No normal queue snapshot is available.",
+                "Refresh the Main Queue before Run Once; missing evidence does not prove the queue is empty.",
+                detail=["queue_snapshot_missing"],
+            )
+        snapshot = read_json_file(snapshot_path, retries=1)
+        if not isinstance(snapshot, Mapping):
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "unknown",
+                f"Normal queue snapshot is unreadable: {snapshot_path}",
+                "Refresh the Main Queue before Run Once.",
+                detail=["queue_snapshot_unreadable"],
+            )
+        try:
+            QueuePlanSnapshot.from_mapping(snapshot)
+        except ContractError:
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "unknown",
+                f"Normal queue snapshot failed contract validation: {snapshot_path}",
+                "Refresh the Main Queue before Run Once.",
+                detail=["queue_snapshot_invalid"],
+            )
+        try:
+            age_seconds = max(0.0, time.time() - snapshot_path.stat().st_mtime)
+        except OSError:
+            age_seconds = NORMAL_QUEUE_SCOPE_FRESH_SECONDS + 1.0
+        if age_seconds > NORMAL_QUEUE_SCOPE_FRESH_SECONDS:
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "review",
+                f"Normal queue snapshot is stale; age_seconds={age_seconds:.1f}.",
+                "Refresh the Main Queue; stale evidence does not prove the queue is empty.",
+                detail=["queue_snapshot_stale", f"snapshot_path={snapshot_path}"],
+            )
+
+        def path_key(value: object) -> str:
+            text = str(value or "").strip()
+            return os.path.normcase(os.path.normpath(text)) if text else ""
+
+        expected = {
+            "config_path": path_key(resolved.config_path),
+            "source_movies": path_key(resolved.source_movies),
+            "source_tv": path_key(resolved.source_tv),
+        }
+        actual = {key: path_key(snapshot.get(key)) for key in expected}
+        mismatches = [key for key in expected if actual[key] != expected[key]]
+        if mismatches:
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "review",
+                f"Fresh queue snapshot does not match the active scope: {', '.join(mismatches)}.",
+                "Refresh the Main Queue for the active config and source roots.",
+                detail=[
+                    "queue_snapshot_scope_mismatch",
+                    *[
+                        f"{key}: snapshot={actual[key] or '(empty)'}; active={expected[key] or '(empty)'}"
+                        for key in mismatches
+                    ],
+                ],
+            )
+        try:
+            runnable_count = max(0, int(snapshot.get("runnable_count") or 0))
+        except (TypeError, ValueError):
+            runnable_count = len(snapshot.get("rows") or [])
+        if runnable_count == 0:
+            return _preflight_check(
+                "normal_queue_scope",
+                "Normal queue scope",
+                "blocked",
+                "Fresh authoritative normal queue snapshot has zero runnable rows.",
+                "Refresh the Main Queue or choose a specific Single File; Run Once has no work to start.",
+                detail=["no_runnable_work", f"snapshot_path={snapshot_path}"],
+            )
+        return _preflight_check(
+            "normal_queue_scope",
+            "Normal queue scope",
+            "ready",
+            f"Fresh authoritative normal queue snapshot has {runnable_count} runnable row(s).",
+            "Run Once will use backend-owned normal queue scope.",
+            detail=[f"snapshot_path={snapshot_path}"],
         )
 
     def _config_identity_preflight_check(self, resolved: ResolvedPaths) -> dict[str, Any]:
@@ -392,6 +515,8 @@ class ProcessFacadeMixin:
             ),
             single_file_check,
         ]
+        if mode == "once" and not normalized["single_file"]:
+            checks.append(self._normal_queue_scope_preflight_check(resolved))
         if is_supported_pipeline_start_mode(mode):
             schedule_gate = self._resolve_pipeline_start_schedule_gate(mode, request)
             normalized["actual_mode"] = str(schedule_gate.get("mode") or mode)

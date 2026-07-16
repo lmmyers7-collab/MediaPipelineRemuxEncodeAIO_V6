@@ -3,9 +3,9 @@ file: ops/pipeline/engine/storage/state_store.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: storage
-last_modified: 2026-06-04
+last_modified: 2026-07-15
 last_reviewed: 2026-06-04
-sha256: d69957bad831b0b8e5f385b3afe6011e405d6722259c5b46db32c45bb7343a82
+sha256: 0dbef5b1dd7876e3cb41f2fa1f9a2d11a8a76962311fb7be7267fffd627a2269
 ---
 # `ops/pipeline/engine/storage/state_store.ps1`
 

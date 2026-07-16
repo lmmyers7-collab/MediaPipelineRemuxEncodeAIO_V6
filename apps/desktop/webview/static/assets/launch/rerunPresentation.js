@@ -398,20 +398,18 @@
       }
     }
 
-    async function requestRerunContinue(actionOrManifestKey) {
-      const action = actionOrManifestKey && typeof actionOrManifestKey === "object"
-        ? actionOrManifestKey
-        : {
-            action: "continue_pending",
-            label: "Continue Pending Rows",
-            route: "/api/rerun/continue",
-            request: { manifest_key: String(actionOrManifestKey || "").trim(), confirm_continue: true },
-            confirmation_field: "confirm_continue",
-            confirmation_prompt: "Continue pending CSV rerun rows only? Failed and review rows stay untouched.",
-            request_id_required: true,
-            requires_confirmation: false,
-            scope: "batch_pending_only",
-          };
+    async function requestRerunContinue(action) {
+      if (!action || typeof action !== "object" || !String(action.route || "").trim()) {
+        const result = {
+          command: "rerun.continue",
+          ok: false,
+          severity: "error",
+          message: "CSV rerun continuation requires a backend-authored available_actions entry.",
+        };
+        appendCommandResult(result);
+        renderLaunchCommandResult("rerun-queue-status", "rerun-queue-detail", result, {});
+        return result;
+      }
       const request = action?.request && typeof action.request === "object" ? { ...action.request } : {};
       const key = String(request.manifest_key || "").trim();
       const actionLabel = String(action?.label || "CSV rerun action");
@@ -497,6 +495,12 @@
     async function refreshRerunPreview(options = {}) {
       const request = collectRerunPreviewRequest();
       renderLaunchPreflight("rerun-queue-preflight", rerunQueuePreflightLines(collectRerunStartRequest({ dry_run: false })));
+      if (!String(request.csv_path || "").trim()) {
+        renderRerunPreview(null);
+        setText("rerun-queue-status", "No new CSV selected");
+        setText("rerun-queue-detail", "Select a new CSV to load a read-only preview. Current rerun state and aggregate history remain separate below.");
+        return null;
+      }
       if (!options.quiet) {
         setText("rerun-queue-status", "Reading CSV");
         setText("rerun-queue-detail", `Reading backend ${rerunExecutionTargetLabel()} preview.`);

@@ -39,6 +39,8 @@ These focused PowerShell checks sit outside `tests\python\desktop` and guard cro
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-ActiveDocsReferenceChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RepoHygieneChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RuntimeStateHygieneChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-ToolLogLifecycleChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-TransientRetryLifecycleChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PortablePathChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PendingPublishOwnershipChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PendingPublishSafetyChecks.ps1
@@ -70,6 +72,10 @@ These focused PowerShell checks sit outside `tests\python\desktop` and guard cro
 
 `Invoke-RuntimeStateHygieneChecks.ps1` guards legacy runtime state placement: app-root encode-speed history and desktop state files must stay absent, `LocalBase\State\App` and `LocalBase\State\Completed` paths must remain documented/tested, and stale queue/pending-publish filenames must not return to active inventories.
 
+`Invoke-ToolLogLifecycleChecks.ps1` guards native-tool diagnostic state placement and disposition: live captures stay under pipeline-owned `ToolLogs/Active`, successes delete them, failures promote them to failure artifacts, operator stops retain them under `ToolLogs/Interrupted`, orphaned active captures reconcile after a hard stop, and the configurable interrupted-log retention window prunes only expired evidence.
+
+`Invoke-TransientRetryLifecycleChecks.ps1` uses disposable files to prove one old transient marker emits one retry notice, successful existing-output and pending-publish outcomes clear it, failed parking retains it, and the recovery path does not manufacture `ENCODE_UNEXPECTED_EXCEPTION` evidence.
+
 `Invoke-PortablePathChecks.ps1` parses audit/config/profile scripts and blocks local operator path defaults such as `\\LAYNE-SERVER\Video` from returning to active audit or profile templates.
 
 `Invoke-AuditCommandSupportChecks.ps1` runs entirely under a generated
@@ -82,7 +88,7 @@ scanning operator media or starting a live library audit. The active
 
 `Invoke-PathBoundaryGuardChecks.ps1` guards path-boundary helper behavior, output capability preflights, full drive/UNC-share ancestor-chain and dangling-reparse rejection, scratch-copy traversal rejection, stale temp cleanup, and audit probe-cache identity for same-path replacement files.
 
-`Invoke-AdversarialForceKillEncodeChecks.ps1` is a runtime adversarial smoke rather than a static guard. It creates generated media in `%TEMP%`, starts the real backend in `-Once`, force-kills a live CPU fallback encode after an `encode_temp_cpu_*.mkv` artifact exists, then proves the partial was not accepted as completed output/pending publish and the source remains queued.
+`Invoke-AdversarialForceKillEncodeChecks.ps1` is a runtime adversarial smoke rather than a static guard. It creates generated media in `%TEMP%`, starts the real backend in `-Once`, force-kills a live CPU fallback encode after an `encode_temp*.mkv` artifact exists, then proves the partial was not accepted as completed output/pending publish, the source remains queued, the live FFmpeg capture is not classified as a failure, and the next exclusive startup reconciles that capture from `ToolLogs/Active` to `ToolLogs/Interrupted`.
 
 `Invoke-FailureCodeRegistryChecks.ps1` guards the `FailureCodes.ps1` registry: every classifier return code must be known, every registry row must include family/stage/when-fires/retryability/operator severity/handler/operator-action metadata, representative high-risk metadata rows must stay accurate, broader pipeline outcome/error codes emitted by PowerShell surfaces must be known, and unknown-code metadata lookup must fail closed.
 
@@ -252,7 +258,7 @@ Tests for queue priority marking, snapshot reading, dry-run planning, preview bu
 | `test_service_queue_dry_run.py` | Dry-run route planning logic |
 | `test_service_queue_dry_run_runner.py` | Dry-run runner execution and Protocol-typed queue dry-run service boundary |
 | `test_service_queue_preview_builder.py` | Queue preview payload builder and Protocol-typed queue preview service boundary |
-| `test_application_facade_queue.py` | Application-facade queue preview snapshot-read behavior, stale evidence, visible blocked rows versus exclusions, runtime outcome correlation, CSV rerun manifest fallback row/status projection including empty-normal-queue visibility, and backend row-key queue open allowlists |
+| `test_application_facade_queue.py` | Application-facade normal-only queue preview behavior, stale evidence, visible blocked rows versus exclusions, runtime outcome correlation, explicit exclusion of local/Network CSV rerun manifests, compatibility metadata, and backend row-key queue open allowlists |
 
 Targeted command:
 
@@ -379,7 +385,7 @@ Tests for manifest parsing, path resolution, manifest row validation, strict man
 | `test_service_pending_publish_manifest.py` | Manifest state validation, legacy no-drain visibility, and current-manifest missing proof rejection |
 | `test_service_pending_publish_manifest_rows.py` | Per-row manifest validation, legacy non-drainable rows, and unsupported current states |
 | `test_pending_publish_service.py` | General pending publish service, parked payload evidence, and legacy scan-visible/do-not-drain behavior |
-| `test_process_rerun_results.py` | CSV rerun result promotion into Pending Publish writes a current pending manifest contract and leaves source media untouched; CSV rerun results expose first-class Queue row statuses, evidence, backend-declared actions, and Network CSV rerun destination-policy read-model evidence |
+| `test_process_rerun_results.py` | CSV rerun result promotion into Pending Publish writes a current pending manifest contract and leaves source media untouched; results expose aggregate history, deterministic `current_local`/`current_network` selection, exact-live identity correlation, backend-declared actions, and Network destination-policy evidence |
 | `test_application_facade_pending_publish.py` | Application-facade pending-publish preview classification, durable drain-summary evidence, publish reconciliation, final-proof path normalization, same-leaf weak evidence, row-key open allowlists, scan-failure surfacing, and recovery dry-run planning |
 
 Targeted command:
@@ -576,7 +582,7 @@ Tests for historical legacy desktop-shell controller boundaries, controller-owne
 | `test_controllers_worker_jobs.py` | Worker completion event matching, fail-closed completion reports, malformed event skipping, dispatcher completion reporting, single-file launch failure handling, start UI failure handling, and worker abort/reclaim kill coverage |
 | `test_controllers_network.py` | Coordinator status notice rendering, coordinator notice failure logging, coordinator button update failure logging, dispatcher error/shutdown failure logging, and worker status post failure logging |
 | `test_controllers_navigation.py` | View routing/refresh/sidebar behavior, Network tab lifecycle failure logging, sidebar badge rendering, shortcut overlay guards, global shortcut bindings, filter trace/sort-heading/detail-copy wiring, and detail-copy failure logging |
-| `test_application_facade_queue.py` | Queue preview snapshot-read behavior, CSV rerun manifest fallback row status/reason projection including empty-normal-queue visibility, stale evidence, blocked-vs-excluded rows, runtime outcome correlation, and row-key open allowlists |
+| `test_application_facade_queue.py` | Queue preview snapshot-read behavior, normal-only row ownership, CSV rerun exclusion even when the normal queue is empty, compatibility metadata, stale evidence, blocked-vs-excluded rows, runtime outcome correlation, and row-key open allowlists |
 | `test_controllers_feedback.py` | Action-status toast display, previous-toast cancellation, auto-dismiss scheduling, toast dismissal, recent-action recording, and recent-action text propagation |
 | `test_controllers_worker_board.py` | Live worker-board snapshot row rendering, stale-row cleanup logging, snapshot failure fail-closed behavior, missing-worker-id logging, and per-row render failure isolation |
 | `test_controllers_audit.py` | Audit report filtering/detail rendering, duplicate index behavior, multi-selection summaries, quick-view filters, context menu behavior, CSV apply/report metadata handling, creation-time failure logging, selected-row copy/open/priority actions, and selected/filtered CSV export |
@@ -587,7 +593,7 @@ Tests for historical legacy desktop-shell controller boundaries, controller-owne
 | `test_controllers_maintenance.py` | Progress-file skeleton reset, resolved progress-path updates, reset action/status recording, confirmation dialogs, environment-health background dispatch, and environment-health result formatting |
 | `test_controllers_folder_policy.py` | Folder-policy validation result status text, action-status text, command history action recording, success info dialog, and error/warning detail dialog formatting |
 | `test_controllers_release.py` | Release package success status/action handling, manifest and zip path storage, manifest summary output formatting, and timeout output without success action recording |
-| `test_rerun_csv_preview.py`, `test_rerun_lifecycle.py`, `test_application_facade_process_launch.py`, `test_application_facade_web_static_queue.py`, `test_application_facade_web_static_launch.py`, `test_process_rerun_results.py` | Typed CSV rerun preview, durable enrollment and strict child-exit proof, spawn-transition ambiguity, exact manifest/path correlation, copied-manifest rejection, idempotent logical recovery generations, dedicated Queue ownership, lifecycle/action rendering, terminal activity evidence, and result promotion |
+| `test_rerun_csv_preview.py`, `test_rerun_lifecycle.py`, `test_application_facade_process_launch.py`, `test_application_facade_web_static_queue.py`, `test_application_facade_web_static_launch.py`, `test_process_rerun_results.py` | Typed CSV rerun preview, durable enrollment and strict child-exit proof, spawn-transition ambiguity, exact manifest/path/live-process correlation, deterministic current-batch selection, normal-queue separation, backend-only action rendering, blank Run Once normal-queue scope, and result promotion |
 | `test_controllers_work_guard.py` | Work-guard active progress detection, stop-request handling, and related-process block messaging |
 | `test_controllers_app_state.py` | App-state controller persistence, widget failure logging, refresh-state snapshot/autoload, polling completed-manifest refresh, and apply-snapshot-to-UI behavior |
 | `test_controllers_status_server.py` | Status-server path redaction, shutdown-failure logging, pause-flag read-failure logging, and non-finite telemetry JSON safety |
@@ -629,8 +635,8 @@ General facade policy and desktop shell bootstrap tests not covered by subsystem
 | `test_application_facade_network.py` | Application-facade Network worker-state metadata, progress bars, backend-authored heartbeat age, state-file evidence, and lifecycle-control absence for `/api/network/workers` |
 | `test_application_facade_pending_publish.py` | Application-facade pending-publish preview classification, durable drain-summary evidence, publish reconciliation, row-key open allowlists, scan-failure surfacing, and backend-authored recovery dry-run planning |
 | `test_application_facade_process_control.py` | Application-facade pipeline control flag contract, invalid action rejection, and control-lock fail-closed behavior |
-| `test_application_facade_process_launch.py` | Application-facade pipeline/audit/rerun launch handoff, durable rerun enrollment, copied-v2-manifest rejection, strict failed-before-manifest generation supersession, verified-versus-ambiguous post-spawn cleanup, duplicate pipeline rejection, launch-lock fail-closed behavior, schedule handling, launch preflight, and backend-authored readiness DTO coverage |
-| `test_application_facade_queue.py` | Application-facade queue preview snapshot-read behavior, stale evidence, blocked-vs-excluded rows, runtime outcome correlation, CSV rerun manifest fallback row/status projection, and row-key open allowlists |
+| `test_application_facade_process_launch.py` | Application-facade pipeline/audit/rerun launch handoff, durable rerun enrollment, copied-v2-manifest rejection, strict failed-before-manifest generation supersession, verified-versus-ambiguous post-spawn cleanup, duplicate pipeline rejection, launch-lock fail-closed behavior, schedule handling, blank Run Once `normal_queue_scope`, and backend-authored readiness DTO coverage |
+| `test_application_facade_queue.py` | Application-facade normal-only queue preview behavior, stale evidence, blocked-vs-excluded rows, runtime outcome correlation, explicit CSV rerun exclusion and compatibility metadata, and row-key open allowlists |
 | `test_application_facade_rename.py` | Application-facade rename preview/apply command behavior, selected-source scoping, multiple-selection handling, undo-manifest cleanup in temp fixtures, and apply-lock guarding |
 | `test_application_facade_reports.py` | Application-facade Reports behavior for failure JSON, failure markers, lifecycle journal transitions, marker-clear confirmation handoff, evidence archive, and audit CSV rows |
 | `test_application_facade_schedule.py` | Application-facade Schedule workspace rendering, backend watcher evidence, preview/save confirmation, app-state preservation, and invalid-time rejection |

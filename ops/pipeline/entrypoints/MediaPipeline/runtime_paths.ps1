@@ -13,6 +13,8 @@ $script:LocalStateLayout = New-MediaPipelineStateLayout -LocalBase $LocalBase
 $LocalState           = $script:LocalStateLayout.Root
 $LocalFailed          = $script:LocalStateLayout.Failures
 $LocalFailureArtifacts = $script:LocalStateLayout.FailureArtifacts
+$LocalActiveToolLogs     = $script:LocalStateLayout.ActiveToolLogs
+$LocalInterruptedToolLogs = $script:LocalStateLayout.InterruptedToolLogs
 $LocalFailureMarkers   = $script:LocalStateLayout.FailureMarkers
 $LocalFailureReports   = $script:LocalStateLayout.FailureReports
 # Completed-jobs manifest: an append-only JSONL log of every successful
@@ -81,6 +83,8 @@ if ($WorkerChild) {
     $PipelineEventLogFile = $script:WorkerSlotLayout.EventLogFile
     $script:PipelineEventLogFile = $PipelineEventLogFile
     $LocalFailureArtifacts = $script:WorkerSlotLayout.FailureArtifacts
+    $LocalActiveToolLogs     = $script:WorkerSlotLayout.ActiveToolLogs
+    $LocalInterruptedToolLogs = $script:WorkerSlotLayout.InterruptedToolLogs
     $LocalFailureReports   = $script:WorkerSlotLayout.FailureReports
     $script:processingDir  = $script:WorkerSlotLayout.Processing
 }

@@ -1,6 +1,6 @@
 # Config Key Glossary
 
-Last updated: 2026-06-11
+Last updated: 2026-07-15
 
 Operator-friendly glossary for major settings and config keys. Intended for operators who want to understand what a key does before editing it, and for documentation authors writing about config behavior.
 
@@ -178,6 +178,7 @@ Bitrate route decisions use bitrate estimated from `file_size_bytes` and `durati
 |---|---|---|---|
 | `DebugMode` | Enable verbose debug logging | Produces large log files; not for production use | Builder |
 | `LogRetentionDays` | How many days of run logs to retain before cleanup | Low values may delete logs before a failure is investigated | Builder |
+| `InterruptedToolLogRetentionDays` | How many days to retain stopped or force-terminated native-tool diagnostics (default `3`, range `1`–`365`) | Low values shorten post-stop evidence; these logs remain separate from failure artifacts | Builder |
 | `PipelineDebugLogMaxBytes` | Size cap for live `pipeline_debug.log` rotation | Too low rotates evidence too often; too high delays recovery from runaway debug logging | Builder |
 | `FailureArtifactWarningThresholdGB` | Home/Reports warning threshold for captured failure artifact storage | Set to `0` only to disable the toast; the read-only summary remains visible | Builder |
 | `FailureArtifactRetentionDays` | Reports cleanup age threshold for captured failure artifacts | Set to `0` to disable age-based artifact cleanup; policy cleanup can use the current backend plan with confirmation | Builder |

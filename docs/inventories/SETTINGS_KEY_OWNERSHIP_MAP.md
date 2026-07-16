@@ -158,6 +158,7 @@ These keys have no structured WebView builder panel because they are auth secret
 | Key | Risk | Description | Launch handoff | Tests |
 |---|---|---|---|---|
 | `LogRetentionDays` | Low | Log file rotation window (default 7 days). Low value causes older sessions to be deleted. | Not surfaced | `test_service_config_numeric_policy.py` |
+| `InterruptedToolLogRetentionDays` | Low | Interrupted native-tool diagnostic retention (default 3 days; 1–365). Does not control failure artifacts. | Settings Runtime / Diagnostics builder | `Invoke-ToolLogLifecycleChecks.ps1`, `test_service_config_numeric_policy.py` |
 | `PipelineDebugLogMaxBytes` | Medium | Live `pipeline_debug.log` rotation cap (default 104857600 bytes). Prevents long unattended debug logs from growing without bound. | Diagnostics/Home read-only evidence only | `Invoke-LoggingJsonLineChecks.ps1`, `test_autonomy_health.py` |
 | `FailureArtifactWarningThresholdGB` | Low | WebView warning threshold for captured failure artifact storage (default 100 GB). `0` disables only the toast. | Home and Reports storage-health warning | `test_service_config_numeric_policy.py`, `test_application_facade_web_static.py` |
 | `FailureArtifactRetentionDays` | Medium | Age threshold for Reports failure artifact cleanup preview/delete. `0` disables age-based cleanup. Policy cleanup can use the current backend plan with strict confirmation. | Reports artifact cleanup panel | `test_service_config_numeric_policy.py`, `test_service_failure_markers.py` |

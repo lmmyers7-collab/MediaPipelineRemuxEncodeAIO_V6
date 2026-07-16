@@ -378,6 +378,7 @@ function Get-MediaPipelineConfigDefaultValues {
         RobocopyFlags              = @('/J','/R:3','/W:15','/MT:2','/NP','/NDL','/NFL')
         DebugMode                  = $true
         LogRetentionDays           = 7
+        InterruptedToolLogRetentionDays = 3
         PipelineDebugLogMaxBytes   = 104857600
         FailureArtifactWarningThresholdGB = 100
         FailureArtifactRetentionDays = 0

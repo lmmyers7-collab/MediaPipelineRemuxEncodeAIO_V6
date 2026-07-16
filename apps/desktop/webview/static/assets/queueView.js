@@ -94,6 +94,7 @@
     queueCountRowsByExtension = _queueNoop,
     queueIsMovieRow = _queueNoop,
     queueIsTvRow = _queueNoop,
+    queueBlockerEvidence = _queueEmptyObject,
     queueBlockedRows = _queueNoop,
     queueVisibleRunnableCount = _queueNoop,
     queueDisplayPayloadForVisibleRows = _queueNoop,
@@ -130,6 +131,7 @@
       queueFilterFields: QUEUE_FILTER_FIELDS,
       queueFormatCounts,
       queueHiddenSidecarLine,
+      queueBlockerEvidence,
       queueRowKey,
       queueSnapshotIsStale: (...args) => queueSnapshotIsStale(...args),
       queueWorkflowStatus,
@@ -616,6 +618,7 @@
   const _queueSourceModel = typeof __queueSourceModelMod.createQueueSourceModelModule === "function"
     ? __queueSourceModelMod.createQueueSourceModelModule({
       shortenPath,
+      queueBlockerEvidence,
       queueDisplayRowStatus,
       queueFilteredRowsForCurrentDisplay,
       queuePathExtension,

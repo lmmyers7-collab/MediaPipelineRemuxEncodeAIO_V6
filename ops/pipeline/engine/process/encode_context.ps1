@@ -17,6 +17,79 @@ function New-MediaPipelineEncodeStageResult {
     }
 }
 
+function Get-MediaPipelineEncodeContextRequiredProperties {
+    return @(
+        'File',
+        'IsTV',
+        'TvInfo',
+        'SafeName',
+        'LocalIn',
+        'Paths',
+        'VideoStreamPolicy',
+        'IsHDR',
+        'TempOut',
+        'SubResult',
+        'AudioArgs',
+        'DefaultAudioLang',
+        'VerifyRoute',
+        'EncodePlan',
+        'FfArgs',
+        'WasteGuardContext',
+        'UsingCpu',
+        'UsingSafeRetry',
+        'PushOk',
+        'DynamicHdrPolicy',
+        'DynamicHdrDecision',
+        'DynamicHdrForceCpuEncode',
+        'DynamicHdrWorkingDirectory',
+        'DynamicHdrTempFiles',
+        'DynamicHdrDolbyVisionRpuPath',
+        'DynamicHdrDolbyVisionTargetProfile',
+        'DynamicHdrHdr10PlusJsonPath',
+        'Hdr10MasterDisplay',
+        'Hdr10MaxCll',
+        'NormalizedEncoderBackend',
+        'ForceCpuBackendEncode',
+        'SkipGpuDueToProbe',
+        'CpuFallbackEncoderName',
+        'GlobalTitle',
+        'PublishResult',
+        'SizePolicyResult',
+        'MediaVerification',
+        'Hdr10Verification',
+        'AudioVerification',
+        'SubtitleVerification',
+        'MediaTrackVerificationPlan',
+        'MediaTrackVerification'
+    )
+}
+
+function Test-MediaPipelineEncodeContextContract {
+    param([AllowNull()] $Context)
+
+    $missing = [System.Collections.Generic.List[string]]::new()
+    foreach ($propertyName in @(Get-MediaPipelineEncodeContextRequiredProperties)) {
+        if ($null -eq $Context -or $null -eq $Context.PSObject.Properties[$propertyName]) {
+            $missing.Add($propertyName) | Out-Null
+        }
+    }
+
+    return [pscustomobject][ordered]@{
+        Ok                = ($missing.Count -eq 0)
+        MissingProperties = @($missing)
+        ErrorCode         = if ($missing.Count -eq 0) { '' } else { 'ENCODE_CONTEXT_CONTRACT_INVALID' }
+    }
+}
+
+function Test-MediaPipelineEncodeContextFactoryContract {
+    $probe = [pscustomobject][ordered]@{
+        Name     = 'encode-context-contract-probe.mkv'
+        FullName = 'encode-context-contract-probe.mkv'
+    }
+    $context = New-MediaPipelineEncodeContext -File $probe -IsTV:$false -TvInfo $null
+    return Test-MediaPipelineEncodeContextContract -Context $context
+}
+
 function New-MediaPipelineEncodeContext {
     param(
         [Parameter(Mandatory)] $File,

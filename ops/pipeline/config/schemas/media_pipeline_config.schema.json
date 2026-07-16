@@ -1249,6 +1249,13 @@
       "title": "Logretentiondays",
       "type": "integer"
     },
+    "InterruptedToolLogRetentionDays": {
+      "default": 3,
+      "maximum": 365,
+      "minimum": 1,
+      "title": "Interruptedtoollogretentiondays",
+      "type": "integer"
+    },
     "PipelineDebugLogMaxBytes": {
       "default": 104857600,
       "maximum": 2147483647,

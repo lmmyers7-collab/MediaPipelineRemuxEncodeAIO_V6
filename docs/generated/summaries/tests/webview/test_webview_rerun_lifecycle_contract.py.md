@@ -3,9 +3,9 @@ file: tests/webview/test_webview_rerun_lifecycle_contract.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-14
+last_modified: 2026-07-15
 last_reviewed: 2026-07-14
-sha256: 6654827fb57bc71fb38208eec319b46d97f677a17345a3803160a5d4df7885f9
+sha256: 37d4047af6fb99096ec5d705d6a3382aed58f099f1af3558561bff7722268a24
 ---
 # `tests/webview/test_webview_rerun_lifecycle_contract.py`
 

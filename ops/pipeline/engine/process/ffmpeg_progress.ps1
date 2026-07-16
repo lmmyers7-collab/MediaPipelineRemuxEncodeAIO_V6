@@ -123,6 +123,20 @@ function Invoke-FFmpegWithProgress {
     $ffmpegContext = New-FFmpegToolContext -FFArgs $FFArgs -Executable $ffmpegPath -CpuEncode:$CpuEncode -ProcessPriority $ProcessPriority
     $ffmpegArgs = $ffmpegContext.Arguments
     $priorityClassEnum = $ffmpegContext.PriorityClass
+    $startedAt = Get-Date
+    $stderrLogPath = $null
+    try {
+        if (-not [string]::IsNullOrWhiteSpace($LocalActiveToolLogs)) {
+            $stderrLogPath = New-MediaPipelineToolLogCapture `
+                -ToolName 'ffmpeg' `
+                -ActiveDirectory $LocalActiveToolLogs `
+                -RunId ([string]$script:PipelineRunId) `
+                -Now $startedAt
+        }
+    } catch {
+        Write-Log "$Label : could not create active ffmpeg diagnostic capture: $($_.Exception.Message)" 'WARN'
+        $stderrLogPath = $null
+    }
 
     Write-PipelineEvent -EventType 'tool_started' -Stage $ProgressStage -Route $ProgressRoute -Status 'started' -SourcePath $InputFile -Data @{
         tool_name        = 'ffmpeg'
@@ -134,16 +148,17 @@ function Invoke-FFmpegWithProgress {
         cpu_encode       = [bool]$CpuEncode
         process_priority = if ($priorityClassEnum) { [string]$priorityClassEnum } else { 'inherit' }
         working_directory = $WorkingDirectory
+        diagnostic_log_path = [string]$stderrLogPath
+        diagnostic_log_disposition = if ($stderrLogPath) { 'active' } else { 'unavailable' }
     } | Out-Null
 
     $proc       = $null
     $errorLines = [System.Text.StringBuilder]::new()
-    $stderrLogPath = $null
-    $startedAt  = Get-Date
     $timedOut   = $false
     $stopped    = $false
     $script:LastFFmpegAbortCode = ''
     $script:LastFFmpegAbortReason = ''
+    $script:LastFFmpegErrorLog = ''
     $script:LastEncodeWasteGuardProjection = $null
     try {
     $lastPct     = -1
@@ -153,17 +168,6 @@ function Invoke-FFmpegWithProgress {
     $lastFlagChk = Get-Date
     $lastWasteGuardPollElapsed = -999999.0
     $wasteGuardConsecutiveHits = 0
-    try {
-        if (-not [string]::IsNullOrWhiteSpace($LocalFailed)) {
-            if (-not (Test-Path -LiteralPath $LocalFailed)) {
-                New-Item -ItemType Directory -Path $LocalFailed -Force | Out-Null
-            }
-            $stderrLogPath = Join-Path $LocalFailed ("ffmpeg_stderr_{0}_{1}.log" -f (Get-Date -Format 'yyyyMMdd_HHmmss'), ([guid]::NewGuid().ToString('N')))
-        }
-    } catch {
-        $stderrLogPath = $null
-    }
-
     $processStartedHandler = {
         param([System.Diagnostics.Process]$StartedProcess)
         # E6 fix — assigning `$proc = $StartedProcess` inside this
@@ -328,6 +332,33 @@ function Invoke-FFmpegWithProgress {
         $completedWorkingDirectory = [string]$result.WorkingDirectory
     }
 
+    $effectiveStopped = [bool]($stopped -or $script:StopRequested)
+    $terminalLogDisposition = if ($effectiveStopped) { 'interrupted' } elseif ($exitCode -ne 0) { 'failure' } else { 'success' }
+    $diagnosticLog = [pscustomobject][ordered]@{
+        Disposition = if ($terminalLogDisposition -eq 'success') { 'deleted' } else { $terminalLogDisposition }
+        Path = [string]$stderrLogPath
+        Completed = $false
+    }
+    if (-not [string]::IsNullOrWhiteSpace($stderrLogPath) -and
+        -not [string]::IsNullOrWhiteSpace($LocalFailureArtifacts) -and
+        -not [string]::IsNullOrWhiteSpace($LocalInterruptedToolLogs)) {
+        $diagnosticLog = Complete-MediaPipelineToolLogCapture `
+            -Path $stderrLogPath `
+            -Disposition $terminalLogDisposition `
+            -FailureDirectory $LocalFailureArtifacts `
+            -InterruptedDirectory $LocalInterruptedToolLogs
+    }
+    if ($terminalLogDisposition -eq 'failure' -and [string]::IsNullOrWhiteSpace([string]$diagnosticLog.Path)) {
+        try {
+            [System.IO.Directory]::CreateDirectory($LocalFailureArtifacts) | Out-Null
+            $fallbackLog = Join-Path $LocalFailureArtifacts ("ffmpeg_error_{0}_{1}.log" -f (Get-Date -Format 'yyyyMMdd_HHmmss'), ([guid]::NewGuid().ToString('N')))
+            [System.IO.File]::WriteAllText($fallbackLog, [string]$result.Stderr)
+            $diagnosticLog = [pscustomobject][ordered]@{ Disposition = 'failure'; Path = $fallbackLog; Completed = $true }
+        } catch {
+            Write-Log "$Label : could not persist ffmpeg failure diagnostic: $($_.Exception.Message)" 'WARN'
+        }
+    }
+
     # Expose full stderr text for caller inspection (e.g. NVENC fallback logic).
     # Kept at script scope so callers don't need to change signature.
     Complete-FFmpegToolEvent `
@@ -343,11 +374,13 @@ function Invoke-FFmpegWithProgress {
         -StartedAt $startedAt `
         -ExitCode $exitCode `
         -TimedOut $timedOut `
-        -Stopped $stopped `
+        -Stopped $effectiveStopped `
         -Stderr ([string]$result.Stderr) `
-        -WorkingDirectory $completedWorkingDirectory | Out-Null
+        -WorkingDirectory $completedWorkingDirectory `
+        -DiagnosticLogPath ([string]$diagnosticLog.Path) `
+        -DiagnosticLogDisposition ([string]$diagnosticLog.Disposition) | Out-Null
 
-    if ($script:StopRequested) { Write-Log "$Label : stopped by user request"; return $false }
+    if ($effectiveStopped) { Write-Log "$Label : stopped by user request"; return $false }
 
     if ($exitCode -ne 0) {
         if (-not [string]::IsNullOrWhiteSpace($ReproStage)) {
@@ -358,11 +391,7 @@ function Invoke-FFmpegWithProgress {
         }
         Write-Log "$Label : FAILED (exit $exitCode)" "ERROR"
         $errText = $script:LastFFmpegStderr
-        $errLog = $stderrLogPath
-        if ([string]::IsNullOrWhiteSpace($errLog)) {
-            $errLog  = Join-Path $LocalFailed "ffmpeg_error_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
-            try { $errText | Out-File -LiteralPath $errLog -Force } catch {}
-        }
+        $errLog = [string]$diagnosticLog.Path
         $script:LastFFmpegErrorLog = $errLog
         Write-Log "FFmpeg error log: $errLog" "ERROR"
         $errText -split '\r?\n' | Where-Object { $_ -match '\S' } |
@@ -371,9 +400,6 @@ function Invoke-FFmpegWithProgress {
     }
     if ($ProgressStage) {
         Set-ProgressStage -Stage $ProgressStage -Percent 100 -Route $ProgressRoute -SaveNow
-    }
-    if ($stderrLogPath -and (Test-Path -LiteralPath $stderrLogPath -ErrorAction SilentlyContinue)) {
-        Remove-Item -LiteralPath $stderrLogPath -Force -ErrorAction SilentlyContinue
     }
     Write-Log "$Label : 100% complete"
     return $true
@@ -387,6 +413,35 @@ function Invoke-FFmpegWithProgress {
         } catch {}
         Add-FFmpegErrorTail -Builder $errorLines -Text "[RUNNER EXCEPTION: $message]"
         if ($stderrLogPath) { try { [System.IO.File]::AppendAllText($stderrLogPath, "[RUNNER EXCEPTION: $message]" + [Environment]::NewLine) } catch {} }
+        $runnerStopped = [bool]($stopped -or $script:StopRequested)
+        $runnerDisposition = if ($runnerStopped) { 'interrupted' } else { 'failure' }
+        $runnerDiagnostic = [pscustomobject][ordered]@{
+            Disposition = $runnerDisposition
+            Path = [string]$stderrLogPath
+            Completed = $false
+        }
+        if (-not [string]::IsNullOrWhiteSpace($stderrLogPath) -and
+            -not [string]::IsNullOrWhiteSpace($LocalFailureArtifacts) -and
+            -not [string]::IsNullOrWhiteSpace($LocalInterruptedToolLogs)) {
+            $runnerDiagnostic = Complete-MediaPipelineToolLogCapture `
+                -Path $stderrLogPath `
+                -Disposition $runnerDisposition `
+                -FailureDirectory $LocalFailureArtifacts `
+                -InterruptedDirectory $LocalInterruptedToolLogs
+        }
+        if (-not $runnerStopped -and [string]::IsNullOrWhiteSpace([string]$runnerDiagnostic.Path)) {
+            try {
+                [System.IO.Directory]::CreateDirectory($LocalFailureArtifacts) | Out-Null
+                $fallbackLog = Join-Path $LocalFailureArtifacts ("ffmpeg_error_{0}_{1}.log" -f (Get-Date -Format 'yyyyMMdd_HHmmss'), ([guid]::NewGuid().ToString('N')))
+                [System.IO.File]::WriteAllText($fallbackLog, $errorLines.ToString())
+                $runnerDiagnostic = [pscustomobject][ordered]@{ Disposition = 'failure'; Path = $fallbackLog; Completed = $true }
+            } catch {
+                Write-Log "$Label : could not persist ffmpeg runner failure diagnostic: $($_.Exception.Message)" 'WARN'
+            }
+        }
+        if (-not $runnerStopped) {
+            $script:LastFFmpegErrorLog = [string]$runnerDiagnostic.Path
+        }
         try {
             Complete-FFmpegToolEvent `
                 -Label $Label `
@@ -401,9 +456,11 @@ function Invoke-FFmpegWithProgress {
                 -StartedAt $startedAt `
                 -ExitCode -1 `
                 -TimedOut $timedOut `
-                -Stopped $stopped `
+                -Stopped $runnerStopped `
                 -Stderr ($errorLines.ToString()) `
                 -WorkingDirectory $WorkingDirectory `
+                -DiagnosticLogPath ([string]$runnerDiagnostic.Path) `
+                -DiagnosticLogDisposition ([string]$runnerDiagnostic.Disposition) `
                 -RunnerException $message | Out-Null
         } catch {}
         try {

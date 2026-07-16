@@ -61,8 +61,8 @@ graph LR
   observability -->|39| status
   process -->|33| paths
   contracts -->|32| api
+  process -->|30| kernel
   tests -->|29| rename
-  process -->|28| kernel
   config -->|27| kernel
   tests -->|25| queue
   tests -->|23| status
@@ -254,8 +254,8 @@ graph LR
 | observability | status | 39 |
 | process | paths | 33 |
 | contracts | api | 32 |
+| process | kernel | 30 |
 | tests | rename | 29 |
-| process | kernel | 28 |
 | config | kernel | 27 |
 | tests | queue | 25 |
 | tests | status | 23 |

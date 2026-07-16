@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/queue/sourceModel.js
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-10
+last_modified: 2026-07-15
 last_reviewed: 2026-07-11
-sha256: 1d0928400af068969c18d42e2bd7cde45ea8d5510e28a29d9c23ebb77052604d
+sha256: 70a76142a61e0efb182784bc385ef74a1c0f96840bb933c090a352b6ed8dacab
 ---
 # `apps/desktop/webview/static/assets/queue/sourceModel.js`
 

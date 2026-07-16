@@ -133,7 +133,7 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
         self.assertEqual(preview["source_inventory"]["rows"][0]["curation_state"], "uncurated")
         self.assertIn("No queue snapshot is available yet.", "\n".join(preview["warnings"]))
 
-    def test_queue_preview_falls_back_to_active_csv_rerun_manifest_rows(self) -> None:
+    def test_queue_preview_does_not_fall_back_to_active_csv_rerun_manifest_rows(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             local_base = root / "Local"
@@ -214,12 +214,13 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
 
             preview = facade.get_queue_preview(resolved).to_mapping()
 
-        self.assertEqual(preview["source"], str(manifest_path))
-        self.assertEqual(preview["rows"][0]["queue_source"], "csv_rerun")
-        self.assertEqual(preview["rows"][0]["operator_status"], "CSV rerun staged")
-        self.assertEqual(preview["rows"][0]["queue_position"], "1/1")
-        self.assertEqual(preview["rows"][0]["display_name"], "Paprika (2006).mkv")
-        self.assertIn("active CSV rerun manifest queue rows", "\n".join(preview["warnings"]))
+        self.assertEqual(preview["source"], str(resolved.queue_snapshot_path))
+        self.assertEqual(preview["rows"], [])
+        self.assertEqual(preview["normal_queue_visible_count"], 0)
+        self.assertEqual(preview["dedicated_rerun_visible_count"], 0)
+        self.assertEqual(preview["queue_sources"], ["normal_queue"])
+        self.assertEqual(preview["rerun_correlation"], {})
+        self.assertIn("No queue snapshot is available", "\n".join(preview["warnings"]))
 
     def test_queue_preview_does_not_revive_terminal_rerun_history_without_active_job(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -249,7 +250,7 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
         self.assertEqual(preview["source"], str(resolved.queue_snapshot_path))
         self.assertIn("No queue snapshot is available", "\n".join(preview["warnings"]))
 
-    def test_queue_preview_projects_waiting_enrollment_without_snapshot_or_active_job(self) -> None:
+    def test_queue_preview_keeps_waiting_rerun_enrollment_out_of_normal_queue(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             local_base = root / "LocalBase"
@@ -287,13 +288,12 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
 
             preview = facade.get_queue_preview(resolved).to_mapping()
 
-        self.assertEqual(preview["source"], str(expected_manifest))
-        self.assertEqual(preview["rows"][0]["queue_source"], "csv_rerun")
-        self.assertEqual(preview["rows"][0]["queue_status"], "waiting")
-        self.assertEqual(preview["rows"][0]["queue_status_label"], "Waiting For Source")
-        self.assertEqual(preview["rows"][0]["operator_status_state"], "waiting")
+        self.assertEqual(preview["source"], str(resolved.queue_snapshot_path))
+        self.assertEqual(preview["rows"], [])
+        self.assertEqual(preview["queue_sources"], ["normal_queue"])
+        self.assertEqual(preview["dedicated_rerun_visible_count"], 0)
 
-    def test_queue_preview_combines_runnable_normal_rows_with_active_csv_rerun_rows(self) -> None:
+    def test_queue_preview_keeps_active_csv_rerun_rows_out_of_normal_queue(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             local_base = root / "LocalBase"
@@ -434,32 +434,17 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
             preview = facade.get_queue_preview(resolved).to_mapping()
 
         sources = [str(row.get("queue_source") or "normal_queue") for row in preview["rows"]]
-        self.assertEqual(sources, ["normal_queue", "csv_rerun"])
-        self.assertEqual(preview["shown_row_count"], 2)
+        self.assertEqual(sources, ["normal_queue"])
+        self.assertEqual(preview["shown_row_count"], 1)
         self.assertEqual(preview["normal_queue_visible_count"], 1)
-        self.assertEqual(preview["dedicated_rerun_visible_count"], 1)
-        self.assertEqual(preview["queue_sources"], ["normal_queue", "csv_rerun"])
+        self.assertEqual(preview["dedicated_rerun_visible_count"], 0)
+        self.assertEqual(preview["queue_sources"], ["normal_queue"])
         self.assertEqual(preview["runnable_count"], 1)
-        rerun_row = preview["rows"][1]
-        self.assertFalse(rerun_row["uses_pipeline_start"])
-        self.assertEqual(rerun_row["rerun_batch_id"], "batch-visible")
-        self.assertEqual(rerun_row["batch_id"], "batch-visible")
-        self.assertEqual(rerun_row["command_id"], "command-visible")
-        self.assertEqual(rerun_row["launch_id"], "launch-visible")
-        self.assertEqual(rerun_row["manifest_path"], str(expected_manifest))
-        self.assertEqual(rerun_row["enrollment_path"], str(enrollment_root / "batch-visible.json"))
-        self.assertEqual(rerun_row["active_jobs_key"], "launch-visible")
-        self.assertEqual(rerun_row["active_jobs_path"], str(active_jobs / "launch-visible.json"))
-        self.assertEqual(rerun_row["stdout_log"], str(root / "rerun.stdout.log"))
-        self.assertEqual(rerun_row["stderr_log"], str(root / "rerun.stderr.log"))
-        self.assertEqual(rerun_row["command_evidence_key"], "command-visible")
-        self.assertEqual(preview["rerun_correlation"]["batch_id"], "batch-visible")
-        self.assertEqual(preview["rerun_correlation"]["active_jobs_path"], str(active_jobs / "launch-visible.json"))
-        self.assertEqual(rerun_row["queue_status"], "retrying")
-        self.assertEqual(rerun_row["operator_status_state"], "waiting")
+        self.assertEqual(preview["rerun_correlation"], {})
         visible_paths = {str(row.get("original_source_path") or row.get("source_path") or "") for row in preview["rows"]}
         self.assertTrue(all(str(path) not in visible_paths for path in terminal_sources))
-        self.assertIn("dedicated CSV rerun batch", "\n".join(preview["warnings"]))
+        self.assertNotIn(str(rerun_source), visible_paths)
+        self.assertNotIn("dedicated CSV rerun batch", "\n".join(preview["warnings"]))
 
     def test_queue_authority_hides_stale_progress_when_newer_enrollment_failed(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -511,7 +496,7 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
         self.assertEqual(manifest_after, manifest_payload)
         self.assertEqual(enrollment_after, enrollment_payload)
 
-    def test_csv_rerun_manifest_status_and_reason_drive_operator_state(self) -> None:
+    def test_queue_preview_excludes_csv_rerun_manifest_operator_states(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             local_base = root / "Local"
@@ -572,36 +557,11 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
 
             preview = facade.get_queue_preview(resolved).to_mapping()
 
-        by_source = {Path(str(row["original_source_path"])).name: row for row in preview["rows"]}
-        self.assertEqual(by_source["a.mkv"]["operator_status"], "CSV rerun failed")
-        self.assertEqual(by_source["a.mkv"]["operator_status_state"], "blocked")
-        self.assertEqual(by_source["a.mkv"]["operator_severity"], "error")
-        self.assertIn("source file not found", by_source["a.mkv"]["operator_guidance"])
-        self.assertEqual(by_source["b.mkv"]["operator_status"], "CSV rerun pending")
-        self.assertEqual(by_source["b.mkv"]["operator_status_state"], "ready")
-        self.assertEqual(by_source["c.mkv"]["operator_status"], "CSV rerun staged")
-        self.assertEqual(by_source["d.mkv"]["operator_status"], "CSV rerun complete")
-        self.assertEqual(by_source["d.mkv"]["operator_status_state"], "complete")
-        self.assertEqual(by_source["e.mkv"]["operator_status"], "CSV rerun review workspace")
-        self.assertEqual(by_source["e.mkv"]["operator_status_state"], "parked")
-        self.assertEqual(by_source["e.mkv"]["operator_severity"], "ok")
-        self.assertEqual(by_source["e.mkv"]["queue_status_label"], "Review Workspace")
-        self.assertIn("parked output requires review", by_source["e.mkv"]["route_reason"])
-        self.assertEqual(by_source["f.mkv"]["queue_status_label"], "Pending Publish")
-        self.assertEqual(by_source["f.mkv"]["operator_status_state"], "parked")
-        self.assertEqual(by_source["f.mkv"]["operator_severity"], "ok")
-        self.assertEqual(by_source["g.mkv"]["queue_status_label"], "Replaced / Returned")
-        self.assertEqual(by_source["h.mkv"]["queue_status_label"], "Warning")
-        self.assertEqual(by_source["i.mkv"]["queue_status_label"], "Stopped")
-        self.assertEqual(by_source["j.mkv"]["queue_status_label"], "Skipped")
-        self.assertEqual(by_source["k.mkv"]["operator_status_state"], "review")
-        self.assertEqual(by_source["k.mkv"]["operator_severity"], "warning")
-        self.assertEqual(by_source["k.mkv"]["queue_status_label"], "Review")
-        self.assertEqual(by_source["l.mkv"]["queue_status"], "blocked")
-        self.assertEqual(by_source["l.mkv"]["queue_status_label"], "Child Exit Unverified")
-        self.assertEqual(by_source["l.mkv"]["operator_status_state"], "blocked")
-        self.assertEqual(by_source["l.mkv"]["operator_severity"], "error")
-        self.assertFalse(by_source["g.mkv"]["uses_pipeline_start"])
+        self.assertEqual(preview["rows"], [])
+        self.assertEqual(preview["queue_sources"], ["normal_queue"])
+        self.assertEqual(preview["normal_queue_visible_count"], 0)
+        self.assertEqual(preview["dedicated_rerun_visible_count"], 0)
+        self.assertEqual(preview["rerun_correlation"], {})
 
     def test_queue_preview_reads_existing_snapshot_without_dry_run(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

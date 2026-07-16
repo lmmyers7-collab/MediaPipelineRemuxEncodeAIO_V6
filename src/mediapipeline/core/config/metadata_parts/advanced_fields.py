@@ -218,6 +218,15 @@ ADVANCED_CONFIG_FIELD_DEFINITIONS = (
     {
         "page": "Advanced",
         "section": "Logging",
+        "key": "InterruptedToolLogRetentionDays",
+        "label": "Interrupted Tool Log Retention Days",
+        "kind": "int",
+        "default": 3,
+        "help": "Number of days to retain diagnostic logs from stopped or force-terminated native-tool work.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Logging",
         "key": "PipelineDebugLogMaxBytes",
         "label": "Pipeline Debug Log Max Bytes",
         "kind": "int",

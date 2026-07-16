@@ -21,6 +21,8 @@ function Complete-FFmpegToolEvent {
         [bool]$Stopped,
         [AllowNull()] [string]$Stderr,
         [AllowNull()] [string]$WorkingDirectory,
+        [AllowNull()] [string]$DiagnosticLogPath,
+        [AllowNull()] [string]$DiagnosticLogDisposition,
         [AllowNull()] [string]$RunnerException
     )
 
@@ -81,12 +83,15 @@ function Complete-FFmpegToolEvent {
         priority_applied    = [bool]$script:LastFFmpegPriorityApplied
         priority_error      = [string]$script:LastFFmpegPriorityError
         working_directory   = $WorkingDirectory
+        diagnostic_log_path = $DiagnosticLogPath
+        diagnostic_log_disposition = $DiagnosticLogDisposition
     }
     if (-not [string]::IsNullOrWhiteSpace($RunnerException)) {
         $eventData.runner_exception = $RunnerException
     }
 
-    Write-PipelineEvent -EventType 'tool_completed' -Stage $ProgressStage -Route $ProgressRoute -Status $(if ($ExitCode -eq 0) { 'succeeded' } else { 'failed' }) -SourcePath $InputFile -Data $eventData | Out-Null
+    $eventStatus = if ($Stopped) { 'stopped' } elseif ($ExitCode -eq 0) { 'succeeded' } else { 'failed' }
+    Write-PipelineEvent -EventType 'tool_completed' -Stage $ProgressStage -Route $ProgressRoute -Status $eventStatus -SourcePath $InputFile -Data $eventData | Out-Null
 
     return [pscustomobject]@{
         ExitCode        = $ExitCode

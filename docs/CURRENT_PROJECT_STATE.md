@@ -1,6 +1,6 @@
 # Current Project State
 
-Last updated: 2026-07-12
+Last updated: 2026-07-15
 
 This is the fast entry point for future AI/code agents. Read this before older audits, Claude task files, or historical checklists.
 
@@ -15,6 +15,7 @@ Active WebView/Tauri refinement, documentation cleanup, tests, packaging, and op
 - **Tauri/WebView2 shell** is the promoted desktop shell path.
 - **Local Python backend API** is the intended long-term boundary between UI and pipeline behavior.
 - The frontend must not own filesystem mutation, media policy, settings persistence, queue mutation, pending-publish drain, rename apply, or process lifecycle decisions.
+- 2026-07-15 Queue ownership is explicit: `GET /api/queue` and Main Queue expose normal pipeline rows only, while `/api/rerun/results` and the CSV Rerun tab expose backend-selected current local/Network batches plus separate aggregate history. Blank Run Once uses a fresh matching normal-queue snapshot only to block `no_runnable_work`; stale/missing/mismatched/scanning evidence stays advisory.
 - As of the 2026-05-20 WebView-first split, the legacy desktop-shell files and runtime package were removed from this current folder. See `docs/archive/v6-split-notes-2026-05-20.md` for archived split evidence and ADR-0011 for the durable decision record.
 - As of the 2026-05-18 transition-review remediation pass, source/dev bundle validation was green: full unskipped release self-test, bundled `unittest`/`pytest`, browser no-mutation smokes, and Tauri `-CheckOnly`/build gates passed. Representative real-media validation was later closed by operator attestation on 2026-05-28, and default-launcher/package-mode promotion was closed by operator confirmation on 2026-05-30.
 - A fresh current-handoff package was built on 2026-05-18; copied-bundle package-mode Tauri launch/close passed locally. This remains historical transfer-readiness evidence. Do not treat the original local build path as a current target; copy/build the candidate appropriate for the validation machine.

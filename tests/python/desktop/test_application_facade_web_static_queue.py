@@ -332,6 +332,34 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
         self.assertNotIn("<th scope=\"col\">Evidence</th>", rerun_state_table)
         self.assertLess(bundle.html.index('class="rerun-state-panel"'), bundle.html.index('class="rerun-history-panel"'))
 
+    def test_queue_scope_simplification_contract_is_static_pinned(self) -> None:
+        bundle = self.bundle
+
+        _assert_contains_all(
+            self,
+            bundle.queue_view_js,
+            (
+                "function queueBlockerEvidence",
+                "row?.blocking_reason",
+                "row?.blocked_reason",
+                "row?.error",
+                'status.includes("failed")',
+                "current_local",
+                "current_network",
+                "Current CSV rerun batch",
+                "Aggregate history",
+                "Snapshot age advisory",
+                "showing ${visibleCount} of ${reviewRows.length} flagged",
+            ),
+        )
+        self.assertIn("payload?.network_manifests", bundle.queue_view_rerun_js)
+        self.assertIn("Snapshot age is not a row blocker", bundle.queue_view_js)
+        self.assertNotIn("row?.reason_code", bundle.queue_view_summary_js)
+        self.assertIn("No new CSV selected", bundle.launch_view_js)
+        self.assertNotIn(
+            'request: { manifest_key: String(actionOrManifestKey || "").trim(), confirm_continue: true }',
+            bundle.launch_view_js,
+        )
     def test_queue_panel_order_is_static_pinned(self) -> None:
         queue_page_html = _queue_page_html(self.bundle.html)
         queue_panel_order = [
@@ -411,7 +439,7 @@ class ApplicationFacadeWebStaticQueueTests(unittest.TestCase):
                 "Produced:",
                 "Snapshot file age",
                 "Produced age",
-                "Snapshot stale",
+                "Snapshot age advisory",
                 "function queueSnapshotIsStale",
                 "Source roots:",
             ),

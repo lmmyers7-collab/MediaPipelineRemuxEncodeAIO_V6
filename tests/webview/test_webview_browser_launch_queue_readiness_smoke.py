@@ -889,11 +889,12 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             requireText("rerun-open-active-jobs-button", ["Open Active Jobs"]);
             requireText("rerun-show-command-history-button", ["Show Rerun Commands"]);
             await waitFor(
-              () => text("rerun-history-summary").includes("CSV rerun queue-state"),
-              "CSV rerun backend-owned queue-state summary",
+              () => text("rerun-history-summary").includes("Aggregate history is backend-owned"),
+              "CSV rerun backend-owned current/history summary",
             );
             requireText("rerun-history-summary", [
-              "CSV rerun queue-state is backend-owned",
+              "Aggregate history is backend-owned",
+              "Current CSV rerun batch count",
               "/api/rerun/results",
               "not normal /api/pipeline/start queue rows",
             ]);
@@ -1096,6 +1097,30 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             window.mediaPipelineQueueView.renderRerunResults({
               manifests: [],
               queue_state: {
+                current_local: {
+                  queue_source: "csv_rerun",
+                  manifest_key: "browser-smoke-rerun",
+                  batch_id: "browser-smoke-rerun",
+                  selection_reason: "newest_nonterminal",
+                  activity_state: "review",
+                  row_count: 1,
+                  available_actions: [],
+                  rows: [
+                    {
+                      row_key: "browser-smoke-rerun-row",
+                      manifest_key: "browser-smoke-rerun",
+                      queue_status: "failed",
+                      queue_status_label: "Failed",
+                      original_source_path: "Paprika(2006).mkv",
+                      output_path: "Paprika(2006).rerun.mkv",
+                      final_output_path: "\\\\SERVER\\Videos\\Paprika (2006)\\Paprika (2006).mkv",
+                      audit_issue_code_list: ["audio-default-policy-mismatch", "vobsub-subtitles-ocr-candidate"],
+                      rerun_rule_label: "Subtitle Remediation Rule",
+                      rerun_rule_reason: "Issue evidence is subtitle-focused; rerun uses backend subtitle policy.",
+                      blocking_reason: "destination policy failed: pending publish destination is already queued",
+                    },
+                  ],
+                },
                 rows: [
                   {
                     row_key: "browser-smoke-rerun-row",

@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-EncodeCoreSplitChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-14
+last_modified: 2026-07-15
 last_reviewed: 2026-06-24
-sha256: 33774a7729b85e26ae4418e62d28e7fd7ca04808110e2c2d75a4d804161145ec
+sha256: 3c856acaac8a1d5bb167ea19d644cf7b6db3b40f93a66f1dddfa9063fd7ed479
 ---
 # `ops/pipeline/tests/Unit/Invoke-EncodeCoreSplitChecks.ps1`
 

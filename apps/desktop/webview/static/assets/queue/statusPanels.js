@@ -146,13 +146,12 @@
       const payload = queue || {};
       const rowList = Array.isArray(rows) ? rows : [];
       if (payload.error) return "Unavailable";
-      if (queueSnapshotIsStale(payload)) return "Refresh first";
       if (Number(payload.invalid_row_count || 0) > 0 || Number(payload.blocked_row_count || 0) > 0) return "Review rows";
       if (payload.runtime_outcome_warning) return "History warning";
-      if (Number((payload.runtime_outcome_freshness_counts || {}).stale || 0) > 0) return "Stale history";
+      if (Number((payload.runtime_outcome_freshness_counts || {}).stale || 0) > 0) return "Trustworthy - history advisory";
       if (!rowList.length && Number(payload.excluded_row_count || 0) > 0) return "Filtered";
       if (!rowList.length) return "Empty";
-      return "Trustworthy";
+      return queueSnapshotIsStale(payload) ? "Trustworthy - refresh advised" : "Trustworthy";
     }
 
     function queueValidationChecklistLines(queue, rows) {
@@ -186,10 +185,10 @@
         `Warnings: ${warnings.length}`,
       ];
       lines.push("");
-      if (staleSnapshot) {
-        lines.push("Operator action: refresh queue preview before launch. Stale snapshots are common after files move, complete, or are still being copied.");
-      } else if (Number(payload.invalid_row_count || 0) > 0 || Number(payload.blocked_row_count || 0) > 0) {
+      if (Number(payload.invalid_row_count || 0) > 0 || Number(payload.blocked_row_count || 0) > 0) {
         lines.push("Operator action: filter for blocked/invalid rows, select them, and inspect route evidence before launching a broad batch.");
+      } else if (staleSnapshot) {
+        lines.push("Advisory: refresh queue preview before launch. Snapshot age does not outrank blocked or failed row evidence.");
       } else if (!rowList.length && Number(payload.excluded_row_count || 0) > 0) {
         lines.push("Operator action: inspect Excluded Source Rows. Empty queue with exclusions usually means completed history, failure markers, or processed-state filtering is active.");
       } else if (payload.runtime_outcome_warning || Number(runtimeFreshness.stale || 0) > 0) {

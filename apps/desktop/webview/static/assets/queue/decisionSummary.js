@@ -117,7 +117,7 @@
         const reviewRows = typeof queueReviewRows === "function" ? queueReviewRows(payload, rowList) : [];
         const collisionSeverity = String(payload.completed_collision_severity || "").toLowerCase();
         if (payload.error) return "Diagnostics first";
-        if (queueSnapshotIsStale(payload)) return "Refresh first";
+        if (queueSnapshotIsStale(payload)) return "Snapshot age advisory";
         if (scope.hiddenBlocked || scope.hiddenReview) return "Hidden review rows";
         if (Array.isArray(reviewRows) && reviewRows.length) return `${reviewRows.length} flagged`;
         if (Number(payload.blocked_row_count || 0) > 0 || Number(payload.invalid_row_count || 0) > 0) return "Review rows";

@@ -313,12 +313,32 @@ try {
         )) {
         Assert-True ($null -ne $context.PSObject.Properties[$propertyName]) "Encode context must expose $propertyName for stage handoff."
     }
+    $contract = Test-MediaPipelineEncodeContextContract -Context $context
+    Assert-True ([bool]$contract.Ok) 'A complete encode context must pass the runtime contract check.'
+    Assert-Equal @($contract.MissingProperties).Count 0 'A complete encode context reported missing properties.'
+    $brokenContext = $context.PSObject.Copy()
+    $brokenContext.PSObject.Properties.Remove('Hdr10Verification')
+    $brokenContract = Test-MediaPipelineEncodeContextContract -Context $brokenContext
+    Assert-False ([bool]$brokenContract.Ok) 'A context missing Hdr10Verification must fail before FFmpeg starts.'
+    Assert-True (@($brokenContract.MissingProperties) -contains 'Hdr10Verification') 'Context contract failure did not identify Hdr10Verification.'
     Assert-Equal @($script:CurrentEncodeAttempts).Count 0 'Encode context should reset CurrentEncodeAttempts.'
     Assert-True ($null -eq $script:LastPublishResult) 'Encode context should clear LastPublishResult.'
     Assert-True ($null -eq $script:CurrentSizePolicyResult) 'Encode context should clear CurrentSizePolicyResult.'
     Assert-True ($null -eq $script:LastRemuxFallbackRejection) 'Encode context should clear LastRemuxFallbackRejection.'
     Assert-True ($null -eq $script:LastQualityVerification) 'Encode context should clear LastQualityVerification.'
     Assert-True ($null -eq $script:CurrentDynamicHdrEvidence) 'Encode context should clear CurrentDynamicHdrEvidence.'
+
+    $entrypointText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline.ps1') -Raw
+    $contractGuardMatch = [regex]::Match($entrypointText, 'if \(-not \$DrainPendingPushes\) \{\r?\n\s*\$encodeContextContract = Test-MediaPipelineEncodeContextFactoryContract')
+    $contractGuardIndex = if ($contractGuardMatch.Success) { $contractGuardMatch.Index } else { -1 }
+    $validateOnlyIndex = $entrypointText.IndexOf('if ($ValidateOnly) {', [System.StringComparison]::Ordinal)
+    $dumpCapabilitiesIndex = $entrypointText.IndexOf('if ($DumpEncoderCapabilitiesPath) {', [System.StringComparison]::Ordinal)
+    Assert-True ($contractGuardIndex -ge 0) 'Entrypoint must guard the encode-context self-check so drain-only mode remains read-only.'
+    Assert-True ($dumpCapabilitiesIndex -ge 0 -and $dumpCapabilitiesIndex -lt $contractGuardIndex) 'Read-only capability dump must exit before the encode-context self-check.'
+    Assert-True ($validateOnlyIndex -gt $contractGuardIndex) 'ValidateOnly must exercise the encode-context self-check before exiting.'
+    Assert-True ($entrypointText -match "pipeline_contract_selfcheck_failed[\s\S]+ENCODE_CONTEXT_CONTRACT_INVALID[\s\S]+exit 76") 'Encode-context startup contract failure must emit stable evidence and exit 76.'
+    $contractBlock = $entrypointText.Substring($contractGuardIndex, $validateOnlyIndex - $contractGuardIndex)
+    Assert-False ($contractBlock -match 'Register-SourceFailure') 'Startup encode-context contract failure must not create a per-source failure marker.'
 
     $preflight = Invoke-MediaPipelineEncodePreflight -Context $context
     Assert-False ([bool]$preflight.Terminal) 'Successful encode preflight should not be terminal.'
