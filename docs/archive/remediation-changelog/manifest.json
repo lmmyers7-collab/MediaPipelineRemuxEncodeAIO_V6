@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "authority": "docs/REMEDIATION_CHANGELOG.md is the compact navigation index; CHANGELOG.md remains the shipped change authority.",
+  "split_rule": "contiguous original ledger order in fixed bands of 250 historical sections",
+  "source_before_segmentation": {
+    "path": "docs/REMEDIATION_CHANGELOG.md",
+    "bytes": 2362992,
+    "newline_count": 34797,
+    "sha256": "18e6c78aefa44b4a16861a3c97ce1e4d039c5b6be9d1168a27dbc4279e66346f"
+  },
+  "replaced_navigation_metadata": {
+    "bytes": 133104,
+    "sha256": "fd5005f983e9bedd87a67b21ff715b22f29d5e4964bf782852758145be44221d"
+  },
+  "preserved_history": {
+    "source_offset": 133104,
+    "bytes": 2229888,
+    "sha256": "8c22b575a4575717ba8f4b15d41b6b2e33d7d1bbc769b5e32ffb39ecc944bbac",
+    "section_count": 1073,
+    "heading_order_sha256": "56fb2cef5d6bfa9c021b403c2dafcdf19471e33e014bfbcfe6021b35fd55c0a1",
+    "first_heading": "2026-05-16 - V5 UI Stage 10: Hierarchy Brightening, Text-Block Surface, Button Active States",
+    "last_heading": "2026-05-18 - WebView Frontend Mutation Boundary Static Gate"
+  },
+  "compact_index": {
+    "path": "docs/REMEDIATION_CHANGELOG.md",
+    "bytes": 266241,
+    "sha256": "8ee454f508466d4576e049300d06bd5d810fda0ea15313871be0848643adf620",
+    "entry_count": 1073,
+    "legacy_alias_count": 3,
+    "unresolved_legacy_link_count": 0
+  },
+  "segments": [
+    {
+      "path": "docs/archive/remediation-changelog/entries-0001-0250.md",
+      "start_ordinal": 1,
+      "end_ordinal": 250,
+      "section_count": 250,
+      "first_heading": "2026-05-16 - V5 UI Stage 10: Hierarchy Brightening, Text-Block Surface, Button Active States",
+      "last_heading": "2026-05-13 - WebView Rename Apply History",
+      "preserved_bytes": 569190,
+      "preserved_sha256": "7c29bf30b1d5e80f95021fa0c653bf30052035c8db61f0a46e6b850716ed006a",
+      "archive_bytes": 586296,
+      "archive_sha256": "e9a45a7269ec6aac3f48f7087964529eb352ac2c39bdf7b8392937e3ded31e0d"
+    },
+    {
+      "path": "docs/archive/remediation-changelog/entries-0251-0500.md",
+      "start_ordinal": 251,
+      "end_ordinal": 500,
+      "section_count": 250,
+      "first_heading": "2026-05-13 - WebView Open Command Histories",
+      "last_heading": "2026-05-07 - Backend Close-Readiness Contract And Web Close Warning",
+      "preserved_bytes": 432605,
+      "preserved_sha256": "efc29284a28007fd63b646912a6c0ca18c71b06e045a89e05bd84f89351bcd92",
+      "archive_bytes": 448750,
+      "archive_sha256": "fc085e04f41ec5dcb4bbec09e1b577ea96f0ddc238ca7a32148495199313ebc5"
+    },
+    {
+      "path": "docs/archive/remediation-changelog/entries-0501-0750.md",
+      "start_ordinal": 501,
+      "end_ordinal": 750,
+      "section_count": 250,
+      "first_heading": "2026-05-07 - Backend Settings Patch Risk Summary",
+      "last_heading": "2026-05-10 - Worker Crash-Recovery Cluster-Log Wrapper Cleanup",
+      "preserved_bytes": 440454,
+      "preserved_sha256": "982d14f5f73c9ff0537d76ed6ca76f326f1b5a13641a6be39e5692732eedeea2",
+      "archive_bytes": 457135,
+      "archive_sha256": "472290293ef959831c60deee398b707fb82e3414f657ed6253546f59ec325c50"
+    },
+    {
+      "path": "docs/archive/remediation-changelog/entries-0751-1000.md",
+      "start_ordinal": 751,
+      "end_ordinal": 1000,
+      "section_count": 250,
+      "first_heading": "2026-05-10 - Coordinator Health Probe Detail Normalization",
+      "last_heading": "2026-05-19 - God-File Split Wave 2: Sample-Validation Record Normalization Extraction",
+      "preserved_bytes": 616792,
+      "preserved_sha256": "7e30384f45e71c03f04f9cd9e763243ce86e2af37da704040cf1c3036c0f9013",
+      "archive_bytes": 635734,
+      "archive_sha256": "7cd40eadac5f533d18c2e3c015cca62e2deae4bf03c80ce8263820acd62389f6"
+    },
+    {
+      "path": "docs/archive/remediation-changelog/entries-1001-1073.md",
+      "start_ordinal": 1001,
+      "end_ordinal": 1073,
+      "section_count": 73,
+      "first_heading": "2026-05-19 - God-File Split Wave 2: Sample-Validation Log Summary Extraction",
+      "last_heading": "2026-05-18 - WebView Frontend Mutation Boundary Static Gate",
+      "preserved_bytes": 170847,
+      "preserved_sha256": "5b178c21d0369e5be301a78fd68878f1758456ed93b29b085b3e0d4357146148",
+      "archive_bytes": 176771,
+      "archive_sha256": "ab96daaa3ad3478b1eb208abf6bbb59ed47c5740705e064fd568f3c26ed3ef7e"
+    }
+  ]
+}

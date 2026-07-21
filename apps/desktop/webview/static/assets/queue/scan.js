@@ -24,7 +24,7 @@
       };
       if (typeof appendCommandResult === "function") appendCommandResult(result);
       setText("queue-open-status", result.message);
-      return;
+      return result;
     }
     setScanInFlight(true);
     window.mediaPipelineAppRefresh?.renderQueueRefreshInProgress?.();
@@ -48,6 +48,7 @@
         setQueueFilterSummary("Queue source scan started, but refresh wiring is not loaded.");
       }
       scheduleQueueScanPoll();
+      return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const result = {
@@ -65,6 +66,7 @@
         result.message,
         "Safe next step: inspect Diagnostics and backend command history before trying again.",
       ], "danger");
+      return result;
     } finally {
       setScanInFlight(false);
       window.mediaPipelineAppRefresh?.setQueueRefreshButtonBusy?.(queueScanIsRunning());

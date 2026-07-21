@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-11
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: 82a2c89a8243435ec224aa21f68bc32994cfcadfc87b75729d03bdb3c3126910
+sha256: c0992da1d4677a34088cec70608adc97deb98e4592b6e683eab85ff98ccc58c6
 ---
 # `src/mediapipeline/tools/change_control/build_change_index.py`
 

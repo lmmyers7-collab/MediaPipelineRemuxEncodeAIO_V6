@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from dataclasses import asdict, dataclass
@@ -64,6 +65,8 @@ REQUIRED_ACTIVE_DOCS = {
     "docs/OPEN_WORK_CHECKLIST.md",
     "docs/README_MediaPipelineRemuxEncodeAIO.md",
     "docs/RealMediaValidationRuns/README.md",
+    # Compact authoritative navigation; the preserved payload is skipped under
+    # docs/archive/remediation-changelog/ like other historical evidence.
     "docs/REMEDIATION_CHANGELOG.md",
 }
 
@@ -77,7 +80,7 @@ CONTROL_UPDATE_SOURCES = {
 
 HISTORICAL_REFERENCE_SOURCES = {
     "CHANGELOG.md",
-    "docs/REMEDIATION_CHANGELOG.md",
+    "docs/REMEDIATION_CHANGELOG.md",  # compact index with legacy entry titles
     "docs/ARCHIVED_MD_INDEX.md",
     "docs/change_control/CHANGELOG.md",
     "docs/change_control/CHANGE_INDEX.md",
@@ -156,13 +159,26 @@ def _is_skipped_path(path: str) -> bool:
 
 
 def _iter_files(root: Path) -> Iterable[Path]:
-    for path in root.rglob("*"):
-        if not path.is_file():
-            continue
-        rel = normalize_path(path.relative_to(root))
-        if _is_skipped_path(rel):
-            continue
-        yield path
+    def ignore_walk_error(_error: OSError) -> None:
+        return
+
+    for current, directory_names, file_names in os.walk(root, topdown=True, onerror=ignore_walk_error):
+        current_path = Path(current)
+        directory_names[:] = [
+            name
+            for name in directory_names
+            if not _is_skipped_path(normalize_path((current_path / name).relative_to(root)))
+        ]
+        for name in file_names:
+            path = current_path / name
+            rel = normalize_path(path.relative_to(root))
+            if _is_skipped_path(rel):
+                continue
+            try:
+                if path.is_file():
+                    yield path
+            except OSError:
+                continue
 
 
 def collect_document_paths(root: Path = REPO_ROOT) -> list[Path]:

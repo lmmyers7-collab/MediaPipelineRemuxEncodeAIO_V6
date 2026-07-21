@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-16
+last_modified: 2026-07-20
 last_reviewed: 2026-06-08
-sha256: 429566da196014f40866f15b241c61b6f80575d90248cc374f325242ba6d5d35
+sha256: fb9193febb2acc9ecda0e76805769f7565cfd676a152d1f30ad18c25691ba90d
 ---
 # `ops/pipeline/tests/Unit/Invoke-ProgressStateTelemetryChecks.ps1`
 

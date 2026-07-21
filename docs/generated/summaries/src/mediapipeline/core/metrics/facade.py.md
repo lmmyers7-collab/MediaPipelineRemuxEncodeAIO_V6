@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: metrics
-last_modified: 2026-07-09
+last_modified: 2026-07-21
 last_reviewed: 2026-06-05
-sha256: 18928f0778885727e3837529c2da3323ed5b87dd2b71e3d01aaacb7b81081d06
+sha256: 1c71ed3c5d73445ddcc4c8ff91e12bd736abd3d7ad3dfa5a4f8a509deb642b2d
 ---
 # `src/mediapipeline/core/metrics/facade.py`
 

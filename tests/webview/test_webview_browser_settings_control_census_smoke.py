@@ -12,6 +12,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
+from tests.webview.static_markup_support import settings_markup
 
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
@@ -152,10 +153,11 @@ class _StaticInteractiveParser(HTMLParser):
 
 def _static_control_descriptors(repo_root: Path) -> list[dict[str, object]]:
     descriptors: list[dict[str, object]] = []
+    static_root = repo_root / "apps" / "desktop" / "webview" / "static"
     for surface, expected_count in _SURFACE_EXPECTED_COUNTS.items():
-        source = repo_root / "apps" / "desktop" / "webview" / "static" / "partials" / f"page-{surface}.html"
+        source = static_root / "partials" / f"page-{surface}.html"
         parser = _StaticInteractiveParser(surface)
-        parser.feed(source.read_text(encoding="utf-8"))
+        parser.feed(settings_markup(static_root) if surface == "settings" else source.read_text(encoding="utf-8"))
         parser.close()
         if len(parser.controls) != expected_count:
             raise AssertionError(

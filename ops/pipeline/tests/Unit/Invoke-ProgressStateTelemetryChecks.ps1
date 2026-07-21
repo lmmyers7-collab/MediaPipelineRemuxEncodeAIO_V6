@@ -2,6 +2,7 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')
 . (Join-Path $repoRoot 'ops\pipeline\engine\status\progress_state.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\library\library_index.ps1')
 
 function Assert-Equal {
     param(
@@ -315,8 +316,15 @@ try {
         -SaveNow
     Assert-True ($script:WorkerHeartbeatCalls.Count -gt $heartbeatCountBeforeProgressSave) 'A successful exact Save-Progress write must refresh the local-worker heartbeat.'
 
+    $script:currentFileDisplay = 'Episode 04.mkv'
+    $script:currentStage = 'encode'
+    Assert-True ([bool](Save-Progress 'Processing')) 'Save-Progress must replace an existing progress payload.'
     $payload = Get-Content -LiteralPath $ProgressFile -Raw | ConvertFrom-Json -ErrorAction Stop
 
+    Assert-Equal ([string]$payload.CurrentFileDisplay) 'Episode 04.mkv' 'Atomic progress replacement must persist the current display file.'
+    Assert-Equal ([string]$payload.CurrentStage) 'encode' 'Atomic progress replacement must persist the current stage.'
+    Assert-True (-not [bool]$payload.ControlRequests.Pause.Requested) 'Progress JSON must persist the absence of an unrequested pause.'
+    Assert-Equal @(Get-ChildItem -LiteralPath $root -Filter '*.bak' -ErrorAction SilentlyContinue).Count 0 'Successful atomic progress replacement must remove its backup artifact.'
     Assert-Equal $payload.AudioProgress.schema_version 'pipeline_audio_progress.v1' 'Audio progress schema version mismatch.'
     Assert-Equal $payload.AudioProgress.action 'transcode' 'Audio progress action mismatch.'
     Assert-Equal ([int]$payload.AudioProgress.step_index) 2 'Audio progress step index mismatch.'
@@ -459,6 +467,50 @@ try {
             Remove-Job $lockJob -Force -ErrorAction SilentlyContinue
         }
     }
+
+    $script:StopRequested = $false
+    $script:LastStopRequestId = $null
+    $script:LastStopRequestCreatedAt = $null
+    $script:LastStopRequestObservedAt = $null
+    $script:LastRescanRequestId = $null
+    $script:LastRescanRequestCreatedAt = $null
+    $script:LastRescanRequestObservedAt = $null
+    @{
+        schema_version = 'pipeline_control_flag.v1'
+        action = 'stop'
+        label = 'Stop'
+        request_id = 'stop-observation-test'
+        created_at = '2026-05-01T08:00:00-04:00'
+    } | ConvertTo-Json -Compress | Set-Content -LiteralPath $StopFlag -Encoding UTF8
+
+    Check-ControlFlags
+
+    Assert-True ([bool]$script:StopRequested) 'A structured stop marker must set StopRequested.'
+    $stopPayload = Get-Content -LiteralPath $ProgressFile -Raw | ConvertFrom-Json -ErrorAction Stop
+    Assert-True ([bool]$stopPayload.StopRequested) 'A structured stop request must be persisted in progress JSON.'
+    Assert-Equal ([string]$stopPayload.ControlRequests.Stop.LastObservedRequestId) 'stop-observation-test' 'Progress JSON must preserve the exact observed stop request id.'
+    Remove-Item -LiteralPath $StopFlag -Force
+
+    $script:StopRequested = $false
+    @{
+        schema_version = 'pipeline_control_flag.v1'
+        action = 'rescan'
+        label = 'Rescan'
+        request_id = 'rescan-observation-test'
+        created_at = '2026-05-01T08:01:00-04:00'
+    } | ConvertTo-Json -Compress | Set-Content -LiteralPath $RescanFlag -Encoding UTF8
+
+    Assert-True ([bool](Consume-RescanFlag)) 'A structured rescan marker must be consumed.'
+    Assert-True (-not (Test-Path -LiteralPath $RescanFlag)) 'A consumed rescan marker must be removed.'
+    Assert-True ([bool](Save-Progress 'After structured rescan')) 'Progress must persist after a structured rescan observation.'
+    $rescanPayload = Get-Content -LiteralPath $ProgressFile -Raw | ConvertFrom-Json -ErrorAction Stop
+    Assert-Equal ([string]$rescanPayload.ControlRequests.Rescan.LastObservedRequestId) 'rescan-observation-test' 'Progress JSON must preserve the exact observed rescan request id.'
+
+    Set-Content -LiteralPath $PauseFlag -Value '' -Encoding UTF8
+    $legacyPauseInfo = Get-ControlFlagInfo -Path $PauseFlag
+    Assert-True ([bool]$legacyPauseInfo.Exists) 'A legacy empty pause marker must remain an existing control request.'
+    Assert-True (-not [bool]$legacyPauseInfo.RawValid) 'A legacy empty pause marker must not be misreported as valid structured JSON.'
+    Remove-Item -LiteralPath $PauseFlag -Force
 
     $script:StopRequested = $false
     $script:RunMonitorRunStateCalls.Clear()

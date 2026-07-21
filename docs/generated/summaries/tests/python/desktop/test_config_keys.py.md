@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: config
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-05
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: 3a4a42271ee475eeb7359536f68d28141f3eedd9c499d2e67e26113d3715287a
+sha256: 275030159533c14ed1d64f586487dea71908a2fb646f6d3c7b4ba1f0e39a44de
 ---
 # `tests/python/desktop/test_config_keys.py`
 

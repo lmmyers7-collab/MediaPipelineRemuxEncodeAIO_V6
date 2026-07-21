@@ -28,6 +28,7 @@ from mediapipeline.core.queue.priority_markers import (
     starts_with_priority_marker,
     touch_priority_target as touch_priority_target_path,
 )
+from mediapipeline.core.queue.priority_export import PriorityQueueExportStore
 from mediapipeline.core.queue.snapshot import (
     queue_dry_run_tail,
     queue_record_from_snapshot_row,
@@ -123,6 +124,61 @@ class QueueServiceMixin:
     def _run_queue_dry_run(self, resolved: ResolvedPaths, *, allow_cached_fallback: bool = False) -> dict | None:
         """Spawn the pipeline in -EmitQueuePlan mode and load the resulting JSON."""
         return run_queue_dry_run_for_service(self, resolved, allow_cached_fallback=allow_cached_fallback)
+
+    def export_priority_queue_snapshot(self, resolved: ResolvedPaths) -> dict[str, Any]:
+        if resolved.state_root is None:
+            return {
+                "schema_version": "priority_queue_export.v1",
+                "status": "blocked",
+                "ready": False,
+                "reason_code": "priority_export_state_root_missing",
+                "message": "Priority queue export requires LocalBase/State to be configured.",
+                "count": 0,
+                "queue_scope": "priority_export",
+            }
+        store = PriorityQueueExportStore(resolved.state_root)
+        export_id = store.new_export_id()
+        export_path = store.path_for_export(export_id)
+        snapshot = run_queue_dry_run_for_service(
+            self,
+            resolved,
+            destination_path=export_path,
+            priority_only=True,
+            snapshot_origin="priority_export",
+            request_id=export_id,
+            mirror_to_state_db=False,
+        )
+        if not isinstance(snapshot, dict):
+            return {
+                "schema_version": "priority_queue_export.v1",
+                "status": "blocked",
+                "ready": False,
+                "reason_code": "priority_export_snapshot_missing",
+                "message": "Priority-only queue dry-run did not produce a snapshot.",
+                "count": 0,
+                "queue_scope": "priority_export",
+            }
+        if snapshot.get("priority_only_scope") is not True:
+            try:
+                export_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+            return {
+                "schema_version": "priority_queue_export.v1",
+                "status": "blocked",
+                "ready": False,
+                "reason_code": "priority_export_scope_unverified",
+                "message": "Priority-only queue dry-run did not prove priority-only scope.",
+                "count": 0,
+                "queue_scope": "priority_export",
+            }
+        artifact = store.create_from_snapshot(snapshot, export_id=export_id)
+        if artifact.get("status") != "ready":
+            try:
+                export_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+        return artifact
 
     def _queue_scan_lock(self) -> threading.Lock:
         lock = getattr(self, "_queue_source_scan_lock", None)

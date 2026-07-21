@@ -5,6 +5,16 @@ from typing import Any
 LOCAL_API_FILE_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
     {
         "method": "POST",
+        "path": "/api/queue/priority-export",
+        "auth_required": True,
+        "effect": "queue-state-write",
+        "request_keys": [],
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "priority_queue_export.v1",
+        "purpose": "Build and persist a backend-owned export containing only currently runnable effective-High queue entries. This does not launch processing or submit frontend row scope.",
+    },
+    {
+        "method": "POST",
         "path": "/api/queue/priority",
         "auth_required": True,
         "effect": "queue-state-write",

@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-16
+last_modified: 2026-07-20
 last_reviewed: 2026-07-13
-sha256: 313daf04be1b1208b7619b8e7989062d313cd906db55634e1c807dcd9126540f
+sha256: 1b1549d3b80a7b36e2bd9229d310abd35a8726ce04de8b3f284e84c05b7f8e63
 ---
 # `docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md`
 

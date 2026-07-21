@@ -299,7 +299,7 @@
     }
 
     function pipelineStartConfirmMessage(request, label) {
-      const scope = request?.single_file ? "Single File" : "Queue";
+      const scope = request?.single_file ? "Single File" : request?.queue_scope === "priority_export" ? "Priority Export" : "Queue";
       const parts = [
         `Submitting ${label} for ${scope}. Backend will re-check queue, settings, schedule, and locks before starting.`,
       ];
@@ -317,7 +317,10 @@
       if (!target) return;
       const queueRows = typeof window.getLastQueueRows === "function" ? window.getLastQueueRows() : [];
       const queueCount = Array.isArray(queueRows) ? queueRows.length : 0;
-      const scope = request?.single_file
+      const priorityExportCount = Number(byId("pipeline-priority-export-id")?.dataset?.exportCount || 0);
+      const scope = request?.queue_scope === "priority_export"
+        ? `${priorityExportCount} backend-exported priority item${priorityExportCount === 1 ? "" : "s"}`
+        : request?.single_file
         ? "one selected file"
         : queueCount
           ? `${queueCount} loaded backend queue item${queueCount === 1 ? "" : "s"}`

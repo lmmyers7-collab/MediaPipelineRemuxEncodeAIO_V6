@@ -53,6 +53,7 @@ SOURCE_PATHS = (
     "docs/change_control/CHANGELOG.md",
     "docs/change_control/CHANGE_INDEX.md",
     "ops/release/changes/unreleased",
+    "ops/release/changes/archived",
     "ops/release/changes/released",
 )
 
@@ -81,15 +82,25 @@ def _string_list(value: Any) -> list[str]:
 def _packet_paths(root: Path) -> list[Path]:
     paths: list[Path] = []
     unreleased = root / CHANGE_PACKET_ROOT / "unreleased"
+    archived = root / CHANGE_PACKET_ROOT / "archived"
     released = root / CHANGE_PACKET_ROOT / "released"
     if unreleased.exists():
         paths.extend(unreleased.glob("*.json"))
+    if archived.exists():
+        paths.extend(archived.glob("**/*.json"))
     if released.exists():
         paths.extend(released.glob("**/*.json"))
     return sorted(path for path in paths if path.is_file())
 
 
 def _release_location(root: Path, path: Path) -> tuple[str, str]:
+    try:
+        relative = path.relative_to(root / CHANGE_PACKET_ROOT / "archived")
+    except ValueError:
+        pass
+    else:
+        bucket = relative.parts[0] if len(relative.parts) > 1 else ""
+        return "archived", bucket
     try:
         relative = path.relative_to(root / CHANGE_PACKET_ROOT / "released")
     except ValueError:
@@ -269,6 +280,7 @@ def _counts(rows: list[dict[str, Any]]) -> dict[str, int]:
     return {
         "total": len(rows),
         "unreleased": locations["unreleased"],
+        "archived": locations["archived"],
         "released": locations["released"],
         "planned": statuses["planned"],
         "in_progress": statuses["in_progress"],
@@ -374,7 +386,7 @@ def change_ledger_payload(root: Path, *, row_limit: int | str | None = DEFAULT_C
     hygiene = _hygiene(rows, issues, source_paths, coverage)
     summary_lines = [
         f"Change ledger: {counts['total']} packet(s)",
-        f"Unreleased: {counts['unreleased']}; released: {counts['released']}",
+        f"Active unreleased: {counts['unreleased']}; archived completed: {counts['archived']}; released: {counts['released']}",
         f"Open: {counts['planned'] + counts['in_progress']}; complete: {counts['complete']}",
         f"High/critical risk: {counts['high_or_critical_risk']}",
         f"Displayed rows: {len(visible_rows)} of {len(rows)}{f' (latest {bounded_limit})' if bounded_limit is not None and truncated_row_count else ''}",

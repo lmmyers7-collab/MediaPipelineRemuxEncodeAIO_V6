@@ -1225,6 +1225,26 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('schema_version: "webview_startup_performance.v1"', app_js)
         self.assertNotIn('["contract", "/api/contract", false]', app_js)
 
+    def test_page_navigation_refresh_is_queued_and_metrics_unavailable_requires_a_request(self) -> None:
+        repo_root = find_repo_root(Path(__file__))
+        assets_root = repo_root / "apps" / "desktop" / "webview" / "static" / "assets"
+        coordinator_js = (assets_root / "app/refreshCoordinator.js").read_text(encoding="utf-8")
+        navigation_js = (assets_root / "app/lifecycle/navigation.js").read_text(encoding="utf-8")
+
+        self.assertIn(
+            'refreshAll({ automatic: true, queueRefresh: true, page: normalized })',
+            navigation_js,
+        )
+        self.assertIn(
+            "if (refreshOptions.automatic && !refreshOptions.queueRefresh) return;",
+            coordinator_js,
+        )
+        self.assertIn(
+            'const metricsRequested = requests.some(([name]) => name === "metrics");',
+            coordinator_js,
+        )
+        self.assertIn("} else if (metricsRequested) {", coordinator_js)
+
     def test_home_next_queue_shows_first_five_runnable_rows_only(self) -> None:
         node = shutil.which("node")
         if not node:

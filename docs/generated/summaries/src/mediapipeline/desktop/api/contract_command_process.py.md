@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-07-17
+last_modified: 2026-07-20
 last_reviewed: 2026-07-11
-sha256: 40a2a3b1dc60958a09cbd9a73f5a196a501a6438db8ad4149c2a94023821d9f3
+sha256: 1c98c0ace05be7a4de1acecbe374c637695949ef3533f20f5f883796f6f6799c
 ---
 # `src/mediapipeline/desktop/api/contract_command_process.py`
 

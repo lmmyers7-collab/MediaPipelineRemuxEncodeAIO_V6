@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-07-16
+last_modified: 2026-07-20
 last_reviewed: 2026-07-16
-sha256: 492c5ac28545d7266e9d5f09804795fe6928aab9d425c5d32b6516ebdcf8b91c
+sha256: 692123da1938400c7888d0eca3e09dfca27a67259efcf1b678b6792182d63c92
 ---
 # `src/mediapipeline/core/status/run_monitor_storage.py`
 

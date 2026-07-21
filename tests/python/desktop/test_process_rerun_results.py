@@ -469,7 +469,7 @@ class RerunResultsTests(unittest.TestCase):
 
     def test_network_output_projection_marks_bounded_probe_timeout_stale(self) -> None:
         with mock.patch(
-            "mediapipeline.core.processes.rerun_results_queue_projection.run_source_probe",
+            "mediapipeline.core.processes.rerun_results_network_projection.run_source_probe",
             side_effect=TimeoutError("UNC probe timed out"),
         ) as probe:
             evidence = _network_output_probe(r"\\server\handoff\Movie.mkv")

@@ -1,0 +1,262 @@
+        <!-- TAB: GUIDED SETUP -->
+        <div class="settings-tab-pane" data-settings-tab="guided-setup">
+        <section class="panel settings-wizard-panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Guided Setup</h2>
+            <strong id="settings-wizard-status">Not loaded</strong>
+          </div>
+          <p class="note" id="settings-wizard-status-detail">Guided setup prepares saved settings through backend validation. Use this wizard's Review &amp; Save step as the single save path; it does not start media processing, drain pending publish, rename files, or touch source media.</p>
+          <div class="settings-wizard-readiness-strip" id="settings-wizard-readiness-strip" aria-label="Guided Setup readiness">
+            <span><span class="settings-mini-label">Blockers</span><strong id="settings-wizard-readiness-blockers">0</strong></span>
+            <span><span class="settings-mini-label">Warnings</span><strong id="settings-wizard-readiness-warnings">0</strong></span>
+            <span><span class="settings-mini-label">Changed keys</span><strong id="settings-wizard-readiness-changed">0</strong></span>
+            <span><span class="settings-mini-label">Validation</span><strong id="settings-wizard-readiness-validation">Not run</strong></span>
+            <span><span class="settings-mini-label">Preview</span><strong id="settings-wizard-readiness-preview">Not run</strong></span>
+            <span><span class="settings-mini-label">Draft</span><strong id="settings-wizard-readiness-draft">Clean</strong></span>
+          </div>
+          <div class="settings-wizard-shell">
+            <nav class="settings-wizard-steps" aria-label="Guided Setup phases">
+              <button type="button" data-wizard-step-button="0" aria-current="step"><span>Start</span><strong id="settings-wizard-phase-0-status">Not started</strong></button>
+              <button type="button" data-wizard-step-button="1"><span>Paths</span><strong id="settings-wizard-phase-1-status">Not started</strong></button>
+              <button type="button" data-wizard-step-button="2"><span>Toolchain</span><strong id="settings-wizard-phase-2-status">Not started</strong></button>
+              <button type="button" data-wizard-step-button="3"><span>Policy</span><strong id="settings-wizard-phase-3-status">Not started</strong></button>
+              <button type="button" data-wizard-step-button="4"><span>Review &amp; Save</span><strong id="settings-wizard-phase-4-status">Not started</strong></button>
+            </nav>
+            <div class="settings-wizard-content">
+              <section class="settings-wizard-step is-active" data-wizard-step="0">
+                <h3>Start</h3>
+                <div class="form-grid form-grid-dense">
+                  <label>Mode
+                    <select id="wizard-mode">
+                      <option value="first_run">First-run setup</option>
+                      <option value="reconfigure">Reconfigure existing install</option>
+                    </select>
+                  </label>
+                  <label>Preferred output container
+                    <select id="wizard-output-container">
+                      <option value="mkv">MKV</option>
+                      <option value="mp4">MP4</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
+              <section class="settings-wizard-step" data-wizard-step="1">
+                <h3>Paths</h3>
+                <datalist id="wizard-library-category-list">
+                  <option value="movies"></option>
+                  <option value="tv"></option>
+                  <option value="movies_4k"></option>
+                  <option value="tv_4k"></option>
+                  <option value="manual_review"></option>
+                </datalist>
+                <div id="settings-wizard-library-list" class="settings-wizard-library-list"></div>
+                <div class="form-grid form-grid-dense">
+                  <label>
+                    <span class="path-picker-label-row">
+                      <span class="path-picker-label-text">Final output root *</span>
+                      <button type="button" id="wizard-output-root-picker-badge" class="path-picker-badge" data-path-picker-target="settings.wizard.output_root" data-path-picker-input="wizard-output-root" data-path-picker-mode="folder" data-path-picker-status="settings-wizard-status-detail" title="Open a backend-owned Windows folder picker for the final output root.">Browse</button>
+                    </span>
+                    <input id="wizard-output-root" type="text" autocomplete="off">
+                  </label>
+                  <label>Publish behavior
+                    <select id="wizard-publish-mode">
+                      <option value="staged_pending">Staged / pending publish</option>
+                      <option value="immediate">Immediate publish</option>
+                      <option value="review_required">Review required</option>
+                    </select>
+                  </label>
+                  <label>When output exists
+                    <select id="wizard-existing-policy">
+                      <option value="skip_existing">Skip already processed titles</option>
+                      <option value="review_existing">Require review</option>
+                      <option value="reprocess_all_once">Reprocess all once</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="form-grid form-grid-dense">
+                  <label>
+                    <span class="path-picker-label-row">
+                      <span class="path-picker-label-text">Scratch / LocalBase *</span>
+                      <button type="button" id="wizard-scratch-path-picker-badge" class="path-picker-badge" data-path-picker-target="settings.wizard.scratch_path" data-path-picker-input="wizard-scratch-path" data-path-picker-mode="folder" data-path-picker-status="settings-wizard-status-detail" title="Open a backend-owned Windows folder picker for the scratch / LocalBase path.">Browse</button>
+                    </span>
+                    <input id="wizard-scratch-path" type="text" autocomplete="off">
+                  </label>
+                  <label>Scratch free-space reserve (GB)
+                    <input id="wizard-min-free-space-gb" type="number" min="0" step="1">
+                  </label>
+                  <label>Output free-space reserve (GB)
+                    <input id="wizard-outsource-min-free-space-gb" type="number" min="0" step="1">
+                  </label>
+                </div>
+                <div class="action-row action-row-left">
+                  <button type="button" class="secondary-button" id="settings-wizard-add-library-button">Add Library</button>
+                  <button type="button" class="secondary-button" id="settings-wizard-validate-paths-button">Validate Paths</button>
+                </div>
+                <div class="table-wrap detail-table-wrap settings-wizard-result-table">
+                  <table>
+                    <thead><tr><th scope="col">Path</th><th scope="col">Status</th><th scope="col">Evidence</th><th scope="col">Field</th></tr></thead>
+                    <tbody id="settings-wizard-path-rows"><tr><td colspan="4">Path validation has not run.</td></tr></tbody>
+                  </table>
+                </div>
+              </section>
+              <section class="settings-wizard-step" data-wizard-step="2">
+                <h3>Toolchain</h3>
+                <p class="note">Check this computer first. Detect Tools and Probe Encoders show what is available; advanced video choices remain optional until then.</p>
+                <div class="form-grid form-grid-dense">
+                  <label>
+                    <span class="path-picker-label-row">
+                      <span class="path-picker-label-text">FFmpeg path</span>
+                      <button type="button" id="wizard-ffmpeg-path-picker-badge" class="path-picker-badge" data-path-picker-target="settings.wizard.ffmpeg_path" data-path-picker-input="wizard-ffmpeg-path" data-path-picker-mode="files" data-path-picker-status="settings-wizard-status-detail" title="Open a backend-owned Windows file picker for ffmpeg.exe.">Browse</button>
+                    </span>
+                    <input id="wizard-ffmpeg-path" type="text" autocomplete="off" placeholder="C:\ffmpeg\bin\ffmpeg.exe">
+                  </label>
+                  <label>
+                    <span class="path-picker-label-row">
+                      <span class="path-picker-label-text">FFprobe path</span>
+                      <button type="button" id="wizard-ffprobe-path-picker-badge" class="path-picker-badge" data-path-picker-target="settings.wizard.ffprobe_path" data-path-picker-input="wizard-ffprobe-path" data-path-picker-mode="files" data-path-picker-status="settings-wizard-status-detail" title="Open a backend-owned Windows file picker for ffprobe.exe.">Browse</button>
+                    </span>
+                    <input id="wizard-ffprobe-path" type="text" autocomplete="off" placeholder="C:\ffmpeg\bin\ffprobe.exe">
+                  </label>
+                </div>
+                <div class="form-grid form-grid-dense">
+                  <label>Max parallel encodes
+                    <select id="wizard-max-parallel-encodes">
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                    </select>
+                  </label>
+                  <label>Parallel encode mode
+                    <select id="wizard-parallel-encode-mode">
+                      <option value="single">Single worker</option>
+                      <option value="local_worker_slots">Local worker slots</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="action-row action-row-left">
+                  <button type="button" class="secondary-button" id="settings-wizard-detect-tools-button">Detect Tools</button>
+                  <button type="button" class="secondary-button" id="settings-wizard-probe-hardware-button">Probe Encoders</button>
+                  <button type="button" class="secondary-button" id="settings-wizard-validate-workers-button">Validate Workers</button>
+                </div>
+                <div id="settings-wizard-tools-result" class="settings-wizard-result-list">No tool validation has run.</div>
+                <div id="settings-wizard-hardware-result" class="settings-wizard-result-list">No encoder probe has run.</div>
+                <p id="settings-wizard-hardware-recommendation" class="note" aria-live="polite">Probe encoders to receive a compatible default recommendation. No media is processed during this check.</p>
+                <div id="settings-wizard-workers-result" class="settings-wizard-result-list">No worker validation has run.</div>
+                <details class="settings-advanced-disclosure">
+                  <summary>Optional video and encoder choices</summary>
+                  <p class="note">Use the compatible recommendation above first. These overrides prepare settings for backend review and save; they do not start processing or change media.</p>
+                  <div class="form-grid form-grid-dense">
+                    <label>Default video strategy
+                      <select id="wizard-video-strategy">
+                        <option value="remux_when_possible">Remux when possible</option>
+                        <option value="prefer_nvenc_cpu_fallback">Prefer NVENC, CPU fallback allowed</option>
+                        <option value="cpu_fallback">CPU fallback / CPU primary</option>
+                        <option value="manual_review_missing_hardware">Manual review if hardware is missing</option>
+                      </select>
+                    </label>
+                    <label>Preferred codec
+                      <select id="wizard-preferred-codec">
+                        <option value="hevc_nvenc">HEVC NVENC</option>
+                        <option value="h264_nvenc">H.264 NVENC</option>
+                        <option value="av1_nvenc">AV1 NVENC</option>
+                        <option value="libx265">CPU HEVC / libx265</option>
+                        <option value="libx264">CPU H.264 / libx264</option>
+                      </select>
+                    </label>
+                    <label>Video quality
+                      <input id="wizard-video-quality" type="number" min="1" max="51" step="1">
+                    </label>
+                    <label>Encoder speed preset
+                      <select id="wizard-video-preset">
+                        <option value="p4">p4</option>
+                        <option value="p5">p5</option>
+                        <option value="p6">p6</option>
+                        <option value="p7">p7</option>
+                      </select>
+                    </label>
+                  </div>
+                </details>
+              </section>
+              <section class="settings-wizard-step" data-wizard-step="3">
+                <h3>Policy</h3>
+                <div class="form-grid form-grid-dense">
+                  <label>Audio policy
+                    <select id="wizard-audio-policy">
+                      <option value="preserve_compatible_convert_incompatible">Preserve compatible audio; normalize incompatible tracks</option>
+                      <option value="keep_all_audio">Keep all audio tracks when possible</option>
+                      <option value="review_unusual_audio">Review unusual audio</option>
+                    </select>
+                  </label>
+                  <label>Transcode codec
+                    <select id="wizard-audio-codec">
+                      <option value="eac3">EAC3</option>
+                      <option value="aac">AAC</option>
+                      <option value="ac3">AC3</option>
+                    </select>
+                  </label>
+                  <label><input id="wizard-keep-all-audio" type="checkbox"> Keep all audio tracks</label>
+                </div>
+                <div class="form-grid form-grid-dense">
+                  <label>Subtitle policy
+                    <select id="wizard-subtitle-policy">
+                      <option value="keep_english_convert_supported">Keep selected languages, convert supported formats</option>
+                      <option value="review_uncertain_subtitles">Review uncertain subtitle handling</option>
+                    </select>
+                  </label>
+                  <label>Subtitle languages to keep
+                    <input id="wizard-subtitle-languages" type="text" autocomplete="off" placeholder="eng, en, english, und">
+                  </label>
+                  <label><input id="wizard-keep-unknown-subtitles" type="checkbox"> Keep unknown / untagged subtitles</label>
+                  <label><input id="wizard-preserve-forced-subtitles" type="checkbox"> Preserve forced subtitles</label>
+                </div>
+                <div class="settings-wizard-safety-grid">
+                  <label><input id="wizard-safety-integrity" type="checkbox"> Output/source integrity checks</label>
+                  <label><input id="wizard-safety-stability" type="checkbox"> File stability checks</label>
+                  <label><input id="wizard-safety-pending" type="checkbox"> Pending publish safety</label>
+                  <label><input id="wizard-safety-skip-processed" type="checkbox"> Skip already processed titles</label>
+                  <label>Transient retry limit <input id="wizard-retry-limit" type="number" min="1" max="100" step="1"></label>
+                </div>
+                <details class="settings-wizard-risk-options">
+                  <summary>Advanced risk options</summary>
+                  <div class="settings-wizard-safety-grid">
+                  <label class="danger-zone"><input id="wizard-danger-allow-system-tools" type="checkbox"> Allow PATH tool fallback</label>
+                  <label class="danger-zone"><input id="wizard-danger-allow-no-audio" type="checkbox"> Allow no-audio outputs</label>
+                  <label class="danger-zone"><input id="wizard-danger-cleanup-remote" type="checkbox"> Clean remote staging</label>
+                  <label class="danger-zone"><input id="wizard-danger-reprocess-all" type="checkbox"> Reprocess all once</label>
+                  </div>
+                </details>
+              </section>
+              <section class="settings-wizard-step" data-wizard-step="4">
+                <h3>Review &amp; Save</h3>
+                <div class="action-row action-row-left">
+                  <button type="button" class="secondary-button" id="settings-wizard-preview-button">Preview Config</button>
+                  <button type="button" class="secondary-button" id="settings-wizard-copy-diagnostics-button">Copy Diagnostic Summary</button>
+                </div>
+                <pre id="settings-wizard-review-summary" class="prose-block">Preview has not run.</pre>
+                <pre id="settings-wizard-validation-summary" class="prose-block">Run Preview Generated Config to populate validation.</pre>
+                <div class="table-wrap detail-table-wrap">
+                  <table>
+                    <thead><tr><th scope="col">Category</th><th scope="col">Status</th><th scope="col">Detail</th></tr></thead>
+                    <tbody id="settings-wizard-summary-rows"><tr><td colspan="3">No summary loaded.</td></tr></tbody>
+                  </table>
+                </div>
+                <p class="note">Save validates the generated settings changes, backs up the existing PSD1 when a write is needed, writes atomically, and reloads settings through the backend.</p>
+                <div class="settings-wizard-safety-grid" id="settings-wizard-acknowledgement-list">
+                  <label data-risk-ack-row="AllowSystemTools" hidden><input id="wizard-ack-AllowSystemTools" type="checkbox"> I understand AllowSystemTools can run PATH tools outside the portable bundle.</label>
+                  <label data-risk-ack-row="AllowNoAudio" hidden><input id="wizard-ack-AllowNoAudio" type="checkbox"> I understand no-audio outputs are unusual and should be deliberate.</label>
+                  <label data-risk-ack-row="CleanupRemoteStaging" hidden><input id="wizard-ack-CleanupRemoteStaging" type="checkbox"> I understand remote staging cleanup can affect remote staging artifacts.</label>
+                  <label data-risk-ack-row="ReprocessAll" hidden><input id="wizard-ack-ReprocessAll" type="checkbox"> I understand ReprocessAll can reconsider already completed titles.</label>
+                </div>
+                <div class="action-row action-row-left">
+                  <button type="button" class="primary-button" id="settings-wizard-save-button" disabled>Save &amp; Reload</button>
+                </div>
+                <pre id="settings-wizard-save-result" class="prose-block">Nothing saved yet.</pre>
+              </section>
+            </div>
+          </div>
+          <div class="settings-wizard-footer action-row">
+            <button type="button" class="secondary-button" id="settings-wizard-back-button">Back</button>
+            <button type="button" class="primary-button" id="settings-wizard-next-button">Next</button>
+          </div>
+        </section>
+        </div>
+

@@ -10,83 +10,78 @@ Validation: targeted unit tests
 
 ### WebView / Tauri
 
-- `apps/desktop/webview/static/assets/app/lifecycle.js` — operator display/intent surface; JavaScript implementation for lifecycle; exposes activeKeyboardPage, activeKeyboardPanel, activePageSelectableRows.
-- `apps/desktop/webview/static/assets/app/lifecycle/navigation.js` — operator display/intent surface; JavaScript implementation for navigation; exposes activateCompletedTab, activateCrossPageTarget, activateDiagnosticsTab.
-- `apps/desktop/webview/static/assets/contractView.js` — operator display/intent surface; JavaScript implementation for contract view; exposes contractEffect, contractMethodFilter, contractNetworkLifecycleContracts.
-- `apps/desktop/webview/static/assets/launch/commandOrchestration.js` — operator display/intent surface; JavaScript implementation for command orchestration; exposes browsePipelineSingleFile, clearPipelineSingleFile, createLaunchCommandOrchestrationModule.
-- `apps/desktop/webview/static/assets/network/lifecycle.model.js` — operator display/intent surface; JavaScript implementation for lifecycle model; exposes createNetworkLifecycleModelModule, getSelectedNetworkLifecycleRow, networkLifecycleDetailLines.
+- `apps/desktop/webview/static/assets/app/refreshCoordinator.js` — operator display/intent surface; JavaScript implementation for refresh coordinator; exposes activeRefreshPage, mergeRefreshOptions, normalizeRefreshOptions.
+- `apps/desktop/webview/static/assets/diagnostics/firstResponse.js` — operator display/intent surface; JavaScript implementation for first response; exposes createDiagnosticsFirstResponseModule, diagnosticsFirstResponseDetailLines, diagnosticsFirstResponsePostureStatus.
+- `apps/desktop/webview/static/assets/diagnostics/matrixConsole.js` — operator display/intent surface; JavaScript implementation for matrix console; exposes appendTdarrMatrixAuditFindingCell, createDiagnosticsMatrixConsoleModule, getTdarrMatrixConsoleState.
+- `apps/desktop/webview/static/assets/diagnostics/triage.js` — operator display/intent surface; JavaScript implementation for triage; exposes createDiagnosticsTriageModule, diagnosticsArtifactMatches, diagnosticsFirstResponseAdd.
+- `apps/desktop/webview/static/assets/diagnosticsBridge.js` — operator display/intent surface; JavaScript implementation for diagnostics bridge; exposes appendDiagnosticsBridgeButton, appendDiagnosticsBridgeGroupedButtons, diagnosticsBridgeActionGroups.
 
 ### API route
 
-- `src/mediapipeline/desktop/api/contract_command_file.py` — api authority; Python implementation for contract command file.
 - `src/mediapipeline/desktop/api/contract_command_operations.py` — api authority; Python implementation for contract command operations.
-- `src/mediapipeline/desktop/api/contract_command_process.py` — api authority; Python implementation for contract command process.
-- `src/mediapipeline/desktop/api/contract_payload.py` — api authority; Python implementation for contract payload; exposes local_api_contract_payload.
-- `src/mediapipeline/desktop/api/contract_read.py` — api authority; Python implementation for contract read.
+- `src/mediapipeline/desktop/api/handler_policy.py` — api authority; Python implementation for handler policy; exposes bounded_error_text, cors_response_headers, not_found_payload.
+- `src/mediapipeline/desktop/api/routes_read.py` — api authority; Python implementation for routes read.
 
 ### Python facade / domain service
 
 - `src/mediapipeline/core/diagnostics/autonomy_health_publish.py` — diagnostics authority; Python implementation for autonomy health publish.
-- `src/mediapipeline/core/processes/active_job_runner.py` — process authority; Python implementation for active job runner; exposes active_job_pid_is_alive_for_service, active_job_record_path_for_proc_for_service, active_jobs_dir_for_service.
-- `src/mediapipeline/core/processes/active_jobs.py` — process authority; Python implementation for active jobs; exposes active_job_pid_is_alive, active_job_pid_matches_record, active_job_record_path_for_proc.
-- `src/mediapipeline/core/processes/audit_facade.py` — process authority; Audit launch facade adapter.
-- `src/mediapipeline/core/processes/audit_policy.py` — process authority; Audit launch policy helpers for process routes.
+- `src/mediapipeline/core/api/commands.py` — api authority; Canonical Local API command route registry.
+- `src/mediapipeline/core/audit/contracts.py` — audit authority; Python implementation for contracts; exposes AuditRecord.
+- `src/mediapipeline/core/audit/facade.py` — audit authority; Audit report preview facade adapter.
+- `src/mediapipeline/core/audit/preview_policy.py` — audit authority; Audit preview policy and result helpers.
 
 ### Contract / state / config
 
-- `src/mediapipeline/contracts/api_routes_command_process.py` — contracts authority; Python implementation for api routes command process.
 - `src/mediapipeline/contracts/api_commands.py` — contracts authority; Pydantic contracts for Local API command request payloads. The Local API wire shape remains owned by the existing routes. These models describe the known per-route fields while allowing existing additive fields so the command-handler migration can proceed without breaking WebView callers.
-- `src/mediapipeline/contracts/api_routes_command_file.py` — contracts authority; Python implementation for api routes command file.
 - `src/mediapipeline/contracts/api_routes_command_operations.py` — contracts authority; Python implementation for api routes command operations.
-- `src/mediapipeline/contracts/api_routes_read.py` — contracts authority; Python implementation for api routes read.
 
 ### PowerShell execution
 
-- `ops/pipeline/engine/process/tool_log_lifecycle.ps1` — process authority; PowerShell implementation for tool log lifecycle; exposes Complete-MediaPipelineToolLogCapture, ConvertTo-MediaPipelineToolLogToken, Invoke-MediaPipelineToolLogMaintenance.
-- `ops/pipeline/engine/publish/pending_manifest_store.ps1` — publish authority; PowerShell implementation for pending manifest store; exposes ConvertTo-PendingManifestMap, Get-PendingManifestConfiguredOutputRoot, Get-PendingManifestConfiguredSourceRoots.
-- `ops/pipeline/engine/publish/pending_repair.ps1` — publish authority; PowerShell implementation for pending repair; exposes Get-PendingDrainPipelineSidecarBackupPath, Invoke-PendingPublishRecovery, Repair-PendingManifestState.
-- `ops/pipeline/engine/queue/worker_claim_store.ps1` — queue authority; PowerShell implementation for worker claim store; exposes ConvertTo-MediaPipelineLocalWorkerPathKey, Get-MediaPipelineLocalWorkerClaimActiveStatuses, Get-MediaPipelineLocalWorkerClaimStore.
 - `ops/pipeline/engine/audit/policy.ps1` — audit authority; PowerShell implementation for policy; exposes Convert-ToLowerInvariantSafe, ConvertTo-AuditIgnoreKey, ConvertTo-AuditIssueCodeWeightMap.
+- `ops/pipeline/entrypoints/Audit-MediaLibrary.ps1` — audit authority; PowerShell implementation for audit media library.
+- `ops/pipeline/entrypoints/Audit-MediaLibrary/path_utilities.ps1` — audit authority; PowerShell implementation for path utilities; exposes Compare-PipelineVersion, Get-AuditConfigString, Get-AuditDefaultLibraryRootFromConfig.
+- `ops/pipeline/entrypoints/Audit-MediaLibrary/scanner.ps1` — audit authority; PowerShell implementation for scanner; exposes Get-AuditMediaFilesBounded.
+- `ops/pipeline/engine/audit/command_support.ps1` — audit authority; PowerShell implementation for command support; exposes Get-CompletedAuditTaskText, Invoke-AuditNativeCommand, Resolve-ExecutablePath.
 
 ### Tests
 
-- `ops/pipeline/tests/Invoke-AdversarialForceKillEncodeChecks.ps1` — verification evidence; PowerShell implementation for invoke adversarial force kill encode checks; exposes Add-ProcessTreeId, Assert-NoAcceptedOutput, Assert-True.
-- `ops/pipeline/tests/Unit/Invoke-AuditCommandSupportChecks.ps1` — verification evidence; PowerShell implementation for invoke audit command support checks; exposes Assert-True.
-- `ops/pipeline/tests/Unit/Invoke-AuditScorePolicyChecks.ps1` — verification evidence; PowerShell implementation for invoke audit score policy checks; exposes Assert-Equal, Assert-SequenceEqual, Assert-True.
-- `ops/pipeline/tests/Unit/Invoke-LocalWorkerClaimLifecycleChecks.ps1` — verification evidence; PowerShell implementation for invoke local worker claim lifecycle checks; exposes Assert-Equal, Assert-True, Check-ControlFlags.
-- `ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1` — verification evidence; PowerShell implementation for invoke path boundary guard checks; exposes Assert-Equal, Assert-True, Copy-FileRobocopy.
+- `tests/python/desktop/application_facade_test_support.py` — verification evidence; Python implementation for application facade test support; exposes assert_namespace_export, DummyFacadeService, DummyProc.
+- `tests/python/desktop/test_api_command_contracts.py` — verification evidence; Python implementation for test api command contracts; exposes ApiCommandContractsTests.
+- `tests/python/desktop/test_api_contract_payload.py` — verification evidence; Python implementation for test api contract payload; exposes LocalApiContractPayloadTests.
+- `tests/python/desktop/test_application_facade_local_api_http.py` — verification evidence; Python implementation for test application facade local api http; exposes LocalApiHttpTests.
+- `tests/python/desktop/test_application_facade_web_static_diagnostics_reports.py` — verification evidence; Python implementation for test application facade web static diagnostics reports; exposes ApplicationFacadeWebStaticDiagnosticsReportsTests.
 
 ### Boundaries / validation
 
 - `docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md` — canonical boundary; Markdown implementation for local api evidence mutation matrix.
-- `docs/architecture/MODULE_MAP.md` — canonical boundary; Markdown implementation for module map.
-- `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md` — canonical boundary; Markdown implementation for repair reconcile mutation contract.
 - `docs/inventories/API_ROUTE_INVENTORY.md` — canonical boundary; Markdown implementation for api route inventory.
 - `docs/inventories/COMMAND_OWNERSHIP_MATRIX.md` — canonical boundary; Markdown implementation for command ownership matrix.
+- `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md` — canonical boundary; Markdown implementation for local api route ownership map.
+- `docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md` — canonical boundary; Markdown implementation for runtime artifact inventory.
 
 ## Why these files
 
-- `ops/pipeline/engine/process/tool_log_lifecycle.ps1`: process authority.
-- `ops/pipeline/engine/publish/pending_manifest_store.ps1`: publish authority.
-- `ops/pipeline/engine/publish/pending_repair.ps1`: publish authority.
-- `ops/pipeline/engine/queue/worker_claim_store.ps1`: queue authority.
-- `src/mediapipeline/contracts/api_routes_command_process.py`: contracts authority.
 - `src/mediapipeline/core/diagnostics/autonomy_health_publish.py`: diagnostics authority.
-- `src/mediapipeline/core/processes/active_job_runner.py`: process authority.
-- `src/mediapipeline/core/processes/active_jobs.py`: process authority.
+- `ops/pipeline/engine/audit/policy.ps1`: audit authority.
+- `ops/pipeline/entrypoints/Audit-MediaLibrary.ps1`: audit authority.
+- `ops/pipeline/entrypoints/Audit-MediaLibrary/path_utilities.ps1`: audit authority.
+- `ops/pipeline/entrypoints/Audit-MediaLibrary/scanner.ps1`: audit authority.
+- `src/mediapipeline/contracts/api_commands.py`: contracts authority.
+- `src/mediapipeline/contracts/api_routes_command_operations.py`: contracts authority.
+- `src/mediapipeline/core/api/commands.py`: api authority.
 
 ## Tests and validation
 
-- `ops/pipeline/tests/Invoke-AdversarialForceKillEncodeChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-AuditCommandSupportChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-AuditScorePolicyChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-LocalWorkerClaimLifecycleChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1`
-- `tests/python/core/subtitles/test_ass_to_srt_helpers.py`
 - `tests/python/desktop/application_facade_test_support.py`
 - `tests/python/desktop/test_api_command_contracts.py`
+- `tests/python/desktop/test_api_contract_payload.py`
+- `tests/python/desktop/test_application_facade_local_api_http.py`
+- `tests/python/desktop/test_application_facade_web_static_diagnostics_reports.py`
+- `tests/python/desktop/test_service_tdarr_matrix_audit.py`
+- `tests/python/desktop/test_tauri_shell_scaffold.py`
+- `tests/webview/test_webview_browser_completed_pending_proof_smoke.py`
 - Smallest validation rung: targeted unit tests.
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=77, documentation=14, generated=1, change_evidence=19, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=10, documentation=7, generated=1, change_evidence=0, archive=0, runtime_artifact=0.

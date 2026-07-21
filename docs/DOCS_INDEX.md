@@ -1,6 +1,6 @@
 # MediaPipelineRemuxEncodeAIO Documentation Index
 
-Last updated: 2026-07-12
+Last updated: 2026-07-20
 
 This is the active documentation map for the current promoted tree. It reflects the quarantine move plus the operator's later manual deletion of several active doc folders. The legacy desktop shell is not part of this current folder, and WebView/Tauri is the promoted operator surface.
 
@@ -8,8 +8,13 @@ This is the active documentation map for the current promoted tree. It reflects 
 
 - `..\README.md`: root operator entry point.
 - `..\AGENTS.md`: root entry point for AI/code agents.
-- `CURRENT_PROJECT_STATE.md`: current architecture, launch paths, operating state, safety assumptions, and obsolete instructions.
-- `..\docs/OPEN_WORK_CHECKLIST.md`: active work queue and closed promotion-gate record.
+- `CURRENT_PROJECT_STATE.md`: concise current architecture, active capabilities,
+  limitations, and release posture.
+- `OPEN_WORK_CHECKLIST.md`: unresolved work and recurring validation gates only.
+- `REMEDIATION_CHANGELOG.md`: compact authoritative index into the mechanically
+  preserved 2026-05 remediation ledger segments under
+  `archive/remediation-changelog/`; it is historical evidence, not the shipped
+  changelog or active backlog.
 - `README_MediaPipelineRemuxEncodeAIO.md`: bundle overview, launchers, setup, release packaging, and important paths.
 - `DOCS_INDEX.md`: this file.
 
@@ -22,6 +27,8 @@ This is the active documentation map for the current promoted tree. It reflects 
 - `archive/docs-housekeeping/2026-07-04-doc-cleanup/`: completed plans,
   stale session notes, and obsolete architecture proposals moved out of active
   guidance.
+- `archive/remediation-changelog/`: verbatim historical remediation sections,
+  segmented in original ledger order with a preservation manifest.
 
 ## Active Root Docs
 
@@ -29,13 +36,19 @@ This is the active documentation map for the current promoted tree. It reflects 
 - `..\AGENTS.md`: root AI/code-agent entry point.
 - `architecture/ARCHITECTURE.md`: concise architecture map.
 - `..\CHANGELOG.md`: canonical shipped-status log.
-- `..\docs/OPEN_WORK_CHECKLIST.md`: active work queue and promotion-gate record.
+- `CURRENT_PROJECT_STATE.md`: volatile present-state summary.
+- `OPEN_WORK_CHECKLIST.md`: active unresolved backlog and recurring gates.
+- `ARCHIVED_MD_INDEX.md`: archive map and completed-status evidence routing.
+- `REMEDIATION_CHANGELOG.md`: compact remediation-history navigation index.
 - `generated/PROJECT_INDEX.md`: generated per-source navigation index.
 - `generated/PIPELINE_MAP.md`: generated stage contract map.
 - `generated/DEPENDENCY_GRAPH.md`: generated cross-domain dependency graph.
 - `generated/FILE_SUMMARIES.md`: summary-system guide.
 
 ## Implementation Plans
+
+These are scoped planning references, not automatically approved or active
+backlog. `OPEN_WORK_CHECKLIST.md` is authoritative for current work.
 
 - `implementation/library-route-map/`: planning pack for backend-authored
   Library Route Map views and validation handoffs.
@@ -67,7 +80,7 @@ Completed implementation packs moved out of active guidance are indexed under
   active guidance surface.
 
 No active standalone fix-checklist redirect remains; use
-`CURRENT_PROJECT_STATE.md` and `..\docs/OPEN_WORK_CHECKLIST.md`.
+`CURRENT_PROJECT_STATE.md` and `OPEN_WORK_CHECKLIST.md`.
 
 `docs/active-plans/` currently contains no Markdown files.
 
@@ -198,5 +211,7 @@ These folders currently exist but contain no Markdown/text documentation files:
 - `archive/docs-housekeeping/2026-07-04-doc-cleanup/`: completed release,
   test-split, architecture-boundary, documentation-cleanup, network hardening,
   queue scan, and stale session-log material moved out of active guidance.
+- `ARCHIVED_MD_INDEX.md` also maps the 2026-07-20 active-status consolidation
+  to existing changelog, decision, review, validation, and archive evidence.
 
 Do not use quarantined docs as active guidance unless a current doc explicitly points to one for historical evidence. Use `ARCHIVED_MD_INDEX.md` for the archive inventory.

@@ -97,6 +97,7 @@ Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-MediaRouteSelectionC
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-NamingSupportChecks.ps1' -Label 'naming support checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-LocalWorkerClaimLifecycleChecks.ps1' -Label 'local worker claim lifecycle checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-PipelineQueueEngineChecks.ps1' -Label 'pipeline queue engine checks'
+Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-RunMonitorContractPersistenceChecks.ps1' -Label 'Run Once monitor contract and persistence checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-RunMonitorStateChecks.ps1' -Label 'Run Once monitor correlation and state checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-EncodeRuntimeRouteEvidenceChecks.ps1' -Label 'runtime encode route evidence checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-PipelineProcessingPreflightChecks.ps1' -Label 'pipeline processing preflight checks'

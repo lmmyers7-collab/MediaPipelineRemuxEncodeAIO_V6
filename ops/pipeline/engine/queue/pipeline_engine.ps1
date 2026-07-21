@@ -236,6 +236,10 @@ function Invoke-MediaPipelineRound {
         -TVRoot $EnginePlan.SourceTV `
         -ForceRefresh:$rescanRequested `
         -PollHandler $discoveryPollHandler
+    if ([bool]$EnginePlan.PriorityOnly) {
+        $queuePlan = Select-MediaPipelinePriorityOnlyQueuePlan -QueuePlan $queuePlan
+        Write-Log "PRIORITY-ONLY SCOPE: accepted $($queuePlan.MovieCount + $queuePlan.TVCount) effective-High runnable row(s)." 'INFO'
+    }
     $scanDurationSeconds = [math]::Round(((Get-Date) - $scanStartedAt).TotalSeconds, 3)
     $script:LastQueueScanDurationSeconds = $scanDurationSeconds
     $script:LastQueueCandidateCount = [int]($queuePlan.MovieCount + $queuePlan.TVCount + $queuePlan.HoldCount)
@@ -665,6 +669,10 @@ function Invoke-MediaPipelineEmitQueuePlan {
     Refresh-PendingPublishIndex | Out-Null
     $index     = Get-ProcessedIndexCached -ForceRefresh:$true -PollHandler $discoveryPollHandler
     $queuePlan = Get-MediaQueueDiscoveryPlan -MovieRoot $EnginePlan.SourceMovies -TVRoot $EnginePlan.SourceTV -ForceRefresh:$true -PollHandler $discoveryPollHandler
+    if ([bool]$EnginePlan.PriorityOnly) {
+        $queuePlan = Select-MediaPipelinePriorityOnlyQueuePlan -QueuePlan $queuePlan
+        Write-Log "PRIORITY-ONLY EXPORT: accepted $($queuePlan.MovieCount + $queuePlan.TVCount) effective-High runnable row(s)." 'INFO'
+    }
     $snapshot  = Invoke-MediaPipelineQueueSnapshot -QueuePlan $queuePlan -ProcessedIndex $index -Path $EnginePlan.QueueSnapshotPath
     Write-Log "QUEUE PLAN SNAPSHOT: $($snapshot.runnable_count) runnable row(s) -> $($EnginePlan.QueueSnapshotPath)"
     Set-ProgressStage -Stage 'idle' -Status 'Idle' -Percent $null -SaveNow

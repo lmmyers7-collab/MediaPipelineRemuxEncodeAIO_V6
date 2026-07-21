@@ -6,6 +6,9 @@ artifacts. Phase 3 finalization moves only complete unreleased packets and
 should always be previewed with `--dry-run` first.
 
 1. Create or complete change packets in `ops/release/changes/unreleased/`.
+   Completed packets may be archived under
+   `ops/release/changes/archived/YYYY-MM/`; they remain part of the unreleased
+   release input and are moved to `released/<version>/` during finalization.
 2. Keep packet coverage current with
    `.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.record_change_touch MP-CHANGE-YYYY-MMDD-### --from-staged`.
 3. Run `.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.validate_changes`.
@@ -15,6 +18,11 @@ should always be previewed with `--dry-run` first.
 7. Run `.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.build_release_manifest`.
 8. Run `.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.prepare_release --version 2026.06.04.001 --channel local` when ready.
 9. Review `ops/release/metadata/RELEASE_MANIFEST.json` and `docs/change_control/CHANGELOG.md`.
+
+Archival is repository hygiene, not release finalization. Use
+`archive_completed --completed-through <YYYY-MM-DD> --limit <N>` for preview
+and apply exact packet IDs for a
+bounded, idempotent tranche. Do not move planned or in-progress packets.
 
 ## Phase 3 Finalization
 

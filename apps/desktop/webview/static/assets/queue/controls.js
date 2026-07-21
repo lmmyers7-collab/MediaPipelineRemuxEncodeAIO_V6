@@ -75,6 +75,7 @@
       clearPriorityManifest = noop,
       confirmBulk = () => true,
       endCommand: endPriorityCommand = noop,
+      exportPriorityQueue = noop,
       getInFlight: isPriorityCommandInFlight = falseValue,
       isCurrentCommand: isCurrentPriorityCommand = falseValue,
       normalizedLevel: priorityNormalizedLevel = emptyString,
@@ -151,6 +152,7 @@
       wire("queue-priority-promote-movies-btn", () => sendBulkForMediaType("movie", "Movie"));
       wire("queue-priority-promote-tv-btn", () => sendBulkForMediaType("tv", "TV"));
       wire("queue-priority-clear-all-btn", clearPriorityManifest);
+      wire("queue-priority-export-btn", exportPriorityQueue);
       updatePriorityControls();
     }
 

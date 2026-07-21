@@ -123,7 +123,7 @@
       return true;
     }
     function controlIds() {
-      return ["queue-priority-promote-btn", "queue-priority-normal-btn", "queue-priority-low-btn", "queue-priority-hold-btn", "queue-priority-promote-movies-btn", "queue-priority-promote-tv-btn", "queue-priority-clear-all-btn"];
+      return ["queue-priority-promote-btn", "queue-priority-normal-btn", "queue-priority-low-btn", "queue-priority-hold-btn", "queue-priority-promote-movies-btn", "queue-priority-promote-tv-btn", "queue-priority-clear-all-btn", "queue-priority-export-btn"];
     }
     function updateControls() {
       const disabled = Boolean(inFlight || getScanLoading());
@@ -208,7 +208,27 @@
         if (result?.ok) await requestQueueScan();
       } catch (error) { if (isCurrentCommand(seq)) setText("queue-priority-status", `Priority manifest clear failed: ${error}`); } finally { endCommand(seq); }
     }
-    return { applyDisplayedFileOverrideMarker, applyDisplayedPriorityUpdates, beginCommand, clearDisplayedPriorityManifest, confirmBulk, clearPriorityManifest, endCommand, getInFlight: () => inFlight, isCurrentCommand, normalizedLevel, pathKey, priorityItemsForSelected, refreshDisplayedRows, rowHasVisibleMarker, rowMatchesPath, rowPath, rowWithDisplayedFileOverrideMarker, sendPriority, sendPriorityBulk, sendSelectedPriority, updateControls };
+    async function exportPriorityQueue() {
+      if (actionsPausedForScan()) return;
+      if (inFlight) { setText("queue-priority-status", "Queue priority command already in progress."); return; }
+      const seq = beginCommand("Preparing a backend-owned priority export...");
+      try {
+        const result = await apiPost("/api/queue/priority-export", {});
+        const data = result?.data && typeof result.data === "object" ? result.data : {};
+        const count = Number(data.count || 0);
+        const exportId = String(data.export_id || "");
+        const message = result?.ok
+          ? `Priority export ready: ${count} item${count === 1 ? "" : "s"}. Open Launch and choose Priority Export. Export ID: ${exportId}`
+          : result?.message || "Priority export is not ready.";
+        if (isCurrentCommand(seq)) setText("queue-priority-status", message);
+        appendCommandResult({ command: "queue.priority_export", ok: Boolean(result?.ok), severity: result?.ok ? "ok" : "warning", message });
+      } catch (error) {
+        if (isCurrentCommand(seq)) setText("queue-priority-status", `Priority export failed: ${error}`);
+      } finally {
+        endCommand(seq);
+      }
+    }
+    return { applyDisplayedFileOverrideMarker, applyDisplayedPriorityUpdates, beginCommand, clearDisplayedPriorityManifest, confirmBulk, clearPriorityManifest, endCommand, exportPriorityQueue, getInFlight: () => inFlight, isCurrentCommand, normalizedLevel, pathKey, priorityItemsForSelected, refreshDisplayedRows, rowHasVisibleMarker, rowMatchesPath, rowPath, rowWithDisplayedFileOverrideMarker, sendPriority, sendPriorityBulk, sendSelectedPriority, updateControls };
   }
   window.__queuePriorityModule = { createQueuePriorityModule };
 })();

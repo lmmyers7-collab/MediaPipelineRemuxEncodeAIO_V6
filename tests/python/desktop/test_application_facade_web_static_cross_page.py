@@ -615,7 +615,7 @@ APP_SHELL_WORKFLOW_ASSERTIONS: tuple[AssertionRow, ...] = (('in', 'css_component
  ('in', 'js', 'let refreshQueued = false'),
  ('in', 'js', 'async function refreshAllNow(options = {})'),
  ('in', 'js', 'if (refreshInFlight)'),
- ('in', 'js', 'if (refreshOptions.automatic) return'),
+ ('in', 'js', 'if (refreshOptions.automatic && !refreshOptions.queueRefresh) return'),
  ('in', 'js', 'Refresh failed: ${message}'),
  ('in', 'js', 'name: "refresh/render"'),
  ('in', 'js', 'window.setTimeout(() => refreshAll(queuedOptions), 0)'),

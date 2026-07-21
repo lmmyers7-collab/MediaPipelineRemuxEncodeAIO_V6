@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-07-16
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: 0c08669665c1ce4f50617928d4e4dccae5b4307b7cbd0378170c0b8ac555a5e0
+sha256: d3b9b6d00f464dd366adb04dff309908139cdd8417a63e075468c89985b34428
 ---
 # `src/mediapipeline/core/processes/launch_plans.py`
 

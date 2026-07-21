@@ -111,7 +111,7 @@ normalized release identity, then validates an extracted copy with
 | `DesktopApp\encode_speed_history.json` | Desktop local telemetry |
 | `docs\RealMediaValidationRuns\*` (except README.md) | Operator real-media validation evidence |
 | `LocalBase\*` (if present in source folder) | Runtime state |
-| `ops\release\changes\unreleased\*`, its generated summaries, `docs\CURRENT_PROJECT_STATE.md`, `docs\OPEN_WORK_CHECKLIST.md`, and `docs\REMEDIATION_CHANGELOG.md` | Developer history, volatile status, and remediation ledger |
+| `ops\release\changes\unreleased\*`, `ops\release\changes\archived\*`, their generated summaries, `docs\CURRENT_PROJECT_STATE.md`, `docs\OPEN_WORK_CHECKLIST.md`, `docs\REMEDIATION_CHANGELOG.md`, and `docs\archive\remediation-changelog\*` | Developer change evidence, volatile status, compact remediation index, and preserved remediation ledger segments |
 | `docs\reviews\*`, clean-machine reports, real-media worksheets, generated evidence | Operator/review evidence that can contain personal paths or runtime history |
 
 ### Development and Build Artifacts

@@ -6,9 +6,9 @@ file_type: JavaScript
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-16
+last_modified: 2026-07-21
 last_reviewed: 2026-07-11
-sha256: 3e849e1be0205ce650266afca4a4aed3b8001e043028e5e5215f8e6bd2e0a023
+sha256: 35dfbd776c918ad8bcbbc492d16d10cf6d419000113c0df6028ce10bddd22b17
 ---
 # `apps/desktop/webview/static/assets/app/lifecycle/navigation.js`
 

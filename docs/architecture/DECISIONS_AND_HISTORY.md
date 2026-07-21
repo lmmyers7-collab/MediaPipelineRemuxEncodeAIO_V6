@@ -232,6 +232,9 @@ conflicting requests.
 
 - `CURRENT_PROJECT_STATE.md` is the first current-state read.
 - `docs/OPEN_WORK_CHECKLIST.md` is the active unresolved backlog.
+- As of 2026-07-20, neither active status document carries completed-work
+  narratives. Current state, unresolved work, completed change history, durable
+  decisions, and archived evidence remain separate authority surfaces.
 - `DECISIONS_AND_HISTORY.md` preserves decision rationale from older long-form docs.
 - `ARCHIVED_MD_INDEX.md` indexes old AI directives, completed checklists, and superseded reviews.
 - `docs/DOCS_INDEX.md` is the active documentation map. The 2026-05-20 quarantine root is `docs/archive/docs-housekeeping/2026-05-20-review/`.
@@ -241,6 +244,12 @@ conflicting requests.
 
 ## Important Historical Milestones
 
+- The 2026-07-20 active-status consolidation removed closed promotion gates,
+  completed remediation narratives, duplicated architecture/validation rules,
+  and stale counts from the two onboarding status docs. Existing changelog,
+  decision, review, validation, change-packet, and archive surfaces retain the
+  historical evidence; legacy checklist anchors remain available where
+  practical.
 - The current WebView-first workspace was split from the previous remediation workspace after it absorbed WebView/Tauri work, while older fallback evidence remained stable.
 - Services were split incrementally from oversized Python modules while preserving existing behavior.
 - Rename tool moved toward standalone movie/TV batch editing with backend-owned apply.
@@ -256,15 +265,15 @@ conflicting requests.
 - `docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/docs/archive/historical-reviews/GUI_FRAMEWORK_DECISION_AND_MIGRATION_PLAN.md`: archived detailed framework comparison and migration direction.
 - `docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/docs/archive/historical-reviews/TAURI_WEBVIEW2_TRANSITION_GROUNDWORK.md`: archived original transition groundwork.
 - Archived historical transition plan: historical long-form transition log and plan; current state is in `docs/CURRENT_PROJECT_STATE.md`.
-- `REMEDIATION_CHANGELOG.md`: detailed chronological remediation history.
+- `docs/REMEDIATION_CHANGELOG.md`: compact authoritative index into the
+  mechanically preserved detailed remediation history under
+  `docs/archive/remediation-changelog/`.
+- `CHANGELOG.md`: canonical notable-change history.
+- `docs/ARCHIVED_MD_INDEX.md`: archive inventory and active-status historical
+  evidence routing.
 - Archived module ownership addendum: module ownership and fragmentation concerns.
 - `docs/archive/docs-housekeeping/2026-05-20-review/delete-candidates/docs/archive/admin-audits/MD_CLEANUP_AUDIT_REPORT.md`: old Markdown classification evidence retained as a quarantine-only delete candidate.
 
 ## Decisions That Are Not Final
 
-- Which future changes justify a fresh package/open/close validation run after the promoted default-launcher state.
-- Whether network coordinator/worker lifecycle controls belong in WebView.
-- How much of the giant remediation changelog should be archived or indexed.
 - Whether `node_modules` should remain in this working tree.
-- Which raw settings keys deserve structured builder controls versus intentional advanced/raw handling.
-- Whether old Claude transition handoffs still contain work not reflected in active docs.

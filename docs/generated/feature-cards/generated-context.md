@@ -8,80 +8,45 @@ Validation: targeted tooling tests and generated-output --check modes
 
 ## Vertical slice
 
-### WebView / Tauri
-
-- `apps/desktop/webview/static/assets/app/lifecycle.js` — operator display/intent surface; JavaScript implementation for lifecycle; exposes activeKeyboardPage, activeKeyboardPanel, activePageSelectableRows.
-- `apps/desktop/webview/static/assets/app/lifecycle/topbar.js` — operator display/intent surface; JavaScript implementation for topbar; exposes backendLifecycleState, clearTopbarPendingLaunch, closeReadinessWatcherData.
-- `apps/desktop/webview/static/assets/contractView.js` — operator display/intent surface; JavaScript implementation for contract view; exposes contractEffect, contractMethodFilter, contractNetworkLifecycleContracts.
-- `apps/desktop/webview/static/assets/launch/commandOrchestration.js` — operator display/intent surface; JavaScript implementation for command orchestration; exposes browsePipelineSingleFile, clearPipelineSingleFile, createLaunchCommandOrchestrationModule.
-- `apps/desktop/webview/static/assets/launch/risk/policyBoundary.js` — operator display/intent surface; JavaScript implementation for policy boundary; exposes add, createLaunchRiskPolicyBoundaryModule, launchPolicyBoundaryDetailLines.
-
-### API route
-
-- `src/mediapipeline/desktop/api/contract_read.py` — api authority; Python implementation for contract read.
-- `src/mediapipeline/desktop/api/routes_read.py` — api authority; Python implementation for routes read.
-
 ### Python facade / domain service
 
-- `src/mediapipeline/core/decide/processing_decision.py` — decide authority; Strict DTOs for Python-owned copy/remux/encode decisions.
-- `src/mediapipeline/core/processes/logs.py` — process authority; Python implementation for logs; exposes launch_log_summary, launch_log_tail_summary, spawn_log_tail.
-- `src/mediapipeline/core/publish/pending_recovery.py` — publish authority; Python implementation for pending recovery; exposes normalize_pending_publish_recovery_scope, pending_publish_recovery_plan_action, pending_publish_recovery_plan_action_counts.
-- `src/mediapipeline/core/publish/pending_rows.py` — publish authority; Python implementation for pending rows; exposes count_pending_publish_row_targets, count_pending_publish_rows, pending_publish_error_warning.
-- `src/mediapipeline/core/publish/pending_service.py` — publish authority; Python implementation for pending service; exposes mark_duplicate_pending_targets, pending_drain_summary_path, pending_file_inventory.
-
-### Contract / state / config
-
-- `src/mediapipeline/contracts/api_routes_read.py` — contracts authority; Python implementation for api routes read.
-- `src/mediapipeline/contracts/run_monitor.py` — contracts authority; Versioned, backend-authored evidence for one accepted Run Once workload. The persisted contract is intentionally strict. It is the correlation boundary between the accepted Backend Queue plan, PowerShell runtime evidence, and terminal artifacts. Display projections may suppress stale claims, but they must never reconstruct missing membership, stages, routes, or track decisions from legacy progress or filename text.
-- `src/mediapipeline/contracts/schemas/risky_file_registry.v1.schema.json` — scripts authority; JSON implementation for risky file registry v1 schema.
-- `src/mediapipeline/contracts/source_media_streams.py` — contracts authority; Stream-level builders for SourceMediaInfo adapters.
-- `src/mediapipeline/contracts/stage_base.py` — contracts authority; Shared stage contract base models.
-
-### PowerShell execution
-
-- `ops/pipeline/engine/process/dynamic_hdr_metadata.ps1` — process authority; PowerShell implementation for dynamic hdr metadata; exposes ConvertFrom-DynamicHdrRpuSummaryFrameCount, Export-DynamicHdrMetadata, Invoke-DynamicHdrExtractionCommand.
-- `ops/pipeline/engine/publish/pending_push.ps1` — publish authority; PowerShell implementation for pending push; exposes Add-PendingDrainSummaryCount, Complete-PendingDrainSummary, Get-PendingDrainSummaryLogLine.
-- `ops/pipeline/engine/subtitles/vobsub.ps1` — subtitles authority; PowerShell implementation for vobsub; exposes Convert-VobSubMp4StreamToTemporaryMatroska, Convert-VobSubToSrt, ConvertTo-VobSubEmbeddedSrtTrackRecords.
-- `ops/pipeline/engine/failures/failure_state.ps1` — failures authority; PowerShell implementation for failure state; exposes Add-RoundFailureRecord, Clear-SourceFailureState, Get-FailureCategory.
-- `ops/pipeline/engine/observability/logging.ps1` — observability authority; PowerShell implementation for logging; exposes Add-StartupWarning, ConvertTo-PipelineEventData, DebugLog.
+- `src/mediapipeline/tools/dev/add_rename_filter_case.py` — scripts authority; Append a real-world bad rename case to the JSONL regression corpus.
+- `src/mediapipeline/tools/dev/code_context_service.py` — scripts authority; Read-only repository context, catalog, search, and ranged-read service.
+- `src/mediapipeline/tools/dev/generate_lifecycle_map.py` — scripts authority; Generate the file lifecycle/state-machine map from mediapipeline.contracts.lifecycle.
+- `src/mediapipeline/tools/dev/policy_proof_pack.py` — scripts authority; Build and verify an isolated, owned-media policy proof pack. The checked-in catalog names logical fixtures and expected media facts. The external fixture root owns the local source mapping, media files, and all run evidence so neither machine paths nor media assets enter Git.
+- `src/mediapipeline/tools/dev/ai_guardrail.py` — scripts authority; AI preflight/postflight guardrail checks for repository safety work.
 
 ### Tests
 
-- `ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1` — verification evidence; PowerShell implementation for invoke legacy desktop reliability regression checks; exposes Add-CompletedJobsManifestEntryFromSidecar, Add-RoundFailureRecord, Add-TestEvent.
-- `ops/pipeline/tests/Unit/Invoke-PendingPublishTransactionFaultInjectionChecks.ps1` — verification evidence; PowerShell implementation for invoke pending publish transaction fault injection checks; exposes Add-CompletedJobsManifestEntryFromSidecar, Add-RoundFailureRecord, Assert-Equal.
-- `ops/pipeline/tests/Unit/Invoke-RemuxSplitStageChecks.ps1` — verification evidence; PowerShell implementation for invoke remux split stage checks; exposes Acquire-CpuEncodeMutex, Assert-ContainsSubsequence, Assert-Equal.
-- `ops/pipeline/tests/Unit/Invoke-RerunNestedConfigChecks.ps1` — verification evidence; PowerShell implementation for invoke rerun nested config checks; exposes Assert-Equal, Assert-False, Assert-True.
-- `ops/pipeline/tests/Unit/Invoke-RuntimeStateHygieneChecks.ps1` — verification evidence; PowerShell implementation for invoke runtime state hygiene checks; exposes Assert-Contains, Assert-True.
-
-### Boundaries / validation
-
-- `docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md` — canonical boundary; Markdown implementation for pending publish fixture inventory.
-- `docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md` — canonical boundary; Markdown implementation for runtime artifact inventory.
-- `docs/testing/TEST_COVERAGE_MATRIX.md` — canonical boundary; Markdown implementation for test coverage matrix.
+- `tests/python/tooling/__init__.py` — verification evidence; Python implementation for tooling init.
+- `tests/python/tooling/test_active_doc_references.py` — verification evidence; Python implementation for test active doc references; exposes ActiveDocReferenceTests.
+- `tests/python/tooling/test_ai_guardrail.py` — verification evidence; Python implementation for test ai guardrail; exposes AiGuardrailTests.
+- `tests/python/tooling/test_archive_completed_changes.py` — verification evidence; Python implementation for test archive completed changes; exposes ArchiveCompletedChangeTests.
+- `tests/python/tooling/test_archive_doc_candidate_scan.py` — verification evidence; Python implementation for test archive doc candidate scan; exposes ArchiveDocCandidateScanTests.
 
 ## Why these files
 
-- `ops/pipeline/engine/process/dynamic_hdr_metadata.ps1`: process authority.
-- `ops/pipeline/engine/publish/pending_push.ps1`: publish authority.
-- `src/mediapipeline/core/decide/processing_decision.py`: decide authority.
-- `src/mediapipeline/core/processes/logs.py`: process authority.
-- `src/mediapipeline/core/publish/pending_recovery.py`: publish authority.
-- `src/mediapipeline/core/publish/pending_rows.py`: publish authority.
-- `src/mediapipeline/core/publish/pending_service.py`: publish authority.
-- `src/mediapipeline/core/queue/policy_parts/route_evidence.py`: queue authority.
+- `src/mediapipeline/tools/dev/add_rename_filter_case.py`: scripts authority.
+- `src/mediapipeline/tools/dev/code_context_service.py`: scripts authority.
+- `src/mediapipeline/tools/dev/generate_lifecycle_map.py`: scripts authority.
+- `src/mediapipeline/tools/dev/policy_proof_pack.py`: scripts authority.
+- `src/mediapipeline/tools/dev/ai_guardrail.py`: scripts authority.
+- `src/mediapipeline/tools/dev/audit_checks.py`: scripts authority.
+- `src/mediapipeline/tools/dev/browser_smoke_inventory.py`: scripts authority.
+- `src/mediapipeline/tools/dev/check_active_doc_references.py`: scripts authority.
 
 ## Tests and validation
 
-- `ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-PendingPublishTransactionFaultInjectionChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-RemuxSplitStageChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-RerunNestedConfigChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-RuntimeStateHygieneChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-VobSubSubtitleChecks.ps1`
-- `tests/python/desktop/test_application_facade_local_api_diagnostics.py`
-- `tests/python/desktop/test_application_facade_pending_publish.py`
+- `tests/python/tooling/__init__.py`
+- `tests/python/tooling/test_active_doc_references.py`
+- `tests/python/tooling/test_ai_guardrail.py`
+- `tests/python/tooling/test_archive_completed_changes.py`
+- `tests/python/tooling/test_archive_doc_candidate_scan.py`
+- `tests/python/tooling/test_audit_checks.py`
+- `tests/python/tooling/test_autonomy_growth_snapshot.py`
+- `tests/python/tooling/test_autonomy_soak_tick.py`
 - Smallest validation rung: targeted tooling tests and generated-output --check modes.
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=60, documentation=4, generated=4, change_evidence=0, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=48, documentation=1, generated=4, change_evidence=0, archive=0, runtime_artifact=0.

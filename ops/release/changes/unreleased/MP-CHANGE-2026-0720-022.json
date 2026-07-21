@@ -1,0 +1,63 @@
+{
+  "id": "MP-CHANGE-2026-0720-022",
+  "title": "Tier generated context retrieval",
+  "version_target": "2026.07.20.004",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "low",
+  "date_started": "2026-07-20",
+  "date_completed": "2026-07-20",
+  "summary": "Tier generated-context retrieval so default task capsules, MCP live search, and IDE search avoid low-value generated, historical, fixture, and evidence surfaces while exact and explicit searches retain access.",
+  "reason": "The authoritative generated catalog and validation baselines must remain complete, but ranking nearly every active record and walking large generated trees adds retrieval latency and noise to ordinary repository work.",
+  "affected_areas": [
+    "generated_context",
+    "tests",
+    "tooling"
+  ],
+  "behavior_before": "Default context ranking considered nearly the entire active catalog, broad live search traversed docs/generated, and the repository had no IDE-level opt-in exclusions or machine-checked artifact-role coverage.",
+  "behavior_after": "Active retrieval deterministically prefilters concise catalog records by task and feature, history/all tiers are explicit, exact excluded paths and symbols remain findable, broad live and IDE search skip opt-in trees, and strict generators still own and validate every required artifact.",
+  "files_touched": [
+    ".vscode/settings.json",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/feature-cards/generated-context.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0720-022.json.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/code_context_mcp.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/code_context_service.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/context_extractors.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/context_records.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/context_slice.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_code_context_mcp.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_context_slice.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_summary_integrity.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0720-022.json",
+    "src/mediapipeline/tools/dev/code_context_mcp.py",
+    "src/mediapipeline/tools/dev/code_context_service.py",
+    "src/mediapipeline/tools/dev/context_extractors.py",
+    "src/mediapipeline/tools/dev/context_records.py",
+    "src/mediapipeline/tools/dev/context_slice.py",
+    "tests/python/tooling/test_code_context_mcp.py",
+    "tests/python/tooling/test_context_slice.py",
+    "tests/python/tooling/test_summary_integrity.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_code_context_mcp.py",
+    "tests/python/tooling/test_context_slice.py",
+    "tests/python/tooling/test_summary_integrity.py"
+  ],
+  "manual_validation": [
+    "Targeted Ruff check for five context-tool sources and three focused test modules passed.",
+    "Focused tooling suite passed: 71 tests, 2 skipped (context records, context slice, code-context MCP, summary integrity).",
+    "Same-catalog retrieval measurement: default active pool 1,988 records / 3,790,679 compact JSONL bytes; task shortlist 654 records / 1,036,220 bytes (67.1% fewer records, 72.7% fewer bytes).",
+    "Representative default candidates: pending publish 159; WebView queue 573; Tauri close 80; ASS subtitles 65, from 1,988 active eligible records.",
+    "Authoritative summary, project-index, dependency-graph, feature-map, and feature-card generators completed successfully; strict check modes were run after final packet regeneration.",
+    "Full tooling discovery ran 328 tests with 5 unrelated concurrent-worktree failures in browser smoke inventory, dependency boundaries, and smoke-wrapper-map freshness; focused retrieval and integrity tests remained green."
+  ],
+  "rollback_plan": "Revert only this packet's retrieval-tier, search-exclusion, IDE configuration, and focused tests; regenerate affected summaries and project indexes through their generators. Do not delete or relax any generated artifact or validation baseline.",
+  "related_changes": [
+    "MP-CHANGE-2026-0720-012"
+  ],
+  "notes": "Exclude opt-in evidence from default IDE text searches.\nClassify generated artifacts by retrieval role without changing generation authority.\nDefine active, history, and all retrieval tiers plus compact record byte accounting.\nPrefilter task candidates, expose retrieval metrics, and support explicit retrieval tiers.\nKeep generated and historical trees out of default live search while allowing explicit path opt-in.\nExpose retrieval tiers through existing MCP navigation tools.\nCover default prefiltering, explicit all-tier inclusion, exact historical symbols, and deterministic metrics.\nCover live-search opt-in paths, exact historical lookup staleness, and default generated exclusions.\nCover generated artifact roles, IDE exclusions, stale opt-in summaries, and required artifact roots.\nRegenerated by the summary tooling for this change.\nRegenerated by the authoritative context generator after retrieval policy changes. This is read-only developer tooling; real-media validation is not required."
+}

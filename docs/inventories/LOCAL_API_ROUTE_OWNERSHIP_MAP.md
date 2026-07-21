@@ -2,7 +2,7 @@
 
 Documents all Local API routes, their mutation risk, auth requirements, backend owner confirmation, and primary frontend caller. Source of truth is `contract_read.py` and `contract_command.py`; handler dispatch is in `routes_read.py` and `routes_command.py`.
 
-Total routes: 172 (55 read, 117 command).
+Total routes: 174 (56 read, 118 command).
 
 All routes that mutate state are backend-owned. The WebView never resolves filesystem paths, selects output targets, chooses encode settings, or launches processes directly — it forwards requests with allowlisted parameters and the backend validates, plans, and executes.
 
@@ -39,6 +39,7 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | Route | Auth | Response Schema | Frontend Caller | Notes |
 |---|---|---|---|---|
 | `GET /api/queue` | Yes | `desktop_queue_preview.v1` | Queue | Latest backend queue snapshot plus latest scan status/source inventory evidence; no dry run spawned |
+| `GET /api/queue/priority-export` | Yes | `priority_queue_export.v1` public status | Launch | Reads the latest backend export ID, count, readiness, and fingerprints; accepted rows remain backend-only |
 | `GET /api/queue/priority` | Yes | `queue_priority_manifest.v1` | Queue | Reads non-destructive priority manifest; no queue/media mutation |
 | `GET /api/queue/strategy` | Yes | `queue_strategy_state.v1` | Queue | Reads active queue strategy and valid backend strategy names |
 | `GET /api/queue/file-overrides` | Yes | `queue_file_overrides.v1` | Queue | Reads override manifest or one source-root-contained override entry |
@@ -92,6 +93,7 @@ All POST routes require auth. The frontend passes allowlisted parameter keys; th
 
 | Route | Effect | Request Keys | Allowed Values / Scope | Frontend Caller |
 |---|---|---|---|---|
+| `POST /api/queue/priority-export` | `queue-state-write` | None; strict empty JSON object | Backend rebuilds and persists only runnable effective-High membership; no browser row scope, launch, or priority rewrite | Queue |
 | `POST /api/queue/priority` | `queue-state-write` | `path`, `level`, `reason`, `items`, `clear_all`, `position` | `level`: `high`, `normal`, `low`, `hold`; `position`: zero-based manual-order insertion position; path writes must be under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots); `clear_all` clears manifest state only | Queue |
 | `POST /api/queue/strategy` | `queue-state-write` | `strategy` | Backend `VALID_STRATEGIES` only | Queue |
 | `POST /api/queue/scan` | `process-dry-run` | `mode`, `force`, `scope`, `reason` | `mode`: `inventory_then_curate`, `inventory_only`, `curate_only`; `scope`: `all`; duplicate scans observe the active backend scan; full curation atomically publishes request/input/plan fingerprint evidence | Queue |
@@ -106,7 +108,7 @@ All POST routes require auth. The frontend passes allowlisted parameter keys; th
 | `POST /api/queue/file-overrides/folder-rule` | `queue-state-write` | `folder_path`, `override`, `confirmation`, `clear` | Folder must be under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots) but not equal a source/library root; stream indexes and raw map fields rejected; save requires future-file and exact-file precedence acknowledgement | Queue |
 | `POST /api/subtitle-qa/preview` | `read-only-preview` | `id`, `row_key`, `path`, `source_path`, `output_path`, `scope`, `limit` | Reads already-loaded Queue and Completed subtitle QA evidence only; no probing, conversion, repair, sidecar rewrite, publish, drain, or media touch | Queue, Completed |
 
-Queue state write commands write JSON state under `LocalBase\State`; preview commands are read-only. Queue source scan writes scan-status/source-inventory evidence and atomically refreshes `queue_snapshot.json` through backend `-EmitQueuePlan` curation. Failed live scans may return explicitly labeled cached evidence but cannot promote it as a launchable plan. Series clear and remux pilot promotion write exact current-row file overrides only after backend eligibility checks. These routes do not rename, move, delete, launch processing work, or mutate source media.
+Queue state write commands write JSON state under `LocalBase\State`; preview commands are read-only. Priority export writes immutable membership under `State\QueueExports\Priority` without changing the priority manifest. Queue source scan writes scan-status/source-inventory evidence and atomically refreshes `queue_snapshot.json` through backend `-EmitQueuePlan` curation. Failed live scans may return explicitly labeled cached evidence but cannot promote it as a launchable plan. Series clear and remux pilot promotion write exact current-row file overrides only after backend eligibility checks. These routes do not rename, move, delete, launch processing work, or mutate source media.
 
 ### Failure Resolution Commands
 
@@ -332,7 +334,7 @@ Network lifecycle dry-runs return preconditions, active-work posture, state-file
 
 | Effect tag | Routes | Risk level |
 |---|---|---|
-| `none` | 86 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, settings/import-psd1-preview, preset library preview/export routes, Settings Wizard validation/preview routes, settings/reload, recovery-plan, repair/reconcile dry-runs, backend lifecycle reconciliation dry-run, startup reconcile dry-run, maintenance retention dry-run, sample-validation/preview, schedule/preview, Network lifecycle dry-runs, network CSV rerun start dry-run, worker test-connection/discovery) | None |
+| `none` | 87 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, settings/import-psd1-preview, preset library preview/export routes, Settings Wizard validation/preview routes, settings/reload, recovery-plan, repair/reconcile dry-runs, backend lifecycle reconciliation dry-run, startup reconcile dry-run, maintenance retention dry-run, sample-validation/preview, schedule/preview, Network lifecycle dry-runs, network CSV rerun start dry-run, worker test-connection/discovery) | None |
 | `bounded-health-check` | `GET /api/maintenance` | Read-only probes |
 | `read-only-preview` | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/series-clear-preview`, `POST /api/queue/file-overrides/folder-preview`, `POST /api/subtitle-qa/preview`, `POST /api/rerun/preview`, `POST /api/rerun/network-preview`, `POST /api/rerun/promote-dry-run` | Advisory backend previews only |
 | `shell-open` | `POST /api/queue/open`, `POST /api/completed/open`, `POST /api/pending-publish/open`, `POST /api/diagnostics/open`, `POST /api/diagnostics/tdarr-matrix/evidence/open`, `POST /api/failures/open`, `POST /api/maintenance/dependency-atlas/open-folder`, `POST /api/rerun/open` | OS open only; no file mutation |
@@ -346,7 +348,7 @@ Network lifecycle dry-runs return preconditions, active-work posture, state-file
 | `metrics-backfill-state-write` | `POST /api/metrics/backfill` | Recursive sidecar read plus Metrics cache/status writes under `State\Metrics` only |
 | `audit-source-state-write` | `POST /api/audit/sources` | Reports audit source registry JSON under `State\Audit` only |
 | `audit-source-scan-state-write` | `POST /api/audit/sources/scan` | Recursive read-only metric counts plus audit source scan status writes under `State\Audit` only |
-| `queue-state-write` | `POST /api/queue/priority`, `POST /api/queue/strategy`, `POST /api/queue/file-overrides`, `POST /api/queue/file-overrides/series-apply`, `POST /api/queue/file-overrides/series-clear-apply`, `POST /api/queue/file-overrides/remux-pilot-promote`, `POST /api/queue/file-overrides/folder-rule` | Non-destructive queue state JSON only |
+| `queue-state-write` | `POST /api/queue/priority-export`, `POST /api/queue/priority`, `POST /api/queue/strategy`, `POST /api/queue/file-overrides`, `POST /api/queue/file-overrides/series-apply`, `POST /api/queue/file-overrides/series-clear-apply`, `POST /api/queue/file-overrides/remux-pilot-promote`, `POST /api/queue/file-overrides/folder-rule` | Non-destructive queue state JSON only |
 | `failure-marker-write` | `POST /api/failures/clear` | Moves retry-blocker marker JSON out of the active marker folder only |
 | `failure-evidence-archive` | `POST /api/failures/archive-evidence` | Moves active failure markers and round failure reports into manifest-backed cleared evidence only |
 | `failure-artifact-delete` | `POST /api/failures/artifacts/cleanup` | Deletes backend-owned failure artifact files only after strict confirmation; selected `artifact_paths` limit the Reports action to checked rows and still require a dry-run fingerprint; policy cleanup can use the current backend plan |

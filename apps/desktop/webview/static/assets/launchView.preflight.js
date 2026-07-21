@@ -49,6 +49,7 @@
       pipelineModeLabel = function (mode) { return mode || "Pipeline"; },
       queueLaunchDecisionRows = function () { return []; },
       queueLaunchDecisionStatus = function () { return "Evidence incomplete"; },
+      requestQueueScan = (...args) => window.mediaPipelineQueueView?.requestQueueScan?.(...args),
       renderLaunchPolicyBoundary = function () {},
       renderLaunchRealMediaProofHandoff = function () {},
       renderLaunchScopeReconciliation = function () {},
@@ -66,6 +67,7 @@
     let selectedLaunchPilotReadinessKey = "";
     let selectedLaunchBackendPreflightKey = "";
     let launchBackendPreflightRequestId = 0;
+    let launchQueueScanRecoveryInFlight = false;
     let lastLaunchBackendPreflightPayloads = [];
     let lastLaunchBackendPreflightRefreshInfo = {
       loaded_at: "",
@@ -430,6 +432,55 @@
     return `Recovery route: ${label}${routeText}.${stepText}`;
   }
 
+  const launchQueueScanRecoveryReasonCodes = new Set([
+    "queue_scan_not_completed",
+    "queue_scan_inventory_only",
+    "queue_snapshot_missing",
+    "queue_snapshot_unreadable",
+    "queue_snapshot_invalid",
+    "queue_snapshot_scope_mismatch",
+    "queue_snapshot_origin_not_dry_run",
+    "queue_snapshot_request_mismatch",
+    "queue_snapshot_inputs_not_current",
+    "queue_plan_fingerprint_missing",
+    "queue_snapshot_accepted_rows_missing",
+    "queue_snapshot_accepted_rows_invalid",
+    "queue_snapshot_planned_display_name_evidence_missing",
+    "queue_snapshot_accepted_fingerprint_missing",
+    "queue_snapshot_accepted_fingerprint_mismatch",
+  ]);
+
+  function launchBackendPreflightQueueScanRecoveryReason(row) {
+    if (String(row?.checkKey || "").toLowerCase() !== "normal_queue_scope") return "";
+    return launchBackendPreflightList(row?.detail)
+      .find((item) => launchQueueScanRecoveryReasonCodes.has(item)) || "";
+  }
+
+  async function requestLaunchQueueScanRecovery(button, statusNode) {
+    if (launchQueueScanRecoveryInFlight || typeof requestQueueScan !== "function") return;
+    launchQueueScanRecoveryInFlight = true;
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+    button.textContent = "Starting Queue scan...";
+    statusNode.textContent = "Submitting the existing backend Queue scan.";
+    try {
+      const result = await requestQueueScan();
+      if (!result || result.ok === false) {
+        throw new Error(result?.message || "The Queue scan action is unavailable.");
+      }
+      button.textContent = "Queue scan started";
+      statusNode.textContent = result?.message || "Queue scan started. Launch readiness will refresh when it completes.";
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      button.disabled = false;
+      button.textContent = "Scan Queue";
+      statusNode.textContent = `Queue scan could not start: ${message}`;
+    } finally {
+      launchQueueScanRecoveryInFlight = false;
+      button.setAttribute("aria-busy", "false");
+    }
+  }
+
   function renderLaunchBackendPreflightStartupAlert(payloads = []) {
     if (typeof document === "undefined" || typeof document.querySelector !== "function") return;
     const blockers = launchBackendPreflightPipelineBlockers(payloads);
@@ -459,14 +510,34 @@
       : "How to fix: the backend did not provide a specific action; open Diagnostics > Readiness > Backend Preflight for the owning row.";
     const backendDetail = document.createElement("span");
     backendDetail.textContent = launchBackendPreflightStartupAlertDetail(first);
+    const children = [title, detail, hint];
+    const queueScanRecoveryReason = launchBackendPreflightQueueScanRecoveryReason(first);
+    if (queueScanRecoveryReason && typeof requestQueueScan === "function") {
+      const actions = document.createElement("div");
+      actions.className = "inline-actions launch-preflight-startup-actions";
+      const scanButton = document.createElement("button");
+      scanButton.type = "button";
+      scanButton.className = "secondary-button launch-preflight-scan-action";
+      scanButton.dataset.reasonCode = queueScanRecoveryReason;
+      scanButton.disabled = launchQueueScanRecoveryInFlight;
+      scanButton.setAttribute("aria-busy", launchQueueScanRecoveryInFlight ? "true" : "false");
+      scanButton.textContent = launchQueueScanRecoveryInFlight ? "Starting Queue scan..." : "Scan Queue";
+      const scanStatus = document.createElement("span");
+      scanStatus.className = "launch-preflight-scan-status";
+      scanStatus.textContent = launchQueueScanRecoveryInFlight ? "Submitting the existing backend Queue scan." : "";
+      scanButton.addEventListener("click", () => requestLaunchQueueScanRecovery(scanButton, scanStatus));
+      actions.appendChild(scanButton);
+      actions.appendChild(scanStatus);
+      children.push(actions);
+    }
+    children.push(backendDetail);
     const recoveryText = launchBackendPreflightStartupAlertRecovery(first);
     if (recoveryText) {
       const recovery = document.createElement("span");
       recovery.textContent = recoveryText;
-      node.replaceChildren(title, detail, hint, backendDetail, recovery);
-    } else {
-      node.replaceChildren(title, detail, hint, backendDetail);
+      children.push(recovery);
     }
+    node.replaceChildren(...children);
   }
 
   function getLastLaunchBackendPreflightPayloads() {
@@ -888,6 +959,7 @@
       launchBackendPreflightRows,
       launchBackendPreflightEncoderHardwareRuntimeLines,
       launchBackendPreflightPipelineBlockers,
+      launchBackendPreflightQueueScanRecoveryReason,
       renderLaunchBackendPreflightStartupAlert,
       getLastLaunchBackendPreflightPayloads,
       launchBackendPreflightPayloadForTarget,

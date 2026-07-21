@@ -35,6 +35,7 @@ def build_pipeline_launch_plan(
     extra_args: str,
     extra_argv: list[str] | tuple[str, ...] | None = None,
     single_file: str | None = None,
+    priority_only: bool = False,
     expected_queue_plan_fingerprint: str = "",
     command_id: str = "",
     run_id: str = "",
@@ -66,6 +67,8 @@ def build_pipeline_launch_plan(
         args.append("-ShowConfig")
     if single_file:
         args.extend(["-SingleFile", single_file])
+    if priority_only:
+        args.append("-PriorityOnly")
     if expected_queue_plan_fingerprint:
         args.extend(["-ExpectedQueuePlanFingerprint", expected_queue_plan_fingerprint])
     if command_id:
@@ -92,6 +95,7 @@ def build_pipeline_launch_plan(
             "extra_args": extra_args.strip(),
             "extra_argv": [str(item) for item in (extra_argv or [])],
             "single_file": single_file or "",
+            "priority_only": bool(priority_only),
             "expected_queue_plan_fingerprint": expected_queue_plan_fingerprint,
             "command_id": command_id,
             "run_id": run_id,

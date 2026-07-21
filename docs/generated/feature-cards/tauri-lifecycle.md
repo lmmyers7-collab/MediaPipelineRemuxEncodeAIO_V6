@@ -12,48 +12,33 @@ Validation: Tauri CheckOnly, shell checks, and affected lifecycle tests
 
 - `apps/desktop/webview/static/assets/app/lifecycle.js` — operator display/intent surface; JavaScript implementation for lifecycle; exposes activeKeyboardPage, activeKeyboardPanel, activePageSelectableRows.
 - `apps/desktop/webview/static/assets/app/lifecycle/topbar.js` — operator display/intent surface; JavaScript implementation for topbar; exposes backendLifecycleState, clearTopbarPendingLaunch, closeReadinessWatcherData.
-- `apps/desktop/webview/static/assets/app/tauriLifecycle.js` — operator display/intent surface; JavaScript implementation for tauri lifecycle; exposes normalizeTauriBackendLifecycleEvent, renderTauriBackendLifecycleAlert, startupProgressLines.
-- `apps/desktop/webview/static/assets/network/lifecycle.view.js` — operator display/intent surface; JavaScript implementation for lifecycle view; exposes closeReadinessIsSafe, createNetworkLifecycleViewModule, networkCommandRouteByDataSchema.
-- `apps/desktop/webview/static/assets/pendingPublish/summary.js` — operator display/intent surface; JavaScript implementation for summary; exposes createPendingPublishSummaryModule, formatPendingStateCounts, pendingEmptyStateMessage.
+- `apps/desktop/webview/static/assets/app.js` — operator display/intent surface; JavaScript implementation for app; exposes _layoutRenderDrawer, _movePanelByStep, activeKeyboardPage.
+- `apps/desktop/tauri/src-tauri/src/backend_contract.rs` — Rust implementation for backend contract; exposes validate_backend_web_ui; Rust implementation for backend contract; exposes validate_backend_web_ui.
+- `apps/desktop/tauri/src-tauri/src/backend_contract/diagnostics.rs` — Rust implementation for diagnostics; exposes validate_diagnostics; Rust implementation for diagnostics; exposes validate_diagnostics.
 
 ### API route
 
-- `src/mediapipeline/desktop/api/__init__.py` — api authority; Python implementation for api init.
-- `src/mediapipeline/desktop/api/command_journal.py` — api authority; Python implementation for command journal; exposes CommandJournal.
-- `src/mediapipeline/desktop/api/command_journal_policy.py` — api authority; Python implementation for command journal policy; exposes bounded_command_evidence, bounded_history_limit, command_history_mapping.
-- `src/mediapipeline/desktop/api/contract.py` — api authority; Python implementation for contract.
-- `src/mediapipeline/desktop/api/contract_command.py` — api authority; Python implementation for contract command.
+- `src/mediapipeline/desktop/api/contract_command_process.py` — api authority; Python implementation for contract command process.
+- `src/mediapipeline/desktop/api/contract_read.py` — api authority; Python implementation for contract read.
+- `src/mediapipeline/desktop/api/handler_policy.py` — api authority; Python implementation for handler policy; exposes bounded_error_text, cors_response_headers, not_found_payload.
+- `src/mediapipeline/desktop/api/read_payloads_policy.py` — api authority; Python implementation for read payloads policy; exposes close_readiness_unavailable_payload, read_unavailable_payload.
+- `src/mediapipeline/desktop/api/routes_read.py` — api authority; Python implementation for routes read.
 
 ### Python facade / domain service
 
-- `src/mediapipeline/core/api/commands_process.py` — api authority; Python implementation for commands process; exposes LocalApiProcessCommandPayloadMixin.
-- `src/mediapipeline/core/api/commands_queue_priority.py` — api authority; Python implementation for commands queue priority; exposes LocalApiQueuePriorityCommandPayloadMixin.
-- `src/mediapipeline/core/api/commands_queue_scan.py` — api authority; Python implementation for commands queue scan; exposes LocalApiQueueScanCommandPayloadMixin.
-- `src/mediapipeline/core/api/commands_queue_strategy.py` — api authority; Python implementation for commands queue strategy; exposes LocalApiQueueStrategyCommandPayloadMixin.
-- `src/mediapipeline/core/api/commands_rename.py` — api authority; Python implementation for commands rename; exposes LocalApiRenameCommandPayloadMixin.
-
-### Contract / state / config
-
-- `src/mediapipeline/contracts/api_routes_command_process.py` — contracts authority; Python implementation for api routes command process.
-- `src/mediapipeline/contracts/api_commands.py` — contracts authority; Pydantic contracts for Local API command request payloads. The Local API wire shape remains owned by the existing routes. These models describe the known per-route fields while allowing existing additive fields so the command-handler migration can proceed without breaking WebView callers.
-- `src/mediapipeline/contracts/api_routes_read.py` — contracts authority; Python implementation for api routes read.
-- `src/mediapipeline/core/config/settings_risk_policy.py` — config authority; Python implementation for settings risk policy; exposes build_current_settings_risk_summary, build_launch_settings_risk_handoff, build_media_policy_readiness.
-
-### PowerShell execution
-
-- `ops/pipeline/engine/process/dynamic_hdr.ps1` — process authority; PowerShell implementation for dynamic hdr.
-- `ops/pipeline/engine/process/dynamic_hdr_metadata.ps1` — process authority; PowerShell implementation for dynamic hdr metadata; exposes ConvertFrom-DynamicHdrRpuSummaryFrameCount, Export-DynamicHdrMetadata, Invoke-DynamicHdrExtractionCommand.
-- `ops/pipeline/engine/process/dynamic_hdr_output.ps1` — process authority; PowerShell implementation for dynamic hdr output; exposes Clear-DynamicHdrCapabilityProbe, ConvertTo-DynamicHdrX265RelativePath, Invoke-X265DolbyVisionCapabilityProbe.
-- `ops/pipeline/engine/process/dynamic_hdr_policy.ps1` — process authority; PowerShell implementation for dynamic hdr policy; exposes New-DynamicHdrPreservationPlan, Resolve-DynamicHdrEncodePreservationDecision.
-- `ops/pipeline/engine/process/dynamic_hdr_tools.ps1` — process authority; PowerShell implementation for dynamic hdr tools; exposes ConvertFrom-DynamicHdrToolVersionText, ConvertTo-DynamicHdrInt, Get-DynamicHdrPolicyDefault.
+- `src/mediapipeline/core/processes/guard_facade.py` — process authority; Process close-readiness and active-work facade adapter.
+- `src/mediapipeline/core/processes/guard_policy.py` — process authority; Close-readiness policy helpers for active process guards.
+- `src/mediapipeline/core/processes/lifecycle_lease.py` — process authority; Durable, fail-closed lifecycle lease for backend-owned work.
+- `src/mediapipeline/core/processes/lifecycle_reconciliation.py` — process authority; Fail-closed reconciliation for terminal lifecycle recovery evidence.
+- `src/mediapipeline/core/processes/readiness.py` — process authority; Python implementation for readiness; exposes InfoWarningLogger, verify_spawn_readiness.
 
 ### Tests
 
-- `ops/pipeline/tests/Invoke-WebViewReliabilityChecks.ps1` — verification evidence; PowerShell implementation for invoke web view reliability checks; exposes Assert-Absent, Assert-Container, Assert-Leaf.
-- `ops/pipeline/tests/Unit/Invoke-LoggingJsonLineChecks.ps1` — verification evidence; PowerShell implementation for invoke logging json line checks; exposes Assert-Equal, Assert-True, Invoke-ConcurrentCompletedManifestJsonLineAppendCheck.
-- `ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1` — verification evidence; PowerShell implementation for invoke pipeline queue engine checks; exposes Already-Processed, Assert-Equal, Assert-True.
-- `tests/python/desktop/application_facade_test_support.py` — verification evidence; Python implementation for application facade test support; exposes assert_namespace_export, DummyFacadeService, DummyProc.
-- `tests/python/desktop/test_api_command_contracts.py` — verification evidence; Python implementation for test api command contracts; exposes ApiCommandContractsTests.
+- `tests/python/desktop/test_application_facade_local_api_http.py` — verification evidence; Python implementation for test application facade local api http; exposes LocalApiHttpTests.
+- `tests/python/desktop/test_application_facade_local_api_lifecycle.py` — verification evidence; Python implementation for test application facade local api lifecycle; exposes LocalApiLifecycleTests.
+- `tests/python/desktop/test_application_facade_web_static_cross_page.py` — verification evidence; Python implementation for test application facade web static cross page; exposes ApplicationFacadeWebStaticCrossPageTests.
+- `tests/python/desktop/test_local_api_lifecycle_contract_smoke.py` — verification evidence; Python implementation for test local api lifecycle contract smoke; exposes LocalApiLifecycleContractSmoke.
+- `tests/python/desktop/test_tauri_pg1_close_adversarial_scaffold.py` — verification evidence; test_tauri_pg1_close_adversarial_scaffold.py PG-1 adversarial close-readiness scaffold test. Verifies that the Tauri shell lib.rs contains all required structural patterns for handling combined active-work + armed-watcher + error close-readiness states. This is a static scaffold test — it does not run Tauri or require real media. PG-1 gate criteria (from the archived Tauri transition plan): Adversarial close-readiness: armed watcher + active work + in-flight commands must all surface in the Tauri native close-prompt dialog before the operator can dismiss. This scaffold test proves the lib.rs code satisfies the structural requirements. Full PG-1 validation requires a live Tauri run with a temporary adversarial backend (see VALIDATION_LADDER_RUNBOOK.md PG-1 section). This test does NOT: - run Tauri - open a window - process media - post commands - mutate any pipeline, settings, queue, rename, or publish state
 
 ### Boundaries / validation
 
@@ -65,28 +50,28 @@ Validation: Tauri CheckOnly, shell checks, and affected lifecycle tests
 
 ## Why these files
 
-- `ops/pipeline/engine/process/dynamic_hdr.ps1`: process authority.
-- `ops/pipeline/engine/process/dynamic_hdr_metadata.ps1`: process authority.
-- `ops/pipeline/engine/process/dynamic_hdr_output.ps1`: process authority.
-- `ops/pipeline/engine/process/dynamic_hdr_policy.ps1`: process authority.
-- `ops/pipeline/engine/process/dynamic_hdr_tools.ps1`: process authority.
-- `ops/pipeline/engine/process/encode_attempt_plan.ps1`: process authority.
-- `ops/pipeline/engine/process/encode_command_builder.ps1`: process authority.
-- `ops/pipeline/engine/process/encode_context.ps1`: process authority.
+- `src/mediapipeline/core/processes/guard_facade.py`: process authority.
+- `src/mediapipeline/core/processes/guard_policy.py`: process authority.
+- `src/mediapipeline/core/processes/lifecycle_lease.py`: process authority.
+- `src/mediapipeline/core/processes/lifecycle_reconciliation.py`: process authority.
+- `src/mediapipeline/core/processes/readiness.py`: process authority.
+- `src/mediapipeline/core/processes/tdarr_background.py`: process authority.
+- `src/mediapipeline/core/api/command_results.py`: api authority.
+- `src/mediapipeline/core/api/commands.py`: api authority.
 
 ## Tests and validation
 
-- `ops/pipeline/tests/Invoke-WebViewReliabilityChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-LoggingJsonLineChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1`
-- `tests/python/desktop/application_facade_test_support.py`
-- `tests/python/desktop/test_api_command_contracts.py`
-- `tests/python/desktop/test_api_command_journal_policy.py`
-- `tests/python/desktop/test_application_facade_close_readiness.py`
 - `tests/python/desktop/test_application_facade_local_api_http.py`
+- `tests/python/desktop/test_application_facade_local_api_lifecycle.py`
+- `tests/python/desktop/test_application_facade_web_static_cross_page.py`
+- `tests/python/desktop/test_local_api_lifecycle_contract_smoke.py`
+- `tests/python/desktop/test_tauri_pg1_close_adversarial_scaffold.py`
+- `tests/python/desktop/test_tauri_shell_scaffold.py`
+- `tests/webview/test_webview_browser_lifecycle_smoke.py`
+- `tests/webview/test_webview_pipeline_log_window_static.py`
 - Smallest validation rung: Tauri CheckOnly, shell checks, and affected lifecycle tests.
 - Boundaries: `docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`.
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=30, documentation=8, generated=1, change_evidence=4, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=9, documentation=5, generated=1, change_evidence=0, archive=0, runtime_artifact=0.

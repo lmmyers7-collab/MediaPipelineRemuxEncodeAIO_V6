@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-16
+last_modified: 2026-07-20
 last_reviewed: 2026-06-02
-sha256: 78d37ff38e2ed6489199aa4aabffe2bc19e6552eb4c4701128970a7aa96c44ae
+sha256: 8cab043a7a7a7fe115b116da08930e8ec0ca050326744907c78cb832a759b4a8
 ---
 # `docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md`
 

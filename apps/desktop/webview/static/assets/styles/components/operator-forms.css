@@ -1,0 +1,103 @@
+.diagnostic-callout {
+  margin: 0 0 var(--space-5);
+}
+
+.diagnostic-callout-brief {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  color: var(--grey-100);
+  background: var(--grey-900);
+  border: 1px solid var(--grey-700);
+  border-radius: var(--radius-xs);
+  line-height: 1.5;
+}
+
+.diagnostic-callout-details {
+  margin-top: var(--space-2);
+}
+
+.diagnostic-callout-details > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  color: var(--semantic-info-muted-text);
+  background: transparent;
+  border: 1px solid var(--grey-700);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+
+.diagnostic-callout-details > summary:hover,
+.diagnostic-callout-details > summary:focus-visible {
+  border-color: var(--semantic-interactive-panel-border);
+  color: var(--semantic-info-text);
+  outline: none;
+}
+
+.diagnostic-callout-body {
+  margin-top: var(--space-2);
+  margin-bottom: 0;
+}
+
+.advanced-mode .diagnostic-callout-brief,
+.advanced-mode .diagnostic-callout-details {
+  display: none;
+}
+
+/* S20: log variant — monospace with border-left marker, taller viewport */
+.log-block {
+  min-height: 120px;
+  max-height: 600px;
+  margin: 0 0 var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  overflow: auto;
+  white-space: pre-wrap;
+  background: var(--grey-900);
+  border: 1px solid var(--grey-700);
+  border-left: 3px solid var(--grey-700);
+  border-radius: var(--radius-xs);
+  color: var(--grey-100);
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: var(--text-xs);
+  line-height: 1.6;
+}
+
+/* S20: status variant — prose font but no minimum height for short strings */
+.status-block {
+  margin: 0 0 var(--space-5);
+  padding: var(--space-3) var(--space-5);
+  overflow: auto;
+  white-space: pre-wrap;
+  background: var(--grey-900);
+  border: 1px solid var(--grey-700);
+  border-radius: var(--radius-xs);
+  color: var(--grey-200);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  min-height: 0;
+}
+
+/* Stage 16 #7: cap line length for readability (Section 3) */
+.note {
+  min-height: 20px;
+  max-width: 65ch;
+  margin: var(--space-4) 0 0;
+  color: var(--grey-300);
+  font-size: var(--text-xs);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(200px, 1fr));
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+/* S27: dense layout for checkbox-only or very short input rows */
+.form-grid-dense {
+  grid-template-columns: repeat(6, minmax(100px, 1fr));
+}
+

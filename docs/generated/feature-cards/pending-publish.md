@@ -10,35 +10,19 @@ Validation: targeted pending-publish tests, release gate, and real-media validat
 
 ### WebView / Tauri
 
-- `apps/desktop/webview/static/assets/app/lifecycle.js` — operator display/intent surface; JavaScript implementation for lifecycle; exposes activeKeyboardPage, activeKeyboardPanel, activePageSelectableRows.
-- `apps/desktop/webview/static/assets/app/lifecycle/navigation.js` — operator display/intent surface; JavaScript implementation for navigation; exposes activateCompletedTab, activateCrossPageTarget, activateDiagnosticsTab.
-- `apps/desktop/webview/static/assets/app/lifecycle/topbar.js` — operator display/intent surface; JavaScript implementation for topbar; exposes backendLifecycleState, clearTopbarPendingLaunch, closeReadinessWatcherData.
-- `apps/desktop/webview/static/assets/launch/commandOrchestration.js` — operator display/intent surface; JavaScript implementation for command orchestration; exposes browsePipelineSingleFile, clearPipelineSingleFile, createLaunchCommandOrchestrationModule.
-- `apps/desktop/webview/static/assets/network/lifecycle.view.js` — operator display/intent surface; JavaScript implementation for lifecycle view; exposes closeReadinessIsSafe, createNetworkLifecycleViewModule, networkCommandRouteByDataSchema.
-
-### API route
-
-- `src/mediapipeline/desktop/api/contract_command_file.py` — api authority; Python implementation for contract command file.
-- `src/mediapipeline/desktop/api/contract_payload.py` — api authority; Python implementation for contract payload; exposes local_api_contract_payload.
-- `src/mediapipeline/desktop/api/contract_read.py` — api authority; Python implementation for contract read.
-- `src/mediapipeline/desktop/api/handler_policy.py` — api authority; Python implementation for handler policy; exposes bounded_error_text, cors_response_headers, not_found_payload.
-- `src/mediapipeline/desktop/api/read_payloads_policy.py` — api authority; Python implementation for read payloads policy; exposes close_readiness_unavailable_payload, read_unavailable_payload.
+- `apps/desktop/webview/static/assets/pendingPublish/actionCenter.js` — operator display/intent surface; JavaScript implementation for action center; exposes activateQuickLink, applyPendingActionFilter, capturePendingSelectionScroll.
+- `apps/desktop/webview/static/assets/pendingPublish/confidence/postDrainTrust.js` — operator display/intent surface; JavaScript implementation for post drain trust; exposes add, createPendingPostDrainTrustModule, pendingPostDrainTrustDetailLines.
+- `apps/desktop/webview/static/assets/pendingPublish/defaultAdapters.js` — operator display/intent surface; JavaScript implementation for default adapters; exposes createPendingPublishDefaultAdapters.
+- `apps/desktop/webview/static/assets/pendingPublish/details.js` — operator display/intent surface; JavaScript implementation for details; exposes addMatch, createPendingPublishDetailsModule, pendingCompletedCorrelationCompletedOutputPath.
+- `apps/desktop/webview/static/assets/pendingPublish/filters.js` — operator display/intent surface; JavaScript implementation for filters; exposes createPendingPublishFiltersModule, pendingFilterVisibilityLines, pendingFocusedInvestigationLabels.
 
 ### Python facade / domain service
 
-- `src/mediapipeline/core/processes/guard_facade.py` — process authority; Process close-readiness and active-work facade adapter.
-- `src/mediapipeline/core/processes/guard_policy.py` — process authority; Close-readiness policy helpers for active process guards.
-- `src/mediapipeline/core/processes/lifecycle_reconciliation.py` — process authority; Fail-closed reconciliation for terminal lifecycle recovery evidence.
-- `src/mediapipeline/core/processes/readiness.py` — process authority; Python implementation for readiness; exposes InfoWarningLogger, verify_spawn_readiness.
-- `src/mediapipeline/core/processes/rerun_lifecycle.py` — process authority; Durable backend-owned lifecycle evidence for local CSV rerun launches.
-
-### Contract / state / config
-
-- `src/mediapipeline/core/kernel/contracts/pending_publish.py` — kernel authority; Python implementation for pending publish; exposes PendingPushManifest.
-- `src/mediapipeline/contracts/__init__.py` — contracts authority; Canonical pipeline contracts. This package is the single source of truth for: - Pipeline stage I/O shapes (`stages.py`). - Source media facts normalized from probe JSON (`source_media.py`). - Abstract dry-run pipeline plans (`pipeline_plan.py`). - Verification and publish guard results (`verification.py`). - Effective decision policy shared by config and decide (`decision_policy.py`). - Configuration shape (`config.py`, Pydantic v2). - Local API command payload shapes (`api_commands.py`). - File lifecycle/state-machine documentation source (`lifecycle.py`). - Runtime diagnostic evidence (`runtime_evidence.py`). - Subtitle QA evidence (`subtitles.py`). - Local API route metadata (`api_routes.py`). - Backend-owned Run Once monitoring evidence (`run_monitor.py`). - Cross-stage data shapes (jobs, manifests, events) — added in later phases. `config.py` generates `src/mediapipeline/contracts/schemas/config.v1.schema.json`. `stages.py` generates `src/mediapipeline/contracts/schemas/stages.v1.schema.json` and defines the single Python-to-PowerShell stage execution contract. `lifecycle.py` generates `docs/architecture/FILE_LIFECYCLE_MAP.md`.
-- `src/mediapipeline/contracts/api_commands.py` — contracts authority; Pydantic contracts for Local API command request payloads. The Local API wire shape remains owned by the existing routes. These models describe the known per-route fields while allowing existing additive fields so the command-handler migration can proceed without breaking WebView callers.
-- `src/mediapipeline/contracts/api_routes_command_file.py` — contracts authority; Python implementation for api routes command file.
-- `src/mediapipeline/contracts/api_routes_read.py` — contracts authority; Python implementation for api routes read.
+- `src/mediapipeline/core/publish/__init__.py` — publish authority; Publish-domain read models and adapters.
+- `src/mediapipeline/core/publish/file_io.py` — publish authority; Python implementation for file io; exposes read_json_file.
+- `src/mediapipeline/core/publish/pending_contracts.py` — publish authority; Python implementation for pending contracts; exposes int_value.
+- `src/mediapipeline/core/publish/pending_drain_confidence.py` — publish authority; Python implementation for pending drain confidence; exposes pending_publish_drain_confidence_payload.
+- `src/mediapipeline/core/publish/pending_facade.py` — publish authority; Python implementation for pending facade; exposes PendingPublishFacadeMixin.
 
 ### PowerShell execution
 
@@ -50,19 +34,15 @@ Validation: targeted pending-publish tests, release gate, and real-media validat
 
 ### Tests
 
-- `ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1` — verification evidence; PowerShell implementation for invoke end to end smoke checks; exposes Assert-True, ConvertTo-Psd1Literal, Get-ProbeStreamCodecs.
-- `ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1` — verification evidence; PowerShell implementation for invoke legacy desktop reliability regression checks; exposes Add-CompletedJobsManifestEntryFromSidecar, Add-RoundFailureRecord, Add-TestEvent.
-- `ops/pipeline/tests/Unit/Invoke-CompletedManifestBackfillDryRunChecks.ps1` — verification evidence; PowerShell implementation for invoke completed manifest backfill dry run checks; exposes Assert-False, Assert-FileTextContains, Assert-True.
-- `ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1` — verification evidence; PowerShell implementation for invoke contract schema checks; exposes Assert-Equal, Assert-True, Convert-RoundTripJson.
-- `ops/pipeline/tests/Unit/Invoke-LoggingJsonLineChecks.ps1` — verification evidence; PowerShell implementation for invoke logging json line checks; exposes Assert-Equal, Assert-True, Invoke-ConcurrentCompletedManifestJsonLineAppendCheck.
+- `ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1` — verification evidence; PowerShell implementation for invoke pending publish safety checks; exposes Assert-Equal, Assert-MatchText, Assert-True.
+- `ops/pipeline/tests/Unit/Invoke-PendingPublishTransactionFaultInjectionChecks.ps1` — verification evidence; PowerShell implementation for invoke pending publish transaction fault injection checks; exposes Add-CompletedJobsManifestEntryFromSidecar, Add-RoundFailureRecord, Assert-Equal.
+- `tests/python/desktop/test_application_facade_pending_publish.py` — verification evidence; Python implementation for test application facade pending publish; exposes ApplicationFacadePendingPublishTests.
+- `tests/python/desktop/test_final_library_promotion.py` — verification evidence; Python implementation for test final library promotion; exposes FinalLibraryPromotionServiceTests, FinalLibraryPromotionTests, FinalLibraryPromotionWebViewSettingsTests.
+- `tests/python/desktop/test_pending_publish_service.py` — verification evidence; Python implementation for test pending publish service; exposes CountingPendingPublishService, DummyPendingPublishService, PendingPublishServiceTests.
 
 ### Boundaries / validation
 
-- `docs/architecture/FILE_LIFECYCLE_MAP.md` — canonical boundary; Markdown implementation for file lifecycle map.
-- `docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md` — canonical boundary; Markdown implementation for local api evidence mutation matrix.
-- `docs/architecture/MODULE_MAP.md` — canonical boundary; Markdown implementation for module map.
-- `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md` — canonical boundary; Markdown implementation for repair reconcile mutation contract.
-- `docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md` — canonical boundary; Markdown implementation for tauri backend lifecycle boundary.
+- `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md` — canonical boundary; Markdown implementation for no touch boundary register.
 
 ## Why these files
 
@@ -77,17 +57,14 @@ Validation: targeted pending-publish tests, release gate, and real-media validat
 
 ## Tests and validation
 
-- `ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1`
-- `ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-CompletedManifestBackfillDryRunChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-LoggingJsonLineChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-PendingPublishOwnershipChecks.ps1`
 - `ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1`
 - `ops/pipeline/tests/Unit/Invoke-PendingPublishTransactionFaultInjectionChecks.ps1`
+- `tests/python/desktop/test_application_facade_pending_publish.py`
+- `tests/python/desktop/test_final_library_promotion.py`
+- `tests/python/desktop/test_pending_publish_service.py`
 - Smallest validation rung: targeted pending-publish tests, release gate, and real-media validation only when publish behavior changes.
 - Boundaries: `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`, `docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md`.
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=100, documentation=21, generated=1, change_evidence=14, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=5, documentation=2, generated=0, change_evidence=0, archive=0, runtime_artifact=0.

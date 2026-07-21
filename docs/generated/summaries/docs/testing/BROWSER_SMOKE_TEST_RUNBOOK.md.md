@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-16
+last_modified: 2026-07-20
 last_reviewed: 2026-05-29
-sha256: 6370f0f2a381606caec7d09e00f9542c474d8c83137da52222212ad456ad3123
+sha256: d3a8e2bd1bc93dff1acf924e1fd8e2cab3a66aaf79123d2fa19e1fdfb1752c40
 ---
 # `docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md`
 

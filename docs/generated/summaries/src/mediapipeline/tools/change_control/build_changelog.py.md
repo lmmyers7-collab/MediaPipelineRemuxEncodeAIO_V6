@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-11
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: 198d0f6a3a36f057b121298071102683ba77e9886fe18e7f11286d855b48d6a1
+sha256: 8768e114777e6080666c15ad293151616ad5b9259bd8d70af717caefd777de44
 ---
 # `src/mediapipeline/tools/change_control/build_changelog.py`
 

@@ -6,13 +6,20 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mediapipeline.core.queue.file_overrides import FileOverrideManifestReadError, read_file_overrides
-from mediapipeline.core.paths.queue_input_fingerprint import queue_input_consistency
+from mediapipeline.core.paths.queue_input_fingerprint import (
+    queue_input_consistency,
+    queue_input_fingerprint,
+)
 from mediapipeline.core.queue.priority_manifest import (
     PriorityManifestReadError,
     get_manifest_entry,
     get_manifest_level,
     has_manifest_priority_entry,
     read_priority_manifest,
+)
+from mediapipeline.core.queue.priority_export import (
+    PriorityQueueExportStore,
+    priority_export_public_status,
 )
 from mediapipeline.core.queue.policy import (
     INVALID_QUEUE_SNAPSHOT_WARNING,
@@ -394,6 +401,69 @@ class QueueFacadeMixin:
                 "status": status,
             },
         )
+
+    def export_priority_queue(self, resolved: ResolvedPaths) -> CommandResult:
+        exporter = getattr(self.service, "export_priority_queue_snapshot", None)
+        if not callable(exporter):
+            return _command_result(
+                command="queue.priority_export",
+                ok=False,
+                severity="error",
+                message="Priority queue export service is not available.",
+                errors=["priority_export_service_unavailable"],
+                refresh_hint="queue",
+            )
+        try:
+            artifact = exporter(resolved)
+        except Exception as exc:
+            return _command_result(
+                command="queue.priority_export",
+                ok=False,
+                severity="error",
+                message=f"Priority queue export failed: {exc}",
+                errors=["priority_export_failed"],
+                refresh_hint="queue",
+            )
+        public = priority_export_public_status(artifact)
+        ready = str(artifact.get("status") or "").casefold() == "ready"
+        return _command_result(
+            command="queue.priority_export",
+            ok=ready,
+            severity="ok" if ready else "warning",
+            message=str(artifact.get("message") or "Priority queue export is not ready."),
+            errors=[] if ready else [str(artifact.get("reason_code") or "priority_export_blocked")],
+            refresh_hint="queue",
+            data=public,
+        )
+
+    def get_priority_queue_export(self, resolved: ResolvedPaths) -> dict[str, object]:
+        if resolved.state_root is None:
+            payload = {
+                "schema_version": "priority_queue_export.v1",
+                "status": "missing",
+                "ready": False,
+                "reason_code": "priority_export_state_root_missing",
+                "message": "Priority queue export requires LocalBase/State to be configured.",
+                "count": 0,
+                "queue_scope": "priority_export",
+            }
+        else:
+            payload = PriorityQueueExportStore(resolved.state_root).latest_status()
+            if str(payload.get("status") or "").casefold() == "ready":
+                current_inputs = queue_input_fingerprint(resolved)
+                if (
+                    current_inputs.get("status") != "current"
+                    or str(current_inputs.get("fingerprint") or "")
+                    != str(payload.get("queue_input_fingerprint") or "")
+                ):
+                    payload = {
+                        **payload,
+                        "status": "stale",
+                        "ready": False,
+                        "reason_code": "priority_export_input_stale",
+                        "message": "Queue inputs changed after this export. Prepare a new priority export.",
+                    }
+        return priority_export_public_status(payload)
 
     @staticmethod
     def _queue_record_to_row(record: QueueRecord) -> dict[str, object]:

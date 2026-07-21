@@ -35,6 +35,52 @@ GENERATED_NAVIGATION_PREFIXES = (
     "docs/generated/summaries/",
 )
 
+# Retrieval roles classify the generated surface without changing which
+# artifacts are generated or validated.  Default search can skip this entire
+# surface while exact, opt-in searches and the owning generators retain access.
+GENERATED_ARTIFACT_ROLE_PATHS: dict[str, frozenset[str]] = {
+    "ai_navigation": frozenset(
+        {
+            *GENERATED_NAVIGATION_FILES,
+            "docs/generated/FILE_SUMMARIES.md",
+            "docs/generated/PIPELINE_MAP.md",
+        }
+    ),
+    "validation_baseline": frozenset(
+        {
+            "docs/generated/WEBVIEW_ESLINT_WARNING_BUDGET.json",
+            "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+            "docs/generated/WEBVIEW_ROUTE_OWNERSHIP_GUARD.json",
+        }
+    ),
+    "validation_report": frozenset(
+        {
+            "docs/generated/DUPLICATE_TEST_NAMES.md",
+            "docs/generated/SMOKE_WRAPPER_MAP.json",
+            "docs/generated/WEBVIEW_COMMAND_BOUNDARY_AUDIT.json",
+            "docs/generated/WEBVIEW_DOM_ID_GAP_REPORT.json",
+            "docs/generated/WEBVIEW_TOUCHPOINT_LEDGER.json",
+        }
+    ),
+    "human_report": frozenset(
+        {
+            "docs/generated/DOC_ARCHIVE_CANDIDATE_SCAN.md",
+            "docs/generated/WEBVIEW_GODFILE_SPLIT_MAP.md",
+            "docs/generated/WEBVIEW_SPLIT_CANDIDATES.json",
+        }
+    ),
+}
+GENERATED_ARTIFACT_ROLE_PREFIXES: dict[str, tuple[str, ...]] = {
+    "ai_navigation": GENERATED_NAVIGATION_PREFIXES,
+    "human_visualization": ("docs/generated/dependency-atlas/",),
+}
+REQUIRED_GENERATED_ARTIFACT_ROOTS = frozenset(
+    {
+        *(PurePosixPath(path).name for paths in GENERATED_ARTIFACT_ROLE_PATHS.values() for path in paths),
+        *(PurePosixPath(prefix.rstrip("/")).name + "/" for prefixes in GENERATED_ARTIFACT_ROLE_PREFIXES.values() for prefix in prefixes),
+    }
+)
+
 
 @dataclass(frozen=True)
 class ExtractedSource:
@@ -111,6 +157,21 @@ def is_generated_navigation_output(path: str | Path) -> bool:
     return normalized in GENERATED_NAVIGATION_FILES or any(
         normalized.startswith(prefix) for prefix in GENERATED_NAVIGATION_PREFIXES
     )
+
+
+def generated_artifact_role(path: str | Path) -> str | None:
+    """Return the configured retrieval role for a generated artifact path."""
+
+    normalized = str(path).replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    for role, paths in GENERATED_ARTIFACT_ROLE_PATHS.items():
+        if normalized in paths:
+            return role
+    for role, prefixes in GENERATED_ARTIFACT_ROLE_PREFIXES.items():
+        if any(normalized.startswith(prefix) for prefix in prefixes):
+            return role
+    return None
 
 
 def _state_files(text: str) -> tuple[str, ...]:
@@ -283,9 +344,13 @@ __all__ = [
     "ExtractedSource",
     "GENERATED_NAVIGATION_FILES",
     "GENERATED_NAVIGATION_PREFIXES",
+    "GENERATED_ARTIFACT_ROLE_PATHS",
+    "GENERATED_ARTIFACT_ROLE_PREFIXES",
+    "REQUIRED_GENERATED_ARTIFACT_ROOTS",
     "SUMMARY_GENERATOR_FINGERPRINT",
     "SUMMARY_SCHEMA_VERSION",
     "extract_source",
     "fallback_purpose",
+    "generated_artifact_role",
     "is_generated_navigation_output",
 ]

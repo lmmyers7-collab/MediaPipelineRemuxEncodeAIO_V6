@@ -12,6 +12,34 @@ All-surface rationalization snapshot: `docs/ai-audits/2026-06-18-test-coverage-r
 
 Generated drift aids: `docs/generated/SMOKE_WRAPPER_MAP.json` maps every `ops/scripts/smoke/Test-*.ps1` wrapper to its underlying module/test selector plus docs/release presence, and `docs/generated/DUPLICATE_TEST_NAMES.md` reports exact duplicate Python test names across `tests/python` and `tests/webview`. Both are review aids; duplicates and wrapper/module pairs are not removal instructions.
 
+Legacy reliability decomposition is owned by `docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.v1.json`, validated against `src/mediapipeline/contracts/schemas/test_suite_subsystem_inventory.v1.schema.json` by:
+
+```powershell
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.dev.check_test_suite_subsystem_inventory --json
+```
+
+The map inventories each logical block in `Invoke-LegacyDesktopReliabilityRegressionChecks.ps1`, covers every assertion-bearing line exactly once, records focused replacements or obsolescence evidence, and refuses removal of unclear blocks or unique blocks without passing replacement evidence. It is the machine-readable extension of this inventory, not a competing test catalog.
+
+---
+
+## Oversized Test Migration Plan (2026-07-20)
+
+The audit baseline found 46 Python test files above 1,000 measured lines and 9 above 2,000. Migration boundaries follow tested behavior and operator surfaces; line ranges are not migration units.
+
+| Baseline file | Measured lines | Behavior seams and migration order |
+|---|---:|---|
+| `test_application_facade_process_launch.py` | 4,165 | Pipeline/audit launch; Network lifecycle and worker provider; local rerun enrollment/recovery; Network rerun launch/claim handoff; launch locks and schedule gates; read-only launch preflight. Network lifecycle and Network rerun are now separate modules; preflight is also independently selectable. Continue with local rerun lifecycle before core pipeline/audit launch. |
+| `test_application_facade_web_static.py` | 3,354 | Home/progress rendering; Local API contract and command wiring; Settings/path-picker staging; Queue file-override UI; Diagnostics handoff; headless backend bootstrap/reconciliation. Continue one page or route family at a time. |
+| `test_webview_browser_maintenance_reports_smoke.py` | 2,712 | Maintenance commands; report/audit triage; diagnostics-open and clear/archive flows; browser lifecycle harness. Extract backend fixture/server setup before separating Maintenance and Reports journeys. |
+| `test_process_rerun_results.py` | 2,352 | Local/current rerun selection; Network projections and reducer timelines; stop/continue recovery actions; correlation degradation; Pending Publish promotion. Split read-model projection from recovery commands, then promotion policy. |
+| `test_tauri_shell_scaffold.py` | 2,234 | Shell/bootstrap contract; packaging and CSP; close/single-instance lifecycle; smoke harness wiring. Split static scaffold/package checks from native lifecycle and harness-policy checks. |
+| `test_webview_browser_queue_launch_completed_smoke.py` | 2,064 | Backend Queue plan; Launch acceptance/duplicate guard; Run Monitor transitions; Completed/review reload. Keep the end-to-end journey intact, but extract narrowly named queue-plan and synchronized-runner fixtures. |
+| `test_network_rerun_claims.py` | 2,059 | Claim/done/release; destination policy; reducer outcomes and retries; source identity/outage recovery; stale-claim reconciliation; handoff probes. Split by state-machine command family, preserving the shared durable batch fixture. |
+| `test_file_override_tracks.py` | 1,949 | Route registration; series batch overrides; remux-pilot promotion; folder rules; track probing; effective selection and exact selectors. Split by override scope and keep probe fixtures shared only by track/effective modules. |
+| `test_webview_browser_launch_queue_readiness_smoke.py` | 1,848 | Browser startup/readiness; Queue scan and scope reconciliation; Launch policy/timing evidence; sample-validation handoff. Extract server/browser fixture setup, then split Queue readiness from Launch/sample-validation rendering. |
+
+For each tranche, preserve test names and assertion bodies, run the original focused module set before movement, compare discovered counts after movement, and run the generated duplicate-name report before and after. Update this inventory and `docs/testing/TEST_COVERAGE_MATRIX.md` with each new feature-scoped selector.
+
 ---
 
 ## Running Targeted Tests
@@ -57,6 +85,7 @@ These focused PowerShell checks sit outside `tests\python\desktop` and guard cro
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-EncoderRuntimeMatrixChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-NamingSupportChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PipelineQueueEngineChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RunMonitorContractPersistenceChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RunMonitorStateChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-EncodeRuntimeRouteEvidenceChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-ProgressStateTelemetryChecks.ps1
@@ -115,7 +144,7 @@ scanning operator media or starting a live library audit. The active
 
 `Invoke-PipelineQueueEngineChecks.ps1` guards queue-engine dispatch mode selection and accepted naming evidence: one local worker slot stays serial, multi-slot `local_worker_slots` dispatches through the worker scheduler with the expected script/config/PowerShell context, missing worker context fails closed without falling back to serial dispatch, worker-child result writing remains versioned, production/force-rename filenames and exact evidence-source tokens are bound to Queue-plan and accepted-membership fingerprints, raw/unversioned/tampered names fail closed, and planner or pre-planner naming failures cannot enter accepted membership or inherit a preceding row's route evidence.
 
-`Invoke-RunMonitorStateChecks.ps1` guards immutable accepted Run Once membership, rejection of blank planned-name evidence at the engine seed boundary, exact pre-spawn-seed adoption, run-wide identity and stage correlation, planned/executed/final route separation, all-worker projection, per-track audio/subtitle evidence, wrong/missing track fail-unknown behavior, terminal artifact references, and truthful progress/freshness semantics. `Invoke-EncodeRuntimeRouteEvidenceChecks.ps1` separately proves runtime encode-family/fallback decisions author exact executed-route reason evidence without overwriting terminal proof. Both are mandatory children of `Invoke-ReliabilityRegressionChecks.ps1`.
+`Invoke-RunMonitorContractPersistenceChecks.ps1` directly guards the extracted contract and persistence modules: safe run identity, evidence constructors, immutable membership signatures, payload validation, UTF-8 atomic writes, accepted-seed reads, pointer identity, mutex naming, and terminal-history retention in a disposable state root. `Invoke-RunMonitorStateChecks.ps1` guards immutable accepted Run Once membership, rejection of blank planned-name evidence at the engine seed boundary, exact pre-spawn-seed adoption, run-wide identity and stage correlation, planned/executed/final route separation, all-worker projection, per-track audio/subtitle evidence, wrong/missing track fail-unknown behavior, terminal artifact references, and truthful progress/freshness semantics. `Invoke-EncodeRuntimeRouteEvidenceChecks.ps1` separately proves runtime encode-family/fallback decisions author exact executed-route reason evidence without overwriting terminal proof. The state and route checks remain mandatory children of `Invoke-ReliabilityRegressionChecks.ps1`.
 
 `Invoke-ProgressStateTelemetryChecks.ps1` guards progress-to-monitor translation, including distinct Verification mapping, exact track correlation, nonterminal indeterminate progress, and the rule that compatibility progress or generic route text cannot become stage or executed-route authority.
 
@@ -148,8 +177,9 @@ These repository-level Python tests sit outside `tests\python\desktop` and guard
 | `tests/python/tooling/test_active_doc_references.py` | Active-doc moved-path, removed-shell-wording, absolute handoff-path, archive-exclusion, and required-doc checks |
 | `tests/python/tooling/test_ai_guardrail.py` | AI guardrail preflight/postflight plan contents and git-status rename/untracked path parsing |
 | `tests/python/tooling/test_audit_checks.py` | Shared audit-check manifest suites for pre-commit, generated-context CI, deep-audit, release self-test, and AI guardrail orchestration |
-| `tests/python/tooling/test_change_control.py` | Change-control release manifest placeholder behavior, version-label validation, and missing `ops/release/metadata/VERSION` error reporting |
-| `tests/python/tooling/test_code_context_mcp.py` | Read-only MCP path policy, context/lookup/search/read bounds, live untracked search, stale records, SDK stdio contract, client bootstrap preview, dependency isolation, and token ceilings |
+| `tests/python/tooling/test_change_control.py`, `tests/python/tooling/test_archive_completed_changes.py` | Change-control coverage, completed-packet archival/refusal/idempotence/rollback, archived release-input continuity, version-label validation, and missing-version diagnostics |
+| `tests/python/tooling/test_code_context_benchmark.py` | Versioned 48-case retrieval fixture integrity and quality/performance acceptance thresholds |
+| `tests/python/tooling/test_code_context_mcp.py` | Read-only MCP path policy, atomic index reload, normalized caches, aggregate-metric privacy, context/lookup/search/read/bundle bounds, live search, SDK stdio contract, client bootstrap preview, dependency isolation, and token ceilings |
 | `tests/python/tooling/test_dependency_boundaries.py` | App import-edge collection, module/package cycle detection, hard-boundary violations, allowlist staleness, and current-repo dependency check |
 | `tests/python/tooling/test_godfile_guard.py` | God-file policy validation, allowlisted thresholds, new/existing oversized file warnings, growth warnings, and git-status rename parsing |
 | `tests/python/tooling/test_lifecycle_map.py` | Lifecycle state/transition integrity and generated lifecycle-map rendering |
@@ -313,12 +343,17 @@ Tests for launch environment setup, launch plans, spawn, kill, readiness checks,
 | `test_facade_process_audit_policy.py` | Facade: audit launch policy |
 | `test_facade_process_pipeline_policy.py` | Facade: pipeline launch policy |
 | `test_facade_process_rerun_policy.py` | Facade: rerun policy |
+| `test_application_facade_process_launch.py` | Core pipeline/audit launch, local rerun enrollment/recovery, process ownership, launch locking, schedule gates, and duplicate guards |
+| `test_application_facade_launch_preflight.py` | Read-only pipeline/audit/rerun launch preflight, Queue-plan provenance, path health, schedule/lock blockers, and encoder capability evidence |
+| `test_application_facade_network_lifecycle.py` | Network-role launch rejection, coordinator/worker lifecycle commands, provider behavior, strict journal ordering, duplicate guards, concurrency, and redaction |
+| `test_application_facade_network_rerun_launch.py` | Network rerun dry-run/start, claim-enabled batch state, claim/done/release handoff, stale fingerprint rejection, and journal-failure cleanup |
 
 Targeted command:
 
 ```powershell
 & $py -m unittest discover -s tests\python\desktop -p "test*process*.py" -q
 & $py -m unittest discover -s tests\python\desktop -p "test_facade_process*.py" -q
+& $py -m unittest tests.python.desktop.test_application_facade_network_lifecycle tests.python.desktop.test_application_facade_network_rerun_launch -q
 ```
 
 Closed coverage gap: `test_application_facade_process_launch.py` now starts one pipeline, reports the first bundle-owned child process as still running, and confirms a second pipeline launch is rejected before the service launcher is called again.
@@ -436,6 +471,7 @@ Tests for audit record reading, CSV handling, I/O, metadata, and export.
 | `test_application_facade_reports.py` | Application-facade read-only failure JSON/marker preview, retry-state payload, and audit CSV preview behavior |
 | `test_rerun_lifecycle.py` | Durable local CSV rerun enrollment, strict exit/duplicate proof flags, nonterminal `spawn_transition_ambiguous` duplicate blocking, exact startup ActiveJobs/manifest correlation and path binding, verified premanifest terminalization without replay, stale-transition ordering, lifecycle counts/timeline, and accepted-row retention |
 | `test_process_rerun_results.py` | CSV rerun correlation/evidence projection, copied or renamed v2 manifest degradation with recovery actions withheld, exact waiting-child correlation, logical recovery namespace/generation behavior, canonical row-selector idempotence, Network reducer/destination-policy/retry projection, cooperative stop, and rerun promotion |
+| `test_rerun_results_network_projection.py` | Focused read-only Network CSV rerun row projection: stable row identities, defensive evidence copies, output-probe states, lifecycle aggregation, retry/destination action payloads, input immutability, and parent import/export compatibility |
 | `ops/pipeline/tests/Unit/Invoke-PortablePathChecks.ps1` | PowerShell audit/legacy GUI parser and portable audit-root default guard |
 | `ops/pipeline/tests/Unit/Invoke-RerunAutoDestinationChecks.ps1` | PowerShell CSV rerun auto-return behavior for clean confirmed final replacement, remaining-issue Pending Publish review routing, and source preservation |
 | `ops/pipeline/tests/Unit/Invoke-RerunCooperativeStopChecks.ps1` | PowerShell CSV rerun cooperative stop marker and stopped-manifest contract guard |
@@ -449,6 +485,7 @@ Targeted command:
 & $py -m unittest discover -s tests\python\desktop -p "test*audit*.py" -q
 & $py -m unittest tests.python.desktop.test_service_failure_markers -q
 & $py -m unittest tests.python.desktop.test_service_failure_retry_state -q
+& $py -m unittest tests.python.desktop.test_rerun_results_network_projection tests.python.desktop.test_process_rerun_results -q
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PortablePathChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-AuditCommandSupportChecks.ps1
 ```
@@ -616,7 +653,7 @@ Tests for historical legacy desktop-shell controller boundaries, controller-owne
 Targeted command:
 
 ```powershell
-& $py -m unittest tests.python.desktop.test_application_facade_queue tests.python.desktop.test_application_facade_completed tests.python.desktop.test_application_facade_web_static_completed tests.python.desktop.test_rerun_csv_preview tests.python.desktop.test_application_facade_process_launch tests.python.desktop.test_application_facade_web_static tests.python.desktop.test_process_rerun_results -q
+& $py -m unittest tests.python.desktop.test_application_facade_queue tests.python.desktop.test_application_facade_completed tests.python.desktop.test_application_facade_web_static_completed tests.python.desktop.test_rerun_csv_preview tests.python.desktop.test_application_facade_process_launch tests.python.desktop.test_application_facade_launch_preflight tests.python.desktop.test_application_facade_web_static tests.python.desktop.test_process_rerun_results -q
 ```
 
 ---
@@ -649,7 +686,10 @@ General facade policy and desktop shell bootstrap tests not covered by subsystem
 | `test_application_facade_network.py` | Application-facade Network worker-state metadata, progress bars, backend-authored heartbeat age, state-file evidence, and lifecycle-control absence for `/api/network/workers` |
 | `test_application_facade_pending_publish.py` | Application-facade pending-publish preview classification, durable drain-summary evidence, publish reconciliation, row-key open allowlists, scan-failure surfacing, and backend-authored recovery dry-run planning |
 | `test_application_facade_process_control.py` | Application-facade pipeline control flag contract, exact killed pipeline PID/Run ID gating for Force Stop Run Monitor takeover, no-process and unrelated audit/rerun non-terminalization, invalid action rejection, and control-lock fail-closed behavior |
-| `test_application_facade_process_launch.py` | Application-facade pipeline/audit/rerun launch handoff, durable rerun enrollment, copied-v2-manifest rejection, strict failed-before-manifest generation supersession, verified-versus-ambiguous post-spawn cleanup, duplicate pipeline rejection, launch-lock fail-closed behavior, schedule handling, blank Run Once current Queue-plan/name-evidence/content-digest gating, and backend-authored readiness DTO coverage |
+| `test_application_facade_process_launch.py` | Application-facade pipeline/audit/rerun launch handoff, durable rerun enrollment, copied-manifest identity handling, strict failed-before-manifest generation supersession, verified-versus-ambiguous post-spawn cleanup, duplicate pipeline rejection, launch-lock fail-closed behavior, schedule handling, and accepted Backend Queue run identity |
+| `test_application_facade_launch_preflight.py` | Read-only pipeline/audit/rerun launch readiness, current Queue-plan provenance/name/content-digest gates, path-health timeouts, encoder-capability evidence, UNC audit paths, and schedule/lock blockers |
+| `test_application_facade_network_lifecycle.py` | Network-role launch rejection, coordinator/worker lifecycle provider behavior, strict journal ordering, duplicate/concurrency guards, and redaction |
+| `test_application_facade_network_rerun_launch.py` | Network rerun dry-run/start, claim-enabled batch state, claim/done/release handoff, stale fingerprint rejection, and journal-failure cleanup |
 | `test_application_facade_queue.py` | Application-facade normal-only queue preview behavior, stale evidence, blocked-vs-excluded rows, runtime outcome correlation, explicit CSV rerun exclusion and compatibility metadata, and row-key open allowlists |
 | `test_application_facade_rename.py` | Application-facade rename preview/apply command behavior, selected-source scoping, multiple-selection handling, undo-manifest cleanup in temp fixtures, and apply-lock guarding |
 | `test_application_facade_reports.py` | Application-facade Reports behavior for failure JSON, failure markers, lifecycle journal transitions, marker-clear confirmation handoff, evidence archive, and audit CSV rows |
@@ -672,7 +712,7 @@ Tests for release plan construction, result validation, change-control metadata,
 |---|---|
 | `test_service_release_plan.py` | Release plan logic |
 | `test_service_release_result.py` | Release result validation |
-| `tests/tooling/test_change_control.py` | Change-control release-manifest preview behavior, safe version labels, and missing-version diagnostics |
+| `tests/python/tooling/test_change_control.py`, `tests/python/tooling/test_archive_completed_changes.py` | Change-control release-manifest preview behavior, completed-packet archival and rollback, safe version labels, and missing-version diagnostics |
 | `ops/scripts/ops/release/metadata/test.ps1` | Bundle layout, release-manifest hygiene, WebView include/asset checks, API browser token posture, parser/syntax checks, desktop unit discovery, environment verifier, Tauri prereqs, and current regression wrapper execution |
 
 Targeted command:

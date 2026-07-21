@@ -8,14 +8,14 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-20
 last_reviewed: 2026-07-20
-sha256: 41f4d4ed76ed9f0b2d611bc3fa388c7ab3c45c6f19a64c7657996c91a90e8a98
+sha256: c6ca62bf78f14fa6ca89e0e586533ced962266d5f3897ffba41e48706c021c12
 ---
 # `src/mediapipeline/tools/dev/code_context_service.py`
 
 **Purpose:** Read-only repository context, catalog, search, and ranged-read service.
 
-**Public symbols:** `CodeContextError`, `CodeContextService`, `ResolvedCodePath`
+**Public symbols:** `BundleFileRequest`, `CodeContextError`, `CodeContextService`, `ResolvedCodePath`
 **In-repo imports:** `mediapipeline.tools.dev.context_records`, `mediapipeline.tools.dev.context_slice`, `mediapipeline.tools.dev.refresh_summaries`, `mediapipeline.tools.paths`
-**State/config identifiers:** `mediapipeline_config.psd1`, `mediapipeline_config_chatgpt.psd1`, `settings.local.json`
+**State/config identifiers:** `MediaPipeline_config.psd1`, `mediapipeline_config.psd1`, `MediaPipeline_config_chatgpt.psd1`, `mediapipeline_config_chatgpt.psd1`, `settings.local.json`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/tools/dev/code_context_service.py`._

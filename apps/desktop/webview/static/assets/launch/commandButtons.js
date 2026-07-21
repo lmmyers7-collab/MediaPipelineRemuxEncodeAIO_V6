@@ -110,7 +110,7 @@
       const request = collectPipelineStartRequest();
       const targetGate = launchTargetGate("pipeline", request, {
         allowMissing: true,
-        matchKeys: ["mode", "sleep_seconds", "schedule_override", "single_file"],
+        matchKeys: ["mode", "sleep_seconds", "schedule_override", "single_file", "queue_scope", "priority_export_id"],
         label: "Start Pipeline",
       });
       if (targetGate.blocked) return targetGate;

@@ -6,18 +6,17 @@ file_type: JavaScript
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-19
+last_modified: 2026-07-21
 last_reviewed: 2026-07-16
-sha256: 1aa6471e4acce0031f3f80b423e6ad8e972863c4c0dac568f6f2de9175efe1ab
+sha256: e3157ae054b387c486e7d21d99ca0913f0806764f9e688b72014c6b92a847b87
 ---
 # `apps/desktop/webview/static/assets/runMonitorView.js`
 
 **Purpose:** JavaScript implementation for run monitor view; exposes acceptLaunchResult, activeJobIdentity, announce.
 
-**Public symbols:** `acceptLaunchResult`, `activeJobIdentity`, `announce`, `appendEmptyTrackRow`, `appendFact`, `appendRouteCard`, `applyTerminalHandoff`, `array`, `backendQueueCorrelationContext`, `beginTerminalHandoff`, `byId`, `captureDynamicMonitorFocus`, `clearBackendQueueContext`, `clearTerminalHandoff`, `collectionEmptyText`, `collectionStateLabel`, `cssEscape`, `currentClaimsAllowed`, `currentStageLabel`, `displayNameAuthorityLabel`, `displayNameBasis`, `duplicateDisplayNames`, `enforceSingleHomeLiveRegion`, `evidenceLabel`, `focusSelectedFile`, `focusSelectorForPage`, `focusTerminalDestination`, `focusTerminalHeading`, `formatAge`, `formatDurationSeconds`, `formatTimestamp`, `handleItemKeydown`, `humanize`, `init`, `itemEvidenceAllowed`
-**In-repo imports:** `window.addEventListener`, `window.apiGet`, `window.clearTimeout`, `window.CSS`, `window.dispatchEvent`, `window.mediaPipelineAppLifecycle`, `window.mediaPipelineCompletedView`, `window.mediaPipelinePendingPublishView`, `window.mediaPipelineReportsView`, `window.mediaPipelineRunMonitor`, `window.MutationObserver`, `window.setTimeout`, `window.showPage`
+**Public symbols:** `acceptLaunchResult`, `activeJobIdentity`, `announce`, `backendQueueCorrelationContext`, `byId`, `clearBackendQueueContext`, `enforceSingleHomeLiveRegion`, `init`, `meaningfulAnnouncement`, `observeHomeLiveRegions`, `refresh`, `render`, `renderCompactItems`, `renderDetail`, `renderItems`, `renderLastKnown`, `renderOutput`, `renderStopAfterCurrentControl`, `renderSummary`, `renderWorkers`, `setFreshness`, `setStopCommandBusy`, `setText`, `updateWorkloadDisclosure`, `updateWorkloadNameHelp`, `workerRenderSignature`, `workloadRenderSignature`
+**In-repo imports:** `window.__runMonitorFormatters`, `window.__runMonitorInteractionModule`, `window.__runMonitorNormalizationModule`, `window.__runMonitorRenderingModule`, `window.addEventListener`, `window.apiGet`, `window.dispatchEvent`, `window.mediaPipelineAppLifecycle`, `window.mediaPipelineRunMonitor`, `window.setTimeout`, `window.showPage`
 **HTTP routes:** `/api/run-monitor`
-**DOM selectors:** `.run-monitor-item-button`, `summary`
-**Exports:** `window.CSS.escape`
+**DOM selectors:** `summary`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/runMonitorView.js`._

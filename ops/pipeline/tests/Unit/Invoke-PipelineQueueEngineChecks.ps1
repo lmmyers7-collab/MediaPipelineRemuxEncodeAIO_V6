@@ -323,6 +323,59 @@ function New-QueueEngineTestEntry {
     }
 }
 
+function Invoke-PriorityOnlyQueuePlanSelectsEffectiveHighEntriesCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('MediaPipelinePriorityOnlyQueuePlanTest_' + [guid]::NewGuid().ToString('N'))
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        $highMovie = New-QueueEngineTestEntry -Root $tempRoot -Name 'High Movie.mkv' -Phase 'priority_movie' -MediaKind 'movie' -PriorityLevel 'high'
+        $highTV = New-QueueEngineTestEntry -Root $tempRoot -Name 'Show\High S01E01.mkv' -Phase 'priority_tv' -MediaKind 'tv' -PriorityLevel 'high'
+        $normalMovie = New-QueueEngineTestEntry -Root $tempRoot -Name 'Normal Movie.mkv' -Phase 'movie' -MediaKind 'movie' -PriorityLevel 'normal'
+        $normalTV = New-QueueEngineTestEntry -Root $tempRoot -Name 'Show\Normal S01E02.mkv' -Phase 'tv' -MediaKind 'tv' -PriorityLevel 'normal'
+        $strategyPromotedNormalTV = New-QueueEngineTestEntry -Root $tempRoot -Name 'Show\Strategy Promoted Normal S01E05.mkv' -Phase 'priority_tv' -MediaKind 'tv' -PriorityLevel 'normal'
+        $lowMovie = New-QueueEngineTestEntry -Root $tempRoot -Name 'Low Movie.mkv' -Phase 'low' -MediaKind 'movie' -PriorityLevel 'low'
+        $lowTV = New-QueueEngineTestEntry -Root $tempRoot -Name 'Show\Low S01E03.mkv' -Phase 'low' -MediaKind 'tv' -PriorityLevel 'low'
+        $holdMovie = New-QueueEngineTestEntry -Root $tempRoot -Name 'Hold Movie.mkv' -Phase 'hold' -MediaKind 'movie' -PriorityLevel 'hold'
+        $holdTV = New-QueueEngineTestEntry -Root $tempRoot -Name 'Show\Hold S01E04.mkv' -Phase 'hold' -MediaKind 'tv' -PriorityLevel 'hold'
+
+        $plan = New-TestQueuePlan
+        $plan.HighPriorityMovieEntries = @($highMovie)
+        $plan.HighPriorityTVEntries = @($highTV, $strategyPromotedNormalTV)
+        $plan.PriorityEntries = @($highMovie, $highTV)
+        $plan.NormalMovieEntries = @($normalMovie)
+        $plan.NormalTVEntries = @($normalTV)
+        $plan.LowEntries = @($lowMovie, $lowTV)
+        $plan.HoldEntries = @($holdMovie, $holdTV)
+        $plan.MovieCount = 4
+        $plan.TVCount = 4
+        $plan.MoviePriorityCount = 1
+        $plan.TVPriorityCount = 1
+        $plan.LowCount = 2
+        $plan.HoldCount = 2
+
+        $priorityOnlyPlan = Select-MediaPipelinePriorityOnlyQueuePlan -QueuePlan $plan
+
+        Assert-Equal ((@($priorityOnlyPlan.HighPriorityMovieEntries) | ForEach-Object { $_.File.Name }) -join '|') 'High Movie.mkv' 'PriorityOnly should retain only effective-High movie entries.'
+        Assert-Equal ((@($priorityOnlyPlan.HighPriorityTVEntries) | ForEach-Object { $_.File.Name }) -join '|') 'High S01E01.mkv' 'PriorityOnly should retain only effective-High TV entries.'
+        Assert-Equal ([string]$priorityOnlyPlan.HighPriorityMovieEntries[0].QueuePhase) 'priority_movie' 'PriorityOnly should preserve the high-movie phase.'
+        Assert-Equal ([string]$priorityOnlyPlan.HighPriorityTVEntries[0].QueuePhase) 'priority_tv' 'PriorityOnly should preserve the high-TV phase.'
+        Assert-Equal ((@($priorityOnlyPlan.PriorityEntries) | ForEach-Object { $_.File.Name }) -join '|') 'High Movie.mkv|High S01E01.mkv' 'PriorityOnly should retain legacy combined priority evidence in movie-then-TV order.'
+        Assert-Equal @($priorityOnlyPlan.NormalMovieEntries).Count 0 'PriorityOnly must exclude Normal movies.'
+        Assert-Equal @($priorityOnlyPlan.NormalTVEntries).Count 0 'PriorityOnly must exclude Normal TV entries.'
+        Assert-Equal @($priorityOnlyPlan.LowEntries).Count 0 'PriorityOnly must exclude Low entries.'
+        Assert-Equal @($priorityOnlyPlan.HoldEntries).Count 0 'PriorityOnly must exclude Hold entries.'
+        Assert-Equal ([int]$priorityOnlyPlan.MovieCount) 1 'PriorityOnly movie count should include only effective-High movies.'
+        Assert-Equal ([int]$priorityOnlyPlan.TVCount) 1 'PriorityOnly TV count should include only effective-High TV entries.'
+        Assert-Equal ([int]$priorityOnlyPlan.MoviePriorityCount) 1 'PriorityOnly should preserve the high-movie count.'
+        Assert-Equal ([int]$priorityOnlyPlan.TVPriorityCount) 1 'PriorityOnly should preserve the high-TV count.'
+        Assert-Equal ([int]$priorityOnlyPlan.LowCount) 0 'PriorityOnly low count must be zero.'
+        Assert-Equal ([int]$priorityOnlyPlan.HoldCount) 0 'PriorityOnly hold count must be zero.'
+    } finally {
+        if (Test-Path -LiteralPath $tempRoot -PathType Container) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force
+        }
+    }
+}
+
 function New-QueueEngineSyntheticEntry {
     param(
         [Parameter(Mandatory)] [string] $Root,
@@ -1672,6 +1725,7 @@ function Invoke-StopAfterCurrentFinishesCurrentSerialItemCheck {
 Invoke-ManualOrderSortsHighPriorityBucketsCheck
 Invoke-ExplicitManifestNormalSuppressesFilesystemPriorityCheck
 Invoke-CorruptPriorityManifestFailsClosedCheck
+Invoke-PriorityOnlyQueuePlanSelectsEffectiveHighEntriesCheck
 Invoke-KananRevisionQueueSnapshotParseReuseCheck
 Invoke-ActiveBadRenameCorpusQueueChecks
 Assert-Equal (Get-QueueSeasonNumber 'Example.Show.S01E12') 1 'Queue fallback season parsing should recognize a canonical SxxEyy token without requiring a trailing separator.'
@@ -1964,5 +2018,27 @@ Assert-True ($mainScriptText -match 'Write-MediaPipelineWorkerChildResult[\s\S]{
 Assert-True ($mainScriptText -match 'catch\s*\{[\s\S]{0,1800}WORKER_CHILD_SINGLE_FILE_EXCEPTION') 'SingleFile worker-child exceptions should be converted to structured worker results.'
 Assert-True ($mainScriptText -match 'finally\s*\{[\s\S]{0,2200}WORKER_CHILD_RESULT_FALLBACK') 'SingleFile worker-child finalization should write a fallback structured result if no result exists.'
 Assert-True ($mainScriptText -match 'Test-Path -LiteralPath \$WorkerResultPath') 'SingleFile fallback should check for an existing worker result before writing.'
+Assert-True ($mainScriptText -match 'PriorityOnly live execution requires Once') 'PriorityOnly entrypoint should reject continuous live execution.'
+Assert-True ($mainScriptText -match 'PriorityOnly live execution requires ExpectedQueuePlanFingerprint') 'PriorityOnly entrypoint should require an exported plan fingerprint for live execution.'
+Assert-True ($mainScriptText -match 'PriorityOnly cannot be combined with SingleFile') 'PriorityOnly entrypoint should reject SingleFile execution.'
+
+function Invoke-PriorityOnlyEntrypointBoundaryCheck {
+    $entrypoint = Join-Path $pipelineRoot 'entrypoints\MediaPipeline.ps1'
+    $hostPath = (Get-Process -Id $PID).Path
+    $cases = @(
+        @{ Args = @('-PriorityOnly'); Expected = 'requires Once' },
+        @{ Args = @('-PriorityOnly', '-Once'); Expected = 'requires ExpectedQueuePlanFingerprint' },
+        @{ Args = @('-PriorityOnly', '-Once', '-ExpectedQueuePlanFingerprint', 'test-fingerprint', '-SingleFile', 'C:\Media\One.mkv'); Expected = 'cannot be combined with SingleFile' }
+    )
+    foreach ($case in $cases) {
+        $output = & $hostPath -NoProfile -NonInteractive -File $entrypoint @($case.Args) 2>&1
+        $exitCode = $LASTEXITCODE
+        $outputText = (@($output) | ForEach-Object { [string]$_ }) -join "`n"
+        Assert-True ($exitCode -ne 0) "PriorityOnly invalid entrypoint combination should fail: $($case.Args -join ' ')"
+        Assert-True ($outputText -match [regex]::Escape([string]$case.Expected)) "PriorityOnly failure should explain '$($case.Expected)'. Output: $outputText"
+    }
+}
+
+Invoke-PriorityOnlyEntrypointBoundaryCheck
 
 Write-Host 'Pipeline queue engine checks passed.'

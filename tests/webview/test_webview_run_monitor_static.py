@@ -9,6 +9,20 @@ from mediapipeline.tools.paths import find_repo_root
 
 REPO_ROOT = find_repo_root(Path(__file__))
 STATIC_ROOT = REPO_ROOT / "apps" / "desktop" / "webview" / "static"
+RUN_MONITOR_ASSET_NAMES = (
+    "runMonitor/formatters.js",
+    "runMonitor/normalization.js",
+    "runMonitor/rendering.js",
+    "runMonitor/interaction.js",
+    "runMonitorView.js",
+)
+
+
+def _run_monitor_bundle() -> str:
+    return "\n".join(
+        (STATIC_ROOT / "assets" / asset_name).read_text(encoding="utf-8")
+        for asset_name in RUN_MONITOR_ASSET_NAMES
+    )
 
 
 class WebViewRunMonitorStaticTests(unittest.TestCase):
@@ -30,15 +44,21 @@ class WebViewRunMonitorStaticTests(unittest.TestCase):
             'id="run-monitor-workers"',
             'id="run-monitor-items"',
             'id="run-monitor-detail"',
+            'id="run-monitor-file-outcome"',
+            'id="run-monitor-route-summary"',
+            'id="run-monitor-stage-summary"',
             'id="run-monitor-stage-list"',
             'id="run-monitor-audio-body"',
             'id="run-monitor-subtitle-body"',
             'id="run-monitor-terminal-links"',
+            'id="run-monitor-output-evidence"',
+            'id="run-monitor-identity-evidence"',
             'id="run-monitor-last-known"',
             'data-control-action="stop"',
             ">Stop After Current<",
         ):
             self.assertIn(required, current_work)
+        self.assertGreaterEqual(current_work.count("data-advanced"), 4)
         self.assertEqual(current_work.count('aria-live="polite"'), 1)
         self.assertIn('id="run-monitor-announcer"', current_work)
         self.assertNotIn('role="listbox"', current_work)
@@ -55,7 +75,7 @@ class WebViewRunMonitorStaticTests(unittest.TestCase):
             self.assertRegex(markup, rf'hidden[^>]+data-run-monitor-retired="{retired}"')
 
     def test_run_monitor_module_uses_only_backend_projection_for_current_claims(self) -> None:
-        script = (STATIC_ROOT / "assets" / "runMonitorView.js").read_text(encoding="utf-8")
+        script = _run_monitor_bundle()
         for required in (
             'desktop_run_monitor.v1',
             '"/api/run-monitor"',
@@ -78,6 +98,11 @@ class WebViewRunMonitorStaticTests(unittest.TestCase):
             'data-run-monitor-job-id',
             "trackTimingLabel",
             "run-monitor-outcome",
+            "renderOutcome",
+            "renderRouteSummary",
+            "appendTechnicalDetails",
+            "routine stage",
+            "renderedTargets",
         ):
             self.assertIn(required, script)
         for forbidden in (
@@ -112,7 +137,7 @@ class WebViewRunMonitorStaticTests(unittest.TestCase):
 
     def test_accepted_workload_defaults_to_twenty_name_preview_rows_before_selection_expands(self) -> None:
         markup = (STATIC_ROOT / "partials" / "page-home.html").read_text(encoding="utf-8")
-        script = (STATIC_ROOT / "assets" / "runMonitorView.js").read_text(encoding="utf-8")
+        script = _run_monitor_bundle()
         styles = (STATIC_ROOT / "assets" / "styles" / "pages" / "home.css").read_text(encoding="utf-8")
 
         self.assertIn('id="run-monitor-items-toggle"', markup)
@@ -140,6 +165,23 @@ class WebViewRunMonitorStaticTests(unittest.TestCase):
         lifecycle = (STATIC_ROOT / "assets" / "app" / "lifecycle.js").read_text(encoding="utf-8")
         launch = (STATIC_ROOT / "assets" / "launch" / "commandOrchestration.js").read_text(encoding="utf-8")
         self.assertIn('<script defer src="/assets/runMonitorView.js"></script>', index)
+        script_paths = [
+            "/assets/runMonitor/formatters.js",
+            "/assets/runMonitor/normalization.js",
+            "/assets/runMonitor/rendering.js",
+            "/assets/runMonitor/interaction.js",
+            "/assets/runMonitorView.js",
+        ]
+        self.assertEqual([index.count(path) for path in script_paths], [1, 1, 1, 1, 1])
+        self.assertEqual([index.index(path) for path in script_paths], sorted(index.index(path) for path in script_paths))
+        parent = (STATIC_ROOT / "assets" / "runMonitorView.js").read_text(encoding="utf-8")
+        for temporary_export in (
+            "__runMonitorFormatters",
+            "__runMonitorNormalizationModule",
+            "__runMonitorRenderingModule",
+            "__runMonitorInteractionModule",
+        ):
+            self.assertIn(f"delete window.{temporary_export};", parent)
         self.assertIn("focusPageDestination", navigation)
         self.assertIn("navigateToPage", navigation)
         self.assertIn("focusPageDestination", lifecycle)
@@ -172,6 +214,10 @@ class WebViewRunMonitorStaticTests(unittest.TestCase):
             ".run-monitor-track-table td::before",
             "content: attr(data-label)",
             "prefers-reduced-motion: reduce",
+            ".run-monitor-file-outcome",
+            ".run-monitor-route-trail",
+            ".run-monitor-stage-summary-item",
+            ".run-monitor-technical-detail",
         ):
             self.assertIn(required, styles)
         self.assertNotRegex(monitor_styles, r"(?m)^\s+color: var\(--grey-500\)")
@@ -194,7 +240,7 @@ class WebViewRunMonitorStaticTests(unittest.TestCase):
             self.assertIn(required, normalized_script)
 
     def test_monitor_preserves_dynamic_focus_and_uses_plural_active_file_semantics(self) -> None:
-        monitor = (STATIC_ROOT / "assets" / "runMonitorView.js").read_text(encoding="utf-8")
+        monitor = _run_monitor_bundle()
         for required in (
             "captureDynamicMonitorFocus",
             "restoreDynamicMonitorFocus",
@@ -202,8 +248,7 @@ class WebViewRunMonitorStaticTests(unittest.TestCase):
             "data-run-monitor-terminal-key",
             'identity.dataset.label = "Track"',
             'source.dataset.label = "Source"',
-            'planned.dataset.label = "Planned action"',
-            'current.dataset.label = "Current / final evidence"',
+            'outcome.dataset.label = "Outcome"',
         ):
             self.assertIn(required, monitor)
         self.assertNotIn('if (current) button.setAttribute("aria-current", "true")', monitor)
@@ -211,7 +256,7 @@ class WebViewRunMonitorStaticTests(unittest.TestCase):
     def test_topbar_defers_backend_queue_current_claims_to_run_monitor(self) -> None:
         topbar = (STATIC_ROOT / "assets" / "app" / "lifecycle" / "topbar.js").read_text(encoding="utf-8")
         lifecycle = (STATIC_ROOT / "assets" / "app" / "lifecycle.js").read_text(encoding="utf-8")
-        monitor = (STATIC_ROOT / "assets" / "runMonitorView.js").read_text(encoding="utf-8")
+        monitor = _run_monitor_bundle()
         launch = (STATIC_ROOT / "assets" / "launch" / "commandOrchestration.js").read_text(encoding="utf-8")
         self.assertIn("topbarBackendQueueMonitorContext", topbar)
         self.assertIn("topbarSnapshotProvesDifferentWorkflow", topbar)
@@ -229,7 +274,7 @@ class WebViewRunMonitorStaticTests(unittest.TestCase):
         self.assertIn("clearBackendQueueContext", launch)
 
     def test_terminal_proof_handoff_waits_for_correlated_async_rows(self) -> None:
-        monitor = (STATIC_ROOT / "assets" / "runMonitorView.js").read_text(encoding="utf-8")
+        monitor = _run_monitor_bundle()
         self.assertIn("beginTerminalHandoff", monitor)
         self.assertIn("MutationObserver", monitor)
         self.assertIn("terminalHandoffTarget?.isConnected", monitor)

@@ -1,0 +1,51 @@
+{
+  "id": "MP-CHANGE-2026-0720-023",
+  "title": "Split network process launch tests by feature",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "test",
+  "risk_level": "low",
+  "date_started": "2026-07-20",
+  "date_completed": "2026-07-20",
+  "summary": "Move Network lifecycle and Network rerun launch coverage out of the oversized application-facade process-launch test into feature-scoped modules, with narrow shared setup and updated test mappings.",
+  "reason": "Reduce the test-file context required for targeted Network process changes while preserving discovery, test names, assertion semantics, and production behavior.",
+  "affected_areas": [
+    "docs",
+    "generated-context",
+    "tests"
+  ],
+  "behavior_before": "Network lifecycle, worker-provider, and Network rerun launch tests were embedded in test_application_facade_process_launch.py alongside unrelated pipeline, audit, local rerun, locking, and preflight behaviors.",
+  "behavior_after": "The 11 Network lifecycle tests and 7 Network rerun launch tests are independently selectable in two feature-scoped modules; shared checksum and worker-result artifact setup is isolated in a Network test-support module. Test names and assertion ASTs are unchanged.",
+  "files_touched": [
+    "docs/generated/summaries/docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md.md",
+    "docs/generated/summaries/docs/testing/TEST_COVERAGE_MATRIX.md.md",
+    "docs/generated/summaries/tests/python/desktop/application_facade_network_test_support.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_network_lifecycle.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_network_rerun_launch.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_process_launch.py.md",
+    "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+    "docs/testing/TEST_COVERAGE_MATRIX.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0720-023.json",
+    "tests/python/desktop/application_facade_network_test_support.py",
+    "tests/python/desktop/test_application_facade_network_lifecycle.py",
+    "tests/python/desktop/test_application_facade_network_rerun_launch.py",
+    "tests/python/desktop/test_application_facade_process_launch.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_network_lifecycle.py",
+    "tests/python/desktop/test_application_facade_network_rerun_launch.py"
+  ],
+  "manual_validation": [
+    "Baseline: bundled Python unittest test_application_facade_process_launch plus the concurrently extracted launch-preflight module ran 81 tests successfully.",
+    "After movement: bundled Python unittest process-launch, launch-preflight, Network lifecycle, and Network rerun launch modules ran 81 tests successfully.",
+    "AST comparison against HEAD confirmed all 18 moved test methods are identical with attributes excluded.",
+    "Network Local API plus the two new modules ran 19 tests successfully.",
+    "Browser-backed Network smoke ran 1 test successfully.",
+    "Duplicate-name generator --check passed after regeneration; duplicate bare-name count remained 9.",
+    "Duplicate-report, active-doc-reference, and god-file tooling ran 22 tests successfully.",
+    "Change packet schema validation passed for 1107 packets; git diff --check passed for tranche paths."
+  ],
+  "rollback_plan": "Move the 18 unchanged test methods and two narrow support helpers back into test_application_facade_process_launch.py, remove the two feature modules and Network support module, restore the inventory/mapping text, and refresh only the affected summaries.",
+  "related_changes": [],
+  "notes": "Move Network lifecycle and Network rerun command tests into feature-scoped modules without changing assertions.\nProvide narrowly scoped checksum and worker-result artifact setup shared by Network launch tests.\nOwn Network rerun start, claim, done, release, and journal cleanup coverage.\nRecord the oversized-test behavior audit, migration order, and targeted selectors.\nOwn coordinator and worker lifecycle command/provider coverage.\nMap Launch and Network behaviors to their feature-scoped test modules.\nRefresh generated summary for the feature-scoped test migration.\nPython impact: test organization and fixtures only; no production module or behavior changed by this packet.\nThe generated FEATURE_FILE_MAP check was already stale before this tranche because of unrelated dirty workspace changes; this packet updates the human test inventory and coverage mapping without absorbing that unrelated generated drift.\nStrict worktree coverage remains blocked by 43 unrelated concurrent files that are not listed in any unreleased packet.\nA concurrent preflight-test extraction modified the same giant file during this task; it is preserved but is not claimed by this packet. A transient final-run failure occurred while an unrelated production extraction was mid-write; the unchanged 81-test family passed after that concurrent file settled."
+}

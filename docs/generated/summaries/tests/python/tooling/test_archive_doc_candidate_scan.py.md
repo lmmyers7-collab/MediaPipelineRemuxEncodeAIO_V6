@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-16
+last_modified: 2026-07-20
 last_reviewed: 2026-06-16
-sha256: d547d4c4d6a73c5434c18b7b24df8f37e8394bdad85e624b8fed0f21946d4b87
+sha256: 3f6a1617e224f4bf466426e41f220ec9b7ccdf9ea01a5e32dc664cf8ca006d94
 ---
 # `tests/python/tooling/test_archive_doc_candidate_scan.py`
 

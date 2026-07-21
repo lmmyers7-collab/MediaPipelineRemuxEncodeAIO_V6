@@ -17,6 +17,8 @@ $mutexPath = Join-Path $pipelineRoot 'engine\queue\worker_mutex.ps1'
 $nativePath = Join-Path $pipelineRoot 'engine\shared\native.ps1'
 $sourceIdentityPath = Join-Path $pipelineRoot 'engine\shared\source_identity.ps1'
 $failureStatePath = Join-Path $pipelineRoot 'engine\failures\failure_state.ps1'
+$monitorContractPath = Join-Path $pipelineRoot 'engine\status\run_monitor_contract.ps1'
+$monitorPersistencePath = Join-Path $pipelineRoot 'engine\status\run_monitor_persistence.ps1'
 $monitorModulePath = Join-Path $pipelineRoot 'engine\status\run_monitor_state.ps1'
 $progressModulePath = Join-Path $pipelineRoot 'engine\status\progress_state.ps1'
 $phaseExecutorPath = Join-Path $pipelineRoot 'engine\queue\phase_executor.ps1'
@@ -76,6 +78,8 @@ Assert-True (Test-Path -LiteralPath $monitorModulePath -PathType Leaf) 'Run Moni
 . $nativePath
 . $sourceIdentityPath
 . $failureStatePath
+. $monitorContractPath
+. $monitorPersistencePath
 . $monitorModulePath
 . $progressModulePath
 . $phaseExecutorPath
@@ -1493,10 +1497,12 @@ try {
     Write-MediaPipelineRunMonitorSeed -RunId $concurrentRun -CommandId 'concurrent-command' -QueuePlanFingerprint 'concurrent-plan' -AcceptedRows $concurrentRows | Out-Null
     $jobs = for ($writer = 1; $writer -le 4; $writer++) {
         Start-Job -ScriptBlock {
-            param($MutexPath, $ModulePath, $StateRoot, $LocalBasePath, $Suffix, $RunId, $Writer)
+            param($MutexPath, $ContractPath, $PersistencePath, $StatePath, $StateRoot, $LocalBasePath, $Suffix, $RunId, $Writer)
             $env:MEDIA_PIPELINE_TEST_MUTEX_SUFFIX = $Suffix
             . $MutexPath
-            . $ModulePath
+            . $ContractPath
+            . $PersistencePath
+            . $StatePath
             $script:LocalStateLayout = [pscustomobject]@{
                 Root = $StateRoot
                 RunMonitor = (Join-Path $StateRoot 'RunMonitor')
@@ -1511,7 +1517,7 @@ try {
                     -State 'active' `
                     -Detail "writer-$Writer-update-$iteration" | Out-Null
             }
-        } -ArgumentList $mutexPath, $monitorModulePath, $stateRoot, $tempRoot, $env:MEDIA_PIPELINE_TEST_MUTEX_SUFFIX, $concurrentRun, $writer
+        } -ArgumentList $mutexPath, $monitorContractPath, $monitorPersistencePath, $monitorModulePath, $stateRoot, $tempRoot, $env:MEDIA_PIPELINE_TEST_MUTEX_SUFFIX, $concurrentRun, $writer
     }
     $null = $jobs | Wait-Job -Timeout 120
     $jobErrors = @($jobs | Receive-Job -ErrorAction SilentlyContinue 2>&1 | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] })

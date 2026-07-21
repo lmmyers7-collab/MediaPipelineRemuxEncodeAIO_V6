@@ -959,10 +959,15 @@ function Build-QueuePlanSnapshotRows {
         -PendingBackpressure $pendingBackpressure `
         -PendingHealth $pendingHealth
     $acceptedRunRowsFingerprint = Get-MediaPipelineAcceptedRunRowsFingerprint -Rows $acceptedPlanRows.ToArray()
+    $priorityOnlyScope = $false
+    if ($QueuePlan.PSObject.Properties['PriorityOnly']) {
+        $priorityOnlyScope = [bool]$QueuePlan.PriorityOnly
+    }
 
     return [pscustomobject]@{
         schema_version    = 'queue_plan_snapshot.v1'
         queue_snapshot_origin = 'active_run'
+        priority_only_scope = [bool]$priorityOnlyScope
         queue_input_fingerprint_schema = [string]$inputFingerprint.SchemaVersion
         queue_input_fingerprint = [string]$inputFingerprint.Fingerprint
         queue_input_components = $inputFingerprint.Components

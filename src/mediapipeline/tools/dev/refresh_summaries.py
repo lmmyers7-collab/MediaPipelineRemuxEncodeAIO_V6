@@ -68,9 +68,12 @@ ROOT_SOURCE_FILES = {
     "ops/pipeline/entrypoints/Audit-MediaLibrary.ps1",
     "ops/pipeline/entrypoints/Setup-MediaPipeline.ps1",
     "ops/pipeline/config/MediaPipeline_config_template.psd1",
+    "ops/pipeline/config/schemas/media_pipeline_config.schema.json",
+    "ops/pipeline/config/schemas/media_pipeline_run_monitor.schema.json",
     "src/mediapipeline/pipeline/ass_to_srt_cli.py",
     "src/mediapipeline/contracts/schemas/config.v1.schema.json",
     "src/mediapipeline/contracts/schemas/risky_file_registry.v1.schema.json",
+    "src/mediapipeline/contracts/schemas/run_monitor.v1.schema.json",
     "src/mediapipeline/contracts/schemas/stages.v1.schema.json",
 }
 
@@ -83,6 +86,7 @@ VOLATILE_GENERATED_SUMMARY_FILES = {
 
 EXCLUDE_SOURCE_PREFIXES = {
     "ops/pipeline/config/backups",
+    "ops/release/changes/archived",
 }
 
 EXCLUDE_DIR_PARTS = {
@@ -137,6 +141,8 @@ OWNER_DOMAIN_HINTS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"src/mediapipeline/core/telemetry"), "observability"),
     (re.compile(r"src/mediapipeline/core/observability"), "observability"),
     (re.compile(r"src/mediapipeline/contracts/schemas/config"), "config"),
+    (re.compile(r"ops/pipeline/config/schemas/media_pipeline_config"), "config"),
+    (re.compile(r"(?:src/mediapipeline/contracts/schemas/run_monitor|ops/pipeline/config/schemas/media_pipeline_run_monitor)"), "contracts"),
     (re.compile(r"src/mediapipeline/contracts/schemas/stages"), "contracts"),
     (re.compile(r"src/mediapipeline/contracts/schemas/risky_file_registry"), "scripts"),
     (re.compile(r"src/mediapipeline/core/config"), "config"),

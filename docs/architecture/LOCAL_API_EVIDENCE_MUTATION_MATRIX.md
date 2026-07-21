@@ -2,7 +2,7 @@
 
 Companion to `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
 
-Total routes: 172 (55 read, 117 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+Total routes: 174 (56 read, 118 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
 
 ---
 
@@ -36,6 +36,7 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | Route | Class | Frontend can own? | Key restriction |
 |---|---|---|---|
 | `GET /api/queue` | `read` | No | Latest backend queue snapshot plus provenance, input-consistency, plan-fingerprint, fallback, pending-publish, queue-scan, and source-inventory evidence; no dry run spawned |
+| `GET /api/queue/priority-export` | `read` | No | Latest backend-owned export readiness, count, ID, and fingerprints; accepted membership is redacted |
 | `GET /api/queue/priority` | `read` | No | Reads backend-owned priority manifest; no queue/media mutation |
 | `GET /api/queue/strategy` | `read` | No | Reads backend-owned strategy state and valid strategy names |
 | `GET /api/queue/file-overrides` | `read` | No | Reads override manifest or one source-root-contained override entry |
@@ -109,6 +110,7 @@ Writes backend-owned queue state manifests. These routes never rename, move, del
 
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
+| `POST /api/queue/priority-export` | `queue-state-write` | Frontend cannot select or persist launch membership | Strict empty payload; backend runs `PriorityOnly` planning and stores only runnable effective-High accepted rows plus fingerprints; never launches or accepts browser rows |
 | `POST /api/queue/priority` | `queue-state-write` | Frontend cannot write priority manifests directly | `path`/`items` must be absolute source-root-contained paths; `level` is limited to `high`, `normal`, `low`, or `hold`; `clear_all` clears priority manifest state only |
 | `POST /api/queue/strategy` | `queue-state-write` | Frontend cannot write queue strategy state directly | `strategy` must be one of the backend-declared valid strategy names |
 | `POST /api/queue/file-overrides` | `queue-state-write` | Frontend cannot write per-file media-policy override manifests directly | `path` must be source-root-contained unless `clear_all` is requested; writes non-destructive audio/subtitle/routing/video override metadata only |

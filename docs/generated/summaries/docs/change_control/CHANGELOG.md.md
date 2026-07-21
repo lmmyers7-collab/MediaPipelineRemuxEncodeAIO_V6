@@ -6,15 +6,15 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-26
+last_modified: 2026-07-20
 last_reviewed: 2026-06-03
-sha256: 252a98124fc6b2c6651f0c280c35be39a37d650132f09e978aec7d7c5b5f2023
+sha256: 6a6923c01e989651b34f6bacdfda1d2477792716afd3e0dce39cd29f2a7c48df
 ---
 # `docs/change_control/CHANGELOG.md`
 
 **Purpose:** Markdown implementation for changelog.
 
-**HTTP routes:** `/api/commands.py`, `/api/commands.py.md`, `/api/commands_file_overrides.py`, `/api/commands_file_overrides.py.md`, `/api/commands_queue_priority.py`, `/api/commands_queue_priority.py.md`, `/api/commands_rename.py`, `/api/commands_rename.py.md`, `/api/contract_command.py`, `/api/contract_command.py.md`, `/api/contract_read.py`, `/api/contract_read.py.md`, `/api/file_overrides/effective_fields.py`, `/api/file_overrides/effective_fields.py.md`, `/api/file_overrides/route_preview.py`, `/api/file_overrides/route_preview.py.md`, `/api/file_overrides/selectors.py`, `/api/file_overrides/selectors.py.md`, `/api/file_overrides/series.py`, `/api/file_overrides/series.py.md`, `/api/file_overrides/tracks.py`, `/api/file_overrides/tracks.py.md`, `/api/read_payloads_inventory.py`, `/api/read_payloads_inventory.py.md`
-**State/config identifiers:** `config.v1.schema.json`, `media_pipeline_config.schema.json`, `media_pipeline_queue_plan_snapshot.schema.json`, `MediaPipeline_config.psd1`, `MediaPipeline_config_chatgpt.psd1`, `MediaPipeline_config_template.psd1`, `RELEASE_MANIFEST.json`
+**HTTP routes:** `/api/__init__.py`, `/api/__init__.py.md`, `/api/audit/sources`, `/api/audit/start.`, `/api/command_handlers.py`, `/api/command_handlers.py.md`, `/api/command_journal.py`, `/api/command_journal.py.md`, `/api/command_journal_policy.py`, `/api/command_journal_policy.py.md`, `/api/command_results.py`, `/api/command_results.py.md`, `/api/commands.py`, `/api/commands.py.md`, `/api/commands_audit.py`, `/api/commands_audit.py.md`, `/api/commands_failures.py`, `/api/commands_failures.py.md`, `/api/commands_file_overrides.py`, `/api/commands_file_overrides.py.md`, `/api/commands_files.py`, `/api/commands_files.py.md`, `/api/commands_maintenance.py`, `/api/commands_maintenance.py.md`
+**State/config identifiers:** `config.v1.schema.json`, `manifest.json`, `media_pipeline_config.schema.json`, `media_pipeline_pending_push_manifest.schema.json`, `media_pipeline_queue_plan_snapshot.schema.json`, `MediaPipeline_config.psd1`, `MediaPipeline_config_chatgpt.psd1`, `MediaPipeline_config_template.psd1`, `RELEASE_MANIFEST.json`, `settings.json`, `worker_state.json`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths docs/change_control/CHANGELOG.md`._

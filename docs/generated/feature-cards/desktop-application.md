@@ -8,59 +8,45 @@ Validation: targeted unit tests
 
 ## Vertical slice
 
-### WebView / Tauri
-
-- `apps/desktop/webview/static/assets/launch/rerunFacade.js` — operator display/intent surface; JavaScript implementation for rerun facade; exposes createLaunchRerunFacade.
-- `apps/desktop/webview/static/assets/settings/view/facade.js` — operator display/intent surface; JavaScript implementation for view facade; exposes createSettingsViewFacade, resolve.
-- `apps/desktop/webview/static/assets/settingsLibraries/facade.js` — operator display/intent surface; JavaScript implementation for settings libraries facade; exposes createSettingsLibrariesFacade.
-
 ### Python facade / domain service
 
-- `src/mediapipeline/core/processes/audit_facade.py` — process authority; Audit launch facade adapter.
-- `src/mediapipeline/core/processes/control_facade.py` — process authority; Pipeline control command facade adapter.
-- `src/mediapipeline/core/processes/guard_facade.py` — process authority; Process close-readiness and active-work facade adapter.
-- `src/mediapipeline/core/processes/lifecycle_reconciliation_facade.py` — process authority; Operator-facing lifecycle evidence reconciliation facade.
-- `src/mediapipeline/core/processes/pipeline_facade.py` — process authority; Pipeline launch facade adapter.
-
-### Contract / state / config
-
-- `src/mediapipeline/core/config/settings_facade.py` — config authority; Settings workspace and validation facade adapter.
-- `src/mediapipeline/core/config/settings_helpers_facade.py` — config authority; Settings facade helper mixin for schema, redaction, and diffs.
-- `src/mediapipeline/core/config/settings_patch_candidate_facade.py` — config authority; Settings patch candidate construction facade adapter.
-- `src/mediapipeline/core/config/settings_risk_facade.py` — config authority; Python implementation for settings risk facade; exposes SettingsRiskFacadeMixin.
-- `src/mediapipeline/core/config/settings_wizard_facade.py` — config authority; Settings setup wizard facade adapter.
+- `src/mediapipeline/desktop/application/facade.py` — application authority; Python implementation for application facade; exposes MediaPipelineApplicationFacade.
+- `src/mediapipeline/desktop/application/network_lifecycle_provider.py` — application authority; Python implementation for network lifecycle provider; exposes NetworkLifecycleProviderMixin.
+- `src/mediapipeline/desktop/application/sample_validation/policy_alignment.py` — sample_validation authority; Python implementation for policy alignment.
+- `src/mediapipeline/desktop/application/settings_risk_policy.py` — application authority; Compatibility shim for settings risk policy helpers. New code should import from ``mediapipeline.core.config.settings_risk_policy``.
+- `src/mediapipeline/desktop/application/settings_risk_policy_rules.py` — application authority; Compatibility shim for settings risk policy rule helpers. New code should import from ``mediapipeline.core.config.settings_risk_policy_rules``.
 
 ### Tests
 
+- `tests/python/desktop/application_facade_network_test_support.py` — verification evidence; Python implementation for application facade network test support.
 - `tests/python/desktop/application_facade_test_support.py` — verification evidence; Python implementation for application facade test support; exposes assert_namespace_export, DummyFacadeService, DummyProc.
 - `tests/python/desktop/test_application_facade.py` — verification evidence; Legacy placeholder for application facade fixture extraction. Shared fixtures now live in tests.python.desktop.application_facade_test_support. This file intentionally owns no reusable fixtures or tests.
 - `tests/python/desktop/test_application_facade_close_readiness.py` — verification evidence; Python implementation for test application facade close readiness; exposes ApplicationFacadeCloseReadinessTests.
 - `tests/python/desktop/test_application_facade_completed.py` — verification evidence; Python implementation for test application facade completed; exposes ApplicationFacadeCompletedTests.
-- `tests/python/desktop/test_application_facade_core_contracts.py` — verification evidence; Python implementation for test application facade core contracts; exposes ApplicationFacadeCoreContractTests.
 
 ## Why these files
 
-- `src/mediapipeline/core/processes/audit_facade.py`: process authority.
-- `src/mediapipeline/core/processes/control_facade.py`: process authority.
-- `src/mediapipeline/core/processes/guard_facade.py`: process authority.
-- `src/mediapipeline/core/processes/lifecycle_reconciliation_facade.py`: process authority.
-- `src/mediapipeline/core/processes/pipeline_facade.py`: process authority.
-- `src/mediapipeline/core/processes/preflight_facade.py`: process authority.
-- `src/mediapipeline/core/processes/preflight_support.py`: process authority.
-- `src/mediapipeline/core/processes/rerun_facade.py`: process authority.
+- `src/mediapipeline/desktop/application/facade.py`: application authority.
+- `src/mediapipeline/desktop/application/network_lifecycle_provider.py`: application authority.
+- `src/mediapipeline/desktop/application/sample_validation/policy_alignment.py`: sample_validation authority.
+- `src/mediapipeline/desktop/application/settings_risk_policy.py`: application authority.
+- `src/mediapipeline/desktop/application/settings_risk_policy_rules.py`: application authority.
+- `src/mediapipeline/desktop/services.py`: desktop authority.
+- `src/mediapipeline/core/application/utilities.py`: core authority.
+- `src/mediapipeline/desktop/application/dto.py`: application authority.
 
 ## Tests and validation
 
+- `tests/python/desktop/application_facade_network_test_support.py`
 - `tests/python/desktop/application_facade_test_support.py`
 - `tests/python/desktop/test_application_facade.py`
 - `tests/python/desktop/test_application_facade_close_readiness.py`
 - `tests/python/desktop/test_application_facade_completed.py`
 - `tests/python/desktop/test_application_facade_core_contracts.py`
 - `tests/python/desktop/test_application_facade_diagnostics.py`
-- `tests/python/desktop/test_application_facade_local_api.py`
-- `tests/python/desktop/test_application_facade_local_api_diagnostics.py`
+- `tests/python/desktop/test_application_facade_launch_preflight.py`
 - Smallest validation rung: targeted unit tests.
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=65, documentation=0, generated=0, change_evidence=1, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=44, documentation=0, generated=0, change_evidence=0, archive=0, runtime_artifact=0.

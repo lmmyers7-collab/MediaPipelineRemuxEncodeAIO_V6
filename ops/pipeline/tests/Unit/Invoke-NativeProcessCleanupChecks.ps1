@@ -45,6 +45,11 @@ function Write-Log {
     )
 }
 
+function Format-NativeCommandLine {
+    param([string]$FilePath, [array]$ArgumentList)
+    return ((@($FilePath) + @($ArgumentList | ForEach-Object { [string]$_ })) -join ' ')
+}
+
 function Set-ProgressStage {
     param(
         [string]$Stage,
@@ -155,6 +160,45 @@ New-Item -ItemType Directory -Path $workingDirectoryRoot | Out-Null
 $resolvedWorkingDirectoryRoot = (Resolve-Path -LiteralPath $workingDirectoryRoot).ProviderPath
 
 try {
+    $timeoutResult = Invoke-NativeCommand `
+        -FilePath $childExe `
+        -ArgumentList @('-NoProfile', '-Command', 'Start-Sleep -Seconds 30') `
+        -TimeoutSeconds 1
+    Assert-True ([bool]$timeoutResult.TimedOut) 'Native timeout did not set TimedOut.'
+    Assert-True ([string]$timeoutResult.ErrorCode -eq 'NATIVE_TIMEOUT') "Native timeout error code changed: $($timeoutResult.ErrorCode)."
+    Assert-True ($null -ne $timeoutResult.Stdout -and $null -ne $timeoutResult.Stderr) 'Native timeout result lost its Stdout/Stderr aliases.'
+
+    $externalToolRoot = Join-Path $workingDirectoryRoot 'external-tool-contract'
+    $script:LocalFailureReports = Join-Path $externalToolRoot 'reports'
+    New-Item -ItemType Directory -Path $script:LocalFailureReports -Force | Out-Null
+    $failedTool = Invoke-ExternalToolCommand `
+        -ToolName 'ffmpeg' `
+        -FilePath $childExe `
+        -ArgumentList @('-NoProfile', '-Command', 'exit 7') `
+        -TimeoutSeconds 5 `
+        -Stage 'wrapper-failure' `
+        -SaveReproOnFailure
+    Assert-True ([int]$failedTool.ExitCode -eq 7) "External wrapper failure exit changed: $($failedTool.ExitCode)."
+    Assert-True ([string]$failedTool.ToolName -eq 'ffmpeg') 'External wrapper lost ToolName.'
+    Assert-True ([string]$failedTool.Stage -eq 'wrapper-failure') 'External wrapper lost Stage.'
+    Assert-True ([string]$failedTool.ToolErrorCode -eq 'FFMPEG_FAILED') "External wrapper failure classification changed: $($failedTool.ToolErrorCode)."
+    Assert-True (-not [string]::IsNullOrWhiteSpace([string]$failedTool.CommandLine) -and [string]$failedTool.CommandLine -match 'pwsh\.exe') 'External wrapper lost its command line.'
+    Assert-True ($null -ne $failedTool.DurationSeconds -and [double]$failedTool.DurationSeconds -ge 0) 'External wrapper lost duration evidence.'
+    Assert-True (-not [string]::IsNullOrWhiteSpace([string]$failedTool.ReproPath) -and (Test-Path -LiteralPath $failedTool.ReproPath)) 'External wrapper did not save a repro command.'
+
+    $script:ffprobePath = $childExe
+    $successfulProbe = Invoke-FFprobeCommand -ArgumentList @('-NoProfile', '-Command', 'exit 0') -TimeoutSeconds 5 -Stage 'wrapper-success'
+    Assert-True ([int]$successfulProbe.ExitCode -eq 0 -and [string]$successfulProbe.ToolName -eq 'ffprobe' -and [string]$successfulProbe.ToolErrorCode -eq 'OK') 'FFprobe wrapper success metadata changed.'
+    $timedOutProbe = Invoke-ExternalToolCommand `
+        -ToolName 'ffprobe' `
+        -FilePath $childExe `
+        -ArgumentList @('-NoProfile', '-Command', 'Start-Sleep -Seconds 30') `
+        -TimeoutSeconds 1 `
+        -Stage 'wrapper-timeout'
+    Assert-True ([bool]$timedOutProbe.TimedOut) 'External wrapper timeout did not set TimedOut.'
+    Assert-True ([string]$timedOutProbe.ToolErrorCode -eq 'FFPROBE_TIMEOUT') "External wrapper timeout classification changed: $($timedOutProbe.ToolErrorCode)."
+    Assert-True ((Get-NativeToolDefaultTimeoutSeconds -ToolName 'ffmpeg') -gt 0 -and (Get-NativeToolDefaultTimeoutSeconds -ToolName 'mkvmerge') -gt 0 -and (Get-NativeToolDefaultTimeoutSeconds -ToolName 'python') -gt 0) 'Native tool default timeouts must be explicit nonzero values.'
+
     $script:ThrottledPollCount = 0
     $throttledHandler = New-ThrottledNativePollHandler -MinimumIntervalSeconds 5 -Handler {
         param($ElapsedSeconds, $Process)

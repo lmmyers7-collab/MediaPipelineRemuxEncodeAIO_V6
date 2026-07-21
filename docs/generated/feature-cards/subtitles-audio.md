@@ -10,84 +10,72 @@ Validation: subtitle/audio unit checks, release gate, and representative real-me
 
 ### WebView / Tauri
 
-- `apps/desktop/webview/static/assets/app/home/queueProjection.js` — operator display/intent surface; JavaScript implementation for queue projection; exposes activate, createHomeQueueProjectionModule, homeActiveWork.
-- `apps/desktop/webview/static/assets/app/lifecycle.js` — operator display/intent surface; JavaScript implementation for lifecycle; exposes activeKeyboardPage, activeKeyboardPanel, activePageSelectableRows.
-- `apps/desktop/webview/static/assets/app/lifecycle/navigation.js` — operator display/intent surface; JavaScript implementation for navigation; exposes activateCompletedTab, activateCrossPageTarget, activateDiagnosticsTab.
-- `apps/desktop/webview/static/assets/app/lifecycle/topbar.js` — operator display/intent surface; JavaScript implementation for topbar; exposes backendLifecycleState, clearTopbarPendingLaunch, closeReadinessWatcherData.
-- `apps/desktop/webview/static/assets/app/lifecycleOrchestration.js` — operator display/intent surface; JavaScript implementation for lifecycle orchestration.
-
-### API route
-
-- `src/mediapipeline/desktop/api/contract_command_file.py` — api authority; Python implementation for contract command file.
-- `src/mediapipeline/desktop/api/contract_payload.py` — api authority; Python implementation for contract payload; exposes local_api_contract_payload.
-- `src/mediapipeline/desktop/api/handler.py` — api authority; Python implementation for handler; exposes build_local_api_handler_class.
-- `src/mediapipeline/desktop/api/handler_policy.py` — api authority; Python implementation for handler policy; exposes bounded_error_text, cors_response_headers, not_found_payload.
-- `src/mediapipeline/desktop/api/http_helpers.py` — api authority; Python implementation for http helpers; exposes canonical_local_api_origin, content_type_for, discard_request_body.
+- `apps/desktop/webview/static/assets/launch/risk/policyPatch.js` — operator display/intent surface; JavaScript implementation for policy patch; exposes createLaunchRiskPolicyPatchModule, launchPolicyCandidatePosture, launchPolicyCandidateValue.
+- `apps/desktop/webview/static/assets/queue/fileOverrides.drawer.tracks.js` — operator display/intent surface; JavaScript implementation for file overrides drawer tracks; exposes addWarning, appendSourceInfoFact, appendTrackDetail.
+- `apps/desktop/webview/static/assets/completed/review/selectedAtAGlance.js` — operator display/intent surface; JavaScript implementation for selected at aglance; exposes add, completedSelectedActiveSignal, completedSelectedAtAGlanceLines.
+- `apps/desktop/webview/static/assets/runMonitor/rendering.js` — operator display/intent surface; JavaScript implementation for rendering; exposes appendEmptyTrackRow, appendFact, appendRouteCard.
+- `apps/desktop/webview/static/assets/settingsView.builders.subtitle.js` — operator display/intent surface; JavaScript implementation for settings view builders subtitle; exposes applySubtitleSettingsBuilderToPatch, collectSubtitleSettingsBuilderPatch, createSubtitleSettingsBuilder.
 
 ### Python facade / domain service
 
 - `src/mediapipeline/core/decide/processing_decision.py` — decide authority; Strict DTOs for Python-owned copy/remux/encode decisions.
-- `src/mediapipeline/core/processes/recovery.py` — process authority; Backend-only lifecycle recovery classification and one-shot resumption.
-- `src/mediapipeline/core/processes/rerun_rules.py` — process authority; Backend-owned CSV rerun remediation rule decisions.
-- `src/mediapipeline/core/processes/rerun_source_health.py` — process authority; Backend-owned source availability and identity classification for CSV reruns.
-- `src/mediapipeline/core/publish/pending_manifest_rows.py` — publish authority; Python implementation for pending manifest rows; exposes invalid_contract_pending_manifest_row, pending_output_size, pending_payload_error_text.
+- `src/mediapipeline/core/decide/stream_actions.py` — decide authority; Per-stream action helpers for the pure decision engine.
+- `src/mediapipeline/core/subtitles/__init__.py` — subtitles authority; Subtitle QA evidence helpers.
+- `src/mediapipeline/core/subtitles/facade.py` — subtitles authority; Subtitle QA read-only facade mixin.
+- `src/mediapipeline/core/subtitles/qa.py` — subtitles authority; Read-only subtitle QA evidence assembled from existing backend rows.
 
 ### Contract / state / config
 
-- `src/mediapipeline/contracts/api_routes_command_process.py` — contracts authority; Python implementation for api routes command process.
-- `src/mediapipeline/desktop/contracts/pending_publish.py` — contracts authority; Compatibility shim. Moved to `mediapipeline.core.kernel.contracts.pending_publish` by ADR-0013 (Wave 5). Re-exports the public namespace from the new home. New code should import from `mediapipeline.core.kernel.contracts.pending_publish` directly; removed in the ADR-0013 Wave 6 cleanup.
-- `src/mediapipeline/desktop/contracts/process_result.py` — contracts authority; Compatibility shim. Moved to `mediapipeline.core.kernel.contracts.process_result` by ADR-0013 (Wave 5). Re-exports the public namespace from the new home. New code should import from `mediapipeline.core.kernel.contracts.process_result` directly; removed in the ADR-0013 Wave 6 cleanup.
-- `src/mediapipeline/desktop/contracts/queue_snapshot.py` — contracts authority; Compatibility shim. Moved to `mediapipeline.core.kernel.contracts.queue_snapshot` by ADR-0013 (Wave 5). Re-exports the public namespace from the new home. New code should import from `mediapipeline.core.kernel.contracts.queue_snapshot` directly; removed in the ADR-0013 Wave 6 cleanup.
-- `src/mediapipeline/contracts/__init__.py` — contracts authority; Canonical pipeline contracts. This package is the single source of truth for: - Pipeline stage I/O shapes (`stages.py`). - Source media facts normalized from probe JSON (`source_media.py`). - Abstract dry-run pipeline plans (`pipeline_plan.py`). - Verification and publish guard results (`verification.py`). - Effective decision policy shared by config and decide (`decision_policy.py`). - Configuration shape (`config.py`, Pydantic v2). - Local API command payload shapes (`api_commands.py`). - File lifecycle/state-machine documentation source (`lifecycle.py`). - Runtime diagnostic evidence (`runtime_evidence.py`). - Subtitle QA evidence (`subtitles.py`). - Local API route metadata (`api_routes.py`). - Backend-owned Run Once monitoring evidence (`run_monitor.py`). - Cross-stage data shapes (jobs, manifests, events) — added in later phases. `config.py` generates `src/mediapipeline/contracts/schemas/config.v1.schema.json`. `stages.py` generates `src/mediapipeline/contracts/schemas/stages.v1.schema.json` and defines the single Python-to-PowerShell stage execution contract. `lifecycle.py` generates `docs/architecture/FILE_LIFECYCLE_MAP.md`.
+- `src/mediapipeline/contracts/__init__.py` — contracts authority; Canonical pipeline contracts. This package is the single source of truth for: - Pipeline stage I/O shapes (`stages.py`). - Source media facts normalized from probe JSON (`source_media.py`). - Abstract dry-run pipeline plans (`pipeline_plan.py`). - Verification and publish guard results (`verification.py`). - Effective decision policy shared by config and decide (`decision_policy.py`). - Configuration shape (`config.py`, Pydantic v2). - Local API command payload shapes (`api_commands.py`). - File lifecycle/state-machine documentation source (`lifecycle.py`). - Runtime diagnostic evidence (`runtime_evidence.py`). - Subtitle QA evidence (`subtitles.py`). - Local API route metadata (`api_routes.py`). - Backend-owned Run Once monitoring evidence (`run_monitor.py`). - Cross-stage data shapes (jobs, manifests, events) — added in later phases. `config.py::Config` is the authority for both the complete `src/mediapipeline/contracts/schemas/config.v1.schema.json` artifact and the PowerShell-facing `ops/pipeline/config/schemas/media_pipeline_config.schema.json` mirror; the latter intentionally omits network-only config fields. `run_monitor.py::RunMonitorRecord` is the authority for both Run Monitor schema artifacts, whose only intentional difference is their consumer-specific `$id`. `stages.py` generates `src/mediapipeline/contracts/schemas/stages.v1.schema.json` and defines the single Python-to-PowerShell stage execution contract. `lifecycle.py` generates `docs/architecture/FILE_LIFECYCLE_MAP.md`.
+- `src/mediapipeline/contracts/api_commands.py` — contracts authority; Pydantic contracts for Local API command request payloads. The Local API wire shape remains owned by the existing routes. These models describe the known per-route fields while allowing existing additive fields so the command-handler migration can proceed without breaking WebView callers.
+- `src/mediapipeline/contracts/api_routes_command_file.py` — contracts authority; Python implementation for api routes command file.
+- `src/mediapipeline/contracts/pipeline_plan.py` — contracts authority; Serializable abstract pipeline plans for dry-run previews.
+- `src/mediapipeline/contracts/run_monitor.py` — contracts authority; Versioned, backend-authored evidence for one accepted Run Once workload. The persisted contract is intentionally strict. It is the correlation boundary between the accepted Backend Queue plan, PowerShell runtime evidence, and terminal artifacts. Display projections may suppress stale claims, but they must never reconstruct missing membership, stages, routes, or track decisions from legacy progress or filename text.
 
 ### PowerShell execution
 
-- `ops/pipeline/engine/naming/rename_overrides.ps1` — naming authority; PowerShell implementation for rename overrides; exposes Apply-RenameOverrideToDestinationPlan, Get-RenameOverrideFinalName, Get-RenameOverrideSidecarPath.
-- `ops/pipeline/engine/process/encode_preflight.ps1` — process authority; PowerShell implementation for encode preflight; exposes Invoke-MediaPipelineEncodePreflight, Invoke-MediaPipelineEncodeStreamPreparation.
-- `ops/pipeline/engine/process/ffmpeg_progress.ps1` — process authority; PowerShell implementation for ffmpeg progress; exposes Get-FFmpegWasteGuardContextValue, Get-MkvmergeProgressPercentFromLine, Get-MkvmergeWarningClassification.
-- `ops/pipeline/engine/process/pipeline_plan_executor.ps1` — process authority; PowerShell implementation for pipeline plan executor; exposes ConvertTo-PipelinePlanBool, ConvertTo-PipelinePlanExecutorJson, ConvertTo-PipelinePlanFfmpegSubtitleFilterPath.
-- `ops/pipeline/engine/process/pipeline_plan_executor/validation.ps1` — process authority; PowerShell implementation for validation; exposes Assert-PipelinePlanEnum, Assert-PipelinePlanProperties, Assert-PipelinePlanValid.
+- `ops/pipeline/engine/queue/file_overrides.ps1` — queue authority; Load file_overrides.json from the state root. Returns an empty manifest only when no persisted manifest exists. Existing malformed state fails closed.
+- `ops/pipeline/engine/audio/audio.ps1` — audio authority; Suggestion #7 — pick an output bitrate appropriate for the codec / channel count combination instead of always emitting 640k.
+- `ops/pipeline/engine/audio/audio/stream_decisions.ps1` — audio authority; PowerShell implementation for stream decisions; exposes Build-AudioStreamDecisionPlan, Get-AudioDecisionOutputChannelCount, Get-AudioDecisionPreferredDefaultIndex.
+- `ops/pipeline/engine/subtitles/ass.ps1` — subtitles authority; PowerShell implementation for ass; exposes Convert-AssToSrt, New-AssFailureRecord, Write-SubtitleTrackProgress.
+- `ops/pipeline/engine/subtitles/bdpgs.ps1` — subtitles authority; PowerShell implementation for bdpgs; exposes Convert-BdpgsToSrt, ConvertTo-BdpgsEmbeddedSrtTrackRecords, Extract-BdpgsToSup.
 
 ### Tests
 
-- `ops/pipeline/tests/Invoke-AdversarialForceKillEncodeChecks.ps1` — verification evidence; PowerShell implementation for invoke adversarial force kill encode checks; exposes Add-ProcessTreeId, Assert-NoAcceptedOutput, Assert-True.
-- `ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1` — verification evidence; PowerShell implementation for invoke end to end smoke checks; exposes Assert-True, ConvertTo-Psd1Literal, Get-ProbeStreamCodecs.
-- `ops/pipeline/tests/Invoke-ToolIntegrationChecks.ps1` — verification evidence; PowerShell implementation for invoke tool integration checks; exposes Assert-True, DebugLog, Extract-BdpgsToSup.
-- `ops/pipeline/tests/Invoke-WebViewReliabilityChecks.ps1` — verification evidence; PowerShell implementation for invoke web view reliability checks; exposes Assert-Absent, Assert-Container, Assert-Leaf.
 - `ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1` — verification evidence; PowerShell implementation for invoke legacy desktop reliability regression checks; exposes Add-CompletedJobsManifestEntryFromSidecar, Add-RoundFailureRecord, Add-TestEvent.
+- `ops/pipeline/tests/Unit/Invoke-AudioPolicyChecks.ps1` — verification evidence; PowerShell implementation for invoke audio policy checks; exposes Assert-Equal, Assert-SequenceEqual, Assert-True.
+- `ops/pipeline/tests/Unit/Invoke-EncodeCoreSplitChecks.ps1` — verification evidence; PowerShell implementation for invoke encode core split checks; exposes Assert-Equal, Assert-False, Assert-True.
+- `ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1` — verification evidence; PowerShell implementation for invoke pending publish safety checks; exposes Assert-Equal, Assert-MatchText, Assert-True.
+- `ops/pipeline/tests/Unit/Invoke-PendingPublishTransactionFaultInjectionChecks.ps1` — verification evidence; PowerShell implementation for invoke pending publish transaction fault injection checks; exposes Add-CompletedJobsManifestEntryFromSidecar, Add-RoundFailureRecord, Assert-Equal.
 
 ### Boundaries / validation
 
-- `docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md` — canonical boundary; Markdown implementation for local api evidence mutation matrix.
-- `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md` — canonical boundary; Markdown implementation for repair reconcile mutation contract.
-- `docs/inventories/API_ROUTE_INVENTORY.md` — canonical boundary; Markdown implementation for api route inventory.
-- `docs/inventories/COMMAND_OWNERSHIP_MATRIX.md` — canonical boundary; Markdown implementation for command ownership matrix.
-- `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md` — canonical boundary; Markdown implementation for local api route ownership map.
+- `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md` — canonical boundary; Markdown implementation for no touch boundary register.
 
 ## Why these files
 
-- `ops/pipeline/engine/naming/rename_overrides.ps1`: naming authority.
-- `ops/pipeline/engine/process/encode_preflight.ps1`: process authority.
-- `ops/pipeline/engine/process/ffmpeg_progress.ps1`: process authority.
-- `ops/pipeline/engine/process/pipeline_plan_executor.ps1`: process authority.
-- `ops/pipeline/engine/process/pipeline_plan_executor/validation.ps1`: process authority.
-- `ops/pipeline/engine/process/remux_ffmpeg_av_stage.ps1`: process authority.
-- `ops/pipeline/engine/process/remux_subtitle_plan.ps1`: process authority.
-- `ops/pipeline/engine/publish/pending_drain_transaction.ps1`: publish authority.
+- `ops/pipeline/engine/queue/file_overrides.ps1`: queue authority.
+- `src/mediapipeline/core/decide/processing_decision.py`: decide authority.
+- `ops/pipeline/engine/audio/audio.ps1`: audio authority.
+- `ops/pipeline/engine/audio/audio/stream_decisions.ps1`: audio authority.
+- `ops/pipeline/engine/subtitles/ass.ps1`: subtitles authority.
+- `ops/pipeline/engine/subtitles/bdpgs.ps1`: subtitles authority.
+- `ops/pipeline/engine/subtitles/builders.ps1`: subtitles authority.
+- `ops/pipeline/engine/subtitles/builders/decisions.ps1`: subtitles authority.
 
 ## Tests and validation
 
-- `ops/pipeline/tests/Invoke-AdversarialForceKillEncodeChecks.ps1`
-- `ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1`
-- `ops/pipeline/tests/Invoke-ToolIntegrationChecks.ps1`
-- `ops/pipeline/tests/Invoke-WebViewReliabilityChecks.ps1`
 - `ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1`
 - `ops/pipeline/tests/Unit/Invoke-AudioPolicyChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-AuditCommandSupportChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-AuditScorePolicyChecks.ps1`
+- `ops/pipeline/tests/Unit/Invoke-EncodeCoreSplitChecks.ps1`
+- `ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1`
+- `ops/pipeline/tests/Unit/Invoke-PendingPublishTransactionFaultInjectionChecks.ps1`
+- `ops/pipeline/tests/Unit/Invoke-PipelineProcessingSourceProbeChecks.ps1`
+- `ops/pipeline/tests/Unit/Invoke-RemuxSplitStageChecks.ps1`
+- `ops/pipeline/tests/Unit/Invoke-SidecarWriteSafetyChecks.ps1`
 - Smallest validation rung: subtitle/audio unit checks, release gate, and representative real-media validation when behavior changes.
 - Boundaries: `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`.
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=89, documentation=6, generated=1, change_evidence=0, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=13, documentation=1, generated=0, change_evidence=0, archive=0, runtime_artifact=0.

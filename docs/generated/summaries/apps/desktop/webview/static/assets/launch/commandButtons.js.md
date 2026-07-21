@@ -6,9 +6,9 @@ file_type: JavaScript
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-16
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: 01ecb0b5242b81ad2005953ee878b28ad6123f1a9c8293ffbc45d26ba15f77fd
+sha256: 44b33f016cdb87fe944825e3fe33ea12c50a41f5de1d20bb53e28cab5952abd7
 ---
 # `apps/desktop/webview/static/assets/launch/commandButtons.js`
 

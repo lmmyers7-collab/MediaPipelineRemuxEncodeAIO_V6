@@ -1,0 +1,64 @@
+{
+  "id": "MP-CHANGE-2026-0720-031",
+  "title": "Condense Current Work file details with progressive disclosure",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-07-20",
+  "date_completed": null,
+  "summary": "Condense the backend-authored Current Work selected-file detail into an outcome-first normal view while preserving complete technical evidence under the existing global Advanced mode.",
+  "reason": "The current selected-file view renders every route reason, stage timestamp, per-track evidence record, path, and provenance field at once, making routine successful outcomes difficult to scan and causing track evidence to collapse into very tall narrow columns.",
+  "affected_areas": [
+    "WebView Home Current Work selected-file detail",
+    "Run Monitor presentation-only rendering",
+    "WebView responsive layout and accessibility",
+    "Run Monitor deterministic browser coverage",
+    "Canonical WebView operator and test documentation"
+  ],
+  "behavior_before": "Selected files show three full route cards, every stage card with complete timestamps/provenance, verbose per-track evidence in a fixed four-column table, and all output/recovery evidence in the normal view.",
+  "behavior_after": "The normal view leads with a compact backend-derived outcome, decision trail, active/actionable stage summary, concise track outcomes, and useful output/recovery actions. Full route cards, canonical stage ledger, track timelines, intermediate paths, identifiers, timestamps, reason codes, and provenance remain discoverable through the existing global Advanced mode.",
+  "files_touched": [
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0720-031.json",
+    "apps/desktop/webview/static/partials/page-home.html",
+    "apps/desktop/webview/static/assets/runMonitor/rendering.js",
+    "apps/desktop/webview/static/assets/runMonitorView.js",
+    "apps/desktop/webview/static/assets/styles/pages/home.css",
+    "tests/webview/test_webview_run_monitor_static.py",
+    "tests/webview/test_webview_browser_run_monitor_smoke.py",
+    "docs/operator/WEBVIEW_MANUAL_OPERATOR_TEST_SCRIPT.md",
+    "docs/testing/TEST_COVERAGE_MATRIX.md",
+    "docs/inventories/WEBVIEW_DOM_ID_INVENTORY.md",
+    "docs/generated/WEBVIEW_DOM_ID_GAP_REPORT.json",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-home.html.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/runMonitor/rendering.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/runMonitorView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles/pages/home.css.md",
+    "docs/generated/summaries/tests/webview/test_webview_run_monitor_static.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_run_monitor_smoke.py.md",
+    "docs/generated/summaries/docs/testing/TEST_COVERAGE_MATRIX.md.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_DOM_ID_GAP_REPORT.json.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0720-031.json.md"
+  ],
+  "tests_added": [
+    "Static contract coverage for outcome, route-summary, stage-summary, Advanced evidence, and responsive presentation hooks",
+    "Browser visibility coverage proving normal mode hides technical evidence and Advanced restores it",
+    "Browser coverage for concise output size, route trail, active subtitle progress, and compact Track/Source/Outcome labels"
+  ],
+  "rollback_plan": "Revert the packet-listed WebView markup, Run Monitor rendering, styles, tests, and documentation as one presentation unit. No backend schema, persisted state, media policy, or filesystem migration is involved.",
+  "related_changes": [
+    "MP-CHANGE-2026-0716-003",
+    "MP-CHANGE-2026-0717-002",
+    "MP-CHANGE-2026-0720-020"
+  ],
+  "manual_validation": [
+    "Focused Run Monitor static and deterministic browser suite: 14 passed.",
+    "Frontend mutation-boundary suite: 24 passed, 185 subtests passed.",
+    "Canonical queue-launch-to-completed browser smoke: 1 passed with safe close-readiness and unchanged source hashes.",
+    "Visual-clutter screenshot smoke: 1 passed at 390 px and 768 px viewport widths with no horizontal overflow; inspected the generated Home screenshot for normal-mode hierarchy and empty-state layout.",
+    "WebView inventory, DOM-ID gap, public-contract, and JavaScript syntax checks passed.",
+    "Change-packet schema validation passed for all 1,114 unreleased packets; strict worktree coverage was attempted and is blocked by 68 unrelated uncovered files from the concurrent full-repository audit and generated-summary work."
+  ],
+  "notes": "Python impact: test-only Python files changed; no production Python contract or projector changed. Existing user-owned dirty work was preserved, including the Run Monitor modularization and active accessibility coverage. Representative real-media validation is not required because the change is presentation-only. Native WebView2 checks with actual 200%/400% browser zoom and NVDA or Narrator were not available in this automated session, so the packet remains in progress pending that operator validation. The active-document reference check is independently blocked by pre-existing DOC005 in docs/reviews/comprehensive-production-audit-2026-07-19/evidence/BASELINE.md:15."
+}

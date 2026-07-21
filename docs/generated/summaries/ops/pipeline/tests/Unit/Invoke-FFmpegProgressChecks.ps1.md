@@ -6,15 +6,15 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: high
 owner_domain: tests
-last_modified: 2026-07-16
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: fdb6b0bc7c6868e64d93a2cc6ba71e4ec66288d3cbbecd89b8419982c5767837
+sha256: 36e4e19bbc7dd25c284cf77e7e03bbc57f0ee65e05a1b9748d27461a8d79fd02
 ---
 # `ops/pipeline/tests/Unit/Invoke-FFmpegProgressChecks.ps1`
 
-**Purpose:** PowerShell implementation for invoke ffmpeg progress checks; exposes Assert-Equal, Assert-PathUnderRoot, Assert-True.
+**Purpose:** PowerShell implementation for invoke ffmpeg progress checks; exposes Assert-Equal, Assert-Near, Assert-PathUnderRoot.
 
-**Public symbols:** `Assert-Equal`, `Assert-PathUnderRoot`, `Assert-True`, `Complete-MediaPipelineRunMonitorAudioWork`, `ConvertTo-MediaPipelineRunMonitorStageId`, `DebugLog`, `End-MediaPipelineRunMonitorAudioWorkAttempt`, `Format-NativeCommandLine`, `Invoke-FFprobeCommand`, `Invoke-NativeProcess`, `New-MediaPipelineCurrentStageNativePollHandler`, `Save-ReproCommand`, `Set-MediaPipelineCurrentRunMonitorStage`, `Set-ProgressStage`, `Start-MediaPipelineRunMonitorAudioWork`, `Update-MediaPipelineRunMonitorActiveTrackHeartbeat`, `Write-Log`, `Write-PipelineEvent`
+**Public symbols:** `Assert-Equal`, `Assert-Near`, `Assert-PathUnderRoot`, `Assert-True`, `Complete-MediaPipelineRunMonitorAudioWork`, `ConvertTo-MediaPipelineRunMonitorStageId`, `DebugLog`, `End-MediaPipelineRunMonitorAudioWorkAttempt`, `Format-NativeCommandLine`, `Invoke-FFprobeCommand`, `Invoke-NativeProcess`, `New-MediaPipelineCurrentStageNativePollHandler`, `Save-ReproCommand`, `Set-MediaPipelineCurrentRunMonitorStage`, `Set-ProgressStage`, `Start-MediaPipelineRunMonitorAudioWork`, `Update-MediaPipelineRunMonitorActiveTrackHeartbeat`, `Write-Log`, `Write-PipelineEvent`
 **Invoked stages:** `remux-mkvmerge`
 **Invoked tools:** `ffmpeg`, `mkvmerge`
 

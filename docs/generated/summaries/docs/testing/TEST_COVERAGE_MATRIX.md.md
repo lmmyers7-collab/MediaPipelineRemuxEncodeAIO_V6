@@ -8,7 +8,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-20
 last_reviewed: 2026-05-29
-sha256: 5b98f5401f010f580eba780692f7a768817f065f7267041226c22236064be062
+sha256: 4fe8052b246ff1b49c7bc7feb0e1e8501a4813e482e15e15a8117713a798c67a
 ---
 # `docs/testing/TEST_COVERAGE_MATRIX.md`
 

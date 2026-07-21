@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-19
+last_modified: 2026-07-20
 last_reviewed: 2026-05-29
-sha256: 93bdeb058055bf4d2e9a793965ba0cc5e4dba3348d985f9f480595f99de9c8ec
+sha256: 47219f2601bd4eac307636237f4878b8b3f0f5710e15d9ee9367e8868bc210a1
 ---
 # `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`
 

@@ -8,22 +8,6 @@ Validation: targeted storage, process, and lifecycle tests
 
 ## Vertical slice
 
-### WebView / Tauri
-
-- `apps/desktop/webview/static/assets/app/home/queueProjection.js` — operator display/intent surface; JavaScript implementation for queue projection; exposes activate, createHomeQueueProjectionModule, homeActiveWork.
-- `apps/desktop/webview/static/assets/app/lifecycle/topbar.js` — operator display/intent surface; JavaScript implementation for topbar; exposes backendLifecycleState, clearTopbarPendingLaunch, closeReadinessWatcherData.
-- `apps/desktop/webview/static/assets/contractView.js` — operator display/intent surface; JavaScript implementation for contract view; exposes contractEffect, contractMethodFilter, contractNetworkLifecycleContracts.
-- `apps/desktop/webview/static/assets/launch/commandOrchestration.js` — operator display/intent surface; JavaScript implementation for command orchestration; exposes browsePipelineSingleFile, clearPipelineSingleFile, createLaunchCommandOrchestrationModule.
-- `apps/desktop/webview/static/assets/network/lifecycleContract.js` — operator display/intent surface; JavaScript implementation for lifecycle contract; exposes configFlagText, configuredStatus, contractSummary.
-
-### API route
-
-- `src/mediapipeline/desktop/api/command_journal.py` — api authority; Python implementation for command journal; exposes CommandJournal.
-- `src/mediapipeline/desktop/api/command_journal_policy.py` — api authority; Python implementation for command journal policy; exposes bounded_command_evidence, bounded_history_limit, command_history_mapping.
-- `src/mediapipeline/desktop/api/contract_command_operations.py` — api authority; Python implementation for contract command operations.
-- `src/mediapipeline/desktop/api/contract_command_settings_ui.py` — api authority; Python implementation for contract command settings ui.
-- `src/mediapipeline/desktop/api/handler_policy.py` — api authority; Python implementation for handler policy; exposes bounded_error_text, cors_response_headers, not_found_payload.
-
 ### Python facade / domain service
 
 - `src/mediapipeline/core/paths/queue_input_fingerprint.py` — paths authority; Python implementation for queue input fingerprint; exposes queue_input_consistency, queue_input_fingerprint.
@@ -32,58 +16,34 @@ Validation: targeted storage, process, and lifecycle tests
 - `src/mediapipeline/core/processes/active_jobs.py` — process authority; Python implementation for active jobs; exposes active_job_pid_is_alive, active_job_pid_matches_record, active_job_record_path_for_proc.
 - `src/mediapipeline/core/processes/audit_facade.py` — process authority; Audit launch facade adapter.
 
-### Contract / state / config
-
-- `src/mediapipeline/core/config/save_runner.py` — config authority; Python implementation for save runner; exposes config_backup_path, list_config_profiles_for_service, load_config_profile_for_service.
-- `src/mediapipeline/contracts/api_commands.py` — contracts authority; Pydantic contracts for Local API command request payloads. The Local API wire shape remains owned by the existing routes. These models describe the known per-route fields while allowing existing additive fields so the command-handler migration can proceed without breaking WebView callers.
-- `src/mediapipeline/contracts/api_routes_command_operations.py` — contracts authority; Python implementation for api routes command operations.
-- `src/mediapipeline/contracts/api_routes_command_settings_ui.py` — contracts authority; Python implementation for api routes command settings ui.
-- `src/mediapipeline/contracts/stages.py` — contracts authority; Canonical Pydantic contracts for pipeline stage execution. Python owns orchestration and sends one versioned request envelope to the PowerShell engine. PowerShell executes the requested stage and writes one versioned result envelope to stdout. Stage-specific payload/data models live here so generated schema, runner validation, and dispatcher tests all share one contract.
-
 ### PowerShell execution
 
-- `ops/pipeline/engine/naming/rename_overrides.ps1` — naming authority; PowerShell implementation for rename overrides; exposes Apply-RenameOverrideToDestinationPlan, Get-RenameOverrideFinalName, Get-RenameOverrideSidecarPath.
-- `ops/pipeline/engine/process/dynamic_hdr.ps1` — process authority; PowerShell implementation for dynamic hdr.
-- `ops/pipeline/engine/process/dynamic_hdr_metadata.ps1` — process authority; PowerShell implementation for dynamic hdr metadata; exposes ConvertFrom-DynamicHdrRpuSummaryFrameCount, Export-DynamicHdrMetadata, Invoke-DynamicHdrExtractionCommand.
 - `ops/pipeline/engine/process/dynamic_hdr_output.ps1` — process authority; PowerShell implementation for dynamic hdr output; exposes Clear-DynamicHdrCapabilityProbe, ConvertTo-DynamicHdrX265RelativePath, Invoke-X265DolbyVisionCapabilityProbe.
-- `ops/pipeline/engine/process/dynamic_hdr_policy.ps1` — process authority; PowerShell implementation for dynamic hdr policy; exposes New-DynamicHdrPreservationPlan, Resolve-DynamicHdrEncodePreservationDecision.
-
-### Tests
-
-- `ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1` — verification evidence; PowerShell implementation for invoke dynamic hdr tooling checks; exposes Assert-Equal, Assert-True, Get-DolbyVisionState.
-- `ops/pipeline/tests/Unit/Invoke-EncodeCoreSplitChecks.ps1` — verification evidence; PowerShell implementation for invoke encode core split checks; exposes Assert-Equal, Assert-False, Assert-True.
-- `ops/pipeline/tests/Unit/Invoke-FFmpegProgressChecks.ps1` — verification evidence; PowerShell implementation for invoke ffmpeg progress checks; exposes Assert-Equal, Assert-PathUnderRoot, Assert-True.
-- `ops/pipeline/tests/Unit/Invoke-LibraryProfileRoutingChecks.ps1` — verification evidence; PowerShell implementation for invoke library profile routing checks; exposes Assert-Contains, Assert-Equal, Assert-Throws.
-- `ops/pipeline/tests/Unit/Invoke-LocalWorkerSlotChecks.ps1` — verification evidence; PowerShell implementation for invoke local worker slot checks; exposes Assert-Equal, Assert-True, ConvertTo-MediaPipelineRunMonitorStageId.
+- `ops/pipeline/engine/process/dynamic_hdr_tools.ps1` — process authority; PowerShell implementation for dynamic hdr tools; exposes ConvertFrom-DynamicHdrToolVersionText, ConvertTo-DynamicHdrInt, Get-DynamicHdrPolicyDefault.
+- `ops/pipeline/engine/process/pipeline_plan_executor.ps1` — process authority; PowerShell implementation for pipeline plan executor; exposes ConvertTo-PipelinePlanBool, ConvertTo-PipelinePlanExecutorJson, ConvertTo-PipelinePlanFfmpegSubtitleFilterPath.
+- `ops/pipeline/engine/process/pipeline_processing/preflight.ps1` — process authority; PowerShell implementation for preflight; exposes Add-MediaPipelinePreflightTypeName, Get-MediaPipelineFailureStatePreflight, Get-MediaPipelineTvParsePreflight.
+- `ops/pipeline/entrypoints/MediaPipeline/runtime_paths.ps1` — process authority; PowerShell implementation for runtime paths.
 
 ### Boundaries / validation
 
-- `docs/architecture/MODULE_MAP.md` — canonical boundary; Markdown implementation for module map.
 - `docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md` — canonical boundary; Markdown implementation for runtime artifact inventory.
 
 ## Why these files
 
-- `ops/pipeline/engine/naming/rename_overrides.ps1`: naming authority.
-- `ops/pipeline/engine/process/dynamic_hdr.ps1`: process authority.
-- `ops/pipeline/engine/process/dynamic_hdr_metadata.ps1`: process authority.
 - `ops/pipeline/engine/process/dynamic_hdr_output.ps1`: process authority.
-- `ops/pipeline/engine/process/dynamic_hdr_policy.ps1`: process authority.
 - `ops/pipeline/engine/process/dynamic_hdr_tools.ps1`: process authority.
-- `ops/pipeline/engine/process/encode_attempt_plan.ps1`: process authority.
-- `ops/pipeline/engine/process/encode_command_builder.ps1`: process authority.
+- `ops/pipeline/engine/process/pipeline_plan_executor.ps1`: process authority.
+- `ops/pipeline/engine/process/pipeline_processing/preflight.ps1`: process authority.
+- `src/mediapipeline/core/paths/queue_input_fingerprint.py`: paths authority.
+- `src/mediapipeline/core/processes/__init__.py`: process authority.
+- `src/mediapipeline/core/processes/active_job_runner.py`: process authority.
+- `src/mediapipeline/core/processes/active_jobs.py`: process authority.
 
 ## Tests and validation
 
-- `ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-EncodeCoreSplitChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-FFmpegProgressChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-LibraryProfileRoutingChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-LocalWorkerSlotChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-NativeProcessCleanupChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1`
+- No directly classified test; run the owning targeted validation rung.
 - Smallest validation rung: targeted storage, process, and lifecycle tests.
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=64, documentation=2, generated=0, change_evidence=8, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=0, documentation=1, generated=0, change_evidence=0, archive=0, runtime_artifact=0.

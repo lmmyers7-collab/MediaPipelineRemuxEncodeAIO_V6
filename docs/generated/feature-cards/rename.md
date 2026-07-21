@@ -10,84 +10,62 @@ Validation: targeted rename preview/apply/undo and path-boundary tests
 
 ### WebView / Tauri
 
-- `apps/desktop/webview/static/assets/app/home/queueProjection.js` — operator display/intent surface; JavaScript implementation for queue projection; exposes activate, createHomeQueueProjectionModule, homeActiveWork.
-- `apps/desktop/webview/static/assets/launch/rerunOrchestration.js` — operator display/intent surface; JavaScript implementation for rerun orchestration; exposes checkNetworkRerunStartDryRunFromForm, createLaunchRerunOrchestrationModule, networkDryRunFingerprint.
-- `apps/desktop/webview/static/assets/pendingPublishView.drain.js` — operator display/intent surface; JavaScript implementation for pending publish view drain; exposes createPendingPublishDrainModule, isPendingDrainCommand, pendingBackendDrainScopeRows.
-- `apps/desktop/webview/static/assets/queue/fileOverrides.drawer.api.js` — operator display/intent surface; JavaScript implementation for file overrides drawer api; exposes apiGet, apiPost, appendCommandResultFn.
-- `apps/desktop/webview/static/assets/queue/fileOverrides.drawer.form.js` — operator display/intent surface; JavaScript implementation for file overrides drawer form; exposes appendSelectorRules, applyFileOverrideEffectivePayload, buildOverridePayload.
+- `apps/desktop/webview/static/assets/rename/applyReadiness.js` — operator display/intent surface; JavaScript implementation for apply readiness; exposes create, renameApplyReadinessRow, renameApplyReadinessRows.
+- `apps/desktop/webview/static/assets/rename/applyResult.js` — operator display/intent surface; JavaScript implementation for apply result; exposes create, renameApplyInFlightRows, renameApplyOutcomeCounts.
+- `apps/desktop/webview/static/assets/rename/cleaningFilters.js` — operator display/intent surface; JavaScript implementation for cleaning filters; exposes applyRenameFilterCatalogSection, collectRenameMovieFilterOptions, collectRenameMovieFilterTerms.
+- `apps/desktop/webview/static/assets/rename/cleaningWorkbench.js` — operator display/intent surface; JavaScript implementation for cleaning workbench; exposes appendRenameWorkbenchTerm, createRenameCleaningWorkbenchModule, enableRenameWorkbenchDestination.
+- `apps/desktop/webview/static/assets/rename/commandEvidence.js` — operator display/intent surface; JavaScript implementation for command evidence; exposes createRenameCommandEvidenceModule, renameApplyPayloadFromResult, renameElapsedText.
 
 ### API route
 
-- `src/mediapipeline/desktop/api/contract_command_file.py` — api authority; Python implementation for contract command file.
 - `src/mediapipeline/desktop/api/contract_command_operations.py` — api authority; Python implementation for contract command operations.
-- `src/mediapipeline/desktop/api/contract_command_process.py` — api authority; Python implementation for contract command process.
-- `src/mediapipeline/desktop/api/contract_command_settings_ui.py` — api authority; Python implementation for contract command settings ui.
-- `src/mediapipeline/desktop/api/contract_payload.py` — api authority; Python implementation for contract payload; exposes local_api_contract_payload.
+- `src/mediapipeline/desktop/api/handler_policy.py` — api authority; Python implementation for handler policy; exposes bounded_error_text, cors_response_headers, not_found_payload.
 
 ### Python facade / domain service
 
-- `src/mediapipeline/core/api/commands_rename.py` — api authority; Python implementation for commands rename; exposes LocalApiRenameCommandPayloadMixin.
-- `src/mediapipeline/core/processes/rerun_facade.py` — process authority; CSV rerun launch facade adapter.
-- `src/mediapipeline/core/processes/rerun_preview.py` — process authority; CSV rerun preview, scoping, and scoped CSV materialization façade.
-- `src/mediapipeline/core/processes/rerun_preview_materialization.py` — process authority; CSV rerun preview, scoping, and scoped CSV materialization helpers.
-- `src/mediapipeline/core/processes/rerun_preview_network.py` — process authority; CSV rerun preview, scoping, and scoped CSV materialization helpers.
+- `src/mediapipeline/core/rename/__init__.py` — rename authority; Rename preview and guarded apply adapters.
+- `src/mediapipeline/core/rename/apply.py` — rename authority; Python implementation for apply; exposes build_rename_operations, pipeline_sidecar_paths_for_destination, read_json_dict_for_rename.
+- `src/mediapipeline/core/rename/apply_results.py` — rename authority; Rename apply command result payload builders.
+- `src/mediapipeline/core/rename/apply_runner.py` — rename authority; Python implementation for apply runner; exposes apply_rename_path_plan_for_service.
+- `src/mediapipeline/core/rename/bad_case_corpus.py` — rename authority; Helpers for the rename bad-case regression corpus.
 
 ### Contract / state / config
 
-- `src/mediapipeline/contracts/api_routes_command_process.py` — contracts authority; Python implementation for api routes command process.
-- `src/mediapipeline/contracts/api_commands.py` — contracts authority; Pydantic contracts for Local API command request payloads. The Local API wire shape remains owned by the existing routes. These models describe the known per-route fields while allowing existing additive fields so the command-handler migration can proceed without breaking WebView callers.
-- `src/mediapipeline/contracts/api_routes_command_file.py` — contracts authority; Python implementation for api routes command file.
 - `src/mediapipeline/contracts/api_routes_command_operations.py` — contracts authority; Python implementation for api routes command operations.
-- `src/mediapipeline/contracts/api_routes_command_settings_ui.py` — contracts authority; Python implementation for api routes command settings ui.
-
-### PowerShell execution
-
-- `ops/pipeline/engine/naming/rename_overrides.ps1` — naming authority; PowerShell implementation for rename overrides; exposes Apply-RenameOverrideToDestinationPlan, Get-RenameOverrideFinalName, Get-RenameOverrideSidecarPath.
-- `ops/pipeline/engine/publish/pending_drain_transaction.ps1` — publish authority; PowerShell implementation for pending drain transaction; exposes Invoke-PendingDrainTransaction, Invoke-PendingDrainTransactionCore, New-PendingDrainSidecarExtra.
-- `ops/pipeline/engine/publish/pending_manifest_store.ps1` — publish authority; PowerShell implementation for pending manifest store; exposes ConvertTo-PendingManifestMap, Get-PendingManifestConfiguredOutputRoot, Get-PendingManifestConfiguredSourceRoots.
-- `ops/pipeline/engine/publish/pending_park_transaction.ps1` — publish authority; PowerShell implementation for pending park transaction; exposes Invoke-PendingParkTransaction, New-PendingParkManifest, New-PendingParkSidecarEntries.
-- `ops/pipeline/engine/publish/pending_push.ps1` — publish authority; PowerShell implementation for pending push; exposes Add-PendingDrainSummaryCount, Complete-PendingDrainSummary, Get-PendingDrainSummaryLogLine.
 
 ### Tests
 
-- `ops/pipeline/tests/Invoke-WebViewReliabilityChecks.ps1` — verification evidence; PowerShell implementation for invoke web view reliability checks; exposes Assert-Absent, Assert-Container, Assert-Leaf.
-- `ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1` — verification evidence; PowerShell implementation for invoke legacy desktop reliability regression checks; exposes Add-CompletedJobsManifestEntryFromSidecar, Add-RoundFailureRecord, Add-TestEvent.
-- `ops/pipeline/tests/Unit/Invoke-EncodeCoreSplitChecks.ps1` — verification evidence; PowerShell implementation for invoke encode core split checks; exposes Assert-Equal, Assert-False, Assert-True.
-- `ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1` — verification evidence; PowerShell implementation for invoke path boundary guard checks; exposes Assert-Equal, Assert-True, Copy-FileRobocopy.
-- `ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1` — verification evidence; PowerShell implementation for invoke pending publish safety checks; exposes Assert-Equal, Assert-MatchText, Assert-True.
+- `tests/python/desktop/test_application_facade_local_api_rename.py` — verification evidence; Python implementation for test application facade local api rename; exposes LocalApiRenameTests.
+- `tests/python/desktop/test_application_facade_rename.py` — verification evidence; Python implementation for test application facade rename; exposes ApplicationFacadeRenameTests.
+- `tests/webview/test_webview_browser_rename_smoke.py` — verification evidence; Python implementation for test webview browser rename smoke; exposes WebViewBrowserRenameSmoke.
+- `tests/webview/test_webview_rename_readiness_smoke.py` — verification evidence; Python implementation for test webview rename readiness smoke; exposes WebViewRenameReadinessSmoke.
 
 ### Boundaries / validation
 
-- `docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md` — canonical boundary; Markdown implementation for local api evidence mutation matrix.
-- `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md` — canonical boundary; Markdown implementation for repair reconcile mutation contract.
-- `docs/inventories/API_ROUTE_INVENTORY.md` — canonical boundary; Markdown implementation for api route inventory.
-- `docs/inventories/COMMAND_OWNERSHIP_MATRIX.md` — canonical boundary; Markdown implementation for command ownership matrix.
-- `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md` — canonical boundary; Markdown implementation for local api route ownership map.
+- `docs/inventories/RENAME_SAFETY_TEST_INVENTORY.md` — canonical boundary; Markdown implementation for rename safety test inventory.
+- `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md` — canonical boundary; Markdown implementation for no touch boundary register.
+- `docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md` — canonical boundary; Markdown implementation for browser smoke does not mutate matrix.
 
 ## Why these files
 
-- `ops/pipeline/engine/naming/rename_overrides.ps1`: naming authority.
-- `ops/pipeline/engine/publish/pending_drain_transaction.ps1`: publish authority.
-- `ops/pipeline/engine/publish/pending_manifest_store.ps1`: publish authority.
-- `ops/pipeline/engine/publish/pending_park_transaction.ps1`: publish authority.
-- `ops/pipeline/engine/publish/pending_push.ps1`: publish authority.
-- `ops/pipeline/engine/publish/pending_repair.ps1`: publish authority.
-- `ops/pipeline/engine/publish/pending_sidecar_transactions.ps1`: publish authority.
-- `ops/pipeline/engine/publish/publish_partial.ps1`: publish authority.
+- `src/mediapipeline/core/rename/__init__.py`: rename authority.
+- `src/mediapipeline/core/rename/apply.py`: rename authority.
+- `src/mediapipeline/core/rename/apply_results.py`: rename authority.
+- `src/mediapipeline/core/rename/apply_runner.py`: rename authority.
+- `src/mediapipeline/core/rename/bad_case_corpus.py`: rename authority.
+- `src/mediapipeline/core/rename/cleaning_policy.py`: rename authority.
+- `src/mediapipeline/core/rename/constants.py`: rename authority.
+- `src/mediapipeline/core/rename/contracts.py`: rename authority.
 
 ## Tests and validation
 
-- `ops/pipeline/tests/Invoke-WebViewReliabilityChecks.ps1`
-- `ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-EncodeCoreSplitChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-PendingPublishTransactionFaultInjectionChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-PipelineProcessingPreflightChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1`
+- `tests/python/desktop/test_application_facade_local_api_rename.py`
+- `tests/python/desktop/test_application_facade_rename.py`
+- `tests/webview/test_webview_browser_rename_smoke.py`
+- `tests/webview/test_webview_rename_readiness_smoke.py`
 - Smallest validation rung: targeted rename preview/apply/undo and path-boundary tests.
 - Boundaries: `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`.
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=72, documentation=14, generated=1, change_evidence=13, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=4, documentation=3, generated=0, change_evidence=0, archive=0, runtime_artifact=0.

@@ -207,7 +207,7 @@
     panels.forEach((panel) => panel.classList.toggle("is-visible", panel.dataset.pagePanel === normalized));
     if (current && current !== normalized) resetWorkspaceScroll();
     updatePagePanelEmptyStates();
-    if (typeof refreshAll === "function") void refreshAll({ automatic: true, page: normalized });
+    if (typeof refreshAll === "function") void refreshAll({ automatic: true, queueRefresh: true, page: normalized });
     if (document.body.classList.contains("layout-editor-open")) _layoutRenderDrawer();
     const maintenanceView = window.mediaPipelineMaintenanceView || {};
     if (normalized === "maintenance" && typeof maintenanceView.hasMaintenanceLoaded === "function" && !maintenanceView.hasMaintenanceLoaded()) {

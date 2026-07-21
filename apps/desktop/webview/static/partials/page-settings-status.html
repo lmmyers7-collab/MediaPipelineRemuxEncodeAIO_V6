@@ -1,0 +1,150 @@
+        <!-- TAB: SUMMARY -->
+        <div class="settings-tab-pane is-active" data-settings-tab="status">
+        <section class="panel settings-handbrake-preview-panel" data-panel-type="status" data-handbrake-section="summary" data-local-api-contract-route="/api/settings/pipeline-plan-preview">
+          <div class="panel-heading">
+            <h2>Decision Preview</h2>
+            <strong id="settings-handbrake-preview-status">Predicted pending cutover</strong>
+          </div>
+          <div class="settings-handbrake-decision-strip" aria-label="Backend planner preview status">
+            <div>
+              <span class="settings-mini-label">Decision</span>
+              <strong id="settings-handbrake-decision">NOT EVALUATED</strong>
+            </div>
+            <div>
+              <span class="settings-mini-label">Active preset</span>
+              <strong id="settings-handbrake-active-preset">Saved settings</strong>
+            </div>
+            <div>
+              <span class="settings-mini-label">Authority</span>
+              <strong>Legacy path still executes</strong>
+            </div>
+          </div>
+          <section class="settings-readonly-facts" aria-label="Effective intent summary">
+            <h3>Effective Intent Summary</h3>
+            <dl>
+              <div><dt>Processing strategy</dt><dd id="settings-summary-processing-strategy" data-settings-summary-key="RoutingProfile">Not loaded</dd></div>
+              <div><dt>Copy/remux-first intent</dt><dd id="settings-summary-copy-remux-intent" data-settings-summary-key="RoutingProfile">Saved strategy not loaded.</dd></div>
+              <div><dt>Output container</dt><dd id="settings-summary-output-container" data-settings-summary-key="OutputContainer">Not loaded</dd></div>
+              <div><dt>Encode if required</dt><dd id="settings-summary-encode-if-required" data-settings-summary-key="VideoCodec">Not loaded</dd></div>
+              <div><dt>Size / bitrate guards</dt><dd id="settings-summary-size-bitrate-guards" data-settings-summary-key="SizeGuardMode">Not loaded</dd></div>
+              <div><dt>Preview scope</dt><dd id="settings-summary-preview-scope">Saved global settings shown here. library_effective_settings is library-only when shown in queue rows; final runtime decision is resolved during queue/job processing.</dd></div>
+            </dl>
+          </section>
+          <div class="settings-handbrake-preview-grid">
+            <section class="settings-readonly-facts" aria-label="Output settings summary">
+              <h3>Output Settings</h3>
+              <dl>
+                <div><dt>Video encoder</dt><dd id="settings-handbrake-output-video">Not loaded</dd></div>
+                <div><dt>Container</dt><dd id="settings-handbrake-output-container">Not loaded</dd></div>
+                <div><dt>If encoded output is too large</dt><dd id="settings-handbrake-output-guards">Not loaded</dd></div>
+                <div><dt>Publish</dt><dd id="settings-handbrake-publish-requirements">Not loaded</dd></div>
+              </dl>
+            </section>
+          </div>
+          <pre id="settings-handbrake-preview-detail" class="prose-block">The WebView does not compute copy/remux/encode routing. This panel shows saved output policy for orientation only; queue/job processing resolves final runtime decisions through the backend.</pre>
+          <p class="note">Planner honesty gate: this preview is not ground truth while the legacy execution path remains authoritative. It cannot launch, save settings, encode, remux, publish, rename, drain pending publish, or touch media files.</p>
+        </section>
+        <section class="panel settings-deployment-path-panel" id="settings-deployment-path-panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Deployment Path</h2>
+            <strong id="settings-deployment-action-status">Ready</strong>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" class="primary-button" id="settings-deployment-start-button">Start Setup</button>
+            <button type="button" class="secondary-button" id="settings-deployment-verify-button">Verify Settings</button>
+            <button type="button" class="secondary-button" id="settings-deployment-repair-button">Repair Guidance</button>
+            <button type="button" class="secondary-button" id="settings-deployment-launch-button">Open Launch</button>
+          </div>
+          <pre id="settings-deployment-action-detail" class="prose-block">Start Setup opens Guided Setup. Verify Settings runs the backend settings validator. Repair Guidance is read-only and points at Config Health plus Reload From Disk. Open Launch shows Launch readiness before any start command.</pre>
+        </section>
+        <section class="panel settings-guided-setup-entry-panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Guided Setup</h2>
+            <strong>Backend save</strong>
+          </div>
+          <p class="note">Use Guided Setup for a guided configuration pass. It writes only through backend Preview Config and Save &amp; Reload.</p>
+          <div class="action-row action-row-left">
+            <button type="button" class="primary-button" id="settings-open-wizard-button">Open Guided Setup</button>
+          </div>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Current Config</h2>
+            <strong id="settings-status">Read-only</strong>
+          </div>
+          <pre id="settings-paths" class="prose-block">No settings loaded.</pre>
+          <div class="settings-summary-grid">
+            <section>
+              <h3>Profiles</h3>
+              <pre id="settings-profiles" class="prose-block">No profiles loaded.</pre>
+            </section>
+            <section>
+              <h3>Validation</h3>
+              <pre id="settings-validation" class="prose-block">No validation loaded.</pre>
+            </section>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-validate-button" class="secondary-button">Validate Current Settings</button>
+            <button type="button" id="settings-reload-button" class="secondary-button">Reload From Disk</button>
+          </div>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Config Health</h2>
+            <strong id="settings-trust-status">Not loaded</strong>
+          </div>
+          <pre id="settings-trust-summary" class="prose-block">No saved settings trust summary loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Policy Readiness</h2>
+            <strong id="settings-backend-media-policy-status">Not loaded</strong>
+          </div>
+          <pre id="settings-backend-media-policy-summary" class="prose-block">No backend media-policy readiness rows loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Area</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Operator Check</th>
+                </tr>
+              </thead>
+              <tbody id="settings-backend-media-policy-rows">
+                <tr><td colspan="4">No backend media-policy readiness rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Policy not loaded</span>
+            <span class="empty-state-hint">Refresh to load the backend media-policy readiness rows.</span>
+          </div>
+          </div>
+          <p id="settings-backend-media-policy-legend" class="note table-legend">Backend media-policy readiness rows are read-only and have no selectable actions.</p>
+          <p class="note">This panel displays saved backend settings only. Current edits are not active until backend Save succeeds and settings reload completes.</p>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Settings Overview</h2>
+            <strong id="settings-overview-status">No overview</strong>
+          </div>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Section</th>
+                  <th scope="col">Setting</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody id="settings-overview-rows">
+                <tr><td colspan="3">No grouped settings loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Settings not loaded</span>
+            <span class="empty-state-hint">Refresh to load the settings overview.</span>
+          </div>
+          </div>
+        </section>
+        </div>

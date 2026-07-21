@@ -6,15 +6,15 @@ file_type: JavaScript
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-03
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: 05991c90f09d8473f963ff662cd9f9e21ae54844999b103796c762f9e1683bb1
+sha256: ebd464664c9b733c8789c7d983ce34b8e92441ca72c3affa315830b563c0b523
 ---
 # `apps/desktop/webview/static/assets/launch/startRequest.js`
 
 **Purpose:** JavaScript implementation for start request; exposes collectPipelineStartRequest, createLaunchStartRequestModule, launchPreflightRequestMatches.
 
 **Public symbols:** `collectPipelineStartRequest`, `createLaunchStartRequestModule`, `launchPreflightRequestMatches`, `launchRequestFieldValue`
-**In-repo imports:** `window.__launchStartRequestModule`
+**In-repo imports:** `)?.value ||`, `window.__launchStartRequestModule`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/launch/startRequest.js`._

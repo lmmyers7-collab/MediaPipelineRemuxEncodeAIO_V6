@@ -12,11 +12,13 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from mediapipeline.core.metrics.policy import METRICS_SCHEMA_VERSION, build_metrics_payload
 from mediapipeline.core.metrics.sources import (
+    load_metrics_backfill_records,
     metrics_source_state_payload,
     metrics_state_paths,
     run_metrics_sidecar_backfill,
     update_metrics_sources,
 )
+from mediapipeline.core.metrics import sources as metrics_sources_module
 from mediapipeline.contracts.api_commands import validate_api_command_payload
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.api.contract import LOCAL_API_ROUTE_CONTRACT
@@ -298,6 +300,126 @@ class MetricsFeatureTests(unittest.TestCase):
 
         self.assertEqual(state["cache_record_count"], 2)
         self.assertEqual(state["enabled_cache_record_count"], 1)
+
+    def test_metrics_backfill_records_parse_cache_once_and_preserve_health(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            state_root = root / "State"
+            metrics_root = state_root / "Metrics"
+            source_a = root / "DriveA"
+            source_b = root / "DriveB"
+            source_a.mkdir(parents=True)
+            source_b.mkdir(parents=True)
+            metrics_root.mkdir(parents=True)
+            (metrics_root / "metrics_sources.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_metrics_sources.v1",
+                        "roots": [
+                            {"source_id": "src-enabled", "path": str(source_a), "enabled": True},
+                            {"source_id": "src-disabled", "path": str(source_b), "enabled": False},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (metrics_root / "metrics_sidecar_backfill.jsonl").write_text(
+                "\n".join(
+                    [
+                        json.dumps(
+                            {
+                                "source_id": "src-enabled",
+                                "sidecar_path": str(source_a / "Enabled.pipeline.json"),
+                                "payload": {"route": "remux"},
+                            }
+                        ),
+                        json.dumps(
+                            {
+                                "source_id": "src-disabled",
+                                "sidecar_path": str(source_b / "Disabled.pipeline.json"),
+                                "payload": {"route": "encode"},
+                            }
+                        ),
+                        "{not-json",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            resolved = _resolved(root)
+            resolved.state_root = state_root
+
+            with patch(
+                "mediapipeline.core.metrics.sources._read_cache_entries_with_health",
+                wraps=metrics_sources_module._read_cache_entries_with_health,
+            ) as cache_reader, patch(
+                "mediapipeline.core.metrics.sources._count_cache_entries",
+                side_effect=AssertionError("cache count must come from the parsed snapshot"),
+            ):
+                records, state = load_metrics_backfill_records(resolved)
+
+        self.assertEqual(cache_reader.call_count, 1)
+        self.assertEqual(len(records), 1)
+        self.assertEqual(state["cache_record_count"], 3)
+        self.assertEqual(state["enabled_cache_record_count"], 1)
+        self.assertEqual(state["skipped_cache_record_count"], 1)
+        self.assertEqual(state["cache_health"]["status"], "partial")
+        self.assertEqual(state["cache_health"]["invalid_record_count"], 1)
+
+    def test_metrics_completed_history_cache_reuses_unchanged_fingerprint(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            manifest = root / "State" / "Completed" / "completed_jobs.jsonl"
+            manifest.parent.mkdir(parents=True)
+            first_row = {
+                "source_path": str(root / "Source" / "One.mkv"),
+                "output_path": str(root / "Output" / "One.mkv"),
+                "route": "remux",
+                "encoded_at": "2026-07-21T01:00:00Z",
+                "source_size": 100,
+                "output_size": 90,
+            }
+            second_row = {
+                "source_path": str(root / "Source" / "Two.mkv"),
+                "output_path": str(root / "Output" / "Two.mkv"),
+                "route": "encode",
+                "encoded_at": "2026-07-21T02:00:00Z",
+                "source_size": 200,
+                "output_size": 100,
+            }
+            manifest.write_text(json.dumps(first_row) + "\n", encoding="utf-8")
+            resolved = _resolved(root)
+            resolved.completed_manifest_path = manifest
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            warnings: list[str] = []
+
+            with patch.object(
+                service,
+                "load_recent_completed_jobs",
+                wraps=service.load_recent_completed_jobs,
+            ) as history_loader:
+                first, first_health = facade._metrics_completed_records(resolved, warnings)
+                repeated, repeated_health = facade._metrics_completed_records(resolved, warnings)
+                facade._metrics_completed_history_cached_at -= 61.0
+                expired, expired_health = facade._metrics_completed_records(resolved, warnings)
+                manifest.write_text(
+                    json.dumps(first_row) + "\n" + json.dumps(second_row) + "\n",
+                    encoding="utf-8",
+                )
+                changed, changed_health = facade._metrics_completed_records(resolved, warnings)
+
+        self.assertEqual(history_loader.call_count, 3)
+        self.assertEqual(len(first), 1)
+        self.assertEqual(len(repeated), 1)
+        self.assertEqual(len(expired), 1)
+        self.assertEqual(len(changed), 2)
+        self.assertTrue(first_health["available"])
+        self.assertTrue(repeated_health["available"])
+        self.assertTrue(expired_health["available"])
+        self.assertTrue(changed_health["available"])
+        self.assertTrue(history_loader.call_args_list[1].kwargs["force_refresh"])
+        self.assertEqual(warnings, [])
 
     def test_metrics_sidecar_backfill_skips_oversized_sidecars_with_warning(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

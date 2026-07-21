@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-15
+last_modified: 2026-07-20
 last_reviewed: 2026-06-03
-sha256: 3119a8d38591de0770c67a8967c34efde4cff047ca0fedbfb1847d2edbabd935
+sha256: 2c3ba7649f7ae214222a15b08ad9ade04a9966e94d56bbe41de7a25cda36af25
 ---
 # `docs/testing/WEBVIEW_SMOKE_RESULT_TEMPLATE.md`
 

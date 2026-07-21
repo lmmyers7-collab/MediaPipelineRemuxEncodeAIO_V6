@@ -4,7 +4,7 @@ Date: 2026-07-19
 
 Full inventory of all Local API routes: route, method, effect class, backend contract/handler, mutation risk, primary frontend caller, and test coverage. Source: `contract_read.py`, `contract_command.py`, `routes_read.py`, `routes_command.py`.
 
-Total: 172 routes — 55 GET (read) + 117 POST (command).
+Total: 174 routes — 56 GET (read) + 118 POST (command).
 
 All routes require the bootstrap token (`Authorization: Bearer` or `X-MediaPipeline-Token`) except `GET /api/health`.
 
@@ -38,11 +38,12 @@ All GET routes return data only. None launch pipeline work, write config, drain 
 
 Query params: `/api/run-monitor` accepts one optional exact backend `run_id`; omission reads the validated latest pointer, while unsafe, reserved, or duplicate identities are rejected. `/api/diagnostics/tail` accepts `target` (allowlisted key) and `max_bytes` (1 KB–256 KB); backend tail evidence includes `evidence_authority=backend`, and any WebView fallback over older/no-evidence payloads must be labelled frontend advisory only. `/api/launch/preflight` accepts target-specific read-only start-intent fields (`target`, pipeline `mode`, `sleep_seconds`, `show_config`, `show_console`, `single_file`, `schedule_override`, `extra_args`, `allow_extra_args`, audit `library_root`/`include_sidecars`, and rerun `csv_path`/`dry_run` plus lifecycle fields `execution_mode`/`destination_mode`/`collision_policy`/`window_size`; legacy rerun `stage_mode`/`original_mode`/`return_mode` aliases are accepted for compatibility) and returns nested backend `operator_readiness` (`desktop_launch_readiness.v1`) plus pipeline encoder capability report evidence without creating or refreshing artifacts. `POST /api/diagnostics/encoder-capabilities/refresh` is the journaled, bounded diagnostic-artifact command; it cannot launch media work or touch source media. `/api/commands` accepts `limit`. `/api/failures` accepts `source` and `limit`. `/api/queue/file-overrides`, `/api/queue/file-overrides/effective`, and `/api/queue/file-overrides/tracks` accept `path` and validate it under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots).
 
-### Inventory Group (21 routes)
+### Inventory Group (22 routes)
 
 | Route | Effect | Response Schema | Frontend Caller | Auth | Backend Test Coverage |
 |---|---|---|---|---|---|
 | `GET /api/queue` | `none` | `desktop_queue_preview.v1` | Queue | Yes - returns normal queue rows only; local and Network CSV rerun history/current batches remain under `/api/rerun/results` | `test_facade_queue_policy.py`, `test_service_queue_preview_builder.py`, `test_service_queue_source_scan.py`, `test_application_facade_queue.py` |
+| `GET /api/queue/priority-export` | `none` | `priority_queue_export.v1` public status without accepted rows | Launch | Yes | `test_priority_queue_export.py` |
 | `GET /api/queue/priority` | `none` | `queue_priority_manifest.v1` | Queue | Yes | `test_application_facade_local_api_queue.py` |
 | `GET /api/queue/strategy` | `none` | `queue_strategy_state.v1` | Queue | Yes | `test_application_facade_local_api_queue.py` |
 | `GET /api/queue/file-overrides` | `none` | `queue_file_overrides.v1` | Queue | Yes | `test_application_facade_local_api_queue.py` |
@@ -100,10 +101,11 @@ Network lifecycle start/stop now has backend-owned dry-run and confirmed command
 
 All POST routes require auth. File-open routes pass row keys or allowlisted target keys. Queue state routes accept only absolute paths under backend-configured `SourceMovies`/`SourceTV` roots and write non-destructive state manifests. Queue source scan is backend-owned and writes scan evidence plus an authoritative queue snapshot through the existing queue-plan dry run.
 
-### Queue Scan And State Commands (12 routes)
+### Queue Scan And State Commands (13 routes)
 
 | Route | Effect | Key Request Keys | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|
+| `POST /api/queue/priority-export` | `queue-state-write` | Strict empty JSON object | Queue | Medium — writes a versioned backend-only effective-High membership export and never launches or mutates media | `test_priority_queue_export.py`, `Invoke-PipelineQueueEngineChecks.ps1` |
 | `POST /api/queue/priority` | `queue-state-write` | `path`, `level`, `reason`, `items`, `clear_all`, `position`; levels `high`/`normal`/`low`/`hold`; `position` is the zero-based manual-order insertion position | Queue | Medium — writes or clears non-destructive priority manifest only | `test_application_facade_local_api_queue.py` |
 | `POST /api/queue/strategy` | `queue-state-write` | `strategy` | Queue | Medium — writes queue strategy state only | `test_application_facade_local_api_queue.py` |
 | `POST /api/queue/scan` | `process-dry-run` | `mode`, `force`, `scope`, `reason`; modes `inventory_then_curate`/`inventory_only`/`curate_only`; scope `all` | Queue | Medium — runs serialized backend source inventory and `-EmitQueuePlan` curation, atomically publishes request/input/plan fingerprint evidence, and never processes or mutates source media | `test_service_queue_source_scan.py`, `test_service_queue_dry_run_runner.py`, `test_application_facade_queue.py` |
@@ -117,7 +119,7 @@ All POST routes require auth. File-open routes pass row keys or allowlisted targ
 | `POST /api/queue/file-overrides/folder-preview` | `read-only-preview` | `folder_path`, `proposed_override`, `options` | Queue | None — bounded folder rule impact preview only | `test_file_override_tracks.py` |
 | `POST /api/queue/file-overrides/folder-rule` | `queue-state-write` | `folder_path`, `override`, `confirmation`, `clear` | Queue | Medium — writes validated non-destructive folder-prefix override manifest entries only | `test_file_override_tracks.py` |
 
-Priority and file override/folder-rule path writes are rejected unless the submitted path is absolute and under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots). Priority `clear_all` clears priority manifest state only. Series apply and remux pilot promotion require confirmation, protect exact manual rows, and do not create future show/folder policy. Series clear requires confirmation plus a matching preview fingerprint, clears exact current-row file overrides only, and leaves inherited folder rules untouched. Folder rules reject source/library roots, file-only stream indexes, and raw ffmpeg map fields. The preview routes are read-only and do not write `file_overrides.json`, scan source folders, run processing, or mutate source media. Queue source scan reads source metadata, writes `queue_source_inventory.json`, then uses the backend queue-plan dry-run to atomically refresh `queue_snapshot.json`. Priority, strategy, manual-order, and file-override writes invalidate the prior launch plan and the WebView requests a fresh scan.
+Priority export rebuilds a backend `PriorityOnly` plan and stores immutable membership/fingerprint evidence; it never accepts browser rows or starts processing. Priority and file override/folder-rule path writes are rejected unless the submitted path is absolute and under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots). Priority `clear_all` clears priority manifest state only. Series apply and remux pilot promotion require confirmation, protect exact manual rows, and do not create future show/folder policy. Series clear requires confirmation plus a matching preview fingerprint, clears exact current-row file overrides only, and leaves inherited folder rules untouched. Folder rules reject source/library roots, file-only stream indexes, and raw ffmpeg map fields. The preview routes are read-only and do not write `file_overrides.json`, scan source folders, run processing, or mutate source media. Queue source scan reads source metadata, writes `queue_source_inventory.json`, then uses the backend queue-plan dry-run to atomically refresh `queue_snapshot.json`. Priority, strategy, manual-order, and file-override writes invalidate prior launch/export evidence and require a fresh backend plan.
 
 ### Failure Marker And Artifact Commands (5 routes)
 
@@ -353,7 +355,7 @@ Network lifecycle dry-runs, worker test-connection, and mDNS discovery are no-mu
 
 | Effect | Count | Routes |
 |---|---|---|
-| `none` (read-only) | 87 | All non-probing GET routes + preview/validate/reload POSTs + repair/reconcile dry-runs + backend lifecycle reconciliation dry-run + startup reconcile dry-run + maintenance retention dry-run + preset library preview/export routes + Network lifecycle dry-runs + network CSV rerun start dry-run + worker test-connection/discovery |
+| `none` (read-only) | 88 | All non-probing GET routes + preview/validate/reload POSTs + repair/reconcile dry-runs + backend lifecycle reconciliation dry-run + startup reconcile dry-run + maintenance retention dry-run + preset library preview/export routes + Network lifecycle dry-runs + network CSV rerun start dry-run + worker test-connection/discovery |
 | `bounded-health-check` | 1 | `GET /api/maintenance` |
 | `read-only-preview` | 8 | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/series-clear-preview`, `POST /api/queue/file-overrides/folder-preview`, `POST /api/subtitle-qa/preview`, `POST /api/rerun/preview`, `POST /api/rerun/network-preview`, `POST /api/rerun/promote-dry-run` |
 | `shell-open` | 8 | `POST /api/queue/open`, `completed/open`, `pending-publish/open`, `diagnostics/open`, `diagnostics/tdarr-matrix/evidence/open`, `failures/open`, `maintenance/dependency-atlas/open-folder`, `rerun/open` |
@@ -367,7 +369,7 @@ Network lifecycle dry-runs, worker test-connection, and mDNS discovery are no-mu
 | `metrics-backfill-state-write` | 1 | `POST /api/metrics/backfill` |
 | `audit-source-state-write` | 1 | `POST /api/audit/sources` |
 | `audit-source-scan-state-write` | 1 | `POST /api/audit/sources/scan` |
-| `queue-state-write` | 7 | `POST /api/queue/priority`, `queue/strategy`, `queue/file-overrides`, `queue/file-overrides/series-apply`, `queue/file-overrides/series-clear-apply`, `queue/file-overrides/remux-pilot-promote`, `queue/file-overrides/folder-rule` |
+| `queue-state-write` | 8 | `POST /api/queue/priority-export`, `queue/priority`, `queue/strategy`, `queue/file-overrides`, `queue/file-overrides/series-apply`, `queue/file-overrides/series-clear-apply`, `queue/file-overrides/remux-pilot-promote`, `queue/file-overrides/folder-rule` |
 | `failure-marker-write` | 1 | `POST /api/failures/clear` |
 | `failure-evidence-archive` | 1 | `POST /api/failures/archive-evidence` |
 | `failure-artifact-delete` | 1 | `POST /api/failures/artifacts/cleanup` |

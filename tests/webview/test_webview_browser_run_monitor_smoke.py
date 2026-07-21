@@ -44,6 +44,7 @@ def _runner_source() -> str:
             const lifecycle = window.mediaPipelineAppLifecycle;
             const byId = (id) => document.getElementById(id);
             const text = (id) => byId(id)?.textContent || "";
+            const visibleText = (id) => byId(id)?.innerText || "";
             const wait = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
             const waitForStable = async (predicate, label, timeoutMs = 3000) => {
               const deadline = Date.now() + timeoutMs;
@@ -69,6 +70,18 @@ def _runner_source() -> str:
               const actual = text(id);
               for (const fragment of fragments) {
                 if (actual.includes(fragment)) throw new Error(id + " unexpectedly included " + fragment + "\\nActual:\\n" + actual);
+              }
+            };
+            const requireVisibleIncludes = (id, fragments) => {
+              const actual = visibleText(id);
+              for (const fragment of fragments) {
+                if (!actual.includes(fragment)) throw new Error(id + " missing visible " + fragment + "\\nActual visible text:\\n" + actual);
+              }
+            };
+            const requireVisibleNotIncludes = (id, fragments) => {
+              const actual = visibleText(id);
+              for (const fragment of fragments) {
+                if (actual.includes(fragment)) throw new Error(id + " unexpectedly displayed " + fragment + "\\nActual visible text:\\n" + actual);
               }
             };
             const renderTerminalDestinationSelection = (tbodyId, statusId, row, label) => {
@@ -273,6 +286,8 @@ def _runner_source() -> str:
 
             if (!monitor || typeof monitor.render !== "function") throw new Error("Run Monitor module was not available.");
             if (!lifecycle || typeof lifecycle.navigateToPage !== "function") throw new Error("Shared focus navigation was not available.");
+            if (typeof window.applyAdvancedModePreference === "function") window.applyAdvancedModePreference(false);
+            else document.body.classList.remove("advanced-mode");
             const liveMonitorRefresh = monitor.refresh.bind(monitor);
             await monitor.refresh({ automatic: true });
             const homeLiveRegions = Array.from(document.querySelectorAll('[data-page-panel="home"] [aria-live="polite"]'));
@@ -563,6 +578,8 @@ def _runner_source() -> str:
             monitor.render(projection({ items: [routePending, queuedB], workers: [worker("worker-1", "job-a", "route_decision", "")] }));
             requireIncludes("run-monitor-stage-list", ["Probe", "Not Applicable", "Route decision"]);
             requireIncludes("run-monitor-routes", ["Planned route", "Planned reason", "Executed route", "Executed reason", "Awaiting backend evidence", "Final route", "Final reason"]);
+            requireVisibleIncludes("run-monitor-route-summary", ["Planned Remux", "Executed Awaiting backend evidence", "Final Unknown"]);
+            requireVisibleNotIncludes("run-monitor-detail", ["Advanced route evidence", "Source: route_ledger"]);
 
             monitor.render({
               schema_version: "desktop_run_monitor.v1",
@@ -579,7 +596,8 @@ def _runner_source() -> str:
             requireIncludes("run-monitor-subtitle-body", ["Subtitle evidence unknown"]);
             requireNotIncludes("run-monitor-audio-body", ["pending"]);
             requireNotIncludes("run-monitor-subtitle-body", ["pending"]);
-            requireIncludes("run-monitor-output", ["Output state", "Unknown", "Verification", "Verified output size"]);
+            requireIncludes("run-monitor-output", ["Output state", "Unknown", "Verification"]);
+            requireIncludes("run-monitor-output-evidence", ["Exact verified size", "Unknown", "Scratch path", "Output evidence"]);
             requireIncludes("run-monitor-workers", ["No backend-confirmed active workers"]);
 
             const preRouteFinal = route("Final route", "Final reason", "unknown", "", "Source probe failed before route selection.");
@@ -611,7 +629,7 @@ def _runner_source() -> str:
             const audioWork = activeItem("job-a", 1, queuedA.display_name, "audio", { parent: "Series Alpha\\\\Season 01", audio: collection("audio", "active", audioTracks) });
             monitor.render(projection({ items: [audioWork, queuedB], workers: [worker("worker-1", "job-a", "audio")] }));
             requireIncludes("run-monitor-audio-body", ["Stream 1", "truehd", "passthrough", "Stream 2", "downmix", "stereo", "Elapsed"]);
-            requireVisibleTrackCellLabels("run-monitor-audio-body", ["Track", "Source", "Planned action", "Current / final evidence"]);
+            requireVisibleTrackCellLabels("run-monitor-audio-body", ["Track", "Source", "Outcome"]);
             const noAudio = activeItem("job-a", 1, queuedA.display_name, "subtitles", { parent: "Series Alpha\\\\Season 01", audio: collection("audio", "not_applicable", []) });
             monitor.render(projection({ items: [noAudio, queuedB], workers: [worker("worker-1", "job-a", "subtitles")] }));
             requireIncludes("run-monitor-audio-body", ["No audio tracks", "Not applicable"]);
@@ -630,7 +648,9 @@ def _runner_source() -> str:
             const subtitleDeterminate = activeItem("job-a", 1, queuedA.display_name, "subtitles", { parent: "Series Alpha\\\\Season 01", subtitles: collection("subtitle", "active", [{ ...subtitleBase, step_index: 2, step_total: 4, step_name: "convert_ocr", progress_unit: "pages", cue_count: 17, progress: determinate(37, 120) }]) });
             monitor.render(projection({ items: [subtitleDeterminate, queuedB], workers: [worker("worker-1", "job-a", "subtitles", "remux", determinate(37, 120))] }));
             requireIncludes("run-monitor-subtitle-body", ["jpn", "Preserve original", "OCR", "Step 2 of 4", "Convert Ocr", "37 / 120 pages", "Cues 17", "Elapsed", "external sidecar"]);
-            requireVisibleTrackCellLabels("run-monitor-subtitle-body", ["Track", "Source", "Planned action", "Current / final evidence"]);
+            requireVisibleIncludes("run-monitor-subtitle-body", ["jpn", "OCR", "37 / 120 pages", "Cues 17", "External Sidecar"]);
+            requireVisibleNotIncludes("run-monitor-subtitle-body", ["Track ID s0", "Started", "Source: subtitle_ocr"]);
+            requireVisibleTrackCellLabels("run-monitor-subtitle-body", ["Track", "Source", "Outcome"]);
             const subtitleIndeterminate = activeItem("job-a", 1, queuedA.display_name, "subtitles", { parent: "Series Alpha\\\\Season 01", subtitles: collection("subtitle", "active", [{ ...subtitleBase, step_index: 2, step_total: 4, step_name: "convert_ocr", progress_unit: "pages", cue_count: null, progress: indeterminate() }]) });
             monitor.render(projection({ items: [subtitleIndeterminate, queuedB], workers: [worker("worker-1", "job-a", "subtitles")] }));
             requireIncludes("run-monitor-subtitle-body", ["Step 2 of 4", "Convert Ocr", "Working (pages) · progress is indeterminate", "Elapsed"]);
@@ -644,7 +664,7 @@ def _runner_source() -> str:
             const directPublication = activeItem("job-a", 1, queuedA.display_name, "publish", { parent: "Series Alpha\\\\Season 01", detail: "Backend-confirmed direct publication to verified final destination", output: output({ state: "active", verification_state: "completed", intended_final_path: "Z:\\\\Library\\\\Series Alpha\\\\Episode 01.mkv" }) });
             monitor.render(projection({ items: [directPublication, queuedB], workers: [worker("worker-1", "job-a", "publish")] }));
             requireIncludes("run-monitor-stage-list", ["Direct publish or park", "Active", "direct publication to verified final destination"]);
-            requireIncludes("run-monitor-output", ["Output state", "Active", "Verification", "Completed", "Intended final destination", "Series Alpha"]);
+            requireIncludes("run-monitor-output", ["Output state", "Active", "Verification", "Completed", "Intended destination", "Series Alpha"]);
             if (byId("run-monitor-terminal-links").children.length) throw new Error("Active direct publication exposed terminal Pending/Completed proof before terminal evidence existed.");
 
             const multiActiveA = activeItem("job-a", 1, queuedA.display_name, "transcode", { parent: "Series Alpha\\\\Season 01", executedRoute: route("Executed route", "Executed reason", "available", "hardware_encode", "Runtime hardware encode proof") });
@@ -764,10 +784,9 @@ def _runner_source() -> str:
             };
             lifecycle.renderTopbarActivity(staleRawSnapshot);
             lifecycle.renderTopbarEventTicker(staleRawSnapshot);
-            requireIncludes("activity", ["Run Once · Backend Queue", "Backend-confirmed current", "2 accepted", "1 active worker", "Open Current Work"]);
+            requireIncludes("activity", [queuedB.display_name, "Run Once · Backend Queue · Running"]);
             requireNotIncludes("activity", ["Stale Legacy Name", "Encoding", "Route remux", "88%"]);
-            requireIncludes("topbar-event-ticker", ["Supporting telemetry", "Not current-work authority", "job_progress"]);
-            requireNotIncludes("topbar-event-ticker", ["Stale Legacy Name", "Encoding", "remux"]);
+            if (byId("topbar-event-ticker")) throw new Error("The redundant supporting-telemetry row is still visible in the topbar.");
             const targetSizeEvidence = [
               assertNamedButtonTarget(byId("run-monitor-refresh"), "Refresh"),
               assertNamedButtonTarget(byId("run-monitor-stop-after-current"), "Stop After Current"),
@@ -826,7 +845,16 @@ def _runner_source() -> str:
             }
             monitor.selectJob("job-a", { focusButton: true });
             await wait(30);
-            requireIncludes("run-monitor-output", ["Published", "Completed", "987,654,321 bytes", "Episode 01.mkv", "Intended final destination"]);
+            requireIncludes("run-monitor-file-outcome", ["Published", "Verification completed", "942 MiB", "Audio 2 tracks", "Subtitles 1 track"]);
+            requireIncludes("run-monitor-output", ["Published", "Completed", "942 MiB", "Published destination", "Episode 01.mkv"]);
+            requireIncludes("run-monitor-output-evidence", ["987,654,321 bytes", "Intended final destination"]);
+            requireVisibleIncludes("run-monitor-detail", ["Published", "942 MiB", "PUBLISHED DESTINATION", "Open Completed Output proof"]);
+            requireVisibleNotIncludes("run-monitor-detail", ["Job ID job-a", "EXACT VERIFIED SIZE", "SCRATCH PATH", "Source: completed_manifest", "Full stage evidence"]);
+            byId("advanced-toggle").click();
+            await waitForStable(() => document.body.classList.contains("advanced-mode"), "Advanced evidence visibility");
+            requireVisibleIncludes("run-monitor-detail", ["Job ID job-a", "EXACT VERIFIED SIZE", "987,654,321 bytes", "SCRATCH PATH", "Advanced route evidence", "Full stage evidence", "Source: completed_manifest"]);
+            byId("advanced-toggle").click();
+            await waitForStable(() => !document.body.classList.contains("advanced-mode"), "normal evidence visibility");
             requireIncludes("run-monitor-sidecars", ["Sidecar results", "Written", "Episode 01.jpn.srt"]);
             requireIncludes("run-monitor-terminal-links", ["Open Completed Output proof"]);
             const completedProofView = window.mediaPipelineCompletedView;
@@ -927,7 +955,7 @@ def _runner_source() -> str:
             lifecycle.navigateToPage("home", { restoreFocus: false });
             await wait(30);
             monitor.selectJob("job-parked");
-            requireIncludes("run-monitor-output", ["Parked", "Parked path", "Parked.mkv"]);
+            requireIncludes("run-monitor-output", ["Parked", "Parked destination", "Parked.mkv"]);
             requireIncludes("run-monitor-terminal-links", ["Open Pending Publish proof"]);
             if (byId("run-monitor-terminal-links").querySelector('[data-run-monitor-deep-link="completed"]') || byId("run-monitor-terminal-links").querySelectorAll('[data-run-monitor-deep-link="pending"]').length !== 2) {
               throw new Error("Parked sidecar proof did not remain under Pending Publish authority.");
@@ -1113,7 +1141,8 @@ def _runner_source() -> str:
               progress: { Mode: "continuous", Status: "Processing", CurrentStage: "Scanning", CurrentDisplayName: "Continuous source scanner" },
             };
             lifecycle.renderTopbarActivity(continuousSnapshot);
-            requireIncludes("activity", ["Continuous discovery", "Continuous source scanner"]);
+            requireIncludes("activity", ["Continuous source scanner"]);
+            requireNotIncludes("activity", ["Continuous discovery"]);
             requireNotIncludes("activity", ["Run Once · Backend Queue"]);
             const scheduledSnapshotWithoutRunMetadata = {
               pipeline_state: "processing",
@@ -1122,7 +1151,8 @@ def _runner_source() -> str:
               progress: { Status: "Processing", CurrentStage: "Scanning", CurrentDisplayName: "Scheduled source scanner" },
             };
             lifecycle.renderTopbarActivity(scheduledSnapshotWithoutRunMetadata);
-            requireIncludes("activity", ["Scheduled discovery", "Scheduled source scanner"]);
+            requireIncludes("activity", ["Scheduled source scanner"]);
+            requireNotIncludes("activity", ["Scheduled discovery"]);
             requireNotIncludes("activity", ["Run Once · Backend Queue"]);
             lifecycle.renderTopbarActivity(staleRawSnapshot);
             requireIncludes("activity", ["Run Once · Backend Queue", "Terminal backend evidence"]);

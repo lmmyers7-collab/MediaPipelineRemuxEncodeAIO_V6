@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-16
+last_modified: 2026-07-20
 last_reviewed: 2026-07-02
-sha256: dfb34f9231947f5c7158222fcb5dc47db9fd9e639236de79e47d7644dd7accd7
+sha256: fff507efc578777ed256ac40686b3f2dd8b0e742b41003350432dec5d77394a8
 ---
 # `tests/python/desktop/test_process_rerun_results.py`
 

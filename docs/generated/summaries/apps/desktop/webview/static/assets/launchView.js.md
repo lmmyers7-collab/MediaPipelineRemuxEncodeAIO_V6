@@ -6,9 +6,9 @@ file_type: JavaScript
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-11
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: ac20c43007fda3bb5c5cb40da1f5eda00a600759ba65d5467876483216e30555
+sha256: 6f174c8b713f23f4c467d408cc81ee053d9f89921a0755220129e4ed8bce714e
 ---
 # `apps/desktop/webview/static/assets/launchView.js`
 

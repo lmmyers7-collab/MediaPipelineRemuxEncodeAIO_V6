@@ -1,0 +1,62 @@
+{
+  "id": "MP-CHANGE-2026-0720-024",
+  "title": "Extract network rerun row projection",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "high",
+  "date_started": "2026-07-20",
+  "date_completed": "2026-07-20",
+  "summary": "Extract the read-only Network CSV rerun row projection helpers from the oversized rerun results orchestration module into a focused process-domain child module without changing payloads or imports.",
+  "reason": "The rerun results queue projection module mixes local manifest orchestration with Network row normalization, output evidence formatting, and lifecycle aggregation. Isolating the read-only projection seam reduces retrieval cost and maintenance coupling while leaving network claims, lifecycle decisions, persistence, and mutation ownership unchanged.",
+  "affected_areas": [
+    "docs",
+    "generated_context",
+    "network",
+    "processes",
+    "queue",
+    "release",
+    "tests"
+  ],
+  "behavior_before": "Network CSV rerun row keys, reducer and worker evidence, output probe evidence, lifecycle counts, and Queue row dictionaries are produced inside rerun_results_queue_projection.py.",
+  "behavior_after": "The same Network CSV rerun row payloads and import surface are produced through a focused rerun_results_network_projection.py child while rerun_results_queue_projection.py retains manifest scanning, runtime correlation, and payload orchestration.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/rerun_results_network_projection.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/rerun_results_queue_projection.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_process_rerun_results.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_rerun_results_network_projection.py.md",
+    "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0720-024.json",
+    "src/mediapipeline/core/processes/rerun_results_network_projection.py",
+    "src/mediapipeline/core/processes/rerun_results_queue_projection.py",
+    "tests/python/desktop/test_process_rerun_results.py",
+    "tests/python/desktop/test_rerun_results_network_projection.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_rerun_results_network_projection.py: 8 focused tests cover the child export surface, stable row keys, defensive evidence copies, verified-output precedence, bounded output probing, lifecycle counts, full Queue-row projection, input immutability, and preserved parent helper identities.",
+    "tests/python/desktop/test_process_rerun_results.py: retargeted the bounded output-probe mock to the extracted helper owner while preserving the existing 38-test behavior suite."
+  ],
+  "manual_validation": [
+    "Baseline before production edits: bundled Python unittest tests.python.desktop.test_process_rerun_results -q passed (38 tests).",
+    "Focused post-extraction suite: bundled Python unittest tests.python.desktop.test_rerun_results_network_projection tests.python.desktop.test_process_rerun_results -q passed (46 tests).",
+    "Affected API/network/process integration: bundled Python unittest tests.python.desktop.test_api_contract_payload tests.python.desktop.test_network_worker_runtime tests.python.desktop.test_application_facade_process_launch -q passed (125 tests).",
+    "Queue and risky-boundary checks: bundled Python unittest tests.python.desktop.test_application_facade_queue tests.python.desktop.test_service_queue_dry_run tests.python.tooling.test_risky_file_registry tests.python.tooling.test_lifecycle_map tests.python.tooling.test_ai_guardrail -q passed (33 tests).",
+    "Bundled Python py_compile passed for the parent, child, existing behavior test, and focused child test.",
+    "Bundled Python Ruff passed for the parent, child, existing behavior test, and focused child test.",
+    "Bundled Python mypy passed for rerun_results_queue_projection.py and rerun_results_network_projection.py.",
+    "Compatibility-import checks passed: the parent __all__ is unchanged and all eight public helper identities resolve directly to the child definitions.",
+    "Scoped generated-summary integrity checks passed; project index records, hashes, and dependency edges include the new child and focused test.",
+    "Dependency report-only analysis found no boundary findings for rerun_results_queue_projection or rerun_results_network_projection and no module cycle. The full dependency-boundary suite remains blocked by the unrelated pre-existing mediapipeline.core.processes -> mediapipeline.core.queue package cycle through preflight_facade.py.",
+    "AI guardrail postflight was attempted; scoped architecture, naming, risky-file, lifecycle, config, run-monitor, and stage-schema checks passed. The aggregate postflight remains blocked by unrelated concurrent generated-context drift, an active-doc evidence reference, the pre-existing processes-to-queue package cycle, and god-file ratchet warnings.",
+    "Independent code and security reviews found no blocking source, test, import-contract, generated-context, mutation, or lifecycle regression. Representative real-media validation is not required for this read-only extraction.",
+    "Change-packet schema validation passed for all 1109 unreleased packets after this packet was completed.",
+    "Strict worktree coverage validation was attempted and failed only on 32 unrelated concurrent paths; all 14 paths owned by this tranche are listed in this packet and none appeared in the uncovered-path report."
+  ],
+  "rollback_plan": "Move the eight Network row projection helpers back into rerun_results_queue_projection.py, remove the child module and its focused test, restore the parent imports, and regenerate project context. No runtime state or media rollback is required because the change is read-only and behavior-preserving.",
+  "related_changes": [],
+  "notes": "High-risk classification reflects the parent module's network and process-state boundary. The selected seam is read-only: it does not change coordinator claims, process lifecycle, state persistence, Pending Publish mutation, source media, or output media. Representative real-media validation is not required unless validation reveals a behavior change. Baseline before source edits: tests.python.desktop.test_process_rerun_results passed, 38 tests. Existing unrelated dirty worktree paths are intentionally excluded from this packet.\nRetain manifest scanning and payload orchestration while importing the extracted Network row projection boundary.\nAdd focused read-only Network CSV rerun row normalization, evidence, lifecycle count, and Queue formatting helpers.\nRetarget the bounded output-probe mock to the extracted helper owner.\nAdd focused characterization and import-contract coverage for the extracted child module.\nInventory the focused Network rerun projection test and targeted command.\nTrack the behavior-preserving extraction, risk boundary, validation, and rollback evidence.\nRefresh the parent summary after the extraction.\nAdd the new child module summary.\nRefresh the existing integration-test summary after the patch-owner update.\nAdd the focused child-test summary.\nRefresh the test inventory summary.\nAdd the new child and focused test to the human project index.\nAdd typed source records and dependency edges for the extracted child and focused test.\nRefresh cross-domain dependency counts after moving source-probe and support dependencies to the child.\nIndependent review confirmed the eight moved functions are behavior-equivalent to HEAD after excluding type-only annotations and casts. Two unchanged residual risks are intentionally deferred: malformed NUL-containing output paths may raise ValueError, and sequential two-second probes can amplify latency across many offline UNC rows. Neither was introduced by this extraction.\nGlobal strict worktree coverage has unrelated concurrent uncovered paths; none are part of this tranche, so they are not absorbed into this packet."
+}

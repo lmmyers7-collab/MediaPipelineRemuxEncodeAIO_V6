@@ -144,6 +144,9 @@ function Get-MediaPipelineReleaseExclusionReason {
     if ($relative -like 'docs\reviews\*') { return 'active review/audit ledger omitted' }
     if ($relative -like 'ops\release\changes\unreleased\*') { return 'unreleased change record omitted' }
     if ($relative -like 'docs\generated\summaries\ops\release\changes\unreleased\*') { return 'unreleased change record summary omitted' }
+    if ($relative -like 'ops\release\changes\archived\*') { return 'archived unreleased change record omitted' }
+    if ($relative -like 'docs\generated\summaries\ops\release\changes\archived\*') { return 'archived unreleased change record summary omitted' }
+    if ($relative -like 'docs\archive\remediation-changelog\*') { return 'historical remediation ledger segment omitted' }
     if ($relative -eq 'docs\REMEDIATION_CHANGELOG.md') { return 'historical remediation ledger omitted' }
     if ($relative -eq 'docs\CURRENT_PROJECT_STATE.md') { return 'volatile project status omitted' }
     if ($relative -eq 'docs\OPEN_WORK_CHECKLIST.md') { return 'developer backlog omitted' }

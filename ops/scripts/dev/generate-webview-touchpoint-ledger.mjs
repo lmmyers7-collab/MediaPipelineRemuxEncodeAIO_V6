@@ -164,8 +164,10 @@ function includeFragments(indexHtml) {
     const path = `${staticRoot}/${includePath}`;
     const fileName = includePath.split("/").at(-1) || "";
     const pageMatch = fileName.match(/^page-([^.]+)\.html$/);
-    const surfaceFallback = pageMatch
-      ? pageMatch[1]
+    const surfaceFallback = /^page-settings(?:-|\.html$)/.test(fileName)
+      ? "settings"
+      : pageMatch
+        ? pageMatch[1]
       : /settings-save-review-dialog/.test(fileName)
         ? "settings-save-dialog"
         : "app-shell";

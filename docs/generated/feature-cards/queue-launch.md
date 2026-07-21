@@ -10,63 +10,43 @@ Validation: targeted queue, launch, and WebView tests
 
 ### WebView / Tauri
 
-- `apps/desktop/webview/static/assets/app/home/queueProjection.js` — operator display/intent surface; JavaScript implementation for queue projection; exposes activate, createHomeQueueProjectionModule, homeActiveWork.
-- `apps/desktop/webview/static/assets/app/lifecycle/navigation.js` — operator display/intent surface; JavaScript implementation for navigation; exposes activateCompletedTab, activateCrossPageTarget, activateDiagnosticsTab.
-- `apps/desktop/webview/static/assets/app/lifecycle/topbar.js` — operator display/intent surface; JavaScript implementation for topbar; exposes backendLifecycleState, clearTopbarPendingLaunch, closeReadinessWatcherData.
-- `apps/desktop/webview/static/assets/launch/commandOrchestration.js` — operator display/intent surface; JavaScript implementation for command orchestration; exposes browsePipelineSingleFile, clearPipelineSingleFile, createLaunchCommandOrchestrationModule.
-- `apps/desktop/webview/static/assets/launch/rerunFacade.js` — operator display/intent surface; JavaScript implementation for rerun facade; exposes createLaunchRerunFacade.
-
-### API route
-
-- `src/mediapipeline/desktop/api/contract_command_file.py` — api authority; Python implementation for contract command file.
-- `src/mediapipeline/desktop/api/contract_command_operations.py` — api authority; Python implementation for contract command operations.
-- `src/mediapipeline/desktop/api/contract_command_process.py` — api authority; Python implementation for contract command process.
-- `src/mediapipeline/desktop/api/contract_command_settings_ui.py` — api authority; Python implementation for contract command settings ui.
-- `src/mediapipeline/desktop/api/contract_read.py` — api authority; Python implementation for contract read.
+- `apps/desktop/webview/static/assets/queue/controls.js` — operator display/intent surface; JavaScript implementation for controls; exposes createQueueControlsModule, emptyArray, emptyString.
+- `apps/desktop/webview/static/assets/queue/decisionSummary.js` — operator display/intent surface; JavaScript implementation for decision summary; exposes createQueueDecisionModule, queueAttentionStatus, queueAttentionSummaryLines.
+- `apps/desktop/webview/static/assets/queue/excluded.js` — operator display/intent surface; JavaScript implementation for excluded; exposes createQueueExcludedModule, queueCompactPathText, queueExcludedSourceDisplay.
+- `apps/desktop/webview/static/assets/queue/fileOverrides.drawer.api.js` — operator display/intent surface; JavaScript implementation for file overrides drawer api; exposes apiGet, apiPost, appendCommandResultFn.
+- `apps/desktop/webview/static/assets/queue/fileOverrides.drawer.focus.js` — operator display/intent surface; JavaScript implementation for file overrides drawer focus; exposes closeSeriesModal, createFileOverridesDrawerFocusModule, fileSettingsElementIsHidden.
 
 ### Python facade / domain service
 
-- `src/mediapipeline/core/api/commands_queue_priority.py` — api authority; Python implementation for commands queue priority; exposes LocalApiQueuePriorityCommandPayloadMixin.
-- `src/mediapipeline/core/api/commands_queue_scan.py` — api authority; Python implementation for commands queue scan; exposes LocalApiQueueScanCommandPayloadMixin.
-- `src/mediapipeline/core/api/commands_queue_strategy.py` — api authority; Python implementation for commands queue strategy; exposes LocalApiQueueStrategyCommandPayloadMixin.
-- `src/mediapipeline/core/paths/queue_input_fingerprint.py` — paths authority; Python implementation for queue input fingerprint; exposes queue_input_consistency, queue_input_fingerprint.
-- `src/mediapipeline/core/processes/__init__.py` — process authority; Process launch and runtime helpers.
-
-### Contract / state / config
-
-- `src/mediapipeline/contracts/api_routes_command_process.py` — contracts authority; Python implementation for api routes command process.
-- `src/mediapipeline/core/config/metadata_parts/queue_fields.py` — config authority; Queue-page settings field definitions.
-- `src/mediapipeline/core/kernel/contracts/queue_snapshot.py` — kernel authority; Python implementation for queue snapshot; exposes accepted_run_rows_fingerprint, QueueAcceptedRunRow, QueuePlanExcludedRow.
-- `src/mediapipeline/desktop/contracts/queue_snapshot.py` — contracts authority; Compatibility shim. Moved to `mediapipeline.core.kernel.contracts.queue_snapshot` by ADR-0013 (Wave 5). Re-exports the public namespace from the new home. New code should import from `mediapipeline.core.kernel.contracts.queue_snapshot` directly; removed in the ADR-0013 Wave 6 cleanup.
-- `src/mediapipeline/contracts/api_commands.py` — contracts authority; Pydantic contracts for Local API command request payloads. The Local API wire shape remains owned by the existing routes. These models describe the known per-route fields while allowing existing additive fields so the command-handler migration can proceed without breaking WebView callers.
+- `src/mediapipeline/core/processes/pipeline_policy.py` — process authority; Pipeline launch request and result policy helpers.
+- `src/mediapipeline/core/queue/__init__.py` — queue authority; Queue preview, source-open, and priority manifest adapters.
+- `src/mediapipeline/core/queue/contracts.py` — queue authority; Python implementation for contracts; exposes QueueDryRunServiceProtocol, QueuePreviewServiceProtocol, QueueRecord.
+- `src/mediapipeline/core/queue/dry_run.py` — queue authority; Python implementation for dry run; exposes build_queue_dry_run_command, format_queue_plan_source_status, queue_dry_run_temp_snapshot_path.
+- `src/mediapipeline/core/queue/dry_run_runner.py` — queue authority; Python implementation for dry run runner; exposes queue_dry_run_failure_for_service, run_queue_dry_run_for_service.
 
 ### PowerShell execution
 
-- `ops/pipeline/engine/naming/rename_overrides.ps1` — naming authority; PowerShell implementation for rename overrides; exposes Apply-RenameOverrideToDestinationPlan, Get-RenameOverrideFinalName, Get-RenameOverrideSidecarPath.
 - `ops/pipeline/engine/queue/engine_plan.ps1` — queue authority; PowerShell implementation for engine plan; exposes Get-MediaPipelineQueueEntryProgressValue, New-MediaPipelineEnginePlan.
 - `ops/pipeline/engine/queue/file_overrides.ps1` — queue authority; Load file_overrides.json from the state root. Returns an empty manifest only when no persisted manifest exists. Existing malformed state fails closed.
 - `ops/pipeline/engine/queue/local_worker_slots.ps1` — queue authority; PowerShell implementation for local worker slots; exposes Complete-MediaPipelineLocalWorkerMonitorEntry, Get-MediaPipelineLocalWorkerHardTimeoutSeconds, Get-MediaPipelineLocalWorkerHeartbeatAgeSeconds.
 - `ops/pipeline/engine/queue/phase_executor.ps1` — queue authority; PowerShell implementation for phase executor; exposes Complete-MediaPipelineRunMonitorQueueEntry, Get-MediaPipelineQueueDispatchBoundaryState, Get-MediaPipelineRunMonitorFirstResultValue.
+- `ops/pipeline/engine/queue/phase_plan.ps1` — queue authority; PowerShell implementation for phase plan; exposes Copy-QueueEntriesForLegacyPriorityPhase, Get-MediaPipelineQueuePlanRunnableEntries, New-MediaQueuePhasePlan.
 
 ### Tests
 
-- `ops/pipeline/tests/Invoke-AdversarialForceKillEncodeChecks.ps1` — verification evidence; PowerShell implementation for invoke adversarial force kill encode checks; exposes Add-ProcessTreeId, Assert-NoAcceptedOutput, Assert-True.
-- `ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1` — verification evidence; PowerShell implementation for invoke end to end smoke checks; exposes Assert-True, ConvertTo-Psd1Literal, Get-ProbeStreamCodecs.
-- `ops/pipeline/tests/Invoke-WebViewReliabilityChecks.ps1` — verification evidence; PowerShell implementation for invoke web view reliability checks; exposes Assert-Absent, Assert-Container, Assert-Leaf.
-- `ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1` — verification evidence; PowerShell implementation for invoke legacy desktop reliability regression checks; exposes Add-CompletedJobsManifestEntryFromSidecar, Add-RoundFailureRecord, Add-TestEvent.
-- `ops/pipeline/tests/Unit/Invoke-CompletedManifestBackfillDryRunChecks.ps1` — verification evidence; PowerShell implementation for invoke completed manifest backfill dry run checks; exposes Assert-False, Assert-FileTextContains, Assert-True.
+- `ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1` — verification evidence; PowerShell implementation for invoke pipeline queue engine checks; exposes Already-Processed, Assert-Equal, Assert-True.
+- `tests/python/desktop/test_application_facade_launch_preflight.py` — verification evidence; Python implementation for test application facade launch preflight; exposes ApplicationFacadeLaunchPreflightTests.
+- `tests/python/desktop/test_application_facade_web_static.py` — verification evidence; Python implementation for test application facade web static; exposes ApplicationFacadeWebStaticTests.
+- `tests/python/desktop/test_queue_snapshot_launch_policy.py` — verification evidence; Python implementation for test queue snapshot launch policy; exposes QueueLaunchHarness, QueueSnapshotLaunchPolicyTests.
+- `tests/python/desktop/test_service_queue_dry_run.py` — verification evidence; Python implementation for test service queue dry run; exposes QueueDryRunHelperTests.
 
 ### Boundaries / validation
 
-- `docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md` — canonical boundary; Markdown implementation for local api evidence mutation matrix.
-- `docs/architecture/MODULE_MAP.md` — canonical boundary; Markdown implementation for module map.
-- `docs/inventories/API_ROUTE_INVENTORY.md` — canonical boundary; Markdown implementation for api route inventory.
-- `docs/inventories/COMMAND_OWNERSHIP_MATRIX.md` — canonical boundary; Markdown implementation for command ownership matrix.
-- `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md` — canonical boundary; Markdown implementation for local api route ownership map.
+- `docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md` — canonical boundary; Markdown implementation for runtime artifact inventory.
+- `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md` — canonical boundary; Markdown implementation for no touch boundary register.
 
 ## Why these files
 
-- `ops/pipeline/engine/naming/rename_overrides.ps1`: naming authority.
 - `ops/pipeline/engine/queue/engine_plan.ps1`: queue authority.
 - `ops/pipeline/engine/queue/file_overrides.ps1`: queue authority.
 - `ops/pipeline/engine/queue/local_worker_slots.ps1`: queue authority.
@@ -74,19 +54,21 @@ Validation: targeted queue, launch, and WebView tests
 - `ops/pipeline/engine/queue/phase_plan.ps1`: queue authority.
 - `ops/pipeline/engine/queue/pipeline_engine.ps1`: queue authority.
 - `ops/pipeline/engine/queue/priority_manifest.ps1`: queue authority.
+- `ops/pipeline/engine/queue/queue_entries.ps1`: queue authority.
 
 ## Tests and validation
 
-- `ops/pipeline/tests/Invoke-AdversarialForceKillEncodeChecks.ps1`
-- `ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1`
-- `ops/pipeline/tests/Invoke-WebViewReliabilityChecks.ps1`
-- `ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-CompletedManifestBackfillDryRunChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-FailureStateIdentityChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-LocalWorkerClaimLifecycleChecks.ps1`
+- `ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1`
+- `tests/python/desktop/test_application_facade_launch_preflight.py`
+- `tests/python/desktop/test_application_facade_web_static.py`
+- `tests/python/desktop/test_queue_snapshot_launch_policy.py`
+- `tests/python/desktop/test_service_queue_dry_run.py`
+- `tests/python/desktop/test_service_queue_dry_run_runner.py`
+- `tests/python/desktop/test_service_queue_preview_builder.py`
+- `tests/python/desktop/test_service_queue_priority.py`
 - Smallest validation rung: targeted queue, launch, and WebView tests.
+- Boundaries: `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`.
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=115, documentation=15, generated=1, change_evidence=16, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=12, documentation=3, generated=0, change_evidence=0, archive=0, runtime_artifact=0.

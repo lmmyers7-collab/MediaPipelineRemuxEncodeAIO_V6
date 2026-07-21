@@ -24,6 +24,7 @@ COMMAND_ROUTE_METHODS: dict[str, str] = {
     "/api/queue/scan": "_queue_scan_payload",
     "/api/queue/open": "_queue_open_payload",
     "/api/queue/priority": "_queue_priority_payload",
+    "/api/queue/priority-export": "_queue_priority_export_payload",
     "/api/queue/strategy": "_queue_strategy_payload",
     "/api/queue/file-overrides": "_file_overrides_payload",
     "/api/queue/file-overrides/route-preview": "_file_overrides_route_preview_payload",

@@ -46,6 +46,8 @@ HISTORICAL_REFERENCE_GLOBS = (
     "docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md",
     "CHANGELOG.md",
     "docs/DOC_TOUCH_LOG.md",
+    # Compact history navigation repeats legacy symbol names by design; the
+    # detailed sections live under the skipped docs/archive prefix.
     "docs/REMEDIATION_CHANGELOG.md",
     "docs/adr/*.md",
     "docs/audits/*.md",

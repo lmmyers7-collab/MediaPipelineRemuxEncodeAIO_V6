@@ -1,6 +1,10 @@
-"""Generate canonical and PowerShell Run Monitor JSON Schemas.
+"""Generate Run Monitor schemas from the authoritative ``RunMonitorRecord``.
 
-Use ``--check`` in CI/pre-commit to fail when either generated schema is stale.
+The contracts artifact and PowerShell-facing mirror intentionally differ only
+by their consumer-specific ``$id``.  Use ``--check`` in
+CI/pre-commit/release validation to fail when either shipped artifact is stale.
+Schema consumers use the committed artifacts; production runtime code never
+imports this developer-only generator.
 """
 
 from __future__ import annotations
@@ -73,7 +77,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     outputs = _expected_outputs()
     if args.check:
-        return 0 if all(_check_current(path, text) for path, text in outputs.items()) else 1
+        results = [_check_current(path, text) for path, text in outputs.items()]
+        return 0 if all(results) else 1
     for path, expected in outputs.items():
         changed = _write_if_changed(path, expected)
         print(f"{path.relative_to(REPO_ROOT)} {'updated' if changed else 'current'}")

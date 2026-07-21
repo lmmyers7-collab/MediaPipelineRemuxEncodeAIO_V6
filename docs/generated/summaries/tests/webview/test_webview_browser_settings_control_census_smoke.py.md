@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-17
+last_modified: 2026-07-20
 last_reviewed: 2026-07-14
-sha256: ac973d9771a8295ecf474d1ea8c4865b7b7f4360848876341fa78b3faa98042a
+sha256: f59cfc378546c93b0db211c4a83d2f458ec9d7384171052621bc4341875b6820
 ---
 # `tests/webview/test_webview_browser_settings_control_census_smoke.py`
 

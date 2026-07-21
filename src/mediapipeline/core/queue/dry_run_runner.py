@@ -70,16 +70,25 @@ def run_queue_dry_run_for_service(
     resolved: ResolvedPaths,
     *,
     allow_cached_fallback: bool = False,
+    destination_path: Path | None = None,
+    priority_only: bool = False,
+    snapshot_origin: str = "dry_run",
+    request_id: str | None = None,
+    mirror_to_state_db: bool = True,
 ) -> dict[str, Any] | None:
-    snap_path = service._queue_snapshot_write_path(resolved)
+    snap_path = destination_path or service._queue_snapshot_write_path(resolved)
     if not snap_path:
         service._queue_completed_cache_status = "LocalBase not configured; cannot run queue dry-run."
         return None
     snap_path.parent.mkdir(parents=True, exist_ok=True)
     service._queue_dry_run_cleanup_warnings = []
-    request_id = uuid.uuid4().hex
+    request_id = str(request_id or uuid.uuid4().hex)
     temp_snapshot_path = queue_dry_run_temp_snapshot_path(snap_path, request_id)
-    cmd = build_queue_dry_run_command(resolved, temp_snapshot_path=temp_snapshot_path)
+    cmd = build_queue_dry_run_command(
+        resolved,
+        temp_snapshot_path=temp_snapshot_path,
+        priority_only=priority_only,
+    )
     launch_cwd = service.workspace_root if service.workspace_root.exists() else service.app_root
     started_at = time.time()
     input_before = queue_input_fingerprint(resolved)
@@ -160,7 +169,7 @@ def run_queue_dry_run_for_service(
         )
 
     snapshot["desktop_queue_preview_request_id"] = request_id
-    snapshot["queue_snapshot_origin"] = "dry_run"
+    snapshot["queue_snapshot_origin"] = snapshot_origin
     snapshot["queue_input_fingerprint_schema"] = input_after["schema_version"]
     snapshot["queue_input_fingerprint"] = input_after["fingerprint"]
     snapshot["queue_input_components"] = input_after["components"]
@@ -168,7 +177,7 @@ def run_queue_dry_run_for_service(
     snapshot["desktop_queue_snapshot_fallback_reason"] = ""
     try:
         atomic_write_text(snap_path, json.dumps(snapshot, indent=2, sort_keys=True) + "\n")
-        if resolved.state_root is not None:
+        if mirror_to_state_db and resolved.state_root is not None:
             try:
                 from mediapipeline.core.storage.db import maybe_maintain_state_db, open_state_db
 

@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-07-15
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: 9598d6c31d663ed7121adbf2023d0e913c4b042760b422eddc801fd6f05a2f87
+sha256: 317db0c0ebe2d505eba36137ab011ed8849f5421d7c346e79d9f159f99e604b0
 ---
 # `src/mediapipeline/core/api/commands.py`
 

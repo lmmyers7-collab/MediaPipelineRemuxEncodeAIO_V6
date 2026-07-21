@@ -12,6 +12,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.api.contract import LOCAL_API_ROUTE_CONTRACT
 from mediapipeline.desktop.api.contract_payload import local_api_contract_payload
+from tests.webview.static_markup_support import settings_markup
 
 
 REPO_ROOT = find_repo_root(Path(__file__))
@@ -21,7 +22,7 @@ LAUNCH_PARTIAL = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "partia
 PENDING_PARTIAL = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "partials" / "page-pending.html"
 DIAGNOSTICS_PARTIAL = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "partials" / "page-diagnostics.html"
 QUEUE_PARTIAL = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "partials" / "page-queue.html"
-SETTINGS_PARTIAL = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "partials" / "page-settings.html"
+STATIC_ROOT = REPO_ROOT / "apps" / "desktop" / "webview" / "static"
 API_POST_LITERAL_RE = re.compile(
     r"(?<![\w$])(?:\w+\.)?apiPost(?:Local)?\s*\(\s*(?P<quote>[\"'])(?P<route>/api/[^\"']+)(?P=quote)"
 )
@@ -138,6 +139,7 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/pending-publish/reconcile-orphan-payloads": {"pendingPublishView.repair.js"},
     "/api/queue/open": {"queue/openActions.js"},
     "/api/queue/scan": {"queue/scan.js"},
+    "/api/queue/priority-export": {"queue/priority.js"},
     "/api/queue/priority": {"queue/manualOrder.js", "queue/priority.js"},
     "/api/queue/strategy": {"queue/strategy.js"},
     "/api/queue/file-overrides": {"queue/fileOverrides.drawer.api.js"},
@@ -709,7 +711,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
     def test_rename_filter_staging_uses_settings_patch_not_direct_psd1_save(self) -> None:
         rename_view = _rename_asset_source()
         settings_commands = _asset_sources()["settings/view/commands.js"]
-        settings_html = SETTINGS_PARTIAL.read_text(encoding="utf-8")
+        settings_html = settings_markup(STATIC_ROOT)
 
         for snippet in [
             "shows the change review dialog",

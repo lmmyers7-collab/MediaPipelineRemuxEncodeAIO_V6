@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-15
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: b860985ee0699c4974857a5db1bbf82209cac4d7a2c0288a92e618872fdfa8eb
+sha256: be0d047b26a6274c0a9f7983c974c5e7f00112db798afe4dc4699caef0e0ae5c
 ---
 # `tests/webview/test_webview_settings_libraries.py`
 

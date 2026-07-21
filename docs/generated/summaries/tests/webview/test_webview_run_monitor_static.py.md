@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-19
+last_modified: 2026-07-20
 last_reviewed: 2026-07-16
-sha256: 7d177a9b46d824169b69f6399d01980b98b2fdcd048685e1869574e14aed237b
+sha256: 4509d62d15a18fd31a0f52eefacec6bcb4615d282682ef72135e1c82f0103f04
 ---
 # `tests/webview/test_webview_run_monitor_static.py`
 

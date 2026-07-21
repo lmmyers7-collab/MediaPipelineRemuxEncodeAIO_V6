@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-15
+last_modified: 2026-07-20
 last_reviewed: 2026-06-02
-sha256: d59a2745ca2dba15f72848a59044028201094bdbeb1598ef9f67bde70b9f6a63
+sha256: 02c31a9d8820114d008a558776cf1f66c223cb12b9b7bb35053367775ab32750
 ---
 # `docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`
 

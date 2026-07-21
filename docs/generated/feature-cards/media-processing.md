@@ -8,19 +8,6 @@ Validation: pipeline reliability checks, release gate, and representative real-m
 
 ## Vertical slice
 
-### WebView / Tauri
-
-- `apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js` — operator display/intent surface; JavaScript implementation for file overrides drawer series; exposes apiPost, appendCommandResultFn, appendProofChip.
-- `apps/desktop/webview/static/assets/queue/fileOverrides.routePreview.js` — operator display/intent surface; JavaScript implementation for file overrides route preview; exposes clearProcessingRouteControls, clearRoutePreviewStatus, createFileOverridesRoutePreviewModule.
-- `apps/desktop/webview/static/assets/completed/review/selectedAtAGlance.js` — operator display/intent surface; JavaScript implementation for selected at aglance; exposes add, completedSelectedActiveSignal, completedSelectedAtAGlanceLines.
-- `apps/desktop/webview/static/assets/completed/table.js` — operator display/intent surface; JavaScript implementation for table; exposes appendCompletedCurrentMetric, appendCompletedPlacementChip, appendCompletedTableCells.
-- `apps/desktop/webview/static/assets/launchView.preflight.js` — operator display/intent surface; JavaScript implementation for launch view preflight; exposes createLaunchPreflightModule, getLastLaunchBackendPreflightPayloads, getLastLaunchBackendPreflightRefreshInfo.
-
-### API route
-
-- `src/mediapipeline/desktop/api/contract_command_file.py` — api authority; Python implementation for contract command file.
-- `src/mediapipeline/desktop/api/contract_command_operations.py` — api authority; Python implementation for contract command operations.
-
 ### Python facade / domain service
 
 - `src/mediapipeline/core/decide/processing_decision.py` — decide authority; Strict DTOs for Python-owned copy/remux/encode decisions.
@@ -28,14 +15,6 @@ Validation: pipeline reliability checks, release gate, and representative real-m
 - `src/mediapipeline/core/processes/active_job_runner.py` — process authority; Python implementation for active job runner; exposes active_job_pid_is_alive_for_service, active_job_record_path_for_proc_for_service, active_jobs_dir_for_service.
 - `src/mediapipeline/core/processes/active_jobs.py` — process authority; Python implementation for active jobs; exposes active_job_pid_is_alive, active_job_pid_matches_record, active_job_record_path_for_proc.
 - `src/mediapipeline/core/processes/audit_facade.py` — process authority; Audit launch facade adapter.
-
-### Contract / state / config
-
-- `src/mediapipeline/contracts/api_commands.py` — contracts authority; Pydantic contracts for Local API command request payloads. The Local API wire shape remains owned by the existing routes. These models describe the known per-route fields while allowing existing additive fields so the command-handler migration can proceed without breaking WebView callers.
-- `src/mediapipeline/contracts/api_routes_command_file.py` — contracts authority; Python implementation for api routes command file.
-- `src/mediapipeline/contracts/api_routes_command_operations.py` — contracts authority; Python implementation for api routes command operations.
-- `src/mediapipeline/contracts/source_media_adapters.py` — contracts authority; Adapters that normalize probe metadata into SourceMediaInfo.
-- `src/mediapipeline/contracts/source_media_streams.py` — contracts authority; Stream-level builders for SourceMediaInfo adapters.
 
 ### PowerShell execution
 
@@ -47,16 +26,11 @@ Validation: pipeline reliability checks, release gate, and representative real-m
 
 ### Tests
 
-- `ops/pipeline/tests/Invoke-AdversarialForceKillEncodeChecks.ps1` — verification evidence; PowerShell implementation for invoke adversarial force kill encode checks; exposes Add-ProcessTreeId, Assert-NoAcceptedOutput, Assert-True.
-- `ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1` — verification evidence; PowerShell implementation for invoke legacy desktop reliability regression checks; exposes Add-CompletedJobsManifestEntryFromSidecar, Add-RoundFailureRecord, Add-TestEvent.
-- `ops/pipeline/tests/Unit/Invoke-AudioPolicyChecks.ps1` — verification evidence; PowerShell implementation for invoke audio policy checks; exposes Assert-Equal, Assert-SequenceEqual, Assert-True.
-- `ops/pipeline/tests/Unit/Invoke-DynamicHdrDetectionChecks.ps1` — verification evidence; PowerShell implementation for invoke dynamic hdr detection checks; exposes Assert-Equal, Assert-True, Invoke-FFprobeCommand.
-- `ops/pipeline/tests/Unit/Invoke-EncodeCoreSplitChecks.ps1` — verification evidence; PowerShell implementation for invoke encode core split checks; exposes Assert-Equal, Assert-False, Assert-True.
+- `ops/pipeline/tests/Unit/Invoke-RemuxSplitStageChecks.ps1` — verification evidence; PowerShell implementation for invoke remux split stage checks; exposes Acquire-CpuEncodeMutex, Assert-ContainsSubsequence, Assert-Equal.
+- `ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1` — verification evidence; PowerShell implementation for invoke subtitle builder decision checks; exposes Acquire-CpuEncodeMutex, Assert-ContainsText, Assert-Equal.
 
 ### Boundaries / validation
 
-- `docs/inventories/COMMAND_OWNERSHIP_MATRIX.md` — canonical boundary; Markdown implementation for command ownership matrix.
-- `docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md` — canonical boundary; Markdown implementation for runtime artifact inventory.
 - `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md` — canonical boundary; Markdown implementation for no touch boundary register.
 
 ## Why these files
@@ -72,17 +46,11 @@ Validation: pipeline reliability checks, release gate, and representative real-m
 
 ## Tests and validation
 
-- `ops/pipeline/tests/Invoke-AdversarialForceKillEncodeChecks.ps1`
-- `ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-AudioPolicyChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-DynamicHdrDetectionChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-EncodeCoreSplitChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-EncodePublishOrderSplitChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1`
+- `ops/pipeline/tests/Unit/Invoke-RemuxSplitStageChecks.ps1`
+- `ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1`
 - Smallest validation rung: pipeline reliability checks, release gate, and representative real-media validation when behavior changes.
 - Boundaries: `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`.
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=35, documentation=4, generated=1, change_evidence=4, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=2, documentation=1, generated=0, change_evidence=0, archive=0, runtime_artifact=0.

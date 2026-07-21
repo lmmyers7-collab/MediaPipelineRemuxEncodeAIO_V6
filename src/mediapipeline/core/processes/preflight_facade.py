@@ -13,7 +13,8 @@ from mediapipeline.core.kernel.runtime.subprocess_runner import run_capture
 from mediapipeline.core.kernel.dto_base import JsonMap, json_safe
 from mediapipeline.core.kernel.contracts import ContractError, QueuePlanSnapshot
 from mediapipeline.core.paths.contracts import ResolvedPaths
-from mediapipeline.core.paths.queue_input_fingerprint import queue_input_consistency
+from mediapipeline.core.paths.queue_input_fingerprint import queue_input_consistency, queue_input_fingerprint
+from mediapipeline.core.queue.priority_export import PriorityQueueExportStore
 from mediapipeline.core.queue.freshness import (
     QUEUE_SNAPSHOT_FRESHNESS_CLOCK_SKEW_SECONDS,
     QUEUE_SNAPSHOT_FRESHNESS_DEFAULT_SECONDS,
@@ -244,6 +245,56 @@ class ProcessFacadeMixin:
         return self._normal_queue_scope_snapshot_preview_check(
             resolved,
             retain_accepted_rows=retain_accepted_rows,
+        )
+
+    def _priority_export_scope_preflight_check(
+        self,
+        resolved: ResolvedPaths,
+        export_id: str,
+    ) -> dict[str, Any]:
+        if resolved.state_root is None:
+            return _preflight_check(
+                "priority_export_scope",
+                "Priority export scope",
+                "blocked",
+                "Priority Export requires LocalBase/State to be configured.",
+                "Configure LocalBase, then create a new priority export from Queue.",
+                detail=["priority_export_state_root_missing"],
+            )
+        validation = PriorityQueueExportStore(resolved.state_root).validate_for_launch(export_id=export_id)
+        if str(validation.get("status") or "").casefold() != "ready":
+            return _preflight_check(
+                "priority_export_scope",
+                "Priority export scope",
+                "blocked",
+                str(validation.get("message") or "Priority export is not ready."),
+                "Create a new priority export from Queue.",
+                detail=[str(validation.get("reason_code") or "priority_export_blocked")],
+            )
+        current_inputs = queue_input_fingerprint(resolved)
+        if (
+            current_inputs.get("status") != "current"
+            or str(current_inputs.get("fingerprint") or "")
+            != str(validation.get("queue_input_fingerprint") or "")
+        ):
+            return _preflight_check(
+                "priority_export_scope",
+                "Priority export scope",
+                "blocked",
+                "Queue inputs changed after this priority export was created.",
+                "Create a new priority export from Queue.",
+                detail=["priority_export_input_stale"],
+            )
+        return _preflight_check(
+            "priority_export_scope",
+            "Priority export scope",
+            "ready",
+            f"Priority export contains {int(validation.get('count') or 0)} runnable effective-High row(s).",
+            "Run Once will rebuild priority-only scope and stop before media dispatch if its fingerprint changed.",
+            detail=[
+                f"export_id={validation.get('export_id') or ''}",
+                f"queue_plan_fingerprint={validation.get('queue_plan_fingerprint') or ''}",
+            ],
         )
 
     def _normal_queue_scope_snapshot_preview_check(
@@ -738,8 +789,38 @@ class ProcessFacadeMixin:
             ),
             single_file_check,
         ]
-        if mode == "once" and not normalized["single_file"]:
-            checks.append(self._normal_queue_scope_preflight_check(resolved))
+        queue_scope_allowed = normalized["queue_scope"] in {"backend_queue", "priority_export"}
+        priority_scope_combination_valid = (
+            normalized["queue_scope"] != "priority_export"
+            or (
+                mode == "once"
+                and not normalized["single_file"]
+                and bool(normalized["priority_export_id"])
+            )
+        )
+        backend_scope_combination_valid = not (
+            normalized["queue_scope"] == "backend_queue"
+            and bool(normalized["priority_export_id"])
+        )
+        queue_scope_valid = queue_scope_allowed and priority_scope_combination_valid and backend_scope_combination_valid
+        checks.append(
+            _preflight_check(
+                "queue_scope",
+                "Queue launch scope",
+                "ready" if queue_scope_valid else "blocked",
+                f"queue_scope={normalized['queue_scope'] or '(empty)'}",
+                "Use Backend Queue, or use Priority Export with Run Once, no Single File, and a backend export ID.",
+                detail=[] if queue_scope_valid else [
+                    "Priority Export is Run Once only and cannot be combined with Single File.",
+                    "priority_export_id is required only for Priority Export scope.",
+                ],
+            )
+        )
+        if mode == "once" and not normalized["single_file"] and queue_scope_valid:
+            if normalized["queue_scope"] == "priority_export":
+                checks.append(self._priority_export_scope_preflight_check(resolved, normalized["priority_export_id"]))
+            else:
+                checks.append(self._normal_queue_scope_preflight_check(resolved))
         if is_supported_pipeline_start_mode(mode):
             schedule_gate = self._resolve_pipeline_start_schedule_gate(mode, request)
             normalized["actual_mode"] = str(schedule_gate.get("mode") or mode)

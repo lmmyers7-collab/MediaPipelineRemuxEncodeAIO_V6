@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import csv
-from datetime import datetime
+from datetime import datetime, UTC
 import json
 import logging
 import re
@@ -26,6 +26,19 @@ from mediapipeline.core.processes.lifecycle import ProcessLifecycleServiceMixin
 from mediapipeline.core.queue.service import QueueServiceMixin
 from mediapipeline.core.rename.service import RenameServiceMixin
 from tests.css_import_resolver import resolve_css_imports
+
+
+def fresh_generated_at() -> str:
+    """Return a current UTC timestamp for freshness-sensitive facade fixtures."""
+    return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def write_test_media_file(root: Path, name: str, *, suffix: str = ".mkv") -> Path:
+    """Create the minimal disposable media-shaped file used by facade tests."""
+    path = root / "Media" / f"{name}{suffix}"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"media")
+    return path
 
 
 def _render_static_index_html(static_root: Path) -> str:

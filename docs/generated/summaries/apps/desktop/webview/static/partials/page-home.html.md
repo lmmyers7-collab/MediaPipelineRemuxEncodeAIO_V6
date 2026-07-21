@@ -6,9 +6,9 @@ file_type: HTML
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-19
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: a996ea4a0ccd2ad9e162c1200bd0538c916feb09de35a5a562514687aeb9ec9b
+sha256: 892784f5fd28350a52d5ed0aef320065cb2421bda2671902be8c955b6c7ebc22
 ---
 # `apps/desktop/webview/static/partials/page-home.html`
 

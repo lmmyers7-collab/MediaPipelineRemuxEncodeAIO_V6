@@ -8,81 +8,69 @@ Validation: targeted config/store/schema tests
 
 ## Vertical slice
 
-### WebView / Tauri
-
-- `apps/desktop/webview/static/assets/app/lifecycle/navigation.js` — operator display/intent surface; JavaScript implementation for navigation; exposes activateCompletedTab, activateCrossPageTarget, activateDiagnosticsTab.
-- `apps/desktop/webview/static/assets/launch/risk/mediaPolicyValues.js` — operator display/intent surface; JavaScript implementation for media policy values; exposes createLaunchRiskMediaPolicyValuesModule, launchPolicyBoolText, launchPolicyChoiceLabel.
-- `apps/desktop/webview/static/assets/network/lifecycle.view.js` — operator display/intent surface; JavaScript implementation for lifecycle view; exposes closeReadinessIsSafe, createNetworkLifecycleViewModule, networkCommandRouteByDataSchema.
-- `apps/desktop/webview/static/assets/network/lifecycleContract.js` — operator display/intent surface; JavaScript implementation for lifecycle contract; exposes configFlagText, configuredStatus, contractSummary.
-- `apps/desktop/webview/static/assets/queue/fileOverrides.drawer.focus.js` — operator display/intent surface; JavaScript implementation for file overrides drawer focus; exposes closeSeriesModal, createFileOverridesDrawerFocusModule, fileSettingsElementIsHidden.
-
-### API route
-
-- `src/mediapipeline/desktop/api/contract_command_settings_ui.py` — api authority; Python implementation for contract command settings ui.
-
 ### Python facade / domain service
 
-- `src/mediapipeline/core/processes/audit_policy.py` — process authority; Audit launch policy helpers for process routes.
-- `src/mediapipeline/core/processes/path_evidence.py` — process authority; Python implementation for path evidence; exposes configured_path_health, configured_path_specs, is_unc_path.
-- `src/mediapipeline/core/processes/pipeline_policy.py` — process authority; Pipeline launch request and result policy helpers.
-- `src/mediapipeline/core/processes/rerun_policy.py` — process authority; CSV rerun launch request and result policy helpers.
-- `src/mediapipeline/core/rename/apply_results.py` — rename authority; Rename apply command result payload builders.
+- `src/mediapipeline/tools/dev/code_context_service.py` — scripts authority; Read-only repository context, catalog, search, and ranged-read service.
+- `src/mediapipeline/core/kernel/config_locations.py` — kernel authority; Shared config file location helpers.
+- `src/mediapipeline/desktop/webview_settings_patch_smoke.py` — desktop authority; Python implementation for webview settings patch smoke; exposes default_app_root, main, parse_args.
+- `src/mediapipeline/tools/dev/refresh_summaries.py` — scripts authority; Generate per-source-file summaries under docs/generated/summaries/. One summary file per source file in the configured roots, plus existing summary records whose source files still exist. Summaries carry YAML frontmatter (file path, sha256, last_modified, token_priority, owner_domain) and a short Markdown body listing module purpose plus public symbols when the file type can be parsed cheaply. Modes: --all Regenerate summaries for every in-scope source file. --changed Regenerate only for files changed vs HEAD. --staged Regenerate only for files staged for commit (use in pre-commit hook). --check Exit 1 if any summary's recorded sha256 differs from the source file. Print stale paths. --paths PATH ... Regenerate the named paths (relative to repo root). The script avoids any third-party dependency; stdlib only. PowerShell parsing is regex-based and intentionally shallow.
 
 ### Contract / state / config
 
-- `src/mediapipeline/contracts/api_routes_command_process.py` — contracts authority; Python implementation for api routes command process.
 - `src/mediapipeline/core/config/metadata_parts/basic_processing.py` — config authority; Processing and routing Basic-page settings metadata.
 - `src/mediapipeline/core/config/metadata_parts/queue_fields.py` — config authority; Queue-page settings field definitions.
 - `src/mediapipeline/core/config/save_runner.py` — config authority; Python implementation for save runner; exposes config_backup_path, list_config_profiles_for_service, load_config_profile_for_service.
-- `src/mediapipeline/desktop/contracts/pending_publish.py` — contracts authority; Compatibility shim. Moved to `mediapipeline.core.kernel.contracts.pending_publish` by ADR-0013 (Wave 5). Re-exports the public namespace from the new home. New code should import from `mediapipeline.core.kernel.contracts.pending_publish` directly; removed in the ADR-0013 Wave 6 cleanup.
+- `src/mediapipeline/contracts/__init__.py` — contracts authority; Canonical pipeline contracts. This package is the single source of truth for: - Pipeline stage I/O shapes (`stages.py`). - Source media facts normalized from probe JSON (`source_media.py`). - Abstract dry-run pipeline plans (`pipeline_plan.py`). - Verification and publish guard results (`verification.py`). - Effective decision policy shared by config and decide (`decision_policy.py`). - Configuration shape (`config.py`, Pydantic v2). - Local API command payload shapes (`api_commands.py`). - File lifecycle/state-machine documentation source (`lifecycle.py`). - Runtime diagnostic evidence (`runtime_evidence.py`). - Subtitle QA evidence (`subtitles.py`). - Local API route metadata (`api_routes.py`). - Backend-owned Run Once monitoring evidence (`run_monitor.py`). - Cross-stage data shapes (jobs, manifests, events) — added in later phases. `config.py::Config` is the authority for both the complete `src/mediapipeline/contracts/schemas/config.v1.schema.json` artifact and the PowerShell-facing `ops/pipeline/config/schemas/media_pipeline_config.schema.json` mirror; the latter intentionally omits network-only config fields. `run_monitor.py::RunMonitorRecord` is the authority for both Run Monitor schema artifacts, whose only intentional difference is their consumer-specific `$id`. `stages.py` generates `src/mediapipeline/contracts/schemas/stages.v1.schema.json` and defines the single Python-to-PowerShell stage execution contract. `lifecycle.py` generates `docs/architecture/FILE_LIFECYCLE_MAP.md`.
+- `src/mediapipeline/contracts/api_routes_command_settings_ui.py` — contracts authority; Python implementation for api routes command settings ui.
 
 ### PowerShell execution
 
-- `ops/pipeline/engine/process/dynamic_hdr_tools.ps1` — process authority; PowerShell implementation for dynamic hdr tools; exposes ConvertFrom-DynamicHdrToolVersionText, ConvertTo-DynamicHdrInt, Get-DynamicHdrPolicyDefault.
-- `ops/pipeline/engine/process/encode_size_guard.ps1` — process authority; PowerShell implementation for encode size guard; exposes Get-EncodeWasteGuardConfigValue, Get-EncodeWasteGuardLimitPolicy, Get-MediaPipelineEncodeSizeGuardBoundaryVersion.
-- `ops/pipeline/engine/publish/pending_manifest_store.ps1` — publish authority; PowerShell implementation for pending manifest store; exposes ConvertTo-PendingManifestMap, Get-PendingManifestConfiguredOutputRoot, Get-PendingManifestConfiguredSourceRoots.
-- `ops/pipeline/engine/queue/file_overrides.ps1` — queue authority; Load file_overrides.json from the state root. Returns an empty manifest only when no persisted manifest exists. Existing malformed state fails closed.
-- `ops/pipeline/engine/queue/pipeline_engine.ps1` — queue authority; PowerShell implementation for pipeline engine; exposes Complete-MediaPipelineBackendQueueRunOnceMonitor, Get-MediaPipelinePendingPublishBackpressure, Invoke-MediaPipelineEmitQueuePlan.
+- `ops/pipeline/engine/config/choice_registry.ps1` — config authority; PowerShell implementation for choice registry; exposes Get-MediaPipelineAudioDownmixModeNames, Get-MediaPipelineAudioPassthroughProfileCodecs, Get-MediaPipelineAudioPassthroughProfileDefault.
+- `ops/pipeline/engine/config/config_keys.ps1` — config authority; PowerShell implementation for config keys; exposes Get-MediaPipelineConfigKey, Get-MediaPipelineConfigKeyOrder, Get-MediaPipelineConfigKeyRegistry.
+- `ops/pipeline/engine/config/config_schema.ps1` — config authority; PowerShell implementation for config schema; exposes Test-MediaPipelineConfigSchema.
+- `ops/pipeline/engine/config/default_values.ps1` — config authority; PowerShell implementation for default values; exposes Get-MediaPipelineConfigDefaultValues, Get-MediaPipelineConfigExtraVideoFlagsDefault, Get-MediaPipelineConfigRouteHeightToleranceBoundaries.
+- `ops/pipeline/engine/config/getters.ps1` — config authority; PowerShell implementation for getters; exposes Get-ConfigBool, Get-ConfigChoice, Get-ConfigDouble.
 
 ### Tests
 
-- `ops/pipeline/tests/Invoke-AdversarialForceKillEncodeChecks.ps1` — verification evidence; PowerShell implementation for invoke adversarial force kill encode checks; exposes Add-ProcessTreeId, Assert-NoAcceptedOutput, Assert-True.
-- `ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1` — verification evidence; PowerShell implementation for invoke end to end smoke checks; exposes Assert-True, ConvertTo-Psd1Literal, Get-ProbeStreamCodecs.
-- `ops/pipeline/tests/Invoke-WebViewReliabilityChecks.ps1` — verification evidence; PowerShell implementation for invoke web view reliability checks; exposes Assert-Absent, Assert-Container, Assert-Leaf.
 - `ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1` — verification evidence; PowerShell implementation for invoke legacy desktop reliability regression checks; exposes Add-CompletedJobsManifestEntryFromSidecar, Add-RoundFailureRecord, Add-TestEvent.
-- `ops/pipeline/tests/Unit/Invoke-AudioPolicyChecks.ps1` — verification evidence; PowerShell implementation for invoke audio policy checks; exposes Assert-Equal, Assert-SequenceEqual, Assert-True.
+- `ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1` — verification evidence; PowerShell implementation for invoke config key registry checks; exposes Add-StartupWarning, Assert-StringSequenceEqual, Assert-StringSetEqual.
+- `tests/python/core/contract/test_config_contract.py` — verification evidence; Python implementation for test config contract; exposes ConfigContractTests.
+- `tests/python/desktop/test_application_facade_core_contracts.py` — verification evidence; Python implementation for test application facade core contracts; exposes ApplicationFacadeCoreContractTests.
+- `tests/python/desktop/test_application_facade_settings_patch.py` — verification evidence; Python implementation for test application facade settings patch; exposes ApplicationFacadeSettingsPatchTests, AuthoritySaveService, ImportSettingsService.
 
 ### Boundaries / validation
 
 - `docs/architecture/ARCHITECTURE.md` — canonical boundary; Markdown implementation for architecture.
 - `docs/architecture/CONFIG_KEY_GLOSSARY.md` — canonical boundary; Markdown implementation for config key glossary.
 - `docs/architecture/MODULE_MAP.md` — canonical boundary; Markdown implementation for module map.
-- `docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md` — canonical boundary; Markdown implementation for release package admin inventory.
 - `docs/inventories/RISKY_FILE_REGISTRY.v1.json` — canonical boundary; JSON implementation for risky file registry v1.
+- `docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md` — canonical boundary; Markdown implementation for runtime artifact inventory.
 
 ## Why these files
 
-- `ops/pipeline/engine/process/dynamic_hdr_tools.ps1`: process authority.
-- `ops/pipeline/engine/process/encode_size_guard.ps1`: process authority.
-- `ops/pipeline/engine/publish/pending_manifest_store.ps1`: publish authority.
-- `ops/pipeline/engine/queue/file_overrides.ps1`: queue authority.
-- `ops/pipeline/engine/queue/pipeline_engine.ps1`: queue authority.
-- `src/mediapipeline/contracts/api_routes_command_process.py`: contracts authority.
 - `src/mediapipeline/core/config/metadata_parts/basic_processing.py`: config authority.
 - `src/mediapipeline/core/config/metadata_parts/queue_fields.py`: config authority.
+- `src/mediapipeline/core/config/save_runner.py`: config authority.
+- `src/mediapipeline/contracts/__init__.py`: contracts authority.
+- `src/mediapipeline/contracts/api_routes_command_settings_ui.py`: contracts authority.
+- `src/mediapipeline/contracts/config.py`: contracts authority.
+- `src/mediapipeline/contracts/config_coercion.py`: contracts authority.
+- `src/mediapipeline/contracts/config_defaults.py`: contracts authority.
 
 ## Tests and validation
 
-- `ops/pipeline/tests/Invoke-AdversarialForceKillEncodeChecks.ps1`
-- `ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1`
-- `ops/pipeline/tests/Invoke-WebViewReliabilityChecks.ps1`
 - `ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-AudioPolicyChecks.ps1`
 - `ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-LibraryProfileRoutingChecks.ps1`
+- `tests/python/core/contract/test_config_contract.py`
+- `tests/python/desktop/test_application_facade_core_contracts.py`
+- `tests/python/desktop/test_application_facade_settings_patch.py`
+- `tests/python/desktop/test_application_facade_settings_workspace.py`
+- `tests/python/desktop/test_facade_settings_patch_policy.py`
+- `tests/python/desktop/test_facade_settings_policy.py`
 - Smallest validation rung: targeted config/store/schema tests.
+- Boundaries: `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`.
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=152, documentation=15, generated=1, change_evidence=25, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=19, documentation=8, generated=0, change_evidence=5, archive=0, runtime_artifact=0.

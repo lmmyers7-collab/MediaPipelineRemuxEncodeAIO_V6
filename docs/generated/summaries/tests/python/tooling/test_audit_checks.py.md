@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-11
+last_modified: 2026-07-20
 last_reviewed: 2026-07-01
-sha256: 79888311ff7cbec4366e0d30a88586089f393df6c4a537b9d481de8c83b0e9d2
+sha256: ece3ff65720887c17a8009b5873ed4738c3131d07293eeabebaef62f9bb2bb3a
 ---
 # `tests/python/tooling/test_audit_checks.py`
 

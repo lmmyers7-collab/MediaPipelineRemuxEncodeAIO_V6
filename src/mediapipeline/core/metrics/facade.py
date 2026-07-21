@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 from datetime import datetime, UTC
+import time
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -20,6 +21,9 @@ from .sources import (
 
 if TYPE_CHECKING:
     from mediapipeline.core.kernel.dto_commands import CommandResult
+
+
+METRICS_COMPLETED_HISTORY_CACHE_SECONDS = 60.0
 
 
 def _command_result(**fields: Any) -> CommandResult:
@@ -144,26 +148,63 @@ class MetricsFacadeMixin:
         if not callable(loader):
             warnings.append("Completed metrics unavailable: completed history service is not available.")
             return [], {"available": False, "status": "unavailable", "error": warnings[-1]}
-        try:
-            records = list(
-                loader(
-                    resolved,
-                    limit=None,
-                    force_refresh=False,
-                    proof_mode=PROOF_MODE_SUMMARY,
-                )
+
+        lock = getattr(self, "_metrics_completed_history_lock", None)
+        context = lock if lock is not None else nullcontext()
+        with context:
+            fingerprint = self._metrics_completed_manifest_fingerprint(resolved)
+            previous_fingerprint = getattr(
+                self,
+                "_metrics_completed_history_fingerprint",
+                None,
             )
-            return records, {"available": True, "status": "available", "error": ""}
-        except TypeError:
+            cached_at = float(getattr(self, "_metrics_completed_history_cached_at", 0.0) or 0.0)
+            cache_is_fresh = (time.monotonic() - cached_at) < METRICS_COMPLETED_HISTORY_CACHE_SECONDS
+            if fingerprint is not None and fingerprint == previous_fingerprint and cache_is_fresh:
+                cached = getattr(self, "_metrics_completed_history_records", None)
+                if isinstance(cached, list):
+                    return list(cached), {"available": True, "status": "available", "error": ""}
+            force_refresh = previous_fingerprint is not None and (
+                fingerprint != previous_fingerprint or not cache_is_fresh
+            )
             try:
-                records = list(loader(resolved, limit=None, force_refresh=False))
-                return records, {"available": True, "status": "available", "error": ""}
+                try:
+                    records = list(
+                        loader(
+                            resolved,
+                            limit=None,
+                            force_refresh=force_refresh,
+                            proof_mode=PROOF_MODE_SUMMARY,
+                        )
+                    )
+                except TypeError:
+                    records = list(loader(resolved, limit=None, force_refresh=force_refresh))
             except Exception as exc:
                 warnings.append(f"Completed metrics unavailable: {exc}")
                 return [], {"available": False, "status": "unavailable", "error": str(exc)}
-        except Exception as exc:
-            warnings.append(f"Completed metrics unavailable: {exc}")
-            return [], {"available": False, "status": "unavailable", "error": str(exc)}
+
+            after_fingerprint = self._metrics_completed_manifest_fingerprint(resolved)
+            if fingerprint is not None and after_fingerprint == fingerprint:
+                self._metrics_completed_history_fingerprint = fingerprint
+                self._metrics_completed_history_records = list(records)
+                self._metrics_completed_history_cached_at = time.monotonic()
+            return records, {"available": True, "status": "available", "error": ""}
+
+    def _metrics_completed_manifest_fingerprint(
+        self,
+        resolved: ResolvedPaths,
+    ) -> tuple[str, bool, int, int] | None:
+        manifest_path = resolved.completed_manifest_path
+        if manifest_path is None:
+            return ("", False, 0, 0)
+        path_key = str(manifest_path).casefold()
+        try:
+            stat = manifest_path.stat()
+        except FileNotFoundError:
+            return (path_key, False, 0, 0)
+        except OSError:
+            return None
+        return (path_key, True, int(stat.st_mtime_ns), int(stat.st_size))
 
     def _metrics_pending_publish(self, resolved: ResolvedPaths, warnings: list[str]) -> dict[str, Any]:
         try:

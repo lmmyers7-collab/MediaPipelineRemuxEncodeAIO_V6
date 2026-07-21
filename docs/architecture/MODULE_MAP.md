@@ -213,7 +213,7 @@ Each persistent state file is read by both the Python backend and PS1 in differe
 | `Progress/pipeline_progress.json` | PS1 (`ops/pipeline/engine/status/progress_state.ps1`) | `src/mediapipeline/core/status/*.py` and desktop read payloads (GET `/api/snapshot`, GET `/api/diagnostics`) |
 | `Progress/pipeline_events.jsonl` | PS1 (`ops/pipeline/engine/queue/pipeline_engine.ps1`) | `src/mediapipeline/core/status/events.py` and desktop read payloads (GET `/api/snapshot`, GET `/api/diagnostics`) |
 | `Progress/queue_snapshot.json` | PS1 (`ops/pipeline/engine/queue/pipeline_engine.ps1`) | `src/mediapipeline/core/queue/*` and desktop read payloads (GET `/api/queue`) |
-| `RunMonitor/<run_id>.json` and `RunMonitor/latest.json` | PS1 (`ops/pipeline/engine/status/run_monitor_state.ps1`) under `src/mediapipeline/contracts/run_monitor.py`; Python `RunMonitorStore` provides validated atomic storage | `src/mediapipeline/core/status/run_monitor.py` and desktop read payloads (GET `/api/run-monitor`) |
+| `RunMonitor/<run_id>.json` and `RunMonitor/latest.json` | PS1 contract validation (`ops/pipeline/engine/status/run_monitor_contract.ps1`), atomic persistence (`run_monitor_persistence.ps1`), and runtime orchestration (`run_monitor_state.ps1`) under `src/mediapipeline/contracts/run_monitor.py`; Python `RunMonitorStore` provides validated atomic storage | `src/mediapipeline/core/status/run_monitor.py` and desktop read payloads (GET `/api/run-monitor`) |
 | `Pipeline/pipeline_{pause,stop,rescan}.flag` | `src/mediapipeline/core/processes/control_flags.py` (POST `/api/pipeline/control`) | PS1 main loop (`ops/pipeline/entrypoints/MediaPipeline.ps1`) |
 | `Pipeline/ToolLogs/{Active,Interrupted}/*.log` | PS1 native-tool runner and exclusive-startup reconciliation (`ops/pipeline/engine/process/tool_log_lifecycle.ps1`) | PS1 lifecycle only; paths are linked from pipeline-event evidence and have no direct mutation route |
 | `ActiveJobs/*.json` | PS1 (`ops/pipeline/engine/status/progress_state.ps1`) | `src/mediapipeline/core/processes/active_jobs.py` |
@@ -267,8 +267,9 @@ Each layer has at least one inventory file that lists what's in it. Updating the
 | Settings raw-key triage | `docs/architecture/SETTINGS_RAW_KEY_TRIAGE.md` |
 | Architecture decisions | `docs/architecture/DECISIONS_AND_HISTORY.md` |
 | Master doc index | `docs/DOCS_INDEX.md` |
-| Per-change evidence | `ops/release/changes/unreleased/` and `docs/change_control/` |
-| Chronological changelog | `docs/REMEDIATION_CHANGELOG.md` |
+| Per-change evidence | `ops/release/changes/unreleased/` (active), `ops/release/changes/archived/` (completed unreleased), `ops/release/changes/released/`, and `docs/change_control/` |
+| Shipped chronological changelog | `CHANGELOG.md` |
+| Remediation history index | `docs/REMEDIATION_CHANGELOG.md` |
 
 If you add a state file, route, DOM ID, or window-export and you do not update the corresponding inventory in the same chunk, the inventory drift tests will fail (`test_webview_inventory_docs.py`, etc.).
 

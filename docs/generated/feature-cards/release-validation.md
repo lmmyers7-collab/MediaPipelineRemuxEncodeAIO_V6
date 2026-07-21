@@ -8,45 +8,19 @@ Validation: affected smoke checks and release self-test when packaging changes
 
 ## Vertical slice
 
-### WebView / Tauri
-
-- `apps/desktop/webview/static/assets/pendingPublish/details.js` — operator display/intent surface; JavaScript implementation for details; exposes addMatch, createPendingPublishDetailsModule, pendingCompletedCorrelationCompletedOutputPath.
-- `apps/desktop/webview/static/assets/pendingPublish/summary.js` — operator display/intent surface; JavaScript implementation for summary; exposes createPendingPublishSummaryModule, formatPendingStateCounts, pendingEmptyStateMessage.
-- `apps/desktop/webview/static/assets/pendingPublishView.repair.js` — operator display/intent surface; JavaScript implementation for pending publish view repair; exposes clearStaleDryRunIfSelectionChanged, createPendingPublishRepairModule, dryRunIsSafeForSelection.
-- `apps/desktop/webview/static/assets/queue/statusPanels.js` — operator display/intent surface; JavaScript implementation for status panels; exposes _queueNoop, createQueueStatusPanelsModule, queueBreakdownLines.
-- `apps/desktop/webview/static/assets/app/layoutManager/drawer.js` — operator display/intent surface; JavaScript implementation for drawer; exposes _layoutActivateContainer, _layoutClearDrawerDragState, _layoutClearDrawerDropState.
-
-### API route
-
-- `src/mediapipeline/desktop/api/contract_command_operations.py` — api authority; Python implementation for contract command operations.
-- `src/mediapipeline/desktop/api/contract_command_settings_ui.py` — api authority; Python implementation for contract command settings ui.
-- `src/mediapipeline/desktop/api/contract_read.py` — api authority; Python implementation for contract read.
-- `src/mediapipeline/desktop/api/handler_policy.py` — api authority; Python implementation for handler policy; exposes bounded_error_text, cors_response_headers, not_found_payload.
-- `src/mediapipeline/desktop/api/http_helpers.py` — api authority; Python implementation for http helpers; exposes canonical_local_api_origin, content_type_for, discard_request_body.
-
 ### Python facade / domain service
 
-- `src/mediapipeline/core/processes/source_path_policy.py` — process authority; Python implementation for source path policy; exposes path_is_under_or_equal, queue_source_file_validation, queue_source_roots.
-- `src/mediapipeline/core/queue/file_overrides.py` — queue authority; Python implementation for file overrides; exposes clear_file_override_entry, clear_file_override_fields, file_override_payload_warnings.
-- `src/mediapipeline/core/queue/policy_parts/open_policy.py` — queue authority; Queue source-open validation and command-result policy.
-- `src/mediapipeline/core/rename/movie.py` — rename authority; Python implementation for movie; exposes clean_pipeline_movie_name, collective_movie_filter_terms, movie_filter_enabled.
-- `src/mediapipeline/core/rename/tv.py` — rename authority; Python implementation for tv; exposes apply_tv_episode_title_template, build_auto_tv_rename_name, build_manual_tv_hierarchy_destination.
+- `src/mediapipeline/core/validation/boundary.py` — validation authority; Generated-contract validation helpers for API and stage boundaries.
+- `src/mediapipeline/core/validation/state_json.py` — validation authority; Strict, bounded JSON reads for persisted state and evidence files. This boundary is intentionally separate from HTTP JSON handling. Persisted files may be partially written, retained for operator evidence, or supplied by an older runtime, so readers must fail without mutating or replacing the source artifact.
+- `src/mediapipeline/core/validation/strict_json.py` — validation authority; Python implementation for strict json; exposes loads_strict_json, StrictJsonError.
+- `src/mediapipeline/tools/change_control/build_release_manifest.py` — scripts authority; Python implementation for build release manifest; exposes build_manifest, main, validate_version_label.
+- `src/mediapipeline/tools/change_control/finalize_release.py` — scripts authority; Python implementation for finalize release; exposes main.
 
 ### Contract / state / config
 
-- `src/mediapipeline/contracts/__init__.py` — contracts authority; Canonical pipeline contracts. This package is the single source of truth for: - Pipeline stage I/O shapes (`stages.py`). - Source media facts normalized from probe JSON (`source_media.py`). - Abstract dry-run pipeline plans (`pipeline_plan.py`). - Verification and publish guard results (`verification.py`). - Effective decision policy shared by config and decide (`decision_policy.py`). - Configuration shape (`config.py`, Pydantic v2). - Local API command payload shapes (`api_commands.py`). - File lifecycle/state-machine documentation source (`lifecycle.py`). - Runtime diagnostic evidence (`runtime_evidence.py`). - Subtitle QA evidence (`subtitles.py`). - Local API route metadata (`api_routes.py`). - Backend-owned Run Once monitoring evidence (`run_monitor.py`). - Cross-stage data shapes (jobs, manifests, events) — added in later phases. `config.py` generates `src/mediapipeline/contracts/schemas/config.v1.schema.json`. `stages.py` generates `src/mediapipeline/contracts/schemas/stages.v1.schema.json` and defines the single Python-to-PowerShell stage execution contract. `lifecycle.py` generates `docs/architecture/FILE_LIFECYCLE_MAP.md`.
-- `src/mediapipeline/contracts/api_commands.py` — contracts authority; Pydantic contracts for Local API command request payloads. The Local API wire shape remains owned by the existing routes. These models describe the known per-route fields while allowing existing additive fields so the command-handler migration can proceed without breaking WebView callers.
-- `src/mediapipeline/contracts/api_routes_command_operations.py` — contracts authority; Python implementation for api routes command operations.
-- `src/mediapipeline/contracts/api_routes_command_settings_ui.py` — contracts authority; Python implementation for api routes command settings ui.
-- `src/mediapipeline/contracts/api_routes_read.py` — contracts authority; Python implementation for api routes read.
-
-### PowerShell execution
-
-- `ops/pipeline/engine/process/pipeline_plan_executor/validation.ps1` — process authority; PowerShell implementation for validation; exposes Assert-PipelinePlanEnum, Assert-PipelinePlanProperties, Assert-PipelinePlanValid.
-- `ops/pipeline/engine/queue/worker_claim_store.ps1` — queue authority; PowerShell implementation for worker claim store; exposes ConvertTo-MediaPipelineLocalWorkerPathKey, Get-MediaPipelineLocalWorkerClaimActiveStatuses, Get-MediaPipelineLocalWorkerClaimStore.
-- `ops/pipeline/engine/policy/folder_policy.ps1` — policy authority; PowerShell implementation for folder policy; exposes ConvertTo-FolderPolicyBool, ConvertTo-FolderPolicyLanguageArray, ConvertTo-FolderPolicyStringArray.
-- `ops/pipeline/entrypoints/MediaPipeline/startup_path_validation.ps1` — process authority; PowerShell implementation for startup path validation.
-- `ops/pipeline/entrypoints/Setup-MediaPipeline.ps1` — entrypoints authority; Rapid-deployment setup and validation wizard for the patched MediaPipeline bundle.
+- `ops/pipeline/config/setup/PathValidation.ps1` — scripts authority; PowerShell implementation for path validation; exposes ConvertTo-PowerShellLiteralString, Read-Path, Test-PathsDisjoint.
+- `ops/pipeline/config/setup/UserInteraction.ps1` — scripts authority; PowerShell implementation for user interaction; exposes Open-ConfigFile, Read-Choice, Read-PositiveNumber.
+- `ops/pipeline/config/setup/Validation.ps1` — scripts authority; Seeds pipeline_progress.json with a zeroed-out Idle skeleton if the file does not already exist. Called automatically after a successful config write so that the desktop app can display an Idle state immediately on first launch.
 
 ### Tests
 
@@ -58,22 +32,22 @@ Validation: affected smoke checks and release self-test when packaging changes
 
 ### Boundaries / validation
 
-- `docs/inventories/GOD_FILE_GUARDRAIL.v1.json` — canonical boundary; JSON implementation for god file guardrail v1.
-- `docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md` — canonical boundary; Markdown implementation for packaging dependency inventory.
-- `docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md` — canonical boundary; Markdown implementation for release package admin inventory.
-- `docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md` — canonical boundary; Markdown implementation for runtime artifact inventory.
 - `docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md` — canonical boundary; Markdown implementation for browser smoke does not mutate matrix.
+- `docs/testing/BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md` — canonical boundary; Markdown implementation for browser smoke failure triage cheatsheet.
+- `docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md` — canonical boundary; Markdown implementation for browser smoke test runbook.
+- `docs/testing/TEST_COVERAGE_MATRIX.md` — canonical boundary; Markdown implementation for test coverage matrix.
+- `docs/testing/VALIDATION_LADDER_RUNBOOK.md` — canonical boundary; Markdown implementation for validation ladder runbook.
 
 ## Why these files
 
-- `ops/pipeline/engine/process/pipeline_plan_executor/validation.ps1`: process authority.
-- `ops/pipeline/engine/queue/worker_claim_store.ps1`: queue authority.
-- `src/mediapipeline/core/processes/source_path_policy.py`: process authority.
-- `src/mediapipeline/core/queue/file_overrides.py`: queue authority.
-- `src/mediapipeline/core/queue/policy_parts/open_policy.py`: queue authority.
-- `src/mediapipeline/core/rename/movie.py`: rename authority.
-- `src/mediapipeline/core/rename/tv.py`: rename authority.
-- `src/mediapipeline/desktop/network/coordinator_queue.py`: network authority.
+- `ops/pipeline/config/setup/PathValidation.ps1`: scripts authority.
+- `ops/pipeline/config/setup/UserInteraction.ps1`: scripts authority.
+- `ops/pipeline/config/setup/Validation.ps1`: scripts authority.
+- `src/mediapipeline/core/validation/boundary.py`: validation authority.
+- `src/mediapipeline/core/validation/state_json.py`: validation authority.
+- `src/mediapipeline/core/validation/strict_json.py`: validation authority.
+- `src/mediapipeline/tools/change_control/build_release_manifest.py`: scripts authority.
+- `src/mediapipeline/tools/change_control/finalize_release.py`: scripts authority.
 
 ## Tests and validation
 
@@ -89,4 +63,4 @@ Validation: affected smoke checks and release self-test when packaging changes
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=150, documentation=20, generated=0, change_evidence=469, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=75, documentation=11, generated=0, change_evidence=0, archive=0, runtime_artifact=0.

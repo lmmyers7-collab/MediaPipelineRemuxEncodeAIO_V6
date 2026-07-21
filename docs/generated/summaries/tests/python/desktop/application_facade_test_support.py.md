@@ -6,15 +6,15 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-17
+last_modified: 2026-07-20
 last_reviewed: 2026-06-24
-sha256: 4cf9ee07b1f89b1692ef12b2fc386b86895b931f0c6eac9b782592b8abade8e3
+sha256: adb63c535a40c5e5e9401e5adacf4ba3ed867902899358358ad2799f40528838
 ---
 # `tests/python/desktop/application_facade_test_support.py`
 
 **Purpose:** Python implementation for application facade test support; exposes assert_namespace_export, DummyFacadeService, DummyProc.
 
-**Public symbols:** `assert_namespace_export`, `DummyFacadeService`, `DummyProc`, `DummyWorkflowFacadeService`, `exercise_local_api_route_workflow`, `LocalApiHttpTestMixin`, `served_webview_static_contract_bundle`
+**Public symbols:** `assert_namespace_export`, `DummyFacadeService`, `DummyProc`, `DummyWorkflowFacadeService`, `exercise_local_api_route_workflow`, `fresh_generated_at`, `LocalApiHttpTestMixin`, `served_webview_static_contract_bundle`, `write_test_media_file`
 **In-repo imports:** `mediapipeline.core.completed.service`, `mediapipeline.core.processes.lifecycle`, `mediapipeline.core.publish.pending_service`, `mediapipeline.core.queue.service`, `mediapipeline.core.rename.service`, `mediapipeline.core.schedule.app_state`, `mediapipeline.desktop.api`, `mediapipeline.desktop.api.static_files`, `mediapipeline.desktop.application`, `mediapipeline.desktop.models`, `mediapipeline.tools.paths`
 **HTTP routes:** `/api/audit-results`, `/api/audit-results?priority_only=true`, `/api/audit/start`, `/api/backend/close-readiness`, `/api/commands?limit=20`, `/api/completed`, `/api/completed/open`, `/api/diagnostics/open`, `/api/failures`, `/api/failures?source=markers`, `/api/maintenance`, `/api/maintenance/completed-backfill-dry-run`, `/api/maintenance/dependency-atlas`, `/api/maintenance/dependency-atlas/open-folder`, `/api/maintenance/progress`, `/api/maintenance/release-dry-run`, `/api/pending-publish`, `/api/pending-publish/recovery-plan`, `/api/pipeline/browse-file`, `/api/pipeline/control`, `/api/pipeline/start`, `/api/queue`, `/api/rename/apply`, `/api/rename/browse`
 **State/config identifiers:** `config.psd1`, `desktop_app_state.json`, `queue_snapshot.json`, `release_manifest.json`

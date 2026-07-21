@@ -131,1286 +131,1311 @@
     },
     {
       "index": 25,
+      "src": "/assets/runMonitor/formatters.js",
+      "path": "apps/desktop/webview/static/assets/runMonitor/formatters.js"
+    },
+    {
+      "index": 26,
+      "src": "/assets/runMonitor/normalization.js",
+      "path": "apps/desktop/webview/static/assets/runMonitor/normalization.js"
+    },
+    {
+      "index": 27,
+      "src": "/assets/runMonitor/rendering.js",
+      "path": "apps/desktop/webview/static/assets/runMonitor/rendering.js"
+    },
+    {
+      "index": 28,
+      "src": "/assets/runMonitor/interaction.js",
+      "path": "apps/desktop/webview/static/assets/runMonitor/interaction.js"
+    },
+    {
+      "index": 29,
+      "src": "/assets/runMonitorView.js",
+      "path": "apps/desktop/webview/static/assets/runMonitorView.js"
+    },
+    {
+      "index": 30,
       "src": "/assets/commandHistory/formatters.js",
       "path": "apps/desktop/webview/static/assets/commandHistory/formatters.js"
     },
     {
-      "index": 26,
+      "index": 31,
       "src": "/assets/commandHistory/diagnostics.js",
       "path": "apps/desktop/webview/static/assets/commandHistory/diagnostics.js"
     },
     {
-      "index": 27,
+      "index": 32,
       "src": "/assets/commandHistory/diagnosticEvidence.js",
       "path": "apps/desktop/webview/static/assets/commandHistory/diagnosticEvidence.js"
     },
     {
-      "index": 28,
+      "index": 33,
       "src": "/assets/commandHistory/resolutionChecklist.js",
       "path": "apps/desktop/webview/static/assets/commandHistory/resolutionChecklist.js"
     },
     {
-      "index": 29,
+      "index": 34,
       "src": "/assets/commandHistory.js",
       "path": "apps/desktop/webview/static/assets/commandHistory.js"
     },
     {
-      "index": 30,
+      "index": 35,
       "src": "/assets/diagnosticsBridge.js",
       "path": "apps/desktop/webview/static/assets/diagnosticsBridge.js"
     },
     {
-      "index": 31,
+      "index": 36,
       "src": "/assets/completed/evidence/commands.js",
       "path": "apps/desktop/webview/static/assets/completed/evidence/commands.js"
     },
     {
-      "index": 32,
+      "index": 37,
       "src": "/assets/completed/evidence/filterScope.js",
       "path": "apps/desktop/webview/static/assets/completed/evidence/filterScope.js"
     },
     {
-      "index": 33,
+      "index": 38,
       "src": "/assets/completed/evidence/acceptance.js",
       "path": "apps/desktop/webview/static/assets/completed/evidence/acceptance.js"
     },
     {
-      "index": 34,
+      "index": 39,
       "src": "/assets/completed/evidence/routeAgreement.js",
       "path": "apps/desktop/webview/static/assets/completed/evidence/routeAgreement.js"
     },
     {
-      "index": 35,
+      "index": 40,
       "src": "/assets/completed/evidence/pendingProofModel.js",
       "path": "apps/desktop/webview/static/assets/completed/evidence/pendingProofModel.js"
     },
     {
-      "index": 36,
+      "index": 41,
       "src": "/assets/completed/evidence/pendingProofView.js",
       "path": "apps/desktop/webview/static/assets/completed/evidence/pendingProofView.js"
     },
     {
-      "index": 37,
+      "index": 42,
       "src": "/assets/completedView.evidence.js",
       "path": "apps/desktop/webview/static/assets/completedView.evidence.js"
     },
     {
-      "index": 38,
+      "index": 43,
       "src": "/assets/completed/proof/pilotEvidence.js",
       "path": "apps/desktop/webview/static/assets/completed/proof/pilotEvidence.js"
     },
     {
-      "index": 39,
+      "index": 44,
       "src": "/assets/completedView.proof.js",
       "path": "apps/desktop/webview/static/assets/completedView.proof.js"
     },
     {
-      "index": 40,
+      "index": 45,
       "src": "/assets/completed/review/integrity.js",
       "path": "apps/desktop/webview/static/assets/completed/review/integrity.js"
     },
     {
-      "index": 41,
+      "index": 46,
       "src": "/assets/completed/review/workflowOverview.js",
       "path": "apps/desktop/webview/static/assets/completed/review/workflowOverview.js"
     },
     {
-      "index": 42,
+      "index": 47,
       "src": "/assets/completed/review/sizeReview.js",
       "path": "apps/desktop/webview/static/assets/completed/review/sizeReview.js"
     },
     {
-      "index": 43,
+      "index": 48,
       "src": "/assets/completed/review/healthSignals.js",
       "path": "apps/desktop/webview/static/assets/completed/review/healthSignals.js"
     },
     {
-      "index": 44,
+      "index": 49,
       "src": "/assets/completed/review/reviewRows.js",
       "path": "apps/desktop/webview/static/assets/completed/review/reviewRows.js"
     },
     {
-      "index": 45,
+      "index": 50,
       "src": "/assets/completed/review/investigationFilters.js",
       "path": "apps/desktop/webview/static/assets/completed/review/investigationFilters.js"
     },
     {
-      "index": 46,
+      "index": 51,
       "src": "/assets/completed/review/tablePanels.js",
       "path": "apps/desktop/webview/static/assets/completed/review/tablePanels.js"
     },
     {
-      "index": 47,
+      "index": 52,
       "src": "/assets/completed/review/metricsValidation.js",
       "path": "apps/desktop/webview/static/assets/completed/review/metricsValidation.js"
     },
     {
-      "index": 48,
+      "index": 53,
       "src": "/assets/completed/review/selectedAtAGlance.js",
       "path": "apps/desktop/webview/static/assets/completed/review/selectedAtAGlance.js"
     },
     {
-      "index": 49,
+      "index": 54,
       "src": "/assets/completed/review/selectedEvidence.js",
       "path": "apps/desktop/webview/static/assets/completed/review/selectedEvidence.js"
     },
     {
-      "index": 50,
+      "index": 55,
       "src": "/assets/completedView.review.js",
       "path": "apps/desktop/webview/static/assets/completedView.review.js"
     },
     {
-      "index": 51,
+      "index": 56,
       "src": "/assets/completedView.diagnostics.js",
       "path": "apps/desktop/webview/static/assets/completedView.diagnostics.js"
     },
     {
-      "index": 52,
+      "index": 57,
       "src": "/assets/completed/statusBoards.js",
       "path": "apps/desktop/webview/static/assets/completed/statusBoards.js"
     },
     {
-      "index": 53,
+      "index": 58,
       "src": "/assets/completed/promotionCommands.js",
       "path": "apps/desktop/webview/static/assets/completed/promotionCommands.js"
     },
     {
-      "index": 54,
+      "index": 59,
       "src": "/assets/completed/openActions.js",
       "path": "apps/desktop/webview/static/assets/completed/openActions.js"
     },
     {
-      "index": 55,
+      "index": 60,
       "src": "/assets/completed/selection.js",
       "path": "apps/desktop/webview/static/assets/completed/selection.js"
     },
     {
-      "index": 56,
+      "index": 61,
       "src": "/assets/completedView.repair.js",
       "path": "apps/desktop/webview/static/assets/completedView.repair.js"
     },
     {
-      "index": 57,
+      "index": 62,
       "src": "/assets/completed/filters.js",
       "path": "apps/desktop/webview/static/assets/completed/filters.js"
     },
     {
-      "index": 58,
+      "index": 63,
       "src": "/assets/completed/table.js",
       "path": "apps/desktop/webview/static/assets/completed/table.js"
     },
     {
-      "index": 59,
+      "index": 64,
       "src": "/assets/completed/sizeMode.js",
       "path": "apps/desktop/webview/static/assets/completed/sizeMode.js"
     },
     {
-      "index": 60,
+      "index": 65,
       "src": "/assets/completed/presentation.js",
       "path": "apps/desktop/webview/static/assets/completed/presentation.js"
     },
     {
-      "index": 61,
+      "index": 66,
       "src": "/assets/completedView.js",
       "path": "apps/desktop/webview/static/assets/completedView.js"
     },
     {
-      "index": 62,
+      "index": 67,
       "src": "/assets/queueView.summary.js",
       "path": "apps/desktop/webview/static/assets/queueView.summary.js"
     },
     {
-      "index": 63,
+      "index": 68,
       "src": "/assets/queueView.review.js",
       "path": "apps/desktop/webview/static/assets/queueView.review.js"
     },
     {
-      "index": 64,
+      "index": 69,
       "src": "/assets/queueView.detail.js",
       "path": "apps/desktop/webview/static/assets/queueView.detail.js"
     },
     {
-      "index": 65,
+      "index": 70,
       "src": "/assets/queueView.launch.js",
       "path": "apps/desktop/webview/static/assets/queueView.launch.js"
     },
     {
-      "index": 66,
+      "index": 71,
       "src": "/assets/queue/rerunApi.js",
       "path": "apps/desktop/webview/static/assets/queue/rerunApi.js"
     },
     {
-      "index": 67,
+      "index": 72,
       "src": "/assets/queueView.rerun.js",
       "path": "apps/desktop/webview/static/assets/queueView.rerun.js"
     },
     {
-      "index": 68,
+      "index": 73,
       "src": "/assets/queue/selection.js",
       "path": "apps/desktop/webview/static/assets/queue/selection.js"
     },
     {
-      "index": 69,
+      "index": 74,
       "src": "/assets/queue/openActions.js",
       "path": "apps/desktop/webview/static/assets/queue/openActions.js"
     },
     {
-      "index": 70,
+      "index": 75,
       "src": "/assets/queue/table.js",
       "path": "apps/desktop/webview/static/assets/queue/table.js"
     },
     {
-      "index": 71,
+      "index": 76,
       "src": "/assets/queue/tabs.js",
       "path": "apps/desktop/webview/static/assets/queue/tabs.js"
     },
     {
-      "index": 72,
+      "index": 77,
       "src": "/assets/queue/sourceModel.js",
       "path": "apps/desktop/webview/static/assets/queue/sourceModel.js"
     },
     {
-      "index": 73,
+      "index": 78,
       "src": "/assets/queue/sourceRender.js",
       "path": "apps/desktop/webview/static/assets/queue/sourceRender.js"
     },
     {
-      "index": 74,
+      "index": 79,
       "src": "/assets/queue/decisionSummary.js",
       "path": "apps/desktop/webview/static/assets/queue/decisionSummary.js"
     },
     {
-      "index": 75,
+      "index": 80,
       "src": "/assets/queue/statusPanels.js",
       "path": "apps/desktop/webview/static/assets/queue/statusPanels.js"
     },
     {
-      "index": 76,
+      "index": 81,
       "src": "/assets/queue/tableView.js",
       "path": "apps/desktop/webview/static/assets/queue/tableView.js"
     },
     {
-      "index": 77,
+      "index": 82,
       "src": "/assets/queue/priority.js",
       "path": "apps/desktop/webview/static/assets/queue/priority.js"
     },
     {
-      "index": 78,
+      "index": 83,
       "src": "/assets/queue/manualOrder.js",
       "path": "apps/desktop/webview/static/assets/queue/manualOrder.js"
     },
     {
-      "index": 79,
+      "index": 84,
       "src": "/assets/queue/strategy.js",
       "path": "apps/desktop/webview/static/assets/queue/strategy.js"
     },
     {
-      "index": 80,
+      "index": 85,
       "src": "/assets/queue/controls.js",
       "path": "apps/desktop/webview/static/assets/queue/controls.js"
     },
     {
-      "index": 81,
+      "index": 86,
       "src": "/assets/queue/excluded.js",
       "path": "apps/desktop/webview/static/assets/queue/excluded.js"
     },
     {
-      "index": 82,
+      "index": 87,
       "src": "/assets/queue/scan.js",
       "path": "apps/desktop/webview/static/assets/queue/scan.js"
     },
     {
-      "index": 83,
+      "index": 88,
       "src": "/assets/queueView.js",
       "path": "apps/desktop/webview/static/assets/queueView.js"
     },
     {
-      "index": 84,
+      "index": 89,
       "src": "/assets/queue/fileOverrides.routePreview.js",
       "path": "apps/desktop/webview/static/assets/queue/fileOverrides.routePreview.js"
     },
     {
-      "index": 85,
+      "index": 90,
       "src": "/assets/queue/fileOverrides.drawer.state.js",
       "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.state.js"
     },
     {
-      "index": 86,
+      "index": 91,
       "src": "/assets/queue/fileOverrides.drawer.form.js",
       "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.form.js"
     },
     {
-      "index": 87,
+      "index": 92,
       "src": "/assets/queue/fileOverrides.drawer.series.js",
       "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js"
     },
     {
-      "index": 88,
+      "index": 93,
       "src": "/assets/queue/fileOverrides.drawer.tracks.js",
       "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.tracks.js"
     },
     {
-      "index": 89,
+      "index": 94,
       "src": "/assets/queue/fileOverrides.drawer.api.js",
       "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.api.js"
     },
     {
-      "index": 90,
+      "index": 95,
       "src": "/assets/queue/fileOverrides.drawer.focus.js",
       "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.focus.js"
     },
     {
-      "index": 91,
+      "index": 96,
       "src": "/assets/queue/fileOverrides.drawer.js",
       "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js"
     },
     {
-      "index": 92,
+      "index": 97,
       "src": "/assets/pendingPublishView.recovery.js",
       "path": "apps/desktop/webview/static/assets/pendingPublishView.recovery.js"
     },
     {
-      "index": 93,
+      "index": 98,
       "src": "/assets/pendingPublishView.diagnostics.js",
       "path": "apps/desktop/webview/static/assets/pendingPublishView.diagnostics.js"
     },
     {
-      "index": 94,
+      "index": 99,
       "src": "/assets/pendingPublishView.drain.js",
       "path": "apps/desktop/webview/static/assets/pendingPublishView.drain.js"
     },
     {
-      "index": 95,
+      "index": 100,
       "src": "/assets/pendingPublish/confidence/postDrainTrust.js",
       "path": "apps/desktop/webview/static/assets/pendingPublish/confidence/postDrainTrust.js"
     },
     {
-      "index": 96,
+      "index": 101,
       "src": "/assets/pendingPublishView.confidence.js",
       "path": "apps/desktop/webview/static/assets/pendingPublishView.confidence.js"
     },
     {
-      "index": 97,
+      "index": 102,
       "src": "/assets/pendingPublishView.repair.js",
       "path": "apps/desktop/webview/static/assets/pendingPublishView.repair.js"
     },
     {
-      "index": 98,
+      "index": 103,
       "src": "/assets/pendingPublish/tableSupport.js",
       "path": "apps/desktop/webview/static/assets/pendingPublish/tableSupport.js"
     },
     {
-      "index": 99,
+      "index": 104,
       "src": "/assets/pendingPublish/defaultAdapters.js",
       "path": "apps/desktop/webview/static/assets/pendingPublish/defaultAdapters.js"
     },
     {
-      "index": 100,
+      "index": 105,
       "src": "/assets/pendingPublish/summary.js",
       "path": "apps/desktop/webview/static/assets/pendingPublish/summary.js"
     },
     {
-      "index": 101,
+      "index": 106,
       "src": "/assets/pendingPublish/filters.js",
       "path": "apps/desktop/webview/static/assets/pendingPublish/filters.js"
     },
     {
-      "index": 102,
+      "index": 107,
       "src": "/assets/pendingPublish/details.js",
       "path": "apps/desktop/webview/static/assets/pendingPublish/details.js"
     },
     {
-      "index": 103,
+      "index": 108,
       "src": "/assets/pendingPublish/actionCenter.js",
       "path": "apps/desktop/webview/static/assets/pendingPublish/actionCenter.js"
     },
     {
-      "index": 104,
+      "index": 109,
       "src": "/assets/pendingPublish/rendering.js",
       "path": "apps/desktop/webview/static/assets/pendingPublish/rendering.js"
     },
     {
-      "index": 105,
+      "index": 110,
       "src": "/assets/pendingPublishView.js",
       "path": "apps/desktop/webview/static/assets/pendingPublishView.js"
     },
     {
-      "index": 106,
+      "index": 111,
       "src": "/assets/crossPageContextView.conflict.js",
       "path": "apps/desktop/webview/static/assets/crossPageContextView.conflict.js"
     },
     {
-      "index": 107,
+      "index": 112,
       "src": "/assets/crossPageContextView.sample.js",
       "path": "apps/desktop/webview/static/assets/crossPageContextView.sample.js"
     },
     {
-      "index": 108,
+      "index": 113,
       "src": "/assets/crossPageContextView.settings.js",
       "path": "apps/desktop/webview/static/assets/crossPageContextView.settings.js"
     },
     {
-      "index": 109,
+      "index": 114,
       "src": "/assets/crossPageContextView.sampleValidation.worksheet.js",
       "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.worksheet.js"
     },
     {
-      "index": 110,
+      "index": 115,
       "src": "/assets/crossPageContextView.sampleValidation.runbook.js",
       "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.runbook.js"
     },
     {
-      "index": 111,
+      "index": 116,
       "src": "/assets/crossPageContextView.sampleValidation.records.js",
       "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.records.js"
     },
     {
-      "index": 112,
+      "index": 117,
       "src": "/assets/crossPageContextView.sampleValidation.js",
       "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.js"
     },
     {
-      "index": 113,
+      "index": 118,
       "src": "/assets/crossPageContextView.js",
       "path": "apps/desktop/webview/static/assets/crossPageContextView.js"
     },
     {
-      "index": 114,
+      "index": 119,
       "src": "/assets/renameLabels.js",
       "path": "apps/desktop/webview/static/assets/renameLabels.js"
     },
     {
-      "index": 115,
+      "index": 120,
       "src": "/assets/renameHistoryView.js",
       "path": "apps/desktop/webview/static/assets/renameHistoryView.js"
     },
     {
-      "index": 116,
+      "index": 121,
       "src": "/assets/rename/cleaningFilters.js",
       "path": "apps/desktop/webview/static/assets/rename/cleaningFilters.js"
     },
     {
-      "index": 117,
+      "index": 122,
       "src": "/assets/rename/cleaningWorkbench.js",
       "path": "apps/desktop/webview/static/assets/rename/cleaningWorkbench.js"
     },
     {
-      "index": 118,
+      "index": 123,
       "src": "/assets/rename/selection.js",
       "path": "apps/desktop/webview/static/assets/rename/selection.js"
     },
     {
-      "index": 119,
+      "index": 124,
       "src": "/assets/rename/paths.js",
       "path": "apps/desktop/webview/static/assets/rename/paths.js"
     },
     {
-      "index": 120,
+      "index": 125,
       "src": "/assets/rename/preview.js",
       "path": "apps/desktop/webview/static/assets/rename/preview.js"
     },
     {
-      "index": 121,
+      "index": 126,
       "src": "/assets/rename/applyReadiness.js",
       "path": "apps/desktop/webview/static/assets/rename/applyReadiness.js"
     },
     {
-      "index": 122,
+      "index": 127,
       "src": "/assets/rename/editing.js",
       "path": "apps/desktop/webview/static/assets/rename/editing.js"
     },
     {
-      "index": 123,
+      "index": 128,
       "src": "/assets/rename/applyResult.js",
       "path": "apps/desktop/webview/static/assets/rename/applyResult.js"
     },
     {
-      "index": 124,
+      "index": 129,
       "src": "/assets/rename/commandEvidence.js",
       "path": "apps/desktop/webview/static/assets/rename/commandEvidence.js"
     },
     {
-      "index": 125,
+      "index": 130,
       "src": "/assets/rename/previewLifecycle.js",
       "path": "apps/desktop/webview/static/assets/rename/previewLifecycle.js"
     },
     {
-      "index": 126,
+      "index": 131,
       "src": "/assets/rename/interactions.js",
       "path": "apps/desktop/webview/static/assets/rename/interactions.js"
     },
     {
-      "index": 127,
+      "index": 132,
       "src": "/assets/rename/confirmSummary.js",
       "path": "apps/desktop/webview/static/assets/rename/confirmSummary.js"
     },
     {
-      "index": 128,
+      "index": 133,
       "src": "/assets/rename/dialogs.js",
       "path": "apps/desktop/webview/static/assets/rename/dialogs.js"
     },
     {
-      "index": 129,
+      "index": 134,
       "src": "/assets/renameView.js",
       "path": "apps/desktop/webview/static/assets/renameView.js"
     },
     {
-      "index": 130,
+      "index": 135,
       "src": "/assets/settingsOverview.js",
       "path": "apps/desktop/webview/static/assets/settingsOverview.js"
     },
     {
-      "index": 131,
+      "index": 136,
       "src": "/assets/settingsCommandHistory.js",
       "path": "apps/desktop/webview/static/assets/settingsCommandHistory.js"
     },
     {
-      "index": 132,
+      "index": 137,
       "src": "/assets/settingsMetadata.js",
       "path": "apps/desktop/webview/static/assets/settingsMetadata.js"
     },
     {
-      "index": 133,
+      "index": 138,
       "src": "/assets/settings/metadataFields.js",
       "path": "apps/desktop/webview/static/assets/settings/metadataFields.js"
     },
     {
-      "index": 134,
+      "index": 139,
       "src": "/assets/settings/builderControls.js",
       "path": "apps/desktop/webview/static/assets/settings/builderControls.js"
     },
     {
-      "index": 135,
+      "index": 140,
       "src": "/assets/settingsView.builders.audio.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.audio.js"
     },
     {
-      "index": 136,
+      "index": 141,
       "src": "/assets/settingsView.builders.video.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.video.js"
     },
     {
-      "index": 137,
+      "index": 142,
       "src": "/assets/settingsView.builders.quality.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.quality.js"
     },
     {
-      "index": 138,
+      "index": 143,
       "src": "/assets/settingsView.builders.subtitle.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.subtitle.js"
     },
     {
-      "index": 139,
+      "index": 144,
       "src": "/assets/settingsView.builders.queue.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.queue.js"
     },
     {
-      "index": 140,
+      "index": 145,
       "src": "/assets/settingsView.builders.runtime.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.runtime.js"
     },
     {
-      "index": 141,
+      "index": 146,
       "src": "/assets/settingsView.builders.file_safety.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.file_safety.js"
     },
     {
-      "index": 142,
+      "index": 147,
       "src": "/assets/settingsView.builders.pending.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.pending.js"
     },
     {
-      "index": 143,
+      "index": 148,
       "src": "/assets/settingsView.builders.network.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.network.js"
     },
     {
-      "index": 144,
+      "index": 149,
       "src": "/assets/settingsView.rawTriage.js",
       "path": "apps/desktop/webview/static/assets/settingsView.rawTriage.js"
     },
     {
-      "index": 145,
+      "index": 150,
       "src": "/assets/settingsView.safetyLocks.js",
       "path": "apps/desktop/webview/static/assets/settingsView.safetyLocks.js"
     },
     {
-      "index": 146,
+      "index": 151,
       "src": "/assets/settings/backendResult.js",
       "path": "apps/desktop/webview/static/assets/settings/backendResult.js"
     },
     {
-      "index": 147,
+      "index": 152,
       "src": "/assets/settings/routePolicyModel.js",
       "path": "apps/desktop/webview/static/assets/settings/routePolicyModel.js"
     },
     {
-      "index": 148,
+      "index": 153,
       "src": "/assets/settings/finalLibraryPromotion.js",
       "path": "apps/desktop/webview/static/assets/settings/finalLibraryPromotion.js"
     },
     {
-      "index": 149,
+      "index": 154,
       "src": "/assets/settings/patchOverview.js",
       "path": "apps/desktop/webview/static/assets/settings/patchOverview.js"
     },
     {
-      "index": 150,
+      "index": 155,
       "src": "/assets/settings/patchInteractions.js",
       "path": "apps/desktop/webview/static/assets/settings/patchInteractions.js"
     },
     {
-      "index": 151,
+      "index": 156,
       "src": "/assets/settings/patchReadiness.js",
       "path": "apps/desktop/webview/static/assets/settings/patchReadiness.js"
     },
     {
-      "index": 152,
+      "index": 157,
       "src": "/assets/settings/patchReview.js",
       "path": "apps/desktop/webview/static/assets/settings/patchReview.js"
     },
     {
-      "index": 153,
+      "index": 158,
       "src": "/assets/settings/policyImpact/mediaProjection.js",
       "path": "apps/desktop/webview/static/assets/settings/policyImpact/mediaProjection.js"
     },
     {
-      "index": 154,
+      "index": 159,
       "src": "/assets/settings/policyImpact/effectivePolicyView.js",
       "path": "apps/desktop/webview/static/assets/settings/policyImpact/effectivePolicyView.js"
     },
     {
-      "index": 155,
+      "index": 160,
       "src": "/assets/settings/policyImpact.js",
       "path": "apps/desktop/webview/static/assets/settings/policyImpact.js"
     },
     {
-      "index": 156,
+      "index": 161,
       "src": "/assets/settings/view/builder.js",
       "path": "apps/desktop/webview/static/assets/settings/view/builder.js"
     },
     {
-      "index": 157,
+      "index": 162,
       "src": "/assets/settings/view/impact.js",
       "path": "apps/desktop/webview/static/assets/settings/view/impact.js"
     },
     {
-      "index": 158,
+      "index": 163,
       "src": "/assets/settings/view/review.js",
       "path": "apps/desktop/webview/static/assets/settings/view/review.js"
     },
     {
-      "index": 159,
+      "index": 164,
       "src": "/assets/settings/view/commands.js",
       "path": "apps/desktop/webview/static/assets/settings/view/commands.js"
     },
     {
-      "index": 160,
+      "index": 165,
       "src": "/assets/settings/view/lifecycle.js",
       "path": "apps/desktop/webview/static/assets/settings/view/lifecycle.js"
     },
     {
-      "index": 161,
+      "index": 166,
       "src": "/assets/settings/view/facade.js",
       "path": "apps/desktop/webview/static/assets/settings/view/facade.js"
     },
     {
-      "index": 162,
+      "index": 167,
       "src": "/assets/settingsView.js",
       "path": "apps/desktop/webview/static/assets/settingsView.js"
     },
     {
-      "index": 163,
+      "index": 168,
       "src": "/assets/settingsLibraries/model.js",
       "path": "apps/desktop/webview/static/assets/settingsLibraries/model.js"
     },
     {
-      "index": 164,
+      "index": 169,
       "src": "/assets/settingsLibraries/render.js",
       "path": "apps/desktop/webview/static/assets/settingsLibraries/render.js"
     },
     {
-      "index": 165,
+      "index": 170,
       "src": "/assets/settingsLibraries/summary.js",
       "path": "apps/desktop/webview/static/assets/settingsLibraries/summary.js"
     },
     {
-      "index": 166,
+      "index": 171,
       "src": "/assets/settingsLibraries/interaction.js",
       "path": "apps/desktop/webview/static/assets/settingsLibraries/interaction.js"
     },
     {
-      "index": 167,
+      "index": 172,
       "src": "/assets/settingsLibraries/facade.js",
       "path": "apps/desktop/webview/static/assets/settingsLibraries/facade.js"
     },
     {
-      "index": 168,
+      "index": 173,
       "src": "/assets/settingsLibraries.js",
       "path": "apps/desktop/webview/static/assets/settingsLibraries.js"
     },
     {
-      "index": 169,
+      "index": 174,
       "src": "/assets/settings/presetLibrary.js",
       "path": "apps/desktop/webview/static/assets/settings/presetLibrary.js"
     },
     {
-      "index": 170,
+      "index": 175,
       "src": "/assets/librariesRouteMap.js",
       "path": "apps/desktop/webview/static/assets/librariesRouteMap.js"
     },
     {
-      "index": 171,
+      "index": 176,
       "src": "/assets/settings/wizard/libraryEditor.js",
       "path": "apps/desktop/webview/static/assets/settings/wizard/libraryEditor.js"
     },
     {
-      "index": 172,
+      "index": 177,
       "src": "/assets/settings/wizard/previewRender.js",
       "path": "apps/desktop/webview/static/assets/settings/wizard/previewRender.js"
     },
     {
-      "index": 173,
+      "index": 178,
       "src": "/assets/settingsWizard.js",
       "path": "apps/desktop/webview/static/assets/settingsWizard.js"
     },
     {
-      "index": 174,
+      "index": 179,
       "src": "/assets/network/configDiagnostics.js",
       "path": "apps/desktop/webview/static/assets/network/configDiagnostics.js"
     },
     {
-      "index": 175,
+      "index": 180,
       "src": "/assets/network/config.js",
       "path": "apps/desktop/webview/static/assets/network/config.js"
     },
     {
-      "index": 176,
+      "index": 181,
       "src": "/assets/network/queueProjection.js",
       "path": "apps/desktop/webview/static/assets/network/queueProjection.js"
     },
     {
-      "index": 177,
+      "index": 182,
       "src": "/assets/network/overviewTiles.js",
       "path": "apps/desktop/webview/static/assets/network/overviewTiles.js"
     },
     {
-      "index": 178,
+      "index": 183,
       "src": "/assets/network/overviewModel.js",
       "path": "apps/desktop/webview/static/assets/network/overviewModel.js"
     },
     {
-      "index": 179,
+      "index": 184,
       "src": "/assets/network/lifecycleContract.js",
       "path": "apps/desktop/webview/static/assets/network/lifecycleContract.js"
     },
     {
-      "index": 180,
+      "index": 185,
       "src": "/assets/network/stateFiles.js",
       "path": "apps/desktop/webview/static/assets/network/stateFiles.js"
     },
     {
-      "index": 181,
+      "index": 186,
       "src": "/assets/network/readiness.js",
       "path": "apps/desktop/webview/static/assets/network/readiness.js"
     },
     {
-      "index": 182,
+      "index": 187,
       "src": "/assets/network/lifecycle.view.js",
       "path": "apps/desktop/webview/static/assets/network/lifecycle.view.js"
     },
     {
-      "index": 183,
+      "index": 188,
       "src": "/assets/network/status.js",
       "path": "apps/desktop/webview/static/assets/network/status.js"
     },
     {
-      "index": 184,
+      "index": 189,
       "src": "/assets/network/lifecycle.model.js",
       "path": "apps/desktop/webview/static/assets/network/lifecycle.model.js"
     },
     {
-      "index": 185,
+      "index": 190,
       "src": "/assets/network/lifecycle.results.js",
       "path": "apps/desktop/webview/static/assets/network/lifecycle.results.js"
     },
     {
-      "index": 186,
+      "index": 191,
       "src": "/assets/network/lifecycle.commands.js",
       "path": "apps/desktop/webview/static/assets/network/lifecycle.commands.js"
     },
     {
-      "index": 187,
+      "index": 192,
       "src": "/assets/network/setup.commands.js",
       "path": "apps/desktop/webview/static/assets/network/setup.commands.js"
     },
     {
-      "index": 188,
+      "index": 193,
       "src": "/assets/network/settingsHandoff.js",
       "path": "apps/desktop/webview/static/assets/network/settingsHandoff.js"
     },
     {
-      "index": 189,
+      "index": 194,
       "src": "/assets/network/openHistory.js",
       "path": "apps/desktop/webview/static/assets/network/openHistory.js"
     },
     {
-      "index": 190,
+      "index": 195,
       "src": "/assets/network/evidence.js",
       "path": "apps/desktop/webview/static/assets/network/evidence.js"
     },
     {
-      "index": 191,
+      "index": 196,
       "src": "/assets/network/workers.model.js",
       "path": "apps/desktop/webview/static/assets/network/workers.model.js"
     },
     {
-      "index": 192,
+      "index": 197,
       "src": "/assets/network/workers.view.js",
       "path": "apps/desktop/webview/static/assets/network/workers.view.js"
     },
     {
-      "index": 193,
+      "index": 198,
       "src": "/assets/network/roleDashboard.js",
       "path": "apps/desktop/webview/static/assets/network/roleDashboard.js"
     },
     {
-      "index": 194,
+      "index": 199,
       "src": "/assets/network/rerunEvidence.js",
       "path": "apps/desktop/webview/static/assets/network/rerunEvidence.js"
     },
     {
-      "index": 195,
+      "index": 200,
       "src": "/assets/network/events.js",
       "path": "apps/desktop/webview/static/assets/network/events.js"
     },
     {
-      "index": 196,
+      "index": 201,
       "src": "/assets/networkView.js",
       "path": "apps/desktop/webview/static/assets/networkView.js"
     },
     {
-      "index": 197,
+      "index": 202,
       "src": "/assets/metricsView.js",
       "path": "apps/desktop/webview/static/assets/metricsView.js"
     },
     {
-      "index": 198,
+      "index": 203,
       "src": "/assets/diagnosticsTailView.js",
       "path": "apps/desktop/webview/static/assets/diagnosticsTailView.js"
     },
     {
-      "index": 199,
+      "index": 204,
       "src": "/assets/diagnosticsStateSummaryView.js",
       "path": "apps/desktop/webview/static/assets/diagnosticsStateSummaryView.js"
     },
     {
-      "index": 200,
+      "index": 205,
       "src": "/assets/diagnosticsView.activejobs.js",
       "path": "apps/desktop/webview/static/assets/diagnosticsView.activejobs.js"
     },
     {
-      "index": 201,
+      "index": 206,
       "src": "/assets/diagnosticsView.log.js",
       "path": "apps/desktop/webview/static/assets/diagnosticsView.log.js"
     },
     {
-      "index": 202,
+      "index": 207,
       "src": "/assets/diagnosticsView.investigation.js",
       "path": "apps/desktop/webview/static/assets/diagnosticsView.investigation.js"
     },
     {
-      "index": 203,
+      "index": 208,
       "src": "/assets/diagnostics/matrixConsole.js",
       "path": "apps/desktop/webview/static/assets/diagnostics/matrixConsole.js"
     },
     {
-      "index": 204,
+      "index": 209,
       "src": "/assets/diagnostics/triage.js",
       "path": "apps/desktop/webview/static/assets/diagnostics/triage.js"
     },
     {
-      "index": 205,
+      "index": 210,
       "src": "/assets/diagnostics/firstResponse.js",
       "path": "apps/desktop/webview/static/assets/diagnostics/firstResponse.js"
     },
     {
-      "index": 206,
+      "index": 211,
       "src": "/assets/diagnosticsView.js",
       "path": "apps/desktop/webview/static/assets/diagnosticsView.js"
     },
     {
-      "index": 207,
+      "index": 212,
       "src": "/assets/reports/state.js",
       "path": "apps/desktop/webview/static/assets/reports/state.js"
     },
     {
-      "index": 208,
+      "index": 213,
       "src": "/assets/reports/shared.js",
       "path": "apps/desktop/webview/static/assets/reports/shared.js"
     },
     {
-      "index": 209,
+      "index": 214,
       "src": "/assets/reports/shell.js",
       "path": "apps/desktop/webview/static/assets/reports/shell.js"
     },
     {
-      "index": 210,
+      "index": 215,
       "src": "/assets/reports/failureModel.js",
       "path": "apps/desktop/webview/static/assets/reports/failureModel.js"
     },
     {
-      "index": 211,
+      "index": 216,
       "src": "/assets/reports/failureCommands.js",
       "path": "apps/desktop/webview/static/assets/reports/failureCommands.js"
     },
     {
-      "index": 212,
+      "index": 217,
       "src": "/assets/reports/failureView.js",
       "path": "apps/desktop/webview/static/assets/reports/failureView.js"
     },
     {
-      "index": 213,
+      "index": 218,
       "src": "/assets/reports/auditModel.js",
       "path": "apps/desktop/webview/static/assets/reports/auditModel.js"
     },
     {
-      "index": 214,
+      "index": 219,
       "src": "/assets/reports/auditView.js",
       "path": "apps/desktop/webview/static/assets/reports/auditView.js"
     },
     {
-      "index": 215,
+      "index": 220,
       "src": "/assets/reports/audit/sources.js",
       "path": "apps/desktop/webview/static/assets/reports/audit/sources.js"
     },
     {
-      "index": 216,
+      "index": 221,
       "src": "/assets/reports/audit/progress.js",
       "path": "apps/desktop/webview/static/assets/reports/audit/progress.js"
     },
     {
-      "index": 217,
+      "index": 222,
       "src": "/assets/reports/auditCommands.js",
       "path": "apps/desktop/webview/static/assets/reports/auditCommands.js"
     },
     {
-      "index": 218,
+      "index": 223,
       "src": "/assets/reports/triage.js",
       "path": "apps/desktop/webview/static/assets/reports/triage.js"
     },
     {
-      "index": 219,
+      "index": 224,
       "src": "/assets/reports/investigation.js",
       "path": "apps/desktop/webview/static/assets/reports/investigation.js"
     },
     {
-      "index": 220,
+      "index": 225,
       "src": "/assets/reportsView.js",
       "path": "apps/desktop/webview/static/assets/reportsView.js"
     },
     {
-      "index": 221,
+      "index": 226,
       "src": "/assets/schedule/watchFolder.js",
       "path": "apps/desktop/webview/static/assets/schedule/watchFolder.js"
     },
     {
-      "index": 222,
+      "index": 227,
       "src": "/assets/schedule/editor.js",
       "path": "apps/desktop/webview/static/assets/schedule/editor.js"
     },
     {
-      "index": 223,
+      "index": 228,
       "src": "/assets/scheduleView.js",
       "path": "apps/desktop/webview/static/assets/scheduleView.js"
     },
     {
-      "index": 224,
+      "index": 229,
       "src": "/assets/maintenance/changeLedger.js",
       "path": "apps/desktop/webview/static/assets/maintenance/changeLedger.js"
     },
     {
-      "index": 225,
+      "index": 230,
       "src": "/assets/maintenance/health.js",
       "path": "apps/desktop/webview/static/assets/maintenance/health.js"
     },
     {
-      "index": 226,
+      "index": 231,
       "src": "/assets/maintenance/dryRunReadiness.js",
       "path": "apps/desktop/webview/static/assets/maintenance/dryRunReadiness.js"
     },
     {
-      "index": 227,
+      "index": 232,
       "src": "/assets/maintenance/releaseCommands.js",
       "path": "apps/desktop/webview/static/assets/maintenance/releaseCommands.js"
     },
     {
-      "index": 228,
+      "index": 233,
       "src": "/assets/maintenanceView.js",
       "path": "apps/desktop/webview/static/assets/maintenanceView.js"
     },
     {
-      "index": 229,
+      "index": 234,
       "src": "/assets/recoverySupportView.js",
       "path": "apps/desktop/webview/static/assets/recoverySupportView.js"
     },
     {
-      "index": 230,
+      "index": 235,
       "src": "/assets/provenanceView.js",
       "path": "apps/desktop/webview/static/assets/provenanceView.js"
     },
     {
-      "index": 231,
+      "index": 236,
       "src": "/assets/telemetry/gpuProjection.js",
       "path": "apps/desktop/webview/static/assets/telemetry/gpuProjection.js"
     },
     {
-      "index": 232,
+      "index": 237,
       "src": "/assets/telemetryView.js",
       "path": "apps/desktop/webview/static/assets/telemetryView.js"
     },
     {
-      "index": 233,
+      "index": 238,
       "src": "/assets/tauriLifecycleBridge.js",
       "path": "apps/desktop/webview/static/assets/tauriLifecycleBridge.js"
     },
     {
-      "index": 234,
+      "index": 239,
       "src": "/assets/floatingPipelineLog.js",
       "path": "apps/desktop/webview/static/assets/floatingPipelineLog.js"
     },
     {
-      "index": 235,
+      "index": 240,
       "src": "/assets/pipelineLogWindowBridge.js",
       "path": "apps/desktop/webview/static/assets/pipelineLogWindowBridge.js"
     },
     {
-      "index": 236,
+      "index": 241,
       "src": "/assets/launchReadinessView.js",
       "path": "apps/desktop/webview/static/assets/launchReadinessView.js"
     },
     {
-      "index": 237,
+      "index": 242,
       "src": "/assets/launchHistoryView.js",
       "path": "apps/desktop/webview/static/assets/launchHistoryView.js"
     },
     {
-      "index": 238,
+      "index": 243,
       "src": "/assets/launch/risk/settingsAccess.js",
       "path": "apps/desktop/webview/static/assets/launch/risk/settingsAccess.js"
     },
     {
-      "index": 239,
+      "index": 244,
       "src": "/assets/launch/risk/mediaPolicyValues.js",
       "path": "apps/desktop/webview/static/assets/launch/risk/mediaPolicyValues.js"
     },
     {
-      "index": 240,
+      "index": 245,
       "src": "/assets/launch/risk/riskRows.js",
       "path": "apps/desktop/webview/static/assets/launch/risk/riskRows.js"
     },
     {
-      "index": 241,
+      "index": 246,
       "src": "/assets/launch/risk/policyPatch.js",
       "path": "apps/desktop/webview/static/assets/launch/risk/policyPatch.js"
     },
     {
-      "index": 242,
+      "index": 247,
       "src": "/assets/launch/risk/policyBoundary.js",
       "path": "apps/desktop/webview/static/assets/launch/risk/policyBoundary.js"
     },
     {
-      "index": 243,
+      "index": 248,
       "src": "/assets/launchView.risk.js",
       "path": "apps/desktop/webview/static/assets/launchView.risk.js"
     },
     {
-      "index": 244,
+      "index": 249,
       "src": "/assets/launch/scope/compactGate.js",
       "path": "apps/desktop/webview/static/assets/launch/scope/compactGate.js"
     },
     {
-      "index": 245,
+      "index": 250,
       "src": "/assets/launchView.scope.js",
       "path": "apps/desktop/webview/static/assets/launchView.scope.js"
     },
     {
-      "index": 246,
+      "index": 251,
       "src": "/assets/launchView.realmedia.js",
       "path": "apps/desktop/webview/static/assets/launchView.realmedia.js"
     },
     {
-      "index": 247,
+      "index": 252,
       "src": "/assets/launch/preflight/pilotReadiness.js",
       "path": "apps/desktop/webview/static/assets/launch/preflight/pilotReadiness.js"
     },
     {
-      "index": 248,
+      "index": 253,
       "src": "/assets/launchView.preflight.js",
       "path": "apps/desktop/webview/static/assets/launchView.preflight.js"
     },
     {
-      "index": 249,
+      "index": 254,
       "src": "/assets/launch/controllerState.js",
       "path": "apps/desktop/webview/static/assets/launch/controllerState.js"
     },
     {
-      "index": 250,
+      "index": 255,
       "src": "/assets/launch/statusRender.js",
       "path": "apps/desktop/webview/static/assets/launch/statusRender.js"
     },
     {
-      "index": 251,
+      "index": 256,
       "src": "/assets/launch/startRequest.js",
       "path": "apps/desktop/webview/static/assets/launch/startRequest.js"
     },
     {
-      "index": 252,
+      "index": 257,
       "src": "/assets/queue/rerunRequest.js",
       "path": "apps/desktop/webview/static/assets/queue/rerunRequest.js"
     },
     {
-      "index": 253,
+      "index": 258,
       "src": "/assets/launch/scopeControls.js",
       "path": "apps/desktop/webview/static/assets/launch/scopeControls.js"
     },
     {
-      "index": 254,
+      "index": 259,
       "src": "/assets/launch/commandButtons.js",
       "path": "apps/desktop/webview/static/assets/launch/commandButtons.js"
     },
     {
-      "index": 255,
+      "index": 260,
       "src": "/assets/launch/commandOrchestration.js",
       "path": "apps/desktop/webview/static/assets/launch/commandOrchestration.js"
     },
     {
-      "index": 256,
+      "index": 261,
       "src": "/assets/launch/rerunEvidence.js",
       "path": "apps/desktop/webview/static/assets/launch/rerunEvidence.js"
     },
     {
-      "index": 257,
+      "index": 262,
       "src": "/assets/launch/rerunPresentation.js",
       "path": "apps/desktop/webview/static/assets/launch/rerunPresentation.js"
     },
     {
-      "index": 258,
+      "index": 263,
       "src": "/assets/launch/rerunOrchestration.js",
       "path": "apps/desktop/webview/static/assets/launch/rerunOrchestration.js"
     },
     {
-      "index": 259,
+      "index": 264,
       "src": "/assets/launch/rerunFacade.js",
       "path": "apps/desktop/webview/static/assets/launch/rerunFacade.js"
     },
     {
-      "index": 260,
+      "index": 265,
       "src": "/assets/launchView.js",
       "path": "apps/desktop/webview/static/assets/launchView.js"
     },
     {
-      "index": 261,
+      "index": 266,
       "src": "/assets/contractView.js",
       "path": "apps/desktop/webview/static/assets/contractView.js"
     },
     {
-      "index": 262,
+      "index": 267,
       "src": "/assets/app/lifecycle/topbar.js",
       "path": "apps/desktop/webview/static/assets/app/lifecycle/topbar.js"
     },
     {
-      "index": 263,
+      "index": 268,
       "src": "/assets/app/lifecycle/navigation.js",
       "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js"
     },
     {
-      "index": 264,
+      "index": 269,
       "src": "/assets/app/lifecycle.js",
       "path": "apps/desktop/webview/static/assets/app/lifecycle.js"
     },
     {
-      "index": 265,
+      "index": 270,
       "src": "/assets/app/topbar.js?v=20260630-csv-home-queue-fastpath",
       "path": "apps/desktop/webview/static/assets/app/topbar.js"
     },
     {
-      "index": 266,
+      "index": 271,
       "src": "/assets/app/closeReadiness.js",
       "path": "apps/desktop/webview/static/assets/app/closeReadiness.js"
     },
     {
-      "index": 267,
+      "index": 272,
       "src": "/assets/app/tauriLifecycle.js",
       "path": "apps/desktop/webview/static/assets/app/tauriLifecycle.js"
     },
     {
-      "index": 268,
+      "index": 273,
       "src": "/assets/app/refresh.js",
       "path": "apps/desktop/webview/static/assets/app/refresh.js"
     },
     {
-      "index": 269,
+      "index": 274,
       "src": "/assets/app/home/dailyDriver.js",
       "path": "apps/desktop/webview/static/assets/app/home/dailyDriver.js"
     },
     {
-      "index": 270,
+      "index": 275,
       "src": "/assets/app/home/queueProjection.js",
       "path": "apps/desktop/webview/static/assets/app/home/queueProjection.js"
     },
     {
-      "index": 271,
+      "index": 276,
       "src": "/assets/app/home.js?v=20260630-csv-home-queue-fastpath",
       "path": "apps/desktop/webview/static/assets/app/home.js"
     },
     {
-      "index": 272,
+      "index": 277,
       "src": "/assets/app/homeReadiness.js",
       "path": "apps/desktop/webview/static/assets/app/homeReadiness.js"
     },
     {
-      "index": 273,
+      "index": 278,
       "src": "/assets/app/rowOpenActions.js",
       "path": "apps/desktop/webview/static/assets/app/rowOpenActions.js"
     },
     {
-      "index": 274,
+      "index": 279,
       "src": "/assets/app/layoutManager/drawer.js",
       "path": "apps/desktop/webview/static/assets/app/layoutManager/drawer.js"
     },
     {
-      "index": 275,
+      "index": 280,
       "src": "/assets/app/layoutManager/normalization.js",
       "path": "apps/desktop/webview/static/assets/app/layoutManager/normalization.js"
     },
     {
-      "index": 276,
+      "index": 281,
       "src": "/assets/app/layoutManager.js",
       "path": "apps/desktop/webview/static/assets/app/layoutManager.js"
     },
     {
-      "index": 277,
+      "index": 282,
       "src": "/assets/app/uiPreferences.js",
       "path": "apps/desktop/webview/static/assets/app/uiPreferences.js"
     },
     {
-      "index": 278,
+      "index": 283,
       "src": "/assets/app/dashboard.js",
       "path": "apps/desktop/webview/static/assets/app/dashboard.js"
     },
     {
-      "index": 279,
+      "index": 284,
       "src": "/assets/app/refreshCoordinator.js",
       "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js"
     },
     {
-      "index": 280,
+      "index": 285,
       "src": "/assets/app/lifecycleOrchestration.js",
       "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js"
     },
     {
-      "index": 281,
+      "index": 286,
       "src": "/assets/app.js?v=20260630-csv-home-queue-fastpath",
       "path": "apps/desktop/webview/static/assets/app.js"
     }
@@ -1467,6 +1492,7 @@
       "mediaPipelineRenameView",
       "mediaPipelineReportsView",
       "mediaPipelineRoutePolicyModel",
+      "mediaPipelineRunMonitor",
       "mediaPipelineScheduleView",
       "mediaPipelineSettingsCommandHistory",
       "mediaPipelineSettingsLibraries",
@@ -1666,6 +1692,10 @@
       "__reportsViewShellModule",
       "__reportsViewStateModule",
       "__reportsViewTriageModule",
+      "__runMonitorFormatters",
+      "__runMonitorInteractionModule",
+      "__runMonitorNormalizationModule",
+      "__runMonitorRenderingModule",
       "__scheduleEditorModule",
       "__scheduleWatchFolderModule",
       "__settingsBackendResultModule",
@@ -1719,11 +1749,9 @@
       "clearTopbarPendingLaunch",
       "commandHistoryCompactEvidenceLine",
       "crossPageConflictRows",
-      "crossPageConflictStatus",
       "crossPageRealMediaWorksheetRows",
       "crossPageRealMediaWorksheetStatus",
       "crossPageSampleRows",
-      "crossPageSampleStatus",
       "crossPageSampleValidationEvidence",
       "crossPageValidationTemplateLines",
       "diagnosticsActionGroups",
@@ -1744,10 +1772,7 @@
       "diagnosticsMalformedStateLines",
       "diagnosticsOwnerDefaultAction",
       "diagnosticsOwnerHandoffActions",
-      "diagnosticsOwnerHandoffRowKey",
       "diagnosticsOwnerHandoffRows",
-      "diagnosticsOwnerHandoffStatus",
-      "diagnosticsOwnerHandoffSummaryLines",
       "diagnosticsOwnerNavigationLabel",
       "diagnosticsOwnerPageId",
       "diagnosticsOwnerRowSeverity",
@@ -1966,51 +1991,26 @@
       "requestQueueDiagnosticsAction",
       "requestQueueOpen",
       "resetQueueFilters",
-      "sampleValidationAcceptanceGateDetailLines",
-      "sampleValidationAcceptanceGateStatus",
-      "sampleValidationAcceptanceGateSummaryLines",
-      "sampleValidationCategorySummaryDetailLines",
-      "sampleValidationCategorySummaryLines",
-      "sampleValidationCategorySummaryStatus",
-      "sampleValidationCompletedPacketDetailLines",
       "sampleValidationCompletedPacketMarkdownLines",
-      "sampleValidationCompletedPacketStatus",
-      "sampleValidationCompletedPacketSummaryLines",
       "sampleValidationCompletedPolicyReconciliationRow",
       "sampleValidationCompletedPolicyReconciliationStatus",
-      "sampleValidationCutoverDetailLines",
       "sampleValidationCutoverRows",
-      "sampleValidationCutoverStatus",
-      "sampleValidationCutoverSummaryLines",
       "sampleValidationExecutionRows",
-      "sampleValidationExecutionStatus",
-      "sampleValidationGapDetailLines",
       "sampleValidationGapPayload",
-      "sampleValidationGapRows",
-      "sampleValidationGapStatus",
       "sampleValidationGapSummaryLines",
       "sampleValidationReconciliationForRecord",
       "sampleValidationReconciliationRows",
       "sampleValidationRecordComparisonRowsForPaths",
       "sampleValidationRecordLines",
       "sampleValidationRecordMatchesSample",
-      "sampleValidationRecordReviewDetailLines",
-      "sampleValidationRecordReviewStatus",
-      "sampleValidationRecordReviewSummaryLines",
       "sampleValidationRecordRows",
       "sampleValidationRecordsMatchingSample",
-      "sampleValidationRunbookDetailLines",
       "sampleValidationRunbookMarkdownLines",
       "sampleValidationRunbookPayload",
-      "sampleValidationRunbookRows",
-      "sampleValidationRunbookStatus",
       "sampleValidationRunbookSummaryLines",
       "sampleValidationSampleSetCoverageLine",
-      "sampleValidationSampleSetDetailLines",
       "sampleValidationSampleSetKey",
       "sampleValidationSampleSetRows",
-      "sampleValidationSampleSetStatus",
-      "sampleValidationSampleSetSummaryLines",
       "sampleValidationShellSurface",
       "sampleValidationWorksheetDetailLines",
       "sampleValidationWorksheetRows",
@@ -2099,6 +2099,7 @@
       "/api/queue/file-overrides/series-preview",
       "/api/queue/open",
       "/api/queue/priority",
+      "/api/queue/priority-export",
       "/api/queue/scan",
       "/api/queue/strategy",
       "/api/rename/apply",
@@ -2182,6 +2183,7 @@
       "cross-page-conflict-rows",
       "cross-page-real-media-rows",
       "cross-page-sample-rows",
+      "current-work-heading",
       "customize-layout-btn",
       "daily-driver-rows",
       "dependency-atlas-button",
@@ -2458,6 +2460,8 @@
       "pipeline-event-rows",
       "pipeline-launch-status",
       "pipeline-log-window-button",
+      "pipeline-priority-export-id",
+      "pipeline-priority-export-status",
       "pipeline-single-file-browse-button",
       "pipeline-single-file-browse-status",
       "pipeline-single-file-clear-button",
@@ -2627,6 +2631,29 @@
       "rerun-start-target-mode",
       "rerun-start-window-size",
       "reset-layout-btn",
+      "run-monitor-announcer",
+      "run-monitor-audio-body",
+      "run-monitor-detail",
+      "run-monitor-file-outcome",
+      "run-monitor-freshness",
+      "run-monitor-items",
+      "run-monitor-items-toggle",
+      "run-monitor-last-known",
+      "run-monitor-last-known-body",
+      "run-monitor-output",
+      "run-monitor-output-evidence",
+      "run-monitor-recovery",
+      "run-monitor-refresh",
+      "run-monitor-route-summary",
+      "run-monitor-routes",
+      "run-monitor-sidecars",
+      "run-monitor-stage-list",
+      "run-monitor-stage-summary",
+      "run-monitor-stop-after-current",
+      "run-monitor-subtitle-body",
+      "run-monitor-summary",
+      "run-monitor-terminal-links",
+      "run-monitor-workers",
       "sample-validation-acceptance-gate-rows",
       "sample-validation-append-button",
       "sample-validation-category",
@@ -2801,6 +2828,8 @@
       "input",
       "keydown",
       "mediapipeline:backend-lifecycle",
+      "mediapipeline:focus-current-work",
+      "mediapipeline:run-monitor-rendered",
       "mouseup",
       "pointercancel",
       "pointerdown",
@@ -2812,7 +2841,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 2821
+    "top_level_declaration_count": 2966
   },
   "scripts": [
     {
@@ -4033,6 +4062,834 @@
     },
     {
       "load_index": 25,
+      "src": "/assets/runMonitor/formatters.js",
+      "path": "apps/desktop/webview/static/assets/runMonitor/formatters.js",
+      "top_level_declarations": [
+        {
+          "name": "STAGE_LABELS",
+          "line": 4,
+          "kind": "const"
+        },
+        {
+          "name": "object",
+          "line": 19,
+          "kind": "const"
+        },
+        {
+          "name": "text",
+          "line": 21,
+          "kind": "function"
+        },
+        {
+          "name": "humanize",
+          "line": 26,
+          "kind": "function"
+        },
+        {
+          "name": "stageLabel",
+          "line": 36,
+          "kind": "function"
+        },
+        {
+          "name": "formatTimestamp",
+          "line": 40,
+          "kind": "function"
+        },
+        {
+          "name": "formatAge",
+          "line": 59,
+          "kind": "function"
+        },
+        {
+          "name": "formatDurationSeconds",
+          "line": 69,
+          "kind": "function"
+        },
+        {
+          "name": "trackTimingLabel",
+          "line": 78,
+          "kind": "function"
+        },
+        {
+          "name": "trackTimelineLabel",
+          "line": 89,
+          "kind": "function"
+        },
+        {
+          "name": "collectionStateLabel",
+          "line": 98,
+          "kind": "function"
+        },
+        {
+          "name": "progressUnitLabel",
+          "line": 106,
+          "kind": "function"
+        },
+        {
+          "name": "progressLabel",
+          "line": 113,
+          "kind": "function"
+        },
+        {
+          "name": "subtitleStepLabel",
+          "line": 128,
+          "kind": "function"
+        },
+        {
+          "name": "subtitleCueLabel",
+          "line": 138,
+          "kind": "function"
+        },
+        {
+          "name": "evidenceLabel",
+          "line": 144,
+          "kind": "function"
+        },
+        {
+          "name": "routeDisplay",
+          "line": 153,
+          "kind": "function"
+        },
+        {
+          "name": "routeUnavailableLabel",
+          "line": 169,
+          "kind": "function"
+        }
+      ],
+      "namespace_exports": [],
+      "flat_window_exports": [
+        "__runMonitorFormatters"
+      ],
+      "api_routes": [],
+      "dom_ids_touched": [],
+      "event_types": []
+    },
+    {
+      "load_index": 26,
+      "src": "/assets/runMonitor/normalization.js",
+      "path": "apps/desktop/webview/static/assets/runMonitor/normalization.js",
+      "top_level_declarations": [
+        {
+          "name": "state",
+          "line": 4,
+          "kind": "let"
+        },
+        {
+          "name": "text",
+          "line": 5,
+          "kind": "let"
+        },
+        {
+          "name": "humanize",
+          "line": 6,
+          "kind": "let"
+        },
+        {
+          "name": "stageLabel",
+          "line": 7,
+          "kind": "let"
+        },
+        {
+          "name": "routeDisplay",
+          "line": 8,
+          "kind": "let"
+        },
+        {
+          "name": "TERMINAL_ITEM_STATES",
+          "line": 9,
+          "kind": "let"
+        },
+        {
+          "name": "PROJECTION_SCHEMA",
+          "line": 10,
+          "kind": "let"
+        },
+        {
+          "name": "VERIFIED_DISPLAY_NAME_SOURCE",
+          "line": 11,
+          "kind": "const"
+        },
+        {
+          "name": "array",
+          "line": 13,
+          "kind": "function"
+        },
+        {
+          "name": "object",
+          "line": 17,
+          "kind": "function"
+        },
+        {
+          "name": "selectedItem",
+          "line": 21,
+          "kind": "function"
+        },
+        {
+          "name": "currentClaimsAllowed",
+          "line": 25,
+          "kind": "function"
+        },
+        {
+          "name": "itemEvidenceAllowed",
+          "line": 29,
+          "kind": "function"
+        },
+        {
+          "name": "workerJobIds",
+          "line": 37,
+          "kind": "function"
+        },
+        {
+          "name": "selectInitialJob",
+          "line": 41,
+          "kind": "function"
+        },
+        {
+          "name": "visibleLifecycleState",
+          "line": 55,
+          "kind": "function"
+        },
+        {
+          "name": "currentStageLabel",
+          "line": 61,
+          "kind": "function"
+        },
+        {
+          "name": "routeSummary",
+          "line": 76,
+          "kind": "function"
+        },
+        {
+          "name": "displayNameBasis",
+          "line": 88,
+          "kind": "function"
+        },
+        {
+          "name": "displayNameAuthorityLabel",
+          "line": 98,
+          "kind": "function"
+        },
+        {
+          "name": "duplicateDisplayNames",
+          "line": 109,
+          "kind": "function"
+        },
+        {
+          "name": "unavailableItem",
+          "line": 118,
+          "kind": "function"
+        },
+        {
+          "name": "unavailablePayload",
+          "line": 144,
+          "kind": "function"
+        },
+        {
+          "name": "launchAcceptancePayload",
+          "line": 198,
+          "kind": "function"
+        },
+        {
+          "name": "launchMonitorIdentity",
+          "line": 240,
+          "kind": "function"
+        }
+      ],
+      "namespace_exports": [],
+      "flat_window_exports": [
+        "__runMonitorNormalizationModule"
+      ],
+      "api_routes": [],
+      "dom_ids_touched": [],
+      "event_types": []
+    },
+    {
+      "load_index": 27,
+      "src": "/assets/runMonitor/rendering.js",
+      "path": "apps/desktop/webview/static/assets/runMonitor/rendering.js",
+      "top_level_declarations": [
+        {
+          "name": "byId",
+          "line": 4,
+          "kind": "let"
+        },
+        {
+          "name": "setText",
+          "line": 5,
+          "kind": "let"
+        },
+        {
+          "name": "text",
+          "line": 6,
+          "kind": "let"
+        },
+        {
+          "name": "array",
+          "line": 7,
+          "kind": "let"
+        },
+        {
+          "name": "object",
+          "line": 8,
+          "kind": "let"
+        },
+        {
+          "name": "humanize",
+          "line": 9,
+          "kind": "let"
+        },
+        {
+          "name": "stageLabel",
+          "line": 10,
+          "kind": "let"
+        },
+        {
+          "name": "formatTimestamp",
+          "line": 11,
+          "kind": "let"
+        },
+        {
+          "name": "progressLabel",
+          "line": 12,
+          "kind": "let"
+        },
+        {
+          "name": "evidenceLabel",
+          "line": 13,
+          "kind": "let"
+        },
+        {
+          "name": "routeDisplay",
+          "line": 14,
+          "kind": "let"
+        },
+        {
+          "name": "routeUnavailableLabel",
+          "line": 15,
+          "kind": "let"
+        },
+        {
+          "name": "itemEvidenceAllowed",
+          "line": 16,
+          "kind": "let"
+        },
+        {
+          "name": "collectionStateLabel",
+          "line": 17,
+          "kind": "let"
+        },
+        {
+          "name": "trackTimelineLabel",
+          "line": 18,
+          "kind": "let"
+        },
+        {
+          "name": "subtitleStepLabel",
+          "line": 19,
+          "kind": "let"
+        },
+        {
+          "name": "subtitleCueLabel",
+          "line": 20,
+          "kind": "let"
+        },
+        {
+          "name": "appendTechnicalDetails",
+          "line": 22,
+          "kind": "function"
+        },
+        {
+          "name": "formatBytes",
+          "line": 32,
+          "kind": "function"
+        },
+        {
+          "name": "renderOutcome",
+          "line": 49,
+          "kind": "function"
+        },
+        {
+          "name": "renderRouteSummary",
+          "line": 91,
+          "kind": "function"
+        },
+        {
+          "name": "appendRouteCard",
+          "line": 142,
+          "kind": "function"
+        },
+        {
+          "name": "renderRoutes",
+          "line": 162,
+          "kind": "function"
+        },
+        {
+          "name": "renderStages",
+          "line": 177,
+          "kind": "function"
+        },
+        {
+          "name": "collectionEmptyText",
+          "line": 273,
+          "kind": "function"
+        },
+        {
+          "name": "appendEmptyTrackRow",
+          "line": 281,
+          "kind": "function"
+        },
+        {
+          "name": "renderAudio",
+          "line": 291,
+          "kind": "function"
+        },
+        {
+          "name": "subtitleActions",
+          "line": 348,
+          "kind": "function"
+        },
+        {
+          "name": "renderSubtitles",
+          "line": 359,
+          "kind": "function"
+        },
+        {
+          "name": "appendFact",
+          "line": 416,
+          "kind": "function"
+        }
+      ],
+      "namespace_exports": [],
+      "flat_window_exports": [
+        "__runMonitorRenderingModule"
+      ],
+      "api_routes": [],
+      "dom_ids_touched": [
+        "run-monitor-audio-body",
+        "run-monitor-file-outcome",
+        "run-monitor-route-summary",
+        "run-monitor-routes",
+        "run-monitor-stage-list",
+        "run-monitor-stage-summary",
+        "run-monitor-subtitle-body"
+      ],
+      "event_types": []
+    },
+    {
+      "load_index": 28,
+      "src": "/assets/runMonitor/interaction.js",
+      "path": "apps/desktop/webview/static/assets/runMonitor/interaction.js",
+      "top_level_declarations": [
+        {
+          "name": "state",
+          "line": 4,
+          "kind": "let"
+        },
+        {
+          "name": "text",
+          "line": 5,
+          "kind": "let"
+        },
+        {
+          "name": "array",
+          "line": 6,
+          "kind": "let"
+        },
+        {
+          "name": "object",
+          "line": 7,
+          "kind": "let"
+        },
+        {
+          "name": "byId",
+          "line": 8,
+          "kind": "let"
+        },
+        {
+          "name": "renderItems",
+          "line": 9,
+          "kind": "let"
+        },
+        {
+          "name": "TERMINAL_LINK_PAGES",
+          "line": 10,
+          "kind": "const"
+        },
+        {
+          "name": "TERMINAL_PATH_FIELDS",
+          "line": 18,
+          "kind": "const"
+        },
+        {
+          "name": "cssEscape",
+          "line": 24,
+          "kind": "function"
+        },
+        {
+          "name": "captureDynamicMonitorFocus",
+          "line": 29,
+          "kind": "function"
+        },
+        {
+          "name": "restoreDynamicMonitorFocus",
+          "line": 59,
+          "kind": "function"
+        },
+        {
+          "name": "handleItemKeydown",
+          "line": 82,
+          "kind": "function"
+        },
+        {
+          "name": "selectJob",
+          "line": 97,
+          "kind": "function"
+        },
+        {
+          "name": "terminalLinkPage",
+          "line": 115,
+          "kind": "function"
+        },
+        {
+          "name": "terminalFocusKey",
+          "line": 127,
+          "kind": "function"
+        },
+        {
+          "name": "focusSelectorForPage",
+          "line": 131,
+          "kind": "function"
+        },
+        {
+          "name": "normalizedTerminalKey",
+          "line": 135,
+          "kind": "function"
+        },
+        {
+          "name": "normalizedTerminalPath",
+          "line": 139,
+          "kind": "function"
+        },
+        {
+          "name": "terminalDestinationAdapter",
+          "line": 143,
+          "kind": "function"
+        },
+        {
+          "name": "terminalRowPathValues",
+          "line": 177,
+          "kind": "function"
+        },
+        {
+          "name": "terminalReferenceMatch",
+          "line": 186,
+          "kind": "function"
+        },
+        {
+          "name": "focusTerminalHeading",
+          "line": 195,
+          "kind": "function"
+        },
+        {
+          "name": "terminalPageIsVisible",
+          "line": 203,
+          "kind": "function"
+        },
+        {
+          "name": "clearTerminalHandoff",
+          "line": 207,
+          "kind": "function"
+        },
+        {
+          "name": "focusTerminalDestination",
+          "line": 219,
+          "kind": "function"
+        },
+        {
+          "name": "applyTerminalHandoff",
+          "line": 247,
+          "kind": "function"
+        },
+        {
+          "name": "scheduleTerminalHandoffApply",
+          "line": 262,
+          "kind": "function"
+        },
+        {
+          "name": "beginTerminalHandoff",
+          "line": 270,
+          "kind": "function"
+        },
+        {
+          "name": "reapplyTerminalHandoff",
+          "line": 293,
+          "kind": "function"
+        },
+        {
+          "name": "navigateToTerminalReference",
+          "line": 305,
+          "kind": "function"
+        },
+        {
+          "name": "focusSelectedFile",
+          "line": 320,
+          "kind": "function"
+        }
+      ],
+      "namespace_exports": [],
+      "flat_window_exports": [
+        "__runMonitorInteractionModule"
+      ],
+      "api_routes": [],
+      "dom_ids_touched": [
+        "run-monitor-detail",
+        "run-monitor-items"
+      ],
+      "event_types": []
+    },
+    {
+      "load_index": 29,
+      "src": "/assets/runMonitorView.js",
+      "path": "apps/desktop/webview/static/assets/runMonitorView.js",
+      "top_level_declarations": [
+        {
+          "name": "PROJECTION_SCHEMA",
+          "line": 4,
+          "kind": "const"
+        },
+        {
+          "name": "LAUNCH_SCHEMA",
+          "line": 5,
+          "kind": "const"
+        },
+        {
+          "name": "COMPACT_ITEM_LIMIT",
+          "line": 6,
+          "kind": "const"
+        },
+        {
+          "name": "LAUNCH_ACCEPTANCE_STATES",
+          "line": 8,
+          "kind": "const"
+        },
+        {
+          "name": "ACTIVE_RUN_STATES",
+          "line": 9,
+          "kind": "const"
+        },
+        {
+          "name": "TERMINAL_ITEM_STATES",
+          "line": 10,
+          "kind": "const"
+        },
+        {
+          "name": "ATTENTION_ITEM_STATES",
+          "line": 11,
+          "kind": "const"
+        },
+        {
+          "name": "state",
+          "line": 14,
+          "kind": "const"
+        },
+        {
+          "name": "byId",
+          "line": 44,
+          "kind": "function"
+        },
+        {
+          "name": "setText",
+          "line": 54,
+          "kind": "function"
+        },
+        {
+          "name": "runMonitorFormatters",
+          "line": 59,
+          "kind": "const"
+        },
+        {
+          "name": "createRunMonitorNormalization",
+          "line": 60,
+          "kind": "const"
+        },
+        {
+          "name": "createRunMonitorRendering",
+          "line": 61,
+          "kind": "const"
+        },
+        {
+          "name": "createRunMonitorInteraction",
+          "line": 62,
+          "kind": "const"
+        },
+        {
+          "name": "runMonitorNormalization",
+          "line": 75,
+          "kind": "const"
+        },
+        {
+          "name": "runMonitorRendering",
+          "line": 84,
+          "kind": "const"
+        },
+        {
+          "name": "runMonitorInteraction",
+          "line": 93,
+          "kind": "const"
+        },
+        {
+          "name": "enforceSingleHomeLiveRegion",
+          "line": 101,
+          "kind": "function"
+        },
+        {
+          "name": "observeHomeLiveRegions",
+          "line": 112,
+          "kind": "function"
+        },
+        {
+          "name": "setFreshness",
+          "line": 172,
+          "kind": "function"
+        },
+        {
+          "name": "renderSummary",
+          "line": 192,
+          "kind": "function"
+        },
+        {
+          "name": "renderStopAfterCurrentControl",
+          "line": 245,
+          "kind": "function"
+        },
+        {
+          "name": "setStopCommandBusy",
+          "line": 267,
+          "kind": "function"
+        },
+        {
+          "name": "workerRenderSignature",
+          "line": 272,
+          "kind": "function"
+        },
+        {
+          "name": "renderWorkers",
+          "line": 295,
+          "kind": "function"
+        },
+        {
+          "name": "updateWorkloadDisclosure",
+          "line": 352,
+          "kind": "function"
+        },
+        {
+          "name": "updateWorkloadNameHelp",
+          "line": 375,
+          "kind": "function"
+        },
+        {
+          "name": "renderCompactItems",
+          "line": 392,
+          "kind": "function"
+        },
+        {
+          "name": "workloadRenderSignature",
+          "line": 418,
+          "kind": "function"
+        },
+        {
+          "name": "renderItems",
+          "line": 446,
+          "kind": "function"
+        },
+        {
+          "name": "renderOutput",
+          "line": 620,
+          "kind": "function"
+        },
+        {
+          "name": "renderDetail",
+          "line": 766,
+          "kind": "function"
+        },
+        {
+          "name": "renderLastKnown",
+          "line": 804,
+          "kind": "function"
+        },
+        {
+          "name": "meaningfulAnnouncement",
+          "line": 869,
+          "kind": "function"
+        },
+        {
+          "name": "announce",
+          "line": 915,
+          "kind": "function"
+        },
+        {
+          "name": "render",
+          "line": 930,
+          "kind": "function"
+        },
+        {
+          "name": "refresh",
+          "line": 968,
+          "kind": "function"
+        },
+        {
+          "name": "backendQueueCorrelationContext",
+          "line": 1024,
+          "kind": "function"
+        },
+        {
+          "name": "clearBackendQueueContext",
+          "line": 1033,
+          "kind": "function"
+        },
+        {
+          "name": "acceptLaunchResult",
+          "line": 1039,
+          "kind": "function"
+        },
+        {
+          "name": "init",
+          "line": 1067,
+          "kind": "function"
+        }
+      ],
+      "namespace_exports": [
+        "mediaPipelineRunMonitor"
+      ],
+      "flat_window_exports": [],
+      "api_routes": [],
+      "dom_ids_touched": [
+        "current-work-heading",
+        "run-monitor-announcer",
+        "run-monitor-freshness",
+        "run-monitor-items",
+        "run-monitor-items-toggle",
+        "run-monitor-last-known",
+        "run-monitor-last-known-body",
+        "run-monitor-output",
+        "run-monitor-output-evidence",
+        "run-monitor-recovery",
+        "run-monitor-refresh",
+        "run-monitor-sidecars",
+        "run-monitor-stop-after-current",
+        "run-monitor-summary",
+        "run-monitor-terminal-links",
+        "run-monitor-workers"
+      ],
+      "event_types": [
+        "DOMContentLoaded",
+        "click",
+        "keydown",
+        "mediapipeline:focus-current-work"
+      ]
+    },
+    {
+      "load_index": 30,
       "src": "/assets/commandHistory/formatters.js",
       "path": "apps/desktop/webview/static/assets/commandHistory/formatters.js",
       "top_level_declarations": [
@@ -4221,7 +5078,7 @@
       "event_types": []
     },
     {
-      "load_index": 26,
+      "load_index": 31,
       "src": "/assets/commandHistory/diagnostics.js",
       "path": "apps/desktop/webview/static/assets/commandHistory/diagnostics.js",
       "top_level_declarations": [
@@ -4290,7 +5147,7 @@
       "event_types": []
     },
     {
-      "load_index": 27,
+      "load_index": 32,
       "src": "/assets/commandHistory/diagnosticEvidence.js",
       "path": "apps/desktop/webview/static/assets/commandHistory/diagnosticEvidence.js",
       "top_level_declarations": [
@@ -4309,7 +5166,7 @@
       "event_types": []
     },
     {
-      "load_index": 28,
+      "load_index": 33,
       "src": "/assets/commandHistory/resolutionChecklist.js",
       "path": "apps/desktop/webview/static/assets/commandHistory/resolutionChecklist.js",
       "top_level_declarations": [
@@ -4333,7 +5190,7 @@
       ]
     },
     {
-      "load_index": 29,
+      "load_index": 34,
       "src": "/assets/commandHistory.js",
       "path": "apps/desktop/webview/static/assets/commandHistory.js",
       "top_level_declarations": [
@@ -4755,7 +5612,7 @@
       ]
     },
     {
-      "load_index": 30,
+      "load_index": 35,
       "src": "/assets/diagnosticsBridge.js",
       "path": "apps/desktop/webview/static/assets/diagnosticsBridge.js",
       "top_level_declarations": [
@@ -4841,7 +5698,7 @@
       ]
     },
     {
-      "load_index": 31,
+      "load_index": 36,
       "src": "/assets/completed/evidence/commands.js",
       "path": "apps/desktop/webview/static/assets/completed/evidence/commands.js",
       "top_level_declarations": [
@@ -4860,7 +5717,7 @@
       "event_types": []
     },
     {
-      "load_index": 32,
+      "load_index": 37,
       "src": "/assets/completed/evidence/filterScope.js",
       "path": "apps/desktop/webview/static/assets/completed/evidence/filterScope.js",
       "top_level_declarations": [
@@ -4884,7 +5741,7 @@
       "event_types": []
     },
     {
-      "load_index": 33,
+      "load_index": 38,
       "src": "/assets/completed/evidence/acceptance.js",
       "path": "apps/desktop/webview/static/assets/completed/evidence/acceptance.js",
       "top_level_declarations": [
@@ -4903,7 +5760,7 @@
       "event_types": []
     },
     {
-      "load_index": 34,
+      "load_index": 39,
       "src": "/assets/completed/evidence/routeAgreement.js",
       "path": "apps/desktop/webview/static/assets/completed/evidence/routeAgreement.js",
       "top_level_declarations": [
@@ -4922,7 +5779,7 @@
       "event_types": []
     },
     {
-      "load_index": 35,
+      "load_index": 40,
       "src": "/assets/completed/evidence/pendingProofModel.js",
       "path": "apps/desktop/webview/static/assets/completed/evidence/pendingProofModel.js",
       "top_level_declarations": [
@@ -4941,7 +5798,7 @@
       "event_types": []
     },
     {
-      "load_index": 36,
+      "load_index": 41,
       "src": "/assets/completed/evidence/pendingProofView.js",
       "path": "apps/desktop/webview/static/assets/completed/evidence/pendingProofView.js",
       "top_level_declarations": [
@@ -4962,7 +5819,7 @@
       "event_types": []
     },
     {
-      "load_index": 37,
+      "load_index": 42,
       "src": "/assets/completedView.evidence.js",
       "path": "apps/desktop/webview/static/assets/completedView.evidence.js",
       "top_level_declarations": [
@@ -4999,7 +5856,7 @@
       "event_types": []
     },
     {
-      "load_index": 38,
+      "load_index": 43,
       "src": "/assets/completed/proof/pilotEvidence.js",
       "path": "apps/desktop/webview/static/assets/completed/proof/pilotEvidence.js",
       "top_level_declarations": [
@@ -5020,7 +5877,7 @@
       "event_types": []
     },
     {
-      "load_index": 39,
+      "load_index": 44,
       "src": "/assets/completedView.proof.js",
       "path": "apps/desktop/webview/static/assets/completedView.proof.js",
       "top_level_declarations": [
@@ -5047,7 +5904,7 @@
       "event_types": []
     },
     {
-      "load_index": 40,
+      "load_index": 45,
       "src": "/assets/completed/review/integrity.js",
       "path": "apps/desktop/webview/static/assets/completed/review/integrity.js",
       "top_level_declarations": [
@@ -5071,7 +5928,7 @@
       "event_types": []
     },
     {
-      "load_index": 41,
+      "load_index": 46,
       "src": "/assets/completed/review/workflowOverview.js",
       "path": "apps/desktop/webview/static/assets/completed/review/workflowOverview.js",
       "top_level_declarations": [
@@ -5090,7 +5947,7 @@
       "event_types": []
     },
     {
-      "load_index": 42,
+      "load_index": 47,
       "src": "/assets/completed/review/sizeReview.js",
       "path": "apps/desktop/webview/static/assets/completed/review/sizeReview.js",
       "top_level_declarations": [
@@ -5114,7 +5971,7 @@
       "event_types": []
     },
     {
-      "load_index": 43,
+      "load_index": 48,
       "src": "/assets/completed/review/healthSignals.js",
       "path": "apps/desktop/webview/static/assets/completed/review/healthSignals.js",
       "top_level_declarations": [
@@ -5133,7 +5990,7 @@
       "event_types": []
     },
     {
-      "load_index": 44,
+      "load_index": 49,
       "src": "/assets/completed/review/reviewRows.js",
       "path": "apps/desktop/webview/static/assets/completed/review/reviewRows.js",
       "top_level_declarations": [
@@ -5157,7 +6014,7 @@
       "event_types": []
     },
     {
-      "load_index": 45,
+      "load_index": 50,
       "src": "/assets/completed/review/investigationFilters.js",
       "path": "apps/desktop/webview/static/assets/completed/review/investigationFilters.js",
       "top_level_declarations": [
@@ -5181,7 +6038,7 @@
       "event_types": []
     },
     {
-      "load_index": 46,
+      "load_index": 51,
       "src": "/assets/completed/review/tablePanels.js",
       "path": "apps/desktop/webview/static/assets/completed/review/tablePanels.js",
       "top_level_declarations": [
@@ -5203,7 +6060,7 @@
       "event_types": []
     },
     {
-      "load_index": 47,
+      "load_index": 52,
       "src": "/assets/completed/review/metricsValidation.js",
       "path": "apps/desktop/webview/static/assets/completed/review/metricsValidation.js",
       "top_level_declarations": [
@@ -5224,7 +6081,7 @@
       "event_types": []
     },
     {
-      "load_index": 48,
+      "load_index": 53,
       "src": "/assets/completed/review/selectedAtAGlance.js",
       "path": "apps/desktop/webview/static/assets/completed/review/selectedAtAGlance.js",
       "top_level_declarations": [
@@ -5248,7 +6105,7 @@
       ]
     },
     {
-      "load_index": 49,
+      "load_index": 54,
       "src": "/assets/completed/review/selectedEvidence.js",
       "path": "apps/desktop/webview/static/assets/completed/review/selectedEvidence.js",
       "top_level_declarations": [
@@ -5267,7 +6124,7 @@
       "event_types": []
     },
     {
-      "load_index": 50,
+      "load_index": 55,
       "src": "/assets/completedView.review.js",
       "path": "apps/desktop/webview/static/assets/completedView.review.js",
       "top_level_declarations": [
@@ -5286,7 +6143,7 @@
       "event_types": []
     },
     {
-      "load_index": 51,
+      "load_index": 56,
       "src": "/assets/completedView.diagnostics.js",
       "path": "apps/desktop/webview/static/assets/completedView.diagnostics.js",
       "top_level_declarations": [
@@ -5309,7 +6166,7 @@
       ]
     },
     {
-      "load_index": 52,
+      "load_index": 57,
       "src": "/assets/completed/statusBoards.js",
       "path": "apps/desktop/webview/static/assets/completed/statusBoards.js",
       "top_level_declarations": [
@@ -5338,7 +6195,7 @@
       "event_types": []
     },
     {
-      "load_index": 53,
+      "load_index": 58,
       "src": "/assets/completed/promotionCommands.js",
       "path": "apps/desktop/webview/static/assets/completed/promotionCommands.js",
       "top_level_declarations": [
@@ -5378,7 +6235,7 @@
       ]
     },
     {
-      "load_index": 54,
+      "load_index": 59,
       "src": "/assets/completed/openActions.js",
       "path": "apps/desktop/webview/static/assets/completed/openActions.js",
       "top_level_declarations": [
@@ -5409,7 +6266,7 @@
       "event_types": []
     },
     {
-      "load_index": 55,
+      "load_index": 60,
       "src": "/assets/completed/selection.js",
       "path": "apps/desktop/webview/static/assets/completed/selection.js",
       "top_level_declarations": [
@@ -5443,7 +6300,7 @@
       "event_types": []
     },
     {
-      "load_index": 56,
+      "load_index": 61,
       "src": "/assets/completedView.repair.js",
       "path": "apps/desktop/webview/static/assets/completedView.repair.js",
       "top_level_declarations": [
@@ -5469,7 +6326,7 @@
       ]
     },
     {
-      "load_index": 57,
+      "load_index": 62,
       "src": "/assets/completed/filters.js",
       "path": "apps/desktop/webview/static/assets/completed/filters.js",
       "top_level_declarations": [
@@ -5501,7 +6358,7 @@
       "event_types": []
     },
     {
-      "load_index": 58,
+      "load_index": 63,
       "src": "/assets/completed/table.js",
       "path": "apps/desktop/webview/static/assets/completed/table.js",
       "top_level_declarations": [
@@ -5799,7 +6656,7 @@
       "event_types": []
     },
     {
-      "load_index": 59,
+      "load_index": 64,
       "src": "/assets/completed/sizeMode.js",
       "path": "apps/desktop/webview/static/assets/completed/sizeMode.js",
       "top_level_declarations": [
@@ -5818,7 +6675,7 @@
       "event_types": []
     },
     {
-      "load_index": 60,
+      "load_index": 65,
       "src": "/assets/completed/presentation.js",
       "path": "apps/desktop/webview/static/assets/completed/presentation.js",
       "top_level_declarations": [
@@ -5849,7 +6706,7 @@
       "event_types": []
     },
     {
-      "load_index": 61,
+      "load_index": 66,
       "src": "/assets/completedView.js",
       "path": "apps/desktop/webview/static/assets/completedView.js",
       "top_level_declarations": [
@@ -6733,7 +7590,7 @@
       "event_types": []
     },
     {
-      "load_index": 62,
+      "load_index": 67,
       "src": "/assets/queueView.summary.js",
       "path": "apps/desktop/webview/static/assets/queueView.summary.js",
       "top_level_declarations": [
@@ -6752,7 +7609,7 @@
       "event_types": []
     },
     {
-      "load_index": 63,
+      "load_index": 68,
       "src": "/assets/queueView.review.js",
       "path": "apps/desktop/webview/static/assets/queueView.review.js",
       "top_level_declarations": [
@@ -6777,7 +7634,7 @@
       "event_types": []
     },
     {
-      "load_index": 64,
+      "load_index": 69,
       "src": "/assets/queueView.detail.js",
       "path": "apps/desktop/webview/static/assets/queueView.detail.js",
       "top_level_declarations": [
@@ -6800,7 +7657,7 @@
       ]
     },
     {
-      "load_index": 65,
+      "load_index": 70,
       "src": "/assets/queueView.launch.js",
       "path": "apps/desktop/webview/static/assets/queueView.launch.js",
       "top_level_declarations": [
@@ -6827,7 +7684,7 @@
       "event_types": []
     },
     {
-      "load_index": 66,
+      "load_index": 71,
       "src": "/assets/queue/rerunApi.js",
       "path": "apps/desktop/webview/static/assets/queue/rerunApi.js",
       "top_level_declarations": [
@@ -6926,7 +7783,7 @@
       "event_types": []
     },
     {
-      "load_index": 67,
+      "load_index": 72,
       "src": "/assets/queueView.rerun.js",
       "path": "apps/desktop/webview/static/assets/queueView.rerun.js",
       "top_level_declarations": [
@@ -6957,7 +7814,7 @@
       ]
     },
     {
-      "load_index": 68,
+      "load_index": 73,
       "src": "/assets/queue/selection.js",
       "path": "apps/desktop/webview/static/assets/queue/selection.js",
       "top_level_declarations": [
@@ -6976,7 +7833,7 @@
       "event_types": []
     },
     {
-      "load_index": 69,
+      "load_index": 74,
       "src": "/assets/queue/openActions.js",
       "path": "apps/desktop/webview/static/assets/queue/openActions.js",
       "top_level_declarations": [
@@ -6997,7 +7854,7 @@
       "event_types": []
     },
     {
-      "load_index": 70,
+      "load_index": 75,
       "src": "/assets/queue/table.js",
       "path": "apps/desktop/webview/static/assets/queue/table.js",
       "top_level_declarations": [
@@ -7138,42 +7995,42 @@
         },
         {
           "name": "appendQueueFileSettingsButton",
-          "line": 281,
+          "line": 283,
           "kind": "function"
         },
         {
           "name": "appendQueueRowCells",
-          "line": 285,
+          "line": 287,
           "kind": "function"
         },
         {
           "name": "decorateQueueRowCells",
-          "line": 302,
+          "line": 304,
           "kind": "function"
         },
         {
           "name": "renderQueueTableRow",
-          "line": 314,
+          "line": 316,
           "kind": "function"
         },
         {
           "name": "renderQueueTableRows",
-          "line": 343,
-          "kind": "function"
-        },
-        {
-          "name": "createQueueTableModule",
           "line": 349,
           "kind": "function"
         },
         {
+          "name": "createQueueTableModule",
+          "line": 355,
+          "kind": "function"
+        },
+        {
           "name": "appendCells",
-          "line": 397,
+          "line": 403,
           "kind": "let"
         },
         {
           "name": "openFileSettingsDrawer",
-          "line": 398,
+          "line": 404,
           "kind": "let"
         }
       ],
@@ -7188,7 +8045,7 @@
       ]
     },
     {
-      "load_index": 71,
+      "load_index": 76,
       "src": "/assets/queue/tabs.js",
       "path": "apps/desktop/webview/static/assets/queue/tabs.js",
       "top_level_declarations": [
@@ -7210,7 +8067,7 @@
       ]
     },
     {
-      "load_index": 72,
+      "load_index": 77,
       "src": "/assets/queue/sourceModel.js",
       "path": "apps/desktop/webview/static/assets/queue/sourceModel.js",
       "top_level_declarations": [
@@ -7229,7 +8086,7 @@
       "event_types": []
     },
     {
-      "load_index": 73,
+      "load_index": 78,
       "src": "/assets/queue/sourceRender.js",
       "path": "apps/desktop/webview/static/assets/queue/sourceRender.js",
       "top_level_declarations": [
@@ -7250,7 +8107,7 @@
       "event_types": []
     },
     {
-      "load_index": 74,
+      "load_index": 79,
       "src": "/assets/queue/decisionSummary.js",
       "path": "apps/desktop/webview/static/assets/queue/decisionSummary.js",
       "top_level_declarations": [
@@ -7272,7 +8129,7 @@
       "event_types": []
     },
     {
-      "load_index": 75,
+      "load_index": 80,
       "src": "/assets/queue/statusPanels.js",
       "path": "apps/desktop/webview/static/assets/queue/statusPanels.js",
       "top_level_declarations": [
@@ -7291,7 +8148,7 @@
       "event_types": []
     },
     {
-      "load_index": 76,
+      "load_index": 81,
       "src": "/assets/queue/tableView.js",
       "path": "apps/desktop/webview/static/assets/queue/tableView.js",
       "top_level_declarations": [
@@ -7321,7 +8178,7 @@
       "event_types": []
     },
     {
-      "load_index": 77,
+      "load_index": 82,
       "src": "/assets/queue/priority.js",
       "path": "apps/desktop/webview/static/assets/queue/priority.js",
       "top_level_declarations": [
@@ -7336,13 +8193,14 @@
         "__queuePriorityModule"
       ],
       "api_routes": [
-        "/api/queue/priority"
+        "/api/queue/priority",
+        "/api/queue/priority-export"
       ],
       "dom_ids_touched": [],
       "event_types": []
     },
     {
-      "load_index": 78,
+      "load_index": 83,
       "src": "/assets/queue/manualOrder.js",
       "path": "apps/desktop/webview/static/assets/queue/manualOrder.js",
       "top_level_declarations": [
@@ -7375,7 +8233,7 @@
       ]
     },
     {
-      "load_index": 79,
+      "load_index": 84,
       "src": "/assets/queue/strategy.js",
       "path": "apps/desktop/webview/static/assets/queue/strategy.js",
       "top_level_declarations": [
@@ -7405,7 +8263,7 @@
       ]
     },
     {
-      "load_index": 80,
+      "load_index": 85,
       "src": "/assets/queue/controls.js",
       "path": "apps/desktop/webview/static/assets/queue/controls.js",
       "top_level_declarations": [
@@ -7442,7 +8300,7 @@
       ]
     },
     {
-      "load_index": 81,
+      "load_index": 86,
       "src": "/assets/queue/excluded.js",
       "path": "apps/desktop/webview/static/assets/queue/excluded.js",
       "top_level_declarations": [
@@ -7463,7 +8321,7 @@
       "event_types": []
     },
     {
-      "load_index": 82,
+      "load_index": 87,
       "src": "/assets/queue/scan.js",
       "path": "apps/desktop/webview/static/assets/queue/scan.js",
       "top_level_declarations": [
@@ -7484,7 +8342,7 @@
       "event_types": []
     },
     {
-      "load_index": 83,
+      "load_index": 88,
       "src": "/assets/queueView.js",
       "path": "apps/desktop/webview/static/assets/queueView.js",
       "top_level_declarations": [
@@ -7670,187 +8528,187 @@
         },
         {
           "name": "__queueReviewMod",
-          "line": 121,
+          "line": 122,
           "kind": "const"
         },
         {
           "name": "_queueReview",
-          "line": 123,
+          "line": 124,
           "kind": "const"
         },
         {
           "name": "__queueOpenActionsMod",
-          "line": 165,
-          "kind": "const"
-        },
-        {
-          "name": "_queueOpenActions",
           "line": 167,
           "kind": "const"
         },
         {
-          "name": "__queueTableMod",
-          "line": 187,
+          "name": "_queueOpenActions",
+          "line": 169,
           "kind": "const"
         },
         {
-          "name": "_queueTable",
+          "name": "__queueTableMod",
           "line": 189,
           "kind": "const"
         },
         {
-          "name": "__queueDetailMod",
-          "line": 211,
+          "name": "_queueTable",
+          "line": 191,
           "kind": "const"
         },
         {
-          "name": "_queueDetail",
+          "name": "__queueDetailMod",
           "line": 213,
           "kind": "const"
         },
         {
-          "name": "__queueLaunchMod",
-          "line": 251,
+          "name": "_queueDetail",
+          "line": 215,
           "kind": "const"
         },
         {
-          "name": "_queueLaunch",
+          "name": "__queueLaunchMod",
           "line": 253,
           "kind": "const"
         },
         {
-          "name": "__queueRerunMod",
-          "line": 318,
+          "name": "_queueLaunch",
+          "line": 255,
           "kind": "const"
         },
         {
-          "name": "_queueRerun",
+          "name": "__queueRerunMod",
           "line": 320,
           "kind": "const"
         },
         {
-          "name": "__queueTabsMod",
-          "line": 360,
+          "name": "_queueRerun",
+          "line": 322,
           "kind": "const"
         },
         {
-          "name": "_queueTabs",
+          "name": "__queueTabsMod",
           "line": 362,
           "kind": "const"
         },
         {
-          "name": "__queueDecisionMod",
-          "line": 367,
+          "name": "_queueTabs",
+          "line": 364,
           "kind": "const"
         },
         {
-          "name": "_queueDecision",
+          "name": "__queueDecisionMod",
           "line": 369,
           "kind": "const"
         },
         {
+          "name": "_queueDecision",
+          "line": 371,
+          "kind": "const"
+        },
+        {
           "name": "queueSourceTileTitle",
-          "line": 381,
+          "line": 383,
           "kind": "function"
         },
         {
           "name": "queueTableWrap",
-          "line": 390,
+          "line": 392,
           "kind": "function"
         },
         {
           "name": "queueTableElement",
-          "line": 395,
+          "line": 397,
           "kind": "function"
         },
         {
           "name": "setQueueLoadingScreenVisible",
-          "line": 400,
+          "line": 402,
           "kind": "function"
         },
         {
           "name": "renderQueueLoadingTable",
-          "line": 416,
+          "line": 418,
           "kind": "function"
         },
         {
           "name": "renderQueueScanLoadingState",
-          "line": 429,
+          "line": 431,
           "kind": "function"
         },
         {
           "name": "scheduleQueueScanPoll",
-          "line": 435,
+          "line": 437,
           "kind": "function"
         },
         {
           "name": "renderQueue",
-          "line": 450,
+          "line": 452,
           "kind": "function"
         },
         {
           "name": "__queueStatusPanelsMod",
-          "line": 495,
-          "kind": "const"
-        },
-        {
-          "name": "_queueStatusPanels",
           "line": 497,
           "kind": "const"
         },
         {
+          "name": "_queueStatusPanels",
+          "line": 499,
+          "kind": "const"
+        },
+        {
           "name": "requestQueueDiagnosticsAction",
-          "line": 533,
+          "line": 535,
           "kind": "function"
         },
         {
           "name": "__queueTableViewMod",
-          "line": 553,
-          "kind": "const"
-        },
-        {
-          "name": "_queueTableView",
           "line": 555,
           "kind": "const"
         },
         {
-          "name": "__queueSourceModelMod",
-          "line": 614,
+          "name": "_queueTableView",
+          "line": 557,
           "kind": "const"
         },
         {
-          "name": "_queueSourceModel",
+          "name": "__queueSourceModelMod",
           "line": 616,
           "kind": "const"
         },
         {
+          "name": "_queueSourceModel",
+          "line": 618,
+          "kind": "const"
+        },
+        {
           "name": "__queueSourceRenderMod",
-          "line": 636,
+          "line": 639,
           "kind": "const"
         },
         {
           "name": "_queueSourceRender",
-          "line": 638,
+          "line": 641,
           "kind": "const"
         },
         {
           "name": "__queueScanMod",
-          "line": 654,
+          "line": 657,
           "kind": "const"
         },
         {
           "name": "_queueScan",
-          "line": 656,
+          "line": 659,
           "kind": "const"
         },
         {
           "name": "__queueControlsMod",
-          "line": 894,
+          "line": 897,
           "kind": "const"
         },
         {
           "name": "_queueControls",
-          "line": 896,
+          "line": 899,
           "kind": "const"
         }
       ],
@@ -7946,7 +8804,7 @@
       "event_types": []
     },
     {
-      "load_index": 84,
+      "load_index": 89,
       "src": "/assets/queue/fileOverrides.routePreview.js",
       "path": "apps/desktop/webview/static/assets/queue/fileOverrides.routePreview.js",
       "top_level_declarations": [
@@ -7967,7 +8825,7 @@
       "event_types": []
     },
     {
-      "load_index": 85,
+      "load_index": 90,
       "src": "/assets/queue/fileOverrides.drawer.state.js",
       "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.state.js",
       "top_level_declarations": [
@@ -7988,7 +8846,7 @@
       "event_types": []
     },
     {
-      "load_index": 86,
+      "load_index": 91,
       "src": "/assets/queue/fileOverrides.drawer.form.js",
       "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.form.js",
       "top_level_declarations": [
@@ -8034,7 +8892,7 @@
       "event_types": []
     },
     {
-      "load_index": 87,
+      "load_index": 92,
       "src": "/assets/queue/fileOverrides.drawer.series.js",
       "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js",
       "top_level_declarations": [
@@ -8074,7 +8932,7 @@
       "event_types": []
     },
     {
-      "load_index": 88,
+      "load_index": 93,
       "src": "/assets/queue/fileOverrides.drawer.tracks.js",
       "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.tracks.js",
       "top_level_declarations": [
@@ -8098,7 +8956,7 @@
       "event_types": []
     },
     {
-      "load_index": 89,
+      "load_index": 94,
       "src": "/assets/queue/fileOverrides.drawer.api.js",
       "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.api.js",
       "top_level_declarations": [
@@ -8119,7 +8977,7 @@
       "event_types": []
     },
     {
-      "load_index": 90,
+      "load_index": 95,
       "src": "/assets/queue/fileOverrides.drawer.focus.js",
       "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.focus.js",
       "top_level_declarations": [
@@ -8144,7 +9002,7 @@
       "event_types": []
     },
     {
-      "load_index": 91,
+      "load_index": 96,
       "src": "/assets/queue/fileOverrides.drawer.js",
       "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js",
       "top_level_declarations": [
@@ -8239,7 +9097,7 @@
       ]
     },
     {
-      "load_index": 92,
+      "load_index": 97,
       "src": "/assets/pendingPublishView.recovery.js",
       "path": "apps/desktop/webview/static/assets/pendingPublishView.recovery.js",
       "top_level_declarations": [
@@ -8262,7 +9120,7 @@
       "event_types": []
     },
     {
-      "load_index": 93,
+      "load_index": 98,
       "src": "/assets/pendingPublishView.diagnostics.js",
       "path": "apps/desktop/webview/static/assets/pendingPublishView.diagnostics.js",
       "top_level_declarations": [
@@ -8287,7 +9145,7 @@
       ]
     },
     {
-      "load_index": 94,
+      "load_index": 99,
       "src": "/assets/pendingPublishView.drain.js",
       "path": "apps/desktop/webview/static/assets/pendingPublishView.drain.js",
       "top_level_declarations": [
@@ -8313,7 +9171,7 @@
       "event_types": []
     },
     {
-      "load_index": 95,
+      "load_index": 100,
       "src": "/assets/pendingPublish/confidence/postDrainTrust.js",
       "path": "apps/desktop/webview/static/assets/pendingPublish/confidence/postDrainTrust.js",
       "top_level_declarations": [
@@ -8335,7 +9193,7 @@
       "event_types": []
     },
     {
-      "load_index": 96,
+      "load_index": 101,
       "src": "/assets/pendingPublishView.confidence.js",
       "path": "apps/desktop/webview/static/assets/pendingPublishView.confidence.js",
       "top_level_declarations": [
@@ -8366,7 +9224,7 @@
       "event_types": []
     },
     {
-      "load_index": 97,
+      "load_index": 102,
       "src": "/assets/pendingPublishView.repair.js",
       "path": "apps/desktop/webview/static/assets/pendingPublishView.repair.js",
       "top_level_declarations": [
@@ -8397,7 +9255,7 @@
       ]
     },
     {
-      "load_index": 98,
+      "load_index": 103,
       "src": "/assets/pendingPublish/tableSupport.js",
       "path": "apps/desktop/webview/static/assets/pendingPublish/tableSupport.js",
       "top_level_declarations": [
@@ -8416,7 +9274,7 @@
       "event_types": []
     },
     {
-      "load_index": 99,
+      "load_index": 104,
       "src": "/assets/pendingPublish/defaultAdapters.js",
       "path": "apps/desktop/webview/static/assets/pendingPublish/defaultAdapters.js",
       "top_level_declarations": [
@@ -8435,7 +9293,7 @@
       "event_types": []
     },
     {
-      "load_index": 100,
+      "load_index": 105,
       "src": "/assets/pendingPublish/summary.js",
       "path": "apps/desktop/webview/static/assets/pendingPublish/summary.js",
       "top_level_declarations": [
@@ -8456,7 +9314,7 @@
       "event_types": []
     },
     {
-      "load_index": 101,
+      "load_index": 106,
       "src": "/assets/pendingPublish/filters.js",
       "path": "apps/desktop/webview/static/assets/pendingPublish/filters.js",
       "top_level_declarations": [
@@ -8479,7 +9337,7 @@
       "event_types": []
     },
     {
-      "load_index": 102,
+      "load_index": 107,
       "src": "/assets/pendingPublish/details.js",
       "path": "apps/desktop/webview/static/assets/pendingPublish/details.js",
       "top_level_declarations": [
@@ -8500,7 +9358,7 @@
       "event_types": []
     },
     {
-      "load_index": 103,
+      "load_index": 108,
       "src": "/assets/pendingPublish/actionCenter.js",
       "path": "apps/desktop/webview/static/assets/pendingPublish/actionCenter.js",
       "top_level_declarations": [
@@ -8536,7 +9394,7 @@
       ]
     },
     {
-      "load_index": 104,
+      "load_index": 109,
       "src": "/assets/pendingPublish/rendering.js",
       "path": "apps/desktop/webview/static/assets/pendingPublish/rendering.js",
       "top_level_declarations": [
@@ -8557,7 +9415,7 @@
       "event_types": []
     },
     {
-      "load_index": 105,
+      "load_index": 110,
       "src": "/assets/pendingPublishView.js",
       "path": "apps/desktop/webview/static/assets/pendingPublishView.js",
       "top_level_declarations": [
@@ -9129,7 +9987,7 @@
       "event_types": []
     },
     {
-      "load_index": 106,
+      "load_index": 111,
       "src": "/assets/crossPageContextView.conflict.js",
       "path": "apps/desktop/webview/static/assets/crossPageContextView.conflict.js",
       "top_level_declarations": [
@@ -9150,7 +10008,7 @@
       "event_types": []
     },
     {
-      "load_index": 107,
+      "load_index": 112,
       "src": "/assets/crossPageContextView.sample.js",
       "path": "apps/desktop/webview/static/assets/crossPageContextView.sample.js",
       "top_level_declarations": [
@@ -9171,7 +10029,7 @@
       "event_types": []
     },
     {
-      "load_index": 108,
+      "load_index": 113,
       "src": "/assets/crossPageContextView.settings.js",
       "path": "apps/desktop/webview/static/assets/crossPageContextView.settings.js",
       "top_level_declarations": [
@@ -9190,7 +10048,7 @@
       "event_types": []
     },
     {
-      "load_index": 109,
+      "load_index": 114,
       "src": "/assets/crossPageContextView.sampleValidation.worksheet.js",
       "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.worksheet.js",
       "top_level_declarations": [
@@ -9215,7 +10073,7 @@
       "event_types": []
     },
     {
-      "load_index": 110,
+      "load_index": 115,
       "src": "/assets/crossPageContextView.sampleValidation.runbook.js",
       "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.runbook.js",
       "top_level_declarations": [
@@ -9239,7 +10097,7 @@
       "event_types": []
     },
     {
-      "load_index": 111,
+      "load_index": 116,
       "src": "/assets/crossPageContextView.sampleValidation.records.js",
       "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.records.js",
       "top_level_declarations": [
@@ -9263,7 +10121,7 @@
       "event_types": []
     },
     {
-      "load_index": 112,
+      "load_index": 117,
       "src": "/assets/crossPageContextView.sampleValidation.js",
       "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.js",
       "top_level_declarations": [
@@ -9300,7 +10158,7 @@
       ]
     },
     {
-      "load_index": 113,
+      "load_index": 118,
       "src": "/assets/crossPageContextView.js",
       "path": "apps/desktop/webview/static/assets/crossPageContextView.js",
       "top_level_declarations": [
@@ -9526,32 +10384,32 @@
         },
         {
           "name": "crossPageStatusTone",
-          "line": 458,
+          "line": 457,
           "kind": "function"
         },
         {
           "name": "crossPageNextStep",
-          "line": 466,
+          "line": 465,
           "kind": "function"
         },
         {
           "name": "crossPageInvestigationOrder",
-          "line": 502,
+          "line": 498,
           "kind": "function"
         },
         {
           "name": "crossPageContextLines",
-          "line": 533,
+          "line": 529,
           "kind": "function"
         },
         {
           "name": "crossPageContextTiles",
-          "line": 585,
+          "line": 581,
           "kind": "function"
         },
         {
           "name": "renderCrossPageContext",
-          "line": 647,
+          "line": 642,
           "kind": "function"
         }
       ],
@@ -9561,11 +10419,9 @@
       ],
       "flat_window_exports": [
         "crossPageConflictRows",
-        "crossPageConflictStatus",
         "crossPageRealMediaWorksheetRows",
         "crossPageRealMediaWorksheetStatus",
         "crossPageSampleRows",
-        "crossPageSampleStatus",
         "crossPageSampleValidationEvidence",
         "crossPageValidationTemplateLines",
         "initSampleValidationViewEvents",
@@ -9574,51 +10430,26 @@
         "renderCrossPageRealMediaWorksheet",
         "renderCrossPageSampleCorrelation",
         "renderCrossPageValidationTemplate",
-        "sampleValidationAcceptanceGateDetailLines",
-        "sampleValidationAcceptanceGateStatus",
-        "sampleValidationAcceptanceGateSummaryLines",
-        "sampleValidationCategorySummaryDetailLines",
-        "sampleValidationCategorySummaryLines",
-        "sampleValidationCategorySummaryStatus",
-        "sampleValidationCompletedPacketDetailLines",
         "sampleValidationCompletedPacketMarkdownLines",
-        "sampleValidationCompletedPacketStatus",
-        "sampleValidationCompletedPacketSummaryLines",
         "sampleValidationCompletedPolicyReconciliationRow",
         "sampleValidationCompletedPolicyReconciliationStatus",
-        "sampleValidationCutoverDetailLines",
         "sampleValidationCutoverRows",
-        "sampleValidationCutoverStatus",
-        "sampleValidationCutoverSummaryLines",
         "sampleValidationExecutionRows",
-        "sampleValidationExecutionStatus",
-        "sampleValidationGapDetailLines",
         "sampleValidationGapPayload",
-        "sampleValidationGapRows",
-        "sampleValidationGapStatus",
         "sampleValidationGapSummaryLines",
         "sampleValidationReconciliationForRecord",
         "sampleValidationReconciliationRows",
         "sampleValidationRecordComparisonRowsForPaths",
         "sampleValidationRecordLines",
         "sampleValidationRecordMatchesSample",
-        "sampleValidationRecordReviewDetailLines",
-        "sampleValidationRecordReviewStatus",
-        "sampleValidationRecordReviewSummaryLines",
         "sampleValidationRecordRows",
         "sampleValidationRecordsMatchingSample",
-        "sampleValidationRunbookDetailLines",
         "sampleValidationRunbookMarkdownLines",
         "sampleValidationRunbookPayload",
-        "sampleValidationRunbookRows",
-        "sampleValidationRunbookStatus",
         "sampleValidationRunbookSummaryLines",
         "sampleValidationSampleSetCoverageLine",
-        "sampleValidationSampleSetDetailLines",
         "sampleValidationSampleSetKey",
         "sampleValidationSampleSetRows",
-        "sampleValidationSampleSetStatus",
-        "sampleValidationSampleSetSummaryLines",
         "sampleValidationShellSurface",
         "sampleValidationWorksheetDetailLines",
         "sampleValidationWorksheetRows",
@@ -9630,7 +10461,7 @@
       "event_types": []
     },
     {
-      "load_index": 114,
+      "load_index": 119,
       "src": "/assets/renameLabels.js",
       "path": "apps/desktop/webview/static/assets/renameLabels.js",
       "top_level_declarations": [
@@ -9664,7 +10495,7 @@
       "event_types": []
     },
     {
-      "load_index": 115,
+      "load_index": 120,
       "src": "/assets/renameHistoryView.js",
       "path": "apps/desktop/webview/static/assets/renameHistoryView.js",
       "top_level_declarations": [
@@ -9693,7 +10524,7 @@
       "event_types": []
     },
     {
-      "load_index": 116,
+      "load_index": 121,
       "src": "/assets/rename/cleaningFilters.js",
       "path": "apps/desktop/webview/static/assets/rename/cleaningFilters.js",
       "top_level_declarations": [
@@ -9717,7 +10548,7 @@
       "event_types": []
     },
     {
-      "load_index": 117,
+      "load_index": 122,
       "src": "/assets/rename/cleaningWorkbench.js",
       "path": "apps/desktop/webview/static/assets/rename/cleaningWorkbench.js",
       "top_level_declarations": [
@@ -9742,7 +10573,7 @@
       ]
     },
     {
-      "load_index": 118,
+      "load_index": 123,
       "src": "/assets/rename/selection.js",
       "path": "apps/desktop/webview/static/assets/rename/selection.js",
       "top_level_declarations": [
@@ -9771,7 +10602,7 @@
       "event_types": []
     },
     {
-      "load_index": 119,
+      "load_index": 124,
       "src": "/assets/rename/paths.js",
       "path": "apps/desktop/webview/static/assets/rename/paths.js",
       "top_level_declarations": [
@@ -9795,7 +10626,7 @@
       "event_types": []
     },
     {
-      "load_index": 120,
+      "load_index": 125,
       "src": "/assets/rename/preview.js",
       "path": "apps/desktop/webview/static/assets/rename/preview.js",
       "top_level_declarations": [
@@ -9814,7 +10645,7 @@
       "event_types": []
     },
     {
-      "load_index": 121,
+      "load_index": 126,
       "src": "/assets/rename/applyReadiness.js",
       "path": "apps/desktop/webview/static/assets/rename/applyReadiness.js",
       "top_level_declarations": [
@@ -9835,7 +10666,7 @@
       "event_types": []
     },
     {
-      "load_index": 122,
+      "load_index": 127,
       "src": "/assets/rename/editing.js",
       "path": "apps/desktop/webview/static/assets/rename/editing.js",
       "top_level_declarations": [
@@ -9865,7 +10696,7 @@
       "event_types": []
     },
     {
-      "load_index": 123,
+      "load_index": 128,
       "src": "/assets/rename/applyResult.js",
       "path": "apps/desktop/webview/static/assets/rename/applyResult.js",
       "top_level_declarations": [
@@ -9888,7 +10719,7 @@
       "event_types": []
     },
     {
-      "load_index": 124,
+      "load_index": 129,
       "src": "/assets/rename/commandEvidence.js",
       "path": "apps/desktop/webview/static/assets/rename/commandEvidence.js",
       "top_level_declarations": [
@@ -9912,7 +10743,7 @@
       "event_types": []
     },
     {
-      "load_index": 125,
+      "load_index": 130,
       "src": "/assets/rename/previewLifecycle.js",
       "path": "apps/desktop/webview/static/assets/rename/previewLifecycle.js",
       "top_level_declarations": [
@@ -9952,7 +10783,7 @@
       ]
     },
     {
-      "load_index": 126,
+      "load_index": 131,
       "src": "/assets/rename/interactions.js",
       "path": "apps/desktop/webview/static/assets/rename/interactions.js",
       "top_level_declarations": [
@@ -9993,7 +10824,7 @@
       ]
     },
     {
-      "load_index": 127,
+      "load_index": 132,
       "src": "/assets/rename/confirmSummary.js",
       "path": "apps/desktop/webview/static/assets/rename/confirmSummary.js",
       "top_level_declarations": [
@@ -10012,7 +10843,7 @@
       "event_types": []
     },
     {
-      "load_index": 128,
+      "load_index": 133,
       "src": "/assets/rename/dialogs.js",
       "path": "apps/desktop/webview/static/assets/rename/dialogs.js",
       "top_level_declarations": [
@@ -10042,7 +10873,7 @@
       ]
     },
     {
-      "load_index": 129,
+      "load_index": 134,
       "src": "/assets/renameView.js",
       "path": "apps/desktop/webview/static/assets/renameView.js",
       "top_level_declarations": [
@@ -10498,7 +11329,7 @@
       ]
     },
     {
-      "load_index": 130,
+      "load_index": 135,
       "src": "/assets/settingsOverview.js",
       "path": "apps/desktop/webview/static/assets/settingsOverview.js",
       "top_level_declarations": [
@@ -10604,7 +11435,7 @@
       "event_types": []
     },
     {
-      "load_index": 131,
+      "load_index": 136,
       "src": "/assets/settingsCommandHistory.js",
       "path": "apps/desktop/webview/static/assets/settingsCommandHistory.js",
       "top_level_declarations": [
@@ -10648,7 +11479,7 @@
       "event_types": []
     },
     {
-      "load_index": 132,
+      "load_index": 137,
       "src": "/assets/settingsMetadata.js",
       "path": "apps/desktop/webview/static/assets/settingsMetadata.js",
       "top_level_declarations": [
@@ -10694,52 +11525,52 @@
         },
         {
           "name": "pendingPublishSettingsBuilderFields",
-          "line": 126,
+          "line": 127,
           "kind": "const"
         },
         {
           "name": "subtitleSettingsBuilderFields",
-          "line": 141,
+          "line": 142,
           "kind": "const"
         },
         {
           "name": "audioSettingsBuilderFields",
-          "line": 178,
+          "line": 179,
           "kind": "const"
         },
         {
           "name": "settingsSafetyLockDefinitions",
-          "line": 190,
+          "line": 191,
           "kind": "const"
         },
         {
           "name": "settingsImpactGroups",
-          "line": 274,
+          "line": 275,
           "kind": "const"
         },
         {
           "name": "settingsSpecificImpactHints",
-          "line": 422,
+          "line": 423,
           "kind": "const"
         },
         {
           "name": "settingsChoiceLabels",
-          "line": 534,
+          "line": 536,
           "kind": "const"
         },
         {
           "name": "settingsFriendlyPersistedKeyAliases",
-          "line": 615,
+          "line": 617,
           "kind": "const"
         },
         {
           "name": "settingsAdvancedFallbackKeys",
-          "line": 676,
+          "line": 678,
           "kind": "const"
         },
         {
           "name": "settingsLibraryCompatibilityPresets",
-          "line": 697,
+          "line": 699,
           "kind": "const"
         }
       ],
@@ -10752,7 +11583,7 @@
       "event_types": []
     },
     {
-      "load_index": 133,
+      "load_index": 138,
       "src": "/assets/settings/metadataFields.js",
       "path": "apps/desktop/webview/static/assets/settings/metadataFields.js",
       "top_level_declarations": [
@@ -10771,7 +11602,7 @@
       "event_types": []
     },
     {
-      "load_index": 134,
+      "load_index": 139,
       "src": "/assets/settings/builderControls.js",
       "path": "apps/desktop/webview/static/assets/settings/builderControls.js",
       "top_level_declarations": [
@@ -10790,7 +11621,7 @@
       "event_types": []
     },
     {
-      "load_index": 135,
+      "load_index": 140,
       "src": "/assets/settingsView.builders.audio.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.audio.js",
       "top_level_declarations": [
@@ -10816,7 +11647,7 @@
       "event_types": []
     },
     {
-      "load_index": 136,
+      "load_index": 141,
       "src": "/assets/settingsView.builders.video.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.video.js",
       "top_level_declarations": [
@@ -10837,7 +11668,7 @@
       "event_types": []
     },
     {
-      "load_index": 137,
+      "load_index": 142,
       "src": "/assets/settingsView.builders.quality.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.quality.js",
       "top_level_declarations": [
@@ -10859,7 +11690,7 @@
       "event_types": []
     },
     {
-      "load_index": 138,
+      "load_index": 143,
       "src": "/assets/settingsView.builders.subtitle.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.subtitle.js",
       "top_level_declarations": [
@@ -10890,7 +11721,7 @@
       "event_types": []
     },
     {
-      "load_index": 139,
+      "load_index": 144,
       "src": "/assets/settingsView.builders.queue.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.queue.js",
       "top_level_declarations": [
@@ -10909,7 +11740,7 @@
       "event_types": []
     },
     {
-      "load_index": 140,
+      "load_index": 145,
       "src": "/assets/settingsView.builders.runtime.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.runtime.js",
       "top_level_declarations": [
@@ -10928,7 +11759,7 @@
       "event_types": []
     },
     {
-      "load_index": 141,
+      "load_index": 146,
       "src": "/assets/settingsView.builders.file_safety.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.file_safety.js",
       "top_level_declarations": [
@@ -10947,7 +11778,7 @@
       "event_types": []
     },
     {
-      "load_index": 142,
+      "load_index": 147,
       "src": "/assets/settingsView.builders.pending.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.pending.js",
       "top_level_declarations": [
@@ -10972,7 +11803,7 @@
       "event_types": []
     },
     {
-      "load_index": 143,
+      "load_index": 148,
       "src": "/assets/settingsView.builders.network.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.network.js",
       "top_level_declarations": [
@@ -11013,7 +11844,7 @@
       ]
     },
     {
-      "load_index": 144,
+      "load_index": 149,
       "src": "/assets/settingsView.rawTriage.js",
       "path": "apps/desktop/webview/static/assets/settingsView.rawTriage.js",
       "top_level_declarations": [
@@ -11037,7 +11868,7 @@
       "event_types": []
     },
     {
-      "load_index": 145,
+      "load_index": 150,
       "src": "/assets/settingsView.safetyLocks.js",
       "path": "apps/desktop/webview/static/assets/settingsView.safetyLocks.js",
       "top_level_declarations": [
@@ -11058,7 +11889,7 @@
       "event_types": []
     },
     {
-      "load_index": 146,
+      "load_index": 151,
       "src": "/assets/settings/backendResult.js",
       "path": "apps/desktop/webview/static/assets/settings/backendResult.js",
       "top_level_declarations": [
@@ -11079,7 +11910,7 @@
       "event_types": []
     },
     {
-      "load_index": 147,
+      "load_index": 152,
       "src": "/assets/settings/routePolicyModel.js",
       "path": "apps/desktop/webview/static/assets/settings/routePolicyModel.js",
       "top_level_declarations": [
@@ -11163,7 +11994,7 @@
       "event_types": []
     },
     {
-      "load_index": 148,
+      "load_index": 153,
       "src": "/assets/settings/finalLibraryPromotion.js",
       "path": "apps/desktop/webview/static/assets/settings/finalLibraryPromotion.js",
       "top_level_declarations": [
@@ -11192,7 +12023,7 @@
       ]
     },
     {
-      "load_index": 149,
+      "load_index": 154,
       "src": "/assets/settings/patchOverview.js",
       "path": "apps/desktop/webview/static/assets/settings/patchOverview.js",
       "top_level_declarations": [
@@ -11214,7 +12045,7 @@
       "event_types": []
     },
     {
-      "load_index": 150,
+      "load_index": 155,
       "src": "/assets/settings/patchInteractions.js",
       "path": "apps/desktop/webview/static/assets/settings/patchInteractions.js",
       "top_level_declarations": [
@@ -11247,7 +12078,7 @@
       ]
     },
     {
-      "load_index": 151,
+      "load_index": 156,
       "src": "/assets/settings/patchReadiness.js",
       "path": "apps/desktop/webview/static/assets/settings/patchReadiness.js",
       "top_level_declarations": [
@@ -11268,7 +12099,7 @@
       "event_types": []
     },
     {
-      "load_index": 152,
+      "load_index": 157,
       "src": "/assets/settings/patchReview.js",
       "path": "apps/desktop/webview/static/assets/settings/patchReview.js",
       "top_level_declarations": [
@@ -11290,7 +12121,7 @@
       "event_types": []
     },
     {
-      "load_index": 153,
+      "load_index": 158,
       "src": "/assets/settings/policyImpact/mediaProjection.js",
       "path": "apps/desktop/webview/static/assets/settings/policyImpact/mediaProjection.js",
       "top_level_declarations": [
@@ -11312,7 +12143,7 @@
       "event_types": []
     },
     {
-      "load_index": 154,
+      "load_index": 159,
       "src": "/assets/settings/policyImpact/effectivePolicyView.js",
       "path": "apps/desktop/webview/static/assets/settings/policyImpact/effectivePolicyView.js",
       "top_level_declarations": [
@@ -11335,7 +12166,7 @@
       ]
     },
     {
-      "load_index": 155,
+      "load_index": 160,
       "src": "/assets/settings/policyImpact.js",
       "path": "apps/desktop/webview/static/assets/settings/policyImpact.js",
       "top_level_declarations": [
@@ -11370,7 +12201,7 @@
       ]
     },
     {
-      "load_index": 156,
+      "load_index": 161,
       "src": "/assets/settings/view/builder.js",
       "path": "apps/desktop/webview/static/assets/settings/view/builder.js",
       "top_level_declarations": [
@@ -11393,7 +12224,7 @@
       "event_types": []
     },
     {
-      "load_index": 157,
+      "load_index": 162,
       "src": "/assets/settings/view/impact.js",
       "path": "apps/desktop/webview/static/assets/settings/view/impact.js",
       "top_level_declarations": [
@@ -11418,7 +12249,7 @@
       "event_types": []
     },
     {
-      "load_index": 158,
+      "load_index": 163,
       "src": "/assets/settings/view/review.js",
       "path": "apps/desktop/webview/static/assets/settings/view/review.js",
       "top_level_declarations": [
@@ -11442,7 +12273,7 @@
       "event_types": []
     },
     {
-      "load_index": 159,
+      "load_index": 164,
       "src": "/assets/settings/view/commands.js",
       "path": "apps/desktop/webview/static/assets/settings/view/commands.js",
       "top_level_declarations": [
@@ -11474,7 +12305,7 @@
       ]
     },
     {
-      "load_index": 160,
+      "load_index": 165,
       "src": "/assets/settings/view/lifecycle.js",
       "path": "apps/desktop/webview/static/assets/settings/view/lifecycle.js",
       "top_level_declarations": [
@@ -11498,7 +12329,7 @@
       ]
     },
     {
-      "load_index": 161,
+      "load_index": 166,
       "src": "/assets/settings/view/facade.js",
       "path": "apps/desktop/webview/static/assets/settings/view/facade.js",
       "top_level_declarations": [
@@ -11517,7 +12348,7 @@
       "event_types": []
     },
     {
-      "load_index": 162,
+      "load_index": 167,
       "src": "/assets/settingsView.js",
       "path": "apps/desktop/webview/static/assets/settingsView.js",
       "top_level_declarations": [
@@ -12622,7 +13453,7 @@
       ]
     },
     {
-      "load_index": 163,
+      "load_index": 168,
       "src": "/assets/settingsLibraries/model.js",
       "path": "apps/desktop/webview/static/assets/settingsLibraries/model.js",
       "top_level_declarations": [
@@ -12646,7 +13477,7 @@
       "event_types": []
     },
     {
-      "load_index": 164,
+      "load_index": 169,
       "src": "/assets/settingsLibraries/render.js",
       "path": "apps/desktop/webview/static/assets/settingsLibraries/render.js",
       "top_level_declarations": [
@@ -12669,7 +13500,7 @@
       "event_types": []
     },
     {
-      "load_index": 165,
+      "load_index": 170,
       "src": "/assets/settingsLibraries/summary.js",
       "path": "apps/desktop/webview/static/assets/settingsLibraries/summary.js",
       "top_level_declarations": [
@@ -12701,7 +13532,7 @@
       ]
     },
     {
-      "load_index": 166,
+      "load_index": 171,
       "src": "/assets/settingsLibraries/interaction.js",
       "path": "apps/desktop/webview/static/assets/settingsLibraries/interaction.js",
       "top_level_declarations": [
@@ -12745,7 +13576,7 @@
       ]
     },
     {
-      "load_index": 167,
+      "load_index": 172,
       "src": "/assets/settingsLibraries/facade.js",
       "path": "apps/desktop/webview/static/assets/settingsLibraries/facade.js",
       "top_level_declarations": [
@@ -12764,7 +13595,7 @@
       "event_types": []
     },
     {
-      "load_index": 168,
+      "load_index": 173,
       "src": "/assets/settingsLibraries.js",
       "path": "apps/desktop/webview/static/assets/settingsLibraries.js",
       "top_level_declarations": [
@@ -12868,7 +13699,7 @@
       "event_types": []
     },
     {
-      "load_index": 169,
+      "load_index": 174,
       "src": "/assets/settings/presetLibrary.js",
       "path": "apps/desktop/webview/static/assets/settings/presetLibrary.js",
       "top_level_declarations": [
@@ -13026,7 +13857,7 @@
       "event_types": []
     },
     {
-      "load_index": 170,
+      "load_index": 175,
       "src": "/assets/librariesRouteMap.js",
       "path": "apps/desktop/webview/static/assets/librariesRouteMap.js",
       "top_level_declarations": [
@@ -13280,7 +14111,7 @@
       ]
     },
     {
-      "load_index": 171,
+      "load_index": 176,
       "src": "/assets/settings/wizard/libraryEditor.js",
       "path": "apps/desktop/webview/static/assets/settings/wizard/libraryEditor.js",
       "top_level_declarations": [
@@ -13305,7 +14136,7 @@
       ]
     },
     {
-      "load_index": 172,
+      "load_index": 177,
       "src": "/assets/settings/wizard/previewRender.js",
       "path": "apps/desktop/webview/static/assets/settings/wizard/previewRender.js",
       "top_level_declarations": [
@@ -13327,7 +14158,7 @@
       "event_types": []
     },
     {
-      "load_index": 173,
+      "load_index": 178,
       "src": "/assets/settingsWizard.js",
       "path": "apps/desktop/webview/static/assets/settingsWizard.js",
       "top_level_declarations": [
@@ -13693,7 +14524,7 @@
       ]
     },
     {
-      "load_index": 174,
+      "load_index": 179,
       "src": "/assets/network/configDiagnostics.js",
       "path": "apps/desktop/webview/static/assets/network/configDiagnostics.js",
       "top_level_declarations": [
@@ -13712,7 +14543,7 @@
       "event_types": []
     },
     {
-      "load_index": 175,
+      "load_index": 180,
       "src": "/assets/network/config.js",
       "path": "apps/desktop/webview/static/assets/network/config.js",
       "top_level_declarations": [
@@ -13733,7 +14564,7 @@
       "event_types": []
     },
     {
-      "load_index": 176,
+      "load_index": 181,
       "src": "/assets/network/queueProjection.js",
       "path": "apps/desktop/webview/static/assets/network/queueProjection.js",
       "top_level_declarations": [
@@ -13752,7 +14583,7 @@
       "event_types": []
     },
     {
-      "load_index": 177,
+      "load_index": 182,
       "src": "/assets/network/overviewTiles.js",
       "path": "apps/desktop/webview/static/assets/network/overviewTiles.js",
       "top_level_declarations": [
@@ -13771,7 +14602,7 @@
       "event_types": []
     },
     {
-      "load_index": 178,
+      "load_index": 183,
       "src": "/assets/network/overviewModel.js",
       "path": "apps/desktop/webview/static/assets/network/overviewModel.js",
       "top_level_declarations": [
@@ -13790,7 +14621,7 @@
       "event_types": []
     },
     {
-      "load_index": 179,
+      "load_index": 184,
       "src": "/assets/network/lifecycleContract.js",
       "path": "apps/desktop/webview/static/assets/network/lifecycleContract.js",
       "top_level_declarations": [
@@ -13809,7 +14640,7 @@
       "event_types": []
     },
     {
-      "load_index": 180,
+      "load_index": 185,
       "src": "/assets/network/stateFiles.js",
       "path": "apps/desktop/webview/static/assets/network/stateFiles.js",
       "top_level_declarations": [
@@ -13830,7 +14661,7 @@
       "event_types": []
     },
     {
-      "load_index": 181,
+      "load_index": 186,
       "src": "/assets/network/readiness.js",
       "path": "apps/desktop/webview/static/assets/network/readiness.js",
       "top_level_declarations": [
@@ -13849,7 +14680,7 @@
       "event_types": []
     },
     {
-      "load_index": 182,
+      "load_index": 187,
       "src": "/assets/network/lifecycle.view.js",
       "path": "apps/desktop/webview/static/assets/network/lifecycle.view.js",
       "top_level_declarations": [
@@ -13876,7 +14707,7 @@
       "event_types": []
     },
     {
-      "load_index": 183,
+      "load_index": 188,
       "src": "/assets/network/status.js",
       "path": "apps/desktop/webview/static/assets/network/status.js",
       "top_level_declarations": [
@@ -13900,7 +14731,7 @@
       "event_types": []
     },
     {
-      "load_index": 184,
+      "load_index": 189,
       "src": "/assets/network/lifecycle.model.js",
       "path": "apps/desktop/webview/static/assets/network/lifecycle.model.js",
       "top_level_declarations": [
@@ -13921,7 +14752,7 @@
       "event_types": []
     },
     {
-      "load_index": 185,
+      "load_index": 190,
       "src": "/assets/network/lifecycle.results.js",
       "path": "apps/desktop/webview/static/assets/network/lifecycle.results.js",
       "top_level_declarations": [
@@ -13943,7 +14774,7 @@
       "event_types": []
     },
     {
-      "load_index": 186,
+      "load_index": 191,
       "src": "/assets/network/lifecycle.commands.js",
       "path": "apps/desktop/webview/static/assets/network/lifecycle.commands.js",
       "top_level_declarations": [
@@ -13967,7 +14798,7 @@
       "event_types": []
     },
     {
-      "load_index": 187,
+      "load_index": 192,
       "src": "/assets/network/setup.commands.js",
       "path": "apps/desktop/webview/static/assets/network/setup.commands.js",
       "top_level_declarations": [
@@ -13991,7 +14822,7 @@
       "event_types": []
     },
     {
-      "load_index": 188,
+      "load_index": 193,
       "src": "/assets/network/settingsHandoff.js",
       "path": "apps/desktop/webview/static/assets/network/settingsHandoff.js",
       "top_level_declarations": [
@@ -14013,7 +14844,7 @@
       "event_types": []
     },
     {
-      "load_index": 189,
+      "load_index": 194,
       "src": "/assets/network/openHistory.js",
       "path": "apps/desktop/webview/static/assets/network/openHistory.js",
       "top_level_declarations": [
@@ -14032,7 +14863,7 @@
       "event_types": []
     },
     {
-      "load_index": 190,
+      "load_index": 195,
       "src": "/assets/network/evidence.js",
       "path": "apps/desktop/webview/static/assets/network/evidence.js",
       "top_level_declarations": [
@@ -14053,7 +14884,7 @@
       "event_types": []
     },
     {
-      "load_index": 191,
+      "load_index": 196,
       "src": "/assets/network/workers.model.js",
       "path": "apps/desktop/webview/static/assets/network/workers.model.js",
       "top_level_declarations": [
@@ -14074,7 +14905,7 @@
       "event_types": []
     },
     {
-      "load_index": 192,
+      "load_index": 197,
       "src": "/assets/network/workers.view.js",
       "path": "apps/desktop/webview/static/assets/network/workers.view.js",
       "top_level_declarations": [
@@ -14098,7 +14929,7 @@
       ]
     },
     {
-      "load_index": 193,
+      "load_index": 198,
       "src": "/assets/network/roleDashboard.js",
       "path": "apps/desktop/webview/static/assets/network/roleDashboard.js",
       "top_level_declarations": [
@@ -14121,7 +14952,7 @@
       "event_types": []
     },
     {
-      "load_index": 194,
+      "load_index": 199,
       "src": "/assets/network/rerunEvidence.js",
       "path": "apps/desktop/webview/static/assets/network/rerunEvidence.js",
       "top_level_declarations": [
@@ -14142,7 +14973,7 @@
       "event_types": []
     },
     {
-      "load_index": 195,
+      "load_index": 200,
       "src": "/assets/network/events.js",
       "path": "apps/desktop/webview/static/assets/network/events.js",
       "top_level_declarations": [
@@ -14177,7 +15008,7 @@
       ]
     },
     {
-      "load_index": 196,
+      "load_index": 201,
       "src": "/assets/networkView.js",
       "path": "apps/desktop/webview/static/assets/networkView.js",
       "top_level_declarations": [
@@ -14526,7 +15357,7 @@
       "event_types": []
     },
     {
-      "load_index": 197,
+      "load_index": 202,
       "src": "/assets/metricsView.js",
       "path": "apps/desktop/webview/static/assets/metricsView.js",
       "top_level_declarations": [
@@ -14840,7 +15671,7 @@
       ]
     },
     {
-      "load_index": 198,
+      "load_index": 203,
       "src": "/assets/diagnosticsTailView.js",
       "path": "apps/desktop/webview/static/assets/diagnosticsTailView.js",
       "top_level_declarations": [
@@ -14968,7 +15799,7 @@
       ]
     },
     {
-      "load_index": 199,
+      "load_index": 204,
       "src": "/assets/diagnosticsStateSummaryView.js",
       "path": "apps/desktop/webview/static/assets/diagnosticsStateSummaryView.js",
       "top_level_declarations": [
@@ -15202,7 +16033,7 @@
       "event_types": []
     },
     {
-      "load_index": 200,
+      "load_index": 205,
       "src": "/assets/diagnosticsView.activejobs.js",
       "path": "apps/desktop/webview/static/assets/diagnosticsView.activejobs.js",
       "top_level_declarations": [
@@ -15224,7 +16055,7 @@
       "event_types": []
     },
     {
-      "load_index": 201,
+      "load_index": 206,
       "src": "/assets/diagnosticsView.log.js",
       "path": "apps/desktop/webview/static/assets/diagnosticsView.log.js",
       "top_level_declarations": [
@@ -15248,7 +16079,7 @@
       "event_types": []
     },
     {
-      "load_index": 202,
+      "load_index": 207,
       "src": "/assets/diagnosticsView.investigation.js",
       "path": "apps/desktop/webview/static/assets/diagnosticsView.investigation.js",
       "top_level_declarations": [
@@ -15272,7 +16103,7 @@
       ]
     },
     {
-      "load_index": 203,
+      "load_index": 208,
       "src": "/assets/diagnostics/matrixConsole.js",
       "path": "apps/desktop/webview/static/assets/diagnostics/matrixConsole.js",
       "top_level_declarations": [
@@ -15314,7 +16145,7 @@
       ]
     },
     {
-      "load_index": 204,
+      "load_index": 209,
       "src": "/assets/diagnostics/triage.js",
       "path": "apps/desktop/webview/static/assets/diagnostics/triage.js",
       "top_level_declarations": [
@@ -15337,7 +16168,7 @@
       ]
     },
     {
-      "load_index": 205,
+      "load_index": 210,
       "src": "/assets/diagnostics/firstResponse.js",
       "path": "apps/desktop/webview/static/assets/diagnostics/firstResponse.js",
       "top_level_declarations": [
@@ -15359,7 +16190,7 @@
       "event_types": []
     },
     {
-      "load_index": 206,
+      "load_index": 211,
       "src": "/assets/diagnosticsView.js",
       "path": "apps/desktop/webview/static/assets/diagnosticsView.js",
       "top_level_declarations": [
@@ -15979,10 +16810,7 @@
         "diagnosticsMalformedStateLines",
         "diagnosticsOwnerDefaultAction",
         "diagnosticsOwnerHandoffActions",
-        "diagnosticsOwnerHandoffRowKey",
         "diagnosticsOwnerHandoffRows",
-        "diagnosticsOwnerHandoffStatus",
-        "diagnosticsOwnerHandoffSummaryLines",
         "diagnosticsOwnerNavigationLabel",
         "diagnosticsOwnerPageId",
         "diagnosticsOwnerRowSeverity",
@@ -16042,7 +16870,7 @@
       ]
     },
     {
-      "load_index": 207,
+      "load_index": 212,
       "src": "/assets/reports/state.js",
       "path": "apps/desktop/webview/static/assets/reports/state.js",
       "top_level_declarations": [
@@ -16061,7 +16889,7 @@
       "event_types": []
     },
     {
-      "load_index": 208,
+      "load_index": 213,
       "src": "/assets/reports/shared.js",
       "path": "apps/desktop/webview/static/assets/reports/shared.js",
       "top_level_declarations": [
@@ -16085,7 +16913,7 @@
       "event_types": []
     },
     {
-      "load_index": 209,
+      "load_index": 214,
       "src": "/assets/reports/shell.js",
       "path": "apps/desktop/webview/static/assets/reports/shell.js",
       "top_level_declarations": [
@@ -16115,7 +16943,7 @@
       ]
     },
     {
-      "load_index": 210,
+      "load_index": 215,
       "src": "/assets/reports/failureModel.js",
       "path": "apps/desktop/webview/static/assets/reports/failureModel.js",
       "top_level_declarations": [
@@ -16139,7 +16967,7 @@
       "event_types": []
     },
     {
-      "load_index": 211,
+      "load_index": 216,
       "src": "/assets/reports/failureCommands.js",
       "path": "apps/desktop/webview/static/assets/reports/failureCommands.js",
       "top_level_declarations": [
@@ -16183,7 +17011,7 @@
       "event_types": []
     },
     {
-      "load_index": 212,
+      "load_index": 217,
       "src": "/assets/reports/failureView.js",
       "path": "apps/desktop/webview/static/assets/reports/failureView.js",
       "top_level_declarations": [
@@ -16223,7 +17051,7 @@
       ]
     },
     {
-      "load_index": 213,
+      "load_index": 218,
       "src": "/assets/reports/auditModel.js",
       "path": "apps/desktop/webview/static/assets/reports/auditModel.js",
       "top_level_declarations": [
@@ -16242,7 +17070,7 @@
       "event_types": []
     },
     {
-      "load_index": 214,
+      "load_index": 219,
       "src": "/assets/reports/auditView.js",
       "path": "apps/desktop/webview/static/assets/reports/auditView.js",
       "top_level_declarations": [
@@ -16275,7 +17103,7 @@
       ]
     },
     {
-      "load_index": 215,
+      "load_index": 220,
       "src": "/assets/reports/audit/sources.js",
       "path": "apps/desktop/webview/static/assets/reports/audit/sources.js",
       "top_level_declarations": [
@@ -16304,7 +17132,7 @@
       ]
     },
     {
-      "load_index": 216,
+      "load_index": 221,
       "src": "/assets/reports/audit/progress.js",
       "path": "apps/desktop/webview/static/assets/reports/audit/progress.js",
       "top_level_declarations": [
@@ -16327,7 +17155,7 @@
       "event_types": []
     },
     {
-      "load_index": 217,
+      "load_index": 222,
       "src": "/assets/reports/auditCommands.js",
       "path": "apps/desktop/webview/static/assets/reports/auditCommands.js",
       "top_level_declarations": [
@@ -16374,7 +17202,7 @@
       "event_types": []
     },
     {
-      "load_index": 218,
+      "load_index": 223,
       "src": "/assets/reports/triage.js",
       "path": "apps/desktop/webview/static/assets/reports/triage.js",
       "top_level_declarations": [
@@ -16398,7 +17226,7 @@
       "event_types": []
     },
     {
-      "load_index": 219,
+      "load_index": 224,
       "src": "/assets/reports/investigation.js",
       "path": "apps/desktop/webview/static/assets/reports/investigation.js",
       "top_level_declarations": [
@@ -16419,7 +17247,7 @@
       "event_types": []
     },
     {
-      "load_index": 220,
+      "load_index": 225,
       "src": "/assets/reportsView.js",
       "path": "apps/desktop/webview/static/assets/reportsView.js",
       "top_level_declarations": [
@@ -16777,7 +17605,7 @@
       ]
     },
     {
-      "load_index": 221,
+      "load_index": 226,
       "src": "/assets/schedule/watchFolder.js",
       "path": "apps/desktop/webview/static/assets/schedule/watchFolder.js",
       "top_level_declarations": [
@@ -16801,7 +17629,7 @@
       "event_types": []
     },
     {
-      "load_index": 222,
+      "load_index": 227,
       "src": "/assets/schedule/editor.js",
       "path": "apps/desktop/webview/static/assets/schedule/editor.js",
       "top_level_declarations": [
@@ -16845,7 +17673,7 @@
       ]
     },
     {
-      "load_index": 223,
+      "load_index": 228,
       "src": "/assets/scheduleView.js",
       "path": "apps/desktop/webview/static/assets/scheduleView.js",
       "top_level_declarations": [
@@ -17036,7 +17864,7 @@
       "event_types": []
     },
     {
-      "load_index": 224,
+      "load_index": 229,
       "src": "/assets/maintenance/changeLedger.js",
       "path": "apps/desktop/webview/static/assets/maintenance/changeLedger.js",
       "top_level_declarations": [
@@ -17057,7 +17885,7 @@
       "event_types": []
     },
     {
-      "load_index": 225,
+      "load_index": 230,
       "src": "/assets/maintenance/health.js",
       "path": "apps/desktop/webview/static/assets/maintenance/health.js",
       "top_level_declarations": [
@@ -17083,7 +17911,7 @@
       ]
     },
     {
-      "load_index": 226,
+      "load_index": 231,
       "src": "/assets/maintenance/dryRunReadiness.js",
       "path": "apps/desktop/webview/static/assets/maintenance/dryRunReadiness.js",
       "top_level_declarations": [
@@ -17109,7 +17937,7 @@
       "event_types": []
     },
     {
-      "load_index": 227,
+      "load_index": 232,
       "src": "/assets/maintenance/releaseCommands.js",
       "path": "apps/desktop/webview/static/assets/maintenance/releaseCommands.js",
       "top_level_declarations": [
@@ -17151,7 +17979,7 @@
       ]
     },
     {
-      "load_index": 228,
+      "load_index": 233,
       "src": "/assets/maintenanceView.js",
       "path": "apps/desktop/webview/static/assets/maintenanceView.js",
       "top_level_declarations": [
@@ -17287,7 +18115,7 @@
       "event_types": []
     },
     {
-      "load_index": 229,
+      "load_index": 234,
       "src": "/assets/recoverySupportView.js",
       "path": "apps/desktop/webview/static/assets/recoverySupportView.js",
       "top_level_declarations": [
@@ -17399,7 +18227,7 @@
       "event_types": []
     },
     {
-      "load_index": 230,
+      "load_index": 235,
       "src": "/assets/provenanceView.js",
       "path": "apps/desktop/webview/static/assets/provenanceView.js",
       "top_level_declarations": [
@@ -17455,7 +18283,7 @@
       ]
     },
     {
-      "load_index": 231,
+      "load_index": 236,
       "src": "/assets/telemetry/gpuProjection.js",
       "path": "apps/desktop/webview/static/assets/telemetry/gpuProjection.js",
       "top_level_declarations": [
@@ -17474,7 +18302,7 @@
       "event_types": []
     },
     {
-      "load_index": 232,
+      "load_index": 237,
       "src": "/assets/telemetryView.js",
       "path": "apps/desktop/webview/static/assets/telemetryView.js",
       "top_level_declarations": [
@@ -17841,7 +18669,7 @@
       "event_types": []
     },
     {
-      "load_index": 233,
+      "load_index": 238,
       "src": "/assets/tauriLifecycleBridge.js",
       "path": "apps/desktop/webview/static/assets/tauriLifecycleBridge.js",
       "top_level_declarations": [],
@@ -17857,7 +18685,7 @@
       ]
     },
     {
-      "load_index": 234,
+      "load_index": 239,
       "src": "/assets/floatingPipelineLog.js",
       "path": "apps/desktop/webview/static/assets/floatingPipelineLog.js",
       "top_level_declarations": [
@@ -18199,7 +19027,7 @@
       ]
     },
     {
-      "load_index": 235,
+      "load_index": 240,
       "src": "/assets/pipelineLogWindowBridge.js",
       "path": "apps/desktop/webview/static/assets/pipelineLogWindowBridge.js",
       "top_level_declarations": [
@@ -18268,7 +19096,7 @@
       ]
     },
     {
-      "load_index": 236,
+      "load_index": 241,
       "src": "/assets/launchReadinessView.js",
       "path": "apps/desktop/webview/static/assets/launchReadinessView.js",
       "top_level_declarations": [
@@ -18442,7 +19270,7 @@
       "event_types": []
     },
     {
-      "load_index": 237,
+      "load_index": 242,
       "src": "/assets/launchHistoryView.js",
       "path": "apps/desktop/webview/static/assets/launchHistoryView.js",
       "top_level_declarations": [
@@ -18707,7 +19535,7 @@
       ]
     },
     {
-      "load_index": 238,
+      "load_index": 243,
       "src": "/assets/launch/risk/settingsAccess.js",
       "path": "apps/desktop/webview/static/assets/launch/risk/settingsAccess.js",
       "top_level_declarations": [
@@ -18726,7 +19554,7 @@
       "event_types": []
     },
     {
-      "load_index": 239,
+      "load_index": 244,
       "src": "/assets/launch/risk/mediaPolicyValues.js",
       "path": "apps/desktop/webview/static/assets/launch/risk/mediaPolicyValues.js",
       "top_level_declarations": [
@@ -18745,7 +19573,7 @@
       "event_types": []
     },
     {
-      "load_index": 240,
+      "load_index": 245,
       "src": "/assets/launch/risk/riskRows.js",
       "path": "apps/desktop/webview/static/assets/launch/risk/riskRows.js",
       "top_level_declarations": [
@@ -18764,7 +19592,7 @@
       "event_types": []
     },
     {
-      "load_index": 241,
+      "load_index": 246,
       "src": "/assets/launch/risk/policyPatch.js",
       "path": "apps/desktop/webview/static/assets/launch/risk/policyPatch.js",
       "top_level_declarations": [
@@ -18783,7 +19611,7 @@
       "event_types": []
     },
     {
-      "load_index": 242,
+      "load_index": 247,
       "src": "/assets/launch/risk/policyBoundary.js",
       "path": "apps/desktop/webview/static/assets/launch/risk/policyBoundary.js",
       "top_level_declarations": [
@@ -18802,7 +19630,7 @@
       "event_types": []
     },
     {
-      "load_index": 243,
+      "load_index": 248,
       "src": "/assets/launchView.risk.js",
       "path": "apps/desktop/webview/static/assets/launchView.risk.js",
       "top_level_declarations": [
@@ -18828,7 +19656,7 @@
       "event_types": []
     },
     {
-      "load_index": 244,
+      "load_index": 249,
       "src": "/assets/launch/scope/compactGate.js",
       "path": "apps/desktop/webview/static/assets/launch/scope/compactGate.js",
       "top_level_declarations": [
@@ -18849,7 +19677,7 @@
       "event_types": []
     },
     {
-      "load_index": 245,
+      "load_index": 250,
       "src": "/assets/launchView.scope.js",
       "path": "apps/desktop/webview/static/assets/launchView.scope.js",
       "top_level_declarations": [
@@ -18878,7 +19706,7 @@
       "event_types": []
     },
     {
-      "load_index": 246,
+      "load_index": 251,
       "src": "/assets/launchView.realmedia.js",
       "path": "apps/desktop/webview/static/assets/launchView.realmedia.js",
       "top_level_declarations": [
@@ -18902,7 +19730,7 @@
       "event_types": []
     },
     {
-      "load_index": 247,
+      "load_index": 252,
       "src": "/assets/launch/preflight/pilotReadiness.js",
       "path": "apps/desktop/webview/static/assets/launch/preflight/pilotReadiness.js",
       "top_level_declarations": [
@@ -18924,7 +19752,7 @@
       "event_types": []
     },
     {
-      "load_index": 248,
+      "load_index": 253,
       "src": "/assets/launchView.preflight.js",
       "path": "apps/desktop/webview/static/assets/launchView.preflight.js",
       "top_level_declarations": [
@@ -18950,10 +19778,12 @@
         "launch-backend-preflight-rows",
         "launch-backend-preflight-status"
       ],
-      "event_types": []
+      "event_types": [
+        "click"
+      ]
     },
     {
-      "load_index": 249,
+      "load_index": 254,
       "src": "/assets/launch/controllerState.js",
       "path": "apps/desktop/webview/static/assets/launch/controllerState.js",
       "top_level_declarations": [
@@ -18972,7 +19802,7 @@
       "event_types": []
     },
     {
-      "load_index": 250,
+      "load_index": 255,
       "src": "/assets/launch/statusRender.js",
       "path": "apps/desktop/webview/static/assets/launch/statusRender.js",
       "top_level_declarations": [
@@ -18994,7 +19824,7 @@
       "event_types": []
     },
     {
-      "load_index": 251,
+      "load_index": 256,
       "src": "/assets/launch/startRequest.js",
       "path": "apps/desktop/webview/static/assets/launch/startRequest.js",
       "top_level_declarations": [
@@ -19010,6 +19840,7 @@
       ],
       "api_routes": [],
       "dom_ids_touched": [
+        "pipeline-priority-export-id",
         "pipeline-start-mode",
         "pipeline-start-schedule-override",
         "pipeline-start-show-config",
@@ -19020,7 +19851,7 @@
       "event_types": []
     },
     {
-      "load_index": 252,
+      "load_index": 257,
       "src": "/assets/queue/rerunRequest.js",
       "path": "apps/desktop/webview/static/assets/queue/rerunRequest.js",
       "top_level_declarations": [
@@ -19053,7 +19884,7 @@
       "event_types": []
     },
     {
-      "load_index": 253,
+      "load_index": 258,
       "src": "/assets/launch/scopeControls.js",
       "path": "apps/desktop/webview/static/assets/launch/scopeControls.js",
       "top_level_declarations": [
@@ -19067,8 +19898,12 @@
       "flat_window_exports": [
         "__launchScopeControlsModule"
       ],
-      "api_routes": [],
+      "api_routes": [
+        "/api/queue/priority-export"
+      ],
       "dom_ids_touched": [
+        "pipeline-priority-export-id",
+        "pipeline-priority-export-status",
         "pipeline-single-file-browse-status",
         "pipeline-start-button",
         "pipeline-start-mode",
@@ -19077,7 +19912,7 @@
       "event_types": []
     },
     {
-      "load_index": 254,
+      "load_index": 259,
       "src": "/assets/launch/commandButtons.js",
       "path": "apps/desktop/webview/static/assets/launch/commandButtons.js",
       "top_level_declarations": [
@@ -19100,7 +19935,7 @@
       "event_types": []
     },
     {
-      "load_index": 255,
+      "load_index": 260,
       "src": "/assets/launch/commandOrchestration.js",
       "path": "apps/desktop/webview/static/assets/launch/commandOrchestration.js",
       "top_level_declarations": [
@@ -19125,6 +19960,7 @@
         "launch-encoder-capability-refresh-button",
         "pending-drain-button",
         "pipeline-compact-gate-status",
+        "pipeline-priority-export-id",
         "pipeline-single-file-browse-button",
         "pipeline-single-file-clear-button",
         "pipeline-start-button",
@@ -19138,7 +19974,7 @@
       ]
     },
     {
-      "load_index": 256,
+      "load_index": 261,
       "src": "/assets/launch/rerunEvidence.js",
       "path": "apps/desktop/webview/static/assets/launch/rerunEvidence.js",
       "top_level_declarations": [
@@ -19167,7 +20003,7 @@
       ]
     },
     {
-      "load_index": 257,
+      "load_index": 262,
       "src": "/assets/launch/rerunPresentation.js",
       "path": "apps/desktop/webview/static/assets/launch/rerunPresentation.js",
       "top_level_declarations": [
@@ -19195,7 +20031,7 @@
       ]
     },
     {
-      "load_index": 258,
+      "load_index": 263,
       "src": "/assets/launch/rerunOrchestration.js",
       "path": "apps/desktop/webview/static/assets/launch/rerunOrchestration.js",
       "top_level_declarations": [
@@ -19214,7 +20050,7 @@
       "event_types": []
     },
     {
-      "load_index": 259,
+      "load_index": 264,
       "src": "/assets/launch/rerunFacade.js",
       "path": "apps/desktop/webview/static/assets/launch/rerunFacade.js",
       "top_level_declarations": [
@@ -19233,7 +20069,7 @@
       "event_types": []
     },
     {
-      "load_index": 260,
+      "load_index": 265,
       "src": "/assets/launchView.js",
       "path": "apps/desktop/webview/static/assets/launchView.js",
       "top_level_declarations": [
@@ -19504,402 +20340,402 @@
         },
         {
           "name": "queueRerunRequestModule",
-          "line": 174,
+          "line": 175,
           "kind": "const"
         },
         {
           "name": "queueRerunRequest",
-          "line": 176,
+          "line": 177,
           "kind": "const"
         },
         {
           "name": "rerunExecutionTarget",
-          "line": 203,
+          "line": 204,
           "kind": "function"
         },
         {
           "name": "rerunIsNetworkMode",
-          "line": 207,
+          "line": 208,
           "kind": "function"
         },
         {
           "name": "rerunPreviewRouteName",
-          "line": 211,
+          "line": 212,
           "kind": "function"
         },
         {
           "name": "rerunStartRouteName",
-          "line": 215,
+          "line": 216,
           "kind": "function"
         },
         {
           "name": "rerunExecutionTargetLabel",
-          "line": 219,
+          "line": 220,
           "kind": "function"
         },
         {
           "name": "launchStatusRenderModule",
-          "line": 223,
+          "line": 224,
           "kind": "const"
         },
         {
           "name": "launchStatusRender",
-          "line": 225,
+          "line": 226,
           "kind": "const"
         },
         {
           "name": "launchScopeControlsModule",
-          "line": 259,
+          "line": 260,
           "kind": "const"
         },
         {
           "name": "launchScopeControls",
-          "line": 261,
+          "line": 262,
           "kind": "const"
         },
         {
           "name": "launchCommandButtonsModule",
-          "line": 279,
-          "kind": "const"
-        },
-        {
-          "name": "launchCommandButtons",
           "line": 281,
           "kind": "const"
         },
         {
+          "name": "launchCommandButtons",
+          "line": 283,
+          "kind": "const"
+        },
+        {
           "name": "launchTabIds",
-          "line": 322,
+          "line": 324,
           "kind": "function"
         },
         {
           "name": "activateLaunchTab",
-          "line": 326,
+          "line": 328,
           "kind": "function"
         },
         {
           "name": "initLaunchTabNav",
-          "line": 347,
+          "line": 349,
           "kind": "function"
         },
         {
           "name": "launchRiskState",
-          "line": 376,
+          "line": 378,
           "kind": "const"
         },
         {
           "name": "launchRiskModule",
-          "line": 397,
-          "kind": "const"
-        },
-        {
-          "name": "launchRiskFallbackRows",
           "line": 399,
           "kind": "const"
         },
         {
-          "name": "launchRiskFallbackLines",
-          "line": 400,
-          "kind": "const"
-        },
-        {
-          "name": "launchRiskFallbackStatus",
+          "name": "launchRiskFallbackRows",
           "line": 401,
           "kind": "const"
         },
         {
-          "name": "launchRiskFallbackWorkspace",
+          "name": "launchRiskFallbackLines",
           "line": 402,
           "kind": "const"
         },
         {
-          "name": "launchRiskFallbackPayload",
+          "name": "launchRiskFallbackStatus",
           "line": 403,
           "kind": "const"
         },
         {
-          "name": "launchRiskFallbackRender",
+          "name": "launchRiskFallbackWorkspace",
           "line": 404,
           "kind": "const"
         },
         {
-          "name": "launchRisk",
+          "name": "launchRiskFallbackPayload",
           "line": 405,
           "kind": "const"
         },
         {
+          "name": "launchRiskFallbackRender",
+          "line": 406,
+          "kind": "const"
+        },
+        {
+          "name": "launchRisk",
+          "line": 407,
+          "kind": "const"
+        },
+        {
           "name": "launchPreflightFallbackRows",
-          "line": 465,
-          "kind": "const"
-        },
-        {
-          "name": "launchPreflightFallbackLines",
-          "line": 466,
-          "kind": "const"
-        },
-        {
-          "name": "launchPreflightFallbackStatus",
           "line": 467,
           "kind": "const"
         },
         {
-          "name": "launchPreflightFallbackRender",
+          "name": "launchPreflightFallbackLines",
           "line": 468,
           "kind": "const"
         },
         {
-          "name": "launchPilotReadinessContext",
+          "name": "launchPreflightFallbackStatus",
           "line": 469,
-          "kind": "let"
+          "kind": "const"
         },
         {
-          "name": "launchPilotPathFromRow",
+          "name": "launchPreflightFallbackRender",
           "line": 470,
-          "kind": "let"
+          "kind": "const"
         },
         {
-          "name": "launchPilotRowLabel",
+          "name": "launchPilotReadinessContext",
           "line": 471,
           "kind": "let"
         },
         {
-          "name": "launchPilotRunReadinessRows",
+          "name": "launchPilotPathFromRow",
           "line": 472,
           "kind": "let"
         },
         {
-          "name": "launchPilotRunReadinessStatus",
+          "name": "launchPilotRowLabel",
           "line": 473,
           "kind": "let"
         },
         {
-          "name": "launchPilotRunReadinessSummaryLines",
+          "name": "launchPilotRunReadinessRows",
           "line": 474,
           "kind": "let"
         },
         {
-          "name": "launchPilotRunReadinessDetailLines",
+          "name": "launchPilotRunReadinessStatus",
           "line": 475,
           "kind": "let"
         },
         {
-          "name": "renderLaunchPilotRunReadiness",
+          "name": "launchPilotRunReadinessSummaryLines",
           "line": 476,
           "kind": "let"
         },
         {
-          "name": "launchBackendPreflightOverallStatus",
+          "name": "launchPilotRunReadinessDetailLines",
           "line": 477,
           "kind": "let"
         },
         {
-          "name": "launchBackendPreflightStatusState",
+          "name": "renderLaunchPilotRunReadiness",
           "line": 478,
           "kind": "let"
         },
         {
-          "name": "launchBackendPreflightRows",
+          "name": "launchBackendPreflightOverallStatus",
           "line": 479,
           "kind": "let"
         },
         {
-          "name": "getLastLaunchBackendPreflightPayloads",
+          "name": "launchBackendPreflightStatusState",
           "line": 480,
           "kind": "let"
         },
         {
-          "name": "launchBackendPreflightPayloadForTarget",
+          "name": "launchBackendPreflightRows",
           "line": 481,
           "kind": "let"
         },
         {
-          "name": "getLastLaunchBackendPreflightRefreshInfo",
+          "name": "getLastLaunchBackendPreflightPayloads",
           "line": 482,
           "kind": "let"
         },
         {
-          "name": "launchBackendPreflightSummaryLines",
+          "name": "launchBackendPreflightPayloadForTarget",
           "line": 483,
           "kind": "let"
         },
         {
-          "name": "launchBackendPreflightDetailLines",
+          "name": "getLastLaunchBackendPreflightRefreshInfo",
           "line": 484,
           "kind": "let"
         },
         {
-          "name": "renderLaunchBackendPreflight",
+          "name": "launchBackendPreflightSummaryLines",
           "line": 485,
           "kind": "let"
         },
         {
-          "name": "refreshLaunchBackendPreflight",
+          "name": "launchBackendPreflightDetailLines",
           "line": 486,
           "kind": "let"
         },
         {
-          "name": "refreshLaunchBackendPreflightEncoderCapability",
+          "name": "renderLaunchBackendPreflight",
           "line": 487,
           "kind": "let"
         },
         {
-          "name": "pipelineLaunchPreflightLines",
+          "name": "refreshLaunchBackendPreflight",
           "line": 488,
           "kind": "let"
         },
         {
-          "name": "rerunQueuePreflightLines",
+          "name": "refreshLaunchBackendPreflightEncoderCapability",
           "line": 489,
           "kind": "let"
         },
         {
-          "name": "renderLaunchPreflight",
+          "name": "pipelineLaunchPreflightLines",
           "line": 490,
           "kind": "let"
         },
         {
-          "name": "renderAllLaunchPreflights",
+          "name": "rerunQueuePreflightLines",
           "line": 491,
           "kind": "let"
         },
         {
-          "name": "isPipelineControlCommand",
+          "name": "renderLaunchPreflight",
           "line": 492,
           "kind": "let"
         },
         {
+          "name": "renderAllLaunchPreflights",
+          "line": 493,
+          "kind": "let"
+        },
+        {
+          "name": "isPipelineControlCommand",
+          "line": 494,
+          "kind": "let"
+        },
+        {
           "name": "pipelineControlHistoryLine",
-          "line": 496,
+          "line": 498,
           "kind": "let"
         },
         {
           "name": "renderPipelineControlHistory",
-          "line": 497,
+          "line": 499,
           "kind": "let"
         },
         {
           "name": "pipelineControlHistoryEntries",
-          "line": 499,
+          "line": 501,
           "kind": "function"
         },
         {
           "name": "renderPipelineControlLatest",
-          "line": 503,
+          "line": 505,
           "kind": "function"
         },
         {
           "name": "renderLaunchLatestCommandEvidence",
-          "line": 513,
+          "line": 515,
           "kind": "function"
         },
         {
           "name": "renderPipelineControlJournal",
-          "line": 530,
+          "line": 532,
           "kind": "function"
         },
         {
           "name": "launchScopeState",
-          "line": 537,
+          "line": 539,
           "kind": "const"
         },
         {
           "name": "launchScopeModule",
-          "line": 558,
-          "kind": "const"
-        },
-        {
-          "name": "launchScopeFallbackRows",
           "line": 560,
           "kind": "const"
         },
         {
-          "name": "launchScopeFallbackLines",
-          "line": 561,
-          "kind": "const"
-        },
-        {
-          "name": "launchScopeFallbackStatus",
+          "name": "launchScopeFallbackRows",
           "line": 562,
           "kind": "const"
         },
         {
-          "name": "launchScopeFallbackRender",
+          "name": "launchScopeFallbackLines",
           "line": 563,
           "kind": "const"
         },
         {
-          "name": "launchScope",
+          "name": "launchScopeFallbackStatus",
           "line": 564,
           "kind": "const"
         },
         {
+          "name": "launchScopeFallbackRender",
+          "line": 565,
+          "kind": "const"
+        },
+        {
+          "name": "launchScope",
+          "line": 566,
+          "kind": "const"
+        },
+        {
           "name": "launchRealMediaState",
-          "line": 645,
+          "line": 647,
           "kind": "const"
         },
         {
           "name": "launchRealMediaModule",
-          "line": 666,
-          "kind": "const"
-        },
-        {
-          "name": "launchRealMediaFallbackRows",
           "line": 668,
           "kind": "const"
         },
         {
-          "name": "launchRealMediaFallbackLines",
-          "line": 669,
-          "kind": "const"
-        },
-        {
-          "name": "launchRealMediaFallbackStatus",
+          "name": "launchRealMediaFallbackRows",
           "line": 670,
           "kind": "const"
         },
         {
-          "name": "launchRealMediaFallbackObject",
+          "name": "launchRealMediaFallbackLines",
           "line": 671,
           "kind": "const"
         },
         {
-          "name": "launchRealMediaFallbackRender",
+          "name": "launchRealMediaFallbackStatus",
           "line": 672,
           "kind": "const"
         },
         {
-          "name": "launchRealMedia",
+          "name": "launchRealMediaFallbackObject",
           "line": 673,
           "kind": "const"
         },
         {
-          "name": "launchPreflightModule",
-          "line": 717,
+          "name": "launchRealMediaFallbackRender",
+          "line": 674,
           "kind": "const"
         },
         {
-          "name": "launchPreflight",
+          "name": "launchRealMedia",
+          "line": 675,
+          "kind": "const"
+        },
+        {
+          "name": "launchPreflightModule",
           "line": 719,
           "kind": "const"
         },
         {
-          "name": "launchCommandOrchestrationFactory",
-          "line": 815,
+          "name": "launchPreflight",
+          "line": 721,
           "kind": "const"
         },
         {
-          "name": "launchCommandOrchestration",
+          "name": "launchCommandOrchestrationFactory",
           "line": 817,
           "kind": "const"
         },
         {
+          "name": "launchCommandOrchestration",
+          "line": 819,
+          "kind": "const"
+        },
+        {
           "name": "rerunFacadeFactory",
-          "line": 849,
+          "line": 851,
           "kind": "const"
         },
         {
           "name": "renderRerunQueuePreflight",
-          "line": 866,
+          "line": 868,
           "kind": "function"
         }
       ],
@@ -19918,7 +20754,7 @@
       ]
     },
     {
-      "load_index": 261,
+      "load_index": 266,
       "src": "/assets/contractView.js",
       "path": "apps/desktop/webview/static/assets/contractView.js",
       "top_level_declarations": [
@@ -20126,7 +20962,7 @@
       ]
     },
     {
-      "load_index": 262,
+      "load_index": 267,
       "src": "/assets/app/lifecycle/topbar.js",
       "path": "apps/desktop/webview/static/assets/app/lifecycle/topbar.js",
       "top_level_declarations": [
@@ -20148,7 +20984,7 @@
       "event_types": []
     },
     {
-      "load_index": 263,
+      "load_index": 268,
       "src": "/assets/app/lifecycle/navigation.js",
       "path": "apps/desktop/webview/static/assets/app/lifecycle/navigation.js",
       "top_level_declarations": [
@@ -20181,7 +21017,7 @@
       ]
     },
     {
-      "load_index": 264,
+      "load_index": 269,
       "src": "/assets/app/lifecycle.js",
       "path": "apps/desktop/webview/static/assets/app/lifecycle.js",
       "top_level_declarations": [
@@ -20192,202 +21028,202 @@
         },
         {
           "name": "lifecycleNavigationModule",
-          "line": 29,
+          "line": 34,
           "kind": "const"
         },
         {
           "name": "lifecycleDisplayText",
-          "line": 56,
+          "line": 64,
           "kind": "function"
         },
         {
           "name": "lifecycleStateToken",
-          "line": 61,
+          "line": 69,
           "kind": "function"
         },
         {
           "name": "lifecycleFactNode",
-          "line": 70,
+          "line": 78,
           "kind": "function"
         },
         {
           "name": "renderLifecycleFacts",
-          "line": 83,
+          "line": 91,
           "kind": "function"
         },
         {
           "name": "renderLifecycleCallout",
-          "line": 89,
+          "line": 97,
           "kind": "function"
         },
         {
           "name": "lifecycleWatcherStatus",
-          "line": 100,
+          "line": 108,
           "kind": "function"
         },
         {
           "name": "lifecycleStopRequestedText",
-          "line": 105,
+          "line": 113,
           "kind": "function"
         },
         {
           "name": "lifecycleGenerationText",
-          "line": 112,
+          "line": 120,
           "kind": "function"
         },
         {
           "name": "lifecycleCloseReadinessLabel",
-          "line": 119,
+          "line": 127,
           "kind": "function"
         },
         {
           "name": "renderDiagnosticsCloseReadinessOverview",
-          "line": 124,
+          "line": 132,
           "kind": "function"
         },
         {
           "name": "renderBackendLifecycleOverview",
-          "line": 159,
+          "line": 167,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandData",
-          "line": 191,
+          "line": 199,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandResultLabel",
-          "line": 202,
+          "line": 210,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandResultState",
-          "line": 214,
-          "kind": "function"
-        },
-        {
-          "name": "backendLifecycleCommandTime",
           "line": 222,
           "kind": "function"
         },
         {
+          "name": "backendLifecycleCommandTime",
+          "line": 230,
+          "kind": "function"
+        },
+        {
           "name": "backendLifecycleCommandSummary",
-          "line": 227,
+          "line": 235,
           "kind": "function"
         },
         {
           "name": "appendLifecycleTableCell",
-          "line": 244,
+          "line": 252,
           "kind": "function"
         },
         {
           "name": "lifecycleResultChip",
-          "line": 253,
-          "kind": "function"
-        },
-        {
-          "name": "renderBackendLifecycleHistoryRows",
           "line": 261,
           "kind": "function"
         },
         {
+          "name": "renderBackendLifecycleHistoryRows",
+          "line": 269,
+          "kind": "function"
+        },
+        {
           "name": "renderBackendLifecycle",
-          "line": 284,
+          "line": 292,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandEntries",
-          "line": 312,
+          "line": 320,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandLine",
-          "line": 319,
+          "line": 327,
           "kind": "function"
         },
         {
           "name": "renderBackendLifecycleHistory",
-          "line": 342,
+          "line": 350,
           "kind": "function"
         },
         {
           "name": "KEYBOARD_PAGE_KEYS",
-          "line": 356,
+          "line": 364,
           "kind": "const"
         },
         {
           "name": "KEYBOARD_PRIMARY_FILTER_IDS",
-          "line": 368,
+          "line": 376,
           "kind": "const"
         },
         {
           "name": "KEYBOARD_DETAIL_IDS",
-          "line": 378,
+          "line": 386,
           "kind": "const"
         },
         {
           "name": "activeKeyboardPage",
-          "line": 388,
-          "kind": "function"
-        },
-        {
-          "name": "activeKeyboardPanel",
-          "line": 392,
-          "kind": "function"
-        },
-        {
-          "name": "shortcutTypingTarget",
           "line": 396,
           "kind": "function"
         },
         {
+          "name": "activeKeyboardPanel",
+          "line": 400,
+          "kind": "function"
+        },
+        {
+          "name": "shortcutTypingTarget",
+          "line": 404,
+          "kind": "function"
+        },
+        {
           "name": "shortcutElementVisible",
-          "line": 401,
+          "line": 409,
           "kind": "function"
         },
         {
           "name": "focusActivePageSearch",
-          "line": 408,
+          "line": 416,
           "kind": "function"
         },
         {
           "name": "dispatchShortcutInputChange",
-          "line": 419,
+          "line": 427,
           "kind": "function"
         },
         {
           "name": "clearActivePageFilters",
-          "line": 424,
+          "line": 432,
           "kind": "function"
         },
         {
           "name": "activePageSelectableRows",
-          "line": 462,
+          "line": 470,
           "kind": "function"
         },
         {
           "name": "moveActivePageSelection",
-          "line": 468,
+          "line": 476,
           "kind": "function"
         },
         {
           "name": "focusActivePageDetail",
-          "line": 482,
+          "line": 490,
           "kind": "function"
         },
         {
           "name": "keyboardShortcutRegistry",
-          "line": 498,
+          "line": 506,
           "kind": "function"
         },
         {
           "name": "keyboardShortcutHelpText",
-          "line": 518,
+          "line": 526,
           "kind": "function"
         },
         {
           "name": "initKeyboardShortcuts",
-          "line": 529,
+          "line": 537,
           "kind": "function"
         }
       ],
@@ -20403,11 +21239,12 @@
         "backend-shutdown-button"
       ],
       "event_types": [
-        "keydown"
+        "keydown",
+        "mediapipeline:run-monitor-rendered"
       ]
     },
     {
-      "load_index": 265,
+      "load_index": 270,
       "src": "/assets/app/topbar.js?v=20260630-csv-home-queue-fastpath",
       "path": "apps/desktop/webview/static/assets/app/topbar.js",
       "top_level_declarations": [
@@ -20478,7 +21315,7 @@
       "event_types": []
     },
     {
-      "load_index": 266,
+      "load_index": 271,
       "src": "/assets/app/closeReadiness.js",
       "path": "apps/desktop/webview/static/assets/app/closeReadiness.js",
       "top_level_declarations": [
@@ -20537,7 +21374,7 @@
       "event_types": []
     },
     {
-      "load_index": 267,
+      "load_index": 272,
       "src": "/assets/app/tauriLifecycle.js",
       "path": "apps/desktop/webview/static/assets/app/tauriLifecycle.js",
       "top_level_declarations": [
@@ -20571,7 +21408,7 @@
       "event_types": []
     },
     {
-      "load_index": 268,
+      "load_index": 273,
       "src": "/assets/app/refresh.js",
       "path": "apps/desktop/webview/static/assets/app/refresh.js",
       "top_level_declarations": [
@@ -20673,7 +21510,7 @@
       ]
     },
     {
-      "load_index": 269,
+      "load_index": 274,
       "src": "/assets/app/home/dailyDriver.js",
       "path": "apps/desktop/webview/static/assets/app/home/dailyDriver.js",
       "top_level_declarations": [
@@ -20692,7 +21529,7 @@
       "event_types": []
     },
     {
-      "load_index": 270,
+      "load_index": 275,
       "src": "/assets/app/home/queueProjection.js",
       "path": "apps/desktop/webview/static/assets/app/home/queueProjection.js",
       "top_level_declarations": [
@@ -20717,7 +21554,7 @@
       ]
     },
     {
-      "load_index": 271,
+      "load_index": 276,
       "src": "/assets/app/home.js?v=20260630-csv-home-queue-fastpath",
       "path": "apps/desktop/webview/static/assets/app/home.js",
       "top_level_declarations": [
@@ -21043,7 +21880,7 @@
         },
         {
           "name": "renderDailyDriverReadiness",
-          "line": 841,
+          "line": 831,
           "kind": "function"
         }
       ],
@@ -21065,7 +21902,7 @@
       ]
     },
     {
-      "load_index": 272,
+      "load_index": 277,
       "src": "/assets/app/homeReadiness.js",
       "path": "apps/desktop/webview/static/assets/app/homeReadiness.js",
       "top_level_declarations": [
@@ -21179,7 +22016,7 @@
       "event_types": []
     },
     {
-      "load_index": 273,
+      "load_index": 278,
       "src": "/assets/app/rowOpenActions.js",
       "path": "apps/desktop/webview/static/assets/app/rowOpenActions.js",
       "top_level_declarations": [
@@ -21245,7 +22082,7 @@
       ]
     },
     {
-      "load_index": 274,
+      "load_index": 279,
       "src": "/assets/app/layoutManager/drawer.js",
       "path": "apps/desktop/webview/static/assets/app/layoutManager/drawer.js",
       "top_level_declarations": [
@@ -21281,7 +22118,7 @@
       ]
     },
     {
-      "load_index": 275,
+      "load_index": 280,
       "src": "/assets/app/layoutManager/normalization.js",
       "path": "apps/desktop/webview/static/assets/app/layoutManager/normalization.js",
       "top_level_declarations": [
@@ -21308,7 +22145,7 @@
       ]
     },
     {
-      "load_index": 276,
+      "load_index": 281,
       "src": "/assets/app/layoutManager.js",
       "path": "apps/desktop/webview/static/assets/app/layoutManager.js",
       "top_level_declarations": [
@@ -21667,7 +22504,7 @@
       ]
     },
     {
-      "load_index": 277,
+      "load_index": 282,
       "src": "/assets/app/uiPreferences.js",
       "path": "apps/desktop/webview/static/assets/app/uiPreferences.js",
       "top_level_declarations": [
@@ -21691,7 +22528,7 @@
       ]
     },
     {
-      "load_index": 278,
+      "load_index": 283,
       "src": "/assets/app/dashboard.js",
       "path": "apps/desktop/webview/static/assets/app/dashboard.js",
       "top_level_declarations": [
@@ -21822,7 +22659,7 @@
       "event_types": []
     },
     {
-      "load_index": 279,
+      "load_index": 284,
       "src": "/assets/app/refreshCoordinator.js",
       "path": "apps/desktop/webview/static/assets/app/refreshCoordinator.js",
       "top_level_declarations": [
@@ -21868,17 +22705,17 @@
         },
         {
           "name": "refreshAll",
-          "line": 83,
+          "line": 82,
           "kind": "function"
         },
         {
           "name": "refreshCurrentOutputStatus",
-          "line": 113,
+          "line": 112,
           "kind": "function"
         },
         {
           "name": "refreshAllNow",
-          "line": 117,
+          "line": 116,
           "kind": "function"
         }
       ],
@@ -21893,7 +22730,7 @@
       "event_types": []
     },
     {
-      "load_index": 280,
+      "load_index": 285,
       "src": "/assets/app/lifecycleOrchestration.js",
       "path": "apps/desktop/webview/static/assets/app/lifecycleOrchestration.js",
       "top_level_declarations": [],
@@ -21975,7 +22812,7 @@
       ]
     },
     {
-      "load_index": 281,
+      "load_index": 286,
       "src": "/assets/app.js?v=20260630-csv-home-queue-fastpath",
       "path": "apps/desktop/webview/static/assets/app.js",
       "top_level_declarations": [

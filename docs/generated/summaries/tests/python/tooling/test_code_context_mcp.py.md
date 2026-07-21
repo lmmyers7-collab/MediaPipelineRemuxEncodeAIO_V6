@@ -8,7 +8,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-20
 last_reviewed: 2026-07-20
-sha256: 2785831a968ed91579883ec2ac556ab977911baf5822994550e8d1f8940792a0
+sha256: 0e2e0c6bb383d9ba1090199514d6c68cb4aade1ff7f5207fc168f657d81f7ec2
 ---
 # `tests/python/tooling/test_code_context_mcp.py`
 

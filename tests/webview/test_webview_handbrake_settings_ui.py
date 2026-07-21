@@ -18,6 +18,7 @@ from mediapipeline.core.config.preset_migration import (
     LABEL_ONLY_RENAME_POLICIES,
 )
 from tests.css_import_resolver import resolve_css_imports
+from tests.webview.static_markup_support import settings_markup
 
 
 STATIC_ROOT = find_repo_root(Path(__file__)) / "apps" / "desktop" / "webview" / "static"
@@ -53,6 +54,10 @@ SETTINGS_VIEW_ASSET_NAMES = (
     "settings/view/review.js",
     "settingsView.js",
 )
+
+
+def _settings_markup() -> str:
+    return settings_markup(STATIC_ROOT)
 
 
 def _settings_patch_review_bundle() -> str:
@@ -215,7 +220,7 @@ def _read_components_css() -> str:
 
 class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
     def test_settings_tabs_follow_operator_workflow_grouping(self) -> None:
-        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        html = _settings_markup()
 
         expected_order = [
             "Status",
@@ -289,7 +294,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             self.assertNotIn(retired_tab, html)
 
     def test_decision_preview_is_honest_and_read_only(self) -> None:
-        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        html = _settings_markup()
 
         for token in (
             "Decision Preview",
@@ -353,7 +358,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             self.assertNotIn(forbidden, review_js + settings_js)
 
     def test_source_compatibility_tab_and_preview_call_are_removed(self) -> None:
-        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        html = _settings_markup()
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
         review_js = _settings_patch_review_bundle()
 
@@ -384,7 +389,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertIn("Source-specific route previews are not exposed in Settings", review_js)
 
     def test_guided_setup_tab_uses_five_phase_backend_owned_flow(self) -> None:
-        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        html = _settings_markup()
         wizard_js = _settings_wizard_bundle()
 
         for token in (
@@ -439,7 +444,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         )
 
     def test_settings_deployment_action_path_is_visible_and_backend_owned(self) -> None:
-        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        html = _settings_markup()
         wizard_js = _settings_wizard_bundle()
 
         for token in (
@@ -482,7 +487,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             self.assertNotIn(token, repair_block.group("body"))
 
     def test_encoder_capability_report_is_read_only_settings_evidence(self) -> None:
-        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        html = _settings_markup()
         settings_js = _settings_view_bundle()
         video_builder_js = (STATIC_ROOT / "assets" / "settingsView.builders.video.js").read_text(encoding="utf-8")
 
@@ -531,7 +536,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             self.assertNotIn(forbidden, render_block.group("body"))
 
     def test_routing_labels_are_visible_without_taxonomy_badges(self) -> None:
-        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        html = _settings_markup()
         review_js = _settings_patch_review_bundle()
         builder_controls_js = (STATIC_ROOT / "assets" / "settings" / "builderControls.js").read_text(encoding="utf-8")
 
@@ -748,7 +753,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertIn("settingsPreserveInputType", builder_controls_js)
 
     def test_advanced_encoder_controls_are_collapsed_by_default(self) -> None:
-        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        html = _settings_markup()
 
         details_start = html.index('<details class="settings-advanced-disclosure">')
         summary_index = html.index("<summary>Advanced encoder controls</summary>", details_start)
@@ -760,7 +765,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertLess(extra_flags_index, details_end)
 
     def test_video_detail_merge_button_has_hover_hint(self) -> None:
-        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        html = _settings_markup()
 
         self.assertIn('id="settings-video-apply-button"', html)
         self.assertIn('aria-describedby="settings-video-apply-hint"', html)
@@ -769,7 +774,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertIn("backend owns routing, codec, container, and encoder policy", html)
 
     def test_video_speed_and_quality_targets_use_descriptive_sliders(self) -> None:
-        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        html = _settings_markup()
         metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
         builder_js = (STATIC_ROOT / "assets" / "settingsView.builders.video.js").read_text(encoding="utf-8")
         builder_controls_js = (STATIC_ROOT / "assets" / "settings" / "builderControls.js").read_text(encoding="utf-8")
@@ -893,7 +898,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             self.assertIn(token, styles)
 
     def test_rule_and_strictness_badges_are_not_rendered(self) -> None:
-        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        html = _settings_markup()
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
         styles = _read_components_css()
         review_js = _settings_patch_review_bundle()
@@ -1404,7 +1409,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         backend = _backend_metadata_by_key()
         metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
         libraries_js = _settings_libraries_bundle()
-        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        html = _settings_markup()
 
         self.assertIn("Used before processing to decide copy/remux versus encode.", backend["RouteThresholdMode"]["help_text"])
         self.assertNotIn("threshold", backend["RouteThresholdMode"]["help_text"].lower())

@@ -14,6 +14,8 @@ $testsRoot = Split-Path -Parent $PSCommandPath
 $pipelineRoot = Split-Path -Parent (Split-Path -Parent $testsRoot)
 $repoRoot = Split-Path -Parent (Split-Path -Parent $pipelineRoot)
 $mutexModulePath = Join-Path $pipelineRoot 'engine\queue\worker_mutex.ps1'
+$monitorContractPath = Join-Path $pipelineRoot 'engine\status\run_monitor_contract.ps1'
+$monitorPersistencePath = Join-Path $pipelineRoot 'engine\status\run_monitor_persistence.ps1'
 $monitorModulePath = Join-Path $pipelineRoot 'engine\status\run_monitor_state.ps1'
 $encodeFallbackPath = Join-Path $pipelineRoot 'engine\process\encode_fallback.ps1'
 $encodeSizeGuardPath = Join-Path $pipelineRoot 'engine\process\encode_size_guard.ps1'
@@ -34,6 +36,8 @@ function Write-Log {
 }
 
 . $mutexModulePath
+. $monitorContractPath
+. $monitorPersistencePath
 . $monitorModulePath
 . $encodeFallbackPath
 . $encodeSizeGuardPath

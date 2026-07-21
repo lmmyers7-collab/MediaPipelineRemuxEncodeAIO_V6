@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-15
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: 4f465948b43abacc715e30b2418c68670f6ed7dc1a6a56e75f769d04a965a241
+sha256: 7119c0a9820c96569a9b6ff2584eeb6a5273ac3c09cb06bbc017044ac9001571
 ---
 # `tests/webview/test_webview_browser_maintenance_change_ledger_smoke.py`
 

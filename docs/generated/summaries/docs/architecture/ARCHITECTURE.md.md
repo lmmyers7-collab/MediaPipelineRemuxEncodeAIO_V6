@@ -8,12 +8,12 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-20
 last_reviewed: 2026-06-02
-sha256: ac060bea9312113788365d088160378ac04d21276a64d625c956847bf28e2953
+sha256: c191ffa9d9b2a8a1cd5ef1608a8cac1a917945d9ae0b92f46002fd14d974d4ab
 ---
 # `docs/architecture/ARCHITECTURE.md`
 
 **Purpose:** Markdown implementation for architecture.
 
-**State/config identifiers:** `settings.v1.json`, `settings_projection.v1.json`
+**State/config identifiers:** `config.v1.schema.json`, `media_pipeline_config.schema.json`, `settings.v1.json`, `settings_projection.v1.json`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths docs/architecture/ARCHITECTURE.md`._

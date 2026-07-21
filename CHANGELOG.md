@@ -13,6 +13,12 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Added
 
+- Priority-only queue export and Run Once scope: Queue can prepare a
+  backend-owned, versioned export of runnable effective-High items, while
+  Launch submits only its export ID. Python and PowerShell rebuild and compare
+  queue-input, plan, and accepted-membership fingerprints before dispatch;
+  stale, empty, malformed, or changed exports fail closed without falling back
+  to the full queue or clearing priority settings.
 - Private-beta productization foundation: Tauri is now NSIS-first with aligned
   calendar-build package metadata, updater plugin scaffolding, CI scripts for
   signed NSIS/updater artifacts and GitHub channel JSON, backend-owned
@@ -212,6 +218,13 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Changed
 
+- Active status documentation was condensed around present truth:
+  `docs/CURRENT_PROJECT_STATE.md` now carries only current architecture,
+  capabilities, limitations, and release posture, while
+  `docs/OPEN_WORK_CHECKLIST.md` carries only unresolved work and recurring
+  gates. Closed detail remains reachable through this changelog, the remediation
+  history, decision history, archive index, review ledgers, validation records,
+  and change packets; legacy checklist anchors are retained where practical.
 - Architecture/operator documentation now resolves moved doc paths under
   `docs/architecture/` and `docs/operator/`, removes active references to
   deleted `Pipeline\Modules` compatibility surfaces, records the enabled

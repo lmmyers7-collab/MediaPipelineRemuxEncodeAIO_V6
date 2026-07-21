@@ -155,6 +155,69 @@ function Invoke-PipelineEventLogRotationCheck {
     }
 }
 
+function Invoke-PipelineEventEnvelopeRoundTripCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('MediaPipelineEventEnvelopeTest_' + [guid]::NewGuid().ToString('N'))
+    $oldLogLock = $script:logLock
+    $oldEventLogFile = $script:PipelineEventLogFile
+    $oldRunId = $script:PipelineRunId
+    $oldJobId = $script:CurrentJobId
+    $oldProductVersion = $script:ProductVersion
+    $oldPipelineVersion = $script:PipelineVersion
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        $script:PipelineEventLogFile = Join-Path $tempRoot 'pipeline_events.jsonl'
+        $script:PipelineRunId = 'run-envelope-test'
+        $script:CurrentJobId = 'job-envelope-test'
+        $script:ProductVersion = 'v4.000-test'
+        $script:PipelineVersion = 'test-version'
+        $script:logLock = [System.Threading.Mutex]::new($false, ('Global\MediaPipelineEventEnvelopeTest_' + [guid]::NewGuid().ToString('N')))
+
+        $firstWritten = Write-PipelineEvent `
+            -EventType 'job_started' `
+            -Stage 'processing' `
+            -Status 'started' `
+            -SourcePath 'source.mkv' `
+            -Route 'encode' `
+            -Data @{ media_type = 'movie'; queue_index = 1 }
+        $secondWritten = Write-PipelineEvent `
+            -EventType 'tool_completed' `
+            -Stage 'encode' `
+            -Status 'succeeded' `
+            -Data ([pscustomobject]@{ tool_name = 'ffmpeg'; exit_code = 0 })
+
+        Assert-True ([bool]$firstWritten) 'Write-PipelineEvent should accept hashtable event data.'
+        Assert-True ([bool]$secondWritten) 'Write-PipelineEvent should accept object event data.'
+        $lines = @(Get-Content -LiteralPath $script:PipelineEventLogFile)
+        Assert-Equal $lines.Count 2 'Event envelope check should append exactly two JSONL rows.'
+        $first = $lines[0] | ConvertFrom-Json -ErrorAction Stop
+        Assert-Equal ([string]$first.schema_version) 'pipeline_event.v1' 'Event schema version mismatch.'
+        Assert-Equal ([string]$first.event_type) 'job_started' 'Event type mismatch.'
+        Assert-True (-not [string]::IsNullOrWhiteSpace([string]$first.created_at)) 'Event creation timestamp must be populated.'
+        Assert-Equal ([string]$first.run_id) 'run-envelope-test' 'Event run id must inherit current correlation context.'
+        Assert-Equal ([string]$first.correlation_id) 'run-envelope-test' 'Event correlation id must inherit current run context.'
+        Assert-Equal ([string]$first.job_id) 'job-envelope-test' 'Event job id must inherit current job context.'
+        Assert-Equal ([string]$first.product_version) 'v4.000-test' 'Event product version mismatch.'
+        Assert-Equal ([string]$first.pipeline_version) 'test-version' 'Event pipeline version mismatch.'
+        Assert-Equal ([string]$first.source_path) 'source.mkv' 'Event source path mismatch.'
+        Assert-Equal ([string]$first.data.media_type) 'movie' 'Hashtable event data did not round-trip.'
+        Assert-Equal ([int]$first.data.queue_index) 1 'Hashtable numeric event data did not round-trip.'
+        $second = $lines[1] | ConvertFrom-Json -ErrorAction Stop
+        Assert-Equal ([string]$second.data.tool_name) 'ffmpeg' 'Object event data did not round-trip.'
+        Assert-Equal ([int]$second.data.exit_code) 0 'Object numeric event data did not round-trip.'
+    } finally {
+        if ($script:logLock -and $script:logLock -ne $oldLogLock) {
+            $script:logLock.Dispose()
+        }
+        $script:logLock = $oldLogLock
+        $script:PipelineEventLogFile = $oldEventLogFile
+        $script:PipelineRunId = $oldRunId
+        $script:CurrentJobId = $oldJobId
+        $script:ProductVersion = $oldProductVersion
+        $script:PipelineVersion = $oldPipelineVersion
+        Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Invoke-DebugLogRotationDuringWriteCheck {
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('MediaPipelineDebugLogRotationTest_' + [guid]::NewGuid().ToString('N'))
     $oldLogLock = $script:logLock
@@ -258,6 +321,7 @@ function Invoke-ConcurrentCompletedManifestJsonLineAppendCheck {
 }
 
 Invoke-JsonLineAppendFailsClosedWhenLogLockIsHeldCheck
+Invoke-PipelineEventEnvelopeRoundTripCheck
 Invoke-PipelineEventLogRotationCheck
 Invoke-DebugLogRotationDuringWriteCheck
 Invoke-ConcurrentCompletedManifestJsonLineAppendCheck

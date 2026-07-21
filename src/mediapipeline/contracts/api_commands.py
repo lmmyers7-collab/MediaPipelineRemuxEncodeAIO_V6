@@ -29,6 +29,10 @@ class EmptyCommandPayload(ApiCommandPayload):
     pass
 
 
+class StrictEmptyCommandPayload(StrictApiCommandPayload):
+    pass
+
+
 class OpenLocationCommandPayload(ApiCommandPayload):
     path: Any = None
     target: Any = None
@@ -629,6 +633,28 @@ class PipelineStartCommandPayload(StrictApiCommandPayload):
     show_console: StrictBool | None = None
     single_file: StrictStr | None = None
     schedule_override: Literal["", "run_once", "ignore"] | None = None
+    queue_scope: Literal["backend_queue", "priority_export"] | None = None
+    priority_export_id: StrictStr | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
+        pattern=r"^priority-export-[A-Za-z0-9._-]{1,96}$",
+    )
+
+    @model_validator(mode="after")
+    def validate_queue_scope(self) -> PipelineStartCommandPayload:
+        scope = self.queue_scope or "backend_queue"
+        export_id = str(self.priority_export_id or "").strip()
+        if scope == "priority_export":
+            if not export_id:
+                raise ValueError("priority_export_id is required for queue_scope=priority_export")
+            if self.mode != "once":
+                raise ValueError("queue_scope=priority_export is allowed only for mode=once")
+            if str(self.single_file or "").strip():
+                raise ValueError("single_file cannot be combined with queue_scope=priority_export")
+        elif export_id:
+            raise ValueError("priority_export_id is allowed only for queue_scope=priority_export")
+        return self
 
 
 class AuditStopCommandPayload(StrictApiCommandPayload):
@@ -861,6 +887,7 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/queue/scan": QueueScanCommandPayload,
     "/api/queue/open": OpenLocationCommandPayload,
     "/api/queue/priority": QueuePriorityCommandPayload,
+    "/api/queue/priority-export": StrictEmptyCommandPayload,
     "/api/queue/strategy": QueueStrategyCommandPayload,
     "/api/queue/file-overrides": QueueFileOverridesCommandPayload,
     "/api/queue/file-overrides/route-preview": QueueFileOverridesRoutePreviewCommandPayload,

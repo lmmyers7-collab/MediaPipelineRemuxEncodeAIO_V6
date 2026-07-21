@@ -2,257 +2,201 @@
 
 Last updated: 2026-07-20
 
-This is the fast entry point for future AI/code agents. Read this before older audits, Claude task files, or historical checklists.
+This is the fast current-state entry point for AI/code agents. It intentionally
+contains present truth rather than a completion log. Use `CHANGELOG.md`,
+`docs/architecture/DECISIONS_AND_HISTORY.md`, `docs/ARCHIVED_MD_INDEX.md`, and
+the change packets under `ops/release/changes/` for historical evidence.
 
 ## What This Project Is
 
-MediaPipelineRemuxEncodeAIO is the active promoted WebView/Tauri workspace. It is a Windows-first, one-operator media pipeline for a Plex-style library. It discovers source media, copies sources to scratch, decides remux versus encode, runs FFmpeg/ffprobe and helper tools, handles subtitles/audio, writes sidecars/manifests, publishes completed outputs, parks pending publishes when final output is unsafe, and exposes operator controls through a local Python API plus WebView/Tauri shell.
+MediaPipelineRemuxEncodeAIO is a Windows-first, single-operator media pipeline
+for a Plex-style library. It discovers source media, copies it to scratch,
+chooses remux versus encode, runs FFmpeg/ffprobe and helper tools, handles
+subtitle/audio policy, writes sidecars and manifests, publishes completed
+outputs, and parks unsafe final placement for manifest-backed drain later.
 
-Active WebView/Tauri refinement, documentation cleanup, tests, packaging, and operator workflow refinement continue in this promoted workspace.
+The promoted operator surface is a backend-served WebView SPA in a
+Tauri/WebView2 shell. A local Python API owns desktop-facing contracts and
+domain services; the PowerShell engine remains the production media engine.
 
 ## Current UI Reality
 
-- **Tauri/WebView2 shell** is the promoted desktop shell path.
-- **Local Python backend API** is the intended long-term boundary between UI and pipeline behavior.
-- The frontend must not own filesystem mutation, media policy, settings persistence, queue mutation, pending-publish drain, rename apply, or process lifecycle decisions.
-- 2026-07-20 Queue ownership and preview-to-execution parity are explicit: `GET /api/queue` reads the latest backend snapshot and never launches a dry-run; `POST /api/queue/scan` owns source inventory plus `-EmitQueuePlan` curation. Blank Run Once requires a completed, scope-matching dry-run snapshot whose scan request ID, queue-input fingerprint, pending-publish posture, plan fingerprint, accepted membership, and naming evidence are valid. Snapshot age, file mtime, and clock skew are advisory because the PowerShell engine rebuilds the active queue and requires the exact accepted plan fingerprint before media dispatch. Priority, hold, low, manual-order, strategy, and file-override changes request a new backend preview. CSV rerun and Network queue workflows remain separate.
-- 2026-07-16 standard Run Once monitoring is backend-owned and file-centric. A versioned `pipeline_run_monitor.v1` record preserves the exact accepted Backend Queue workload, stable run/job/source identities, run-wide positions, explicit stage ledger, separately planned/executed/final routes, per-track audio/subtitle evidence, all active workers, output/sidecar/terminal references, recovery guidance, and Stop After Current state. `GET /api/run-monitor` publishes the freshness-gated `desktop_run_monitor.v1` projection; stale, future, unavailable, partial, or contradictory evidence cannot populate current file/stage/route/worker/progress claims. Home is the primary Current Work surface, while Queue remains planning, Launch remains readiness, Completed/Pending/Reports remain terminal proof, and Telemetry/Diagnostics remain supporting escalation surfaces. Synthetic contract, API, PowerShell, static, and browser coverage is present; representative real-media validation was not run without explicit authorization and remains outstanding before this high-risk change is release-ready.
-- As of the 2026-05-20 WebView-first split, the legacy desktop-shell files and runtime package were removed from this current folder. See `docs/archive/v6-split-notes-2026-05-20.md` for archived split evidence and ADR-0011 for the durable decision record.
-- As of the 2026-05-18 transition-review remediation pass, source/dev bundle validation was green: full unskipped release self-test, bundled `unittest`/`pytest`, browser no-mutation smokes, and Tauri `-CheckOnly`/build gates passed. Representative real-media validation was later closed by operator attestation on 2026-05-28, and default-launcher/package-mode promotion was closed by operator confirmation on 2026-05-30.
-- A fresh current-handoff package was built on 2026-05-18; copied-bundle package-mode Tauri launch/close passed locally. This remains historical transfer-readiness evidence. Do not treat the original local build path as a current target; copy/build the candidate appropriate for the validation machine.
-- Python validation should use the bundled interpreter at `apps\desktop\runtime\Python\python.exe`. System Python may not have `pytest` and is not the canonical portable-bundle test environment.
-- 2026-05-19 cleanup work completed the planned god-file split waves, reduced WebView compatibility flat exports to namespace-first access, added pending-publish safety guardrail coverage, and cleaned/guarded rebuildable generated artifacts and root log captures. These maintainability/safety improvements support the current promoted current surface.
-- 2026-05-19 Tauri preview-shell lifecycle hardening added backend health/crash lifecycle events, a read-only WebView recovery banner, a per-user Windows single-instance guard, and a production-surface audit for devtools/token posture. This closes the preview-shell hardening backlog item; representative real-media validation was later closed by operator attestation on 2026-05-28, and default-launcher promotion was closed by operator confirmation on 2026-05-30.
-- 2026-06-15 Network lifecycle/setup is backend-owned and provider-guarded. `/api/contract` publishes active Network dry-run/start/stop, worker test-connection, coordinator discovery, coordinator join-blob, and worker join-cluster route metadata, and `docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` documents the dry-run, cleanup/rollback, command-journal, source-file policy, and route-exposure gates. WebView may call only those backend routes; it must not implement lifecycle, queue, claim, done-report, settings-save, or media mutation logic itself.
-- 2026-05-20 Wave C code cleanup was reconciled as a closed finite checklist item. Namespace object boundary comments are guarded, high-confidence dead-export removals are complete, completed split tests have focused ownership, and remaining member JSDoc/export decisions are maintenance guardrails per touched module.
-- 2026-05-20 active documentation was consolidated: this file is the single current-state source, root `docs/OPEN_WORK_CHECKLIST.md` is the single active checklist, and the older active-fix/transition-plan/status-board/fix-checklist bodies are quarantined under `docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/docs/archive/historical-plans/` with compatibility redirect stubs left at the old paths.
-- 2026-05-20 layout-manager edge cases were closed. Stored page order now resets to the authored default order when a page's panel-key set changes, while hidden/advanced panel state is preserved; dragging an advanced-gated panel now shows a transient local hint instead of silently behaving like an always-visible panel. This is WebView layout-state behavior only and does not change Local API routes, backend media policy, launch scope, publish/drain, rename, settings save, or source/scratch/output file handling.
-- 2026-05-20 the deferred UI improvement backlog was closed for its active 23-item scope. Launch command buttons are state-aware from backend snapshot/close-readiness, Force Stop is a hidden-until-active emergency topbar control, long operations have clearer progress/status, legacy dialog-error callers route through structured `show_error`, WebView Launch failures show sanitized root-cause next steps, telemetry render failures become local diagnostics instead of refresh crashes, and status/tooltips/accessibility/layout decisions are preserved in archived reconciliation evidence and `docs/REMEDIATION_CHANGELOG.md`; no active standalone UI-improvement checklist remains in `docs/ui/`.
-- 2026-05-20 Tauri/WebView security-surface hardening added a non-null Tauri CSP and Local API response security headers (`Content-Security-Policy`, `X-Content-Type-Options`, and `Referrer-Policy`). The policy preserves current bootstrap/debug automation compatibility and does not change backend command authority, media mutation, launch, publish, rename, settings, or filesystem behavior.
-- 2026-06-26 GitHub audit/security follow-up closed workflow hardening (#20), release/package CI runtime provisioning (#22), Ruff undefined-name and shim-export findings (#24), and the actionable Local API/WebView URL/path findings (#25). Deep Audit and package jobs now provision the expected bundled Python runtime layout in CI rather than weakening package validation. Deferred item #15 remains blocked on upstream Tauri/Wry/GTK movement for `glib >= 0.20`.
-- 2026-06-29 GitHub #23 architecture-boundary cleanup is closed for `NO_CORE_TO_DESKTOP`: strict `check_dependency_boundaries` reports zero core-to-desktop imports, the dependency allowlist has no entries for that rule, and the checker rejects future `NO_CORE_TO_DESKTOP` allowlist lines.
-- 2026-07-12 repository governance was normalized without rewriting history: `main` was fast-forwarded by 19 commits to `34e4076720bde468ba9cb221ec617920724c587e`, matching the former default `refactor/mediapipeline-entrypoint-slice` tip, and restored as the default branch. All open Dependabot pull requests now target `main`. Branch protection requires up-to-date Generated Drift, Python, WebView, Tauri, release/package, four-language CodeQL, and aggregate GitHub Advanced Security CodeQL checks; conversation resolution is required and force-pushes/deletions are disabled. The preserved refactor branch has no commits different from `main` and remains available as reconciliation evidence.
-- 2026-05-20 stale-gate review reconciled the then-remaining blockers as external/human validation rather than stale local protected gates. Representative real-media validation was closed by operator attestation on 2026-05-28, and default-launcher/package-mode promotion was closed by operator confirmation on 2026-05-30.
-- 2026-05-20 Local API and network coordinator request-handler threads are no longer daemonized, so normal shutdown waits for in-flight command/claim/done/log cleanup instead of abandoning handler work. Listener threads themselves remain daemonized.
-- 2026-05-20 `docs\architecture\LOCAL_API_SECURITY_SURFACE.md` now records the current localhost API/token/bootstrap/security-header boundary for future WebView/Tauri work.
-- 2026-07-11 dispatcher expansion enables two additional narrowly bounded mutation-capable stages. Python `rename` is limited to one regular scratch file under a dispatcher-allowed scratch root disjoint from dispatcher-protected source roots, with payload/config root equality, strict confirmation, content-bound dry-run fingerprint, command/operation journals, duplicate-operation replay protection, no overwrite/extension change/sidecars, and scratch-local undo evidence. Python `subtitle-convert` is limited to one standalone scratch `.ass`/`.ssa` artifact and one new sibling `.srt`, with the same trusted-root/journal/fingerprint posture, input-hash preservation, deterministic output evidence, review routing, and rollback. TX3G, BDPGS/OCR, embedded streams, language routing, and publish integration remain disabled. Guarded PowerShell `ingest` remains source-to-scratch only; `probe` and `decide` remain read-only. A follow-up audit found no remaining stage safely enableable from temporary fixtures: `transcode` and `audio-mix` require production-policy parity plus representative media, while `publish` and `drain` require manifest transaction/recovery parity plus representative final-placement evidence. Their disabled contracts now expose stable blocker codes and required-validation lists. The existing PowerShell pipeline remains the production owner for media processing, integrated subtitle/audio/naming policy, publish/drain, and final placement.
-- 2026-05-28 Phase 4 tooling/state foundation is additive and shadow-only: command journal entries, stage events, queue dry-run snapshots, and completed-job manifest rows now mirror into `LocalBase\State\mediapipeline_state.sqlite3` when a state root is available, but the existing JSON/state files remain authoritative. New JSON-line logging and boundary-validation helpers exist under `src/mediapipeline/core/observability/` and `src/mediapipeline/core/validation/`; Phase 4 typing, architecture, schema, and engine-analysis checks are wired into the development safety net.
-- 2026-07-11 product integration exposed backend-owned PresetV2 validation/preview/save/apply controls, lifecycle recovery evidence, redacted support-bundle creation, and read-only effective-settings provenance in the existing operator pages. The SQLite mirror remains optional and rebuildable observability evidence; the stage dispatcher remains a narrow probe/decision/guarded-ingest plus scratch-only rename and standalone ASS/SSA conversion boundary rather than a PowerShell media-engine replacement. See `docs/architecture/DECISIONS_AND_HISTORY.md` (PI-001 and PI-002).
-- 2026-05-28 Phase 5 drift-prevention foundation is enforcement-only: `src/mediapipeline/tools/lint_naming.py` blocks new legacy-pattern filenames, `ops/scripts/dev/check_active_doc_references.py` checks active docs for stale moved paths and removed shell wording, and `tests/contract/` now carries behavior-organized config/stage contract tests while legacy test entrypoints remain available.
-- 2026-05-29 legacy surface cleanup is locally complete: `ops/scripts/dev/check_legacy_removal_readiness.py` reports config-schema compatibility files, former command-payload adapters, flat Python facades/services, root launcher shims, `Pipeline` root launcher shims, and `Pipeline\Modules` as removed or empty. The remaining active PowerShell implementations live under `ops\pipeline\engine\<domain>`, `Pipeline\Modules` has no files, post-move real-media evidence covers remux, encode/size, subtitles, audio, deferred pending publish, drain, and rename-output safety, and post-deletion source release plus copied package-mode Tauri validation passed locally.
-- 2026-05-28 handoff status was reconciled: representative real-media validation is complete by operator attestation; `docs/RealMediaValidationRuns/README.md` is the non-sensitive evidence anchor.
-- 2026-05-30 active handoff docs were refreshed for the promoted state: old root launcher shims are no longer documented as available, and default-launcher promotion is closed by operator confirmation.
-- 2026-05-30 WebView split/tooling work is present for continued plain-script cleanup: generated WebView split maps, split-candidate reports, public-contract baselines, DOM-ID gap reports, route-ownership guards, ESLint warning budgets, and guardrail/runbook docs now exist. This is frontend maintainability and drift-prevention work; it does not change backend media policy.
-- 2026-06-04 completed/superseded Markdown bodies were archived out of the active docs tree under `docs/archive/docs-housekeeping/2026-06-04-completed-md-pass/`. The archived set covers historical audits, the completed dependency-refactor phase tracker, and the completed UX-001 through UX-017 remediation tracker. Redirect stubs remain where active notes still use the old audit or UX paths.
-- 2026-07-04 documentation cleanup archived completed release-foundation, Local API test-split, architecture-boundary, network hardening, queue scan proposal, documentation-cleanup prompt, and stale session-log material under `docs/archive/docs-housekeeping/2026-07-04-doc-cleanup/`. The reusable real-media pilot checklist remains active at `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md`.
-- 2026-06-04 repository layout migration moved loose backend Python into the installable `mediapipeline` namespace under `src/`, grouped desktop/web assets under `apps/desktop/`, grouped PowerShell engine, runtime, scripts, and release metadata under `ops/`, and moved generated/runtime output out of the repository root. The root is now a small project shell: VCS/tool manifests, package manifests, root onboarding docs, and the five responsibility folders `src/`, `apps/`, `ops/`, `tests/`, and `docs/`.
+- Tauri/WebView2 is the promoted desktop shell. The removed legacy desktop
+  shell is historical and is not an active fallback in this tree.
+- The frontend displays backend state, stages operator intent, and calls Local
+  API routes. It does not own filesystem mutation, settings persistence, queue
+  mutation, media policy, repair/apply, pending-publish drain, rename apply, or
+  process lifecycle policy.
+- Home is the primary Current Work view. Queue owns planning, Launch owns
+  readiness/start, Completed/Pending/Reports own terminal proof, and
+  Telemetry/Diagnostics provide supporting evidence and escalation.
+- `GET /api/queue` reads the latest backend snapshot without launching work.
+  `POST /api/queue/scan` owns source inventory and queue-plan curation. Blank
+  Run Once requires a completed scope-matching preview and exact accepted plan
+  fingerprint; the PowerShell engine rebuilds and verifies the active plan
+  before dispatch. CSV rerun and Network queue workflows remain separate.
+- Standard Run Once monitoring is backend-owned through
+  `pipeline_run_monitor.v1` and the freshness-gated
+  `GET /api/run-monitor` projection. Stale, future, partial, or contradictory
+  evidence cannot populate current file, route, worker, stage, or progress
+  claims. Synthetic coverage exists; representative real-media coverage for
+  this newer monitor remains part of the open rerun gate.
+- Network lifecycle/setup and selected Completed/Pending repair/reconcile
+  operations are exposed only through backend dry-run and strictly confirmed
+  routes. WebView controls send intent and matching fingerprints, not paths or
+  mutation policy.
 
 ## Main Launchers
 
-Run from the repository root:
+Run canonical launchers from the repository root:
 
 ```powershell
 .\ops\scripts\dev\start-local-api.bat
+.\ops\scripts\dev\start-api-and-browser.bat
 .\ops\scripts\dev\start-tauri-preview.bat -CheckOnly
 .\ops\scripts\dev\start-tauri-preview.bat
-.\ops\scripts\dev\start-api-and-browser.bat
-.\ops\scripts\dev\verify-env.bat
 .\ops\scripts\release\test.ps1
-.\ops\scripts\operator\New-RealMediaValidationWorksheet.ps1
 ```
 
-Default-launcher promotion is complete by operator confirmation on 2026-05-30. Representative real-media validation is operator-attested complete as of 2026-05-28, but rerun it after high-risk media behavior changes. The latest media-policy rerun is MP-CHANGE-2026-0622-001: Tdarr proof-pack run `run-20260622-codex-proof-all-final` executed 92 cases, published and ffprobe-verified 76 outputs, left 92/92 source hashes unchanged, and left only terminal/non-retryable expected-invalid warnings. Targeted Dynamic HDR reruns now cover both implemented metadata families: MP-CHANGE-2026-0622-004 preserved Dolby Browser Test Kit P8.1 SD through CPU/libx265 with FFmpeg native Dolby Vision coding, output DOVI verified, source/output RPU frame counts `1721/1721`, and source hash unchanged; MP-CHANGE-2026-0622-007 preserved the FFPictures HDR10+ Lake sample through CPU/libx265 with relative `dhdr10-info`, output HDR10+ verified, source/output HDR10+ JSON hashes matched, and source hash unchanged. Playback-device HDR10+ indicator proof and broader Dolby profile coverage remain recurring validation gates for those cases.
+Use `apps\desktop\runtime\Python\python.exe` for repository Python validation.
+See `README.md` and `AGENTS.md` for the complete launcher and tooling list.
 
 ## Current Architecture
 
-- `src/mediapipeline/core/`: domain-organized backend Python for config, orchestration, storage, validation, services, and facade adapters.
-- `src/mediapipeline/contracts/`: Pydantic contracts and generated config/stage schemas. The dispatcher enables PowerShell-backed `probe`, `decide`, and guarded `ingest`, plus Python-backed scratch-only `rename` and standalone ASS/SSA `subtitle-convert` executors. SQLite storage is a mirror only; JSON state files remain authoritative.
-- `ops/pipeline/engine/`: active domain-organized PowerShell implementation for FFmpeg/ffprobe orchestration, remux/encode routing, subtitle/audio modules, publishing, queue planning, audit, config schema, and state handling.
-- `ops/pipeline/entrypoints/`, `ops/pipeline/config/`, `ops/pipeline/runtime/`, `ops/pipeline/tools/`, and `ops/pipeline/tests/`: PowerShell entrypoints, PSD1/config assets, portable runtime placeholders, bundled tool placeholders, and PowerShell tests. `Pipeline\Modules` is no longer an active module surface.
-- `src/mediapipeline/desktop/`: Python local API/WebView backend package. It owns local API routes, command contracts, compatibility imports, backend bootstrap, and backend-served WebView integration.
-- `apps/desktop/webview/static/`: WebView frontend assets. These render state, submit backend-owned commands, and provide operator guidance. They must not implement filesystem mutation or media policy independently.
-- `apps/desktop/tauri/`: Tauri/WebView2 preview shell and shell validation scripts.
-- `tests/`: behavior/domain test layout. Currently seeded with contract and tooling checks; existing `tests/python/desktop` and PowerShell smoke wrappers remain compatibility entrypoints for one release.
-- `docs/`: operator docs, engineering docs, safety runbooks, and consolidated current-state docs. Organized into topic subfolders: `inventories/` (route maps, schemas, inventories), `testing/` (smoke runbooks, coverage matrices), `operator/` (playbooks, glossaries, boundary registers), `architecture/` (decisions, risk register, lifecycle boundaries), `sample-validation/` (real-media playbooks and templates), and `ui/` (active UI planning). `docs/active-plans/` now contains compatibility redirects only; completed/historical plan bodies moved during the 2026-05-20 cleanup live under `docs/archive/docs-housekeeping/2026-05-20-review/`.
-- `ops/scripts/smoke/Test-WebView*.ps1` and `ops/scripts/smoke/Test-LocalApi*.ps1`: WebView/local API smoke wrappers.
+```text
+Tauri/WebView2 shell
+  -> backend-served WebView SPA
+  -> Python Local API
+  -> Python domain services and contracts
+  -> PowerShell media engine
+  -> FFmpeg/ffprobe/MKVToolNix/PgsToSrt and filesystem state
+```
+
+- `src/mediapipeline/core/`: backend domain services and policy.
+- `src/mediapipeline/contracts/`: Pydantic contracts and generated schemas.
+- `src/mediapipeline/desktop/`: Local API host and desktop adapters.
+- `apps/desktop/webview/static/` and `apps/desktop/tauri/`: promoted UI/shell.
+- `ops/pipeline/`: PowerShell entrypoints, engine, config, runtime, and tests.
+- `ops/scripts/`: canonical dev, smoke, operator, and release wrappers.
+
+Use `docs/architecture/ARCHITECTURE.md` for the concise architecture map and
+`docs/architecture/MODULE_MAP.md` for feature placement and ownership.
 
 ## Known-Good Behavior To Preserve
 
-- Source files are copied to scratch. Source mutation is forbidden unless an explicit safe source-delete setting is intentionally enabled.
-- Same-disk source/output/scratch layouts are allowed but must be disclosed and guarded.
-- Pending publish parks completed outputs when final output is unavailable or unsafe, then drains later with manifest evidence.
-- Rename is a standalone tool. Backend owns apply/transaction behavior; WebView may preview and guard but must not mutate directly.
-- Subtitle behavior preserves original subtitles by default and adds SRT for preferred-language tracks when configured. OCR/conversion failure should route to review rather than silent bad publish.
-- Audio routing is profile/config driven. Do not casually alter passthrough, downmix, or transcode policy.
-- FFmpeg/media policy changes require high validation, including real-media samples where practical.
-- Command journal, strict JSON route handling, duplicate-command guards, close-readiness checks, and backend safety mechanisms are release-critical.
+The durable safety contract is in `AGENTS.md`; high-risk boundaries are in
+`docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`. In particular:
+
+- Source mutation is forbidden by default; processing uses scratch copies.
+- Pending publish is manifest-backed and drained only through backend policy.
+- Original subtitles are preserved by default; failed conversion/OCR routes to
+  review rather than silent bad publish.
+- Audio and remux/encode behavior are profile/config driven.
+- Strict JSON confirmations, command journaling, duplicate-command guards, and
+  close-readiness are release-critical.
+- JSON files remain authoritative where documented; the SQLite state database
+  is an optional, rebuildable observability mirror.
 
 ## Current Operating State
 
-- The WebView/Tauri foundation is the promoted default operator surface.
-- The planned god-file split campaign is complete through Wave 6. Production UI/code ownership is now split across focused Python, PowerShell, Rust, HTML partial, CSS, and WebView JS child modules; command-adjacent Queue priority/strategy/file-overrides behavior intentionally remains in `queueView.js`.
-- Current WebView cleanup is now guarded by Node-based generated baselines and explicit runbooks: `npm run webview:prework:check` and `npm run webview:check` validate split candidates, route ownership, public globals, DOM-ID gaps, script order, and lint-budget drift before/after future plain-script slices.
-- WebView asset access is namespace-first through `window.mediaPipeline*` objects. As of 2026-06-23, direct compatibility flat exports remain at 382 across 48 files after opportunistic touched-domain cleanup; remaining flat-export decisions require page-owned smoke/static evidence.
-- WebView has many operator-trust panels: Home, Queue, Launch, Completed, Pending Publish, Rename, Settings, Diagnostics, Maintenance, Network, Telemetry, Schedule, Reports, Commands, and Contract coverage.
-- Queue/Completed/Pending Publish tables carry local filter-scope warnings and backend-scope reminders.
-- Queue Launch Decision, Completed Output Acceptance, and Pending Publish Drain Decision summaries now start with a daily-use handoff, operator outcome, and scope boundary so display filters, selected rows, proof boards, recovery dry-runs, and row caps are not mistaken for backend processing scope.
-- Settings has structured builders for high-impact file safety, publish/recovery, remux/encode/video, audio, subtitle, and policy-trust surfaces.
-- The 2026-05-31 settings/library rewrite is complete through the cleanup/test-hardening phase. Backend field metadata is the canonical source for settings labels, help, choices, defaults, advanced/display taxonomy, and Library Profiles override eligibility. The WebView uses that metadata for display and staging only; backend Preview/Save remains authoritative, persisted config keys and override groups remain unchanged, and HandBrake-style sections are display-only.
-- Library Profiles inheritance and override state are backend-owned. Missing override keys inherit global settings, present override keys remain explicit even when equal to the global value, reset-to-global removes override keys, custom missing/blank output paths inherit `Outsource`, promotion destinations remain explicit, and legacy `SourceMovies`, `SourceTV`, `Outsource`, `LibraryProfiles`, `FinalLibraryPromotionRules`, `editor_overrides`, and `media_overrides` compatibility remains supported.
-- Runtime evidence is diagnostic-only. `library_effective_settings` means global defaults plus library overrides only; it does not include show, folder, per-file, probe, verification, or publish layers. `runtime_effective_settings`, where surfaced, is separate final-runtime diagnostic evidence and is not persisted config or a decision input.
-- Promotion diagnostics now treat normalized profile-derived rules as authoritative for covered roots. Legacy `FinalLibraryPromotionRules` remain compatibility fallback for uncovered roots only; stale fallback rules must not override current profile source/output/destination/library identity evidence.
-- Settings now also has a read-only Raw-Key Action Plan above raw config values. It separates schema drift, BDPGS OCR path evidence, subtitle keyword builder coverage, intentionally excluded network auth secrets, remaining advanced raw keys, and backend-owned mutation boundaries without staging JSON or saving config.
-- Diagnostics has backend-owned allowlisted file/folder targets, bounded tails, state artifact summaries, lifecycle/close-readiness views, and owner-row handoff.
-- Diagnostics First Response rows are selectable. Each row now explains why that gate matters, what evidence was used, which owner surface to inspect next, and why Diagnostics remains evidence/navigation only before any launch, drain, rerun, cleanup, settings, rename, or publish action.
-- Diagnostics First Response now includes a `Sample Validation policy reconciliation` row. It points blocked/review saved-policy alignment back to Home Sample Validation, Completed saved-policy reconciliation, and Settings media policy before accepted evidence, rerun, or manual-review decisions.
-- Queue, Completed, and Pending Publish daily-use decision summaries explicitly say where the operator should act and where the boundary is: Queue can only guide Launch, Completed can only support trust decisions, and Pending Publish can only guide the backend drain button.
-- Home External Dependency Digest and Diagnostics First Response now include the Settings Raw-Key Action Plan as loaded read-only evidence. Schema drift or high-review raw settings can point the operator back to Settings before save, launch, rerun, OCR, publish/drain, or manual-review decisions.
-- Launch now includes a read-only Pilot Run Readiness panel that condenses selected Queue sample, saved Settings policy, backend preflight, pilot category coverage, real-media proof plan, sample execution checklist, Pending Publish posture, and post-run proof requirements into one operator checklist before a real-media pilot. It does not start work, save settings, drain, publish, rename, or touch media.
-- Completed now includes a read-only Selected Pilot Evidence Packet for the selected Completed row. It turns output/sidecar proof, route/size/audio/subtitle evidence, Pending Publish/final-placement proof, Diagnostics/runtime context, Sample Validation readiness, and manual playback checks into a copyable post-run Markdown packet without adding backend routes or mutation authority.
-- Completed now also reconciles saved policy alignment after the run. The Real-Media Output Proof ladder and Selected Pilot Evidence Packet include a `Saved policy reconciliation` checkpoint that compares the selected completed row's route, size policy, audio/subtitle decisions, and Pending Publish/drain evidence against saved policy categories. Missing visible category evidence is treated as an operator review gap, not a backend mutation or policy change.
-- Home Sample Validation now mirrors that selected Completed evidence packet in a read-only Completed Evidence Handoff panel so the operator can compare Completed proof, Pending Publish/final placement, Diagnostics/runtime evidence, saved-policy reconciliation, manual playback, subtitle/audio checks, and size posture before previewing or appending validation evidence.
-- Home Sample Validation now also includes a read-only Acceptance Readiness Gate between the checklist and Preview/Append buttons. It joins selected sample proof, operator decision, checklist coverage, Completed packet posture, backend validation state, manual media checks, and mutation boundaries before any accepted evidence note is previewed or appended.
-- Home Sample Validation now includes a read-only Accepted Record Proof Review for the selected/current accepted validation record. It turns record identity, Completed output/sidecar proof, size/output-growth proof, subtitle/audio proof, Diagnostics/run-log proof, Pending Publish/final-placement proof, and current reconciliation into selectable post-run checkpoints.
-- Home Sample Validation now includes a read-only Pilot Category Validation Summary. It groups the real-media pilot categories (H.264 remux, subtitle SRT generation, audio routing, encode/size policy, deferred publish) by current accepted evidence, worksheet-only planning rows, historical accepted records, stale/review records, and missing/planned coverage.
-- Home Sample Validation now includes a backend-authored read-only Real-Media Validation Audit roll-up. It combines readiness, reconciliation, generated worksheet context, representative category coverage, evidence-gap status, pilot-runbook posture, and WebView cutover posture into one conservative operator status. It is evidence-only and cannot launch, append records, accept output, publish/drain, repair, save settings, rename, rewrite manifests, or touch media.
-- Home Sample Validation now also includes a backend-authored read-only Real-Media Policy Alignment roll-up. It reuses saved Settings media-policy readiness and maps it to the real-media pilot categories: H.264 remux/direct-play copy, preferred-language subtitle-to-SRT, audio routing/default language, encode/size policy, and deferred publish/final placement. Risky saved policy such as disabled size guard, disabled subtitle conversion, destructive subtitle drop combinations, no-audio allowance, or high-review publish posture is visible before a pilot run.
-- Launch now carries that policy alignment to the start surface as a read-only `Saved policy vs Queue route` evidence row in both Real-Media Sample Proof Handoff and Pilot Run Readiness. It compares the selected/representative Queue route text against the saved-policy pilot categories, labels missing route tokens as advisory rather than authoritative backend failure, and cannot change Start behavior, queue scope, settings, validation records, publish/drain, rename, or media files.
-- Encoder breadth/AV1 remediation now activates literal `av1_nvenc` selection through descriptor-backed `EncoderBackend=auto` or `EncoderBackend=nvenc`, while retaining the existing descriptor-backed `EncoderBackend=cpu` override. Every AV1/NVENC attempt requires the exact descriptor runtime probe; an NVENC runtime failure invalidates only that backend cache before the existing fallback ladder is considered. On 2026-07-11, bundled FFmpeg 8.1 listed and passed the one-frame AV1/NVENC probe on the current RTX 5080 (driver 610.62), with synthetic SDR/HDR10 runtime topology coverage. This does not certify representative media, HDR metadata side-data preservation, playback, or quality/size behavior; those remain open real-media gates. QSV and AMF remain fail-closed.
-- Rename has movie/TV scrub preview, confidence/status text, Apply Readiness, duplicate/collision guards, row ordering, sidecar/force handling, and backend-owned apply.
-- Network visibility remains backend-owned in WebView. Coordinator/worker lifecycle controls now call Local API dry-run/start/stop, worker test-connection, discovery, join-blob, and join-import routes; the frontend must still not own lifecycle policy, claim, done-report, queue, settings-save, publish, rename, or media mutation logic.
-- WebView/Tauri default-launcher approval is complete by operator confirmation on 2026-05-30. Representative real-media validation is operator-attested complete as of 2026-05-28; future media behavior changes require revalidation.
+- The promoted WebView exposes Home, Queue, Launch, Completed, Pending Publish,
+  Rename, Settings, Diagnostics, Maintenance, Network, Telemetry, Schedule,
+  Reports, Commands, Contract, Metrics, and Sample Validation workflows.
+- Settings metadata and Library Profile inheritance are backend-owned. The
+  WebView stages edits; backend Preview/Save decides validity and persistence.
+  Runtime-effective evidence is diagnostic and is not persisted policy.
+- Queue, Completed, Pending Publish, Diagnostics, and Sample Validation expose
+  read-only trust/evidence handoffs without expanding frontend mutation
+  authority. Selected repair/reconcile applies remain backend validated,
+  fingerprint bound, journaled, and strictly confirmed.
+- The Python stage dispatcher supports read-only `probe`/`decide`, guarded
+  source-to-scratch `ingest`, scratch-only single-file `rename`, and standalone
+  scratch ASS/SSA-to-SRT `subtitle-convert`. PowerShell still owns production
+  transcode, audio, integrated subtitle, publish, drain, and final placement.
+- WebView access is namespace-first. The authoritative generated inventory
+  currently reports 532 flat `window.*` assignments across 235 files; cleanup
+  is opportunistic by touched domain and requires page-owned static/browser
+  evidence.
+- Queue/run-monitor, settings/library, network, repair/reconcile, lifecycle
+  recovery, redacted support bundles, and effective-settings provenance are
+  backend-authored operator surfaces rather than independent frontend policy.
+
+## Present Release Posture
+
+- WebView/Tauri default-launcher promotion is closed by operator confirmation
+  from 2026-05-30.
+- Package/open/close acceptance is current for integrated runtime commit
+  `52e9be6564aeb13571c0231e2b55ea2903cbc0c0`: copied-folder and extracted-ZIP
+  startup, AppData state externalization, safe close, immutable install-root,
+  and no-leftover-child checks passed. Re-run after launcher, packaging, Tauri,
+  Local API bootstrap, or release-layout changes.
+- The latest accepted broad media-policy proof remains
+  MP-CHANGE-2026-0622-001: 92 cases executed, 76 outputs published and
+  ffprobe-verified, and 92/92 source hashes unchanged. Targeted 2026-06-22
+  evidence also covers two-real-video topology, Dolby Vision P8.1 metadata, and
+  HDR10+ metadata preservation.
+- The newer representative real-media rerun is not complete. Its 2026-07-11
+  attempt stopped at strict Policy Proof preflight because all 15 catalog
+  SHA-256 values are placeholders, the external fixture root is absent, and
+  `policy_proof_sources.json` is not provisioned. Therefore no current
+  release-ready claim is made for later high-risk monitor/encoder/media slices.
+  Exact prerequisites are in `docs/RealMediaValidationRuns/README.md`.
 
 ## Recent Important Completion Notes
 
-- 2026-05-19 code-management cleanup completed the planned god-file split waves. The old god-file split plan and full executed plans were moved into the 2026-05-20 housekeeping quarantine under `docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/`.
-- 2026-05-19 WebView flat-export cleanup removed broad direct `window.*` compatibility aliases while preserving canonical namespace objects and passing inventory, static, Local API, sample-validation, and browser smoke coverage.
-- 2026-05-20 Wave C code cleanup was closed as a finite checklist item. The old code-management planning material is no longer an active proposal file; member-level JSDoc and medium-confidence flat-export cleanup are now opportunistic per-module maintenance guardrails tracked through `docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md`, archived audit and reconciliation evidence, and touched-module tests.
-- 2026-05-19 Pending Publish safety coverage added `ops\pipeline\tests\Unit\Invoke-PendingPublishSafetyChecks.ps1` and fixed ordered pending-transaction property lookup plus sidecar rollback restore behavior.
-- 2026-05-19 Rename undo manifests now default under `State\RenameUndo` when service state or app root is available, including legacy app-root `app_state.json` startup.
-- 2026-05-19 repo hygiene removed rebuildable ignored `.pytest_cache` and Tauri Rust `src-tauri\target` build output after path-boundary verification.
-- 2026-05-19 portable-path cleanup removed local operator UNC audit-root defaults from active audit/legacy GUI scripts. `Audit-MediaLibrary.ps1` now derives the default library root from config `SourceMovies`/`SourceTV` shared parent when `-LibraryRoot` is omitted, and a focused PowerShell guard covers the regression.
-- 2026-05-19 frontend media-policy risk helpers were labelled and tested as advisory-only. Backend Preview/Save and Launch validation remain authoritative for settings validation, source-deletion acceptance, queue scope, route safety, publish/drain safety, and PSD1 writes.
-- 2026-05-19 pending-publish ownership is now explicit in `docs/architecture/MODULE_MAP.md` and guarded by `ops\pipeline\tests\Unit\Invoke-PendingPublishOwnershipChecks.ps1`: parked output is media plus sidecars, drain safety remains backend-owned, and WebView/Tauri must not infer or mutate parked payloads.
-- 2026-05-20 sidecar overwrite fallback is locally guarded against the old delete gap. `ops\pipeline\tests\Unit\Invoke-SidecarWriteSafetyChecks.ps1` and the current reliability gate verify the fallback uses overwrite move and does not explicitly delete the current sidecar before replacement; real Windows/UNC storage stress testing is still external validation.
-- 2026-05-19 encode-speed analytics state is now documented and guarded as `LocalBase\State\App\encode_speed_history.json`; the stale `DesktopApp\encode_speed_history.json` copy was archived under ignored RunLogs, `.gitignore` blocks its return, and `Invoke-RuntimeStateHygieneChecks.ps1` guards the regression.
-- 2026-05-19 active non-archive docs were path-map cleaned for the post-reorg source-of-truth locations, superseded root housekeeping reports were archived under `docs\archive\admin-audits`, and `ops\pipeline\tests\Unit\Invoke-ActiveDocsReferenceChecks.ps1` now blocks stale root references to moved docs plus root-level references to archived housekeeping report names.
-- 2026-05-19 high-level status/checklist docs stopped embedding the absolute local handoff path. They now name package evidence generically; `Invoke-ActiveDocsReferenceChecks.ps1` guards the high-level path drift.
-- 2026-05-28 Phase 2 config cleanup foundation landed: `src/mediapipeline/contracts/config.py` is the Pydantic v2 config source of truth, `src/mediapipeline/core/config/load.py` owns PSD1 import/serialization helpers, `src/mediapipeline/contracts/schemas/config.v1.schema.json` is generated from the model, and pre-commit/CI check schema drift.
-- Selected-row render scrolling was fixed so Home, Completed, and Launch no longer snap to the bottom during refresh.
-- WebView Settings gained effective-policy trust and structured high-impact controls.
-- Diagnostics gained bounded backend-owned tail/open flows for allowlisted targets.
-- Maintenance gained backend-authored toolchain readiness evidence for PowerShell, ffmpeg, ffprobe, MKVToolNix, optional GPU telemetry, and subtitle helper rows, with WebView read-only capability/failure-scope guidance.
-- Home and Diagnostics now surface a read-only External Dependency Digest that joins loaded Settings BDPGS OCR path evidence, Diagnostics settings handoff rows, and already-loaded Maintenance toolchain evidence without adding Maintenance probes to the 4-second refresh loop.
-- Home Sample Validation now includes a backend-authored WebView Cutover Gate. It summarizes recent accepted/current sample evidence, required and recommended validation checks, worksheet context, stale-history posture, and pilot readiness without approving production cutover or mutating pipeline/media state.
-- Home Sample Validation now also includes a backend-authored Real-Media Sample Set Guide. It gives the operator a 3-5 file representative pilot checklist for H.264 remux/direct-play copy, preferred-language subtitle-to-SRT behavior, audio routing/default language, encode/size policy, and deferred publish/final placement without launching, accepting, publishing, saving settings, renaming, or mutating media.
-- Cutover Gate and Sample Set Guide payloads now explicitly state that generated worksheets are context/planning evidence only. Only accepted `sample_validation_record.v1` entries that still reconcile to current backend Queue/Completed/Pending/Diagnostics proof can count as current accepted records or ready category evidence.
-- Sample Validation records now support an optional controlled `sample_category` field from the WebView Pilot Category selector. The Real-Media Sample Set Guide prefers this explicit category evidence over fuzzy label/note matching while keeping the record evidence-only.
-- Home Sample Validation now includes a read-only Completed Evidence Handoff sourced from the Completed Selected Pilot Evidence Packet helpers. It gives Home the same post-run packet summary, selectable proof rows, saved-policy reconciliation detail, and copyable checklist while keeping Preview/Append and all media/filesystem mutation backend-owned.
-- Home Sample Validation now includes a local read-only Acceptance Readiness Gate. It does not enforce appends, but it makes blocked/review conditions visible before Preview/Append: missing selected sample, accepted decision without required checks, incomplete subtitle/audio/pending-publish review, blocked Completed packet posture, backend validation-log issues, and the backend-only mutation boundary.
-- Home Sample Validation now includes a read-only Accepted Record Proof Review. It helps operators compare already-appended accepted/current records against current backend evidence without treating historical records as durable truth when Completed output, sidecar, size, subtitle/audio, Diagnostics, or pending/final-placement evidence has drifted.
-- Home Sample Validation now includes a read-only Pilot Category Validation Summary that separates current category proof from worksheet-only or historical proof. This makes category evidence and future revalidation gaps visible before claiming WebView daily-driver trust.
-- WebView Network now includes backend-owned lifecycle/setup handoffs. It turns existing Network settings, close-readiness, `/api/network/workers` evidence, runtime state-file metadata, worker warnings, pending done reports, diagnostics route availability, and `/api/contract` lifecycle/setup route metadata into gate tables and controls that call only Local API routes. It still must not retry, reclaim, release, abort, mutate queue state, publish, rename, write arbitrary state files, or touch media directly.
-- Home Sample Validation can now copy the selected Real-Media Sample Set Guide category into the Pilot Category selector with an explicit local handoff button, and the records table shows each persisted record's category plus current/stale/review proof posture and missing-proof count. This reduces operator mismatch while leaving preview/append evidence, validation, and all mutation boundaries backend-owned.
-- Sample Validation record detail now explicitly labels records with no current-evidence reconciliation row as `not checked`, and browser smoke coverage verifies current, stale, no-reconciliation, and empty-table states in the seven-column records table.
-- Launch now mirrors pilot-category coverage in both the Real-Media Sample Proof Handoff and Start Decision Summary. It leads with current category records and labels accepted-but-non-current proof as historical, so a categorized but stale/review sample cannot look ready.
-- Home Sample Validation now includes a backend-authored `Real-Media Evidence Gaps` panel. It summarizes exactly what proof is still missing across current backend evidence, selected sample/saved policy, post-run Completed and Diagnostics proof, Pending Publish/final placement, manual playback/subtitle/audio checks, representative category coverage, accepted-record reconciliation, and generated worksheet context. This is read-only guidance and cannot launch, append records, accept output, publish/drain, repair, save settings, rename, rewrite manifests, or touch media.
-- Home Sample Validation now includes a backend-authored `Real-Media Pilot Runbook` packet. It turns the evidence-gap, sample-set, cutover, pilot-plan, reconciliation, and worksheet payloads into a visible step table plus copyable Markdown checklist for one real-media WebView pilot. This is read-only/copyable guidance only; it does not write an export file, launch work, append records, publish/drain, save settings, rename, rewrite manifests, or mutate media.
-- `/api/sample-validation` now also returns `desktop_real_media_validation_audit.v1`, a read-only roll-up over readiness, reconciliation, worksheets, sample-set coverage, evidence gaps, pilot runbook, and cutover gate. The WebView Sample Validation summary repeats the audit posture and boundary so the operator does not have to mentally combine every validation panel before deciding what evidence is still missing.
-- `/api/sample-validation` now also returns `desktop_real_media_policy_alignment.v1`, a read-only roll-up over saved Settings policy readiness by pilot category. The Real-Media Validation Audit includes this as a required row so unsafe saved route/size/subtitle/audio/publish policy cannot look ready simply because worksheet or sample-record evidence exists.
-- Sample Validation Preview/Append results now include a backend-authored `Post-Run Evidence Capture` packet. It gives the operator a copyable per-sample proof checklist for remux-vs-encode decision, Completed output/sidecar, Diagnostics/FFmpeg logs, Pending Publish/final placement, subtitle behavior, audio behavior, size posture, and append decision before recording evidence.
-- Completed, Pending Publish, and Diagnostics selected-row details now compare the selected owner row against already-loaded Sample Validation records. The comparison shows matching evidence counts, current/stale/review posture, missing proof fields, and the post-run capture handoff while remaining read-only; it cannot append validation records, accept outputs, rerun, drain, publish, repair, save settings, rename, rewrite manifests/sidecars, or touch media.
-- Launch and Completed now explicitly separate pre-run intent from post-run proof. Launch proof can show selected sample, saved policy, backend preflight, worksheet/sample-validation context, and operator checklist state before Start; Completed's Real-Media Output Proof ladder now includes a `Launch-to-output transition` checkpoint reminding operators that finished-output trust comes only from Completed, Pending Publish, Diagnostics, playback, and Sample Validation evidence after the run.
-- Completed now also has a read-only `Final Output Trust Walkthrough`. It joins the selected Completed row, disk/sidecar state, Pending Publish/drain proof, Plex/media policy evidence, Diagnostics/log read order, and Sample Validation preview boundary into one ordered handoff before output acceptance or rerun decisions.
-- Completed now also has a read-only `Selected Pilot Evidence Packet`. It sits beside Final Output Trust and Output Acceptance, follows the selected Completed row, includes a copyable Markdown checklist for a real-media pilot, and re-renders when Pending Publish proof or command history changes. It cannot append validation evidence, accept output, rerun, drain, publish, delete, save settings, rename, rewrite manifests/sidecars, or touch media.
-- Diagnostics owner-row handoff now maps flagged Completed rows back to the specific Completed `Final Output Trust Walkthrough` step that owns the next review. Missing output/sidecar evidence points to step 2, pending/drain evidence to step 3, route/size/media/audio/subtitle evidence to step 4, runtime/log evidence to step 5, and sample-validation evidence to step 6. `Go To Owner Row` now locally selects both the Completed row and the mapped final-trust step when the Completed helper is loaded. This remains local/read-only navigation and does not add Diagnostics mutation authority.
-- Completed/Pending publish proof now distinguishes missing outputs with exact Pending Publish proof or durable drain-summary proof from missing outputs with no proof. These rows are treated as final-placement review conflicts, not clean success and not immediate no-proof data loss. The backend publish reconciliation DTO and WebView proof board now show counts and safe next actions for `missing output still parked` and `missing output with drain proof` without adding repair, rerun, cleanup, publish, or drain controls.
-- Command Results and Diagnostics command drilldown now carry that same Completed/Pending final-placement proof into pending-publish/publish/drain command triage. A failed drain can now point directly to cached still-pending proof, durable drain-summary proof, or no-proof missing-output blockers before the operator retries drain, reruns a source, or cleans up files. This remains read-only command evidence and does not add publish, drain, repair, rerun, cleanup, manifest-write, or media mutation authority.
-- Pending Publish selected-row detail now has a read-only Sample Validation handoff for the `deferred-publish` category. It tells the operator when parked-output evidence should remain `hold_review` versus when it can support an accepted evidence note after Completed proof and durable drain-summary proof agree.
-- Pending Publish now has a read-only `Post-Drain Trust Review` panel. It separates pre-drain safety from post-drain proof by comparing current parked rows, durable drain summary, recent drain events/logs, Completed output proof, Sample Validation deferred-publish guidance, and command history before an operator trusts a drained sample or retries publish.
-- Recent smoke hardening now verifies that selecting a Real-Media Sample Set Guide row does not auto-apply the Pilot Category, that alternate category handoff works only after the explicit button click, and that Pending Publish `deferred-publish` evidence stays hold/review for blocked rows, including missing payload, invalid/unreadable manifest, orphan payload, and diagnostic-error states.
-- Completed/Pending path-evidence smokes now cover UNC-style paths, mixed slash/backslash normalization, Unicode filenames, and same-leaf duplicate-title cases. Exact destination/source matches remain stronger evidence; same-leaf matches remain advisory only.
-- Browser and non-browser smoke suites have broad no-mutation coverage.
-- 2026-05-18 source/dev promotion-gate validation passed: contract schema checks, full unskipped release self-test, bundled Python `unittest`/`pytest`, browser no-mutation smokes, Tauri `-CheckOnly`, and Tauri build gate.
-- Deployability checklist was refreshed on 2026-05-18 for source/dev evidence. Representative real-media validation was later closed by operator attestation on 2026-05-28, and default-launcher/package-mode promotion was closed by operator confirmation on 2026-05-30.
-- Product-version labels use the calendar build identity as of 2026-06-04: central `Versioning.ps1`, audit defaults, contract fixtures, Tauri metadata, and Local API health report `2026.06.04.001` correctly.
-- `docs/RealMediaValidationRuns/README.md` records the non-sensitive operator-attested representative real-media validation status. Detailed worksheets may remain local or excluded from release packaging when they contain personal source/output paths.
-- A fresh current-handoff package was built with `-IncludeTauriPreviewBinary -Verify`; copied-bundle package-mode launch/close passed locally with shell PID `34800` and backend PID `29804`, and the local boundary report had `Bundle layout mismatches: 0` plus `Developer tools detected outside bundle: 8`. The package name is historical transfer evidence, not a hardcoded path for future validation.
-- Default-launcher/package-mode promotion is closed by 2026-05-30 operator confirmation.
-- Targeted Launch/Queue pilot-readiness validation passed with static facade coverage, real-media smoke coverage, browser-backed Launch/Queue readiness smoke, and Tauri build/asset gate checks. The panel remains evidence-only; representative real-media validation is now operator-attested complete, and future media behavior changes require revalidation.
-- Targeted Launch/Queue policy-vs-route validation now covers the saved policy alignment row in Launch proof/readiness surfaces and verifies it remains no-POST/no-mutation while warning when Queue route text cannot prove every required policy category before Start.
-- Targeted Home/Sample Validation validation now covers the Completed saved-policy reconciliation handoff at the Preview/Append decision point while preserving no-append/no-mutation browser-smoke boundaries.
-- Targeted Diagnostics validation now covers saved-policy reconciliation handoff from Diagnostics First Response and Completed owner-row detail while preserving no backend mutation posts.
-- Housekeeping archive pass completed: completed/archive-classified docs moved under `docs/archive/docs-housekeeping/2026-05-20-review/`, old RunLogs/config backups archived, and project cache artifacts pruned outside bundled/runtime/vendor trees.
-- Root onboarding now starts with `README.md` for operators and `AGENTS.md` for AI/code agents. The old `AI_AGENT_START_HERE.md`, `AI_DIRECTIVE.md`, and `AI_HANDOFF.md` guidance is superseded and not part of the current active documentation surface.
-- The old DesktopApp feature-outline and comparison source material was quarantined under `docs/archive/docs-housekeeping/2026-05-20-review/consolidated-after-extraction/` and should not be treated as active guidance.
-- UI Stage 14 completed (2026-05-17): Diagnostics page tab navigation — panel sections reorganised into tabbed sub-pages; `app.js` tab-switching wired; `index.html` groupings updated.
-- UI Stage 15 completed (2026-05-17): Light mode toggle + colour system — `body.light-mode` CSS overrides in `styles.css`; `initThemeToggle()` in `app.js` persists choice via `localStorage`; top-bar toggle in `index.html`; `telemetryView.js` canvas renderer respects the active theme class.
-- UI Stage 16 completed (2026-05-17): UI design reference audit — 7 spec gaps closed in `styles.css` and `index.html`: disabled-button opacity removed (colour change used instead per Section 9); panel heading size/case/letter-spacing corrected; row-background status colours added (schedule-scoped); `.num` tabular-numeral class added to numeric `<th>` headers; form label weight corrected; input inset shadow added; `.note` max-width capped at `65ch`. Tracking evidence is historical and now lives under the 2026-05-20 housekeeping quarantine.
-- Docs folder restructure completed (2026-05-17): 60+ Markdown files sorted into topic subfolders under `docs/`; `DOCS_INDEX.md` was rewritten again on 2026-05-20 after the quarantine move so active navigation no longer points at completed audit/checklist folders as current guidance.
-- Production-readiness recheck completed (2026-05-17): the stale WebView navigation static test expectation for `Completed`/`Pending` was corrected to the intended concise labels `Output`/`Publish`; the targeted navigation static suite passed; and full unskipped `ops\scripts\release\test.ps1` passed with bundled tool integration and temp end-to-end media smoke checks included. The only release-self-test warning was the expected missing `release_manifest.json` in a source/dev folder.
+This anchor is retained for older links, but completed detail no longer lives in
+the active status document. Use:
+
+- `CHANGELOG.md` for notable shipped/unreleased changes;
+- `docs/REMEDIATION_CHANGELOG.md` for the compact index into detailed,
+  mechanically preserved remediation history;
+- `docs/architecture/DECISIONS_AND_HISTORY.md` for durable decisions and
+  milestones;
+- `docs/ARCHIVED_MD_INDEX.md` for completed plans, audits, and checklist
+  locations; and
+- `ops/release/changes/` plus `docs/RealMediaValidationRuns/README.md` for
+  change-scoped validation evidence.
 
 ## Active Gaps
 
-Read root `docs/OPEN_WORK_CHECKLIST.md` for the current backlog. The high-level gaps are:
+`docs/OPEN_WORK_CHECKLIST.md` is authoritative for unresolved work and gates.
+The current high-level gaps are:
 
-- The 2026-07-11 integration follow-up (`MP-CHANGE-2026-0711-016`) closes the package/open/close portion of the recurring evidence refresh. Deployable runtime commit `52e9be6564aeb13571c0231e2b55ea2903cbc0c0` passed required source validation plus isolated copied-folder and extracted-ZIP package acceptance: packaged window/backend/WebView startup, AppData runtime-state externalization, backend close-readiness safe close, immutable install-root proof, and no leftover runtime children. A separate attempt against existing per-user state was correctly blocked by close-readiness and was not bypassed. Artifact hashes are recorded in `docs/RealMediaValidationRuns/README.md`.
-- Current real-media remux, encode/size, subtitle, audio, deferred publish/drain, source-hash, ffprobe, and playback proof remains blocked before materialization because all 15 Policy Proof catalog SHA-256 values are placeholders, the external fixture root is absent, and `policy_proof_sources.json` is not provisioned. Exact prerequisites and rerun commands are recorded in `docs/RealMediaValidationRuns/README.md`; no current real-media acceptance claim is made.
-- Representative real-media validation is complete by operator attestation as of 2026-05-28 across remux, subtitle, audio, encode/size, and publish cases. Rerun it after high-risk media behavior changes.
-- Default-launcher promotion is complete by operator confirmation on 2026-05-30; future launcher, package, Tauri, or Local API changes still require package/open/close validation.
-- Network mode lifecycle controls are backend-owned Local API calls, not frontend-owned process actions. Provider-guarded dry-run and confirmed lifecycle routes, worker test-connection, mDNS discovery, and join/import setup routes are documented in `/api/contract` and `docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md`; future expansion still requires route inventory, command-journal, no-mutation smoke, and provider precondition coverage.
-- Completed/Pending Publish repair/reconcile backend dry-run and confirmed apply routes exist for selected repairs, with startup reconciliation remaining dry-run only. Pending manifest repair can write backend-validated manifest-normalization candidates only. The WebView now exposes selected-row Pending Publish manifest repair, Pending Publish orphan-payload reconcile, plus Completed manifest reconciliation and sidecar metadata repair through backend-owned dry-run/apply buttons that send only route intent, matching dry-run fingerprints, and `confirm_apply=true`; browser/static mutation-boundary coverage verifies no frontend paths, patches, drain/publish, move/delete, or source-media actions are sent. Orphan-payload reconcile can create only the missing payload-adjacent pending manifest when the backend dry-run row already carries a complete validated `pending_push_manifest.v1` proposal; ordinary orphan rows remain blocked. Automated Local API temp-fixture coverage now proves Completed manifest and sidecar metadata apply routes are journaled as repair-only, write only their selected Completed manifest/sidecar state, and leave representative source/output/sidecar hashes unchanged; Pending manifest repair and orphan-payload apply are journaled as repair-only, write only backend-authorized manifest state, leave representative source/output/payload hashes plus the pending drain summary unchanged, and record no drain command. MP-CHANGE-2026-0622-005 adds generated-runtime bridge evidence that an orphan-payload apply writes only the backend-authorized payload-adjacent pending manifest, leaves source/output/payload unchanged before drain, records only the repair command, and is then drainable through `MediaPipeline.ps1 -DrainPendingPushes`, which publishes the final output bytes, removes the parked payload/manifest, writes a successful drain summary, and leaves the source unchanged.
-- The 2026-06-19 remediation audit reopened a phased worklist in `docs/OPEN_WORK_CHECKLIST.md`: network review reconciliation/hardening is now dispositioned as fixed in `docs/reviews/network-coordinator-worker-mode-2026-06-15/DISPOSITION_LEDGER.md`; Dynamic HDR now has a pure preserve/remux/review planner, a pure encode-preservation decision resolver, guarded CPU/libx265 FFmpeg-native Dolby Vision coding plus HDR10+ JSON argument wiring, a fail-closed extraction command planner/executor, fail-closed MKV video track-id resolution from `mkvmerge -J`, relative/colon-free x265 artifact-path resolution, `Do-Encode` policy routing, guarded preserve-or-remux fallback, native/FFmpeg runner working-directory support, `Do-Encode` extraction/injection wiring that forces CPU/libx265 for preservation-ready Dynamic HDR sources, and output verification that blocks publish unless the encoded file exposes expected Dolby Vision/HDR10+ metadata. Targeted public real-media metadata proof now covers Dolby Vision P8.1 and HDR10+ encode preservation; playback-device indicators and broader untested Dolby profiles remain recurring validation gates rather than proof from this automated metadata run. Encoder breadth now has encode-argument snapshots, a HEVC/NVENC/libx265 descriptor parity scaffold, H.264/NVENC primary SDR descriptor-owned flag activation, H.264/NVENC-to-libx264 CPU fallback descriptor-owned flag activation, CPU-primary libx264 descriptor-owned flag activation, AV1/NVENC-to-libaom CPU fallback descriptor-owned flag activation, CPU-primary libaom AV1 descriptor-owned flag activation, fail-closed `Do-Encode` gating for unsupported, HDR-unsafe, or inactive configured encoder descriptors, dormant AV1/NVENC hardware primary, QSV, and AMF descriptor catalog entries, descriptor-owned list/runtime capability-probe scaffolding, a legacy startup NVENC bridge over the descriptor-backed cache with a codec-specific encoder-list gate before runtime probing, generic descriptor backend probe invalidation with additive backend event evidence, a read-only `-DumpEncoderCapabilitiesPath` descriptor capability report for resolved primary/fallback encoders, a dormant global `EncoderBackend` key that defaults to `auto`, round-trips through the WebView video detail settings builder, and feeds only saved settings plus the capability diagnostic, Settings wizard video-only `EncodingCapabilityFacts` and backend availability annotations from the configured FFmpeg encoder list, `/api/settings/workspace` read-only `encoder_capability_report` summaries for existing descriptor dump artifacts, Settings Media Output read-only encoder/backend availability annotations from that report without filtering choices, `/api/launch/preflight` non-blocking read-only encoder capability evidence from the same existing diagnostic artifact, Settings/Launch hardware runtime verified/skipped and active-hardware-unverified lists from descriptor capability reports, WebView Settings/Launch read-only summaries that render those hardware runtime proof gaps alongside activation counts, descriptor activation readiness in descriptor dump rows, derived `EncodingCapabilityFacts` only from available encoders active for descriptor-owned attempts, active/inactive encoder counts carried through Settings workspace and launch preflight detail, a synthetic SDR/HDR10 runtime-topology matrix that executes available CPU descriptor rows, verifies HDR flag topology plus 10-bit BT.2020/PQ output tags for the CPU HDR row, verifies HDR-capable hardware topology before opt-in skips, asserts HDR-unsafe hardware descriptors fail closed, and keeps hardware execution opt-in, a pure descriptor selection resolver with primary/fallback trace evidence, and attempt-plan descriptor-selection evidence for active HEVC/libx265, H.264/NVENC/libx264, and AV1/libaom CPU primary/fallback paths. New hardware descriptor activation, host-hardware runtime execution, real-media HDR side-data validation, and broader hardware/HDR matrix coverage remain open. FR-042 is resolved with a no-write CSV rerun `-PlanOnly` mode while evidence-writing `-DryRun` remains intentional. FR-016 is resolved with preserve-all real-video stream policy, remux/encode output real-video count verification before publish, fail-closed subtitle-burn multi-video behavior, and Tdarr-derived topology proof in `Invoke-MultiVideoTopologyChecks.ps1` (`source=2 remux=2 encode=2`). The remaining workstreams are encoder breadth/AV1, mutation-capable Python stage dispatch beyond guarded ingest, and opportunistic WebView flat-export cleanup.
-- Layout manager customization and the 2026-05-20 UI improvement backlog are closed. Future UI polish should be opened as a scoped checklist item rather than reviving archived/completed backlog rows.
-- The giant `REMEDIATION_CHANGELOG.md` remains useful forensic history but too large for onboarding; use consolidated docs first.
+- representative real-media rerun prerequisites and execution;
+- representative AV1/NVENC validation plus separate QSV/AMF activation work;
+- separately gated Python mutation-stage expansion beyond the narrow dispatcher;
+- opportunistic WebView flat-export reduction; and
+- upstream-blocked Linux GTK `glib` dependency remediation.
 
 ## Validation Expectations
 
-Use the smallest safe validation rung that matches the change:
-
-- Docs only: inspect rendered Markdown and run link/file existence checks if links changed.
-- WebView static JS/HTML/CSS: run targeted Python/Node smoke tests plus relevant `ops/scripts/smoke/Test-WebView*.ps1` wrapper.
-- Local API/contract changes: run targeted route tests and relevant `Test-LocalApi*.ps1` wrappers.
-- Architecture/drift prevention changes: run `python -m mediapipeline.tools.lint_naming`, `python -m mediapipeline.tools.dev.check_active_doc_references`, generated-artifact `--check` commands, and the affected `tests/` or `tests/python/desktop` suites.
-- Settings, queue, rename, pending publish, diagnostics, or safety logic: run targeted unit tests and affected smokes.
-- Tauri files: run Tauri shell checks.
-- Media policy/FFmpeg/subtitle/audio/publish behavior: run release gate and real-media validation as appropriate.
-
-Core references:
-
-- `docs/testing/VALIDATION_LADDER_RUNBOOK.md`
-- `docs/testing/TEST_COVERAGE_MATRIX.md`
-- `docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md`
-- `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`
-- `docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md`
+Select the smallest safe rung from
+`docs/testing/VALIDATION_LADDER_RUNBOOK.md`. Documentation-only changes require
+active-reference/path checks and change-packet validation. Any FFmpeg/media,
+subtitle, audio, publish/drain, source/scratch/output movement, packaging, or
+shell-lifecycle change must also satisfy its named recurring gate in
+`docs/OPEN_WORK_CHECKLIST.md`.
 
 ## High-Risk Areas
 
-Do not casually change these without reading `operator/NO_TOUCH_BOUNDARY_REGISTER.md`:
-
-- External rollback workspace and removed legacy desktop-shell assumptions.
-- FFmpeg command generation and stream mapping.
-- Subtitle ASS/TX3G/BDPGS/SRT conversion paths.
-- Audio passthrough/transcode/downmix policy.
-- Source/scratch/output file movement and cleanup.
-- Pending publish manifests, drain, sidecar carry-forward, and repair logic.
-- Queue launch scope, CSV rerun, and schedule start behavior.
-- Settings schema/defaults/persistence.
-- Command journal and backend close-readiness.
-- Tauri backend lifecycle ownership.
+Read `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md` before changing media policy,
+source/scratch/output movement, pending publish/drain, queue launch, settings,
+rename, network lifecycle, command journal/close-readiness, Tauri lifecycle, or
+release packaging. `AGENTS.md` contains the stable invariant summary.
 
 ## Obsolete Or Non-Authoritative Instructions
 
-- Old Claude handoff files are not authoritative unless explicitly reopened.
-- Completed UI/control/checklist archives should not be used as active backlog.
-- older historical docs are context only unless current docs explicitly reference them.
-- `node_modules` Markdown is vendor material, not project documentation.
-- Do not treat the Tauri/WebView2 preview as a production replacement because an old plan says migration is desired.
+Old Claude/Codex handoffs, completed checklists, archived audits, and historical
+plans are evidence only unless a current authority doc explicitly reopens them.
+Vendor Markdown is not project guidance. Documentation authority and conflict
+resolution follow `AGENTS.md` and `docs/DOCS_INDEX.md`.
 
 ## Best First Reads
 
-1. `docs/CURRENT_PROJECT_STATE.md`
-2. `docs/OPEN_WORK_CHECKLIST.md`
-3. `docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`
-4. `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`
-5. `docs/testing/VALIDATION_LADDER_RUNBOOK.md`
-6. `docs/DOCS_INDEX.md`
+1. `AGENTS.md`
+2. `docs/CURRENT_PROJECT_STATE.md`
+3. `docs/OPEN_WORK_CHECKLIST.md`
+4. `docs/architecture/MODULE_MAP.md`
+5. `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`
+6. `docs/testing/VALIDATION_LADDER_RUNBOOK.md`
+7. `docs/DOCS_INDEX.md`

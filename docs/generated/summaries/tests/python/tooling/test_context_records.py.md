@@ -8,7 +8,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-20
 last_reviewed: 2026-07-20
-sha256: 323861acc219239ee539c68865eff71b202a310604250d9d080ae54d5b94cc60
+sha256: 6b8f3858087c88f2c5e4e5fb7ea5f7e2a56e804ac0ee58bae8e2996b6ab17117
 ---
 # `tests/python/tooling/test_context_records.py`
 

@@ -33,9 +33,13 @@ ARCHIVE_FILES = [
 
 
 def _packet_paths() -> list[Path]:
-    if not UNRELEASED_DIR.exists():
-        return []
-    return sorted(path for path in UNRELEASED_DIR.glob("*.json") if path.is_file())
+    paths: list[Path] = []
+    if UNRELEASED_DIR.exists():
+        paths.extend(UNRELEASED_DIR.glob("*.json"))
+    archived = UNRELEASED_DIR.parent / "archived"
+    if archived.exists():
+        paths.extend(archived.glob("**/*.json"))
+    return sorted(path for path in paths if path.is_file())
 
 
 def _load_packet(path: Path) -> dict[str, Any]:

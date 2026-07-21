@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-02
+last_modified: 2026-07-20
 last_reviewed: 2026-06-16
-sha256: aaf0b5f28da2b5be6de33feb3099468f866918630bb394e8faf1ebdd71ba65fb
+sha256: 430f831c221e1cc50f86b5265a8990b4748080ef690a6d7c712be8469f8b67cf
 ---
 # `src/mediapipeline/tools/dev/scan_archive_doc_candidates.py`
 

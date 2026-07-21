@@ -6,9 +6,9 @@ file_type: JavaScript
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-17
+last_modified: 2026-07-20
 last_reviewed: 2026-07-11
-sha256: 192111372becf5c0ee64f60132d9f35cb9069e734343c089582c810654f973b4
+sha256: 4ddc50a54708f1159de30e2a28e9824a6d5eb80ebca8d50446e81562ffda139c
 ---
 # `apps/desktop/webview/static/assets/app/lifecycle/topbar.js`
 

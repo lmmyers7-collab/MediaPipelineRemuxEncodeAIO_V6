@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-07-19
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: 8c562d2c37a47f470e2ee5715fcb2be09206f94e1346704b9576b4cec38891df
+sha256: 7b6027fa601d7d1523465327ad0696a4b7cfe4308a57692e234d305f60d9d8d9
 ---
 # `ops/pipeline/engine/queue/snapshot_rows.ps1`
 

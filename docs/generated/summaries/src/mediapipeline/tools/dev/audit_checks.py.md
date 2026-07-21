@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: observability
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-10
+last_modified: 2026-07-20
 last_reviewed: 2026-07-01
-sha256: 909dca292301e8710aa31fc966b9cfab592c2f2c3c2c3fbf78fa52ac11b92c5e
+sha256: e51f8a1748ac7618ab9a40318c61828710322d0305ab913e11c15abfb7cc2ab6
 ---
 # `src/mediapipeline/tools/dev/audit_checks.py`
 

@@ -16,7 +16,10 @@ from mediapipeline.tools.dev.context_records import (
     DEFAULT_EXCLUDED_EVIDENCE,
     REQUIRED_FEATURE_IDS,
     feature_scores,
+    low_information_terms_for,
+    normalize_retrieval_text,
     records_to_jsonl,
+    retrieval_terms_for,
     validate_record_paths,
 )
 
@@ -194,6 +197,19 @@ class ContextRecordTests(unittest.TestCase):
 
         self.assertIn("media-processing", feature_ids)
         self.assertNotIn("tauri-lifecycle", feature_ids)
+
+    def test_retrieval_terms_drop_generic_request_noise_and_split_identifiers(self) -> None:
+        terms = retrieval_terms_for(
+            "Identify codebase-specific sources of excessive AI token usage and cleanup opportunities "
+            "in build_contextCapsule"
+        )
+
+        self.assertEqual(terms, ("ai", "build", "capsule", "context", "contextcapsule", "token"))
+        self.assertEqual(
+            low_information_terms_for("Identify codebase-specific sources and cleanup opportunities"),
+            ("cleanup", "codebase", "identify", "opportunities", "sources", "specific"),
+        )
+        self.assertEqual(normalize_retrieval_text("Build_ContextCapsule.py"), "build context capsule py")
 
 
 if __name__ == "__main__":

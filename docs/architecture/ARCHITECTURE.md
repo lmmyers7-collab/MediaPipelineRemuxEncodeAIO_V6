@@ -70,6 +70,27 @@ Files:  scratch → output → pending-publish → published
 | Desktop shell            | `apps/desktop/tauri/` (Tauri + WebView2)                | unchanged                           | 0008   |
 | WebView SPA              | `apps/desktop/webview/static/` (vanilla JS)                | unchanged for now                   | 0007   |
 
+### Generated contract-schema authority
+
+Generated JSON Schema files are consumer artifacts, not independent sources
+of truth. They are committed and packaged so runtime and operator consumers do
+not depend on developer tooling.
+
+| Contract | Authority | Generated artifacts | Intentional consumer differences | Drift check |
+| --- | --- | --- | --- | --- |
+| Configuration | `src/mediapipeline/contracts/config.py::Config` | `src/mediapipeline/contracts/schemas/config.v1.schema.json`; `ops/pipeline/config/schemas/media_pipeline_config.schema.json` | The PowerShell-facing mirror has its own `$id` and omits the 16 `NETWORK_CONFIG_KEYS`, which are owned by the Python coordinator/worker surface. All remaining validation keywords and defaults are identical. | `python -m mediapipeline.tools.dev.generate_config_schema --check` |
+| Run Monitor | `src/mediapipeline/contracts/run_monitor.py::RunMonitorRecord` | `src/mediapipeline/contracts/schemas/run_monitor.v1.schema.json`; `ops/pipeline/config/schemas/media_pipeline_run_monitor.schema.json` | Consumer-specific `$id` only. | `python -m mediapipeline.tools.dev.generate_run_monitor_schema --check` |
+
+Both checks run in the shared pre-commit, CI, deep-audit, AI guardrail, and
+release self-test suites. Python contract tooling reads the canonical files
+under `src/mediapipeline/contracts/schemas`; PowerShell-facing contract and
+operator checks read the mirrors under `ops/pipeline/config/schemas`. The
+release builder recursively packages both committed trees and the release
+self-test resolves the same repository-relative paths. Production Python
+validation imports the authoritative Pydantic models, while production
+PowerShell retains its existing config and Run Monitor assertion functions;
+neither runtime imports or invokes the developer-only generators.
+
 ## Boundaries (which module owns what)
 
 The rows below are ownership domains. Active package/script paths are in

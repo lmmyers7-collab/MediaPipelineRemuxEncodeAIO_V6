@@ -10,84 +10,70 @@ Validation: targeted coordinator, worker, identity, and recovery tests
 
 ### WebView / Tauri
 
-- `apps/desktop/webview/static/assets/app/home/queueProjection.js` — operator display/intent surface; JavaScript implementation for queue projection; exposes activate, createHomeQueueProjectionModule, homeActiveWork.
-- `apps/desktop/webview/static/assets/contractView.js` — operator display/intent surface; JavaScript implementation for contract view; exposes contractEffect, contractMethodFilter, contractNetworkLifecycleContracts.
-- `apps/desktop/webview/static/assets/launch/rerunOrchestration.js` — operator display/intent surface; JavaScript implementation for rerun orchestration; exposes checkNetworkRerunStartDryRunFromForm, createLaunchRerunOrchestrationModule, networkDryRunFingerprint.
-- `apps/desktop/webview/static/assets/network/lifecycle.commands.js` — operator display/intent surface; JavaScript implementation for lifecycle commands; exposes confirmNetworkLifecycleCommand, confirmNetworkSetupCommand, createNetworkLifecycleCommandsModule.
-- `apps/desktop/webview/static/assets/network/lifecycle.model.js` — operator display/intent surface; JavaScript implementation for lifecycle model; exposes createNetworkLifecycleModelModule, getSelectedNetworkLifecycleRow, networkLifecycleDetailLines.
+- `apps/desktop/webview/static/assets/network/lifecycle.view.js` — operator display/intent surface; JavaScript implementation for lifecycle view; exposes closeReadinessIsSafe, createNetworkLifecycleViewModule, networkCommandRouteByDataSchema.
+- `apps/desktop/webview/static/assets/network/queueProjection.js` — operator display/intent surface; JavaScript implementation for queue projection; exposes createNetworkQueueProjectionModule, networkAddSourceKey, networkBasename.
+- `apps/desktop/webview/static/assets/app/refreshCoordinator.js` — operator display/intent surface; JavaScript implementation for refresh coordinator; exposes activeRefreshPage, mergeRefreshOptions, normalizeRefreshOptions.
+- `apps/desktop/webview/static/assets/network/config.js` — operator display/intent surface; JavaScript implementation for config; exposes createNetworkConfigModule, networkGuidance, networkModeModelLines.
+- `apps/desktop/webview/static/assets/network/overviewModel.js` — operator display/intent surface; JavaScript implementation for overview model; exposes createNetworkOverviewModelModule, networkCoordinatorOverviewModel, networkLifecycleRouteSummary.
 
 ### API route
 
 - `src/mediapipeline/desktop/api/contract_command_network.py` — api authority; Python implementation for contract command network.
-- `src/mediapipeline/desktop/api/contract_command_operations.py` — api authority; Python implementation for contract command operations.
-- `src/mediapipeline/desktop/api/contract_command_process.py` — api authority; Python implementation for contract command process.
-- `src/mediapipeline/desktop/api/contract_payload.py` — api authority; Python implementation for contract payload; exposes local_api_contract_payload.
 - `src/mediapipeline/desktop/api/handler_policy.py` — api authority; Python implementation for handler policy; exposes bounded_error_text, cors_response_headers, not_found_payload.
 
 ### Python facade / domain service
 
-- `src/mediapipeline/core/processes/pipeline_policy.py` — process authority; Pipeline launch request and result policy helpers.
-- `src/mediapipeline/core/processes/recovery.py` — process authority; Backend-only lifecycle recovery classification and one-shot resumption.
-- `src/mediapipeline/core/processes/rerun_facade.py` — process authority; CSV rerun launch facade adapter.
-- `src/mediapipeline/core/processes/rerun_preview_network.py` — process authority; CSV rerun preview, scoping, and scoped CSV materialization helpers.
-- `src/mediapipeline/core/processes/rerun_results_destination_policy.py` — process authority; Backend-owned CSV rerun result scanning, open, and promote helpers.
+- `src/mediapipeline/desktop/network/coordinator_queue.py` — network authority; Queue claim/done/release helpers for :class:`CoordinatorDispatcher`.
+- `src/mediapipeline/desktop/network/processing_policy.py` — network authority; Python implementation for processing policy; exposes build_coordinator_processing_policy, build_worker_effective_config, claim_processing_policy.
+- `src/mediapipeline/core/network/facade.py` — network authority; Network runtime-state facade adapter.
+- `src/mediapipeline/core/network/facade_connectivity.py` — network authority; Network runtime-state facade adapter.
+- `src/mediapipeline/core/network/facade_contract.py` — network authority; Python implementation for facade contract; exposes NetworkDiscoveryUnavailable.
 
 ### Contract / state / config
 
-- `src/mediapipeline/contracts/api_routes_command_process.py` — contracts authority; Python implementation for api routes command process.
-- `src/mediapipeline/contracts/api_commands.py` — contracts authority; Pydantic contracts for Local API command request payloads. The Local API wire shape remains owned by the existing routes. These models describe the known per-route fields while allowing existing additive fields so the command-handler migration can proceed without breaking WebView callers.
 - `src/mediapipeline/contracts/api_routes_command_network.py` — contracts authority; Python implementation for api routes command network.
-- `src/mediapipeline/contracts/api_routes_command_operations.py` — contracts authority; Python implementation for api routes command operations.
-- `src/mediapipeline/contracts/run_monitor.py` — contracts authority; Versioned, backend-authored evidence for one accepted Run Once workload. The persisted contract is intentionally strict. It is the correlation boundary between the accepted Backend Queue plan, PowerShell runtime evidence, and terminal artifacts. Display projections may suppress stale claims, but they must never reconstruct missing membership, stages, routes, or track decisions from legacy progress or filename text.
 
 ### PowerShell execution
 
-- `ops/pipeline/engine/process/worker_result.ps1` — process authority; PowerShell implementation for worker result; exposes Get-MediaPipelineWorkerResultField, Write-MediaPipelineWorkerChildHeartbeat, Write-MediaPipelineWorkerChildResult.
-- `ops/pipeline/engine/queue/local_worker_slots.ps1` — queue authority; PowerShell implementation for local worker slots; exposes Complete-MediaPipelineLocalWorkerMonitorEntry, Get-MediaPipelineLocalWorkerHardTimeoutSeconds, Get-MediaPipelineLocalWorkerHeartbeatAgeSeconds.
 - `ops/pipeline/engine/queue/worker_claim_store.ps1` — queue authority; PowerShell implementation for worker claim store; exposes ConvertTo-MediaPipelineLocalWorkerPathKey, Get-MediaPipelineLocalWorkerClaimActiveStatuses, Get-MediaPipelineLocalWorkerClaimStore.
-- `ops/pipeline/engine/queue/worker_mutex.ps1` — queue authority; PowerShell implementation for worker mutex; exposes Get-MediaPipelineLocalWorkerMutexName, Get-MediaPipelineLocalWorkerTimestamp, Get-MediaPipelineStableHash.
-- `ops/pipeline/engine/queue/worker_process.ps1` — queue authority; PowerShell implementation for worker process; exposes Join-MediaPipelineProcessArgument, Save-MediaPipelineLocalWorkerResultDiagnostic, Start-MediaPipelineLocalWorkerChild.
 
 ### Tests
 
 - `ops/pipeline/tests/Unit/Invoke-LocalWorkerClaimLifecycleChecks.ps1` — verification evidence; PowerShell implementation for invoke local worker claim lifecycle checks; exposes Assert-Equal, Assert-True, Check-ControlFlags.
-- `ops/pipeline/tests/Unit/Invoke-LocalWorkerSlotChecks.ps1` — verification evidence; PowerShell implementation for invoke local worker slot checks; exposes Assert-Equal, Assert-True, ConvertTo-MediaPipelineRunMonitorStageId.
-- `ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1` — verification evidence; PowerShell implementation for invoke pipeline queue engine checks; exposes Already-Processed, Assert-Equal, Assert-True.
-- `ops/pipeline/tests/Unit/Invoke-ProgressStateTelemetryChecks.ps1` — verification evidence; PowerShell implementation for invoke progress state telemetry checks; exposes Assert-Equal, Assert-True, ConvertTo-MediaPipelineRunMonitorStageId.
-- `ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1` — verification evidence; PowerShell implementation for invoke release package policy checks; exposes Assert-Contains, Assert-CustomRenameFilterConfig, Assert-MapContainsKey.
+- `tests/python/desktop/test_api_handler_policy.py` — verification evidence; Python implementation for test api handler policy; exposes LocalApiHandlerPolicyTests.
+- `tests/python/desktop/test_application_facade_web_static_diagnostics_reports.py` — verification evidence; Python implementation for test application facade web static diagnostics reports; exposes ApplicationFacadeWebStaticDiagnosticsReportsTests.
+- `tests/python/desktop/test_network_coordinator_helpers.py` — verification evidence; Python implementation for test network coordinator helpers; exposes NetworkCoordinatorHelperTests.
+- `tests/python/desktop/test_network_coordinator_http.py` — verification evidence; Python implementation for test network coordinator http; exposes NetworkCoordinatorHttpTests.
 
 ### Boundaries / validation
 
-- `docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md` — canonical boundary; Markdown implementation for local api evidence mutation matrix.
-- `docs/inventories/API_ROUTE_INVENTORY.md` — canonical boundary; Markdown implementation for api route inventory.
-- `docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md` — canonical boundary; Markdown implementation for packaging dependency inventory.
-- `docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md` — canonical boundary; Markdown implementation for release package admin inventory.
-- `docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md` — canonical boundary; Markdown implementation for test suite subsystem inventory.
+- `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md` — canonical boundary; Markdown implementation for no touch boundary register.
+- `docs/testing/TEST_COVERAGE_MATRIX.md` — canonical boundary; Markdown implementation for test coverage matrix.
 
 ## Why these files
 
-- `ops/pipeline/engine/process/worker_result.ps1`: process authority.
-- `ops/pipeline/engine/queue/local_worker_slots.ps1`: queue authority.
 - `ops/pipeline/engine/queue/worker_claim_store.ps1`: queue authority.
-- `ops/pipeline/engine/queue/worker_mutex.ps1`: queue authority.
-- `ops/pipeline/engine/queue/worker_process.ps1`: queue authority.
-- `ops/pipeline/engine/queue/worker_progress.ps1`: queue authority.
-- `src/mediapipeline/contracts/api_routes_command_process.py`: contracts authority.
-- `src/mediapipeline/core/processes/pipeline_policy.py`: process authority.
+- `src/mediapipeline/desktop/network/coordinator_queue.py`: network authority.
+- `src/mediapipeline/desktop/network/processing_policy.py`: network authority.
+- `src/mediapipeline/contracts/api_routes_command_network.py`: contracts authority.
+- `src/mediapipeline/core/network/facade.py`: network authority.
+- `src/mediapipeline/core/network/facade_connectivity.py`: network authority.
+- `src/mediapipeline/core/network/facade_contract.py`: network authority.
+- `src/mediapipeline/core/network/facade_diagnostics.py`: network authority.
 
 ## Tests and validation
 
 - `ops/pipeline/tests/Unit/Invoke-LocalWorkerClaimLifecycleChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-LocalWorkerSlotChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-ProgressStateTelemetryChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-RuntimeStateHygieneChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-ScratchCopyIdentityChecks.ps1`
-- `tests/python/desktop/application_facade_test_support.py`
+- `tests/python/desktop/test_api_handler_policy.py`
+- `tests/python/desktop/test_application_facade_web_static_diagnostics_reports.py`
+- `tests/python/desktop/test_network_coordinator_helpers.py`
+- `tests/python/desktop/test_network_coordinator_http.py`
+- `tests/python/desktop/test_network_coordinator_policy_phase_e.py`
+- `tests/python/desktop/test_network_coordinator_source_policy.py`
+- `tests/python/desktop/test_network_coordinator_startup.py`
 - Smallest validation rung: targeted coordinator, worker, identity, and recovery tests.
 - Boundaries: `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`.
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=72, documentation=14, generated=0, change_evidence=469, archive=0, runtime_artifact=0.
+Counts only (request explicitly when needed): test=34, documentation=2, generated=0, change_evidence=1, archive=0, runtime_artifact=0.

@@ -8,7 +8,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-20
 last_reviewed: 2026-06-02
-sha256: 59b4804423d4b2c01e8bd49886a4eb4f34cd548116133e62cadbd7770725962e
+sha256: 859ee09107f9314f45b9ba14868e963a497ac125cbece912e63ad848e28bc153
 ---
 # `docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md`
 

@@ -186,6 +186,14 @@ LOCAL_API_INVENTORY_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
     },
     {
         "method": "GET",
+        "path": "/api/queue/priority-export",
+        "auth_required": True,
+        "effect": "none",
+        "response_schema": "priority_queue_export.v1",
+        "purpose": "Read the latest backend-owned priority queue export status without exposing accepted membership or launching work.",
+    },
+    {
+        "method": "GET",
         "path": "/api/queue/strategy",
         "auth_required": True,
         "effect": "none",

@@ -114,8 +114,13 @@
                 <span class="pipeline-controller-field-label">Scope</span>
                 <div class="pipeline-scope-segmented" role="group" aria-label="Pipeline launch scope">
                   <button type="button" class="pipeline-scope-button is-active" data-pipeline-scope-preset="queue" aria-pressed="true">Backend Queue</button>
+                  <button type="button" class="pipeline-scope-button" data-pipeline-scope-preset="priority_export" aria-pressed="false">Priority Export</button>
                   <button type="button" class="pipeline-scope-button" data-pipeline-scope-preset="single_file" aria-pressed="false">Single File</button>
                 </div>
+              </div>
+              <div class="pipeline-single-file-group" data-pipeline-priority-export-container hidden aria-hidden="true">
+                <input id="pipeline-priority-export-id" type="hidden" value="">
+                <p id="pipeline-priority-export-status" class="note">Select Priority Export to load the latest backend-owned export and its item count.</p>
               </div>
               <div class="pipeline-single-file-group" data-pipeline-single-file-container hidden aria-hidden="true">
                 <div class="pipeline-single-file-row">

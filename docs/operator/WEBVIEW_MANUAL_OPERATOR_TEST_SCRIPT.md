@@ -150,16 +150,27 @@ run. Do not start media processing for this check.
    verify the native Tauri window and its WebView2 accessibility tree.
 
 ### Verify — Selected file detail
-- Planned, Executed, and Final route/reason are separately labelled and shown
-  only when their matching backend authority exists.
-- The canonical stage timeline distinguishes probe, copy, audio, subtitles,
-  encode/remux, mux, verification, sidecars, publish/park, and final evidence.
-- Audio and subtitle tables enumerate each track, language, source properties,
-  policy action, progress/result, and evidence. Missing evidence says unknown or
-  awaiting backend evidence, never “pending.”
-- Output size, scratch/working/published/parked/intended paths, sidecars,
-  manifests/failure references, recovery owner, retryability, and next action
-  appear when backend evidence provides them.
+- The normal view leads with the backend-authored outcome, verification state,
+  human-readable output size, compact Planned → Executed → Final route trail,
+  active/action-required stage evidence, concise per-track results, useful
+  destination, and any operator next action.
+- Routine completed/skipped/not-applicable stages collapse to one count. Active,
+  failed, blocked, review, and unknown stages remain visible; the frontend never
+  relabels unknown evidence as skipped or superseded.
+- Audio and subtitle tables use visible `Track`, `Source`, and `Outcome` labels.
+  Active progress remains visible in normal mode. Missing evidence says unknown
+  or awaiting backend evidence, never “pending.”
+- With global **Advanced** off, full source/job identity, exact bytes,
+  scratch/working paths, reason codes, timestamps, provenance, and the full
+  canonical stage ledger are not displayed. Turn **Advanced** on and confirm all
+  of those backend-authored fields become visible without changing selection.
+- Advanced route evidence keeps Planned, Executed, and Final route/reason
+  separately labelled and only uses their matching backend authority. The full
+  stage evidence distinguishes probe, copy, audio, subtitles, encode/remux, mux,
+  verification, sidecars, publish/park, and final evidence.
+- Published/parked destinations, meaningful sidecars, actionable recovery, and
+  terminal proof buttons remain visible without Advanced. Routine “no action
+  required” recovery metadata and empty sidecar evidence may remain Advanced.
 - Terminal proof buttons select and focus the exact Completed/Pending/Reports
   proof by stable key or exact artifact path. If it is not loaded, the handoff
   lands honestly on the destination heading rather than matching a filename.

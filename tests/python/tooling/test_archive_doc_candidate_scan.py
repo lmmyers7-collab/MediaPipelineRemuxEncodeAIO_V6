@@ -64,12 +64,14 @@ class ArchiveDocCandidateScanTests(unittest.TestCase):
             root = Path(temp_dir)
             _write(root, "docs/archive/old.md", "Completed.")
             _write(root, "docs/generated/summaries/docs/DOCS_INDEX.md.md", "Generated.")
+            _write(root, "LocalBase/Scratch/transient.md", "Runtime scratch.")
             _write(root, "docs/reviews/closed-2026-06-01/09-implementation-ledger.md", "Closed.")
 
             paths = {result.path for result in scanner.scan_documents(root, as_of="2026-06-16")}
 
         self.assertNotIn("docs/archive/old.md", paths)
         self.assertNotIn("docs/generated/summaries/docs/DOCS_INDEX.md.md", paths)
+        self.assertNotIn("LocalBase/Scratch/transient.md", paths)
         self.assertIn("docs/reviews/closed-2026-06-01/09-implementation-ledger.md", paths)
 
     def test_markdown_output_lists_candidate_destinations_and_update_sources(self) -> None:

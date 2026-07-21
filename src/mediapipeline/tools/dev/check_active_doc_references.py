@@ -96,8 +96,10 @@ VERSION_LABEL_SCAN_EXCLUSIONS = {
     "docs/change_control/CHANGE_INDEX.md",
     "docs/change_control/RELEASE_HISTORY.md",
 }
-HISTORICAL_REFERENCE_EXCLUSIONS = {
+HISTORICAL_NAVIGATION_DOCS = {
     "docs/REMEDIATION_CHANGELOG.md",
+}
+HISTORICAL_REFERENCE_EXCLUSIONS = HISTORICAL_NAVIGATION_DOCS | {
     "docs/change_control/CHANGELOG.md",
     "docs/change_control/CHANGE_INDEX.md",
     "docs/change_control/RELEASE_HISTORY.md",
@@ -149,7 +151,9 @@ def collect_active_markdown_files(root: Path = REPO_ROOT) -> list[Path]:
             rel = normalize_path(path.relative_to(root))
             if (
                 _is_archive_path(rel)
-                or rel == "docs/REMEDIATION_CHANGELOG.md"
+                # The compact index intentionally repeats legacy headings; the
+                # detailed payload is covered by the docs/archive exclusion.
+                or rel in HISTORICAL_NAVIGATION_DOCS
                 or rel.startswith("docs/generated/summaries/")
             ):
                 continue

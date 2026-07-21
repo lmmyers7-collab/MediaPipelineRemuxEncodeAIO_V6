@@ -8,7 +8,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-20
 last_reviewed: 2026-07-20
-sha256: 8dada460dd0a2f9dd2a2f1a468398e8db044a4fb5a0b3052eb20ec1139a83f9c
+sha256: d57fb1b9d50eb4958733e1a6d9a758b54f67bc316e2d395c0eef1316f610b64d
 ---
 # `src/mediapipeline/tools/dev/code_context_mcp.py`
 

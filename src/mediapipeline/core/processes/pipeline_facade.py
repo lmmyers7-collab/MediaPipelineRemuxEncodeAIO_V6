@@ -7,8 +7,12 @@ from uuid import uuid4
 from typing import Any
 
 from mediapipeline.core.kernel.dto_commands import CommandResult
+from mediapipeline.core.kernel.contracts import ContractError
+from mediapipeline.core.kernel.contracts.queue_snapshot import QueueAcceptedRunRow
 from mediapipeline.core.schedule.stop_watcher import schedule_stop_deadline_from_gate
 from mediapipeline.core.paths.contracts import ResolvedPaths
+from mediapipeline.core.paths.queue_input_fingerprint import queue_input_fingerprint
+from mediapipeline.core.queue.priority_export import PriorityQueueExportStore
 
 from mediapipeline.core.processes.pipeline_policy import (
     coordinator_also_encode_locally_enabled,
@@ -107,6 +111,23 @@ class PipelineLaunchFacadeMixin:
                     }
                 )
             single_file = intent.start_single_file()
+        priority_only = intent.queue_scope == "priority_export"
+        if intent.queue_scope not in {"backend_queue", "priority_export"}:
+            return pipeline_start_queue_scope_blocked_result({
+                "status": "blocked",
+                "message": f"Unsupported Queue launch scope: {intent.queue_scope or '(empty)'}."
+            })
+        if priority_only and (mode != "once" or single_file or not intent.priority_export_id):
+            return pipeline_start_queue_scope_blocked_result({
+                "status": "blocked",
+                "message": "Priority Export scope requires Run Once, a backend export id, and no Single File."
+            })
+        if not priority_only and intent.priority_export_id:
+            return pipeline_start_queue_scope_blocked_result({
+                "status": "blocked",
+                "message": "A priority export id is allowed only with Priority Export queue scope.",
+                "reason_code": "priority_export_scope_mismatch",
+            })
         schedule_gate = self._resolve_pipeline_start_schedule_gate(mode, request)
         if not schedule_gate["ok"]:
             return pipeline_start_schedule_gate_result(schedule_gate)
@@ -148,16 +169,81 @@ class PipelineLaunchFacadeMixin:
             expected_queue_plan_fingerprint = ""
             accepted_run_rows: tuple[Any, ...] = ()
             if actual_mode == "once" and not single_file:
-                queue_scope_check = self._normal_queue_scope_preflight_check(
-                    resolved,
-                    retain_accepted_rows=True,
+                if priority_only:
+                    if resolved.state_root is None:
+                        return pipeline_start_queue_scope_blocked_result({
+                            "status": "blocked",
+                            "message": "Priority Export scope requires LocalBase/State to be configured.",
+                        })
+                    export_validation = PriorityQueueExportStore(resolved.state_root).validate_for_launch(
+                        export_id=intent.priority_export_id,
+                    )
+                    if str(export_validation.get("status") or "").casefold() != "ready":
+                        return pipeline_start_queue_scope_blocked_result(export_validation)
+                    current_inputs = queue_input_fingerprint(resolved)
+                    if (
+                        current_inputs.get("status") != "current"
+                        or str(current_inputs.get("fingerprint") or "")
+                        != str(export_validation.get("queue_input_fingerprint") or "")
+                    ):
+                        return pipeline_start_queue_scope_blocked_result({
+                            "status": "blocked",
+                            "message": "Queue inputs changed after the priority export was created. Create a new priority export.",
+                            "reason_code": "priority_export_input_stale",
+                        })
+                    expected_queue_plan_fingerprint = str(
+                        export_validation.get("queue_plan_fingerprint") or ""
+                    ).strip()
+                    try:
+                        accepted_run_rows = tuple(
+                            QueueAcceptedRunRow.from_mapping(row)
+                            for row in export_validation.get("accepted_rows") or ()
+                        )
+                    except ContractError:
+                        return pipeline_start_queue_scope_blocked_result({
+                            "status": "blocked",
+                            "message": "Priority export accepted membership failed contract validation.",
+                            "reason_code": "priority_export_membership_malformed",
+                        })
+                    if not expected_queue_plan_fingerprint or not accepted_run_rows:
+                        return pipeline_start_queue_scope_blocked_result({
+                            "status": "blocked",
+                            "message": "Priority export has no launchable backend membership.",
+                            "reason_code": "priority_export_empty",
+                        })
+                else:
+                    queue_scope_check = self._normal_queue_scope_preflight_check(
+                        resolved,
+                        retain_accepted_rows=True,
+                    )
+                    if str(queue_scope_check.get("status") or "").casefold() != "ready":
+                        return pipeline_start_queue_scope_blocked_result(queue_scope_check)
+                    expected_queue_plan_fingerprint = str(
+                        queue_scope_check.get("queue_plan_fingerprint") or ""
+                    ).strip()
+                    accepted_run_rows = tuple(queue_scope_check.get("_accepted_run_rows") or ())
+            starter = getattr(self.service, "start_pipeline", None)
+            if not callable(starter):
+                raise RuntimeError("Pipeline start service is not available.")
+            starter_parameters = inspect.signature(starter).parameters
+            if priority_only:
+                required_priority_parameters = {
+                    "expected_queue_plan_fingerprint",
+                    "priority_only",
+                }
+                missing_priority_parameters = sorted(
+                    required_priority_parameters.difference(starter_parameters)
                 )
-                if str(queue_scope_check.get("status") or "").casefold() != "ready":
-                    return pipeline_start_queue_scope_blocked_result(queue_scope_check)
-                expected_queue_plan_fingerprint = str(
-                    queue_scope_check.get("queue_plan_fingerprint") or ""
-                ).strip()
-                accepted_run_rows = tuple(queue_scope_check.get("_accepted_run_rows") or ())
+                if missing_priority_parameters:
+                    return pipeline_start_queue_scope_blocked_result({
+                        "status": "blocked",
+                        "message": (
+                            "Pipeline launcher cannot enforce Priority Export scope; "
+                            "no process was started."
+                        ),
+                        "reason_code": "priority_export_launcher_capability_missing",
+                        "missing_parameters": missing_priority_parameters,
+                    })
             autonomy_method = getattr(self, "_autonomy_health_for_resolved", None)
             if callable(autonomy_method):
                 path_health_method = getattr(self, "_launch_path_health_for_resolved", None)
@@ -190,9 +276,6 @@ class PipelineLaunchFacadeMixin:
             control_prep = getattr(self.service, "prepare_pipeline_control_flags_for_launch", None)
             if callable(control_prep):
                 launch_prep_messages.extend(str(item) for item in control_prep(resolved))
-            starter = getattr(self.service, "start_pipeline", None)
-            if not callable(starter):
-                raise RuntimeError("Pipeline start service is not available.")
             self._prepare_process_launch_lease(launch_lock)
             start_kwargs: dict[str, Any] = {
                 "resolved": resolved,
@@ -203,13 +286,14 @@ class PipelineLaunchFacadeMixin:
                 "show_console": intent.show_console,
                 "single_file": single_file or None,
             }
-            starter_parameters = inspect.signature(starter).parameters
             accepts_extra_kwargs = any(
                 parameter.kind is inspect.Parameter.VAR_KEYWORD
                 for parameter in starter_parameters.values()
             )
             if accepts_extra_kwargs or "expected_queue_plan_fingerprint" in starter_parameters:
                 start_kwargs["expected_queue_plan_fingerprint"] = expected_queue_plan_fingerprint
+            if priority_only:
+                start_kwargs["priority_only"] = priority_only
             if accepts_extra_kwargs or "command_id" in starter_parameters:
                 start_kwargs["command_id"] = command_id
             if accepts_extra_kwargs or "run_id" in starter_parameters:

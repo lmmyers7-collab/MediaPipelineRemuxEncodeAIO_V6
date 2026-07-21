@@ -82,7 +82,7 @@ These must be installed separately and are not included in the release package.
 | Version policy | Official Python SDK `mcp>=1.27,<2`; v2 migration is separate |
 | Install location | Ignored `LocalBase\Tooling\code-context-mcp\.venv` |
 | Required for pipeline or release package? | No; excluded from production `pyproject.toml` dependencies and release contents |
-| Validation | `tests.python.tooling.test_code_context_mcp` plus Codex/Claude registration checks |
+| Validation | `tests.python.tooling.test_code_context_mcp`, `tests.python.tooling.test_code_context_benchmark`, the 48-case benchmark `--check`, plus Codex/Claude registration checks |
 
 ### Node.js
 

@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-07-16
+last_modified: 2026-07-20
 last_reviewed: 2026-06-10
-sha256: 311a39abe02d62dfafc00c18518c2756a81115126b103968c80c226c728ca7a6
+sha256: 95fb272ef44f874401070fa8e029be47871fe3c4ae6428e1c10bad7c4baab408
 ---
 # `ops/pipeline/entrypoints/MediaPipeline/module_loader.ps1`
 

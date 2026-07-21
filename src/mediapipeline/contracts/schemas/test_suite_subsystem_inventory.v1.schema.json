@@ -1,0 +1,369 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mediapipeline.local/contracts/test_suite_subsystem_inventory.v1.schema.json",
+  "title": "Legacy reliability block coverage inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "owner_document",
+    "legacy_script",
+    "baseline_sha256",
+    "block_marker_format",
+    "coverage_exclusions",
+    "blocks"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "test_suite_subsystem_inventory.v1"
+    },
+    "owner_document": {
+      "const": "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md"
+    },
+    "legacy_script": {
+      "const": "ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1"
+    },
+    "baseline_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "block_marker_format": {
+      "type": "string",
+      "minLength": 1
+    },
+    "coverage_exclusions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/coverage_exclusion"
+      }
+    },
+    "blocks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/block"
+      }
+    }
+  },
+  "$defs": {
+    "nonempty": {
+      "type": "string",
+      "minLength": 1
+    },
+    "string_array": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "coverage_exclusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "anchor",
+        "reason"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "anchor": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "reason": {
+          "$ref": "#/$defs/nonempty"
+        }
+      }
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseline_start_line",
+        "baseline_end_line",
+        "start_anchor",
+        "end_anchor",
+        "active"
+      ],
+      "properties": {
+        "baseline_start_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "baseline_end_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "start_anchor": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "end_anchor": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "active": {
+          "type": "boolean"
+        }
+      }
+    },
+    "equivalent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "paths",
+        "evidence"
+      ],
+      "properties": {
+        "status": {
+            "type": "string",
+            "enum": [
+              "equivalent",
+              "partial",
+              "none",
+              "unknown"
+            ]
+        },
+        "paths": {
+          "$ref": "#/$defs/string_array"
+        },
+          "evidence": {
+            "$ref": "#/$defs/string_array"
+        }
+      }
+    },
+    "runnability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "checked_command",
+        "checked_date",
+        "requirements",
+        "blockers"
+      ],
+      "properties": {
+        "status": {
+            "type": "string",
+            "enum": [
+              "runnable",
+              "conditional",
+              "not_runnable",
+              "unknown"
+          ]
+        },
+        "checked_command": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "checked_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "requirements": {
+          "$ref": "#/$defs/string_array"
+        },
+        "blockers": {
+          "$ref": "#/$defs/string_array"
+        }
+      }
+    },
+    "fixtures_environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fixtures",
+        "environment",
+        "temp_writes"
+      ],
+      "properties": {
+        "fixtures": {
+          "$ref": "#/$defs/string_array"
+        },
+        "environment": {
+          "$ref": "#/$defs/string_array"
+        },
+        "temp_writes": {
+          "$ref": "#/$defs/string_array"
+        }
+      }
+    },
+    "real_media": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reason"
+      ],
+      "properties": {
+        "status": {
+            "type": "string",
+            "enum": [
+              "required",
+              "not_required",
+              "required_if_behavior_changes"
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/nonempty"
+        }
+      }
+    },
+    "destination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suite",
+        "path",
+        "rationale"
+      ],
+      "properties": {
+        "suite": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "path": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "rationale": {
+          "$ref": "#/$defs/nonempty"
+        }
+      }
+    },
+    "disposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "change_packet"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "preserve",
+            "migrate_pending",
+            "replacement_verified_removal_eligible",
+            "obsolete_verified_removal_eligible",
+            "removed"
+          ]
+        },
+          "change_packet": {
+            "type": "string",
+            "minLength": 1
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "replacement_or_obsolescence",
+        "validation"
+      ],
+      "properties": {
+        "replacement_or_obsolescence": {
+          "$ref": "#/$defs/string_array"
+        },
+        "validation": {
+          "$ref": "#/$defs/string_array"
+        }
+      }
+    },
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "domain",
+        "risk_domains",
+        "boundary_register_refs",
+        "legacy_location",
+        "behavior_or_invariant",
+        "production_surfaces",
+        "equivalent_coverage",
+        "runnability",
+        "fixtures_environment",
+        "real_media_requirement",
+        "classification",
+        "proposed_destination",
+        "disposition",
+        "evidence"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^LDRR-(STATIC|PS|PY)-[0-9]{3}$"
+        },
+        "title": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "domain": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "risk_domains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "source",
+              "scratch",
+              "publishing",
+              "process_lifecycle",
+              "queue",
+              "subtitle",
+              "audio",
+              "shutdown",
+              "ffmpeg_media_policy",
+              "config_state"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "boundary_register_refs": {
+          "$ref": "#/$defs/string_array"
+        },
+        "legacy_location": {
+          "$ref": "#/$defs/location"
+        },
+        "behavior_or_invariant": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "production_surfaces": {
+          "$ref": "#/$defs/string_array"
+        },
+        "equivalent_coverage": {
+          "$ref": "#/$defs/equivalent"
+        },
+        "runnability": {
+          "$ref": "#/$defs/runnability"
+        },
+        "fixtures_environment": {
+          "$ref": "#/$defs/fixtures_environment"
+        },
+        "real_media_requirement": {
+          "$ref": "#/$defs/real_media"
+        },
+        "classification": {
+            "type": "string",
+            "enum": [
+              "uniquely_valuable_needing_migration",
+              "already_covered_by_focused_tests",
+              "obsolete_removed_surface",
+              "unclear_preserve"
+            ]
+        },
+        "proposed_destination": {
+          "$ref": "#/$defs/destination"
+        },
+        "disposition": {
+          "$ref": "#/$defs/disposition"
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        }
+      }
+    }
+  }
+}

@@ -5,6 +5,8 @@ from __future__ import annotations
 import ast
 import json
 import re
+import unicodedata
+from functools import lru_cache
 from collections import defaultdict
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path, PurePosixPath
@@ -25,6 +27,21 @@ REPO_ROOT = find_repo_root(Path(__file__))
 CONTEXT_RECORD_SCHEMA_VERSION = 1
 DEFAULT_EXCLUDED_EVIDENCE = frozenset(
     {"archive", "runtime_artifact", "generated", "change_evidence"}
+)
+RETRIEVAL_TIER_ACTIVE = "active"
+RETRIEVAL_TIER_HISTORY = "history"
+RETRIEVAL_TIER_ALL = "all"
+RETRIEVAL_TIERS = (
+    RETRIEVAL_TIER_ACTIVE,
+    RETRIEVAL_TIER_HISTORY,
+    RETRIEVAL_TIER_ALL,
+)
+ACTIVE_LOW_VALUE_PREFIXES = (
+    "docs/ai-audits/",
+    "docs/reviews/",
+)
+OPT_IN_PATH_PARTS = frozenset(
+    {"fixture", "fixtures", "snapshot", "snapshots", "testdata"}
 )
 
 @dataclass(frozen=True)
@@ -86,14 +103,16 @@ FEATURE_SPECS: tuple[FeatureSpec, ...] = (
         ("settings", "config", "configuration", "library profile", "schema", "psd1"),
         ("src/mediapipeline/core/config/", "ops/pipeline/config/", "src/mediapipeline/contracts/config.py", "src/mediapipeline/contracts/schemas/config"),
         ("config", "contracts"),
+        boundary_docs=("docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md",),
         validation="targeted config/store/schema tests",
     ),
     FeatureSpec(
         "queue-launch",
         "Queue, source scanning, and launch planning",
-        ("queue", "webview queue", "queue display name", "launch", "source scan", "priority", "hold", "rerun", "schedule", "display name", "naming"),
+        ("queue", "queue snapshot", "webview queue", "queue display name", "launch", "source scan", "priority", "hold", "rerun", "schedule", "display name", "naming"),
         ("src/mediapipeline/core/queue/", "ops/pipeline/engine/queue/", "apps/desktop/webview/static/assets/queue", "tests/python/desktop/test_service_queue", "ops/pipeline/tests/Unit/Invoke-PipelineQueue"),
         ("queue", "schedule", "ingest", "application"),
+        boundary_docs=("docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md",),
         validation="targeted queue, launch, and WebView tests",
         anchor_paths=(
             "apps/desktop/webview/static/assets/queue/sourceModel.js",
@@ -183,10 +202,30 @@ FEATURE_SPECS: tuple[FeatureSpec, ...] = (
     FeatureSpec(
         "generated-context",
         "Generated context and AI navigation guardrails",
-        ("generated context", "project index", "summary", "context slice", "feature card", "ai guardrail", "repository navigation"),
+        (
+            "generated context",
+            "project index",
+            "summary",
+            "context slice",
+            "context capsule",
+            "task capsule",
+            "feature card",
+            "ai guardrail",
+            "ai token usage",
+            "token usage",
+            "retrieval ranking",
+            "repository navigation",
+        ),
         ("src/mediapipeline/tools/dev/", "docs/generated/", "tests/python/tooling/", "AGENTS.md"),
         ("scripts",),
         validation="targeted tooling tests and generated-output --check modes",
+        anchor_paths=(
+            "src/mediapipeline/tools/dev/context_slice.py",
+            "src/mediapipeline/tools/dev/context_records.py",
+            "src/mediapipeline/tools/dev/context_extractors.py",
+            "tests/python/tooling/test_context_slice.py",
+            "tests/python/tooling/test_context_records.py",
+        ),
     ),
     FeatureSpec(
         "release-validation",
@@ -237,6 +276,51 @@ def canonical_path(path: str | Path) -> str:
     while value.startswith("./"):
         value = value[2:]
     return PurePosixPath(value).as_posix()
+
+
+def normalize_retrieval_tier(
+    retrieval_tier: str = RETRIEVAL_TIER_ACTIVE,
+    *,
+    include_history: bool = False,
+) -> str:
+    normalized = retrieval_tier.strip().casefold()
+    if include_history and normalized == RETRIEVAL_TIER_ACTIVE:
+        normalized = RETRIEVAL_TIER_HISTORY
+    if normalized not in RETRIEVAL_TIERS:
+        raise ValueError(f"retrieval tier must be one of: {', '.join(RETRIEVAL_TIERS)}")
+    return normalized
+
+
+def record_is_retrievable(record: ContextRecord, retrieval_tier: str) -> bool:
+    """Return whether a catalog record participates in the requested tier."""
+
+    tier = normalize_retrieval_tier(retrieval_tier)
+    if tier == RETRIEVAL_TIER_ALL:
+        return True
+    if record.evidence_category in {"generated", "runtime_artifact"}:
+        return False
+    normalized = canonical_path(record.path).casefold()
+    parts = {part.casefold() for part in PurePosixPath(normalized).parts}
+    if parts.intersection(OPT_IN_PATH_PARTS):
+        return False
+    if tier == RETRIEVAL_TIER_ACTIVE:
+        if record.evidence_category in {"archive", "change_evidence"}:
+            return False
+        if any(normalized.startswith(prefix) for prefix in ACTIVE_LOW_VALUE_PREFIXES):
+            return False
+    return True
+
+
+def record_serialized_size_bytes(record: ContextRecord) -> int:
+    """Measure compact JSONL bytes considered when a record is ranked."""
+
+    serialized = json.dumps(
+        record.to_dict(),
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return len((serialized + "\n").encode("utf-8"))
 
 
 def evidence_category_for(path: str) -> str:
@@ -389,14 +473,153 @@ def validation_rung_for(path: str, feature_id: str, evidence_category: str) -> s
 
 
 _WORD_RE = re.compile(r"[a-z0-9]+")
+_UNICODE_WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)
+_CAMEL_BOUNDARY_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
+_IDENTIFIER_SEPARATOR_RE = re.compile(r"[_./\\:#-]+")
 _STOP_WORDS = frozenset(
-    {"a", "an", "and", "as", "at", "by", "file", "for", "from", "in", "of", "on", "or", "the", "to", "with"}
+    {
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "been",
+        "being",
+        "by",
+        "can",
+        "could",
+        "did",
+        "do",
+        "does",
+        "for",
+        "from",
+        "had",
+        "has",
+        "have",
+        "if",
+        "in",
+        "into",
+        "is",
+        "it",
+        "its",
+        "may",
+        "might",
+        "must",
+        "of",
+        "on",
+        "or",
+        "should",
+        "than",
+        "that",
+        "the",
+        "their",
+        "them",
+        "then",
+        "there",
+        "these",
+        "they",
+        "this",
+        "those",
+        "to",
+        "was",
+        "we",
+        "were",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "will",
+        "with",
+        "would",
+        "you",
+        "your",
+    }
+)
+LOW_INFORMATION_TERMS = frozenset(
+    {
+        "analyze",
+        "cleanup",
+        "codebase",
+        "excessive",
+        "file",
+        "files",
+        "find",
+        "identify",
+        "improve",
+        "improvement",
+        "improvements",
+        "issue",
+        "issues",
+        "opportunities",
+        "opportunity",
+        "related",
+        "relevant",
+        "request",
+        "requests",
+        "source",
+        "sources",
+        "specific",
+        "task",
+        "tasks",
+        "usage",
+    }
 )
 
 
 def terms_for(*values: object) -> tuple[str, ...]:
     text = " ".join(str(value) for value in values if value)
     return tuple(sorted({word for word in _WORD_RE.findall(text.casefold()) if word not in _STOP_WORDS and len(word) > 1}))
+
+
+@lru_cache(maxsize=65536)
+def _normalize_retrieval_text_cached(text: str) -> str:
+    normalized = unicodedata.normalize("NFKC", text)
+    expanded = _IDENTIFIER_SEPARATOR_RE.sub(" ", _CAMEL_BOUNDARY_RE.sub(" ", normalized))
+    return " ".join(expanded.casefold().split())
+
+
+def normalize_retrieval_text(*values: object) -> str:
+    """Normalize user-facing retrieval text without changing catalog serialization."""
+
+    return _normalize_retrieval_text_cached(" ".join(str(value) for value in values if value))
+
+
+@lru_cache(maxsize=65536)
+def _retrieval_terms_cached(raw: str, include_low_information: bool) -> tuple[str, ...]:
+    normalized = unicodedata.normalize("NFKC", raw)
+    expanded = _IDENTIFIER_SEPARATOR_RE.sub(" ", _CAMEL_BOUNDARY_RE.sub(" ", normalized))
+    excluded = _STOP_WORDS if include_low_information else _STOP_WORDS | LOW_INFORMATION_TERMS
+    words = {
+        word.casefold()
+        for word in _UNICODE_WORD_RE.findall(expanded)
+        if word.casefold() not in excluded and len(word) > 1
+    }
+    compact_identifiers = {
+        word.casefold()
+        for word in _UNICODE_WORD_RE.findall(_IDENTIFIER_SEPARATOR_RE.sub(" ", normalized))
+        if word.casefold() not in excluded and len(word) > 1
+    }
+    return tuple(sorted(words | compact_identifiers))
+
+
+def retrieval_terms_for(
+    *values: object,
+    include_low_information: bool = False,
+) -> tuple[str, ...]:
+    """Return Unicode- and identifier-aware terms for live retrieval."""
+
+    raw = " ".join(str(value) for value in values if value)
+    return _retrieval_terms_cached(raw, include_low_information)
+
+
+def low_information_terms_for(*values: object) -> tuple[str, ...]:
+    """Return generic request terms retained only for diagnostics and penalties."""
+
+    all_terms = set(retrieval_terms_for(*values, include_low_information=True))
+    return tuple(sorted(all_terms.intersection(LOW_INFORMATION_TERMS)))
 
 
 def _selector_matches(path: str, selector: str) -> bool:
@@ -683,6 +906,7 @@ def validate_record_paths(records: Iterable[ContextRecord], root: Path = REPO_RO
 
 
 __all__ = [
+    "ACTIVE_LOW_VALUE_PREFIXES",
     "CONTEXT_RECORD_SCHEMA_VERSION",
     "ContextRecord",
     "DEFAULT_EXCLUDED_EVIDENCE",
@@ -690,13 +914,25 @@ __all__ = [
     "FeatureSpec",
     "GENERATED_NAVIGATION_FILES",
     "GENERATED_NAVIGATION_PREFIXES",
+    "OPT_IN_PATH_PARTS",
+    "RETRIEVAL_TIERS",
+    "RETRIEVAL_TIER_ACTIVE",
+    "RETRIEVAL_TIER_ALL",
+    "RETRIEVAL_TIER_HISTORY",
     "REQUIRED_FEATURE_IDS",
+    "LOW_INFORMATION_TERMS",
     "collect_context_records",
     "evidence_category_for",
     "feature_spec",
     "is_generated_navigation_output",
     "load_records",
+    "low_information_terms_for",
+    "normalize_retrieval_text",
+    "normalize_retrieval_tier",
+    "record_is_retrievable",
+    "record_serialized_size_bytes",
     "records_from_jsonl",
     "records_to_jsonl",
+    "retrieval_terms_for",
     "validate_record_paths",
 ]

@@ -811,7 +811,7 @@
       "type": "string"
     },
     "DynamicHdrPolicy": {
-      "default": "warn",
+      "default": "preserve_or_review",
       "enum": [
         "off",
         "warn",

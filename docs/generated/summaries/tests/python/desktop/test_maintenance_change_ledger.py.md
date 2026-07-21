@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: 65a190fc65e17f6cc7afaf622b6a5cf34128e3ca847a327b4bf403aaa779ad68
+sha256: 4d45362738989860e287ee8d17dde5baf08fc4a10222ebc63ebad677bc5de3f4
 ---
 # `tests/python/desktop/test_maintenance_change_ledger.py`
 

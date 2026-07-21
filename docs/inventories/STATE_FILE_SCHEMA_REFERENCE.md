@@ -34,6 +34,31 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 
 ---
 
+## PriorityQueueExport
+
+**Contract file**: `src/mediapipeline/core/queue/priority_export.py`.
+**Artifact**: `State\QueueExports\Priority\priority-export-<timestamp>-<id>.json`; `latest.json` is an atomic copy of the latest ready export.
+**Schema version**: `priority_queue_export.v1`.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `schema_version` | `str` | Yes | Must equal `priority_queue_export.v1` |
+| `status` / `ready` | `str` / `bool` | Yes | Launch accepts only `status=ready` and `ready=true` |
+| `export_id` / `created_at` | `str` | Yes | Backend-generated identifier and UTC creation time |
+| `count` | `int` | Yes | Positive and exactly equal to `accepted_rows` length |
+| `queue_plan_fingerprint_schema` / `queue_plan_fingerprint` | `str` | Yes | Fingerprint of the filtered PowerShell `PriorityOnly` plan; runtime must rebuild and match it before dispatch |
+| `queue_input_fingerprint_schema` / `queue_input_fingerprint` | `str` | Yes | Covers config, priority manifest, queue strategy, and file overrides; any change makes the export stale |
+| `accepted_run_rows_fingerprint_schema` / `accepted_run_rows_fingerprint` | `str` | Yes | Content identity for the uncapped accepted membership |
+| `accepted_rows` | `list[dict]` | Yes | Backend-only Run Monitor membership; omitted from public GET/POST responses |
+
+### Notes
+
+- The export contains only runnable effective-High entries: explicit manifest `high` or an existing filename/folder priority marker not overridden by an explicit Normal, Low, or Hold setting.
+- Export creation and launch do not clear or rewrite priority settings. Empty, missing, malformed, stale, changed, or membership-mismatched exports fail closed and never fall back to the normal backend queue.
+- `queue_scope=priority_export` is valid only for Run Once without Single File. The browser submits the export ID, never row membership.
+
+---
+
 ## CompletedJob
 
 **Contract file**: `src/mediapipeline/desktop/contracts/completed_job.py`

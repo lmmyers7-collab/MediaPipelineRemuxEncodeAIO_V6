@@ -92,8 +92,9 @@ python -m mediapipeline.tools.dev.refresh_summaries --check
 
 1. Read `AGENTS.md`, then call the `mediapipeline-code` MCP `repo_context` tool
    with the actual task and default 2,000-token budget.
-2. Use `code_lookup` for ownership/relationships, `code_read` for bounded exact
-   detail, and `code_search` only for precise or low-confidence follow-up.
+2. Use `code_lookup` for ownership/relationships, `code_bundle` for several
+   budgeted source ranges, `code_read` for one exact range, and `code_search`
+   only for precise or low-confidence follow-up.
 3. If MCP is unavailable, use `context_slice --task "<task>" --budget 2000`.
 4. Read the matching summary before editing a source file.
 5. Open full source when the summary is high priority or the change requires
@@ -103,7 +104,8 @@ python -m mediapipeline.tools.dev.refresh_summaries --check
 
 ## Local code-context MCP
 
-The MCP server is read-only. It loads `PROJECT_INDEX.jsonl` once, reports stale
+The MCP server is read-only. It atomically reloads valid `PROJECT_INDEX.jsonl`
+revisions, retains the last valid snapshot after a bad reload, reports stale
 returned records without regenerating them, searches current tracked and
 untracked active files, and caps every source read.
 
@@ -113,6 +115,13 @@ untracked active files, and caps every source read.
 | `code_lookup` | Catalog ownership, symbols, dependencies, tests, and validation |
 | `code_search` | Bounded live literal/regex text search |
 | `code_read` | UTF-8 source ranges capped at 400 lines and 64 KiB |
+| `code_bundle` | Up to eight source ranges under one shared 800–8,000-token budget |
+
+Run the versioned 48-case retrieval and latency benchmark:
+
+```powershell
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.dev.code_context_benchmark --check
+```
 
 Preview or apply setup for both installed clients:
 
@@ -133,8 +142,10 @@ Remove matching registrations without deleting the environment:
 ```
 
 The server denies repository escapes, local state, bundled runtimes/tools,
-archives, personal config, credentials, binary files, and release change
-packets. It has no write, shell-command, network, prompt, or resource surface.
+personal config, credentials, and binary files. Generated evidence, archives,
+and release packets are excluded from broad search but may be read or searched
+through an explicit path. It has no write, shell-command, network, prompt, or
+resource surface.
 
 ## Pointers
 

@@ -8,7 +8,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-20
 last_reviewed: 2026-07-14
-sha256: 9fe38a3082e85ae774b35aa924bb7dcc6224625355417fa33c911de0e5ab23e4
+sha256: 3523ef44213850d4928e4a5cec02208349b73b66dfaa92ed40566157d388c857
 ---
 # `ops/scripts/dev/generate-webview-touchpoint-ledger.mjs`
 

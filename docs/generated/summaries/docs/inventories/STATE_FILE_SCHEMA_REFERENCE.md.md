@@ -8,7 +8,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-20
 last_reviewed: 2026-06-02
-sha256: a554298a9508be1ed04fa3af9206ed4dab5d0f663beb63612105b87ff85ed0b8
+sha256: cca38e6bd3e63b7258452046fda960ce9680c4e708c8fac6dda755cecd449fba
 ---
 # `docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md`
 

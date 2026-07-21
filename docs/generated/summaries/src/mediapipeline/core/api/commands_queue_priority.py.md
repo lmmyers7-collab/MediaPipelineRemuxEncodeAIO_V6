@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-06-29
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: cd58af1adda9004168bd2b5d54062bbf74f3a9b7958cb2724261b1eed99b3d7b
+sha256: f300582f1f11f470df3a3e56c55006e1b87cb978aca838aa8c130a591ec7cf6b
 ---
 # `src/mediapipeline/core/api/commands_queue_priority.py`
 

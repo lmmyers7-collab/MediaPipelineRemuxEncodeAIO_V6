@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-15
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: cedd8a246c91f6f6f2bf100abfcb7daf07d715b8d9627c8d9e46fd4582ee744d
+sha256: 3b461428606852119ca79ff4b0259ddd22c4dcaaab880ea6d84ae87e2b106eb7
 ---
 # `ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1`
 

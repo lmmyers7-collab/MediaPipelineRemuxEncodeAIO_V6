@@ -1,8 +1,10 @@
 # Change Packet Schema
 
-Change packets are JSON files stored under `ops/release/changes/unreleased/` or
-`ops/release/changes/released/<version>/`. JSON is used so the tooling has no external YAML
-dependency.
+Change packets are JSON files stored under `ops/release/changes/unreleased/`,
+`ops/release/changes/archived/YYYY-MM/`, or
+`ops/release/changes/released/<version>/`. JSON is used so the tooling has no
+external YAML dependency. The archived location is completed but still
+unreleased evidence; its month must match `date_completed`.
 
 Each packet must use this shape:
 
@@ -83,8 +85,8 @@ should fail validation.
 ## Coverage Rule
 
 Every meaningful worktree, staged, or branch-diff change must be covered by
-`files_touched` in an unreleased packet. Released packets are historical and do
-not satisfy current coverage. Generated docs, summaries, tests, scripts, UI
+`files_touched` in an active unreleased packet. Archived and released packets
+are historical evidence and do not satisfy current coverage. Generated docs, summaries, tests, scripts, UI
 files, config, documentation, and explicit directory subtrees are all coverable
 paths; only files Git already ignores are outside coverage.
 

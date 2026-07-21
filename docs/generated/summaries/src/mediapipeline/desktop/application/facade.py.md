@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: application
-last_modified: 2026-07-15
+last_modified: 2026-07-21
 last_reviewed: 2026-06-04
-sha256: 706d83e97a953b3c80ab4eb4c98c5cebc2c3c80974b0d3778e09a52b7df6ac6c
+sha256: f888739bd9a1b4ccf32ccc7d7a9b8ecbb035eb5f5455484903e6df129bd83cd6
 ---
 # `src/mediapipeline/desktop/application/facade.py`
 

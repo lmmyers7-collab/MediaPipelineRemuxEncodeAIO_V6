@@ -10,11 +10,8 @@ Validation: targeted route and strict-JSON contract tests
 
 ### WebView / Tauri
 
-- `apps/desktop/webview/static/assets/app/home/queueProjection.js` — operator display/intent surface; JavaScript implementation for queue projection; exposes activate, createHomeQueueProjectionModule, homeActiveWork.
-- `apps/desktop/webview/static/assets/contractView.js` — operator display/intent surface; JavaScript implementation for contract view; exposes contractEffect, contractMethodFilter, contractNetworkLifecycleContracts.
-- `apps/desktop/webview/static/assets/launch/risk/mediaPolicyValues.js` — operator display/intent surface; JavaScript implementation for media policy values; exposes createLaunchRiskMediaPolicyValuesModule, launchPolicyBoolText, launchPolicyChoiceLabel.
-- `apps/desktop/webview/static/assets/network/lifecycle.commands.js` — operator display/intent surface; JavaScript implementation for lifecycle commands; exposes confirmNetworkLifecycleCommand, confirmNetworkSetupCommand, createNetworkLifecycleCommandsModule.
-- `apps/desktop/webview/static/assets/network/lifecycle.view.js` — operator display/intent surface; JavaScript implementation for lifecycle view; exposes closeReadinessIsSafe, createNetworkLifecycleViewModule, networkCommandRouteByDataSchema.
+- `apps/desktop/webview/static/assets/apiClient.js` — operator display/intent surface; JavaScript implementation for api client; exposes actionDescriptor, apiClientError, apiGet.
+- `apps/desktop/tauri/src-tauri/src/lib_tests/mod.rs` — Rust implementation for lib tests mod; exposes assert_lifecycle_route_drift, bootstrap_err; Rust implementation for lib tests mod; exposes assert_lifecycle_route_drift, bootstrap_error_includes_bounded_stdout_context, bootstrap_stdout_context_redacts_token_like_values.
 
 ### API route
 
@@ -26,68 +23,48 @@ Validation: targeted route and strict-JSON contract tests
 
 ### Python facade / domain service
 
-- `src/mediapipeline/core/api/commands_process.py` — api authority; Python implementation for commands process; exposes LocalApiProcessCommandPayloadMixin.
-- `src/mediapipeline/core/api/commands_queue_priority.py` — api authority; Python implementation for commands queue priority; exposes LocalApiQueuePriorityCommandPayloadMixin.
-- `src/mediapipeline/core/api/commands_queue_scan.py` — api authority; Python implementation for commands queue scan; exposes LocalApiQueueScanCommandPayloadMixin.
-- `src/mediapipeline/core/api/commands_queue_strategy.py` — api authority; Python implementation for commands queue strategy; exposes LocalApiQueueStrategyCommandPayloadMixin.
-- `src/mediapipeline/core/api/commands_rename.py` — api authority; Python implementation for commands rename; exposes LocalApiRenameCommandPayloadMixin.
+- `src/mediapipeline/core/api/__init__.py` — api authority; Canonical Local API route and command contract helpers.
+- `src/mediapipeline/core/api/commands.py` — api authority; Canonical Local API command route registry.
+- `src/mediapipeline/core/api/commands_file_overrides.py` — api authority; Python implementation for commands file overrides; exposes LocalApiFileOverridesCommandPayloadMixin.
+- `src/mediapipeline/core/api/file_overrides/route_preview.py` — api authority; Python implementation for route preview.
 
 ### Contract / state / config
 
 - `src/mediapipeline/contracts/api_routes_command_process.py` — contracts authority; Python implementation for api routes command process.
-- `src/mediapipeline/core/kernel/contracts/pending_publish.py` — kernel authority; Python implementation for pending publish; exposes PendingPushManifest.
-- `src/mediapipeline/core/kernel/contracts/process_result.py` — kernel authority; Python implementation for process result; exposes ProcessFileResult.
-- `src/mediapipeline/core/kernel/contracts/queue_snapshot.py` — kernel authority; Python implementation for queue snapshot; exposes accepted_run_rows_fingerprint, QueueAcceptedRunRow, QueuePlanExcludedRow.
 - `src/mediapipeline/desktop/contracts/pending_publish.py` — contracts authority; Compatibility shim. Moved to `mediapipeline.core.kernel.contracts.pending_publish` by ADR-0013 (Wave 5). Re-exports the public namespace from the new home. New code should import from `mediapipeline.core.kernel.contracts.pending_publish` directly; removed in the ADR-0013 Wave 6 cleanup.
-
-### PowerShell execution
-
-- `ops/pipeline/engine/process/encode_context.ps1` — process authority; PowerShell implementation for encode context; exposes Get-MediaPipelineEncodeContextRequiredProperties, New-MediaPipelineEncodeContext, New-MediaPipelineEncodeStageResult.
-- `ops/pipeline/engine/process/encode_fallback.ps1` — process authority; PowerShell implementation for encode fallback; exposes Add-RemuxFallbackRejectionToFailureReason, Get-CurrentEncodeRouteIntentReasonCode, Get-LastRemuxFallbackRejection.
-- `ops/pipeline/engine/publish/pending_manifest_store.ps1` — publish authority; PowerShell implementation for pending manifest store; exposes ConvertTo-PendingManifestMap, Get-PendingManifestConfiguredOutputRoot, Get-PendingManifestConfiguredSourceRoots.
-- `ops/pipeline/engine/queue/file_overrides.ps1` — queue authority; Load file_overrides.json from the state root. Returns an empty manifest only when no persisted manifest exists. Existing malformed state fails closed.
-- `ops/pipeline/engine/shared/native_process_contracts.ps1` — shared authority; PowerShell implementation for native process contracts; exposes Get-ExternalToolFailureCode, Get-NativeToolDefaultTimeoutSeconds, New-NativeCommandResult.
+- `src/mediapipeline/desktop/contracts/process_result.py` — contracts authority; Compatibility shim. Moved to `mediapipeline.core.kernel.contracts.process_result` by ADR-0013 (Wave 5). Re-exports the public namespace from the new home. New code should import from `mediapipeline.core.kernel.contracts.process_result` directly; removed in the ADR-0013 Wave 6 cleanup.
+- `src/mediapipeline/desktop/contracts/queue_snapshot.py` — contracts authority; Compatibility shim. Moved to `mediapipeline.core.kernel.contracts.queue_snapshot` by ADR-0013 (Wave 5). Re-exports the public namespace from the new home. New code should import from `mediapipeline.core.kernel.contracts.queue_snapshot` directly; removed in the ADR-0013 Wave 6 cleanup.
+- `src/mediapipeline/contracts/__init__.py` — contracts authority; Canonical pipeline contracts. This package is the single source of truth for: - Pipeline stage I/O shapes (`stages.py`). - Source media facts normalized from probe JSON (`source_media.py`). - Abstract dry-run pipeline plans (`pipeline_plan.py`). - Verification and publish guard results (`verification.py`). - Effective decision policy shared by config and decide (`decision_policy.py`). - Configuration shape (`config.py`, Pydantic v2). - Local API command payload shapes (`api_commands.py`). - File lifecycle/state-machine documentation source (`lifecycle.py`). - Runtime diagnostic evidence (`runtime_evidence.py`). - Subtitle QA evidence (`subtitles.py`). - Local API route metadata (`api_routes.py`). - Backend-owned Run Once monitoring evidence (`run_monitor.py`). - Cross-stage data shapes (jobs, manifests, events) — added in later phases. `config.py::Config` is the authority for both the complete `src/mediapipeline/contracts/schemas/config.v1.schema.json` artifact and the PowerShell-facing `ops/pipeline/config/schemas/media_pipeline_config.schema.json` mirror; the latter intentionally omits network-only config fields. `run_monitor.py::RunMonitorRecord` is the authority for both Run Monitor schema artifacts, whose only intentional difference is their consumer-specific `$id`. `stages.py` generates `src/mediapipeline/contracts/schemas/stages.v1.schema.json` and defines the single Python-to-PowerShell stage execution contract. `lifecycle.py` generates `docs/architecture/FILE_LIFECYCLE_MAP.md`.
 
 ### Tests
 
-- `ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1` — verification evidence; PowerShell implementation for invoke legacy desktop reliability regression checks; exposes Add-CompletedJobsManifestEntryFromSidecar, Add-RoundFailureRecord, Add-TestEvent.
-- `ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1` — verification evidence; PowerShell implementation for invoke contract schema checks; exposes Assert-Equal, Assert-True, Convert-RoundTripJson.
-- `ops/pipeline/tests/Unit/Invoke-EncodeRuntimeRouteEvidenceChecks.ps1` — verification evidence; PowerShell implementation for invoke encode runtime route evidence checks; exposes Assert-Equal, Assert-True, Write-Log.
-- `ops/pipeline/tests/Unit/Invoke-MediaRouteSelectionChecks.ps1` — verification evidence; PowerShell implementation for invoke media route selection checks; exposes Assert-Equal, Assert-Near, Assert-TraceContains.
-- `ops/pipeline/tests/Unit/Invoke-PipelineProcessingSourceProbeChecks.ps1` — verification evidence; PowerShell implementation for invoke pipeline processing source probe checks; exposes Already-Processed, Assert-Equal, Assert-True.
+- `tests/python/desktop/application_facade_test_support.py` — verification evidence; Python implementation for application facade test support; exposes assert_namespace_export, DummyFacadeService, DummyProc.
+- `tests/python/desktop/test_application_facade_local_api_http.py` — verification evidence; Python implementation for test application facade local api http; exposes LocalApiHttpTests.
 
 ### Boundaries / validation
 
 - `docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md` — canonical boundary; Markdown implementation for local api evidence mutation matrix.
-- `docs/architecture/MODULE_MAP.md` — canonical boundary; Markdown implementation for module map.
-- `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md` — canonical boundary; Markdown implementation for repair reconcile mutation contract.
-- `docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md` — canonical boundary; Markdown implementation for tauri backend lifecycle boundary.
 - `docs/inventories/API_ROUTE_INVENTORY.md` — canonical boundary; Markdown implementation for api route inventory.
+- `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md` — canonical boundary; Markdown implementation for local api route ownership map.
 
 ## Why these files
 
-- `ops/pipeline/engine/process/encode_context.ps1`: process authority.
-- `ops/pipeline/engine/process/encode_fallback.ps1`: process authority.
-- `ops/pipeline/engine/publish/pending_manifest_store.ps1`: publish authority.
-- `ops/pipeline/engine/queue/file_overrides.ps1`: queue authority.
-- `ops/pipeline/engine/shared/native_process_contracts.ps1`: shared authority.
 - `src/mediapipeline/contracts/api_routes_command_process.py`: contracts authority.
-- `src/mediapipeline/core/api/commands_process.py`: api authority.
-- `src/mediapipeline/core/api/commands_queue_priority.py`: api authority.
+- `src/mediapipeline/desktop/contracts/pending_publish.py`: contracts authority.
+- `src/mediapipeline/desktop/contracts/process_result.py`: contracts authority.
+- `src/mediapipeline/desktop/contracts/queue_snapshot.py`: contracts authority.
+- `src/mediapipeline/contracts/__init__.py`: contracts authority.
+- `src/mediapipeline/contracts/api_commands.py`: contracts authority.
+- `src/mediapipeline/contracts/api_routes.py`: contracts authority.
+- `src/mediapipeline/contracts/api_routes_command.py`: contracts authority.
 
 ## Tests and validation
 
-- `ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-EncodeRuntimeRouteEvidenceChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-MediaRouteSelectionChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-PipelineProcessingSourceProbeChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-PipelineProcessingSplitContractChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-RemuxSplitStageChecks.ps1`
-- `ops/pipeline/tests/Unit/Invoke-RouteExplanationEvidenceChecks.ps1`
+- `tests/python/desktop/application_facade_test_support.py`
+- `tests/python/desktop/test_application_facade_local_api_http.py`
 - Smallest validation rung: targeted route and strict-JSON contract tests.
 - Boundaries: `docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md`.
 
 ## Secondary evidence
 
-Counts only (request explicitly when needed): test=66, documentation=14, generated=1, change_evidence=44, archive=0, runtime_artifact=1.
+Counts only (request explicitly when needed): test=2, documentation=3, generated=0, change_evidence=0, archive=0, runtime_artifact=0.

@@ -8,7 +8,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-07-20
 last_reviewed: 2026-06-03
-sha256: 029a496b0351d5c0e275af8b81052e37ed716311deeb39a9a333fee89d37b472
+sha256: 7939f8664188253dddda34560ba2ed049ee66e50ad78f4b9f2f809beccdab0fd
 ---
 # `AGENTS.md`
 

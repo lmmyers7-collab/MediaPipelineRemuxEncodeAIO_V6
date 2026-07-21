@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-11
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: e609c61b89fb2475ba739b6ca9912e4ee43273518ab456d021ea9dda2787ddae
+sha256: 077451beb1324db7aeeeb58dba2cc607efe0ac47f36972e48bdfca2ca35d0247
 ---
 # `src/mediapipeline/tools/change_control/build_release_manifest.py`
 

@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-17
+last_modified: 2026-07-20
 last_reviewed: 2026-05-31
-sha256: d9a60a740daf8db8640916acf3d5c0637edc8e2c32fb51722fb4a4c544336126
+sha256: 95868f16fc8230893d0c01df33c54bab3f2c5b346c71da7ce110c395a8506c8f
 ---
 # `docs/inventories/COMMAND_OWNERSHIP_MATRIX.md`
 

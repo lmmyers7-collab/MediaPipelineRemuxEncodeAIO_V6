@@ -6,16 +6,16 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-19
+last_modified: 2026-07-20
 last_reviewed: 2026-06-24
-sha256: 53fe51568411283009f2c35e896fe1d7788a7c19d8962e7be4a5f9c8b6fecab6
+sha256: 18b5a303d5eefcdfcd762e6faad940d82026bb939c3b0d6e1d9ab9ca5fe376bc
 ---
 # `tests/python/desktop/test_application_facade_local_api_http.py`
 
 **Purpose:** Python implementation for test application facade local api http; exposes LocalApiHttpTests.
 
 **Public symbols:** `LocalApiHttpTests`
-**In-repo imports:** `mediapipeline.core.api.commands_process`, `mediapipeline.core.failures.cleanup_service`, `mediapipeline.core.paths.layout`, `mediapipeline.core.status.run_monitor`, `mediapipeline.desktop.api`, `mediapipeline.desktop.api.handler`, `mediapipeline.desktop.application`, `mediapipeline.desktop.local_api_main`, `mediapipeline.desktop.models`, `mediapipeline.tools.paths`
+**In-repo imports:** `mediapipeline.core.api.commands_process`, `mediapipeline.core.failures.cleanup_service`, `mediapipeline.core.paths.layout`, `mediapipeline.core.status.run_monitor`, `mediapipeline.desktop.api`, `mediapipeline.desktop.api.handler`, `mediapipeline.desktop.application`, `mediapipeline.desktop.backend_instance`, `mediapipeline.desktop.local_api_main`, `mediapipeline.desktop.models`, `mediapipeline.tools.paths`
 **HTTP routes:** `/api/audit-controls`, `/api/audit-results`, `/api/audit/export-rerun-csv`, `/api/audit/ignore`, `/api/audit/score-policy`, `/api/backend/close-readiness`, `/api/backend/close-readiness?token=test-token`, `/api/backend/shutdown`, `/api/commands`, `/api/commands?limit=10`, `/api/completed`, `/api/completed/open`, `/api/completed/reconcile-manifest-dry-run`, `/api/completed/repair-sidecar-metadata-dry-run`, `/api/contract`, `/api/diagnostics/open`, `/api/diagnostics/tdarr-matrix-audit`, `/api/failures`, `/api/failures/artifacts`, `/api/failures/artifacts/cleanup`, `/api/failures/open`, `/api/health`, `/api/launch/preflight`, `/api/launch/preflight?target=pipeline&mode=validate&sleep_seconds=3`
 **State/config identifiers:** `.mkv.manifest.json`
 

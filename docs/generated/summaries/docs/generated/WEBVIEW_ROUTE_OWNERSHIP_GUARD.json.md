@@ -6,7 +6,7 @@ file_type: JSON
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-15
+last_modified: 2026-07-20
 last_reviewed: 2026-06-02
 sha256: a35c5924cce02028e32d39ef47541cacf7404786db82a08b023815bfd6905d9b
 ---

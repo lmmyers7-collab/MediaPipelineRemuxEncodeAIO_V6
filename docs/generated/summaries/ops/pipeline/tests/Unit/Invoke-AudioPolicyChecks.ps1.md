@@ -6,15 +6,15 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-16
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: 5061e4a2226a9089e5a05609c5e0d2fbd0a54b56ef4a1744e344c6e51be88552
+sha256: 165d55115706ae0e9fef53d2cc1b10ef8f953397bd013915650efbf0e82e0498
 ---
 # `ops/pipeline/tests/Unit/Invoke-AudioPolicyChecks.ps1`
 
 **Purpose:** PowerShell implementation for invoke audio policy checks; exposes Assert-Equal, Assert-SequenceEqual, Assert-True.
 
-**Public symbols:** `Assert-Equal`, `Assert-SequenceEqual`, `Assert-True`, `DebugLog`, `Get-AudioTrackTitleOverride`, `Get-FileOverrideAudioSettings`, `Get-MediaAudioCodecDisplayLabel`, `Get-MediaAudioCodecFidelityRankValue`, `Get-MediaAudioCodecFlacName`, `Get-MediaPipelineAudioPassthroughProfileCodecs`, `Invoke-FFprobeCommand`, `Resolve-MediaPipelineAudioPassthroughProfile`, `Set-MediaPipelineRunMonitorAudioRecords`, `Set-ProgressAudioTrack`, `Test-AudioTrackKeptByOverride`, `Write-Log`
+**Public symbols:** `Assert-Equal`, `Assert-SequenceEqual`, `Assert-True`, `DebugLog`, `Get-AudioTrackTitleOverride`, `Get-FileOverrideAudioSettings`, `Get-MediaAudioCodecDisplayLabel`, `Get-MediaAudioCodecFidelityRankValue`, `Get-MediaAudioCodecFlacName`, `Invoke-FFprobeCommand`, `Set-MediaPipelineRunMonitorAudioRecords`, `Set-ProgressAudioTrack`, `Test-AudioTrackKeptByOverride`, `Write-Log`
 **Invoked tools:** `ffmpeg`, `ffprobe`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/tests/Unit/Invoke-AudioPolicyChecks.ps1`._

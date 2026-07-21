@@ -8,13 +8,13 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-07-20
 last_reviewed: 2026-07-20
-sha256: 95b15733f5d9f265c83331fd69818c255997eaa474a364ee297beaa1b161edac
+sha256: 6aacb5bd0ce85da188b2f9afcc7ef11582d45e633628e6ff87828f91c25d6434
 ---
 # `src/mediapipeline/tools/dev/context_slice.py`
 
 **Purpose:** Return a deterministic, token-bounded repository context capsule for a task.
 
-**Public symbols:** `budget_tolerance`, `build_context_capsule`, `check_index`, `ContextCapsule`, `estimate_tokens`, `main`, `rank_records`, `RankedContextItem`, `render_capsule`
+**Public symbols:** `budget_tolerance`, `build_context_capsule`, `check_index`, `ContextCapsule`, `estimate_tokens`, `main`, `rank_records`, `rank_records_with_stats`, `RankedContextItem`, `RecordRetrievalProfile`, `render_capsule`, `RetrievalStats`, `TaskProfile`
 **In-repo imports:** `mediapipeline.tools.dev.context_records`, `mediapipeline.tools.paths`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/tools/dev/context_slice.py`._

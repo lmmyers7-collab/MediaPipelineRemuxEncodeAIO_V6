@@ -8,7 +8,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-07-20
 last_reviewed: 2026-07-20
-sha256: 263f06479a9246179bd8e307ccb160747ebb2e80bdb9c6ae1125866d43796187
+sha256: 43db2e485e5f4a0cd85e62029fb90915ec725214a60577b9aaf8c7bec97e7e7b
 ---
 # `tests/python/desktop/test_settings_store_concurrency.py`
 

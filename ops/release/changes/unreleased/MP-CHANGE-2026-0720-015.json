@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0720-015",
+  "title": "Condense active status documents",
+  "version_target": "2026.07.20.005",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-07-20",
+  "date_completed": "2026-07-20",
+  "summary": "Condense the canonical current-state and open-work documents, preserve practical legacy anchors, and route completed detail to existing changelog, decision-history, archive-index, review, validation, and change-packet evidence.",
+  "reason": "The active onboarding documents had grown to 64,301 bytes and 34,367 bytes respectively, mixed present truth with large completion narratives, duplicated stable architecture/validation guidance, and contained stale contradictory counts and validation posture.",
+  "affected_areas": [
+    "change_control",
+    "docs",
+    "generated_context"
+  ],
+  "behavior_before": "CURRENT_PROJECT_STATE mixed current architecture and limitations with extensive dated completion logs; OPEN_WORK_CHECKLIST contained 14 completed/no-active-work rows, closed promotion and remediation sections, two resolved decisions, four open items, and two recurring gates.",
+  "behavior_after": "CURRENT_PROJECT_STATE is a concise present-state handoff; OPEN_WORK_CHECKLIST contains only four unresolved implementation/external items and recurring gates. Completed evidence remains indexed through existing authority surfaces, and stale WebView-export and real-media posture contradictions are resolved.",
+  "files_touched": [
+    "CHANGELOG.md",
+    "docs/ARCHIVED_MD_INDEX.md",
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/DOCS_INDEX.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/RealMediaValidationRuns/README.md",
+    "docs/architecture/DECISIONS_AND_HISTORY.md",
+    "docs/generated/summaries/CHANGELOG.md.md",
+    "docs/generated/summaries/docs/ARCHIVED_MD_INDEX.md.md",
+    "docs/generated/summaries/docs/DOCS_INDEX.md.md",
+    "docs/generated/summaries/docs/RealMediaValidationRuns/README.md.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0720-015.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Scoped active-doc reference scan passed for all 7 edited Markdown files; active-doc checker unit suite passed 9/9.",
+    "Canonical referenced-path existence check passed for all 15 named current authority/evidence paths.",
+    "Open-item preservation passed 5/5 and practical legacy-anchor preservation passed 7/7.",
+    "Generated-summary hash verification passed 4/4 and git diff --check passed for all 12 packet paths.",
+    "Scoped change-packet coverage passed 12/12. Repository-wide strict coverage was also attempted and was blocked only by unrelated packets/files in the shared dirty worktree."
+  ],
+  "rollback_plan": "Revert only the files listed in this packet. No application, media, runtime state, generated contract, or operator configuration behavior changed.",
+  "related_changes": [
+    "MP-CHANGE-2026-0720-016"
+  ],
+  "notes": "Section audit: CURRENT_PROJECT_STATE kept and condensed project identity, current UI, launchers, current architecture, operating state, active gaps, and release posture; routed completion notes to history; reduced duplicated safety, validation, high-risk, obsolete-guidance, and first-read material to canonical links. OPEN_WORK_CHECKLIST retained open/partial work and recurring gates; routed closed promotion/legacy/package/wave work, completed phased work, and resolved decisions to history. Stale contradictions corrected: authoritative WebView inventory is 558 flat assignments across 231 files, replacing older 382/756 counts; historical real-media acceptance remains evidence but does not satisfy the newer blocked rerun gate. No real-media validation is required for this docs-only change. Before/after: CURRENT_PROJECT_STATE 64,301 -> 9,899 bytes (84.6% smaller), 7,596 -> 1,123 words (85.2% smaller), 258 -> 202 lines; OPEN_WORK_CHECKLIST 34,367 -> 5,626 bytes (83.6% smaller), 3,928 -> 600 words (84.7% smaller), 147 -> 105 lines. MP-CHANGE-2026-0720-016 concurrently segmented the remediation changelog and added compatible history links to shared docs; those concurrent additions are not claimed as authored by this packet. Repository-wide active-reference scan remains blocked by unchanged historical provenance URL `MediaPipelineRemuxEncodeAIO_V6.git` in docs/reviews/comprehensive-production-audit-2026-07-19/evidence/BASELINE.md:15 (DOC005 false positive); the other 213 scanned active docs pass. Repository-wide generated-summary and strict packet-coverage checks remain blocked by unrelated in-flight files and packets in the shared dirty worktree; scoped checks for this packet pass.\nCondense active status guidance and preserve historical evidence routing.\nRefresh generated summary after documentation edit.\nUpdate history reference after closed checklist sections moved.\nRefresh generated summary after validation-history reference edit."
+}

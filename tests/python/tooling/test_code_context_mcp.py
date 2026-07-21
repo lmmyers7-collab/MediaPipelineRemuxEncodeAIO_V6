@@ -1,16 +1,22 @@
 from __future__ import annotations
 
+import io
 import json
 import os
 import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
 from mediapipeline.tools.dev.code_context_service import (
     MAX_READ_LINES,
+    MAX_SOURCE_BYTES,
+    BundleFileRequest,
     CodeContextService,
 )
 from mediapipeline.tools.dev.context_records import ContextRecord, records_to_jsonl
@@ -82,6 +88,42 @@ class CodeContextServiceTests(unittest.TestCase):
         second = self.service.repo_context("queue demo symbol", budget=700)
         self.assertEqual(second["health"]["stale_paths"], ["src/mediapipeline/demo.py"])
 
+    def test_normalized_context_and_lookup_queries_share_revision_aware_caches(self) -> None:
+        self.service.repo_context(" Queue   Demo Symbol ", budget=700)
+        self.service.repo_context("queue demo symbol", budget=700)
+        self.service.code_lookup("Demo Symbol")
+        self.service.code_lookup("  demo   symbol ")
+        metrics = self.service._metrics_snapshot()
+        self.assertEqual(metrics["cache_hits"], {"context": 1, "lookup": 1})
+
+    def test_valid_index_change_reloads_atomically_and_invalid_change_keeps_last_snapshot(self) -> None:
+        first_revision = self.service.health()["index_revision"]
+        updated = record_for("src/mediapipeline/demo.py", sha256_of(self.source))
+        updated = replace(updated, purpose="Provide a changed queue demonstration helper.")
+        self.service.index_path.write_text(records_to_jsonl([updated]), encoding="utf-8")
+        reloaded = self.service.code_lookup("src/mediapipeline/demo.py")
+        self.assertNotEqual(reloaded["health"]["index_revision"], first_revision)
+        self.assertEqual(reloaded["item"]["purpose"], "Provide a changed queue demonstration helper.")
+        valid_revision = reloaded["health"]["index_revision"]
+        self.service.index_path.write_text("{broken\n", encoding="utf-8")
+        degraded = self.service.code_lookup("demo symbol")
+        self.assertTrue(degraded["ok"])
+        self.assertEqual(degraded["health"]["index_revision"], valid_revision)
+        self.assertEqual(degraded["health"]["reload_status"], "degraded")
+        self.assertTrue(degraded["health"]["reload_error"])
+
+    def test_concurrent_catalog_calls_observe_one_complete_revision(self) -> None:
+        updated = replace(
+            record_for("src/mediapipeline/demo.py", sha256_of(self.source)),
+            purpose="Provide a concurrent queue demonstration helper.",
+        )
+        self.service.index_path.write_text(records_to_jsonl([updated]), encoding="utf-8")
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            results = list(executor.map(lambda _: self.service.code_lookup("src/mediapipeline/demo.py"), range(24)))
+        self.assertTrue(all(result["ok"] for result in results))
+        self.assertEqual({result["item"]["purpose"] for result in results}, {updated.purpose})
+        self.assertEqual(len({result["health"]["index_revision"] for result in results}), 1)
+
     def test_exact_lookup_returns_relationships(self) -> None:
         result = self.service.code_lookup("src/mediapipeline/demo.py")
         self.assertTrue(result["exact"])
@@ -103,7 +145,57 @@ class CodeContextServiceTests(unittest.TestCase):
         self.assertEqual(result["backend"], "python")
         self.assertEqual(result["items"][0]["path"], "src/mediapipeline/new_work.py")
 
-    def test_ripgrep_receives_only_prevalidated_files(self) -> None:
+    def test_live_search_skips_generated_and_history_by_default_but_exact_prefix_opts_in(self) -> None:
+        generated = self.root / "docs" / "generated" / "RAW_LEDGER.json"
+        generated.write_text('{"value":"opt-in-token"}\n', encoding="utf-8")
+        archived = self.root / "docs" / "archive" / "historical.md"
+        archived.parent.mkdir(parents=True)
+        archived.write_text("opt-in-token\n", encoding="utf-8")
+        packet = self.root / "ops" / "release" / "changes" / "complete.json"
+        packet.parent.mkdir(parents=True)
+        packet.write_text('{"value":"opt-in-token"}\n', encoding="utf-8")
+
+        with patch("mediapipeline.tools.dev.code_context_service.shutil.which", return_value=None):
+            default = self.service.code_search("opt-in-token")
+            generated_result = self.service.code_search(
+                "opt-in-token", path_prefix="docs/generated"
+            )
+            archived_result = self.service.code_search(
+                "opt-in-token", path_prefix="docs/archive"
+            )
+            packet_result = self.service.code_search(
+                "opt-in-token", path_prefix="ops/release/changes"
+            )
+
+        self.assertEqual(default["items"], [])
+        self.assertEqual(generated_result["items"][0]["path"], "docs/generated/RAW_LEDGER.json")
+        self.assertEqual(archived_result["items"][0]["path"], "docs/archive/historical.md")
+        self.assertEqual(packet_result["items"][0]["path"], "ops/release/changes/complete.json")
+
+    def test_exact_historical_symbol_remains_findable_and_reports_staleness(self) -> None:
+        packet = self.root / "ops" / "release" / "changes" / "complete.json"
+        packet.parent.mkdir(parents=True)
+        packet.write_text('{"status":"complete"}\n', encoding="utf-8")
+        historical = replace(
+            record_for("ops/release/changes/complete.json", "0" * 64),
+            evidence_category="change_evidence",
+            layer="secondary-evidence",
+            authority="secondary-evidence",
+            public_symbols=("historical_exact_symbol",),
+            relevance_terms=("historical", "exact", "symbol"),
+        )
+        active = record_for("src/mediapipeline/demo.py", sha256_of(self.source))
+        self.service.index_path.write_text(
+            records_to_jsonl([active, historical]),
+            encoding="utf-8",
+        )
+
+        result = self.service.code_lookup("historical_exact_symbol")
+
+        self.assertEqual(result["items"][0]["path"], historical.path)
+        self.assertIn(historical.path, result["health"]["stale_paths"])
+
+    def test_ripgrep_receives_validated_roots_and_deny_globs(self) -> None:
         secret = self.root / "src" / "mediapipeline" / ".env"
         secret.write_text("needle=secret\n", encoding="utf-8")
         completed = subprocess.CompletedProcess(args=[], returncode=1, stdout="", stderr="")
@@ -115,7 +207,9 @@ class CodeContextServiceTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         arguments = [str(argument) for call in run.call_args_list for argument in call.args[0]]
         self.assertNotIn(str(secret), arguments)
-        self.assertIn(str(self.source), arguments)
+        self.assertIn(str(self.source.parent), arguments)
+        self.assertIn("!**/.env", arguments)
+        self.assertIn("!docs/generated/**", arguments)
 
     def test_invalid_regex_is_structured(self) -> None:
         result = self.service.code_search("[", regex=True)
@@ -138,6 +232,88 @@ class CodeContextServiceTests(unittest.TestCase):
         self.assertEqual(len(result["lines"]), MAX_READ_LINES)
         self.assertTrue(result["truncated"])
         self.assertTrue(result["index_stale"])
+
+    def test_code_bundle_is_fair_compact_bounded_and_continuable(self) -> None:
+        self.source.write_text("\n".join(f"demo line {number}" for number in range(600)) + "\n", encoding="utf-8")
+        dependency = self.root / "src" / "mediapipeline" / "dependency.py"
+        dependency.write_text("\n".join(f"dependency line {number}" for number in range(600)) + "\n", encoding="utf-8")
+        result = self.service.code_bundle(
+            [
+                BundleFileRequest("src/mediapipeline/demo.py"),
+                BundleFileRequest("src/mediapipeline/dependency.py", start_line=11, end_line=500),
+            ],
+            budget=800,
+        )
+        self.assertTrue(result["ok"])
+        self.assertLessEqual(result["estimated_tokens"], 800 + budget_tolerance(800))
+        self.assertEqual(len(result["items"]), 2)
+        self.assertTrue(all(item["text"] for item in result["items"]))
+        self.assertTrue(all(item["truncated"] for item in result["items"]))
+        self.assertEqual(result["items"][1]["start_line"], 11)
+        self.assertEqual(result["items"][1]["next_start_line"], result["items"][1]["end_line"] + 1)
+
+    def test_code_bundle_preflight_is_atomic_for_duplicates_ranges_and_binary_files(self) -> None:
+        duplicate = self.service.code_bundle(
+            [BundleFileRequest("src/mediapipeline/demo.py"), BundleFileRequest("src/mediapipeline/demo.py")]
+        )
+        self.assertEqual(duplicate["error"]["code"], "duplicate_path")
+        invalid_range = self.service.code_bundle(
+            [BundleFileRequest("src/mediapipeline/demo.py", start_line=3, end_line=2)]
+        )
+        self.assertEqual(invalid_range["error"]["code"], "invalid_range")
+        binary = self.root / "src" / "mediapipeline" / "binary.py"
+        binary.write_bytes(b"abc\x00def")
+        rejected = self.service.code_bundle(
+            [BundleFileRequest("src/mediapipeline/demo.py"), BundleFileRequest("src/mediapipeline/binary.py")]
+        )
+        self.assertFalse(rejected["ok"])
+        self.assertNotIn("items", rejected)
+        self.assertEqual(rejected["error"]["code"], "binary_file")
+
+    def test_code_bundle_budget_edges_preserve_unicode_and_report_staleness(self) -> None:
+        self.source.write_text("café 雪\nsecond line\n", encoding="utf-8")
+        for budget in (800, 8000):
+            result = self.service.code_bundle([BundleFileRequest("src/mediapipeline/demo.py")], budget=budget)
+            self.assertTrue(result["ok"])
+            self.assertIn("café 雪", result["items"][0]["text"])
+            self.assertTrue(result["items"][0]["index_stale"])
+            self.assertLessEqual(result["estimated_tokens"], budget + budget_tolerance(budget))
+        for budget in (799, 8001):
+            result = self.service.code_bundle([BundleFileRequest("src/mediapipeline/demo.py")], budget=budget)
+            self.assertEqual(result["error"]["code"], "invalid_budget")
+
+    def test_code_bundle_rejects_denied_oversized_and_too_many_files_atomically(self) -> None:
+        oversized = self.root / "src" / "mediapipeline" / "oversized.py"
+        oversized.write_bytes(b"x" * (MAX_SOURCE_BYTES + 1))
+        for request, expected in (
+            (
+                [BundleFileRequest("src/mediapipeline/demo.py"), BundleFileRequest("src/mediapipeline/oversized.py")],
+                "file_too_large",
+            ),
+            (
+                [BundleFileRequest("src/mediapipeline/demo.py"), BundleFileRequest("../outside.py")],
+                "path_denied",
+            ),
+        ):
+            result = self.service.code_bundle(request)
+            self.assertFalse(result["ok"])
+            self.assertNotIn("items", result)
+            self.assertEqual(result["error"]["code"], expected)
+        too_many = [BundleFileRequest(f"src/mediapipeline/file_{number}.py") for number in range(9)]
+        result = self.service.code_bundle(too_many)
+        self.assertEqual(result["error"]["code"], "invalid_files")
+
+    def test_metrics_output_contains_counters_but_no_queries_paths_or_source(self) -> None:
+        self.service.code_search("needle")
+        self.service.code_read("src/mediapipeline/demo.py")
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            self.service.emit_metrics()
+        emitted = stderr.getvalue()
+        self.assertIn("mediapipeline_code_mcp_metrics.v1", emitted)
+        self.assertNotIn("needle", emitted)
+        self.assertNotIn("demo.py", emitted)
+        self.assertNotIn("return 'needle'", emitted)
 
     def test_binary_and_secret_paths_are_denied(self) -> None:
         binary = self.root / "src" / "mediapipeline" / "binary.py"
@@ -182,7 +358,7 @@ class CodeContextServiceTests(unittest.TestCase):
 
 @unittest.skipUnless(MCP_AVAILABLE, "official MCP SDK is not installed in this interpreter")
 class CodeContextMcpProtocolTests(unittest.IsolatedAsyncioTestCase):
-    async def test_stdio_server_exposes_four_compact_read_only_tools(self) -> None:
+    async def test_stdio_server_exposes_five_compact_read_only_tools(self) -> None:
         repo_root = Path(__file__).resolve().parents[3]
         runner = repo_root / "ops" / "scripts" / "dev" / "run-python-tool.py"
         params = StdioServerParameters(
@@ -196,7 +372,7 @@ class CodeContextMcpProtocolTests(unittest.IsolatedAsyncioTestCase):
                 await session.initialize()
                 listed = await session.list_tools()
                 names = [tool.name for tool in listed.tools]
-                self.assertEqual(names, ["repo_context", "code_lookup", "code_search", "code_read"])
+                self.assertEqual(names, ["repo_context", "code_lookup", "code_search", "code_read", "code_bundle"])
                 schema_text = json.dumps([tool.model_dump(mode="json") for tool in listed.tools], sort_keys=True)
                 self.assertLessEqual(estimate_tokens(schema_text), 1200)
                 for tool in listed.tools:
@@ -208,6 +384,21 @@ class CodeContextMcpProtocolTests(unittest.IsolatedAsyncioTestCase):
                 )
                 self.assertFalse(result.isError)
                 self.assertTrue(result.structuredContent["ok"])
+                bundled = await session.call_tool(
+                    "code_bundle",
+                    arguments={
+                        "files": [
+                            {
+                                "path": "src/mediapipeline/tools/dev/code_context_mcp.py",
+                                "start_line": 1,
+                                "end_line": 8,
+                            }
+                        ],
+                        "budget": 800,
+                    },
+                )
+                self.assertFalse(bundled.isError)
+                self.assertTrue(bundled.structuredContent["ok"])
 
 
 class CodeContextMcpProcessTests(unittest.TestCase):

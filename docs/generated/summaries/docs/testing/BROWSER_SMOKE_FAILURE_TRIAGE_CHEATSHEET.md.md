@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-16
+last_modified: 2026-07-20
 last_reviewed: 2026-06-03
-sha256: e63cc8cf1d4278994c0a748e108d6cd0c12c7f44f18ceedfc5ad5aeeefe8eb5d
+sha256: ee03501c6b0cb412129889d483ee22076bc007747e9a63245469fd6726529164
 ---
 # `docs/testing/BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md`
 

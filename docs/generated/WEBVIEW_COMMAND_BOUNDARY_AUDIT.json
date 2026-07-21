@@ -6,7 +6,7 @@
   "ok": true,
   "violations": [],
   "summary": {
-    "scripts": 283,
+    "scripts": 287,
     "controls": 520,
     "route_usages": 117,
     "dynamic_api_posts": 8,

@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-19
+last_modified: 2026-07-20
 last_reviewed: 2026-07-16
-sha256: 2997fe220d75e7df43e16c4d7d36af5564d732b19b1fbd1f19dcb041e4867b7a
+sha256: ed1906f8cb6664356d3fc750ff6a935d9c4cc2c8e01f6f626174b6f615355cff
 ---
 # `ops/pipeline/tests/Unit/Invoke-RunMonitorStateChecks.ps1`
 

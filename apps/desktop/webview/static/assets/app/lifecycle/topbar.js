@@ -98,13 +98,22 @@
     const lifecycleLabel = lifecycle.replace(/\b\w/g, (letter) => letter.toUpperCase());
     const counts = run.counts && typeof run.counts === "object" ? run.counts : {};
     const accepted = Number(counts.accepted ?? run.accepted_queue?.accepted_count);
-    const workers = freshness === "current" && Array.isArray(projection.current_workers) ? projection.current_workers.length : 0;
+    const currentWorkers = freshness === "current" && Array.isArray(projection.current_workers) ? projection.current_workers : [];
+    const items = Array.isArray(projection.items) ? projection.items : [];
+    const itemsByJob = new Map(items.map((item) => [String(item?.job_id || "").trim(), item]));
+    const activeFiles = [];
+    currentWorkers.forEach((worker) => {
+      const item = itemsByJob.get(String(worker?.job_id || "").trim());
+      const displayName = formatProgressValue(item?.display_name || "").trim();
+      if (displayName && !activeFiles.includes(displayName)) activeFiles.push(displayName);
+    });
     return {
       freshness,
       lifecycleLabel,
       displayMode: String(run.display_mode || "Run Once · Backend Queue"),
       accepted: Number.isFinite(accepted) && accepted >= 0 ? accepted : null,
-      workers,
+      workers: currentWorkers.length,
+      activeFiles,
     };
   }
 
@@ -112,6 +121,15 @@
     if (!context) return null;
     const current = context.freshness === "current";
     const terminal = context.freshness === "terminal";
+    const activeFiles = Array.isArray(context.activeFiles) ? context.activeFiles : [];
+    if (current && activeFiles.length) {
+      const additionalCount = activeFiles.length - 1;
+      return {
+        primary: `${activeFiles[0]}${additionalCount ? ` + ${additionalCount} more` : ""}`,
+        primaryTitle: activeFiles.join("\n"),
+        meta: `${context.displayMode} · ${context.lifecycleLabel}`,
+      };
+    }
     const primary = `${context.displayMode} · ${context.lifecycleLabel}`;
     const meta = current || terminal
       ? [
@@ -182,13 +200,13 @@
       const primary = document.createElement("span");
       primary.className = "activity-primary";
       primary.textContent = monitorText.primary;
-      primary.title = monitorText.primary;
+      primary.title = monitorText.primaryTitle || monitorText.primary;
       const meta = document.createElement("span");
       meta.className = "activity-meta";
       meta.textContent = monitorText.meta;
       meta.title = monitorText.meta;
       node.replaceChildren(primary, meta);
-      node.title = `${monitorText.primary}\n${monitorText.meta}`;
+      node.title = `${monitorText.primaryTitle || monitorText.primary}\n${monitorText.meta}`;
       node.dataset.authority = "run_monitor";
       return;
     }
@@ -212,7 +230,7 @@
     const metaText = pendingLaunch
       ? topbarTickerCompactText(pendingLaunch.waitLabel || "", 64)
       : topbarCurrentWorkMeta(currentWork, progress) || topbarStageContext(progress);
-    const primaryText = activeSummary || cleanName || activity || "No active work reported.";
+    const primaryText = cleanName || activeSummary || activity || "No active work reported.";
 
     const primary = document.createElement("span");
     primary.className = "activity-primary";

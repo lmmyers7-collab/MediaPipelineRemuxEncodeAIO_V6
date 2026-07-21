@@ -86,7 +86,7 @@ class MaintenanceChangeLedgerTests(unittest.TestCase):
         self.assertIn("src/mediapipeline/core/maintenance", impact["summary"])
         self.assertIn("tests/python/desktop", impact["summary"])
 
-    def test_change_ledger_loads_unreleased_and_released_packets(self) -> None:
+    def test_change_ledger_loads_unreleased_archived_and_released_packets(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             (root / "docs" / "change_control").mkdir(parents=True)
@@ -94,6 +94,11 @@ class MaintenanceChangeLedgerTests(unittest.TestCase):
             (root / "docs" / "change_control" / "CHANGELOG.md").write_text("# Change Log\n", encoding="utf-8")
             (root / "docs" / "change_control" / "CHANGE_INDEX.md").write_text("# Change Index\n", encoding="utf-8")
             _write_packet(root, "ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json", _packet("MP-CHANGE-2026-0604-001"))
+            _write_packet(
+                root,
+                "ops/release/changes/archived/2026-06/MP-CHANGE-2026-0602-001.json",
+                _packet("MP-CHANGE-2026-0602-001"),
+            )
             _write_packet(
                 root,
                 "ops/release/changes/released/1.0.0/MP-CHANGE-2026-0601-001.json",
@@ -104,13 +109,16 @@ class MaintenanceChangeLedgerTests(unittest.TestCase):
 
         self.assertEqual(payload["schema_version"], "desktop_change_ledger.v1")
         self.assertTrue(payload["read_only"])
-        self.assertEqual(payload["counts"]["total"], 2)
+        self.assertEqual(payload["counts"]["total"], 3)
         self.assertEqual(payload["counts"]["unreleased"], 1)
+        self.assertEqual(payload["counts"]["archived"], 1)
         self.assertEqual(payload["counts"]["released"], 1)
         self.assertEqual(payload["coverage"]["scope"], "worktree")
         self.assertEqual(payload["coverage"]["uncovered_count"], 0)
         released = next(row for row in payload["rows"] if row["location"] == "released")
         self.assertEqual(released["release_version"], "1.0.0")
+        archived = next(row for row in payload["rows"] if row["location"] == "archived")
+        self.assertEqual(archived["release_version"], "2026-06")
         self.assertIn("src/mediapipeline/core/maintenance", payload["python_impact"]["summary"])
 
     def test_change_ledger_bounds_rows_without_losing_full_counts(self) -> None:

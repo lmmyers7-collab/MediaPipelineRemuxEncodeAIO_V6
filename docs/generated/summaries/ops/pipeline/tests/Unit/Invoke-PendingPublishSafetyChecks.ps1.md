@@ -8,7 +8,7 @@ token_priority: high
 owner_domain: tests
 last_modified: 2026-07-20
 last_reviewed: 2026-07-09
-sha256: 01082855a21b6ebb43f9a70f14c9211b0f6eb5b5a8d2aa02dbc7ed2e1a632529
+sha256: af6c2aa0d29c4cf2025cb5fbd3b4440aad48242f17e9ff9f40de6b314e1e5e0b
 ---
 # `ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1`
 

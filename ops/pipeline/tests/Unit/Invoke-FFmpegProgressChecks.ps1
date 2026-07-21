@@ -194,13 +194,32 @@ function Save-ReproCommand {
         [string]$Stage
     )
     $script:ReproSaves++
-    return "repro-$Stage.cmd"
+    if (-not (Test-Path -LiteralPath $script:FocusedReproRoot -PathType Container)) {
+        New-Item -ItemType Directory -Path $script:FocusedReproRoot -Force | Out-Null
+    }
+    $path = Join-Path $script:FocusedReproRoot "repro-$Stage.cmd"
+    Set-Content -LiteralPath $path -Value 'focused repro' -Encoding UTF8
+    return $path
 }
 
 . (Join-Path $repoRoot 'ops\pipeline\engine\shared\native_process_contracts.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\decide\size_policy.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\process\tool_log_lifecycle.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\process\ffmpeg_progress.ps1')
+
+function Assert-Near {
+    param([double]$Actual, [double]$Expected, [string]$Message)
+    if ([math]::Abs($Actual - $Expected) -gt 0.01) {
+        throw "$Message Expected '$Expected' but got '$Actual'."
+    }
+}
+
+Assert-Near (Get-FFmpegProgressPercentFromLine -Line 'out_time_us=5000000' -DurationSeconds 20) 25 'out_time_us progress changed.'
+Assert-Near (Get-FFmpegProgressPercentFromLine -Line 'out_time_ms=10000000' -DurationSeconds 20) 50 'out_time_ms progress changed.'
+Assert-Near (Get-FFmpegProgressPercentFromLine -Line 'out_time=00:00:15.500000' -DurationSeconds 31) 50 'out_time timestamp progress changed.'
+Assert-Near (Get-FFmpegProgressPercentFromLine -Line 'time=00:01:00.000' -DurationSeconds 120) 50 'stats time progress changed.'
+Assert-Near (Get-FFmpegProgressPercentFromLine -Line 'out_time_us=30000000' -DurationSeconds 10) 100 'progress clamp changed.'
+Assert-True ($null -eq (Get-FFmpegProgressPercentFromLine -Line 'speed=2.0x' -DurationSeconds 10)) 'Non-progress FFmpeg output returned a percent.'
 
 $script:CapturedLogs = @()
 $script:CapturedProgress = @()
@@ -211,6 +230,7 @@ $script:ReproSaves = 0
 $script:FFmpegProgressWriteStepPercent = 25
 $mkvmergePath = 'mkvmerge.exe'
 $StopFlag = Join-Path ([System.IO.Path]::GetTempPath()) ("mediapipeline-mkvmerge-warning-{0}.stop" -f ([Guid]::NewGuid().ToString('N')))
+$script:FocusedReproRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("mediapipeline-ffmpeg-repro-{0}" -f ([Guid]::NewGuid().ToString('N')))
 
 function Invoke-NativeProcess {
     param(
@@ -438,6 +458,7 @@ try {
 
     $script:CapturedEvents = @()
     $script:CapturedMonitorStages = @()
+    $script:CapturedProgress = @()
     $script:StopRequested = $false
     function Invoke-NativeProcess {
         param(
@@ -456,6 +477,7 @@ try {
         )
         if ($ProcessStartedHandler) { & $ProcessStartedHandler ([System.Diagnostics.Process]::GetCurrentProcess()) }
         if ($StderrLineHandler) {
+            & $StderrLineHandler 'out_time_us=25000000' 'stderr'
             & $StderrLineHandler 'out_time_us=50000000' 'stderr'
             & $StderrLineHandler 'successful diagnostic line' 'stderr'
         }
@@ -464,8 +486,22 @@ try {
     $script:CapturedAudioWork = @()
     $successOk = Invoke-FFmpegWithProgress -FFArgs @('-i', $sourcePath, $outputPath) -Label 'TEST-FFMPEG-SUCCESS' -InputFile $sourcePath -ProgressStage 'encode' -ProgressRoute 'encode' -WorkingDirectory $LocalFailed -TrackAudioWork
     Assert-True ([bool]$successOk) 'Successful FFmpeg run did not return true.'
-    $successCompleted = @($script:CapturedEvents | Where-Object { $_.EventType -eq 'tool_completed' -and $_.Data.tool_name -eq 'ffmpeg' })[-1]
+    Assert-Equal ([int]$script:LastFFmpegExit) 0 'Successful FFmpeg exit state changed.'
+    Assert-Equal ([string]$script:LastFFmpegToolErrorCode) 'OK' 'Successful FFmpeg tool error code changed.'
+    Assert-True ($null -eq $Global:ffmpegProcess) 'Global FFmpeg process handle was not cleared after success.'
+    $successProgressValues = @($script:CapturedProgress | Where-Object { $_.Stage -eq 'encode' -and $_.PercentWasBound } | ForEach-Object { $_.Percent })
+    foreach ($expectedPercent in @(0, 25, 50, 100)) {
+        Assert-True ($successProgressValues -contains $expectedPercent) "Successful FFmpeg progress lost exact $expectedPercent percent evidence."
+    }
+    Assert-True ([string]$script:LastFFmpegCommandLine -match [regex]::Escape('-progress pipe:2 -nostats')) 'FFmpeg progress arguments are missing from the retained command line.'
+    $successStartedEvents = @($script:CapturedEvents | Where-Object { $_.EventType -eq 'tool_started' -and $_.Data.tool_name -eq 'ffmpeg' })
+    $successCompletedEvents = @($script:CapturedEvents | Where-Object { $_.EventType -eq 'tool_completed' -and $_.Data.tool_name -eq 'ffmpeg' })
+    Assert-Equal $successStartedEvents.Count 1 'Successful FFmpeg must emit exactly one tool_started event.'
+    Assert-Equal ([string]$successStartedEvents[0].Status) 'started' 'Successful FFmpeg tool_started status changed.'
+    Assert-Equal $successCompletedEvents.Count 1 'Successful FFmpeg must emit exactly one tool_completed event.'
+    $successCompleted = $successCompletedEvents[0]
     Assert-Equal ([string]$successCompleted.Status) 'succeeded' 'Successful FFmpeg event status changed.'
+    Assert-Equal ([string]$successCompleted.Data.error_code) 'OK' 'Successful FFmpeg event error code changed.'
     Assert-Equal ([string]$successCompleted.Data.diagnostic_log_disposition) 'deleted' 'Successful FFmpeg capture must be deleted.'
     Assert-True ([string]::IsNullOrWhiteSpace([string]$successCompleted.Data.diagnostic_log_path)) 'Successful FFmpeg event must not retain a diagnostic path.'
     Assert-True (@(Get-ChildItem -LiteralPath $LocalActiveToolLogs -File -ErrorAction SilentlyContinue).Count -eq 0) 'Successful FFmpeg run left a capture in the active directory.'
@@ -494,8 +530,22 @@ try {
         return New-NativeCommandResult -ExitCode 1 -Stdout '' -Stderr 'synthetic hardware encode failure' -ErrorCode 'NATIVE_EXIT_1'
     }
     $script:CapturedAudioWork = @()
-    $hardwareFailureOk = Invoke-FFmpegWithProgress -FFArgs @('-i', $sourcePath, $outputPath) -Label 'TEST-FFMPEG-HARDWARE-FAILURE' -InputFile $sourcePath -ProgressStage 'encode' -ProgressRoute 'encode-hardware' -WorkingDirectory $LocalFailed -TrackAudioWork
+    $script:CapturedEvents = @()
+    $script:CapturedProgress = @()
+    $hardwareFailureOk = Invoke-FFmpegWithProgress -FFArgs @('-i', $sourcePath, $outputPath) -Label 'TEST-FFMPEG-HARDWARE-FAILURE' -InputFile $sourcePath -ProgressStage 'encode' -ProgressRoute 'encode-hardware' -ReproStage 'encode-fail' -WorkingDirectory $LocalFailed -TrackAudioWork
     Assert-Equal ([bool]$hardwareFailureOk) $false 'Hardware FFmpeg failure should return false before fallback selection.'
+    Assert-Equal ([int]$script:LastFFmpegExit) 1 'Failed FFmpeg exit state changed.'
+    Assert-Equal ([string]$script:LastFFmpegToolErrorCode) 'FFMPEG_FAILED' 'Failed FFmpeg tool error code changed.'
+    Assert-True ([string]$script:LastFFmpegStderr -match 'synthetic hardware encode failure') 'Failed FFmpeg stderr was not retained.'
+    Assert-True (Test-Path -LiteralPath $script:LastFFmpegErrorLog -PathType Leaf) 'Failed FFmpeg did not retain an error log.'
+    Assert-True (Test-Path -LiteralPath $script:LastFFmpegReproPath -PathType Leaf) 'Failed FFmpeg did not retain a repro command.'
+    Assert-True ([string]$script:LastFFmpegReproPath -match 'encode-fail') 'Failed FFmpeg repro stage changed.'
+    $hardwareFailureEvents = @($script:CapturedEvents | Where-Object { $_.EventType -eq 'tool_completed' -and $_.Data.tool_name -eq 'ffmpeg' })
+    Assert-Equal $hardwareFailureEvents.Count 1 'Failed FFmpeg must emit exactly one tool_completed event.'
+    $hardwareFailureEvent = $hardwareFailureEvents[0]
+    Assert-Equal ([string]$hardwareFailureEvent.Status) 'failed' 'Failed FFmpeg event status changed.'
+    Assert-Equal ([string]$hardwareFailureEvent.Data.error_code) 'FFMPEG_FAILED' 'Failed FFmpeg event error code changed.'
+    Assert-True (@($script:CapturedProgress | Where-Object { $_.Stage -eq 'encode' -and $_.PercentWasBound -and $null -eq $_.Percent }).Count -ge 1) 'Failed FFmpeg did not clear the progress percent.'
     Assert-Equal @($script:CapturedAudioWork | Where-Object Event -eq started).Count 1 'Hardware attempt must start audio work only after Process.Start proof.'
     Assert-Equal @($script:CapturedAudioWork | Where-Object Event -eq attempt_ended).Count 1 'Hardware failure must clear audio work before CPU fallback wait.'
     Assert-Equal ([string]@($script:CapturedAudioWork | Where-Object Event -eq attempt_ended)[0].ReasonCode) 'NATIVE_EXIT_1' 'Hardware attempt cleanup must retain exact native failure evidence.'
@@ -508,11 +558,27 @@ try {
             [int]$IdleTimeoutSeconds = 0, [string]$WorkingDirectory = ''
         )
         if ($ProcessStartedHandler) { & $ProcessStartedHandler ([System.Diagnostics.Process]::GetCurrentProcess()) }
-        return New-NativeCommandResult -ExitCode -1 -Stdout '' -Stderr 'synthetic timeout' -TimedOut:$true -ErrorCode 'NATIVE_TIMEOUT'
+        return New-NativeCommandResult -ExitCode -1 -Stdout '' -Stderr '[KILLED: TIMEOUT after 1s] synthetic timeout' -TimedOut:$true -ErrorCode 'NATIVE_TIMEOUT'
     }
     $script:CapturedAudioWork = @()
-    $timeoutOk = Invoke-FFmpegWithProgress -FFArgs @('-i', $sourcePath, $outputPath) -Label 'TEST-FFMPEG-TIMEOUT' -InputFile $sourcePath -ProgressStage 'encode' -ProgressRoute 'encode-hardware' -WorkingDirectory $LocalFailed -TrackAudioWork
+    $script:CapturedEvents = @()
+    $script:CapturedProgress = @()
+    $timeoutOk = Invoke-FFmpegWithProgress -FFArgs @('-i', $sourcePath, $outputPath) -Label 'TEST-FFMPEG-TIMEOUT' -InputFile $sourcePath -TimeoutSeconds 1 -ProgressStage 'encode' -ProgressRoute 'encode-hardware' -ReproStage 'encode-timeout' -WorkingDirectory $LocalFailed -TrackAudioWork
     Assert-Equal ([bool]$timeoutOk) $false 'Timed-out FFmpeg run should return false.'
+    Assert-Equal ([int]$script:LastFFmpegExit) -1 'Timed-out FFmpeg exit state changed.'
+    Assert-Equal ([string]$script:LastFFmpegToolErrorCode) 'FFMPEG_TIMEOUT' 'Timed-out FFmpeg tool error code changed.'
+    Assert-True ([string]$script:LastFFmpegStderr -match 'KILLED: TIMEOUT after 1s') 'Timed-out FFmpeg stderr lost timeout-kill evidence.'
+    Assert-True ($null -eq $Global:ffmpegProcess) 'Global FFmpeg process handle was not cleared after timeout.'
+    Assert-True (Test-Path -LiteralPath $script:LastFFmpegErrorLog -PathType Leaf) 'Timed-out FFmpeg did not retain an error log.'
+    Assert-True (Test-Path -LiteralPath $script:LastFFmpegReproPath -PathType Leaf) 'Timed-out FFmpeg did not retain a repro command.'
+    Assert-True ([string]$script:LastFFmpegReproPath -match 'encode-timeout') 'Timed-out FFmpeg repro stage changed.'
+    $timeoutEvents = @($script:CapturedEvents | Where-Object { $_.EventType -eq 'tool_completed' -and $_.Data.tool_name -eq 'ffmpeg' })
+    Assert-Equal $timeoutEvents.Count 1 'Timed-out FFmpeg must emit exactly one tool_completed event.'
+    $timeoutEvent = $timeoutEvents[0]
+    Assert-Equal ([string]$timeoutEvent.Status) 'failed' 'Timed-out FFmpeg event status changed.'
+    Assert-Equal ([string]$timeoutEvent.Data.error_code) 'FFMPEG_TIMEOUT' 'Timed-out FFmpeg event error code changed.'
+    Assert-True ([bool]$timeoutEvent.Data.timed_out) 'Timed-out FFmpeg event lost timed_out evidence.'
+    Assert-True (@($script:CapturedProgress | Where-Object { $_.Stage -eq 'encode' -and $_.PercentWasBound -and $null -eq $_.Percent }).Count -ge 1) 'Timed-out FFmpeg did not clear the progress percent.'
     Assert-Equal @($script:CapturedAudioWork | Where-Object Event -eq attempt_ended).Count 1 'Timeout must clear active audio work with the process.'
     Assert-Equal ([string]@($script:CapturedAudioWork | Where-Object Event -eq attempt_ended)[0].ReasonCode) 'NATIVE_TIMEOUT' 'Timeout audio cleanup must retain exact timeout evidence.'
 
@@ -570,10 +636,18 @@ try {
         throw 'synthetic runner exception'
     }
     $script:CapturedAudioWork = @()
-    $exceptionOk = Invoke-FFmpegWithProgress -FFArgs @('-i', $sourcePath, $outputPath) -Label 'TEST-FFMPEG-RUNNER-EXCEPTION' -InputFile $sourcePath -WorkingDirectory $LocalFailed -TrackAudioWork
+    $exceptionOk = Invoke-FFmpegWithProgress -FFArgs @('-i', $sourcePath, $outputPath) -Label 'TEST-FFMPEG-RUNNER-EXCEPTION' -InputFile $sourcePath -ReproStage 'encode-runner-fail' -WorkingDirectory $LocalFailed -TrackAudioWork
     Assert-Equal ([bool]$exceptionOk) $false 'FFmpeg runner exception should return false.'
-    $exceptionCompleted = @($script:CapturedEvents | Where-Object { $_.EventType -eq 'tool_completed' -and $_.Data.tool_name -eq 'ffmpeg' })[-1]
+    Assert-True ($null -eq $Global:ffmpegProcess) 'Global FFmpeg process handle was not cleared after runner exception.'
+    Assert-True ([string]$script:LastFFmpegStderr -match 'RUNNER EXCEPTION') 'Runner exception was not retained in FFmpeg stderr state.'
+    Assert-Equal ([string]$script:LastFFmpegToolErrorCode) 'FFMPEG_FAILED' 'Runner exception tool error code changed.'
+    Assert-True (Test-Path -LiteralPath $script:LastFFmpegReproPath -PathType Leaf) 'Runner exception did not retain a repro command.'
+    Assert-True ([string]$script:LastFFmpegReproPath -match 'encode-runner-fail') 'Runner exception repro stage changed.'
+    $exceptionCompletedEvents = @($script:CapturedEvents | Where-Object { $_.EventType -eq 'tool_completed' -and $_.Data.tool_name -eq 'ffmpeg' })
+    Assert-Equal $exceptionCompletedEvents.Count 1 'Runner exception must emit exactly one tool_completed event.'
+    $exceptionCompleted = $exceptionCompletedEvents[0]
     Assert-Equal ([string]$exceptionCompleted.Status) 'failed' 'FFmpeg runner exception must emit a failed tool status.'
+    Assert-True ([bool]$exceptionCompleted.Data.runner_exception) 'Runner exception event lost its runner_exception marker.'
     Assert-Equal ([string]$exceptionCompleted.Data.diagnostic_log_disposition) 'failure' 'FFmpeg runner exception must promote diagnostic output to failure evidence.'
     Assert-PathUnderRoot -Path ([string]$script:LastFFmpegErrorLog) -Root $LocalFailureArtifacts -Message 'FFmpeg runner exception log must be stored under failure artifacts.'
     Assert-True (@(Get-ChildItem -LiteralPath $LocalActiveToolLogs -File -ErrorAction SilentlyContinue).Count -eq 0) 'FFmpeg runner exception left a capture in the active directory.'
@@ -601,6 +675,7 @@ try {
     Remove-Item -LiteralPath $LocalFailed -Recurse -Force -ErrorAction SilentlyContinue
 } finally {
     Remove-Item -LiteralPath $StopFlag -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $script:FocusedReproRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Write-Host 'FFmpeg/mkvmerge progress checks passed.'

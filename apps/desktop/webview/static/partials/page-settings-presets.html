@@ -1,0 +1,34 @@
+        <!-- TAB: PRESETS -->
+        <div class="settings-tab-pane" data-settings-tab="presets">
+        <section class="panel" data-panel-type="interactive" aria-labelledby="settings-preset-library-heading">
+          <div class="panel-heading">
+            <h2 id="settings-preset-library-heading">Preset Library</h2>
+            <strong id="settings-preset-library-status" role="status" aria-live="polite">Not loaded</strong>
+          </div>
+          <p class="note">Validate and compare PresetV2 candidates in the backend. Saving changes the preset library only. Applying changes saved settings for future launches only; active work is unchanged.</p>
+          <div class="form-grid form-grid-dense">
+            <label>Stored preset
+              <select id="settings-preset-library-select" aria-describedby="settings-preset-library-detail"><option value="">Loading presets…</option></select>
+            </label>
+            <label>Compare with
+              <select id="settings-preset-library-compare-select"><option value="">Select a stored preset</option></select>
+            </label>
+          </div>
+          <label class="full-field">PresetV2 record or document
+            <textarea id="settings-preset-library-json" rows="12" spellcheck="false" aria-describedby="settings-preset-library-detail settings-preset-library-result"></textarea>
+          </label>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="settings-preset-library-load" class="secondary-button">Load Presets</button>
+            <button type="button" id="settings-preset-library-validate" class="secondary-button">Validate Candidate</button>
+            <button type="button" id="settings-preset-library-compare" class="secondary-button">Compare</button>
+            <button type="button" id="settings-preset-library-import-preview" class="secondary-button">Preview Import</button>
+            <button type="button" id="settings-preset-library-save" class="secondary-button">Save Preset</button>
+            <button type="button" id="settings-preset-library-export" class="secondary-button">Export Preset</button>
+            <button type="button" id="settings-preset-library-apply-preview" class="secondary-button">Preview Apply</button>
+            <button type="button" id="settings-preset-library-apply" class="primary-button">Apply for Future Launches</button>
+          </div>
+          <p id="settings-preset-library-detail" class="note" role="status" aria-live="polite">Load presets to inspect backend-owned library records.</p>
+          <pre id="settings-preset-library-result" class="prose-block" aria-live="polite">No preset operation has run.</pre>
+        </section>
+        </div>
+

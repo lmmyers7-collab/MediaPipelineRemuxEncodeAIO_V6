@@ -6,9 +6,9 @@ file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-16
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: 4db0006615c86ab80180d220b64fbdaba072b0d8cd332e9a90e6761f9cc58949
+sha256: 913392d83385e9c1081ff4310ee546279d4df477f1bb15f891831944e6ec92ab
 ---
 # `ops/pipeline/entrypoints/MediaPipeline.ps1`
 

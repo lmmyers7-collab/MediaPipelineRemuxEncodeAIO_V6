@@ -64,15 +64,30 @@
                 <h2 id="run-monitor-detail-heading">Selected file</h2>
                 <strong id="run-monitor-detail-state">No selection</strong>
               </div>
-              <p id="run-monitor-source" class="run-monitor-source">Select an accepted file to inspect backend evidence.</p>
+              <p id="run-monitor-source" class="run-monitor-source">Select an accepted file to inspect its outcome.</p>
 
-              <div id="run-monitor-routes" class="run-monitor-route-grid" aria-label="Route evidence"></div>
+              <div id="run-monitor-file-outcome" class="run-monitor-file-outcome" aria-label="Selected file outcome">
+                <strong>No backend outcome loaded.</strong>
+              </div>
+
+              <div id="run-monitor-route-summary" class="run-monitor-route-summary" aria-label="Route decision summary"></div>
+
+              <div data-advanced>
+                <h3 class="run-monitor-advanced-heading">Advanced route evidence</h3>
+                <div id="run-monitor-routes" class="run-monitor-route-grid" aria-label="Advanced route evidence"></div>
+              </div>
 
               <div class="run-monitor-detail-section">
                 <h3>Stage timeline</h3>
-                <ol id="run-monitor-stage-list" class="run-monitor-stage-list">
-                  <li>No backend stage ledger loaded.</li>
+                <ol id="run-monitor-stage-summary" class="run-monitor-stage-summary">
+                  <li>No backend stage summary loaded.</li>
                 </ol>
+                <div data-advanced>
+                  <h4 class="run-monitor-advanced-heading">Full stage evidence</h4>
+                  <ol id="run-monitor-stage-list" class="run-monitor-stage-list">
+                  <li>No backend stage ledger loaded.</li>
+                  </ol>
+                </div>
               </div>
 
               <div class="run-monitor-detail-section">
@@ -82,8 +97,8 @@
                 </div>
                 <div class="table-wrap run-monitor-table-wrap">
                   <table class="run-monitor-track-table">
-                    <thead><tr><th scope="col">Track</th><th scope="col">Source</th><th scope="col">Planned action</th><th scope="col">Current / final evidence</th></tr></thead>
-                    <tbody id="run-monitor-audio-body"><tr><td colspan="4">No backend audio evidence loaded.</td></tr></tbody>
+                    <thead><tr><th scope="col">Track</th><th scope="col">Source</th><th scope="col">Outcome</th></tr></thead>
+                    <tbody id="run-monitor-audio-body"><tr><td colspan="3">No backend audio evidence loaded.</td></tr></tbody>
                   </table>
                 </div>
               </div>
@@ -95,8 +110,8 @@
                 </div>
                 <div class="table-wrap run-monitor-table-wrap">
                   <table class="run-monitor-track-table">
-                    <thead><tr><th scope="col">Track</th><th scope="col">Source</th><th scope="col">Planned actions</th><th scope="col">Current / final evidence</th></tr></thead>
-                    <tbody id="run-monitor-subtitle-body"><tr><td colspan="4">No backend subtitle evidence loaded.</td></tr></tbody>
+                    <thead><tr><th scope="col">Track</th><th scope="col">Source</th><th scope="col">Outcome</th></tr></thead>
+                    <tbody id="run-monitor-subtitle-body"><tr><td colspan="3">No backend subtitle evidence loaded.</td></tr></tbody>
                   </table>
                 </div>
               </div>
@@ -106,12 +121,20 @@
                 <dl id="run-monitor-output" class="run-monitor-fact-list">
                   <div><dt>Output</dt><dd>No backend output evidence loaded.</dd></div>
                 </dl>
+                <div data-advanced>
+                  <h4 class="run-monitor-advanced-heading">Advanced output evidence</h4>
+                  <dl id="run-monitor-output-evidence" class="run-monitor-fact-list"></dl>
+                </div>
                 <div id="run-monitor-sidecars" class="run-monitor-sidecars"></div>
                 <div id="run-monitor-recovery" class="run-monitor-recovery"></div>
                 <div id="run-monitor-terminal-links" class="action-row run-monitor-terminal-links"></div>
               </div>
 
-              <p id="run-monitor-evidence" class="note">Evidence source, timestamp, and freshness will appear after the backend monitor loads.</p>
+              <div data-advanced>
+                <h3 class="run-monitor-advanced-heading">Advanced identity and monitor evidence</h3>
+                <p id="run-monitor-identity-evidence" class="note">Source identity will appear after the backend monitor loads.</p>
+                <p id="run-monitor-evidence" class="note">Evidence source, timestamp, and freshness will appear after the backend monitor loads.</p>
+              </div>
             </article>
           </div>
 

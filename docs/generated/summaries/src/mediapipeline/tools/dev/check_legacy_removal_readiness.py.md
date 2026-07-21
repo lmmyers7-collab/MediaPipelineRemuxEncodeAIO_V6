@@ -6,9 +6,9 @@ file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-07-11
+last_modified: 2026-07-20
 last_reviewed: 2026-06-04
-sha256: 680f07bff4e7258a3d0bebb7f0df0823ee9b2c413656f6fff94de1d90688741e
+sha256: 9b57306e040fe9801765a7efbcc746c8014db580c6c4ce2cf072cf57aeecc3bd
 ---
 # `src/mediapipeline/tools/dev/check_legacy_removal_readiness.py`
 

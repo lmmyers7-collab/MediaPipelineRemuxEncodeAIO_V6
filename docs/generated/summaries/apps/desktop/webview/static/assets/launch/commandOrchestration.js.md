@@ -6,16 +6,17 @@ file_type: JavaScript
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-07-17
+last_modified: 2026-07-20
 last_reviewed: 2026-07-11
-sha256: 99d357a4416456f1d42c02b29ab213a1227c5b3686c502a7c763afbcf11dab9b
+sha256: af1db88d358417e8c5b84253092dff5d71d4f397db3adfcf0ff7b672c931b3e8
 ---
 # `apps/desktop/webview/static/assets/launch/commandOrchestration.js`
 
 **Purpose:** JavaScript implementation for command orchestration; exposes browsePipelineSingleFile, clearPipelineSingleFile, createLaunchCommandOrchestrationModule.
 
 **Public symbols:** `browsePipelineSingleFile`, `clearPipelineSingleFile`, `createLaunchCommandOrchestrationModule`, `initLaunchRecoveryActionEvents`, `initLaunchViewEvents`, `pipelineStartConfirmMessage`, `refreshLaunchControlsForInput`, `renderPipelineStartSafetySummary`, `requestPipelineControl`, `startPendingPublishDrain`, `startPipelineFromForm`, `startStateJournalArchive`
-**In-repo imports:** `window.__launchCommandOrchestrationModule`, `window.confirm`, `window.getLastQueueRows`, `window.mediaPipelineRunMonitor`, `window.setTimeout`, `window.setTopbarPendingLaunch`, `window.showPage`
+**In-repo imports:** `)?.dataset?.exportCount || 0);
+      const scope = request?.queue_scope ===`, `window.__launchCommandOrchestrationModule`, `window.confirm`, `window.getLastQueueRows`, `window.mediaPipelineRunMonitor`, `window.setTimeout`, `window.setTopbarPendingLaunch`, `window.showPage`
 **HTTP routes:** `/api/maintenance/archive-state-journals`, `/api/pipeline/browse-file`, `/api/pipeline/control`, `/api/pipeline/start`
 **DOM selectors:** `[data-pipeline-mode-preset]`, `[data-pipeline-scope-preset]`
 

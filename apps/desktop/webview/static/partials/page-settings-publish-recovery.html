@@ -1,0 +1,61 @@
+        <div class="settings-tab-pane" data-settings-tab="publish-recovery">
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Recovery Settings <span class="impact-chip" data-impact="medium" title="Pending publish — deferred-publish, retry, cleanup, and copy safety keys">Medium Impact</span></h2>
+            <strong id="settings-pending-builder-status">No pending-publish changes built</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label class="check-row launch-check-row">
+              <input id="settings-pending-deferred-publish" type="checkbox"> Park completed outputs for pending publish
+            </label>
+            <label class="check-row launch-check-row">
+              <input id="settings-pending-cleanup-remote" type="checkbox"> Clean remote staging after publish
+            </label>
+            <label>
+              Transient retry limit
+              <input id="settings-pending-transient-retry-limit" type="number" min="0" step="1">
+            </label>
+            <label>
+              Stale cleanup age h
+              <input id="settings-pending-cleanup-age" type="number" min="0" step="1">
+            </label>
+            <label>
+              Copy timeout s
+              <input id="settings-pending-robocopy-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              Output reserve GB
+              <input id="settings-pending-outsource-min-free" type="number" min="0" step="1">
+            </label>
+            <label>
+              Pending review budget GiB
+              <input id="settings-pending-review-budget-gib" type="number" min="1" max="10240" step="1">
+            </label>
+            <label>
+              Pending block budget GiB
+              <input id="settings-pending-block-budget-gib" type="number" min="1" max="10240" step="1">
+            </label>
+            <label>
+              Disk estimate multiplier
+              <input id="settings-pending-output-size-multiplier" type="number" min="0.1" max="2" step="0.05">
+            </label>
+            <label class="check-row launch-check-row">
+              <input id="settings-pending-enable-integrity" type="checkbox"> Require integrity checks
+            </label>
+            <label class="check-row launch-check-row">
+              <input id="settings-pending-skip-stability" type="checkbox"> Skip stability checks
+            </label>
+          </div>
+          <label class="full-field">
+            Robocopy flags
+            <input id="settings-pending-robocopy-flags" type="text" autocomplete="off" spellcheck="false" placeholder="/J, /R:3, /W:15, /MT:2, /NP, /NDL, /NFL">
+          </label>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-pending-apply-button" class="secondary-button">Update Pending Publish Changes</button>
+            <button type="button" id="settings-pending-reset-button" class="secondary-button">Reset From Current</button>
+          </div>
+          <pre id="settings-pending-guidance" class="prose-block">No pending-publish guidance loaded.</pre>
+          <p class="note">This prepares existing deferred-publish, copy, retry, cleanup, and safety keys only. Publishing and cleanup remain backend-owned workflows.</p>
+        </section>
+        </div>
+

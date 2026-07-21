@@ -15,6 +15,7 @@ from mediapipeline.core.config.library_profiles import LIBRARY_OVERRIDE_KEYS_BY_
 from mediapipeline.core.config.metadata_parts.field_definitions import CONFIG_FIELD_DEFINITIONS
 from mediapipeline.core.config.preset_migration import LABEL_ONLY_RENAMES
 from tests.css_import_resolver import resolve_css_imports
+from tests.webview.static_markup_support import settings_markup
 
 
 STATIC_ROOT = find_repo_root(Path(__file__)) / "apps" / "desktop" / "webview" / "static"
@@ -66,6 +67,10 @@ SUBTITLE_ADVANCED_LIBRARY_FIELDS = (
     "ExcludeSubtitleStyles",
     "IncludeSubtitleStyles",
 )
+
+
+def _settings_markup() -> str:
+    return settings_markup(STATIC_ROOT)
 
 
 def _read_pages_css() -> str:
@@ -179,7 +184,7 @@ def _settings_library_layout_keys() -> set[str]:
 class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
     def test_settings_save_review_dialog_is_global_shell_partial(self) -> None:
         index_html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
-        settings_partial = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        settings_partial = _settings_markup()
         shared_partial = (
             STATIC_ROOT / "partials" / "shared-settings-save-review-dialog.html"
         ).read_text(encoding="utf-8")
@@ -547,7 +552,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
     def test_libraries_page_is_main_nav_surface(self) -> None:
         shell_html = (STATIC_ROOT / "partials" / "app-shell-start.html").read_text(encoding="utf-8")
         libraries_html = (STATIC_ROOT / "partials" / "page-libraries.html").read_text(encoding="utf-8")
-        settings_html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        settings_html = _settings_markup()
 
         self.assertLess(shell_html.index('data-page="libraries"'), shell_html.index('data-page="settings"'))
         self.assertIn('data-page-panel="libraries"', libraries_html)

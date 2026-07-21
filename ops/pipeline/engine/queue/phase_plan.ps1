@@ -63,6 +63,48 @@ function Get-MediaPipelineQueuePlanRunnableEntries {
     return @($entries)
 }
 
+function Select-MediaPipelinePriorityOnlyQueuePlan {
+    param([Parameter(Mandatory)] $QueuePlan)
+
+    $effectiveHighFilter = {
+        $null -ne $_ -and
+        $null -ne $_.File -and
+        (-not $_.PSObject.Properties['EffectivePriorityLevel'] -or [string]$_.EffectivePriorityLevel -eq 'high')
+    }
+    $highMovies = @($QueuePlan.HighPriorityMovieEntries | Where-Object $effectiveHighFilter)
+    $highTV = @($QueuePlan.HighPriorityTVEntries | Where-Object $effectiveHighFilter)
+    if ($highMovies.Count -eq 0 -and $highTV.Count -eq 0 -and $QueuePlan.PriorityEntries) {
+        $legacyPriority = @($QueuePlan.PriorityEntries | Where-Object $effectiveHighFilter)
+        $highMovies = @($legacyPriority | Where-Object { -not [bool]$_.IsTV })
+        $highTV = @($legacyPriority | Where-Object { [bool]$_.IsTV })
+    }
+
+    $priorityOnly = [pscustomobject]@{}
+    foreach ($property in $QueuePlan.PSObject.Properties) {
+        $priorityOnly | Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value -Force
+    }
+    $priorityOnly | Add-Member -NotePropertyName MovieEntries -NotePropertyValue @($highMovies) -Force
+    $priorityOnly | Add-Member -NotePropertyName TVEntries -NotePropertyValue @($highTV) -Force
+    $priorityOnly | Add-Member -NotePropertyName AllQueuedEntries -NotePropertyValue @(@($highMovies) + @($highTV)) -Force
+    $priorityOnly | Add-Member -NotePropertyName HighPriorityMovieEntries -NotePropertyValue @($highMovies) -Force
+    $priorityOnly | Add-Member -NotePropertyName HighPriorityTVEntries -NotePropertyValue @($highTV) -Force
+    $priorityOnly | Add-Member -NotePropertyName PriorityEntries -NotePropertyValue @(@($highMovies) + @($highTV)) -Force
+    $priorityOnly | Add-Member -NotePropertyName NormalMovieEntries -NotePropertyValue @() -Force
+    $priorityOnly | Add-Member -NotePropertyName NormalTVEntries -NotePropertyValue @() -Force
+    $priorityOnly | Add-Member -NotePropertyName LowEntries -NotePropertyValue @() -Force
+    $priorityOnly | Add-Member -NotePropertyName HoldEntries -NotePropertyValue @() -Force
+    $priorityOnly | Add-Member -NotePropertyName MovieCount -NotePropertyValue $highMovies.Count -Force
+    $priorityOnly | Add-Member -NotePropertyName TVCount -NotePropertyValue $highTV.Count -Force
+    $priorityOnly | Add-Member -NotePropertyName MoviePriorityCount -NotePropertyValue $highMovies.Count -Force
+    $priorityOnly | Add-Member -NotePropertyName TVPriorityCount -NotePropertyValue $highTV.Count -Force
+    $priorityOnly | Add-Member -NotePropertyName PriorityMovieCount -NotePropertyValue $highMovies.Count -Force
+    $priorityOnly | Add-Member -NotePropertyName PriorityTVCount -NotePropertyValue $highTV.Count -Force
+    $priorityOnly | Add-Member -NotePropertyName LowCount -NotePropertyValue 0 -Force
+    $priorityOnly | Add-Member -NotePropertyName HoldCount -NotePropertyValue 0 -Force
+    $priorityOnly | Add-Member -NotePropertyName PriorityOnly -NotePropertyValue $true -Force
+    return $priorityOnly
+}
+
 function New-MediaQueuePhasePlan {
     param(
         [array]$MovieEntries,

@@ -48,6 +48,7 @@ param(
     # the actual run order with no second source of truth.
     [switch]$EmitQueuePlan,
     [string]$QueuePlanOutPath,
+    [switch]$PriorityOnly,
     [string]$ExpectedQueuePlanFingerprint = "",
     [string]$CommandId = "",
     [string]$RunId = "",
@@ -148,6 +149,24 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference    = 'SilentlyContinue'
+
+# Priority-only execution is a backend-export scope, not a general CLI filter.
+# Dry-run export may omit the expected fingerprint; live execution must be one
+# queue pass with a backend-provided plan fingerprint and can never be combined
+# with the independent single-file path.
+if ($PriorityOnly) {
+    if (-not [string]::IsNullOrWhiteSpace($SingleFile)) {
+        throw 'PriorityOnly cannot be combined with SingleFile.'
+    }
+    if (-not $EmitQueuePlan) {
+        if (-not $Once) {
+            throw 'PriorityOnly live execution requires Once.'
+        }
+        if ([string]::IsNullOrWhiteSpace($ExpectedQueuePlanFingerprint)) {
+            throw 'PriorityOnly live execution requires ExpectedQueuePlanFingerprint.'
+        }
+    }
+}
 
 function Write-MediaPipelineEarlyWorkerChildFailureResult {
     param(
@@ -853,6 +872,7 @@ $enginePlan = New-MediaPipelineEnginePlan `
     -PowerShellPath $currentPowerShellPath `
     -ParallelEncodeMode ([string]$script:ParallelEncodeMode) `
     -MaxParallelEncodes ([int]$script:MaxParallelEncodes) `
+    -PriorityOnly:$PriorityOnly `
     -ExpectedQueuePlanFingerprint $ExpectedQueuePlanFingerprint
 
 # -EmitQueuePlan: do exactly one scan + filter pass, write the snapshot,

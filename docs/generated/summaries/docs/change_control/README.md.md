@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-26
+last_modified: 2026-07-20
 last_reviewed: 2026-06-03
-sha256: 5c014be73b8e5f64432e2dcca95509117e27118da55fd2874a54641814498a2f
+sha256: 1399c98e12635d47146672c4f7ef90b0cc1113280e8b5612b6d4d5d0fb085409
 ---
 # `docs/change_control/README.md`
 

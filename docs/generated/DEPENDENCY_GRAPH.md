@@ -56,25 +56,25 @@ graph LR
   verify["verify"]
   watch["watch"]
   webview["webview"]
-  tests -->|342| scripts
-  tests -->|168| api
+  tests -->|365| scripts
+  tests -->|170| api
   tests -->|152| network
-  tests -->|127| desktop
-  tests -->|99| application
-  tests -->|71| process
-  tests -->|69| config
-  tests -->|45| contracts
-  tests -->|40| observability
+  tests -->|129| desktop
+  tests -->|105| application
+  tests -->|75| process
+  tests -->|72| config
+  tests -->|46| contracts
+  tests -->|44| observability
   config -->|35| kernel
-  process -->|34| paths
-  process -->|33| kernel
+  process -->|35| kernel
+  process -->|35| paths
   tests -->|30| rename
   tests -->|27| queue
-  tests -->|21| kernel
+  tests -->|24| kernel
   diagnostics -->|19| kernel
+  tests -->|19| paths
   network -->|18| kernel
   tests -->|18| publish
-  tests -->|17| paths
   publish -->|16| kernel
   config -->|15| contracts
   core -->|14| kernel
@@ -108,6 +108,7 @@ graph LR
   process -->|8| final_library
   scripts -->|8| diagnostics
   tests -->|8| maintenance
+  tests -->|8| validation
   api -->|7| config
   api -->|7| kernel
   application -->|7| maintenance
@@ -124,10 +125,10 @@ graph LR
   metrics -->|6| completed
   network -->|6| paths
   observability -->|6| kernel
+  queue -->|6| kernel
   tests -->|6| failures
   tests -->|6| folder_policy
   tests -->|6| orchestration
-  tests -->|6| validation
   completed -->|5| files
   completed -->|5| paths
   completed -->|5| subtitles
@@ -136,7 +137,6 @@ graph LR
   desktop -->|5| kernel
   failures -->|5| paths
   process -->|5| audit
-  queue -->|5| kernel
   sample_validation -->|5| kernel
   api -->|4| contracts
   audit -->|4| failures
@@ -168,6 +168,7 @@ graph LR
   orchestration -->|3| decide
   paths -->|3| kernel
   process -->|3| core
+  process -->|3| queue
   publish -->|3| paths
   tests -->|3| files
   tests -->|3| schedule
@@ -258,7 +259,6 @@ graph LR
   orchestration -->|1| subtitles
   process -->|1| completed
   process -->|1| files
-  process -->|1| queue
   publish -->|1| completed
   queue -->|1| contracts
   queue -->|1| files
@@ -269,6 +269,7 @@ graph LR
   rename -->|1| validation
   sample_validation -->|1| config
   schedule -->|1| paths
+  scripts -->|1| api
   scripts -->|1| observability
   scripts -->|1| paths
   scripts -->|1| rename
@@ -281,25 +282,25 @@ graph LR
 
 | From | To | Edges |
 |---|---|---|
-| tests | scripts | 342 |
-| tests | api | 168 |
+| tests | scripts | 365 |
+| tests | api | 170 |
 | tests | network | 152 |
-| tests | desktop | 127 |
-| tests | application | 99 |
-| tests | process | 71 |
-| tests | config | 69 |
-| tests | contracts | 45 |
-| tests | observability | 40 |
+| tests | desktop | 129 |
+| tests | application | 105 |
+| tests | process | 75 |
+| tests | config | 72 |
+| tests | contracts | 46 |
+| tests | observability | 44 |
 | config | kernel | 35 |
-| process | paths | 34 |
-| process | kernel | 33 |
+| process | kernel | 35 |
+| process | paths | 35 |
 | tests | rename | 30 |
 | tests | queue | 27 |
-| tests | kernel | 21 |
+| tests | kernel | 24 |
 | diagnostics | kernel | 19 |
+| tests | paths | 19 |
 | network | kernel | 18 |
 | tests | publish | 18 |
-| tests | paths | 17 |
 | publish | kernel | 16 |
 | config | contracts | 15 |
 | core | kernel | 14 |
@@ -333,6 +334,7 @@ graph LR
 | process | final_library | 8 |
 | scripts | diagnostics | 8 |
 | tests | maintenance | 8 |
+| tests | validation | 8 |
 | api | config | 7 |
 | api | kernel | 7 |
 | application | maintenance | 7 |
@@ -349,10 +351,10 @@ graph LR
 | metrics | completed | 6 |
 | network | paths | 6 |
 | observability | kernel | 6 |
+| queue | kernel | 6 |
 | tests | failures | 6 |
 | tests | folder_policy | 6 |
 | tests | orchestration | 6 |
-| tests | validation | 6 |
 | completed | files | 5 |
 | completed | paths | 5 |
 | completed | subtitles | 5 |
@@ -361,7 +363,6 @@ graph LR
 | desktop | kernel | 5 |
 | failures | paths | 5 |
 | process | audit | 5 |
-| queue | kernel | 5 |
 | sample_validation | kernel | 5 |
 | api | contracts | 4 |
 | audit | failures | 4 |
@@ -393,6 +394,7 @@ graph LR
 | orchestration | decide | 3 |
 | paths | kernel | 3 |
 | process | core | 3 |
+| process | queue | 3 |
 | publish | paths | 3 |
 | tests | files | 3 |
 | tests | schedule | 3 |
@@ -480,4 +482,3 @@ graph LR
 | orchestration | rename | 1 |
 | orchestration | scripts | 1 |
 | orchestration | storage | 1 |
-| orchestration | subtitles | 1 |

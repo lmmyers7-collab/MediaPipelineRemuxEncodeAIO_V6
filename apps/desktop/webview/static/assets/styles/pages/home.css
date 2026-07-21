@@ -232,7 +232,7 @@
 
 .home-completed-title-meta {
   margin-top: var(--space-1);
-  color: var(--grey-500);
+  color: var(--grey-300);
   font-size: var(--text-xs);
 }
 
@@ -551,6 +551,80 @@ body.light-mode .run-monitor-item.is-selected .run-monitor-item-button:focus-vis
   gap: var(--space-4);
 }
 
+.run-monitor-file-outcome {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3);
+  background: var(--semantic-info-bg);
+  border: 1px solid var(--semantic-info-border);
+  border-radius: var(--radius-xs);
+}
+
+.run-monitor-file-outcome strong {
+  font-size: var(--text-lg);
+}
+
+.run-monitor-file-outcome span {
+  color: var(--grey-200);
+}
+
+.run-monitor-file-outcome span::before {
+  margin-inline-end: var(--space-3);
+  color: var(--grey-300);
+  content: "·";
+}
+
+.run-monitor-route-summary {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.run-monitor-route-trail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.run-monitor-route-step {
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  background: var(--grey-900);
+  border: 1px solid var(--grey-700);
+  border-radius: 999px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.run-monitor-route-step[data-state="available"] {
+  border-color: var(--semantic-success-border);
+}
+
+.run-monitor-route-step[data-state="unknown"],
+.run-monitor-route-step[data-state="awaiting_evidence"] {
+  border-color: var(--semantic-warning-border);
+}
+
+.run-monitor-route-arrow {
+  color: var(--grey-400);
+  font-weight: 800;
+}
+
+.run-monitor-route-summary p {
+  margin: 0;
+  color: var(--grey-200);
+  overflow-wrap: anywhere;
+}
+
+.run-monitor-advanced-heading {
+  margin: 0 0 var(--space-2);
+  color: var(--grey-300);
+  font-size: var(--text-sm);
+}
+
 .run-monitor-source,
 .run-monitor-evidence,
 .run-monitor-last-known,
@@ -605,6 +679,56 @@ body.light-mode .run-monitor-item.is-selected .run-monitor-item-button:focus-vis
   margin: 0;
 }
 
+.run-monitor-stage-summary {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.run-monitor-stage-summary-item {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) 0 var(--space-2) var(--space-3);
+  border-left: 3px solid var(--grey-600);
+}
+
+.run-monitor-stage-summary-item > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.run-monitor-stage-summary-item p {
+  margin: 0;
+  color: var(--grey-200);
+  overflow-wrap: anywhere;
+}
+
+.run-monitor-stage-summary-item[data-state="active"] {
+  border-left-color: var(--semantic-info-border);
+}
+
+.run-monitor-stage-summary-item[data-state="completed"] {
+  border-left-color: var(--semantic-success-border);
+}
+
+.run-monitor-stage-summary-item[data-state="blocked"],
+.run-monitor-stage-summary-item[data-state="review"],
+.run-monitor-stage-summary-item[data-state="failed"] {
+  border-left-color: var(--semantic-danger-border);
+}
+
+.run-monitor-stage-summary-item[data-state="unknown"] {
+  border-left-color: var(--semantic-warning-border);
+}
+
+.run-monitor-stage-summary-count {
+  color: var(--grey-300);
+  font-size: var(--text-sm);
+}
+
 .run-monitor-stage {
   display: grid;
   gap: var(--space-2);
@@ -652,6 +776,21 @@ body.light-mode .run-monitor-item.is-selected .run-monitor-item-button:focus-vis
   min-width: 0;
 }
 
+.run-monitor-track-table th:nth-child(1),
+.run-monitor-track-table td:nth-child(1) {
+  width: 24%;
+}
+
+.run-monitor-track-table th:nth-child(2),
+.run-monitor-track-table td:nth-child(2) {
+  width: 26%;
+}
+
+.run-monitor-track-table th:nth-child(3),
+.run-monitor-track-table td:nth-child(3) {
+  width: 50%;
+}
+
 .run-monitor-table-wrap.data-table-wrap,
 .run-monitor-track-table.data-table {
   min-width: 0 !important;
@@ -662,6 +801,14 @@ body.light-mode .run-monitor-item.is-selected .run-monitor-item-button:focus-vis
   vertical-align: top;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.run-monitor-technical-detail {
+  margin-top: var(--space-2);
+  color: var(--grey-300);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .run-monitor-fact-list {
@@ -703,6 +850,18 @@ body.light-mode .run-monitor-item.is-selected .run-monitor-item-button:focus-vis
   .run-monitor-route-grid,
   .run-monitor-fact-list {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .run-monitor-file-outcome {
+    align-items: flex-start;
+  }
+
+  .run-monitor-file-outcome span::before {
+    margin-inline-end: var(--space-2);
+  }
+
+  .run-monitor-route-trail {
+    align-items: flex-start;
   }
 
   .run-monitor-counts-wide {

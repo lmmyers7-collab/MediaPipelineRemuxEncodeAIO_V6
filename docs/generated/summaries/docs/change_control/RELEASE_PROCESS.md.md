@@ -6,9 +6,9 @@ file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-26
+last_modified: 2026-07-20
 last_reviewed: 2026-06-03
-sha256: 6b025ede57c1452462f7ecd7652cc1c2a2c592c51f93577c660df2fb617220cb
+sha256: 06bd505c1c5dc0832af0033448f22bdb772d1d505d0c83afc6b1c30ad8f92cb8
 ---
 # `docs/change_control/RELEASE_PROCESS.md`
 

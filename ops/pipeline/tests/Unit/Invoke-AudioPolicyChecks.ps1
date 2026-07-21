@@ -91,30 +91,7 @@ function Assert-SequenceEqual {
     }
 }
 
-function Resolve-MediaPipelineAudioPassthroughProfile {
-    param(
-        [string] $Profile,
-        [array] $LegacyCompatibleAudioCodecs = @()
-    )
-
-    $normalized = if ($Profile) { $Profile.Trim().ToLowerInvariant() } else { '' }
-    if ($normalized -in @('plex_balanced','compatibility','lossless_passthrough','custom_codec_list')) {
-        return $normalized
-    }
-    if (@($LegacyCompatibleAudioCodecs).Count -gt 0) { return 'custom_codec_list' }
-    return 'plex_balanced'
-}
-
-function Get-MediaPipelineAudioPassthroughProfileCodecs {
-    param([string] $Profile)
-
-    switch (($Profile ?? '').Trim().ToLowerInvariant()) {
-        'compatibility'         { return @('aac','ac3','eac3') }
-        'lossless_passthrough'  { return @('aac','ac3','eac3','truehd','flac','dts') }
-        'plex_balanced'         { return @('aac','ac3','eac3','mp3','opus','vorbis') }
-        default                 { return @() }
-    }
-}
+. (Join-Path $repoRoot 'ops\pipeline\engine\config\choice_registry.ps1')
 
 function Get-MediaAudioCodecFlacName { return 'flac' }
 
@@ -239,6 +216,11 @@ $script:CurrentRunMonitorJobId = 'audio-policy-run:item:1'
 Assert-True (Test-IsPcmAudioCodec 'pcm_s16le') 'pcm_s16le was not detected as PCM audio.'
 Assert-True (Test-IsPcmAudioCodec 'A_PCM/INT/LIT') 'A_PCM/INT/LIT was not detected as PCM audio.'
 Assert-True (-not (Test-IsPcmAudioCodec 'eac3')) 'EAC3 was incorrectly detected as PCM audio.'
+$compatibilityProfileCodecs = @(Get-MediaPipelineAudioPassthroughProfileCodecs -Profile 'compatibility')
+Assert-True ($compatibilityProfileCodecs -notcontains 'truehd' -and $compatibilityProfileCodecs -notcontains 'flac') 'Production compatibility profile should exclude lossless/high-transcode-risk codecs.'
+Assert-True ($compatibilityProfileCodecs -contains 'ac3' -and $compatibilityProfileCodecs -contains 'eac3') 'Production compatibility profile should include AC3/EAC3.'
+$losslessProfileCodecs = @(Get-MediaPipelineAudioPassthroughProfileCodecs -Profile 'lossless_passthrough')
+Assert-True ($losslessProfileCodecs -contains 'truehd' -and $losslessProfileCodecs -contains 'flac' -and $losslessProfileCodecs -contains 'dts') 'Production lossless passthrough profile should include TrueHD/FLAC/DTS.'
 
 $script:AllowNoAudio = 'false'
 Assert-True (-not (Get-EffectiveAllowNoAudio)) 'String AllowNoAudio=false should not enable no-audio output.'

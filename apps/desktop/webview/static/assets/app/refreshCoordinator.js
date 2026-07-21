@@ -82,9 +82,11 @@ async function refreshLiveRunTail(refreshOptions = {}) {
 async function refreshAll(options = {}) {
   const refreshOptions = normalizeRefreshOptions(options);
   if (refreshInFlight) {
-    if (refreshOptions.automatic) return;
+    if (refreshOptions.automatic && !refreshOptions.queueRefresh) return;
     refreshQueued = true;
-    refreshQueuedOptions = mergeRefreshOptions(refreshQueuedOptions, refreshOptions);
+    refreshQueuedOptions = refreshQueuedOptions
+      ? mergeRefreshOptions(refreshQueuedOptions, refreshOptions)
+      : refreshOptions;
     return;
   }
   refreshInFlight = true;
@@ -219,10 +221,11 @@ async function refreshAllNow(options = {}) {
   }
   if (values.commands) window.mediaPipelineCommandHistory?.renderCommandHistoryPayload?.(values.commands);
   if (values["rerun results"]) window.mediaPipelineQueueView?.renderRerunResults?.(values["rerun results"]);
+  const metricsRequested = requests.some(([name]) => name === "metrics");
   const metricsFailure = failures.find((item) => item.name === "metrics");
   if (values.metrics) {
     window.mediaPipelineMetricsView?.renderMetrics?.(values.metrics);
-  } else {
+  } else if (metricsRequested) {
     window.mediaPipelineMetricsView?.renderMetricsUnavailable?.(
       metricsFailure?.message || "Metrics route returned no current payload.",
     );

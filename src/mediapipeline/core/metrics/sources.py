@@ -240,6 +240,8 @@ def _source_state_from_registry(
     resolved: ResolvedPaths,
     *,
     registry: Mapping[str, Any] | None = None,
+    cache_entries: list[dict[str, Any]] | None = None,
+    cache_health: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     paths = metrics_state_paths(resolved)
     if paths is None:
@@ -268,12 +270,22 @@ def _source_state_from_registry(
         if isinstance(item, Mapping)
     ]
     enabled_ids = {str(item.get("source_id") or "") for item in roots if _bool_value(item.get("enabled"), default=True)}
-    cache_entries, cache_health = _read_cache_entries_with_health(paths["cache"])
-    cache_record_count = len(cache_entries)
-    enabled_cache_count = sum(1 for entry in cache_entries if str(entry.get("source_id") or "") in enabled_ids)
+    loaded_cache_entries = cache_entries
+    loaded_cache_health = dict(cache_health or {})
+    if loaded_cache_entries is None:
+        loaded_cache_entries, loaded_cache_health = _read_cache_entries_with_health(paths["cache"])
+    cache_record_count = len(loaded_cache_entries)
+    enabled_cache_count = sum(
+        1 for entry in loaded_cache_entries if str(entry.get("source_id") or "") in enabled_ids
+    )
     status_payload = _json_load(paths["status"])
     last_status = _text(status_payload.get("status")) or "not_run"
-    discovery_complete = bool(cache_health.get("complete")) and last_status not in {"partial", "warning", "blocked", "unreachable"}
+    discovery_complete = bool(loaded_cache_health.get("complete")) and last_status not in {
+        "partial",
+        "warning",
+        "blocked",
+        "unreachable",
+    }
     return {
         "schema_version": METRICS_SOURCE_REGISTRY_SCHEMA_VERSION,
         "available": True,
@@ -287,7 +299,7 @@ def _source_state_from_registry(
         "enabled_source_count": len(enabled_ids),
         "cache_record_count": cache_record_count,
         "enabled_cache_record_count": enabled_cache_count,
-        "cache_health": cache_health,
+        "cache_health": loaded_cache_health,
         "completeness": {
             "schema_version": "desktop_metrics_source_completeness.v1",
             "complete": discovery_complete,
@@ -736,10 +748,15 @@ def load_metrics_backfill_records(
     resolved: ResolvedPaths,
     warnings: list[str] | None = None,
 ) -> tuple[list[CompletedJobRecord], dict[str, Any]]:
-    state = metrics_source_state_payload(resolved)
     paths = metrics_state_paths(resolved)
     if paths is None:
-        return [], state
+        return [], metrics_source_state_payload(resolved)
+    cache_entries, cache_health = _read_cache_entries_with_health(paths["cache"])
+    state = _source_state_from_registry(
+        resolved,
+        cache_entries=cache_entries,
+        cache_health=cache_health,
+    )
     enabled_ids = {
         str(item.get("source_id") or "")
         for item in state.get("roots") or []
@@ -747,7 +764,6 @@ def load_metrics_backfill_records(
     }
     records: list[CompletedJobRecord] = []
     skipped = 0
-    cache_entries, cache_health = _read_cache_entries_with_health(paths["cache"])
     for entry in cache_entries:
         source_id = _text(entry.get("source_id"))
         if source_id not in enabled_ids:
@@ -765,7 +781,7 @@ def load_metrics_backfill_records(
         record_payload["_metrics_backfill_sidecar_path"] = sidecar_path_text
         record_payload["_metrics_backfill_loaded_at"] = utc_now_text()
         records.append(CompletedJobRecord(sidecar_path=Path(sidecar_path_text or "."), payload=record_payload))
-    state["cache_record_count"] = _count_cache_entries(paths["cache"])
+    state["cache_record_count"] = len(cache_entries) + int(cache_health.get("invalid_record_count") or 0)
     state["enabled_cache_record_count"] = len(records)
     state["skipped_cache_record_count"] = skipped
     state["cache_health"] = cache_health
