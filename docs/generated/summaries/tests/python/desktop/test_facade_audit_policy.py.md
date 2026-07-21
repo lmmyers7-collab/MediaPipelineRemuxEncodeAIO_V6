@@ -1,5 +1,8 @@
 ---
 file: tests/python/desktop/test_facade_audit_policy.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
@@ -9,9 +12,9 @@ sha256: e6a9fbcc90b9bf545c00445c3bf239fa11f853111ff8fd29c8f50ab6ff80e075
 ---
 # `tests/python/desktop/test_facade_audit_policy.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for test facade audit policy; exposes AuditFacadePolicyTests.
 
-**Classes:** `AuditFacadePolicyTests`
+**Public symbols:** `AuditFacadePolicyTests`
 **In-repo imports:** `mediapipeline.core.audit.preview_policy`, `mediapipeline.desktop.models`, `mediapipeline.tools.paths`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths tests/python/desktop/test_facade_audit_policy.py`._

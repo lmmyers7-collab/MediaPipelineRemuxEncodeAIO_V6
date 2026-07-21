@@ -73,7 +73,9 @@
 
     function diagnosticsProgressStatus(snapshot, rows) {
       if (!snapshot) return "No snapshot";
-      if (/stale progress/i.test(String(snapshot.activity || ""))) return "Stale progress review";
+      const staleProgress = snapshot?.progress_health?.stale_evidence === true
+        || /stale progress/i.test(String(snapshot.activity || snapshot.current_activity || ""));
+      if (staleProgress) return "Stale progress review";
       const progress = snapshot.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
       const auditProgress = snapshot.audit_progress && typeof snapshot.audit_progress === "object" ? snapshot.audit_progress : {};
       const pipelineState = String(snapshot.pipeline_state || progress.Status || "").toLowerCase();
@@ -93,7 +95,8 @@
       }
       const progress = snapshot.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
       const auditProgress = snapshot.audit_progress && typeof snapshot.audit_progress === "object" ? snapshot.audit_progress : {};
-      const staleProgress = /stale progress/i.test(String(snapshot.activity || ""));
+      const staleProgress = snapshot?.progress_health?.stale_evidence === true
+        || /stale progress/i.test(String(snapshot.activity || snapshot.current_activity || ""));
       const lines = [
         `Pipeline state: ${snapshot.pipeline_state || progress.Status || "unknown"}`,
         activeWorkProgressLine(progress) || "Pipeline progress: no active progress fields reported.",

@@ -1,5 +1,8 @@
 ---
 file: tests/python/desktop/test_versioning.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
@@ -9,9 +12,9 @@ sha256: 15b0603c1ac6e3a5c169f8fe01adbcb0cd532fb45f2505144f9fc5328dafc4bf
 ---
 # `tests/python/desktop/test_versioning.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for test versioning; exposes VersioningTests.
 
-**Classes:** `VersioningTests`
+**Public symbols:** `VersioningTests`
 **In-repo imports:** `mediapipeline.desktop`, `mediapipeline.tools.paths`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths tests/python/desktop/test_versioning.py`._

@@ -247,16 +247,20 @@ class LocalApiLifecycleTests(LocalApiHttpTestMixin, unittest.TestCase):
         shutdown_event = threading.Event()
         logger_name = "test.local_api.force_shutdown_cleanup"
         cleanup_calls: list[str] = []
+        readiness_calls = 0
         resolved = object()
 
         class Readiness:
+            def __init__(self, *, safe_to_close: bool) -> None:
+                self.safe_to_close = safe_to_close
+
             def to_mapping(self) -> dict[str, object]:
                 return {
                     "schema_version": "desktop_close_readiness.v1",
-                    "safe_to_close": False,
-                    "state": "processing",
-                    "active_work": True,
-                    "reason": "Active pipeline process is running.",
+                    "safe_to_close": self.safe_to_close,
+                    "state": "idle" if self.safe_to_close else "processing",
+                    "active_work": not self.safe_to_close,
+                    "reason": "No active work remains." if self.safe_to_close else "Active pipeline process is running.",
                     "continuous_watcher": {},
                 }
 
@@ -274,7 +278,9 @@ class LocalApiLifecycleTests(LocalApiHttpTestMixin, unittest.TestCase):
             service = CleanupService()
 
             def get_close_readiness(self, _resolved: object, _snapshot: object) -> Readiness:
-                return Readiness()
+                nonlocal readiness_calls
+                readiness_calls += 1
+                return Readiness(safe_to_close=readiness_calls > 1)
 
         class Harness(LocalApiProcessCommandPayloadMixin):
             shutdown_request = shutdown_event.set
@@ -290,14 +296,241 @@ class LocalApiLifecycleTests(LocalApiHttpTestMixin, unittest.TestCase):
         payload = Harness()._backend_shutdown_payload({"force_active_work_shutdown": True})
 
         self.assertEqual(cleanup_calls, ["tracked", "related"])
+        self.assertEqual(readiness_calls, 2)
         self.assertTrue(shutdown_event.wait(1.0))
         self.assertEqual(payload["command"], "backend.shutdown")
         self.assertEqual(payload["severity"], "warning")
         self.assertEqual(payload["message"], "Backend shutdown requested with forced active-work cleanup.")
         self.assertTrue(payload["data"]["forced_active_work_shutdown"])
+        self.assertTrue(payload["data"]["cleanup_verified"])
+        self.assertTrue(payload["data"]["post_cleanup_readiness"]["safe_to_close"])
         self.assertEqual(payload["data"]["cleanup_messages"], ["Force-killed tracked pipeline process tree (PID 1234)."])
         self.assertIn("Active pipeline process is running.", payload["warnings"][0])
         self.assertIn("Force-killed tracked pipeline", payload["warnings"][1])
+
+    def test_local_api_shutdown_force_cleanup_exception_keeps_backend_available(self) -> None:
+        shutdown_event = threading.Event()
+        cleanup_calls: list[str] = []
+        resolved = object()
+
+        class Readiness:
+            def to_mapping(self) -> dict[str, object]:
+                return {
+                    "schema_version": "desktop_close_readiness.v1",
+                    "safe_to_close": False,
+                    "state": "processing",
+                    "active_work": True,
+                    "reason": "Active pipeline process is running.",
+                    "continuous_watcher": {},
+                }
+
+        class CleanupService:
+            def kill_active_spawned_processes(self) -> list[str]:
+                cleanup_calls.append("tracked")
+                raise RuntimeError("tracked cleanup exploded")
+
+            def kill_related_pipeline_processes(self, _resolved: object) -> list[str]:
+                cleanup_calls.append("related")
+                raise RuntimeError("descendant cleanup refused termination")
+
+        class CleanupFacade:
+            service = CleanupService()
+
+            def get_close_readiness(self, _resolved: object, _snapshot: object) -> Readiness:
+                return Readiness()
+
+        class Harness(LocalApiProcessCommandPayloadMixin):
+            shutdown_request = shutdown_event.set
+            facade = CleanupFacade()
+            logger = logging.getLogger("test.local_api.force_shutdown_cleanup_exception")
+
+            def _resolved(self) -> object:
+                return resolved
+
+            def _snapshot(self) -> None:
+                return None
+
+        with self.assertLogs("test.local_api.force_shutdown_cleanup_exception", level="ERROR"):
+            payload = Harness()._backend_shutdown_payload({"force_active_work_shutdown": True})
+
+        self.assertEqual(cleanup_calls, ["tracked", "related"])
+        self.assertFalse(shutdown_event.is_set())
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["severity"], "error")
+        self.assertEqual(payload["refresh_hint"], "close-readiness")
+        self.assertTrue(payload["data"]["active_work"])
+        self.assertTrue(payload["data"]["cleanup_uncertain"])
+        self.assertIn("tracked cleanup exploded", "\n".join(payload["errors"]))
+        self.assertIn("descendant cleanup refused termination", "\n".join(payload["errors"]))
+
+    def test_local_api_shutdown_cleanup_failure_journal_preserves_uncertainty(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            shutdown_event = threading.Event()
+            snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="Processing.",
+                status_summary="Active",
+                log_tail="",
+                progress={"ProgressVersion": 2, "Status": "Processing", "CurrentStage": "encode"},
+                audit_progress=None,
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+            )
+
+            class Readiness:
+                def to_mapping(self) -> dict[str, object]:
+                    return {
+                        "schema_version": "desktop_close_readiness.v1",
+                        "safe_to_close": False,
+                        "state": "processing",
+                        "active_work": True,
+                        "reason": "Active pipeline process is running.",
+                        "continuous_watcher": {},
+                    }
+
+            facade.get_close_readiness = lambda _resolved, _snapshot: Readiness()  # type: ignore[method-assign]
+
+            def fail_tracked_cleanup() -> list[str]:
+                raise RuntimeError("tracked process exit unverified")
+
+            service.kill_active_spawned_processes = fail_tracked_cleanup  # type: ignore[method-assign]
+            service.kill_related_pipeline_processes = lambda _resolved: []  # type: ignore[method-assign]
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: resolved,
+                snapshot_provider=lambda: snapshot,
+                shutdown_request=shutdown_event.set,
+                command_journal_path=root / "RunLogs" / "local_api_command_history.json",
+            )
+            try:
+                server.start()
+                status, payload = self._post_json(
+                    f"{server.url}/api/backend/shutdown",
+                    {"reason": "adversarial-test", "force_active_work_shutdown": True},
+                    token="test-token",
+                )
+                journal = server.command_journal.to_mapping(limit=5)
+            finally:
+                server.stop()
+
+        self.assertEqual(status, 200)
+        self.assertFalse(payload["ok"])
+        self.assertFalse(shutdown_event.is_set())
+        self.assertTrue(payload["data"]["cleanup_uncertain"])
+        entries = [entry for entry in journal["entries"] if entry["command"] == "backend.shutdown"]
+        self.assertGreaterEqual(len(entries), 2)
+        entry = next(item for item in entries if item["data"].get("cleanup_uncertain") is True)
+        self.assertEqual(entry["command"], "backend.shutdown")
+        self.assertFalse(entry["ok"])
+        self.assertNotEqual(entry["data"].get("evidence_phase"), "completed")
+        self.assertEqual(entry["data"]["journal_durability"], "strict")
+        self.assertTrue(entry["data"]["cleanup_uncertain"])
+        self.assertTrue(entry["data"]["reconciliation_required"])
+        self.assertFalse(any(item["data"].get("evidence_phase") == "completed" for item in entries))
+
+    def test_local_api_shutdown_force_cleanup_false_result_is_not_verified_exit(self) -> None:
+        shutdown_event = threading.Event()
+        resolved = object()
+
+        class Readiness:
+            def to_mapping(self) -> dict[str, object]:
+                return {
+                    "schema_version": "desktop_close_readiness.v1",
+                    "safe_to_close": False,
+                    "state": "processing",
+                    "active_work": True,
+                    "reason": "Active pipeline process is running.",
+                    "continuous_watcher": {},
+                }
+
+        class CleanupService:
+            def kill_active_spawned_processes(self) -> bool:
+                return False
+
+            def kill_related_pipeline_processes(self, _resolved: object) -> list[str]:
+                return []
+
+        class CleanupFacade:
+            service = CleanupService()
+
+            def get_close_readiness(self, _resolved: object, _snapshot: object) -> Readiness:
+                return Readiness()
+
+        class Harness(LocalApiProcessCommandPayloadMixin):
+            shutdown_request = shutdown_event.set
+            facade = CleanupFacade()
+            logger = logging.getLogger("test.local_api.force_shutdown_cleanup_false")
+
+            def _resolved(self) -> object:
+                return resolved
+
+            def _snapshot(self) -> None:
+                return None
+
+        payload = Harness()._backend_shutdown_payload({"force_active_work_shutdown": True})
+
+        self.assertFalse(shutdown_event.is_set())
+        self.assertFalse(payload["ok"])
+        self.assertTrue(payload["data"]["cleanup_uncertain"])
+        self.assertIn("reported failure", "\n".join(payload["errors"]))
+
+    def test_local_api_shutdown_force_cleanup_requires_safe_post_cleanup_readiness(self) -> None:
+        shutdown_event = threading.Event()
+        resolved = object()
+        readiness_calls = 0
+
+        class Readiness:
+            def to_mapping(self) -> dict[str, object]:
+                return {
+                    "schema_version": "desktop_close_readiness.v1",
+                    "safe_to_close": False,
+                    "state": "recovering",
+                    "active_work": True,
+                    "reason": "Descendant exit remains unverified.",
+                    "continuous_watcher": {},
+                }
+
+        class CleanupService:
+            def kill_active_spawned_processes(self) -> list[str]:
+                return ["Tracked root exited; descendant reconciliation remains required."]
+
+            def kill_related_pipeline_processes(self, _resolved: object) -> list[str]:
+                return []
+
+        class CleanupFacade:
+            service = CleanupService()
+
+            def get_close_readiness(self, _resolved: object, _snapshot: object) -> Readiness:
+                nonlocal readiness_calls
+                readiness_calls += 1
+                return Readiness()
+
+        class Harness(LocalApiProcessCommandPayloadMixin):
+            shutdown_request = shutdown_event.set
+            facade = CleanupFacade()
+            logger = logging.getLogger("test.local_api.force_shutdown_post_cleanup")
+
+            def _resolved(self) -> object:
+                return resolved
+
+            def _snapshot(self) -> None:
+                return None
+
+        payload = Harness()._backend_shutdown_payload({"force_active_work_shutdown": True})
+
+        self.assertEqual(readiness_calls, 2)
+        self.assertFalse(shutdown_event.is_set())
+        self.assertFalse(payload["ok"])
+        self.assertTrue(payload["data"]["cleanup_uncertain"])
+        self.assertEqual(payload["data"]["post_cleanup_readiness"]["state"], "recovering")
+        self.assertIn("Descendant exit remains unverified", "\n".join(payload["errors"]))
 
     def test_local_api_shutdown_force_cleanup_ignores_non_boolean_truthy_values(self) -> None:
         shutdown_event = threading.Event()

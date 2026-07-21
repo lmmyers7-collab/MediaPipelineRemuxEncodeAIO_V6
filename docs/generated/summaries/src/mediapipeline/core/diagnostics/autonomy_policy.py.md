@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/core/diagnostics/autonomy_policy.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: observability
 token_priority: medium
 owner_domain: diagnostics
@@ -11,8 +14,7 @@ sha256: 85e34a5f1c7273a56e297236e19e653325fe778b378978172487fd88a65a3ffa
 
 **Purpose:** Config-backed autonomy health policy defaults.
 
-**Classes:** `AutonomyPolicy`
-**Public functions:** `autonomy_policy_from_config()`, `autonomy_policy_from_resolved()`
+**Public symbols:** `autonomy_policy_from_config`, `autonomy_policy_from_resolved`, `AutonomyPolicy`
 **In-repo imports:** `mediapipeline.core.kernel.contracts.pending_publish`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/diagnostics/autonomy_policy.py`._

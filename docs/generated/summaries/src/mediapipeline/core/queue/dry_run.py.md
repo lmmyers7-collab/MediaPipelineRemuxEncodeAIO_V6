@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/core/queue/dry_run.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
@@ -9,9 +12,9 @@ sha256: bf4df467690d8b46098650ced6d3cb6f97510677892847ba1ded6c43edd42184
 ---
 # `src/mediapipeline/core/queue/dry_run.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for dry run; exposes build_queue_dry_run_command, format_queue_plan_source_status, queue_dry_run_temp_snapshot_path.
 
-**Public functions:** `build_queue_dry_run_command()`, `format_queue_plan_source_status()`, `queue_dry_run_temp_snapshot_path()`, `queue_snapshot_file_is_fresh()`
+**Public symbols:** `build_queue_dry_run_command`, `format_queue_plan_source_status`, `queue_dry_run_temp_snapshot_path`, `queue_snapshot_file_is_fresh`
 **In-repo imports:** `mediapipeline.core.paths.contracts`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/queue/dry_run.py`._

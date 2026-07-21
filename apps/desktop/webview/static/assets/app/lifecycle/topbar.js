@@ -16,6 +16,114 @@
   const scheduleDisplayValue = typeof scheduleView.scheduleDisplayValue === "function" ? scheduleView.scheduleDisplayValue : null;
   let topbarPendingLaunch = null;
 
+  function topbarSnapshotIsFreshlyActive(snapshot = {}) {
+    const payload = snapshot && typeof snapshot === "object" ? snapshot : {};
+    const progressHealth = payload.progress_health && typeof payload.progress_health === "object" ? payload.progress_health : {};
+    const pipelineState = String(payload.pipeline_state || "").trim().toLowerCase();
+    const activeSnapshot = !["", "idle", "completed", "failed", "stopped", "unknown"].includes(pipelineState);
+    return activeSnapshot && progressHealth.available === true && progressHealth.stale_evidence === false;
+  }
+
+  function topbarSnapshotProvesSameBackendQueueRun(snapshot = {}, expectedRunId = "", projectedRunId = "") {
+    if (!topbarSnapshotIsFreshlyActive(snapshot)) return false;
+    const payload = snapshot && typeof snapshot === "object" ? snapshot : {};
+    const progress = payload.progress && typeof payload.progress === "object" ? payload.progress : {};
+    const currentWork = payload.current_work && typeof payload.current_work === "object" ? payload.current_work : {};
+    const explicitMode = String(progress.Mode || progress.RunMode || progress.PipelineMode || currentWork.mode || payload.mode || "").trim().toLowerCase();
+    const explicitScope = String(progress.Scope || currentWork.scope || payload.scope || "").trim().toLowerCase();
+    const explicitRunId = String(progress.RunMonitorRunId || progress.RunId || currentWork.run_id || payload.run_id || "").trim();
+    const correlatedRunId = String(expectedRunId || projectedRunId || "").trim();
+    return explicitMode === "once"
+      && explicitScope === "backend_queue"
+      && Boolean(correlatedRunId)
+      && explicitRunId === correlatedRunId;
+  }
+
+  function topbarSnapshotProvesDifferentWorkflow(snapshot = {}, expectedRunId = "") {
+    const payload = snapshot && typeof snapshot === "object" ? snapshot : {};
+    const progress = payload.progress && typeof payload.progress === "object" ? payload.progress : {};
+    const currentWork = payload.current_work && typeof payload.current_work === "object" ? payload.current_work : {};
+    const pipelineState = String(payload.pipeline_state || "").trim().toLowerCase();
+    if (["csv_rerun_active", "audit", "publishing_parked_outputs", "retrying_pending_push"].includes(pipelineState)) return true;
+    const progressHealth = payload.progress_health && typeof payload.progress_health === "object" ? payload.progress_health : {};
+    const activeSnapshot = !["", "idle", "completed", "failed", "stopped", "unknown"].includes(pipelineState);
+    const currentProgress = progressHealth.available !== false && progressHealth.stale_evidence !== true;
+    if (!activeSnapshot || !currentProgress) return false;
+    const explicitMode = String(progress.Mode || progress.RunMode || progress.PipelineMode || currentWork.mode || payload.mode || "").trim().toLowerCase();
+    if (explicitMode && explicitMode !== "once") return true;
+    const explicitScope = String(progress.Scope || currentWork.scope || payload.scope || "").trim().toLowerCase();
+    if (explicitScope && explicitScope !== "backend_queue") return true;
+    const singleFile = String(progress.SingleFile || currentWork.single_file || payload.single_file || "").trim();
+    if (singleFile) return true;
+    const explicitRunId = String(progress.RunMonitorRunId || progress.RunId || currentWork.run_id || payload.run_id || "").trim();
+    return Boolean(expectedRunId && explicitRunId && explicitRunId !== expectedRunId);
+  }
+
+  function topbarSnapshotDeclaresBackendQueueRun(snapshot = {}) {
+    const payload = snapshot && typeof snapshot === "object" ? snapshot : {};
+    const progress = payload.progress && typeof payload.progress === "object" ? payload.progress : {};
+    const currentWork = payload.current_work && typeof payload.current_work === "object" ? payload.current_work : {};
+    const explicitMode = String(progress.Mode || progress.RunMode || progress.PipelineMode || currentWork.mode || payload.mode || "").trim().toLowerCase();
+    const explicitScope = String(progress.Scope || currentWork.scope || payload.scope || "").trim().toLowerCase();
+    const explicitRunId = String(progress.RunMonitorRunId || progress.RunId || currentWork.run_id || payload.run_id || "").trim();
+    return explicitMode === "once" && explicitScope === "backend_queue" && Boolean(explicitRunId);
+  }
+
+  function topbarBackendQueueMonitorContext(snapshot = {}) {
+    const correlation = window.mediaPipelineRunMonitor?.backendQueueCorrelationContext?.() || {};
+    const expectedRunId = String(correlation.requested_run_id || "").trim();
+    if (topbarSnapshotProvesDifferentWorkflow(snapshot, expectedRunId)) return null;
+    const projection = window.mediaPipelineRunMonitor?.getPayload?.();
+    const run = projection?.run && typeof projection.run === "object" ? projection.run : null;
+    if (!run) {
+      if (!correlation.expected && !topbarSnapshotDeclaresBackendQueueRun(snapshot)) return null;
+      return {
+        freshness: String(projection?.freshness?.state || correlation.freshness || "unavailable").toLowerCase(),
+        lifecycleLabel: "Correlated Monitor Unavailable",
+        displayMode: "Run Once · Backend Queue",
+        accepted: null,
+        workers: 0,
+      };
+    }
+    if (String(run.mode || "").toLowerCase() !== "once" || String(run.scope || "").toLowerCase() !== "backend_queue") return null;
+    const freshness = String(projection?.freshness?.state || "unavailable").toLowerCase();
+    const lifecycle = String(run.lifecycle_state || "unknown").replace(/[_-]+/g, " ");
+    const lifecycleState = String(run.lifecycle_state || "unknown").trim().toLowerCase();
+    const terminalMonitor = freshness === "terminal" || ["completed", "failed", "stopped", "force_stopped"].includes(lifecycleState);
+    if (
+      terminalMonitor
+      && topbarSnapshotIsFreshlyActive(snapshot)
+      && !topbarSnapshotProvesSameBackendQueueRun(snapshot, expectedRunId, String(run.run_id || ""))
+    ) return null;
+    const lifecycleLabel = lifecycle.replace(/\b\w/g, (letter) => letter.toUpperCase());
+    const counts = run.counts && typeof run.counts === "object" ? run.counts : {};
+    const accepted = Number(counts.accepted ?? run.accepted_queue?.accepted_count);
+    const workers = freshness === "current" && Array.isArray(projection.current_workers) ? projection.current_workers.length : 0;
+    return {
+      freshness,
+      lifecycleLabel,
+      displayMode: String(run.display_mode || "Run Once · Backend Queue"),
+      accepted: Number.isFinite(accepted) && accepted >= 0 ? accepted : null,
+      workers,
+    };
+  }
+
+  function topbarBackendQueueMonitorText(context) {
+    if (!context) return null;
+    const current = context.freshness === "current";
+    const terminal = context.freshness === "terminal";
+    const primary = `${context.displayMode} · ${context.lifecycleLabel}`;
+    const meta = current || terminal
+      ? [
+          current ? "Backend-confirmed current" : "Terminal backend evidence",
+          context.accepted === null ? "Accepted count unavailable" : `${context.accepted} accepted`,
+          current ? `${context.workers} active worker${context.workers === 1 ? "" : "s"}` : "No current worker claim",
+          "Open Current Work for file and stage detail",
+        ].join(" · ")
+      : `Current-work evidence ${context.freshness || "unavailable"} · No file, stage, route, or percent claim · Open Current Work`;
+    return { primary, meta };
+  }
+
   function topbarPathLeaf(value) {
     const text = formatProgressValue(value || "").trim();
     if (!text) return "";
@@ -69,6 +177,22 @@
     const node = byId("activity");
     if (!node) return;
     const payload = snapshot && typeof snapshot === "object" ? snapshot : {};
+    const monitorText = topbarBackendQueueMonitorText(topbarBackendQueueMonitorContext(payload));
+    if (monitorText) {
+      const primary = document.createElement("span");
+      primary.className = "activity-primary";
+      primary.textContent = monitorText.primary;
+      primary.title = monitorText.primary;
+      const meta = document.createElement("span");
+      meta.className = "activity-meta";
+      meta.textContent = monitorText.meta;
+      meta.title = monitorText.meta;
+      node.replaceChildren(primary, meta);
+      node.title = `${monitorText.primary}\n${monitorText.meta}`;
+      node.dataset.authority = "run_monitor";
+      return;
+    }
+    delete node.dataset.authority;
     const latestEvent = topbarLatestEvent(Array.isArray(payload.recent_events) ? payload.recent_events : []);
     const pendingLaunch = topbarPendingLaunchIsValid(payload, latestEvent) ? topbarPendingLaunch : null;
     const progress = payload.progress && typeof payload.progress === "object" ? payload.progress : {};
@@ -172,7 +296,10 @@
     const status = topbarTickerCompactText(event.status || "", 44);
     const display = topbarTickerCompactText(topbarEventDisplayName(event), 96);
     const parts = [type, stage, route, status, display].filter(Boolean);
-    return parts.length ? `Latest event: ${parts.join(" · ")}` : "Latest event: backend event received";
+    const line = parts.length
+      ? `Supporting telemetry — latest backend event: ${parts.join(" · ")}`
+      : "Supporting telemetry — backend event received";
+    return topbarTickerCompactText(line, 180);
   }
 
   function topbarPendingLaunchLine(pending) {
@@ -180,7 +307,7 @@
     const status = topbarTickerCompactText(pending?.statusLabel || "accepted", 32) || "accepted";
     const wait = topbarTickerCompactText(pending?.waitLabel || "waiting for backend event", 64);
     const pid = pending?.pid ? ` · PID ${pending.pid}` : "";
-    return `Latest event: ${label} ${status}${pid}${wait ? ` · ${wait}` : ""}`;
+    return `Supporting telemetry — launch response: ${label} ${status}${pid}${wait ? ` · ${wait}` : ""}`;
   }
 
   function topbarPipelineState(snapshot = {}) {
@@ -215,14 +342,19 @@
     const latestEvent = topbarLatestEvent(events);
     let text = "";
     let state = "empty";
-    if (topbarPendingLaunchIsValid(payload, latestEvent)) {
+    const monitorContext = topbarBackendQueueMonitorContext(payload);
+    if (monitorContext) {
+      const eventType = latestEvent ? topbarTickerCompactText(latestEvent.event_type || latestEvent.type || latestEvent.kind || "backend event", 48) : "none reported";
+      text = `Supporting telemetry — latest backend event: ${eventType}. Not current-work authority; open Current Work for correlated evidence.`;
+      state = "telemetry";
+    } else if (topbarPendingLaunchIsValid(payload, latestEvent)) {
       text = topbarPendingLaunchLine(topbarPendingLaunch);
       state = "pending";
     } else if (latestEvent) {
       text = topbarEventTickerLine(latestEvent);
       state = "event";
     } else {
-      text = "Latest event: no backend pipeline events reported yet";
+      text = "Supporting telemetry — no backend pipeline events reported yet";
     }
     node.textContent = text;
     node.title = text;

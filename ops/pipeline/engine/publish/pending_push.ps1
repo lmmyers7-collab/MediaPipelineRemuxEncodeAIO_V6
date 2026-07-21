@@ -419,7 +419,13 @@ function Invoke-ParkPendingPush {
         return $false
     }
 
+    Invoke-PendingPublishFaultPoint -Boundary 'index_update' -Moment 'before' -Context @{
+        scope = 'park'; manifest_path = [string]$transaction.ManifestPath; transaction_id = [string]$transaction.PublishTransactionId
+    }
     Refresh-PendingPublishIndex | Out-Null
+    Invoke-PendingPublishFaultPoint -Boundary 'index_update' -Moment 'after' -Context @{
+        scope = 'park'; manifest_path = [string]$transaction.ManifestPath; transaction_id = [string]$transaction.PublishTransactionId
+    }
     $parkLevel = if ($PublishMode -eq 'deferred') { 'INFO' } else { 'WARN' }
     Write-Log "Parked pending-push: $($transaction.Leaf) -> $($transaction.LocalFile)" $parkLevel
     if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
@@ -623,7 +629,13 @@ function Invoke-RetryPendingPushes {
             Reset-ProgressItemContext
         }
     }
+    Invoke-PendingPublishFaultPoint -Boundary 'index_update' -Moment 'before' -Context @{
+        scope = 'drain'; pending_root = [string]$LocalPendingPush
+    }
     Refresh-PendingPublishIndex | Out-Null
+    Invoke-PendingPublishFaultPoint -Boundary 'index_update' -Moment 'after' -Context @{
+        scope = 'drain'; pending_root = [string]$LocalPendingPush
+    }
     if ($script:PendingPublishIndex -and $script:PendingPublishIndex.PSObject.Properties['Count']) {
         $summary['remaining_count'] = [int]$script:PendingPublishIndex.Count
     } else {

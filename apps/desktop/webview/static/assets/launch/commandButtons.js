@@ -196,6 +196,13 @@
     });
     document.querySelectorAll("[data-control-action]").forEach((button) => {
       const action = String(button.dataset.controlAction || "").toLowerCase();
+      if (String(button.dataset.controlOwner || "").toLowerCase() === "run-monitor") {
+        // Availability for the selected Run Once workload has exactly one
+        // owner. The generic snapshot may describe unrelated backend work and
+        // must never enable or disable this run-correlated control directly.
+        window.mediaPipelineRunMonitor?.setStopCommandBusy?.(state.controlCommandInFlight);
+        return;
+      }
       const killable = active || stuck;
       const csvUnsupported = csvRerunActive && action === "rescan";
       const disabled = action === "kill" ? (state.controlCommandInFlight || !killable) : (state.controlCommandInFlight || !active || csvUnsupported);

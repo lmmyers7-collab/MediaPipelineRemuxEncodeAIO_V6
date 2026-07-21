@@ -1,5 +1,8 @@
 ---
 file: tests/python/desktop/test_service_file_open.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
@@ -9,9 +12,9 @@ sha256: 9849dc3e9c65a766dcce6f8c5e9d6bc44700138a874c0f39f7532a715f6f2a32
 ---
 # `tests/python/desktop/test_service_file_open.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for test service file open; exposes DummyFileOpenService, FileOpenServiceTests.
 
-**Classes:** `DummyFileOpenService`, `FileOpenServiceTests`
+**Public symbols:** `DummyFileOpenService`, `FileOpenServiceTests`
 **In-repo imports:** `mediapipeline.core.files.open_plan`, `mediapipeline.core.files.opening`, `mediapipeline.tools.paths`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths tests/python/desktop/test_service_file_open.py`._

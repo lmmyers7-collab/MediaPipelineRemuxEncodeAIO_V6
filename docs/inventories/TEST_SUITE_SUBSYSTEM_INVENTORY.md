@@ -47,6 +47,7 @@ These focused PowerShell checks sit outside `tests\python\desktop` and guard cro
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-ContractSchemaChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-AuditCommandSupportChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PathBoundaryGuardChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-ScratchCopyIdentityChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-ConfigKeyRegistryChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-FailureCodeRegistryChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-DynamicHdrDetectionChecks.ps1
@@ -56,6 +57,10 @@ These focused PowerShell checks sit outside `tests\python\desktop` and guard cro
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-EncoderRuntimeMatrixChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-NamingSupportChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PipelineQueueEngineChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RunMonitorStateChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-EncodeRuntimeRouteEvidenceChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-ProgressStateTelemetryChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-SubtitleLongWorkHeartbeatChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RerunAutoDestinationChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RerunCooperativeStopChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RerunNestedConfigChecks.ps1
@@ -88,6 +93,8 @@ scanning operator media or starting a live library audit. The active
 
 `Invoke-PathBoundaryGuardChecks.ps1` guards path-boundary helper behavior, output capability preflights, full drive/UNC-share ancestor-chain and dangling-reparse rejection, scratch-copy traversal rejection, stale temp cleanup, and audit probe-cache identity for same-path replacement files.
 
+`Invoke-ScratchCopyIdentityChecks.ps1` guards CPA-2026-07-19-003 with isolated tiny synthetic source/scratch roots. Its deterministic matrix covers valid content-bound reuse; same-name/size/timestamp substitution; replacement after discovery; mutation during copy; truncation; stale, missing, malformed, unsupported, and legacy evidence; Windows path aliases/case; scratch-name collision; prior partial work; restart after evidence write; and locked stale scratch. Every row records source SHA-256 before and after. Reuse requires freshly recomputed matching source/scratch SHA-256 evidence under `scratch_source_identity.v2`; uncertainty either re-copies safely or fails closed. The reliability wrapper requires this suite. It does not prove real-media behavior or output quality.
+
 `Invoke-AdversarialForceKillEncodeChecks.ps1` is a runtime adversarial smoke rather than a static guard. It creates generated media in `%TEMP%`, starts the real backend in `-Once`, force-kills a live CPU fallback encode after an `encode_temp*.mkv` artifact exists, then proves the partial was not accepted as completed output/pending publish, the source remains queued, the live FFmpeg capture is not classified as a failure, and the next exclusive startup reconciles that capture from `ToolLogs/Active` to `ToolLogs/Interrupted`.
 
 `Invoke-FailureCodeRegistryChecks.ps1` guards the `FailureCodes.ps1` registry: every classifier return code must be known, every registry row must include family/stage/when-fires/retryability/operator severity/handler/operator-action metadata, representative high-risk metadata rows must stay accurate, broader pipeline outcome/error codes emitted by PowerShell surfaces must be known, and unknown-code metadata lookup must fail closed.
@@ -106,9 +113,15 @@ scanning operator media or starting a live library audit. The active
 
 `Invoke-ConfigKeyRegistryChecks.ps1` guards `ConfigKeys.ps1`: the PowerShell config-key registry must stay in the same order as `ConfigSchema.ps1`, template/live PSD1 files may not contain unknown keys, helper lookups must fail closed, and literal PowerShell `$config[...]`, `$config.ContainsKey(...)`, and `Get-Config*` call sites may not reference unknown config keys. `test_config_keys.py` also guards Python-side Network runtime and settings/media-policy raw registered-key lookups, plus a package-wide registered-key raw-lookup scan across `mediapipeline.desktop`.
 
-`Invoke-PipelineQueueEngineChecks.ps1` guards queue-engine dispatch mode selection: one local worker slot stays serial, multi-slot `local_worker_slots` dispatches through the worker scheduler with the expected script/config/PowerShell context, missing worker context fails closed without falling back to serial dispatch, and worker-child result writing remains versioned.
+`Invoke-PipelineQueueEngineChecks.ps1` guards queue-engine dispatch mode selection and accepted naming evidence: one local worker slot stays serial, multi-slot `local_worker_slots` dispatches through the worker scheduler with the expected script/config/PowerShell context, missing worker context fails closed without falling back to serial dispatch, worker-child result writing remains versioned, production/force-rename filenames and exact evidence-source tokens are bound to Queue-plan and accepted-membership fingerprints, raw/unversioned/tampered names fail closed, and planner or pre-planner naming failures cannot enter accepted membership or inherit a preceding row's route evidence.
 
-`Invoke-NamingSupportChecks.ps1` guards runtime naming and library identity support: shared Plex movie/TV destination planning, forced rename sidecar sanitization/evidence, TV identity keys used by the processed-library index, and source identity v2 path-independence/sample-byte sensitivity.
+`Invoke-RunMonitorStateChecks.ps1` guards immutable accepted Run Once membership, rejection of blank planned-name evidence at the engine seed boundary, exact pre-spawn-seed adoption, run-wide identity and stage correlation, planned/executed/final route separation, all-worker projection, per-track audio/subtitle evidence, wrong/missing track fail-unknown behavior, terminal artifact references, and truthful progress/freshness semantics. `Invoke-EncodeRuntimeRouteEvidenceChecks.ps1` separately proves runtime encode-family/fallback decisions author exact executed-route reason evidence without overwriting terminal proof. Both are mandatory children of `Invoke-ReliabilityRegressionChecks.ps1`.
+
+`Invoke-ProgressStateTelemetryChecks.ps1` guards progress-to-monitor translation, including distinct Verification mapping, exact track correlation, nonterminal indeterminate progress, and the rule that compatibility progress or generic route text cannot become stage or executed-route authority.
+
+`Invoke-SubtitleLongWorkHeartbeatChecks.ps1` guards exact run/job/track/stage liveness for long ASS and TX3G conversion, BDPGS/VobSub OCR, and the pre-OCR CPU-slot wait. It proves throttled active-only indeterminate heartbeats, stale-context suppression, explicit native poll propagation, no fabricated numerator/denominator, and a contended named-mutex wait without reading or mutating real media. `Invoke-SubtitleBuilderDecisionChecks.ps1`, `Invoke-VobSubSubtitleChecks.ps1`, and `Invoke-NativeProcessCleanupChecks.ps1` provide the corresponding fake OCR/call-order and wrapper-level integration coverage. The reliability wrapper requires both the focused subtitle heartbeat suite and the native lifecycle/fallback suite, including exact-context, explicit-override, and greater-than-45-second freshness regressions.
+
+`Invoke-NamingSupportChecks.ps1` guards runtime naming and library identity support: shared Plex movie/TV destination planning, forced rename sidecar sanitization/evidence, screenshot-style YIFY/YTS/BONE/GalaxyRG/Judas/SubsPlease/ToonsHub cleanup, TV identity keys used by the processed-library index, and source identity v2 path-independence/sample-byte sensitivity.
 
 `Invoke-RerunSourceIdentityChecks.ps1` guards CSV rerun source identity fallback behavior: when `ffprobe` is unavailable, source identity still emits a deterministic SHA-256 value and changes when source sample bytes change.
 
@@ -136,6 +149,7 @@ These repository-level Python tests sit outside `tests\python\desktop` and guard
 | `tests/python/tooling/test_ai_guardrail.py` | AI guardrail preflight/postflight plan contents and git-status rename/untracked path parsing |
 | `tests/python/tooling/test_audit_checks.py` | Shared audit-check manifest suites for pre-commit, generated-context CI, deep-audit, release self-test, and AI guardrail orchestration |
 | `tests/python/tooling/test_change_control.py` | Change-control release manifest placeholder behavior, version-label validation, and missing `ops/release/metadata/VERSION` error reporting |
+| `tests/python/tooling/test_code_context_mcp.py` | Read-only MCP path policy, context/lookup/search/read bounds, live untracked search, stale records, SDK stdio contract, client bootstrap preview, dependency isolation, and token ceilings |
 | `tests/python/tooling/test_dependency_boundaries.py` | App import-edge collection, module/package cycle detection, hard-boundary violations, allowlist staleness, and current-repo dependency check |
 | `tests/python/tooling/test_godfile_guard.py` | God-file policy validation, allowlisted thresholds, new/existing oversized file warnings, growth warnings, and git-status rename parsing |
 | `tests/python/tooling/test_lifecycle_map.py` | Lifecycle state/transition integrity and generated lifecycle-map rendering |
@@ -266,7 +280,7 @@ Targeted command:
 & $py -m unittest discover -s tests\python\desktop -p "test*queue*.py" -q
 ```
 
-The browser-backed Queue → Launch → Completed smoke covers one runnable, one blocked, and one excluded temporary row, production duplicate/lifecycle guards, and persisted Completed evidence through a synchronized fake runner. The remaining gap is a real PowerShell/FFmpeg queue → launch → completed run with representative media; this temp-only scenario is not real-media proof.
+The browser-backed Queue → Launch → Completed smoke passes two accepted raw release-name rows, one blocked row, and one excluded row through production duplicate/lifecycle guards, exact run/Queue-plan/accepted-membership correlation, folded verified clean names, expanded selection, and persisted Completed/review evidence using a synchronized fake runner. Representative PowerShell/FFmpeg media remains a separate release gate.
 
 ---
 
@@ -283,7 +297,7 @@ Tests for launch environment setup, launch plans, spawn, kill, readiness checks,
 | `test_service_process_logs.py` | Log file location and rotation |
 | `test_service_process_runtime_artifacts.py` | Runtime artifact management |
 | `test_service_process_launch_plans.py` | Launch plan construction |
-| `test_service_process_kill.py` | Exact-identity, bounded single-flight process-tree cleanup; verified Windows/POSIX proof; fail-closed `kill_degraded` evidence for timeout, nonzero, unexpected exception, and root-only fallback; warning logger Protocol boundary |
+| `test_service_process_kill.py` | Exact-identity, bounded single-flight process-tree cleanup; verified Windows/POSIX and captured-descendant exit proof; machine-readable killed PID/job-kind/Run ID/command ID evidence; root-exited/child-survived and descendant-enumeration-unverifiable rejection; fail-closed `kill_degraded` evidence for timeout, nonzero, unexpected exception, and root-only fallback; warning logger Protocol boundary |
 | `test_service_process_spawn.py` | Process spawn logic |
 | `test_service_process_readiness.py` | Pre-launch readiness checks and spawn readiness logger Protocol boundary |
 | `test_service_process_launch_cleanup.py` | Post-launch cleanup and warning logger Protocol boundary |
@@ -352,9 +366,9 @@ Tests for TV and movie name parsing, cleaning-filter configuration, rename plann
 | `test_service_rename_tv_folder.py` | TV folder-level rename handling |
 | `test_service_rename_discovery.py` | Source file discovery for rename |
 | `test_service_rename_plan_policy.py` | Rename plan policy rules |
-| `test_service_rename_planner.py` | Planning orchestration, cleaning-policy propagation, duplicate targets, canonical range identity, semantic overlap blocking, hierarchy destinations, and path authority |
-| `test_service_rename_preview.py` | Preview generation |
-| `test_service_rename_preview_runner.py` | Preview runner and Protocol-typed naming-preview service boundary |
+| `test_service_rename_planner.py` | Planning orchestration, cleaning-policy propagation, authoritative PowerShell leaf preservation, unsafe leaf/suffix rejection, duplicate targets, canonical range identity, semantic overlap blocking, hierarchy destinations, and path authority |
+| `test_service_rename_preview.py` | Production synthetic-preview request/result correlation, policy fingerprints, assumed-extension evidence, and preview generation |
+| `test_service_rename_preview_runner.py` | Preview runner, real bundled-PowerShell parity for numeric titles and verified metadata tails, the exact extensionless Edge of Tomorrow regression, and Protocol-typed naming-preview service boundary |
 | `test_service_rename_apply.py` | Operation construction, defensive semantic-overlap checks, mutation boundaries, case-only behavior, sidecar collisions/metadata, rollback, and undo-manifest authority |
 | `test_service_rename_apply_runner.py` | Temporary-filesystem apply/undo, on-disk media-plus-sidecar reversal, metadata restoration, multi-episode range identity, and unsafe manifest blocking |
 | `test_stage_contracts.py` | Rename-stage registration, strict mutation intent/confirmation DTOs, and generated schema |
@@ -634,8 +648,8 @@ General facade policy and desktop shell bootstrap tests not covered by subsystem
 | `test_application_facade_maintenance.py` | Application-facade Maintenance workspace environment-health rows, toolchain evidence/progress rows, Release Package dry-run plan/progress behavior, and maintenance command-lock fail-closed behavior |
 | `test_application_facade_network.py` | Application-facade Network worker-state metadata, progress bars, backend-authored heartbeat age, state-file evidence, and lifecycle-control absence for `/api/network/workers` |
 | `test_application_facade_pending_publish.py` | Application-facade pending-publish preview classification, durable drain-summary evidence, publish reconciliation, row-key open allowlists, scan-failure surfacing, and backend-authored recovery dry-run planning |
-| `test_application_facade_process_control.py` | Application-facade pipeline control flag contract, invalid action rejection, and control-lock fail-closed behavior |
-| `test_application_facade_process_launch.py` | Application-facade pipeline/audit/rerun launch handoff, durable rerun enrollment, copied-v2-manifest rejection, strict failed-before-manifest generation supersession, verified-versus-ambiguous post-spawn cleanup, duplicate pipeline rejection, launch-lock fail-closed behavior, schedule handling, blank Run Once `normal_queue_scope`, and backend-authored readiness DTO coverage |
+| `test_application_facade_process_control.py` | Application-facade pipeline control flag contract, exact killed pipeline PID/Run ID gating for Force Stop Run Monitor takeover, no-process and unrelated audit/rerun non-terminalization, invalid action rejection, and control-lock fail-closed behavior |
+| `test_application_facade_process_launch.py` | Application-facade pipeline/audit/rerun launch handoff, durable rerun enrollment, copied-v2-manifest rejection, strict failed-before-manifest generation supersession, verified-versus-ambiguous post-spawn cleanup, duplicate pipeline rejection, launch-lock fail-closed behavior, schedule handling, blank Run Once current Queue-plan/name-evidence/content-digest gating, and backend-authored readiness DTO coverage |
 | `test_application_facade_queue.py` | Application-facade normal-only queue preview behavior, stale evidence, blocked-vs-excluded rows, runtime outcome correlation, explicit CSV rerun exclusion and compatibility metadata, and row-key open allowlists |
 | `test_application_facade_rename.py` | Application-facade rename preview/apply command behavior, selected-source scoping, multiple-selection handling, undo-manifest cleanup in temp fixtures, and apply-lock guarding |
 | `test_application_facade_reports.py` | Application-facade Reports behavior for failure JSON, failure markers, lifecycle journal transitions, marker-clear confirmation handoff, evidence archive, and audit CSV rows |
@@ -721,7 +735,8 @@ Edge; canonical wrappers fail a prerequisite skip by default. Use
 | `test_webview_browser_sample_validation_smoke.py` | Home sample-validation pilot/readiness/reconciliation, worksheet detail, preview-only backend route |
 | `test_webview_browser_home_live_state_smoke.py` | Home Daily-Driver, Operator Readiness, active work, command history, live progress evidence, page-switch viewport reset |
 | `test_webview_browser_launch_queue_readiness_smoke.py` | Launch/Queue/Schedule readiness, Queue CSV Rerun tab visibility, scope reconciliation, sample proof handoff, no POSTs |
-| `test_webview_browser_queue_launch_completed_smoke.py` | Temporary one-runnable/one-blocked/one-excluded Queue flow through single-file Launch, durable duplicate rejection, synchronized fake-runner Completed evidence, reload persistence, idle lifecycle, safe close-readiness, and unchanged source hashes; no FFmpeg or PowerShell pipeline child |
+| `test_webview_browser_queue_launch_completed_smoke.py` | Passing standard Backend Queue Run Once journey through two distinct raw release-name sources, verified clean planned names, exact accepted membership/Queue-plan/content fingerprints/run identity, folded filename preview and opened selection, starting/scanning, all-worker handoff, terminal Completed/review evidence, clean-name announcements, exact proof focus, reload persistence, fresh idle, safe close-readiness, unchanged source hashes, and suppression of a recent unrelated-run `job_completed` event; no FFmpeg or PowerShell pipeline child is used |
+| `test_webview_browser_run_monitor_smoke.py` | Deterministic Current Work state matrix, backend-planned rename filenames with raw source identity retained as secondary accessible evidence, first-20 filename preview, complete selectable expansion, planned/executed/final route separation, all-worker identity, per-track evidence, stale/partial suppression, exact dynamic focus and fold-state retention across same-run refresh plus safe disclosure-focus reset on different-run replacement, explicit terminal owner/next-action guidance, parked/Stop After Current announcements, keyboard behavior, responsive stacked labels, viewport-equivalent zoom reflow, and computed AA contrast in both themes; actual browser zoom and screen-reader checks remain manual |
 | `test_webview_browser_layout_manager_smoke.py` | Layout Editor drawer coverage across page tabs, subtabs, and generated subsections with no mutation posts |
 | `test_webview_browser_library_profiles_save_smoke.py` | Isolated temporary Library Profile add/save, strict backend review confirmation, digest, and reload persistence |
 | `test_webview_browser_metrics_degraded_state.py` | Focused browser rendering for degraded/partial metrics state; intentionally has no canonical wrapper |
@@ -742,8 +757,9 @@ Run all via:
 ```
 
 Use `ops/scripts/smoke/` wrappers for the operator-friendly path: `.\ops/scripts/smoke\Test-WebViewBrowser*.ps1`.
-There are 26 browser modules and 24 canonical browser wrappers; the two
-focused unwrapped modules are identified in the table above.
+There are 34 browser Python modules in this inventory and 25 canonical browser
+wrappers; the 9 direct-only browser Python modules are identified by the
+generated smoke-wrapper map.
 
 ---
 

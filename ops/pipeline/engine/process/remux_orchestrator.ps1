@@ -10,7 +10,8 @@ function Invoke-MediaPipelineRemux {
         [switch] $FallbackFromDynamicHdrEncode
     )
 
-    $context = New-MediaPipelineRemuxContext -File $File -IsTV:$IsTV -TvInfo $TvInfo -FallbackFromOversizedEncode:([bool]$FallbackFromOversizedEncode) -FallbackFromDynamicHdrEncode:([bool]$FallbackFromDynamicHdrEncode)
+    $acceptedOutputPaths = Get-Variable -Name CurrentAcceptedOutputPaths -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+    $context = New-MediaPipelineRemuxContext -File $File -IsTV:$IsTV -TvInfo $TvInfo -FallbackFromOversizedEncode:([bool]$FallbackFromOversizedEncode) -FallbackFromDynamicHdrEncode:([bool]$FallbackFromDynamicHdrEncode) -OutputPaths $acceptedOutputPaths
     try {
         foreach ($stage in @(
             'Invoke-MediaPipelineRemuxPreflight',

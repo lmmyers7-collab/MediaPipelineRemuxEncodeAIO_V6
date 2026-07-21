@@ -114,9 +114,9 @@ This section is required for every run. Confirm both the production boundary and
 | Tier | Wrappers/modules |
 |---|---|
 | Non-browser JS/Node (no Chrome/Edge needed) | 8 wrappers; see the smoke catalog. `Test-WebViewSettingsLaunchLiveConfigSmoke.ps1` reads selected saved config and is not a disposable-root fixture unless explicitly redirected. |
-| Browser-backed | 24 canonical wrappers / 26 Python modules. Canonical wrappers fail prerequisite skips unless `-AllowSkippedTests` is explicit. |
+| Browser-backed | 25 canonical browser wrappers / 34 browser Python modules. Canonical wrappers fail prerequisite skips unless `-AllowSkippedTests` is explicit. |
 | Browser wrapper names | `Test-WebViewBrowserCompletedPendingProofSmoke.ps1`, `Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1`, `Test-WebViewBrowserHighRiskSmoke.ps1`, `Test-WebViewBrowserHomeLiveStateSmoke.ps1`, `Test-WebViewBrowserLargeTableSmoke.ps1`, `Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1`, `Test-WebViewBrowserLayoutManagerSmoke.ps1`, `Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1`, `Test-WebViewBrowserLifecycleReconciliationSmoke.ps1`, `Test-WebViewBrowserLifecycleSmoke.ps1`, `Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1`, `Test-WebViewBrowserMaintenanceReportsSmoke.ps1`, `Test-WebViewBrowserNetworkSmoke.ps1`, `Test-WebViewBrowserPendingDrainGuardSmoke.ps1`, `Test-WebViewBrowserProseBoxAudit.ps1`, `Test-WebViewBrowserQueueFileOverridesSmoke.ps1`, `Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1`, `Test-WebViewBrowserRenameSmoke.ps1`, `Test-WebViewBrowserSampleValidationSmoke.ps1`, `Test-WebViewBrowserScheduleSmoke.ps1`, `Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1`, `Test-WebViewBrowserSettingsLaunchSmoke.ps1`, `Test-WebViewBrowserTelemetrySmoke.ps1`, `Test-WebViewBrowserVisualClutterScreenshots.ps1` |
-| Direct-only browser modules | `test_webview_browser_metrics_degraded_state_smoke.py`, `test_webview_browser_settings_builder_flush_smoke.py` |
+| Direct-only browser modules | 9 direct-only browser Python modules; use `docs/generated/SMOKE_WRAPPER_MAP.json` for the authoritative names and paths. |
 | Release / package self-test | `ops\scripts\release\test.ps1` |
 
 For the full catalog with scope and limitation notes see `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`.

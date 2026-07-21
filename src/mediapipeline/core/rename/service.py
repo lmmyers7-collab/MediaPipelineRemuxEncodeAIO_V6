@@ -37,6 +37,7 @@ from mediapipeline.core.rename.preview_runner import (
     load_pipeline_movie_name_previews_for_service,
     load_pipeline_name_previews_for_service,
     load_pipeline_tv_name_previews_for_service,
+    load_synthetic_pipeline_name_preview_for_service,
     naming_preview_script_path_for_service,
 )
 from mediapipeline.core.rename.tv import (
@@ -306,6 +307,27 @@ class RenameServiceMixin:
         return load_pipeline_tv_name_previews_for_service(
             self,
             paths,
+            powershell_host=powershell_host,
+            timeout_seconds=timeout_seconds,
+            run_capture_func=run_capture,
+            cleaning_policy=cleaning_policy,
+        )
+
+    def _load_synthetic_pipeline_name_preview(
+        self,
+        *,
+        filename: str,
+        source_folder: str,
+        media_kind: str,
+        powershell_host: str | None = None,
+        timeout_seconds: int = 8,
+        cleaning_policy: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return load_synthetic_pipeline_name_preview_for_service(
+            self,
+            filename=filename,
+            source_folder=source_folder,
+            media_kind=media_kind,
             powershell_host=powershell_host,
             timeout_seconds=timeout_seconds,
             run_capture_func=run_capture,

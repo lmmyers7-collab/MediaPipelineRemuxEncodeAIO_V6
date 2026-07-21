@@ -3,9 +3,23 @@ from __future__ import annotations
 from typing import Any
 
 from .contract_payload import local_api_contract_payload
-from .http_helpers import query_bool, query_int, query_value
+from .http_helpers import QueryValidationError, query_bool, query_int, query_value
 from .read_payloads_policy import close_readiness_unavailable_payload, read_unavailable_payload
+from mediapipeline.core.status.run_monitor import unavailable_run_monitor_projection
+from mediapipeline.core.status.run_monitor_storage import RUN_ID_PATTERN
 from mediapipeline.desktop.watch import watch_folder_state_mapping
+
+
+def _run_monitor_run_id(query: dict[str, list[str]]) -> str:
+    values = query.get("run_id")
+    if not values:
+        return ""
+    if len(values) != 1:
+        raise QueryValidationError("query parameter run_id must appear at most once")
+    run_id = str(values[0] or "").strip()
+    if not RUN_ID_PATTERN.fullmatch(run_id) or run_id.casefold() == "latest":
+        raise QueryValidationError("query parameter run_id is not a valid backend run identity")
+    return run_id
 
 
 class LocalApiStatusReadPayloadMixin:
@@ -25,6 +39,19 @@ class LocalApiStatusReadPayloadMixin:
         if snapshot is None:
             return read_unavailable_payload("snapshot")
         return self.facade.snapshot_to_dto(snapshot).to_mapping()
+
+    def _run_monitor_payload(self, query: dict[str, list[str]]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return unavailable_run_monitor_projection(
+                reason_code="resolved_paths_unavailable",
+                backend_activity_state="unavailable",
+                detail="Resolved backend state paths are unavailable.",
+            )
+        return self.facade.get_run_monitor(
+            resolved,
+            run_id=_run_monitor_run_id(query),
+        )
 
     def _diagnostics_payload(self) -> dict[str, Any]:
         snapshot = self._snapshot()

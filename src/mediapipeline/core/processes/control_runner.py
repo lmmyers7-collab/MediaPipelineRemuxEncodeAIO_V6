@@ -10,6 +10,7 @@ from .control_flags import (
     read_control_flag_payload,
     remove_control_flag,
     write_control_flag,
+    write_stop_after_current_flag,
 )
 from .launch_cleanup import prepare_control_flags_for_launch as prepare_control_flags_for_launch_helper
 
@@ -21,6 +22,7 @@ class WarningLogger(Protocol):
 class ControlFlagPaths(Protocol):
     pause_flag: Path | None
     stop_flag: Path | None
+    stop_after_current_flag: Path | None
     rescan_flag: Path | None
 
 
@@ -44,6 +46,15 @@ class ProcessControlWriteService(Protocol):
     def _write_control_flag(self, flag_path: Path, label: str) -> dict[str, Any]: ...
 
     def _remove_control_flag(self, flag_path: Path, label: str) -> None: ...
+
+    def _write_stop_after_current_flag(
+        self,
+        flag_path: Path,
+        *,
+        run_id: str,
+        target_pid: int | None,
+        target_launch_id: str,
+    ) -> dict[str, Any]: ...
 
 
 def new_control_flag_payload_for_service(_service: object, label: str) -> dict[str, Any]:
@@ -82,6 +93,7 @@ def prepare_pipeline_control_flags_for_service(
     specs = (
         ("Pause", resolved.pause_flag, False),
         ("Stop", resolved.stop_flag, True),
+        ("Stop After Current", resolved.stop_after_current_flag, True),
         ("Rescan", resolved.rescan_flag, False),
     )
     return prepare_control_flags_for_launch_helper(
@@ -109,3 +121,22 @@ def write_flag_for_service(service: ProcessControlWriteService, flag_path: Path 
         raise RuntimeError(f"{label} flag is unavailable because LocalBase is not resolved.")
     service._write_control_flag(flag_path, label)
     return f"{label} requested."
+
+
+def write_stop_after_current_for_service(
+    _service: ProcessControlWriteService,
+    flag_path: Path | None,
+    *,
+    run_id: str = "",
+    target_pid: int | None = None,
+    target_launch_id: str = "",
+) -> str:
+    if not flag_path:
+        raise RuntimeError("Stop After Current flag is unavailable because LocalBase is not resolved.")
+    write_stop_after_current_flag(
+        flag_path,
+        run_id=run_id,
+        target_pid=target_pid,
+        target_launch_id=target_launch_id,
+    )
+    return "Stop After Current requested."

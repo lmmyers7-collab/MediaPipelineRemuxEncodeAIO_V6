@@ -773,6 +773,169 @@ def _with_case_analysis(payload: dict[str, Any], request: Mapping[str, Any]) -> 
     return payload
 
 
+def apply_production_naming_preview_to_clean_filename_payload(
+    payload: dict[str, Any],
+    request: Mapping[str, Any],
+    production_result: Mapping[str, Any] | None,
+    *,
+    expected_policy_fingerprint: str,
+) -> dict[str, Any]:
+    result = dict(production_result or {})
+    reference_target_name = str(payload.get("target_name") or "").strip()
+    reference_preview_source = str(payload.get("preview_source") or "backend_cleaner")
+    mode = str(payload.get("mode") or "movie").strip().casefold()
+    media_kind = "TV" if mode == "tv" else "Movie"
+    preview_source = "pipeline_tv_destination_plan" if mode == "tv" else "pipeline_movie_destination_plan"
+    expected_fingerprint = str(expected_policy_fingerprint or "")
+    requested_fingerprint = str(result.get("requested_policy_fingerprint") or "")
+    applied_fingerprint = str(result.get("applied_policy_fingerprint") or "")
+    row = dict(result.get("row") or {}) if isinstance(result.get("row"), Mapping) else {}
+    policy_match = bool(
+        expected_fingerprint
+        and requested_fingerprint == expected_fingerprint
+        and applied_fingerprint == expected_fingerprint
+        and result.get("policy_fingerprint_match") is True
+    )
+    authoritative = bool(
+        result.get("ok") is True
+        and policy_match
+        and row.get("ok") is True
+        and row.get("synthetic") is True
+        and str(row.get("file_name") or "").strip()
+    )
+
+    payload["preview_source"] = preview_source
+    payload["evidence_authority"] = "production_naming_plan"
+    payload["production_preview_required"] = True
+    payload["requested_policy_fingerprint"] = expected_fingerprint
+    payload["applied_policy_fingerprint"] = applied_fingerprint
+    payload["policy_fingerprint_match"] = policy_match
+    payload["mutation_boundary"] = (
+        "read-only production naming preview; no source/media paths are opened, renamed, moved, deleted, or written"
+    )
+
+    if not authoritative:
+        error = str(result.get("error") or "").strip()
+        if not error and not policy_match:
+            error = f"Pipeline {media_kind.lower()} naming preview policy fingerprint mismatch."
+        if not error:
+            error = f"Pipeline {media_kind.lower()} production naming preview is unavailable."
+        payload["ok"] = False
+        payload["cleaned_title"] = ""
+        payload["target_name"] = ""
+        payload["production_plan"] = {}
+        payload["errors"] = list(dict.fromkeys([*(payload.get("errors") or []), error]))
+        payload = _with_case_analysis(payload, request)
+        comparison = dict(payload.get("comparison") or {})
+        comparison.update(
+            {
+                "ok": False,
+                "status": "unavailable",
+                "authority": "production_naming_plan",
+                "policy_fingerprint_match": policy_match,
+            }
+        )
+        payload["comparison"] = comparison
+        payload["production_parity"] = {
+            "ok": False,
+            "status": "unavailable",
+            "reference_target_name": reference_target_name,
+            "production_target_name": "",
+            "reference_source": reference_preview_source,
+            "production_source": preview_source,
+        }
+        payload["filter_suggestions"] = []
+        return payload
+
+    production_target_name = str(row.get("file_name") or "").strip()
+    target_name = _target_stem(production_target_name) if payload.get("assumed_media_extension") else production_target_name
+    file_base_name = str(row.get("file_base_name") or "").strip() or _target_stem(production_target_name)
+    payload["ok"] = True
+    payload["cleaned_title"] = file_base_name
+    payload["target_name"] = target_name
+    payload["errors"] = []
+    payload["production_plan"] = {
+        key: row.get(key)
+        for key in (
+            "file_base_name",
+            "file_name",
+            "relative_directory",
+            "relative_path",
+            "identity_key",
+        )
+        if row.get(key) not in (None, "")
+    }
+    warnings = [
+        str(warning)
+        for warning in payload.get("warnings") or []
+        if not str(warning).startswith("No known media extension was supplied;")
+    ]
+    if not _case_suffix(payload):
+        warnings.append("No known media extension was supplied; the production planner returned a title-only preview.")
+    payload["warnings"] = list(dict.fromkeys(warnings))
+    payload = _with_case_analysis(payload, request)
+
+    parsed_identity = row.get("parsed_identity")
+    if isinstance(parsed_identity, Mapping):
+        actual = dict(payload.get("actual_fields") or {})
+        if mode == "tv":
+            field_map = {
+                "show": "show",
+                "show_name": "show",
+                "season": "season",
+                "episode_start": "episode",
+                "episode": "episode",
+                "episode_end": "episode_end",
+                "episode_title": "episode_title",
+            }
+        else:
+            field_map = {"title": "movie_title", "year": "year"}
+        for source_key, target_key in field_map.items():
+            value = parsed_identity.get(source_key)
+            if value not in (None, ""):
+                actual[target_key] = value
+        payload["actual_fields"] = actual
+        expected = dict(payload.get("expected_fields") or {})
+        payload["comparison"] = _comparison_for_fields(mode, actual, expected)
+        payload["filter_suggestions"] = _suggest_filter_terms(request, payload, expected, payload["comparison"])
+
+    parity_available = bool(reference_target_name and target_name)
+    parity_ok = bool(parity_available and reference_target_name == target_name)
+    payload["production_parity"] = {
+        "ok": parity_ok,
+        "status": "match" if parity_ok else ("mismatch" if parity_available else "unavailable"),
+        "reference_target_name": reference_target_name,
+        "production_target_name": target_name,
+        "reference_source": reference_preview_source,
+        "production_source": preview_source,
+    }
+    comparison = dict(payload.get("comparison") or {})
+    expected_match = bool(comparison.get("ok"))
+    comparison["expected_match"] = expected_match
+    if not parity_ok:
+        parity_row = {
+            "field": "runtime_parity",
+            "actual": target_name,
+            "expected": reference_target_name,
+            "ok": False,
+        }
+        comparison["fields"] = [*(comparison.get("fields") or []), parity_row]
+        comparison["checked_fields"] = list(dict.fromkeys([*(comparison.get("checked_fields") or []), "runtime_parity"]))
+        comparison["failed_fields"] = list(dict.fromkeys([*(comparison.get("failed_fields") or []), "runtime_parity"]))
+    comparison["ok"] = bool(expected_match and parity_ok)
+    comparison.update(
+        {
+            "status": "match" if comparison["ok"] else "mismatch",
+            "authority": "production_naming_plan",
+            "policy_fingerprint_match": True,
+        }
+    )
+    payload["comparison"] = comparison
+    if not parity_ok:
+        payload["filter_suggestions"] = []
+    return payload
+
+
 def _rename_filter_evidence(
     *,
     mode: str,
@@ -922,7 +1085,7 @@ def rename_plan_kwargs_from_request(
         "movie_filter_terms": dict_terms(request.get("movie_filter_terms"), parse_remove_terms),
         "tv_filter_options": dict_bool(request.get("tv_filter_options")),
         "tv_filter_terms": dict_terms(request.get("tv_filter_terms"), parse_remove_terms),
-        "cleaning_policy": rename_cleaning_policy_from_request(request),
+        "cleaning_policy": rename_cleaning_policy_from_request(request, parse_remove_terms),
         "final_name_overrides": dict_str(request.get("final_name_overrides")),
         "rename_sidecars": _optional_strict_bool(request, "rename_sidecars", True),
         "force_pipeline_name": _optional_strict_bool(request, "force_pipeline_name", False),
@@ -934,6 +1097,7 @@ def rename_plan_kwargs_from_request(
 
 
 __all__ = [
+    "apply_production_naming_preview_to_clean_filename_payload",
     "rename_filename_leaf",
     "rename_clean_filename_preview_from_request",
     "rename_cleaning_filter_catalog_payload",

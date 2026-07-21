@@ -303,6 +303,7 @@
         const selected = candidate === row;
         candidate.setAttribute("aria-selected", selected ? "true" : "false");
         candidate.classList.toggle("is-selected", selected);
+        if (candidate.dataset.rovingTabStop === "true") candidate.tabIndex = selected ? 0 : -1;
       });
     }
 
@@ -310,7 +311,12 @@
       if (!row) return;
       const selected = Boolean(options.selected);
       row.dataset.selectableRow = "true";
-      row.tabIndex = 0;
+      if (options.roving === true) {
+        row.dataset.rovingTabStop = "true";
+        row.tabIndex = options.rovingTabStop ? 0 : -1;
+      } else {
+        row.tabIndex = 0;
+      }
       row.setAttribute("role", "row");
       row.setAttribute("aria-selected", selected ? "true" : "false");
       row.classList.toggle("is-selected", selected);

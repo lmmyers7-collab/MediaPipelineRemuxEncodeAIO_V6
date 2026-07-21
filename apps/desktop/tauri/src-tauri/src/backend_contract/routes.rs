@@ -2,6 +2,7 @@ pub(crate) const REQUIRED_ROUTES: &[(&str, &str, bool)] = &[
     ("GET", "/api/health", false),
     ("GET", "/api/contract", true),
     ("GET", "/api/snapshot", true),
+    ("GET", "/api/run-monitor", true),
     ("GET", "/api/telemetry", true),
     ("GET", "/api/metrics", true),
     ("GET", "/api/diagnostics", true),

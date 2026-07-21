@@ -63,6 +63,7 @@ class QueueDryRunServiceProtocol(Protocol):
     QUEUE_DRY_RUN_TIMEOUT_SECONDS: float
     QUEUE_DRY_RUN_OUTPUT_TAIL_LINES: int
     _queue_completed_cache_status: str
+    _queue_dry_run_cleanup_warnings: list[str]
 
     def _queue_snapshot_write_path(self, resolved: ResolvedPaths) -> Path | None: ...
     def _read_queue_snapshot(self, path: Path) -> dict[str, Any] | None: ...

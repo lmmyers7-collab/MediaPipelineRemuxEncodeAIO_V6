@@ -63,8 +63,10 @@
           return id.startsWith("subtitle") || label.includes("subtitle");
         });
         const publishBar = publishOrParkBar(bars);
-        const encodeActive = stageMentions(stageLower, "encode", "encoding", "remux", "transcode")
-          || stageMentions(routeLower, "encode", "remux", "transcode");
+        const explicitTranscodeStages = new Set([
+          "encode", "encoding", "encode_cpu", "encode cpu", "remux", "remux_av", "remux av", "transcode", "transcoding",
+        ]);
+        const encodeActive = explicitTranscodeStages.has(stageLower);
         const hasPublishEvidence = Boolean(publishBar || timelineText(progress.PushState, progress.SidecarState));
         const hasRoute = timelineHasMeaningfulText(route);
         const hasFile = timelineHasMeaningfulText(file);
@@ -79,7 +81,7 @@
         const routeDecisionDetail = hasRoute
           ? `${routeDisplay} route${progress.RouteReason ? ` | ${formatProgressValue(progress.RouteReason)}` : ""}`
           : "No backend route is selected yet; waiting for encode/remux decision evidence.";
-        const routeLabel = routeLower.includes("remux") ? "Remux output" : routeLower.includes("encode") ? "Encode output" : "Encode/remux";
+        const routeLabel = "Encode or remux";
         const queueDetail = queueTotal > 0
           ? `Item ${Math.max(0, queueIndex)} of ${queueTotal}${file ? `: ${file}` : ""}`
           : (file ? `Current item: ${file}` : "Waiting for backend queue evidence.");
@@ -109,12 +111,10 @@
             label: "Copy to scratch",
             status: csvRerun.currentImport || stageMentions(stageLower, "copy", "scratch", "stage copy", "staged")
               ? "active"
-              : hasRoute || encodeActive || hasPublishEvidence ? "complete" : "pending",
+              : "unknown",
             detail: csvRerun.currentImport
               ? `Copying staged CSV source ${csvRerun.currentImport} to scratch; source media remains unchanged.`
-              : hasRoute || encodeActive || hasPublishEvidence
-                ? "Scratch copy stage is past or backend has route/output evidence."
-                : "Waiting for backend scratch-copy evidence.",
+              : "Scratch-copy state is unknown until explicit backend copy evidence is available.",
           }),
           runTimelineItem({
             id: "route_selected",
@@ -125,25 +125,25 @@
           runTimelineItem({
             id: "audio_policy",
             label: "Audio policy",
-            status: audioBar ? runTimelineBarStatus(audioBar) : "pending",
-            detail: audioBar?.detail || "Waiting for backend audio-policy evidence.",
+            status: audioBar ? runTimelineBarStatus(audioBar) : "unknown",
+            detail: audioBar?.detail || "Audio evidence unknown; no pending state is inferred.",
             bar: audioBar,
           }),
           runTimelineItem({
             id: "subtitle_work",
             label: "Subtitle work",
-            status: subtitleBar ? runTimelineBarStatus(subtitleBar) : backendWorkLower.includes("subtitle") ? "active" : "pending",
-            detail: backendWorkLower.includes("subtitle") ? backendWorkSummary : subtitleBar?.detail || "Waiting for backend subtitle evidence.",
+            status: subtitleBar ? runTimelineBarStatus(subtitleBar) : backendWorkLower.includes("subtitle") ? "active" : "unknown",
+            detail: backendWorkLower.includes("subtitle") ? backendWorkSummary : subtitleBar?.detail || "Subtitle evidence unknown; no pending state is inferred.",
             bar: subtitleBar,
             evidence: backendWorkLower.includes("subtitle") ? backendWorkEvidence : "",
           }),
           runTimelineItem({
             id: "encode_remux",
             label: routeLabel,
-            status: encodeActive ? "active" : hasPublishEvidence ? "complete" : hasRoute ? "pending" : "pending",
+            status: encodeActive ? "active" : "unknown",
             detail: encodeActive
               ? [stage || routeLabel, progress.CurrentStagePercent !== undefined && progress.CurrentStagePercent !== null ? `${formatProgressValue(progress.CurrentStagePercent)}%` : ""].filter(Boolean).join(" | ")
-              : hasPublishEvidence ? "Output step is past; backend is publishing, parking, or writing sidecars." : "Waiting for encode/remux stage evidence.",
+              : "Encode/remux state is unknown until the backend explicitly reports that stage; route text is not stage authority.",
             bar: encodeActive ? currentStageBar : null,
           }),
           runTimelineItem({

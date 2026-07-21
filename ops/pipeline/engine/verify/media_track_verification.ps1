@@ -120,7 +120,11 @@ function New-MediaTrackOutputVerificationPlanFromFfmpegSubtitleArgs {
 }
 
 function Get-MediaTrackOutputInventory {
-    param([Parameter(Mandatory)] [string] $OutputPath)
+    param(
+        [Parameter(Mandatory)] [string] $OutputPath,
+        [scriptblock] $PollHandler = $null,
+        [int] $PollMilliseconds = 100
+    )
 
     $result = Invoke-FFprobeCommand -ArgumentList @(
         '-v', 'error',
@@ -130,7 +134,7 @@ function Get-MediaTrackOutputInventory {
         # valid output as an audio/subtitle policy mismatch.
         '-show_entries', 'stream=index,codec_type,codec_name,channels:stream_tags=language,title:stream_disposition=default,forced',
         '-of', 'json', '--', $OutputPath
-    ) -TimeoutSeconds 60 -Stage 'media-track-output-verify'
+    ) -TimeoutSeconds 60 -Stage 'media-track-output-verify' -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
     if ($result.ExitCode -ne 0 -or [bool]$result.TimedOut -or [bool]$result.Stopped) {
         return [pscustomobject]@{
             Ok = $false; ErrorCode = 'OUTPUT_MEDIA_TRACK_PROBE_FAILED'
@@ -183,10 +187,12 @@ function Get-MediaTrackVerificationFacet {
 function Test-MediaTrackOutputVerification {
     param(
         [Parameter(Mandatory)] [string] $OutputPath,
-        [Parameter(Mandatory)] $Plan
+        [Parameter(Mandatory)] $Plan,
+        [scriptblock] $PollHandler = $null,
+        [int] $PollMilliseconds = 100
     )
 
-    $inventory = Get-MediaTrackOutputInventory -OutputPath $OutputPath
+    $inventory = Get-MediaTrackOutputInventory -OutputPath $OutputPath -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
     if (-not [bool]$inventory.Ok) {
         return [pscustomobject][ordered]@{
             schema_version = 'media_track_verification_result.v1'; allowed = $false

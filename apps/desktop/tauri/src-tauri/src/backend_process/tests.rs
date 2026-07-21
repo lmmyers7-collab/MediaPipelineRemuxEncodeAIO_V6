@@ -1,9 +1,13 @@
 use super::{
-    backend_shutdown_request_body, parse_backend_shutdown_outcome, terminate_child, BackendProcess,
-    BackendProcessExit, BackendShutdownMode, BackendShutdownOutcome,
+    backend_shutdown_request_body, inspect_managed_child, parse_backend_shutdown_outcome,
+    resolve_shutdown_with_child, terminate_child, BackendProcess, BackendProcessExit,
+    BackendShutdownMode, BackendShutdownOutcome, ChildPoll, ManagedChildProcess,
+    ShutdownRequestState, WaitClock,
 };
 use std::{
+    collections::VecDeque,
     fs,
+    io,
     io::{Read, Write},
     net::TcpListener,
     process::{Child, Command, Stdio},
@@ -11,6 +15,52 @@ use std::{
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+
+#[derive(Default)]
+struct FakeWaitClock {
+    elapsed: Duration,
+    waits: usize,
+}
+
+impl WaitClock for FakeWaitClock {
+    fn elapsed(&self) -> Duration {
+        self.elapsed
+    }
+
+    fn wait(&mut self, duration: Duration) {
+        self.waits += 1;
+        self.elapsed += duration;
+    }
+}
+
+struct FakeManagedChild {
+    polls: VecDeque<io::Result<ChildPoll>>,
+    terminate_result: Result<(), String>,
+    terminate_calls: usize,
+}
+
+impl FakeManagedChild {
+    fn new(polls: impl IntoIterator<Item = io::Result<ChildPoll>>) -> Self {
+        Self {
+            polls: polls.into_iter().collect(),
+            terminate_result: Ok(()),
+            terminate_calls: 0,
+        }
+    }
+}
+
+impl ManagedChildProcess for FakeManagedChild {
+    fn poll(&mut self) -> io::Result<ChildPoll> {
+        self.polls
+            .pop_front()
+            .unwrap_or(Ok(ChildPoll::Running))
+    }
+
+    fn terminate_tree_and_verify(&mut self) -> Result<(), String> {
+        self.terminate_calls += 1;
+        self.terminate_result.clone()
+    }
+}
 
 fn backend_for_child(child: Option<Child>) -> BackendProcess {
     backend_for_child_and_url(child, "http://127.0.0.1:1")
@@ -73,6 +123,117 @@ fn backend_shutdown_response_parser_allows_ok_shutdown() {
         .expect("ok response should parse");
 
     assert_eq!(outcome, BackendShutdownOutcome::Requested);
+}
+
+#[test]
+fn normal_close_releases_child_only_after_verified_exit() {
+    let mut child = FakeManagedChild::new([Ok(ChildPoll::Exited(Some(0)))]);
+    let mut clock = FakeWaitClock::default();
+
+    let resolution = resolve_shutdown_with_child(
+        &mut child,
+        ShutdownRequestState::Acknowledged,
+        &mut clock,
+        Duration::from_secs(3),
+    );
+
+    assert_eq!(resolution.outcome, BackendShutdownOutcome::Requested);
+    assert!(resolution.release_ownership);
+    assert_eq!(child.terminate_calls, 0);
+    assert_eq!(clock.waits, 0);
+}
+
+#[test]
+fn child_wait_error_after_acknowledgement_is_failed_and_retains_ownership() {
+    let mut child = FakeManagedChild::new([Err(io::Error::new(
+        io::ErrorKind::PermissionDenied,
+        "injected wait handle failure",
+    ))]);
+    let mut clock = FakeWaitClock::default();
+
+    let resolution = resolve_shutdown_with_child(
+        &mut child,
+        ShutdownRequestState::Acknowledged,
+        &mut clock,
+        Duration::from_secs(3),
+    );
+
+    assert_eq!(resolution.outcome, BackendShutdownOutcome::Failed);
+    assert!(!resolution.release_ownership);
+    assert_eq!(child.terminate_calls, 0);
+    assert!(resolution.detail.contains("injected wait handle failure"));
+}
+
+#[test]
+fn child_wait_error_after_transport_failure_is_not_verified_exit() {
+    let mut child = FakeManagedChild::new([Err(io::Error::new(
+        io::ErrorKind::Other,
+        "injected try_wait error",
+    ))]);
+    let mut clock = FakeWaitClock::default();
+
+    let resolution = resolve_shutdown_with_child(
+        &mut child,
+        ShutdownRequestState::TransportFailed,
+        &mut clock,
+        Duration::from_secs(3),
+    );
+
+    assert_eq!(resolution.outcome, BackendShutdownOutcome::Failed);
+    assert!(!resolution.release_ownership);
+    assert_eq!(child.terminate_calls, 0);
+}
+
+#[test]
+fn descendants_refusing_termination_cannot_report_successful_shutdown() {
+    let mut child = FakeManagedChild::new([
+        Ok(ChildPoll::Running),
+        Ok(ChildPoll::Running),
+        Ok(ChildPoll::Running),
+    ]);
+    child.terminate_result = Err("descendant PID 77 remained alive".to_string());
+    let mut clock = FakeWaitClock::default();
+
+    let resolution = resolve_shutdown_with_child(
+        &mut child,
+        ShutdownRequestState::Acknowledged,
+        &mut clock,
+        Duration::from_millis(200),
+    );
+
+    assert_eq!(resolution.outcome, BackendShutdownOutcome::Failed);
+    assert!(!resolution.release_ownership);
+    assert_eq!(child.terminate_calls, 1);
+    assert!(resolution.detail.contains("descendant PID 77 remained alive"));
+}
+
+#[test]
+fn backend_exit_between_health_checks_is_observed_as_exit_not_health() {
+    let mut child = FakeManagedChild::new([
+        Ok(ChildPoll::Running),
+        Ok(ChildPoll::Exited(Some(91))),
+    ]);
+
+    assert_eq!(
+        inspect_managed_child(&mut child).expect("first lifecycle inspection"),
+        BackendProcessExit::Running
+    );
+    assert_eq!(
+        inspect_managed_child(&mut child).expect("second lifecycle inspection"),
+        BackendProcessExit::Exited(Some(91))
+    );
+}
+
+#[test]
+fn backend_crash_wait_error_remains_monitor_error_not_false_exit() {
+    let mut child = FakeManagedChild::new([Err(io::Error::new(
+        io::ErrorKind::BrokenPipe,
+        "injected monitor wait failure",
+    ))]);
+
+    let error = inspect_managed_child(&mut child).expect_err("wait failure must propagate");
+
+    assert!(error.to_string().contains("injected monitor wait failure"));
 }
 
 fn wait_for_non_running(process: &BackendProcess) -> BackendProcessExit {

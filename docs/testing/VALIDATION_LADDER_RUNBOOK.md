@@ -58,7 +58,7 @@ $py = "apps\desktop\runtime\Python\python.exe"
 
 `Test-WebViewSettingsLaunchLiveConfigSmoke.ps1` reads the selected saved config. Do not use it in a disposable-root-only task unless its config input is explicitly redirected to a generated temporary config.
 
-### Browser-backed smokes (24 wrappers / 26 Python modules; Chrome or Edge required)
+### Browser-backed smokes (25 canonical browser wrappers / 34 browser Python modules; Chrome or Edge required)
 
 Canonical wrappers fail prerequisite skips by default. A green wrapper therefore means browser assertions executed. Use `-AllowSkippedTests` only for an explicitly non-gating environmental result and record that it is not a pass.
 
@@ -89,7 +89,7 @@ Canonical wrappers fail prerequisite skips by default. A green wrapper therefore
 .\ops\scripts\smoke\Test-WebViewBrowserVisualClutterScreenshots.ps1
 ```
 
-The two additional direct modules are `test_webview_browser_metrics_degraded_state_smoke.py` and `test_webview_browser_settings_builder_flush_smoke.py`. Discover all 26 modules with:
+The 9 direct-only browser Python modules are enumerated in `docs/generated/SMOKE_WRAPPER_MAP.json`. Discover all 34 browser Python modules with:
 
 ```powershell
 $py = "apps\desktop\runtime\Python\python.exe"
@@ -419,8 +419,8 @@ Risk: Low — documentation only.
 
 | Check | Result |
 |---|---|
-| Browser wrapper inventory | 24 canonical wrappers listed in Rung 1 |
-| Browser Python inventory | 26 modules under `tests\webview`; discovery command uses the correct root |
+| Browser wrapper inventory | 25 canonical browser wrappers listed in Rung 1 |
+| Browser Python inventory | 34 browser Python modules under `tests\webview`; discovery command uses the correct root |
 | Skip semantics | Canonical wrappers fail prerequisite skips unless `-AllowSkippedTests` is explicit |
 | Mutation boundary | Browser scenarios use generated disposable roots; permitted temporary writes are scenario-specific, never blanket live/operator access |
 

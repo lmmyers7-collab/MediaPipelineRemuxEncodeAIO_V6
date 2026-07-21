@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/desktop/application/sample_validation/policy_alignment.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: sample_validation
@@ -9,7 +12,7 @@ sha256: 1c80a70704e3e54baa7ecd6381ebb1ceaffa6ffad7834b1ebbe5b789ac0bf003
 ---
 # `src/mediapipeline/desktop/application/sample_validation/policy_alignment.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for policy alignment.
 
 **In-repo imports:** `mediapipeline.core.sample_validation.policy_alignment`
 

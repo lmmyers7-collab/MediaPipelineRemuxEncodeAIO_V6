@@ -156,6 +156,125 @@ class ApplicationFacadeSnapshotTests(unittest.TestCase):
         self.assertEqual(snapshot.current_work["route_label"], "Remux route")
         self.assertEqual(snapshot.current_work["percent_label"], "94%")
 
+    def test_snapshot_labels_encode_and_remux_verification_as_verification(self) -> None:
+        for stage, route in (("encode_verify", "encode"), ("remux_verify", "remux")):
+            with self.subTest(stage=stage), tempfile.TemporaryDirectory() as raw_root:
+                root = Path(raw_root)
+                resolved = _resolved(root)
+                service = DummyFacadeService(root)
+                service.snapshot = Snapshot(
+                    resolved=resolved,
+                    current_activity="Verifying current output.",
+                    status_summary="Verification is active.",
+                    log_tail="",
+                    progress={
+                        "ProgressVersion": 2,
+                        "LastUpdate": datetime.now().isoformat(timespec="seconds"),
+                        "Status": "Processing",
+                        "CurrentStage": stage,
+                        "CurrentRoute": route,
+                        "CurrentFileDisplay": "Paprika.2006.1080p.BluRay.x264.mkv",
+                    },
+                    audit_progress=None,
+                    latest_failure_report=None,
+                    latest_failure_json=None,
+                    latest_audit_csv=None,
+                    latest_priority_csv=None,
+                )
+                facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+
+                snapshot = facade.get_snapshot(resolved)
+
+            self.assertEqual(snapshot.current_work["phase_label"], "Verification")
+            self.assertEqual(snapshot.current_work["current_stage_label"], "Verification")
+            self.assertEqual(snapshot.current_work["latest_evidence_label"], "Verification")
+            self.assertEqual(snapshot.current_work["summary_label"], "Verification")
+
+    def test_snapshot_does_not_infer_encode_or_remux_stage_from_route_text(self) -> None:
+        for stage in ("", "processing"):
+            for route, forbidden_stage in (("encode", "Encoding"), ("remux", "Remuxing")):
+                with self.subTest(stage=stage, route=route), tempfile.TemporaryDirectory() as raw_root:
+                    root = Path(raw_root)
+                    resolved = _resolved(root)
+                    service = DummyFacadeService(root)
+                    service.snapshot = Snapshot(
+                        resolved=resolved,
+                        current_activity="Backend work is active.",
+                        status_summary="Backend work is active.",
+                        log_tail="",
+                        progress={
+                            "ProgressVersion": 2,
+                            "LastUpdate": datetime.now().isoformat(timespec="seconds"),
+                            "Status": "Processing",
+                            "CurrentStage": stage,
+                            "CurrentRoute": route,
+                            "CurrentFileDisplay": "Paprika.2006.1080p.BluRay.x264.mkv",
+                        },
+                        audit_progress=None,
+                        latest_failure_report=None,
+                        latest_failure_json=None,
+                        latest_audit_csv=None,
+                        latest_priority_csv=None,
+                    )
+                    facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+
+                    snapshot = facade.get_snapshot(resolved)
+
+                self.assertEqual(snapshot.current_work["phase_label"], "Processing")
+                self.assertEqual(snapshot.current_work["current_stage_label"], "Processing")
+                self.assertNotIn(forbidden_stage, snapshot.current_work["latest_evidence_label"])
+                self.assertNotIn(forbidden_stage, snapshot.current_work["summary_label"])
+
+    def test_snapshot_completed_track_evidence_does_not_override_later_stage(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            service = DummyFacadeService(root)
+            service.snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="Publishing current output.",
+                status_summary="Publishing is active.",
+                log_tail="",
+                progress={
+                    "ProgressVersion": 2,
+                    "LastUpdate": datetime.now().isoformat(timespec="seconds"),
+                    "Status": "Processing",
+                    "CurrentStage": "push",
+                    "CurrentRoute": "encode",
+                    "CurrentFileDisplay": "Paprika.2006.1080p.BluRay.x264.mkv",
+                    "SubtitleProgress": {
+                        "kind": "vobsub",
+                        "stream_index": 3,
+                        "stage": "ocr",
+                        "status": "OCR completed",
+                        "completed": True,
+                    },
+                    "AudioProgress": {
+                        "stream_index": 1,
+                        "action": "transcode",
+                        "status": "Audio completed",
+                        "completed": True,
+                    },
+                },
+                audit_progress=None,
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+
+            snapshot = facade.get_snapshot(resolved)
+
+        self.assertEqual(snapshot.current_work["current_stage_label"], "Publishing output")
+        self.assertEqual(
+            snapshot.current_work["latest_evidence_label"],
+            "Current backend stage | push | encode | Paprika.2006.1080p.BluRay.x264.mkv",
+        )
+        self.assertEqual(snapshot.current_work["summary_label"], snapshot.current_work["latest_evidence_label"])
+        self.assertNotIn("Subtitle", snapshot.current_work["latest_evidence_label"])
+        self.assertNotIn("Audio", snapshot.current_work["latest_evidence_label"])
+
     def test_current_work_route_pending_fallback_does_not_claim_selection(self) -> None:
         current_work = build_current_work(
             {

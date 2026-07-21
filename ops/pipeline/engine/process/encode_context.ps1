@@ -94,7 +94,8 @@ function New-MediaPipelineEncodeContext {
     param(
         [Parameter(Mandatory)] $File,
         [bool] $IsTV,
-        $TvInfo
+        $TvInfo,
+        $OutputPaths = $null
     )
 
     $safeName = Get-SafeLocalName $File.Name
@@ -116,7 +117,7 @@ function New-MediaPipelineEncodeContext {
         TvInfo            = $TvInfo
         SafeName          = $safeName
         LocalIn           = $null
-        Paths             = $null
+        Paths             = $OutputPaths
         VideoStreamPolicy = $null
         IsHDR             = $false
         TempOut           = $null

@@ -46,6 +46,9 @@ def _summary_text(file_path: str, sha256: str = "0" * 64) -> str:
         [
             "---",
             f"file: {file_path}",
+            f"summary_schema: {refresh_summaries.SUMMARY_SCHEMA_VERSION}",
+            f"generator_fingerprint: {refresh_summaries.SUMMARY_GENERATOR_FINGERPRINT}",
+            "file_type: Python",
             "pipeline_stage: scripts",
             "token_priority: medium",
             "owner_domain: scripts",
@@ -205,6 +208,21 @@ class SummaryIntegrityTests(unittest.TestCase):
                 refresh_summaries.sha256_of(lf_source),
                 refresh_summaries.sha256_of(crlf_source),
             )
+
+    def test_refresh_check_invalidates_unchanged_source_when_parser_fingerprint_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "source.py"
+            summary = root / "source.py.md"
+            source.write_text("def current():\n    return True\n", encoding="utf-8")
+            summary.write_text(_summary_text("source.py", _sha(source)), encoding="utf-8")
+            text = summary.read_text(encoding="utf-8").replace(
+                refresh_summaries.SUMMARY_GENERATOR_FINGERPRINT,
+                "f" * 64,
+            )
+            summary.write_text(text, encoding="utf-8")
+
+            self.assertFalse(refresh_summaries.summary_metadata_is_current(summary, source))
 
     def test_generated_context_writers_force_lf_output(self) -> None:
         repo_root = Path(__file__).resolve().parents[3]

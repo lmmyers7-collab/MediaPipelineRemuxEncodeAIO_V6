@@ -85,6 +85,29 @@ function Get-FFmpegWasteGuardContextValue {
     return $DefaultValue
 }
 
+function Set-MediaPipelineToolRunMonitorTerminalStage {
+    param(
+        [string] $PipelineStage,
+        [Parameter(Mandatory)] [string] $ToolName,
+        [Parameter(Mandatory)] [bool] $Succeeded,
+        [string] $ReasonCode = '',
+        [string] $Detail = ''
+    )
+    if ([string]::IsNullOrWhiteSpace($PipelineStage) -or
+        -not (Get-Command -Name ConvertTo-MediaPipelineRunMonitorStageId -ErrorAction SilentlyContinue) -or
+        -not (Get-Command -Name Set-MediaPipelineCurrentRunMonitorStage -ErrorAction SilentlyContinue)) {
+        return
+    }
+    $canonicalStage = ConvertTo-MediaPipelineRunMonitorStageId -PipelineStage $PipelineStage
+    if ($canonicalStage -notin @('transcode','mux')) { return }
+    Set-MediaPipelineCurrentRunMonitorStage `
+        -StageId $canonicalStage `
+        -State $(if ($Succeeded) { 'completed' } else { 'failed' }) `
+        -Detail $Detail `
+        -ReasonCode $(if ($Succeeded) { '' } else { $ReasonCode }) `
+        -EvidenceSource "${ToolName}_process_exit" | Out-Null
+}
+
 function Invoke-FFmpegWithProgress {
     param(
         [array]$FFArgs,
@@ -103,7 +126,8 @@ function Invoke-FFmpegWithProgress {
         [string]$OutputPath = '',
         [AllowNull()] $WasteGuardContext = $null,
         [int]$IdleTimeoutSeconds = 1800,
-        [string]$WorkingDirectory = ''
+        [string]$WorkingDirectory = '',
+        [switch]$TrackAudioWork
     )
 
     $duration = 0
@@ -160,6 +184,13 @@ function Invoke-FFmpegWithProgress {
     $script:LastFFmpegAbortReason = ''
     $script:LastFFmpegErrorLog = ''
     $script:LastEncodeWasteGuardProjection = $null
+    $audioWorkRunId = [string]$script:PipelineRunId
+    $audioWorkJobId = [string]$script:CurrentRunMonitorJobId
+    $audioProcessStarted = $false
+    $startAudioWorkCommand = if ($TrackAudioWork) { Get-Command -Name Start-MediaPipelineRunMonitorAudioWork -ErrorAction SilentlyContinue } else { $null }
+    $updateAudioWorkCommand = if ($TrackAudioWork) { Get-Command -Name Update-MediaPipelineRunMonitorActiveTrackHeartbeat -ErrorAction SilentlyContinue } else { $null }
+    $endAudioWorkCommand = if ($TrackAudioWork) { Get-Command -Name End-MediaPipelineRunMonitorAudioWorkAttempt -ErrorAction SilentlyContinue } else { $null }
+    $completeAudioWorkCommand = if ($TrackAudioWork) { Get-Command -Name Complete-MediaPipelineRunMonitorAudioWork -ErrorAction SilentlyContinue } else { $null }
     try {
     $lastPct     = -1
     $lastObservedProgressPercent = 0.0
@@ -168,6 +199,16 @@ function Invoke-FFmpegWithProgress {
     $lastFlagChk = Get-Date
     $lastWasteGuardPollElapsed = -999999.0
     $wasteGuardConsecutiveHits = 0
+    $stageHeartbeatHandler = if ($ProgressStage -and (Get-Command -Name New-MediaPipelineCurrentStageNativePollHandler -ErrorAction SilentlyContinue)) {
+        New-MediaPipelineCurrentStageNativePollHandler `
+            -Stage $ProgressStage `
+            -Status $script:pipelineStatus `
+            -Route $ProgressRoute `
+            -MinimumIntervalSeconds 15 `
+            -RefreshActiveAudioTracks:$TrackAudioWork `
+            -EvidenceSource 'ffmpeg_process_heartbeat'
+    } else { $null }
+    $audioProcessStartedVariable = Get-Variable -Name audioProcessStarted
     $processStartedHandler = {
         param([System.Diagnostics.Process]$StartedProcess)
         # E6 fix — assigning `$proc = $StartedProcess` inside this
@@ -177,7 +218,22 @@ function Invoke-FFmpegWithProgress {
         # -Scope 1 to write into the calling Invoke-FFmpegWithProgress
         # frame so the catch can see the live process handle.
         Set-Variable -Name proc -Value $StartedProcess -Scope 1
+        $audioProcessStartedVariable.Value = $true
         $Global:ffmpegProcess = $StartedProcess
+        if ($TrackAudioWork -and $startAudioWorkCommand -and
+            -not [string]::IsNullOrWhiteSpace($audioWorkRunId) -and
+            -not [string]::IsNullOrWhiteSpace($audioWorkJobId)) {
+            try {
+                & $startAudioWorkCommand `
+                    -RunId $audioWorkRunId `
+                    -JobId $audioWorkJobId `
+                    -EvidenceSource 'ffmpeg_process_start' `
+                    -Detail "$Label audio work started." | Out-Null
+            } catch {
+                $script:RunMonitorPersistenceHealthy = $false
+                Write-Log "$Label : Run Monitor audio start write failed: $($_.Exception.Message)" 'WARN'
+            }
+        }
         if ($priorityClassEnum) {
             try {
                 $StartedProcess.PriorityClass = $priorityClassEnum
@@ -213,12 +269,33 @@ function Invoke-FFmpegWithProgress {
                 } else {
                     Save-Progress $script:pipelineStatus | Out-Null
                 }
+                if ($TrackAudioWork -and $updateAudioWorkCommand -and
+                    -not [string]::IsNullOrWhiteSpace($audioWorkRunId) -and
+                    -not [string]::IsNullOrWhiteSpace($audioWorkJobId)) {
+                    try {
+                        & $updateAudioWorkCommand `
+                            -Kind audio `
+                            -RunId $audioWorkRunId `
+                            -JobId $audioWorkJobId `
+                            -EvidenceSource 'ffmpeg_progress' `
+                            -EvidenceProvenance backend_confirmed `
+                            -Numerator ([double]$step) `
+                            -Denominator 100.0 | Out-Null
+                    } catch {
+                        $script:RunMonitorPersistenceHealthy = $false
+                        Write-Log "$Label : Run Monitor audio progress write failed: $($_.Exception.Message)" 'WARN'
+                    }
+                }
             }
         }
     }
 
     $pollHandler = {
         param($ElapsedSeconds, $RunningProcess)
+
+        if ($stageHeartbeatHandler) {
+            & $stageHeartbeatHandler $ElapsedSeconds $RunningProcess | Out-Null
+        }
 
         if (((Get-Date) - $lastFlagChk).TotalSeconds -ge 5) {
             if (Test-Path -LiteralPath $PauseFlag -ErrorAction SilentlyContinue) {
@@ -333,6 +410,40 @@ function Invoke-FFmpegWithProgress {
     }
 
     $effectiveStopped = [bool]($stopped -or $script:StopRequested)
+    if ($TrackAudioWork -and $audioProcessStarted -and $endAudioWorkCommand -and
+        ($effectiveStopped -or $exitCode -ne 0) -and
+        -not [string]::IsNullOrWhiteSpace($audioWorkRunId) -and
+        -not [string]::IsNullOrWhiteSpace($audioWorkJobId)) {
+        $audioAttemptReasonCode = if ($effectiveStopped) {
+            'NATIVE_STOPPED'
+        } elseif ($timedOut) {
+            [string](Get-FFmpegWasteGuardContextValue -Context $result -Name 'ErrorCode' -DefaultValue 'NATIVE_TIMEOUT')
+        } elseif ($aborted -and -not [string]::IsNullOrWhiteSpace($script:LastFFmpegAbortCode)) {
+            [string]$script:LastFFmpegAbortCode
+        } else {
+            [string](Get-FFmpegWasteGuardContextValue -Context $result -Name 'ErrorCode' -DefaultValue "FFMPEG_EXIT_$exitCode")
+        }
+        $audioAttemptDetail = if ($effectiveStopped) {
+            "$Label audio work stopped with the native process."
+        } elseif ($timedOut) {
+            "$Label audio work ended when the native process timed out."
+        } elseif ($aborted) {
+            "$Label audio work ended when the native process was aborted by backend policy."
+        } else {
+            "$Label audio work ended with native exit code $exitCode."
+        }
+        try {
+            & $endAudioWorkCommand `
+                -RunId $audioWorkRunId `
+                -JobId $audioWorkJobId `
+                -EvidenceSource 'ffmpeg_process_exit' `
+                -ReasonCode $audioAttemptReasonCode `
+                -Detail $audioAttemptDetail | Out-Null
+        } catch {
+            $script:RunMonitorPersistenceHealthy = $false
+            Write-Log "$Label : Run Monitor audio attempt-end write failed: $($_.Exception.Message)" 'WARN'
+        }
+    }
     $terminalLogDisposition = if ($effectiveStopped) { 'interrupted' } elseif ($exitCode -ne 0) { 'failure' } else { 'success' }
     $diagnosticLog = [pscustomobject][ordered]@{
         Disposition = if ($terminalLogDisposition -eq 'success') { 'deleted' } else { $terminalLogDisposition }
@@ -380,7 +491,11 @@ function Invoke-FFmpegWithProgress {
         -DiagnosticLogPath ([string]$diagnosticLog.Path) `
         -DiagnosticLogDisposition ([string]$diagnosticLog.Disposition) | Out-Null
 
-    if ($effectiveStopped) { Write-Log "$Label : stopped by user request"; return $false }
+    if ($effectiveStopped) {
+        Set-MediaPipelineToolRunMonitorTerminalStage -PipelineStage $ProgressStage -ToolName 'ffmpeg' -Succeeded:$false -ReasonCode 'NATIVE_STOPPED' -Detail "$Label stopped by operator request."
+        Write-Log "$Label : stopped by user request"
+        return $false
+    }
 
     if ($exitCode -ne 0) {
         if (-not [string]::IsNullOrWhiteSpace($ReproStage)) {
@@ -389,6 +504,8 @@ function Invoke-FFmpegWithProgress {
         if ($ProgressStage) {
             Set-ProgressStage -Stage $ProgressStage -Percent $null -Route $ProgressRoute -SaveNow
         }
+        $ffmpegFailureCode = [string](Get-FFmpegWasteGuardContextValue -Context $result -Name 'ErrorCode' -DefaultValue "FFMPEG_EXIT_$exitCode")
+        Set-MediaPipelineToolRunMonitorTerminalStage -PipelineStage $ProgressStage -ToolName 'ffmpeg' -Succeeded:$false -ReasonCode $ffmpegFailureCode -Detail "$Label failed with exit code $exitCode."
         Write-Log "$Label : FAILED (exit $exitCode)" "ERROR"
         $errText = $script:LastFFmpegStderr
         $errLog = [string]$diagnosticLog.Path
@@ -401,11 +518,43 @@ function Invoke-FFmpegWithProgress {
     if ($ProgressStage) {
         Set-ProgressStage -Stage $ProgressStage -Percent 100 -Route $ProgressRoute -SaveNow
     }
+    if ($TrackAudioWork -and $completeAudioWorkCommand -and
+        -not [string]::IsNullOrWhiteSpace($audioWorkRunId) -and
+        -not [string]::IsNullOrWhiteSpace($audioWorkJobId)) {
+        try {
+            & $completeAudioWorkCommand `
+                -RunId $audioWorkRunId `
+                -JobId $audioWorkJobId `
+                -EvidenceSource 'ffmpeg_process_exit' `
+                -Detail "$Label audio work completed successfully." | Out-Null
+        } catch {
+            $script:RunMonitorPersistenceHealthy = $false
+            Write-Log "$Label : Run Monitor audio completion write failed: $($_.Exception.Message)" 'WARN'
+        }
+    }
+    Set-MediaPipelineToolRunMonitorTerminalStage -PipelineStage $ProgressStage -ToolName 'ffmpeg' -Succeeded:$true -Detail "$Label completed successfully."
     Write-Log "$Label : 100% complete"
     return $true
     } catch {
         $message = [string]$_.Exception.Message
+        $runnerStopped = [bool]($stopped -or $script:StopRequested)
+        if ($TrackAudioWork -and $audioProcessStarted -and $endAudioWorkCommand -and
+            -not [string]::IsNullOrWhiteSpace($audioWorkRunId) -and
+            -not [string]::IsNullOrWhiteSpace($audioWorkJobId)) {
+            try {
+                & $endAudioWorkCommand `
+                    -RunId $audioWorkRunId `
+                    -JobId $audioWorkJobId `
+                    -EvidenceSource 'ffmpeg_runner_exception' `
+                    -ReasonCode $(if ($runnerStopped) { 'NATIVE_STOPPED' } else { 'FFMPEG_RUNNER_EXCEPTION' }) `
+                    -Detail "$Label audio work ended with a runner exception: $message" | Out-Null
+            } catch {
+                $script:RunMonitorPersistenceHealthy = $false
+                Write-Log "$Label : Run Monitor audio exception cleanup failed: $($_.Exception.Message)" 'WARN'
+            }
+        }
         Write-Log "$Label : ffmpeg runner exception: $message" "ERROR"
+        Set-MediaPipelineToolRunMonitorTerminalStage -PipelineStage $ProgressStage -ToolName 'ffmpeg' -Succeeded:$false -ReasonCode 'FFMPEG_RUNNER_EXCEPTION' -Detail $message
         try {
             if ($proc -and -not $proc.HasExited) {
                 Stop-NativeProcessTree -Process $proc -Label $Label
@@ -413,7 +562,6 @@ function Invoke-FFmpegWithProgress {
         } catch {}
         Add-FFmpegErrorTail -Builder $errorLines -Text "[RUNNER EXCEPTION: $message]"
         if ($stderrLogPath) { try { [System.IO.File]::AppendAllText($stderrLogPath, "[RUNNER EXCEPTION: $message]" + [Environment]::NewLine) } catch {} }
-        $runnerStopped = [bool]($stopped -or $script:StopRequested)
         $runnerDisposition = if ($runnerStopped) { 'interrupted' } else { 'failure' }
         $runnerDiagnostic = [pscustomobject][ordered]@{
             Disposition = $runnerDisposition
@@ -541,6 +689,14 @@ function Invoke-MkvmergeWithProgress {
 
     $lastPct = -1
     $progressStep = [math]::Max(1, [int]$script:FFmpegProgressWriteStepPercent)
+    $stageHeartbeatHandler = if ($ProgressStage -and (Get-Command -Name New-MediaPipelineCurrentStageNativePollHandler -ErrorAction SilentlyContinue)) {
+        New-MediaPipelineCurrentStageNativePollHandler `
+            -Stage $ProgressStage `
+            -Status $script:pipelineStatus `
+            -Route $ProgressRoute `
+            -MinimumIntervalSeconds 15 `
+            -EvidenceSource 'mkvmerge_process_heartbeat'
+    } else { $null }
 
     $stdoutLineHandler = {
         param([string]$ln)
@@ -564,7 +720,9 @@ function Invoke-MkvmergeWithProgress {
         -MaxStdoutChars 65536 `
         -MaxStderrChars 65536 `
         -IdleTimeoutSeconds $IdleTimeoutSeconds `
-        -StdoutLineHandler $stdoutLineHandler
+        -StdoutLineHandler $stdoutLineHandler `
+        -PollHandler $stageHeartbeatHandler `
+        -PollMilliseconds 1000
 
     $completedAt = Get-Date
     $durationSeconds = [math]::Round(($completedAt - $startedAt).TotalSeconds, 3)
@@ -645,6 +803,12 @@ function Invoke-MkvmergeWithProgress {
     } elseif ($ProgressStage) {
         Set-ProgressStage -Stage $ProgressStage -Percent $null -Route $ProgressRoute -SaveNow
     }
+    Set-MediaPipelineToolRunMonitorTerminalStage `
+        -PipelineStage $ProgressStage `
+        -ToolName 'mkvmerge' `
+        -Succeeded:(-not $mkvmergeFailed) `
+        -ReasonCode $(if ($mkvmergeFailed) { $toolErrorCode } else { '' }) `
+        -Detail $(if ($mkvmergeFailed) { "$Label failed: $toolErrorCode" } else { "$Label completed successfully." })
 
     if (-not $mkvmergeFailed) { Write-Log "$Label : 100% complete" }
 

@@ -1,5 +1,8 @@
 ---
 file: ops/pipeline/entrypoints/Setup-MediaPipeline.ps1
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: PowerShell
 pipeline_stage: setup
 token_priority: medium
 owner_domain: unknown
@@ -11,6 +14,7 @@ sha256: fd6e00066419b633eccb9b5fb76f3186ed8eb149a20120e424889592692502d6
 
 **Purpose:** Rapid-deployment setup and validation wizard for the patched MediaPipeline bundle.
 
-**Functions:** `Get-SetupConfigCandidatePaths`, `Invoke-Main`, `Normalize-UserPath`, `Resolve-SetupDefaultConfigPath`
+**Public symbols:** `Get-SetupConfigCandidatePaths`, `Invoke-Main`, `Normalize-UserPath`, `Resolve-SetupDefaultConfigPath`
+**State/config identifiers:** `MediaPipeline_config.psd1`, `MediaPipeline_config_chatgpt.psd1`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/entrypoints/Setup-MediaPipeline.ps1`._

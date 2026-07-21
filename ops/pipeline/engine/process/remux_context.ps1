@@ -23,7 +23,8 @@ function New-MediaPipelineRemuxContext {
         [bool] $IsTV,
         $TvInfo,
         [switch] $FallbackFromOversizedEncode,
-        [switch] $FallbackFromDynamicHdrEncode
+        [switch] $FallbackFromDynamicHdrEncode,
+        $OutputPaths = $null
     )
 
     $safeName = Get-SafeLocalName $File.Name
@@ -58,7 +59,7 @@ function New-MediaPipelineRemuxContext {
         FallbackFromDynamicHdrEncode      = [bool]$FallbackFromDynamicHdrEncode
         SafeName                          = $safeName
         LocalIn                           = $null
-        Paths                             = $null
+        Paths                             = $OutputPaths
         TempAvFile                        = $null
         SubFilter                         = $null
         SubTracks                         = $null

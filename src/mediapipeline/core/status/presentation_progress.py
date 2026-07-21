@@ -199,6 +199,8 @@ def _stage_evidence_label(progress: Mapping[str, Any], *, phase_label: str, rout
     item = current_work_item_label(dict(progress))
     if stage in {"copy", "copy_to_scratch"}:
         return _copy_evidence_label(progress)
+    if stage in {"encode_verify", "remux_verify"}:
+        return phase_label
     if item and not route_label and stage not in {"idle", "sleeping", "completed", "stopped"}:
         return "Route decision pending: encode/remux decision not reported"
     structured = structured_status_from_progress(dict(progress))
@@ -251,12 +253,14 @@ def _latest_progress_evidence_label(
         return _subtitle_evidence_label(progress)
     if _nested_progress_active(progress.get("AudioProgress")):
         return _audio_evidence_label(progress)
-    subtitle = _subtitle_evidence_label(progress)
-    if subtitle:
-        return subtitle
-    audio = _audio_evidence_label(progress)
-    if audio:
-        return audio
+    stage = _text_from_mapping(progress, "CurrentStage", "Status").casefold()
+    if stage in {"encode_verify", "remux_verify"}:
+        return _stage_evidence_label(
+            progress,
+            phase_label=phase_label,
+            route_label=route_label,
+            percent_label=percent_label,
+        )
     for bar in _mapping_list(bars):
         status = _progress_bar_status(bar)
         if status in {"active", "running", "processing", "warning", "review"}:

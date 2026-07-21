@@ -304,6 +304,7 @@ function New-VobSubFailureRecord {
     $category = if ($ErrorCode -match 'TOOL_MISSING|TESSERACT_MISSING|TESSDATA_MISSING|TOOL_UNSUPPORTED') { 'tool_missing' } else { 'subtitle_conversion' }
     $operation = if ($ErrorCode -match 'EXTRACT') { 'subtitle-vobsub-extract' } else { 'subtitle-vobsub-ocr' }
     return New-StandardFailureRecord -Stage $operation -Operation $operation -Category $category -Reason $Reason -ErrorCode $ErrorCode -Tool 'vobsub-ocr' -ReproPath $ReproPath -Retryable $true -AdditionalProperties @{
+        track_id        = if ($Entry -and $Entry.ContainsKey('TrackId')) { [string]$Entry.TrackId } else { '' }
         StreamIndex     = $streamIndex
         stream_index    = $streamIndex
         SubtitleOrdinal = if ($Entry -and $Entry.ContainsKey('SubtitleOrdinal')) { $Entry.SubtitleOrdinal } else { $null }
@@ -421,6 +422,9 @@ function ConvertTo-VobSubEmbeddedSrtTrackRecords {
         if (-not $entry) { continue }
 
         $records.Add([pscustomobject]@{
+            track_id                 = if ($track.ContainsKey('TrackId')) { [string]$track.TrackId } else { '' }
+            output_codec             = 'subrip'
+            output_location          = 'embedded'
             source_kind              = if ($entry.ContainsKey('SourceKind')) { [string]$entry.SourceKind } else { 'embedded' }
             source_stream_index      = if ($entry.Stream) { [int]$entry.Stream.index } else { -1 }
             subtitle_ordinal         = if ($entry.ContainsKey('SubtitleOrdinal')) { $entry.SubtitleOrdinal } else { $null }
@@ -746,12 +750,15 @@ function Convert-VobSubToSrt {
         [int]$StreamIndex = -1,
         [hashtable]$StreamInfo = @{},
         [Parameter(Mandatory)] [string]$DestinationPath,
-        [string]$Context = ""
+        [string]$Context = "",
+        [string]$TrackId = ''
     )
 
     if ($StreamIndex -lt 0 -and $StreamInfo -and $StreamInfo.Stream) { $StreamIndex = [int]$StreamInfo.Stream.index }
     $ocrTempSrt = $null
     $extract = $null
+    $previousSubtitleEvidenceTrackId = if (Get-Variable -Name CurrentSubtitleEvidenceTrackId -Scope Script -ErrorAction SilentlyContinue) { [string]$script:CurrentSubtitleEvidenceTrackId } else { '' }
+    $script:CurrentSubtitleEvidenceTrackId = $TrackId
     try {
         $extract = Extract-VobSubToIdxSub -SourceFile $SourceFile -StreamInfo $StreamInfo -Context $Context
         if (-not $extract.Ok) { return $extract }
@@ -830,7 +837,17 @@ function Convert-VobSubToSrt {
                 $ocrCpuLock = Acquire-CpuEncodeMutex -TimeoutSeconds 0
                 if (-not $ocrCpuLock.Acquired) {
                     Write-Log "${Context}VobSub OCR: another CPU-bound job is running; waiting for slot ($($ocrCpuLock.Reason))" "WARN"
-                    $ocrCpuLock = Acquire-CpuEncodeMutex -TimeoutSeconds $timeoutSeconds
+                    $waitDetail = [System.IO.Path]::GetFileName($ocrDetailPath)
+                    Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'Waiting for CPU slot for VobSub OCR' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $waitDetail
+                    $waitHeartbeat = if (Get-Command -Name New-SubtitleTrackHeartbeatHandler -ErrorAction SilentlyContinue) {
+                        New-SubtitleTrackHeartbeatHandler -Kind 'vobsub' -TrackId $TrackId -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'Waiting for CPU slot for VobSub OCR' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $waitDetail
+                    } else { $null }
+                    $mutexWaitArgs = @{ TimeoutSeconds = $timeoutSeconds }
+                    if ($waitHeartbeat) {
+                        $mutexWaitArgs['PollHandler'] = $waitHeartbeat
+                        $mutexWaitArgs['PollMilliseconds'] = 1000
+                    }
+                    $ocrCpuLock = Acquire-CpuEncodeMutex @mutexWaitArgs
                 }
             }
             $oldPath = $env:PATH
@@ -850,8 +867,24 @@ function Convert-VobSubToSrt {
                         }
                     }
                 }
-                Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'Running VobSub OCR' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail ([System.IO.Path]::GetFileName($ocrDetailPath))
-                $result = Invoke-VobSubOcrCommand -FilePath $tool.FilePath -ArgumentList @($ocrArgs.ToArray()) -TimeoutSeconds $timeoutSeconds -Stage 'subtitle-vobsub-ocr' -SaveReproOnFailure -ProcessPriority $ocrPriority
+                $ocrDetail = [System.IO.Path]::GetFileName($ocrDetailPath)
+                Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'Running VobSub OCR' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $ocrDetail
+                $ocrHeartbeat = if (Get-Command -Name New-SubtitleTrackHeartbeatHandler -ErrorAction SilentlyContinue) {
+                    New-SubtitleTrackHeartbeatHandler -Kind 'vobsub' -TrackId $TrackId -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'Running VobSub OCR' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $ocrDetail
+                } else { $null }
+                $ocrCommandArgs = @{
+                    FilePath = $tool.FilePath
+                    ArgumentList = @($ocrArgs.ToArray())
+                    TimeoutSeconds = $timeoutSeconds
+                    Stage = 'subtitle-vobsub-ocr'
+                    SaveReproOnFailure = $true
+                    ProcessPriority = $ocrPriority
+                }
+                if ($ocrHeartbeat) {
+                    $ocrCommandArgs['PollHandler'] = $ocrHeartbeat
+                    $ocrCommandArgs['PollMilliseconds'] = 250
+                }
+                $result = Invoke-VobSubOcrCommand @ocrCommandArgs
             } finally {
                 $env:PATH = $oldPath
                 if ($null -eq $oldTessdataPrefix) {
@@ -957,6 +990,7 @@ function Convert-VobSubToSrt {
         Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'VobSub conversion failed' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $reason -Failed
         return [pscustomobject]@{ Ok = $false; Path = $null; CueCount = 0; Reason = $reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_VOBSUB_OCR_FAILED') }
     } finally {
+        $script:CurrentSubtitleEvidenceTrackId = $previousSubtitleEvidenceTrackId
         if ($extract -and $extract.TempFiles) {
             foreach ($path in @($extract.TempFiles)) {
                 if (-not [string]::IsNullOrWhiteSpace([string]$path) -and (Test-Path -LiteralPath $path -ErrorAction SilentlyContinue)) {

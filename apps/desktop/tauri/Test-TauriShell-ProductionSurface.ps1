@@ -34,8 +34,15 @@ foreach ($requiredRemoteUrl in @('http://127.0.0.1:*', 'http://localhost:*')) {
         Add-Failure $failures "default Tauri capability must allow the local API loopback origin for the read-only event bridge: $requiredRemoteUrl"
     }
 }
-if (@($capability.permissions) -ne 'core:default') {
-    Add-Failure $failures 'default Tauri capability must stay scoped to core:default.'
+$expectedPermissions = @('core:default', 'allow-open-pipeline-log-window')
+$permissionDrift = @(
+    Compare-Object -ReferenceObject $expectedPermissions -DifferenceObject @($capability.permissions)
+)
+if ($permissionDrift.Count -gt 0) {
+    Add-Failure $failures (
+        'default Tauri capability must stay scoped to core:default plus the separately allowlisted, ' +
+        'no-argument open_pipeline_log_window command.'
+    )
 }
 $csp = [string]$config.app.security.csp
 if ([string]::IsNullOrWhiteSpace($csp)) {

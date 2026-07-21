@@ -8,15 +8,15 @@
     const pushState = String(progress?.PushState || "").trim().toLowerCase();
     const sidecarState = String(progress?.SidecarState || "").trim().toLowerCase();
     if (!Number.isFinite(percent) || percent < 95 || percent >= 100) return false;
-    if (["encode", "encode_cpu", "encode_verify", "remux_av", "remux_verify"].includes(stage)) return true;
+    if (["encode", "encode_cpu", "remux_av"].includes(stage)) return true;
     return Boolean(pushState || sidecarState);
   }
 
   function activeWorkFinalizingLine(progress) {
     if (!progressLooksFinalizing(progress)) return "";
     const stage = String(progress?.CurrentStage || "").trim().toLowerCase();
-    if (stage.includes("encode")) return "Stage note: encoding is near completion; backend may still be verifying output, writing sidecars, publishing, or parking.";
-    if (stage.includes("remux")) return "Stage note: remux is near completion; backend may still be verifying output, writing sidecars, publishing, or parking.";
+    if (["encode", "encode_cpu"].includes(stage)) return "Stage note: encoding is near completion; backend may still be verifying output, writing sidecars, publishing, or parking.";
+    if (stage === "remux_av") return "Stage note: remux is near completion; backend may still be verifying output, writing sidecars, publishing, or parking.";
     return "Stage note: progress is near completion; wait for backend completion, parked-publish, or close-readiness evidence.";
   }
 
@@ -124,7 +124,9 @@
     const ffmpegPayload = progressFfmpegPayload(snapshot, diagnostics);
     const csvRerun = csvRerunActivityEvidence({ snapshot, diagnostics, stdoutTail });
     const state = snapshot?.pipeline_state || closeReadiness?.state || progress.Status || "unknown";
-    const stage = currentWork.current_stage_label || currentWork.phase_label || progress.CurrentStage || progress.Status || "No active work";
+    const rawStage = currentWork.current_stage_label || currentWork.phase_label || progress.CurrentStage || progress.Status || "No active work";
+    const normalizedStage = String(rawStage || "").trim().toLowerCase();
+    const stage = ["encode_verify", "remux_verify"].includes(normalizedStage) ? "Verification" : rawStage;
     const percent = currentWork.percent_label || (progress.CurrentStagePercent !== undefined && progress.CurrentStagePercent !== null && progress.CurrentStagePercent !== "" ? `${formatProgressValue(progress.CurrentStagePercent)}%` : "");
     const file = currentWork.item_label || progress.CurrentFileDisplay || progress.CurrentFile || progress.InputFile || "";
     const route = currentWork.route_label || progress.CurrentRoute || progress.Route || "";
@@ -183,15 +185,15 @@
   ];
 
   const liveRunQuickLinks = {
-    stage: { page: "live", label: "Open Telemetry for live run stage" },
-    file: { page: "live", label: "Open Telemetry for live run file" },
-    eta: { page: "live", label: "Open Telemetry for live run ETA" },
-    "last update": { page: "live", label: "Open Telemetry for last update" },
-    state: { page: "live", label: "Open Telemetry for live state" },
-    route: { page: "queue", label: "Open Queue route evidence" },
+    stage: { page: "home", focus: "#run-monitor-detail", label: "Open Current Work stage evidence" },
+    file: { page: "home", focus: "#run-monitor-detail", label: "Open Current Work file evidence" },
+    eta: { page: "home", focus: "#run-monitor-detail", label: "Open Current Work progress evidence" },
+    "last update": { page: "home", focus: "#current-work-heading", label: "Open Current Work freshness evidence" },
+    state: { page: "home", focus: "#current-work-heading", label: "Open Current Work run state" },
+    route: { page: "home", focus: "#run-monitor-detail", label: "Open Current Work executed-route evidence" },
     queue: { page: "queue", label: "Open Queue" },
     ffmpeg: { page: "diagnostics", diagTab: "logs", label: "Open Diagnostics logs" },
-    worker: { page: "network", label: "Open Network workers" },
+    worker: { page: "home", focus: "#run-monitor-workers", label: "Open Current Work active workers" },
     reliability: { page: "diagnostics", diagTab: "triage", label: "Open Diagnostics reliability evidence" },
     close: { page: "diagnostics", diagTab: "readiness", label: "Open Diagnostics readiness" },
   };
@@ -216,6 +218,7 @@
       node.setAttribute("tabindex", "0");
       node.dataset.uiQuickLink = "";
       node.dataset.quickLinkPage = quickLink.page;
+      if (quickLink.focus) node.dataset.quickLinkFocus = quickLink.focus;
       if (quickLink.diagTab) node.dataset.quickLinkDiagTab = quickLink.diagTab;
       const ariaLabel = `${quickLink.label}: ${item.label} ${item.value}`.trim();
       node.setAttribute("aria-label", ariaLabel);

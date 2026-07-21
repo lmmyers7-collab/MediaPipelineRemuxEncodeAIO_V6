@@ -104,14 +104,17 @@ function Filter-SubtitleStreams {
                 $entry = New-SubtitleFilterEntry -Policy $policy
                 $entry['SubtitleInputOrdinal'] = $currentInputSubtitleOrdinal
                 $entry['BurnEncodeProfile'] = 'current_encode_style'
+                $entry['TrackId'] = Get-SubtitleRoutingTrackId -Entry $entry -SourceKind 'embedded' -SourceStreamIndex $sourceStreamIndex
                 $burn.Add($entry)
                 Write-Log "${Context}BURN subtitle stream $sourceStreamIndex ($($policy.Lang)) '$($policy.RawTitle)' into video; all selectable subtitle outputs will be dropped" "WARN"
                 $decisions.Add([pscustomobject]@{
+                    track_id            = [string]$entry.TrackId
                     source_stream_index = $sourceStreamIndex
                     source_kind         = 'embedded'
-                    subtitle_ordinal    = $currentInputSubtitleOrdinal
+                    subtitle_ordinal    = $entry.SubtitleOrdinal
                     subtitle_input_ordinal = $currentInputSubtitleOrdinal
                     action              = 'burn'
+                    planned_action      = 'burn_in'
                     reason              = 'file_override_burn_track'
                     language            = [string]$policy.Lang
                     source_codec        = [string]$policy.Codec
@@ -133,10 +136,13 @@ function Filter-SubtitleStreams {
             }
             $drop.Add(@{Stream=$s; Lang=$policy.Lang; Title=$policy.RawTitle})
             $decisions.Add([pscustomobject]@{
+                track_id            = Get-SubtitleRoutingTrackId -SourceKind 'embedded' -SourceStreamIndex $sourceStreamIndex
                 source_stream_index = $sourceStreamIndex
+                source_kind         = 'embedded'
                 subtitle_ordinal    = $currentInputSubtitleOrdinal
                 subtitle_input_ordinal = $currentInputSubtitleOrdinal
                 action              = 'drop'
+                planned_action      = 'drop'
                 reason              = 'file_override_burn_drops_selectable_subtitles'
                 language            = [string]$policy.Lang
                 source_codec        = [string]$policy.Codec
@@ -159,9 +165,12 @@ function Filter-SubtitleStreams {
         if (-not $policy.Retain) {
             $drop.Add(@{Stream=$s; Lang=$policy.Lang; Title=$policy.RawTitle})
             $decisions.Add([pscustomobject]@{
+                track_id            = Get-SubtitleRoutingTrackId -SourceKind 'embedded' -SourceStreamIndex $(if ($null -ne $s.PSObject.Properties['index']) { $s.index } else { $null })
                 source_stream_index = if ($null -ne $s.PSObject.Properties['index']) { $s.index } else { $null }
+                source_kind         = 'embedded'
                 subtitle_ordinal    = $subtitleOrdinal
                 action              = 'drop'
+                planned_action      = 'drop'
                 reason              = 'language_or_title_policy'
                 language            = [string]$policy.Lang
                 source_codec        = [string]$policy.Codec
@@ -191,9 +200,12 @@ function Filter-SubtitleStreams {
                 -SubtitleOverride $subtitleOverride)) {
             $drop.Add(@{Stream=$s; Lang=$policy.Lang; Title=$policy.RawTitle})
             $decisions.Add([pscustomobject]@{
+                track_id            = Get-SubtitleRoutingTrackId -SourceKind 'embedded' -SourceStreamIndex $(if ($null -ne $s.PSObject.Properties['index']) { $s.index } else { $null })
                 source_stream_index = if ($null -ne $s.PSObject.Properties['index']) { $s.index } else { $null }
+                source_kind         = 'embedded'
                 subtitle_ordinal    = $subtitleOrdinal
                 action              = 'drop'
+                planned_action      = 'drop'
                 reason              = 'file_override'
                 language            = [string]$policy.Lang
                 source_codec        = [string]$policy.Codec
@@ -238,12 +250,15 @@ function Filter-SubtitleStreams {
         foreach ($pair in @(Find-VobSubSidecarPairs -MediaPath $sidecarSourcePath -Context $Context)) {
             $entry = New-VobSubSidecarSubtitleEntry -Pair $pair -SubtitleOrdinal $subtitleOrdinal
             if (-not [bool]$entry.Retain) {
+                $entry['TrackId'] = Get-SubtitleRoutingTrackId -Entry $entry -SourceKind 'sidecar' -SubtitleOrdinal $subtitleOrdinal
                 $drop.Add($entry)
                 $decisions.Add([pscustomobject]@{
+                    track_id            = [string]$entry.TrackId
                     source_stream_index = $null
                     source_kind         = 'sidecar'
                     subtitle_ordinal    = $subtitleOrdinal
                     action              = 'drop'
+                    planned_action      = 'drop'
                     reason              = 'language_or_title_policy'
                     language            = [string]$entry.Lang
                     source_codec        = [string]$entry.Codec
@@ -271,12 +286,15 @@ function Filter-SubtitleStreams {
                     -Codec $entry.Codec `
                     -StreamIndex $null `
                     -SubtitleOverride $subtitleOverride)) {
+                $entry['TrackId'] = Get-SubtitleRoutingTrackId -Entry $entry -SourceKind 'sidecar' -SubtitleOrdinal $subtitleOrdinal
                 $drop.Add($entry)
                 $decisions.Add([pscustomobject]@{
+                    track_id            = [string]$entry.TrackId
                     source_stream_index = $null
                     source_kind         = 'sidecar'
                     subtitle_ordinal    = $subtitleOrdinal
                     action              = 'drop'
+                    planned_action      = 'drop'
                     reason              = 'file_override'
                     language            = [string]$entry.Lang
                     source_codec        = [string]$entry.Codec

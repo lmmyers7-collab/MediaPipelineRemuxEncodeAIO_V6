@@ -1,5 +1,8 @@
 ---
 file: tests/python/desktop/test_service_status_events.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
@@ -9,9 +12,9 @@ sha256: acfc5f2293ecc862e66006cc1a1c6b77b8b8dfe8c058c47266239427dc3b3d23
 ---
 # `tests/python/desktop/test_service_status_events.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for test service status events; exposes ServiceStatusEventsTests.
 
-**Classes:** `ServiceStatusEventsTests`
+**Public symbols:** `ServiceStatusEventsTests`
 **In-repo imports:** `mediapipeline.core.status.events`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths tests/python/desktop/test_service_status_events.py`._

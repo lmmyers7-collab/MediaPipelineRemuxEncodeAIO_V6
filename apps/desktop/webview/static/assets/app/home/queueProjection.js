@@ -1,7 +1,7 @@
 (function () {
   function createHomeQueueProjectionModule(deps = {}) {
     const {
-      byId, clearRows, formatProgressValue, makeRowSelectable, selectHomeListItem,
+      byId, formatProgressValue, selectHomeListItem,
       setHomePanelStatus, setText, shortenPath,
     } = deps;
   function homeProgressPercent(value) {
@@ -575,15 +575,6 @@
     return homeQueueRowIsRunnable(item) || homeQueueRowLooksCsvRerun(item);
   }
 
-  function homeQueueGlobalOrder(item = {}) {
-    const value = Number(item.global_order);
-    return Number.isFinite(value) ? value : 0;
-  }
-
-  function homeQueueSourceKey(value) {
-    return String(value || "").trim().replace(/[\\/]+/g, "/").toLowerCase();
-  }
-
   function homeActiveWork(context = {}) {
     const payload = context?.snapshot?.current_work;
     return payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {};
@@ -597,117 +588,9 @@
       || "";
   }
 
-  function homeQueueItemSourceKey(item = {}) {
-    return homeQueueSourceKey(
-      item.source_path
-      || item.path
-      || item.input_path
-      || item.file
-      || item.relative_path
-      || item.display_name
-      || ""
-    );
-  }
-
-  function homeProgressCurrentSourceKey(context = {}) {
-    const progress = context?.snapshot?.progress && typeof context.snapshot.progress === "object" ? context.snapshot.progress : {};
-    return homeQueueSourceKey(
-      progress.CurrentFilePath
-      || progress.current_file_path
-      || progress.CurrentFile
-      || progress.SourcePath
-      || progress.InputPath
-      || ""
-    );
-  }
-
-  function homeTextMatchKey(value) {
-    return String(value || "")
-      .toLowerCase()
-      .replace(/\.[a-z0-9]{2,5}$/i, "")
-      .replace(/[^a-z0-9]+/g, "");
-  }
-
-  function homeQueueItemMatchesActiveWork(item = {}, context = {}) {
-    const activeWork = homeActiveWork(context);
-    const progressKey = homeProgressCurrentSourceKey(context);
-    const itemKey = homeQueueItemSourceKey(item);
-    if (progressKey && itemKey && (progressKey === itemKey || progressKey.endsWith(`/${homeQueueLeaf(itemKey)}`))) {
-      return true;
-    }
-    const activeText = homeTextMatchKey(activeWork.item_label);
-    if (!activeText || activeText.length < 5) return false;
-    const label = homeQueueDisplayLabel(item);
-    const candidates = [
-      label.accessibleText,
-      label.main,
-      homeQueueTitle(item),
-      item.display_name,
-      item.source_file_name,
-      item.source_path,
-      item.relative_path,
-    ].map(homeTextMatchKey).filter((value) => value.length >= 5);
-    return candidates.some((candidate) => candidate.includes(activeText) || activeText.includes(candidate));
-  }
-
-  function homeCurrentQueueRow(runnable = [], context = {}) {
-    return (Array.isArray(runnable) ? runnable : []).find((item) => homeQueueItemMatchesActiveWork(item, context)) || null;
-  }
-
-  // Live processing position as a 1-based global order. The queue snapshot is the
-  // full static plan in execution order (global_order 1..N), so the panel must
-  // skip everything up to the current point; otherwise it shows already-finished
-  // items. Resolution order:
-  //   1. Anchor to the file currently being processed (exact global_order).
-  //   2. Otherwise max(CurrentQueueIndex, TotalProcessed). CurrentQueueIndex
-  //      resets to 0 between items while TotalProcessed (counts.processed) does
-  //      not, so max() keeps the panel from reverting to finished items in the gap.
-  function homeCurrentQueueOrder(context = {}, rows = []) {
-    const snapshot = context && typeof context.snapshot === "object" ? context.snapshot : {};
-    const counts = snapshot && typeof snapshot.counts === "object" ? snapshot.counts : {};
-    const progress = snapshot && typeof snapshot.progress === "object" ? snapshot.progress : {};
-    const currentKey = homeQueueSourceKey(progress.CurrentFilePath || progress.current_file_path || progress.CurrentFile);
-    if (currentKey) {
-      const list = Array.isArray(rows) ? rows : [];
-      const match = list.find((item) => item && homeQueueSourceKey(item.source_path) === currentKey);
-      const matchOrder = match ? homeQueueGlobalOrder(match) : 0;
-      if (matchOrder > 0) return matchOrder;
-    }
-    const index = Math.trunc(Number(counts.queue_index) || 0);
-    const processed = Math.trunc(Number(counts.processed) || 0);
-    return Math.max(index > 0 ? index : 0, processed > 0 ? processed : 0);
-  }
-
-  function homeNextQueueRows(queue = {}, currentOrder = 0, context = {}) {
+  function homeQueuePreviewRows(queue = {}) {
     const rows = Array.isArray(queue.rows) ? queue.rows.filter(Boolean) : [];
-    const runnable = rows.filter(homeQueueRowVisibleInNextPanel);
-    const currentRow = homeCurrentQueueRow(runnable, context);
-    if (currentRow) {
-      const currentRowOrder = homeQueueGlobalOrder(currentRow);
-      const upcoming = runnable
-        .filter((item) => item !== currentRow)
-        .filter((item) => currentRowOrder <= 0 || homeQueueGlobalOrder(item) > currentRowOrder)
-        .sort((left, right) => homeQueueGlobalOrder(left) - homeQueueGlobalOrder(right));
-      const selected = [currentRow, ...upcoming];
-      if (selected.length < 5) {
-        runnable.forEach((item) => {
-          if (!selected.includes(item)) selected.push(item);
-        });
-      }
-      return selected.slice(0, 5);
-    }
-    const cutoff = Math.trunc(Number(currentOrder) || 0);
-    if (cutoff > 0) {
-      // Genuinely upcoming items sit after the live position in global order.
-      const upcoming = runnable
-        .filter((item) => homeQueueGlobalOrder(item) > cutoff)
-        .sort((left, right) => homeQueueGlobalOrder(left) - homeQueueGlobalOrder(right));
-      // Only apply the offset when it yields rows. If nothing is upcoming (run
-      // near its end, or a payload without global_order), fall back to the first
-      // runnable rows so the panel never blanks out.
-      if (upcoming.length) return upcoming.slice(0, 5);
-    }
-    return runnable.slice(0, 5);
+    return rows.filter(homeQueueRowVisibleInNextPanel).slice(0, 5);
   }
 
     return {
@@ -721,9 +604,8 @@
       homeQueueRowLooksCsvRerun, homeCsvRerunWorkerRows, homeWorkerLooksCsvRerun,
       homeCsvRerunQueueContext, homeCsvRerunRows, renderHomeCsvRerunDetail,
       renderHomeCsvRerunQueue, renderHomeCsvRerunCompletion, homeQueueRowIsRunnable,
-      homeQueueRowVisibleInNextPanel, homeQueueGlobalOrder, homeQueueSourceKey, homeActiveWork,
-      homeActiveWorkLine, homeQueueItemSourceKey, homeProgressCurrentSourceKey, homeTextMatchKey,
-      homeQueueItemMatchesActiveWork, homeCurrentQueueRow, homeCurrentQueueOrder, homeNextQueueRows,    };
+      homeQueueRowVisibleInNextPanel, homeActiveWork, homeActiveWorkLine, homeQueuePreviewRows,
+    };
   }
   window.__homeQueueProjectionModule = { createHomeQueueProjectionModule };
 })();

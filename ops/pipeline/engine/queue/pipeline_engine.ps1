@@ -158,6 +158,22 @@ function Invoke-MediaPipelineRound {
         [Parameter(Mandatory)] $EnginePlan
     )
 
+    $script:BackendQueueRunMonitorSeedContext = $null
+    $fingerprintGuardedRun = -not [string]::IsNullOrWhiteSpace([string]$EnginePlan.ExpectedQueuePlanFingerprint)
+    $acceptedRunRows = @()
+    if ([bool]$EnginePlan.Once -and $fingerprintGuardedRun) {
+        if (-not (Get-Command -Name Get-MediaPipelineRunMonitorAcceptedSeedRows -ErrorAction SilentlyContinue)) {
+            throw 'RUN_MONITOR_STATE_READER_UNAVAILABLE: accepted Run Once membership cannot be adopted.'
+        }
+        $acceptedRunRows = @(Get-MediaPipelineRunMonitorAcceptedSeedRows `
+            -RunId ([string]$script:PipelineRunId) `
+            -CommandId ([string]$CommandId) `
+            -ExpectedFingerprint ([string]$EnginePlan.ExpectedQueuePlanFingerprint))
+        $script:BackendQueueRunMonitorSeedContext = [pscustomobject]@{
+            RunId = [string]$script:PipelineRunId
+            QueuePlanFingerprint = [string]$EnginePlan.ExpectedQueuePlanFingerprint
+        }
+    }
     Check-ControlFlags
     if ($script:StopRequested) {
         return [pscustomobject]@{
@@ -172,10 +188,25 @@ function Invoke-MediaPipelineRound {
         }
     }
 
-    # Retry parked outputs before source discovery so recovered files are not
-    # treated as missing by already-processed checks in the same round.
+    # A fingerprint-guarded Queue run must remain side-effect free until its
+    # active discovery plan matches the accepted dry-run. Pending publish
+    # retries are therefore left to an explicit drain or an unguarded
+    # continuous round; the refreshed read-only index keeps exclusions equal
+    # to the dry-run snapshot.
     $rescanRequested = Consume-RescanFlag
-    $pendingPushesRecovered = Invoke-RetryPendingPushes
+    if ([bool]$EnginePlan.Once -and $fingerprintGuardedRun) {
+        Set-MediaPipelineRunMonitorSourceDiscoveryState `
+            -RunId ([string]$script:PipelineRunId) `
+            -State active `
+            -RunState scanning `
+            -ExpectedQueuePlanFingerprint ([string]$EnginePlan.ExpectedQueuePlanFingerprint) | Out-Null
+    }
+    $pendingPushesRecovered = 0
+    if (-not $fingerprintGuardedRun) {
+        $pendingPushesRecovered = Invoke-RetryPendingPushes
+    } else {
+        Write-Log 'QUEUE PLAN GUARD: deferred pending-publish retries until a separate drain or unguarded round.' 'INFO'
+    }
     Refresh-PendingPublishIndex | Out-Null
     if ($pendingPushesRecovered -gt 0) {
         Invalidate-ProcessedIndexCache
@@ -183,28 +214,28 @@ function Invoke-MediaPipelineRound {
 
     Reset-ProgressItemContext
     Set-ProgressStage -Stage 'scanning' -Status 'Scanning sources' -Percent $null -Route $null -CopyState $null -PushState $null -SidecarState $null -SaveNow
-    Reset-RoundTracking
-    $pendingBackpressure = Get-MediaPipelinePendingPublishBackpressure
-    if ([bool]$pendingBackpressure.Blocked) {
-        Write-MediaPipelinePendingPublishBackpressure -Backpressure $pendingBackpressure
-        return [pscustomobject]@{
-            Completed              = $true
-            StopRequested          = [bool]$script:StopRequested
-            RescanRequested        = [bool]$rescanRequested
-            PendingPushesRecovered = [int]$pendingPushesRecovered
-            QueuePlan              = $null
-            ProcessedIndex         = $null
-            Snapshot               = $null
-            RoundFailureSummary    = $null
-            BackpressureBlocked    = $true
-            BackpressureReason     = [string]$pendingBackpressure.BlockReason
+    $discoveryPollHandler = $null
+    if ([bool]$EnginePlan.Once -and $fingerprintGuardedRun) {
+        if (-not (Get-Command -Name New-MediaPipelineSourceDiscoveryPollHandler -ErrorAction SilentlyContinue)) {
+            throw 'RUN_MONITOR_SOURCE_DISCOVERY_HEARTBEAT_UNAVAILABLE: accepted Run Once scanning cannot publish current evidence.'
+        }
+        $discoveryPollHandler = New-MediaPipelineSourceDiscoveryPollHandler `
+            -RunId ([string]$script:PipelineRunId) `
+            -AcceptedQueueFingerprint ([string]$EnginePlan.ExpectedQueuePlanFingerprint) `
+            -MinimumIntervalSeconds 15
+        if (-not $discoveryPollHandler) {
+            throw 'RUN_MONITOR_SOURCE_DISCOVERY_IDENTITY_MISMATCH: accepted Run Once scanning is not correlated to the active run.'
         }
     }
-
+    Reset-RoundTracking
     $scanStartedAt = Get-Date
-    $index = Get-ProcessedIndexCached -ForceRefresh:$rescanRequested
+    $index = Get-ProcessedIndexCached -ForceRefresh:$rescanRequested -PollHandler $discoveryPollHandler
 
-    $queuePlan = Get-MediaQueueDiscoveryPlan -MovieRoot $EnginePlan.SourceMovies -TVRoot $EnginePlan.SourceTV -ForceRefresh:$rescanRequested
+    $queuePlan = Get-MediaQueueDiscoveryPlan `
+        -MovieRoot $EnginePlan.SourceMovies `
+        -TVRoot $EnginePlan.SourceTV `
+        -ForceRefresh:$rescanRequested `
+        -PollHandler $discoveryPollHandler
     $scanDurationSeconds = [math]::Round(((Get-Date) - $scanStartedAt).TotalSeconds, 3)
     $script:LastQueueScanDurationSeconds = $scanDurationSeconds
     $script:LastQueueCandidateCount = [int]($queuePlan.MovieCount + $queuePlan.TVCount + $queuePlan.HoldCount)
@@ -219,13 +250,114 @@ function Invoke-MediaPipelineRound {
     # live ordering without spawning a dry-run subprocess.
     $snapshot = Invoke-MediaPipelineQueueSnapshot -QueuePlan $queuePlan -ProcessedIndex $index -Path $EnginePlan.QueueSnapshotPath -NonFatal
 
+    $expectedFingerprint = [string]$EnginePlan.ExpectedQueuePlanFingerprint
+    $actualFingerprint = [string]$snapshot.queue_plan_fingerprint
+    if (-not [string]::IsNullOrWhiteSpace($expectedFingerprint)) {
+        if ([string]::IsNullOrWhiteSpace($actualFingerprint) -or $actualFingerprint -ne $expectedFingerprint) {
+            $script:PipelineBlockedExitCode = 76
+            $script:PipelineStopReason = 'queue_plan_fingerprint_mismatch'
+            $script:StopRequested = $true
+            Write-Log "QUEUE PLAN BLOCKED: active plan fingerprint does not match the accepted dry-run snapshot." 'ERROR'
+            if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+                try {
+                    Write-PipelineEvent -EventType 'queue_plan_fingerprint_mismatch' -Stage 'queue' -Status 'blocked' -Data @{
+                        error_code           = 'QUEUE_PLAN_FINGERPRINT_MISMATCH'
+                        expected_fingerprint = $expectedFingerprint
+                        actual_fingerprint   = $actualFingerprint
+                        command_id           = [string]$CommandId
+                    } | Out-Null
+                } catch {}
+            }
+            Set-ProgressStage -Stage 'blocked' -Status 'Queue plan changed; refresh Queue before launch' -Percent $null -Route $null -CopyState $null -PushState $null -SidecarState $null -SaveNow
+            return [pscustomobject]@{
+                Completed              = $false
+                StopRequested          = $true
+                RescanRequested        = [bool]$rescanRequested
+                PendingPushesRecovered = [int]$pendingPushesRecovered
+                QueuePlan              = $queuePlan
+                ProcessedIndex         = $index
+                Snapshot               = $snapshot
+                RoundFailureSummary    = $null
+                FingerprintBlocked     = $true
+                FingerprintBlockReason = 'queue_plan_fingerprint_mismatch'
+            }
+        }
+    }
+
+    if ([bool]$EnginePlan.Once -and -not [string]::IsNullOrWhiteSpace($expectedFingerprint)) {
+        try {
+            $activeAcceptedRows = @($script:LastRunMonitorAcceptedRows)
+            Assert-MediaPipelineRunMonitorActiveMembershipMatchesAcceptedSnapshot `
+                -AcceptedRows $acceptedRunRows `
+                -ActiveRows $activeAcceptedRows | Out-Null
+            Set-MediaPipelineRunMonitorSourceDiscoveryState `
+                -RunId ([string]$script:PipelineRunId) `
+                -State completed `
+                -RunState running `
+                -ExpectedQueuePlanFingerprint $expectedFingerprint | Out-Null
+        } catch {
+            $script:PipelineBlockedExitCode = 76
+            $script:PipelineStopReason = 'run_monitor_active_membership_mismatch'
+            $script:StopRequested = $true
+            Write-Log "RUN MONITOR BLOCKED: active discovery no longer matches accepted membership: $($_.Exception.Message)" 'ERROR'
+            if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+                try {
+                    Write-PipelineEvent -EventType 'run_monitor_active_membership_mismatch' -Stage 'queue' -Status 'blocked' -Data @{
+                        error_code           = 'RUN_MONITOR_ACTIVE_MEMBERSHIP_MISMATCH'
+                        run_id              = [string]$script:PipelineRunId
+                        command_id          = [string]$CommandId
+                        accepted_fingerprint = $actualFingerprint
+                        error                = [string]$_.Exception.Message
+                    } | Out-Null
+                } catch {}
+            }
+            Set-ProgressStage -Stage 'blocked' -Status 'Run workload evidence could not be persisted' -Percent $null -Route $null -CopyState $null -PushState $null -SidecarState $null -SaveNow
+            return [pscustomobject]@{
+                Completed              = $false
+                StopRequested          = $true
+                RescanRequested        = [bool]$rescanRequested
+                PendingPushesRecovered = [int]$pendingPushesRecovered
+                QueuePlan              = $queuePlan
+                ProcessedIndex         = $index
+                Snapshot               = $snapshot
+                RoundFailureSummary    = $null
+                FingerprintBlocked     = $true
+                FingerprintBlockReason = 'run_monitor_active_membership_mismatch'
+            }
+        }
+    }
+
+    $pendingBackpressure = Get-MediaPipelinePendingPublishBackpressure
+    if ([bool]$pendingBackpressure.Blocked) {
+        Write-MediaPipelinePendingPublishBackpressure -Backpressure $pendingBackpressure
+        return [pscustomobject]@{
+            Completed              = $true
+            StopRequested          = [bool]$script:StopRequested
+            RescanRequested        = [bool]$rescanRequested
+            PendingPushesRecovered = [int]$pendingPushesRecovered
+            QueuePlan              = $queuePlan
+            ProcessedIndex         = $index
+            Snapshot               = $snapshot
+            RoundFailureSummary    = $null
+            BackpressureBlocked    = $true
+            BackpressureReason     = [string]$pendingBackpressure.BlockReason
+        }
+    }
+
     Set-ProgressStage -Stage 'processing' -Status 'Processing queue' -Percent $null -Route $null -CopyState $null -PushState $null -SidecarState $null -SaveNow
-    $executionPlan = Select-MediaPipelineQueuePlanExecutionWindow -QueuePlan $queuePlan
+    $executionPlan = if ([bool]$EnginePlan.Once -and $fingerprintGuardedRun) {
+        # A Backend Queue Run Once accepts the complete fingerprinted workload.
+        # A per-round execution window must never silently truncate that scope.
+        $queuePlan
+    } else {
+        Select-MediaPipelineQueuePlanExecutionWindow -QueuePlan $queuePlan
+    }
     $script:LastQueueExecutionTruncated = [bool]($executionPlan.PSObject.Properties['RowsTruncatedForExecution'] -and [bool]$executionPlan.RowsTruncatedForExecution)
     if ($script:LastQueueExecutionTruncated) {
         $script:LastQueueCandidateCount = [int]$executionPlan.RunnableTotalBeforeCap
     }
     $useLocalWorkerSlots = ([string]$EnginePlan.ParallelEncodeMode -eq 'local_worker_slots' -and [int]$EnginePlan.MaxParallelEncodes -gt 1)
+    $phaseResult = $null
     if ($useLocalWorkerSlots) {
         if (-not (Get-Command -Name Invoke-MediaQueuePhasePlanLocalWorkerSlots -ErrorAction SilentlyContinue)) {
             throw "Local worker slots are enabled, but Invoke-MediaQueuePhasePlanLocalWorkerSlots is not loaded."
@@ -240,15 +372,15 @@ function Invoke-MediaPipelineRound {
             throw "Local worker slots are enabled, but the PowerShell executable path was not supplied."
         }
         Write-Log "LOCAL WORKER SLOTS: dispatching queue with $([int]$EnginePlan.MaxParallelEncodes) slot(s)"
-        Invoke-MediaQueuePhasePlanLocalWorkerSlots `
+        $phaseResult = Invoke-MediaQueuePhasePlanLocalWorkerSlots `
             -QueuePlan $executionPlan `
             -ProcessedIndex $index `
             -ScriptPath ([string]$EnginePlan.ScriptPath) `
             -ConfigPath ([string]$EnginePlan.ConfigPath) `
             -PowerShellPath ([string]$EnginePlan.PowerShellPath) `
-            -MaxParallelEncodes ([int]$EnginePlan.MaxParallelEncodes) | Out-Null
+            -MaxParallelEncodes ([int]$EnginePlan.MaxParallelEncodes)
     } else {
-        Invoke-MediaQueuePhasePlan -QueuePlan $executionPlan -ProcessedIndex $index -StopOnUnexpectedFailure:([bool]$EnginePlan.Once) | Out-Null
+        $phaseResult = Invoke-MediaQueuePhasePlan -QueuePlan $executionPlan -ProcessedIndex $index -StopOnUnexpectedFailure:([bool]$EnginePlan.Once)
     }
 
     if ($script:StopRequested) {
@@ -261,6 +393,23 @@ function Invoke-MediaPipelineRound {
             ProcessedIndex         = $index
             Snapshot               = $snapshot
             RoundFailureSummary    = $null
+        }
+    }
+
+    $stoppedAfterCurrent = $null -ne $phaseResult -and
+        $phaseResult.PSObject.Properties['StoppedAfterCurrent'] -and
+        [bool]$phaseResult.StoppedAfterCurrent
+    if ($stoppedAfterCurrent) {
+        return [pscustomobject]@{
+            Completed                 = $false
+            StopRequested             = $false
+            StopAfterCurrentRequested = $true
+            RescanRequested           = [bool]$rescanRequested
+            PendingPushesRecovered    = [int]$pendingPushesRecovered
+            QueuePlan                 = $queuePlan
+            ProcessedIndex            = $index
+            Snapshot                  = $snapshot
+            RoundFailureSummary       = $null
         }
     }
 
@@ -296,6 +445,107 @@ function Invoke-MediaPipelineRound {
     }
 }
 
+function Complete-MediaPipelineBackendQueueRunOnceMonitor {
+    param(
+        [Parameter(Mandatory)] $EnginePlan,
+        $RoundResult = $null,
+        $RoundError = $null
+    )
+
+    $expectedFingerprint = [string]$EnginePlan.ExpectedQueuePlanFingerprint
+    if (-not [bool]$EnginePlan.Once -or [string]::IsNullOrWhiteSpace($expectedFingerprint)) {
+        return $null
+    }
+    $context = $script:BackendQueueRunMonitorSeedContext
+    if ($null -eq $context) { return $null }
+    $runId = [string]$script:PipelineRunId
+    if ([string]$context.RunId -ne $runId -or [string]$context.QueuePlanFingerprint -ne $expectedFingerprint) {
+        throw 'RUN_MONITOR_SEED_CONTEXT_MISMATCH: refusing to finalize an uncorrelated Backend Queue run.'
+    }
+    if (-not (Get-Command -Name Complete-MediaPipelineRunMonitor -ErrorAction SilentlyContinue)) {
+        throw 'RUN_MONITOR_FINALIZER_UNAVAILABLE: a confirmed Backend Queue run cannot be finalized.'
+    }
+
+    $parameters = @{
+        RunId = $runId
+        State = 'failed'
+        RemainingItemState = 'skipped'
+        Reason = 'The pipeline round ended unexpectedly after the accepted workload was persisted.'
+        ReasonCode = 'UNEXPECTED_PIPELINE_ROUND_EXCEPTION'
+        Retryable = $true
+        RecoveryOwner = 'pipeline'
+        NextAction = 'Review Reports, then start a new Backend Queue run for any item that still requires processing.'
+    }
+    if ($null -ne $RoundError) {
+        $message = if ($RoundError.Exception -and $RoundError.Exception.Message) { [string]$RoundError.Exception.Message } else { [string]$RoundError }
+        $parameters.Reason = "The pipeline round ended unexpectedly: $message"
+    } else {
+        $backpressureBlocked = $null -ne $RoundResult -and
+            $RoundResult.PSObject.Properties['BackpressureBlocked'] -and
+            [bool]$RoundResult.BackpressureBlocked
+        $stopRequested = $null -ne $RoundResult -and
+            $RoundResult.PSObject.Properties['StopRequested'] -and
+            [bool]$RoundResult.StopRequested
+        $stopAfterCurrentRequested = $null -ne $RoundResult -and
+            $RoundResult.PSObject.Properties['StopAfterCurrentRequested'] -and
+            [bool]$RoundResult.StopAfterCurrentRequested
+        $completed = $null -ne $RoundResult -and
+            $RoundResult.PSObject.Properties['Completed'] -and
+            [bool]$RoundResult.Completed
+        $fingerprintBlocked = $null -ne $RoundResult -and
+            $RoundResult.PSObject.Properties['FingerprintBlocked'] -and
+            [bool]$RoundResult.FingerprintBlocked
+        if ($fingerprintBlocked) {
+            $blockReason = if ($RoundResult.PSObject.Properties['FingerprintBlockReason']) { [string]$RoundResult.FingerprintBlockReason } else { 'queue_plan_fingerprint_mismatch' }
+            $parameters.State = 'blocked'
+            $parameters.RemainingItemState = 'blocked'
+            $parameters.Reason = "The active Queue rescan no longer matched the accepted Run Once workload ($blockReason)."
+            $parameters.ReasonCode = if ($blockReason -eq 'run_monitor_active_membership_mismatch') { 'RUN_MONITOR_ACTIVE_MEMBERSHIP_MISMATCH' } else { 'QUEUE_PLAN_FINGERPRINT_MISMATCH' }
+            $parameters.NextAction = 'Refresh Queue, review the new plan, and start a new Run Once workload.'
+        } elseif ($backpressureBlocked) {
+            $backpressureReason = if ($RoundResult.PSObject.Properties['BackpressureReason']) { [string]$RoundResult.BackpressureReason } else { 'pending_publish_backpressure' }
+            $parameters.State = 'blocked'
+            $parameters.RemainingItemState = 'blocked'
+            $parameters.Reason = "Pending Publish backpressure blocked dispatch ($backpressureReason)."
+            $parameters.ReasonCode = 'PENDING_PUBLISH_BACKPRESSURE_BLOCKED'
+            $parameters.NextAction = 'Resolve or drain Pending Publish, then start a new Backend Queue run.'
+        } elseif ($stopRequested -or $stopAfterCurrentRequested -or [bool]$script:StopRequested) {
+            $parameters.State = 'stopped'
+            $parameters.RemainingItemState = 'stopped'
+            $parameters.Reason = 'The run stopped at a backend-controlled queue boundary.'
+            $parameters.ReasonCode = 'RUN_STOPPED_AT_QUEUE_BOUNDARY'
+            $parameters.NextAction = 'Start a new Backend Queue run if any stopped item still requires processing.'
+        } elseif ($completed) {
+            $parameters.State = 'completed'
+            $parameters.RemainingItemState = 'skipped'
+            $parameters.Reason = 'Every accepted item reached backend terminal evidence.'
+            $parameters.ReasonCode = 'RUN_COMPLETED'
+            $parameters.Retryable = $false
+            $parameters.NextAction = 'Review Completed Output, Pending Publish, or Reports for per-file proof.'
+        } else {
+            $parameters.RemainingItemState = 'failed'
+            $parameters.Reason = 'The round returned without a terminal completion or stop classification.'
+            $parameters.ReasonCode = 'RUN_MONITOR_TERMINAL_EVIDENCE_INCOMPLETE'
+            $parameters.NextAction = 'Review Reports and retry the affected workload only after the missing terminal evidence is understood.'
+        }
+    }
+
+    try {
+        return Complete-MediaPipelineRunMonitor @parameters
+    } catch {
+        if ($parameters.State -eq 'completed' -and [string]$_ -match 'RUN_MONITOR_TERMINAL_EVIDENCE_INCOMPLETE') {
+            $parameters.State = 'failed'
+            $parameters.RemainingItemState = 'failed'
+            $parameters.Reason = 'The round reported completion while one or more accepted items lacked terminal evidence.'
+            $parameters.ReasonCode = 'RUN_MONITOR_TERMINAL_EVIDENCE_INCOMPLETE'
+            $parameters.Retryable = $true
+            $parameters.NextAction = 'Review Reports and retry only after the missing per-file terminal evidence is understood.'
+            return Complete-MediaPipelineRunMonitor @parameters
+        }
+        throw
+    }
+}
+
 function Invoke-MediaPipelineRun {
     param(
         [Parameter(Mandatory)] $EnginePlan
@@ -310,7 +560,14 @@ function Invoke-MediaPipelineRun {
     while (-not $script:StopRequested) {
         try {
             $roundResult = Invoke-MediaPipelineRound -EnginePlan $EnginePlan
+            Complete-MediaPipelineBackendQueueRunOnceMonitor -EnginePlan $EnginePlan -RoundResult $roundResult | Out-Null
         } catch {
+            $roundError = $_
+            try {
+                Complete-MediaPipelineBackendQueueRunOnceMonitor -EnginePlan $EnginePlan -RoundError $roundError | Out-Null
+            } catch {
+                Write-Log "Run Monitor finalization failed after a pipeline round exception: $($_.Exception.Message)" 'ERROR'
+            }
             $unexpectedRoundFailures++
             $script:UnexpectedRoundFailures = [int]$unexpectedRoundFailures
             $script:ConsecutiveUnexpectedRoundFailures = [int]$script:ConsecutiveUnexpectedRoundFailures + 1
@@ -344,7 +601,7 @@ function Invoke-MediaPipelineRun {
                 Set-ProgressStage -Stage $failedStage -Status $failedStatus -Percent $null -Route $null -CopyState $null -PushState $null -SidecarState $null -SaveNow
             } catch {}
             if ($EnginePlan.Once) {
-                throw
+                throw $roundError
             }
             if ($blocked) {
                 $script:StopRequested = $true
@@ -375,6 +632,7 @@ function Invoke-MediaPipelineRun {
         $script:ContinuousRoundFailuresBlocked = $false
         if ($roundResult.Completed) { $roundsCompleted++ }
         if ($script:StopRequested) { break }
+        if ($roundResult.PSObject.Properties['StopAfterCurrentRequested'] -and [bool]$roundResult.StopAfterCurrentRequested) { break }
 
         if ($EnginePlan.Once) {
             Write-Log "Single-pass mode complete; exiting after one full round."
@@ -390,6 +648,7 @@ function Invoke-MediaPipelineRun {
     return [pscustomobject]@{
         RoundsCompleted          = $roundsCompleted
         StopRequested            = [bool]$script:StopRequested
+        StopAfterCurrentRequested = [bool]$script:StopAfterCurrentRequested
         UnexpectedRoundFailures  = [int]$unexpectedRoundFailures
     }
 }
@@ -400,8 +659,12 @@ function Invoke-MediaPipelineEmitQueuePlan {
     )
 
     Set-ProgressStage -Stage 'scanning' -Status 'Scanning sources (dry run)' -Percent $null -SaveNow
-    $index     = Get-ProcessedIndexCached -ForceRefresh:$true
-    $queuePlan = Get-MediaQueueDiscoveryPlan -MovieRoot $EnginePlan.SourceMovies -TVRoot $EnginePlan.SourceTV -ForceRefresh:$true
+    $discoveryPollHandler = $null
+    # Refresh is read-only: Queue dry-run must see the same pending-publish
+    # exclusions as active discovery without retrying or publishing payloads.
+    Refresh-PendingPublishIndex | Out-Null
+    $index     = Get-ProcessedIndexCached -ForceRefresh:$true -PollHandler $discoveryPollHandler
+    $queuePlan = Get-MediaQueueDiscoveryPlan -MovieRoot $EnginePlan.SourceMovies -TVRoot $EnginePlan.SourceTV -ForceRefresh:$true -PollHandler $discoveryPollHandler
     $snapshot  = Invoke-MediaPipelineQueueSnapshot -QueuePlan $queuePlan -ProcessedIndex $index -Path $EnginePlan.QueueSnapshotPath
     Write-Log "QUEUE PLAN SNAPSHOT: $($snapshot.runnable_count) runnable row(s) -> $($EnginePlan.QueueSnapshotPath)"
     Set-ProgressStage -Stage 'idle' -Status 'Idle' -Percent $null -SaveNow

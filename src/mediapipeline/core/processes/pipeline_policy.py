@@ -119,15 +119,32 @@ def pipeline_start_success_data(
     launch_prep_messages: list[str],
     launch_logs: str,
     single_file_validation: Any | None = None,
+    run_id: str = "",
+    accepted_queue_fingerprint: str = "",
 ) -> dict[str, Any]:
     data = {
         "mode": actual_mode,
         "requested_mode": requested_mode,
+        "evidence_phase": "running",
         "schedule": schedule_data,
         "pid": pid,
         "launch_prep": launch_prep_messages,
         "logs": launch_logs,
     }
+    if run_id:
+        data["run_id"] = run_id
+        data["run_monitor"] = {
+            "schema_version": "desktop_run_monitor_launch.v1",
+            "run_id": run_id,
+            "route": "/api/run-monitor",
+            "acceptance_state": "backend_accepted",
+            "expected_queue": {
+                "schema_version": "queue_plan_fingerprint.v1",
+                "fingerprint": accepted_queue_fingerprint,
+            },
+        }
+    if accepted_queue_fingerprint:
+        data["accepted_queue_fingerprint"] = accepted_queue_fingerprint
     if single_file_validation:
         data["single_file_validation"] = _json_safe(single_file_validation)
     return data
@@ -239,6 +256,24 @@ def pipeline_start_active_work_result(block_message: str) -> CommandResult:
     )
 
 
+def pipeline_start_queue_scope_blocked_result(check: Mapping[str, Any]) -> CommandResult:
+    message = str(check.get("evidence") or check.get("message") or "Normal Queue launch readiness is blocked.")
+    return _command_result(
+        command=PIPELINE_START_COMMAND,
+        ok=False,
+        message=message,
+        severity="warning",
+        warnings=[message],
+        refresh_hint="queue",
+        data={
+            "schema_version": "desktop_pipeline_queue_launch_block.v1",
+            "start_route_allowed": False,
+            "evidence_phase": "rejected",
+            "normal_queue_scope": _json_safe(dict(check)),
+        },
+    )
+
+
 def pipeline_start_config_blocked_result(message: str, data: dict[str, Any]) -> CommandResult:
     return _command_result(
         command=PIPELINE_START_COMMAND,
@@ -284,6 +319,7 @@ def pipeline_start_exception_result(exc: Exception) -> CommandResult:
         severity="error",
         errors=[str(exc)],
         refresh_hint="snapshot",
+        data={"evidence_phase": "failed"},
     )
 
 
@@ -296,6 +332,8 @@ def pipeline_start_success_result(
     launch_prep_messages: list[str],
     launch_logs: str,
     single_file_validation: Any | None = None,
+    run_id: str = "",
+    accepted_queue_fingerprint: str = "",
 ) -> CommandResult:
     return _command_result(
         command=PIPELINE_START_COMMAND,
@@ -311,6 +349,8 @@ def pipeline_start_success_result(
             launch_prep_messages=launch_prep_messages,
             launch_logs=launch_logs,
             single_file_validation=single_file_validation,
+            run_id=run_id,
+            accepted_queue_fingerprint=accepted_queue_fingerprint,
         ),
     )
 
@@ -344,6 +384,7 @@ __all__ = [
     "pipeline_start_network_mode_blocked_result",
     "pipeline_start_schedule_gate_result",
     "pipeline_start_active_work_result",
+    "pipeline_start_queue_scope_blocked_result",
     "pipeline_start_config_blocked_result",
     "pipeline_start_autonomy_blocked_result",
     "pipeline_start_exception_result",

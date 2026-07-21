@@ -1,16 +1,138 @@
       <section class="page is-visible" data-page-panel="home">
-        <h1 class="visually-hidden">Home</h1>
+        <!-- primary current work -->
+        <section class="panel current-work-monitor" data-panel-type="interactive" data-primary-current-work aria-labelledby="current-work-heading">
+          <header class="current-work-header">
+            <div class="current-work-title-block">
+              <span class="current-work-eyebrow">Standard workflow</span>
+              <h1 id="current-work-heading" tabindex="-1">Current Work</h1>
+              <p id="run-monitor-mode" class="current-work-mode">Run Once · Backend Queue</p>
+            </div>
+            <div class="action-row current-work-actions">
+              <button type="button" id="run-monitor-refresh" class="secondary-button">Refresh</button>
+              <button type="button" id="run-monitor-stop-after-current" class="secondary-button" data-control-action="stop" data-control-owner="run-monitor" disabled>Stop After Current</button>
+              <button type="button" class="tertiary-button" data-cross-page-target="launch">Launch</button>
+              <button type="button" class="tertiary-button" data-touchpoint-id="run-monitor-open-queue" data-cross-page-target="queue">Queue</button>
+            </div>
+          </header>
+
+          <p id="run-monitor-announcer" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
+
+          <div id="run-monitor-summary" class="run-monitor-summary" data-state="unavailable" aria-labelledby="run-monitor-summary-heading">
+            <div class="run-monitor-section-heading">
+              <h2 id="run-monitor-summary-heading">Run summary</h2>
+              <strong id="run-monitor-freshness" class="run-monitor-freshness" data-state="unavailable">Unavailable</strong>
+            </div>
+            <dl class="run-monitor-summary-grid">
+              <div><dt>Run state</dt><dd id="run-monitor-state">Not loaded</dd></div>
+              <div><dt>Started</dt><dd id="run-monitor-started">—</dd></div>
+              <div><dt>Ended</dt><dd id="run-monitor-ended">—</dd></div>
+              <div><dt>Last backend update</dt><dd id="run-monitor-updated">—</dd></div>
+              <div><dt>Stop After Current</dt><dd id="run-monitor-stop-state">Unavailable</dd></div>
+              <div class="run-monitor-counts-wide"><dt>Run-scoped counts</dt><dd id="run-monitor-counts">No accepted workload loaded.</dd></div>
+              <div class="run-monitor-counts-wide"><dt>Run outcome / next action</dt><dd id="run-monitor-outcome">No run outcome loaded.</dd></div>
+            </dl>
+            <p id="run-monitor-authority" class="note">Waiting for the backend-owned Run Monitor projection.</p>
+          </div>
+
+          <div class="run-monitor-workers-panel" aria-labelledby="run-monitor-workers-heading">
+            <div class="run-monitor-section-heading">
+              <h2 id="run-monitor-workers-heading">Active workers</h2>
+              <strong id="run-monitor-workers-count">0 active</strong>
+            </div>
+            <ul id="run-monitor-workers" class="run-monitor-workers">
+              <li>No backend-confirmed active workers.</li>
+            </ul>
+          </div>
+
+          <div class="run-monitor-workspace">
+            <div class="run-monitor-master" role="region" aria-labelledby="run-monitor-items-heading">
+              <div class="run-monitor-section-heading">
+                <h2 id="run-monitor-items-heading">Accepted workload</h2>
+                <div class="run-monitor-workload-controls">
+                  <strong id="run-monitor-items-count">0 files</strong>
+                  <button type="button" id="run-monitor-items-toggle" class="tertiary-button" aria-controls="run-monitor-items" aria-expanded="false" disabled>Open file selection</button>
+                </div>
+              </div>
+              <p id="run-monitor-items-help" class="note">Names come from the verified backend production naming plan or exact job-correlated terminal output evidence. The folded view shows up to 20 accepted files; open file selection to choose from the complete workload with Arrow keys, Home, and End.</p>
+              <ol id="run-monitor-items" class="run-monitor-items" aria-labelledby="run-monitor-items-heading" aria-describedby="run-monitor-items-help">
+                <li class="run-monitor-empty">No accepted Run Once workload loaded.</li>
+              </ol>
+            </div>
+
+            <article id="run-monitor-detail" class="run-monitor-detail" tabindex="-1" aria-labelledby="run-monitor-detail-heading">
+              <div class="run-monitor-section-heading">
+                <h2 id="run-monitor-detail-heading">Selected file</h2>
+                <strong id="run-monitor-detail-state">No selection</strong>
+              </div>
+              <p id="run-monitor-source" class="run-monitor-source">Select an accepted file to inspect backend evidence.</p>
+
+              <div id="run-monitor-routes" class="run-monitor-route-grid" aria-label="Route evidence"></div>
+
+              <div class="run-monitor-detail-section">
+                <h3>Stage timeline</h3>
+                <ol id="run-monitor-stage-list" class="run-monitor-stage-list">
+                  <li>No backend stage ledger loaded.</li>
+                </ol>
+              </div>
+
+              <div class="run-monitor-detail-section">
+                <div class="run-monitor-section-heading">
+                  <h3>Audio tracks</h3>
+                  <strong id="run-monitor-audio-state">Unknown</strong>
+                </div>
+                <div class="table-wrap run-monitor-table-wrap">
+                  <table class="run-monitor-track-table">
+                    <thead><tr><th scope="col">Track</th><th scope="col">Source</th><th scope="col">Planned action</th><th scope="col">Current / final evidence</th></tr></thead>
+                    <tbody id="run-monitor-audio-body"><tr><td colspan="4">No backend audio evidence loaded.</td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="run-monitor-detail-section">
+                <div class="run-monitor-section-heading">
+                  <h3>Subtitle tracks</h3>
+                  <strong id="run-monitor-subtitle-state">Unknown</strong>
+                </div>
+                <div class="table-wrap run-monitor-table-wrap">
+                  <table class="run-monitor-track-table">
+                    <thead><tr><th scope="col">Track</th><th scope="col">Source</th><th scope="col">Planned actions</th><th scope="col">Current / final evidence</th></tr></thead>
+                    <tbody id="run-monitor-subtitle-body"><tr><td colspan="4">No backend subtitle evidence loaded.</td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="run-monitor-detail-section">
+                <h3>Verification, output, and recovery</h3>
+                <dl id="run-monitor-output" class="run-monitor-fact-list">
+                  <div><dt>Output</dt><dd>No backend output evidence loaded.</dd></div>
+                </dl>
+                <div id="run-monitor-sidecars" class="run-monitor-sidecars"></div>
+                <div id="run-monitor-recovery" class="run-monitor-recovery"></div>
+                <div id="run-monitor-terminal-links" class="action-row run-monitor-terminal-links"></div>
+              </div>
+
+              <p id="run-monitor-evidence" class="note">Evidence source, timestamp, and freshness will appear after the backend monitor loads.</p>
+            </article>
+          </div>
+
+          <details id="run-monitor-last-known" class="run-monitor-last-known" hidden>
+            <summary>Last known — not current</summary>
+            <p id="run-monitor-last-known-meta" class="note"></p>
+            <div id="run-monitor-last-known-body"></div>
+          </details>
+        </section>
+        <!-- end primary current work -->
 
         <!-- ═══ DAILY DRIVER: STATUS STRIP ═══ -->
-        <div class="metric-grid">
-          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="live" aria-label="Open Telemetry for pipeline status" title="Open Telemetry">
+        <div class="metric-grid" data-advanced hidden data-run-monitor-retired="legacy-status-metrics">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="home" data-quick-link-focus="#current-work-heading" aria-label="Open Current Work run status" title="Open Current Work">
             <span class="metric-label">Pipeline</span>
             <strong id="pipeline-state" class="pipeline-state-value" aria-label="Pipeline status loading">
               <span class="pipeline-state-main">...</span>
               <span class="pipeline-state-detail" hidden></span>
             </strong>
           </section>
-          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="live" aria-label="Open Telemetry for the current item position" title="Open Telemetry">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="home" data-quick-link-focus="#run-monitor-detail" aria-label="Open the selected Current Work file" title="Open Current Work file">
             <span class="metric-label">Current Item</span>
             <strong id="queue-count">0 / 0</strong>
             <span id="queue-count-detail" class="metric-detail">No active item loaded.</span>
@@ -26,31 +148,31 @@
         </div>
 
         <!-- ═══ DAILY DRIVER: QUICK CONTROLS ═══ -->
-        <section class="panel home-quick-controls-panel" data-panel-type="interactive">
+        <section class="panel home-quick-controls-panel" data-panel-type="interactive" data-advanced hidden data-run-monitor-retired="legacy-quick-controls">
           <div class="panel-heading">
             <h2>Quick Controls</h2>
-            <strong id="home-control-readiness-status" class="visually-hidden" aria-live="polite">Not loaded</strong>
+            <strong id="home-control-readiness-status" class="visually-hidden">Not loaded</strong>
           </div>
           <div class="action-row action-row-left wrap-actions home-quick-control-row">
             <button type="button" id="home-refresh-button" class="secondary-button">Refresh Home</button>
             <button type="button" class="primary-button" data-cross-page-target="launch">Review &amp; start processing</button>
             <button type="button" class="secondary-button" data-cross-page-target="completed" data-home-promotion-entry disabled>Open Completed Output</button>
-            <button type="button" class="secondary-button" data-cross-page-target="queue">Queue</button>
+            <button type="button" class="secondary-button" data-touchpoint-id="home-quick-controls-queue" data-cross-page-target="queue">Queue</button>
             <button type="button" class="secondary-button" data-cross-page-target="pending">Open Pending Publish</button>
           </div>
-          <p id="home-control-message" class="note" aria-live="polite">Review readiness and choose a queue before anything runs. Originals stay unchanged. Use Launch for starts, stops, and full readiness detail.</p>
-          <p id="home-health-banner" class="note" role="status" aria-live="polite">Checking system readiness…</p>
-          <p id="home-recovery-banner" class="note" role="status" aria-live="polite" hidden></p>
-          <p id="home-promotion-entry-message" class="note visually-hidden" aria-live="polite">Completed Output opens when reviewed files are eligible for final-library promotion.</p>
+          <p id="home-control-message" class="note">Review readiness and choose a queue before anything runs. Originals stay unchanged. Use Launch for starts, stops, and full readiness detail.</p>
+          <p id="home-health-banner" class="note">Checking system readiness…</p>
+          <p id="home-recovery-banner" class="note" hidden></p>
+          <p id="home-promotion-entry-message" class="note visually-hidden">Completed Output opens when reviewed files are eligible for final-library promotion.</p>
         </section>
 
-        <section class="panel live-run-strip-panel" data-panel-type="status">
+        <section class="panel live-run-strip-panel" data-panel-type="status" data-advanced hidden data-run-monitor-retired="legacy-live-run">
           <div class="panel-heading">
             <h2>Live Run</h2>
             <strong id="home-live-run-status" data-state="unknown">Checking</strong>
           </div>
-          <div id="home-live-run-strip" class="live-run-strip" aria-live="polite" aria-label="Current backend live run summary">
-            <span class="live-run-chip" data-status="unknown" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="live" aria-label="Open Telemetry for live state" title="Open Telemetry">
+          <div id="home-live-run-strip" class="live-run-strip" aria-label="Current backend live run summary">
+            <span class="live-run-chip" data-status="unknown" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="home" data-quick-link-focus="#current-work-heading" aria-label="Open Current Work run state" title="Open Current Work">
               <span class="live-run-chip-label">State</span>
               <strong class="live-run-chip-value">Waiting for backend snapshot</strong>
             </span>
@@ -59,27 +181,27 @@
         </section>
 
         <!-- ═══ DAILY DRIVER: NEXT QUEUE ═══ -->
-        <section class="panel home-next-queue-panel" data-panel-type="interactive">
+        <section class="panel home-next-queue-panel" data-panel-type="interactive" data-advanced hidden data-run-monitor-retired="legacy-next-five">
           <div class="panel-heading">
             <h2>Next 5 Videos</h2>
             <strong id="home-next-queue-status">No data</strong>
           </div>
-          <ol id="home-next-queue-list" class="home-next-queue-list" aria-live="polite">
+          <ol id="home-next-queue-list" class="home-next-queue-list">
             <li>No runnable queue items loaded.</li>
           </ol>
-          <p id="home-next-queue-detail" class="note" role="status" aria-live="polite">Select a queue item to see the route handoff.</p>
+          <p id="home-next-queue-detail" class="note">Select a queue item to see the route handoff.</p>
         </section>
 
         <!-- ═══ DAILY DRIVER: RUN PROGRESS ═══ -->
-        <section class="panel" data-panel-type="interactive">
+        <section class="panel" data-panel-type="interactive" data-advanced hidden data-run-monitor-retired="legacy-run-progress">
           <div class="panel-heading">
             <h2>Run Progress</h2>
             <strong id="progress-detail-status">No details</strong>
           </div>
-          <div id="progress-bar-list" class="progress-bar-list" aria-live="polite">
+          <div id="progress-bar-list" class="progress-bar-list">
             <p class="note">Waiting for backend progress snapshot.</p>
           </div>
-          <div id="progress-detail-rows" class="progress-fact-grid" role="list" aria-live="polite">
+          <div id="progress-detail-rows" class="progress-fact-grid" role="list">
             <p class="note">No progress details loaded.</p>
           <div class="empty-state" data-empty-state="hidden" style="display:none">
             <span class="empty-state-label">Pipeline not active</span>
@@ -89,7 +211,7 @@
         </section>
 
         <!-- ═══ DAILY DRIVER: RECENTLY COMPLETED ═══ -->
-        <section class="panel" data-panel-type="interactive">
+        <section class="panel" data-panel-type="interactive" data-advanced hidden data-run-monitor-retired="legacy-recent-completed">
           <div class="panel-heading">
             <h2>Recently Completed</h2>
             <strong id="home-recent-completed-status">No data</strong>
@@ -112,7 +234,7 @@
             <span class="empty-state-hint">Run the pipeline to see recently completed files here.</span>
             </div>
           </div>
-          <p id="home-recent-completed-detail" class="note" role="status" aria-live="polite" hidden></p>
+          <p id="home-recent-completed-detail" class="note" hidden></p>
           <div class="action-row action-row-left wrap-actions">
             <button type="button" class="secondary-button" data-touchpoint-id="home-recent-output-review-completed" data-cross-page-target="completed">Review Completed</button>
           </div>
@@ -192,7 +314,7 @@
             <pre id="home-queue-snapshot" class="prose-block">No queue data loaded.</pre>
           </section>
 
-          <section class="panel" data-panel-type="evidence">
+          <section class="panel" data-panel-type="evidence" hidden data-run-monitor-retired="current-run">
             <div class="panel-heading">
               <h2>Current Run</h2>
               <strong id="home-active-work-status">Checking</strong>
@@ -200,7 +322,7 @@
             <pre id="home-active-work-summary" class="prose-block">No active-work data loaded yet.</pre>
           </section>
 
-          <section class="panel" data-panel-type="evidence">
+          <section class="panel" data-panel-type="evidence" hidden data-run-monitor-retired="progress-proof">
             <div class="panel-heading">
               <h2>Progress Proof</h2>
               <strong id="progress-evidence-status">Not loaded</strong>
@@ -320,12 +442,12 @@
 
         </div><!-- end outer data-advanced (9 panels) -->
 
-          <section class="panel" data-panel-type="interactive">
+          <section class="panel" data-panel-type="interactive" data-advanced>
             <div class="panel-heading">
               <h2>Pipeline Overview</h2>
               <strong id="cross-page-context-status">Not loaded</strong>
             </div>
-            <div id="cross-page-context-board" class="review-tile-board" aria-label="Pipeline overview highlights" aria-live="polite">
+            <div id="cross-page-context-board" class="review-tile-board" aria-label="Pipeline overview highlights">
               <section class="review-tile review-tile-wide" data-tone="muted">
                 <span class="review-tile-label">Context</span>
                 <strong class="review-tile-value">Not loaded</strong>
@@ -421,7 +543,7 @@
                 <strong id="sample-validation-status">Not loaded</strong>
               </div>
               <pre id="sample-validation-summary" class="prose-block">No backend-owned sample validation record is loaded.</pre>
-              <div id="sample-validation-decision-strip" class="decision-strip" role="status" aria-live="polite" data-state="unknown">
+              <div id="sample-validation-decision-strip" class="decision-strip" data-state="unknown">
                 <span id="sample-validation-decision-strip-summary">Decision: no sample selected.</span>
                 <div class="action-row action-row-left wrap-actions">
                   <button type="button" id="sample-validation-strip-preview-button" class="secondary-button">Preview Record</button>

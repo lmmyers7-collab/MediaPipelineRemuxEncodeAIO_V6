@@ -1,5 +1,8 @@
 ---
 file: ops/pipeline/engine/probe/media_probe.ps1
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: probe
@@ -9,7 +12,8 @@ sha256: 5ecaaf9e1244cfc95fda01232a40e9694135a5643bdcd5336bfad25ba2622a6b
 ---
 # `ops/pipeline/engine/probe/media_probe.ps1`
 
-**Purpose:** (no .SYNOPSIS block)
+**Purpose:** PowerShell implementation for media probe.
 
+**Invoked tools:** `ffmpeg`, `ffprobe`, `mkvmerge`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/engine/probe/media_probe.ps1`._

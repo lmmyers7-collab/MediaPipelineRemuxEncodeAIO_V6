@@ -142,6 +142,52 @@ permitted.
   selected command, event, queue, and completed-job records into a
   SQLite database under the runtime state root, but JSON remains
   authoritative until a later cutover.
+- **Run Once monitor authority.** `State/RunMonitor/<run_id>.json` is
+  authoritative for accepted run membership and exactly correlated runtime
+  lifecycle, stage, track, worker, and freshness evidence. Before process spawn,
+  the Python launch backend atomically seeds its immutable membership from the
+  validated uncapped `accepted_run_rows` Queue contract. Every newly launchable
+  row carries `planned_display_name` plus
+  `planned_display_name_source=plex_destination_plan.v1`; the public Queue
+  `display_name` is not naming proof. The planned filename and evidence source
+  are bound into both the Queue-plan fingerprint and the accepted-membership
+  content fingerprint while raw source identity remains separate. The accepted
+  fingerprint v1 canonicalizes path fields as absolute forward-slash paths and
+  folds ASCII `A-Z` only; non-ASCII code points and every non-path field remain
+  exact, so Python and PowerShell agree without collapsing distinct names such
+  as `Straße` and `STRASSE`. Naming-plan
+  failure or a mismatched content fingerprint blocks Queue acceptance instead
+  of falling back to the source leaf. The PowerShell engine
+  then adopts and verifies that exact run/command/fingerprint/membership and is
+  the runtime writer; later Queue refreshes cannot redefine the run. After the
+  effective library/show/folder/file overrides are active and before source
+  probing or scratch work, a verified Backend Queue job recomputes its
+  production destination and requires both planned output leaves to equal the
+  immutable accepted `display_name`. That verified output-path object is then
+  carried through encode, remux, and route fallbacks; downstream stages do not
+  silently recalculate it. Missing accepted naming evidence fails as
+  `DESTINATION_NAMING_EVIDENCE_MISSING`; a changed plan fails as
+  `DESTINATION_NAMING_PLAN_MISMATCH`. Direct/manual work and persisted
+  pre-fingerprint runs retain explicit legacy compatibility, but a newly
+  fingerprinted run cannot silently execute under a different cleaner or
+  configuration. The accepted Queue snapshot remains planned-intent authority.
+  Completed, Pending Publish, and failure artifacts remain terminal proof authorities; the monitor
+  carries exact references to them rather than replacing their proof. Raw
+  progress, event/log tails, SQLite mirrors, and generated summaries are
+  supporting or navigation evidence only and cannot independently assert
+  current or terminal work. Terminal monitor history is bounded while active
+  records are retained, and its identity-only latest pointer is repairable only
+  from the exact persisted per-run record. Persisted monitor rows that predate
+  `display_name_evidence` keep their immutable accepted label and membership;
+  neither artifact is retroactively rewritten or adopted as Queue-plan proof.
+  For read compatibility only, the Local API projection preserves that stored
+  label as `accepted_display_name` and may project a different effective
+  `display_name` with `display_name_basis=terminal_output` when the same
+  monitor item has exact terminal output evidence and an exact job-correlated
+  Completed or Pending Publish reference proving the published/parked path.
+  Otherwise the basis remains `legacy_accepted`. This reconciliation is a
+  backend projection: the WebView never cleans a filename or consults the
+  current Queue snapshot to repair a saved run.
 
 ## Cross-cutting concerns
 

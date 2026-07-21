@@ -27,12 +27,25 @@ def parse_progress_datetime(raw: str) -> datetime | None:
     return None
 
 
-def datetime_is_stale(raw: str, stale_after_seconds: float) -> bool:
+def datetime_is_stale(
+    raw: str,
+    stale_after_seconds: float,
+    *,
+    now: datetime | None = None,
+    future_tolerance_seconds: float = 5.0,
+) -> bool:
     parsed = parse_progress_datetime(raw)
     if parsed is None:
         return False
-    now = datetime.now(parsed.tzinfo) if parsed.tzinfo is not None else datetime.now()
-    return (now - parsed) > timedelta(seconds=stale_after_seconds)
+    reference = now or (datetime.now(parsed.tzinfo) if parsed.tzinfo is not None else datetime.now())
+    if parsed.tzinfo is None and reference.tzinfo is not None:
+        reference = reference.replace(tzinfo=None)
+    elif parsed.tzinfo is not None and reference.tzinfo is None:
+        reference = reference.replace(tzinfo=parsed.tzinfo)
+    age = reference - parsed
+    if age < -timedelta(seconds=max(0.0, float(future_tolerance_seconds))):
+        return True
+    return age > timedelta(seconds=max(0.0, float(stale_after_seconds)))
 
 
 def _normalized_progress_text(progress: dict[str, Any], key: str) -> str:
@@ -45,7 +58,13 @@ def _is_publish_copy_progress(progress: dict[str, Any]) -> bool:
     return stage in PUBLISH_COPY_STAGES or push_state in PUBLISH_COPY_STATES
 
 
-def _publish_copy_progress_is_stale(progress: dict[str, Any], *, stale_after_seconds: float) -> bool:
+def _publish_copy_progress_is_stale(
+    progress: dict[str, Any],
+    *,
+    stale_after_seconds: float,
+    now: datetime | None = None,
+    future_tolerance_seconds: float = 5.0,
+) -> bool:
     timestamps = [
         str(progress.get("LastUpdate", "") or "").strip(),
         str(progress.get("CopyUpdatedAt", "") or "").strip(),
@@ -53,10 +72,24 @@ def _publish_copy_progress_is_stale(progress: dict[str, Any], *, stale_after_sec
     parseable = [raw for raw in timestamps if parse_progress_datetime(raw) is not None]
     if not parseable:
         return True
-    return all(datetime_is_stale(raw, stale_after_seconds) for raw in parseable)
+    return all(
+        datetime_is_stale(
+            raw,
+            stale_after_seconds,
+            now=now,
+            future_tolerance_seconds=future_tolerance_seconds,
+        )
+        for raw in parseable
+    )
 
 
-def is_progress_stale(progress: dict[str, Any] | None, *, stale_after_seconds: float = 5.0) -> bool:
+def is_progress_stale(
+    progress: dict[str, Any] | None,
+    *,
+    stale_after_seconds: float = 5.0,
+    now: datetime | None = None,
+    future_tolerance_seconds: float = 5.0,
+) -> bool:
     if not progress:
         return False
     stage = str(progress.get("CurrentStage", "") or "").strip().lower()
@@ -66,14 +99,27 @@ def is_progress_stale(progress: dict[str, Any] | None, *, stale_after_seconds: f
         return _publish_copy_progress_is_stale(
             progress,
             stale_after_seconds=PUBLISH_COPY_PROGRESS_STALE_AFTER_SECONDS,
+            now=now,
+            future_tolerance_seconds=future_tolerance_seconds,
         )
     raw = str(progress.get("LastUpdate", "") or "").strip()
     if parse_progress_datetime(raw) is None:
         return True
-    return datetime_is_stale(raw, stale_after_seconds)
+    return datetime_is_stale(
+        raw,
+        stale_after_seconds,
+        now=now,
+        future_tolerance_seconds=future_tolerance_seconds,
+    )
 
 
-def is_audit_progress_stale(audit_progress: dict[str, Any] | None, *, stale_after_seconds: float = 5.0) -> bool:
+def is_audit_progress_stale(
+    audit_progress: dict[str, Any] | None,
+    *,
+    stale_after_seconds: float = 5.0,
+    now: datetime | None = None,
+    future_tolerance_seconds: float = 5.0,
+) -> bool:
     if not audit_progress:
         return False
     if bool(audit_progress.get("completed", False)) or bool(audit_progress.get("failed", False)):
@@ -82,7 +128,14 @@ def is_audit_progress_stale(audit_progress: dict[str, Any] | None, *, stale_afte
     if status in {"", "idle", "completed", "failed", "stopped"}:
         return False
     raw = str(audit_progress.get("last_update", "") or "").strip()
-    return datetime_is_stale(raw, stale_after_seconds)
+    if parse_progress_datetime(raw) is None:
+        return True
+    return datetime_is_stale(
+        raw,
+        stale_after_seconds,
+        now=now,
+        future_tolerance_seconds=future_tolerance_seconds,
+    )
 
 
 def format_audit_progress(audit_progress: dict[str, Any] | None) -> str:

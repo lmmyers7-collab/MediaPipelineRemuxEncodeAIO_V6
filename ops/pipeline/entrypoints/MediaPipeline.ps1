@@ -48,6 +48,9 @@ param(
     # the actual run order with no second source of truth.
     [switch]$EmitQueuePlan,
     [string]$QueuePlanOutPath,
+    [string]$ExpectedQueuePlanFingerprint = "",
+    [string]$CommandId = "",
+    [string]$RunId = "",
 
     # Worker mode: skip queue discovery and encode exactly one file.
     # When non-empty, the pipeline builds a synthetic single-item plan
@@ -62,6 +65,7 @@ param(
     [switch]$WorkerChild,
     [int]$WorkerSlotId = 0,
     [string]$WorkerRunId = "",
+    [string]$WorkerJobId = "",
     [string]$WorkerClaimId = "",
     [string]$WorkerResultPath = "",
     [string]$WorkerHeartbeatPath = "",
@@ -180,6 +184,7 @@ function Write-MediaPipelineEarlyWorkerChildFailureResult {
         WorkerSlotId        = [int]$WorkerSlotId
         WorkerRunId         = [string]$WorkerRunId
         WorkerClaimId       = [string]$WorkerClaimId
+        WorkerJobId         = [string]$WorkerJobId
         StartupExitCode     = [int]$ExitCode
         CompletedAt         = (Get-Date).ToString('o')
     }
@@ -204,6 +209,7 @@ function Write-MediaPipelineEarlyWorkerChildFailureResult {
                 worker_slot_id  = [int]$WorkerSlotId
                 worker_run_id   = [string]$WorkerRunId
                 worker_claim_id = [string]$WorkerClaimId
+                run_monitor_job_id = [string]$WorkerJobId
                 source_path     = [string]$SingleFile
                 stage           = 'startup_failure'
                 status          = [string]$Reason
@@ -526,13 +532,13 @@ if (-not $ValidateOnly -and -not $locklessDiagnostic) {
     Invoke-PeriodicLocalEncodedDirectoryCleanup -Force | Out-Null
 }
 
-# Clear stale operator pause/stop flags from a previous run -- controller runs
+# Clear stale operator control flags from a previous run -- controller runs
 # only. Worker children share these flag paths with the controller, and the
 # lockless diagnostic dump modes may run beside a live pipeline; in
 # both cases deleting here would silently cancel a pause/stop the operator
 # just requested.
 if (-not $ValidateOnly -and -not $WorkerChild -and -not $locklessDiagnostic) {
-    foreach ($flag in @($PauseFlag, $StopFlag)) {
+    foreach ($flag in @($PauseFlag, $StopFlag, $StopAfterCurrentFlag)) {
         if (Test-Path -LiteralPath $flag) { Remove-Item -LiteralPath $flag -Force -ErrorAction SilentlyContinue }
     }
 }
@@ -846,7 +852,8 @@ $enginePlan = New-MediaPipelineEnginePlan `
     -ConfigPath $configPath `
     -PowerShellPath $currentPowerShellPath `
     -ParallelEncodeMode ([string]$script:ParallelEncodeMode) `
-    -MaxParallelEncodes ([int]$script:MaxParallelEncodes)
+    -MaxParallelEncodes ([int]$script:MaxParallelEncodes) `
+    -ExpectedQueuePlanFingerprint $ExpectedQueuePlanFingerprint
 
 # -EmitQueuePlan: do exactly one scan + filter pass, write the snapshot,
 # and exit. Pending-push retry is intentionally skipped to keep the dry

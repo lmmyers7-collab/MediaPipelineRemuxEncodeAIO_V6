@@ -105,7 +105,7 @@
           closeReadiness: source.closeReadiness || null,
           stdoutTail: source.stdoutTail || null,
         });
-        const stage = timelineText(currentWork.current_stage_label, currentWork.phase_label, progress.CurrentStage, progress.Status);
+        const stage = timelineText(progress.CurrentStage, currentWork.current_stage_label, currentWork.phase_label, progress.Status);
         const stageLower = stage.toLowerCase();
         const route = timelineText(progress.CurrentRoute, progress.Route, currentWork.route_label);
         const routeLower = route.toLowerCase();
@@ -164,14 +164,14 @@
 
       function runTimelineCompletionStatus({ progress = {}, events = [], runTotalBar = null, publishBar = null }) {
         const statusText = timelineText(progress.Status, progress.CurrentStage).toLowerCase();
-        const failed = /\b(failed|error|aborted)\b/.test(statusText)
-          || events.some((event) => /\b(failed|error|aborted)\b/i.test(timelineText(event?.status, event?.data?.completion_status, event?.data?.error_code)));
+        void events;
+        const failed = /\b(failed|error|aborted)\b/.test(statusText);
         if (failed) return "blocked";
-        const stopped = /\b(stopped|stop requested)\b/.test(statusText)
-          || events.some((event) => /\b(stopped|stop_requested)\b/i.test(timelineText(event?.status, event?.data?.completion_status, event?.data?.error_code)));
+        const stopped = /\b(stopped|stop requested)\b/.test(statusText);
         if (stopped) return "review";
-        const completedEvent = events.some((event) => String(event?.event_type || event?.type || "").toLowerCase() === "job_completed");
-        if (completedEvent || runTimelineBarStatus(runTotalBar) === "complete" || runTimelineBarStatus(publishBar) === "complete") return "complete";
+        if (/^(completed|complete|published|parked)$/.test(statusText)
+          || runTimelineBarStatus(runTotalBar) === "complete"
+          || runTimelineBarStatus(publishBar) === "complete") return "complete";
         return "pending";
       }
 
@@ -181,9 +181,10 @@
           item.next = false;
         });
         if (!hasSnapshotEvidence || !items.length || items.every((item) => item.status === "complete")) return items;
-        const currentIndex = items.findIndex((item) => ["blocked", "review", "active"].includes(item.status));
+        const activeIndex = items.findIndex((item) => item.status === "active");
+        const attentionIndex = items.findIndex((item) => ["blocked", "review"].includes(item.status));
         const fallbackIndex = items.findIndex((item) => item.status === "pending");
-        const index = currentIndex >= 0 ? currentIndex : fallbackIndex;
+        const index = activeIndex >= 0 ? activeIndex : attentionIndex >= 0 ? attentionIndex : fallbackIndex;
         if (index < 0) return items;
         items[index].current = true;
         const nextIndex = items.findIndex((item, itemIndex) => itemIndex > index && item.status !== "complete");

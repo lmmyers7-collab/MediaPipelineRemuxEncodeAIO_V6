@@ -23,6 +23,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine') -Pa
     throw "Resolved repository root is missing ops\pipeline\engine: $repoRoot"
 }
 
+. (Join-Path $repoRoot 'ops\pipeline\engine\shared\native.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\queue\queue_plan.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\naming\naming.ps1')
 $script:QueueEngineActualGetTVInfoFromFile = ${function:Get-TVInfoFromFile}
@@ -180,9 +181,17 @@ function Reset-TestDispatchState {
     $script:CleanupDispatchCount = 0
     $script:LastWorkerDispatch = $null
     $script:LogMessages = @()
+    $script:StopAfterCurrentBoundaryRequested = $false
+    $script:StopAfterCurrentBoundaryAfterDispatchCount = 0
 }
 
 function Check-ControlFlags {}
+function Test-MediaPipelineStopAfterCurrentBoundary {
+    return [bool](
+        $script:StopAfterCurrentBoundaryRequested -and
+        @($script:ProcessFileCalls).Count -ge [int]$script:StopAfterCurrentBoundaryAfterDispatchCount
+    )
+}
 function Consume-RescanFlag { return $false }
 function Invoke-RetryPendingPushes { return 0 }
 function Refresh-PendingPublishIndex { return $null }
@@ -364,6 +373,7 @@ function Invoke-KananRevisionQueueSnapshotParseReuseCheck {
     $previousUseRealTVParser = $script:QueueEngineUseRealTVParser
     $previousTVParseCallCount = $script:QueueEngineTVParseCallCount
     $previousValidExtensions = $script:ValidExtensions
+    $previousOutputContainer = $script:OutputContainer
     $previousSourceTV = $script:SourceTV
     $previousLocalBase = $script:LocalBase
     try {
@@ -385,6 +395,7 @@ function Invoke-KananRevisionQueueSnapshotParseReuseCheck {
         $script:QueueEngineUseRealTVParser = $true
         $script:QueueEngineTVParseCallCount = 0
         $script:ValidExtensions = @('.mkv')
+        $script:OutputContainer = '.mkv'
         $script:SourceTV = $tvRoot
         $script:LocalBase = $tempRoot
         $libraryProfile = @{
@@ -407,6 +418,7 @@ function Invoke-KananRevisionQueueSnapshotParseReuseCheck {
         $snapshot = Build-QueuePlanSnapshotRows -QueuePlan $plan -ProcessedIndex @{}
         $revisionPath = Join-Path $showRoot '[SubsPlease] Kanan-sama wa Akumade Choroi - 12v2 (1080p) [80A8418A].mkv'
         $revisionRow = @($snapshot.rows | Where-Object { [string]$_.source_path -eq $revisionPath })[0]
+        $revisionAcceptedRow = @($snapshot.accepted_run_rows | Where-Object { [string]$_.source_path -eq $revisionPath })[0]
         $unreliableRow = @($snapshot.rows | Where-Object { [string]$_.source_path -eq (Join-Path $showRoot 'Unparseable Bonus Clip.mkv') })[0]
 
         Assert-Equal ([int]$snapshot.runnable_count) 4 'All four Kanan episodes should remain runnable in the Queue dry-run snapshot.'
@@ -416,6 +428,7 @@ function Invoke-KananRevisionQueueSnapshotParseReuseCheck {
         Assert-Equal ([int]$revisionRow.season_number) 1 'Queue dry run should resolve the exact real-world fixture to season 1.'
         Assert-Equal ([int]$revisionRow.episode_number) 12 'Queue dry run should resolve the exact real-world fixture to episode 12.'
         Assert-Equal ([int]$revisionRow.run_queue_index) 4 'Queue dry run ordering should place episode 12v2 after episodes 09-11.'
+        Assert-Equal ([string]$revisionAcceptedRow.display_name) 'Kanan-sama wa Akumade Choroi - S01E12.mkv' 'Accepted workload must expose the production TV rename state, not the raw release filename.'
         Assert-Equal ([string]$unreliableRow.blocked_reason_code) 'tv_parse_unreliable' 'An unreliable cached TV identity should remain visible but blocked in Queue dry-run.'
         Assert-Equal ([int]$script:QueueEngineTVParseCallCount) 5 'Queue discovery should parse each TV file once and the dry-run snapshot should reuse both reliable and unreliable canonical results.'
     } finally {
@@ -423,6 +436,7 @@ function Invoke-KananRevisionQueueSnapshotParseReuseCheck {
         $script:QueueEngineUseRealTVParser = $previousUseRealTVParser
         $script:QueueEngineTVParseCallCount = $previousTVParseCallCount
         $script:ValidExtensions = $previousValidExtensions
+        $script:OutputContainer = $previousOutputContainer
         $script:SourceTV = $previousSourceTV
         $script:LocalBase = $previousLocalBase
         if (Test-Path -LiteralPath $tempRoot -PathType Container) {
@@ -635,19 +649,284 @@ function Invoke-GlobalRunnableQueueSnapshotMetadataCheck {
     }
 }
 
+function Invoke-AcceptedRunUsesBackendRenameDisplayNameCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("MediaPipelineQueueRenameDisplayTest_" + [guid]::NewGuid().ToString('N'))
+    $previousOutputContainer = $script:OutputContainer
+    $existingShowOverrideResolver = Get-Command -Name Resolve-ShowOverrides -CommandType Function -ErrorAction SilentlyContinue
+    $originalShowOverrideResolver = if ($existingShowOverrideResolver) { $existingShowOverrideResolver.ScriptBlock } else { $null }
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        $entry = New-QueueEngineTestEntry `
+            -Root $tempRoot `
+            -Name 'Django.Unchained.2012.1080p.BluRay.x264.YIFY.mp4' `
+            -Phase 'movie' `
+            -MediaKind 'movie'
+        $edgeEntry = New-QueueEngineTestEntry `
+            -Root $tempRoot `
+            -Name 'Edge.of.Tomorrow.2014.1080p.BluRay.DDP5.1.x265.10bit-GalaxyRG265.mkv' `
+            -Phase 'movie' `
+            -MediaKind 'movie'
+        $tvEntry = New-QueueEngineTestEntry `
+            -Root $tempRoot `
+            -Name 'Raw.Show.S01E01.mkv' `
+            -Phase 'tv' `
+            -MediaKind 'tv'
+        $cachedTvInfo = [pscustomobject]@{
+            IsReliable = $true
+            ShowName = 'Raw Show'
+            Season = 1
+            Episode = 1
+            EpisodeEnd = $null
+            OriginalName = 'Raw.Show.S01E01.mkv'
+            ParseMode = 'test-stub'
+            ParseError = ''
+        }
+        $tvEntry | Add-Member -NotePropertyName TVIdentityParsed -NotePropertyValue $true -Force
+        $tvEntry | Add-Member -NotePropertyName TVInfo -NotePropertyValue $cachedTvInfo -Force
+        $plan = New-TestQueuePlan
+        $plan.NormalMovieEntries = @($entry, $edgeEntry)
+        $plan.NormalTVEntries = @($tvEntry)
+        $plan.MovieCount = 2
+        $plan.TVCount = 1
+        $script:configPath = ''
+        $script:LocalBase = $tempRoot
+        $script:SourceMovies = $tempRoot
+        $script:SourceTV = $tempRoot
+        $script:Outsource = ''
+        $script:ValidExtensions = @('.mp4', '.mkv')
+        $script:OutputContainer = '.mp4'
+        Set-Item -LiteralPath Function:\Resolve-ShowOverrides -Value {
+            param([string] $ShowName)
+            if ([string]::Equals($ShowName, 'Raw Show', [System.StringComparison]::Ordinal)) {
+                return [pscustomobject]@{ ShowName = 'Canonical Show' }
+            }
+            return $null
+        }
+
+        $snapshot = Build-QueuePlanSnapshotRows -QueuePlan $plan -ProcessedIndex @{}
+        $accepted = @($snapshot.accepted_run_rows | Where-Object { [string]$_.source_path -eq [string]$entry.SourcePath })[0]
+        $edgeAccepted = @($snapshot.accepted_run_rows | Where-Object { [string]$_.source_path -eq [string]$edgeEntry.SourcePath })[0]
+        $tvAccepted = @($snapshot.accepted_run_rows | Where-Object { [string]$_.source_path -eq [string]$tvEntry.SourcePath })[0]
+
+        Assert-Equal ([string]$accepted.display_name) 'Django Unchained (2012).mp4' 'Accepted workload must use the production planned rename filename.'
+        Assert-Equal ([string]$accepted.planned_display_name) 'Django Unchained (2012).mp4' 'Accepted workload must expose the explicit production planned filename.'
+        Assert-Equal ([string]$accepted.planned_display_name_source) 'plex_destination_plan.v1' 'Accepted workload must version its production naming-plan evidence.'
+        Assert-Equal ([System.IO.Path]::GetFileName([string]$accepted.source_path)) 'Django.Unchained.2012.1080p.BluRay.x264.YIFY.mp4' 'Raw source identity must remain unchanged.'
+        Assert-Equal ([string]$edgeAccepted.display_name) 'Edge of Tomorrow (2014).mp4' 'Accepted workload must discard the complete verified metadata tail without a filename-specific release-group rule.'
+        Assert-Equal ([string]$tvAccepted.display_name) 'Canonical Show - S01E01.mp4' 'Accepted TV naming must apply the same reliable ShowName override used by execution.'
+        Assert-Equal ([string]$cachedTvInfo.ShowName) 'Raw Show' 'Accepted TV naming must not mutate the cached parsed identity while planning the canonical execution name.'
+        Assert-Equal ([string]$snapshot.accepted_run_rows_fingerprint_schema) 'accepted_run_rows_fingerprint.v1' 'Accepted workload must publish a versioned content fingerprint.'
+        Assert-Equal ([string]$snapshot.accepted_run_rows_fingerprint) (Get-MediaPipelineAcceptedRunRowsFingerprint -Rows $snapshot.accepted_run_rows) 'Accepted workload content fingerprint must bind the clean planned names and stable identities.'
+
+        $originalFingerprint = [string]$snapshot.queue_plan_fingerprint
+        $originalAcceptedRowsFingerprint = [string]$snapshot.accepted_run_rows_fingerprint
+        $overridePath = Get-RenameOverrideSidecarPath -File $entry.File
+        $overridePayload = [ordered]@{
+            RenameTool = [ordered]@{
+                ForcePipelineName = $true
+                FinalName = 'Operator Approved Django Name.mp4'
+            }
+        } | ConvertTo-Json -Depth 5
+        Set-Content -LiteralPath $overridePath -Value $overridePayload -Encoding UTF8
+
+        $forcedSnapshot = Build-QueuePlanSnapshotRows -QueuePlan $plan -ProcessedIndex @{}
+        $forcedAccepted = @($forcedSnapshot.accepted_run_rows)[0]
+        Assert-Equal ([string]$forcedAccepted.display_name) 'Operator Approved Django Name.mp4' 'Accepted workload must honor the authoritative force-rename sidecar.'
+        Assert-True ([string]$forcedSnapshot.queue_plan_fingerprint -ne $originalFingerprint) 'Changing the accepted backend naming plan must change the accepted Queue fingerprint.'
+        Assert-True ([string]$forcedSnapshot.accepted_run_rows_fingerprint -ne $originalAcceptedRowsFingerprint) 'Changing the accepted backend naming plan must change the accepted workload content fingerprint.'
+    } finally {
+        if ($originalShowOverrideResolver) {
+            Set-Item -LiteralPath Function:\Resolve-ShowOverrides -Value $originalShowOverrideResolver
+        } else {
+            Remove-Item -LiteralPath Function:\Resolve-ShowOverrides -ErrorAction SilentlyContinue
+        }
+        $script:OutputContainer = $previousOutputContainer
+        if (Test-Path -LiteralPath $tempRoot -PathType Container) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force
+        }
+    }
+}
+
+function Invoke-QueuePlanFingerprintDimensionCheck {
+    $row = [pscustomobject]@{
+        global_order = 1; phase = 'movie'; media_kind = 'movie'; source_path = 'C:\Media\Movie.mkv'
+        display_name = 'Rendered label only'; manifest_priority_level = 'normal'; route = 'remux'
+        route_reason_code = 'copy_compatible'; blocked_reason_code = ''
+    }
+    $accepted = [pscustomobject]@{
+        run_queue_index = 1; run_queue_total = 1; source_identity = 'source-identity-a'
+        source_path = 'C:\Media\Movie.mkv'; planned_display_name = 'Movie (2026).mkv'
+        planned_display_name_source = 'plex_destination_plan.v1'; route = 'remux'
+        route_reason_code = 'copy_compatible'; intended_final_path = 'C:\Final\Movie (2026).mkv'
+    }
+    $backpressure = [pscustomobject]@{
+        Blocked = $false; BlockReason = ''; DeferredPublish = $false; ManifestCount = 0; RetryExhaustedCount = 0
+    }
+    $health = [pscustomobject]@{
+        status = 'ready'; count = 0; missing_payload_count = 0; unreadable_manifest_count = 0
+    }
+    $baseline = Get-MediaPipelineQueuePlanFingerprint `
+        -Rows @($row) -ExcludedRows @() -AcceptedRows @($accepted) `
+        -InputFingerprint 'inputs-a' -OrderingStrategy 'priority_then_oldest' `
+        -PendingBackpressure $backpressure -PendingHealth $health
+
+    $renderOnlyRow = [pscustomobject]@{
+        global_order = 1; phase = 'movie'; media_kind = 'movie'; source_path = 'C:\Media\Movie.mkv'
+        display_name = 'Different rendered label'; manifest_priority_level = 'normal'; route = 'remux'
+        route_reason_code = 'copy_compatible'; blocked_reason_code = ''
+    }
+    $renderOnly = Get-MediaPipelineQueuePlanFingerprint `
+        -Rows @($renderOnlyRow) -ExcludedRows @() -AcceptedRows @($accepted) `
+        -InputFingerprint 'inputs-a' -OrderingStrategy 'priority_then_oldest' `
+        -PendingBackpressure $backpressure -PendingHealth $health
+    Assert-Equal $renderOnly $baseline 'A render-only display label must not alter execution identity.'
+
+    $sourceChangedRow = [pscustomobject]@{
+        global_order = 1; phase = 'movie'; media_kind = 'movie'; source_path = 'C:\Media\Replacement.mkv'
+        display_name = 'Rendered label only'; manifest_priority_level = 'normal'; route = 'remux'
+        route_reason_code = 'copy_compatible'; blocked_reason_code = ''
+    }
+    $sourceChanged = Get-MediaPipelineQueuePlanFingerprint `
+        -Rows @($sourceChangedRow) -ExcludedRows @() -AcceptedRows @($accepted) `
+        -InputFingerprint 'inputs-a' -OrderingStrategy 'priority_then_oldest' `
+        -PendingBackpressure $backpressure -PendingHealth $health
+    Assert-True ($sourceChanged -ne $baseline) 'A source inventory membership change must alter the active Queue plan fingerprint.'
+
+    $inputsChanged = Get-MediaPipelineQueuePlanFingerprint `
+        -Rows @($row) -ExcludedRows @() -AcceptedRows @($accepted) `
+        -InputFingerprint 'inputs-b' -OrderingStrategy 'priority_then_oldest' `
+        -PendingBackpressure $backpressure -PendingHealth $health
+    Assert-True ($inputsChanged -ne $baseline) 'Config/profile, priority/hold, strategy/manual-order, or file-override input changes must alter the Queue plan fingerprint.'
+
+    $strategyChanged = Get-MediaPipelineQueuePlanFingerprint `
+        -Rows @($row) -ExcludedRows @() -AcceptedRows @($accepted) `
+        -InputFingerprint 'inputs-a' -OrderingStrategy 'manual_order' `
+        -PendingBackpressure $backpressure -PendingHealth $health
+    Assert-True ($strategyChanged -ne $baseline) 'An ordering strategy change must alter the Queue plan fingerprint.'
+
+    $blockedBackpressure = [pscustomobject]@{
+        Blocked = $true; BlockReason = 'deferred_threshold'; DeferredPublish = $true; ManifestCount = 3; RetryExhaustedCount = 1
+    }
+    $pendingChanged = Get-MediaPipelineQueuePlanFingerprint `
+        -Rows @($row) -ExcludedRows @() -AcceptedRows @($accepted) `
+        -InputFingerprint 'inputs-a' -OrderingStrategy 'priority_then_oldest' `
+        -PendingBackpressure $blockedBackpressure -PendingHealth $health
+    Assert-True ($pendingChanged -ne $baseline) 'Pending-publish backpressure changes must alter the Queue plan fingerprint.'
+
+    $blockedHealth = [pscustomobject]@{
+        status = 'blocked'; count = 1; missing_payload_count = 1; unreadable_manifest_count = 0
+    }
+    $healthChanged = Get-MediaPipelineQueuePlanFingerprint `
+        -Rows @($row) -ExcludedRows @() -AcceptedRows @($accepted) `
+        -InputFingerprint 'inputs-a' -OrderingStrategy 'priority_then_oldest' `
+        -PendingBackpressure $backpressure -PendingHealth $blockedHealth
+    Assert-True ($healthChanged -ne $baseline) 'Pending-publish index health changes must alter the Queue plan fingerprint.'
+
+    $renamedAccepted = [pscustomobject]@{
+        run_queue_index = 1; run_queue_total = 1; source_identity = 'source-identity-a'
+        source_path = 'C:\Media\Movie.mkv'; planned_display_name = 'Operator Name (2026).mkv'
+        planned_display_name_source = 'plex_destination_plan.v1'; route = 'remux'
+        route_reason_code = 'copy_compatible'; intended_final_path = 'C:\Final\Operator Name (2026).mkv'
+    }
+    $renameChanged = Get-MediaPipelineQueuePlanFingerprint `
+        -Rows @($row) -ExcludedRows @() -AcceptedRows @($renamedAccepted) `
+        -InputFingerprint 'inputs-a' -OrderingStrategy 'priority_then_oldest' `
+        -PendingBackpressure $backpressure -PendingHealth $health
+    Assert-True ($renameChanged -ne $baseline) 'A production naming-plan change must alter execution identity.'
+}
+
+function Invoke-AcceptedRunBlocksWhenBackendNamingEvidenceFailsCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("MediaPipelineQueueRenameFailureTest_" + [guid]::NewGuid().ToString('N'))
+    $originalPlanner = (Get-Command -Name New-PlexDestinationPlan -ErrorAction Stop).ScriptBlock
+    $existingLibraryOverrideResolver = Get-Command -Name Resolve-MediaPipelineLibraryOverridesForPath -ErrorAction SilentlyContinue
+    $originalLibraryOverrideResolver = if ($existingLibraryOverrideResolver) { $existingLibraryOverrideResolver.ScriptBlock } else { $null }
+    $previousOutputContainer = $script:OutputContainer
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        $successfulEntry = New-QueueEngineTestEntry -Root $tempRoot -Name 'Naming.Success.2026.mkv' -Phase 'movie' -MediaKind 'movie' -QueueIndex 1 -QueueTotal 3
+        $failedEntry = New-QueueEngineTestEntry -Root $tempRoot -Name 'Naming.Failure.2026.mkv' -Phase 'movie' -MediaKind 'movie' -QueueIndex 2 -QueueTotal 3
+        $overrideFailureEntry = New-QueueEngineTestEntry -Root $tempRoot -Name 'Naming.Override.Failure.2026.mkv' -Phase 'movie' -MediaKind 'movie' -QueueIndex 3 -QueueTotal 3
+        $plan = New-TestQueuePlan
+        $plan.NormalMovieEntries = @($successfulEntry, $failedEntry, $overrideFailureEntry)
+        $plan.MovieCount = 3
+        $script:configPath = ''
+        $script:LocalBase = $tempRoot
+        $script:SourceMovies = $tempRoot
+        $script:SourceTV = $tempRoot
+        $script:Outsource = ''
+        $script:ValidExtensions = @('.mkv')
+        $script:OutputContainer = '.mkv'
+
+        $script:QueueEngineOriginalDestinationPlanner = $originalPlanner
+        Set-Item -LiteralPath Function:\New-PlexDestinationPlan -Value {
+            param(
+                [string]$MediaKind,
+                $File = $null,
+                $TvInfo = $null,
+                [string]$OriginalName = '',
+                [string]$Extension = '',
+                [switch]$IncludeLibraryFolder,
+                [string]$LibraryFolder = ''
+            )
+            if ([string]$File.Name -eq 'Naming.Failure.2026.mkv') {
+                throw 'synthetic naming planner failure'
+            }
+            & $script:QueueEngineOriginalDestinationPlanner @PSBoundParameters
+        }
+        Set-Item -LiteralPath Function:\Resolve-MediaPipelineLibraryOverridesForPath -Value {
+            param([string]$SourcePath, [string]$LibraryProfileId = '')
+            if ([System.IO.Path]::GetFileName($SourcePath) -eq 'Naming.Override.Failure.2026.mkv') {
+                throw 'synthetic pre-naming override failure'
+            }
+            return [ordered]@{}
+        }
+        $snapshot = Build-QueuePlanSnapshotRows -QueuePlan $plan -ProcessedIndex @{}
+
+        Assert-Equal ([int]$snapshot.runnable_count) 1 'Only files with backend-authored naming evidence may enter the accepted workload.'
+        Assert-Equal ([int]$snapshot.accepted_run_rows.Count) 1 'Naming failure must not persist the raw source leaf as accepted planned-name evidence.'
+        Assert-Equal ([string]$snapshot.accepted_run_rows[0].display_name) 'Naming Success (2026).mkv' 'The preceding successful naming plan must remain accepted.'
+        Assert-Equal ([string]$snapshot.rows[1].blocked_reason_code) 'destination_naming_plan_failed' 'Queue must expose an explicit backend naming-plan blocker.'
+        Assert-Equal ([string]$snapshot.rows[1].route_reason_code) 'destination_naming_plan_failed' 'A stale route from the preceding row must not overwrite the naming blocker.'
+        Assert-True ([string]$snapshot.rows[1].blocked_reason -match 'synthetic naming planner failure') 'Queue naming blocker must preserve the backend planner reason.'
+        Assert-Equal ([string]$snapshot.rows[2].blocked_reason_code) 'destination_naming_plan_failed' 'An exception before the naming planner must also block Queue acceptance.'
+        Assert-Equal ([string]$snapshot.rows[2].route_reason_code) 'destination_naming_plan_failed' 'Pre-naming failure must not retain stale route evidence.'
+        Assert-True ([string]$snapshot.rows[2].blocked_reason -match 'synthetic pre-naming override failure') 'Pre-naming blocker must preserve the backend evidence reason.'
+    } finally {
+        Set-Item -LiteralPath Function:\New-PlexDestinationPlan -Value $originalPlanner
+        if ($originalLibraryOverrideResolver) {
+            Set-Item -LiteralPath Function:\Resolve-MediaPipelineLibraryOverridesForPath -Value $originalLibraryOverrideResolver
+        } else {
+            Remove-Item -LiteralPath Function:\Resolve-MediaPipelineLibraryOverridesForPath -ErrorAction SilentlyContinue
+        }
+        Remove-Variable -Name QueueEngineOriginalDestinationPlanner -Scope Script -ErrorAction SilentlyContinue
+        $script:OutputContainer = $previousOutputContainer
+        if (Test-Path -LiteralPath $tempRoot -PathType Container) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force
+        }
+    }
+}
+
 function Invoke-QueueSnapshotRowsAreCappedButTotalsRemainAccurateCheck {
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("MediaPipelineQueueRowCapTest_" + [guid]::NewGuid().ToString('N'))
     $previousRowLimit = $script:QueueSnapshotRowLimit
+    $previousRunId = $script:PipelineRunId
+    $previousRunMonitorContext = $script:BackendQueueRunMonitorSeedContext
     try {
         New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
         $script:QueueSnapshotRowLimit = 5
+        $script:PipelineRunId = 'uncapped-monitor-run'
+        $script:BackendQueueRunMonitorSeedContext = [pscustomobject]@{
+            RunId = 'uncapped-monitor-run'
+            QueuePlanFingerprint = 'accepted-plan'
+        }
         $entries = [System.Collections.ArrayList]::new()
-        for ($index = 1; $index -le 8; $index++) {
-            $entries.Add((New-QueueEngineSyntheticEntry -Root $tempRoot -Name ("Movie-{0:D3}.mkv" -f $index) -QueueIndex $index -QueueTotal 8)) | Out-Null
+        $acceptedTotal = 505
+        for ($index = 1; $index -le $acceptedTotal; $index++) {
+            $entries.Add((New-QueueEngineSyntheticEntry -Root $tempRoot -Name ("Movie-{0:D3}.mkv" -f $index) -QueueIndex $index -QueueTotal $acceptedTotal)) | Out-Null
         }
         $plan = New-TestQueuePlan
         $plan.NormalMovieEntries = $entries.ToArray()
-        $plan.MovieCount = 8
+        $plan.MovieCount = $acceptedTotal
         $script:configPath = ''
         $script:LocalBase = $tempRoot
         $script:SourceMovies = $tempRoot
@@ -657,18 +936,149 @@ function Invoke-QueueSnapshotRowsAreCappedButTotalsRemainAccurateCheck {
 
         $snapshot = Build-QueuePlanSnapshotRows -QueuePlan $plan -ProcessedIndex @{}
 
-        Assert-Equal $snapshot.runnable_count 8 'Snapshot runnable_count must preserve the full runnable total.'
-        Assert-Equal $snapshot.total_row_count 8 'Snapshot total_row_count must preserve the full display candidate total.'
+        Assert-Equal $snapshot.runnable_count $acceptedTotal 'Snapshot runnable_count must preserve the full runnable total.'
+        Assert-Equal $snapshot.total_row_count $acceptedTotal 'Snapshot total_row_count must preserve the full display candidate total.'
         Assert-Equal $snapshot.shown_row_count 5 'Snapshot should cap displayed rows at the row limit.'
         Assert-Equal $snapshot.row_limit 5 'Snapshot row_limit should expose the display cap.'
         Assert-True ([bool]$snapshot.rows_truncated) 'Snapshot should mark rows_truncated when display rows are capped.'
         Assert-Equal ([int]$snapshot.rows.Count) 5 'Snapshot rows payload should be capped.'
-        Assert-Equal ([int]$snapshot.rows[0]['run_queue_total']) 8 'Visible runnable rows must retain the full run_queue_total.'
-        Assert-Equal ([int]$plan.NormalMovieEntries[7].RunQueueTotal) 8 'Non-visible entries must still receive the full RunQueueTotal for execution.'
+        Assert-Equal ([int]$snapshot.rows[0]['run_queue_total']) $acceptedTotal 'Visible runnable rows must retain the full run_queue_total.'
+        Assert-Equal ([int]$plan.NormalMovieEntries[$acceptedTotal - 1].RunQueueTotal) $acceptedTotal 'Non-visible entries must still receive the full RunQueueTotal for execution.'
+        Assert-Equal ([int]$script:LastRunMonitorAcceptedRows.Count) $acceptedTotal 'Run monitor membership must preserve every accepted row beyond the display cap and legacy 500-row limit.'
+        Assert-Equal ([int]$script:LastRunMonitorAcceptedRows[$acceptedTotal - 1].run_queue_index) $acceptedTotal 'Uncapped monitor membership must preserve the final run-wide position.'
+        Assert-Equal ([int]$script:LastRunMonitorAcceptedRows[$acceptedTotal - 1].run_queue_total) $acceptedTotal 'Uncapped monitor membership must preserve the run-wide total.'
+        Assert-True (-not [string]::IsNullOrWhiteSpace([string]$script:LastRunMonitorAcceptedRows[$acceptedTotal - 1].job_id)) 'Every accepted monitor row must have a stable job ID.'
+        Assert-True (-not [string]::IsNullOrWhiteSpace([string]$script:LastRunMonitorAcceptedRows[$acceptedTotal - 1].source_identity)) 'Every accepted monitor row must have a path-aware source identity.'
+        Assert-Equal ([int]$snapshot.accepted_run_rows.Count) $acceptedTotal 'The durable dry-run snapshot must preserve uncapped accepted membership for pre-scan seeding.'
+        Assert-Equal ([int]$snapshot.accepted_run_rows[$acceptedTotal - 1].run_queue_index) $acceptedTotal 'Accepted snapshot membership must preserve the final run-wide position.'
+        Assert-Equal ([int]$snapshot.accepted_run_rows[$acceptedTotal - 1].run_queue_total) $acceptedTotal 'Accepted snapshot membership must preserve the run-wide total.'
+        Assert-True (-not $snapshot.accepted_run_rows[0].Contains('job_id')) 'A pre-launch accepted plan must not claim a run job ID before the backend creates the run.'
+
+        $script:BackendQueueRunMonitorSeedContext = $null
+        $standaloneEntry = New-QueueEngineSyntheticEntry -Root $tempRoot -Name 'Standalone-Once.mkv' -QueueIndex 1 -QueueTotal 1
+        $standalonePlan = New-TestQueuePlan
+        $standalonePlan.NormalMovieEntries = @($standaloneEntry)
+        $standalonePlan.MovieCount = 1
+        $standaloneSnapshot = Build-QueuePlanSnapshotRows -QueuePlan $standalonePlan -ProcessedIndex @{}
+
+        Assert-Equal ([int]$script:LastRunMonitorAcceptedRows.Count) 0 'A queue round without an adopted Backend Queue seed must not invent active monitor membership.'
+        Assert-True (-not $standaloneEntry.PSObject.Properties['RunMonitorJobId']) 'A standalone queue entry must not receive a monitor job ID merely because the process has a run ID.'
+        Assert-Equal ([int]$standaloneSnapshot.accepted_run_rows.Count) 1 'Standalone planning must retain ordinary uncapped accepted-row preview evidence.'
+        Assert-True (-not $standaloneSnapshot.accepted_run_rows[0].Contains('job_id')) 'Standalone accepted-row preview evidence must remain free of monitor job identity.'
     } finally {
         $script:QueueSnapshotRowLimit = $previousRowLimit
+        $script:PipelineRunId = $previousRunId
+        $script:BackendQueueRunMonitorSeedContext = $previousRunMonitorContext
         if (Test-Path -LiteralPath $tempRoot -ErrorAction SilentlyContinue) {
             Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Invoke-AcceptedRunRowsMustMatchActiveEvidenceExactlyCheck {
+    $accepted = [pscustomobject]@{
+        job_id = 'run-1-item-00000001'; source_identity = 'source-1'; source_path = 'C:\Media\Movie.mkv'
+        source_identity_algorithm = 'path_size_mtime_sha256.v1'; display_name = 'Movie.mkv'; display_name_source = 'plex_destination_plan.v1'; parent_context = 'C:\Media'
+        run_queue_index = 1; run_queue_total = 1; route = 'remux'; route_reason = 'Compatible streams'
+        route_reason_code = 'streams_compatible'; intended_final_path = 'C:\Final\Movie.mkv'
+    }
+    Assert-True (Assert-MediaPipelineRunMonitorActiveMembershipMatchesAcceptedSnapshot -AcceptedRows @($accepted) -ActiveRows @($accepted)) `
+        'An exact active rescan should match the accepted Run Once workload.'
+
+    foreach ($field in @('source_identity_algorithm','display_name','display_name_source','parent_context','route','route_reason','route_reason_code','intended_final_path')) {
+        $active = $accepted | Select-Object *
+        $active.$field = "tampered-$field"
+        $rejected = $false
+        try {
+            Assert-MediaPipelineRunMonitorActiveMembershipMatchesAcceptedSnapshot -AcceptedRows @($accepted) -ActiveRows @($active) | Out-Null
+        } catch {
+            $rejected = ([string]$_ -match 'RUN_MONITOR_ACTIVE_MEMBERSHIP_MISMATCH')
+        }
+        Assert-True $rejected "Accepted monitor evidence must reject active parity changes to $field."
+    }
+}
+
+function Invoke-AcceptedRunSeedRequiresPlannedNameEvidenceCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("MediaPipelineAcceptedNameEvidenceTest_" + [guid]::NewGuid().ToString('N'))
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        $crossRuntimeVector = [ordered]@{
+            run_queue_index = 1; run_queue_total = 1; source_identity = 'source-1'
+            source_identity_algorithm = 'path_size_mtime_sha256.v1'; source_path = 'C:\Media\Django.mkv'
+            planned_display_name = 'Django Unchained (2012).mkv'; planned_display_name_source = 'plex_destination_plan.v1'
+            parent_context = 'C:\Media'; route = 'remux'; route_reason_code = 'compatible'
+            route_reason = 'Compatible streams'; intended_final_path = 'C:\Final\Django Unchained (2012).mkv'
+        }
+        Assert-Equal `
+            (Get-MediaPipelineAcceptedRunRowsFingerprint -Rows @($crossRuntimeVector)) `
+            '4b5ae5cb3bb7d1ce1a1c8f93df5e71fa3bd88a725c9a38f12765f7fa073fbaee' `
+            'PowerShell accepted-workload fingerprint must match the bundled Python canonical test vector.'
+        $unicodeCrossRuntimeVector = [ordered]@{
+            run_queue_index = 1; run_queue_total = 1; source_identity = 'source-straße-STRASSE'
+            source_identity_algorithm = 'path_size_mtime_sha256.v1'; source_path = 'C:\Médien\Straße\STRASSE.mkv'
+            planned_display_name = 'Straße and STRASSE (2026).mkv'; planned_display_name_source = 'plex_destination_plan.v1'
+            parent_context = 'C:\Médien\Straße'; route = 'remux'; route_reason_code = 'compatible'
+            route_reason = 'Preserve Straße and STRASSE distinctly'; intended_final_path = 'C:\Final\Straße and STRASSE (2026).mkv'
+        }
+        Assert-Equal `
+            (Get-MediaPipelineAcceptedRunRowsFingerprint -Rows @($unicodeCrossRuntimeVector)) `
+            'ace99b28d58a6f32177a320dbfddb64781e10cfea8d773fd7ab6ca1bbe27cd63' `
+            'PowerShell accepted-workload fingerprint must match the bundled Python Unicode canonical test vector.'
+        $unicodeFingerprint = Get-MediaPipelineAcceptedRunRowsFingerprint -Rows @($unicodeCrossRuntimeVector)
+        $asciiCaseVariant = ([pscustomobject]$unicodeCrossRuntimeVector | Select-Object *)
+        $asciiCaseVariant.source_path = 'c:\Médien\Straße\strasse.mkv'
+        Assert-Equal `
+            (Get-MediaPipelineAcceptedRunRowsFingerprint -Rows @($asciiCaseVariant)) `
+            $unicodeFingerprint `
+            'Accepted-workload path normalization must ignore ASCII-only path casing.'
+        $unicodeTextChange = ([pscustomobject]$unicodeCrossRuntimeVector | Select-Object *)
+        $unicodeTextChange.source_path = 'C:\Médien\STRASSE\STRASSE.mkv'
+        Assert-True `
+            ((Get-MediaPipelineAcceptedRunRowsFingerprint -Rows @($unicodeTextChange)) -ne $unicodeFingerprint) `
+            'Accepted-workload path normalization must not collapse distinct non-ASCII path text.'
+        $snapshotPath = Join-Path $tempRoot 'queue_snapshot.json'
+        $acceptedRow = [ordered]@{
+            source_identity = 'source-1'; source_identity_algorithm = 'path_size_mtime_sha256.v1'
+            source_path = 'C:\Media\Django.Unchained.2012.1080p.BluRay.x264.YIFY.mkv'
+            display_name = 'Django.Unchained.2012.1080p.BluRay.x264.YIFY.mkv'; parent_context = 'C:\Media'
+            run_queue_index = 1; run_queue_total = 1; route = 'remux'; route_reason = 'Compatible streams'
+            route_reason_code = 'streams_compatible'; intended_final_path = 'C:\Final\Django Unchained (2012).mkv'
+        }
+        $snapshot = [ordered]@{
+            schema_version = 'queue_plan_snapshot.v1'; queue_snapshot_origin = 'dry_run'
+            queue_plan_fingerprint_schema = 'queue_plan_fingerprint.v1'; queue_plan_fingerprint = 'accepted-plan'
+            runnable_count = 1; accepted_run_rows = @($acceptedRow)
+        }
+        $snapshot | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $snapshotPath -Encoding UTF8
+
+        $rejected = $false
+        try {
+            Get-MediaPipelineRunMonitorSeedRowsFromAcceptedSnapshot -Path $snapshotPath -ExpectedFingerprint 'accepted-plan' -RunId 'run-1' | Out-Null
+        } catch {
+            $rejected = ([string]$_ -match 'RUN_MONITOR_ACCEPTED_NAME_EVIDENCE_MISSING')
+        }
+        Assert-True $rejected 'A raw public Queue display_name must not be accepted as production rename-plan evidence.'
+
+        $acceptedRow.planned_display_name = 'Django Unchained (2012).mkv'
+        $acceptedRow.planned_display_name_source = 'plex_destination_plan.v1'
+        $snapshot.accepted_run_rows_fingerprint_schema = 'accepted_run_rows_fingerprint.v1'
+        $snapshot.accepted_run_rows_fingerprint = Get-MediaPipelineAcceptedRunRowsFingerprint -Rows @($acceptedRow)
+        $snapshot | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $snapshotPath -Encoding UTF8
+        $seedRows = @(Get-MediaPipelineRunMonitorSeedRowsFromAcceptedSnapshot -Path $snapshotPath -ExpectedFingerprint 'accepted-plan' -RunId 'run-1')
+        Assert-Equal ([string]$seedRows[0].display_name) 'Django Unchained (2012).mkv' 'Run Monitor seed must map only verified planned-name evidence into display_name.'
+
+        $acceptedRow.planned_display_name = 'Tampered Raw Release.mkv'
+        $snapshot | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $snapshotPath -Encoding UTF8
+        $tamperRejected = $false
+        try {
+            Get-MediaPipelineRunMonitorSeedRowsFromAcceptedSnapshot -Path $snapshotPath -ExpectedFingerprint 'accepted-plan' -RunId 'run-1' | Out-Null
+        } catch {
+            $tamperRejected = ([string]$_ -match 'RUN_MONITOR_ACCEPTED_ROWS_FINGERPRINT_MISMATCH')
+        }
+        Assert-True $tamperRejected 'Accepted planned-name evidence must remain bound to its content fingerprint at Run Monitor seed time.'
+    } finally {
+        if (Test-Path -LiteralPath $tempRoot -PathType Container) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force
         }
     }
 }
@@ -746,7 +1156,7 @@ function Invoke-SerialQueueDispatchUsesGlobalRunnableMetadataCheck {
     }
 }
 
-function Invoke-PendingPublishBackpressureSkipsDiscoveryCheck {
+function Invoke-PendingPublishBackpressureBlocksBeforeExecutionCheck {
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("MediaPipelinePendingBackpressureTest_" + [guid]::NewGuid().ToString('N'))
     $previousPendingRoot = $script:PendingPushRoot
     $previousDeferred = $script:DeferredPublish
@@ -786,11 +1196,14 @@ function Invoke-PendingPublishBackpressureSkipsDiscoveryCheck {
             return $null
         }
         function Get-ProcessedIndexCached {
-            throw 'processed index should not be read while pending backpressure blocks discovery'
+            return @{}
         }
         function Get-MediaQueueDiscoveryPlan {
             $script:DiscoveryCalls++
-            throw 'source discovery should not run while pending backpressure blocks discovery'
+            return New-TestQueuePlan
+        }
+        function Invoke-MediaPipelineQueueSnapshot {
+            return [pscustomobject]@{ queue_plan_fingerprint = 'backpressure-plan' }
         }
         function Invoke-MediaQueuePhasePlan {
             $script:SerialDispatchCount++
@@ -837,7 +1250,7 @@ function Invoke-PendingPublishBackpressureSkipsDiscoveryCheck {
         Assert-Equal ([string]$round.BackpressureReason) 'deferred_backlog_threshold' 'Deferred pending backlog should block at the configured threshold.'
         Assert-Equal ([int]$script:RetryPendingCalls) 1 'Backpressure-blocked round should still run safe pending-publish retry.'
         Assert-Equal ([int]$script:RefreshPendingCalls) 1 'Backpressure-blocked round should still refresh pending publish evidence.'
-        Assert-Equal ([int]$script:DiscoveryCalls) 0 'Backpressure should skip source discovery.'
+        Assert-Equal ([int]$script:DiscoveryCalls) 1 'Backpressure evidence should be captured with the same discovery boundary used by the Queue dry-run.'
         Assert-Equal ([int]$script:SerialDispatchCount) 0 'Backpressure should skip queue execution.'
         Assert-Equal ([string]$script:BackpressureEvents[0].EventType) 'pending_publish_backpressure_blocked' 'Backpressure should emit structured event evidence.'
         Assert-Equal ([string]$script:BackpressureEvents[0].Data.block_reason) 'deferred_backlog_threshold' 'Backpressure event should preserve the block reason.'
@@ -851,6 +1264,241 @@ function Invoke-PendingPublishBackpressureSkipsDiscoveryCheck {
             Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
+}
+
+function Invoke-QueuePlanFingerprintGuardCheck {
+    $script:StopRequested = $false
+    $script:PipelineBlockedExitCode = 0
+    $script:PipelineStopReason = ''
+    $script:RetryPendingCalls = 0
+    $script:RefreshPendingCalls = 0
+    $script:DiscoveryCalls = 0
+    $script:SerialDispatchCount = 0
+    $script:CleanupDispatchCount = 0
+    $script:FingerprintEvents = @()
+    $script:SnapshotFingerprint = 'active-plan'
+    $script:RunMonitorSeedCount = 0
+    $script:SourceDiscoveryHeartbeatCount = 0
+    $script:FingerprintDispatchSequence = @()
+    $script:FingerprintProgressStages = @()
+
+    function Set-ProgressStage {
+        param(
+            [string] $Stage,
+            [string] $Status,
+            $Percent,
+            $Route,
+            $CopyState,
+            $PushState,
+            $SidecarState,
+            [switch] $SaveNow
+        )
+        $script:FingerprintProgressStages += ,([pscustomobject]@{ Stage = $Stage; Status = $Status })
+    }
+
+    function Get-MediaPipelineRunMonitorAcceptedSeedRows {
+        param([string] $RunId, [string] $CommandId, [string] $ExpectedFingerprint)
+        $script:RunMonitorSeedCount++
+        $script:FingerprintDispatchSequence += 'seed_adopt'
+        Assert-Equal ([string]$ExpectedFingerprint) ([string]$script:ExpectedSeedFingerprint) 'Run monitor adoption must use the backend-accepted dry-run fingerprint.'
+        return @([ordered]@{
+            job_id = "$RunId-item-00000001"; source_identity = 'source-1'; source_path = 'MoviesRoot\Movie.mkv'
+        source_identity_algorithm = 'path_size_mtime_sha256.v1'; display_name = 'Movie.mkv'; display_name_source = 'plex_destination_plan.v1'; parent_context = 'MoviesRoot'
+            run_queue_index = 1; run_queue_total = 1; route = 'remux'; route_reason = 'policy'; route_reason_code = 'policy'
+        })
+    }
+
+    function Invoke-RetryPendingPushes {
+        $script:RetryPendingCalls++
+        return 0
+    }
+    function Refresh-PendingPublishIndex {
+        $script:RefreshPendingCalls++
+        return $null
+    }
+    function Get-ProcessedIndexCached { return @{} }
+    function Get-MediaQueueDiscoveryPlan {
+        $script:FingerprintDispatchSequence += 'discovery'
+        $script:DiscoveryCalls++
+        return New-TestQueuePlan
+    }
+    function Invoke-MediaPipelineQueueSnapshot {
+        $script:FingerprintDispatchSequence += 'active_snapshot'
+        $script:LastRunMonitorAcceptedRows = @([ordered]@{
+            job_id = "$script:PipelineRunId-item-00000001"; source_identity = 'source-1'; source_path = 'MoviesRoot\Movie.mkv'
+            source_identity_algorithm = 'path_size_mtime_sha256.v1'; display_name = 'Movie.mkv'; display_name_source = 'plex_destination_plan.v1'; parent_context = 'MoviesRoot'
+            run_queue_index = 1; run_queue_total = 1; route = 'remux'; route_reason = 'policy'; route_reason_code = 'policy'
+        })
+        return [pscustomobject]@{
+            queue_plan_fingerprint = [string]$script:SnapshotFingerprint
+            runnable_count = 1
+        }
+    }
+    function Set-MediaPipelineRunMonitorSourceDiscoveryState {
+        param(
+            [string] $RunId,
+            [string] $State,
+            [string] $RunState,
+            [string] $ExpectedQueuePlanFingerprint,
+            [string] $EvidenceSource
+        )
+        if (-not [string]::IsNullOrWhiteSpace($ExpectedQueuePlanFingerprint)) {
+            Assert-Equal $ExpectedQueuePlanFingerprint $script:ExpectedSeedFingerprint 'Source-discovery state must remain bound to the accepted Queue fingerprint.'
+        }
+        $script:FingerprintDispatchSequence += "discovery_state:$State"
+    }
+    function New-MediaPipelineSourceDiscoveryPollHandler {
+        param(
+            [string] $RunId,
+            [string] $AcceptedQueueFingerprint,
+            [double] $MinimumIntervalSeconds
+        )
+        Assert-Equal $RunId ([string]$script:PipelineRunId) 'Source-discovery heartbeat must use the exact active run ID.'
+        Assert-Equal $AcceptedQueueFingerprint $script:ExpectedSeedFingerprint 'Source-discovery heartbeat must use the accepted Queue fingerprint.'
+        $script:SourceDiscoveryHeartbeatCount++
+        return { param($ElapsedSeconds, $Process) return $null }
+    }
+    function Invoke-MediaQueuePhasePlan {
+        $script:SerialDispatchCount++
+        $script:FingerprintDispatchSequence += 'dispatch'
+        return [pscustomobject]@{ Stopped = $false }
+    }
+    function Invoke-PeriodicLocalEncodedDirectoryCleanup {
+        $script:CleanupDispatchCount++
+        return $null
+    }
+    function Get-ProcessingStats { return 'stats ok' }
+    function Write-RoundFailureSummary { return $null }
+    function Get-MediaPipelinePendingPublishBackpressure {
+        return [pscustomobject]@{ Blocked = $false; BlockReason = '' }
+    }
+    function Write-PipelineEvent {
+        param([string] $EventType, [string] $Stage, [string] $Status, [hashtable] $Data)
+        $script:FingerprintEvents += ,([pscustomobject]@{ EventType = $EventType; Stage = $Stage; Status = $Status; Data = $Data })
+    }
+
+    $mismatchPlan = New-MediaPipelineEnginePlan `
+        -SourceMovies 'MoviesRoot' `
+        -SourceTV 'TVRoot' `
+        -QueueSnapshotPath 'snapshot.json' `
+        -Once:$true `
+        -ExpectedQueuePlanFingerprint 'accepted-plan'
+    $script:ExpectedSeedFingerprint = 'accepted-plan'
+    $mismatch = Invoke-MediaPipelineRound -EnginePlan $mismatchPlan
+
+    Assert-True (-not [bool]$mismatch.Completed) 'A mismatched active Queue plan must not complete.'
+    Assert-True ([bool]$mismatch.FingerprintBlocked) 'A mismatched active Queue plan should return fingerprint-blocked evidence.'
+    Assert-Equal ([int]$script:RetryPendingCalls) 0 'A fingerprint-guarded Queue run must not retry or publish parked outputs before verification.'
+    Assert-Equal ([int]$script:DiscoveryCalls) 1 'The guard should compare the active discovery plan exactly once.'
+    Assert-Equal ([int]$script:SerialDispatchCount) 0 'A mismatched plan must not dispatch media processing.'
+    Assert-Equal ([int]$script:RunMonitorSeedCount) 1 'A mismatched active rescan must retain the already accepted, pre-scan monitor membership.'
+    Assert-Equal ([int]$script:SourceDiscoveryHeartbeatCount) 1 'A fingerprint-guarded rescan must create one run-scoped discovery heartbeat.'
+    Assert-Equal ([string]$script:BackendQueueRunMonitorSeedContext.RunId) ([string]$script:PipelineRunId) 'A mismatched rescan must remain correlated to the accepted run.'
+    Assert-Equal ([int]$script:PipelineBlockedExitCode) 76 'A mismatched plan should request the blocked exit code.'
+    Assert-Equal ([string]$script:PipelineStopReason) 'queue_plan_fingerprint_mismatch' 'A mismatched plan should preserve its stop reason.'
+    Assert-Equal ([string]$script:FingerprintEvents[0].Data.command_id) '' 'Fingerprint mismatch evidence should preserve an empty command ID when none was supplied.'
+    Assert-Equal ([string]$script:FingerprintEvents[0].Data.error_code) 'QUEUE_PLAN_FINGERPRINT_MISMATCH' 'Fingerprint mismatch evidence must identify the exact failed dimension.'
+    Assert-Equal ([string]$script:FingerprintEvents[0].Data.expected_fingerprint) 'accepted-plan' 'Fingerprint mismatch evidence must retain the backend-accepted plan.'
+    Assert-Equal ([string]$script:FingerprintEvents[0].Data.actual_fingerprint) 'active-plan' 'Fingerprint mismatch evidence must retain the rebuilt active plan.'
+    Assert-Equal ([string]$script:FingerprintProgressStages[-1].Stage) 'blocked' 'A plan mismatch must persist blocked progress before returning.'
+    Assert-True ([string]$script:FingerprintProgressStages[-1].Status -match 'refresh Queue before launch') 'A plan mismatch must guide the operator to refresh Queue.'
+
+    $script:StopRequested = $false
+    $script:PipelineBlockedExitCode = 0
+    $script:PipelineStopReason = ''
+    $script:DiscoveryCalls = 0
+    $script:SerialDispatchCount = 0
+    $script:CleanupDispatchCount = 0
+    $script:RunMonitorSeedCount = 0
+    $script:SourceDiscoveryHeartbeatCount = 0
+    $script:FingerprintDispatchSequence = @()
+    $matchingPlan = New-MediaPipelineEnginePlan `
+        -SourceMovies 'MoviesRoot' `
+        -SourceTV 'TVRoot' `
+        -QueueSnapshotPath 'snapshot.json' `
+        -Once:$true `
+        -ExpectedQueuePlanFingerprint 'active-plan'
+    $script:ExpectedSeedFingerprint = 'active-plan'
+    $matching = Invoke-MediaPipelineRound -EnginePlan $matchingPlan
+
+    Assert-True ([bool]$matching.Completed) 'A matching active Queue plan should continue through execution.'
+    Assert-Equal ([int]$script:RetryPendingCalls) 0 'A matching fingerprint-guarded run should still defer pending-publish retry side effects.'
+    Assert-Equal ([int]$script:SerialDispatchCount) 1 'A matching plan should dispatch the active queue.'
+    Assert-Equal ([int]$script:RunMonitorSeedCount) 1 'A matching plan must seed the Run Monitor exactly once.'
+    Assert-Equal ([int]$script:SourceDiscoveryHeartbeatCount) 1 'A matching fingerprint-guarded rescan must create one run-scoped discovery heartbeat.'
+    Assert-Equal ([string]$script:BackendQueueRunMonitorSeedContext.RunId) ([string]$script:PipelineRunId) 'Successful seed context must preserve the exact run ID.'
+    Assert-Equal ([string]$script:BackendQueueRunMonitorSeedContext.QueuePlanFingerprint) 'active-plan' 'Successful seed context must preserve the exact accepted fingerprint.'
+    Assert-True ([array]::IndexOf($script:FingerprintDispatchSequence, 'seed_adopt') -lt [array]::IndexOf($script:FingerprintDispatchSequence, 'discovery')) 'Run Monitor membership must be adopted before the active source rescan.'
+    Assert-True ([array]::IndexOf($script:FingerprintDispatchSequence, 'discovery_state:active') -lt [array]::IndexOf($script:FingerprintDispatchSequence, 'discovery')) 'Scanning state must be durable before active discovery starts.'
+    Assert-True ([array]::IndexOf($script:FingerprintDispatchSequence, 'discovery_state:completed') -lt [array]::IndexOf($script:FingerprintDispatchSequence, 'dispatch')) 'Discovery completion must be durable before media dispatch.'
+    Assert-Equal ([int]$script:CleanupDispatchCount) 1 'A matching plan should complete normal round cleanup.'
+}
+
+function Invoke-RunMonitorFinalizationClassificationCheck {
+    $script:RunMonitorFinalizationCalls = @()
+    function Complete-MediaPipelineRunMonitor {
+        param(
+            [string] $RunId,
+            [string] $State,
+            [string] $RemainingItemState,
+            [string] $Reason,
+            [string] $ReasonCode,
+            $Retryable,
+            [string] $RecoveryOwner,
+            [string] $NextAction
+        )
+        $script:RunMonitorFinalizationCalls += ,([pscustomobject]@{
+            RunId = $RunId; State = $State; RemainingItemState = $RemainingItemState
+            Reason = $Reason; ReasonCode = $ReasonCode; Retryable = $Retryable
+            RecoveryOwner = $RecoveryOwner; NextAction = $NextAction
+        })
+        return [pscustomobject]@{ run = [pscustomobject]@{ lifecycle_state = $State } }
+    }
+
+    $plan = New-MediaPipelineEnginePlan `
+        -SourceMovies 'MoviesRoot' `
+        -SourceTV 'TVRoot' `
+        -QueueSnapshotPath 'snapshot.json' `
+        -Once:$true `
+        -ExpectedQueuePlanFingerprint 'accepted-plan'
+    $script:PipelineRunId = 'finalization-run'
+    $script:BackendQueueRunMonitorSeedContext = [pscustomobject]@{
+        RunId = 'finalization-run'
+        QueuePlanFingerprint = 'accepted-plan'
+    }
+
+    Complete-MediaPipelineBackendQueueRunOnceMonitor -EnginePlan $plan -RoundResult ([pscustomobject]@{ Completed = $true }) | Out-Null
+    Assert-Equal $script:RunMonitorFinalizationCalls[-1].State 'completed' 'A normally completed round must finalize the monitor as completed.'
+
+    Complete-MediaPipelineBackendQueueRunOnceMonitor -EnginePlan $plan -RoundResult ([pscustomobject]@{ Completed = $true; BackpressureBlocked = $true; BackpressureReason = 'backlog_threshold' }) | Out-Null
+    Assert-Equal $script:RunMonitorFinalizationCalls[-1].State 'blocked' 'Pending publish backpressure must finalize the run as blocked.'
+    Assert-Equal $script:RunMonitorFinalizationCalls[-1].RemainingItemState 'blocked' 'Backpressure must retain unresolved accepted rows as blocked.'
+    Assert-Equal $script:RunMonitorFinalizationCalls[-1].ReasonCode 'PENDING_PUBLISH_BACKPRESSURE_BLOCKED' 'Backpressure must preserve a stable reason code.'
+
+    Complete-MediaPipelineBackendQueueRunOnceMonitor -EnginePlan $plan -RoundResult ([pscustomobject]@{ Completed = $false; StopRequested = $true; FingerprintBlocked = $true }) | Out-Null
+    Assert-Equal $script:RunMonitorFinalizationCalls[-1].State 'blocked' 'An accepted run whose active rescan mismatches must finalize as blocked, not stopped.'
+    Assert-Equal $script:RunMonitorFinalizationCalls[-1].RemainingItemState 'blocked' 'Fingerprint mismatch must retain every accepted row as blocked.'
+    Assert-Equal $script:RunMonitorFinalizationCalls[-1].ReasonCode 'QUEUE_PLAN_FINGERPRINT_MISMATCH' 'Fingerprint mismatch must retain its stable authority code.'
+
+    Complete-MediaPipelineBackendQueueRunOnceMonitor -EnginePlan $plan -RoundResult ([pscustomobject]@{ Completed = $false; StopRequested = $true }) | Out-Null
+    Assert-Equal $script:RunMonitorFinalizationCalls[-1].State 'stopped' 'A post-seed stop must finalize the run as stopped.'
+    Assert-Equal $script:RunMonitorFinalizationCalls[-1].RemainingItemState 'stopped' 'A post-seed stop must retain undispatched accepted rows as stopped.'
+
+    Complete-MediaPipelineBackendQueueRunOnceMonitor -EnginePlan $plan -RoundResult ([pscustomobject]@{ Completed = $false; StopAfterCurrentRequested = $true }) | Out-Null
+    Assert-Equal $script:RunMonitorFinalizationCalls[-1].State 'stopped' 'An acknowledged Stop After Current boundary must finalize the run as stopped.'
+    Assert-Equal $script:RunMonitorFinalizationCalls[-1].ReasonCode 'RUN_STOPPED_AT_QUEUE_BOUNDARY' 'Graceful stop finalization must retain the stable queue-boundary reason.'
+
+    $roundError = $null
+    try { throw 'synthetic finalization exception' } catch { $roundError = $_ }
+    Complete-MediaPipelineBackendQueueRunOnceMonitor -EnginePlan $plan -RoundError $roundError | Out-Null
+    Assert-Equal $script:RunMonitorFinalizationCalls[-1].State 'failed' 'A genuine round exception must finalize the run as failed.'
+    Assert-Equal $script:RunMonitorFinalizationCalls[-1].RemainingItemState 'skipped' 'Untouched accepted rows must not be mislabeled as media failures after a round exception.'
+    Assert-Equal $script:RunMonitorFinalizationCalls[-1].ReasonCode 'UNEXPECTED_PIPELINE_ROUND_EXCEPTION' 'Round exception finalization must use a stable reason code.'
+
+    $beforeMissingContext = @($script:RunMonitorFinalizationCalls).Count
+    $script:BackendQueueRunMonitorSeedContext = $null
+    Complete-MediaPipelineBackendQueueRunOnceMonitor -EnginePlan $plan -RoundResult ([pscustomobject]@{ Completed = $true }) | Out-Null
+    Assert-Equal @($script:RunMonitorFinalizationCalls).Count $beforeMissingContext 'A run without confirmed seed context must not finalize an unrelated monitor.'
 }
 
 function Invoke-QueueSnapshotHoldRowsRunnableCountCheck {
@@ -989,6 +1637,38 @@ function Invoke-PerFileUnexpectedExceptionContinuesSerialQueueCheck {
     }
 }
 
+function Invoke-StopAfterCurrentFinishesCurrentSerialItemCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("MediaPipelineQueueStopAfterCurrentTest_" + [guid]::NewGuid().ToString('N'))
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        $current = New-QueueEngineTestEntry -Root $tempRoot -Name 'Current.mkv' -QueueIndex 1 -QueueTotal 2
+        $next = New-QueueEngineTestEntry -Root $tempRoot -Name 'Next.mkv' -QueueIndex 2 -QueueTotal 2
+        $plan = New-TestQueuePlan
+        $plan.NormalMovieEntries = @($current, $next)
+        $plan.MovieCount = 2
+        $script:StopRequested = $false
+        $script:ProcessFileCalls = @()
+        $script:ProcessFileThrowNames = @()
+        $script:UnexpectedQueueEntryFailures = 0
+        $script:StopAfterCurrentBoundaryRequested = $true
+        $script:StopAfterCurrentBoundaryAfterDispatchCount = 1
+
+        $result = @(Invoke-MediaQueuePhasePlan -QueuePlan $plan -ProcessedIndex @{})[-1]
+
+        Assert-Equal @($script:ProcessFileCalls).Count 1 'Stop After Current must allow the current serial item to finish and suppress the next dispatch.'
+        Assert-Equal ([string]$script:ProcessFileCalls[0].Name) 'Current.mkv' 'Stop After Current must not replace the current item.'
+        Assert-True ([bool]$result.StoppedAfterCurrent) 'Phase result must distinguish graceful stop from immediate interruption.'
+        Assert-True (-not [bool]$result.Stopped) 'Graceful stop must not set the immediate StopRequested state.'
+        Assert-True (-not [bool]$script:StopRequested) 'Graceful stop must not enter native-process interruption state.'
+    } finally {
+        $script:StopAfterCurrentBoundaryRequested = $false
+        $script:StopAfterCurrentBoundaryAfterDispatchCount = 0
+        if (Test-Path -LiteralPath $tempRoot -ErrorAction SilentlyContinue) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 Invoke-ManualOrderSortsHighPriorityBucketsCheck
 Invoke-ExplicitManifestNormalSuppressesFilesystemPriorityCheck
 Invoke-CorruptPriorityManifestFailsClosedCheck
@@ -998,12 +1678,20 @@ Assert-Equal (Get-QueueSeasonNumber 'Example.Show.S01E12') 1 'Queue fallback sea
 Assert-Equal (Get-QueueEpisodeNumber 'Example.Show.S01E100') 100 'Queue fallback ordering should accept a valid three-digit episode number.'
 Assert-Equal (Get-QueueEpisodeNumber 'Example.Show.S01E1000') 0 'Queue fallback ordering must reject E1000 rather than truncate it to a smaller episode number.'
 Invoke-GlobalRunnableQueueSnapshotMetadataCheck
+Invoke-AcceptedRunSeedRequiresPlannedNameEvidenceCheck
+Invoke-AcceptedRunUsesBackendRenameDisplayNameCheck
+Invoke-QueuePlanFingerprintDimensionCheck
+Invoke-AcceptedRunBlocksWhenBackendNamingEvidenceFailsCheck
 Invoke-QueueSnapshotRowsAreCappedButTotalsRemainAccurateCheck
+Invoke-AcceptedRunRowsMustMatchActiveEvidenceExactlyCheck
 Invoke-QueueExecutionCapLimitsRunnableWindowCheck
 Invoke-SerialQueueDispatchUsesGlobalRunnableMetadataCheck
-Invoke-PendingPublishBackpressureSkipsDiscoveryCheck
+Invoke-PendingPublishBackpressureBlocksBeforeExecutionCheck
+Invoke-QueuePlanFingerprintGuardCheck
+Invoke-RunMonitorFinalizationClassificationCheck
 Invoke-QueueSnapshotHoldRowsRunnableCountCheck
 Invoke-PerFileUnexpectedExceptionContinuesSerialQueueCheck
+Invoke-StopAfterCurrentFinishesCurrentSerialItemCheck
 
 function Build-QueuePlanSnapshotRows {
     param($QueuePlan, $ProcessedIndex)

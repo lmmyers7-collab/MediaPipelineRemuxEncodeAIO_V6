@@ -5,6 +5,301 @@
 # pipeline_engine.ps1 dot-sources this file as part of the queue engine surface.
 # ==============================================================================
 
+function Get-MediaPipelineSha256Text {
+    param([Parameter(Mandatory)] [string] $Text)
+    $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($Text)
+    $hash = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        return ([System.BitConverter]::ToString($hash.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
+    } finally {
+        $hash.Dispose()
+    }
+}
+
+function Get-MediaPipelineQueueInputFingerprint {
+    $paths = [ordered]@{
+        config            = [string]$configPath
+        priority_manifest = if ($script:LocalStateLayout -and $script:LocalStateLayout.Paths) { [string]$script:LocalStateLayout.Paths.PriorityManifest } else { '' }
+        queue_strategy    = if ($script:LocalStateLayout -and $script:LocalStateLayout.Paths) { [string]$script:LocalStateLayout.Paths.QueueStrategy } else { '' }
+        file_overrides    = if ($script:LocalStateLayout -and $script:LocalStateLayout.Paths) { [string]$script:LocalStateLayout.Paths.FileOverrides } else { '' }
+    }
+    $components = [ordered]@{}
+    $lines = [System.Collections.Generic.List[string]]::new()
+    $lines.Add('schema=queue_input_fingerprint.v1') | Out-Null
+    $unavailable = [System.Collections.Generic.List[string]]::new()
+    foreach ($name in $paths.Keys) {
+        $path = [string]$paths[$name]
+        $status = 'missing'
+        $sha256 = 'missing'
+        if (-not [string]::IsNullOrWhiteSpace($path) -and (Test-Path -LiteralPath $path -PathType Leaf)) {
+            try {
+                $sha256 = [string](Get-FileHash -LiteralPath $path -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
+                $status = 'current'
+            } catch {
+                $sha256 = 'unavailable'
+                $status = 'unavailable'
+                $unavailable.Add([string]$name) | Out-Null
+            }
+        }
+        $components[$name] = [ordered]@{ status = $status; sha256 = $sha256 }
+        $lines.Add("$name=$sha256") | Out-Null
+    }
+    $fingerprint = Get-MediaPipelineSha256Text (($lines -join "`n") + "`n")
+    return [pscustomobject]@{
+        SchemaVersion         = 'queue_input_fingerprint.v1'
+        Status                = if ($unavailable.Count -gt 0) { 'unavailable' } else { 'current' }
+        Fingerprint           = $fingerprint
+        Components            = $components
+        UnavailableComponents = @($unavailable)
+    }
+}
+
+function ConvertTo-MediaPipelineQueueFingerprintField {
+    param($Value, [switch] $Path)
+    $text = [string]$Value
+    if ($Path -and -not [string]::IsNullOrWhiteSpace($text)) {
+        try { $text = [System.IO.Path]::GetFullPath($text) } catch {}
+        $text = $text.Replace('\', '/').ToLowerInvariant()
+    }
+    return $text.Replace('\', '\\').Replace('|', '\p').Replace("`r", '\r').Replace("`n", '\n')
+}
+
+function ConvertTo-MediaPipelineAcceptedRunFingerprintField {
+    param($Value, [switch] $Path)
+    $text = [string]$Value
+    if ($Path -and -not [string]::IsNullOrWhiteSpace($text)) {
+        try { $text = [System.IO.Path]::GetFullPath($text) } catch {}
+        $text = $text.Replace('\', '/')
+        # Fingerprint v1 folds ASCII A-Z only so Python and PowerShell produce
+        # identical bytes while non-ASCII distinctions remain tamper-evident.
+        $builder = [System.Text.StringBuilder]::new($text.Length)
+        foreach ($character in $text.ToCharArray()) {
+            $codePoint = [int][char]$character
+            if ($codePoint -ge 65 -and $codePoint -le 90) {
+                [void]$builder.Append([char]($codePoint + 32))
+            } else {
+                [void]$builder.Append($character)
+            }
+        }
+        $text = $builder.ToString()
+    }
+    return $text.Replace('\', '\\').Replace('|', '\p').Replace("`r", '\r').Replace("`n", '\n')
+}
+
+function Get-MediaPipelineQueuePlanFingerprint {
+    param(
+        [Parameter(Mandatory)] $Rows,
+        [Parameter(Mandatory)] $ExcludedRows,
+        [AllowEmptyCollection()] $AcceptedRows = @(),
+        [Parameter(Mandatory)] [string] $InputFingerprint,
+        [string] $OrderingStrategy = '',
+        $PendingBackpressure = $null,
+        $PendingHealth = $null
+    )
+    $lines = [System.Collections.Generic.List[string]]::new()
+    $lines.Add('schema=queue_plan_fingerprint.v1') | Out-Null
+    $lines.Add("input=$(ConvertTo-MediaPipelineQueueFingerprintField $InputFingerprint)") | Out-Null
+    $lines.Add("strategy=$(ConvertTo-MediaPipelineQueueFingerprintField $OrderingStrategy)") | Out-Null
+    $backpressureSignature = if ($PendingBackpressure) {
+        '{0}|{1}|{2}|{3}|{4}' -f `
+            ([bool]$PendingBackpressure.Blocked), `
+            ([string]$PendingBackpressure.BlockReason), `
+            ([bool]$PendingBackpressure.DeferredPublish), `
+            ([int]$PendingBackpressure.ManifestCount), `
+            ([int]$PendingBackpressure.RetryExhaustedCount)
+    } else { 'unavailable' }
+    $lines.Add("backpressure=$(ConvertTo-MediaPipelineQueueFingerprintField $backpressureSignature)") | Out-Null
+    $pendingHealthSignature = if ($PendingHealth) {
+        '{0}|{1}|{2}|{3}' -f `
+            ([string]$PendingHealth.status), `
+            ([int]$PendingHealth.count), `
+            ([int]$PendingHealth.missing_payload_count), `
+            ([int]$PendingHealth.unreadable_manifest_count)
+    } else { 'unavailable' }
+    $lines.Add("pending_health=$(ConvertTo-MediaPipelineQueueFingerprintField $pendingHealthSignature)") | Out-Null
+    foreach ($row in @($Rows)) {
+        $phase = [string]$row.phase
+        $blockedCode = [string]$row.blocked_reason_code
+        $state = if (-not [string]::IsNullOrWhiteSpace($blockedCode)) { 'blocked' } elseif ($phase -eq 'hold') { 'held' } else { 'runnable' }
+        $parts = @(
+            'row', [string]$row.global_order, $state, $phase, [string]$row.media_kind,
+            (ConvertTo-MediaPipelineQueueFingerprintField $row.source_path -Path),
+            [string]$row.manifest_priority_level, [string]$row.route,
+            [string]$row.route_reason_code, $blockedCode
+        ) | ForEach-Object { ConvertTo-MediaPipelineQueueFingerprintField $_ }
+        $lines.Add(($parts -join '|')) | Out-Null
+    }
+    foreach ($row in @($ExcludedRows)) {
+        $reasonCode = [string]$row.reason_code
+        $parts = @(
+            'excluded', [string]$row.source_order, $reasonCode, [string]$row.phase,
+            [string]$row.media_kind, (ConvertTo-MediaPipelineQueueFingerprintField $row.source_path -Path)
+        ) | ForEach-Object { ConvertTo-MediaPipelineQueueFingerprintField $_ }
+        $lines.Add(($parts -join '|')) | Out-Null
+    }
+    foreach ($row in @($AcceptedRows)) {
+        $parts = @(
+            'accepted', [string]$row.run_queue_index, [string]$row.run_queue_total,
+            [string]$row.source_identity,
+            (ConvertTo-MediaPipelineQueueFingerprintField $row.source_path -Path),
+            [string]$row.planned_display_name, [string]$row.planned_display_name_source, [string]$row.route,
+            [string]$row.route_reason_code, [string]$row.intended_final_path
+        ) | ForEach-Object { ConvertTo-MediaPipelineQueueFingerprintField $_ }
+        $lines.Add(($parts -join '|')) | Out-Null
+    }
+    return Get-MediaPipelineSha256Text (($lines -join "`n") + "`n")
+}
+
+function Get-MediaPipelineAcceptedRunRowsFingerprint {
+    param([Parameter(Mandatory)] [AllowEmptyCollection()] $Rows)
+
+    $lines = [System.Collections.Generic.List[string]]::new()
+    $lines.Add('schema=accepted_run_rows_fingerprint.v1') | Out-Null
+    foreach ($row in @($Rows)) {
+        $parts = @(
+            'accepted', [string]$row.run_queue_index, [string]$row.run_queue_total,
+            [string]$row.source_identity, [string]$row.source_identity_algorithm,
+            (ConvertTo-MediaPipelineAcceptedRunFingerprintField $row.source_path -Path),
+            [string]$row.planned_display_name, [string]$row.planned_display_name_source,
+            (ConvertTo-MediaPipelineAcceptedRunFingerprintField $row.parent_context -Path),
+            [string]$row.route, [string]$row.route_reason_code, [string]$row.route_reason,
+            (ConvertTo-MediaPipelineAcceptedRunFingerprintField $row.intended_final_path -Path)
+        ) | ForEach-Object { ConvertTo-MediaPipelineAcceptedRunFingerprintField $_ }
+        $lines.Add(($parts -join '|')) | Out-Null
+    }
+    return Get-MediaPipelineSha256Text (($lines -join "`n") + "`n")
+}
+
+function Get-MediaPipelineRunMonitorSeedRowsFromAcceptedSnapshot {
+    param(
+        [Parameter(Mandatory)] [string] $Path,
+        [Parameter(Mandatory)] [string] $ExpectedFingerprint,
+        [Parameter(Mandatory)] [string] $RunId
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ExpectedFingerprint)) {
+        throw 'RUN_MONITOR_ACCEPTED_FINGERPRINT_MISSING: an accepted Queue fingerprint is required.'
+    }
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        throw 'RUN_MONITOR_ACCEPTED_SNAPSHOT_MISSING: refresh Queue before Run Once.'
+    }
+    $snapshot = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop | ConvertFrom-Json -Depth 40 -ErrorAction Stop
+    if ([string]$snapshot.schema_version -ne 'queue_plan_snapshot.v1' -or
+        [string]$snapshot.queue_snapshot_origin -ne 'dry_run') {
+        throw 'RUN_MONITOR_ACCEPTED_SNAPSHOT_INVALID: only the authoritative backend dry-run snapshot may seed Run Once.'
+    }
+    if ([string]$snapshot.queue_plan_fingerprint_schema -ne 'queue_plan_fingerprint.v1' -or
+        [string]$snapshot.queue_plan_fingerprint -ne $ExpectedFingerprint) {
+        throw 'RUN_MONITOR_ACCEPTED_FINGERPRINT_MISMATCH: refresh Queue before Run Once.'
+    }
+    if (-not $snapshot.PSObject.Properties['accepted_run_rows']) {
+        throw 'RUN_MONITOR_ACCEPTED_ROWS_MISSING: refresh Queue with the current backend before Run Once.'
+    }
+    $rows = @($snapshot.accepted_run_rows)
+    $total = [int]$snapshot.runnable_count
+    if ($total -le 0 -or $rows.Count -ne $total) {
+        throw "RUN_MONITOR_ACCEPTED_ROWS_INVALID: accepted row count $($rows.Count) does not match runnable_count $total."
+    }
+
+    $seenIdentities = @{}
+    $seenPaths = @{}
+    $accepted = [System.Collections.Generic.List[object]]::new()
+    for ($offset = 0; $offset -lt $rows.Count; $offset++) {
+        $row = $rows[$offset]
+        $position = [int]$row.run_queue_index
+        $rowTotal = [int]$row.run_queue_total
+        $sourceIdentity = [string]$row.source_identity
+        $sourceAlgorithm = [string]$row.source_identity_algorithm
+        $sourcePath = [string]$row.source_path
+        $displayName = ([string]$row.planned_display_name).Trim()
+        $displayNameSource = ([string]$row.planned_display_name_source).Trim()
+        if ($position -ne ($offset + 1) -or $rowTotal -ne $total) {
+            throw 'RUN_MONITOR_ACCEPTED_ROWS_INVALID: positions must be contiguous, ordered, one-based, and share the accepted total.'
+        }
+        if ([string]::IsNullOrWhiteSpace($sourceIdentity) -or
+            [string]::IsNullOrWhiteSpace($sourceAlgorithm) -or
+            [string]::IsNullOrWhiteSpace($sourcePath)) {
+            throw 'RUN_MONITOR_ACCEPTED_ROWS_INVALID: every accepted row requires exact source identity and path evidence.'
+        }
+        if ([string]::IsNullOrWhiteSpace($displayName) -or $displayNameSource -ne 'plex_destination_plan.v1') {
+            throw 'RUN_MONITOR_ACCEPTED_NAME_EVIDENCE_MISSING: refresh Queue with the current backend before Run Once.'
+        }
+        $normalizedPath = try { [System.IO.Path]::GetFullPath($sourcePath).ToLowerInvariant() } catch { $sourcePath.ToLowerInvariant() }
+        if ($seenIdentities.ContainsKey($sourceIdentity) -or $seenPaths.ContainsKey($normalizedPath)) {
+            throw 'RUN_MONITOR_ACCEPTED_ROWS_INVALID: duplicate source identity or path in accepted workload.'
+        }
+        $seenIdentities[$sourceIdentity] = $true
+        $seenPaths[$normalizedPath] = $true
+        $accepted.Add([ordered]@{
+            job_id                    = ('{0}-item-{1:D8}' -f $RunId, $position)
+            source_identity           = $sourceIdentity
+            source_identity_algorithm = $sourceAlgorithm
+            source_path               = $sourcePath
+            display_name              = $displayName
+            display_name_source       = $displayNameSource
+            parent_context            = [string]$row.parent_context
+            run_queue_index           = $position
+            run_queue_total           = $total
+            route                     = [string]$row.route
+            route_reason              = [string]$row.route_reason
+            route_reason_code         = [string]$row.route_reason_code
+            intended_final_path       = [string]$row.intended_final_path
+        }) | Out-Null
+    }
+    $storedAcceptedFingerprintSchema = [string]$snapshot.accepted_run_rows_fingerprint_schema
+    $storedAcceptedFingerprint = [string]$snapshot.accepted_run_rows_fingerprint
+    if ($storedAcceptedFingerprintSchema -ne 'accepted_run_rows_fingerprint.v1' -or
+        [string]::IsNullOrWhiteSpace($storedAcceptedFingerprint)) {
+        throw 'RUN_MONITOR_ACCEPTED_ROWS_FINGERPRINT_MISSING: refresh Queue with the current backend before Run Once.'
+    }
+    $actualAcceptedFingerprint = Get-MediaPipelineAcceptedRunRowsFingerprint -Rows $rows
+    if ($actualAcceptedFingerprint -ne $storedAcceptedFingerprint) {
+        throw 'RUN_MONITOR_ACCEPTED_ROWS_FINGERPRINT_MISMATCH: accepted membership or naming evidence changed after Queue acceptance.'
+    }
+    return @($accepted.ToArray())
+}
+
+function Assert-MediaPipelineRunMonitorActiveMembershipMatchesAcceptedSnapshot {
+    param(
+        [Parameter(Mandatory)] [AllowEmptyCollection()] [array] $AcceptedRows,
+        [Parameter(Mandatory)] [AllowEmptyCollection()] [array] $ActiveRows
+    )
+
+    if ($AcceptedRows.Count -ne $ActiveRows.Count) {
+        throw 'RUN_MONITOR_ACTIVE_MEMBERSHIP_MISMATCH: active rescan count changed after launch acceptance.'
+    }
+    for ($index = 0; $index -lt $AcceptedRows.Count; $index++) {
+        $accepted = $AcceptedRows[$index]
+        $active = $ActiveRows[$index]
+        $acceptedPath = try { [System.IO.Path]::GetFullPath([string]$accepted.source_path).ToLowerInvariant() } catch { ([string]$accepted.source_path).ToLowerInvariant() }
+        $activePath = try { [System.IO.Path]::GetFullPath([string]$active.source_path).ToLowerInvariant() } catch { ([string]$active.source_path).ToLowerInvariant() }
+        $acceptedIntendedPath = [string]$accepted.intended_final_path
+        $activeIntendedPath = [string]$active.intended_final_path
+        if (-not [string]::IsNullOrWhiteSpace($acceptedIntendedPath)) {
+            $acceptedIntendedPath = try { [System.IO.Path]::GetFullPath($acceptedIntendedPath).ToLowerInvariant() } catch { $acceptedIntendedPath.ToLowerInvariant() }
+        }
+        if (-not [string]::IsNullOrWhiteSpace($activeIntendedPath)) {
+            $activeIntendedPath = try { [System.IO.Path]::GetFullPath($activeIntendedPath).ToLowerInvariant() } catch { $activeIntendedPath.ToLowerInvariant() }
+        }
+        if ([string]$accepted.job_id -ne [string]$active.job_id -or
+            [string]$accepted.source_identity -ne [string]$active.source_identity -or
+            [string]$accepted.source_identity_algorithm -ne [string]$active.source_identity_algorithm -or
+            $acceptedPath -ne $activePath -or
+            [string]$accepted.display_name -ne [string]$active.display_name -or
+            [string]$accepted.display_name_source -ne [string]$active.display_name_source -or
+            [string]$accepted.parent_context -ne [string]$active.parent_context -or
+            [int]$accepted.run_queue_index -ne [int]$active.run_queue_index -or
+            [int]$accepted.run_queue_total -ne [int]$active.run_queue_total -or
+            [string]$accepted.route -ne [string]$active.route -or
+            [string]$accepted.route_reason -ne [string]$active.route_reason -or
+            [string]$accepted.route_reason_code -ne [string]$active.route_reason_code -or
+            $acceptedIntendedPath -ne $activeIntendedPath) {
+            throw "RUN_MONITOR_ACTIVE_MEMBERSHIP_MISMATCH: active rescan changed accepted item at position $($index + 1)."
+        }
+    }
+    return $true
+}
+
 function New-QueuePlanExcludedSnapshotRow {
     param(
         [Parameter(Mandatory)] $Entry,
@@ -159,8 +454,37 @@ function Build-QueuePlanSnapshotRows {
     $holdOrdered = @($QueuePlan.HoldEntries)
 
     $rows = New-Object System.Collections.Generic.List[object]
+    $fingerprintRows = New-Object System.Collections.Generic.List[object]
     $runnableRows = New-Object System.Collections.Generic.List[object]
+    # Full accepted workload for the run monitor. This collection is never
+    # display-capped and is not derived from Queue filters or rendered rows.
+    $acceptedRunRows = New-Object System.Collections.Generic.List[object]
+    # Persisted pre-launch membership deliberately has no run/job identity.
+    # The backend creates the job IDs only after it accepts a concrete Run ID.
+    $acceptedPlanRows = New-Object System.Collections.Generic.List[object]
+    # A process-local PipelineRunId exists for every pipeline mode. It is not,
+    # by itself, proof that this round owns a durable Backend Queue Run Once
+    # monitor. Only the exact seed-adoption context established before the
+    # active rescan authorizes per-entry monitor identities and writes.
+    $runMonitorContext = $null
+    try { $runMonitorContext = $script:BackendQueueRunMonitorSeedContext } catch {}
+    $activeRunMonitorId = ''
+    $activeRunMonitorFingerprint = ''
+    if ($null -ne $runMonitorContext) {
+        try { $activeRunMonitorId = [string]$runMonitorContext.RunId } catch {}
+        try { $activeRunMonitorFingerprint = [string]$runMonitorContext.QueuePlanFingerprint } catch {}
+    }
+    $runMonitorAdopted = (
+        -not [string]::IsNullOrWhiteSpace($activeRunMonitorId) -and
+        -not [string]::IsNullOrWhiteSpace($activeRunMonitorFingerprint) -and
+        [string]::Equals(
+            $activeRunMonitorId,
+            [string]$script:PipelineRunId,
+            [System.StringComparison]::Ordinal
+        )
+    )
     $excludedRows = New-Object System.Collections.Generic.List[object]
+    $fingerprintExcludedRows = New-Object System.Collections.Generic.List[object]
     $excludedRowsTotal = 0
     $excludedRowsLimit = 500
     $rowLimit = 500
@@ -228,13 +552,15 @@ function Build-QueuePlanSnapshotRows {
                 }
                 if ($alreadyProcessed) {
                     $excludedRowsTotal++
+                    $excludedRow = New-QueuePlanExcludedSnapshotRow `
+                        -Entry $entry `
+                        -SourceOrder $sourceOrder `
+                        -ReasonCode 'already_processed' `
+                        -Reason 'Already processed by completed history, sidecar state, or pending-publish index.' `
+                        -TvInfo $tvInfo
+                    $fingerprintExcludedRows.Add($excludedRow) | Out-Null
                     if ($excludedRows.Count -lt $excludedRowsLimit) {
-                        $excludedRows.Add((New-QueuePlanExcludedSnapshotRow `
-                            -Entry $entry `
-                            -SourceOrder $sourceOrder `
-                            -ReasonCode 'already_processed' `
-                            -Reason 'Already processed by completed history, sidecar state, or pending-publish index.' `
-                            -TvInfo $tvInfo)) | Out-Null
+                        $excludedRows.Add($excludedRow) | Out-Null
                     }
                     continue
                 }
@@ -246,13 +572,17 @@ function Build-QueuePlanSnapshotRows {
         $globalOrder++
         $sizeGb = 0.0
         try { $sizeGb = [math]::Round([double]$file.Length / 1GB, 3) } catch {}
-        $route = $null; $routeReason = $null; $routeReasonCode = $null; $routeDecisionTrace = @()
+        $route = $null; $routeReason = $null; $routeReasonCode = $null; $routeDecisionTrace = @(); $rp = $null
         $routeEstimatedBitrateMbps = 0.0
         $routeSizeThresholdGb = 0.0
         $routeBitrateThresholdMbps = 0.0
         $routeThresholdMode = ''
         $routeSizeOverThreshold = $false
         $routeBitrateOverThreshold = $false
+        # This is immutable backend-authored naming evidence carried into the
+        # accepted Run Once workload. Keep the raw source path separately for
+        # identity, and never pass a raw-name fallback off as a planned rename.
+        $acceptedDisplayName = ''
         $routeLibraryOverrideKeys = if ($entry.Metadata -and $entry.Metadata.ContainsKey('settings_override_keys')) { @($entry.Metadata['settings_override_keys']) } else { @() }
         $routeLibrarySettingsOverrides = if ($entry.Metadata -and $entry.Metadata.ContainsKey('settings_overrides')) { $entry.Metadata['settings_overrides'] } else { [ordered]@{} }
         $routeLibraryEffectiveSettings = if ($entry.Metadata -and $entry.Metadata.ContainsKey('effective_settings')) { $entry.Metadata['effective_settings'] } else { [ordered]@{} }
@@ -282,10 +612,26 @@ function Build-QueuePlanSnapshotRows {
                 } else {
                     $null
                 }
-                $showOverrides = if ($isTV -and $tvInfo -and $tvInfo.ShowName -and (Get-Command -Name Resolve-ShowOverrides -ErrorAction SilentlyContinue)) {
+                $showOverrides = if ($isTV -and $tvInfo -and [bool]$tvInfo.IsReliable -and $tvInfo.ShowName -and (Get-Command -Name Resolve-ShowOverrides -ErrorAction SilentlyContinue)) {
                     Resolve-ShowOverrides $tvInfo.ShowName
                 } else {
                     $null
+                }
+                # Process-File applies a reliable ShowName override to TvInfo
+                # before Get-OutputPaths. Plan accepted Queue names against an
+                # isolated copy with that same canonical identity so acceptance
+                # and execution cannot disagree while the cached parse remains
+                # immutable for ordering and evidence.
+                $planningTvInfo = $tvInfo
+                if (
+                    $isTV -and
+                    $tvInfo -and
+                    [bool]$tvInfo.IsReliable -and
+                    $showOverrides -and
+                    -not [string]::IsNullOrWhiteSpace([string]$showOverrides.ShowName)
+                ) {
+                    $planningTvInfo = $tvInfo.PSObject.Copy()
+                    $planningTvInfo.ShowName = [string]$showOverrides.ShowName
                 }
                 $folderOverrides = if (Get-Command -Name Resolve-FolderPolicyOverrides -ErrorAction SilentlyContinue) {
                     Resolve-FolderPolicyOverrides -SourceFile $file
@@ -311,17 +657,55 @@ function Build-QueuePlanSnapshotRows {
                 if (Get-Command -Name Resolve-MediaPipelineLibraryEffectiveSettings -ErrorAction SilentlyContinue) {
                     $routeLibraryEffectiveSettings = Resolve-MediaPipelineLibraryEffectiveSettings -Overrides $libraryOverrides
                 }
-                $routeHints = if (Get-Command -Name Get-ActiveMediaRouteHints -ErrorAction SilentlyContinue) {
-                    Get-ActiveMediaRouteHints
+                $destinationPlanner = Get-Command -Name New-PlexDestinationPlan -ErrorAction SilentlyContinue
+                if ($destinationPlanner) {
+                    try {
+                        $plannedDisplay = if ($isTV) {
+                            New-PlexDestinationPlan `
+                                -MediaKind 'TV' `
+                                -File $file `
+                                -TvInfo $planningTvInfo `
+                                -OriginalName ([string]$planningTvInfo.OriginalName) `
+                                -Extension ([string]$OutputContainer)
+                        } else {
+                            New-PlexDestinationPlan `
+                                -MediaKind 'Movie' `
+                                -File $file `
+                                -OriginalName ([string]$file.Name) `
+                                -Extension ([string]$OutputContainer)
+                        }
+                        if ($plannedDisplay -and -not [string]::IsNullOrWhiteSpace([string]$plannedDisplay.FileName)) {
+                            $acceptedDisplayName = [string]$plannedDisplay.FileName
+                        } else {
+                            throw 'backend destination planner returned no filename'
+                        }
+                    } catch {
+                        $blocked = "destination naming plan failed: $($_.Exception.Message)"
+                        $blockedCode = 'destination_naming_plan_failed'
+                    }
                 } else {
-                    $null
+                    $blocked = 'destination naming plan failed: backend destination planner is unavailable'
+                    $blockedCode = 'destination_naming_plan_failed'
                 }
-                $sourceMediaProfile = if (Get-Command -Name Get-SourceMediaRouteProfile -ErrorAction SilentlyContinue) {
-                    Get-SourceMediaRouteProfile -FilePath $file.FullName -FileSizeBytes ([long]$file.Length)
+                if ($blocked) {
+                    $routeReason = $blocked
+                    $routeReasonCode = $blockedCode
+                    $runtimeChecksDeferred = $false
+                    $runtimeCheckCodes = @()
+                    $runtimeCheckNotes = @()
                 } else {
-                    $null
+                    $routeHints = if (Get-Command -Name Get-ActiveMediaRouteHints -ErrorAction SilentlyContinue) {
+                        Get-ActiveMediaRouteHints
+                    } else {
+                        $null
+                    }
+                    $sourceMediaProfile = if (Get-Command -Name Get-SourceMediaRouteProfile -ErrorAction SilentlyContinue) {
+                        Get-SourceMediaRouteProfile -FilePath $file.FullName -FileSizeBytes ([long]$file.Length)
+                    } else {
+                        $null
+                    }
+                    $rp = Resolve-InitialMediaRoutePlan -File $file -IsTV:$isTV -MediaProfile $sourceMediaProfile -RouteHints $routeHints
                 }
-                $rp = Resolve-InitialMediaRoutePlan -File $file -IsTV:$isTV -MediaProfile $sourceMediaProfile -RouteHints $routeHints
             } finally {
                 if (Get-Command -Name Pop-MediaPipelineActiveConfigOverrides -ErrorAction SilentlyContinue) {
                     Pop-MediaPipelineActiveConfigOverrides -Snapshot $activeConfigOverrideSnapshot
@@ -338,7 +722,7 @@ function Build-QueuePlanSnapshotRows {
                     Remove-Variable -Name LastFileOverrideMatch -Scope Script -ErrorAction SilentlyContinue
                 }
             }
-            if ($rp) {
+            if (-not $blocked -and $rp) {
                 $route       = [string]$rp.DisplayRoute
                 $routeReason = [string]$rp.Reason
                 $routeReasonCode = [string]$rp.ReasonCode
@@ -353,6 +737,20 @@ function Build-QueuePlanSnapshotRows {
         } catch {
             $routeReason = "route preview failed: $($_.Exception.Message)"
         }
+        }
+        if (-not $blocked -and [string]::IsNullOrWhiteSpace($acceptedDisplayName)) {
+            $namingFailureDetail = if ([string]::IsNullOrWhiteSpace($routeReason)) {
+                'backend naming evidence is unavailable'
+            } else {
+                [string]$routeReason
+            }
+            $blocked = "destination naming plan failed: $namingFailureDetail"
+            $blockedCode = 'destination_naming_plan_failed'
+            $routeReason = $blocked
+            $routeReasonCode = $blockedCode
+            $runtimeChecksDeferred = $false
+            $runtimeCheckCodes = @()
+            $runtimeCheckNotes = @()
         }
         $runQueueIndex = 0
         if (-not $blocked) {
@@ -406,7 +804,41 @@ function Build-QueuePlanSnapshotRows {
             runtime_check_codes     = @($runtimeCheckCodes)
             runtime_check_notes     = @($runtimeCheckNotes)
         }
+        if ($runQueueIndex -gt 0) {
+            $normalizedSourcePath = [System.IO.Path]::GetFullPath([string]$file.FullName).ToLowerInvariant()
+            $sourceIdentityMaterial = '{0}|{1}|{2}' -f $normalizedSourcePath, [int64]$file.Length, ([datetime]$file.LastWriteTimeUtc).Ticks
+            $runMonitorSourceIdentity = Get-MediaPipelineSha256Text $sourceIdentityMaterial
+            $acceptedPlanRow = [ordered]@{
+                source_identity          = $runMonitorSourceIdentity
+                source_identity_algorithm = 'path_size_mtime_sha256.v1'
+                source_path              = [string]$file.FullName
+                display_name             = [string]$acceptedDisplayName
+                planned_display_name     = [string]$acceptedDisplayName
+                planned_display_name_source = 'plex_destination_plan.v1'
+                display_name_source      = 'plex_destination_plan.v1'
+                parent_context           = [string]$file.DirectoryName
+                run_queue_index          = [int]$runQueueIndex
+                run_queue_total          = 0
+                route                    = [string]$route
+                route_reason             = [string]$routeReason
+                route_reason_code        = [string]$routeReasonCode
+            }
+            $acceptedPlanRows.Add($acceptedPlanRow) | Out-Null
+            if ($runMonitorAdopted) {
+                $runMonitorJobId = '{0}-item-{1:D8}' -f $activeRunMonitorId, [int]$runQueueIndex
+                $entry | Add-Member -NotePropertyName RunMonitorJobId -NotePropertyValue $runMonitorJobId -Force
+                $entry | Add-Member -NotePropertyName RunMonitorSourceIdentity -NotePropertyValue $runMonitorSourceIdentity -Force
+                $entry | Add-Member -NotePropertyName RunMonitorSourceIdentityAlgorithm -NotePropertyValue 'path_size_mtime_sha256.v1' -Force
+                $entry | Add-Member -NotePropertyName RunMonitorPlannedRoute -NotePropertyValue ([string]$route) -Force
+                $entry | Add-Member -NotePropertyName RunMonitorPlannedReason -NotePropertyValue ([string]$routeReason) -Force
+                $entry | Add-Member -NotePropertyName RunMonitorPlannedReasonCode -NotePropertyValue ([string]$routeReasonCode) -Force
+                $acceptedMonitorRow = [ordered]@{ job_id = $runMonitorJobId }
+                foreach ($key in $acceptedPlanRow.Keys) { $acceptedMonitorRow[$key] = $acceptedPlanRow[$key] }
+                $acceptedRunRows.Add($acceptedMonitorRow) | Out-Null
+            }
+        }
         $totalRowCount++
+        $fingerprintRows.Add($row) | Out-Null
         if ($rows.Count -lt $rowLimit) {
             $rows.Add($row) | Out-Null
         }
@@ -424,6 +856,13 @@ function Build-QueuePlanSnapshotRows {
     foreach ($row in $runnableRows) {
         $row['run_queue_total'] = [int]$runnableRowCount
     }
+    foreach ($acceptedRow in $acceptedRunRows) {
+        $acceptedRow['run_queue_total'] = [int]$runnableRowCount
+    }
+    foreach ($acceptedRow in $acceptedPlanRows) {
+        $acceptedRow['run_queue_total'] = [int]$runnableRowCount
+    }
+    $script:LastRunMonitorAcceptedRows = @($acceptedRunRows.ToArray())
 
     # Append hold entries to the display rows so the UI can render them with a
     # HOLD badge. They are not included in runnable_count and never process.
@@ -484,6 +923,7 @@ function Build-QueuePlanSnapshotRows {
             runtime_check_codes     = @()
             runtime_check_notes     = @()
         }
+        $fingerprintRows.Add($holdRow) | Out-Null
         if ($rows.Count -lt $rowLimit) {
             $rows.Add($holdRow) | Out-Null
         }
@@ -501,8 +941,47 @@ function Build-QueuePlanSnapshotRows {
         $gpuReason = [string]$nvencProbe.Reason
     }
 
+    $inputFingerprint = Get-MediaPipelineQueueInputFingerprint
+    $pendingBackpressure = Get-MediaPipelinePendingPublishBackpressure
+    $pendingIndex = $script:PendingPublishIndex
+    $pendingHealth = [ordered]@{
+        status = if ($pendingIndex -and ([int]$pendingIndex.MissingPayloadCount -gt 0 -or [int]$pendingIndex.UnreadableManifestCount -gt 0)) { 'blocked' } else { 'ready' }
+        count = if ($pendingIndex) { [int]$pendingIndex.Count } else { 0 }
+        missing_payload_count = if ($pendingIndex) { [int]$pendingIndex.MissingPayloadCount } else { 0 }
+        unreadable_manifest_count = if ($pendingIndex) { [int]$pendingIndex.UnreadableManifestCount } else { 0 }
+    }
+    $planFingerprint = Get-MediaPipelineQueuePlanFingerprint `
+        -Rows $fingerprintRows.ToArray() `
+        -ExcludedRows $fingerprintExcludedRows.ToArray() `
+        -AcceptedRows $acceptedPlanRows.ToArray() `
+        -InputFingerprint ([string]$inputFingerprint.Fingerprint) `
+        -OrderingStrategy ([string]$QueuePlan.QueueOrderingStrategy) `
+        -PendingBackpressure $pendingBackpressure `
+        -PendingHealth $pendingHealth
+    $acceptedRunRowsFingerprint = Get-MediaPipelineAcceptedRunRowsFingerprint -Rows $acceptedPlanRows.ToArray()
+
     return [pscustomobject]@{
         schema_version    = 'queue_plan_snapshot.v1'
+        queue_snapshot_origin = 'active_run'
+        queue_input_fingerprint_schema = [string]$inputFingerprint.SchemaVersion
+        queue_input_fingerprint = [string]$inputFingerprint.Fingerprint
+        queue_input_components = $inputFingerprint.Components
+        queue_plan_fingerprint_schema = 'queue_plan_fingerprint.v1'
+        queue_plan_fingerprint = [string]$planFingerprint
+        accepted_run_rows_fingerprint_schema = 'accepted_run_rows_fingerprint.v1'
+        accepted_run_rows_fingerprint = [string]$acceptedRunRowsFingerprint
+        pending_publish_index_health = $pendingHealth
+        pending_publish_backpressure = [ordered]@{
+            blocked = [bool]$pendingBackpressure.Blocked
+            block_reason = [string]$pendingBackpressure.BlockReason
+            deferred_publish = [bool]$pendingBackpressure.DeferredPublish
+            manifest_count = [int]$pendingBackpressure.ManifestCount
+            oldest_age_seconds = $pendingBackpressure.OldestAgeSeconds
+            total_bytes = [int64]$pendingBackpressure.TotalBytes
+            retry_exhausted_count = [int]$pendingBackpressure.RetryExhaustedCount
+            normal_threshold = [int]$pendingBackpressure.NormalThreshold
+            deferred_threshold = [int]$pendingBackpressure.DeferredThreshold
+        }
         produced_at       = (Get-Date).ToUniversalTime().ToString('o')
         config_path       = [string]$configPath
         local_base        = [string]$LocalBase
@@ -526,6 +1005,7 @@ function Build-QueuePlanSnapshotRows {
         excluded_row_limit = [int]$excludedRowsLimit
         excluded_rows_truncated = [bool]($excludedRowsTotal -gt $excludedRows.Count)
         excluded_rows     = $excludedRows
+        accepted_run_rows = @($acceptedPlanRows.ToArray())
         rows              = $rows
         gpu_available     = $gpuAvailable
         gpu_unavailable_reason = $gpuReason

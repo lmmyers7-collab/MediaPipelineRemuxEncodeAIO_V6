@@ -371,6 +371,25 @@ class ApiCommandContractsTests(unittest.TestCase):
         )
         self.assertEqual(validate_api_payload("/api/pipeline/control", {"action": "pause"}), {"action": "pause"})
         self.assertEqual(
+            validate_api_payload(
+                "/api/pipeline/control",
+                {"action": "stop", "expected_run_id": "run-once-123"},
+            ),
+            {"action": "stop", "expected_run_id": "run-once-123"},
+        )
+        self.assertEqual(
+            validate_api_payload("/api/pipeline/control", {"action": "stop"}),
+            {"action": "stop"},
+        )
+        for payload in (
+            {"action": "stop", "expected_run_id": ""},
+            {"action": "stop", "expected_run_id": " run-once-123"},
+            {"action": "stop", "expected_run_id": "../run"},
+            {"action": "pause", "expected_run_id": "run-once-123"},
+        ):
+            with self.subTest(pipeline_control_identity=payload), self.assertRaises(ValidationFailure):
+                validate_api_payload("/api/pipeline/control", payload)
+        self.assertEqual(
             validate_api_payload("/api/audit/stop", {"confirm_stop": True, "reason": "operator stop"}),
             {"confirm_stop": True, "reason": "operator stop"},
         )
@@ -979,6 +998,20 @@ class ApiCommandContractsTests(unittest.TestCase):
                             "force_pipeline_name_overrides": {"C:/Media/Show E01.mkv": value},
                         },
                     )
+
+    def test_settings_save_confirm_save_is_required_and_strictly_boolean(self) -> None:
+        route = "/api/settings/save-patch"
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload(route, {"changes": {"VideoQuality": 24}})
+        for value in ("true", "false", 1, 0, None, [], {}):
+            with self.subTest(value=value), self.assertRaises(ValidationFailure):
+                validate_api_payload(route, {"changes": {"VideoQuality": 24}, "confirm_save": value})
+        for value in (True, False):
+            with self.subTest(value=value):
+                self.assertEqual(
+                    validate_api_payload(route, {"changes": {"VideoQuality": 24}, "confirm_save": value}),
+                    {"changes": {"VideoQuality": 24}, "confirm_save": value},
+                )
 
     def test_settings_schedule_and_maintenance_booleans_require_strict_boolean(self) -> None:
         cases = [

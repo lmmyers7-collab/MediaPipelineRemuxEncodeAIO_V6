@@ -343,6 +343,7 @@ def queue_scan_status_payload(
     queue_snapshot_path: Path | None = None,
     inventory_count: int = 0,
     curated_row_count: int = 0,
+    queue_preview_request_id: str = "",
     warnings: list[str] | None = None,
     errors: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -368,6 +369,7 @@ def queue_scan_status_payload(
         "queue_snapshot_path": str(queue_snapshot_path or ""),
         "inventory_count": int(inventory_count or 0),
         "curated_row_count": int(curated_row_count or 0),
+        "queue_preview_request_id": str(queue_preview_request_id or ""),
         "warnings": list(warnings or []),
         "errors": list(errors or []),
         "evidence_authority": "backend_queue_scan_service",

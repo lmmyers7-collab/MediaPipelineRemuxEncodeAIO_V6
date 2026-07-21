@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
 from collections.abc import Mapping
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from typing import Any
 
 from mediapipeline.core.files.constants import MEDIA_FILE_SUFFIXES, VLC_LONG_PATH_THRESHOLD
 from mediapipeline.core.rename.plan_policy import (
@@ -20,6 +20,37 @@ from mediapipeline.core.rename.tv import (
     tv_identity_key,
 )
 from mediapipeline.core.rename.cleaning_policy import normalize_rename_cleaning_policy
+
+
+_WINDOWS_INVALID_FILENAME_CHARACTERS = frozenset('<>:"/\\|?*')
+
+
+def _validated_authoritative_preview_leaf(value: object, source: Path) -> str:
+    preview_leaf = str(value or "")
+    if not preview_leaf or preview_leaf != preview_leaf.strip():
+        raise ValueError("Authoritative pipeline naming preview must be a non-empty filename leaf.")
+    if (
+        preview_leaf in {".", ".."}
+        or PurePosixPath(preview_leaf).name != preview_leaf
+        or PureWindowsPath(preview_leaf).name != preview_leaf
+        or any(
+            character in _WINDOWS_INVALID_FILENAME_CHARACTERS or ord(character) < 32
+            for character in preview_leaf
+        )
+        or preview_leaf.endswith((" ", "."))
+    ):
+        raise ValueError("Authoritative pipeline naming preview must be a valid filename leaf, not a path.")
+
+    preview_suffix = PureWindowsPath(preview_leaf).suffix.casefold()
+    if preview_suffix not in MEDIA_FILE_SUFFIXES:
+        raise ValueError("Authoritative pipeline naming preview must end with a configured media suffix.")
+    source_suffix = source.suffix.casefold()
+    if preview_suffix != source_suffix:
+        raise ValueError(
+            "Authoritative pipeline naming preview media suffix "
+            f"{preview_suffix} does not match source suffix {source_suffix}."
+        )
+    return preview_leaf
 
 
 def plan_rename_paths_for_service(
@@ -137,7 +168,7 @@ def plan_rename_paths_for_service(
                 if pipeline_guess:
                     preview_source = "pipeline_tv_preview"
                     confidence_reasons.append("Backend pipeline naming preview returned a TV filename.")
-                    pipeline_guess = service.normalize_plex_filename_component(Path(pipeline_guess).stem, remove_terms) + source.suffix.lower()
+                    pipeline_guess = _validated_authoritative_preview_leaf(pipeline_guess, source)
                     pipeline_guess = service._apply_tv_episode_title_template(
                         pipeline_guess,
                         include_episode_title=include_tv_episode_title,
@@ -173,8 +204,7 @@ def plan_rename_paths_for_service(
                 if pipeline_guess:
                     preview_source = "pipeline_movie_preview"
                     confidence_reasons.append("Backend pipeline naming preview returned a movie filename.")
-                    cleaned_preview = service._clean_pipeline_movie_name(Path(pipeline_guess).name, remove_terms, movie_filter_options, movie_filter_terms)
-                    pipeline_guess = f"{cleaned_preview}{source.suffix.lower()}" if cleaned_preview else service.normalize_plex_filename_component(Path(pipeline_guess).stem, remove_terms) + source.suffix.lower()
+                    pipeline_guess = _validated_authoritative_preview_leaf(pipeline_guess, source)
                 else:
                     preview_source = "manual_movie_template" if manual_movie_template else "movie_scrub_heuristic"
                     confidence_reasons.append(

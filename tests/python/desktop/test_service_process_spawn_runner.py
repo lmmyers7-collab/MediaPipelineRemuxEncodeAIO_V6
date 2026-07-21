@@ -211,12 +211,14 @@ class SpawnRunnerTests(unittest.TestCase):
                 "mediapipeline.core.processes.spawn_runner.subprocess.Popen",
                 lambda *args, **kwargs: fake_proc,
             ):
-                with self.assertRaisesRegex(RuntimeError, "readiness update failed"):
+                with self.assertRaisesRegex(RuntimeError, "readiness update failed") as captured_error:
                     spawn_process_for_service(service, ["pwsh", "-File", "Pipeline.ps1"], False, job_kind="pipeline")
 
             self.assertEqual(service.killed_labels, ["pipeline launch failure"])
             self.assertEqual(fake_proc.kill_calls, 1)
             self.assertEqual(len(service.launch_records), 1)
+            self.assertTrue(getattr(captured_error.exception, "_mediapipeline_process_started", False))
+            self.assertTrue(getattr(captured_error.exception, "_mediapipeline_cleanup_verified", False))
 
     def test_spawn_runner_releases_lease_after_successful_tree_cleanup(self) -> None:
         class FakeLifecycleLease:
@@ -326,6 +328,8 @@ class SpawnRunnerTests(unittest.TestCase):
             self.assertTrue(
                 any("could not verify" in note.lower() for note in getattr(captured_error.exception, "__notes__", []))
             )
+            self.assertTrue(getattr(captured_error.exception, "_mediapipeline_process_started", False))
+            self.assertFalse(getattr(captured_error.exception, "_mediapipeline_cleanup_verified", True))
             self.assertTrue(any("could not verify" in message.lower() for message in captured_logs.output))
 
     def test_spawn_runner_preserves_lease_when_tree_kill_is_degraded_after_root_exit(self) -> None:

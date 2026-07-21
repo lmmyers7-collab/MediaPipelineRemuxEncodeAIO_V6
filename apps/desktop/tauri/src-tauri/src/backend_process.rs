@@ -2,7 +2,7 @@ use serde::Deserialize;
 use std::{
     error::Error,
     ffi::OsString,
-    io::{BufRead, BufReader, Read},
+    io::{self, BufRead, BufReader, Read},
     path::Path,
     process::{Child, Command, Stdio},
     sync::{mpsc, mpsc::RecvTimeoutError, Mutex},
@@ -60,6 +60,80 @@ pub(crate) enum BackendShutdownOutcome {
     Failed,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ChildPoll {
+    Running,
+    Exited(Option<i32>),
+}
+
+pub(crate) trait ManagedChildProcess {
+    fn poll(&mut self) -> io::Result<ChildPoll>;
+
+    fn terminate_tree_and_verify(&mut self) -> Result<(), String>;
+}
+
+impl ManagedChildProcess for Child {
+    fn poll(&mut self) -> io::Result<ChildPoll> {
+        match self.try_wait()? {
+            Some(status) => Ok(ChildPoll::Exited(status.code())),
+            None => Ok(ChildPoll::Running),
+        }
+    }
+
+    fn terminate_tree_and_verify(&mut self) -> Result<(), String> {
+        terminate_child_verified(self)
+    }
+}
+
+pub(crate) trait WaitClock {
+    fn elapsed(&self) -> Duration;
+
+    fn wait(&mut self, duration: Duration);
+}
+
+struct SystemWaitClock {
+    started: Instant,
+}
+
+impl SystemWaitClock {
+    fn start() -> Self {
+        Self {
+            started: Instant::now(),
+        }
+    }
+}
+
+impl WaitClock for SystemWaitClock {
+    fn elapsed(&self) -> Duration {
+        self.started.elapsed()
+    }
+
+    fn wait(&mut self, duration: Duration) {
+        thread::sleep(duration);
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ShutdownRequestState {
+    Acknowledged,
+    Blocked,
+    Rejected,
+    TransportFailed,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) struct ShutdownResolution {
+    pub(crate) outcome: BackendShutdownOutcome,
+    pub(crate) release_ownership: bool,
+    pub(crate) detail: String,
+}
+
+enum ChildExitWait {
+    Exited,
+    TimedOut,
+    Failed(String),
+}
+
 #[derive(Debug, Deserialize)]
 struct BackendShutdownResponse {
     schema_version: String,
@@ -98,13 +172,12 @@ impl BackendProcess {
         let Some(child) = guard.as_mut() else {
             return Ok(BackendProcessExit::NoChild);
         };
-        match child.try_wait()? {
-            Some(status) => {
-                let code = status.code();
+        match inspect_managed_child(child)? {
+            BackendProcessExit::Exited(code) => {
                 let _ = guard.take();
                 Ok(BackendProcessExit::Exited(code))
             }
-            None => Ok(BackendProcessExit::Running),
+            state => Ok(state),
         }
     }
 
@@ -113,50 +186,125 @@ impl BackendProcess {
             if guard.is_none() {
                 return BackendShutdownOutcome::Requested;
             }
-            let shutdown_request_failed =
-                match request_backend_shutdown(&self.url, &self.token, mode) {
-                    Ok(BackendShutdownOutcome::Requested) => false,
-                    Ok(BackendShutdownOutcome::Failed) => {
-                        eprintln!("[mediapipeline-shell] backend did not acknowledge shutdown");
-                        return BackendShutdownOutcome::Failed;
-                    }
-                    Ok(BackendShutdownOutcome::Blocked) => {
-                        eprintln!(
-                        "[mediapipeline-shell] backend shutdown request blocked by close-readiness"
-                    );
-                        return BackendShutdownOutcome::Blocked;
-                    }
-                    Err(error) => {
-                        eprintln!("[mediapipeline-shell] backend shutdown request failed: {error}");
-                        true
-                    }
-                };
-            if shutdown_request_failed {
-                let Some(child) = guard.as_mut() else {
-                    return BackendShutdownOutcome::Requested;
-                };
-                if wait_for_child_exit(child, Duration::from_secs(3)) {
-                    let _ = guard.take();
-                    return BackendShutdownOutcome::Requested;
+            let request_state = match request_backend_shutdown(&self.url, &self.token, mode) {
+                Ok(BackendShutdownOutcome::Requested) => ShutdownRequestState::Acknowledged,
+                Ok(BackendShutdownOutcome::Failed) => ShutdownRequestState::Rejected,
+                Ok(BackendShutdownOutcome::Blocked) => ShutdownRequestState::Blocked,
+                Err(error) => {
+                    eprintln!("[mediapipeline-shell] backend shutdown request failed: {error}");
+                    ShutdownRequestState::TransportFailed
                 }
-                // Never turn an unavailable backend into permission to kill
-                // its tree, even after a native force-close confirmation.
-                return BackendShutdownOutcome::Failed;
-            }
-            let Some(mut child) = guard.take() else {
+            };
+            let Some(child) = guard.as_mut() else {
                 return BackendShutdownOutcome::Requested;
             };
-            drop(guard);
-            if wait_for_child_exit(&mut child, Duration::from_secs(3)) {
-                return BackendShutdownOutcome::Requested;
-            }
-            eprintln!(
-                "[mediapipeline-shell] backend did not exit within grace period; terminating process tree"
+            let mut clock = SystemWaitClock::start();
+            let resolution = resolve_shutdown_with_child(
+                child,
+                request_state,
+                &mut clock,
+                Duration::from_secs(3),
             );
-            terminate_child(&mut child);
-            return BackendShutdownOutcome::Requested;
+            if !resolution.detail.is_empty() {
+                eprintln!("[mediapipeline-shell] {}", resolution.detail);
+            }
+            if resolution.release_ownership {
+                let _ = guard.take();
+            }
+            return resolution.outcome;
         }
         BackendShutdownOutcome::Failed
+    }
+}
+
+pub(crate) fn inspect_managed_child(
+    child: &mut impl ManagedChildProcess,
+) -> io::Result<BackendProcessExit> {
+    match child.poll()? {
+        ChildPoll::Running => Ok(BackendProcessExit::Running),
+        ChildPoll::Exited(code) => Ok(BackendProcessExit::Exited(code)),
+    }
+}
+
+fn wait_for_child_exit_with_clock(
+    child: &mut impl ManagedChildProcess,
+    clock: &mut impl WaitClock,
+    timeout: Duration,
+) -> ChildExitWait {
+    loop {
+        match child.poll() {
+            Ok(ChildPoll::Exited(_)) => return ChildExitWait::Exited,
+            Ok(ChildPoll::Running) => {
+                if clock.elapsed() >= timeout {
+                    return ChildExitWait::TimedOut;
+                }
+                clock.wait(Duration::from_millis(100).min(timeout.saturating_sub(clock.elapsed())));
+            }
+            Err(error) => return ChildExitWait::Failed(error.to_string()),
+        }
+    }
+}
+
+pub(crate) fn resolve_shutdown_with_child(
+    child: &mut impl ManagedChildProcess,
+    request_state: ShutdownRequestState,
+    clock: &mut impl WaitClock,
+    grace_period: Duration,
+) -> ShutdownResolution {
+    match request_state {
+        ShutdownRequestState::Blocked => {
+            return ShutdownResolution {
+                outcome: BackendShutdownOutcome::Blocked,
+                release_ownership: false,
+                detail: "Backend shutdown request was blocked by close-readiness.".to_string(),
+            };
+        }
+        ShutdownRequestState::Rejected => {
+            return ShutdownResolution {
+                outcome: BackendShutdownOutcome::Failed,
+                release_ownership: false,
+                detail: "Backend did not acknowledge shutdown.".to_string(),
+            };
+        }
+        ShutdownRequestState::Acknowledged | ShutdownRequestState::TransportFailed => {}
+    }
+
+    match wait_for_child_exit_with_clock(child, clock, grace_period) {
+        ChildExitWait::Exited => ShutdownResolution {
+            outcome: BackendShutdownOutcome::Requested,
+            release_ownership: true,
+            detail: String::new(),
+        },
+        ChildExitWait::Failed(error) => ShutdownResolution {
+            outcome: BackendShutdownOutcome::Failed,
+            release_ownership: false,
+            detail: format!(
+                "Backend process exit could not be verified because the child wait API failed: {error}"
+            ),
+        },
+        ChildExitWait::TimedOut if request_state == ShutdownRequestState::TransportFailed => {
+            ShutdownResolution {
+                outcome: BackendShutdownOutcome::Failed,
+                release_ownership: false,
+                detail: "Backend shutdown transport failed and the managed child did not exit within the grace period; ownership was retained."
+                    .to_string(),
+            }
+        }
+        ChildExitWait::TimedOut => match child.terminate_tree_and_verify() {
+            Ok(()) => ShutdownResolution {
+                outcome: BackendShutdownOutcome::Requested,
+                release_ownership: true,
+                detail: "Backend did not exit within the grace period; its process tree was terminated and verified."
+                    .to_string(),
+            },
+            Err(error) => ShutdownResolution {
+                outcome: BackendShutdownOutcome::Failed,
+                release_ownership: false,
+                detail: format!(
+                    "Backend process-tree termination could not be verified; ownership was retained: {error}"
+                ),
+            },
+        },
     }
 }
 
@@ -432,60 +580,46 @@ fn spawn_pipe_drain(reader: impl Read + Send + 'static, stream_name: &'static st
 }
 
 fn terminate_child(child: &mut Child) {
-    terminate_process_tree(child);
-    if let Err(error) = child.wait() {
-        eprintln!(
-            "[mediapipeline-shell] backend process wait after tree termination failed: {error}"
-        );
+    if let Err(error) = terminate_child_verified(child) {
+        eprintln!("[mediapipeline-shell] {error}");
     }
 }
 
+fn terminate_child_verified(child: &mut Child) -> Result<(), String> {
+    terminate_process_tree(child)?;
+    child
+        .wait()
+        .map_err(|error| format!("Backend process wait after tree termination failed: {error}"))?;
+    Ok(())
+}
+
 #[cfg(windows)]
-fn terminate_process_tree(child: &mut Child) {
+fn terminate_process_tree(child: &mut Child) -> Result<(), String> {
     let pid = child.id().to_string();
     let status = Command::new("taskkill")
         .args(["/PID", &pid, "/T", "/F"])
         .status();
     match status {
-        Ok(status) if status.success() => {}
-        Ok(status) => {
-            eprintln!("[mediapipeline-shell] taskkill /T failed with status {status}; falling back to direct kill");
-            terminate_process_direct(child);
-        }
-        Err(error) => {
-            eprintln!(
-                "[mediapipeline-shell] taskkill /T failed: {error}; falling back to direct kill"
-            );
-            terminate_process_direct(child);
-        }
+        Ok(status) if status.success() => Ok(()),
+        Ok(status) => Err(format!(
+            "taskkill /T failed with status {status}; descendant exit remains unverified"
+        )),
+        Err(error) => Err(format!(
+            "taskkill /T failed: {error}; descendant exit remains unverified"
+        )),
     }
 }
 
 #[cfg(not(windows))]
-fn terminate_process_tree(child: &mut Child) {
-    terminate_process_direct(child);
+fn terminate_process_tree(child: &mut Child) -> Result<(), String> {
+    terminate_process_direct(child)
 }
 
-fn terminate_process_direct(child: &mut Child) {
-    if let Err(error) = child.kill() {
-        eprintln!("[mediapipeline-shell] backend process kill failed: {error}");
-    }
-}
-
-fn wait_for_child_exit(child: &mut Child, timeout: Duration) -> bool {
-    let started = Instant::now();
-    loop {
-        match child.try_wait() {
-            Ok(Some(_status)) => return true,
-            Ok(None) => {
-                if started.elapsed() >= timeout {
-                    return false;
-                }
-                thread::sleep(Duration::from_millis(100));
-            }
-            Err(_) => return true,
-        }
-    }
+#[cfg(not(windows))]
+fn terminate_process_direct(child: &mut Child) -> Result<(), String> {
+    child
+        .kill()
+        .map_err(|error| format!("Backend process kill failed: {error}"))
 }
 
 fn backend_shutdown_request_body(mode: BackendShutdownMode) -> &'static str {

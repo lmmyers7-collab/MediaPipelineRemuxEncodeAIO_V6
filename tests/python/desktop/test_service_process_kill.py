@@ -16,6 +16,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.models import ResolvedPaths
 from mediapipeline.core.processes.kill import (
+    RelatedProcessKillReport,
     _mark_process_tree_cleanup_reconciliation_required,
     _process_tree_cleanup_reconciliation_required,
     find_related_pipeline_processes,
@@ -79,6 +80,14 @@ class FakePsutilProc:
 
     def status(self) -> str:
         return "stopped" if not self._running else "running"
+
+
+class StubbornChildPsutilProc(FakePsutilProc):
+    def kill(self) -> None:
+        self.killed = True
+
+    def terminate(self) -> None:
+        return
 
 
 class FakePsutil:
@@ -223,6 +232,102 @@ class ProcessKillHelperTests(unittest.TestCase):
 
         self.assertTrue(matching.killed)
         self.assertEqual(messages, ["Force-killed related MediaPipeline process tree (PID 100)."])
+
+    def test_kill_report_carries_exact_pipeline_run_identity_without_parsing_message_text(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            resolved = self._resolved(root)
+            matching = FakePsutilProc(
+                pid=100,
+                name="powershell.exe",
+                cmdline=[
+                    "powershell",
+                    "-File",
+                    str(resolved.pipeline_path),
+                    "-RunId",
+                    "run-exact-123",
+                    "-CommandId",
+                    "command-exact-456",
+                ],
+            )
+            FakePsutil.processes = [matching]
+
+            report = kill_related_pipeline_processes(
+                resolved,
+                psutil_module=FakePsutil,
+                logger=logging.getLogger("test_service_process_kill"),
+            )
+
+        self.assertIsInstance(report, RelatedProcessKillReport)
+        self.assertEqual(report, ["Force-killed related MediaPipeline process tree (PID 100)."])
+        self.assertEqual(len(report.termination_evidence), 1)
+        evidence = report.termination_evidence[0]
+        self.assertEqual(evidence.pid, 100)
+        self.assertEqual(evidence.matched_job_kinds, ("pipeline",))
+        self.assertEqual(evidence.run_id, "run-exact-123")
+        self.assertEqual(evidence.command_id, "command-exact-456")
+        self.assertTrue(evidence.exit_verified)
+
+    def test_kill_report_is_blocked_when_root_exits_but_an_exact_captured_child_survives(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            resolved = self._resolved(root)
+            child = StubbornChildPsutilProc(pid=101, name="ffmpeg.exe")
+            matching = FakePsutilProc(
+                pid=100,
+                name="powershell.exe",
+                cmdline=[
+                    "powershell",
+                    "-File",
+                    str(resolved.pipeline_path),
+                    "-RunId",
+                    "run-exact-123",
+                ],
+            )
+            matching.children = lambda recursive=False: [child]  # type: ignore[method-assign]
+            FakePsutil.processes = [matching]
+
+            with self.assertRaisesRegex(RuntimeError, "captured process tree.*still running"):
+                kill_related_pipeline_processes(
+                    resolved,
+                    psutil_module=FakePsutil,
+                    logger=logging.getLogger("test_service_process_kill"),
+                )
+
+        self.assertFalse(matching.is_running())
+        self.assertTrue(child.is_running())
+
+    def test_kill_report_is_blocked_when_descendant_enumeration_is_unverifiable(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            resolved = self._resolved(root)
+            matching = FakePsutilProc(
+                pid=100,
+                name="powershell.exe",
+                cmdline=[
+                    "powershell",
+                    "-File",
+                    str(resolved.pipeline_path),
+                    "-RunId",
+                    "run-exact-123",
+                ],
+            )
+
+            def fail_children(*, recursive: bool = False) -> list[Any]:
+                _ = recursive
+                raise PermissionError("descendant enumeration denied")
+
+            matching.children = fail_children  # type: ignore[method-assign]
+            FakePsutil.processes = [matching]
+
+            with self.assertRaisesRegex(RuntimeError, "descendant enumeration.*could not be verified"):
+                kill_related_pipeline_processes(
+                    resolved,
+                    psutil_module=FakePsutil,
+                    logger=logging.getLogger("test_service_process_kill"),
+                )
+
+        self.assertFalse(matching.is_running())
 
     def test_kill_related_pipeline_processes_can_scope_to_audit_only(self) -> None:
         with tempfile.TemporaryDirectory() as td:

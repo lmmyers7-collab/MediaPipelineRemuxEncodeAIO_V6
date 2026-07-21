@@ -106,9 +106,16 @@ function Publish-Tx3gSrtSidecarsFromPlan {
         if (-not $sidecar) { continue }
         $sourceSrt = [string]$sidecar.LocalPath
         $destination = [string]$sidecar.DestinationPath
-        $streamIndex = if ($sidecar.Record -and $sidecar.Record.PSObject.Properties['stream_index']) { [int]$sidecar.Record.stream_index } else { -1 }
+        $record = $sidecar.Record
+        $streamIndex = if ($record -and $record.PSObject.Properties['stream_index']) { [int]$record.stream_index } else { -1 }
+        $trackId = [string](Get-PublishedSidecarProperty -Object $record -Name 'track_id')
+        $sourceSubtitleKind = [string](Get-PublishedSidecarProperty -Object $record -Name 'source_subtitle_kind')
+        if ([string]::IsNullOrWhiteSpace($sourceSubtitleKind)) { $sourceSubtitleKind = 'subtitle' }
+        $sourceKind = [string](Get-PublishedSidecarProperty -Object $record -Name 'source_kind')
+        $outputCodec = [string](Get-PublishedSidecarProperty -Object $record -Name 'output_codec')
+        $outputLocation = [string](Get-PublishedSidecarProperty -Object $record -Name 'output_location')
         if (Get-Command -Name Write-SubtitleTrackProgress -ErrorAction SilentlyContinue) {
-            Write-SubtitleTrackProgress -Kind 'tx3g' -StreamIndex $streamIndex -Stage 'sidecar_write' -Status 'Writing TX3G SRT sidecar' -StepIndex 4 -StepTotal 4 -Detail (Split-Path -Leaf $destination)
+            Write-SubtitleTrackProgress -Kind $sourceSubtitleKind -TrackId $trackId -StreamIndex $streamIndex -Stage 'sidecar_write' -Status 'Writing SRT sidecar' -StepIndex 4 -StepTotal 4 -Detail (Split-Path -Leaf $destination)
         }
         $backupPath = ''
         $existedBefore = Test-Path -LiteralPath $destination -PathType Leaf -ErrorAction SilentlyContinue
@@ -117,10 +124,10 @@ function Publish-Tx3gSrtSidecarsFromPlan {
             try {
                 Copy-Item -LiteralPath $destination -Destination $backupPath -Force -ErrorAction Stop
             } catch {
-                $entry = if ($sidecar.Record -and $sidecar.Record.PSObject.Properties['stream_index']) {
-                    @{ Stream = @{ index = $sidecar.Record.stream_index }; Lang = $sidecar.Record.language; Title = $sidecar.Record.title }
+                $entry = if ($record -and $record.PSObject.Properties['stream_index']) {
+                    @{ TrackId = $trackId; Stream = @{ index = $record.stream_index }; Lang = $record.language; Title = $record.title }
                 } else {
-                    @{ Stream = @{ index = -1 }; Lang = ''; Title = '' }
+                    @{ TrackId = $trackId; Stream = @{ index = -1 }; Lang = ''; Title = '' }
                 }
                 $failure = New-Tx3gFailureRecord -Entry $entry -Reason "sidecar backup failed before publish: $($_.Exception.Message)" -ErrorCode 'SUBTITLE_TX3G_SRT_PUBLISH_FAILED'
                 $failures.Add($failure)
@@ -139,35 +146,47 @@ function Publish-Tx3gSrtSidecarsFromPlan {
             } elseif (-not $existedBefore -and (Test-Path -LiteralPath $destination -PathType Leaf -ErrorAction SilentlyContinue)) {
                 Remove-Item -LiteralPath $destination -Force -ErrorAction SilentlyContinue
             }
-            $entry = if ($sidecar.Record -and $sidecar.Record.PSObject.Properties['stream_index']) {
-                @{ Stream = @{ index = $sidecar.Record.stream_index }; Lang = $sidecar.Record.language; Title = $sidecar.Record.title }
+            $entry = if ($record -and $record.PSObject.Properties['stream_index']) {
+                @{ TrackId = $trackId; Stream = @{ index = $record.stream_index }; Lang = $record.language; Title = $record.title }
             } else {
-                @{ Stream = @{ index = -1 }; Lang = ''; Title = '' }
+                @{ TrackId = $trackId; Stream = @{ index = -1 }; Lang = ''; Title = '' }
             }
             $failure = New-Tx3gFailureRecord -Entry $entry -Reason $copy.Reason -ErrorCode $copy.ErrorCode
             $failures.Add($failure)
             if (Get-Command -Name Write-SubtitleTrackProgress -ErrorAction SilentlyContinue) {
-                Write-SubtitleTrackProgress -Kind 'tx3g' -StreamIndex $streamIndex -Stage 'sidecar_write' -Status 'TX3G SRT sidecar write failed' -StepIndex 4 -StepTotal 4 -Detail $copy.Reason -Failed
+                Write-SubtitleTrackProgress -Kind $sourceSubtitleKind -TrackId $trackId -StreamIndex $streamIndex -Stage 'sidecar_write' -Status 'SRT sidecar write failed' -StepIndex 4 -StepTotal 4 -Detail $copy.Reason -Failed
             }
             Write-Log "${Context}TX3G->SRT: sidecar publish failed for $destination : $($copy.Reason)" "WARN"
             continue
         }
-        $published.Add([ordered]@{ path = $destination; status = 'written'; existed_before = [bool]$existedBefore; backup_path = $backupPath; kind = 'tx3g_srt' }) | Out-Null
-        if ($sidecar.Record) {
-            if ($sidecar.Record.PSObject.Properties['status']) {
-                $sidecar.Record.status = 'written'
+        $published.Add([ordered]@{
+            path = $destination
+            status = 'written'
+            existed_before = [bool]$existedBefore
+            backup_path = $backupPath
+            kind = 'tx3g_srt'
+            track_id = $trackId
+            source_kind = $sourceKind
+            source_subtitle_kind = $sourceSubtitleKind
+            output_codec = $outputCodec
+            output_location = $outputLocation
+            output_path = $destination
+        }) | Out-Null
+        if ($record) {
+            if ($record.PSObject.Properties['status']) {
+                $record.status = 'written'
             } else {
-                Add-Member -InputObject $sidecar.Record -NotePropertyName 'status' -NotePropertyValue 'written' -Force
+                Add-Member -InputObject $record -NotePropertyName 'status' -NotePropertyValue 'written' -Force
             }
-            if ($sidecar.Record.PSObject.Properties['cue_count']) {
-                $sidecar.Record.cue_count = $copy.CueCount
+            if ($record.PSObject.Properties['cue_count']) {
+                $record.cue_count = $copy.CueCount
             } else {
-                Add-Member -InputObject $sidecar.Record -NotePropertyName 'cue_count' -NotePropertyValue $copy.CueCount -Force
+                Add-Member -InputObject $record -NotePropertyName 'cue_count' -NotePropertyValue $copy.CueCount -Force
             }
-            $records.Add($sidecar.Record)
+            $records.Add($record)
         }
         if (Get-Command -Name Write-SubtitleTrackProgress -ErrorAction SilentlyContinue) {
-            Write-SubtitleTrackProgress -Kind 'tx3g' -StreamIndex $streamIndex -Stage 'sidecar_write' -Status 'TX3G SRT sidecar written' -StepIndex 4 -StepTotal 4 -Detail (Split-Path -Leaf $destination) -CueCount $copy.CueCount -Completed
+            Write-SubtitleTrackProgress -Kind $sourceSubtitleKind -TrackId $trackId -StreamIndex $streamIndex -Stage 'sidecar_write' -Status 'SRT sidecar written' -StepIndex 4 -StepTotal 4 -Detail (Split-Path -Leaf $destination) -CueCount $copy.CueCount -OutputCodec $outputCodec -OutputLocation $outputLocation -OutputPath $destination -Completed
         }
         Write-Log "${Context}TX3G->SRT: sidecar written $(Split-Path -Leaf $destination)"
     }

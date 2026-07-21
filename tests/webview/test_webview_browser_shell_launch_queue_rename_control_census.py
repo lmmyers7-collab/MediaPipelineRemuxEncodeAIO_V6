@@ -63,8 +63,8 @@ EXPECTED_CLASSIFICATION_TOTALS = {
     "unclassified": 0,
 }
 EXPECTED_GENERATED_TOTALS = {
-    "discovered": 168,
-    "activated": 168,
+    "discovered": 169,
+    "activated": 169,
     "blocked": 0,
 }
 
@@ -811,6 +811,11 @@ class WebViewBrowserShellLaunchQueueRenameControlCensus(unittest.TestCase):
             output_bytes = output.read_bytes()
 
             service = DummyWorkflowFacadeService(root)
+            repo_root = find_repo_root(Path(__file__))
+            service.workspace_root = repo_root
+            resolved.powershell_host = str(
+                repo_root / "ops" / "pipeline" / "runtime" / "PowerShell-7.6.0-win-x64" / "pwsh.exe"
+            )
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             server = LocalApiServer(
                 facade,

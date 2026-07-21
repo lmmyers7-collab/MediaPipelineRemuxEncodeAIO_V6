@@ -237,6 +237,13 @@ try {
         '-Once'
     ) | Out-Null
 
+    $runMonitorRoot = Join-Path $localBase 'State\RunMonitor'
+    $unexpectedRunMonitors = @(
+        Get-ChildItem -LiteralPath $runMonitorRoot -Filter '*.json' -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -ne 'latest.json' }
+    )
+    Assert-True ($unexpectedRunMonitors.Count -eq 0) 'Standalone -Once must not invent a Backend Queue Run Monitor without an accepted fingerprint and adopted seed.'
+
     $pendingRoot = Join-Path $localBase 'State\PendingServerPush'
     $pendingManifests = @(Get-ChildItem -LiteralPath $pendingRoot -Filter '*.manifest.json' -File -ErrorAction SilentlyContinue)
     Assert-True ($pendingManifests.Count -ge 3) 'deferred publish did not park all smoke outputs'

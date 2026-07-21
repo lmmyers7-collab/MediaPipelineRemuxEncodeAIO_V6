@@ -32,6 +32,15 @@ LOCAL_API_STATUS_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
     },
     {
         "method": "GET",
+        "path": "/api/run-monitor",
+        "auth_required": True,
+        "effect": "none",
+        "query_keys": ["run_id"],
+        "response_schema": "desktop_run_monitor.v1",
+        "purpose": "Backend-correlated Run Once accepted-workload monitor and terminal evidence projection.",
+    },
+    {
+        "method": "GET",
         "path": "/api/telemetry",
         "auth_required": True,
         "effect": "none",
@@ -144,7 +153,7 @@ LOCAL_API_STATUS_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         ],
         "allowed_targets": ["pipeline", "audit", "rerun"],
         "response_schema": "desktop_launch_preflight.v1",
-        "purpose": "Read backend-authored launch preflight checks for pipeline, audit, or CSV rerun. Blank Run Once pipeline scope adds a normal_queue_scope check: only a fresh, matching snapshot with zero runnable rows blocks as no_runnable_work; missing, stale, mismatched, or scanning evidence stays advisory. This route is strictly read-only: it does not reserve locks, launch work, write control flags, regenerate capability evidence, mutate config, or touch media files.",
+        "purpose": "Read backend-authored launch preflight checks for pipeline, audit, or CSV rerun. Blank Run Once pipeline scope requires a completed, matching backend dry-run plan; missing, invalid, mismatched, scanning, input-consistency, membership, and pending-safety failures block, as does a validated plan with zero runnable rows. Snapshot age, file mtime, clock skew, and timestamp-format evidence are advisory because runtime rebuilds and fingerprint-verifies the queue before media dispatch. This route is strictly read-only: it does not reserve locks, launch work, write control flags, regenerate capability evidence, mutate config, or touch media files.",
     },
     {
         "method": "GET",

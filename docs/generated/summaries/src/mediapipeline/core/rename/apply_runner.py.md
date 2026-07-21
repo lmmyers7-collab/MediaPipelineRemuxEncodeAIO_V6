@@ -1,17 +1,20 @@
 ---
 file: src/mediapipeline/core/rename/apply_runner.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: rename
 token_priority: high
 owner_domain: rename
-last_modified: 2026-07-12
+last_modified: 2026-07-15
 last_reviewed: 2026-06-04
 sha256: e51a51da2d8cdc547398be8233ed23bbfef91a9cf38745c229e502b23d67810d
 ---
 # `src/mediapipeline/core/rename/apply_runner.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for apply runner; exposes apply_rename_path_plan_for_service.
 
-**Public functions:** `apply_rename_path_plan_for_service()`
+**Public symbols:** `apply_rename_path_plan_for_service`
 **In-repo imports:** `mediapipeline.core.rename.contracts`, `mediapipeline.core.rename.file_io`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/rename/apply_runner.py`._

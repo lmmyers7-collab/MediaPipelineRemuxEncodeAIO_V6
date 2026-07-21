@@ -16,11 +16,22 @@ function New-PendingPublishIndex {
         Count                   = 0
         BySourceIdentity        = @{}
         BySourceIdentityV2      = @{}
+        BySourcePath            = @{}
         ByServerOut             = @{}
         HasSourceIdentityV2     = $false
         MissingPayloadCount     = 0
         UnreadableManifestCount = 0
         HealthRows              = [System.Collections.Generic.List[object]]::new()
+    }
+}
+
+function ConvertTo-PendingPublishSourcePathKey {
+    param([string] $Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return '' }
+    try {
+        return ([System.IO.Path]::GetFullPath($Path).TrimEnd('\', '/').Replace('\', '/').ToLowerInvariant())
+    } catch {
+        return ($Path.Trim().TrimEnd('\', '/').Replace('\', '/').ToLowerInvariant())
     }
 }
 
@@ -98,6 +109,10 @@ function Refresh-PendingPublishIndex {
             if (-not [string]::IsNullOrWhiteSpace($serverOut)) {
                 $index.ByServerOut[$serverOut.ToLowerInvariant()] = $localFile
             }
+            $sourcePathKey = ConvertTo-PendingPublishSourcePathKey ([string]$manifest.source_path)
+            if (-not [string]::IsNullOrWhiteSpace($sourcePathKey)) {
+                $index.BySourcePath[$sourcePathKey] = $localFile
+            }
         } catch {
             $index.UnreadableManifestCount++
             Add-PendingPublishHealthRow -Index $index -Code 'unreadable_manifest' -Severity 'error' -ManifestPath $manifestFile.FullName -Message ([string]$_)
@@ -133,6 +148,12 @@ function Test-PendingPublishMatch {
         return $false
     }
     if (-not [string]::IsNullOrWhiteSpace($ServerOut) -and $index.ByServerOut.ContainsKey($ServerOut.ToLowerInvariant())) {
+        return $true
+    }
+    $sourcePath = ''
+    try { $sourcePath = [string]$SourceFile.FullName } catch { $sourcePath = [string]$SourceFile }
+    $sourcePathKey = ConvertTo-PendingPublishSourcePathKey $sourcePath
+    if ($sourcePathKey -and $index.BySourcePath.ContainsKey($sourcePathKey)) {
         return $true
     }
     $sourceIdentity = Get-SourceIdentityKey $SourceFile

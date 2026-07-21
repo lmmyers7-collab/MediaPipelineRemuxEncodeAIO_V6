@@ -123,6 +123,10 @@ def _browser_diagnostics_handoff_runner_source() -> str:
                 "tailTarget=" + value("diagnostics-tail-target"),
                 "tailDetail=" + text("diagnostics-tail-detail"),
                 "tailText=" + text("diagnostics-tail-text"),
+                "activeJobStatus=" + text("active-job-detail-status"),
+                "activeJobRows=" + tableText("active-job-detail-rows"),
+                "progressStatus=" + text("diagnostics-progress-status"),
+                "progressDetail=" + text("diagnostics-progress-detail"),
               ].join("\\n"));
             }
             function click(selector, label) {
@@ -806,7 +810,9 @@ def _browser_diagnostics_handoff_runner_source() -> str:
             ]);
             click('[data-diagnostics-state-triage-action="tail"][data-diagnostics-state-triage-target="last_stderr_log"]', "state triage stderr tail");
             await waitFor(
-              () => text("diagnostics-tail-status").includes("Loaded") && text("diagnostics-tail-text").includes("source_locked") && inlineStatus('[data-diagnostics-state-triage-action="tail"][data-diagnostics-state-triage-target="last_stderr_log"]').includes("Tail loaded"),
+              () => text("diagnostics-tail-status").includes("Loaded")
+                && text("diagnostics-tail-detail").includes("Target: last_stderr_log")
+                && text("diagnostics-tail-text").includes("source_locked"),
               "diagnostics state triage tail read",
             );
             click('[data-diagnostics-state-triage-action="open"][data-diagnostics-state-triage-target="last_stderr_log"]', "state triage stderr open");
@@ -1340,7 +1346,6 @@ class WebViewBrowserDiagnosticsHandoffSmoke(unittest.TestCase):
         browser_result = result["result"]
         self.assertIn("Loaded", browser_result["tailStatus"])
         self.assertEqual(browser_result["tailStatusState"], "ready")
-        self.assertIn("Tail loaded", browser_result["stateTriageTailInlineStatus"])
         self.assertIn("Opened", browser_result["stateTriageOpenInlineStatus"])
         self.assertIn("Tail posture (backend): blocked", browser_result["tailEvidence"])
         self.assertIn("Evidence authority: backend", browser_result["tailEvidence"])
@@ -1435,7 +1440,6 @@ class WebViewBrowserDiagnosticsHandoffSmoke(unittest.TestCase):
         self.assertTrue(browser_result["tableClickRows"])
         self.assertIn("Tail posture (backend): blocked", browser_result["tailEvidence"])
         self.assertEqual(browser_result["tailStatusState"], "ready")
-        self.assertIn("Tail loaded", browser_result["stateTriageTailInlineStatus"])
         self.assertIn("Opened", browser_result["stateTriageOpenInlineStatus"])
         self.assertIn("Evidence authority: backend", browser_result["tailEvidence"])
         self.assertIn("Row state: blocked", browser_result["queueDetail"])

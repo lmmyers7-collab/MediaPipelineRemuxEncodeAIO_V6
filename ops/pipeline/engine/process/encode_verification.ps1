@@ -5,6 +5,22 @@ function Get-MediaPipelineEncodeVerificationBoundaryVersion {
     return 'encode_verification_boundary.v1'
 }
 
+function Set-MediaPipelineEncodeVerificationMonitorOutcome {
+    param(
+        [Parameter(Mandatory)] [ValidateSet('completed','failed','review')] [string] $State,
+        [string] $Detail = '',
+        [string] $ReasonCode = ''
+    )
+    if (Get-Command -Name Set-MediaPipelineCurrentRunMonitorStage -ErrorAction SilentlyContinue) {
+        Set-MediaPipelineCurrentRunMonitorStage `
+            -StageId 'verification' `
+            -State $State `
+            -Detail $Detail `
+            -ReasonCode $ReasonCode `
+            -EvidenceSource 'verification_result' | Out-Null
+    }
+}
+
 function Invoke-MediaPipelineEncodeVerification {
     param([Parameter(Mandatory)] $Context)
 
@@ -63,16 +79,30 @@ function Invoke-MediaPipelineEncodeVerification {
     # verify stage so the GUI doesn't briefly drop the CPU label between
     # encode_cpu (100%) and the publish step.
     Set-ProgressStage -Stage 'encode_verify' -Status $script:pipelineStatus -Route $verifyRoute -Percent $null -SaveNow
-    if (-not (Test-DurationMatch -SourcePath $localIn -OutputPath $tempOut -Label "ENCODE" -AllowAVFallback)) {
+    if (Get-Command -Name Set-MediaPipelineCurrentRunMonitorOutput -ErrorAction SilentlyContinue) {
+        Set-MediaPipelineCurrentRunMonitorOutput -State active -ScratchPath ([string]$localIn) -WorkingOutputPath ([string]$tempOut) -IntendedFinalPath ([string]$Context.Paths.ServerOut) -VerificationState active | Out-Null
+    }
+    $verificationPollHandler = if (Get-Command -Name New-MediaPipelineCurrentStageNativePollHandler -ErrorAction SilentlyContinue) {
+        New-MediaPipelineCurrentStageNativePollHandler `
+            -Stage 'encode_verify' `
+            -Status 'Verifying encoded output' `
+            -Route $verifyRoute `
+            -MinimumIntervalSeconds 15 `
+            -EvidenceSource 'verification_process_heartbeat'
+    } else {
+        $null
+    }
+    if (-not (Test-DurationMatch -SourcePath $localIn -OutputPath $tempOut -Label "ENCODE" -AllowAVFallback -PollHandler $verificationPollHandler -PollMilliseconds 1000)) {
         $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'transient' -Reason 'ENCODE duration mismatch' -Stage 'encode-verify' -SuggestedAction 'Compare source and encoded output A/V end times. Container-duration differences caused by subtitle tails are tolerated, so a remaining encode-verify failure usually means the output A/V is genuinely shorter than the source.'
         $Context.LocalIn = $null
         Write-Log "ENCODE: duration mismatch - recorded as transient and scheduled for retry: $safeName" "ERROR"
+        Set-MediaPipelineEncodeVerificationMonitorOutcome -State failed -Detail 'Encoded output duration does not match source A/V duration.' -ReasonCode 'ENCODE_DURATION_MISMATCH'
         return New-MediaPipelineEncodeStageResult -Ok $false -Terminal $true -Value $false -Stage 'encode-verify'
     }
 
     $expectedVideoCodec = ''
     if ($Context.EncodePlan -and $Context.EncodePlan.PSObject.Properties['SelectedEncoder']) { $expectedVideoCodec = [string]$Context.EncodePlan.SelectedEncoder }
-    $videoPreservation = Test-OutputVideoStreamPreservation -SourcePath $localIn -OutputPath $tempOut -Route $verifyRoute -SourceInventory $videoStreamPolicy.Inventory -ExpectedVideoCodec $expectedVideoCodec
+    $videoPreservation = Test-OutputVideoStreamPreservation -SourcePath $localIn -OutputPath $tempOut -Route $verifyRoute -SourceInventory $videoStreamPolicy.Inventory -ExpectedVideoCodec $expectedVideoCodec -PollHandler $verificationPollHandler -PollMilliseconds 1000
     $script:LastMediaVerification = $videoPreservation
     $Context.MediaVerification = $videoPreservation
     if (-not [bool]$videoPreservation.Allowed) {
@@ -87,6 +117,7 @@ function Invoke-MediaPipelineEncodeVerification {
         $null = Register-SourceFailure -SourceFile $file -ScratchPath $tempOut -Classification 'operator_required' -Reason $reason -Stage 'encode-video-stream-verify' -ErrorCode $errorCode -SuggestedAction 'Inspect source/output ffprobe stream inventories and saved FFmpeg repro commands; publish remains blocked until every real source video stream is present in output.' -AdditionalProperties $failureProperties
         Write-Log "ENCODE: $reason" "ERROR"
         $Context.TempOut = $null
+        Set-MediaPipelineEncodeVerificationMonitorOutcome -State review -Detail $reason -ReasonCode $errorCode
         return New-MediaPipelineEncodeStageResult -Ok $false -Terminal $true -Value $false -Stage 'encode-video-stream-verify'
     }
 
@@ -94,12 +125,15 @@ function Invoke-MediaPipelineEncodeVerification {
         -SourcePath $localIn `
         -OutputPath $tempOut `
         -SourceInventory $videoPreservation.SourceInventory `
-        -OutputInventory $videoPreservation.OutputInventory
+        -OutputInventory $videoPreservation.OutputInventory `
+        -PollHandler $verificationPollHandler `
+        -PollMilliseconds 1000
     $Context.Hdr10Verification = $hdr10Verification
     if (-not [bool]$hdr10Verification.Allowed) {
         $null = Register-SourceFailure -SourceFile $file -ScratchPath $tempOut -Classification 'operator_required' -Reason ([string]$hdr10Verification.Reason) -Stage 'encode-hdr10-verify' -ErrorCode ([string]$hdr10Verification.ErrorCode) -SuggestedAction 'Inspect source/output ffprobe HDR10 facts and saved repro evidence. Publish remains blocked until every HDR10 output stream has 10-bit BT.2020/PQ signalling and preserves source mastering-display/MaxCLL when present.' -AdditionalProperties @{ hdr10_verification = $hdr10Verification; video_stream_preservation = $videoPreservation }
         Write-Log "ENCODE HDR10 VERIFY: $($hdr10Verification.Reason)" "ERROR"
         $Context.TempOut = $null
+        Set-MediaPipelineEncodeVerificationMonitorOutcome -State review -Detail ([string]$hdr10Verification.Reason) -ReasonCode ([string]$hdr10Verification.ErrorCode)
         return New-MediaPipelineEncodeStageResult -Ok $false -Terminal $true -Value $false -Stage 'encode-hdr10-verify'
     }
 
@@ -107,7 +141,7 @@ function Invoke-MediaPipelineEncodeVerification {
     if (-not $trackVerificationPlan) {
         $trackVerificationPlan = New-MediaTrackOutputVerificationPlanFromFfmpegSubtitleArgs -AudioDecisions @(Get-LastAudioDecisionRecords) -SubtitleMapArgs @($Context.SubResult.MapArgs)
     }
-    $trackVerification = Test-MediaTrackOutputVerification -OutputPath $tempOut -Plan $trackVerificationPlan
+    $trackVerification = Test-MediaTrackOutputVerification -OutputPath $tempOut -Plan $trackVerificationPlan -PollHandler $verificationPollHandler -PollMilliseconds 1000
     $script:LastMediaTrackVerification = $trackVerification
     $Context.MediaTrackVerification = $trackVerification
     $script:LastAudioVerification = Get-MediaTrackVerificationFacet -Verification $trackVerification -Kind 'audio'
@@ -117,6 +151,7 @@ function Invoke-MediaPipelineEncodeVerification {
     if (-not [bool]$trackVerification.allowed) {
         $null = Register-SourceFailure -SourceFile $file -ScratchPath $tempOut -Classification 'operator_required' -Reason ([string]$trackVerification.reason) -Stage 'encode-media-track-verify' -ErrorCode ([string]$trackVerification.error_code) -SuggestedAction 'Inspect source/output ffprobe stream inventories and backend policy evidence; publish remains blocked until every resolved audio and subtitle output track matches the plan.' -AdditionalProperties @{ media_track_verification = $trackVerification; media_track_verification_plan = $trackVerificationPlan; audio_verification = $script:LastAudioVerification; subtitle_verification = $script:LastSubtitleVerification }
         $Context.TempOut = $null
+        Set-MediaPipelineEncodeVerificationMonitorOutcome -State review -Detail ([string]$trackVerification.reason) -ReasonCode ([string]$trackVerification.error_code)
         return New-MediaPipelineEncodeStageResult -Ok $false -Terminal $true -Value $false -Stage 'encode-media-track-verify'
     }
 
@@ -126,7 +161,7 @@ function Invoke-MediaPipelineEncodeVerification {
         if ($script:CurrentDynamicHdrEvidence.PSObject.Properties['x265_artifacts']) {
             $expectedRpuFrameCount = [int](Get-DynamicHdrResultValue -Result $script:CurrentDynamicHdrEvidence.x265_artifacts -Name 'rpu_frame_count')
         }
-        $dynamicHdrVerification = Test-DynamicHdrOutputPreservation -SourceEvidence $script:CurrentDynamicHdrEvidence -OutputPath $tempOut -ExpectedRpuFrameCount $expectedRpuFrameCount
+        $dynamicHdrVerification = Test-DynamicHdrOutputPreservation -SourceEvidence $script:CurrentDynamicHdrEvidence -OutputPath $tempOut -ExpectedRpuFrameCount $expectedRpuFrameCount -PollHandler $verificationPollHandler -PollMilliseconds 1000
         $script:CurrentDynamicHdrEvidence | Add-Member -NotePropertyName 'verification' -NotePropertyValue $dynamicHdrVerification -Force
         Write-PipelineEvent -EventType 'dynamic_hdr_output_verification' -Stage 'encode_verify' -Route $verifyRoute -Status $(if ([bool]$dynamicHdrVerification.ok) { 'succeeded' } else { 'failed' }) -SourcePath $file.FullName -Data $dynamicHdrVerification | Out-Null
         if (-not [bool]$dynamicHdrVerification.ok) {
@@ -142,6 +177,7 @@ function Invoke-MediaPipelineEncodeVerification {
             $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason ([string]$dynamicHdrVerification.reason) -Stage 'dynamic-hdr-output-verify' -ErrorCode $verifyErrorCode -SuggestedAction 'Inspect the encoded temp output with ffprobe, dovi_tool, and hdr10plus_tool. Dynamic HDR preserve mode blocks publish until expected Dolby Vision or HDR10+ metadata is detected in output.' -AdditionalProperties $failureProperties
             $Context.LocalIn = $null
             Write-Log "DYNAMIC HDR VERIFY: $($dynamicHdrVerification.reason)" "ERROR"
+            Set-MediaPipelineEncodeVerificationMonitorOutcome -State review -Detail ([string]$dynamicHdrVerification.reason) -ReasonCode $verifyErrorCode
             return New-MediaPipelineEncodeStageResult -Ok $false -Terminal $true -Value $false -Stage 'dynamic-hdr-output-verify'
         }
         $script:CurrentDynamicHdrEvidence.outcome = 'preserved_encode_verified'
@@ -158,7 +194,9 @@ function Invoke-MediaPipelineEncodeVerification {
             -SampleMode $script:QualitySampleMode `
             -SampleSeconds $script:QualitySampleSeconds `
             -SampleCount $script:QualitySampleCount `
-            -TimeoutSeconds $script:QualityVerifyTimeoutSeconds
+            -TimeoutSeconds $script:QualityVerifyTimeoutSeconds `
+            -PollHandler $verificationPollHandler `
+            -PollMilliseconds 1000
         $qualityRecord = Resolve-MediaQualityOutcome `
             -Record $qualityRecord `
             -WarnThreshold $script:QualityWarnThreshold `
@@ -184,6 +222,7 @@ function Invoke-MediaPipelineEncodeVerification {
             $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason $qualityReason -Stage 'encode-quality-verify' -ErrorCode $qualityErrorCode -SuggestedAction $qualitySuggestedAction
             $Context.LocalIn = $null
             Write-Log "ENCODE QUALITY: $qualityReason`: $safeName" "ERROR"
+            Set-MediaPipelineEncodeVerificationMonitorOutcome -State review -Detail $qualityReason -ReasonCode $qualityErrorCode
             return New-MediaPipelineEncodeStageResult -Ok $false -Terminal $true -Value $false -Stage 'encode-quality-verify'
         }
         if ($qualityOutcome -in @('warn', 'fail')) {
@@ -197,5 +236,10 @@ function Invoke-MediaPipelineEncodeVerification {
 
     $Context.TempOut = $tempOut
     $Context.VerifyRoute = $verifyRoute
+    if (Get-Command -Name Set-MediaPipelineCurrentRunMonitorOutput -ErrorAction SilentlyContinue) {
+        $verifiedOutputItem = Get-Item -LiteralPath $tempOut -ErrorAction SilentlyContinue
+        Set-MediaPipelineCurrentRunMonitorOutput -State verified -ScratchPath ([string]$localIn) -WorkingOutputPath ([string]$tempOut) -IntendedFinalPath ([string]$Context.Paths.ServerOut) -SizeBytes $(if ($verifiedOutputItem) { [int64]$verifiedOutputItem.Length } else { $null }) -VerificationState completed | Out-Null
+    }
+    Set-MediaPipelineEncodeVerificationMonitorOutcome -State completed -Detail 'Encoded output passed duration, stream, track, metadata, and configured quality verification.'
     return New-MediaPipelineEncodeStageResult -Ok $true -Terminal $false -Stage 'encode-verify'
 }

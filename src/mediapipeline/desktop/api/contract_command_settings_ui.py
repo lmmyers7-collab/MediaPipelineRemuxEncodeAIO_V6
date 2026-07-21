@@ -126,6 +126,7 @@ LOCAL_API_SETTINGS_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "auth_required": True,
         "effect": "config-write",
         "request_keys": ["changes", "remove_keys", "library_profile_resets", "review_confirmation", "confirm_save"],
+        "required_request_keys": ["confirm_save"],
         "response_schema": "desktop_command_result.v1",
         "purpose": "Merge explicit settings changes with the backend's unredacted JSON-authoritative config, validate, back up, atomically save the JSON settings store plus active PSD1 projection, and reload backend resolved state.",
     },

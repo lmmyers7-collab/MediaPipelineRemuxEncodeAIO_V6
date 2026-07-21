@@ -42,7 +42,7 @@ dry-run fingerprints and backend backups.
 
 | Route | Owner page | Owner JS | Mutation class | Key restriction |
 |---|---|---|---|---|
-| `POST /api/queue/scan` | Queue | `queueView.js` | `process-dry-run` | Starts or observes a serialized backend source scan; fast inventory writes non-launchable candidates before queue-plan curation refreshes authoritative rows |
+| `POST /api/queue/scan` | Queue | `queueView.js` | `process-dry-run` | Starts or observes a serialized backend source scan; fast inventory writes non-launchable candidates before `-EmitQueuePlan` curation atomically publishes request/input/plan fingerprint evidence; no media dispatch occurs |
 | `POST /api/queue/priority` | Queue | `queueView.js` | `queue-state-write` | `level`: `high`, `normal`, `low`, `hold`; path writes must be under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots); `clear_all` clears manifest state only |
 | `POST /api/queue/strategy` | Queue | `queueView.js` | `queue-state-write` | Strategy must be one of backend `VALID_STRATEGIES` |
 | `POST /api/queue/file-overrides` | Queue | `queue/fileOverrides.drawer.js` | `queue-state-write` | Path writes must be under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots); `clear_all` clears the override manifest only |
@@ -267,9 +267,9 @@ claims silently, or mutate source/scratch/output/pending-publish files.
 
 | Route | Owner page | Owner JS | Mutation class | Key restriction |
 |---|---|---|---|---|
-| `POST /api/pipeline/control` | Launch | `launchView.js` | `control-flag-write` | `action`: `pause`, `stop`, `rescan`, `kill`; backend owns flag writes and emergency process cleanup |
+| `POST /api/pipeline/control` | Current Work, Launch | `runMonitorView.js`, `launch/commandOrchestration.js` | `control-flag-write` | `action`: `pause`, `stop`, `rescan`, `kill`; Current Work stop includes the exact displayed `expected_run_id`, and the backend owns locked run/scope/PID/launch correlation, flag writes, and emergency process cleanup |
 | `POST /api/pipeline/browse-file` | Launch | `launchView.js` | `shell-dialog` | `selection_mode`: `files`; backend owns native file browser and validates single-file staging only |
-| `POST /api/pipeline/start` | Launch | `launchView.js` | `process-launch` | `mode`: `once`, `continuous`, `validate`, `drain_pending_pushes`; backend owns launch lock and process args |
+| `POST /api/pipeline/start` | Launch | `launchView.js` | `process-launch` | `mode`: `once`, `continuous`, `validate`, `drain_pending_pushes`; blank `once` requires a current backend Queue dry-run, durable launch lease, and matching active-engine plan fingerprint; backend owns process args and terminal command correlation |
 | `POST /api/audit/start` | Launch, Reports | `reportsView.js` | `process-launch` | Backend owns audit script invocation for one or more selected audit source locations |
 | `POST /api/audit/stop` | Reports | `reportsView.js` | `process-control` | Requires `confirm_stop: true`; backend stops audit process trees only and marks audit progress stopped |
 | `POST /api/audit/sources` | Reports | `reportsView.js` | `audit-source-state-write` | Adds/removes/enables/disables backend-owned Audit source roots in `State\Audit`; does not scan, launch, or touch media |

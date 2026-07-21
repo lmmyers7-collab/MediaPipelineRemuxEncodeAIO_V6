@@ -158,8 +158,22 @@ def _browser_home_live_state_runner_source() -> str:
                 }
                 await new Promise((resolve) => setTimeout(resolve, 100));
               }
+              const homePanelChecks = {
+                dailyDriver: text("daily-driver-summary").includes("Daily-driver readiness checklist:"),
+                stateProcessing: text("state-pill").includes("Processing 42.5%"),
+                scratchOk: text("home-scratch-storage-status").includes("OK"),
+                outputOk: text("home-output-storage-status").includes("OK"),
+                queueProgress: text("progress-bar-list").includes("Queue item"),
+                publishProgress: text("progress-bar-list").includes("Publish or park"),
+                backendSnapshot: text("home-readiness-summary").includes("Backend snapshot: ok"),
+                activeJobs: text("home-active-work-summary").includes("ActiveJobs:"),
+                commandResult: text("command-summary").includes("Results: 1"),
+                sampleValidation: text("cross-page-real-media-summary").includes("Sample validation:"),
+              };
               throw new Error("Timed out waiting for " + label + (lastError ? ": " + lastError.message : "") + "\\nState:\\n" + [
                 "activePage=" + activePage(),
+                "homePanelChecks=" + JSON.stringify(homePanelChecks),
+                "statePill=" + text("state-pill"),
                 "homeReadiness=" + text("home-readiness-summary"),
                 "nextQueue=" + text("home-next-queue-list"),
                 "queueCount=" + text("queue-count"),
@@ -237,9 +251,7 @@ def _browser_home_live_state_runner_source() -> str:
             window.showPage("home");
             await waitFor(
               () => text("daily-driver-summary").includes("Daily-driver readiness checklist:")
-                && text("state-pill").includes("Encoding")
-                && text("home-next-queue-list").includes("Serial Experiments Lain")
-                && text("home-next-queue-list").includes("S02E01")
+                && text("state-pill").includes("Processing 42.5%")
                 && text("home-scratch-storage-status").includes("OK")
                 && text("home-output-storage-status").includes("OK")
                 && text("progress-bar-list").includes("Queue item")
@@ -269,8 +281,17 @@ def _browser_home_live_state_runner_source() -> str:
               throw new Error("Evidence toggle hid Home interactive panels: " + hiddenInteractive.map((panel) => panel.querySelector("h2,h3")?.textContent || panel.id || "panel").join(", "));
             }
             const nextQueuePanel = document.querySelector(".home-next-queue-panel");
-            if (!nextQueuePanel || nextQueuePanel.offsetParent === null) {
-              throw new Error("Evidence toggle hid the Home next-queue panel.");
+            if (!nextQueuePanel || nextQueuePanel.offsetParent !== null || !nextQueuePanel.hasAttribute("data-run-monitor-retired")) {
+              throw new Error("Legacy Next 5 must remain retired while Current Work owns the accepted workload.");
+            }
+            const retiredNextQueueText = text("home-next-queue-list").trim();
+            if (retiredNextQueueText !== "No runnable queue items loaded.") {
+              throw new Error("Retired Next 5 changed from its inert placeholder: " + retiredNextQueueText);
+            }
+            for (const forbidden of ["homeCurrentQueueOrder", "homeQueueItemMatchesActiveWork"]) {
+              if (typeof window.mediaPipelineAppHome?.[forbidden] === "function") {
+                throw new Error("Retired current-work projection remains publicly executable: " + forbidden);
+              }
             }
             window.showPage("live");
             const visibleTelemetryGraphs = ["cpu-chart", "gpu-chart", "ram-chart"].filter((id) => {
@@ -374,7 +395,8 @@ def _browser_home_live_state_runner_source() -> str:
               "Mutation guardrail: this checklist is read-only",
             ]);
             requireText("state-pill", [
-              "Encoding",
+              "Processing",
+              "42.5%",
             ]);
             requireText("activity", [
               "Current Fixture",
@@ -396,27 +418,6 @@ def _browser_home_live_state_runner_source() -> str:
                 throw new Error("Topbar activity leaked raw filename text: " + forbidden + "\\nActual:\\n" + activityText);
               }
             }
-            requireText("home-next-queue-list", [
-              "Serial Experiments Lain",
-              "S02E01",
-              "REMUX",
-              "Ready",
-              "1/1",
-            ]);
-            if (text("home-next-queue-list").includes("Weird")) {
-              throw new Error("Home next queue leaked the TV episode title into the row label.\\nActual:\\n" + text("home-next-queue-list"));
-            }
-            clickListItem("home-next-queue-list", "Serial Experiments Lain");
-            requireText("home-next-queue-detail", [
-              "Route:",
-              "REMUX",
-              "Status:",
-              "Ready",
-              "Queue:",
-              "1/1",
-              "Output:",
-              "Open Queue for full row evidence",
-            ]);
             requireSingleSelected("#home-recent-completed-tbody tr[data-selectable-row='true']", "Recently Completed");
             requireText("home-recent-completed-detail", [
               "Selected completed output:",
@@ -428,7 +429,6 @@ def _browser_home_live_state_runner_source() -> str:
             }
             [
               ["home-readiness-status", ["warning", "ready", "blocked", "neutral"]],
-              ["home-next-queue-status", ["ready", "warning", "empty", "neutral"]],
               ["home-recent-completed-status", ["ready", "empty", "warning", "neutral"]],
               ["home-active-work-status", ["ready", "warning", "blocked", "neutral", "running"]],
               ["progress-detail-status", ["ready", "warning", "blocked", "empty", "running"]],
@@ -445,7 +445,7 @@ def _browser_home_live_state_runner_source() -> str:
               "Queue item",
               "Copy to scratch",
               "Route selected",
-              "Encode output",
+              "Encode or remux",
               "Publish or park",
               "Run evidence",
               "Raw backend progress",
@@ -484,7 +484,7 @@ def _browser_home_live_state_runner_source() -> str:
             window.showPage("live");
             await waitFor(
               () => text("progress-detail-status").includes("Current:")
-                && text("progress-detail-status").includes("Encode output")
+                && text("progress-detail-status").includes("Encode or remux")
                 && text("progress-bar-list").includes("Queue item")
                 && text("progress-bar-list").includes("Current backend stage")
                 && text("progress-bar-list").includes("42.5%")
@@ -506,7 +506,7 @@ def _browser_home_live_state_runner_source() -> str:
               "Queue item",
               "Copy to scratch",
               "Route selected",
-              "Encode output",
+              "Encode or remux",
               "Publish or park",
               "Run evidence",
               "Raw backend progress",
@@ -539,7 +539,8 @@ def _browser_home_live_state_runner_source() -> str:
             await clickProgressQuickLink("route", "queue");
             await clickProgressQuickLink("done", "completed");
             await clickProgressQuickLink("issues", "reports", "failures");
-            await clickUiQuickLink("#pipeline-state", "live", "Home Pipeline tile");
+            await clickUiQuickLink("#pipeline-state", "home", "Home Pipeline tile");
+            await waitFor(() => document.activeElement === byId("current-work-heading"), "Home Pipeline tile focuses Current Work heading");
             await clickUiQuickLink("#home-pending-count", "pending", "Home Pending tile");
             await clickUiQuickLink("#home-failed-count", "reports", "Home Failed tile");
             await requireTabSelected('[data-reports-tab="failures"]', "Reports failures tab");
@@ -1155,12 +1156,8 @@ class WebViewBrowserHomeLiveStateSmoke(unittest.TestCase):
             self.assertIn("Pending Publish", browser_result["stoppedProgressBarText"])
             self.assertIn("No New Sources", browser_result["noNewPipelineState"])
             self.assertNotIn("_", browser_result["pipelineState"])
-            self.assertIn("Encoding", browser_result["statePill"])
-            self.assertIn("Serial Experiments Lain", browser_result["nextQueue"])
-            self.assertIn("S02E01", browser_result["nextQueue"])
-            self.assertNotIn("Weird", browser_result["nextQueue"])
-            self.assertIn("REMUX", browser_result["nextQueue"])
-            self.assertIn("Ready", browser_result["nextQueue"])
+            self.assertEqual(browser_result["statePill"], "Processing 42.5%")
+            self.assertEqual(browser_result["nextQueue"].strip(), "No runnable queue items loaded.")
             self.assertIn("OK", browser_result["scratchStorage"])
             self.assertIn("1 GB reserve", browser_result["scratchStorage"])
             self.assertIn("OK", browser_result["outputStorage"])
@@ -1169,7 +1166,7 @@ class WebViewBrowserHomeLiveStateSmoke(unittest.TestCase):
             self.assertIn("Anime Library", browser_result["progressDetails"])
             self.assertNotIn("Controls", browser_result["progressDetails"])
             self.assertIn("Queue item", browser_result["progressBars"])
-            self.assertIn("Encode output", browser_result["progressBars"])
+            self.assertIn("Encode or remux", browser_result["progressBars"])
             self.assertIn("Publish or park", browser_result["progressBars"])
             self.assertIn("CSV Rerun", browser_result["csvPipelineState"])
             self.assertIn("Paprika(2006).mkv", browser_result["csvQueueCount"])

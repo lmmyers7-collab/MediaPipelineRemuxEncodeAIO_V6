@@ -295,6 +295,7 @@ function Invoke-MediaPipelineLocalWorkerClaim {
             route_type     = ''
             slot_id        = [int]$SlotId
             owner_run_id   = [string]$OwnerRunId
+            run_monitor_job_id = if ($Entry.PSObject.Properties['RunMonitorJobId']) { [string]$Entry.RunMonitorJobId } else { '' }
             owner_pid      = [int]$PID
             worker_pid     = $null
             queue_index    = Get-MediaPipelineQueueEntryRunValue -Entry $Entry -RunProperty 'RunQueueIndex' -BucketProperty 'QueueIndex'

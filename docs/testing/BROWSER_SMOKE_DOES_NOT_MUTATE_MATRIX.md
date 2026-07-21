@@ -83,9 +83,9 @@ Provides explicit mutation-boundary guarantees for all WebView smoke wrappers. E
 
 ---
 
-## Browser-Backed Smokes (24 wrappers / 26 Python modules)
+## Browser-Backed Smokes (25 canonical browser wrappers / 34 browser Python modules)
 
-All browser-backed smokes start a temporary local API and open the backend-served WebView in installed Chrome/Edge headless. The 24 canonical wrappers cover 26 Python modules; `test_webview_browser_metrics_degraded_state_smoke.py` and `test_webview_browser_settings_builder_flush_smoke.py` have no one-to-one wrapper. Direct modules may skip when a prerequisite is absent, while canonical wrappers fail prerequisite skips unless explicitly invoked with `-AllowSkippedTests`.
+All browser-backed smokes start a temporary local API and open the backend-served WebView in installed Chrome/Edge headless. The 25 canonical browser wrappers cover 25 wrapper-backed browser Python modules; the generated smoke-wrapper map also identifies 9 direct-only browser Python modules, for 34 browser Python modules total. Direct modules may skip when a prerequisite is absent, while canonical wrappers fail prerequisite skips unless explicitly invoked with `-AllowSkippedTests`.
 
 As of 2026-05-20, every fixture-backed browser smoke captures a SHA-256/size snapshot of media, subtitle, pending-publish sidecar, manifest, and JSONL evidence artifacts under its temporary fixture root after setup and compares it again before fixture cleanup. This converts the "does not mutate source/output/scratch paths" claim into executable evidence for the Chrome/Edge smoke layer while still allowing command-history or app-state writes that a specific smoke intentionally exercises.
 
@@ -160,6 +160,14 @@ As of 2026-05-20, every fixture-backed browser smoke captures a SHA-256/size sna
 | **Exercises** | Renders Home Daily-Driver Checklist, Operator Readiness, Active Work, Live Progress Details/Evidence, Diagnostics runtime progress, Command Results, Sample Validation posture, generated worksheet readback, and Real-Media Validation Worksheet handoff in Chrome/Edge against temporary backend state, generated active-progress state, a generated ActiveJobs record, and a generated command journal. |
 | **Does not** | Send POST routes, append validation records, accept outputs, clear failures, launch, process media, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths. |
 | **Skip** | Direct module may report `SkipTest`; canonical wrapper fails the prerequisite skip unless `-AllowSkippedTests` was explicit. |
+
+### Test-WebViewBrowserSafeOperatorCommandsSmoke.ps1
+
+| | |
+|---|---|
+| **Exercises** | Physically activates the Home sample-validation preview/append controls, Metrics registry/cache controls, and Maintenance support/release/backfill/dependency-atlas controls against backend-authored fixtures. All permitted evidence, cache, export, and release-fixture writes are confined to a newly generated temporary LocalBase/state/config root and their exact route results are asserted. |
+| **Does not** | Use personal configuration or operator roots; mutate source/output/scratch/pending-publish/final-library media; start pipeline, audit, rerun, publish, rename, repair, or network lifecycle work; or treat fake picker/shell routing as proof of a genuine Windows dialog/external application outcome. Media/sidecar hashes and forbidden-route observations remain unchanged. |
+| **Skip** | Direct module may report `SkipTest`; canonical wrapper fails the prerequisite skip unless `-AllowSkippedTests` was explicit and emits a machine-readable prerequisite result. |
 
 ### Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1
 
@@ -253,8 +261,8 @@ As of 2026-05-20, every fixture-backed browser smoke captures a SHA-256/size sna
 
 | Boundary | Guarantee |
 |---|---|
-| **Exercises** | Stateful Queue priority/hold/file-override changes, Launch start confirmation, command-journal correlation, and Completed manifest/sidecar evidence in one workflow. |
-| **Does not** | Read or mutate operator/live roots. All queue, command-journal, completed-manifest, and sidecar writes are limited to a generated disposable root; fixture hashes prove source-like inputs remain unchanged, and no FFmpeg/remux/encode processing runs. |
+| **Exercises** | Queue-loaded backend-confirmed idle state with no active monitor claims; authoritative Backend Queue Run Once launch with two uncapped accepted rows, accepted fingerprint/run identity, production duplicate/lifecycle rejection, real `/api/run-monitor` transitions from starting through terminal review/completion, all-worker display, route-authority labels, focus/keyboard/live-announcement behavior, exact Completed artifact-row focus, fresh idle, and terminal reload persistence. |
+| **Does not** | Read or mutate operator/live roots. All Queue, command-journal, Run Monitor, progress, failure, Completed-manifest, fake-output, and sidecar writes are limited to a generated disposable root; fixture hashes prove source-like inputs remain unchanged, and no FFmpeg/remux/encode processing runs. |
 | **Skip** | Direct module may report `SkipTest`; canonical wrapper fails the prerequisite skip unless `-AllowSkippedTests` was explicit. |
 
 ### Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1
@@ -340,7 +348,7 @@ For real-media proof, see `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.md`
 
 ## Freshness Review — 2026-05-15 (CLN3-013)
 
-Historical note: this 2026-05-15 review counted 15 wrappers (up from 13 at that time). The authoritative current count is the 24-wrapper/26-module inventory at the top of this document.
+Historical note: this 2026-05-15 review counted 15 wrappers (up from 13 at that time). The authoritative current count is the 25 canonical browser wrappers / 34 browser Python modules inventory at the top of this document.
 
 At that review point, the matrix covered these then-current additions:
 - `Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1`: explicitly does not send POST routes during Launch readiness/worksheet/record/scope-reconciliation rendering.
@@ -418,7 +426,7 @@ Risk: Low - WebView layout personalization only.
 
 ## Current Inventory Review — 2026-07-13
 
-- Confirmed 24 canonical browser wrappers and 26 browser Python modules.
+- Confirmed 25 canonical browser wrappers and 34 browser Python modules (25 wrapper-backed and 9 direct-only); `docs/generated/SMOKE_WRAPPER_MAP.json` is the disk-derived inventory.
 - Added lifecycle reconciliation, Queue file overrides, Queue→Launch→Completed, Settings field matrix, Prose Box, and Visual Clutter boundaries.
 - Replaced blanket “does not mutate” language with exact disposable-root allowlists.
 - Canonical wrappers fail prerequisite skips by default; `-AllowSkippedTests` is an explicit non-gating exception.

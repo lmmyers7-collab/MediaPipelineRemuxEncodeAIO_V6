@@ -929,6 +929,7 @@
     renderFailureDetail,
     renderFailureArtifactSummary,
     renderFailureReviewBoard,
+    getLastFailureRows: () => Array.isArray(reportsState.lastFailureRows) ? reportsState.lastFailureRows.slice() : [],
     failureRetryStatePayload,
     failureRetryRows,
     failureRetryStateForRow,

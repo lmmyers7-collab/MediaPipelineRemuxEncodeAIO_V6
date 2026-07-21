@@ -6,6 +6,7 @@ from .routes_shared import RouteHandlerSpec
 GET_ROUTE_HANDLERS: dict[str, RouteHandlerSpec] = {
     "/api/contract": RouteHandlerSpec("_contract_payload"),
     "/api/snapshot": RouteHandlerSpec("_snapshot_payload"),
+    "/api/run-monitor": RouteHandlerSpec("_run_monitor_payload", needs_query=True),
     "/api/telemetry": RouteHandlerSpec("_telemetry_payload"),
     "/api/diagnostics": RouteHandlerSpec("_diagnostics_payload"),
     "/api/diagnostics/tail": RouteHandlerSpec("_diagnostics_tail_payload", needs_query=True),

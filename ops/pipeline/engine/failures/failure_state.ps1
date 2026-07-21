@@ -141,6 +141,18 @@ function New-StandardFailureRecord {
     $resolvedJobId = if ($JobId) { $JobId } elseif ($script:CurrentJobId) { [string]$script:CurrentJobId } else { '' }
     $resolvedCorrelationId = if ($CorrelationId) { $CorrelationId } elseif ($script:PipelineRunId) { [string]$script:PipelineRunId } else { '' }
     $recordedAt = (Get-Date).ToString('o')
+    $executedRouteVariable = Get-Variable -Name CurrentExecutedRoute -Scope Script -ErrorAction SilentlyContinue
+    $executedReasonCodeVariable = Get-Variable -Name CurrentExecutedRouteReasonCode -Scope Script -ErrorAction SilentlyContinue
+    $executedReasonVariable = Get-Variable -Name CurrentExecutedRouteReason -Scope Script -ErrorAction SilentlyContinue
+    $finalRoute = if ($executedRouteVariable -and -not [string]::IsNullOrWhiteSpace([string]$executedRouteVariable.Value)) {
+        [string]$executedRouteVariable.Value
+    } elseif ($script:currentRoute) { [string]$script:currentRoute } else { '' }
+    $finalReasonCode = if ($executedReasonCodeVariable -and -not [string]::IsNullOrWhiteSpace([string]$executedReasonCodeVariable.Value)) {
+        [string]$executedReasonCodeVariable.Value
+    } elseif ($script:CurrentRouteReasonCode) { [string]$script:CurrentRouteReasonCode } else { '' }
+    $finalReason = if ($executedReasonVariable -and -not [string]::IsNullOrWhiteSpace([string]$executedReasonVariable.Value)) {
+        [string]$executedReasonVariable.Value
+    } elseif ($script:CurrentRouteReason) { [string]$script:CurrentRouteReason } else { '' }
 
     $record = [ordered]@{
         SchemaVersion    = 'failure_record.v1'
@@ -150,6 +162,7 @@ function New-StandardFailureRecord {
         source_path      = $SourcePath
         JobId            = $resolvedJobId
         job_id           = $resolvedJobId
+        run_monitor_job_id = if ($script:CurrentRunMonitorJobId) { [string]$script:CurrentRunMonitorJobId } else { '' }
         CorrelationId    = $resolvedCorrelationId
         correlation_id   = $resolvedCorrelationId
         operation        = $resolvedOperation
@@ -157,6 +170,9 @@ function New-StandardFailureRecord {
         ErrorCode        = $resolvedCode
         error_code       = $resolvedCode
         reason           = $Reason
+        final_route      = $finalRoute
+        final_reason_code = $finalReasonCode
+        final_reason     = $finalReason
         classification   = $Classification
         tool             = $Tool
         ExitCode         = $ExitCode
@@ -662,10 +678,14 @@ function Write-SourceFailureState {
         operation        = $standardFailure.operation
         source_path      = $standardFailure.source_path
         job_id           = $standardFailure.job_id
+        run_monitor_job_id = if ($standardFailure.PSObject.Properties['run_monitor_job_id']) { [string]$standardFailure.run_monitor_job_id } else { '' }
         correlation_id   = $standardFailure.correlation_id
         classification   = $Classification
         error_code       = $resolvedCode
         reason           = $Reason
+        final_route      = if ($standardFailure.PSObject.Properties['final_route']) { [string]$standardFailure.final_route } else { '' }
+        final_reason_code = if ($standardFailure.PSObject.Properties['final_reason_code']) { [string]$standardFailure.final_reason_code } else { '' }
+        final_reason     = if ($standardFailure.PSObject.Properties['final_reason']) { [string]$standardFailure.final_reason } else { '' }
         stage            = $Stage
         tool             = $standardFailure.tool
         exit_code        = $standardFailure.exit_code

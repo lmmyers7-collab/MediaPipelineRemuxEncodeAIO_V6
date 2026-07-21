@@ -1,14 +1,19 @@
 ---
 file: docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-15
+last_modified: 2026-07-20
 last_reviewed: 2026-05-29
-sha256: 40c840e6789d7935e4d7aa280784cc4b9cdf3519f1d02c8ef7fb9a32214a4895
+sha256: 63c0cea56d970b1048affef6ac8c0907306eff273b0ff74acf3560fcac9cc49a
 ---
 # `docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md`
 
-**Purpose:** (unparsed)
+**Purpose:** Markdown implementation for test suite subsystem inventory.
+
+**HTTP routes:** `/api/contract`, `/api/log`, `/api/network/workers`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md`._

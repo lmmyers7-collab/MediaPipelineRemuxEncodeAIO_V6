@@ -220,6 +220,7 @@ def backend_shutdown_success_payload(
     *,
     force_active_work_shutdown: bool = False,
     cleanup_messages: list[str] | None = None,
+    post_cleanup_readiness: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     readiness_data = dict(readiness or {})
     cleanup = [str(item) for item in cleanup_messages or [] if str(item).strip()]
@@ -240,6 +241,9 @@ def backend_shutdown_success_payload(
         if force_active_work_shutdown:
             data["forced_active_work_shutdown"] = True
             data["cleanup_messages"] = cleanup
+            data["cleanup_verified"] = True
+            if post_cleanup_readiness is not None:
+                data["post_cleanup_readiness"] = dict(post_cleanup_readiness)
         return command_result_payload(
             command="backend.shutdown",
             ok=True,
@@ -255,6 +259,45 @@ def backend_shutdown_success_payload(
         message="Backend shutdown requested.",
         severity="info",
         refresh_hint="shutdown",
+    )
+
+
+def backend_shutdown_cleanup_failure_payload(
+    readiness: Mapping[str, Any] | None,
+    *,
+    cleanup_messages: list[str] | None = None,
+    cleanup_errors: list[str] | None = None,
+    post_cleanup_readiness: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    data = backend_shutdown_readiness_data(readiness)
+    messages = [bounded_error_text(item) for item in cleanup_messages or [] if str(item).strip()]
+    errors = [bounded_error_text(item) for item in cleanup_errors or [] if str(item).strip()]
+    data.update(
+        {
+            "forced_active_work_shutdown": True,
+            "cleanup_messages": messages,
+            "cleanup_verified": False,
+            "cleanup_uncertain": True,
+            "reconciliation_required": True,
+        }
+    )
+    if post_cleanup_readiness is not None:
+        post_cleanup = dict(post_cleanup_readiness)
+        data["post_cleanup_readiness"] = post_cleanup
+        post_reason = str(post_cleanup.get("reason") or "").strip()
+        if post_reason and post_reason not in errors:
+            errors.insert(0, bounded_error_text(post_reason))
+    if not errors:
+        errors.append("Forced active-work cleanup did not produce verified safe close-readiness evidence.")
+    return command_result_payload(
+        command="backend.shutdown",
+        ok=False,
+        message="Backend shutdown blocked because forced active-work cleanup was not verified.",
+        severity="error",
+        errors=errors,
+        warnings=messages,
+        refresh_hint="close-readiness",
+        data=data,
     )
 
 

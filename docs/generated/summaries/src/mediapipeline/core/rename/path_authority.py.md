@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/core/rename/path_authority.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: rename
 token_priority: medium
 owner_domain: rename
@@ -11,7 +14,7 @@ sha256: c9ce30aae296213c00051fdeaf342ee58a99b3d7a61d3e49f95b32206d2f91e4
 
 **Purpose:** Configured-root authority and undo manifest root helpers for rename.
 
-**Public functions:** `annotate_rename_plan_path_authority()`, `rename_authority_fields_for_source()`, `rename_configured_media_roots_from_request()`, `rename_configured_media_roots_from_resolved()`, `rename_plan_outside_configured_roots()`, `rename_plan_unscoped_operator_paths()`, `rename_request_allows_outside_configured_roots()`, `rename_request_paths()`, `rename_undo_manifest_root_from_request()`, `rename_undo_manifest_root_from_resolved()`
+**Public symbols:** `annotate_rename_plan_path_authority`, `rename_authority_fields_for_source`, `rename_configured_media_roots_from_request`, `rename_configured_media_roots_from_resolved`, `rename_plan_outside_configured_roots`, `rename_plan_unscoped_operator_paths`, `rename_request_allows_outside_configured_roots`, `rename_request_paths`, `rename_undo_manifest_root_from_request`, `rename_undo_manifest_root_from_resolved`
 **In-repo imports:** `mediapipeline.core.kernel.config_keys`, `mediapipeline.core.paths.layout`, `mediapipeline.core.rename.input_classification`, `mediapipeline.core.validation.strict_json`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/rename/path_authority.py`._

@@ -183,17 +183,20 @@
     const actual = payload?.actual_fields || {};
     const expected = payload?.expected_fields || {};
     const comparison = payload?.comparison || {};
+    const productionParity = payload?.production_parity || {};
+    const comparisonUnavailable = comparison.status === "unavailable";
     const lines = [
       `Actual: ${actual.target_name || payload?.target_name || "(no backend result)"}`,
       `Expected: ${expected.expected_name || "(expected fields incomplete)"}`,
-      `Result: ${comparison.ok ? "Pass" : "Needs review"}`,
+      `Result: ${comparisonUnavailable ? "Unavailable" : (comparison.ok ? "Pass" : "Needs review")}`,
+      `Runtime parity: ${productionParity.status || "unavailable"}`,
     ];
     (comparison.fields || []).forEach((row) => {
       lines.push(`${row.ok ? "OK" : "Mismatch"} ${String(row.field || "").replace(/_/g, " ")}: ${row.actual ?? ""} / ${row.expected ?? ""}`);
     });
     (payload?.warnings || []).forEach((warning) => lines.push(`Warning: ${warning}`));
     (payload?.errors || []).forEach((error) => lines.push(`Error: ${error}`));
-    lines.push(`Source: backend rename cleaner and ${comparison.policy_label || "current Settings filter draft"}.`);
+    lines.push(`Source: production pipeline destination plan and ${comparison.policy_label || "current Settings filter draft"}.`);
     output.textContent = lines.join("\n");
     output.dataset.state = comparison.ok ? "match" : "changed";
   }
@@ -288,8 +291,8 @@
       setText(
         "settings-rename-workbench-message",
         options.stagedRetest
-          ? "Retesting staged draft filters with backend cleaner..."
-          : "Testing current draft filters with backend cleaner..."
+          ? "Retesting staged draft filters with production naming plan..."
+          : "Testing current draft filters with production naming plan..."
       );
     }
     try {
@@ -298,8 +301,13 @@
       if (payload?.comparison && options.stagedRetest) payload.comparison.policy_label = "current staged Settings filter draft";
       renderRenameWorkbenchPayload(payload);
       renderRenameWorkbenchSuggestions(payload?.filter_suggestions || []);
-      setText("settings-rename-workbench-status", payload?.comparison?.ok ? "Pass" : "Needs review");
-      if (options.stagedRetest && payload?.comparison?.ok) {
+      const comparisonUnavailable = payload?.comparison?.status === "unavailable";
+      setText("settings-rename-workbench-status", comparisonUnavailable ? "Unavailable" : (payload?.comparison?.ok ? "Pass" : "Needs review"));
+      if (comparisonUnavailable) {
+        state.saveNewFiltersReady = false;
+        if (!options.quiet) setText("settings-rename-workbench-message", "Production naming comparison unavailable.");
+        setRenameWorkbenchSaveState("Production naming comparison unavailable.", "blocked");
+      } else if (options.stagedRetest && payload?.comparison?.ok) {
         if (state.hasStagedSuggestions) {
           const prepared = await saveRenameCleaningFilterState("Retest passed; rename filters are prepared for Save Settings.");
           state.saveNewFiltersReady = Boolean(prepared);
@@ -319,7 +327,7 @@
         setRenameWorkbenchSaveState("Not ready: review suggestions and retest.", "needs-review");
       } else {
         state.saveNewFiltersReady = false;
-        if (!options.quiet) setText("settings-rename-workbench-message", "Backend comparison complete.");
+        if (!options.quiet) setText("settings-rename-workbench-message", "Production naming comparison complete.");
         setRenameWorkbenchSaveState(
           payload?.comparison?.ok
             ? "Current filters pass. Save Settings can persist draft filter changes."

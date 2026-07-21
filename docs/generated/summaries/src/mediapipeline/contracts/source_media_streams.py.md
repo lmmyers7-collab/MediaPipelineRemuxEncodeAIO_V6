@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/contracts/source_media_streams.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
@@ -11,7 +14,7 @@ sha256: 0b904fc1fc5104fbd389cc750abc151c5febf389cd1ca31500d88f5f78e9e1cd
 
 **Purpose:** Stream-level builders for SourceMediaInfo adapters.
 
-**Public functions:** `audio_from_ffprobe_stream()`, `audio_from_stream_summary()`, `bit_depth()`, `display_dimensions()`, `stream_kind()`, `subtitle_from_ffprobe_stream()`, `subtitle_from_stream_summary()`, `subtitle_kind()`, `subtitle_stream()`, `video_from_ffprobe_stream()`, `video_from_stream_summary()`
+**Public symbols:** `audio_from_ffprobe_stream`, `audio_from_stream_summary`, `bit_depth`, `display_dimensions`, `stream_kind`, `subtitle_from_ffprobe_stream`, `subtitle_from_stream_summary`, `subtitle_kind`, `subtitle_stream`, `video_from_ffprobe_stream`, `video_from_stream_summary`
 **In-repo imports:** `mediapipeline.contracts.source_media_models`, `mediapipeline.contracts.source_media_values`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/contracts/source_media_streams.py`._

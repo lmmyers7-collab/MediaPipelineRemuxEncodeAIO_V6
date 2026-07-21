@@ -825,7 +825,7 @@ class WebViewBrowserSettingsGeneratedControlCensus(unittest.TestCase):
             finally:
                 server.stop()
             assert_media_no_mutation(self, media_snapshot)
-            media_snapshot_after = capture_media_no_mutation_snapshot(root)
+            media_snapshot_after = capture_media_no_mutation_snapshot(root, register_runner_finalizer=False)
 
         census = result["result"]
         census["source_output_snapshot_proof"] = {

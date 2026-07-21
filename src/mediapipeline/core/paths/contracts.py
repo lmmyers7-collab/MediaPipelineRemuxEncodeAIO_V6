@@ -21,6 +21,9 @@ class ResolvedPaths:
     runtime_state_root: Path | None = None
     run_logs_root: Path | None = None
     active_jobs_path: Path | None = None
+    # Durable per-run monitoring evidence. This is intentionally separate from
+    # launch-cleared Progress state and has no legacy fallback location.
+    run_monitor_path: Path | None = None
     app_state_path: Path | None = None
     source_movies: Path | None = None
     source_tv: Path | None = None
@@ -29,6 +32,7 @@ class ResolvedPaths:
     event_file: Path | None = None
     pause_flag: Path | None = None
     stop_flag: Path | None = None
+    stop_after_current_flag: Path | None = None
     rescan_flag: Path | None = None
     failed_reports_path: Path | None = None
     failed_markers_path: Path | None = None

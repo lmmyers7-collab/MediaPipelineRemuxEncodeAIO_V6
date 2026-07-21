@@ -78,6 +78,12 @@ class RenameMovieHelperTests(unittest.TestCase):
             "Ma.2019.mkv": "Ma (2019)",
             "Cam.2018.mkv": "Cam (2018)",
             "The.Web.2013.mkv": "The Web (2013)",
+            "The.DVD.2024.mkv": "The Dvd (2024)",
+            "Movie.UpScaled.2024.mkv": "Movie UpScaled (2024)",
+            "4K.Killer.2024.mkv": "4K Killer (2024)",
+            "Atmos.Fear.2024.mkv": "Atmos Fear (2024)",
+            "AVC.2024.mkv": "AVC (2024)",
+            "The.Remux.2024.mkv": "The Remux (2024)",
             "Audio.Drama.2024.mkv": "Audio Drama (2024)",
         }
 
@@ -99,6 +105,13 @@ class RenameMovieHelperTests(unittest.TestCase):
             "Hoppers (2026)",
         )
         self.assertEqual(clean_pipeline_movie_name("Movie.1080p.CAM.2024.mkv"), "Movie (2024)")
+        self.assertEqual(
+            clean_pipeline_movie_name(
+                "Cast Away (2000) UpScaled 2160p H265 10 bit DV HDR10+ ita eng AC3 5.1 sub ita eng Licdom.mkv"
+            ),
+            "Cast Away (2000)",
+        )
+        self.assertEqual(clean_pipeline_movie_name("Movie.2024.Asiimov.mkv"), "Movie (2024)")
 
     def test_explicit_movie_remove_terms_remain_global_and_token_bounded(self) -> None:
         self.assertEqual(

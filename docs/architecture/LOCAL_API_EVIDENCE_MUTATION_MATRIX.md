@@ -2,7 +2,7 @@
 
 Companion to `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
 
-Total routes: 171 (54 read, 117 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+Total routes: 172 (55 read, 117 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
 
 ---
 
@@ -17,6 +17,7 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | `GET /api/health` | `read` | No | Public startup probe before the token is passed to WebView |
 | `GET /api/contract` | `read` | No | Self-describing route contract; Tauri validates before opening WebView |
 | `GET /api/snapshot` | `read` | No | Backend assembles pipeline, audit, process state, and read-only long-run reliability counters |
+| `GET /api/run-monitor` | `read` | No | Reads one backend-correlated Run Once accepted-workload projection by exact optional `run_id`; freshness policy suppresses stale, unavailable, future-dated, or contradictory active claims, and the route never reconstructs current work from legacy progress |
 | `GET /api/telemetry` | `read` | No | CPU/RAM/GPU sample cached by backend |
 | `GET /api/diagnostics` | `read` | No | Recent backend events, errors, launch-log summary, and backend-owned autonomy health evidence |
 | `GET /api/diagnostics/tail` | `read` | No | `target` must be allowlisted; `max_bytes` is capped at 256 KB; no arbitrary path accepted |
@@ -34,7 +35,7 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 
 | Route | Class | Frontend can own? | Key restriction |
 |---|---|---|---|
-| `GET /api/queue` | `read` | No | Latest backend queue snapshot plus queue-scan status and source-inventory evidence; no dry run spawned |
+| `GET /api/queue` | `read` | No | Latest backend queue snapshot plus provenance, input-consistency, plan-fingerprint, fallback, pending-publish, queue-scan, and source-inventory evidence; no dry run spawned |
 | `GET /api/queue/priority` | `read` | No | Reads backend-owned priority manifest; no queue/media mutation |
 | `GET /api/queue/strategy` | `read` | No | Reads backend-owned strategy state and valid strategy names |
 | `GET /api/queue/file-overrides` | `read` | No | Reads override manifest or one source-root-contained override entry |
@@ -91,7 +92,7 @@ Runs backend-owned source inventory and queue-plan dry-run behavior. It writes s
 
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
-| `POST /api/queue/scan` | `process-dry-run` | Frontend cannot enumerate launchable queue rows or run queue policy independently | `mode`: `inventory_then_curate`, `inventory_only`, or `curate_only`; `scope`: `all`; duplicate requests observe the active backend scan |
+| `POST /api/queue/scan` | `process-dry-run` | Frontend cannot enumerate launchable queue rows or run queue policy independently | `mode`: `inventory_then_curate`, `inventory_only`, or `curate_only`; `scope`: `all`; duplicate requests observe the active backend scan; full curation uses `-EmitQueuePlan`, validates stable inputs, atomically publishes evidence, and never dispatches media |
 
 ### metrics-state-write / metrics-backfill-state-write (Metrics state only)
 
@@ -258,7 +259,7 @@ Writes backend-owned control state or control flag files. The running pipeline o
 |---|---|---|---|
 | `POST /api/final-library-promotion/pause` | `control-state-write` | Frontend cannot edit promotion state directly | `run_id` only; pauses an active backend-owned promotion run |
 | `POST /api/final-library-promotion/resume` | `control-state-write` | Frontend cannot edit promotion state directly | `run_id` only; resumes a paused backend-owned promotion run |
-| `POST /api/pipeline/control` | `control-flag-write` | Frontend cannot write flag files or kill processes directly | `action`: `pause`, `stop`, `rescan`, or `kill`; backend owns flag writes and emergency cleanup |
+| `POST /api/pipeline/control` | `control-flag-write` | Frontend cannot select a process, write flag files, or kill processes directly | `action`: `pause`, `stop`, `rescan`, or `kill`; standard Backend Queue Run Once stop carries `expected_run_id`, which the backend rechecks against exact active launch scope/run/PID/launch identity under lock before writing; backend owns emergency cleanup |
 | `POST /api/audit/stop` | `process-control` | Frontend cannot kill audit processes or edit progress directly | Requires `confirm_stop: true`; backend stops audit process trees only and writes terminal stopped audit progress |
 | `POST /api/rerun/control` | `process-control` | Frontend cannot kill rerun work or edit manifests directly | Requires `confirm_stop: true`; backend writes only the rerun stop-after-current marker and PowerShell owns manifest updates after the current row/window completes |
 
@@ -360,7 +361,7 @@ Spawns backend processes. The backend owns launch locks, command journal entries
 
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
-| `POST /api/pipeline/start` | `process-launch` | Frontend cannot exec processes or bypass launch guards | `mode`: `once`, `continuous`, `validate`, or `drain_pending_pushes`; backend owns launch lock and process args |
+| `POST /api/pipeline/start` | `process-launch` | Frontend cannot exec processes or bypass launch guards | `mode`: `once`, `continuous`, `validate`, or `drain_pending_pushes`; blank `once` requires current backend dry-run provenance and plan evidence, repeats validation inside the durable lease, and dispatches no media unless active discovery matches the accepted plan fingerprint |
 | `POST /api/audit/start` | `process-launch` | Frontend cannot exec audit scripts directly | Backend owns audit script invocation |
 | `POST /api/rerun/start` | `process-launch` | Frontend cannot exec rerun scripts directly | Backend-owned CSV rerun default: `destination_mode=auto_replace_clean_else_pending_review`, `collision_policy=replace_final`, source originals kept; strict `confirm_replace_final=true` is still required before live replacement-capable starts |
 | `POST /api/rerun/continue` | `process-launch` | Frontend cannot materialize retry CSVs or exec rerun scripts directly | Requires `confirm_continue: true`; backend accepts stopped-after-current manifests only, writes a pending-only scoped CSV, and launches through CSV rerun locks |

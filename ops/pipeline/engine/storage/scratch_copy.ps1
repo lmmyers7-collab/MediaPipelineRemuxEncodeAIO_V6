@@ -8,20 +8,95 @@
 # protection boundary: source media is copied to scratch, never mutated.
 # ==============================================================================
 
-# FIX#1: source-fingerprint helpers. The old Ensure-ScratchCopy reused any
-# existing scratch file with the same sanitised name, so two different
-# source files that sanitise to the same safe-name (e.g. "Episode 01.mkv"
-# from two different shows, or a re-uploaded file) could cause the WRONG
-# video to be encoded into the right output folder. We now write a
-# <scratch>.srcinfo sidecar with the full source path, size, and mtime,
-# and refuse to reuse the scratch unless all three match.
+# FIX#1 originally bound reuse to path/size/mtime. CPA-2026-07-19-003 proved
+# that ordinary replacement tools can preserve all three while changing the
+# bytes. The v2 sidecar below is therefore authoritative only when current
+# source and scratch SHA-256 values are recomputed and equal. Legacy,
+# malformed, missing, or unsupported evidence is invalidated by safe recopy.
+
+function Get-ScratchCanonicalPath {
+    param([Parameter(Mandatory)] [string] $Path)
+    return [System.IO.Path]::GetFullPath($Path).TrimEnd('\', '/')
+}
+
+function Get-ScratchFileContentIdentity {
+    param([Parameter(Mandatory)] [string] $Path)
+
+    try {
+        if ([string]::IsNullOrWhiteSpace($Path) -or
+            -not (Test-Path -LiteralPath $Path -PathType Leaf -ErrorAction SilentlyContinue)) {
+            return $null
+        }
+
+        $canonicalPath = Get-ScratchCanonicalPath -Path $Path
+        $before = Get-Item -LiteralPath $canonicalPath -Force -ErrorAction Stop
+        $beforeSize = [long]$before.Length
+        $beforeMtime = $before.LastWriteTimeUtc.ToString('o')
+        $sha256 = ((Get-FileHash -LiteralPath $canonicalPath -Algorithm SHA256 -ErrorAction Stop).Hash).ToLowerInvariant()
+        $after = Get-Item -LiteralPath $canonicalPath -Force -ErrorAction Stop
+        $afterMtime = $after.LastWriteTimeUtc.ToString('o')
+
+        if ($sha256 -notmatch '^[0-9a-f]{64}$' -or
+            $beforeSize -ne [long]$after.Length -or
+            $beforeMtime -ne $afterMtime) {
+            return $null
+        }
+
+        return [pscustomobject]@{
+            Path = $canonicalPath
+            Size = $beforeSize
+            MtimeUtc = $beforeMtime
+            Sha256 = $sha256
+        }
+    } catch {
+        return $null
+    }
+}
+
+function Test-ScratchContentIdentitySameBytes {
+    param($Left, $Right)
+    if ($null -eq $Left -or $null -eq $Right) { return $false }
+    return (
+        [long]$Left.Size -eq [long]$Right.Size -and
+        [string]::Equals([string]$Left.Sha256, [string]$Right.Sha256, [System.StringComparison]::OrdinalIgnoreCase)
+    )
+}
+
+function Test-ScratchSourceIdentityStable {
+    param($Before, $After)
+    if (-not (Test-ScratchContentIdentitySameBytes -Left $Before -Right $After)) { return $false }
+    return (
+        [string]::Equals([string]$Before.Path, [string]$After.Path, [System.StringComparison]::OrdinalIgnoreCase) -and
+        [string]::Equals([string]$Before.MtimeUtc, [string]$After.MtimeUtc, [System.StringComparison]::Ordinal)
+    )
+}
 
 function Get-SourceFingerprint {
-    param($SourceFile)
+    param(
+        $SourceFile,
+        [Parameter(Mandatory)] [string] $ScratchPath,
+        $SourceIdentity = $null,
+        $ScratchIdentity = $null
+    )
+
+    if ($null -eq $SourceIdentity) {
+        $SourceIdentity = Get-ScratchFileContentIdentity -Path ([string]$SourceFile.FullName)
+    }
+    if ($null -eq $ScratchIdentity) {
+        $ScratchIdentity = Get-ScratchFileContentIdentity -Path $ScratchPath
+    }
+    if ($null -eq $SourceIdentity -or $null -eq $ScratchIdentity) { return $null }
+
     return [ordered]@{
-        full_path = $SourceFile.FullName
-        size      = $SourceFile.Length
-        mtime     = $SourceFile.LastWriteTimeUtc.ToString('o')
+        schema_version  = 'scratch_source_identity.v2'
+        hash_algorithm  = 'sha256'
+        source_path     = [string]$SourceIdentity.Path
+        source_size     = [long]$SourceIdentity.Size
+        source_mtime_utc = [string]$SourceIdentity.MtimeUtc
+        source_sha256   = [string]$SourceIdentity.Sha256
+        scratch_size    = [long]$ScratchIdentity.Size
+        scratch_sha256  = [string]$ScratchIdentity.Sha256
+        verified_at_utc = [datetime]::UtcNow.ToString('o')
     }
 }
 
@@ -121,43 +196,134 @@ function Remove-EmptyScratchContainer {
 }
 
 function Write-ScratchFingerprint {
-    param([string]$ScratchPath, $SourceFile)
+    param(
+        [Parameter(Mandatory)] [string] $ScratchPath,
+        [Parameter(Mandatory)] $SourceFile,
+        $SourceIdentity = $null,
+        $ScratchIdentity = $null
+    )
+
+    $tmp = $null
     try {
-        $fp   = Get-SourceFingerprint $SourceFile
+        $fp = Get-SourceFingerprint `
+            -SourceFile $SourceFile `
+            -ScratchPath $ScratchPath `
+            -SourceIdentity $SourceIdentity `
+            -ScratchIdentity $ScratchIdentity
+        if ($null -eq $fp) { return $false }
         $path = Get-FingerprintPath $ScratchPath
         $tmp  = "$path.$([guid]::NewGuid().ToString('N')).tmp"
         $fp | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $tmp -Encoding UTF8 -Force
         Move-Item -LiteralPath $tmp -Destination $path -Force
+        return $true
     } catch {
         Write-Log "Could not write scratch fingerprint at $ScratchPath : $_" "WARN"
         if ($tmp -and (Test-Path -LiteralPath $tmp -ErrorAction SilentlyContinue)) {
             Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
         }
+        return $false
+    }
+}
+
+function New-ScratchFingerprintValidationResult {
+    param(
+        [bool] $Ok,
+        [string] $ReasonCode,
+        $SourceIdentity = $null,
+        $ScratchIdentity = $null
+    )
+    return [pscustomobject]@{
+        Ok = $Ok
+        ReasonCode = $ReasonCode
+        SourceIdentity = $SourceIdentity
+        ScratchIdentity = $ScratchIdentity
+    }
+}
+
+function Get-ScratchFingerprintValidation {
+    param([string]$ScratchPath, $SourceFile)
+
+    $fpPath = Get-FingerprintPath $ScratchPath
+    if (-not (Test-Path -LiteralPath $fpPath -PathType Leaf -ErrorAction SilentlyContinue)) {
+        return New-ScratchFingerprintValidationResult -Ok $false -ReasonCode 'identity_evidence_missing'
+    }
+    try {
+        $saved = Get-Content -LiteralPath $fpPath -Raw | ConvertFrom-Json
+        if ($null -eq $saved -or $saved -is [System.Array]) {
+            return New-ScratchFingerprintValidationResult -Ok $false -ReasonCode 'identity_evidence_malformed'
+        }
+        $propertyNames = @($saved.PSObject.Properties.Name)
+        $required = @(
+            'schema_version',
+            'hash_algorithm',
+            'source_path',
+            'source_size',
+            'source_mtime_utc',
+            'source_sha256',
+            'scratch_size',
+            'scratch_sha256',
+            'verified_at_utc'
+        )
+        foreach ($name in $required) {
+            if ($propertyNames -notcontains $name) {
+                return New-ScratchFingerprintValidationResult -Ok $false -ReasonCode 'identity_evidence_legacy_or_incomplete'
+            }
+        }
+
+        if ([string]$saved.schema_version -ne 'scratch_source_identity.v2') {
+            return New-ScratchFingerprintValidationResult -Ok $false -ReasonCode 'identity_schema_unsupported'
+        }
+        if (-not [string]::Equals(([string]$saved.hash_algorithm).Trim(), 'sha256', [System.StringComparison]::OrdinalIgnoreCase)) {
+            return New-ScratchFingerprintValidationResult -Ok $false -ReasonCode 'hash_algorithm_unsupported'
+        }
+        if ([string]$saved.source_sha256 -notmatch '^[0-9a-fA-F]{64}$' -or
+            [string]$saved.scratch_sha256 -notmatch '^[0-9a-fA-F]{64}$') {
+            return New-ScratchFingerprintValidationResult -Ok $false -ReasonCode 'identity_digest_malformed'
+        }
+
+        $savedSourcePath = Get-ScratchCanonicalPath -Path ([string]$saved.source_path)
+        $currentSourcePath = Get-ScratchCanonicalPath -Path ([string]$SourceFile.FullName)
+        if (-not [string]::Equals($savedSourcePath, $currentSourcePath, [System.StringComparison]::OrdinalIgnoreCase)) {
+            return New-ScratchFingerprintValidationResult -Ok $false -ReasonCode 'source_path_mismatch'
+        }
+
+        # Hash the source on both sides of the scratch hash. This prevents a
+        # same-size/same-mtime source replacement during validation from
+        # producing an apparently trustworthy reuse decision.
+        $sourceBefore = Get-ScratchFileContentIdentity -Path $currentSourcePath
+        $scratchIdentity = Get-ScratchFileContentIdentity -Path $ScratchPath
+        $sourceAfter = Get-ScratchFileContentIdentity -Path $currentSourcePath
+        if ($null -eq $sourceBefore -or $null -eq $scratchIdentity -or $null -eq $sourceAfter) {
+            return New-ScratchFingerprintValidationResult -Ok $false -ReasonCode 'identity_recompute_failed'
+        }
+        if (-not (Test-ScratchSourceIdentityStable -Before $sourceBefore -After $sourceAfter)) {
+            return New-ScratchFingerprintValidationResult -Ok $false -ReasonCode 'source_changed_during_validation'
+        }
+        if (-not (Test-ScratchContentIdentitySameBytes -Left $sourceAfter -Right $scratchIdentity)) {
+            return New-ScratchFingerprintValidationResult -Ok $false -ReasonCode 'source_scratch_content_mismatch'
+        }
+        if ([long]$saved.source_size -ne [long]$sourceAfter.Size -or
+            [long]$saved.scratch_size -ne [long]$scratchIdentity.Size -or
+            -not [string]::Equals([string]$saved.source_sha256, [string]$sourceAfter.Sha256, [System.StringComparison]::OrdinalIgnoreCase) -or
+            -not [string]::Equals([string]$saved.scratch_sha256, [string]$scratchIdentity.Sha256, [System.StringComparison]::OrdinalIgnoreCase)) {
+            return New-ScratchFingerprintValidationResult -Ok $false -ReasonCode 'saved_identity_mismatch'
+        }
+
+        return New-ScratchFingerprintValidationResult `
+            -Ok $true `
+            -ReasonCode 'content_identity_match' `
+            -SourceIdentity $sourceAfter `
+            -ScratchIdentity $scratchIdentity
+    } catch {
+        return New-ScratchFingerprintValidationResult -Ok $false -ReasonCode 'identity_evidence_malformed'
     }
 }
 
 function Test-ScratchFingerprintMatches {
     param([string]$ScratchPath, $SourceFile)
-    $fpPath = Get-FingerprintPath $ScratchPath
-    if (-not (Test-Path -LiteralPath $fpPath)) { return $false }
-    try {
-        $saved = Get-Content -LiteralPath $fpPath -Raw | ConvertFrom-Json
-        if ([string]$saved.full_path -ne [string]$SourceFile.FullName) { return $false }
-        if ([long]  $saved.size      -ne [long]  $SourceFile.Length)   { return $false }
-        # ConvertFrom-Json materializes ISO timestamps as DateTime in PowerShell 7,
-        # so normalize before comparing against the source file's round-trip value.
-        $savedMtime = $saved.mtime
-        if ($null -eq $savedMtime -and $saved.PSObject.Properties.Name -contains 'mtime_utc') {
-            $savedMtime = $saved.mtime_utc
-        }
-        if ($savedMtime -is [datetime]) {
-            $savedMtime = $savedMtime.ToUniversalTime().ToString('o')
-        } else {
-            $savedMtime = [string]$savedMtime
-        }
-        if ($savedMtime -ne $SourceFile.LastWriteTimeUtc.ToString('o')) { return $false }
-        return $true
-    } catch { return $false }
+    $validation = Get-ScratchFingerprintValidation -ScratchPath $ScratchPath -SourceFile $SourceFile
+    $script:LastScratchFingerprintValidation = $validation
+    return [bool]$validation.Ok
 }
 
 function Remove-ScratchFingerprint {
@@ -168,10 +334,31 @@ function Remove-ScratchFingerprint {
     }
 }
 
+function Set-MediaPipelineScratchCopyMonitorOutcome {
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('active','completed','skipped','blocked','failed')]
+        [string] $State,
+        [Parameter(Mandatory)] [string] $Detail,
+        [string] $ReasonCode = ''
+    )
+
+    if (Get-Command -Name Set-MediaPipelineCurrentRunMonitorStage -ErrorAction SilentlyContinue) {
+        Set-MediaPipelineCurrentRunMonitorStage `
+            -StageId 'copy_to_scratch' `
+            -State $State `
+            -Detail $Detail `
+            -ReasonCode $ReasonCode `
+            -EvidenceSource 'scratch_copy' `
+            -Indeterminate:($State -eq 'active') | Out-Null
+    }
+}
+
 function Ensure-ScratchCopy {
     param($SourceFile, [string]$SafeName)
     if (-not (Test-ScratchSafeLeafName -SafeName $SafeName)) {
         Write-Log "Unsafe scratch safe name rejected: $SafeName" "ERROR"
+        Set-MediaPipelineScratchCopyMonitorOutcome -State blocked -Detail 'Scratch copy rejected because the generated scratch leaf is unsafe.' -ReasonCode 'SCRATCH_SAFE_NAME_UNSAFE'
         return $null
     }
 
@@ -179,19 +366,23 @@ function Ensure-ScratchCopy {
     $scratchDir = Split-Path $localIn -Parent
     if ([string]::IsNullOrWhiteSpace($scratchDir)) {
         Write-Log "Scratch input path has no parent: $localIn" "ERROR"
+        Set-MediaPipelineScratchCopyMonitorOutcome -State blocked -Detail 'Scratch copy rejected because the scratch input has no parent directory.' -ReasonCode 'SCRATCH_PATH_INVALID'
         return $null
     }
     if (-not (Get-Command -Name Test-MediaPipelinePathBoundarySafe -ErrorAction SilentlyContinue)) {
         Write-Log "Scratch copy rejected: path boundary helper is unavailable." "ERROR"
+        Set-MediaPipelineScratchCopyMonitorOutcome -State blocked -Detail 'Scratch copy boundary validation is unavailable.' -ReasonCode 'SCRATCH_BOUNDARY_HELPER_UNAVAILABLE'
         return $null
     }
     if ([string]::IsNullOrWhiteSpace([string]$script:processingDir)) {
         Write-Log "Scratch copy rejected: processingDir is not set." "ERROR"
+        Set-MediaPipelineScratchCopyMonitorOutcome -State blocked -Detail 'Scratch processing root is unavailable.' -ReasonCode 'SCRATCH_ROOT_UNAVAILABLE'
         return $null
     }
     $containerBoundary = Test-MediaPipelinePathBoundarySafe -Path $scratchDir -Root ([string]$script:processingDir) -AllowMissingLeaf
     if (-not [bool]$containerBoundary.Ok) {
         Write-Log "Scratch copy rejected: scratch container failed processingDir boundary guard ($($containerBoundary.ReasonCode)): $scratchDir" "ERROR"
+        Set-MediaPipelineScratchCopyMonitorOutcome -State blocked -Detail 'Scratch container failed the processing-root boundary guard.' -ReasonCode ([string]$containerBoundary.ReasonCode)
         return $null
     }
     try {
@@ -200,12 +391,17 @@ function Ensure-ScratchCopy {
         }
     } catch {
         Write-Log "Scratch copy rejected: could not create scratch container $scratchDir : $_" "ERROR"
+        Set-MediaPipelineScratchCopyMonitorOutcome -State failed -Detail 'Scratch container could not be created.' -ReasonCode 'SCRATCH_CONTAINER_CREATE_FAILED'
         return $null
     }
     $inputBoundary = Test-MediaPipelinePathBoundarySafe -Path $localIn -Root $scratchDir -AllowMissingLeaf
     if (-not [bool]$inputBoundary.Ok) {
         Write-Log "Scratch copy rejected: scratch input failed container boundary guard ($($inputBoundary.ReasonCode)): $localIn" "ERROR"
+        Set-MediaPipelineScratchCopyMonitorOutcome -State blocked -Detail 'Scratch input failed the container boundary guard.' -ReasonCode ([string]$inputBoundary.ReasonCode)
         return $null
+    }
+    if (Get-Command -Name Set-MediaPipelineCurrentRunMonitorOutput -ErrorAction SilentlyContinue) {
+        Set-MediaPipelineCurrentRunMonitorOutput -State active -ScratchPath $localIn -VerificationState not_started | Out-Null
     }
 
     if (Test-Path -LiteralPath $localIn) {
@@ -213,7 +409,12 @@ function Ensure-ScratchCopy {
         # Different sources with the same sanitised name would otherwise
         # cause silent cross-contamination.
         if (-not (Test-ScratchFingerprintMatches $localIn $SourceFile)) {
-            Write-Log "Existing scratch belongs to a different source - re-copying: $SafeName" "WARN"
+            $identityReason = if ($script:LastScratchFingerprintValidation) {
+                [string]$script:LastScratchFingerprintValidation.ReasonCode
+            } else {
+                'identity_untrusted'
+            }
+            Write-Log "Existing scratch identity is not trustworthy [$identityReason] - re-copying: $SafeName" "WARN"
             for ($i = 0; $i -lt 5; $i++) {
                 try { Remove-Item -LiteralPath $localIn -Force -ErrorAction Stop; break }
                 catch { Write-Log "Cannot delete mismatched scratch (attempt $($i+1)/5): $_" "WARN"; Start-Sleep 5 }
@@ -221,7 +422,9 @@ function Ensure-ScratchCopy {
             Remove-ScratchFingerprint $localIn
             Remove-EmptyScratchContainer $localIn
             if (Test-Path -LiteralPath $localIn) {
-                Write-Log "Cannot delete mismatched scratch: $localIn" "ERROR"; return $null
+                Write-Log "Cannot delete mismatched scratch: $localIn" "ERROR"
+                Set-MediaPipelineScratchCopyMonitorOutcome -State blocked -Detail 'A mismatched scratch copy is locked and cannot be safely replaced.' -ReasonCode 'SCRATCH_REPLACEMENT_BLOCKED'
+                return $null
             }
         }
         else {
@@ -234,16 +437,41 @@ function Ensure-ScratchCopy {
                 }
                 Remove-ScratchFingerprint $localIn
                 Remove-EmptyScratchContainer $localIn
-                if (Test-Path -LiteralPath $localIn) { Write-Log "Cannot delete locked scratch: $localIn" "ERROR"; return $null }
+                if (Test-Path -LiteralPath $localIn) {
+                    Write-Log "Cannot delete locked scratch: $localIn" "ERROR"
+                    Set-MediaPipelineScratchCopyMonitorOutcome -State blocked -Detail 'A corrupt scratch copy is locked and cannot be safely replaced.' -ReasonCode 'SCRATCH_REPLACEMENT_BLOCKED'
+                    return $null
+                }
             } else {
                 # Fingerprint matched and integrity passed - reuse.
+                Set-ProgressStage -Stage 'copy_to_scratch' -Status 'Verified scratch copy reused' -CopyState 'reused' -Percent $null -SaveNow
+                Set-MediaPipelineScratchCopyMonitorOutcome -State skipped -Detail 'An exact fingerprint-matched, integrity-verified scratch copy was reused.' -ReasonCode 'SCRATCH_COPY_REUSED'
                 return $localIn
             }
         }
     }
+
+    $sourceIdentityBeforeCopy = Get-ScratchFileContentIdentity -Path ([string]$SourceFile.FullName)
+    if ($null -eq $sourceIdentityBeforeCopy) {
+        Write-Log "Scratch copy rejected: source content identity could not be computed before copy: $($SourceFile.FullName)" "ERROR"
+        Set-MediaPipelineScratchCopyMonitorOutcome -State failed -Detail 'The source SHA-256 identity could not be established before scratch copy.' -ReasonCode 'SCRATCH_COPY_FAILED'
+        return $null
+    }
+
     Write-Log "COPY TO SCRATCH: $($SourceFile.Name) as $SafeName"
+    Set-MediaPipelineScratchCopyMonitorOutcome -State active -Detail 'Copying the accepted source to its backend-owned scratch path.'
     Set-ProgressStage -Stage 'copy_to_scratch' -CopyState 'copying' -Percent $null -SaveNow
-    if (-not (Copy-FileRobocopy $SourceFile.FullName $localIn)) { return $null }
+    if (-not (Copy-FileRobocopy $SourceFile.FullName $localIn)) {
+        $copyReasonCode = 'SCRATCH_COPY_FAILED'
+        try {
+            if ($script:LastCopyFileRobocopyResult -and
+                -not [string]::IsNullOrWhiteSpace([string]$script:LastCopyFileRobocopyResult.ReasonCode)) {
+                $copyReasonCode = [string]$script:LastCopyFileRobocopyResult.ReasonCode
+            }
+        } catch {}
+        Set-MediaPipelineScratchCopyMonitorOutcome -State failed -Detail 'The backend source-to-scratch copy did not complete.' -ReasonCode $copyReasonCode
+        return $null
+    }
     $scratchIntegrity = Test-FileIntegrityDetailed -FilePath $localIn
     if (-not $scratchIntegrity.Ok) {
         Write-Log "Scratch integrity failed [$($scratchIntegrity.ErrorCode)]: $SafeName - $($scratchIntegrity.Reason)" "ERROR"
@@ -267,11 +495,48 @@ function Ensure-ScratchCopy {
         Remove-ScratchFingerprint $localIn
         Remove-EmptyScratchContainer $localIn
         Register-SourceFailure -SourceFile $SourceFile -Classification $classification -Reason $reason -Stage 'scratch-integrity' -ErrorCode $errorCode -SuggestedAction $suggestedAction | Out-Null
+        Set-MediaPipelineScratchCopyMonitorOutcome -State failed -Detail $reason -ReasonCode $errorCode
         return $null
     }
-    # Write the fingerprint AFTER integrity passes so a half-copied file
-    # never gets accepted as a match next time.
-    Write-ScratchFingerprint -ScratchPath $localIn -SourceFile $SourceFile
+
+    # Recompute exact content identity after the copy and after hashing the
+    # landed scratch. A source that changes at any point in the simulated or
+    # real copy window cannot authorize processing of uncertain scratch bytes.
+    $scratchIdentity = Get-ScratchFileContentIdentity -Path $localIn
+    $sourceIdentityAfterCopy = Get-ScratchFileContentIdentity -Path ([string]$SourceFile.FullName)
+    $sourceStable = Test-ScratchSourceIdentityStable -Before $sourceIdentityBeforeCopy -After $sourceIdentityAfterCopy
+    $contentMatches = Test-ScratchContentIdentitySameBytes -Left $sourceIdentityAfterCopy -Right $scratchIdentity
+    if (-not $sourceStable -or -not $contentMatches) {
+        $identityFailure = if (-not $sourceStable) {
+            'The source content identity changed while it was being copied to scratch.'
+        } else {
+            'The landed scratch SHA-256 did not match the source SHA-256.'
+        }
+        Write-Log "$identityFailure Scratch copy discarded: $SafeName" "ERROR"
+        Remove-Item -LiteralPath $localIn -Force -ErrorAction SilentlyContinue
+        Remove-ScratchFingerprint $localIn
+        Remove-EmptyScratchContainer $localIn
+        Set-MediaPipelineScratchCopyMonitorOutcome -State failed -Detail $identityFailure -ReasonCode 'SCRATCH_COPY_FAILED'
+        return $null
+    }
+
+    # Write content-bound evidence only after integrity and exact byte equality
+    # pass. If the atomic evidence write fails, discard the scratch so a caller
+    # can never process bytes lacking trustworthy provenance.
+    $fingerprintWritten = Write-ScratchFingerprint `
+        -ScratchPath $localIn `
+        -SourceFile $SourceFile `
+        -SourceIdentity $sourceIdentityAfterCopy `
+        -ScratchIdentity $scratchIdentity
+    if (-not $fingerprintWritten) {
+        Write-Log "Scratch identity evidence could not be persisted; scratch copy discarded: $SafeName" "ERROR"
+        Remove-Item -LiteralPath $localIn -Force -ErrorAction SilentlyContinue
+        Remove-ScratchFingerprint $localIn
+        Remove-EmptyScratchContainer $localIn
+        Set-MediaPipelineScratchCopyMonitorOutcome -State failed -Detail 'Scratch identity evidence could not be persisted; the untrusted scratch copy was discarded.' -ReasonCode 'SCRATCH_COPY_FAILED'
+        return $null
+    }
     Set-ProgressStage -Stage 'copy_to_scratch' -CopyState 'complete' -Percent 100 -SaveNow
+    Set-MediaPipelineScratchCopyMonitorOutcome -State completed -Detail 'Scratch copy completed with matching source/scratch SHA-256 identity evidence.'
     return $localIn
 }

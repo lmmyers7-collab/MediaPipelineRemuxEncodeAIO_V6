@@ -8,11 +8,11 @@ LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "path": "/api/pipeline/control",
         "auth_required": True,
         "effect": "control-flag-write",
-        "request_keys": ["action", "confirm_force_stop"],
+        "request_keys": ["action", "confirm_force_stop", "expected_run_id"],
         "allowed_actions": ["pause", "stop", "rescan", "kill"],
         "requires_confirmation_for": ["kill"],
         "response_schema": "desktop_command_result.v1",
-        "purpose": "Write backend-owned pause, stop, or rescan control flags, or force-kill related pipeline processes.",
+        "purpose": "Write backend-owned pause, graceful stop-after-current, or rescan control flags, or force-kill related pipeline processes. Standard Run Once Backend Queue stop requests require the exact displayed run identity and are re-correlated under the backend process-control lock.",
     },
     {
         "method": "POST",

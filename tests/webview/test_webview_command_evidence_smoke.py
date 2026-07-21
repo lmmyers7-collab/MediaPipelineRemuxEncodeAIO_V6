@@ -387,6 +387,8 @@ def _node_runner_source() -> str:
           setInterval() { return 1; },
           clearInterval() {},
           requestAnimationFrame(fn) { fn(); },
+          addEventListener() {},
+          removeEventListener() {},
           confirm() { return true; },
           MEDIA_PIPELINE_BOOTSTRAP: { token: "smoke-token", url: "http://127.0.0.1", appVersion: "v5-test" },
         };

@@ -6,27 +6,27 @@
   "ok": true,
   "violations": [],
   "summary": {
-    "scripts": 282,
-    "controls": 515,
+    "scripts": 283,
+    "controls": 520,
     "route_usages": 117,
     "dynamic_api_posts": 8,
-    "route_contracts": 171,
+    "route_contracts": 172,
     "high_risk_route_usages": 52,
     "unclassified_high_risk_controls": 0,
     "controls_by_classification": {
       "backend-contract-dynamic-route": 4,
-      "backend-owned-route": 179,
+      "backend-owned-route": 180,
       "disabled-future-network-control": 6,
       "local-copy": 2,
-      "local-display-state": 75,
+      "local-display-state": 76,
       "local-form-staging": 3,
       "local-guided-setup": 8,
       "local-launch-intent-staging": 7,
-      "local-navigation": 34,
+      "local-navigation": 36,
       "local-network-staging": 1,
       "local-or-read-only": 64,
       "local-queue-order-staging": 1,
-      "local-read-navigation": 48,
+      "local-read-navigation": 49,
       "local-rename-staging": 6,
       "local-sample-validation-staging": 2,
       "local-schedule-staging": 3,
@@ -1222,17 +1222,6 @@
       "page": "home",
       "tag": "button",
       "id": "",
-      "text": "Queue",
-      "classification": "local-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-cross-page-target": "queue"
-      }
-    },
-    {
-      "page": "home",
-      "tag": "button",
-      "id": "",
       "text": "Review Queue",
       "classification": "local-navigation",
       "route": "",
@@ -1249,6 +1238,18 @@
       "route": "/api/diagnostics/open",
       "data_attrs": {
         "data-open-diagnostics": "sample_validation_log"
+      }
+    },
+    {
+      "page": "home",
+      "tag": "button",
+      "id": "",
+      "text": "Queue",
+      "classification": "local-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-cross-page-target": "queue",
+        "data-touchpoint-id": "home-quick-controls-queue"
       }
     },
     {
@@ -1351,6 +1352,17 @@
       "page": "home",
       "tag": "button",
       "id": "",
+      "text": "Launch",
+      "classification": "local-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-cross-page-target": "launch"
+      }
+    },
+    {
+      "page": "home",
+      "tag": "button",
+      "id": "",
       "text": "Active Jobs",
       "classification": "backend-owned-route",
       "route": "/api/diagnostics/open",
@@ -1416,11 +1428,53 @@
     {
       "page": "home",
       "tag": "button",
+      "id": "",
+      "text": "Queue",
+      "classification": "local-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-cross-page-target": "queue",
+        "data-touchpoint-id": "run-monitor-open-queue"
+      }
+    },
+    {
+      "page": "home",
+      "tag": "button",
       "id": "home-refresh-button",
       "text": "Refresh Home",
       "classification": "local-read-navigation",
       "route": "",
       "data_attrs": {}
+    },
+    {
+      "page": "home",
+      "tag": "button",
+      "id": "run-monitor-items-toggle",
+      "text": "Open file selection",
+      "classification": "local-display-state",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "home",
+      "tag": "button",
+      "id": "run-monitor-refresh",
+      "text": "Refresh",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "home",
+      "tag": "button",
+      "id": "run-monitor-stop-after-current",
+      "text": "Stop After Current",
+      "classification": "backend-owned-route",
+      "route": "/api/pipeline/control",
+      "data_attrs": {
+        "data-control-action": "stop",
+        "data-control-owner": "run-monitor"
+      }
     },
     {
       "page": "home",
@@ -5979,7 +6033,7 @@
       "normalized_route": "/api/maintenance/archive-state-journals",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launch/commandOrchestration.js",
-      "line": 488,
+      "line": 511,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6265,7 +6319,7 @@
       "normalized_route": "/api/pipeline/browse-file",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launch/commandOrchestration.js",
-      "line": 232,
+      "line": 248,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6281,7 +6335,7 @@
       "normalized_route": "/api/pipeline/control",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launch/commandOrchestration.js",
-      "line": 188,
+      "line": 203,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6297,7 +6351,7 @@
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launch/commandOrchestration.js",
-      "line": 336,
+      "line": 352,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6313,7 +6367,7 @@
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launch/commandOrchestration.js",
-      "line": 417,
+      "line": 439,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -6344,7 +6398,7 @@
       "normalized_route": "/api/queue/file-overrides",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.api.js",
-      "line": 146,
+      "line": 151,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6359,7 +6413,7 @@
       "normalized_route": "/api/queue/file-overrides",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.api.js",
-      "line": 162,
+      "line": 167,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6374,7 +6428,7 @@
       "normalized_route": "/api/queue/file-overrides",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.api.js",
-      "line": 212,
+      "line": 217,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6389,7 +6443,7 @@
       "normalized_route": "/api/queue/file-overrides",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.api.js",
-      "line": 250,
+      "line": 255,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6404,7 +6458,7 @@
       "normalized_route": "/api/queue/file-overrides/remux-pilot-promote",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js",
-      "line": 363,
+      "line": 368,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6434,7 +6488,7 @@
       "normalized_route": "/api/queue/file-overrides/series-apply",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js",
-      "line": 535,
+      "line": 540,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6449,7 +6503,7 @@
       "normalized_route": "/api/queue/file-overrides/series-clear-apply",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js",
-      "line": 481,
+      "line": 486,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6464,7 +6518,7 @@
       "normalized_route": "/api/queue/file-overrides/series-clear-preview",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js",
-      "line": 442,
+      "line": 447,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6479,7 +6533,7 @@
       "normalized_route": "/api/queue/file-overrides/series-preview",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js",
-      "line": 406,
+      "line": 411,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6509,7 +6563,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/manualOrder.js",
-      "line": 208,
+      "line": 209,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6524,7 +6578,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/priority.js",
-      "line": 152,
+      "line": 153,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6539,7 +6593,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/priority.js",
-      "line": 166,
+      "line": 167,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6554,7 +6608,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/priority.js",
-      "line": 202,
+      "line": 203,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -6584,7 +6638,7 @@
       "normalized_route": "/api/queue/strategy",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/strategy.js",
-      "line": 174,
+      "line": 175,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -7194,25 +7248,25 @@
   "dynamic_api_posts": [
     {
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 169,
+      "line": 171,
       "allowed": true,
       "reason": "late-bound mediaPipelineApi namespace forwarder"
     },
     {
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 325,
+      "line": 327,
       "allowed": true,
       "reason": "late-bound mediaPipelineApi namespace forwarder"
     },
     {
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 658,
+      "line": 661,
       "allowed": true,
       "reason": "late-bound mediaPipelineApi namespace forwarder"
     },
     {
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 900,
+      "line": 903,
       "allowed": true,
       "reason": "late-bound mediaPipelineApi namespace forwarder"
     },
@@ -7655,6 +7709,16 @@
     {
       "method": "GET",
       "path": "/api/rerun/results",
+      "effect": "none",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/run-monitor",
       "effect": "none",
       "owner": "",
       "requires_confirmation": null,
@@ -8624,7 +8688,8 @@
       "network_lifecycle": false,
       "request_keys": [
         "action",
-        "confirm_force_stop"
+        "confirm_force_stop",
+        "expected_run_id"
       ]
     },
     {

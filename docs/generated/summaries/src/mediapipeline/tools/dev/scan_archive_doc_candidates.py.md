@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/tools/dev/scan_archive_doc_candidates.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
@@ -9,10 +12,9 @@ sha256: aaf0b5f28da2b5be6de33feb3099468f866918630bb394e8faf1ebdd71ba65fb
 ---
 # `src/mediapipeline/tools/dev/scan_archive_doc_candidates.py`
 
-**Purpose:** Dry-run scan for active documents that may be ready for archive.
+**Purpose:** Dry-run scan for active documents that may be ready for archive. The scan is advisory. It does not move files. It classifies active documents and reports which active architecture/control files would need link updates before a candidate is archived.
 
-**Classes:** `DocumentScanResult`, `Reference`
-**Public functions:** `collect_document_paths()`, `collect_reference_index()`, `collect_reference_paths()`, `main()`, `normalize_path()`, `parse_args()`, `render_json()`, `render_markdown()`, `scan_documents()`
+**Public symbols:** `collect_document_paths`, `collect_reference_index`, `collect_reference_paths`, `DocumentScanResult`, `main`, `normalize_path`, `parse_args`, `Reference`, `render_json`, `render_markdown`, `scan_documents`
 **In-repo imports:** `mediapipeline.tools.paths`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/tools/dev/scan_archive_doc_candidates.py`._

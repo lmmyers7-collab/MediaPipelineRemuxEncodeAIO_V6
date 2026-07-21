@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/core/api/commands_ui_preferences.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
@@ -9,9 +12,10 @@ sha256: f571464b75c49599c3772af517edc3bec6423b180c2dd2b7ad442e387942f44d
 ---
 # `src/mediapipeline/core/api/commands_ui_preferences.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for commands ui preferences; exposes LocalApiUiPreferencesPayloadMixin.
 
-**Classes:** `LocalApiUiPreferencesPayloadMixin`
+**Public symbols:** `LocalApiUiPreferencesPayloadMixin`
 **In-repo imports:** `mediapipeline.core.ui_preferences`
+**HTTP routes:** `/api/ui-preferences`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/api/commands_ui_preferences.py`._

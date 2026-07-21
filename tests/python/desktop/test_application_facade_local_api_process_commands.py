@@ -25,7 +25,13 @@ from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.core.api.commands_process import LocalApiProcessCommandPayloadMixin
 from mediapipeline.desktop.api.handler import build_local_api_handler_class
 from mediapipeline.desktop.application import CommandResult, MediaPipelineApplicationFacade
-from mediapipeline.desktop.local_api_main import BOOTSTRAP_SCHEMA_VERSION, bootstrap_payload, build_backend, main as local_api_main
+from mediapipeline.desktop.local_api_main import (
+    BOOTSTRAP_SCHEMA_VERSION,
+    _record_pipeline_terminal_command_evidence,
+    bootstrap_payload,
+    build_backend,
+    main as local_api_main,
+)
 from mediapipeline.desktop.models import ResolvedPaths, Snapshot
 from tests.python.desktop.application_facade_test_support import (
     COMMAND_HISTORY_ASSET_ORDER,
@@ -138,8 +144,48 @@ class LocalApiProcessCommandTests(LocalApiHttpTestMixin, unittest.TestCase):
         self.assertFalse(side_effect_before_auth)
         self.assertEqual(ok_status, 200)
         self.assertEqual(ok["command"], "pipeline.start")
+        self.assertEqual(ok["data"]["evidence_phase"], "running")
+        self.assertEqual(service.started_pipeline["command_id"], ok["data"]["command_id"])
         self.assertTrue(hasattr(service, "started_pipeline"))
         self.assertEqual(service.started_pipeline["mode"], "validate")
+
+    def test_pipeline_terminal_command_evidence_is_correlated_and_durable(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            resolved = _resolved(root)
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: resolved,
+                command_journal_path=root / "RunLogs" / "local_api_command_history.json",
+            )
+
+            _record_pipeline_terminal_command_evidence(
+                server,
+                command_id="command-completed",
+                phase="completed",
+                return_code=0,
+                pid=1234,
+                mode="once",
+            )
+            _record_pipeline_terminal_command_evidence(
+                server,
+                command_id="command-failed",
+                phase="failed",
+                return_code=76,
+                pid=1235,
+                mode="once",
+            )
+            commands = server.command_journal.to_mapping(limit=5)
+
+        self.assertEqual([entry["data"]["command_id"] for entry in commands["entries"]], ["command-failed", "command-completed"])
+        self.assertEqual(commands["entries"][0]["data"]["evidence_phase"], "failed")
+        self.assertFalse(commands["entries"][0]["ok"])
+        self.assertEqual(commands["entries"][1]["data"]["evidence_phase"], "completed")
+        self.assertTrue(commands["entries"][1]["ok"])
+        self.assertEqual(commands["journal_persistence"]["json"]["status"], "ok")
 
     def test_local_api_rejects_invalid_command_payload_before_side_effects(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

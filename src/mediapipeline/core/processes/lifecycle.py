@@ -37,6 +37,7 @@ from .control_runner import (
     toggle_pause_flag_for_service,
     write_control_flag_for_service,
     write_flag_for_service,
+    write_stop_after_current_for_service,
 )
 from .launch_env import build_launch_environment, iter_bundled_launch_dirs
 from .launch_runner import (
@@ -120,6 +121,9 @@ class ProcessLifecycleServiceMixin:
         show_console: bool,
         single_file: str | None = None,
         extra_argv: list[str] | tuple[str, ...] | None = None,
+        expected_queue_plan_fingerprint: str = "",
+        command_id: str = "",
+        run_id: str = "",
     ) -> subprocess.Popen[Any]:
         return start_pipeline_for_service(
             self,
@@ -131,6 +135,9 @@ class ProcessLifecycleServiceMixin:
             extra_argv=extra_argv,
             show_console=show_console,
             single_file=single_file,
+            expected_queue_plan_fingerprint=expected_queue_plan_fingerprint,
+            command_id=command_id,
+            run_id=run_id,
         )
 
     def start_audit(
@@ -538,3 +545,19 @@ class ProcessLifecycleServiceMixin:
 
     def write_flag(self, flag_path: Path | None, label: str) -> str:
         return write_flag_for_service(self, flag_path, label)
+
+    def write_stop_after_current_flag(
+        self,
+        flag_path: Path | None,
+        *,
+        run_id: str = "",
+        target_pid: int | None = None,
+        target_launch_id: str = "",
+    ) -> str:
+        return write_stop_after_current_for_service(
+            self,
+            flag_path,
+            run_id=run_id,
+            target_pid=target_pid,
+            target_launch_id=target_launch_id,
+        )

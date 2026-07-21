@@ -213,12 +213,12 @@
 
     rows.push(dailyDriverRow(
       "Queue",
-      queue.error ? "review" : String(queue.snapshot_file_freshness_status || "").toLowerCase() === "stale" || dailyDriverCount(queue.invalid_row_count) || dailyDriverCount(queue.blocked_row_count) ? "review" : "ready",
-      `rows=${Array.isArray(queue.rows) ? queue.rows.length : 0}; runnable=${dailyDriverCount(Object.prototype.hasOwnProperty.call(queue, "runnable_count") ? queue.runnable_count : (Array.isArray(queue.rows) ? queue.rows.length : 0))}; stale=${queue.snapshot_file_freshness_status || "unknown"}; blocked=${dailyDriverCount(queue.blocked_row_count)}; invalid=${dailyDriverCount(queue.invalid_row_count)}`,
+      queue.error ? "review" : dailyDriverCount(queue.invalid_row_count) || dailyDriverCount(queue.blocked_row_count) ? "review" : "ready",
+      `rows=${Array.isArray(queue.rows) ? queue.rows.length : 0}; runnable=${dailyDriverCount(Object.prototype.hasOwnProperty.call(queue, "runnable_count") ? queue.runnable_count : (Array.isArray(queue.rows) ? queue.rows.length : 0))}; age=${queue.snapshot_file_freshness_status || "unknown"}; blocked=${dailyDriverCount(queue.blocked_row_count)}; invalid=${dailyDriverCount(queue.invalid_row_count)}`,
       queue.error
         ? "Open Queue and Diagnostics; queue payload reported an error."
         : String(queue.snapshot_file_freshness_status || "").toLowerCase() === "stale"
-          ? "Refresh Queue before Launch because stale snapshots can disagree with current state."
+          ? "Snapshot age is informational; Run Once rebuilds and fingerprint-verifies the queue before media dispatch."
           : "Use Launch only after Queue row guidance and schedule/settings preflight look correct.",
     ));
 

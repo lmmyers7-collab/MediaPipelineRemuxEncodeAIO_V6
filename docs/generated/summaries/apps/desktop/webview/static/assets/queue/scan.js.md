@@ -1,5 +1,8 @@
 ---
 file: apps/desktop/webview/static/assets/queue/scan.js
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: JavaScript
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
@@ -9,6 +12,10 @@ sha256: 4e5c37a4872e1203380581edfa804c8289e5f4f1bdac8fe4021ee5fb364296fe
 ---
 # `apps/desktop/webview/static/assets/queue/scan.js`
 
-**Purpose:** (unparsed)
+**Purpose:** JavaScript implementation for scan; exposes createQueueScanModule, requestQueueScan.
+
+**Public symbols:** `createQueueScanModule`, `requestQueueScan`
+**In-repo imports:** `window.__queueScanModule`, `window.mediaPipelineAppRefresh`
+**HTTP routes:** `/api/queue/scan`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/queue/scan.js`._

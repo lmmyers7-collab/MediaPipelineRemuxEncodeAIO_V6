@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mediapipeline.core.queue.file_overrides import FileOverrideManifestReadError, read_file_overrides
+from mediapipeline.core.paths.queue_input_fingerprint import queue_input_consistency
 from mediapipeline.core.queue.priority_manifest import (
     PriorityManifestReadError,
     get_manifest_entry,
@@ -173,8 +174,11 @@ class QueueFacadeMixin:
                 queue_scan_status=queue_scan_status,
                 source_inventory=source_inventory,
             )
+        input_consistency = queue_input_consistency(resolved, snapshot)
+        snapshot_has_input_fingerprint = bool(str(snapshot.get("queue_input_fingerprint") or "").strip())
+        inputs_current = input_consistency.get("status") == "current" or not snapshot_has_input_fingerprint
         priority_manifest: dict[str, object] | None = None
-        if resolved.priority_manifest_path is not None:
+        if inputs_current and resolved.priority_manifest_path is not None:
             try:
                 priority_manifest = read_priority_manifest(resolved.priority_manifest_path, fail_closed=True)
             except PriorityManifestReadError as exc:
@@ -186,7 +190,7 @@ class QueueFacadeMixin:
                     source_inventory=source_inventory,
                 )
         file_override_manifest = None
-        if resolved.file_overrides_path is not None:
+        if inputs_current and resolved.file_overrides_path is not None:
             try:
                 file_override_manifest = read_file_overrides(resolved.file_overrides_path)
             except FileOverrideManifestReadError as exc:
@@ -220,6 +224,17 @@ class QueueFacadeMixin:
         rows = queue_apply_runtime_outcomes(rows, runtime_events)
         normal_rows = rows
         warnings = queue_preview_warnings(normal_rows)
+        if input_consistency.get("status") != "current":
+            changed = ", ".join(str(item) for item in input_consistency.get("changed_inputs") or [])
+            if snapshot_has_input_fingerprint:
+                warnings.append(
+                    "Queue inputs changed after this snapshot was produced; launch is blocked until Queue scan completes"
+                    + (f" ({changed})." if changed else ".")
+                )
+            else:
+                warnings.append(
+                    "This legacy Queue snapshot has no input fingerprint; launch is blocked until Queue scan completes."
+                )
         if runtime_outcome_warning:
             warnings.append(runtime_outcome_warning)
         metadata_snapshot = dict(snapshot)
@@ -241,6 +256,30 @@ class QueueFacadeMixin:
         metadata["dedicated_rerun_visible_count"] = 0
         metadata["queue_sources"] = ["normal_queue"]
         metadata["rerun_correlation"] = {}
+        request_id = str(snapshot.get("desktop_queue_preview_request_id") or "").strip()
+        scan_failed = str(queue_scan_status.get("status") or "").casefold() == "failed"
+        fallback_used = bool(snapshot.get("desktop_queue_snapshot_fallback_used")) or scan_failed
+        fallback_reason = str(snapshot.get("desktop_queue_snapshot_fallback_reason") or "").strip()
+        if scan_failed and not fallback_reason:
+            fallback_reason = str(queue_scan_status.get("message") or "The latest Queue scan failed; showing cached evidence.")
+        metadata["queue_preview_request_id"] = request_id
+        metadata["queue_snapshot_origin"] = str(snapshot.get("queue_snapshot_origin") or "unknown")
+        metadata["queue_snapshot_fallback"] = {
+            "schema_version": "desktop_queue_snapshot_fallback.v1",
+            "used": fallback_used,
+            "reason": fallback_reason,
+            "failed_scan_id": str(queue_scan_status.get("scan_id") or "") if scan_failed else "",
+            "cached_request_id": request_id if fallback_used else "",
+        }
+        metadata["queue_input_consistency"] = input_consistency
+        metadata["queue_plan_fingerprint"] = str(snapshot.get("queue_plan_fingerprint") or "")
+        metadata["queue_plan_fingerprint_schema"] = str(snapshot.get("queue_plan_fingerprint_schema") or "")
+        pending_health = snapshot.get("pending_publish_index_health")
+        metadata["pending_publish_index_health"] = dict(pending_health) if isinstance(pending_health, dict) else {}
+        pending_backpressure = snapshot.get("pending_publish_backpressure")
+        metadata["pending_publish_backpressure"] = (
+            dict(pending_backpressure) if isinstance(pending_backpressure, dict) else {}
+        )
         queue_progress = queue_source_scan_progress_payload(
             source=str(snapshot_path),
             row_count=len(rows),

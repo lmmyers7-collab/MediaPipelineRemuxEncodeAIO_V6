@@ -4,7 +4,8 @@
 function Invoke-MediaPipelineEncode {
     param($file, [bool]$isTV, $tvInfo)
 
-    $encodeContext = New-MediaPipelineEncodeContext -File $file -IsTV:$isTV -TvInfo $tvInfo
+    $acceptedOutputPaths = Get-Variable -Name CurrentAcceptedOutputPaths -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+    $encodeContext = New-MediaPipelineEncodeContext -File $file -IsTV:$isTV -TvInfo $tvInfo -OutputPaths $acceptedOutputPaths
 
     try {
         foreach ($stage in @(

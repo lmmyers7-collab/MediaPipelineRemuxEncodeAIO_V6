@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -20,6 +21,64 @@ except ImportError:  # pragma: no cover - fallback for direct test execution
 
 
 class BrowserSmokeSupportTests(unittest.TestCase):
+    def _invoke_browser_wrapper_fixture(
+        self,
+        *,
+        allow_skipped_tests: bool,
+        fixture_source: str | None = None,
+        module: str = "browser_smoke_skip_fixture",
+        wrapper_timeout_seconds: int = 30,
+    ) -> tuple[subprocess.CompletedProcess[str], dict[str, object]]:
+        powershell = shutil.which("powershell") or shutil.which("pwsh")
+        if not powershell:
+            self.skipTest("PowerShell is required for the browser wrapper contract test.")
+        project_root = find_repo_root(Path(__file__))
+        common_path = project_root / "ops" / "scripts" / "smoke" / "webview_browser_smoke_common.ps1"
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            (root / f"{module}.py").write_text(
+                fixture_source
+                or (
+                    "import unittest\n\n"
+                    "class BrowserSmokeSkipFixture(unittest.TestCase):\n"
+                    "    def test_missing_prerequisite(self):\n"
+                    "        self.skipTest('injected prerequisite failure')\n"
+                ),
+                encoding="utf-8",
+            )
+            def quote(value: object) -> str:
+                return str(value).replace("'", "''")
+
+            allow_argument = " -AllowSkippedTests" if allow_skipped_tests else ""
+            driver = root / "invoke-wrapper.ps1"
+            driver.write_text(
+                f". '{quote(common_path)}'\n"
+                f"Invoke-WebViewBrowserSmokeUnittest -ProjectRoot '{quote(project_root)}' "
+                f"-Module '{quote(module)}' -TimeoutSeconds {wrapper_timeout_seconds}{allow_argument}\n",
+                encoding="utf-8",
+            )
+            environment = os.environ.copy()
+            environment["PYTHONPATH"] = str(root)
+            result = subprocess.run(
+                [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(driver)],
+                text=True,
+                capture_output=True,
+                check=False,
+                env=environment,
+                timeout=max(30, wrapper_timeout_seconds + 10),
+            )
+
+        json_results = []
+        for line in result.stdout.splitlines():
+            try:
+                parsed = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict) and parsed.get("kind") == "webview_browser_smoke":
+                json_results.append(parsed)
+        self.assertEqual(len(json_results), 1, result.stdout + result.stderr)
+        return result, json_results[0]
+
     def test_namespace_promotion_respects_sticky_test_global_masks(self) -> None:
         node = shutil.which("node")
         if not node:
@@ -154,6 +213,191 @@ class BrowserSmokeSupportTests(unittest.TestCase):
                 missing.append(path.name)
 
         self.assertEqual(missing, [])
+
+    def test_runner_failure_still_executes_media_no_mutation_finalizer(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            media = root / "Source" / "Sample.mkv"
+            media.parent.mkdir(parents=True, exist_ok=True)
+            media.write_bytes(b"before")
+            support.capture_media_no_mutation_snapshot(root)
+
+            def fake_run(args: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+                media.write_bytes(b"mutated by injected runner failure")
+                return subprocess.CompletedProcess(args, 1, stdout="", stderr="injected runner failure")
+
+            with patch.object(support.subprocess, "run", side_effect=fake_run), self.assertRaisesRegex(
+                AssertionError, "injected runner failure"
+            ) as raised:
+                support.run_node_browser_smoke(
+                    "browser support mutation finalizer",
+                    node="node",
+                    runner_path=Path("runner.cjs"),
+                    payload_path=Path("payload.json"),
+                    timeout_seconds=5,
+                )
+
+        notes = getattr(raised.exception, "__notes__", [])
+        self.assertTrue(any("No-mutation finalizer failed" in note for note in notes), notes)
+        self.assertEqual(support._PENDING_MEDIA_NO_MUTATION_SNAPSHOTS.get(), ())
+
+    def test_successful_runner_fails_closed_when_media_finalizer_detects_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            media = root / "Source" / "Sample.mkv"
+            media.parent.mkdir(parents=True, exist_ok=True)
+            media.write_bytes(b"before")
+            support.capture_media_no_mutation_snapshot(root)
+
+            def fake_run(args: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+                media.write_bytes(b"mutated by successful runner")
+                return subprocess.CompletedProcess(args, 0, stdout='{"ok": true}\n', stderr="")
+
+            with patch.object(support.subprocess, "run", side_effect=fake_run), self.assertRaisesRegex(
+                AssertionError, "No-mutation finalizer failed"
+            ):
+                support.run_node_browser_smoke(
+                    "browser support successful runner mutation",
+                    node="node",
+                    runner_path=Path("runner.cjs"),
+                    payload_path=Path("payload.json"),
+                    timeout_seconds=5,
+                )
+
+        self.assertEqual(support._PENDING_MEDIA_NO_MUTATION_SNAPSHOTS.get(), ())
+
+    def test_browser_wrapper_emits_strict_machine_readable_skip_result(self) -> None:
+        result, payload = self._invoke_browser_wrapper_fixture(allow_skipped_tests=False)
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(payload["schema_version"], 1)
+        self.assertEqual(payload["outcome"], "skipped_disallowed")
+        self.assertEqual(payload["wrapper_exit_code"], 1)
+        self.assertEqual(payload["test_exit_code"], 0)
+        self.assertEqual(payload["tests_run"], 1)
+        self.assertEqual(payload["skipped_count"], 1)
+        self.assertFalse(payload["allow_skipped_tests"])
+        self.assertTrue(payload["prerequisites"]["python"]["available"])
+        self.assertIn("node", payload["prerequisites"])
+        self.assertIn("browser", payload["prerequisites"])
+        expected_missing = sorted(
+            name
+            for name, prerequisite in payload["prerequisites"].items()
+            if not prerequisite["available"]
+        )
+        self.assertEqual(sorted(payload["missing_prerequisites"]), expected_missing)
+        self.assertEqual(
+            payload["reason_category"],
+            "missing_browser_prerequisite" if expected_missing else "test_reported_skip",
+        )
+        self.assertTrue(payload["reason"])
+
+    def test_browser_wrapper_emits_machine_readable_missing_python_prerequisite(self) -> None:
+        powershell = shutil.which("powershell") or shutil.which("pwsh")
+        if not powershell:
+            self.skipTest("PowerShell is required for the browser wrapper contract test.")
+        project_root = find_repo_root(Path(__file__))
+        common_path = project_root / "ops" / "scripts" / "smoke" / "webview_browser_smoke_common.ps1"
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            driver = root / "invoke-wrapper.ps1"
+            quoted_common = str(common_path).replace("'", "''")
+            quoted_root = str(root).replace("'", "''")
+            driver.write_text(
+                f". '{quoted_common}'\n"
+                f"Invoke-WebViewBrowserSmokeUnittest -ProjectRoot '{quoted_root}' -Module 'not_started'\n",
+                encoding="utf-8",
+            )
+            environment = os.environ.copy()
+            environment["PATH"] = ""
+            result = subprocess.run(
+                [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(driver)],
+                text=True,
+                capture_output=True,
+                check=False,
+                env=environment,
+                timeout=30,
+            )
+
+        json_results = []
+        for line in result.stdout.splitlines():
+            try:
+                parsed = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict) and parsed.get("kind") == "webview_browser_smoke":
+                json_results.append(parsed)
+        self.assertEqual(len(json_results), 1, result.stdout + result.stderr)
+        payload = json_results[0]
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(payload["outcome"], "prerequisite_failed")
+        self.assertEqual(payload["wrapper_exit_code"], 1)
+        self.assertIsNone(payload["test_exit_code"])
+        self.assertEqual(payload["tests_run"], 0)
+        self.assertFalse(payload["prerequisites"]["python"]["available"])
+        self.assertFalse(payload["prerequisites"]["node"]["available"])
+        self.assertEqual(payload["reason_category"], "missing_browser_prerequisite")
+        self.assertIn("python", payload["missing_prerequisites"])
+        self.assertIn("node", payload["missing_prerequisites"])
+        self.assertTrue(payload["reason"])
+
+    def test_browser_wrapper_allows_skips_only_when_explicit_and_reports_them(self) -> None:
+        result, payload = self._invoke_browser_wrapper_fixture(allow_skipped_tests=True)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(payload["outcome"], "skipped_allowed")
+        self.assertEqual(payload["wrapper_exit_code"], 0)
+        self.assertEqual(payload["test_exit_code"], 0)
+        self.assertEqual(payload["tests_run"], 1)
+        self.assertEqual(payload["skipped_count"], 1)
+        self.assertTrue(payload["allow_skipped_tests"])
+        self.assertIn(payload["reason_category"], {"missing_browser_prerequisite", "test_reported_skip"})
+        self.assertTrue(payload["reason"])
+
+    def test_browser_wrapper_drains_chatty_stderr_without_deadlock(self) -> None:
+        result, payload = self._invoke_browser_wrapper_fixture(
+            allow_skipped_tests=False,
+            module="browser_smoke_chatty_fixture",
+            wrapper_timeout_seconds=10,
+            fixture_source=(
+                "import sys\n"
+                "import unittest\n\n"
+                "sys.stderr.write('fixture-noise-' * 32768)\n"
+                "sys.stderr.flush()\n\n"
+                "class BrowserSmokeChattyFixture(unittest.TestCase):\n"
+                "    def test_passes(self):\n"
+                "        self.assertTrue(True)\n"
+            ),
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout[-8000:] + result.stderr[-8000:])
+        self.assertEqual(payload["outcome"], "passed")
+        self.assertEqual(payload["tests_run"], 1)
+        self.assertEqual(payload["timeout_seconds"], 10)
+        self.assertFalse(payload["process_timed_out"])
+
+    def test_browser_wrapper_timeout_is_bounded_and_machine_readable(self) -> None:
+        result, payload = self._invoke_browser_wrapper_fixture(
+            allow_skipped_tests=False,
+            module="browser_smoke_timeout_fixture",
+            wrapper_timeout_seconds=1,
+            fixture_source=(
+                "import time\n"
+                "import unittest\n\n"
+                "class BrowserSmokeTimeoutFixture(unittest.TestCase):\n"
+                "    def test_times_out(self):\n"
+                "        time.sleep(10)\n"
+            ),
+        )
+
+        self.assertEqual(result.returncode, 124, result.stdout + result.stderr)
+        self.assertEqual(payload["outcome"], "timed_out")
+        self.assertEqual(payload["wrapper_exit_code"], 124)
+        self.assertEqual(payload["test_exit_code"], 124)
+        self.assertEqual(payload["reason_category"], "harness_timeout")
+        self.assertEqual(payload["timeout_seconds"], 1)
+        self.assertTrue(payload["process_timed_out"])
+        self.assertIn("bounded 1-second timeout", payload["reason"])
 
     def test_retries_once_after_no_output_native_runner_crash(self) -> None:
         calls: list[list[str]] = []

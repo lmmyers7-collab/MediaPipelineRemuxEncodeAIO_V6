@@ -154,6 +154,26 @@ $nativeAborted = Get-MediaPipelineOutcomeCodeMetadata -Code 'NATIVE_ABORTED'
 if (-not $nativeAborted -or $nativeAborted.Family -ne 'process_lifecycle' -or $nativeAborted.Stage -ne 'process-lifecycle' -or -not [bool]$nativeAborted.Retryable -or $nativeAborted.OperatorSeverity -ne 'warning' -or $nativeAborted.HandledBy -notmatch 'Native') {
     throw 'NATIVE_ABORTED metadata should be registered as a retryable native process-lifecycle outcome.'
 }
+$scratchReuse = Get-MediaPipelineOutcomeCodeMetadata -Code 'SCRATCH_COPY_REUSED'
+if (-not $scratchReuse -or $scratchReuse.Family -ne 'non_failure_outcome' -or $scratchReuse.Stage -ne 'source-intake' -or [bool]$scratchReuse.Retryable -or $scratchReuse.OperatorSeverity -ne 'info' -or $scratchReuse.HandledBy -notmatch 'ScratchCopy' -or $scratchReuse.OperatorAction -notmatch 'No repair action') {
+    throw 'SCRATCH_COPY_REUSED metadata should remain a non-retryable informational source-intake outcome.'
+}
+$scratchUnsafe = Get-MediaPipelineOutcomeCodeMetadata -Code 'SCRATCH_SAFE_NAME_UNSAFE'
+if (-not $scratchUnsafe -or $scratchUnsafe.Family -ne 'source_media' -or $scratchUnsafe.Stage -ne 'source-intake' -or [bool]$scratchUnsafe.Retryable -or $scratchUnsafe.OperatorSeverity -ne 'error' -or $scratchUnsafe.OperatorAction -notmatch 'Do not bypass the scratch boundary') {
+    throw 'SCRATCH_SAFE_NAME_UNSAFE metadata should fail closed with boundary-repair guidance.'
+}
+$pendingBackpressure = Get-MediaPipelineOutcomeCodeMetadata -Code 'PENDING_PUBLISH_BACKPRESSURE_BLOCKED'
+if (-not $pendingBackpressure -or $pendingBackpressure.Family -ne 'publish' -or $pendingBackpressure.Stage -ne 'publish' -or -not [bool]$pendingBackpressure.Retryable -or $pendingBackpressure.OperatorSeverity -ne 'warning' -or $pendingBackpressure.HandledBy -notmatch 'PendingPush' -or $pendingBackpressure.OperatorAction -notmatch 'pending publish manifests') {
+    throw 'PENDING_PUBLISH_BACKPRESSURE_BLOCKED metadata should direct the operator to manifest-backed publish recovery.'
+}
+$destinationEvidenceMissing = Get-MediaPipelineOutcomeCodeMetadata -Code 'DESTINATION_NAMING_EVIDENCE_MISSING'
+if (-not $destinationEvidenceMissing -or $destinationEvidenceMissing.Family -ne 'destination_naming' -or $destinationEvidenceMissing.Stage -ne 'destination-naming' -or [bool]$destinationEvidenceMissing.Retryable -or $destinationEvidenceMissing.OperatorSeverity -ne 'error' -or $destinationEvidenceMissing.HandledBy -notmatch 'RunMonitorState' -or $destinationEvidenceMissing.OperatorAction -notmatch 'Refresh Queue') {
+    throw 'DESTINATION_NAMING_EVIDENCE_MISSING metadata should fail closed and direct the operator to refresh Queue.'
+}
+$destinationPlanMismatch = Get-MediaPipelineOutcomeCodeMetadata -Code 'DESTINATION_NAMING_PLAN_MISMATCH'
+if (-not $destinationPlanMismatch -or $destinationPlanMismatch.Family -ne 'destination_naming' -or $destinationPlanMismatch.Stage -ne 'destination-naming' -or [bool]$destinationPlanMismatch.Retryable -or $destinationPlanMismatch.OperatorSeverity -ne 'error' -or $destinationPlanMismatch.HandledBy -notmatch 'PipelineProcessing' -or $destinationPlanMismatch.OperatorAction -notmatch 'one-off cleanup filter') {
+    throw 'DESTINATION_NAMING_PLAN_MISMATCH metadata should fail closed without directing the operator to add another rename filter.'
+}
 if ($null -ne (Get-MediaPipelineOutcomeCodeMetadata -Code 'NOT_A_REAL_OUTCOME_CODE')) {
     throw 'Outcome metadata lookup returned metadata for an unknown outcome code.'
 }

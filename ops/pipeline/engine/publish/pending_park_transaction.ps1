@@ -27,6 +27,10 @@ function New-PendingParkSidecarEntries {
         if (-not (Test-Path -LiteralPath $sidecarLocal -ErrorAction SilentlyContinue)) {
             throw "pending sidecar source is missing: $sidecarLocal"
         }
+        $sidecarHash = Get-PendingFileSha256OrNull -Path $sidecarLocal
+        if ([string]::IsNullOrWhiteSpace($sidecarHash)) {
+            throw "pending sidecar SHA-256 proof could not be produced: $sidecarLocal"
+        }
         $sidecarLeaf = Split-Path $sidecarServer -Leaf
         if ([string]::IsNullOrWhiteSpace($sidecarLeaf)) { $sidecarLeaf = "sidecar$sidecarOrdinal.srt" }
         $sidecarParked = Join-Path $LocalPendingPushPath "${Timestamp}__${TransactionFileId}__sidecar${sidecarOrdinal}__${sidecarLeaf}"
@@ -37,6 +41,8 @@ function New-PendingParkSidecarEntries {
             parked_file         = $sidecarParked
             server_out          = $sidecarServer
             output_size         = Get-FileLengthOrNull $sidecarLocal
+            output_sha256       = $sidecarHash
+            output_hash_algorithm = 'SHA256'
             preserve_existing   = [bool](Get-PendingObjectProperty -Object $sidecar -Name 'PreserveExisting')
             tx3g_record         = Get-PendingObjectProperty -Object $sidecar -Name 'Record'
         })
@@ -84,7 +90,9 @@ function New-PendingParkManifest {
         # publish does.  Without this, movies parked-and-drained come
         # back blank in the Completed tab on the desktop UI.  Lower-cased
         # 'movie' / 'tv' to match Complete-PipelineOutputPublish.
-        [string] $MediaType = ''
+        [string] $MediaType = '',
+        [scriptblock] $HashPollHandler = $null,
+        [string] $OutputSha256 = ''
     )
 
     $manifest = [ordered]@{
@@ -93,7 +101,13 @@ function New-PendingParkManifest {
         product_version         = if ($script:ProductVersion) { [string]$script:ProductVersion } else { '' }
         pipeline_version       = $script:PipelineVersion
         publish_transaction_id = $PublishTransactionId
+        run_id                  = if ($script:PipelineRunId) { [string]$script:PipelineRunId } else { '' }
+        run_monitor_job_id      = if ($script:CurrentRunMonitorJobId) { [string]$script:CurrentRunMonitorJobId } else { '' }
         manifest_state         = 'pending_move'
+        transaction_phase      = 'manifest_prepared'
+        transaction_phase_at   = (Get-Date -Format 'o')
+        review_required        = $false
+        review_reason          = ''
         local_file             = $ParkedPath
         original_local_file    = $LocalOut
         parked_file            = $ParkedPath
@@ -109,7 +123,7 @@ function New-PendingParkManifest {
         source_size            = $SourceSize
         source_mtime_utc       = $SourceMTimeUtc
         output_size            = Get-FileLengthOrNull $LocalOut
-        output_sha256          = Get-PendingFileSha256OrNull $LocalOut
+        output_sha256          = if ([string]::IsNullOrWhiteSpace($OutputSha256)) { Get-PendingFileSha256OrNull -Path $LocalOut -PollHandler $HashPollHandler } else { $OutputSha256 }
         output_hash_algorithm  = 'SHA256'
         drain_attempt_id       = ''
         drain_attempt_started_at = ''
@@ -128,6 +142,8 @@ function New-PendingParkManifest {
         vobsub_srt_failures    = @($VobSubSrtFailures)
         converted_srt_sidecar_candidates = @($ConvertedSrtSidecarCandidates)
         subtitle_output_reduction = @($SubtitleOutputReduction)
+        audio_decisions        = if (Get-Command -Name Get-LastAudioDecisionRecords -ErrorAction SilentlyContinue) { @(Get-LastAudioDecisionRecords) } else { @() }
+        subtitle_decisions     = if (Get-Command -Name Get-LastSubtitleDecisionRecords -ErrorAction SilentlyContinue) { @(Get-LastSubtitleDecisionRecords) } else { @() }
         subtitle_conversion_results = if ($script:LastSubtitleConversionResults) { @($script:LastSubtitleConversionResults) } else { @() }
         tx3g_embedded_srt_tracks = @($Tx3gEmbeddedSrtTracks)
         bdpgs_embedded_srt_tracks = @($BdpgsEmbeddedSrtTracks)
@@ -194,6 +210,7 @@ function Invoke-PendingParkTransaction {
     $parked = ''
     $manifestPath = ''
     $sidecarManifestEntries = @()
+    $manifest = $null
     $leaf = Split-Path $LocalOut -Leaf
     try {
         if (-not (Test-Path -LiteralPath $LocalOut)) {
@@ -210,21 +227,32 @@ function Invoke-PendingParkTransaction {
         $id = [guid]::NewGuid().ToString("N")
         $parked = Join-Path $LocalPendingPush "${ts}__${id}__${leaf}"
         if ([string]::IsNullOrWhiteSpace($PublishTransactionId)) { $PublishTransactionId = New-PublishTransactionId }
-        $sidecarManifestEntries = @(New-PendingParkSidecarEntries -SidecarFiles $SidecarFiles -LocalPendingPushPath $LocalPendingPush -Timestamp $ts -TransactionFileId $id)
 
-        foreach ($sidecar in @($sidecarManifestEntries)) {
-            $sidecarOriginal = [string]$sidecar.original_local_file
-            $sidecarParked = [string]$sidecar.local_file
-            $sidecarDir = Split-Path $sidecarParked -Parent
-            if ($sidecarDir -and -not (Test-Path -LiteralPath $sidecarDir)) {
-                [System.IO.Directory]::CreateDirectory($sidecarDir) | Out-Null
-            }
-            $sidecarCopy = Copy-SrtAtomic -SourcePath $sidecarOriginal -DestinationPath $sidecarParked
-            if (-not $sidecarCopy.Ok) {
-                throw "pending sidecar park failed for $sidecarOriginal : $($sidecarCopy.Reason)"
-            }
+        Invoke-PendingPublishFaultPoint -Boundary 'byte_hash_verification' -Moment 'before' -Context @{
+            scope = 'park'; local_file = $LocalOut; server_out = $ServerOut; transaction_id = $PublishTransactionId
+        }
+        $sidecarManifestEntries = @(New-PendingParkSidecarEntries -SidecarFiles $SidecarFiles -LocalPendingPushPath $LocalPendingPush -Timestamp $ts -TransactionFileId $id)
+        $pendingHashPollHandler = if (Get-Command -Name New-MediaPipelineCurrentStageNativePollHandler -ErrorAction SilentlyContinue) {
+            New-MediaPipelineCurrentStageNativePollHandler `
+                -Stage 'push' `
+                -Status 'Hashing verified output for pending-publish manifest' `
+                -Route $Route `
+                -MinimumIntervalSeconds 15 `
+                -EvidenceSource 'pending_publish_hash_heartbeat'
+        } else {
+            $null
+        }
+        $outputHash = Get-PendingFileSha256OrNull -Path $LocalOut -PollHandler $pendingHashPollHandler
+        if ([string]::IsNullOrWhiteSpace($outputHash)) {
+            throw "pending park SHA-256 proof could not be produced for $LocalOut"
+        }
+        Invoke-PendingPublishFaultPoint -Boundary 'byte_hash_verification' -Moment 'after' -Context @{
+            scope = 'park'; local_file = $LocalOut; server_out = $ServerOut; transaction_id = $PublishTransactionId
         }
 
+        Invoke-PendingPublishFaultPoint -Boundary 'manifest_preparation' -Moment 'before' -Context @{
+            scope = 'park'; local_file = $LocalOut; server_out = $ServerOut; transaction_id = $PublishTransactionId
+        }
         $manifest = New-PendingParkManifest `
             -LocalOut $LocalOut `
             -ParkedPath $parked `
@@ -258,23 +286,77 @@ function Invoke-PendingParkTransaction {
             -DropVobSubAfterConversion:$DropVobSubAfterConversion `
             -FolderPolicyMetadata $FolderPolicyMetadata `
             -RoutePlanMetadata $RoutePlanMetadata `
-            -MediaType $MediaType
+            -MediaType $MediaType `
+            -HashPollHandler $pendingHashPollHandler `
+            -OutputSha256 $outputHash
 
         $manifestPath = "$parked.manifest.json"
-        if ([string]::IsNullOrWhiteSpace([string]$manifest.output_sha256)) {
-            throw "pending park SHA-256 proof could not be produced for $LocalOut"
-        }
         Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
         $roundTrip = Read-PendingManifestFile -Path $manifestPath
         if ([string]$roundTrip.local_file -ne $parked -or [string]$roundTrip.server_out -ne $ServerOut -or [string]$roundTrip.manifest_state -ne 'pending_move') {
             throw "pending manifest validation failed before park"
         }
+        $manifest = $roundTrip
+        Invoke-PendingPublishFaultPoint -Boundary 'manifest_preparation' -Moment 'after' -Context @{
+            scope = 'park'; manifest_path = $manifestPath; transaction_id = $PublishTransactionId
+        }
 
+        Invoke-PendingPublishFaultPoint -Boundary 'sidecar_staging' -Moment 'before' -Context @{
+            scope = 'park'; manifest_path = $manifestPath; transaction_id = $PublishTransactionId
+        }
+        foreach ($sidecar in @($sidecarManifestEntries)) {
+            $sidecarOriginal = [string]$sidecar.original_local_file
+            $sidecarParked = [string]$sidecar.local_file
+            $sidecarDir = Split-Path $sidecarParked -Parent
+            if ($sidecarDir -and -not (Test-Path -LiteralPath $sidecarDir)) {
+                [System.IO.Directory]::CreateDirectory($sidecarDir) | Out-Null
+            }
+            $sidecarCopy = Copy-SrtAtomic -SourcePath $sidecarOriginal -DestinationPath $sidecarParked
+            if (-not $sidecarCopy.Ok) {
+                throw "pending sidecar park failed for $sidecarOriginal : $($sidecarCopy.Reason)"
+            }
+        }
+        $manifest = Update-PendingManifestTransactionPhase -ManifestPath $manifestPath -Manifest $manifest -Phase 'sidecars_staged'
+        Invoke-PendingPublishFaultPoint -Boundary 'sidecar_staging' -Moment 'after' -Context @{
+            scope = 'park'; manifest_path = $manifestPath; transaction_id = $PublishTransactionId
+        }
+
+        Invoke-PendingPublishFaultPoint -Boundary 'pending_copy' -Moment 'before' -Context @{
+            scope = 'park'; manifest_path = $manifestPath; transaction_id = $PublishTransactionId
+        }
         [System.IO.File]::Move($LocalOut, $parked, $true)
+        $manifest = Update-PendingManifestTransactionPhase -ManifestPath $manifestPath -Manifest $manifest -Phase 'pending_copied'
+        Invoke-PendingPublishFaultPoint -Boundary 'pending_copy' -Moment 'after' -Context @{
+            scope = 'park'; manifest_path = $manifestPath; transaction_id = $PublishTransactionId
+        }
+
+        Invoke-PendingPublishFaultPoint -Boundary 'byte_hash_verification' -Moment 'before' -Context @{
+            scope = 'park_staged'; manifest_path = $manifestPath; transaction_id = $PublishTransactionId
+        }
+        $parkedHash = Get-PendingFileSha256OrNull -Path $parked
+        if ([string]::IsNullOrWhiteSpace($parkedHash) -or -not $parkedHash.Equals($outputHash, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "pending parked media SHA-256 verification failed for $parked"
+        }
+        foreach ($sidecar in @($sidecarManifestEntries)) {
+            $sidecarParked = [string]$sidecar.local_file
+            $expectedSidecarHash = [string]$sidecar.output_sha256
+            $actualSidecarHash = Get-PendingFileSha256OrNull -Path $sidecarParked
+            if ([string]::IsNullOrWhiteSpace($actualSidecarHash) -or -not $actualSidecarHash.Equals($expectedSidecarHash, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "pending parked sidecar SHA-256 verification failed for $sidecarParked"
+            }
+        }
+        $manifest = Update-PendingManifestTransactionPhase -ManifestPath $manifestPath -Manifest $manifest -Phase 'pending_verified'
+        Invoke-PendingPublishFaultPoint -Boundary 'byte_hash_verification' -Moment 'after' -Context @{
+            scope = 'park_staged'; manifest_path = $manifestPath; transaction_id = $PublishTransactionId
+        }
+
         $stateUpdateOk = $true
         try {
+            $manifest = ConvertTo-PendingManifestMap $manifest
             $manifest['manifest_state'] = 'parked'
             $manifest['parked_at'] = (Get-Date -Format 'o')
+            $manifest['transaction_phase'] = 'parked'
+            $manifest['transaction_phase_at'] = (Get-Date -Format 'o')
             Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
         } catch {
             $stateUpdateOk = $false
@@ -287,6 +369,7 @@ function Invoke-PendingParkTransaction {
             OutputSize = Get-FileLengthOrNull $parked; Leaf = $leaf; MediaMoved = $true; ManifestStateUpdateOk = $stateUpdateOk
         }
     } catch {
+        if (Test-PendingPublishInjectedTermination -ErrorRecord $_) { throw }
         $mediaParked = $parked -and (Test-Path -LiteralPath $parked -ErrorAction SilentlyContinue)
         if (-not $mediaParked) {
             foreach ($sidecar in @($sidecarManifestEntries)) {

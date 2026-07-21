@@ -13,9 +13,12 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.core.rename.preview import (
     build_naming_preview_request,
+    build_synthetic_naming_preview_request,
     find_naming_preview_script,
     load_pipeline_name_previews,
+    load_synthetic_pipeline_name_preview,
     parse_naming_preview_rows,
+    parse_synthetic_naming_preview_result,
 )
 from mediapipeline.core.rename.cleaning_policy import rename_cleaning_policy_from_config
 from mediapipeline.desktop.subprocess_runner import CapturedCommandResult
@@ -68,6 +71,96 @@ class RenamePreviewHelperTests(unittest.TestCase):
         self.assertEqual(payload["schema_version"], "naming_preview_request.v2")
         self.assertEqual(payload["rename_cleaning_policy"], policy)
         self.assertEqual(payload["rename_cleaning_policy"]["schema_version"], "rename_cleaning_policy.v1")
+
+    def test_build_synthetic_naming_preview_request_preserves_typed_folder_context_without_a_media_probe(self) -> None:
+        policy = rename_cleaning_policy_from_config({})
+
+        payload = build_synthetic_naming_preview_request(
+            filename="Edge.of.Tomorrow.2014.1080p.BluRay.DDP5.1.x265.10bit-GalaxyRG265",
+            source_folder="Movies",
+            media_kind="Movie",
+            cleaning_policy=policy,
+        )
+
+        self.assertEqual(payload["schema_version"], "naming_preview_request.v2")
+        self.assertEqual(payload["rename_cleaning_policy"], policy)
+        self.assertEqual(len(payload["items"]), 1)
+        item = payload["items"][0]
+        self.assertTrue(item["synthetic"])
+        self.assertEqual(item["source_folder"], "Movies")
+        self.assertEqual(
+            item["original_name"],
+            "Edge.of.Tomorrow.2014.1080p.BluRay.DDP5.1.x265.10bit-GalaxyRG265.mkv",
+        )
+        self.assertEqual(
+            item["input_name"],
+            "Edge.of.Tomorrow.2014.1080p.BluRay.DDP5.1.x265.10bit-GalaxyRG265",
+        )
+        self.assertEqual(item["extension"], ".mkv")
+        self.assertTrue(item["assumed_media_extension"])
+        self.assertEqual(item["media_kind"], "Movie")
+
+    def test_parse_synthetic_naming_preview_result_requires_matching_policy_and_synthetic_evidence(self) -> None:
+        fingerprint = "a" * 64
+        response = {
+            "schema_version": "naming_preview.v2",
+            "applied_policy_fingerprint": fingerprint,
+            "rows": [
+                {
+                    "ok": True,
+                    "synthetic": True,
+                    "source_path": r"Movies\Edge.of.Tomorrow.2014.mkv",
+                    "media_kind": "Movie",
+                    "file_base_name": "Edge of Tomorrow (2014)",
+                    "file_name": "Edge of Tomorrow (2014).mkv",
+                    "parsed_identity": {"media_kind": "Movie", "title": "Edge of Tomorrow", "year": 2014},
+                }
+            ],
+        }
+
+        parsed = parse_synthetic_naming_preview_result(
+            response,
+            media_kind="Movie",
+            expected_policy_fingerprint=fingerprint,
+            expected_source_path=r"Movies\Edge.of.Tomorrow.2014.mkv",
+        )
+        mismatched = parse_synthetic_naming_preview_result(
+            {**response, "applied_policy_fingerprint": "b" * 64},
+            media_kind="Movie",
+            expected_policy_fingerprint=fingerprint,
+            expected_source_path=r"Movies\Edge.of.Tomorrow.2014.mkv",
+        )
+        non_synthetic = parse_synthetic_naming_preview_result(
+            {**response, "rows": [{**response["rows"][0], "synthetic": False}]},
+            media_kind="Movie",
+            expected_policy_fingerprint=fingerprint,
+            expected_source_path=r"Movies\Edge.of.Tomorrow.2014.mkv",
+        )
+        wrong_row = parse_synthetic_naming_preview_result(
+            {
+                **response,
+                "rows": [
+                    {
+                        **response["rows"][0],
+                        "source_path": r"Movies\Wrong.Release.2014.mkv",
+                    }
+                ],
+            },
+            media_kind="Movie",
+            expected_policy_fingerprint=fingerprint,
+            expected_source_path=r"Movies\Edge.of.Tomorrow.2014.mkv",
+        )
+
+        self.assertTrue(parsed["ok"], parsed)
+        self.assertTrue(parsed["policy_fingerprint_match"])
+        self.assertEqual(parsed["row"]["file_name"], "Edge of Tomorrow (2014).mkv")
+        self.assertFalse(mismatched["ok"])
+        self.assertFalse(mismatched["policy_fingerprint_match"])
+        self.assertIn("policy fingerprint mismatch", mismatched["error"])
+        self.assertFalse(non_synthetic["ok"])
+        self.assertIn("synthetic evidence", non_synthetic["error"])
+        self.assertFalse(wrong_row["ok"])
+        self.assertIn("requested synthetic input", wrong_row["error"])
 
     def test_parse_naming_preview_rows_accepts_v1_and_v2_and_rejects_unknown_versions(self) -> None:
         for version in ("naming_preview.v1", "naming_preview.v2"):
@@ -192,6 +285,61 @@ class RenamePreviewHelperTests(unittest.TestCase):
 
         self.assertEqual(previews, {})
         self.assertIn("killed process tree", message)
+
+    def test_load_synthetic_pipeline_name_preview_runs_the_production_protocol(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            script = Path(td) / "Get-NamingPreview.ps1"
+            script.write_text("# test", encoding="utf-8")
+            policy = rename_cleaning_policy_from_config({})
+
+            def fake_run(args, **kwargs):
+                self.assertEqual(kwargs["label"], "pipeline movie synthetic naming preview")
+                input_path = Path(args[args.index("-InputJsonPath") + 1])
+                output_path = Path(args[args.index("-OutputJsonPath") + 1])
+                request = json.loads(input_path.read_text(encoding="utf-8"))
+                self.assertTrue(request["items"][0]["synthetic"])
+                output_path.write_text(
+                    json.dumps(
+                        {
+                            "schema_version": "naming_preview.v2",
+                            "applied_policy_fingerprint": policy["policy_fingerprint"],
+                            "rows": [
+                                {
+                                    "ok": True,
+                                    "synthetic": True,
+                                    "source_path": request["items"][0]["path"],
+                                    "media_kind": "Movie",
+                                    "file_base_name": "Edge of Tomorrow (2014)",
+                                    "file_name": "Edge of Tomorrow (2014)",
+                                    "parsed_identity": {
+                                        "media_kind": "Movie",
+                                        "title": "Edge of Tomorrow",
+                                        "year": 2014,
+                                    },
+                                }
+                            ],
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                return CapturedCommandResult(args=args, returncode=0, stdout="", stderr="")
+
+            result = load_synthetic_pipeline_name_preview(
+                filename="Edge.of.Tomorrow.2014.1080p.BluRay.DDP5.1.x265.10bit-GalaxyRG265",
+                source_folder="Movies",
+                media_kind="Movie",
+                powershell_host="pwsh",
+                script_path=script,
+                timeout_seconds=8,
+                hidden_kwargs={},
+                logger=self._logger(),
+                run_capture_func=fake_run,
+                cleaning_policy=policy,
+            )
+
+        self.assertTrue(result["ok"], result)
+        self.assertTrue(result["policy_fingerprint_match"])
+        self.assertEqual(result["row"]["file_name"], "Edge of Tomorrow (2014)")
 
 
 if __name__ == "__main__":

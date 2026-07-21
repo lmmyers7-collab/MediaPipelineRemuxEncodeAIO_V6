@@ -194,15 +194,27 @@ def rename_cleaning_policy_from_config(config: Mapping[str, Any] | object | None
     })
 
 
-def rename_cleaning_policy_from_request(request: Mapping[str, Any]) -> dict[str, Any]:
+def rename_cleaning_policy_from_request(
+    request: Mapping[str, Any],
+    parse_remove_terms: Callable[[str], list[str]] | None = None,
+) -> dict[str, Any]:
+    movie_remove_terms = remove_terms_from_request(request, parse_remove_terms)
+    tv_remove_terms = remove_terms_from_request(
+        request,
+        parse_remove_terms,
+        key="tv_remove_terms",
+        text_key="tv_remove_terms_text",
+        fallback_key="remove_terms",
+        fallback_text_key="remove_terms_text",
+    )
     return normalize_rename_cleaning_policy(
         {
             "movie_filter_options": request.get("movie_filter_options"),
             "movie_filter_terms": request.get("movie_filter_terms"),
-            "remove_terms": request.get("remove_terms"),
+            "remove_terms": movie_remove_terms,
             "tv_filter_options": request.get("tv_filter_options"),
             "tv_filter_terms": request.get("tv_filter_terms"),
-            "tv_remove_terms": request.get("tv_remove_terms"),
+            "tv_remove_terms": tv_remove_terms,
         }
     )
 

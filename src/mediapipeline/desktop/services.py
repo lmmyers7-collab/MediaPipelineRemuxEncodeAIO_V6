@@ -4,6 +4,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import threading
 from pathlib import Path
+from typing import Callable
 
 from .models import CompletedJobRecord, TelemetrySnapshot
 from mediapipeline.tools.paths import find_repo_root
@@ -119,6 +120,7 @@ class DesktopAppService(
         self._queue_completed_unverified: int = 0
         self._queue_scan_limited: bool = False
         self._queue_completed_cache_status: str = "Completed cache: not checked"
+        self._queue_dry_run_cleanup_warnings: list[str] = []
         self._last_spawn_stdout_log: Path | None = None
         self._last_spawn_stderr_log: Path | None = None
         self._active_spawned_processes_lock = threading.Lock()
@@ -126,6 +128,7 @@ class DesktopAppService(
         self._pending_lifecycle_lease_lock = threading.Lock()
         self._pending_lifecycle_lease: object | None = None
         self._active_job_reconciliation_provider = None
+        self._process_terminal_command_evidence_recorder: Callable[..., None] | None = None
         self._active_job_reconciliation_stop = threading.Event()
         self._active_job_reconciliation_thread: threading.Thread | None = None
         self.logger = self._create_logger()
@@ -134,6 +137,29 @@ class DesktopAppService(
 
     def configure_active_job_reconciliation(self, resolved_provider) -> None:
         self._active_job_reconciliation_provider = resolved_provider
+
+    def configure_process_terminal_command_evidence(self, recorder: Callable[..., None]) -> None:
+        self._process_terminal_command_evidence_recorder = recorder
+
+    def record_process_terminal_command_evidence(
+        self,
+        *,
+        command_id: str,
+        phase: str,
+        return_code: int | None,
+        pid: int,
+        mode: str,
+    ) -> None:
+        recorder = self._process_terminal_command_evidence_recorder
+        if recorder is None:
+            return
+        recorder(
+            command_id=command_id,
+            phase=phase,
+            return_code=return_code,
+            pid=pid,
+            mode=mode,
+        )
 
     def start_background_tasks(self) -> None:
         super().start_background_tasks()

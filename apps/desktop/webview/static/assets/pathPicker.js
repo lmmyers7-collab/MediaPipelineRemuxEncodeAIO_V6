@@ -123,9 +123,9 @@
       commandHistoryAppend(result);
       const data = result?.data && typeof result.data === "object" ? result.data : {};
       const selectedPath = String(data.selected_path || "");
-      if (result.ok && !data.canceled && selectedPath) {
+      if (!data.canceled && selectedPath) {
         stageSelectedPath(button, input, selectedPath);
-        setStatus(button, "Path staged.");
+        setStatus(button, result.ok ? "Path staged." : (result?.message || "Path staged; review validation before saving."));
       } else if (data.canceled) {
         setStatus(button, "Picker canceled.");
       } else {

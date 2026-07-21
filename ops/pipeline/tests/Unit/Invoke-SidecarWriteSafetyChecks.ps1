@@ -55,6 +55,55 @@ function Write-Log {
     )
 }
 
+function New-StandardFailureRecord {
+    param(
+        [string]$Stage,
+        [string]$Operation,
+        [string]$Category,
+        [string]$Reason,
+        [string]$ErrorCode,
+        [string]$Tool,
+        [string]$ReproPath,
+        [bool]$Retryable,
+        [hashtable]$AdditionalProperties = @{}
+    )
+    $record = [ordered]@{ Stage = $Stage; Reason = $Reason; ErrorCode = $ErrorCode }
+    foreach ($key in $AdditionalProperties.Keys) { $record[$key] = $AdditionalProperties[$key] }
+    return [pscustomobject]$record
+}
+
+$script:SubtitleSidecarProgressCalls = [System.Collections.Generic.List[object]]::new()
+function Write-SubtitleTrackProgress {
+    param(
+        [string]$Kind,
+        [string]$TrackId = '',
+        [int]$StreamIndex = -1,
+        [string]$Stage,
+        [string]$Status,
+        [int]$StepIndex = 0,
+        [int]$StepTotal = 4,
+        [array]$Steps = @(),
+        [string]$Detail = '',
+        [object]$CueCount = $null,
+        [string]$OutputCodec = '',
+        [string]$OutputLocation = '',
+        [string]$OutputPath = '',
+        [switch]$Completed,
+        [switch]$Failed
+    )
+    $script:SubtitleSidecarProgressCalls.Add([pscustomobject]@{
+        Kind = $Kind
+        TrackId = $TrackId
+        StreamIndex = $StreamIndex
+        Stage = $Stage
+        OutputCodec = $OutputCodec
+        OutputLocation = $OutputLocation
+        OutputPath = $OutputPath
+        Completed = [bool]$Completed
+        Failed = [bool]$Failed
+    }) | Out-Null
+}
+
 . $sidecarModule
 . $publishPartialModule
 . $publishSidecarsModule
@@ -81,6 +130,7 @@ Assert-True ($srtText -match 'function Move-SrtTempIntoPlace') 'SRT overwrite fa
 Assert-True ($srtText -match '\[System\.IO\.File\]::Move\(\$TempPath,\s*\$DestinationPath,\s*\$true\)') 'SRT fallback must use overwrite move.'
 
 $assEntry = @{
+    TrackId = 'subtitle:embedded:10'
     Stream = [pscustomobject]@{ index = 10 }
     Lang = 'eng'
     Title = 'English ASS'
@@ -100,6 +150,12 @@ Assert-Equal $assRecord.conversion_kind 'ass_to_srt' 'TX3G sidecar record should
 Assert-Equal $assRecord.source_subtitle_kind 'ass' 'TX3G sidecar record should preserve the source subtitle kind for non-TX3G SRT sidecars.'
 Assert-Equal $assRecord.source_subtitle_codec 'ass' 'TX3G sidecar record should preserve the source subtitle codec for non-TX3G SRT sidecars.'
 Assert-Equal $assRecord.source_kind 'embedded' 'TX3G sidecar record should preserve embedded-vs-sidecar provenance.'
+Assert-Equal $assRecord.track_id 'subtitle:embedded:10' 'SRT sidecar records must retain exact backend subtitle identity.'
+Assert-Equal $assRecord.output_codec 'subrip' 'SRT sidecar records must retain terminal codec evidence.'
+Assert-Equal $assRecord.output_location 'external_sidecar' 'SRT sidecar records must retain terminal placement evidence.'
+Assert-Equal $assRecord.output_path 'movie.eng.ass.srt' 'SRT sidecar records must retain the exact output path.'
+$assFailureRecord = New-Tx3gFailureRecord -Entry $assEntry -Reason 'test failure' -ErrorCode 'SUBTITLE_TX3G_SRT_PUBLISH_FAILED'
+Assert-Equal $assFailureRecord.track_id 'subtitle:embedded:10' 'Subtitle sidecar failure evidence must retain exact backend track identity.'
 $legacyTx3gEntry = @{
     Stream = [pscustomobject]@{ index = 11 }
     Lang = 'eng'
@@ -168,7 +224,18 @@ try {
     $destinationSrt = Join-Path $root 'movie.eng.tx3g.srt'
     [System.IO.File]::WriteAllText($sourceSrt, 'new srt', [System.Text.UTF8Encoding]::new($false))
     [System.IO.File]::WriteAllText($destinationSrt, 'old srt', [System.Text.UTF8Encoding]::new($false))
-    $record = [pscustomobject]@{ stream_index = 2; language = 'eng'; title = 'English'; status = 'pending' }
+    $record = [pscustomobject]@{
+        track_id = 'subtitle:sidecar:7'
+        source_subtitle_kind = 'ass'
+        source_kind = 'sidecar'
+        stream_index = -1
+        language = 'eng'
+        title = 'English'
+        status = 'pending'
+        output_codec = 'subrip'
+        output_location = 'external_sidecar'
+        output_path = $destinationSrt
+    }
     $plan = [pscustomobject]@{
         Failures = @()
         Tracks = @()
@@ -179,6 +246,16 @@ try {
 
     Assert-Equal (@($result.Published).Count) 1 'TX3G sidecar publish did not record rollback metadata.'
     Assert-Equal ([System.IO.File]::ReadAllText($destinationSrt)) 'new srt' 'TX3G sidecar publish did not write the replacement SRT.'
+    $sidecarTerminalProgress = $script:SubtitleSidecarProgressCalls[-1]
+    Assert-Equal $sidecarTerminalProgress.TrackId 'subtitle:sidecar:7' 'Sidecar publish progress must use the exact backend subtitle TrackId.'
+    Assert-Equal $sidecarTerminalProgress.Kind 'ass' 'Sidecar publish progress must retain the exact source subtitle kind.'
+    Assert-Equal $sidecarTerminalProgress.OutputCodec 'subrip' 'Sidecar publish progress must retain the exact output codec from the plan.'
+    Assert-Equal $sidecarTerminalProgress.OutputLocation 'external_sidecar' 'Sidecar publish progress must retain the exact output location from the plan.'
+    Assert-Equal $sidecarTerminalProgress.OutputPath $destinationSrt 'Sidecar publish progress must retain the exact destination from the plan.'
+    Assert-True $sidecarTerminalProgress.Completed 'Sidecar publish progress must mark the exact terminal write as completed.'
+    Assert-Equal $result.Tracks[0].track_id 'subtitle:sidecar:7' 'Published sidecar terminal record must retain exact track identity.'
+    Assert-Equal $result.Published[0].source_kind 'sidecar' 'Published sidecar rollback evidence must retain source provenance.'
+    Assert-Equal $result.Published[0].output_path $destinationSrt 'Published sidecar rollback evidence must retain exact output placement.'
     Undo-PublishedSidecarFiles -PublishedSidecars @($result.Published) -Context 'test: '
     Assert-Equal ([System.IO.File]::ReadAllText($destinationSrt)) 'old srt' 'TX3G sidecar rollback did not restore the previous SRT.'
 } finally {

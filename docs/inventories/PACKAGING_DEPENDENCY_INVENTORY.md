@@ -73,6 +73,17 @@ See `docs/operator/POWERSHELL_HOST_EXPECTATIONS.md` for full resolution order an
 
 These must be installed separately and are not included in the release package.
 
+### Local code-context MCP SDK
+
+| Field | Value |
+|---|---|
+| Role | Read-only task context, catalog lookup, live text search, and bounded source reads for local AI clients |
+| Status | Developer-only; installed by `ops\scripts\dev\setup-code-context-mcp.ps1 -Apply` |
+| Version policy | Official Python SDK `mcp>=1.27,<2`; v2 migration is separate |
+| Install location | Ignored `LocalBase\Tooling\code-context-mcp\.venv` |
+| Required for pipeline or release package? | No; excluded from production `pyproject.toml` dependencies and release contents |
+| Validation | `tests.python.tooling.test_code_context_mcp` plus Codex/Claude registration checks |
+
 ### Node.js
 
 | Field | Value |
@@ -147,11 +158,11 @@ The detailed decision record and upgrade trigger are in
 
 ## Browser Smoke Skip Behavior
 
-The repository currently has **24 canonical browser wrappers** and **26 browser-backed Python modules** under `ops\scripts\smoke\` and `tests\webview\`, respectively. The two additional direct modules are `test_webview_browser_metrics_degraded_state_smoke.py` and `test_webview_browser_settings_builder_flush_smoke.py`; they are exercised directly or through broader gates rather than one-to-one wrappers.
+The repository currently has **25 canonical browser wrappers** and **34 browser-backed Python modules** under `ops\scripts\smoke\` and `tests\webview\`, respectively. Nine modules are intentionally direct-only; their exact names and wrapper/direct classification are generated in `docs/generated/SMOKE_WRAPPER_MAP.json` so this inventory does not maintain a second manual module list.
 
 Browser-backed Python modules may emit a `SkipTest:` result when Node.js, Chrome, Edge, or another declared prerequisite is unavailable. Canonical `Test-WebViewBrowser*.ps1` wrappers fail such prerequisite skips by default so a green wrapper is positive evidence that browser assertions executed. Use `-AllowSkippedTests` only when intentionally collecting a non-gating environmental result, and record the skip reason.
 
-The 24 wrappers include the lifecycle, lifecycle-reconciliation, Queue file-overrides, Queue→Launch→Completed, Settings launch, Settings field-matrix, Library Profiles save, Prose Box audit, and Visual Clutter screenshot surfaces. See `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md` and `docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md` for the complete command inventory.
+The 25 canonical browser wrappers include the lifecycle, lifecycle-reconciliation, Queue file-overrides, Queue→Launch→Completed, Settings launch, Settings field-matrix, Library Profiles save, Prose Box audit, and Visual Clutter screenshot surfaces. See `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md` and `docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md` for the complete command inventory.
 
 Non-browser WebView smokes (`Test-WebViewRealMediaEvidenceSmoke.ps1`, `Test-WebViewCommandEvidenceSmoke.ps1`, `Test-WebViewRowDetailSmoke.ps1`, `Test-WebViewScheduleSmoke.ps1`, `Test-WebViewRenameReadinessSmoke.ps1`, `Test-WebViewSettingsLaunchPolicySmoke.ps1`, `Test-WebViewSettingsLaunchLiveConfigSmoke.ps1`, `Test-WebViewSettingsPatchEvidenceSmoke.ps1`) require Python and, where the smoke evaluates WebView JavaScript, Node.js. They are suitable for lightweight automated checks and do not require Chrome/Edge.
 

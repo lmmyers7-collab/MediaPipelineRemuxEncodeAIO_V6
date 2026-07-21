@@ -9,6 +9,14 @@ from .dto_base import JsonMap, dto_mapping
 class QueuePreviewDto:
     rows: list[JsonMap] = field(default_factory=list)
     source: str = ""
+    queue_preview_request_id: str = ""
+    queue_snapshot_origin: str = "unknown"
+    queue_snapshot_fallback: JsonMap = field(default_factory=dict)
+    queue_input_consistency: JsonMap = field(default_factory=dict)
+    queue_plan_fingerprint: str = ""
+    queue_plan_fingerprint_schema: str = ""
+    pending_publish_index_health: JsonMap = field(default_factory=dict)
+    pending_publish_backpressure: JsonMap = field(default_factory=dict)
     queue_scan_status: JsonMap = field(default_factory=dict)
     source_inventory: JsonMap = field(default_factory=dict)
     queue_progress: JsonMap = field(default_factory=dict)

@@ -1,5 +1,8 @@
 ---
 file: apps/desktop/webview/static/assets/progress/audit.js
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: JavaScript
 pipeline_stage: observability
 token_priority: medium
 owner_domain: webview
@@ -9,6 +12,12 @@ sha256: 7aa0d45061e24fe3ec8416a18f0765a3dea1ef28db42641f8f8a82885eacbe68
 ---
 # `apps/desktop/webview/static/assets/progress/audit.js`
 
-**Purpose:** (unparsed)
+**Purpose:** JavaScript implementation for audit; exposes auditProgressActiveState, auditProgressBars, auditProgressIsStaleForUi.
+
+**Public symbols:** `auditProgressActiveState`, `auditProgressBars`, `auditProgressIsStaleForUi`, `auditProgressPayload`, `auditProgressSnapshotTimestampMs`, `auditProgressStatus`, `auditProgressSummaryLines`, `createProgressAuditModule`, `parseAuditProgressTimestamp`, `rawAuditProgressBars`, `renderAuditProgressInto`
+**In-repo imports:** `,
+          ];
+        }
+        const processed = auditProgress.processed_files ?? auditProgress.ProcessedFiles ??`, `window.__progressAuditModule`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/progress/audit.js`._

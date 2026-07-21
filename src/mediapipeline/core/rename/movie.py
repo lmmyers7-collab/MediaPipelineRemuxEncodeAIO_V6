@@ -42,6 +42,7 @@ MOVIE_REVISION_TAIL_PATTERN = re.compile(
     r"(?:^|[\s._-]+)(?P<term>proper|repack|rerip)[\s._-]*$",
     re.IGNORECASE,
 )
+MOVIE_NON_CREDIBLE_ANCHOR_PREFIXES = frozenset({"a", "an", "the"})
 MOVIE_RELEASE_GROUP_TERMS = (
     "rarbg",
     "rbg",
@@ -61,6 +62,9 @@ MOVIE_RELEASE_GROUP_TERMS = (
     "framestor",
     "cmrg",
     "neonoir",
+    "asiimov",
+    "rapta",
+    "licdom",
 )
 RENAME_MOVIE_FILTER_DEFAULT_TERMS: dict[str, tuple[str, ...]] = {
     "video_source": (
@@ -109,7 +113,19 @@ RENAME_MOVIE_FILTER_DEFAULT_TERMS: dict[str, tuple[str, ...]] = {
         "remux",
         "hybrid",
         "10 bit",
+        "10bit",
+        "10 bits",
+        "10bits",
+        "10-bit",
+        "10-bits",
         "8 bit",
+        "8bit",
+        "8 bits",
+        "8bits",
+        "8-bit",
+        "8-bits",
+        "upscale",
+        "upscaled",
     ),
     "audio_channels": (
         "truehd",
@@ -259,7 +275,7 @@ RENAME_MOVIE_FILTER_DEFAULT_TERMS: dict[str, tuple[str, ...]] = {
 MOVIE_SMALL_WORDS = frozenset({"a", "an", "and", "as", "at", "but", "by", "for", "from", "in", "into", "nor", "of", "on", "or", "per", "to", "vs", "via", "with"})
 MOVIE_LOWER_THE_AFTER = frozenset({"by", "for", "from", "in", "into", "of", "on", "to", "with"})
 MOVIE_ROMAN_NUMERALS = frozenset({"i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x"})
-MOVIE_UPPERCASE_TOKENS = frozenset({"dc"})
+MOVIE_UPPERCASE_TOKENS = frozenset({"4k", "avc", "dc"})
 
 
 def _rightmost_movie_year_match(base: str) -> re.Match[str] | None:
@@ -318,7 +334,10 @@ def _enabled_movie_metadata_terms(
         if not filter_options.get(category, True):
             continue
         category_terms = movie_filter_terms_for_key(filter_terms, category) or []
-        if not custom_only:
+        if custom_only:
+            default_keys = {term.casefold() for term in RENAME_MOVIE_FILTER_DEFAULT_TERMS.get(category, ())}
+            category_terms = [term for term in category_terms if term.casefold() not in default_keys]
+        else:
             category_terms = collective_movie_filter_terms(filter_terms, category)
         for term in category_terms:
             key = term.casefold()
@@ -329,14 +348,70 @@ def _enabled_movie_metadata_terms(
     return sorted(terms, key=len, reverse=True)
 
 
+def _movie_metadata_anchor_region_is_metadata_only(
+    text: str,
+    filter_options: dict[str, bool],
+    filter_terms: dict[str, list[str]],
+) -> bool:
+    remainder = MOVIE_VERIFIED_METADATA_ANCHOR_PATTERN.sub(" ", text)
+    for term in _enabled_movie_metadata_terms(filter_options, filter_terms, custom_only=False):
+        pattern = movie_filter_term_pattern(term)
+        if pattern:
+            remainder = re.sub(pattern, " ", remainder, flags=re.IGNORECASE)
+    return re.search(r"[A-Za-z0-9]", remainder) is None
+
+
+def _verified_movie_metadata_anchor(
+    text: str,
+    filter_options: dict[str, bool],
+    filter_terms: dict[str, list[str]],
+    *,
+    selected_year_index: int | None,
+) -> re.Match[str] | None:
+    matches = list(MOVIE_VERIFIED_METADATA_ANCHOR_PATTERN.finditer(text))
+    if not matches:
+        return None
+
+    if selected_year_index is not None:
+        post_year = next((match for match in matches if match.start() >= selected_year_index), None)
+        if post_year is not None:
+            return post_year
+        candidates = [match for match in matches if match.start() < selected_year_index]
+        region_end = selected_year_index
+    else:
+        candidates = matches
+        region_end = len(text)
+    if not candidates:
+        return None
+
+    candidate = candidates[0]
+    prefix = re.sub(r"[\s._-]+", " ", text[: candidate.start()]).strip().casefold()
+    if prefix and prefix not in MOVIE_NON_CREDIBLE_ANCHOR_PREFIXES:
+        return candidate
+    candidate_region = text[candidate.start() : region_end]
+    if len(list(MOVIE_VERIFIED_METADATA_ANCHOR_PATTERN.finditer(candidate_region))) >= 2 and _movie_metadata_anchor_region_is_metadata_only(
+        candidate_region,
+        filter_options,
+        filter_terms,
+    ):
+        return candidate
+    return None
+
+
 def _verified_movie_metadata_tail_start(
     text: str,
     filter_options: dict[str, bool],
     filter_terms: dict[str, list[str]],
     *,
     precedes_year: bool,
+    selected_year_index: int | None = None,
 ) -> int | None:
-    anchor = MOVIE_VERIFIED_METADATA_ANCHOR_PATTERN.search(text)
+    anchor = _verified_movie_metadata_anchor(
+        text,
+        filter_options,
+        filter_terms,
+        selected_year_index=selected_year_index,
+    )
     if anchor is not None:
         start = anchor.start()
         for _ in range(8):
@@ -371,12 +446,14 @@ def _movie_title_before_verified_tail(
     filter_terms: dict[str, list[str]],
     *,
     precedes_year: bool,
+    selected_year_index: int | None = None,
 ) -> str:
     tail_start = _verified_movie_metadata_tail_start(
         text,
         filter_options,
         filter_terms,
         precedes_year=precedes_year,
+        selected_year_index=selected_year_index,
     )
     return text[:tail_start] if tail_start is not None else text
 
@@ -556,6 +633,7 @@ def clean_pipeline_movie_name(
             filter_options,
             filter_terms,
             precedes_year=year_match is not None,
+            selected_year_index=year_match.start() if year_match is not None else None,
         )
         title = _normalize_movie_title_region(title_region, remove_terms, filter_options, filter_terms)
         if title:

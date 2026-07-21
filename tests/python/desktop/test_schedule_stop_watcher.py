@@ -31,9 +31,15 @@ except ImportError:  # pragma: no cover - fallback for direct test execution
 class FakeProc:
     pid = 24680
 
-    def __init__(self, return_code: int | None = None, poll_exception: Exception | None = None) -> None:
+    def __init__(
+        self,
+        return_code: int | None = None,
+        poll_exception: Exception | None = None,
+        launch_id: str = "schedule-launch-24680",
+    ) -> None:
         self.return_code = return_code
         self.poll_exception = poll_exception
+        self._mediapipeline_launch_id = launch_id
 
     def poll(self) -> int | None:
         if self.poll_exception is not None:
@@ -43,14 +49,21 @@ class FakeProc:
 
 class FakeService:
     def __init__(self) -> None:
-        self.calls: list[tuple[Path | None, str]] = []
+        self.calls: list[tuple[Path | None, str, int | None, str]] = []
 
-    def write_flag(self, flag_path: Path | None, label: str) -> str:
-        self.calls.append((flag_path, label))
+    def write_stop_after_current_flag(
+        self,
+        flag_path: Path | None,
+        *,
+        run_id: str = "",
+        target_pid: int | None = None,
+        target_launch_id: str = "",
+    ) -> str:
+        self.calls.append((flag_path, run_id, target_pid, target_launch_id))
         if flag_path is not None:
             flag_path.parent.mkdir(parents=True, exist_ok=True)
-            flag_path.write_text(label, encoding="utf-8")
-        return f"{label} flag written."
+            flag_path.write_text("Stop After Current", encoding="utf-8")
+        return "Stop After Current requested."
 
 
 class BlockingBrokenProc:
@@ -70,8 +83,15 @@ class BrokenWatcher:
 
 
 class BrokenFlagService:
-    def write_flag(self, flag_path: Path | None, label: str) -> str:
-        _ = flag_path, label
+    def write_stop_after_current_flag(
+        self,
+        flag_path: Path | None,
+        *,
+        run_id: str = "",
+        target_pid: int | None = None,
+        target_launch_id: str = "",
+    ) -> str:
+        _ = flag_path, run_id, target_pid, target_launch_id
         raise RuntimeError("disk locked")
 
 
@@ -85,6 +105,7 @@ def _resolved(root: Path) -> ResolvedPaths:
         rerun_script_path=root / "rerun.ps1",
         powershell_host=None,
         stop_flag=root / "State" / "Pipeline" / "pipeline_stop.flag",
+        stop_after_current_flag=root / "State" / "Pipeline" / "pipeline_stop_after_current.flag",
     )
 
 
@@ -130,13 +151,35 @@ class ScheduleStopWatcherTests(unittest.TestCase):
                 deadline=datetime.now() - timedelta(seconds=1),
             )
             state = _wait_for_status(manager, "stop_requested")
-            stop_flag_exists = bool(resolved.stop_flag and resolved.stop_flag.exists())
+            stop_flag_exists = bool(resolved.stop_after_current_flag and resolved.stop_after_current_flag.exists())
 
         self.assertEqual(state.status, "stop_requested")
         self.assertTrue(state.stop_requested)
         self.assertGreater(state.generation, 0)
-        self.assertEqual(service.calls, [(resolved.stop_flag, "Stop")])
+        self.assertEqual(
+            service.calls,
+            [(resolved.stop_after_current_flag, "", FakeProc.pid, "schedule-launch-24680")],
+        )
         self.assertTrue(stop_flag_exists)
+
+    def test_watcher_rejects_deadline_request_without_exact_launch_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            manager = ScheduleStopWatcherManager(poll_interval_seconds=0.05)
+            service = FakeService()
+            resolved = _resolved(root)
+
+            manager.arm(
+                service=service,
+                resolved=resolved,
+                proc=FakeProc(launch_id=""),
+                deadline=datetime.now() - timedelta(seconds=1),
+            )
+            state = _wait_for_status(manager, "error")
+
+        self.assertIn("exact launch identity", state.message)
+        self.assertEqual(service.calls, [])
+        self.assertFalse(resolved.stop_after_current_flag.exists())
 
     def test_watcher_exits_without_stop_when_process_finishes_first(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -242,7 +285,7 @@ class ScheduleStopWatcherTests(unittest.TestCase):
         self.assertGreater(state.generation, 0)
         self.assertEqual(service.calls, [])
 
-    def test_watcher_reports_missing_write_flag_at_deadline(self) -> None:
+    def test_watcher_reports_missing_stop_after_current_writer_at_deadline(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             manager = ScheduleStopWatcherManager(poll_interval_seconds=0.05)
@@ -256,11 +299,11 @@ class ScheduleStopWatcherTests(unittest.TestCase):
             )
             state = _wait_for_status(manager, "error")
 
-        self.assertEqual(state.error, "write_flag unavailable")
+        self.assertEqual(state.error, "write_stop_after_current_flag unavailable")
         self.assertGreater(state.generation, 0)
-        self.assertIn("write_flag is unavailable", state.message)
+        self.assertIn("write_stop_after_current_flag is unavailable", state.message)
 
-    def test_watcher_reports_write_flag_failure_at_deadline(self) -> None:
+    def test_watcher_reports_stop_after_current_failure_at_deadline(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             manager = ScheduleStopWatcherManager(poll_interval_seconds=0.05)
@@ -274,7 +317,7 @@ class ScheduleStopWatcherTests(unittest.TestCase):
             )
             state = _wait_for_status(manager, "error")
 
-        self.assertIn("failed to request Stop", state.message)
+        self.assertIn("failed to request Stop After Current", state.message)
         self.assertIn("disk locked", state.error)
         self.assertGreater(state.generation, 0)
 

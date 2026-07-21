@@ -38,6 +38,9 @@ def start_pipeline_for_service(
     extra_argv: list[str] | tuple[str, ...] | None = None,
     show_console: bool = False,
     single_file: str | None = None,
+    expected_queue_plan_fingerprint: str = "",
+    command_id: str = "",
+    run_id: str = "",
 ) -> subprocess.Popen[Any]:
     plan = build_pipeline_launch_plan(
         resolved,
@@ -47,6 +50,9 @@ def start_pipeline_for_service(
         extra_args=extra_args,
         extra_argv=extra_argv,
         single_file=single_file,
+        expected_queue_plan_fingerprint=expected_queue_plan_fingerprint,
+        command_id=command_id,
+        run_id=run_id,
     )
     return service._spawn(
         plan.args,

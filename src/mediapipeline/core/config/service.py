@@ -149,11 +149,18 @@ class ConfigProfileServiceMixin:
             powershell_host=powershell_host,
         )
 
-    def save_settings_authority(self, resolved: ResolvedPaths, candidate_settings: dict[str, Any]) -> ConfigSaveResult:
+    def save_settings_authority(
+        self,
+        resolved: ResolvedPaths,
+        candidate_settings: dict[str, Any],
+        *,
+        expected_authority_digest: str,
+    ) -> ConfigSaveResult:
         return save_settings_authority_for_service(
             self,
             resolved,
             candidate_settings,
+            expected_authority_digest=expected_authority_digest,
             psd1_loader=self._load_psd1_mapping_for_settings_authority,
         )
 

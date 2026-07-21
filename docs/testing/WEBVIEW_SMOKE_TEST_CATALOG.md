@@ -174,6 +174,13 @@ The Python browser-smoke modules share `tests\webview\webview_browser_smoke_supp
 - **Verifies:** Daily-Driver Checklist, Operator Readiness, Active Work, Live Progress Details percent/current item/route fields, selectable Progress Evidence Current Item and ActiveJobs rows, Diagnostics runtime progress summary, Command Results, Sample Validation posture, generated worksheet readback, Real-Media Validation Worksheet handoff, and no POST routes during Home/Live/Diagnostics live-state rendering.
 - **Does not:** Append validation records, process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths. No Playwright or Puppeteer dependency.
 
+### `Test-WebViewBrowserSafeOperatorCommandsSmoke.ps1`
+
+- **Unittest:** `tests.webview.test_webview_browser_safe_operator_commands_smoke`
+- **What it does:** Starts a temporary Local API against generated media/state fixtures and drives backend-served Home, Metrics, and Maintenance safe operator controls in Chrome/Edge headless.
+- **Verifies:** One evidence-only sample append, temporary Metrics registry/cache updates, a redacted temporary support export, fixture-backed release/dependency-atlas services, and unchanged source/output media hashes.
+- **Does not:** Start pipeline, audit, CSV rerun, Pending Publish drain, publish, rename, repair/reconcile, or network lifecycle work; all allowed writes remain beneath disposable app-data/runtime/export roots. No Playwright or Puppeteer dependency.
+
 ### `Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1`
 
 - **Unittest:** `tests.webview.test_webview_browser_launch_queue_readiness_smoke`
@@ -184,9 +191,9 @@ The Python browser-smoke modules share `tests\webview\webview_browser_smoke_supp
 ### `Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1`
 
 - **Unittest:** `tests.webview.test_webview_browser_queue_launch_completed_smoke`
-- **What it does:** Starts a temporary Local API and backend-served WebView with one runnable, one blocked, and one excluded temporary source; stages the runnable row as a single-file once-mode Launch; submits a second start; and reloads Queue/Completed after a synchronized test-only runner finishes.
-- **Verifies:** The first request is accepted through the production launch boundary, the production duplicate-command/lifecycle guard durably rejects the second, the fake runner waits for that rejection before writing temporary Queue/progress/Completed Manifest/fake output/sidecar evidence, browser reload preserves the row transition, lifecycle returns idle, close-readiness is safe, Pending Publish/Network state stays absent, and all source hashes remain unchanged.
-- **Does not:** Launch FFmpeg, a PowerShell pipeline child, or any media tool; process or validate real media; use network workers; perform Pending Publish work; or mutate a source. Its fake output and sidecar prove UI/backend state flow only.
+- **What it does:** Starts a temporary Local API and backend-served WebView with two uncapped accepted Backend Queue rows whose raw release names differ from their verified production planned names, one blocked row, and one excluded row; proves Queue-loaded backend-confirmed idle with no active monitor claims; submits `mode=once` with Backend Queue scope and a blank Single File; follows the accepted run through the real `GET /api/run-monitor` route; submits a duplicate start; and reloads Queue, Current Work, and Completed after a synchronized test-only runner finishes.
+- **Verifies:** The launch response returns `backend_accepted` with a stable run ID, Queue-plan fingerprint, and content-bound accepted membership; the folded workload renders only clean planned names, opens all exact selectable rows, and never derives a name in the frontend; the pre-spawn monitor preserves source identities, canonical job IDs, planned routes, and run-wide positions; the production duplicate-command/lifecycle guard durably rejects the second start; every accepted item remains present once; starting, scanning, two-worker activity, file-A terminal/file-B current handoff, review, run completion, fresh idle, clean-name semantic announcements, exact terminal focus, reload persistence, safe close-readiness, unrelated-event suppression, and unchanged source hashes all remain truthful.
+- **Does not:** Launch FFmpeg, a PowerShell pipeline child, or any media tool; process or validate real media; use network workers; perform Pending Publish work; or mutate a source. Run Monitor, Queue, progress, failure, Completed, fake output, and sidecar writes remain inside the disposable root and prove UI/backend state flow only.
 
 ### `Test-WebViewBrowserLayoutManagerSmoke.ps1`
 
@@ -282,6 +289,7 @@ Browser-backed smokes (require Node + Chrome/Edge; missing prerequisites fail by
 .\ops/scripts/smoke\Test-WebViewBrowserMaintenanceReportsSmoke.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserSampleValidationSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserSafeOperatorCommandsSmoke.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserHomeLiveStateSmoke.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1
 .\ops/scripts/smoke\Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1

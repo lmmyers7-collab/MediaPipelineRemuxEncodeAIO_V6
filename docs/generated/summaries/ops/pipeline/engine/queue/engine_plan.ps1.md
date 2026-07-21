@@ -1,16 +1,19 @@
 ---
 file: ops/pipeline/engine/queue/engine_plan.ps1
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: PowerShell
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-07-12
+last_modified: 2026-07-16
 last_reviewed: 2026-06-04
-sha256: 5d741451e62e0e5a7bde41805a0072bafc3f56be2cccfcbdcb8698961f366d72
+sha256: d5966ffc139573a5538dc167ac79356d6934c71d9d1840cc97c14a6bd061e051
 ---
 # `ops/pipeline/engine/queue/engine_plan.ps1`
 
-**Purpose:** (no .SYNOPSIS block)
+**Purpose:** PowerShell implementation for engine plan; exposes Get-MediaPipelineQueueEntryProgressValue, New-MediaPipelineEnginePlan.
 
-**Functions:** `Get-MediaPipelineQueueEntryProgressValue`, `New-MediaPipelineEnginePlan`
+**Public symbols:** `Get-MediaPipelineQueueEntryProgressValue`, `New-MediaPipelineEnginePlan`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/engine/queue/engine_plan.ps1`._

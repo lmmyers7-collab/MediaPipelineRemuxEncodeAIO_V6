@@ -236,7 +236,7 @@ For real-media behavior, use `docs/sample-validation/REAL_MEDIA_PILOT_CHECKLIST.
 | `Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1` | Library profile identity, inherited/reset value, strict confirmation, temporary config save, and reload evidence |
 | `Test-WebViewBrowserLifecycleReconciliationSmoke.ps1` | Reconciliation preview/apply contract, confirmation modal, and disposable ActiveJobs archive evidence |
 | `Test-WebViewBrowserQueueFileOverridesSmoke.ps1` | File Settings drawer payload/interception, dirty-state guard, full-clear confirmation, and series preview |
-| `Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1` | Stateful queue mutation, Launch start confirmation, command journal, Completed manifest, and sidecar correlation in disposable state |
+| `Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1` | Queue-loaded backend-confirmed idle state, uncapped Backend Queue accepted membership/fingerprint/readiness, blank Single File launch shape, run-monitor identity/projection sequence, ActiveJobs correlation, focus/keyboard/live announcements, exact terminal Completed/review artifacts, and reload persistence in disposable state |
 | `Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1` | Field-type matrix, inherited Library Profile reset behavior, strict save confirmation, reload persistence, and journal evidence |
 | `Test-WebViewBrowserProseBoxAudit.ps1` | Page/subtab navigation, screenshot manifest, and prose/status/diagnostic box selectors |
 | `Test-WebViewBrowserVisualClutterScreenshots.ps1` | Desktop/mobile viewport capture, screenshot manifest, overflow, and clutter selectors |
@@ -300,4 +300,4 @@ Risk: Low — documentation only.
 
 ## Current Inventory Review — 2026-07-13
 
-The triage table covers all 24 canonical browser wrappers. Browser Python discovery lives under `tests\webview\`; the suite has 26 browser modules because metrics-degraded-state and Settings builder-flush are direct modules without one-to-one wrappers. All fixture investigation must remain inside the generated disposable root.
+The triage table covers all 25 canonical browser wrappers. Browser Python discovery lives under `tests\webview\`; the suite has 34 browser modules, including 9 direct-only census or specialized modules without one-to-one wrappers. `docs/generated/SMOKE_WRAPPER_MAP.json` records the exact set. All fixture investigation must remain inside the generated disposable root.

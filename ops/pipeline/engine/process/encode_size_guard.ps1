@@ -273,6 +273,9 @@ function Invoke-EncodeWasteGuardRemuxFallback {
         -Trigger $Trigger `
         -Message $Message
     Write-Log "ENCODE SIZE: attempting remux fallback after waste guard ${Trigger}; direct-copy size/bitrate caps are bypassed for this fallback" "WARN"
+    Set-MediaPipelineEncodeRemuxFallbackRouteEvidence `
+        -Trigger $Trigger `
+        -Reason $Message | Out-Null
     $fallbackRemuxOk = Do-Remux $SourceFile $IsTV $TvInfo -FallbackFromOversizedEncode
     if ($fallbackRemuxOk) {
         Write-Log "ENCODE SIZE: remux fallback published; rejected projected-oversize encode temp output will be deleted" "WARN"
@@ -335,6 +338,9 @@ function Invoke-MediaPipelineEncodeSizeGuard {
         $originalRouteReason = [string]$script:CurrentRouteReason
         $originalSizePolicyResult = $script:CurrentSizePolicyResult
         Write-Log "ENCODE SIZE: attempting remux fallback for oversized automatic size/bitrate-threshold encode; direct-copy size/bitrate caps are bypassed for this fallback" "WARN"
+        Set-MediaPipelineEncodeRemuxFallbackRouteEvidence `
+            -Trigger 'post_encode_size_guard' `
+            -Reason ([string]$sizePolicy.Message) | Out-Null
         $fallbackRemuxOk = Do-Remux $file $isTV $tvInfo -FallbackFromOversizedEncode
         if ($fallbackRemuxOk) {
             Write-Log "ENCODE SIZE: remux fallback published; rejected oversized encode temp output will be deleted" "WARN"

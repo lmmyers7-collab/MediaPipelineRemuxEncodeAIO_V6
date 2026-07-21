@@ -1,5 +1,8 @@
 ---
 file: tests/python/tooling/test_godfile_guard.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
@@ -9,9 +12,9 @@ sha256: 9e1b14aed5de53d2fa0eb65de9959fc2cd129474c0704d5660138659b755f21e
 ---
 # `tests/python/tooling/test_godfile_guard.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for test godfile guard; exposes GodFileGuardTests.
 
-**Classes:** `GodFileGuardTests`
+**Public symbols:** `GodFileGuardTests`
 **In-repo imports:** `mediapipeline.tools.paths`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths tests/python/tooling/test_godfile_guard.py`._

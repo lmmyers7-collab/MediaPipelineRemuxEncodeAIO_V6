@@ -64,12 +64,16 @@ function New-AudioOmitAllDecisionRecord {
         source_stream_index = $null
         action              = 'omit_all'
         reason              = 'allow_no_audio'
+        reason_code         = 'allow_no_audio'
+        planned_action      = 'not_applicable'
         passthrough_profile = $PassthroughProfile
         language            = 'und'
         source_codec        = ''
         source_channels     = 0
+        source_layout       = ''
         output_codec        = ''
         output_channels     = 0
+        output_layout       = ''
         is_default          = $false
         is_forced           = $false
         is_commentary       = $false
@@ -230,6 +234,8 @@ function Build-AudioStreamDecisionPlan {
         if ($ch -le 0) {
             throw "SOURCE_MEDIA_AUDIO_INVALID: audio stream $i has missing or invalid channel count in ffprobe output"
         }
+        $sourceLayout = ''
+        try { $sourceLayout = [string]$s.channel_layout } catch {}
 
         $outCh = Get-AudioDecisionOutputChannelCount -SourceChannels $ch -DownmixMode $DownmixMode -MaxChannels $MaxChannels
         $isForcedAudio = $false
@@ -251,13 +257,17 @@ function Build-AudioStreamDecisionPlan {
                 source_stream_index = $sourceStreamIndex
                 action              = 'drop'
                 reason              = 'file_override'
+                reason_code         = 'file_override_drop'
+                planned_action      = 'drop'
                 passthrough_profile = $PassthroughProfile
                 language            = $normalizedLang
                 normalized_language = $normalizedLang
                 source_codec        = $codec
                 source_channels     = $ch
+                source_layout       = $sourceLayout
                 output_codec        = ''
                 output_channels     = 0
+                output_layout       = ''
                 bitrate             = ''
                 is_default          = $false
                 is_forced           = $isForcedAudio
@@ -292,13 +302,17 @@ function Build-AudioStreamDecisionPlan {
                 source_stream_index = $sourceStreamIndex
                 action              = 'drop'
                 reason              = 'mp4_single_eac3_compatibility'
+                reason_code         = 'mp4_single_eac3_compatibility'
+                planned_action      = 'drop'
                 passthrough_profile = $PassthroughProfile
                 language            = $normalizedLang
                 normalized_language = $normalizedLang
                 source_codec        = $codec
                 source_channels     = $ch
+                source_layout       = $sourceLayout
                 output_codec        = ''
                 output_channels     = 0
+                output_layout       = ''
                 bitrate             = ''
                 is_default          = $false
                 is_forced           = $isForcedAudio
@@ -337,6 +351,7 @@ function Build-AudioStreamDecisionPlan {
             $outCodecLabel = $TranscodeCodecLabel
             $outChannels   = $outCh
             $reason = if ($standardizePcm) { 'PCM standardization' } else { 'codec outside compatibility list' }
+            $reasonCode = if ($standardizePcm) { 'pcm_standardization' } else { 'incompatible_codec' }
             $action = 'transcode'
             $outputCodec = $TranscodeCodec
             $transcodeActive = $true
@@ -346,6 +361,7 @@ function Build-AudioStreamDecisionPlan {
             $outCodecLabel = Get-MediaAudioCodecDisplayLabel -Codec $codec
             $outChannels = $ch
             $reason = 'codec compatible'
+            $reasonCode = 'compatible_passthrough'
             $action = 'copy'
             $outputCodec = $codec
             $effectiveBitrate = ''
@@ -388,8 +404,12 @@ function Build-AudioStreamDecisionPlan {
             normalized_language = $normalizedLang
             source_codec        = $codec
             source_channels     = $ch
+            source_layout       = $sourceLayout
             output_codec        = $outputCodec
             output_channels     = $outChannels
+            output_layout       = if ($action -eq 'transcode') { $channelLayout } else { $sourceLayout }
+            reason_code         = $reasonCode
+            planned_action      = if ($action -eq 'transcode' -and $outChannels -lt $ch) { 'transcode_downmix' } elseif ($action -eq 'copy') { 'passthrough' } else { $action }
             bitrate             = if ($action -eq 'transcode') { $effectiveBitrate } else { '' }
             is_default          = $false
             is_forced           = $isForcedAudio

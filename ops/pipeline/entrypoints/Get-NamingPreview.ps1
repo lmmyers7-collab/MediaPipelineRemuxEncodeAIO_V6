@@ -190,6 +190,23 @@ foreach ($item in @($payload.items)) {
     }
     $mediaKind = ([string]$item.media_kind).Trim()
     if ([string]::IsNullOrWhiteSpace($mediaKind)) { $mediaKind = 'Movie' }
+    $synthetic = $false
+    $syntheticProperty = $item.PSObject.Properties['synthetic']
+    if ($null -ne $syntheticProperty) {
+        if ($syntheticProperty.Value -isnot [bool]) {
+            throw 'naming preview item.synthetic must be a JSON boolean.'
+        }
+        $synthetic = [bool]$syntheticProperty.Value
+    }
+    $assumedMediaExtension = $false
+    $assumedExtensionProperty = $item.PSObject.Properties['assumed_media_extension']
+    if ($null -ne $assumedExtensionProperty) {
+        if ($assumedExtensionProperty.Value -isnot [bool]) {
+            throw 'naming preview item.assumed_media_extension must be a JSON boolean.'
+        }
+        $assumedMediaExtension = [bool]$assumedExtensionProperty.Value
+    }
+    $sourceFolder = [string]$item.source_folder
 
     try {
         $parsedIdentity = $null
@@ -214,10 +231,12 @@ foreach ($item in @($payload.items)) {
             }
         } elseif ($mediaKind -eq 'TV') {
             $file = $null
-            if (-not [string]::IsNullOrWhiteSpace($sourcePath) -and (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+            if (-not $synthetic -and -not [string]::IsNullOrWhiteSpace($sourcePath) -and (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
                 $file = Get-Item -LiteralPath $sourcePath -ErrorAction Stop
             } else {
-                $directoryName = if (-not [string]::IsNullOrWhiteSpace($sourcePath)) {
+                $directoryName = if ($synthetic -and -not [string]::IsNullOrWhiteSpace($sourceFolder)) {
+                    $sourceFolder
+                } elseif (-not [string]::IsNullOrWhiteSpace($sourcePath)) {
                     [System.IO.Path]::GetDirectoryName($sourcePath)
                 } else {
                     [System.IO.Path]::GetTempPath()
@@ -261,6 +280,8 @@ foreach ($item in @($payload.items)) {
             source_path = $sourcePath
             original_name = $originalName
             media_kind = $mediaKind
+            synthetic = $synthetic
+            assumed_media_extension = $assumedMediaExtension
             file_base_name = [string]$plan.FileBaseName
             file_name = [string]$plan.FileName
             relative_directory = [string]$plan.RelativeDirectory
@@ -278,6 +299,8 @@ foreach ($item in @($payload.items)) {
             source_path = $sourcePath
             original_name = $originalName
             media_kind = $mediaKind
+            synthetic = $synthetic
+            assumed_media_extension = $assumedMediaExtension
             file_base_name = ''
             file_name = ''
             relative_directory = ''

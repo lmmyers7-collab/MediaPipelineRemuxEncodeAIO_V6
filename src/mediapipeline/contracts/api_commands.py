@@ -179,7 +179,7 @@ class SettingsSavePatchCommandPayload(StrictApiCommandPayload):
     remove_keys: Any = None
     library_profile_resets: Any = None
     review_confirmation: Any = None
-    confirm_save: StrictBool | None = None
+    confirm_save: StrictBool
 
 
 class SettingsImportPsd1PreviewCommandPayload(StrictApiCommandPayload):
@@ -600,11 +600,20 @@ class AuditStartCommandPayload(StrictApiCommandPayload):
 class PipelineControlCommandPayload(StrictApiCommandPayload):
     action: Any = None
     confirm_force_stop: StrictBool | None = None
+    expected_run_id: StrictStr | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+    )
 
     @model_validator(mode="after")
     def require_force_stop_confirmation(self) -> PipelineControlCommandPayload:
-        if str(self.action or "").strip().casefold() == "kill" and self.confirm_force_stop is not True:
+        action = str(self.action or "").strip().casefold()
+        if action == "kill" and self.confirm_force_stop is not True:
             raise ValueError("confirm_force_stop must be true for action=kill")
+        if self.expected_run_id is not None and action != "stop":
+            raise ValueError("expected_run_id is allowed only for action=stop")
         return self
 
 

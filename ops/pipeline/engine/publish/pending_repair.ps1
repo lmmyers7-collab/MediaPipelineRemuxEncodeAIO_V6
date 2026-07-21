@@ -35,7 +35,14 @@ function Repair-PendingSidecarArtifacts {
             if ($localDir -and -not (Test-Path -LiteralPath $localDir)) {
                 [System.IO.Directory]::CreateDirectory($localDir) | Out-Null
             }
-            [System.IO.File]::Move($originalFile, $localFile, $true)
+            $copy = Copy-SrtAtomic -SourcePath $originalFile -DestinationPath $localFile
+            if (-not $copy.Ok) { throw $copy.Reason }
+            $expectedHash = [string](Get-PendingObjectProperty -Object $sidecar -Name 'output_sha256')
+            $actualHash = Get-PendingFileSha256OrNull -Path $localFile
+            if ([string]::IsNullOrWhiteSpace($actualHash) -or -not $actualHash.Equals($expectedHash, [System.StringComparison]::OrdinalIgnoreCase)) {
+                Remove-Item -LiteralPath $localFile -Force -ErrorAction SilentlyContinue
+                throw "recovered pending sidecar SHA-256 mismatch: $localFile"
+            }
             Write-Log "Pending publish index: recovered parked sidecar from pending_move manifest: $($ManifestFile.Name)" "WARN"
         } catch {
             Write-Log "Pending publish index: failed to recover sidecar for $($ManifestFile.Name) : $_" "WARN"
@@ -77,15 +84,181 @@ function Repair-PendingManifestState {
             }
             [System.IO.File]::Move($original, $localFile, $true)
         }
+        $expectedHash = [string](Get-PendingObjectProperty -Object $Manifest -Name 'output_sha256')
+        $actualHash = Get-PendingFileSha256OrNull -Path $localFile
+        if ([string]::IsNullOrWhiteSpace($actualHash) -or -not $actualHash.Equals($expectedHash, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $reason = "Recovered pending media SHA-256 mismatch: $localFile"
+            Update-PendingManifestReviewState -ManifestPath $ManifestFile.FullName -Manifest $Manifest -State 'review_pending_payload_mismatch' -Reason $reason | Out-Null
+            Write-Log "Pending publish index: $reason" 'ERROR'
+            return (Read-PendingManifestFile -Path $ManifestFile.FullName)
+        }
+        foreach ($sidecar in @(Get-PendingSidecarEntries -Manifest $Manifest)) {
+            $sidecarLocal = [string](Get-PendingObjectProperty -Object $sidecar -Name 'local_file')
+            $sidecarExpectedHash = [string](Get-PendingObjectProperty -Object $sidecar -Name 'output_sha256')
+            $sidecarActualHash = Get-PendingFileSha256OrNull -Path $sidecarLocal
+            if ([string]::IsNullOrWhiteSpace($sidecarActualHash) -or -not $sidecarActualHash.Equals($sidecarExpectedHash, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $reason = "Recovered pending sidecar SHA-256 mismatch: $sidecarLocal"
+                Update-PendingManifestReviewState -ManifestPath $ManifestFile.FullName -Manifest $Manifest -State 'review_pending_sidecar_mismatch' -Reason $reason | Out-Null
+                Write-Log "Pending publish index: $reason" 'ERROR'
+                return (Read-PendingManifestFile -Path $ManifestFile.FullName)
+            }
+        }
         $map = ConvertTo-PendingManifestMap $Manifest
         $map['manifest_state'] = 'parked_recovered'
         $map['recovered_at'] = (Get-Date -Format 'o')
+        $map['transaction_phase'] = 'parked_recovered'
+        $map['transaction_phase_at'] = (Get-Date -Format 'o')
         Write-PendingManifestFile -Path $ManifestFile.FullName -Manifest $map | Out-Null
         Write-Log "Pending publish index: recovered parked output from pending_move manifest: $($ManifestFile.Name)" "WARN"
         return (Read-PendingManifestFile -Path $ManifestFile.FullName)
     } catch {
         Write-Log "Pending publish index: failed to recover pending_move manifest $($ManifestFile.Name) : $_" "WARN"
         return $Manifest
+    }
+}
+
+function Get-PendingDrainPipelineSidecarBackupPath {
+    param(
+        [Parameter(Mandatory)] [string] $ServerPath,
+        [Parameter(Mandatory)] [string] $TransactionId
+    )
+
+    $sidecarPath = Get-SidecarPath $ServerPath
+    $dir = Split-Path -Parent $sidecarPath
+    return (Join-Path $dir ('.{0}.mp-publish-sidecar-backup.{1}' -f (Split-Path -Leaf $sidecarPath), $TransactionId))
+}
+
+function Test-PendingDrainFinalProof {
+    param([Parameter(Mandatory)] $Manifest)
+
+    $local = [string](Get-PendingObjectProperty -Object $Manifest -Name 'local_file')
+    $server = [string](Get-PendingObjectProperty -Object $Manifest -Name 'server_out')
+    $expectedHash = [string](Get-PendingObjectProperty -Object $Manifest -Name 'output_sha256')
+    if (-not (Test-Path -LiteralPath $server -PathType Leaf -ErrorAction SilentlyContinue)) { return $false }
+    $actualHash = Get-PendingFileSha256OrNull -Path $server
+    if ([string]::IsNullOrWhiteSpace($actualHash) -or [string]::IsNullOrWhiteSpace($expectedHash) -or -not $actualHash.Equals($expectedHash, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $false
+    }
+    return [bool](Test-PendingPublishedServerCopy -Manifest $Manifest -LocalPath $local -ServerPath $server)
+}
+
+function Restore-PendingStaleDrainArtifacts {
+    param([Parameter(Mandatory)] $Manifest)
+
+    $server = [string](Get-PendingObjectProperty -Object $Manifest -Name 'server_out')
+    $transactionId = [string](Get-PendingObjectProperty -Object $Manifest -Name 'publish_transaction_id')
+    $expectedHash = [string](Get-PendingObjectProperty -Object $Manifest -Name 'output_sha256')
+    try {
+        $partialPath = New-PublishPartialMediaPath -ServerOut $server -PublishTransactionId $transactionId
+        Remove-PublishPartialMedia -Path $partialPath
+        if (Test-Path -LiteralPath $partialPath -PathType Leaf -ErrorAction SilentlyContinue) {
+            throw "stale final partial could not be removed: $partialPath"
+        }
+
+        $finalBackup = Join-Path (Split-Path -Parent $server) ('.{0}.mp-publish-backup.{1}' -f (Split-Path -Leaf $server), $transactionId)
+        if (Test-Path -LiteralPath $server -PathType Leaf -ErrorAction SilentlyContinue) {
+            $actualHash = Get-PendingFileSha256OrNull -Path $server
+            if ([string]::IsNullOrWhiteSpace($actualHash) -or -not $actualHash.Equals($expectedHash, [System.StringComparison]::OrdinalIgnoreCase)) {
+                return [pscustomobject]@{ Ok = $false; Reason = 'Existing final bytes do not match the pending transaction; automatic rollback is unsafe.' }
+            }
+            Restore-PublishMediaAfterRevealFailure -FinalPath $server -BackupPath $finalBackup -Context 'Pending recovery: '
+        } elseif (Test-Path -LiteralPath $finalBackup -PathType Leaf -ErrorAction SilentlyContinue) {
+            [System.IO.File]::Move($finalBackup, $server, $true)
+        }
+
+        foreach ($sidecar in @(Get-PendingSidecarEntries -Manifest $Manifest)) {
+            $sidecarServer = [string](Get-PendingObjectProperty -Object $sidecar -Name 'server_out')
+            $sidecarExpectedHash = [string](Get-PendingObjectProperty -Object $sidecar -Name 'output_sha256')
+            $sidecarBackup = New-PendingSidecarBackupPath -SidecarPath $sidecarServer -PublishTransactionId $transactionId
+            if (Test-Path -LiteralPath $sidecarBackup -PathType Leaf -ErrorAction SilentlyContinue) {
+                Restore-PendingSidecarBackupIntoPlace -BackupPath $sidecarBackup -DestinationPath $sidecarServer -Context 'Pending recovery: '
+                continue
+            }
+            if (Test-Path -LiteralPath $sidecarServer -PathType Leaf -ErrorAction SilentlyContinue) {
+                $sidecarActualHash = Get-PendingFileSha256OrNull -Path $sidecarServer
+                if (-not [string]::IsNullOrWhiteSpace($sidecarActualHash) -and $sidecarActualHash.Equals($sidecarExpectedHash, [System.StringComparison]::OrdinalIgnoreCase)) {
+                    Remove-Item -LiteralPath $sidecarServer -Force -ErrorAction Stop
+                } else {
+                    return [pscustomobject]@{ Ok = $false; Reason = "Existing sidecar bytes are ambiguous; automatic rollback is unsafe: $sidecarServer" }
+                }
+            }
+        }
+
+        $pipelineSidecar = Get-SidecarPath $server
+        $pipelineSidecarBackup = Get-PendingDrainPipelineSidecarBackupPath -ServerPath $server -TransactionId $transactionId
+        if (Test-Path -LiteralPath $pipelineSidecarBackup -PathType Leaf -ErrorAction SilentlyContinue) {
+            Move-PublishSidecarBackupIntoPlace -BackupPath $pipelineSidecarBackup -SidecarPath $pipelineSidecar -Context 'Pending recovery: '
+        } elseif (Test-Path -LiteralPath $pipelineSidecar -PathType Leaf -ErrorAction SilentlyContinue) {
+            $removePipelineSidecar = $false
+            try {
+                $sidecarPayload = Get-Content -LiteralPath $pipelineSidecar -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+                $removePipelineSidecar = [string]$sidecarPayload.publish_transaction_id -eq $transactionId
+            } catch {}
+            if ($removePipelineSidecar) {
+                Remove-Item -LiteralPath $pipelineSidecar -Force -ErrorAction Stop
+            } else {
+                return [pscustomobject]@{ Ok = $false; Reason = "Existing pipeline sidecar is ambiguous; automatic rollback is unsafe: $pipelineSidecar" }
+            }
+        }
+        return [pscustomobject]@{ Ok = $true; Reason = 'stale attempt artifacts rolled back' }
+    } catch {
+        return [pscustomobject]@{ Ok = $false; Reason = [string]$_ }
+    }
+}
+
+function Repair-PendingStaleDrainAttempt {
+    param(
+        [Parameter(Mandatory)] [System.IO.FileInfo] $ManifestFile,
+        [Parameter(Mandatory)] $Manifest
+    )
+
+    $lock = Enter-PendingPublishTransactionLock -ManifestPath $ManifestFile.FullName
+    if ($null -eq $lock) {
+        return [pscustomobject]@{ Status = 'busy'; Reason = 'A live drain transaction holds the manifest lock.'; Manifest = $Manifest; Cleaned = $false }
+    }
+    try {
+        $contract = Test-PendingManifestCurrentContractFields -Manifest $Manifest -ManifestPath $ManifestFile.FullName
+        if (-not $contract.Ok) {
+            return [pscustomobject]@{ Status = 'blocked'; Reason = [string]$contract.Reason; Manifest = $Manifest; Cleaned = $false }
+        }
+        $destination = Test-PendingManifestDestinationTrusted -Manifest $Manifest -ManifestPath $ManifestFile.FullName
+        if (-not $destination.Ok) {
+            return [pscustomobject]@{ Status = 'blocked'; Reason = [string]$destination.Reason; Manifest = $Manifest; Cleaned = $false }
+        }
+
+        $server = [string](Get-PendingObjectProperty -Object $Manifest -Name 'server_out')
+        $local = [string](Get-PendingObjectProperty -Object $Manifest -Name 'local_file')
+        $attemptId = [string](Get-PendingObjectProperty -Object $Manifest -Name 'drain_attempt_id')
+        if (Test-PendingDrainFinalProof -Manifest $Manifest) {
+            if (-not (Add-CompletedJobsManifestEntryFromSidecar -OutputPath $server)) {
+                $reason = 'Recovered final output is fully verified, but durable completion evidence could not be written.'
+                $updated = Update-PendingManifestReviewState -ManifestPath $ManifestFile.FullName -Manifest $Manifest -State 'review_completion_evidence_failed' -Reason $reason -AttemptId $attemptId
+                return [pscustomobject]@{ Status = 'review'; Reason = $reason; Manifest = $updated; Cleaned = $false }
+            }
+            Update-PendingManifestDrainAttempt -ManifestPath $ManifestFile.FullName -Manifest $Manifest -AttemptId $attemptId -Status 'recovered_completed' | Out-Null
+            Remove-PendingDrainLocalArtifacts -Manifest $Manifest -LocalPath $local -ManifestPath $ManifestFile.FullName
+            return [pscustomobject]@{ Status = 'recovered_completed'; Reason = ''; Manifest = $Manifest; Cleaned = $true }
+        }
+
+        $rollback = Restore-PendingStaleDrainArtifacts -Manifest $Manifest
+        if (-not $rollback.Ok) {
+            $updated = Update-PendingManifestReviewState -ManifestPath $ManifestFile.FullName -Manifest $Manifest -State 'review_ambiguous_drain' -Reason ([string]$rollback.Reason) -AttemptId $attemptId
+            Update-PendingManifestDrainAttempt -ManifestPath $ManifestFile.FullName -Manifest $updated -AttemptId $attemptId -Status 'review_required' -Error ([string]$rollback.Reason) | Out-Null
+            return [pscustomobject]@{ Status = 'review'; Reason = [string]$rollback.Reason; Manifest = $updated; Cleaned = $false }
+        }
+
+        $map = ConvertTo-PendingManifestMap $Manifest
+        $map['manifest_state'] = 'parked_recovered'
+        $map['transaction_phase'] = 'restart_recovered'
+        $map['transaction_phase_at'] = (Get-Date -Format 'o')
+        $map['review_required'] = $false
+        $map['review_reason'] = ''
+        Write-PendingManifestFile -Path $ManifestFile.FullName -Manifest $map | Out-Null
+        $updated = Read-PendingManifestFile -Path $ManifestFile.FullName
+        $updated = Update-PendingManifestDrainAttempt -ManifestPath $ManifestFile.FullName -Manifest $updated -AttemptId $attemptId -Status 'recovered_pending'
+        return [pscustomobject]@{ Status = 'recovered_pending'; Reason = ''; Manifest = $updated; Cleaned = $false }
+    } finally {
+        Exit-PendingPublishTransactionLock -Lock $lock
     }
 }
 
@@ -119,6 +292,35 @@ function Invoke-PendingPublishRecovery {
         try {
             $manifest = Read-PendingManifestFile -Path $manifestFile.FullName
             $stateBefore = [string]$manifest.manifest_state
+            $drainAttemptStatus = [string](Get-PendingObjectProperty -Object $manifest -Name 'drain_attempt_status')
+            if ($drainAttemptStatus -in @('in_progress', 'completed_evidence_failed', 'succeeded', 'already_published', 'recovered_completed')) {
+                $summary['candidate_count'] = [int]$summary['candidate_count'] + 1
+                $drainRepair = Repair-PendingStaleDrainAttempt -ManifestFile $manifestFile -Manifest $manifest
+                $statusAfter = [string]$drainRepair.Status
+                if ($statusAfter -in @('recovered_pending', 'recovered_completed')) {
+                    $summary['recovered_count'] = [int]$summary['recovered_count'] + 1
+                } elseif ($statusAfter -in @('review', 'blocked', 'busy')) {
+                    $summary['blocked_count'] = [int]$summary['blocked_count'] + 1
+                } else {
+                    $summary['failed_count'] = [int]$summary['failed_count'] + 1
+                }
+                $stateAfter = if ($drainRepair.Cleaned) { 'completed' } else { [string](Get-PendingObjectProperty -Object $drainRepair.Manifest -Name 'manifest_state') }
+                $rows.Add([pscustomobject]@{
+                    manifest_path = [string]$manifestFile.FullName
+                    status = $statusAfter
+                    reason = [string]$drainRepair.Reason
+                    state_before = $stateBefore
+                    state_after = $stateAfter
+                }) | Out-Null
+                if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+                    Write-PipelineEvent -EventType 'pending_publish_recovery' -Stage 'pending-publish-recovery' -Status $statusAfter -Data @{
+                        phase = 'stale_drain_result'; reason = [string]$Reason; manifest_path = [string]$manifestFile.FullName
+                        state_before = $stateBefore; state_after = $stateAfter; drain_attempt_status = $drainAttemptStatus
+                        error = [string]$drainRepair.Reason
+                    } | Out-Null
+                }
+                continue
+            }
             $sidecarCandidates = @(Get-PendingSidecarEntries -Manifest $manifest | Where-Object {
                 $local = [string](Get-PendingObjectProperty -Object $_ -Name 'local_file')
                 $original = [string](Get-PendingObjectProperty -Object $_ -Name 'original_local_file')

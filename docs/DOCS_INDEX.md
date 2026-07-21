@@ -129,6 +129,7 @@ Other 2026-06 audit/review packs are historical evidence snapshots and should li
 - `testing/BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md`
 - `testing/BROWSER_SMOKE_PREREQUISITES_CHECKLIST.md`
 - `testing/BROWSER_SMOKE_TEST_RUNBOOK.md`
+- `testing/WEBVIEW_NATIVE_MANUAL_EVIDENCE_RECIPES.md`
 - `testing/FFMPEG_MEDIA_POLICY_REGRESSION_MATRIX.md`
 - `testing/TEST_COVERAGE_MATRIX.md`
 - `testing/THIRTY_DAY_SOAK_TEST_DESIGN.md`

@@ -256,6 +256,30 @@
     }
 
 
+    function queuePreviewTrustCheckpoint(payload) {
+      const fallback = payload?.queue_snapshot_fallback || {};
+      const consistency = payload?.queue_input_consistency || {};
+      const origin = String(payload?.queue_snapshot_origin || "unknown");
+      const requestId = String(payload?.queue_preview_request_id || "").trim();
+      const planFingerprint = String(payload?.queue_plan_fingerprint || "").trim();
+      const pendingHealth = payload?.pending_publish_index_health || {};
+      const pendingBackpressure = payload?.pending_publish_backpressure || {};
+      const blockers = [];
+      if (fallback.used === true) blockers.push(`cached fallback: ${fallback.reason || "latest scan failed"}`);
+      if (origin.toLowerCase() !== "dry_run") blockers.push(`origin=${origin}`);
+      if (String(consistency.status || "").toLowerCase() !== "current") blockers.push(`inputs=${consistency.status || "unknown"}`);
+      if (!requestId) blockers.push("request ID missing");
+      if (!planFingerprint) blockers.push("plan fingerprint missing");
+      if (String(pendingHealth.status || "ready").toLowerCase() === "blocked") blockers.push("pending-publish index health is blocked");
+      if (pendingBackpressure.blocked === true) blockers.push(`pending-publish backpressure: ${pendingBackpressure.block_reason || "threshold reached"}`);
+      return {
+        blocked: blockers.length > 0,
+        evidence: `origin=${origin}; request=${requestId || "missing"}; inputs=${consistency.status || "unknown"}; fallback=${fallback.used === true ? "yes" : "no"}; plan fingerprint=${planFingerprint ? "present" : "missing"}; pending health=${pendingHealth.status || "unknown"}; backpressure=${pendingBackpressure.blocked === true ? "blocked" : "ready"}.`,
+        detail: blockers,
+      };
+    }
+
+
     function queueCurrentFilterScope(rows = getLastQueueRows()) {
       const allRows = Array.isArray(rows) ? rows : [];
       const filterText = byId("queue-filter")?.value || "";
@@ -347,6 +371,7 @@
       const filterScope = queueCurrentFilterScope(rowList);
       const selected = getSelectedQueueRow();
       const backendPreflight = queueLaunchBackendPreflightCheckpoint();
+      const previewTrust = queuePreviewTrustCheckpoint(payload);
       const latestCommand = queueLaunchDecisionLatestCommand(history);
       const issueLevel = queueLaunchCommandIssueLevel(latestCommand);
       const rowsOut = [
@@ -363,6 +388,13 @@
           meaning: rowList.length ? "Backend Launch will re-check current saved state before processing." : "Empty preview needs explanation before unattended launch.",
           boundary: "Preview rows do not rewrite the queue snapshot or force processing order.",
           status: payload.error || (!rowList.length && counts.runnable <= 0) ? "warning" : "ready",
+        },
+        {
+          signal: "Queue dry-run authority",
+          evidence: previewTrust.evidence,
+          meaning: previewTrust.blocked ? "Run Once is blocked until the listed evidence is resolved and Refresh Queue produces a current backend plan." : "The loaded snapshot is eligible for the backend launch recheck.",
+          boundary: "The start route and PowerShell engine both re-check this evidence; the WebView cannot override it.",
+          status: previewTrust.blocked ? "blocked" : "ready",
         },
         {
           signal: "Display filter vs launch scope",
@@ -480,6 +512,7 @@
       const runtimeStatuses = payload.runtime_outcome_status_counts || {};
       const filterScope = queueCurrentFilterScope(rowList);
       const rowsOut = [];
+      const previewTrust = queuePreviewTrustCheckpoint(payload);
 
       queueLaunchDecisionAdd(
         rowsOut,
@@ -503,6 +536,16 @@
         backendPreflight.evidence,
         backendPreflight.action,
         backendPreflight.detail,
+      );
+
+      queueLaunchDecisionAdd(
+        rowsOut,
+        "queue-preview-authority",
+        "Queue dry-run authority",
+        previewTrust.blocked ? "Blocked" : "Ready",
+        previewTrust.evidence,
+        previewTrust.blocked ? "Resolve the listed blocker, then refresh Queue and wait for a successful backend dry-run before Run Once." : "Continue to backend Launch preflight; the start route and engine will re-check the same plan.",
+        previewTrust.detail,
       );
 
       queueLaunchDecisionAdd(
@@ -531,7 +574,7 @@
         "Snapshot freshness",
         queueSnapshotIsStale(payload) ? "Snapshot age advisory" : "Ready",
         `Snapshot: ${payload.snapshot_file_age_text || "unknown"} (${payload.snapshot_file_freshness_status || "unknown"}); produced: ${payload.produced_age_text || "unknown"} (${payload.produced_freshness_status || "unknown"}).`,
-        queueSnapshotIsStale(payload) ? "Refresh queue preview from Launch before processing; stale snapshots can hide moved, completed, or half-copied files." : "Use the loaded queue freshness as current-enough preview evidence.",
+        queueSnapshotIsStale(payload) ? "Snapshot age is advisory. Run Once rebuilds the queue and verifies the accepted plan fingerprint before media dispatch." : "Use the loaded queue freshness as preview context; runtime still rebuilds and verifies the plan.",
         [
           queueFreshnessLine("Snapshot file age", payload.snapshot_file_age_text, payload.snapshot_file_freshness_status, payload.snapshot_file_mtime_utc),
           queueFreshnessLine("Produced age", payload.produced_age_text, payload.produced_freshness_status),

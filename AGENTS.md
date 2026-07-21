@@ -163,19 +163,28 @@ orientation, use `docs/architecture/ARCHITECTURE.md`.
 
 ## 4. AI Navigation Workflow
 
-This repository is large. Navigate by generated maps and summaries before
-opening full source.
+This repository is large. After reading this file, use the read-only
+`mediapipeline-code` MCP server when available:
 
-Start a session with:
+1. Call `repo_context` with the actual task and its default 2,000-token budget.
+2. Use `code_lookup` for ownership, relationships, tests, and validation.
+3. Use bounded `code_read` calls only for returned paths that need exact detail.
+4. Use `code_search` only for a precise symbol/string or a low-confidence
+   context result.
 
-1. `AGENTS.md`
-2. `docs/DOCS_INDEX.md`
-3. `docs/architecture/ARCHITECTURE.md`
-4. `docs/architecture/MODULE_MAP.md`
-5. `docs/CURRENT_PROJECT_STATE.md` when current status matters
-6. `docs/OPEN_WORK_CHECKLIST.md` when backlog state matters
+If the MCP server is unavailable, run the deterministic CLI fallback:
 
-Then use generated navigation:
+```powershell
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.dev.context_slice --task "<task>" --budget 2000
+```
+
+Open only the summaries, boundary docs, source, and tests returned by that
+workflow. Read `docs/CURRENT_PROJECT_STATE.md` only when current status matters
+and `docs/OPEN_WORK_CHECKLIST.md` only when backlog state matters. The full
+Markdown/JSONL indexes and broad orientation documents are query aids, not
+ordinary startup reads.
+
+Generated navigation remains available for focused follow-up:
 
 - `docs/generated/PROJECT_INDEX.md` for per-file domain/priority lookup.
 - `docs/generated/PIPELINE_MAP.md` for stage contracts.

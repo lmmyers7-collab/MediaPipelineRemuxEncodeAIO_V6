@@ -58,6 +58,7 @@
         getSelectedRows: getSelectedPriorityRows,
         overrideMarkers: deps.overrideMarkers,
         refreshAll,
+        requestQueueScan,
         renderBreakdown,
         renderRows,
         renderSummary,
@@ -107,6 +108,7 @@
         queueRowKey,
         refreshDisplayedQueuePriorityRows: refreshPriorityRows,
         renderQueueRows: renderRows,
+        requestQueueScan,
         sendQueuePriorityBulk: sendPriorityBulk,
         setText,
         updateQueuePriorityControls: updatePriorityControls,
@@ -164,6 +166,7 @@
         renderRows,
         setActiveStrategy: (value) => { state.activeStrategy = value; },
         strategyRoute,
+        requestQueueScan,
         updateManualOrderControls: (...args) => updateManualOrderControls(...args),
       })
       : {};

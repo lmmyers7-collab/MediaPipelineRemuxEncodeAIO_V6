@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/desktop/priority_markers.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
@@ -9,7 +12,7 @@ sha256: db9c8a57950446fcc5a450e050497e24c587036aa394ab9d0b7e1bebcc48a50c
 ---
 # `src/mediapipeline/desktop/priority_markers.py`
 
-**Purpose:** Compatibility shim for priority marker helpers.
+**Purpose:** Compatibility shim for priority marker helpers. New code should import from ``mediapipeline.core.queue.priority_markers``.
 
 **In-repo imports:** `mediapipeline.core.queue.priority_markers`
 

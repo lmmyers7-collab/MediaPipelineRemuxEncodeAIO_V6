@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 from pydantic import ValidationError
@@ -10,10 +11,13 @@ from mediapipeline.core.config.rollout import planner_comparison_from_decision_s
 from mediapipeline.core.config.settings_patch_policy import (
     _command_result,
     settings_patch_preview_result,
+    settings_review_digest,
+    settings_save_authority_conflict_result,
     settings_save_busy_result,
     settings_save_config_blocked_result,
     settings_save_confirmation_required_result,
     settings_save_exception_result,
+    settings_save_idempotent_replay_result,
     settings_save_no_changes_result,
     settings_save_review_confirmation_error,
     settings_save_review_confirmation_required_result,
@@ -22,6 +26,8 @@ from mediapipeline.core.config.settings_patch_policy import (
     settings_save_validation_error_result,
     settings_config_digest,
 )
+from mediapipeline.core.config.authority_lock import SettingsAuthorityLockError
+from mediapipeline.core.config.settings_store import SettingsAuthorityConflictError
 from mediapipeline.core.config.identity import config_operation_block_data, config_operation_block_message
 from mediapipeline.contracts.source_media import SourceMediaInfo
 from mediapipeline.core.orchestration.planner import build_pipeline_plan_from_preset
@@ -51,17 +57,37 @@ class SettingsPatchFacadeMixin:
 
     def preview_settings_patch(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
         """Preview explicit settings changes without writing PSD1 config."""
-        patch = self._settings_patch_candidate(resolved, request, command="settings.preview_patch")
-        if patch["fatal_result"] is not None:
-            return patch["fatal_result"]
+        preview_resolved = resolved
+        authority_digest = ""
         authority_loader = getattr(self.service, "load_settings_authority", None)
         if callable(authority_loader):
             try:
                 authority = authority_loader(resolved.config_path, resolved.powershell_host)
             except Exception:
-                authority = None
-            if isinstance(authority, dict):
-                patch["authority_config_digest"] = settings_config_digest(authority)
+                return _command_result(
+                    command="settings.preview_patch",
+                    ok=False,
+                    severity="error",
+                    message="Settings preview blocked because the JSON authority could not be verified.",
+                    errors=["Refresh settings after the authority is repaired, then preview the patch again."],
+                    data={"writes_config": False, "authority_verified": False},
+                )
+            if not isinstance(authority, dict):
+                return _command_result(
+                    command="settings.preview_patch",
+                    ok=False,
+                    severity="error",
+                    message="Settings preview blocked because the JSON authority could not be verified.",
+                    errors=["The settings authority did not contain a configuration object."],
+                    data={"writes_config": False, "authority_verified": False},
+                )
+            preview_resolved = replace(resolved, config_data=dict(authority))
+            authority_digest = settings_config_digest(authority)
+        patch = self._settings_patch_candidate(preview_resolved, request, command="settings.preview_patch")
+        if patch["fatal_result"] is not None:
+            return patch["fatal_result"]
+        if authority_digest:
+            patch["authority_config_digest"] = authority_digest
         return settings_patch_preview_result(resolved, patch)
 
     def settings_patch_request_with_review_confirmation(
@@ -206,6 +232,8 @@ class SettingsPatchFacadeMixin:
                 if isinstance(submitted_confirmation, dict)
                 else ""
             )
+            current_authority_digest = ""
+            save_resolved = resolved
             if callable(authority_loader) and submitted_authority_digest:
                 current_authority = authority_loader(resolved.config_path, resolved.powershell_host)
                 if not isinstance(current_authority, dict):
@@ -213,13 +241,19 @@ class SettingsPatchFacadeMixin:
                         submitted=submitted_confirmation,
                         reason="Settings authority could not be verified at commit time; save was blocked.",
                     )
-                current_digest = settings_config_digest(current_authority)
-                if current_digest != submitted_authority_digest:
-                    return settings_save_review_confirmation_required_result(
-                        submitted=submitted_confirmation,
-                        reason="Settings authority changed after preview; refresh and review the new candidate before saving.",
+                save_resolved = replace(resolved, config_data=dict(current_authority))
+                current_authority_digest = settings_config_digest(current_authority)
+                submitted_candidate_digest = str(submitted_confirmation.get("candidate_config_digest") or "")
+                if (
+                    current_authority_digest != submitted_authority_digest
+                    and current_authority_digest != submitted_candidate_digest
+                ):
+                    return settings_save_authority_conflict_result(
+                        expected_digest=submitted_authority_digest,
+                        current_digest=current_authority_digest,
+                        candidate_digest=submitted_candidate_digest,
                     )
-            patch = self._settings_patch_candidate(resolved, request, command="settings.save_patch")
+            patch = self._settings_patch_candidate(save_resolved, request, command="settings.save_patch")
             if submitted_authority_digest:
                 patch["authority_config_digest"] = submitted_authority_digest
             if patch["fatal_result"] is not None:
@@ -230,16 +264,43 @@ class SettingsPatchFacadeMixin:
             removed_keys = patch["removed_keys"]
             if errors:
                 return settings_save_validation_error_result(errors, warnings)
+            idempotent_replay = (
+                isinstance(submitted_confirmation, dict)
+                and bool(current_authority_digest)
+                and current_authority_digest != submitted_authority_digest
+                and current_authority_digest == str(submitted_confirmation.get("candidate_config_digest") or "")
+                and settings_config_digest(patch["merged"]) == current_authority_digest
+                and settings_review_digest(patch["request_evidence"])
+                == str(submitted_confirmation.get("request_digest") or "")
+            )
+            authority_saver = getattr(self.service, "save_settings_authority", None)
+            if idempotent_replay:
+                if not callable(authority_saver):
+                    return settings_save_service_unavailable_result()
+                result = authority_saver(
+                    save_resolved,
+                    dict(patch["merged"]),
+                    expected_authority_digest=submitted_authority_digest,
+                )
+                return settings_save_idempotent_replay_result(
+                    result,
+                    patch,
+                    submitted_confirmation,
+                    warnings,
+                )
             if not changed_keys and not removed_keys:
                 return settings_save_no_changes_result(warnings)
             review_confirmation_error = settings_save_review_confirmation_error(request, patch)
             if review_confirmation_error is not None:
                 return review_confirmation_error
-            authority_saver = getattr(self.service, "save_settings_authority", None)
             serializer = getattr(self.service, "serialize_psd1_document", None)
             saver = getattr(self.service, "save_config_document", None)
             if callable(authority_saver):
-                result = authority_saver(resolved, dict(patch["merged"]))
+                result = authority_saver(
+                    save_resolved,
+                    dict(patch["merged"]),
+                    expected_authority_digest=submitted_authority_digest,
+                )
             elif callable(serializer) and callable(saver):
                 document_text = str(serializer(patch["merged"]))
                 result = saver(
@@ -251,6 +312,14 @@ class SettingsPatchFacadeMixin:
                 )
             else:
                 return settings_save_service_unavailable_result()
+        except SettingsAuthorityConflictError as exc:
+            return settings_save_authority_conflict_result(
+                expected_digest=exc.expected_digest,
+                current_digest=exc.current_digest,
+                candidate_digest=exc.candidate_digest,
+            )
+        except SettingsAuthorityLockError as exc:
+            return settings_save_busy_result(str(exc))
         except Exception as exc:
             return settings_save_exception_result(exc, warnings)
         finally:

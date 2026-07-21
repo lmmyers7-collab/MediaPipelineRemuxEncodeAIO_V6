@@ -475,12 +475,36 @@ def exercise_local_api_route_workflow() -> SimpleNamespace:
                 {"target": "run_logs"},
                 token="workflow-token",
             )
+            assert resolved.active_jobs_path is not None
+            resolved.active_jobs_path.mkdir(parents=True, exist_ok=True)
+            active_job_path = resolved.active_jobs_path / "workflow-run-once.json"
+            active_job_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "desktop_active_job.v1",
+                        "launch_id": "workflow-launch-1",
+                        "job_kind": "pipeline",
+                        "mode": "once",
+                        "status": "active",
+                        "pid": 24680,
+                        "metadata": {
+                            "run_id": "workflow-run-1",
+                            "mode": "once",
+                            "single_file": "",
+                            "expected_queue_plan_fingerprint": "workflow-accepted-plan-1",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
             control_status, control_payload = client._post_json(
                 f"{server.url}/api/pipeline/control",
-                {"action": "stop"},
+                {"action": "stop", "expected_run_id": "workflow-run-1"},
                 token="workflow-token",
             )
-            stop_flag_exists = resolved.stop_flag.exists()
+            stop_after_current_flag_exists = resolved.stop_after_current_flag.exists()
+            legacy_stop_flag_exists = resolved.stop_flag.exists()
+            active_job_path.unlink()
             start_status, start_payload = client._post_json(
                 f"{server.url}/api/pipeline/start",
                 {"mode": "validate", "sleep_seconds": 3},
@@ -2016,6 +2040,9 @@ class DummyWorkflowFacadeService(DummyFacadeService, QueueServiceMixin, RenameSe
         show_console: bool,
         single_file: str | None = None,
         extra_argv: list[str] | tuple[str, ...] | None = None,
+        expected_queue_plan_fingerprint: str = "",
+        command_id: str = "",
+        run_id: str = "",
     ) -> DummyProc:
         self.started_pipeline = {
             "resolved": resolved,
@@ -2026,6 +2053,9 @@ class DummyWorkflowFacadeService(DummyFacadeService, QueueServiceMixin, RenameSe
             "extra_argv": [str(item) for item in (extra_argv or [])],
             "show_console": show_console,
             "single_file": single_file,
+            "expected_queue_plan_fingerprint": expected_queue_plan_fingerprint,
+            "command_id": command_id,
+            "run_id": run_id,
         }
         proc = DummyProc()
         self.started_pipeline_proc = proc
@@ -2119,6 +2149,7 @@ def _resolved(root: Path) -> ResolvedPaths:
             active_jobs_path=root / "State" / "ActiveJobs",
             pause_flag=root / "State" / "Pipeline" / "pipeline_pause.flag",
             stop_flag=root / "State" / "Pipeline" / "pipeline_stop.flag",
+            stop_after_current_flag=root / "State" / "Pipeline" / "pipeline_stop_after_current.flag",
             rescan_flag=root / "State" / "Pipeline" / "pipeline_rescan.flag",
             config_data={"NetworkRole": "standalone"},
     )

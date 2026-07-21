@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/core/processes/audit_facade.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: observability
 token_priority: medium
 owner_domain: process
@@ -11,7 +14,8 @@ sha256: cdb14326ea8cb9b86f582808961c9c40eabaec94a802c7dd9d53177c030a93b2
 
 **Purpose:** Audit launch facade adapter.
 
-**Classes:** `AuditLaunchFacadeMixin`
+**Public symbols:** `AuditLaunchFacadeMixin`
 **In-repo imports:** `mediapipeline.core.config.identity`, `mediapipeline.core.kernel.dto_commands`, `mediapipeline.core.paths.contracts`, `mediapipeline.core.processes.audit_policy`, `mediapipeline.core.processes.file_io`
+**HTTP routes:** `/api/audit/start`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/processes/audit_facade.py`._

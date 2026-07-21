@@ -20,6 +20,10 @@ from mediapipeline.core.status.eta import eta_payload
 from mediapipeline.core.status.ffmpeg_progress import ffmpeg_progress_payload
 from mediapipeline.core.status.presentation import build_current_work
 from mediapipeline.core.status.runtime_health import runtime_reliability_counters
+from mediapipeline.core.status.run_monitor import (
+    read_backend_correlated_run_monitor_projection,
+    unavailable_run_monitor_projection,
+)
 from mediapipeline.core.status.rerun_completion import csv_rerun_completion_summary
 from mediapipeline.core.status.progress import TERMINAL_PROGRESS_STAGES, datetime_is_stale
 from mediapipeline.core.processes.path_evidence import configured_path_health, path_health_warning_lines
@@ -76,6 +80,22 @@ class StatusFacadeMixin:
         if not isinstance(snapshot, _snapshot_type()):
             raise RuntimeError("Application facade service returned an invalid snapshot.")
         return self.snapshot_to_dto(snapshot)
+
+    def get_run_monitor(self, resolved: ResolvedPaths, *, run_id: str = "") -> dict[str, object]:
+        state_root = resolved.state_root
+        if state_root is None and resolved.run_monitor_path is not None:
+            state_root = resolved.run_monitor_path.parent
+        if state_root is None:
+            return unavailable_run_monitor_projection(
+                reason_code="state_root_unavailable",
+                backend_activity_state="unavailable",
+            )
+        return read_backend_correlated_run_monitor_projection(
+            state_root,
+            resolved.active_jobs_path,
+            run_id=run_id or None,
+            pid_alive=getattr(self, "_active_job_pid_is_alive", None),
+        )
 
     def snapshot_to_dto(self, snapshot: Snapshot) -> AppSnapshotDto:
         progress = dict(snapshot.progress or {})

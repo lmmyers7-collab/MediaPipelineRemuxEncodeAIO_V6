@@ -188,7 +188,10 @@ def _datetime_is_stale(raw: str, stale_after_seconds: float) -> bool:
     if parsed is None:
         return False
     now = datetime.now(parsed.tzinfo) if parsed.tzinfo is not None else datetime.now()
-    return (now - parsed) > timedelta(seconds=stale_after_seconds)
+    age = now - parsed
+    if age < -timedelta(seconds=5):
+        return True
+    return age > timedelta(seconds=stale_after_seconds)
 
 
 def _audit_progress_is_stale(audit_progress: Mapping[str, Any] | None, *, stale_after_seconds: float = 5.0) -> bool:
@@ -200,6 +203,8 @@ def _audit_progress_is_stale(audit_progress: Mapping[str, Any] | None, *, stale_
     if status in {"", "idle", "completed", "failed", "stopped"}:
         return False
     raw = text_from_mapping(audit_progress, "last_update", "LastUpdate", "updated_at", "UpdatedAt")
+    if _parse_progress_datetime(raw) is None:
+        return True
     return _datetime_is_stale(raw, stale_after_seconds)
 
 

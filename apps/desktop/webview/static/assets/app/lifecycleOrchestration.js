@@ -206,7 +206,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const auditPreviewPriorityOnly = byId("audit-preview-priority-only");
   if (auditPreviewPriorityOnly) auditPreviewPriorityOnly.addEventListener("change", refreshAll);
   document.querySelectorAll("[data-control-action]").forEach((button) => {
-    button.addEventListener("click", () => launchView.requestPipelineControl?.(button.dataset.controlAction || ""));
+    button.addEventListener("click", () => launchView.requestPipelineControl?.(button.dataset.controlAction || "", button));
   });
   document.querySelectorAll("[data-open-diagnostics]").forEach((button) => {
     button.addEventListener("click", () => requestDiagnosticsOpen(button.dataset.openDiagnostics || "", button));

@@ -8,10 +8,10 @@ Concise inventory of supported script entrypoints. Root launcher shims have been
 
 | Type | Count |
 | --- | --- |
-| `scripts/**/*.ps1` operator/release/dev tools | 7 |
+| `scripts/**/*.ps1` operator/release/dev tools | 8 |
 | `scripts/**/*.bat` launcher wrappers | 6 |
-| `ops/scripts/smoke/*.ps1` files | 26 |
-| **Canonical script total** | **13** |
+| `ops/scripts/smoke/*.ps1` files | 38 (37 canonical wrappers + 1 shared support file) |
+| **Canonical non-smoke script total** | **14** |
 
 ## Release And Validation Tools (`.ps1`)
 
@@ -24,6 +24,7 @@ Concise inventory of supported script entrypoints. Root launcher shims have been
 | `ops\scripts\dev\verify-env.ps1` | Verifies runtime/tool layout: PowerShell, Python, FFmpeg, MKVToolNix, PgsToSrt. | Yes | No | No | No | Fast |
 | `ops\scripts\dev\check-github-audit-spine.ps1` | Validates local GitHub audit-spine files, labels, workflows, and AI templates. | Yes | No | No | No | Fast |
 | `ops\scripts\dev\bootstrap-github-audit-spine.ps1` | Dry-runs or applies GitHub audit labels from `.github\audit-labels.json`. | Yes in dry-run; caution with `-Apply` | No local file mutation; `-Apply` mutates GitHub labels | No | No | Fast |
+| `ops\scripts\dev\setup-code-context-mcp.ps1` | Previews, installs, registers, or removes the read-only local code-context MCP server for Codex and Claude. | Yes in preview; bounded local setup with `-Apply` | `-Apply` writes an ignored isolated environment and client configuration; `-Remove` is scoped to matching registrations | No | No | Fast |
 
 ## Launchers (`.bat`)
 
@@ -63,4 +64,5 @@ See `docs/inventories/SMOKE_TEST_INVENTORY.md` for the complete list, purpose, u
 | `ops\scripts\dev\start-api-and-browser.bat` | Medium | Starts the live API/WebView surface with live config; backend commands can write state/logs. |
 | Smoke wrappers under `ops/scripts/smoke/` | Low | Bounded validation wrappers; generated/temp state unless documented otherwise. |
 | `ops\scripts\dev\bootstrap-github-audit-spine.ps1 -Apply` | Low | Mutates GitHub labels in the selected remote repository; dry-run is read-only. |
+| `ops\scripts\dev\setup-code-context-mcp.ps1 -Apply` | Low | Installs the pinned SDK below ignored `LocalBase` and registers one read-only stdio server in local AI-client configuration. |
 | Other canonical scripts | Low | Read-only or bounded setup/preview actions. |

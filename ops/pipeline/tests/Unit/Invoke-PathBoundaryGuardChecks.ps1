@@ -632,6 +632,25 @@ function Set-ProgressStage {
     )
 }
 
+$script:ScratchRunMonitorStages = @()
+function Set-MediaPipelineCurrentRunMonitorStage {
+    param(
+        [string] $StageId,
+        [string] $State,
+        [string] $Detail,
+        [string] $ReasonCode,
+        [string] $EvidenceSource,
+        [switch] $Indeterminate
+    )
+    $script:ScratchRunMonitorStages += ,([pscustomobject]@{
+        StageId = $StageId
+        State = $State
+        Detail = $Detail
+        ReasonCode = $ReasonCode
+        EvidenceSource = $EvidenceSource
+    })
+}
+
 Invoke-WithTempRoot {
     param($Root)
     $script:LocalBase = Join-Path $Root.FullName 'local-base'
@@ -648,13 +667,20 @@ Invoke-WithTempRoot {
     $victimPath = Join-Path $victimDir 'victim.mkv'
     [System.IO.File]::WriteAllText($victimPath, 'do-not-touch', [System.Text.UTF8Encoding]::new($false))
 
+    $script:ScratchRunMonitorStages = @()
     $traversalResult = Ensure-ScratchCopy -SourceFile $source -SafeName '..\victim.mkv'
     Assert-True ($null -eq $traversalResult) 'Ensure-ScratchCopy should reject parent traversal safe names.'
     Assert-Equal ([System.IO.File]::ReadAllText($victimPath)) 'do-not-touch' 'Traversal safe name must not mutate outside victim file.'
+    $traversalStage = @($script:ScratchRunMonitorStages | Where-Object { $_.StageId -eq 'copy_to_scratch' }) | Select-Object -Last 1
+    Assert-Equal ([string]$traversalStage.State) 'blocked' 'Unsafe scratch identity must explicitly block the canonical copy stage.'
+    Assert-Equal ([string]$traversalStage.ReasonCode) 'SCRATCH_SAFE_NAME_UNSAFE' 'Unsafe scratch identity must retain its backend reason code.'
 
+    $script:ScratchRunMonitorStages = @()
     $rootedResult = Ensure-ScratchCopy -SourceFile $source -SafeName (Join-Path $victimDir 'rooted.mkv')
     Assert-True ($null -eq $rootedResult) 'Ensure-ScratchCopy should reject rooted safe names.'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $victimDir 'rooted.mkv') -ErrorAction SilentlyContinue)) 'Rooted safe name must not create outside files.'
+    $rootedStage = @($script:ScratchRunMonitorStages | Where-Object { $_.StageId -eq 'copy_to_scratch' }) | Select-Object -Last 1
+    Assert-Equal ([string]$rootedStage.State) 'blocked' 'Rooted scratch identity must explicitly block the canonical copy stage.'
 
     $unicodeSafeName = "Movie-$([char]0x00E9)-$([char]0x65E5).mkv"
     $unicodeResult = Ensure-ScratchCopy -SourceFile $source -SafeName $unicodeSafeName

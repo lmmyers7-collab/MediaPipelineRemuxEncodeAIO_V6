@@ -149,6 +149,7 @@ foreach ($entry in @(
     @{ Label = 'ops/scripts/smoke WebView browser Maintenance/Reports smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserMaintenanceReportsSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView browser Maintenance change-ledger smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView browser Sample Validation smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserSampleValidationSmoke.ps1'); Type = 'Leaf' },
+    @{ Label = 'ops/scripts/smoke WebView browser safe operator commands smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserSafeOperatorCommandsSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView browser Home live-state smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserHomeLiveStateSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView browser Launch/Queue readiness smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'ops/scripts/smoke WebView browser layout manager smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke\Test-WebViewBrowserLayoutManagerSmoke.ps1'); Type = 'Leaf' },

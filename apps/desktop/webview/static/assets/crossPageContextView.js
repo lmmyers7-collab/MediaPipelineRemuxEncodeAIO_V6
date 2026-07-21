@@ -449,7 +449,6 @@
     if (conflictRows.some((row) => row.severity === "warning")) return "Conflict review";
     if (crossPageCount(pending.issue_count) || crossPageCount(pending.health_count)) return "Pending review";
     if (crossPageCount(completed.missing_output_count) || crossPageCount(completed.size_growth_over_5_count)) return "Completed review";
-    if (String(queue.snapshot_file_freshness_status || "").toLowerCase() === "stale") return "Queue stale";
     if (crossPageRuntimeFailureCount(queue.runtime_outcome_status_counts) || crossPageRuntimeFailureCount(completed.runtime_outcome_status_counts)) return "Runtime review";
     if (crossPageRunnableCount(queue)) return "Queue ready";
     return "Context loaded";
@@ -487,9 +486,6 @@
     if (crossPageCount(completed.size_growth_over_5_count)) {
       return "Review Completed size-growth rows before treating recent encodes as successful output policy.";
     }
-    if (String(queue.snapshot_file_freshness_status || "").toLowerCase() === "stale") {
-      return "Refresh queue preview before Launch; stale queue snapshots can disagree with completed or pending state.";
-    }
     if (diagnosticsCounts.error || diagnosticsCounts.warning) {
       return "Open Diagnostics and inspect the current warnings/errors before unattended operation.";
     }
@@ -515,8 +511,8 @@
     if (crossPageCount(completed.missing_output_count) || crossPageCount(completed.size_growth_over_5_count) || crossPageCount(completed.missing_sidecar_count) || crossPageCount(completed.output_sidecar_mismatch_count)) {
       addStep("Completed: verify output proof, size growth, and sidecar consistency before treating prior work as success.");
     }
-    if (String(queue.snapshot_file_freshness_status || "").toLowerCase() === "stale" || crossPageCount(queue.invalid_row_count) || crossPageCount(queue.blocked_row_count)) {
-      addStep("Queue: refresh stale snapshots and inspect blocked/invalid rows before Launch.");
+    if (crossPageCount(queue.invalid_row_count) || crossPageCount(queue.blocked_row_count)) {
+      addStep("Queue: inspect blocked/invalid rows before Launch.");
     }
     if (crossPageRunnableCount(queue)) {
       addStep("Launch: start backend-owned processing only after Queue, Completed, Pending Publish, Diagnostics, schedule, and saved settings agree.");
@@ -549,7 +545,7 @@
     const conflictRows = crossPageConflictRows(context || {});
     const lines = [
       "Cross-page context is read-only and derived from already-loaded backend payloads.",
-      `Queue: rows=${queueRows.length}, runnable=${crossPageRunnableCount(queue)}, stale=${String(queue.snapshot_file_freshness_status || "unknown")}, excluded=${crossPageCount(queue.completed_excluded_count)}`,
+      `Queue: rows=${queueRows.length}, runnable=${crossPageRunnableCount(queue)}, age=${String(queue.snapshot_file_freshness_status || "unknown")}, excluded=${crossPageCount(queue.completed_excluded_count)}`,
       `Completed: rows=${completed.count || completedRows.length || 0}, missing outputs=${crossPageCount(completed.missing_output_count)}, size growth >5%=${crossPageCount(completed.size_growth_over_5_count)}, manifest freshness=${completed.manifest_freshness_status || "unknown"}`,
       `Pending Publish: rows=${pending.count || pendingRows.length || 0}, ready=${crossPageCount(pending.ready_count)}, issue=${crossPageCount(pending.issue_count)}, diagnostic statuses=${crossPageFormatCounts(pending.diagnostic_status_counts)}`,
       crossPageCount(completed.missing_output_count) && !pendingRows.length
@@ -593,7 +589,6 @@
     const conflictRows = crossPageConflictRows(context || {});
     const status = crossPageStatus(context);
     const queueRunnable = crossPageRunnableCount(queue);
-    const queueStale = String(queue.snapshot_file_freshness_status || "").toLowerCase() === "stale";
     const queueIssues = crossPageCount(queue.invalid_row_count) + crossPageCount(queue.blocked_row_count);
     const completedMissing = crossPageCount(completed.missing_output_count);
     const completedSizeGrowth = crossPageCount(completed.size_growth_over_5_count);
@@ -609,8 +604,8 @@
       {
         label: "Queue",
         value: `${queueRunnable} runnable`,
-        detail: `rows=${queueRows.length}, stale=${String(queue.snapshot_file_freshness_status || "unknown")}, excluded=${crossPageCount(queue.completed_excluded_count)}`,
-        tone: queueStale || queueIssues ? "warning" : (queueRunnable ? "info" : "muted"),
+        detail: `rows=${queueRows.length}, age=${String(queue.snapshot_file_freshness_status || "unknown")}, excluded=${crossPageCount(queue.completed_excluded_count)}`,
+        tone: queueIssues ? "warning" : (queueRunnable ? "info" : "muted"),
       },
       {
         label: "Completed",

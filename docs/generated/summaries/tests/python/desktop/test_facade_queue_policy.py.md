@@ -1,5 +1,8 @@
 ---
 file: tests/python/desktop/test_facade_queue_policy.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: tests
@@ -9,9 +12,10 @@ sha256: 24733ce488c636c895285613eeafa821f6dbbd8119a4c09ae7784b4404873a9b
 ---
 # `tests/python/desktop/test_facade_queue_policy.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for test facade queue policy; exposes QueueFacadePolicyTests.
 
-**Classes:** `QueueFacadePolicyTests`
+**Public symbols:** `QueueFacadePolicyTests`
 **In-repo imports:** `mediapipeline.core.queue.facade`, `mediapipeline.core.queue.file_overrides`, `mediapipeline.core.queue.policy`, `mediapipeline.desktop.models`, `mediapipeline.tools.paths`
+**State/config identifiers:** `queue_snapshot.json`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths tests/python/desktop/test_facade_queue_policy.py`._

@@ -8,7 +8,7 @@ from .base import ContractError, int_field, require_mapping, require_schema_vers
 
 
 CONTROL_FLAG_SCHEMA_VERSION = "pipeline_control_flag.v1"
-CONTROL_FLAG_ACTIONS = frozenset({"pause", "stop", "rescan"})
+CONTROL_FLAG_ACTIONS = frozenset({"pause", "stop", "stop_after_current", "rescan"})
 
 
 def _nullable_nonnegative_int_field(payload: Mapping[str, Any], key: str) -> int | None:
@@ -29,6 +29,9 @@ class ControlFlagRecord:
     request_id: str
     created_at: str
     app_pid: int | None = None
+    run_id: str = ""
+    target_pid: int | None = None
+    target_launch_id: str = ""
     raw: Mapping[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
@@ -48,6 +51,11 @@ class ControlFlagRecord:
         created_at = text_field(data, "created_at").strip()
         if not created_at:
             raise ContractError("created_at is required")
+        run_id = text_field(data, "run_id").strip()
+        target_pid = _nullable_nonnegative_int_field(data, "target_pid")
+        target_launch_id = text_field(data, "target_launch_id").strip()
+        if action == "stop_after_current" and not run_id and not target_pid:
+            raise ContractError("stop_after_current requires run_id or target_pid correlation")
         return cls(
             schema_version=schema_version,
             action=action,
@@ -55,6 +63,9 @@ class ControlFlagRecord:
             request_id=request_id,
             created_at=created_at,
             app_pid=_nullable_nonnegative_int_field(data, "app_pid"),
+            run_id=run_id,
+            target_pid=target_pid,
+            target_launch_id=target_launch_id,
             raw=data,
         )
 
@@ -67,4 +78,7 @@ class ControlFlagRecord:
             "request_id": self.request_id,
             "created_at": self.created_at,
             "app_pid": self.app_pid,
+            "run_id": self.run_id,
+            "target_pid": self.target_pid,
+            "target_launch_id": self.target_launch_id,
         }

@@ -10,6 +10,7 @@ from unittest import mock
 from mediapipeline.tools.paths import find_repo_root
 
 from mediapipeline.core.config.load import load_psd1_mapping, serialize_psd1_document
+from mediapipeline.core.config.settings_patch_policy import settings_config_digest
 from mediapipeline.core.config.settings_store import (
     SETTINGS_PROJECTION_SCHEMA_VERSION,
     SETTINGS_STORE_SCHEMA_VERSION,
@@ -273,6 +274,7 @@ class SettingsStoreTests(unittest.TestCase):
                             "LocalBase": r"E:\NewScratch",
                             "RoutingProfile": "plex_direct_play",
                         },
+                        expected_authority_digest=settings_config_digest(old_store["settings"]),
                     )
 
             self.assertEqual(json.loads(store_path.read_text(encoding="utf-8"))["settings"]["RoutingProfile"], "old")

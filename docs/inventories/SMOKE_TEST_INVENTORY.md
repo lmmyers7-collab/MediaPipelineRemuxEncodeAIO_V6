@@ -1,6 +1,6 @@
 # Smoke Test Inventory
 
-Last updated: 2026-07-13
+Last updated: 2026-07-20
 
 All project smoke wrappers live under `ops/scripts/smoke/`. Run them from the repository root with `.\ops/scripts/smoke\<script>.ps1`, or run them by absolute path. Each wrapper resolves the project root as the parent of `ops/scripts/smoke/`.
 
@@ -8,7 +8,7 @@ The wrappers are intentionally thin. They print boundary text, resolve a Python 
 
 Machine-readable wrapper ownership lives in `docs/generated/SMOKE_WRAPPER_MAP.json`. Regenerate it with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_smoke_wrapper_map`; release/tooling checks use `--check` to catch drift between this inventory, the WebView smoke catalog, wrapper files, and `ops/scripts/release/test.ps1`.
 
-There are **36 canonical wrappers**: 4 Local API contract wrappers, 8 browser-free WebView wrappers, and 24 browser-backed wrappers. The browser suite has **26 Python modules** because the metrics-degraded-state and Settings builder-flush modules do not have one-to-one wrappers.
+There are **37 canonical wrappers**: 4 Local API contract wrappers, 8 browser-free WebView wrappers, and 25 browser-backed wrappers. The browser suite has **34 Python modules**: 25 wrapper-backed modules and 9 direct-only census or specialized modules. These counts are checked against disk by the smoke-wrapper map generator.
 
 ## Quick Commands
 
@@ -54,9 +54,10 @@ Browser-backed smokes require Chrome or Edge plus Node/browser runner prerequisi
 | `ops/scripts/smoke/Test-WebViewBrowserPendingDrainGuardSmoke.ps1` | WebView browser-backed | `tests.webview.test_webview_browser_pending_drain_guard_smoke` | Pending Publish drain guard and blocked frontend evidence | Generated temporary backend; does not post pipeline start or pending drain |
 | `ops/scripts/smoke/Test-WebViewBrowserProseBoxAudit.ps1` | WebView browser-backed | `tests.webview.test_webview_browser_prose_box_audit` | Primary page/subtab screenshot manifest and visible prose/status/diagnostic box audit | Screenshot evidence from temporary fixtures only; no mutation posts; fixture hash guard |
 | `ops/scripts/smoke/Test-WebViewBrowserQueueFileOverridesSmoke.ps1` | WebView browser-backed | `tests.webview.test_webview_browser_queue_file_overrides_smoke` | Queue File Settings drawer feedback, dirty-state discard, clear-fields payload, full-clear confirmation, series apply/clear previews, failed-save alert tone | Intercepts file-overrides POST routes in the browser harness; no queue/file override persistence |
-| `ops/scripts/smoke/Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1` | WebView browser-backed | `tests.webview.test_webview_browser_queue_launch_completed_smoke` | Stateful Queue priority/hold/file-override actions through Launch start and Completed evidence | All queue, command-journal, completed-manifest, and sidecar writes stay inside a generated disposable root; fixture hashes prove source-like inputs unchanged |
+| `ops/scripts/smoke/Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1` | WebView browser-backed | `tests.webview.test_webview_browser_queue_launch_completed_smoke` | Standard Backend Queue Run Once journey from Queue-loaded idle through uncapped accepted membership/fingerprint/run identity, real Run Monitor starting/scanning/all-worker/handoff/review/completion states, focus/keyboard/live-region behavior, exact Completed artifact focus, fresh idle, and reload | All Queue, command-journal, Run Monitor, progress, failure, completed-manifest, fake-output, and sidecar writes stay inside a generated disposable root; fixture hashes prove source-like inputs unchanged |
 | `ops/scripts/smoke/Test-WebViewBrowserRenameSmoke.ps1` | WebView browser-backed | `tests.webview.test_webview_browser_rename_smoke` | Rename row selection, Apply Readiness, duplicate-target apply blocking | Generated temporary backend; does not call `rename.apply` |
 | `ops/scripts/smoke/Test-WebViewBrowserSampleValidationSmoke.ps1` | WebView browser-backed | `tests.webview.test_webview_browser_sample_validation_smoke` | Home sample-validation pilot/readiness/reconciliation and worksheet detail | Temporary preview fixtures only; no append |
+| `ops/scripts/smoke/Test-WebViewBrowserSafeOperatorCommandsSmoke.ps1` | WebView browser-backed | `tests.webview.test_webview_browser_safe_operator_commands_smoke` | Backend-served Home, Metrics, and Maintenance safe operator commands, evidence append, redacted support export, release/atlas fixtures, and no-mutation proof | All state writes and exports stay inside disposable roots; source/output media hashes remain unchanged and no pipeline, audit, rerun, pending-drain, publish, rename, repair, or network lifecycle work starts |
 | `ops/scripts/smoke/Test-WebViewBrowserScheduleSmoke.ps1` | WebView browser-backed | `tests.webview.test_webview_browser_schedule_smoke` | Schedule editor preview/save routing and Launch timing trust | App-state write only in generated temporary backend |
 | `ops/scripts/smoke/Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1` | WebView browser-backed | `tests.webview.test_webview_browser_settings_field_matrix_smoke` | Every structured Settings field by type, inherited Library Profile reset semantics, strict save confirmation, reload persistence, and command journal | Config writes only inside generated temporary backend; no live config, media, sidecar, manifest, queue, or publish mutation |
 | `ops/scripts/smoke/Test-WebViewBrowserSettingsLaunchSmoke.ps1` | WebView browser-backed | `tests.webview.test_webview_browser_settings_launch_smoke` | Settings staged patch handoff, Preview/Save result visibility, Launch policy boundary | Generated temporary backend; does not save settings |

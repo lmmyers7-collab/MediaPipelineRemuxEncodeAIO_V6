@@ -511,7 +511,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn("function renderCsvRerunHomeSummary", app_js)
         self.assertIn("renderCsvRerunHomeSummary(liveRunContext)", app_js)
         self.assertIn("renderHomePipelineState(\"csv_rerun_active\")", app_js)
-        self.assertIn("renderHomeNextQueue({ ...liveRunContext, queue: lastQueue || {} })", app_js)
+        self.assertNotIn("renderHomeNextQueue({ ...liveRunContext, queue: lastQueue || {} })", app_js)
         self.assertIn("function homeCsvRerunQueueContext", home_js)
         self.assertIn("void refreshLiveRunTail(refreshOptions);", app_js)
         self.assertIn('/api/diagnostics/tail?target=last_stdout_log&max_bytes=65536', app_js)
@@ -647,11 +647,16 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn('requireApiPost(RERUN_NETWORK_START_DRY_RUN_ROUTE)("/api/rerun/network/start-dry-run", request)', queue_rerun_api_js)
         self.assertIn('requireApiPost(RERUN_NETWORK_START_ROUTE)("/api/rerun/network/start", request)', queue_rerun_api_js)
         self.assertIn(
-            'request: { manifest_key: String(actionOrManifestKey || "").trim(), confirm_continue: true }',
+            'const request = action?.request && typeof action.request === "object" ? { ...action.request } : {};',
             launch_rerun_presentation_js,
         )
-        self.assertIn('confirmation_field: "confirm_continue"', launch_rerun_presentation_js)
-        self.assertIn("requires_confirmation: false", launch_rerun_presentation_js)
+        self.assertIn(
+            'queueRerunRouteDispatcher("requestBackendRerunAction")(action)',
+            launch_rerun_presentation_js,
+        )
+        self.assertIn('const confirmationField = String(action?.confirmation_field || "").trim();', queue_rerun_js)
+        self.assertIn('requireRerunActionBackendConfirmation(label, confirmationField, request);', queue_rerun_js)
+        self.assertIn('if (request[confirmationField] !== true)', queue_rerun_js)
         self.assertIn("confirm_start: true", queue_rerun_request_js)
         self.assertIn("dry_run_fingerprint: fingerprint", queue_rerun_request_js)
         self.assertIn('requireApiPost(RERUN_CONTINUE_ROUTE)("/api/rerun/continue", request)', queue_rerun_api_js)

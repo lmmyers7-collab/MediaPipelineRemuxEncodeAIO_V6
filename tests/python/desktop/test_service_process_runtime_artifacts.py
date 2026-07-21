@@ -55,6 +55,7 @@ class ProcessRuntimeArtifactHelperTests(unittest.TestCase):
             progress_file=state_root / "Progress" / "pipeline_progress.json",
             pause_flag=pipeline_state / "pipeline_pause.flag",
             stop_flag=pipeline_state / "pipeline_stop.flag",
+            stop_after_current_flag=pipeline_state / "pipeline_stop_after_current.flag",
             rescan_flag=pipeline_state / "pipeline_rescan.flag",
             audit_reports_path=local_base / "AuditReports",
         )
@@ -78,7 +79,9 @@ class ProcessRuntimeArtifactHelperTests(unittest.TestCase):
         self.assertIn("pipeline progress", labels)
         self.assertIn("legacy pipeline progress", labels)
         self.assertIn("pause flag", labels)
+        self.assertIn("stop after current flag", labels)
         self.assertIn("legacy pause flag", labels)
+        self.assertNotIn("legacy stop after current flag", labels)
         self.assertIn("audit progress", labels)
         self.assertEqual(len(specs), len({str(path).casefold() for _label, path, _expected in specs if path is not None}))
 
@@ -99,6 +102,22 @@ class ProcessRuntimeArtifactHelperTests(unittest.TestCase):
             self.assertEqual(removed, ["pipeline progress"])
             self.assertFalse(resolved.progress_file.exists())
             self.assertTrue(resolved.pause_flag.exists())
+
+    def test_clearing_launch_runtime_artifacts_preserves_durable_run_monitor_history(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            resolved = self._resolved(root)
+            assert resolved.state_root is not None
+            assert resolved.progress_file is not None
+            monitor_file = resolved.state_root / "RunMonitor" / "run-history.json"
+            monitor_file.parent.mkdir(parents=True)
+            monitor_file.write_text('{"schema_version":"pipeline_run_monitor.v1"}', encoding="utf-8")
+            resolved.progress_file.parent.mkdir(parents=True, exist_ok=True)
+            resolved.progress_file.write_text("{}", encoding="utf-8")
+
+            clear_runtime_artifact_specs(self._specs(resolved, include_audit=False), normalized_path_key=_normalized_path_key)
+
+            self.assertTrue(monitor_file.exists())
 
     def test_validate_runtime_target_rejects_wrong_name_and_outside_path(self) -> None:
         with tempfile.TemporaryDirectory() as td:

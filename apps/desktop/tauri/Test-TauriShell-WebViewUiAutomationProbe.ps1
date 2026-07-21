@@ -5,6 +5,9 @@ param(
     [string]$WindowTitle = 'MediaPipelineRemuxEncodeAIO',
     [int]$MaxElements = 220,
     [string]$ExpectedWebView2UserDataFolder = '',
+    [string[]]$ExpectedHomeNames = @(),
+    [string[]]$RejectedHomeNames = @(),
+    [switch]$HomeOnly,
     [switch]$SkipPrimaryNavigationKeyboardProbe
 )
 
@@ -191,6 +194,126 @@ function Get-UiAutomationRows {
         }) | Out-Null
     }
     return $rows
+}
+
+function Test-UiAutomationPrimaryNameMatch {
+    param(
+        [string]$ObservedName,
+        [string]$ExpectedName
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ObservedName) -or [string]::IsNullOrWhiteSpace($ExpectedName)) {
+        return $false
+    }
+    if ([string]::Equals($ObservedName, $ExpectedName, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $true
+    }
+    if (-not $ObservedName.StartsWith($ExpectedName, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $false
+    }
+    $suffix = $ObservedName.Substring($ExpectedName.Length)
+    return (
+        $suffix.StartsWith('. ', [System.StringComparison]::Ordinal) -or
+        ($suffix.Length -gt 0 -and [char]::IsWhiteSpace($suffix[0]))
+    )
+}
+
+function Get-AcceptedWorkloadUiAutomationRows {
+    param(
+        [Parameter(Mandatory)][IntPtr]$WindowHandle,
+        [int]$Limit
+    )
+
+    $root = Get-UiAutomationRoot -WindowHandle $WindowHandle
+    $nameCondition = New-Object System.Windows.Automation.PropertyCondition(
+        [System.Windows.Automation.AutomationElement]::NameProperty,
+        'Accepted workload'
+    )
+    $candidates = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $nameCondition)
+    $region = $null
+    for ($index = 0; $index -lt $candidates.Count; $index++) {
+        $candidate = $candidates.Item($index)
+        if (
+            $candidate.Current.ControlType -eq [System.Windows.Automation.ControlType]::Group -and
+            -not $candidate.Current.IsOffscreen
+        ) {
+            $region = $candidate
+            break
+        }
+    }
+    if (-not $region) { return @() }
+
+    $listItemCondition = New-Object System.Windows.Automation.PropertyCondition(
+        [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+        [System.Windows.Automation.ControlType]::ListItem
+    )
+    $elements = $region.FindAll([System.Windows.Automation.TreeScope]::Descendants, $listItemCondition)
+    $rows = New-Object System.Collections.Generic.List[object]
+    for ($index = 0; $index -lt $elements.Count -and $rows.Count -lt $Limit; $index++) {
+        $element = $elements.Item($index)
+        if ($element.Current.IsOffscreen) { continue }
+        $rows.Add([pscustomobject]@{
+            ControlType = [string]$element.Current.ControlType.ProgrammaticName
+            Name = [string]$element.Current.Name
+            IsOffscreen = [bool]$element.Current.IsOffscreen
+        }) | Out-Null
+    }
+    return $rows
+}
+
+function Wait-HomeNameEvidence {
+    param(
+        [Parameter(Mandatory)][IntPtr]$WindowHandle,
+        [string[]]$ExpectedNames,
+        [string[]]$RejectedNames,
+        [int]$Limit,
+        [int]$TimeoutSeconds
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $rows = @()
+    $missing = @($ExpectedNames)
+    $rejectedMatches = @()
+    do {
+        $rows = @(Get-AcceptedWorkloadUiAutomationRows -WindowHandle $WindowHandle -Limit $Limit)
+        $observedNames = @($rows | ForEach-Object { [string]$_.Name } | Where-Object { $_ })
+        $missing = @()
+        foreach ($expectedName in @($ExpectedNames)) {
+            $found = $false
+            foreach ($observedName in $observedNames) {
+                if (Test-UiAutomationPrimaryNameMatch -ObservedName $observedName -ExpectedName $expectedName) {
+                    $found = $true
+                    break
+                }
+            }
+            if (-not $found) { $missing += $expectedName }
+        }
+
+        $rejectedMatches = @()
+        foreach ($rejectedName in @($RejectedNames)) {
+            foreach ($observedName in $observedNames) {
+                if (Test-UiAutomationPrimaryNameMatch -ObservedName $observedName -ExpectedName $rejectedName) {
+                    $rejectedMatches += "$rejectedName => $observedName"
+                    break
+                }
+            }
+        }
+        if ($missing.Count -eq 0 -and $rejectedMatches.Count -eq 0) { break }
+        Start-Sleep -Milliseconds 500
+    } while ((Get-Date) -lt $deadline)
+
+    if ($missing.Count -gt 0) {
+        throw "Missing expected Home name(s): $($missing -join ', ')"
+    }
+    if ($rejectedMatches.Count -gt 0) {
+        throw "Rejected raw Home name(s) remained primary labels: $($rejectedMatches -join '; ')"
+    }
+    return [pscustomobject]@{
+        scope = 'Accepted workload region visible ListItem controls'
+        inspected_count = $rows.Count
+        expected_names = @($ExpectedNames)
+        rejected_names = @($RejectedNames)
+    }
 }
 
 function Get-UiAutomationRoot {
@@ -689,6 +812,7 @@ $newWebView2Ids = @()
 $verifiedWebView2Folder = ''
 $visibleWindowProcess = $null
 $mainWindowHandle = [IntPtr]::Zero
+$homeNameEvidence = $null
 try {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
@@ -740,12 +864,21 @@ try {
         $verifiedWebView2Folder = @($observedFolders | Select-Object -Unique) -join ', '
         Write-Host "Verified isolated WebView2 user-data folder: $verifiedWebView2Folder"
     }
-    $keyboardNavigation = if ($SkipPrimaryNavigationKeyboardProbe) {
+    if ($ExpectedHomeNames.Count -gt 0 -or $RejectedHomeNames.Count -gt 0) {
+        $homeNameEvidence = Wait-HomeNameEvidence `
+            -WindowHandle $mainWindowHandle `
+            -ExpectedNames $ExpectedHomeNames `
+            -RejectedNames $RejectedHomeNames `
+            -Limit $MaxElements `
+            -TimeoutSeconds ([Math]::Min($TimeoutSeconds, 45))
+        Write-Host "Verified native Home display-name evidence for $($ExpectedHomeNames.Count) expected name(s)."
+    }
+    $keyboardNavigation = if ($HomeOnly -or $SkipPrimaryNavigationKeyboardProbe) {
         @()
     } else {
         @(Invoke-PrimaryNavigationKeyboardProbe -WindowHandle $mainWindowHandle)
     }
-    $pipelineLogWindow = Invoke-PipelineLogNativeWindowProbe -MainWindowHandle $mainWindowHandle
+    $pipelineLogWindow = if ($HomeOnly) { $null } else { Invoke-PipelineLogNativeWindowProbe -MainWindowHandle $mainWindowHandle }
     $rows = @(Get-UiAutomationRows -WindowHandle $mainWindowHandle -Limit $MaxElements)
     $interesting = @($rows | Where-Object {
         $_.AutomationId -or
@@ -760,6 +893,7 @@ try {
         webview2_user_data_folder = $verifiedWebView2Folder
         webview2_root_pids = $newWebView2Ids
         inspected_count = $rows.Count
+        home_name_evidence = $homeNameEvidence
         interesting = $interesting
         keyboard_navigation = $keyboardNavigation
         pipeline_log_window = $pipelineLogWindow

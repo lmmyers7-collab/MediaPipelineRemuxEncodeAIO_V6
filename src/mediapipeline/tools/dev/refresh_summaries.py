@@ -22,16 +22,22 @@ parsing is regex-based and intentionally shallow.
 from __future__ import annotations
 
 import argparse
-import ast
 import hashlib
 import re
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path, PurePosixPath
 
 from mediapipeline.tools.paths import find_repo_root
+from mediapipeline.tools.dev.context_extractors import (
+    SUMMARY_GENERATOR_FINGERPRINT,
+    SUMMARY_SCHEMA_VERSION,
+    extract_source,
+    is_generated_navigation_output,
+)
 from mediapipeline.tools.dev.release_package_scope import (
     is_release_excluded_path,
     release_excluded_prefixes,
@@ -71,6 +77,7 @@ ROOT_SOURCE_FILES = {
 VOLATILE_GENERATED_SUMMARY_FILES = {
     "docs/generated/DEPENDENCY_GRAPH.md",
     "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.jsonl",
     "docs/generated/PROJECT_INDEX.md",
 }
 
@@ -256,7 +263,7 @@ def in_scope_roots(rel_path: Path) -> bool:
 
 
 def is_volatile_generated_summary_source(recorded: str | Path) -> bool:
-    return canonical_repo_relative_posix(recorded) in VOLATILE_GENERATED_SUMMARY_FILES
+    return is_generated_navigation_output(canonical_repo_relative_posix(recorded))
 
 
 def iter_source_files() -> Iterable[Path]:
@@ -509,76 +516,34 @@ def pipeline_stage_for(rel_path: str) -> str:
     return "n/a"
 
 
-# ---------- python parsing ----------
-
-ROUTE_DECORATOR_NAMES = {"route", "get", "post", "put", "delete", "patch", "websocket"}
-
+# ---------- compatibility parser views ----------
 
 def parse_python(path: Path) -> PySymbols:
-    text = path.read_text(encoding="utf-8", errors="replace")
-    try:
-        tree = ast.parse(text)
-    except SyntaxError:
-        return PySymbols(docstring=f"(syntax error parsing {path.name})")
-
-    sym = PySymbols()
-    sym.docstring = (ast.get_docstring(tree) or "").strip().split("\n", 1)[0]
-
-    for node in tree.body:
-        if isinstance(node, ast.ClassDef):
-            sym.classes.append(node.name)
-        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            if not node.name.startswith("_"):
-                sym.functions.append(f"{node.name}()")
-            for dec in node.decorator_list:
-                route = _route_path_from_decorator(dec)
-                if route:
-                    sym.routes.append(route)
-        elif isinstance(node, ast.ImportFrom):
-            module = node.module or ""
-            if module.startswith(".") or module.startswith("app") or module.startswith("mediapipeline"):
-                sym.in_repo_imports.append(module or "(relative)")
-
-    sym.classes = sorted(set(sym.classes))[:15]
-    sym.functions = sorted(set(sym.functions))[:20]
-    sym.routes = sorted(set(sym.routes))[:15]
-    sym.in_repo_imports = sorted(set(sym.in_repo_imports))[:15]
-    return sym
-
-
-def _route_path_from_decorator(dec: ast.expr) -> str | None:
-    target = dec.func if isinstance(dec, ast.Call) else dec
-    name = ""
-    if isinstance(target, ast.Attribute):
-        name = target.attr
-    elif isinstance(target, ast.Name):
-        name = target.id
-    if name not in ROUTE_DECORATOR_NAMES:
-        return None
-    if not isinstance(dec, ast.Call) or not dec.args:
-        return name
-    first = dec.args[0]
-    if isinstance(first, ast.Constant) and isinstance(first.value, str):
-        return f"{name.upper()} {first.value}"
-    return name
-
-
-# ---------- powershell parsing ----------
-
-PS_SYNOPSIS_RE = re.compile(r"\.SYNOPSIS\s*\n\s*(.+?)(?:\n\s*\.|\n\s*#>)", re.IGNORECASE | re.DOTALL)
-PS_FUNCTION_RE = re.compile(r"^\s*function\s+([A-Za-z][A-Za-z0-9_\-]*)", re.MULTILINE)
-PS_DOTSOURCE_RE = re.compile(r"^\s*\.\s+\$?[\w:.\\/\$\(\)]+[\\\/]([\w.\-]+\.ps1)", re.MULTILINE)
+    """Return the legacy Python view backed by the shared extractor."""
+    rel = repo_relative_posix(path) if path.is_relative_to(REPO_ROOT) else path.name
+    extracted = extract_source(path, rel)
+    classes = [symbol for symbol in extracted.public_symbols if symbol[:1].isupper()]
+    functions = [f"{symbol}()" for symbol in extracted.public_symbols if symbol not in classes]
+    documented = extracted.purpose if not extracted.purpose.startswith("Python implementation for ") else ""
+    return PySymbols(
+        docstring=documented,
+        classes=classes[:15],
+        functions=functions[:20],
+        routes=list(extracted.api_routes[:15]),
+        in_repo_imports=list(extracted.dependencies[:15]),
+    )
 
 
 def parse_powershell(path: Path) -> PsSymbols:
-    text = path.read_text(encoding="utf-8", errors="replace")
-    sym = PsSymbols()
-    m = PS_SYNOPSIS_RE.search(text)
-    if m:
-        sym.synopsis = m.group(1).strip().split("\n", 1)[0]
-    sym.functions = sorted(set(PS_FUNCTION_RE.findall(text)))[:25]
-    sym.dot_includes = sorted(set(PS_DOTSOURCE_RE.findall(text)))[:15]
-    return sym
+    """Return the legacy PowerShell view backed by the shared extractor."""
+    rel = repo_relative_posix(path) if path.is_relative_to(REPO_ROOT) else path.name
+    extracted = extract_source(path, rel)
+    documented = extracted.purpose if not extracted.purpose.startswith(("PowerShell implementation for ", "PowerShell module implementation for ")) else ""
+    return PsSymbols(
+        synopsis=documented,
+        functions=list(extracted.public_symbols[:25]),
+        dot_includes=list(extracted.dependencies[:15]),
+    )
 
 
 # ---------- summary rendering ----------
@@ -589,6 +554,26 @@ def existing_summary_sha(summary_path: Path) -> str | None:
     text = summary_path.read_text(encoding="utf-8", errors="replace")
     m = re.search(r"^sha256:\s*([0-9a-f]+)\s*$", text, re.MULTILINE)
     return m.group(1) if m else None
+
+
+def existing_summary_schema(summary_path: Path) -> int | None:
+    value = frontmatter_value(summary_path, "summary_schema") if summary_path.exists() else None
+    try:
+        return int(value) if value is not None else None
+    except ValueError:
+        return None
+
+
+def existing_generator_fingerprint(summary_path: Path) -> str | None:
+    return frontmatter_value(summary_path, "generator_fingerprint") if summary_path.exists() else None
+
+
+def summary_metadata_is_current(summary_path: Path, source: Path) -> bool:
+    return (
+        existing_summary_sha(summary_path) == sha256_of(source)
+        and existing_summary_schema(summary_path) == SUMMARY_SCHEMA_VERSION
+        and existing_generator_fingerprint(summary_path) == SUMMARY_GENERATOR_FINGERPRINT
+    )
 
 
 def existing_last_reviewed(summary_path: Path) -> str | None:
@@ -607,12 +592,16 @@ def render_summary(rel_path: str, source: Path) -> str:
     owner = owner_domain_for(rel_path)
     priority = token_priority_for(rel_path)
     stage = pipeline_stage_for(rel_path)
+    extracted = extract_source(source, rel_path)
     summary_path = summary_path_for_source(rel_path, source.suffix)
     prior_reviewed = existing_last_reviewed(summary_path) or today
 
     lines: list[str] = []
     lines.append("---")
     lines.append(f"file: {rel_path}")
+    lines.append(f"summary_schema: {SUMMARY_SCHEMA_VERSION}")
+    lines.append(f"generator_fingerprint: {SUMMARY_GENERATOR_FINGERPRINT}")
+    lines.append(f"file_type: {extracted.file_type}")
     lines.append(f"pipeline_stage: {stage}")
     lines.append(f"token_priority: {priority}")
     lines.append(f"owner_domain: {owner}")
@@ -623,33 +612,27 @@ def render_summary(rel_path: str, source: Path) -> str:
     lines.append(f"# `{rel_path}`")
     lines.append("")
 
-    suffix = source.suffix.lower()
-    if suffix == ".py":
-        sym = parse_python(source)
-        lines.append(f"**Purpose:** {sym.docstring or '(no module docstring)'}")
-        lines.append("")
-        if sym.classes:
-            lines.append("**Classes:** " + ", ".join(f"`{c}`" for c in sym.classes))
-        if sym.functions:
-            lines.append("**Public functions:** " + ", ".join(f"`{f}`" for f in sym.functions))
-        if sym.routes:
-            lines.append("**HTTP routes:** " + ", ".join(f"`{r}`" for r in sym.routes))
-        if sym.in_repo_imports:
-            lines.append("**In-repo imports:** " + ", ".join(f"`{i}`" for i in sym.in_repo_imports))
-    elif suffix in (".ps1", ".psm1"):
-        sym = parse_powershell(source)
-        lines.append(f"**Purpose:** {sym.synopsis or '(no .SYNOPSIS block)'}")
-        lines.append("")
-        if sym.functions:
-            lines.append("**Functions:** " + ", ".join(f"`{f}`" for f in sym.functions))
-        if sym.dot_includes:
-            lines.append("**Dot-sourced:** " + ", ".join(f"`{d}`" for d in sym.dot_includes))
-    elif suffix == ".psd1":
-        lines.append("**Purpose:** PowerShell data file (config or manifest).")
-    elif suffix == ".rs":
-        lines.append("**Purpose:** Rust source (Tauri shell).")
-    else:
-        lines.append("**Purpose:** (unparsed)")
+    lines.append(f"**Purpose:** {extracted.purpose}")
+    lines.append("")
+    if extracted.public_symbols:
+        lines.append("**Public symbols:** " + ", ".join(f"`{value}`" for value in extracted.public_symbols))
+    if extracted.dependencies:
+        label = "Dot-sourced" if source.suffix.lower() in {".ps1", ".psm1"} else "In-repo imports"
+        lines.append(f"**{label}:** " + ", ".join(f"`{value}`" for value in extracted.dependencies))
+    if extracted.api_routes:
+        lines.append("**HTTP routes:** " + ", ".join(f"`{value}`" for value in extracted.api_routes))
+    if extracted.state_files:
+        lines.append("**State/config identifiers:** " + ", ".join(f"`{value}`" for value in extracted.state_files))
+    if extracted.dom_selectors:
+        lines.append("**DOM selectors:** " + ", ".join(f"`{value}`" for value in extracted.dom_selectors))
+    if extracted.exports:
+        lines.append("**Exports:** " + ", ".join(f"`{value}`" for value in extracted.exports))
+    if extracted.invoked_stages:
+        lines.append("**Invoked stages:** " + ", ".join(f"`{value}`" for value in extracted.invoked_stages))
+    if extracted.invoked_tools:
+        lines.append("**Invoked tools:** " + ", ".join(f"`{value}`" for value in extracted.invoked_tools))
+    if extracted.parse_warning:
+        lines.append(f"**Parse warning:** {extracted.parse_warning}")
 
     lines.append("")
     lines.append(f"_Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths {rel_path}`._")
@@ -664,7 +647,16 @@ def write_summary(rel_path: str, source: Path) -> bool:
     if summary_path.exists() and summary_path.read_text(encoding="utf-8") == new_content:
         return False
     summary_path.parent.mkdir(parents=True, exist_ok=True)
-    summary_path.write_text(new_content, encoding="utf-8", newline="\n")
+    for attempt in range(5):
+        try:
+            summary_path.write_text(new_content, encoding="utf-8", newline="\n")
+            break
+        except OSError as exc:
+            # Windows indexers and concurrent generated-context refreshes can
+            # briefly surface EINVAL while replacing an otherwise normal file.
+            if exc.errno != 22 or attempt == 4:
+                raise
+            time.sleep(0.05 * (attempt + 1))
     return True
 
 
@@ -717,7 +709,7 @@ def cmd_check(sources: list[Path], *, check_orphans: bool = False) -> int:
         if recorded is None:
             missing.append(rel)
             continue
-        if recorded != sha256_of(path):
+        if not summary_metadata_is_current(summary_path, path):
             stale.append(rel)
     orphans = orphan_summaries(sources) if check_orphans else []
     if not stale and not missing and not orphans:

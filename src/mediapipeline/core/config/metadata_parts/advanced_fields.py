@@ -452,10 +452,10 @@ ADVANCED_CONFIG_FIELD_DEFINITIONS = (
         "page": "Advanced",
         "section": "Long-Run Reliability",
         "key": "QueueLaunchSnapshotFreshnessSeconds",
-        "label": "Queue Launch Snapshot Freshness (s)",
+        "label": "Queue Snapshot Age Advisory (s)",
         "kind": "int",
         "default": 60,
-        "help": "Maximum age of both the queue snapshot generation timestamp and file timestamp before blank-scope Run Once treats the evidence as advisory instead of authoritatively empty.",
+        "help": "Age threshold for labeling queue snapshot generation and file timestamps older than preferred. It never blocks Run Once; runtime rebuilds and fingerprint-verifies the queue before media dispatch.",
     },
     {
         "page": "Advanced",

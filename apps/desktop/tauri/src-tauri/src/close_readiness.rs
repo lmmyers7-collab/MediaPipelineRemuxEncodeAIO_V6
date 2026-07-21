@@ -71,7 +71,11 @@ pub(crate) fn request_close_readiness(
     let response = response.ok_or_else(|| {
         transport_error.expect("close-readiness retry loop records a transport error")
     })?;
-    let readiness: CloseReadiness = serde_json::from_str(&response)
+    parse_close_readiness_response(&response)
+}
+
+pub(crate) fn parse_close_readiness_response(response: &str) -> ShellResult<CloseReadiness> {
+    let readiness: CloseReadiness = serde_json::from_str(response)
         .map_err(|error| shell_error(format!("Close-readiness response was not JSON: {error}")))?;
     if readiness.schema_version != "desktop_close_readiness.v1" {
         return Err(shell_error(format!(
@@ -161,7 +165,7 @@ pub(crate) fn close_readiness_watcher_lines(watcher: &ContinuousWatcher) -> Vec<
 
 #[cfg(test)]
 mod tests {
-    use super::request_close_readiness;
+    use super::{parse_close_readiness_response, request_close_readiness};
     use std::{
         io::{Read, Write},
         net::TcpListener,
@@ -199,5 +203,25 @@ mod tests {
 
         assert!(readiness.safe_to_close);
         assert_eq!(readiness.state, "idle");
+    }
+
+    #[test]
+    fn malformed_string_close_readiness_boolean_is_never_treated_as_safe() {
+        let error = parse_close_readiness_response(
+            r#"{"schema_version":"desktop_close_readiness.v1","safe_to_close":"false","state":"processing","reason":"active work"}"#,
+        )
+        .expect_err("a string boolean must fail closed");
+
+        assert!(error.to_string().contains("Close-readiness response was not JSON"));
+    }
+
+    #[test]
+    fn missing_close_readiness_boolean_is_never_treated_as_safe() {
+        let error = parse_close_readiness_response(
+            r#"{"schema_version":"desktop_close_readiness.v1","state":"processing","reason":"active work"}"#,
+        )
+        .expect_err("missing safety authority must fail closed");
+
+        assert!(error.to_string().contains("Close-readiness response was not JSON"));
     }
 }

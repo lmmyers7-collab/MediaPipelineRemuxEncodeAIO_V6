@@ -222,6 +222,24 @@ class ApplicationFacadeWebStaticRenameTests(unittest.TestCase):
                 "initSettingsRenameLogCaseEvents()",
             ),
         )
+
+    def test_rename_workbench_labels_production_authority_and_blocks_unavailable_comparisons(self) -> None:
+        bundle = self.bundle
+        rename_view = bundle.rename_view_js
+
+        _assert_contains_all(
+            self,
+            rename_view,
+            (
+                "Source: production pipeline destination plan and",
+                "Runtime parity:",
+                'comparison?.status === "unavailable"',
+                "Production naming comparison unavailable.",
+                "Testing current draft filters with production naming plan...",
+                "Retesting staged draft filters with production naming plan...",
+            ),
+        )
+        self.assertNotIn("Source: backend rename cleaner and", rename_view)
         _assert_contains_all(
             self,
             bundle.html,

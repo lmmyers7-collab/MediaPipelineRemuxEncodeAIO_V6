@@ -205,6 +205,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             const activity = {
               textContent: "",
               title: "",
+              dataset: {},
               replaceChildren(...children) {
                 this.children = children;
                 this.textContent = children.map((child) => child.textContent || "").join(" ");
@@ -221,6 +222,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               Date,
               setTimeout,
               clearTimeout,
+              addEventListener() {},
               lastSnapshot: { pipeline_state: "processing", recent_events: [] },
               byId(id) {
                 if (id === "topbar-event-ticker") return ticker;
@@ -239,7 +241,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             }
 
             lifecycle.renderTopbarEventTicker({ pipeline_state: "idle", recent_events: [] });
-            if (ticker.dataset.state !== "empty" || !ticker.textContent.includes("no backend pipeline events")) {
+            if (
+              ticker.dataset.state !== "empty"
+              || !ticker.textContent.includes("Supporting telemetry")
+              || !ticker.textContent.includes("no backend pipeline events")
+            ) {
               throw new Error(`Unexpected empty ticker: ${ticker.dataset.state} ${ticker.textContent}`);
             }
 
@@ -272,7 +278,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               throw new Error("clearTopbarPendingLaunch export is missing");
             }
             lifecycle.clearTopbarPendingLaunch({ pipeline_state: "idle", recent_events: [] });
-            if (ticker.dataset.state !== "empty" || !ticker.textContent.includes("no backend pipeline events")) {
+            if (
+              ticker.dataset.state !== "empty"
+              || !ticker.textContent.includes("Supporting telemetry")
+              || !ticker.textContent.includes("no backend pipeline events")
+            ) {
               throw new Error(`Unexpected cleared ticker: ${ticker.dataset.state} ${ticker.textContent}`);
             }
 
@@ -291,6 +301,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             });
             if (
               ticker.dataset.state !== "event"
+              || !ticker.textContent.includes("Supporting telemetry")
               || !ticker.textContent.includes("job_started")
               || !ticker.textContent.includes("The Hobbit")
             ) {
@@ -301,7 +312,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               event_type: "very_long_event_name_that_should_still_render",
               data: { source_path: `C:/Movies/${"A".repeat(180)}.mkv` },
             });
-            if (!formatted.includes("Latest event:") || formatted.length > 180) {
+            if (!formatted.includes("Supporting telemetry") || formatted.includes("Latest event:") || formatted.length > 180) {
               throw new Error(`Unexpected formatted ticker length/text: ${formatted.length} ${formatted}`);
             }
             """
@@ -1025,7 +1036,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               },
             });
             const timelineLabels = csvTimeline.map((item) => item.label);
-            for (const label of ["CSV import", "Queue item", "Copy to scratch", "Route selected: encode", "Encode output", "Publish or park", "Run evidence"]) {
+            for (const label of ["CSV import", "Queue item", "Copy to scratch", "Route selected: encode", "Encode or remux", "Publish or park", "Run evidence"]) {
               if (!timelineLabels.includes(label)) {
                 throw new Error(`CSV timeline label missing ${label}: ${timelineLabels.join(" | ")}`);
               }
@@ -1360,15 +1371,15 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               },
             });
             const activeRendered = list.children.map((item) => item.textContent);
-            if (list.children[0]?.dataset.current !== "true") {
-              throw new Error(`Current row was not marked in Next 5 Videos: ${JSON.stringify(list.children[0]?.dataset || {})}`);
+            if (list.children.some((item) => item.dataset.current === "true")) {
+              throw new Error(`Retired queue preview claimed a current row: ${activeRendered.join(" | ")}`);
             }
-            if (!activeRendered[0]?.includes("Paprika") || !activeRendered[0]?.includes("Current") || !activeRendered[0]?.includes("Subtitle OCR: VobSub stream 3, 752 cues")) {
-              throw new Error(`Current active-work row was not rendered first: ${activeRendered.join(" | ")}`);
+            if (activeRendered.some((line) => line.includes("Current") || line.includes("Subtitle OCR: VobSub stream 3, 752 cues"))) {
+              throw new Error(`Retired queue preview rendered current-work evidence: ${activeRendered.join(" | ")}`);
             }
             const activeDetail = elements["home-next-queue-detail"].textContent;
-            for (const expected of ["Current stage:", "Subtitle OCR: VobSub stream 3, 752 cues", "Evidence:", "Next:", "encode/remux output evidence"]) {
-              if (!activeDetail.includes(expected)) throw new Error(`Missing active row detail ${expected}: ${activeDetail}`);
+            for (const forbidden of ["Current stage:", "Subtitle OCR: VobSub stream 3, 752 cues", "Evidence:", "Next:", "encode/remux output evidence"]) {
+              if (activeDetail.includes(forbidden)) throw new Error(`Retired queue detail rendered current-work evidence ${forbidden}: ${activeDetail}`);
             }
             context.mediaPipelineProgressView = {
               csvRerunTailEvidence() {
@@ -1716,10 +1727,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         ]:
             self.assertNotIn(forbidden, home_html)
         home_actions = set(re.findall(r'data-control-action="([^"]+)"', home_html))
-        self.assertEqual(home_actions, set())
+        self.assertEqual(home_actions, {"stop"})
+        self.assertEqual(home_html.count('id="run-monitor-stop-after-current"'), 1)
+        self.assertEqual(home_html.count('data-control-action="stop"'), 1)
         self.assertNotIn('data-control-action="rescan"', home_html)
         self.assertNotIn("Pause / Resume", home_html)
-        self.assertNotIn("Stop After Current", home_html)
         self.assertNotIn("Force Stop", home_html)
         self.assertIn("Review readiness and choose a queue before anything runs. Originals stay unchanged.", home_html)
         self.assertIn('data-cross-page-target="completed" data-home-promotion-entry', home_html)
@@ -1940,7 +1952,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("function csvRerunActivityEvidence", app_js)
         self.assertIn("function renderCsvRerunHomeSummary", app_js)
         self.assertIn("let lastQueue = null;", app_js)
-        self.assertIn("renderHomeNextQueue({ ...liveRunContext, queue: lastQueue || {} })", app_js)
+        self.assertNotIn("renderHomeNextQueue({ ...liveRunContext, queue: lastQueue || {} })", app_js)
         self.assertIn("lastQueue = values.queue;", app_js)
         self.assertIn("renderHomePipelineState(\"csv_rerun_active\")", app_js)
         home_js = "\n".join(
@@ -2081,7 +2093,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
         html = _render_static_index_html(static_root)
         expected = {
-            "home": "Home",
+            "home": "Current Work",
             "launch": "Launch",
             "live": "Telemetry",
             "metrics": "Metrics",
@@ -2662,7 +2674,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('return Boolean(item.is_priority) && manifestLevel === "normal" ? "fs" : manifestLevel;', queue_table_js)
         self.assertIn('const labels = { high: "High", low: "Low", hold: "Hold", fs: "FS" };', queue_table_js)
         self.assertNotIn('Cleared priority manifest for ${items.length} row(s).', queue_view_js)
-        refresh_snippet = "if (result?.ok) await refreshAll();"
+        refresh_snippet = "if (result?.ok) await requestQueueScan();"
         send_block = queue_view_js[
             queue_view_js.index("async function sendPriority(") :
             queue_view_js.index("async function sendPriorityBulk(")

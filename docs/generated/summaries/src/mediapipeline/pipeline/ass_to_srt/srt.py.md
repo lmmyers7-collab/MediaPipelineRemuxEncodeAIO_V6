@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/pipeline/ass_to_srt/srt.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: subtitles
 token_priority: high
 owner_domain: subtitles
@@ -9,9 +12,9 @@ sha256: e73ee602e6d11ecfd0a43ae190bcda169ee8c8abfa7f936ba653ad2736611bf7
 ---
 # `src/mediapipeline/pipeline/ass_to_srt/srt.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for srt; exposes apply_minimum_gap, merge_overlapping_cues, render_srt.
 
-**Public functions:** `apply_minimum_gap()`, `merge_overlapping_cues()`, `render_srt()`
+**Public symbols:** `apply_minimum_gap`, `merge_overlapping_cues`, `render_srt`
 **In-repo imports:** `mediapipeline.pipeline.ass_to_srt.log`, `mediapipeline.pipeline.ass_to_srt.timing`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/pipeline/ass_to_srt/srt.py`._

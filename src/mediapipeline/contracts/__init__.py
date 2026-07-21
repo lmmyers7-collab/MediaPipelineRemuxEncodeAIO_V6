@@ -13,6 +13,7 @@ This package is the single source of truth for:
 - Runtime diagnostic evidence (`runtime_evidence.py`).
 - Subtitle QA evidence (`subtitles.py`).
 - Local API route metadata (`api_routes.py`).
+- Backend-owned Run Once monitoring evidence (`run_monitor.py`).
 - Cross-stage data shapes (jobs, manifests, events) — added in later phases.
 
 `config.py` generates `src/mediapipeline/contracts/schemas/config.v1.schema.json`. `stages.py`

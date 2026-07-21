@@ -14,6 +14,8 @@ from mediapipeline.desktop.models import ConfigSaveResult
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.core.config.load import config_from_mapping, config_to_flat_dict
 from mediapipeline.core.config.library_profiles import normalize_library_profile_config_values
+from mediapipeline.core.config.settings_patch_policy import settings_config_digest
+from mediapipeline.core.config.settings_store import SettingsAuthorityConflictError
 from tests.python.desktop.application_facade_test_support import DummyFacadeService, _resolved
 from tests.python.desktop.test_service_config_validation import (
     _path_key,
@@ -28,14 +30,54 @@ class AuthoritySaveService(DummyFacadeService):
         super().__init__(root)
         self.authority_save_calls: list[dict[str, object]] = []
 
-    def save_settings_authority(self, resolved, candidate_settings: dict[str, object]) -> ConfigSaveResult:
+    def save_settings_authority(
+        self,
+        resolved,
+        candidate_settings: dict[str, object],
+        *,
+        expected_authority_digest: str,
+    ) -> ConfigSaveResult:
         self.authority_save_calls.append(
             {
                 "config_path": resolved.config_path,
                 "candidate_settings": dict(candidate_settings),
+                "expected_authority_digest": expected_authority_digest,
             }
         )
         return ConfigSaveResult(output_path=resolved.config_path, backup_path=None)
+
+
+class StatefulAuthoritySaveService(AuthoritySaveService):
+    def __init__(self, root: Path, authority: dict[str, object]) -> None:
+        super().__init__(root)
+        self.authority = json.loads(json.dumps(authority))
+
+    def load_settings_authority(self, config_path: Path, powershell_host: str | None) -> dict[str, object]:
+        _ = config_path, powershell_host
+        return json.loads(json.dumps(self.authority))
+
+    def save_settings_authority(
+        self,
+        resolved,
+        candidate_settings: dict[str, object],
+        *,
+        expected_authority_digest: str,
+    ) -> ConfigSaveResult:
+        current_digest = settings_config_digest(self.authority)
+        candidate_digest = settings_config_digest(candidate_settings)
+        if candidate_digest != current_digest and expected_authority_digest != current_digest:
+            raise SettingsAuthorityConflictError(
+                expected_digest=expected_authority_digest,
+                current_digest=current_digest,
+                candidate_digest=candidate_digest,
+            )
+        result = super().save_settings_authority(
+            resolved,
+            candidate_settings,
+            expected_authority_digest=expected_authority_digest,
+        )
+        self.authority = json.loads(json.dumps(candidate_settings))
+        return result
 
 
 class ImportSettingsService(DummyFacadeService):
@@ -256,6 +298,96 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
         self.assertEqual(len(service.authority_save_calls), 1)
         self.assertEqual(service.authority_save_calls[0]["candidate_settings"]["RoutingProfile"], "plex_direct_play")
         self.assertEqual(service.saved_config_calls, [])
+
+    def test_settings_save_patch_rejects_missing_false_and_non_boolean_confirmation_before_authority_write(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = StatefulAuthoritySaveService(
+                root,
+                {"RoutingProfile": "plex_direct_stream", "VideoQuality": 22},
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = dict(service.authority)
+            requests = [
+                {"changes": {"VideoQuality": 24}},
+                *(
+                    {"changes": {"VideoQuality": 24}, "confirm_save": value}
+                    for value in (False, "true", "false", 1, 0, None, [], {})
+                ),
+            ]
+
+            results = [facade.save_settings_patch(resolved, request) for request in requests]
+
+        self.assertTrue(all(not result.ok for result in results))
+        self.assertTrue(all("confirm_save must be true" in "\n".join(result.warnings) for result in results))
+        self.assertEqual(service.authority_save_calls, [])
+        self.assertEqual(service.authority["VideoQuality"], 22)
+
+    def test_settings_save_patch_retry_after_lost_response_reports_idempotent_durable_success(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = StatefulAuthoritySaveService(
+                root,
+                {"RoutingProfile": "plex_direct_stream", "VideoQuality": 22},
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = dict(service.authority)
+            confirmed = _confirmed_patch_request(
+                facade,
+                resolved,
+                {"changes": {"VideoQuality": 24}},
+            )
+
+            first = facade.save_settings_patch(resolved, confirmed)
+            retry = facade.save_settings_patch(resolved, confirmed)
+
+        self.assertTrue(first.ok)
+        self.assertTrue(retry.ok)
+        self.assertTrue(retry.data["idempotent_replay"])
+        self.assertEqual(retry.data["schema_version"], "desktop_settings_save_replay.v1")
+        self.assertEqual(retry.data["changed_keys"], ["VideoQuality"])
+        self.assertEqual(service.authority["VideoQuality"], 24)
+        self.assertEqual(len(service.authority_save_calls), 2)
+
+    def test_settings_save_patch_conflict_response_is_digest_only_and_never_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = StatefulAuthoritySaveService(
+                root,
+                {"RoutingProfile": "plex_direct_stream", "VideoQuality": 22},
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = dict(service.authority)
+            confirmed = _confirmed_patch_request(
+                facade,
+                resolved,
+                {"changes": {"RoutingProfile": "plex_direct_play"}},
+            )
+            service.authority["VideoQuality"] = 24
+
+            conflict = facade.save_settings_patch(resolved, confirmed)
+
+        self.assertFalse(conflict.ok)
+        self.assertEqual(
+            set(conflict.data),
+            {
+                "schema_version",
+                "conflict",
+                "refresh_required",
+                "expected_authority_digest",
+                "current_authority_digest",
+                "candidate_config_digest",
+                "writes_config",
+            },
+        )
+        self.assertTrue(conflict.data["conflict"])
+        self.assertFalse(conflict.data["writes_config"])
+        self.assertEqual(service.authority_save_calls, [])
+        self.assertNotIn("RoutingProfile", json.dumps(conflict.data, sort_keys=True))
+        self.assertNotIn("VideoQuality", json.dumps(conflict.data, sort_keys=True))
 
     def test_settings_psd1_import_preview_is_read_only_and_apply_requires_confirmation(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

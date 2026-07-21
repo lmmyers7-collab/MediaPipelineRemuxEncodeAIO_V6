@@ -32,7 +32,7 @@ A POST route that causes the backend to execute a mutation (launch, drain, renam
 The effect classification for `GET /api/maintenance`. It runs existing environment/tool probes read-only and does not repair, write, or change anything. Not to be confused with a full real-media validation.
 
 ### Browser-Backed Smoke
-A WebView smoke test that launches an installed Chrome or Edge browser headlessly and drives the real backend-served WebView page through Chrome DevTools Protocol (CDP). Browser-backed smokes test actual browser rendering, real JavaScript execution, and DOM interaction against a live temporary local API. Contrast with Node-based smokes, which evaluate backend-served JavaScript in Node without a real browser. There are 24 canonical browser-backed smoke wrappers backed by 26 browser Python modules. A Python module may report a prerequisite skip when Chrome, Edge, Node.js, or another declared prerequisite is unavailable; canonical PowerShell wrappers fail that skip by default so green wrapper evidence means browser assertions ran. `-AllowSkippedTests` is an explicit non-gating exception.
+A WebView smoke test that launches an installed Chrome or Edge browser headlessly and drives the real backend-served WebView page through Chrome DevTools Protocol (CDP). Browser-backed smokes test actual browser rendering, real JavaScript execution, and DOM interaction against a live temporary local API. Contrast with Node-based smokes, which evaluate backend-served JavaScript in Node without a real browser. There are 25 canonical browser wrappers and 34 browser Python modules: 25 wrapper-backed browser Python modules plus 9 direct-only browser Python modules. A Python module may report a prerequisite skip when Chrome, Edge, Node.js, or another declared prerequisite is unavailable; canonical PowerShell wrappers fail that skip by default so green wrapper evidence means browser assertions ran. `-AllowSkippedTests` is an explicit non-gating exception.
 
 ---
 
@@ -246,7 +246,7 @@ Added:
 - **Real-Media Proof Chain** section — explains that Queue, Completed, and Pending Publish each prove one link and none alone is acceptance proof (CLN3-021)
 - **Safe Next Action** entry (CLN3-020)
 - **Stop Condition** entry (CLN3-020)
-- Updated **Browser-Backed Smoke** to the current 24-wrapper/26-module inventory and documented default prerequisite-skip failure semantics (2026-07-13)
+- Updated **Browser-Backed Smoke** inventory wording and documented default prerequisite-skip failure semantics (2026-07-13); the definition above now derives its current counts from the generated smoke-wrapper map.
 
 ```
 Task IDs: CLN3-020, CLN3-021

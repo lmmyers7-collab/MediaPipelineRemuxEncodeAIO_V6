@@ -455,6 +455,89 @@ def settings_save_busy_result(message: str = SETTINGS_SAVE_BUSY_MESSAGE) -> Comm
     )
 
 
+def settings_save_authority_conflict_result(
+    *,
+    expected_digest: str,
+    current_digest: str,
+    candidate_digest: str,
+) -> CommandResult:
+    message = "Settings authority changed after preview; refresh and review the candidate before saving."
+    return _command_result(
+        command=SETTINGS_SAVE_PATCH_COMMAND,
+        ok=False,
+        message=message,
+        severity="warning",
+        warnings=[message],
+        refresh_hint=SETTINGS_REFRESH_HINT,
+        data={
+            "schema_version": "desktop_settings_authority_conflict.v1",
+            "conflict": True,
+            "refresh_required": True,
+            "expected_authority_digest": expected_digest,
+            "current_authority_digest": current_digest,
+            "candidate_config_digest": candidate_digest,
+            "writes_config": False,
+        },
+    )
+
+
+def settings_save_idempotent_replay_result(
+    result: object,
+    patch: dict[str, Any],
+    submitted_confirmation: dict[str, Any],
+    warnings: list[str],
+) -> CommandResult:
+    output_path = Path(result.output_path)
+    changed_keys = sorted_patch_keys([str(item) for item in submitted_confirmation.get("changed_keys") or []])
+    removed_keys = sorted_patch_keys([str(item) for item in submitted_confirmation.get("removed_keys") or []])
+    durable_digest = str(submitted_confirmation.get("candidate_config_digest") or "")
+    verification_digest = settings_reload_verification_digest(dict(patch["merged"]), changed_keys, removed_keys)
+    progress = settings_save_written_progress_payload(result, patch)
+    verification = {
+        "schema_version": SETTINGS_SAVE_VERIFICATION_SCHEMA_VERSION,
+        "config_digest_before": str(submitted_confirmation.get("base_config_digest") or ""),
+        "config_digest_written": durable_digest,
+        "reload_verification_digest_written": verification_digest,
+        "reload_config_digest": "",
+        "reload_verification_digest": "",
+        "verified_from_reload": False,
+        "verified_at": "",
+        "idempotent_replay": True,
+    }
+    return _command_result(
+        command=SETTINGS_SAVE_PATCH_COMMAND,
+        ok=True,
+        message=f"Settings save was already durably applied to {output_path.name}.",
+        severity="info",
+        warnings=warnings,
+        refresh_hint=SETTINGS_REFRESH_HINT,
+        data={
+            "schema_version": "desktop_settings_save_replay.v1",
+            "config_path": str(output_path),
+            "backup_path": str(getattr(result, "backup_path", None) or ""),
+            "changed_keys": changed_keys,
+            "removed_keys": removed_keys,
+            "key_count": len(patch["merged"]),
+            "redacted_diff_lines": [],
+            "diff_truncated": False,
+            "review_entries_schema_version": SETTINGS_REVIEW_ENTRIES_SCHEMA_VERSION,
+            "review_entries": [],
+            "review_confirmation": dict(submitted_confirmation),
+            "config_digest_before": str(submitted_confirmation.get("base_config_digest") or ""),
+            "config_digest_written": durable_digest,
+            "reload_verification_digest_written": verification_digest,
+            "save_verification": verification,
+            "risk_summary": patch["risk_summary"],
+            "library_profile_state": patch.get("library_profile_state", []),
+            "preserved_unknown_keys": sorted_patch_keys(patch.get("preserved_unknown_keys", [])),
+            "writes_config": True,
+            "idempotent_replay": True,
+            "settings_progress": progress,
+            "progress_bars": progress["progress_bars"],
+        },
+    )
+
+
 def settings_save_validation_error_result(errors: list[str], warnings: list[str]) -> CommandResult:
     return _command_result(
         command=SETTINGS_SAVE_PATCH_COMMAND,
@@ -601,6 +684,8 @@ __all__ = [
     "settings_patch_preview_result",
     "settings_save_confirmation_required_result",
     "settings_save_busy_result",
+    "settings_save_authority_conflict_result",
+    "settings_save_idempotent_replay_result",
     "settings_save_validation_error_result",
     "settings_save_no_changes_result",
     "settings_save_service_unavailable_result",

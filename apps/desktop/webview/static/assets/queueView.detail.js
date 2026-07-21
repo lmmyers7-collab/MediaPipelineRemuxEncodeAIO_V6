@@ -37,7 +37,7 @@
         "Selected row review checklist:",
         `Row state: ${backendTrustState || (blocked ? "blocked" : needsReview ? "review" : "ready-looking")}`,
         `Operator status: ${item.operator_status || "not reported"}`,
-        `Route decision: ${item.route_decision_summary || item.route_name || "not reported"}`,
+        `Planned route: ${item.route_decision_summary || item.route_name || "not reported"}`,
         `Runtime history: ${item.runtime_outcome_status || "none"}${item.runtime_outcome_freshness_status ? ` (${item.runtime_outcome_freshness_status})` : ""}`,
         `Runtime checks: ${item.runtime_checks_deferred ? "deferred until processing start" : "no deferred checks reported"}`,
         `Review flags: ${reviewFlags.length ? reviewFlags.join(", ") : "none"}`,
@@ -155,13 +155,13 @@
       const lines = [
         "Real-media sample trace: Queue",
         `Trace key: source=${item.source_path || "not reported"}; relative=${item.relative_path || "not reported"}`,
-        `Queue proof: route=${item.route_decision_summary || item.route_name || "not reported"}; reason=${[item.route_reason_code, item.route_reason].filter(Boolean).join(" - ") || "not reported"}`,
+        `Queue proof: planned route=${item.route_decision_summary || item.route_name || "not reported"}; planned reason=${[item.route_reason_code, item.route_reason].filter(Boolean).join(" - ") || "not reported"}`,
         `Runtime proof: ${runtimeProof}`,
         "What this proves: the backend queue snapshot can see the source and has made a route/readiness decision for it.",
         "What remains unproven: FFmpeg execution, subtitle/audio result, completed output/sidecar, size-growth policy result, and pending-publish/drain outcome.",
       ];
       if (routeEvidence.length) {
-        lines.push("Route evidence to compare after the run:");
+        lines.push("Planned route evidence to compare after the run:");
         routeEvidence.slice(0, 6).forEach((line) => lines.push(`  ${line}`));
       }
       if (item.runtime_checks_deferred) {
@@ -300,8 +300,8 @@
       if (!item) return [];
       const route = String(item.route_name || item.route || "").trim();
       if (!route) return [];
-      const lines = ["Route Reasoning:"];
-      lines.push(`  Route: ${item.route_decision_summary || route}`);
+      const lines = ["Planned Route Reasoning:"];
+      lines.push(`  Planned route: ${item.route_decision_summary || route}`);
       // route_plan — structured object from the backend (e.g. {reason, contributing_factors, expected_size_note})
       const plan = item.route_plan && typeof item.route_plan === "object" ? item.route_plan : null;
       if (plan) {
@@ -316,8 +316,8 @@
         if (plan.policy_note) lines.push(`  Policy: ${plan.policy_note}`);
       } else {
         // Flat field fallback
-        if (item.route_reason_code) lines.push(`  Reason code: ${item.route_reason_code}`);
-        if (item.route_reason) lines.push(`  Reason: ${item.route_reason}`);
+        if (item.route_reason_code) lines.push(`  Planned reason code: ${item.route_reason_code}`);
+        if (item.route_reason) lines.push(`  Planned reason: ${item.route_reason}`);
       }
       // route_evidence_lines — array of evidence lines
       const evidence = Array.isArray(item.route_evidence_lines) ? item.route_evidence_lines.filter(Boolean) : [];
@@ -423,8 +423,8 @@
         item.operator_status ? `Operator status: ${item.operator_status}` : "",
         item.operator_guidance ? `Next step: ${item.operator_guidance}` : "",
         reviewFlags ? `Review flags: ${reviewFlags}` : "",
-        item.route_decision_summary ? `Route decision: ${item.route_decision_summary}` : "",
-        routeEvidence.length ? "Route evidence:" : "",
+        item.route_decision_summary ? `Planned route: ${item.route_decision_summary}` : "",
+        routeEvidence.length ? "Planned route evidence:" : "",
         ...routeEvidence.map((line) => `  ${line}`),
         item.has_file_override ? `File override: ${item.file_override_scope || "unknown"} (${item.file_override_path || "path unavailable"})` : "",
         item.file_override_origin ? `File override origin: ${item.file_override_origin}` : "",
@@ -434,9 +434,9 @@
         item.status ? `Status: ${item.status}` : "",
         item.error ? `Error: ${item.error}` : "",
         `Media: ${item.media_type || ""}`,
-        `Route: ${item.route_name || ""}`,
-        `Route reason code: ${item.route_reason_code || ""}`,
-        `Route reason: ${item.route_reason || ""}`,
+        `Planned route: ${item.route_name || ""}`,
+        `Planned reason code: ${item.route_reason_code || ""}`,
+        `Planned reason: ${item.route_reason || ""}`,
         item.blocked_reason_code ? `Blocked reason code: ${item.blocked_reason_code}` : "",
         item.blocked_reason ? `Blocked reason: ${item.blocked_reason}` : "",
         item.runtime_checks_deferred ? `Runtime checks deferred: ${runtimeCodes || "yes"}` : "",

@@ -139,12 +139,14 @@ function Publish-PendingSidecarFiles {
     $failures = [System.Collections.Generic.List[object]]::new()
     $published = [System.Collections.Generic.List[object]]::new()
     $pendingKeys = @{}
+    $sidecarOrdinal = 0
 
     foreach ($sidecar in @(Get-PendingSidecarEntries -Manifest $Manifest)) {
         $localFile = [string](Get-PendingObjectProperty -Object $sidecar -Name 'local_file')
         $serverOut = [string](Get-PendingObjectProperty -Object $sidecar -Name 'server_out')
         $record = Get-PendingObjectProperty -Object $sidecar -Name 'tx3g_record'
         $preserveExisting = [bool](Get-PendingObjectProperty -Object $sidecar -Name 'preserve_existing')
+        $expectedHash = [string](Get-PendingObjectProperty -Object $sidecar -Name 'output_sha256')
         if (-not [string]::IsNullOrWhiteSpace($serverOut)) {
             $pendingKeys[$serverOut.ToLowerInvariant()] = $true
         }
@@ -164,11 +166,17 @@ function Publish-PendingSidecarFiles {
 
         if ($preserveExisting -and (Test-Path -LiteralPath $serverOut -ErrorAction SilentlyContinue)) {
             $existingValidation = Test-SrtFileUsable -Path $serverOut
-            if ($existingValidation.Ok) {
+            $existingHash = if ($existingValidation.Ok) { Get-PendingFileSha256OrNull -Path $serverOut } else { '' }
+            if ($existingValidation.Ok -and -not [string]::IsNullOrWhiteSpace($expectedHash) -and $existingHash.Equals($expectedHash, [System.StringComparison]::OrdinalIgnoreCase)) {
                 $records.Add((Copy-PendingTx3gRecordWithStatus -Record $record -Status 'existing' -Path $serverOut -CueCount $existingValidation.CueCount -PreservedExisting:$true))
                 $published.Add([ordered]@{ path = $serverOut; status = 'existing'; existed_before = $true; backup_path = '' }) | Out-Null
+                $sidecarOrdinal++
                 continue
             }
+        }
+
+        Invoke-PendingPublishFaultPoint -Boundary 'sidecar_staging' -Moment 'before' -Context @{
+            scope = 'drain_sidecar'; ordinal = $sidecarOrdinal; local_file = $localFile; server_out = $serverOut; transaction_id = $PublishTransactionId
         }
 
         $backupPath = ''
@@ -197,10 +205,26 @@ function Publish-PendingSidecarFiles {
                 Remove-Item -LiteralPath $serverOut -Force -ErrorAction SilentlyContinue
             }
             $failures.Add((New-PendingTx3gPublishFailure -Record $record -Reason $copy.Reason))
+            $sidecarOrdinal++
+            continue
+        }
+        $publishedHash = Get-PendingFileSha256OrNull -Path $serverOut
+        if ([string]::IsNullOrWhiteSpace($publishedHash) -or [string]::IsNullOrWhiteSpace($expectedHash) -or -not $publishedHash.Equals($expectedHash, [System.StringComparison]::OrdinalIgnoreCase)) {
+            if (-not [string]::IsNullOrWhiteSpace($backupPath) -and (Test-Path -LiteralPath $backupPath -PathType Leaf -ErrorAction SilentlyContinue)) {
+                Restore-PendingSidecarBackupIntoPlace -BackupPath $backupPath -DestinationPath $serverOut -Context 'Pending: '
+            } elseif (-not $existedBefore -and (Test-Path -LiteralPath $serverOut -PathType Leaf -ErrorAction SilentlyContinue)) {
+                Remove-Item -LiteralPath $serverOut -Force -ErrorAction SilentlyContinue
+            }
+            $failures.Add((New-PendingTx3gPublishFailure -Record $record -Reason "pending sidecar SHA-256 mismatch after staging: $serverOut"))
+            $sidecarOrdinal++
             continue
         }
         $published.Add([ordered]@{ path = $serverOut; status = 'written'; existed_before = [bool]$existedBefore; backup_path = $backupPath }) | Out-Null
         $records.Add((Copy-PendingTx3gRecordWithStatus -Record $record -Status 'written' -Path $serverOut -CueCount $copy.CueCount))
+        Invoke-PendingPublishFaultPoint -Boundary 'sidecar_staging' -Moment 'after' -Context @{
+            scope = 'drain_sidecar'; ordinal = $sidecarOrdinal; local_file = $localFile; server_out = $serverOut; transaction_id = $PublishTransactionId
+        }
+        $sidecarOrdinal++
     }
 
     foreach ($record in @($Manifest.tx3g_srt_tracks)) {
@@ -332,6 +356,20 @@ function Test-PendingPublishedServerCopy {
             $sidecarValidation = Test-SrtFileUsable -Path $sidecarServer
             if (-not $sidecarValidation.Ok) {
                 Write-Log "Pending: existing server copy is missing usable pending sidecar $sidecarServer : $($sidecarValidation.Reason)" "WARN"
+                return $false
+            }
+            $expectedSidecarSize = Get-PendingObjectProperty -Object $sidecar -Name 'output_size'
+            $actualSidecarSize = Get-FileLengthOrNull -Path $sidecarServer
+            try {
+                if ($null -eq $expectedSidecarSize -or $null -eq $actualSidecarSize -or [long]$expectedSidecarSize -ne [long]$actualSidecarSize) {
+                    Write-Log "Pending: existing server sidecar size mismatch: $sidecarServer" "WARN"
+                    return $false
+                }
+            } catch { return $false }
+            $expectedSidecarHash = [string](Get-PendingObjectProperty -Object $sidecar -Name 'output_sha256')
+            $actualSidecarHash = Get-PendingFileSha256OrNull -Path $sidecarServer
+            if ([string]::IsNullOrWhiteSpace($expectedSidecarHash) -or [string]::IsNullOrWhiteSpace($actualSidecarHash) -or -not $actualSidecarHash.Equals($expectedSidecarHash, [System.StringComparison]::OrdinalIgnoreCase)) {
+                Write-Log "Pending: existing server sidecar SHA-256 mismatch: $sidecarServer" "WARN"
                 return $false
             }
         }

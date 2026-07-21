@@ -1,0 +1,65 @@
+{
+  "id": "MP-CHANGE-2026-0720-010",
+  "title": "Read-only code context MCP",
+  "version_target": "2026.07.20.003",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "low",
+  "date_started": "2026-07-20",
+  "date_completed": "2026-07-20",
+  "summary": "Add a read-only local MCP adapter over the existing token-bounded repository context catalog, configure Codex and Claude Code, and reduce ordinary AI navigation token use.",
+  "reason": "AI clients can use the generated context catalog only through a fresh CLI process or broad filesystem discovery. A long-lived, bounded MCP surface can reuse the catalog, search current code, and return small source ranges without loading broad indexes or duplicated startup documentation.",
+  "affected_areas": [
+    "docs",
+    "generated_context",
+    "tests",
+    "tooling"
+  ],
+  "behavior_before": "Codex and Claude have no repository-specific MCP server. Agents must invoke the context_slice CLI or perform repeated filesystem discovery, and Claude's local instructions duplicate older broad startup guidance.",
+  "behavior_after": "Codex and Claude share a local read-only stdio MCP server with four bounded tools for task context, catalog lookup, live code search, and ranged code reads. One MCP-first startup workflow has a context_slice fallback and measurable token ceilings.",
+  "files_touched": [
+    ".claude/CLAUDE.md",
+    "AGENTS.md",
+    "docs/generated/FILE_SUMMARIES.md",
+    "docs/generated/SMOKE_WRAPPER_MAP.json",
+    "docs/generated/summaries/AGENTS.md.md",
+    "docs/generated/summaries/docs/generated/FILE_SUMMARIES.md.md",
+    "docs/generated/summaries/docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md.md",
+    "docs/generated/summaries/docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0720-010.json.md",
+    "docs/generated/summaries/ops/scripts/dev/setup-code-context-mcp.ps1.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/code_context_mcp.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/code_context_service.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_code_context_mcp.py.md",
+    "docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md",
+    "docs/inventories/ROOT_SCRIPT_INVENTORY.md",
+    "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0720-010.json",
+    "ops/scripts/dev/setup-code-context-mcp.ps1",
+    "requirements/dev.txt",
+    "requirements/mcp.txt",
+    "src/mediapipeline/tools/dev/code_context_mcp.py",
+    "src/mediapipeline/tools/dev/code_context_service.py",
+    "tests/python/tooling/test_code_context_mcp.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_code_context_mcp.py"
+  ],
+  "manual_validation": [
+    "LocalBase/Tooling/code-context-mcp/.venv/Scripts/python.exe -m unittest tests.python.tooling.test_code_context_mcp -v (17 passed, 1 symlink-capability skip)",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.tooling.test_code_context_mcp tests.python.tooling.test_context_records tests.python.tooling.test_context_slice tests.python.tooling.test_feature_context_cards -q (35 passed, 2 capability/dependency skips)",
+    "apps/desktop/runtime/Python/python.exe -m ruff check src/mediapipeline/tools/dev/code_context_service.py src/mediapipeline/tools/dev/code_context_mcp.py tests/python/tooling/test_code_context_mcp.py (passed)",
+    "apps/desktop/runtime/Python/python.exe -m mypy --config-file pyproject.toml src/mediapipeline/tools/dev/code_context_service.py src/mediapipeline/tools/dev/code_context_mcp.py tests/python/tooling/test_code_context_mcp.py (passed)",
+    "PowerShell parser validation for ops/scripts/dev/setup-code-context-mcp.ps1 (passed)",
+    "mediapipeline.tools.dev.generate_smoke_wrapper_map plus tests.python.tooling.test_smoke_wrapper_map (8 passed)",
+    "Official MCP stdio initialize/list_tools/call_tool integration (passed; four read-only tools; estimated schema 758 tokens)",
+    "Measured warm repo_context median 9.02 ms and live code_search median 97.63 ms over the 2,410-record working index",
+    "Codex mcp get and Claude mcp get (Codex enabled; Claude connected; both point to the isolated LocalBase environment)",
+    "Token review: combined AGENTS/Claude/schema/default-context estimate 7,427 tokens; conservative schema ceiling 7,869; legacy baseline 9,967"
+  ],
+  "rollback_plan": "Remove the mediapipeline-code registrations from Codex and Claude, remove the isolated LocalBase/Tooling/code-context-mcp environment, then revert only this packet's service, MCP adapter, setup script, dependency, tests, documentation, inventory, and generated-summary changes. Do not alter the predecessor packet or unrelated dirty files.",
+  "related_changes": [
+    "MP-CHANGE-2026-0720-002"
+  ],
+  "notes": "The predecessor context-navigation packet remains in progress but its focused ContextRecord/context_slice/feature-card tests pass. Its current PROJECT_INDEX.jsonl is stale against the large concurrent worktree, so this packet consumes the frozen interfaces, reports returned-record staleness, and does not regenerate or take ownership of that packet's catalog outputs. The MCP SDK is isolated from production dependencies in LocalBase/Tooling/code-context-mcp. The focused change is clean; the full 279-test tooling suite has five unrelated current-worktree failures in browser inventory/workflow coverage, dependency boundaries, and the duplicate-test-name report. Repository-wide packet validation is independently blocked by incomplete high-risk packets 006/007, and strict coverage reports 216 unrelated uncovered paths."
+}

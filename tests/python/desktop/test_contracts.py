@@ -20,6 +20,7 @@ from mediapipeline.desktop.contracts import (
     ProcessFileResult,
     ProgressState,
     QueuePlanSnapshot,
+    accepted_run_rows_fingerprint,
 )
 from mediapipeline.contracts.config import DESKTOP_SCHEMA_CONFIG_KEYS, NETWORK_CONFIG_KEYS
 
@@ -89,6 +90,7 @@ class ContractTests(unittest.TestCase):
             "media_pipeline_pending_push_manifest.schema.json",
             "media_pipeline_completed_job.schema.json",
             "media_pipeline_progress.schema.json",
+            "media_pipeline_run_monitor.schema.json",
             "media_pipeline_control_flag.schema.json",
             "media_pipeline_config.schema.json",
         }
@@ -211,6 +213,48 @@ class ContractTests(unittest.TestCase):
                 self.assertEqual(record.label, label)
                 self.assertEqual(record.to_mapping()["schema_version"], "pipeline_control_flag.v1")
 
+    def test_control_flag_contract_accepts_correlated_stop_after_current(self) -> None:
+        payload = {
+            "schema_version": "pipeline_control_flag.v1",
+            "action": "stop_after_current",
+            "label": "Stop After Current",
+            "request_id": "stop-after-current-1",
+            "created_at": "2026-07-16T12:00:00-04:00",
+            "app_pid": 123,
+            "run_id": "run-once-123",
+            "target_pid": 24680,
+            "target_launch_id": "launch-123",
+        }
+
+        record = ControlFlagRecord.from_mapping(payload)
+
+        self.assertEqual(record.action, "stop_after_current")
+        self.assertEqual(record.run_id, "run-once-123")
+        self.assertEqual(record.target_pid, 24680)
+        self.assertEqual(record.target_launch_id, "launch-123")
+        self.assertEqual(record.to_mapping(), payload)
+
+    def test_control_flag_schema_exposes_correlated_stop_after_current(self) -> None:
+        schema = json.loads((SCHEMA_DIR / "media_pipeline_control_flag.schema.json").read_text(encoding="utf-8"))
+
+        self.assertIn("stop_after_current", schema["properties"]["action"]["enum"])
+        self.assertEqual(schema["properties"]["run_id"]["type"], "string")
+        self.assertEqual(schema["properties"]["target_pid"]["minimum"], 1)
+        self.assertEqual(schema["properties"]["target_launch_id"]["type"], "string")
+        self.assertTrue(schema["allOf"], "stop_after_current correlation must be represented in the JSON schema")
+
+    def test_control_flag_contract_rejects_uncorrelated_stop_after_current(self) -> None:
+        with self.assertRaisesRegex(ContractError, "requires run_id or target_pid correlation"):
+            ControlFlagRecord.from_mapping(
+                {
+                    "schema_version": "pipeline_control_flag.v1",
+                    "action": "stop_after_current",
+                    "label": "Stop After Current",
+                    "request_id": "stop-after-current-uncorrelated",
+                    "created_at": "2026-07-16T12:00:00-04:00",
+                }
+            )
+
     def test_progress_contract_accepts_current_progress_shape(self) -> None:
         payload = {
             "ProgressVersion": 2,
@@ -279,6 +323,13 @@ class ContractTests(unittest.TestCase):
             "SourceName": "Movie.mkv",
             "Route": "remux",
             "OutputSizeBytes": 42,
+            "PublishedPath": r"D:\Library\Movie.mkv",
+            "ParkedPath": "",
+            "IntendedFinalPath": r"D:\Library\Movie.mkv",
+            "ManifestPath": "",
+            "PipelineSidecarPath": r"D:\Library\Movie.mkv.pipeline.json",
+            "SidecarPaths": [r"D:\Library\Movie.eng.srt", r"D:\Library\Movie.mkv.pipeline.json"],
+            "PublishTransactionId": "publish-tx-1",
         }
 
         result = ProcessFileResult.from_mapping(payload)
@@ -286,6 +337,28 @@ class ContractTests(unittest.TestCase):
         self.assertTrue(result.success)
         self.assertEqual(result.source_name, "Movie.mkv")
         self.assertEqual(result.output_size_bytes, 42)
+        self.assertEqual(result.published_path, r"D:\Library\Movie.mkv")
+        self.assertEqual(result.intended_final_path, r"D:\Library\Movie.mkv")
+        self.assertEqual(result.pipeline_sidecar_path, r"D:\Library\Movie.mkv.pipeline.json")
+        self.assertEqual(result.sidecar_paths, [r"D:\Library\Movie.eng.srt", r"D:\Library\Movie.mkv.pipeline.json"])
+        self.assertEqual(result.publish_transaction_id, "publish-tx-1")
+
+    def test_process_result_contract_defaults_absent_terminal_paths_for_backward_compatibility(self) -> None:
+        result = ProcessFileResult.from_mapping(
+            {
+                "SchemaVersion": "process_file_result.v1",
+                "Success": False,
+                "Status": "failed",
+            }
+        )
+
+        self.assertEqual(result.published_path, "")
+        self.assertEqual(result.parked_path, "")
+        self.assertEqual(result.intended_final_path, "")
+        self.assertEqual(result.manifest_path, "")
+        self.assertEqual(result.pipeline_sidecar_path, "")
+        self.assertEqual(result.sidecar_paths, [])
+        self.assertEqual(result.publish_transaction_id, "")
 
     def test_queue_snapshot_contract_accepts_route_preview_rows(self) -> None:
         payload = {
@@ -371,6 +444,184 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(snapshot.excluded_row_limit, 500)
         self.assertFalse(snapshot.excluded_rows_truncated)
         self.assertEqual(snapshot.excluded_rows[0].reason_code, "already_processed")
+
+    def test_queue_snapshot_contract_preserves_planned_rename_display_name(self) -> None:
+        payload = {
+            "schema_version": "queue_plan_snapshot.v1",
+            "produced_at": "2026-07-17T12:00:00Z",
+            "runnable_count": 1,
+            "accepted_run_rows": [
+                {
+                    "source_identity": "source-identity-1",
+                    "source_identity_algorithm": "path_size_mtime_sha256.v1",
+                    "source_path": r"C:\Media\Django.Unchained.2012.1080p.BluRay.x264.YIFY.mkv",
+                    "display_name": "Django Unchained (2012).mkv",
+                    "planned_display_name": "Django Unchained (2012).mkv",
+                    "planned_display_name_source": "plex_destination_plan.v1",
+                    "parent_context": r"C:\Media",
+                    "run_queue_index": 1,
+                    "run_queue_total": 1,
+                    "route": "REMUX",
+                    "route_reason_code": "CONTAINER_ONLY",
+                    "route_reason": "Container normalization only",
+                }
+            ],
+        }
+        payload["accepted_run_rows_fingerprint_schema"] = "accepted_run_rows_fingerprint.v1"
+        payload["accepted_run_rows_fingerprint"] = accepted_run_rows_fingerprint(
+            payload["accepted_run_rows"]
+        )
+
+        snapshot = QueuePlanSnapshot.from_mapping(payload)
+        accepted = snapshot.accepted_run_rows[0]
+
+        self.assertEqual(accepted.display_name, "Django Unchained (2012).mkv")
+        self.assertEqual(accepted.planned_display_name, "Django Unchained (2012).mkv")
+        self.assertEqual(accepted.planned_display_name_source, "plex_destination_plan.v1")
+        self.assertEqual(
+            accepted.source_path,
+            r"C:\Media\Django.Unchained.2012.1080p.BluRay.x264.YIFY.mkv",
+        )
+        self.assertTrue(snapshot.accepted_run_rows_fingerprint_is_valid)
+
+        payload["accepted_run_rows"][0]["planned_display_name"] = "Tampered Raw Release.mkv"
+        self.assertFalse(
+            QueuePlanSnapshot.from_mapping(payload).accepted_run_rows_fingerprint_is_valid
+        )
+        payload["accepted_run_rows"][0]["planned_display_name"] = "Django Unchained (2012).mkv"
+
+        payload["accepted_run_rows"][0]["display_name"] = "  "
+        with self.assertRaisesRegex(ContractError, "display_name"):
+            QueuePlanSnapshot.from_mapping(payload)
+
+    def test_accepted_run_rows_fingerprint_matches_unicode_cross_runtime_vector(self) -> None:
+        row = {
+            "run_queue_index": 1,
+            "run_queue_total": 1,
+            "source_identity": "source-straße-STRASSE",
+            "source_identity_algorithm": "path_size_mtime_sha256.v1",
+            "source_path": r"C:\Médien\Straße\STRASSE.mkv",
+            "planned_display_name": "Straße and STRASSE (2026).mkv",
+            "planned_display_name_source": "plex_destination_plan.v1",
+            "parent_context": r"C:\Médien\Straße",
+            "route": "remux",
+            "route_reason_code": "compatible",
+            "route_reason": "Preserve Straße and STRASSE distinctly",
+            "intended_final_path": r"C:\Final\Straße and STRASSE (2026).mkv",
+        }
+
+        fingerprint = accepted_run_rows_fingerprint([row])
+        self.assertEqual(
+            fingerprint,
+            "ace99b28d58a6f32177a320dbfddb64781e10cfea8d773fd7ab6ca1bbe27cd63",
+        )
+        ascii_case_variant = dict(row, source_path=r"c:\Médien\Straße\strasse.mkv")
+        self.assertEqual(accepted_run_rows_fingerprint([ascii_case_variant]), fingerprint)
+        unicode_text_change = dict(row, source_path=r"C:\Médien\STRASSE\STRASSE.mkv")
+        self.assertNotEqual(accepted_run_rows_fingerprint([unicode_text_change]), fingerprint)
+
+    def test_accepted_workload_ignores_render_only_name_but_binds_production_name(self) -> None:
+        row = {
+            "run_queue_index": 1,
+            "run_queue_total": 1,
+            "source_identity": "stable-source-identity",
+            "source_identity_algorithm": "path_size_mtime_sha256.v1",
+            "source_path": r"C:\Media\Raw.Release.Name.mkv",
+            "display_name": "Queue render label A",
+            "planned_display_name": "Canonical Movie (2026).mkv",
+            "planned_display_name_source": "plex_destination_plan.v1",
+            "parent_context": r"C:\Media",
+            "route": "remux",
+            "route_reason_code": "copy_compatible",
+            "route_reason": "Already compatible",
+            "intended_final_path": r"C:\Final\Canonical Movie (2026).mkv",
+        }
+        baseline = accepted_run_rows_fingerprint([row])
+
+        self.assertEqual(
+            accepted_run_rows_fingerprint([{**row, "display_name": "Queue render label B"}]),
+            baseline,
+        )
+        self.assertNotEqual(
+            accepted_run_rows_fingerprint(
+                [
+                    {
+                        **row,
+                        "planned_display_name": "Operator Canonical Movie (2026).mkv",
+                        "intended_final_path": r"C:\Final\Operator Canonical Movie (2026).mkv",
+                    }
+                ]
+            ),
+            baseline,
+        )
+        self.assertNotEqual(
+            accepted_run_rows_fingerprint(
+                [
+                    {
+                        **row,
+                        "source_identity": "replacement-source-identity",
+                        "source_path": r"C:\Media\Replacement.mkv",
+                    }
+                ]
+            ),
+            baseline,
+        )
+
+    def test_queue_snapshot_path_uniqueness_preserves_non_ascii_distinctions(self) -> None:
+        rows = [
+            {
+                "source_identity": "source-straße",
+                "source_identity_algorithm": "path_size_mtime_sha256.v1",
+                "source_path": r"C:\Médien\Straße\Same.mkv",
+                "display_name": "Straße (2026).mkv",
+                "planned_display_name": "Straße (2026).mkv",
+                "planned_display_name_source": "plex_destination_plan.v1",
+                "parent_context": r"C:\Médien\Straße",
+                "run_queue_index": 1,
+                "run_queue_total": 2,
+                "route": "remux",
+                "route_reason_code": "compatible",
+                "route_reason": "Compatible streams",
+                "intended_final_path": r"C:\Final\Straße (2026).mkv",
+            },
+            {
+                "source_identity": "source-STRASSE",
+                "source_identity_algorithm": "path_size_mtime_sha256.v1",
+                "source_path": r"C:\Médien\STRASSE\Same.mkv",
+                "display_name": "STRASSE (2026).mkv",
+                "planned_display_name": "STRASSE (2026).mkv",
+                "planned_display_name_source": "plex_destination_plan.v1",
+                "parent_context": r"C:\Médien\STRASSE",
+                "run_queue_index": 2,
+                "run_queue_total": 2,
+                "route": "remux",
+                "route_reason_code": "compatible",
+                "route_reason": "Compatible streams",
+                "intended_final_path": r"C:\Final\STRASSE (2026).mkv",
+            },
+        ]
+
+        def snapshot_payload(accepted_rows: list[dict[str, object]]) -> dict[str, object]:
+            return {
+                "schema_version": "queue_plan_snapshot.v1",
+                "produced_at": "2026-07-18T12:00:00Z",
+                "runnable_count": len(accepted_rows),
+                "accepted_run_rows_fingerprint_schema": "accepted_run_rows_fingerprint.v1",
+                "accepted_run_rows_fingerprint": accepted_run_rows_fingerprint(accepted_rows),
+                "accepted_run_rows": accepted_rows,
+                "rows": [],
+                "excluded_rows": [],
+            }
+
+        distinct = QueuePlanSnapshot.from_mapping(snapshot_payload(rows))
+
+        self.assertEqual(len(distinct.accepted_run_rows), 2)
+        self.assertTrue(distinct.accepted_run_rows_fingerprint_is_valid)
+
+        duplicate_rows = [dict(row) for row in rows]
+        duplicate_rows[1]["source_path"] = r"c:\médien\straße\same.mkv"
+        with self.assertRaisesRegex(ContractError, "unique source identities and paths"):
+            QueuePlanSnapshot.from_mapping(snapshot_payload(duplicate_rows))
 
     def test_queue_snapshot_builder_records_deterministic_preflight_block_codes(self) -> None:
         queue_root = PROJECT_ROOT / "ops" / "pipeline" / "engine" / "queue"

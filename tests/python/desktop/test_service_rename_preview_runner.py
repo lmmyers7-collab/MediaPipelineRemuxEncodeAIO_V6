@@ -15,6 +15,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 from mediapipeline.core.rename.preview_runner import (
     load_pipeline_movie_name_previews_for_service,
     load_pipeline_name_previews_for_service,
+    load_synthetic_pipeline_name_preview_for_service,
     load_pipeline_tv_name_previews_for_service,
     naming_preview_script_path_for_service,
 )
@@ -157,6 +158,34 @@ class RenamePreviewRunnerTests(unittest.TestCase):
         self.assertEqual(message, "")
         self.assertEqual(previews[str(source).casefold()], "Example Show - S02E04.mkv")
 
+    def test_real_powershell_synthetic_preview_preserves_extensionless_release_tail(self) -> None:
+        repo_root = find_repo_root(Path(__file__))
+        powershell_host = repo_root / "ops" / "pipeline" / "runtime" / "PowerShell-7.6.0-win-x64" / "pwsh.exe"
+        if not powershell_host.exists():
+            self.skipTest("bundled PowerShell host is unavailable")
+        service = DummyRenamePreviewRunnerService(repo_root)
+        service._subprocess_kwargs_hidden = lambda: {}  # type: ignore[method-assign]
+        policy = rename_cleaning_policy_from_config({})
+
+        result = load_synthetic_pipeline_name_preview_for_service(
+            service,
+            filename="Edge.of.Tomorrow.2014.1080p.BluRay.DDP5.1.x265.10bit-GalaxyRG265",
+            source_folder="Movies",
+            media_kind="Movie",
+            powershell_host=str(powershell_host),
+            timeout_seconds=60,
+            run_capture_func=run_capture,
+            cleaning_policy=policy,
+        )
+
+        self.assertTrue(result["ok"], result.get("error"))
+        self.assertEqual(result["requested_policy_fingerprint"], policy["policy_fingerprint"])
+        self.assertEqual(result["applied_policy_fingerprint"], policy["policy_fingerprint"])
+        self.assertTrue(result["policy_fingerprint_match"])
+        self.assertEqual(result["row"]["file_base_name"], "Edge of Tomorrow (2014)")
+        self.assertEqual(result["row"]["file_name"], "Edge of Tomorrow (2014).mkv")
+        self.assertTrue(result["row"]["assumed_media_extension"])
+
     def test_real_powershell_movie_preview_matches_python_for_numeric_titles_and_metadata_tails(self) -> None:
         repo_root = find_repo_root(Path(__file__))
         powershell_host = repo_root / "ops" / "pipeline" / "runtime" / "PowerShell-7.6.0-win-x64" / "pwsh.exe"
@@ -173,11 +202,19 @@ class RenamePreviewRunnerTests(unittest.TestCase):
             "Ma 2019.mkv": "Ma (2019).mkv",
             "Cam 2018.mkv": "Cam (2018).mkv",
             "The Web 2013.mkv": "The Web (2013).mkv",
+            "The DVD 2024.mkv": "The Dvd (2024).mkv",
+            "Movie UpScaled 2024.mkv": "Movie UpScaled (2024).mkv",
+            "4K Killer 2024.mkv": "4K Killer (2024).mkv",
+            "Atmos Fear 2024.mkv": "Atmos Fear (2024).mkv",
+            "AVC 2024.mkv": "AVC (2024).mkv",
+            "The Remux 2024.mkv": "The Remux (2024).mkv",
             "Audio Drama 2024.mkv": "Audio Drama (2024).mkv",
             "A Proper Man (2024).mkv": "A Proper Man (2024).mkv",
             "Movie.PROPER.2024.mkv": "Movie (2024).mkv",
             "Movie.REPACK.2024.mkv": "Movie (2024).mkv",
             "Movie.RERIP.2024.mkv": "Movie (2024).mkv",
+            "Cast Away (2000) UpScaled 2160p H265 10 bit DV HDR10+ ita eng AC3 5.1 sub ita eng Licdom.mkv": "Cast Away (2000).mkv",
+            "Movie.2024.Asiimov.mkv": "Movie (2024).mkv",
             "Roundhay Garden Scene 1888.mkv": "Roundhay Garden Scene (1888).mkv",
             f"Far Future {date.today().year + 2}.mkv": f"Far Future {date.today().year + 2}.mkv",
             f"{date.today().year}.mkv": f"{date.today().year}.mkv",

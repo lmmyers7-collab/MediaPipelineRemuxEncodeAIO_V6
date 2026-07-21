@@ -52,7 +52,7 @@ The `ops/scripts/smoke/` wrapper scripts resolve this automatically.
 
 ### Via canonical wrappers (recommended)
 
-The repository has 24 browser wrappers. Run from the repository root; a green result means prerequisites were present and browser assertions executed.
+The repository has 25 browser wrappers. Run from the repository root; a green result means prerequisites were present and browser assertions executed. Disk-derived wrapper/module totals and the nine direct-only modules are recorded in `docs/generated/SMOKE_WRAPPER_MAP.json`.
 
 ```powershell
 .\ops\scripts\smoke\Test-WebViewBrowserCompletedPendingProofSmoke.ps1
@@ -85,7 +85,7 @@ To collect an explicitly non-gating prerequisite skip, append `-AllowSkippedTest
 
 ### Via `python -m unittest` directly
 
-Direct modules may report `SkipTest`; they do not apply the wrapper's default skip-failure policy. The suite has 26 modules because metrics-degraded-state and Settings builder-flush are direct-only.
+Direct modules may report `SkipTest`; they do not apply the wrapper's default skip-failure policy. The suite has 34 browser Python modules: 25 wrapper-backed browser Python modules and 9 direct-only browser Python modules enumerated by `docs/generated/SMOKE_WRAPPER_MAP.json`.
 
 ```powershell
 $python = "apps\desktop\runtime\Python\python.exe"
@@ -157,7 +157,7 @@ $python = "apps\desktop\runtime\Python\python.exe"
 | `Test-WebViewBrowserSettingsLaunchSmoke.ps1` | `test_webview_browser_settings_launch_smoke` | Staged settings patch handoff, Launch Active Media Policy Boundary for saved-vs-staged subtitle/audio/pending-publish policy, Settings-to-Launch intent including Queue display-scope evidence, backend Preview/Save result detail, backend Preview Patch evidence, cancelled Save Patch visibility; asserts cancellation does not append command history and `settings.save_patch` is NOT called |
 | `Test-WebViewBrowserLifecycleReconciliationSmoke.ps1` | `test_webview_browser_lifecycle_reconciliation_smoke` | Lifecycle reconciliation preview/apply confirmation, stale-state archive evidence, and recovery rendering wholly inside generated temporary state |
 | `Test-WebViewBrowserQueueFileOverridesSmoke.ps1` | `test_webview_browser_queue_file_overrides_smoke` | Queue File Settings controls, dirty-state discard, clear payloads, series preview, and intercepted mutation requests with no persistence |
-| `Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1` | `test_webview_browser_queue_launch_completed_smoke` | Stateful Queue priority/hold/file override through synthetic Launch start, command journal, Completed manifest, and sidecar evidence inside a disposable root |
+| `Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1` | `test_webview_browser_queue_launch_completed_smoke` | Standard `mode=once` Backend Queue journey from Queue-loaded backend-confirmed idle, with blank Single File, uncapped accepted run/fingerprint correlation, real Run Monitor transitions, two workers, terminal handoff/review/completion, focus/keyboard/live-region assertions, exact Completed artifact-row focus, fresh idle, and reload persistence inside a disposable root |
 | `Test-WebViewBrowserSettingsFieldMatrixSmoke.ps1` | `test_webview_browser_settings_field_matrix_smoke` | Every structured field type, inherited Library Profile reset semantics, strict save confirmation, temporary config reload, and command journal |
 | `Test-WebViewBrowserProseBoxAudit.ps1` | `test_webview_browser_prose_box_audit` | Page/subtab screenshot manifest and visible prose/status/diagnostic box audit against temporary fixtures |
 | `Test-WebViewBrowserVisualClutterScreenshots.ps1` | `test_webview_browser_visual_clutter_screenshots` | Desktop/mobile screenshot manifest, overflow checks, and visible clutter audit against temporary fixtures |
@@ -245,4 +245,4 @@ For real-media validation, follow the real-media pilot checklist in `docs/sample
 
 ## Current Inventory Review — 2026-07-13
 
-Confirmed 24 canonical wrappers and 26 browser Python modules. Discovery is rooted at `tests\webview`; the individual Rename selector above matches the current class and method. All browser scenarios must use generated disposable roots and the exact temporary mutation boundary documented in `BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md`.
+Confirmed 25 canonical browser wrappers and 34 browser Python modules: 25 wrapper-backed browser Python modules and 9 direct-only browser Python modules. Discovery is rooted at `tests\webview`; the individual Rename selector above matches the current class and method. All browser scenarios must use generated disposable roots and the exact temporary mutation boundary documented in `BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md`.

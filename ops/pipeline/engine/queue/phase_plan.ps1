@@ -6,13 +6,19 @@
 # ==============================================================================
 
 function Copy-QueueEntriesForLegacyPriorityPhase {
-    param([array]$Entries)
+    param(
+        [array]$Entries,
+        [scriptblock]$PollHandler
+    )
 
     $items = @($Entries | Where-Object { $null -ne $_ -and $null -ne $_.File })
     $copies = [System.Collections.Generic.List[object]]::new()
+    $pollStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     for ($i = 0; $i -lt $items.Count; $i++) {
+        Invoke-MediaPipelineElapsedPollHandler -PollHandler $PollHandler -Stopwatch $pollStopwatch
         $copy = [pscustomobject]@{}
         foreach ($prop in $items[$i].PSObject.Properties) {
+            Invoke-MediaPipelineElapsedPollHandler -PollHandler $PollHandler -Stopwatch $pollStopwatch
             $copy | Add-Member -NotePropertyName $prop.Name -NotePropertyValue $prop.Value -Force
         }
         $copy | Add-Member -NotePropertyName QueueIndex -NotePropertyValue ($i + 1) -Force
@@ -60,29 +66,33 @@ function Get-MediaPipelineQueuePlanRunnableEntries {
 function New-MediaQueuePhasePlan {
     param(
         [array]$MovieEntries,
-        [array]$TVEntries
+        [array]$TVEntries,
+        [scriptblock]$PollHandler
     )
 
-    # ----- Split each batch by effective priority level -----
-    $movieHigh   = @($MovieEntries | Where-Object { $null -ne $_ -and $null -ne $_.File -and $_.EffectivePriorityLevel -eq 'high' })
-    $movieNormal = @($MovieEntries | Where-Object { $null -ne $_ -and $null -ne $_.File -and $_.EffectivePriorityLevel -eq 'normal' })
-    $movieLow    = @($MovieEntries | Where-Object { $null -ne $_ -and $null -ne $_.File -and $_.EffectivePriorityLevel -eq 'low' })
-    $movieHold   = @($MovieEntries | Where-Object { $null -ne $_ -and $null -ne $_.File -and $_.EffectivePriorityLevel -eq 'hold' })
+    $pollStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    Invoke-MediaPipelineElapsedPollHandler -PollHandler $PollHandler -Stopwatch $pollStopwatch
 
-    $tvHigh      = @($TVEntries | Where-Object { $null -ne $_ -and $null -ne $_.File -and $_.EffectivePriorityLevel -eq 'high' })
-    $tvNormal    = @($TVEntries | Where-Object { $null -ne $_ -and $null -ne $_.File -and $_.EffectivePriorityLevel -eq 'normal' })
-    $tvLow       = @($TVEntries | Where-Object { $null -ne $_ -and $null -ne $_.File -and $_.EffectivePriorityLevel -eq 'low' })
-    $tvHold      = @($TVEntries | Where-Object { $null -ne $_ -and $null -ne $_.File -and $_.EffectivePriorityLevel -eq 'hold' })
+    # ----- Split each batch by effective priority level -----
+    $movieHigh   = @($MovieEntries | Where-Object { Invoke-MediaPipelineElapsedPollHandler -PollHandler $PollHandler -Stopwatch $pollStopwatch; $null -ne $_ -and $null -ne $_.File -and $_.EffectivePriorityLevel -eq 'high' })
+    $movieNormal = @($MovieEntries | Where-Object { Invoke-MediaPipelineElapsedPollHandler -PollHandler $PollHandler -Stopwatch $pollStopwatch; $null -ne $_ -and $null -ne $_.File -and $_.EffectivePriorityLevel -eq 'normal' })
+    $movieLow    = @($MovieEntries | Where-Object { Invoke-MediaPipelineElapsedPollHandler -PollHandler $PollHandler -Stopwatch $pollStopwatch; $null -ne $_ -and $null -ne $_.File -and $_.EffectivePriorityLevel -eq 'low' })
+    $movieHold   = @($MovieEntries | Where-Object { Invoke-MediaPipelineElapsedPollHandler -PollHandler $PollHandler -Stopwatch $pollStopwatch; $null -ne $_ -and $null -ne $_.File -and $_.EffectivePriorityLevel -eq 'hold' })
+
+    $tvHigh      = @($TVEntries | Where-Object { Invoke-MediaPipelineElapsedPollHandler -PollHandler $PollHandler -Stopwatch $pollStopwatch; $null -ne $_ -and $null -ne $_.File -and $_.EffectivePriorityLevel -eq 'high' })
+    $tvNormal    = @($TVEntries | Where-Object { Invoke-MediaPipelineElapsedPollHandler -PollHandler $PollHandler -Stopwatch $pollStopwatch; $null -ne $_ -and $null -ne $_.File -and $_.EffectivePriorityLevel -eq 'normal' })
+    $tvLow       = @($TVEntries | Where-Object { Invoke-MediaPipelineElapsedPollHandler -PollHandler $PollHandler -Stopwatch $pollStopwatch; $null -ne $_ -and $null -ne $_.File -and $_.EffectivePriorityLevel -eq 'low' })
+    $tvHold      = @($TVEntries | Where-Object { Invoke-MediaPipelineElapsedPollHandler -PollHandler $PollHandler -Stopwatch $pollStopwatch; $null -ne $_ -and $null -ne $_.File -and $_.EffectivePriorityLevel -eq 'hold' })
 
     # ----- Apply runtime metadata (QueueIndex, QueuePhase, etc.) -----
-    $highMoviesMeta = @(Set-QueueEntryRuntimeMetadata -Entries $movieHigh   -IsTV $false -PhaseOverride 'priority_movie')
-    $highTVMeta     = @(Set-QueueEntryRuntimeMetadata -Entries $tvHigh      -IsTV $true  -PhaseOverride 'priority_tv')
-    $normalMovieMeta= @(Set-QueueEntryRuntimeMetadata -Entries $movieNormal -IsTV $false -PhaseOverride 'movie')
-    $normalTVMeta   = @(Set-QueueEntryRuntimeMetadata -Entries $tvNormal    -IsTV $true  -PhaseOverride 'tv')
-    $lowMovieMeta   = @(Set-QueueEntryRuntimeMetadata -Entries $movieLow    -IsTV $false -PhaseOverride 'low')
-    $lowTVMeta      = @(Set-QueueEntryRuntimeMetadata -Entries $tvLow       -IsTV $true  -PhaseOverride 'low')
-    $holdMovieMeta  = @(Set-QueueEntryRuntimeMetadata -Entries $movieHold   -IsTV $false -PhaseOverride 'hold')
-    $holdTVMeta     = @(Set-QueueEntryRuntimeMetadata -Entries $tvHold      -IsTV $true  -PhaseOverride 'hold')
+    $highMoviesMeta = @(Set-QueueEntryRuntimeMetadata -Entries $movieHigh   -IsTV $false -PhaseOverride 'priority_movie' -PollHandler $PollHandler)
+    $highTVMeta     = @(Set-QueueEntryRuntimeMetadata -Entries $tvHigh      -IsTV $true  -PhaseOverride 'priority_tv' -PollHandler $PollHandler)
+    $normalMovieMeta= @(Set-QueueEntryRuntimeMetadata -Entries $movieNormal -IsTV $false -PhaseOverride 'movie' -PollHandler $PollHandler)
+    $normalTVMeta   = @(Set-QueueEntryRuntimeMetadata -Entries $tvNormal    -IsTV $true  -PhaseOverride 'tv' -PollHandler $PollHandler)
+    $lowMovieMeta   = @(Set-QueueEntryRuntimeMetadata -Entries $movieLow    -IsTV $false -PhaseOverride 'low' -PollHandler $PollHandler)
+    $lowTVMeta      = @(Set-QueueEntryRuntimeMetadata -Entries $tvLow       -IsTV $true  -PhaseOverride 'low' -PollHandler $PollHandler)
+    $holdMovieMeta  = @(Set-QueueEntryRuntimeMetadata -Entries $movieHold   -IsTV $false -PhaseOverride 'hold' -PollHandler $PollHandler)
+    $holdTVMeta     = @(Set-QueueEntryRuntimeMetadata -Entries $tvHold      -IsTV $true  -PhaseOverride 'hold' -PollHandler $PollHandler)
 
     # ----- Queue ordering strategy -----
     # Get the active strategy name and apply it to the normal/low/high-TV buckets.
@@ -98,7 +108,8 @@ function New-MediaQueuePhasePlan {
         -NormalMovies $normalMovieMeta `
         -NormalTV     $normalTVMeta `
         -LowEntries   $lowEntries `
-        -Manifest     $manifest
+        -Manifest     $manifest `
+        -PollHandler  $PollHandler
 
     $highMoviesMeta  = @($sorted.HighMovies   | Where-Object { $null -ne $_ })
     $highTVMeta      = @($sorted.HighTV       | Where-Object { $null -ne $_ })
@@ -113,7 +124,10 @@ function New-MediaQueuePhasePlan {
 
     if ($mixPhase) {
         $priorityEntries = @(@($highMoviesMeta) + @($highTVMeta) | Where-Object { $null -ne $_ })
-        $priorityEntries | ForEach-Object { $_ | Add-Member -NotePropertyName QueuePhase -NotePropertyValue 'priority' -Force }
+        $priorityEntries | ForEach-Object {
+            Invoke-MediaPipelineElapsedPollHandler -PollHandler $PollHandler -Stopwatch $pollStopwatch
+            $_ | Add-Member -NotePropertyName QueuePhase -NotePropertyValue 'priority' -Force
+        }
     }
 
     $holdEntries = @(@($holdMovieMeta) + @($holdTVMeta) | Where-Object { $null -ne $_ })
@@ -122,7 +136,7 @@ function New-MediaQueuePhasePlan {
 
     # Legacy-compat: PriorityEntries combines high-movie + high-TV regardless of MixPhase
     # and keeps the original flat "priority" phase contract for downstream callers.
-    $allPriorityEntries = @(Copy-QueueEntriesForLegacyPriorityPhase -Entries @(@($highMoviesMeta) + @($highTVMeta)))
+    $allPriorityEntries = @(Copy-QueueEntriesForLegacyPriorityPhase -Entries @(@($highMoviesMeta) + @($highTVMeta)) -PollHandler $PollHandler)
     $allQueuedEntries   = @(@($movies) + @($tv) | Where-Object { $null -ne $_ -and $null -ne $_.File })
 
     return [pscustomobject]@{

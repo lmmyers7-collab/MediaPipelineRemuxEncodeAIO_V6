@@ -48,6 +48,7 @@ REQUIRED_ACTIVE_CASE_IDS = {
     "movie-1917",
     "movie-1984",
     "movie-policy-override-hoppers",
+    "movie-edge-of-tomorrow-verified-tail-parity",
 }
 
 

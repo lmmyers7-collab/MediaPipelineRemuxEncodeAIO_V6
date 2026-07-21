@@ -1,14 +1,20 @@
 ---
 file: docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Markdown
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-07-16
+last_modified: 2026-07-20
 last_reviewed: 2026-06-02
-sha256: 7ae314cb9b6562a25c967cdbbc1361cd11dab8ab668a58f5b86b2d3f6ce1e8be
+sha256: a554298a9508be1ed04fa3af9206ed4dab5d0f663beb63612105b87ff85ed0b8
 ---
 # `docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md`
 
-**Purpose:** (unparsed)
+**Purpose:** Markdown implementation for state file schema reference.
+
+**HTTP routes:** `/api/diagnostics`, `/api/diagnostics/open`, `/api/diagnostics/tail`, `/api/launch/preflight?target=rerun`, `/api/pending-publish`, `/api/pipeline/start`, `/api/queue`, `/api/rerun/continue`, `/api/rerun/network/retry`, `/api/rerun/network/start`, `/api/rerun/preview`, `/api/rerun/results`, `/api/rerun/start`, `/api/snapshot`
+**State/config identifiers:** `.manifest.json`, `mediapipeline_state.sqlite3`, `queue_snapshot.json`, `settings.v1.json`, `settings_projection.v1.json`, `state_db_maintenance.json`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md`._

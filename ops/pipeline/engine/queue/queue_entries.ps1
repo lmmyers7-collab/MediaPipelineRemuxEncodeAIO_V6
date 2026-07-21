@@ -256,8 +256,12 @@ function Get-QueuedEntries {
         [switch]$IsTV,
         [hashtable]$LibraryProfileMetadata = $null,
         # Caller may pass a pre-loaded manifest to avoid re-reading it per-batch.
-        [hashtable]$PriorityManifest = $null
+        [hashtable]$PriorityManifest = $null,
+        [scriptblock]$PollHandler
     )
+
+    $pollStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    Invoke-MediaPipelineElapsedPollHandler -PollHandler $PollHandler -Stopwatch $pollStopwatch
 
     # Load manifest once per call (caller may pass it in for efficiency)
     if ($null -eq $PriorityManifest) {
@@ -268,6 +272,7 @@ function Get-QueuedEntries {
     }
 
     $entries = foreach ($file in @($Files)) {
+        Invoke-MediaPipelineElapsedPollHandler -PollHandler $PollHandler -Stopwatch $pollStopwatch
         if ($null -eq $file) { continue }
         $priorityInfo = Get-SourcePriorityInfo $file
         $manifestLevel = Get-ManifestPriorityLevel -Manifest $PriorityManifest -SourcePath ([string]$file.FullName)
@@ -349,7 +354,7 @@ function Get-QueuedEntries {
     # but kept in the array so callers can split them into a hold bucket.
     return @(
         $entries | Sort-Object `
-            @{ Expression = { switch ($_.EffectivePriorityLevel) { 'high' { 0 } 'low' { 2 } 'hold' { 3 } default { 1 } } } }, `
+            @{ Expression = { Invoke-MediaPipelineElapsedPollHandler -PollHandler $PollHandler -Stopwatch $pollStopwatch; switch ($_.EffectivePriorityLevel) { 'high' { 0 } 'low' { 2 } 'hold' { 3 } default { 1 } } } }, `
             @{ Descending = $true; Expression = { if ($_.EffectivePriorityLevel -eq 'high') { $_.PriorityOrderTicks } else { 0L } } }, `
             @{ Expression = { if (-not $_.IsTV -or $_.TVParseReliable) { 0 } else { 1 } } }, `
             @{ Expression = { $_.ShowSortKey } }, `
@@ -368,11 +373,19 @@ function Set-QueueEntryRuntimeMetadata {
         [array]$Entries,
         [bool]$IsTV,
         # When supplied, overrides the phase label for all entries in this batch.
-        [string]$PhaseOverride = ''
+        [string]$PhaseOverride = '',
+        [scriptblock]$PollHandler
     )
 
-    $items = @($Entries | Where-Object { $null -ne $_ -and $null -ne $_.File })
+    $pollStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    $itemList = [System.Collections.Generic.List[object]]::new()
+    foreach ($entry in @($Entries)) {
+        Invoke-MediaPipelineElapsedPollHandler -PollHandler $PollHandler -Stopwatch $pollStopwatch
+        if ($null -ne $entry -and $null -ne $entry.File) { [void]$itemList.Add($entry) }
+    }
+    $items = @($itemList.ToArray())
     for ($i = 0; $i -lt $items.Count; $i++) {
+        Invoke-MediaPipelineElapsedPollHandler -PollHandler $PollHandler -Stopwatch $pollStopwatch
         $items[$i] | Add-Member -NotePropertyName QueueIndex -NotePropertyValue ($i + 1) -Force
         $items[$i] | Add-Member -NotePropertyName QueueTotal -NotePropertyValue $items.Count -Force
         $items[$i] | Add-Member -NotePropertyName IsTV -NotePropertyValue $IsTV -Force

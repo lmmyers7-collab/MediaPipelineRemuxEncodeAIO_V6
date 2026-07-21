@@ -1,17 +1,4 @@
-"""Generate docs/generated/PROJECT_INDEX.md and docs/generated/DEPENDENCY_GRAPH.md from docs/generated/summaries/.
-
-docs/generated/PROJECT_INDEX.md is a flat table: one row per source file with path,
-owner_domain, token_priority, pipeline_stage, and a short purpose line
-extracted from its summary.
-
-docs/generated/DEPENDENCY_GRAPH.md emits a Mermaid graph of cross-domain imports (Python)
-and dot-includes (PowerShell). Edges are aggregated by owner_domain pair
-so the graph stays legible.
-
-Run after refresh_summaries.py. Use --check in pre-commit/CI to verify
-docs/generated/PROJECT_INDEX.md and docs/generated/DEPENDENCY_GRAPH.md are current without rewriting
-them.
-"""
+"""Generate human, machine, and dependency views from one typed source catalog."""
 
 from __future__ import annotations
 
@@ -23,6 +10,12 @@ from dataclasses import dataclass
 from collections import defaultdict
 from pathlib import Path
 
+from mediapipeline.tools.dev.context_records import (
+    ContextRecord,
+    collect_context_records,
+    records_to_jsonl,
+    validate_record_paths,
+)
 from mediapipeline.tools.paths import find_repo_root
 from mediapipeline.tools.dev.release_package_scope import (
     is_release_excluded_path,
@@ -33,6 +26,7 @@ REPO_ROOT = find_repo_root(Path(__file__))
 SUMMARY_ROOT = REPO_ROOT / "docs" / "generated" / "summaries"
 GENERATED_DOCS_ROOT = REPO_ROOT / "docs" / "generated"
 INDEX_PATH = GENERATED_DOCS_ROOT / "PROJECT_INDEX.md"
+JSONL_PATH = GENERATED_DOCS_ROOT / "PROJECT_INDEX.jsonl"
 GRAPH_PATH = GENERATED_DOCS_ROOT / "DEPENDENCY_GRAPH.md"
 RUN_COMMAND = (
     "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py "
@@ -173,10 +167,8 @@ def short_purpose(text: str, limit: int = 90) -> str:
     return p
 
 
-def render_index(summaries: list[Path]) -> str:
+def _summary_rows(summaries: list[Path]) -> list[tuple[str, str, str, str, str]]:
     rows: list[tuple[str, str, str, str, str]] = []
-    counts: dict[str, int] = defaultdict(int)
-    priorities: dict[str, int] = defaultdict(int)
     for s in summaries:
         text = s.read_text(encoding="utf-8", errors="replace")
         fm = parse_frontmatter(text)
@@ -186,8 +178,27 @@ def render_index(summaries: list[Path]) -> str:
         stage = fm.get("pipeline_stage", "?")
         purpose = short_purpose(text)
         rows.append((file, domain, priority, stage, purpose))
+    return rows
+
+
+def _record_rows(records: list[ContextRecord]) -> list[tuple[str, str, str, str, str]]:
+    return [
+        (record.path, record.owner_domain, record.token_priority, record.pipeline_stage, record.purpose)
+        for record in records
+    ]
+
+
+def render_index(items: list[Path] | list[ContextRecord]) -> str:
+    rows = _summary_rows(items) if items and isinstance(items[0], Path) else _record_rows(items)  # type: ignore[arg-type]
+    counts: dict[str, int] = defaultdict(int)
+    priorities: dict[str, int] = defaultdict(int)
+    evidence: dict[str, int] = defaultdict(int)
+    record_by_path = {record.path: record for record in items if isinstance(record, ContextRecord)}
+    for file, domain, priority, _, _ in rows:
         counts[domain] += 1
         priorities[priority] += 1
+        if file in record_by_path:
+            evidence[record_by_path[file].evidence_category] += 1
 
     lines: list[str] = []
     lines.append("# PROJECT_INDEX")
@@ -203,6 +214,10 @@ def render_index(summaries: list[Path]) -> str:
     lines.append("- By token priority:")
     for pri in ("high", "medium", "low"):
         lines.append(f"  - `{pri}`: {priorities.get(pri, 0)}")
+    if evidence:
+        lines.append("- By evidence category:")
+        for category in sorted(evidence):
+            lines.append(f"  - `{category}`: {evidence[category]}")
     lines.append("")
     lines.append("## Files")
     lines.append("")
@@ -210,33 +225,46 @@ def render_index(summaries: list[Path]) -> str:
     lines.append("|---|---|---|---|---|")
     for file, domain, priority, stage, purpose in rows:
         safe_purpose = purpose.replace("|", "\\|")
+        if len(safe_purpose) > 110:
+            safe_purpose = safe_purpose[:109].rstrip() + "…"
         lines.append(f"| `{file}` | {domain} | {priority} | {stage} | {safe_purpose} |")
     lines.append("")
     return "\n".join(lines)
 
 
-def render_graph(summaries: list[Path]) -> str:
+def render_graph(items: list[Path] | list[ContextRecord]) -> str:
     edges: dict[tuple[str, str], int] = defaultdict(int)
     nodes: set[str] = set()
-    for s in summaries:
-        text = s.read_text(encoding="utf-8", errors="replace")
-        fm = parse_frontmatter(text)
-        src_domain = fm.get("owner_domain", "unknown")
-        nodes.add(src_domain)
-        py_imports = parse_first(text, IMPORTS_RE)
-        if py_imports:
-            for tok in re.findall(r"`([^`]+)`", py_imports):
-                target = _domain_of_python_import(tok)
-                if target and target != src_domain:
-                    edges[(src_domain, target)] += 1
-                    nodes.add(target)
-        ps_inc = parse_first(text, DOTINC_RE)
-        if ps_inc:
-            for tok in re.findall(r"`([^`]+)`", ps_inc):
-                target = _domain_of_ps_include(tok)
-                if target and target != src_domain:
-                    edges[(src_domain, target)] += 1
-                    nodes.add(target)
+    if items and isinstance(items[0], ContextRecord):
+        records = items  # type: ignore[assignment]
+        by_path = {record.path: record for record in records}
+        for record in records:
+            nodes.add(record.owner_domain)
+            for target_path in record.outbound_dependencies:
+                target_record = by_path.get(target_path)
+                if target_record and target_record.owner_domain != record.owner_domain:
+                    edges[(record.owner_domain, target_record.owner_domain)] += 1
+                    nodes.add(target_record.owner_domain)
+    else:
+        for summary in items:  # type: ignore[assignment]
+            text = summary.read_text(encoding="utf-8", errors="replace")
+            fm = parse_frontmatter(text)
+            src_domain = fm.get("owner_domain", "unknown")
+            nodes.add(src_domain)
+            py_imports = parse_first(text, IMPORTS_RE)
+            if py_imports:
+                for tok in re.findall(r"`([^`]+)`", py_imports):
+                    target = _domain_of_python_import(tok)
+                    if target and target != src_domain:
+                        edges[(src_domain, target)] += 1
+                        nodes.add(target)
+            ps_inc = parse_first(text, DOTINC_RE)
+            if ps_inc:
+                for tok in re.findall(r"`([^`]+)`", ps_inc):
+                    target = _domain_of_ps_include(tok)
+                    if target and target != src_domain:
+                        edges[(src_domain, target)] += 1
+                        nodes.add(target)
 
     lines: list[str] = []
     lines.append("# DEPENDENCY_GRAPH")
@@ -320,23 +348,25 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if not SUMMARY_ROOT.exists():
-        print("docs/generated/summaries/ does not exist. Run refresh_summaries.py first.")
+    records = collect_context_records()
+    path_findings = validate_record_paths(records)
+    if path_findings:
+        print(f"Context record path findings ({len(path_findings)}):", file=sys.stderr)
+        for finding in path_findings[:80]:
+            print(f"  {finding}", file=sys.stderr)
         return 1
-    summaries = iter_summaries()
-    orphans = orphan_summary_findings(summaries)
-    if orphans:
-        print(render_orphan_summary_findings(orphans), file=sys.stderr)
-        return 1
-    index = render_index(summaries)
-    graph = render_graph(summaries)
+    index = render_index(records)
+    jsonl = records_to_jsonl(records)
+    graph = render_graph(records)
     if args.check:
         ok = check_file(INDEX_PATH, index)
+        ok = check_file(JSONL_PATH, jsonl) and ok
         ok = check_file(GRAPH_PATH, graph) and ok
         if ok:
             print(
                 "OK: "
                 f"{INDEX_PATH.relative_to(REPO_ROOT)} and "
+                f"{JSONL_PATH.relative_to(REPO_ROOT)} and "
                 f"{GRAPH_PATH.relative_to(REPO_ROOT)} are current."
             )
             return 0
@@ -344,10 +374,11 @@ def main(argv: list[str] | None = None) -> int:
 
     GENERATED_DOCS_ROOT.mkdir(parents=True, exist_ok=True)
     INDEX_PATH.write_text(index, encoding="utf-8", newline="\n")
+    JSONL_PATH.write_text(jsonl, encoding="utf-8", newline="\n")
     GRAPH_PATH.write_text(graph, encoding="utf-8", newline="\n")
     print(
-        f"Wrote {INDEX_PATH.relative_to(REPO_ROOT)} and {GRAPH_PATH.relative_to(REPO_ROOT)} "
-        f"from {len(summaries)} summaries."
+        f"Wrote {INDEX_PATH.relative_to(REPO_ROOT)}, {JSONL_PATH.relative_to(REPO_ROOT)}, "
+        f"and {GRAPH_PATH.relative_to(REPO_ROOT)} from {len(records)} typed source records."
     )
     return 0
 

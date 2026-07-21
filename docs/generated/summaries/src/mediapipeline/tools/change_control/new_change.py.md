@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/tools/change_control/new_change.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
@@ -9,9 +12,9 @@ sha256: e404cddf7869deaff6f1db6177e5e57bc3a1b95512a7bf9f803e86507f09c4e8
 ---
 # `src/mediapipeline/tools/change_control/new_change.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for new change; exposes main.
 
-**Public functions:** `main()`
+**Public symbols:** `main`
 **In-repo imports:** `mediapipeline.tools.paths`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/tools/change_control/new_change.py`._

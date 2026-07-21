@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import inspect
+from uuid import uuid4
 from typing import Any
 
 from mediapipeline.core.kernel.dto_commands import CommandResult
@@ -17,6 +19,7 @@ from mediapipeline.core.processes.pipeline_policy import (
     pipeline_start_exception_result,
     pipeline_start_extra_args_error_result,
     pipeline_start_network_mode_blocked_result,
+    pipeline_start_queue_scope_blocked_result,
     pipeline_start_schedule_gate_result,
     pipeline_start_single_file_blocked_result,
     pipeline_start_sleep_error_result,
@@ -27,6 +30,10 @@ from mediapipeline.core.processes.pipeline_policy import (
 from mediapipeline.core.config.identity import config_operation_block_data, config_operation_block_message
 from mediapipeline.core.processes.launch_intent import normalize_pipeline_launch_intent
 from mediapipeline.core.processes.schedule_policy import normalize_schedule_override
+from mediapipeline.core.status.run_monitor import (
+    seed_starting_run_monitor,
+    terminalize_launch_failed_run,
+)
 
 
 class PipelineLaunchFacadeMixin:
@@ -105,6 +112,18 @@ class PipelineLaunchFacadeMixin:
             return pipeline_start_schedule_gate_result(schedule_gate)
         actual_mode = str(schedule_gate.get("mode") or mode)
         command_id = str(request.get("_command_id") or "")
+        requested_run_id = str(request.get("_run_id") or "").strip().casefold()
+        run_monitor_launch = actual_mode == "once" and not single_file
+        run_id = ""
+        if run_monitor_launch:
+            run_id = (
+                requested_run_id
+                if len(requested_run_id) == 32
+                and all(character in "0123456789abcdef" for character in requested_run_id)
+                else uuid4().hex
+            )
+            if not command_id:
+                command_id = f"pipeline-start-{run_id}"
         launch_lock, lock_message = self._acquire_process_launch_lock(
             "Pipeline start",
             resolved=resolved,
@@ -113,11 +132,32 @@ class PipelineLaunchFacadeMixin:
         )
         if lock_message:
             return pipeline_start_active_work_result(lock_message)
+        monitor_state_root = None
+        run_monitor_preseeded = False
+        runtime_process_started = False
         try:
-            self._set_process_launch_recovery_descriptor(launch_lock, route="/api/pipeline/start", request=request)
+            recovery_request = {**request, **({"_run_id": run_id} if run_id else {})}
+            self._set_process_launch_recovery_descriptor(
+                launch_lock,
+                route="/api/pipeline/start",
+                request=recovery_request,
+            )
             block_message = self._active_work_block_message(resolved, "Pipeline start")
             if block_message:
                 return pipeline_start_active_work_result(block_message)
+            expected_queue_plan_fingerprint = ""
+            accepted_run_rows: tuple[Any, ...] = ()
+            if actual_mode == "once" and not single_file:
+                queue_scope_check = self._normal_queue_scope_preflight_check(
+                    resolved,
+                    retain_accepted_rows=True,
+                )
+                if str(queue_scope_check.get("status") or "").casefold() != "ready":
+                    return pipeline_start_queue_scope_blocked_result(queue_scope_check)
+                expected_queue_plan_fingerprint = str(
+                    queue_scope_check.get("queue_plan_fingerprint") or ""
+                ).strip()
+                accepted_run_rows = tuple(queue_scope_check.get("_accepted_run_rows") or ())
             autonomy_method = getattr(self, "_autonomy_health_for_resolved", None)
             if callable(autonomy_method):
                 path_health_method = getattr(self, "_launch_path_health_for_resolved", None)
@@ -128,6 +168,20 @@ class PipelineLaunchFacadeMixin:
                     and str((autonomy_health or {}).get("overall_status") or "").casefold() == "blocked"
                 ):
                     return pipeline_start_autonomy_blocked_result(autonomy_health)
+            if run_monitor_launch:
+                monitor_state_root = getattr(resolved, "state_root", None)
+                if monitor_state_root is None and getattr(resolved, "run_monitor_path", None) is not None:
+                    monitor_state_root = resolved.run_monitor_path.parent
+                if monitor_state_root is None:
+                    raise RuntimeError("Run Once monitor state root is unavailable.")
+                seed_starting_run_monitor(
+                    monitor_state_root,
+                    run_id=run_id,
+                    command_id=command_id,
+                    accepted_queue_fingerprint=expected_queue_plan_fingerprint,
+                    accepted_rows=accepted_run_rows,
+                )
+                run_monitor_preseeded = True
             self._cancel_pipeline_schedule_stop_watcher("cleared before a new backend pipeline launch")
             launch_prep_messages: list[str] = []
             runtime_prep = getattr(self.service, "prepare_pipeline_runtime_for_launch", None)
@@ -140,15 +194,28 @@ class PipelineLaunchFacadeMixin:
             if not callable(starter):
                 raise RuntimeError("Pipeline start service is not available.")
             self._prepare_process_launch_lease(launch_lock)
-            proc = starter(
-                resolved=resolved,
-                mode=actual_mode,
-                show_config=intent.show_config,
-                sleep_seconds=intent.sleep_seconds,
-                extra_args=intent.extra_args,
-                show_console=intent.show_console,
-                single_file=single_file or None,
+            start_kwargs: dict[str, Any] = {
+                "resolved": resolved,
+                "mode": actual_mode,
+                "show_config": intent.show_config,
+                "sleep_seconds": intent.sleep_seconds,
+                "extra_args": intent.extra_args,
+                "show_console": intent.show_console,
+                "single_file": single_file or None,
+            }
+            starter_parameters = inspect.signature(starter).parameters
+            accepts_extra_kwargs = any(
+                parameter.kind is inspect.Parameter.VAR_KEYWORD
+                for parameter in starter_parameters.values()
             )
+            if accepts_extra_kwargs or "expected_queue_plan_fingerprint" in starter_parameters:
+                start_kwargs["expected_queue_plan_fingerprint"] = expected_queue_plan_fingerprint
+            if accepts_extra_kwargs or "command_id" in starter_parameters:
+                start_kwargs["command_id"] = command_id
+            if accepts_extra_kwargs or "run_id" in starter_parameters:
+                start_kwargs["run_id"] = run_id
+            proc = starter(**start_kwargs)
+            runtime_process_started = True
             self._transfer_process_launch_lease(launch_lock, proc)
             pid = int(getattr(proc, "pid", 0) or 0)
             launch_prep_messages.extend(
@@ -166,6 +233,27 @@ class PipelineLaunchFacadeMixin:
             if callable(log_method):
                 launch_logs = str(log_method() or "")
         except Exception as exc:
+            process_started_before_failure = bool(
+                getattr(exc, "_mediapipeline_process_started", False)
+            )
+            cleanup_verified = bool(
+                getattr(exc, "_mediapipeline_cleanup_verified", False)
+            )
+            launch_failure_is_terminal = (
+                not runtime_process_started
+                and (not process_started_before_failure or cleanup_verified)
+            )
+            if run_monitor_preseeded and launch_failure_is_terminal and monitor_state_root is not None:
+                try:
+                    terminalize_launch_failed_run(
+                        monitor_state_root,
+                        run_id,
+                        reason=str(exc),
+                    )
+                except Exception as terminalize_exc:
+                    exc = RuntimeError(
+                        f"{exc}; additionally failed to terminalize the accepted Run Monitor: {terminalize_exc}"
+                    )
             return pipeline_start_exception_result(exc)
         finally:
             self._release_process_launch_lock(launch_lock)
@@ -177,6 +265,8 @@ class PipelineLaunchFacadeMixin:
             launch_prep_messages=launch_prep_messages,
             launch_logs=launch_logs,
             single_file_validation=single_file_validation,
+            run_id=run_id,
+            accepted_queue_fingerprint=expected_queue_plan_fingerprint,
         )
 
 __all__ = [

@@ -18,15 +18,25 @@ class WarningLogger(Protocol):
     def warning(self, message: object, *args: object, **kwargs: object) -> None: ...
 
 
-def new_control_flag_payload(label: str) -> dict[str, Any]:
-    action = label.strip().lower().replace(" ", "_")
+def new_control_flag_payload(
+    label: str,
+    *,
+    action: str = "",
+    run_id: str = "",
+    target_pid: int | None = None,
+    target_launch_id: str = "",
+) -> dict[str, Any]:
+    normalized_action = action.strip().casefold() or label.strip().lower().replace(" ", "_")
     payload = {
         "schema_version": CONTROL_FLAG_SCHEMA_VERSION,
-        "action": action,
+        "action": normalized_action,
         "label": label,
         "request_id": uuid.uuid4().hex,
         "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "app_pid": os.getpid(),
+        "run_id": str(run_id or "").strip(),
+        "target_pid": target_pid,
+        "target_launch_id": str(target_launch_id or "").strip(),
     }
     return ControlFlagRecord.from_mapping(payload).to_mapping()
 
@@ -47,6 +57,31 @@ def write_control_flag(flag_path: Path, label: str) -> dict[str, Any]:
         raise RuntimeError(f"{label} flag verification failed for {flag_path}: {exc}") from exc
     if verified.request_id != payload["request_id"]:
         raise RuntimeError(f"{label} flag verification failed for {flag_path}.")
+    return payload
+
+
+def write_stop_after_current_flag(
+    flag_path: Path,
+    *,
+    run_id: str = "",
+    target_pid: int | None = None,
+    target_launch_id: str = "",
+) -> dict[str, Any]:
+    payload = new_control_flag_payload(
+        "Stop After Current",
+        action="stop_after_current",
+        run_id=run_id,
+        target_pid=target_pid,
+        target_launch_id=target_launch_id,
+    )
+    flag_path.parent.mkdir(parents=True, exist_ok=True)
+    atomic_write_text(flag_path, json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    try:
+        verified = ControlFlagRecord.from_mapping(read_json_file(flag_path, retries=1))
+    except (ContractError, OSError, ValueError, TypeError) as exc:
+        raise RuntimeError(f"Stop After Current flag verification failed for {flag_path}: {exc}") from exc
+    if verified.request_id != payload["request_id"]:
+        raise RuntimeError(f"Stop After Current flag verification failed for {flag_path}.")
     return payload
 
 

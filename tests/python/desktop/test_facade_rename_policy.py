@@ -21,6 +21,7 @@ from mediapipeline.core.rename.policy import (
     remove_terms_from_request,
     rename_clean_filename_preview_from_request,
     rename_cleaning_policy_from_config,
+    rename_cleaning_policy_from_request,
     rename_cleaning_policy_fingerprint,
     rename_apply_blockers_result,
     rename_apply_confirmation_required_result,
@@ -234,6 +235,8 @@ class RenameFacadePolicyTests(unittest.TestCase):
         self.assertEqual(kwargs["powershell_host"], "  C:/PowerShell/pwsh.exe  ")
         self.assertTrue(kwargs["use_pipeline_naming_preview"])
         self.assertEqual(kwargs["template_preset"], "movie_standard")
+        self.assertEqual(kwargs["cleaning_policy"]["movie"]["remove_terms"], ["sample", "trailer"])
+        self.assertEqual(kwargs["cleaning_policy"]["tv"]["remove_terms"], ["tv sample", "tv trailer"])
 
     def test_request_parsing_rejects_non_bool_rename_mutation_flags(self) -> None:
         base = {"paths": ["C:/Media/Show E01.mkv"]}
@@ -307,6 +310,26 @@ class RenameFacadePolicyTests(unittest.TestCase):
         self.assertEqual(policy["tv_filter_terms"]["release_flags"], ["uncensored"])
         self.assertNotIn("unknown", policy["tv_filter_terms"])
         self.assertEqual(policy["tv_remove_terms"], ["ova", "special"])
+
+    def test_rename_cleaning_policy_from_request_parses_workbench_remove_term_text(self) -> None:
+        policy = rename_cleaning_policy_from_request(
+            {
+                "remove_terms_text": "sample; behind the scenes",
+                "tv_remove_terms_text": "ova\nspecial",
+                "movie_filter_terms": {"release_groups": ["GalaxyRG"]},
+                "tv_filter_terms": {"release_groups": ["TTGA"]},
+            },
+            parse_remove_terms=lambda raw: [
+                term.strip()
+                for term in raw.replace(";", "\n").splitlines()
+                if term.strip()
+            ],
+        )
+
+        self.assertEqual(policy["movie"]["remove_terms"], ["sample", "behind the scenes"])
+        self.assertEqual(policy["tv"]["remove_terms"], ["ova", "special"])
+        self.assertEqual(policy["movie"]["terms"]["release_groups"], ["GalaxyRG"])
+        self.assertEqual(policy["tv"]["terms"]["release_groups"], ["TTGA"])
 
     def test_rename_cleaning_policy_fingerprint_is_deterministic_and_content_bound(self) -> None:
         left = rename_cleaning_policy_from_config(

@@ -69,7 +69,7 @@ EXPECTED_STATUS_COUNTS = {
     "unclassified": 0,
 }
 
-GENERATED_FAMILY_COUNT = 149
+GENERATED_FAMILY_COUNT = 150
 
 INTERACTIVE_ROLES = {
     "button",
@@ -486,6 +486,27 @@ def _runner_source() -> str:
                 await eventProof(element, "keydown", () => element.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })));
                 element.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
                 return "keydown";
+              }
+              if (element.classList?.contains("pcb-btn-move")) {
+                const panel = element.closest("section.panel[data-panel-key]");
+                const container = panel?.parentElement;
+                const siblingPanels = () => Array.from(container?.children || []).filter(
+                  (candidate) => candidate.matches?.("section.panel[data-panel-key]")
+                );
+                const originalIndex = siblingPanels().indexOf(panel);
+                const inverseSelector = element.classList.contains("pcb-btn-move-up")
+                  ? ".pcb-btn-move-down"
+                  : ".pcb-btn-move-up";
+                await eventProof(element, "click", () => element.click());
+                await Promise.resolve();
+                const inverse = panel?.querySelector(inverseSelector);
+                if (!inverse || inverse.disabled) throw new Error("panel move inverse was unavailable");
+                inverse.click();
+                await Promise.resolve();
+                if (siblingPanels().indexOf(panel) !== originalIndex) {
+                  throw new Error("panel move did not restore the fixture snapshot order");
+                }
+                return "click";
               }
               await eventProof(element, "click", () => element.click());
               if (
@@ -934,7 +955,22 @@ class WebViewBrowserEvidenceControlCensus(unittest.TestCase):
                 browser_result["statusCounts"]["discovered"],
                 len(browser_result["staticRecords"]) + len(browser_result["generatedRecords"]),
             )
-            self.assertEqual(browser_result["statusCounts"], EXPECTED_STATUS_COUNTS)
+            self.assertEqual(
+                browser_result["statusCounts"],
+                EXPECTED_STATUS_COUNTS,
+                json.dumps(
+                    [
+                        {
+                            key: record.get(key)
+                            for key in ("stableId", "kind", "surface", "family", "status", "reason", "descriptor")
+                        }
+                        for record in browser_result["actionResults"]
+                        if record["status"] != "activated"
+                    ],
+                    ensure_ascii=False,
+                    sort_keys=True,
+                ),
+            )
             self.assertEqual(browser_result["statusCounts"]["failed"], 0, browser_result["actionResults"])
             self.assertEqual(browser_result["statusCounts"]["unclassified"], 0, browser_result["actionResults"])
             self.assertEqual(browser_result["forbiddenPosts"], [])

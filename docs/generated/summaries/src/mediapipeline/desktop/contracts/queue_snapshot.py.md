@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/desktop/contracts/queue_snapshot.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: contracts
@@ -9,7 +12,7 @@ sha256: bcb14b261afade746981c00ce5c2bdb024c69949db61a538247f323876b68c61
 ---
 # `src/mediapipeline/desktop/contracts/queue_snapshot.py`
 
-**Purpose:** Compatibility shim. Moved to `mediapipeline.core.kernel.contracts.queue_snapshot` by ADR-0013 (Wave 5).
+**Purpose:** Compatibility shim. Moved to `mediapipeline.core.kernel.contracts.queue_snapshot` by ADR-0013 (Wave 5). Re-exports the public namespace from the new home. New code should import from `mediapipeline.core.kernel.contracts.queue_snapshot` directly; removed in the ADR-0013 Wave 6 cleanup.
 
 **In-repo imports:** `mediapipeline.core.kernel.contracts`
 

@@ -21,6 +21,7 @@ from mediapipeline.desktop.api.contract_payload import (
     local_api_contract_payload,
 )
 from mediapipeline.desktop.api.contract import LOCAL_API_ROUTE_CONTRACT
+from mediapipeline.desktop.api.contract_read import LOCAL_API_READ_ROUTE_CONTRACT as DESKTOP_LOCAL_API_READ_ROUTE_CONTRACT
 from mediapipeline.desktop.api.routes_read import GET_ROUTE_HANDLERS
 
 
@@ -106,6 +107,22 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertEqual(refresh["effect"], "diagnostics-artifact-write")
         self.assertEqual(refresh["request_keys"], [])
         self.assertIn("does not launch", refresh["purpose"].casefold())
+
+    def test_run_monitor_contract_declares_backend_correlated_read_projection(self) -> None:
+        routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
+        route = routes["/api/run-monitor"]
+        desktop_routes = {route["path"]: route for route in DESKTOP_LOCAL_API_READ_ROUTE_CONTRACT}
+
+        self.assertIn("/api/run-monitor", GET_ROUTE_HANDLERS)
+        self.assertTrue(GET_ROUTE_HANDLERS["/api/run-monitor"].needs_query)
+        self.assertEqual(route["method"], "GET")
+        self.assertTrue(route["auth_required"])
+        self.assertEqual(route["effect"], "none")
+        self.assertEqual(route["query_keys"], ["run_id"])
+        self.assertEqual(route["response_schema"], "desktop_run_monitor.v1")
+        self.assertIn("backend-correlated", route["purpose"].casefold())
+        self.assertIn("accepted-workload", route["purpose"].casefold())
+        self.assertEqual(desktop_routes["/api/run-monitor"], route)
 
     def test_completed_contract_advertises_query_fields(self) -> None:
         routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}

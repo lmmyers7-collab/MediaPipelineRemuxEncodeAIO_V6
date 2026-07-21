@@ -74,15 +74,17 @@ function Start-MediaPipelineLocalWorkerChild {
         -ResultPath ([string]$SlotLayout.ResultFile) `
         -ClaimId ([string]$Claim.claim_id) `
         -Reason 'slot reuse before worker child start' | Out-Null
-    foreach ($path in @($SlotLayout.ResultFile, $SlotLayout.HeartbeatFile, $SlotLayout.StdoutLog, $SlotLayout.StderrLog)) {
+    foreach ($path in @($SlotLayout.ResultFile, $SlotLayout.HeartbeatFile, $SlotLayout.ProgressFile, $SlotLayout.StdoutLog, $SlotLayout.StderrLog)) {
         Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
     }
+    $runMonitorJobId = if ($Claim.PSObject.Properties['run_monitor_job_id']) { [string]$Claim.run_monitor_job_id } else { '' }
     $metadata = [ordered]@{
         schema_version = 'local_worker_metadata.v1'
         slot_id        = [int]$SlotLayout.SlotId
         claim_id       = [string]$Claim.claim_id
         source_path    = [string]$Claim.source_path
         owner_run_id   = [string]$OwnerRunId
+        run_monitor_job_id = $runMonitorJobId
         result_path    = [string]$SlotLayout.ResultFile
         heartbeat_path = [string]$SlotLayout.HeartbeatFile
         created_at     = Get-MediaPipelineLocalWorkerTimestamp
@@ -100,6 +102,7 @@ function Start-MediaPipelineLocalWorkerChild {
         '-WorkerSlotId', ([string]$SlotLayout.SlotId),
         '-WorkerRunId', $OwnerRunId,
         '-WorkerClaimId', ([string]$Claim.claim_id),
+        '-WorkerJobId', $runMonitorJobId,
         '-WorkerResultPath', ([string]$SlotLayout.ResultFile),
         '-WorkerHeartbeatPath', ([string]$SlotLayout.HeartbeatFile)
     )

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, UTC
 from pathlib import Path
 import threading
+import time
 from typing import Any
 import uuid
 
@@ -11,6 +12,12 @@ from mediapipeline.core.queue.dry_run_runner import (
     run_queue_dry_run_for_service,
 )
 from mediapipeline.core.queue.preview_builder import build_queue_preview_for_service
+from mediapipeline.core.queue.freshness import (
+    QueueSnapshotFreshnessAnchor,
+    build_queue_snapshot_freshness_anchor,
+    evaluate_queue_snapshot_freshness,
+    normalize_queue_snapshot_freshness_seconds,
+)
 from mediapipeline.core.queue.priority_markers import (
     apply_priority_marker as apply_priority_marker_to_path,
     format_priority_leaf_name as format_priority_leaf_name_for_marker,
@@ -46,6 +53,8 @@ from mediapipeline.core.queue.contracts import QueueRecord
 
 
 class QueueServiceMixin:
+    _QUEUE_SCAN_LOCK_CREATION_GUARD = threading.Lock()
+
     def starts_with_priority_marker(self, text: str, markers: list[str]) -> bool:
         return starts_with_priority_marker(text, markers)
 
@@ -118,9 +127,58 @@ class QueueServiceMixin:
     def _queue_scan_lock(self) -> threading.Lock:
         lock = getattr(self, "_queue_source_scan_lock", None)
         if lock is None:
-            lock = threading.Lock()
-            self._queue_source_scan_lock = lock
+            with self._QUEUE_SCAN_LOCK_CREATION_GUARD:
+                lock = getattr(self, "_queue_source_scan_lock", None)
+                if lock is None:
+                    lock = threading.Lock()
+                    self._queue_source_scan_lock = lock
         return lock
+
+    def queue_snapshot_freshness_wall_now(self) -> datetime:
+        return datetime.now(UTC)
+
+    def queue_snapshot_freshness_monotonic_now(self) -> float:
+        return time.monotonic()
+
+    def queue_snapshot_freshness_anchor(self) -> QueueSnapshotFreshnessAnchor | None:
+        anchor = getattr(self, "_queue_snapshot_freshness_anchor", None)
+        return anchor if isinstance(anchor, QueueSnapshotFreshnessAnchor) else None
+
+    def _clear_queue_snapshot_freshness_anchor(self) -> None:
+        self._queue_snapshot_freshness_anchor = None
+
+    def _record_queue_snapshot_freshness_anchor(
+        self,
+        resolved: ResolvedPaths,
+        snapshot_path: Path,
+        snapshot: dict[str, Any],
+        scan_status: dict[str, Any],
+    ) -> None:
+        self._clear_queue_snapshot_freshness_anchor()
+        freshness_seconds = normalize_queue_snapshot_freshness_seconds(
+            (resolved.config_data or {}).get("QueueLaunchSnapshotFreshnessSeconds")
+        )
+        wall_now = self.queue_snapshot_freshness_wall_now()
+        monotonic_now = self.queue_snapshot_freshness_monotonic_now()
+        initial = evaluate_queue_snapshot_freshness(
+            snapshot_path,
+            snapshot,
+            scan_status,
+            freshness_seconds=freshness_seconds,
+            wall_now=wall_now,
+            monotonic_now=monotonic_now,
+        )
+        if not initial.fresh:
+            return
+        try:
+            self._queue_snapshot_freshness_anchor = build_queue_snapshot_freshness_anchor(
+                snapshot_path,
+                snapshot,
+                scan_status,
+                monotonic_now=monotonic_now,
+            )
+        except ValueError:
+            self._clear_queue_snapshot_freshness_anchor()
 
     def _queue_scan_id(self) -> str:
         prefix = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -213,6 +271,7 @@ class QueueServiceMixin:
                     "status": self.read_queue_scan_status(resolved),
                 }
 
+            self._clear_queue_snapshot_freshness_anchor()
             scan_id = self._queue_scan_id()
             requested_at = utc_now_iso()
             status = queue_scan_status_payload(
@@ -338,7 +397,23 @@ class QueueServiceMixin:
                 ),
             )
             curated_row_count = len(self.build_queue_preview(resolved, force_refresh=force))
+            curated_snapshot = self._read_queue_snapshot(snapshot_path) or {}
+            preview_request_id = str(curated_snapshot.get("desktop_queue_preview_request_id") or "")
+            warnings.extend(
+                str(item)
+                for item in getattr(self, "_queue_dry_run_cleanup_warnings", [])
+                if str(item).strip()
+            )
             completed_at = utc_now_iso()
+            self._record_queue_snapshot_freshness_anchor(
+                resolved,
+                snapshot_path,
+                curated_snapshot,
+                {
+                    "scan_id": scan_id,
+                    "queue_preview_request_id": preview_request_id,
+                },
+            )
             self._write_queue_scan_status(
                 resolved,
                 queue_scan_status_payload(
@@ -358,6 +433,7 @@ class QueueServiceMixin:
                     queue_snapshot_path=snapshot_path,
                     inventory_count=inventory_count,
                     curated_row_count=curated_row_count,
+                    queue_preview_request_id=preview_request_id,
                     warnings=warnings,
                 ),
             )

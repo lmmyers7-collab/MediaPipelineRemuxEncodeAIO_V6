@@ -45,7 +45,7 @@ except ImportError:  # pragma: no cover - fallback for direct test execution
 
 _SURFACE_EXPECTED_COUNTS = {
     "app-shell": 32,
-    "home": 49,
+    "home": 55,
     "metrics": 17,
     "diagnostics": 75,
     "maintenance": 30,
@@ -127,7 +127,7 @@ def _block_reason(record: dict[str, object]) -> str:
 def _root_control_descriptors() -> list[dict[str, object]]:
     ledger_path = REPO_ROOT / "docs" / "generated" / "WEBVIEW_TOUCHPOINT_LEDGER.json"
     ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
-    if ledger.get("schema_version") != "webview_touchpoint_ledger.v1":
+    if ledger.get("schema_version") != "webview_touchpoint_ledger.v2":
         raise AssertionError("Unexpected WebView touchpoint ledger schema.")
 
     records = [
@@ -142,8 +142,8 @@ def _root_control_descriptors() -> list[dict[str, object]]:
         raise AssertionError(
             f"Root control ledger denominator changed: {dict(surface_counts)} != {_SURFACE_EXPECTED_COUNTS}"
         )
-    if len(records) != 206:
-        raise AssertionError(f"Root control ledger denominator changed: {len(records)} != 206")
+    if len(records) != 212:
+        raise AssertionError(f"Root control ledger denominator changed: {len(records)} != 212")
 
     selector_occurrences: Counter[tuple[str, str]] = Counter()
     descriptors: list[dict[str, object]] = []
@@ -200,7 +200,7 @@ def _browser_root_control_census_runner_source() -> str:
           const descriptors = Array.isArray(data.descriptors) ? data.descriptors : [];
           const expectedSurfaceCounts = {
             "app-shell": 32,
-            home: 49,
+            home: 55,
             metrics: 17,
             diagnostics: 75,
             maintenance: 30,
@@ -541,7 +541,7 @@ def _browser_root_control_census_runner_source() -> str:
             });
             if (nodes.size !== descriptors.length) {
               const duplicates = Array.from(owners.values()).filter((ids) => ids.length > 1);
-              throw new Error("authored controls did not resolve to 206 unique runtime nodes; found " + nodes.size + "; duplicates=" + JSON.stringify(duplicates));
+              throw new Error("authored controls did not resolve to 212 unique runtime nodes; found " + nodes.size + "; duplicates=" + JSON.stringify(duplicates));
             }
             return nodes;
           }
@@ -575,7 +575,10 @@ def _browser_root_control_census_runner_source() -> str:
           function pageOwnedGeneratedKey(descriptor) {
             const stableAttributes = {};
             Object.entries(descriptor.attributes || {}).forEach(([name, value]) => {
-              if (["data-state", "data-status", "data-current", "data-sort-direction"].includes(name)) return;
+              if ([
+                "data-state", "data-status", "data-current", "data-sort-direction",
+                "data-open-target-available", "data-open-target-base-title",
+              ].includes(name)) return;
               stableAttributes[name] = value;
             });
             const labelStem = normalizedText(descriptor.label || "")
@@ -647,9 +650,11 @@ def _browser_root_control_census_runner_source() -> str:
                   attributes: { "data-selectable-row": "true" },
                   instance_count: 0,
                   raw_instance_ids: [],
+                  instance_labels: [],
                 };
                 current.instance_count += 1;
                 current.raw_instance_ids.push(descriptor.touchpoint_id);
+                current.instance_labels.push(descriptor.label);
                 rowFamilies.set(key, current);
                 return;
               }
@@ -711,7 +716,12 @@ def _browser_root_control_census_runner_source() -> str:
               return entries.filter((entry) => sharedGeneratedFamily(entry.descriptor) === descriptor.family);
             }
             if (descriptor.origin === "page_owned_row_family") {
-              return entries.filter((entry) => {
+              const connected = descriptor.raw_instance_ids
+                .map((id) => generatedNodeRegistry.get(id))
+                .filter((node) => node?.isConnected)
+                .map((node) => ({ node, descriptor: generatedSemantic(node, descriptor.surface) }));
+              if (connected.length === descriptor.instance_count) return connected;
+              const familyEntries = entries.filter((entry) => {
                 const item = entry.descriptor;
                 const owner = item.owner_id || item.panel_key || item.panel_heading || "rows";
                 return item.surface === descriptor.surface
@@ -719,9 +729,24 @@ def _browser_root_control_census_runner_source() -> str:
                   && item.attributes["data-selectable-row"] === "true"
                   && owner === descriptor.owner_id;
               });
+              const initialLabels = new Set(descriptor.instance_labels || []);
+              const retainedEntries = familyEntries.filter((entry) => initialLabels.has(entry.descriptor.label));
+              return retainedEntries.length === descriptor.instance_count ? retainedEntries : familyEntries;
             }
             if (descriptor.origin === "page_owned_control_family") {
-              return entries.filter((entry) => pageOwnedGeneratedKey(entry.descriptor) === descriptor.stable_key);
+              const exact = entries.filter((entry) => pageOwnedGeneratedKey(entry.descriptor) === descriptor.stable_key);
+              if (exact.length) return exact;
+              const expectedIdentity = JSON.parse(descriptor.stable_key);
+              expectedIdentity.label_stem = "";
+              return entries.filter((entry) => {
+                const currentIdentity = JSON.parse(pageOwnedGeneratedKey(entry.descriptor));
+                const hasStableIdentity = Object.keys(currentIdentity.attributes || {}).some(
+                  (name) => name === "id" || name.startsWith("data-")
+                );
+                if (!hasStableIdentity) return false;
+                currentIdentity.label_stem = "";
+                return JSON.stringify(currentIdentity) === JSON.stringify(expectedIdentity);
+              });
             }
             return [];
           }
@@ -802,7 +827,7 @@ def _browser_root_control_census_runner_source() -> str:
             const attributeNames = Object.keys(attributes);
             if (descriptor.role === "option" && label.startsWith("csv rerun complete")) return "";
             if (descriptor.tag === "a") {
-              const href = String(node.getAttribute("href") || "");
+              const href = String(node?.getAttribute?.("href") || "");
               if (href && !href.startsWith("#") && !href.startsWith("javascript:")) return "external_link_not_opened_by_hermetic_census";
             }
             if (attributeNames.some((name) => name.startsWith("data-open-") || name === "data-control-action")) {
@@ -817,10 +842,27 @@ def _browser_root_control_census_runner_source() -> str:
             return "";
           }
           async function activateGeneratedControls(generatedDescriptors) {
-            for (const descriptor of generatedDescriptors) {
+            const activationOrder = [...generatedDescriptors].sort((left, right) => {
+              const priority = (descriptor) => String(descriptor.label || "").startsWith("CSV rerun complete")
+                ? 0
+                : descriptor.origin === "page_owned_row_family"
+                  ? 1
+                  : 2;
+              const leftPriority = priority(left);
+              const rightPriority = priority(right);
+              return leftPriority - rightPriority;
+            });
+            for (const descriptor of activationOrder) {
               const touchpointId = descriptor.touchpoint_id;
               activeTouchpoint = touchpointId;
               if (descriptor.surface !== "shared") await showSurface(descriptor.surface);
+              const descriptorPreflightBlock = generatedPreflightBlockReason(null, descriptor);
+              if (descriptorPreflightBlock) {
+                recordGenerated(touchpointId, "blocked", descriptorPreflightBlock, {
+                  instance_count: descriptor.instance_count,
+                });
+                continue;
+              }
               let entries = resolveGeneratedInstances(descriptor);
               if (!entries.length) {
                 recordGenerated(touchpointId, "failed", "generated_control_family_not_resolved");
@@ -1424,7 +1466,7 @@ class WebViewBrowserRootControlCensus(unittest.TestCase):
             raise unittest.SkipTest("Chrome or Edge is required for the browser-backed root control census.")
 
         descriptors = _root_control_descriptors()
-        self.assertEqual(len(descriptors), 206)
+        self.assertEqual(len(descriptors), 212)
 
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -1481,10 +1523,10 @@ class WebViewBrowserRootControlCensus(unittest.TestCase):
                 encoding="utf-8",
             )
 
-        self.assertEqual(census["discovered_count"], 206)
+        self.assertEqual(census["discovered_count"], 212)
         self.assertEqual(census["surface_counts"], _SURFACE_EXPECTED_COUNTS)
-        self.assertEqual(census["activated_count"], 153)
-        self.assertEqual(census["blocked_count"], 51)
+        self.assertEqual(census["activated_count"], 157)
+        self.assertEqual(census["blocked_count"], 53)
         self.assertEqual(census["skipped_count"], 2)
         self.assertEqual(census["failed_count"], 0, census["failed_ids"])
         self.assertEqual(census["unclassified_count"], 0, census["unclassified_ids"])
@@ -1500,7 +1542,7 @@ class WebViewBrowserRootControlCensus(unittest.TestCase):
 
         generated = census["generated"]
         self.assertEqual(generated["discovered_count"], 87)
-        self.assertEqual(generated["raw_instance_count"], 1129)
+        self.assertEqual(generated["raw_instance_count"], 1134)
         self.assertEqual(generated["activated_count"], 80)
         self.assertEqual(generated["blocked_count"], 7)
         self.assertEqual(generated["skipped_count"], 0)
@@ -1511,12 +1553,12 @@ class WebViewBrowserRootControlCensus(unittest.TestCase):
         self.assertEqual(
             generated["inventory_counts"],
             {
-                "raw_instances": 1129,
+                "raw_instances": 1134,
                 "page_owned_records": 78,
-                "page_owned_instances": 233,
+                "page_owned_instances": 234,
                 "row_families": 19,
                 "shared_families": 9,
-                "shared_instances": 896,
+                "shared_instances": 900,
             },
         )
         self.assertEqual(generated["failed_count"], 0, generated["failed_ids"])
@@ -1602,7 +1644,7 @@ class WebViewBrowserRootControlCensus(unittest.TestCase):
             self.assertGreaterEqual(len(census["finite_values"][stable_id]), 1)
         for stable_id in finite_checkbox_ids & set(census["activated_ids"]):
             self.assertEqual(census["finite_values"][stable_id], [False, True])
-        self.assertEqual(len(census["finite_values"]), 39)
+        self.assertEqual(len(census["finite_values"]), 40)
         self.assertEqual(len(generated["finite_values"]), 16)
 
         for descriptor in descriptors:

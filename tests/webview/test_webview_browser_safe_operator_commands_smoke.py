@@ -247,7 +247,8 @@ def _runner_source() -> str:
             clickControl(byId("maintenance-support-create"), "maintenance-support-create");
             await waitFor(
               () => postCount("/api/maintenance/support-export") === 1
-                && text("maintenance-support-status").includes("Bundle created"),
+                && text("maintenance-support-result").includes("Support export written")
+                && text("maintenance-support-result").includes("Destination:"),
               "support export",
             );
             mark("support-complete");

@@ -74,7 +74,6 @@ async function refreshLiveRunTail(refreshOptions = {}) {
       stdoutTail: lastStdoutTail,
     };
     renderLiveWorkHomeSummary(liveRunContext);
-    renderHomeNextQueue({ ...liveRunContext, queue: lastQueue || {} });
   } catch (_error) {
     // The full refresh path owns route error reporting; this fast path keeps Home responsive.
   }
@@ -121,6 +120,9 @@ async function refreshAllNow(options = {}) {
   const refreshStartedMs = Date.now();
   const refreshStartScrollSnapshot = window.mediaPipelineDom?.captureScrollablePositions?.();
   renderRefreshInProgress(refreshOptions);
+  const runMonitorRequest = refreshPage === "home"
+    ? window.mediaPipelineRunMonitor?.refresh?.({ automatic: true })
+    : null;
   void refreshLiveRunTail(refreshOptions);
   window.mediaPipelineDom?.restoreScrollablePositions?.(refreshStartScrollSnapshot);
   const failureSourceMarkers = Boolean(byId("failure-source-markers")?.checked);
@@ -237,6 +239,7 @@ async function refreshAllNow(options = {}) {
     window.mediaPipelineCompletedView?.renderCompleted?.(values.completed);
     window.mediaPipelineProvenanceView?.renderCompletedProvenance?.(window.mediaPipelineCompletedView?.getSelectedCompletedRow?.());
   }
+  window.mediaPipelineRunMonitor?.reapplyTerminalHandoff?.("completed");
   // Reuse the final-library promotion status attached to the completed payload:
   // the completed read already computes it via the same builder
   // (annotate_final_library_promotion_rows -> get_final_library_promotion_status),
@@ -295,7 +298,9 @@ async function refreshAllNow(options = {}) {
       failures.find((item) => item.name === "audit sources")?.message || "Audit sources are unavailable.",
     );
   }
+  window.mediaPipelineRunMonitor?.reapplyTerminalHandoff?.("reports");
   if (values["pending publish"] || pendingPublishFailure) renderPendingPublish(pendingPublishPayload, values.snapshot || lastSnapshot);
+  window.mediaPipelineRunMonitor?.reapplyTerminalHandoff?.("pending");
   renderHomePendingCount(pendingPublishPayload);
   if (values.schedule) {
     lastSchedule = values.schedule;
@@ -471,9 +476,9 @@ async function refreshAllNow(options = {}) {
     stdoutTail: values["last stdout tail"] || lastStdoutTail,
     failures,
   };
-  renderHomeNextQueue(dashboardContext);
   renderHomeStorageHealth(dashboardContext);
   renderDailyDriverReadiness(dashboardContext);
+  if (runMonitorRequest && typeof runMonitorRequest.then === "function") await runMonitorRequest;
   window.mediaPipelineDom?.applyProseBoxDispositions?.(document);
   } finally {
     window.mediaPipelineDom?.restoreScrollablePositions?.(scrollSnapshot);

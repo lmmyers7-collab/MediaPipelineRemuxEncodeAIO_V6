@@ -57,12 +57,16 @@
     function updateQueueSelectionVisuals() {
       const tbody = byId("queue-rows");
       const selectedKeys = new Set(getSelectedQueuePriorityRowKeys());
+      const selectedRowKey = String(getSelectedQueueRowKey() || "");
       if (tbody && typeof tbody.querySelectorAll === "function") {
         tbody.querySelectorAll('tr[data-selectable-row="true"]').forEach((row) => {
           const key = String(row.dataset.rowKey || "");
           const selected = Boolean(key && selectedKeys.has(key));
           row.classList.toggle("is-selected", selected);
           row.setAttribute("aria-selected", selected ? "true" : "false");
+          row.tabIndex = key === selectedRowKey ? 0 : -1;
+          const rowAction = row.querySelector('[data-queue-row-action="file-overrides"]');
+          if (rowAction) rowAction.tabIndex = key === selectedRowKey ? 0 : -1;
           if (selected) row.dataset.prioritySelected = "true";
           else delete row.dataset.prioritySelected;
         });

@@ -1,5 +1,8 @@
 ---
 file: ops/pipeline/engine/config/config_keys.ps1
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: PowerShell
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
@@ -9,8 +12,8 @@ sha256: a2d33952cf7b8c85db7d1bf7aa8769f1dd54f4293bea5fc0fe755a059d1083b7
 ---
 # `ops/pipeline/engine/config/config_keys.ps1`
 
-**Purpose:** (no .SYNOPSIS block)
+**Purpose:** PowerShell implementation for config keys; exposes Get-MediaPipelineConfigKey, Get-MediaPipelineConfigKeyOrder, Get-MediaPipelineConfigKeyRegistry.
 
-**Functions:** `Get-MediaPipelineConfigKey`, `Get-MediaPipelineConfigKeyOrder`, `Get-MediaPipelineConfigKeyRegistry`, `Get-MediaPipelineKnownConfigKeys`, `Get-MediaPipelineNetworkConfigKeys`, `Test-MediaPipelineKnownConfigKey`
+**Public symbols:** `Get-MediaPipelineConfigKey`, `Get-MediaPipelineConfigKeyOrder`, `Get-MediaPipelineConfigKeyRegistry`, `Get-MediaPipelineKnownConfigKeys`, `Get-MediaPipelineNetworkConfigKeys`, `Test-MediaPipelineKnownConfigKey`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/engine/config/config_keys.ps1`._

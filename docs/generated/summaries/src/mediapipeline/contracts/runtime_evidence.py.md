@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/contracts/runtime_evidence.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
@@ -11,7 +14,6 @@ sha256: 4f38b85f7592ac66777c696e2150c22a9c8c71909e80be69c40c40eb919214da
 
 **Purpose:** Diagnostic-only runtime effective settings evidence contracts.
 
-**Classes:** `RuntimeEffectiveSettings`, `RuntimeEffectiveValue`, `RuntimeEvidenceLayer`, `RuntimeEvidenceModel`
-**Public functions:** `build_runtime_effective_settings()`, `default_runtime_evidence_layers()`, `effective_values_from_layers()`, `normalize_runtime_evidence_layers()`, `runtime_effective_settings_payload()`, `runtime_evidence_layer()`
+**Public symbols:** `build_runtime_effective_settings`, `default_runtime_evidence_layers`, `effective_values_from_layers`, `normalize_runtime_evidence_layers`, `runtime_effective_settings_payload`, `runtime_evidence_layer`, `RuntimeEffectiveSettings`, `RuntimeEffectiveValue`, `RuntimeEvidenceLayer`, `RuntimeEvidenceModel`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/contracts/runtime_evidence.py`._

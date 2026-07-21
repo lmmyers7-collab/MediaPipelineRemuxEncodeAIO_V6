@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/desktop/api/http_helpers.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
@@ -9,10 +12,9 @@ sha256: 71c6af7825e583cd84344fdeab599123c78610de704630e7aeb99b23a85cc78b
 ---
 # `src/mediapipeline/desktop/api/http_helpers.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for http helpers; exposes canonical_local_api_origin, content_type_for, discard_request_body.
 
-**Classes:** `QueryValidationError`
-**Public functions:** `canonical_local_api_origin()`, `content_type_for()`, `discard_request_body()`, `host_header_authorized()`, `is_client_disconnect_error()`, `is_loopback_host()`, `local_api_allowed_hosts()`, `local_api_allowed_origins()`, `local_api_auth_cookie_header()`, `local_api_auth_cookie_value()`, `no_token_dev_allowed()`, `origin_header_authorized()`, `query_bool()`, `query_int()`, `query_json_object()`, `query_value()`, `read_json_body()`, `request_authorized()`, `resolve_asset_path()`, `send_bytes()`
+**Public symbols:** `canonical_local_api_origin`, `content_type_for`, `discard_request_body`, `host_header_authorized`, `is_client_disconnect_error`, `is_loopback_host`, `local_api_allowed_hosts`, `local_api_allowed_origins`, `local_api_auth_cookie_header`, `local_api_auth_cookie_value`, `no_token_dev_allowed`, `origin_header_authorized`, `query_bool`, `query_int`, `query_json_object`, `query_value`, `QueryValidationError`, `read_json_body`, `request_authorized`, `resolve_asset_path`, `send_bytes`, `split_host_port`
 **In-repo imports:** `mediapipeline.core.validation.strict_json`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/desktop/api/http_helpers.py`._

@@ -191,7 +191,7 @@
       } else if (!rowList.length) {
         lines.push("First action: check Source settings, Completed exclusions, schedule state, and Run Logs before assuming files were missed.");
       } else if (queueSnapshotIsStale(payload)) {
-        lines.push("Advisory: refresh Queue from Launch before processing. Snapshot age is not a row blocker and does not create a review item by itself.");
+        lines.push("Age advisory: Snapshot age is not a row blocker. Run Once rebuilds and fingerprint-verifies the queue before media dispatch. Refresh only to update the displayed preview.");
       } else {
         lines.push("First action: no rows are locally flagged. Select any high-priority row and verify route evidence before Launch.");
       }

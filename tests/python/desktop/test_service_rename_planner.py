@@ -80,6 +80,89 @@ class RenamePlannerTests(unittest.TestCase):
         self.assertEqual(captured[0]["tv"]["terms"]["video_source"], ["CustomSource"])
         self.assertEqual(captured[0]["tv"]["remove_terms"], ["GlobalCustom"])
 
+    def test_authoritative_tv_preview_leaf_is_preserved_before_episode_title_template(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            source = Path(td) / "The.LEGO.Files.S01E01.NASA.1080p.mkv"
+            source.write_text("x", encoding="utf-8")
+            authoritative_leaf = "The LEGO Files - S01E01 - NASA.mkv"
+
+            def fake_preview(paths, *, powershell_host=None, cleaning_policy=None, timeout_seconds=8):
+                return {str(source).casefold(): authoritative_leaf}, ""
+
+            def fail_if_normalized(*args, **kwargs):
+                raise AssertionError("authoritative PowerShell preview must not be normalized in Python")
+
+            self.service._load_pipeline_tv_name_previews = fake_preview  # type: ignore[method-assign]
+            self.service.normalize_plex_filename_component = fail_if_normalized  # type: ignore[method-assign]
+
+            plan = self.service.plan_rename_paths(
+                [source],
+                mode="tv",
+                use_pipeline_naming_preview=True,
+                template_preset="tv_standard",
+            )
+
+        self.assertEqual(plan[0]["preview_source"], "pipeline_tv_preview")
+        self.assertEqual(plan[0]["pipeline_guess"], authoritative_leaf)
+        self.assertEqual(plan[0]["target_name"], authoritative_leaf)
+        self.assertEqual(plan[0]["destination"].name, authoritative_leaf)
+        self.assertEqual(plan[0]["errors"], [])
+
+    def test_authoritative_movie_preview_leaf_is_preserved_without_python_recleaning(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            source = Path(td) / "The.LEGO.Movie.2014.1080p.BluRay.x265-GROUP.mkv"
+            source.write_text("x", encoding="utf-8")
+            authoritative_leaf = "The LEGO Movie (2014).mkv"
+
+            def fake_preview(paths, *, powershell_host=None, cleaning_policy=None, timeout_seconds=8):
+                return {str(source).casefold(): authoritative_leaf}, ""
+
+            def fail_if_recleaned(*args, **kwargs):
+                raise AssertionError("authoritative PowerShell preview must not be re-cleaned in Python")
+
+            self.service._load_pipeline_movie_name_previews = fake_preview  # type: ignore[method-assign]
+            self.service._clean_pipeline_movie_name = fail_if_recleaned  # type: ignore[method-assign]
+
+            plan = self.service.plan_rename_paths(
+                [source],
+                mode="movie",
+                use_pipeline_naming_preview=True,
+            )
+
+        self.assertEqual(plan[0]["preview_source"], "pipeline_movie_preview")
+        self.assertEqual(plan[0]["pipeline_guess"], authoritative_leaf)
+        self.assertEqual(plan[0]["target_name"], authoritative_leaf)
+        self.assertEqual(plan[0]["destination"].name, authoritative_leaf)
+        self.assertEqual(plan[0]["errors"], [])
+
+    def test_authoritative_movie_preview_requires_safe_leaf_and_matching_media_suffix(self) -> None:
+        cases = (
+            (r"nested\Movie (2024).mkv", "filename leaf"),
+            ("Movie (2024).txt", "configured media suffix"),
+            ("Movie (2024).mp4", "does not match source suffix"),
+        )
+        with tempfile.TemporaryDirectory() as td:
+            source = Path(td) / "Movie.2024.1080p.mkv"
+            source.write_text("x", encoding="utf-8")
+
+            for preview_leaf, expected_error in cases:
+                with self.subTest(preview_leaf=preview_leaf):
+                    def fake_preview(paths, *, powershell_host=None, cleaning_policy=None, timeout_seconds=8):
+                        return {str(source).casefold(): preview_leaf}, ""
+
+                    self.service._load_pipeline_movie_name_previews = fake_preview  # type: ignore[method-assign]
+                    plan = self.service.plan_rename_paths(
+                        [source],
+                        mode="movie",
+                        use_pipeline_naming_preview=True,
+                    )
+
+                    self.assertEqual(plan[0]["status"], "blocked")
+                    self.assertTrue(
+                        any(expected_error in error for error in plan[0]["errors"]),
+                        plan[0]["errors"],
+                    )
+
     def test_plan_helper_rejects_invalid_mode(self) -> None:
         with self.assertRaisesRegex(ValueError, "tv or movie"):
             plan_rename_paths_for_service(self.service, [Path("example.mkv")], mode="music")

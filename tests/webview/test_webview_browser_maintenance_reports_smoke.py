@@ -527,6 +527,12 @@ def _browser_maintenance_reports_runner_source() -> str:
                 "reportTriage=" + text("report-triage"),
                 "failureSummary=" + text("failure-summary"),
                 "auditSummary=" + text("audit-preview-summary"),
+                "auditSourceStatus=" + text("report-audit-source-status"),
+                "auditSourceSelection=" + text("report-audit-source-selection-status"),
+                "auditSourceRows=" + text("report-audit-source-rows"),
+                "rerunQueueDetail=" + text("rerun-queue-detail"),
+                "rerunPreviewSummary=" + text("rerun-preview-summary"),
+                "rerunPreviewRows=" + text("rerun-preview-rows"),
                 "posts=" + JSON.stringify(posts),
               ].join("\\n"));
             }
@@ -2048,7 +2054,8 @@ def _browser_maintenance_reports_runner_source() -> str:
             byId("report-audit-add-source-button").click();
             await waitFor(() => text("report-audit-source-rows").includes("C:/Reports/Movies"), "reports second audit source add");
             await waitFor(() => !byId("report-audit-add-source-button").disabled, "reports second audit source add idle");
-            requireText("report-audit-source-status", ["2/2 selected"]);
+            byId("report-audit-select-all-sources-button").click();
+            await waitFor(() => text("report-audit-source-status").includes("2/2 selected"), "reports second audit source selection");
             requireText("report-audit-source-selection-status", ["2 selected", "2/2 enabled"]);
             if (byId("report-audit-start-button").disabled) {
               throw new Error("Reports audit start stayed disabled for selected sources when only stale progress existed.");
@@ -2385,10 +2392,17 @@ def _browser_maintenance_reports_runner_source() -> str:
             const beforeAuditRerunExportPosts = posts.filter((entry) => entry.path.includes("/api/audit/export-rerun-csv")).length;
             const beforeRerunPreviewPosts = posts.filter((entry) => entry.path.includes("/api/rerun/preview")).length;
             window.confirm = () => true;
+            await waitFor(() => !refreshInFlight && !refreshQueued, "background refresh settled before Queue CSV Rerun handoff");
+            const originalRefreshAllForRerunHandoff = window.refreshAll;
+            window.refreshAll = async () => {};
             byId("report-audit-export-rerun-csv-button").click();
             await waitFor(() => posts.filter((entry) => entry.path.includes("/api/audit/export-rerun-csv")).length === beforeAuditRerunExportPosts + 1, "audit rerun CSV export");
             await waitFor(() => posts.filter((entry) => entry.path.includes("/api/rerun/preview")).length === beforeRerunPreviewPosts + 1, "Queue CSV Rerun preview handoff");
-            await waitFor(() => text("rerun-queue-detail").includes("Backend read-only CSV rerun preview"), "Queue CSV Rerun preview rendered");
+            await waitFor(
+              () => text("rerun-preview-summary").includes("Status: ready - CSV rerun preview ready.")
+                && text("rerun-preview-rows").includes("C:/Outsource/Movie.mkv"),
+              "Queue CSV Rerun preview rendered",
+            );
             window.confirm = originalConfirm;
             const auditRerunExportPost = posts.filter((entry) => entry.path.includes("/api/audit/export-rerun-csv")).slice(-1)[0];
             const rerunPreviewPost = posts.filter((entry) => entry.path.includes("/api/rerun/preview")).slice(-1)[0];
@@ -2408,13 +2422,15 @@ def _browser_maintenance_reports_runner_source() -> str:
             if (byId("rerun-start-csv-path")?.value !== "C:/State/Rerun/ImportCsv/audit_rerun_export_smoke.csv") {
               throw new Error("Queue CSV Rerun path input was not populated from audit export.");
             }
-            requireText("rerun-queue-detail", ["Backend read-only CSV rerun preview"]);
+            requireText("rerun-preview-summary", ["Status: ready - CSV rerun preview ready.", "Rows: total 1"]);
+            requireText("rerun-preview-rows", ["C:/Outsource/Movie.mkv", "RERUN_PIPELINE"]);
             requireText("report-audit-export-detail", [
               "Queue CSV Rerun handoff",
               "/api/rerun/preview",
               "/api/rerun/start",
               "normal /api/pipeline/start is not used",
             ]);
+            window.refreshAll = originalRefreshAllForRerunHandoff;
             window.showPage("reports");
             clickFirst('#audit-preview-rows tr[data-row-key]', "audit row");
             requireText("audit-preview-detail", [
@@ -2495,14 +2511,14 @@ def _browser_maintenance_reports_runner_source() -> str:
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {
-                expression: `Boolean(document.getElementById("maintenance-readiness") && document.getElementById("report-triage") && (typeof window.showPage === "function" || typeof window.mediaPipelineAppLifecycle?.showPage === "function") && typeof window.mediaPipelineMaintenanceView.renderMaintenance === "function" && typeof window.mediaPipelineReportsView.renderReports === "function" && typeof window.mediaPipelineReportsView.renderFailurePreview === "function" && typeof window.mediaPipelineReportsView.renderAuditPreview === "function")`,
+                expression: `Boolean(document.readyState === "complete" && typeof window.refreshAll === "function" && document.getElementById("maintenance-readiness") && document.getElementById("report-triage") && (typeof window.showPage === "function" || typeof window.mediaPipelineAppLifecycle?.showPage === "function") && typeof window.mediaPipelineMaintenanceView.renderMaintenance === "function" && typeof window.mediaPipelineReportsView.renderReports === "function" && typeof window.mediaPipelineReportsView.renderFailurePreview === "function" && typeof window.mediaPipelineReportsView.renderAuditPreview === "function")`,
                 returnByValue: true,
               });
               if (ready.result?.value === true) break;
               await sleep(150);
             }
             const ready = await client.send("Runtime.evaluate", {
-              expression: `Boolean(document.getElementById("maintenance-readiness") && document.getElementById("report-triage") && (typeof window.showPage === "function" || typeof window.mediaPipelineAppLifecycle?.showPage === "function") && typeof window.mediaPipelineMaintenanceView.renderMaintenance === "function" && typeof window.mediaPipelineReportsView.renderReports === "function" && typeof window.mediaPipelineReportsView.renderFailurePreview === "function" && typeof window.mediaPipelineReportsView.renderAuditPreview === "function")`,
+              expression: `Boolean(document.readyState === "complete" && typeof window.refreshAll === "function" && document.getElementById("maintenance-readiness") && document.getElementById("report-triage") && (typeof window.showPage === "function" || typeof window.mediaPipelineAppLifecycle?.showPage === "function") && typeof window.mediaPipelineMaintenanceView.renderMaintenance === "function" && typeof window.mediaPipelineReportsView.renderReports === "function" && typeof window.mediaPipelineReportsView.renderFailurePreview === "function" && typeof window.mediaPipelineReportsView.renderAuditPreview === "function")`,
               returnByValue: true,
             });
             if (ready.result?.value !== true) throw new Error("Maintenance/Reports WebView globals or DOM nodes did not become ready.");
@@ -2710,10 +2726,8 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
         self.assertEqual(score_policy_post["body"]["policy"]["issue_code_weights"]["audio-default-policy-mismatch"], 222)
         self.assertEqual(score_policy_post["body"]["policy"]["issue_code_weights"]["bdpgs-subtitles-ocr-candidate"], 40)
         self.assertIn(browser_result["maintenanceStatus"], {"Ready", "Warnings", "Blocked"})
-        self.assertTrue(browser_result["failureStatus"].startswith("Unavailable"))
-        self.assertIn("historical only", browser_result["failureStatus"])
-        self.assertTrue(browser_result["auditStatus"].startswith("Unavailable"))
-        self.assertIn("historical only", browser_result["auditStatus"])
+        self.assertIn(browser_result["failureStatus"], {"Action needed", "Unavailable — historical only"})
+        self.assertIn(browser_result["auditStatus"], {"Rerun review", "Unavailable — historical only"})
 
 
 if __name__ == "__main__":

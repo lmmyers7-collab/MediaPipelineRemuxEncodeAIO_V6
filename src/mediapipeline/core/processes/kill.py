@@ -40,6 +40,35 @@ class _ProcessTreeCleanupTerminalEvidence:
     active_job_write_succeeded: bool
 
 
+@dataclass(frozen=True)
+class RelatedProcessKillEvidence:
+    """Machine-readable proof for one verified related-process termination."""
+
+    pid: int
+    matched_job_kinds: tuple[str, ...]
+    run_id: str
+    command_id: str
+    exit_verified: bool
+
+
+class RelatedProcessKillReport(list[str]):
+    """Backward-compatible messages plus exact termination evidence.
+
+    Existing callers continue to consume this value as ``list[str]``. Control
+    paths that mutate correlated state must use ``termination_evidence`` and
+    never parse the human-readable messages.
+    """
+
+    def __init__(
+        self,
+        messages: list[str] | tuple[str, ...] = (),
+        *,
+        termination_evidence: list[RelatedProcessKillEvidence] | tuple[RelatedProcessKillEvidence, ...] = (),
+    ) -> None:
+        super().__init__(messages)
+        self.termination_evidence = tuple(termination_evidence)
+
+
 _process_tree_cleanup_attempts: dict[int, _ProcessTreeCleanupAttempt] = {}
 
 
@@ -203,10 +232,12 @@ def kill_psutil_process_tree(
 ) -> None:
     if psutil_module is None:
         return
+    descendant_enumeration_error: Exception | None = None
     try:
         children = process.children(recursive=True)
-    except Exception:
+    except Exception as exc:
         children = []
+        descendant_enumeration_error = exc
     targets = children + [process]
     for target in targets:
         with contextlib.suppress(Exception):
@@ -220,6 +251,34 @@ def kill_psutil_process_tree(
             target.terminate()
     if alive:
         psutil_module.wait_procs(alive, timeout=2.0)
+    survivors: list[int | str] = []
+    unverifiable: list[int | str] = []
+    no_such_process = getattr(psutil_module, "NoSuchProcess", None)
+    for target in targets:
+        target_pid = getattr(target, "pid", "?")
+        try:
+            is_alive = bool(target.is_running()) and target.status() != psutil_module.STATUS_ZOMBIE
+        except Exception as exc:
+            if isinstance(no_such_process, type) and isinstance(exc, no_such_process):
+                continue
+            unverifiable.append(target_pid)
+            continue
+        if is_alive:
+            survivors.append(target_pid)
+    if unverifiable:
+        raise RuntimeError(
+            f"{label} captured process tree exit could not be verified for PID(s) "
+            f"{', '.join(str(pid) for pid in unverifiable)}"
+        )
+    if survivors:
+        raise RuntimeError(
+            f"{label} captured process tree has PID(s) {', '.join(str(pid) for pid in survivors)} still running"
+        )
+    if descendant_enumeration_error is not None:
+        raise RuntimeError(
+            f"{label} descendant enumeration could not be verified before root termination: "
+            f"{descendant_enumeration_error}"
+        )
 
 
 def process_text_contains_any(proc: Any, needles: list[str]) -> bool:
@@ -246,6 +305,45 @@ def _normalized_related_job_kinds(job_kinds: set[str] | None) -> set[str] | None
         if key:
             normalized.add(key)
     return normalized
+
+
+def _matched_related_job_kinds(
+    proc: Any,
+    resolved: ResolvedPaths,
+    *,
+    job_kinds: set[str] | None,
+) -> tuple[str, ...]:
+    requested = _normalized_related_job_kinds(job_kinds)
+    candidates = ("pipeline", "audit", "rerun_csv")
+    matched: list[str] = []
+    for job_kind in candidates:
+        if requested is not None and job_kind not in requested:
+            continue
+        needles = related_pipeline_needles(resolved, job_kinds={job_kind})
+        if needles and process_text_contains_any(proc, needles):
+            matched.append(job_kind)
+    return tuple(matched)
+
+
+def _process_command_option(proc: Any, option: str) -> str:
+    """Read an exact backend-authored process argument without fuzzy matching."""
+
+    try:
+        args = [str(value) for value in (proc.cmdline() or [])]
+    except Exception:
+        return ""
+    normalized_option = option.strip().casefold()
+    for index, value in enumerate(args):
+        normalized = value.strip().casefold()
+        if normalized == normalized_option:
+            if index + 1 >= len(args):
+                return ""
+            candidate = args[index + 1].strip()
+            return candidate if candidate and not candidate.startswith("-") else ""
+        prefix = f"{normalized_option}="
+        if normalized.startswith(prefix):
+            return value.strip()[len(prefix) :].strip()
+    return ""
 
 
 def related_pipeline_needles(resolved: ResolvedPaths, *, job_kinds: set[str] | None = None) -> list[str]:
@@ -308,15 +406,22 @@ def kill_related_pipeline_processes(
     psutil_module: Any,
     logger: WarningLogger,
     job_kinds: set[str] | None = None,
-) -> list[str]:
+) -> RelatedProcessKillReport:
     messages: list[str] = []
+    termination_evidence: list[RelatedProcessKillEvidence] = []
     label = "related MediaPipeline"
     normalized_job_kinds = _normalized_related_job_kinds(job_kinds)
     if normalized_job_kinds is not None:
         label = f"related MediaPipeline {'/'.join(sorted(normalized_job_kinds))}"
     for proc in find_related_pipeline_processes(resolved, psutil_module=psutil_module, job_kinds=job_kinds):
         pid = getattr(proc, "pid", None)
+        matched_job_kinds = _matched_related_job_kinds(proc, resolved, job_kinds=job_kinds)
+        run_id = _process_command_option(proc, "-RunId") if "pipeline" in matched_job_kinds else ""
+        command_id = _process_command_option(proc, "-CommandId") if "pipeline" in matched_job_kinds else ""
         try:
+            if pid is None:
+                raise RuntimeError(f"{label} process has no verifiable PID")
+            process_pid = int(pid)
             if not proc.is_running():
                 continue
             logger.warning("Force-killing %s process tree for PID %s", label, pid)
@@ -324,10 +429,19 @@ def kill_related_pipeline_processes(
             if proc.is_running() and proc.status() != psutil_module.STATUS_ZOMBIE:
                 raise RuntimeError(f"{label} process PID {pid} is still running after kill")
             messages.append(f"Force-killed {label} process tree (PID {pid}).")
+            termination_evidence.append(
+                RelatedProcessKillEvidence(
+                    pid=process_pid,
+                    matched_job_kinds=matched_job_kinds,
+                    run_id=run_id,
+                    command_id=command_id,
+                    exit_verified=True,
+                )
+            )
         except Exception as exc:
             logger.warning("%s process kill did not complete cleanly for PID %s: %s", label, pid, exc)
             raise
-    return messages
+    return RelatedProcessKillReport(messages, termination_evidence=termination_evidence)
 
 
 def _kill_running_process_tree(

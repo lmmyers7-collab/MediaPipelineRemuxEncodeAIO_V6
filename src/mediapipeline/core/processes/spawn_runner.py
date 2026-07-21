@@ -95,6 +95,7 @@ class _ProcessOwnershipFinalizationContext:
     metadata: dict[str, Any]
     lock: threading.RLock = field(default_factory=threading.RLock)
     launch_failed: bool = False
+    terminal_evidence_recorded: bool = False
     lease_released: bool = False
     finalized: bool = False
 
@@ -208,6 +209,34 @@ def _finalize_process_ownership_after_tree_proof(
                     )
                 except Exception as exc:
                     service.logger.warning("Failed to sync %s post-exit state: %s", context.job_kind, exc)
+
+        command_id = str(context.metadata.get("command_id") or "").strip()
+        record_terminal_evidence = getattr(service, "record_process_terminal_command_evidence", None)
+        if command_id and context.job_kind == "pipeline" and not context.terminal_evidence_recorded:
+            if callable(record_terminal_evidence):
+                terminal_phase = (
+                    "interrupted"
+                    if evidence is not None and evidence.status in {"killed", "kill_degraded"}
+                    else ("completed" if return_code == 0 and not context.launch_failed else "failed")
+                )
+                try:
+                    record_terminal_evidence(
+                        command_id=command_id,
+                        phase=terminal_phase,
+                        return_code=return_code,
+                        pid=int(getattr(proc, "pid", 0) or 0),
+                        mode=str(context.metadata.get("mode") or ""),
+                    )
+                    context.terminal_evidence_recorded = True
+                except Exception as exc:
+                    service.logger.warning(
+                        "Terminal command evidence for %s could not be persisted; lifecycle ownership was preserved: %s",
+                        context.job_kind,
+                        exc,
+                    )
+                    return False
+            else:
+                context.terminal_evidence_recorded = True
 
         lease = getattr(proc, "_mediapipeline_lifecycle_lease", None)
         release = getattr(lease, "release", None)
@@ -559,6 +588,14 @@ def spawn_process_for_service(
                 add_note = getattr(launch_exc, "add_note", None)
                 if callable(add_note):
                     add_note(note)
+            # Structured handoff to the launch facade: Popen succeeded, but
+            # ownership setup failed. The facade may terminalize a pre-spawn
+            # Run Monitor only when this cleanup was conclusively verified.
+            try:
+                launch_exc.__dict__["_mediapipeline_process_started"] = True
+                launch_exc.__dict__["_mediapipeline_cleanup_verified"] = not bool(cleanup_failure)
+            except Exception:
+                pass
             raise
         return proc
     finally:

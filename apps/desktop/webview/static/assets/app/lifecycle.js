@@ -25,6 +25,11 @@ const lifecycleTopbarModule = window.__appLifecycleTopbarModule;
     renderControlReadiness,
   } = lifecycleTopbarModule.createAppLifecycleTopbar();
   delete window.__appLifecycleTopbarModule;
+  window.addEventListener("mediapipeline:run-monitor-rendered", () => {
+    const snapshot = window.getLastSnapshot?.() || {};
+    renderTopbarActivity(snapshot);
+    renderTopbarEventTicker(snapshot);
+  });
 
 const lifecycleNavigationModule = window.__appLifecycleNavigationModule;
   if (!lifecycleNavigationModule?.createAppLifecycleNavigation) {
@@ -34,6 +39,9 @@ const lifecycleNavigationModule = window.__appLifecycleNavigationModule;
     updatePagePanelEmptyStates,
     syncTabAccessibility,
     showPage,
+    navigateToPage,
+    focusPageDestination,
+    focusUiQuickLinkTarget,
     applyDefaultActionTooltips,
     initSettingsTabNav,
     activateDiagnosticsTab,
@@ -594,6 +602,9 @@ const lifecycleNavigationModule = window.__appLifecycleNavigationModule;
     updatePagePanelEmptyStates,
     syncTabAccessibility,
     showPage,
+    navigateToPage,
+    focusPageDestination,
+    focusUiQuickLinkTarget,
     applyDefaultActionTooltips,
     initSettingsTabNav,
     activateDiagnosticsTab,

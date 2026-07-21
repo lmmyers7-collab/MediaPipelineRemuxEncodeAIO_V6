@@ -35,6 +35,9 @@ def build_pipeline_launch_plan(
     extra_args: str,
     extra_argv: list[str] | tuple[str, ...] | None = None,
     single_file: str | None = None,
+    expected_queue_plan_fingerprint: str = "",
+    command_id: str = "",
+    run_id: str = "",
 ) -> ProcessLaunchPlan:
     if not resolved.powershell_host:
         raise RuntimeError("PowerShell host could not be resolved.")
@@ -63,6 +66,12 @@ def build_pipeline_launch_plan(
         args.append("-ShowConfig")
     if single_file:
         args.extend(["-SingleFile", single_file])
+    if expected_queue_plan_fingerprint:
+        args.extend(["-ExpectedQueuePlanFingerprint", expected_queue_plan_fingerprint])
+    if command_id:
+        args.extend(["-CommandId", command_id])
+    if run_id:
+        args.extend(["-RunId", run_id])
     if extra_args.strip():
         try:
             parsed_extra_args = shlex.split(extra_args.strip(), posix=(os.name != "nt"))
@@ -77,11 +86,15 @@ def build_pipeline_launch_plan(
         job_kind="pipeline",
         mode=mode,
         metadata={
+            "mode": mode,
             "show_config": bool(show_config),
             "sleep_seconds": max(1, int(sleep_seconds)),
             "extra_args": extra_args.strip(),
             "extra_argv": [str(item) for item in (extra_argv or [])],
             "single_file": single_file or "",
+            "expected_queue_plan_fingerprint": expected_queue_plan_fingerprint,
+            "command_id": command_id,
+            "run_id": run_id,
         },
     )
 

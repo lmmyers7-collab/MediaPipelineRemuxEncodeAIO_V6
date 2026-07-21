@@ -202,6 +202,13 @@ function New-MediaPipelinePublishEvidence {
     $publishMode = if ($hasPublishResult) { [string](Get-MediaPipelineProfileProperty -Profile $PublishResult -Name 'PublishMode' -Default '') } else { '' }
     $ok = if ($hasPublishResult) { [bool](Get-MediaPipelineProfileProperty -Profile $PublishResult -Name 'Ok' -Default $false) } else { $false }
     $reason = if ($hasPublishResult) { [string](Get-MediaPipelineProfileProperty -Profile $PublishResult -Name 'Reason' -Default '') } else { '' }
+    $publishedPath = if ($hasPublishResult) { [string](Get-MediaPipelineProfileProperty -Profile $PublishResult -Name 'PublishedPath' -Default '') } else { '' }
+    $parkedPath = if ($hasPublishResult) { [string](Get-MediaPipelineProfileProperty -Profile $PublishResult -Name 'ParkedPath' -Default '') } else { '' }
+    $intendedFinalPath = if ($hasPublishResult) { [string](Get-MediaPipelineProfileProperty -Profile $PublishResult -Name 'IntendedFinalPath' -Default '') } else { '' }
+    $manifestPath = if ($hasPublishResult) { [string](Get-MediaPipelineProfileProperty -Profile $PublishResult -Name 'ManifestPath' -Default '') } else { '' }
+    $sidecarPaths = if ($hasPublishResult) { @(Get-MediaPipelineProfileProperty -Profile $PublishResult -Name 'SidecarPaths' -Default @()) } else { @() }
+    $pipelineSidecarPath = [string](@($sidecarPaths | Where-Object { [string]$_ -match '\.pipeline\.json$' } | Select-Object -First 1)[0])
+    $publishTransactionId = if ($hasPublishResult) { [string](Get-MediaPipelineProfileProperty -Profile $PublishResult -Name 'PublishTransactionId' -Default '') } else { '' }
     $deferred = ($publishState -eq 'pending_publish' -or $publishMode -match 'deferred')
     $attempted = ($hasPublishResult -and (-not [string]::IsNullOrWhiteSpace($publishState) -or -not [string]::IsNullOrWhiteSpace($publishMode)))
     $outcome = if (-not $attempted) {
@@ -227,6 +234,13 @@ function New-MediaPipelinePublishEvidence {
         publish_mode            = $publishMode
         output_path             = if ($hasPublishResult) { [string](Get-MediaPipelineProfileProperty -Profile $PublishResult -Name 'OutputPath' -Default '') } else { '' }
         output_size_bytes       = if ($hasPublishResult) { [long](Get-MediaPipelineProfileProperty -Profile $PublishResult -Name 'OutputSizeBytes' -Default 0L) } else { 0L }
+        published_path          = $publishedPath
+        parked_path             = $parkedPath
+        intended_final_path     = $intendedFinalPath
+        manifest_path           = $manifestPath
+        pipeline_sidecar_path   = $pipelineSidecarPath
+        sidecar_paths           = @($sidecarPaths | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
+        publish_transaction_id  = $publishTransactionId
         source_path             = if ($hasPublishResult) { [string](Get-MediaPipelineProfileProperty -Profile $PublishResult -Name 'SourcePath' -Default '') } else { '' }
         source_size_bytes       = if ($hasPublishResult) { [long](Get-MediaPipelineProfileProperty -Profile $PublishResult -Name 'SourceSizeBytes' -Default 0L) } else { 0L }
         reason                  = $reason

@@ -1,16 +1,21 @@
 ---
 file: ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: PowerShell
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-03
+last_modified: 2026-07-17
 last_reviewed: 2026-06-04
-sha256: 39414eee80f03d8beda0ba103b4b05486e0d2647de322d82ef1d2c2b70590254
+sha256: ae1ae20661ae14b609de92bbf82f5ce4b591c1f968e432cfabcfb1151372a634
 ---
 # `ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1`
 
-**Purpose:** (no .SYNOPSIS block)
+**Purpose:** PowerShell implementation for invoke end to end smoke checks; exposes Assert-True, ConvertTo-Psd1Literal, Get-ProbeStreamCodecs.
 
-**Functions:** `Assert-True`, `ConvertTo-Psd1Literal`, `Get-ProbeStreamCodecs`, `Invoke-SmokeCommand`, `New-SmokeVideo`, `Write-SmokeConfig`
+**Public symbols:** `Assert-True`, `ConvertTo-Psd1Literal`, `Get-ProbeStreamCodecs`, `Invoke-SmokeCommand`, `New-SmokeVideo`, `Write-SmokeConfig`
+**State/config identifiers:** `.manifest.json`, `queue_snapshot.json`, `smoke_config.psd1`
+**Invoked tools:** `ffmpeg`, `ffprobe`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1`._

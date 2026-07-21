@@ -186,4 +186,4 @@ $py = "apps\desktop\runtime\Python\python.exe"
 
 ## Current Inventory Note — 2026-07-13
 
-The canonical browser suite has 24 wrappers and 26 Python modules under `tests\webview\`. The metrics-degraded-state and Settings builder-flush modules are direct-only. Use `Get-ChildItem tests\webview -Filter "test_webview_browser*.py"` for discovery.
+The canonical browser suite has 25 wrappers and 34 Python modules under `tests\webview\`: 25 wrapper-backed and 9 direct-only census or specialized modules. Use `Get-ChildItem tests\webview -Filter "test_webview_browser*.py"` for discovery and `docs/generated/SMOKE_WRAPPER_MAP.json` for the exact direct-only list.

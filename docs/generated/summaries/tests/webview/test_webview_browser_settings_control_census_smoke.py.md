@@ -1,17 +1,22 @@
 ---
 file: tests/webview/test_webview_browser_settings_control_census_smoke.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-07-13
+last_modified: 2026-07-17
 last_reviewed: 2026-07-14
-sha256: 86186dcd52e9c5b52ab714d3fb324b6cb3a79bcdc96286b7b2ee17a33941a9e0
+sha256: ac973d9771a8295ecf474d1ea8c4865b7b7f4360848876341fa78b3faa98042a
 ---
 # `tests/webview/test_webview_browser_settings_control_census_smoke.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for test webview browser settings control census smoke; exposes WebViewBrowserSettingsControlCensusSmoke.
 
-**Classes:** `WebViewBrowserSettingsControlCensusSmoke`, `_StaticInteractiveParser`
+**Public symbols:** `WebViewBrowserSettingsControlCensusSmoke`
 **In-repo imports:** `mediapipeline.desktop.api`, `mediapipeline.desktop.application`, `mediapipeline.tools.paths`
+**HTTP routes:** `/api/ui-preferences`
+**State/config identifiers:** `browser-settings-control-census-payload.json`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths tests/webview/test_webview_browser_settings_control_census_smoke.py`._

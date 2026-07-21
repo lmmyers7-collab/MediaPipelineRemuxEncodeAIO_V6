@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone, UTC
 import hashlib
 import json
+import logging
 import os
 import sys
 import tempfile
@@ -26,6 +27,7 @@ from mediapipeline.desktop.network.rerun_claims import (
     update_network_rerun_row_released,
 )
 from mediapipeline.core.kernel.runtime.subprocess_runner import CapturedCommandResult
+from mediapipeline.core.kernel.contracts import QueueAcceptedRunRow, accepted_run_rows_fingerprint
 from mediapipeline.core.processes.path_evidence import LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS
 from mediapipeline.core.processes.preflight_facade import LAUNCH_PREFLIGHT_PATH_HEALTH_TIMEOUT_SECONDS
 from mediapipeline.core.processes.rerun_control import (
@@ -36,7 +38,13 @@ from mediapipeline.core.processes.rerun_control import (
 from mediapipeline.core.processes.rerun_facade import _spawn_stop_exit_verified
 from mediapipeline.core.processes.rerun_results import rerun_results_payload
 from mediapipeline.core.processes.rerun_lifecycle import transition_rerun_enrollment
-from mediapipeline.core.processes.spawn_runner import _mark_launch_cleanup_reconciliation_required
+from mediapipeline.core.processes.spawn_runner import (
+    _ensure_process_ownership_finalization_context,
+    _finalize_process_ownership_after_tree_proof,
+    _mark_launch_cleanup_reconciliation_required,
+)
+from mediapipeline.core.paths.queue_input_fingerprint import queue_input_fingerprint
+from mediapipeline.core.status.run_monitor import RunMonitorStore
 from tests.python.desktop.application_facade_test_support import DummyProc, DummyWorkflowFacadeService, _resolved
 
 
@@ -138,6 +146,54 @@ def _write_network_worker_result_artifact(
 
 
 class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
+    def test_pipeline_process_finalization_records_correlated_terminal_phase(self) -> None:
+        class TerminalEvidenceService:
+            def __init__(self) -> None:
+                self.logger = logging.getLogger("terminal-evidence-test")
+                self.registered: set[int] = set()
+                self.records: list[dict[str, object]] = []
+
+            def update_active_job_record(self, proc: object, **_kwargs: object) -> None:
+                self.registered.add(id(proc))
+
+            def _active_spawned_process_is_registered(self, proc: object) -> bool:
+                return id(proc) in self.registered
+
+            def _unregister_active_spawned_process(self, proc: object) -> bool:
+                self.registered.discard(id(proc))
+                return True
+
+            def record_process_terminal_command_evidence(self, **evidence: object) -> None:
+                self.records.append(dict(evidence))
+
+        service = TerminalEvidenceService()
+        proc = SimpleNamespace(pid=4321)
+        service.registered.add(id(proc))
+        _ensure_process_ownership_finalization_context(
+            service,  # type: ignore[arg-type]
+            proc,
+            "pipeline",
+            resolved=None,
+            metadata={"command_id": "command-4321", "mode": "once"},
+        )
+
+        finalized = _finalize_process_ownership_after_tree_proof(proc, 0)
+
+        self.assertTrue(finalized)
+        self.assertEqual(
+            service.records,
+            [
+                {
+                    "command_id": "command-4321",
+                    "phase": "completed",
+                    "return_code": 0,
+                    "pid": 4321,
+                    "mode": "once",
+                }
+            ],
+        )
+        self.assertFalse(service._active_spawned_process_is_registered(proc))
+
     def test_pipeline_start_uses_existing_service_launch_path(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -179,6 +235,205 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertIn("Extra pipeline arguments", rejected["message"])
         self.assertFalse(rejected_with_client_allow["ok"])
         self.assertIn("Extra pipeline arguments", rejected_with_client_allow["message"])
+
+    def test_backend_queue_run_once_returns_and_threads_stable_run_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.state_root = root / "State"
+            accepted_fingerprint = "accepted-plan-fingerprint-123"
+            accepted_row = QueueAcceptedRunRow.from_mapping(
+                {
+                    "source_identity": "source-identity-1",
+                    "source_identity_algorithm": "path_size_mtime_sha256.v1",
+                    "source_path": str(root / "Movies" / "Django.Unchained.2012.1080p.BluRay.x264.YIFY.mkv"),
+                    "display_name": "Django Unchained (2012).mkv",
+                    "planned_display_name": "Django Unchained (2012).mkv",
+                    "planned_display_name_source": "plex_destination_plan.v1",
+                    "parent_context": str(root / "Movies"),
+                    "run_queue_index": 1,
+                    "run_queue_total": 1,
+                    "route": "remux",
+                    "route_reason_code": "copy_compatible",
+                    "route_reason": "Already compatible",
+                }
+            )
+
+            with patch.object(
+                facade,
+                "_normal_queue_scope_preflight_check",
+                return_value={
+                    "status": "ready",
+                    "queue_plan_fingerprint": accepted_fingerprint,
+                    "_accepted_run_rows": (accepted_row,),
+                },
+            ):
+                result = facade.start_pipeline_process(
+                    resolved,
+                    {"mode": "once", "single_file": "", "_command_id": "command-123"},
+                ).to_mapping()
+            seeded = RunMonitorStore(resolved.state_root).read(result["data"]["run_id"])
+
+        self.assertTrue(result["ok"])
+        self.assertRegex(result["data"]["run_id"], r"^[0-9a-f]{32}$")
+        self.assertEqual(result["data"]["accepted_queue_fingerprint"], accepted_fingerprint)
+        self.assertEqual(result["data"]["run_monitor"]["schema_version"], "desktop_run_monitor_launch.v1")
+        self.assertEqual(result["data"]["run_monitor"]["run_id"], result["data"]["run_id"])
+        self.assertEqual(result["data"]["run_monitor"]["route"], "/api/run-monitor")
+        self.assertEqual(result["data"]["run_monitor"]["acceptance_state"], "backend_accepted")
+        self.assertEqual(
+            result["data"]["run_monitor"]["expected_queue"]["fingerprint"],
+            accepted_fingerprint,
+        )
+        self.assertEqual(service.started_pipeline["run_id"], result["data"]["run_id"])
+        self.assertIsNotNone(seeded)
+        assert seeded is not None
+        self.assertEqual(seeded.run.lifecycle_state, "starting")
+        self.assertEqual(seeded.run.command_id, "command-123")
+        self.assertEqual([item.source_path for item in seeded.items], [accepted_row.source_path])
+        self.assertEqual([item.display_name for item in seeded.items], ["Django Unchained (2012).mkv"])
+        self.assertEqual(
+            service.started_pipeline["expected_queue_plan_fingerprint"],
+            accepted_fingerprint,
+        )
+
+    def test_backend_queue_seed_terminalizes_only_when_launch_cleanup_is_proven(self) -> None:
+        accepted_row = QueueAcceptedRunRow.from_mapping(
+            {
+                "source_identity": "source-identity-1",
+                "source_identity_algorithm": "path_size_mtime_sha256.v1",
+                "source_path": r"C:\Media\Movie.mkv",
+                "display_name": "Movie.mkv",
+                "planned_display_name": "Movie.mkv",
+                "planned_display_name_source": "plex_destination_plan.v1",
+                "parent_context": r"C:\Media",
+                "run_queue_index": 1,
+                "run_queue_total": 1,
+                "route": "remux",
+                "route_reason_code": "copy_compatible",
+                "route_reason": "Already compatible",
+            }
+        )
+
+        for cleanup_verified, expected_state in ((True, "failed"), (False, "starting")):
+            with self.subTest(cleanup_verified=cleanup_verified), tempfile.TemporaryDirectory() as raw_root:
+                root = Path(raw_root)
+
+                class FailingService(DummyWorkflowFacadeService):
+                    def start_pipeline(
+                        self,
+                        *args: object,
+                        _cleanup_verified: bool = cleanup_verified,
+                        **kwargs: object,
+                    ) -> DummyProc:  # type: ignore[override]
+                        error = RuntimeError("synthetic post-Popen ownership failure")
+                        error._mediapipeline_process_started = True  # type: ignore[attr-defined]
+                        error._mediapipeline_cleanup_verified = _cleanup_verified  # type: ignore[attr-defined]
+                        raise error
+
+                service = FailingService(root)
+                facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+                resolved = _resolved(root)
+                resolved.state_root = root / "State"
+                run_id = "a" * 31 + ("1" if cleanup_verified else "2")
+                with patch.object(
+                    facade,
+                    "_normal_queue_scope_preflight_check",
+                    return_value={
+                        "status": "ready",
+                        "queue_plan_fingerprint": "accepted-plan",
+                        "_accepted_run_rows": (accepted_row,),
+                    },
+                ):
+                    result = facade.start_pipeline_process(
+                        resolved,
+                        {
+                            "mode": "once",
+                            "single_file": "",
+                            "_command_id": "command-123",
+                            "_run_id": run_id,
+                        },
+                    ).to_mapping()
+                record = RunMonitorStore(resolved.state_root).read(run_id)
+
+                self.assertFalse(result["ok"])
+                self.assertIsNotNone(record)
+                assert record is not None
+                self.assertEqual(record.run.lifecycle_state, expected_state)
+                if not cleanup_verified:
+                    self.assertEqual(record.run.outcome.state, "pending")
+
+    def test_queue_refresh_after_launch_acceptance_cannot_replace_seeded_membership(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            snapshot_path = root / "State" / "Progress" / "queue_snapshot.json"
+            snapshot_path.parent.mkdir(parents=True)
+
+            class RefreshingService(DummyWorkflowFacadeService):
+                def start_pipeline(self, *args: object, **kwargs: object) -> DummyProc:  # type: ignore[override]
+                    snapshot_path.write_text(
+                        json.dumps(
+                            {
+                                "schema_version": "queue_plan_snapshot.v1",
+                                "queue_plan_fingerprint": "replacement-plan",
+                                "accepted_run_rows": [
+                                    {
+                                        "source_identity": "replacement-source",
+                                        "source_path": r"C:\Media\Replacement.mkv",
+                                    }
+                                ],
+                            }
+                        ),
+                        encoding="utf-8",
+                    )
+                    return super().start_pipeline(*args, **kwargs)
+
+            service = RefreshingService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.state_root = root / "State"
+            resolved.queue_snapshot_path = snapshot_path
+            accepted_row = QueueAcceptedRunRow.from_mapping(
+                {
+                    "source_identity": "accepted-source",
+                    "source_identity_algorithm": "path_size_mtime_sha256.v1",
+                    "source_path": r"C:\Media\Accepted.mkv",
+                    "display_name": "Accepted.mkv",
+                    "planned_display_name": "Accepted.mkv",
+                    "planned_display_name_source": "plex_destination_plan.v1",
+                    "parent_context": r"C:\Media",
+                    "run_queue_index": 1,
+                    "run_queue_total": 1,
+                    "route": "remux",
+                    "route_reason_code": "copy_compatible",
+                    "route_reason": "Already compatible",
+                }
+            )
+            with patch.object(
+                facade,
+                "_normal_queue_scope_preflight_check",
+                return_value={
+                    "status": "ready",
+                    "queue_plan_fingerprint": "accepted-plan",
+                    "_accepted_run_rows": (accepted_row,),
+                },
+            ):
+                result = facade.start_pipeline_process(
+                    resolved,
+                    {"mode": "once", "_command_id": "command-race"},
+                ).to_mapping()
+            record = RunMonitorStore(resolved.state_root).read(result["data"]["run_id"])
+            refreshed = json.loads(snapshot_path.read_text(encoding="utf-8"))
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(refreshed["queue_plan_fingerprint"], "replacement-plan")
+        self.assertIsNotNone(record)
+        assert record is not None
+        self.assertEqual(record.run.accepted_queue.fingerprint, "accepted-plan")
+        self.assertEqual([item.source_identity.value for item in record.items], ["accepted-source"])
+        self.assertEqual([item.source_path for item in record.items], [accepted_row.source_path])
 
     def test_pipeline_start_rejects_single_file_outside_configured_sources_or_invalid_media(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -1047,11 +1302,15 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             service.save_app_state({"schedule_enabled": True, "schedule_grid": service.default_schedule_grid()})
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             resolved = _resolved(root)
+            resolved.source_movies = root / "Movies"
+            resolved.source_movies.mkdir()
+            sample = resolved.source_movies / "sample.mkv"
+            sample.write_bytes(b"media")
 
             blocked = facade.start_pipeline_process(resolved, {"mode": "continuous"}).to_mapping()
             run_once = facade.start_pipeline_process(
                 resolved,
-                {"mode": "continuous", "schedule_override": "run_once"},
+                {"mode": "continuous", "schedule_override": "run_once", "single_file": str(sample)},
             ).to_mapping()
             ignored = facade.start_pipeline_process(
                 resolved,
@@ -1076,9 +1335,16 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             service.save_app_state({"schedule_enabled": True, "schedule_grid": grid})
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             resolved = _resolved(root)
+            resolved.source_movies = root / "Movies"
+            resolved.source_movies.mkdir()
+            sample = resolved.source_movies / "sample.mkv"
+            sample.write_bytes(b"media")
 
             continuous = facade.start_pipeline_process(resolved, {"mode": "continuous"}).to_mapping()
-            once = facade.start_pipeline_process(resolved, {"mode": "once"}).to_mapping()
+            once = facade.start_pipeline_process(
+                resolved,
+                {"mode": "once", "single_file": str(sample)},
+            ).to_mapping()
 
         self.assertTrue(continuous["ok"])
         self.assertEqual(continuous["data"]["mode"], "continuous")
@@ -3364,10 +3630,13 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertTrue(any(row["key"] == "lifecycle_policy" and row["status"] == "blocked" for row in blocked_rerun["checks"]))
         self.assertTrue(any(row["key"] == "csv_rerun_rows" and row["status"] == "blocked" for row in blocked_rerun["checks"]))
 
-    def test_run_once_preflight_blocks_only_authoritative_fresh_empty_normal_queue(self) -> None:
+    def test_run_once_preflight_requires_current_backend_queue_plan(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             service = DummyWorkflowFacadeService(root)
+            fixed_now = datetime(2026, 7, 20, 12, 0, 0, tzinfo=UTC)
+            service.queue_snapshot_freshness_wall_now = lambda: fixed_now  # type: ignore[method-assign]
+            service.queue_snapshot_freshness_monotonic_now = lambda: 100.0  # type: ignore[method-assign]
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             resolved = _resolved(root)
             resolved.source_movies = root / "Movies"
@@ -3382,8 +3651,10 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                 "Outsource": str(root / "Outsource"),
                 "QueueLaunchSnapshotFreshnessSeconds": 60,
             }
+            resolved.config_path.write_text("@{ NetworkRole = 'standalone' }", encoding="utf-8")
             snapshot_path = root / "State" / "Progress" / "queue_snapshot.json"
             snapshot_path.parent.mkdir(parents=True)
+            resolved.state_root = root / "State"
             resolved.queue_snapshot_path = snapshot_path
 
             def write_snapshot(
@@ -3392,7 +3663,10 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                 config_path: Path | None = None,
                 produced_at: str | None = None,
                 mtime_age_seconds: int = 0,
+                include_accepted_run_rows: bool = True,
             ) -> None:
+                request_id = "queue-preview-test"
+                input_fingerprint = queue_input_fingerprint(resolved)
                 rows = []
                 if runnable_count:
                     rows.append(
@@ -3414,11 +3688,29 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                             "blocked_reason": "",
                         }
                     )
+                accepted_run_rows = []
+                if runnable_count and include_accepted_run_rows:
+                    accepted_run_rows.append(
+                        {
+                            "source_identity": "source-identity-1",
+                            "source_identity_algorithm": "path_size_mtime_sha256.v1",
+                            "source_path": str(resolved.source_movies / "Movie.mkv"),
+                            "display_name": "Movie.mkv",
+                            "planned_display_name": "Movie.mkv",
+                            "planned_display_name_source": "plex_destination_plan.v1",
+                            "parent_context": str(resolved.source_movies),
+                            "run_queue_index": 1,
+                            "run_queue_total": runnable_count,
+                            "route": "remux",
+                            "route_reason_code": "copy_compatible",
+                            "route_reason": "already compatible",
+                        }
+                    )
                 snapshot_path.write_text(
                     json.dumps(
                         {
                             "schema_version": "queue_plan_snapshot.v1",
-                            "produced_at": produced_at or _fresh_generated_at(),
+                            "produced_at": produced_at or fixed_now.isoformat(),
                             "config_path": str(config_path or resolved.config_path),
                             "local_base": str(resolved.local_base),
                             "source_movies": str(resolved.source_movies),
@@ -3428,14 +3720,42 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                             "tv_count_total": 0,
                             "priority_count": 0,
                             "runnable_count": runnable_count,
+                            "queue_snapshot_origin": "dry_run",
+                            "desktop_queue_preview_request_id": request_id,
+                            "queue_input_fingerprint_schema": input_fingerprint["schema_version"],
+                            "queue_input_fingerprint": input_fingerprint["fingerprint"],
+                            "queue_input_components": input_fingerprint["components"],
+                            "queue_plan_fingerprint_schema": "queue_plan_fingerprint.v1",
+                            "queue_plan_fingerprint": f"test-plan-{runnable_count}",
+                            "accepted_run_rows_fingerprint_schema": "accepted_run_rows_fingerprint.v1",
+                            "accepted_run_rows_fingerprint": accepted_run_rows_fingerprint(accepted_run_rows),
+                            "pending_publish_index_health": {"status": "ready"},
+                            "pending_publish_backpressure": {"blocked": False},
+                            "accepted_run_rows": accepted_run_rows,
                             "rows": rows,
                         }
                     ),
                     encoding="utf-8",
                 )
                 if mtime_age_seconds:
-                    timestamp = time.time() - mtime_age_seconds
+                    timestamp = fixed_now.timestamp() - mtime_age_seconds
                     os.utime(snapshot_path, (timestamp, timestamp))
+                else:
+                    timestamp = fixed_now.timestamp()
+                    os.utime(snapshot_path, (timestamp, timestamp))
+                (snapshot_path.parent / "queue_scan_status.json").write_text(
+                    json.dumps(
+                        {
+                            "schema_version": "desktop_queue_scan_status.v1",
+                            "scan_id": "scan-test",
+                            "status": "completed",
+                            "phase": "complete",
+                            "mode": "inventory_then_curate",
+                            "queue_preview_request_id": request_id,
+                        }
+                    ),
+                    encoding="utf-8",
+                )
 
             def queue_scope(payload: dict[str, object]) -> dict[str, object]:
                 return next(
@@ -3447,35 +3767,65 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             write_snapshot(runnable_count=0)
             fresh_empty = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
 
-            os.utime(snapshot_path, (time.time() - 61, time.time() - 61))
-            stale_empty = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
+            write_snapshot(runnable_count=1, mtime_age_seconds=61)
+            old_file_age_ready = facade.get_launch_preflight(
+                resolved,
+                {"target": "pipeline", "mode": "once"},
+            )
 
             write_snapshot(
-                runnable_count=0,
-                produced_at=(datetime.now(UTC) - timedelta(seconds=120)).isoformat(),
+                runnable_count=1,
+                produced_at=(fixed_now - timedelta(seconds=120)).isoformat(),
             )
-            stale_produced_empty = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
+            old_produced_age_ready = facade.get_launch_preflight(
+                resolved,
+                {"target": "pipeline", "mode": "once"},
+            )
 
             write_snapshot(
-                runnable_count=0,
-                produced_at=(datetime.now(UTC) + timedelta(seconds=30)).isoformat(),
+                runnable_count=1,
+                produced_at=(fixed_now + timedelta(seconds=30)).isoformat(),
             )
-            future_produced_empty = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
+            future_produced_age_ready = facade.get_launch_preflight(
+                resolved,
+                {"target": "pipeline", "mode": "once"},
+            )
 
             resolved.config_data["QueueLaunchSnapshotFreshnessSeconds"] = 120
             write_snapshot(
-                runnable_count=0,
-                produced_at=(datetime.now(UTC) - timedelta(seconds=90)).isoformat(),
+                runnable_count=1,
+                produced_at=(fixed_now - timedelta(seconds=90)).isoformat(),
                 mtime_age_seconds=90,
             )
-            configured_fresh_empty = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
+            configured_age_ready = facade.get_launch_preflight(
+                resolved,
+                {"target": "pipeline", "mode": "once"},
+            )
             resolved.config_data["QueueLaunchSnapshotFreshnessSeconds"] = 60
 
             write_snapshot(runnable_count=0, config_path=root / "other.psd1")
             mismatched_empty = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
 
             write_snapshot(runnable_count=1)
+            resolved.config_path.write_text("@{ NetworkRole = 'worker' }", encoding="utf-8")
+            changed_inputs = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
+            resolved.config_path.write_text("@{ NetworkRole = 'standalone' }", encoding="utf-8")
+            write_snapshot(runnable_count=1, include_accepted_run_rows=False)
+            legacy_missing_accepted_rows = facade.get_launch_preflight(
+                resolved,
+                {"target": "pipeline", "mode": "once"},
+            )
+            write_snapshot(runnable_count=1)
             fresh_ready = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
+            tampered_snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+            tampered_snapshot["accepted_run_rows"][0]["planned_display_name"] = "Tampered Raw Release.mkv"
+            snapshot_path.write_text(json.dumps(tampered_snapshot), encoding="utf-8")
+            os.utime(snapshot_path, (fixed_now.timestamp(), fixed_now.timestamp()))
+            tampered_accepted_name = facade.get_launch_preflight(
+                resolved,
+                {"target": "pipeline", "mode": "once"},
+            )
+            write_snapshot(runnable_count=1)
             service.queue_source_scan_active_block_message = lambda _action: "Queue scan is running."  # type: ignore[method-assign]
             scanning = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "once"})
             service.queue_source_scan_active_block_message = lambda _action: ""  # type: ignore[method-assign]
@@ -3487,26 +3837,37 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                 {"target": "pipeline", "mode": "once", "single_file": str(single_file)},
             )
 
-        self.assertEqual(queue_scope(fresh_empty)["status"], "blocked")
-        self.assertIn("no_runnable_work", queue_scope(fresh_empty)["detail"])
-        self.assertFalse(fresh_empty["can_request_start"])
-        self.assertEqual(queue_scope(stale_empty)["status"], "review")
-        self.assertTrue(stale_empty["can_request_start"])
-        self.assertEqual(queue_scope(stale_produced_empty)["status"], "review")
-        self.assertIn("queue_snapshot_produced_stale", queue_scope(stale_produced_empty)["detail"])
-        self.assertTrue(stale_produced_empty["can_request_start"])
-        self.assertEqual(queue_scope(future_produced_empty)["status"], "review")
-        self.assertIn("queue_snapshot_clock_skew", queue_scope(future_produced_empty)["detail"])
-        self.assertTrue(future_produced_empty["can_request_start"])
-        self.assertEqual(queue_scope(configured_fresh_empty)["status"], "blocked")
-        self.assertIn("freshness_seconds=120", queue_scope(configured_fresh_empty)["detail"])
-        self.assertFalse(configured_fresh_empty["can_request_start"])
-        self.assertEqual(queue_scope(mismatched_empty)["status"], "review")
-        self.assertTrue(mismatched_empty["can_request_start"])
-        self.assertEqual(queue_scope(fresh_ready)["status"], "ready")
-        self.assertTrue(fresh_ready["can_request_start"])
-        self.assertEqual(queue_scope(scanning)["status"], "review")
-        self.assertIn("queue_scan_running", queue_scope(scanning)["detail"])
+        expected = (
+            (fresh_empty, "blocked", "no_runnable_work"),
+            (old_file_age_ready, "ready", "queue_plan_fingerprint=test-plan-1"),
+            (old_produced_age_ready, "ready", "preview_age=older_than_preference"),
+            (future_produced_age_ready, "ready", "preview_age=clock_skewed"),
+            (configured_age_ready, "ready", "preview_age_limit_seconds=120"),
+            (mismatched_empty, "blocked", "queue_snapshot_scope_mismatch"),
+            (changed_inputs, "blocked", "queue_snapshot_inputs_not_current"),
+            (legacy_missing_accepted_rows, "blocked", "queue_snapshot_accepted_rows_missing"),
+            (fresh_ready, "ready", "queue_plan_fingerprint=test-plan-1"),
+            (tampered_accepted_name, "blocked", "queue_snapshot_accepted_fingerprint_mismatch"),
+            (scanning, "blocked", "queue_scan_running"),
+        )
+        for payload, expected_status, expected_detail in expected:
+            with self.subTest(expected_detail=expected_detail):
+                self.assertEqual(queue_scope(payload)["status"], expected_status)
+                self.assertIn(expected_detail, queue_scope(payload)["detail"])
+        self.assertIn("preview_handoff_grace_seconds=1", queue_scope(old_file_age_ready)["detail"])
+        for payload in (
+            old_file_age_ready,
+            old_produced_age_ready,
+            future_produced_age_ready,
+            configured_age_ready,
+        ):
+            self.assertTrue(payload["can_request_start"])
+            self.assertFalse(
+                any(
+                    "queue_snapshot" in str(item) and "stale" in str(item)
+                    for item in queue_scope(payload)["detail"]
+                )
+            )
         self.assertFalse(any(check["key"] == "normal_queue_scope" for check in validate["checks"]))
         self.assertFalse(any(check["key"] == "normal_queue_scope" for check in scoped_once["checks"]))
 

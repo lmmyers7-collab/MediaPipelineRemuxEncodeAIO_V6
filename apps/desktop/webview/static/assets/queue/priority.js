@@ -15,6 +15,7 @@
     const apiPost = typeof deps.apiPost === "function" ? deps.apiPost : async () => ({});
     const appendCommandResult = typeof deps.appendCommandResult === "function" ? deps.appendCommandResult : () => {};
     const refreshAll = typeof deps.refreshAll === "function" ? deps.refreshAll : async () => {};
+    const requestQueueScan = typeof deps.requestQueueScan === "function" ? deps.requestQueueScan : refreshAll;
     const syncSelectedRows = typeof deps.syncSelectedRows === "function" ? deps.syncSelectedRows : () => {};
     const renderSummary = typeof deps.renderSummary === "function" ? deps.renderSummary : () => {};
     const renderBreakdown = typeof deps.renderBreakdown === "function" ? deps.renderBreakdown : () => {};
@@ -154,7 +155,7 @@
         if (isCurrentCommand(seq)) setText("queue-priority-status", message);
         appendCommandResult({ command: "queue.priority", ok: Boolean(result?.ok), severity: result?.ok ? "ok" : "error", message });
         if (result?.ok) applyDisplayedPriorityUpdates([{ path, level }]);
-        if (result?.ok) await refreshAll();
+        if (result?.ok) await requestQueueScan();
       } catch (error) { if (isCurrentCommand(seq)) setText("queue-priority-status", `Priority request failed: ${error}`); } finally { endCommand(seq); }
     }
     async function sendPriorityBulk(items, description) {
@@ -168,7 +169,7 @@
         if (isCurrentCommand(seq)) setText("queue-priority-status", message);
         appendCommandResult({ command: "queue.priority", ok: Boolean(result?.ok), severity: result?.ok ? "ok" : "error", message });
         if (result?.ok) applyDisplayedPriorityUpdates(items);
-        if (result?.ok) await refreshAll();
+        if (result?.ok) await requestQueueScan();
       } catch (error) { if (isCurrentCommand(seq)) setText("queue-priority-status", `Bulk priority request failed: ${error}`); } finally { endCommand(seq); }
     }
     function priorityItemsForSelected(level, reason) {
@@ -204,7 +205,7 @@
         if (isCurrentCommand(seq)) setText("queue-priority-status", message);
         appendCommandResult({ command: "queue.priority", ok: Boolean(result?.ok), severity: result?.ok ? "ok" : "error", message });
         if (result?.ok) clearDisplayedPriorityManifest();
-        if (result?.ok) await refreshAll();
+        if (result?.ok) await requestQueueScan();
       } catch (error) { if (isCurrentCommand(seq)) setText("queue-priority-status", `Priority manifest clear failed: ${error}`); } finally { endCommand(seq); }
     }
     return { applyDisplayedFileOverrideMarker, applyDisplayedPriorityUpdates, beginCommand, clearDisplayedPriorityManifest, confirmBulk, clearPriorityManifest, endCommand, getInFlight: () => inFlight, isCurrentCommand, normalizedLevel, pathKey, priorityItemsForSelected, refreshDisplayedRows, rowHasVisibleMarker, rowMatchesPath, rowPath, rowWithDisplayedFileOverrideMarker, sendPriority, sendPriorityBulk, sendSelectedPriority, updateControls };

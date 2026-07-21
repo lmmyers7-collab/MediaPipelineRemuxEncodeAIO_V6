@@ -142,9 +142,9 @@
   const homeQueueProjection = homeQueueProjectionModule.createHomeQueueProjectionModule({ byId, clearRows, formatProgressValue, makeRowSelectable, selectHomeListItem, setHomePanelStatus, setText, shortenPath });
   const {
     homeProgressPercent, homeCompactShortValue, homeQueueTitle, homeQueueDisplayLabel, homeNormalizeQueueTitle, homeMovieTitleYear, homeQueueRoute, homeQueueMeta,
-    homeQueueRowIsRunnable, homeQueueGlobalOrder, homeCurrentQueueOrder, homeNextQueueRows, homeCsvRerunEvidence,
+    homeQueueRowIsRunnable, homeQueuePreviewRows, homeCsvRerunEvidence,
     homeCsvRerunActive, homeCsvRerunQueueContext, homeCsvRerunRows, renderHomeCsvRerunQueue,
-    renderHomeCsvRerunCompletion, homeActiveWork, homeActiveWorkLine, homeQueueItemMatchesActiveWork,
+    renderHomeCsvRerunCompletion,
     renderHomeQueueDetail, renderHomeQueueDetailMessage,
   } = homeQueueProjection;
   function renderHomePendingCount(pending) {
@@ -770,7 +770,7 @@
     list.setAttribute("role", "listbox");
     list.replaceChildren();
     if (renderHomeCsvRerunCompletion(context)) return;
-    const rows = homeNextQueueRows(queue, homeCurrentQueueOrder(context, queue.rows), context);
+    const rows = homeQueuePreviewRows(queue);
     const csvRerunQueue = homeCsvRerunQueueContext(context, queue, rows);
     if (!rows.length && renderHomeCsvRerunQueue(context)) return;
     setHomePanelStatus(
@@ -786,18 +786,13 @@
       return;
     }
     rows.forEach((item, index) => {
-      const isCurrent = homeQueueItemMatchesActiveWork(item, context);
-      const activeWork = isCurrent ? homeActiveWork(context) : {};
-      const rowOptions = { ...csvRerunQueue, activeWork };
       const li = document.createElement("li");
       li.tabIndex = 0;
       li.setAttribute("role", "option");
       li.setAttribute("aria-selected", index === 0 ? "true" : "false");
       li.classList.toggle("is-selected", index === 0);
-      li.dataset.current = isCurrent ? "true" : "false";
-      if (isCurrent) li.dataset.status = "running";
       const label = homeQueueDisplayLabel(item);
-      li.setAttribute("aria-label", `${isCurrent ? "Current queue item" : "Review queue item"} ${label.accessibleText || index + 1}`);
+      li.setAttribute("aria-label", `Review queue item ${label.accessibleText || index + 1}`);
       const title = document.createElement("span");
       title.className = "home-next-queue-title";
       const titleMain = document.createElement("span");
@@ -814,15 +809,13 @@
       const meta = document.createElement("span");
       meta.className = "home-next-queue-meta";
       meta.textContent = [
-        isCurrent ? "Current" : "",
         csvRerunQueue.csvRerunQueue ? "CSV rerun" : "",
         homeQueueMeta(item) || "queued",
-        isCurrent ? homeActiveWorkLine(activeWork) : "",
       ].filter(Boolean).join(" · ");
       li.append(title, meta);
       const activate = () => {
         selectHomeListItem(li);
-        renderHomeQueueDetail(item, rowOptions);
+        renderHomeQueueDetail(item, csvRerunQueue);
       };
       li.addEventListener("click", activate);
       li.addEventListener("keydown", (event) => {
@@ -833,10 +826,7 @@
       });
       list.appendChild(li);
     });
-    renderHomeQueueDetail(rows[0], {
-      ...csvRerunQueue,
-      activeWork: homeQueueItemMatchesActiveWork(rows[0], context) ? homeActiveWork(context) : {},
-    });
+    renderHomeQueueDetail(rows[0], csvRerunQueue);
   }
   function renderDailyDriverReadiness(context = {}) {
     const rows = dailyDriverRows(context);
@@ -883,9 +873,6 @@
     homeQueueRoute,
     homeQueueMeta,
     homeQueueRowIsRunnable,
-    homeQueueGlobalOrder,
-    homeCurrentQueueOrder,
-    homeNextQueueRows,
     homeCsvRerunEvidence,
     homeCsvRerunActive,
     homeCsvRerunQueueContext,

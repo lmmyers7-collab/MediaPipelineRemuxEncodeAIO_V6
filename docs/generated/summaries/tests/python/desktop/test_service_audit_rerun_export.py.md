@@ -1,5 +1,8 @@
 ---
 file: tests/python/desktop/test_service_audit_rerun_export.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
@@ -9,9 +12,10 @@ sha256: dacc2ee1e9b2cfcf6ffd7644fc50f2f09e20454bf19343e9530846a761e3f228
 ---
 # `tests/python/desktop/test_service_audit_rerun_export.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for test service audit rerun export; exposes DummyRerunExportService, ServiceAuditRerunExportTests.
 
-**Classes:** `DummyRerunExportService`, `ServiceAuditRerunExportTests`
+**Public symbols:** `DummyRerunExportService`, `ServiceAuditRerunExportTests`
 **In-repo imports:** `mediapipeline.core.audit.rerun_export`, `mediapipeline.desktop.models`, `mediapipeline.tools.paths`
+**State/config identifiers:** `config.psd1`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths tests/python/desktop/test_service_audit_rerun_export.py`._

@@ -307,7 +307,7 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             "event.preventDefault();",
             "event.stopPropagation();",
             "if (event.repeat) return;",
-            "showPage(button.dataset.page);",
+            'navigateToPage(button.dataset.page, { restoreFocus: true });',
         ]:
             self.assertIn(fragment, handler)
         self.assertNotIn('" "', handler)
@@ -405,7 +405,7 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             {"token": "quick-link-contract-test-token", "appVersion": "v5-test", "shellSurface": "webview"},
         ).body.decode("utf-8")
         for fragment in [
-            'data-quick-link-page="live"',
+            'data-quick-link-page="home" data-quick-link-focus="#current-work-heading"',
             'data-quick-link-page="pending"',
             'data-quick-link-reports-tab="failures"',
             'data-quick-link-metrics-tab="routes"',
@@ -478,6 +478,8 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             }[source]
             for fragment in fragments:
                 self.assertIn(fragment, text)
+        self.assertNotIn("#run-monitor-route-evidence", progress_js)
+        self.assertIn('route: { page: "home", focus: "#run-monitor-detail"', progress_js)
 
     def test_nav_element_is_present(self) -> None:
         self.assertGreater(
@@ -493,8 +495,8 @@ class WebViewNavigationStaticTests(unittest.TestCase):
         )
         self.assertEqual(response.status, 200)
         html = response.body.decode("utf-8")
+        self.assertIn('<h1 id="current-work-heading" tabindex="-1">Current Work</h1>', html)
         for label in [
-            "Home",
             "Launch",
             "Telemetry",
             "Queue",
@@ -641,7 +643,9 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             re.S,
         )
         self.assertIsNotNone(home_match)
-        self.assertNotIn('data-control-action="', home_match.group(1))
+        self.assertEqual(home_match.group(1).count('data-control-action="stop"'), 1)
+        self.assertNotIn('data-control-action="kill"', home_match.group(1))
+        self.assertIn('id="run-monitor-stop-after-current"', home_match.group(1))
 
 
 if __name__ == "__main__":

@@ -1,5 +1,8 @@
 ---
 file: tests/python/desktop/test_service_config_preview.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: config
 token_priority: medium
 owner_domain: tests
@@ -9,9 +12,9 @@ sha256: 4443c58536ad079973ee9aceba721ce7c03b96bfb50d55db98858201ebd668d4
 ---
 # `tests/python/desktop/test_service_config_preview.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Python implementation for test service config preview; exposes ServiceConfigPreviewTests.
 
-**Classes:** `ServiceConfigPreviewTests`
+**Public symbols:** `ServiceConfigPreviewTests`
 **In-repo imports:** `mediapipeline.core.config.preview`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths tests/python/desktop/test_service_config_preview.py`._

@@ -1,6 +1,6 @@
 # WebView Manual Operator Test Script
 
-Date: 2026-06-02
+Date: 2026-07-19
 
 Step-by-step manual validation script for the Tauri/WebView2 preview shell. Covers all 13 WebView pages. This script does not launch the pipeline, process media, save settings, rename files, drain pending publish, or touch source/output/scratch paths.
 
@@ -31,7 +31,43 @@ Before moving to each page, verify:
 - **No spontaneous POST calls**: page load must not trigger any `apiPost` call automatically. Only explicit operator button clicks may trigger POST routes.
 - **No raw filesystem paths in UI**: no field should display a resolved path that the frontend computed independently. Paths shown in the WebView come from backend state.
 - **No "launch", "start", "apply", "drain", "rename", or "save" on page load**: these actions must be explicit and operator-initiated.
-- **Topbar refresh health indicator**: should poll `GET /api/health` at the configured interval. This is the only automatic polling that runs.
+- **Automatic refresh boundary**: configured read-only GET routes such as health,
+  snapshot, telemetry, commands, and Run Monitor may poll. No automatic refresh
+  may issue a POST or turn supporting/stale evidence into current authority.
+
+### Accessibility and responsive pass
+
+Perform this pass with keyboard only and with NVDA or Windows Narrator. Use a
+disposable synthetic state root or an already authorized safe fixture when a
+state transition is needed; this script does not authorize starting real media
+or using personal production paths.
+
+1. Test both themes. Every focused interactive control must have a clearly
+   visible indicator whose boundary is distinguishable from adjacent colors.
+2. At desktop width, 768 CSS pixels, 390 CSS pixels, and 320 CSS pixels, verify
+   that the page itself does not scroll horizontally. Repeat representative
+   Current Work detail at 200% and 400% browser zoom.
+3. Turn on reduced motion in Windows and confirm selection/focus changes do not
+   depend on animation.
+4. Navigate between Queue, Launch, Current Work, Completed, Pending Publish,
+   Reports, and back. Focus must land on the destination heading or the exact
+   selected-file/proof target, then restore to a useful prior target on return.
+5. With two identical leaf filenames from different parent paths, confirm the
+   screen reader announces the full distinguishable identity and never merges
+   the rows.
+6. During an automatic refresh, confirm the selected row and focused control
+   remain stable, including an active-worker button and an exact terminal-proof
+   button. An unchanged accepted-workload row must retain its exact DOM/focus
+   target and must not trigger a new focus event. The screen reader must not
+   re-announce the row or the whole page.
+7. For meaningful synthetic transitions, confirm one concise announcement for
+   a new current file, failure/review, parked output, stop requested, and run
+   completion. Also exercise active → quiet → the same file active again;
+   both genuine activations must be announced once. Routine 15-second refreshes
+   must remain quiet.
+8. At 768 CSS pixels and narrower, confirm every stacked Audio and Subtitle
+   track cell retains a visible `Track`, `Source`, `Planned action`, or
+   `Current / final evidence` label after the table header is visually clipped.
 
 ---
 
@@ -39,19 +75,102 @@ Before moving to each page, verify:
 
 **Navigate to**: click `Home` in the sidebar.
 
-### Verify — Metrics grid
-- Pipeline state, Queue count, Processed count, Failed count are visible.
-- Values update when you click the Refresh button.
+### Verify — Current Work run summary
+- "Run Once · Backend Queue" is the primary current-work heading.
+- Run lifecycle, start/end time, run-scoped counts, freshness/age, active-worker
+  count, Stop After Current state, and backend authority are visible.
+- Stop After Current is available only during current active work and continues
+  to use the existing backend confirmation. Force Stop remains visually
+  subordinate and exceptional.
+- Refresh issues `GET /api/run-monitor`; it must not reconstruct current state
+  from Queue rows, logs, route labels, or stale `/api/snapshot` progress.
 
-### Verify — Operator Readiness panel
-- "Operator Readiness" heading visible.
-- Readiness text is backend-authored (not frontend-computed).
-- Status badge shows a result (Checking / Ready / Review).
+### Verify — Accepted file master list
+- The default folded view shows the first 20 verified cleaned filenames as
+  noninteractive preview rows and does not put preview rows in the Tab order.
+  Here, verification may come from the production Queue naming plan or, for an
+  eligible saved legacy terminal item, from exact job-correlated
+  Completed/Pending output evidence. When either authority exists, the raw
+  release filename is not the primary folded-row label.
+- The count states how many files are shown out of the full accepted workload.
+  Activate **Show all N files** (the **Open file selection** disclosure) and
+  confirm the expanded view contains every accepted file exactly once,
+  independent of Queue filters, pagination, selected rows, or render limits.
+- Each expanded row leads with its backend-projected effective filename and
+  retains the raw source path as secondary accessible identity evidence.
+  Duplicate cleaned names show distinguishable parent context. Run-wide
+  position, lifecycle, current stage, route summary, and selected/current text
+  cues appear only in the opened selection view or its accessible name, not as
+  folded-preview clutter.
+- An unresolved legacy item with neither verified Queue-plan naming evidence nor
+  exact terminal output proof must keep its accepted label and identify the
+  evidence as legacy/unknown. The WebView must not clean that label itself or
+  borrow a name from the current Queue snapshot.
+- Completed, failed, skipped, blocked, review, parked, current, and queued rows
+  remain together when another file becomes active.
+- Exactly one file button is in the Tab order. Arrow Up/Down and Home/End move
+  roving focus and selection; Enter/Space select without changing backend state.
+- Activate the disclosure again and confirm collapse focus returns to the
+  disclosure button, the first-20 preview returns, and the selected file detail
+  is preserved. Reopen it and confirm focus/selection still identify the exact
+  backend job.
+- Long names wrap as readable filename/context text in the opened view. Identical
+  leaf names from different parents remain distinguishable visually and in
+  accessible names.
+- With two different files active concurrently, both rows and worker buttons
+  expose their parent context and active text. The accepted list does not claim
+  that multiple rows are the one singular `aria-current` item.
 
-### Verify — Daily-Driver Checklist
-- Table visible with Area, Status, Evidence, Next Step columns.
-- Rows are read-only — no buttons in the table rows.
-- Footer legend reads: "Daily-driver checklist rows are read-only and do not launch, repair, drain, save, rename, or mutate files."
+### Verify — Native Tauri reopen with legacy terminal evidence
+
+Use a disposable synthetic state root or an already authorized read-only saved
+run. Do not start media processing for this check.
+
+1. Load a completed or parked Backend Queue Run Once record that predates
+   `display_name_evidence` but whose monitor item contains exact terminal output
+   evidence and an exact same-job Completed or Pending Publish reference.
+2. Close and reopen the native Tauri preview. On Home, confirm the folded list
+   still shows **Showing first 20 of N** and **Show all N files**.
+3. Confirm the expected terminal filenames are the primary accepted-workload
+   labels after reopen and the old raw release leaves are not primary list
+   labels. Select a row and confirm its unchanged raw source path remains
+   available in detail as secondary identity evidence.
+4. Confirm API evidence reports the immutable stored label separately as
+   `accepted_display_name`, the effective label as `display_name`, and
+   `display_name_basis=terminal_output`. The durable Run Monitor file must be
+   byte-for-byte unchanged by this read-only check.
+5. When the fixture is already loaded in the native shell, the Windows UI
+   Automation probe may assert the native WebView2 surface directly:
+
+   ```powershell
+   .\apps\desktop\tauri\Test-TauriShell-WebViewUiAutomationProbe.ps1 -HomeOnly -ExpectedHomeNames @('Clean Movie (2026).mkv') -RejectedHomeNames @('Raw.Release.Name.2026.mkv')
+   ```
+
+   Passing browser-hosted synthetic tests alone is not evidence for this step;
+   verify the native Tauri window and its WebView2 accessibility tree.
+
+### Verify — Selected file detail
+- Planned, Executed, and Final route/reason are separately labelled and shown
+  only when their matching backend authority exists.
+- The canonical stage timeline distinguishes probe, copy, audio, subtitles,
+  encode/remux, mux, verification, sidecars, publish/park, and final evidence.
+- Audio and subtitle tables enumerate each track, language, source properties,
+  policy action, progress/result, and evidence. Missing evidence says unknown or
+  awaiting backend evidence, never “pending.”
+- Output size, scratch/working/published/parked/intended paths, sidecars,
+  manifests/failure references, recovery owner, retryability, and next action
+  appear when backend evidence provides them.
+- Terminal proof buttons select and focus the exact Completed/Pending/Reports
+  proof by stable key or exact artifact path. If it is not loaded, the handoff
+  lands honestly on the destination heading rather than matching a filename.
+
+### Verify — Freshness and announcements
+- Stale, future-dated, unavailable, partial, or contradictory evidence suppresses
+  current file/stage/route/worker/percentage claims together.
+- Historical disclosure is labelled "Last known — not current" and includes
+  timestamp/age. It does not select an active file.
+- Confirm the single Current Work live status announces meaningful transitions
+  once and does not announce every panel on refresh.
 
 ### Verify — Sample Validation Record (cross-page context panel)
 - Panel visible under cross-page context.
@@ -63,26 +182,35 @@ Before moving to each page, verify:
 
 ### Pass criteria
 - No automatic POST calls on load.
-- All panels show backend-served content.
-- No launch/repair/drain controls present.
+- Current claims come only from the exact backend Run Monitor projection.
+- Effective names come only from verified Queue-plan evidence or exact
+  job-correlated terminal evidence; accepted labels and durable membership are
+  not rewritten.
+- Selection, focus, run membership, and terminal rows survive refresh.
+- Routine monitoring requires no Diagnostics visit.
 
 ---
 
-## Page 2: Live
+## Page 2: Telemetry
 
-**Navigate to**: click `Live` in the sidebar.
+**Navigate to**: click `Telemetry` in the sidebar.
 
 ### Verify — Active Jobs table
 - Table loads with current or empty active jobs.
 - Each row shows job status, shell, mode, PID if active.
 
-### Verify — Progress view
-- Progress text and events are displayed from backend.
-- No mutation buttons in this panel.
+### Verify — Supporting telemetry boundary
+- Hardware, ActiveJobs, FFmpeg/log-tail, and legacy progress evidence is clearly
+  secondary to Home Current Work.
+- Supporting evidence attaches to a file only with exact backend job
+  correlation and never becomes stage authority.
+- Stage/File/ETA links return to the selected Current Work file detail; the
+  hardware link stays on Telemetry.
 
 ### Pass criteria
 - Polling GET calls only on load.
 - No POST calls triggered by browsing.
+- Telemetry cannot repopulate a stale active Current Work timeline.
 
 ---
 
@@ -97,6 +225,7 @@ Before moving to each page, verify:
 ### Verify — Row selection
 - Click any row. Selected-row detail panel appears on the right.
 - Detail shows source path, route decision, priority status.
+- Predictive fields are labelled "Planned route" and "Planned reason."
 - "Open Source File" and "Open Source Folder" buttons are visible.
 
 ### Verify — Open buttons (shell-open only)
@@ -109,6 +238,9 @@ Before moving to each page, verify:
 
 ### Verify — Large-table render cap
 - If 250+ rows exist: verify a render-cap disclosure note appears. The note must state that "backend launch scope is not narrowed to visible rows."
+- Tab enters the Queue table once rather than once per row. Arrow Up/Down moves
+  roving focus; Enter/Space selects. The selected row's File override button is
+  the only row action added to the Tab order.
 
 ### Verify — Backend Launch Scope Preview panel
 - Scroll to the Backend Launch Scope Preview panel.
@@ -430,6 +562,136 @@ Added Launch Scope Reconciliation, Launch Real-Media Sample Proof Handoff, Launc
 
 ---
 
+## Native-only evidence recipes
+
+These checks remain `manual_native_only` in
+`docs/generated/WEBVIEW_TOUCHPOINT_LEDGER.json` until the actual Windows or
+Tauri outcome is captured. A browser route stub, a mocked picker result, or a
+source-code reference is not a pass for these checks.
+
+Use one evidence root created beneath `%TEMP%` for the whole run. The backend
+configuration, `LocalBase`, state, logs, source fixture, output fixture, and
+WebView2 user-data folder must all resolve beneath that root. Stop if the
+Settings overview or startup evidence resolves any personal, live-library,
+network-share, or production scratch path. Keep all pipeline, publish, drain,
+rename apply, cleanup, network lifecycle, and settings-save controls unused.
+
+For every recipe, record: timestamp and Windows build; app commit/package;
+temporary evidence-root path; control ID or accessible name; exact prerequisite;
+selected/opened target; command ID and final status; screenshot or UIA output;
+console/backend error text on failure; source/output fixture hashes before and
+after; operator; and disposition (`passed`, `failed`, or `blocked`). Store the
+record with the active audit evidence rather than in a personal path.
+
+### NATIVE-01 — Windows file and folder pickers
+
+Owner: Desktop/WebView QA.
+
+Prerequisites:
+
+1. Start the backend and WebView/Tauri shell with the isolated configuration
+   described above. Create one empty folder and one harmless media-named fixture
+   file beneath the temporary source fixture; do not copy real media.
+2. Confirm no active work and capture the fixture hashes and current Settings
+   candidate JSON.
+
+Procedure and success criteria:
+
+1. In Settings, activate one authored folder `Browse` badge. Verify a genuine
+   Windows folder dialog appears. Select the temporary folder. The exact folder
+   is staged in the intended field, `/api/path-picker/browse` or
+   `/api/settings/browse-path` records success, and no Settings save occurs.
+2. Activate the picker again and cancel. The prior staged value must remain and
+   the result must say canceled rather than success.
+3. On Launch, activate `pipeline-single-file-browse-button`, select the harmless
+   temporary fixture, and verify only the single-file field is staged. No
+   `/api/pipeline/start` request may occur. Repeat and cancel.
+4. On Rename, test file and folder browse only. Selected temporary paths may be
+   staged, but Preview, Apply, and Undo must remain unused.
+5. Confirm the fixture hashes and source/output file counts are unchanged.
+
+Failure capture: record dialog absence, wrong initial directory, cancellation
+reported as success, a returned path outside the evidence root, wrong-field
+staging, any automatic save/start/preview/apply request, or any changed hash.
+
+### NATIVE-02 — Explorer and associated-application outcomes
+
+Owner: Desktop/Windows integration QA.
+
+Prerequisites: use only a backend fixture whose allowlisted open target resolves
+to the temporary folder or harmless temporary file. Capture the target path and
+hash first. Do not use a Queue row or diagnostic target backed by a personal or
+live-library path.
+
+Procedure and success criteria:
+
+1. Activate an allowlisted `Open Folder` control. Verify Windows Explorer opens
+   the exact temporary folder and the command result names the same allowlisted
+   target. Closing Explorer must not change backend state.
+2. Where an `Open File` outcome is applicable, activate it only for the harmless
+   temporary fixture. Verify Windows reports the actual associated-application
+   outcome honestly: opened, association prompt, or actionable failure. A
+   browser POST success alone is insufficient.
+3. Rename or move the fixture inside the evidence root, repeat the open action,
+   and verify the UI reports the missing-target failure rather than claiming an
+   external application opened. Restore the fixture only within the evidence
+   root.
+4. Confirm no file content, queue state, settings, or media lifecycle state
+   changed.
+
+Failure capture: record the OS window title/process, command result, selected
+target, screenshot, backend/console error, and before/after hashes. Treat an
+unobservable external outcome as `blocked`, not passed.
+
+### NATIVE-03 — Pipeline Log secondary window
+
+Owner: Tauri shell QA.
+
+Prerequisites: Windows UI Automation, the Tauri toolchain, no active work, an
+isolated backend configuration, and an isolated WebView2 folder. Set
+`MEDIAPIPELINE_APPDATA_ROOT` and `WEBVIEW2_USER_DATA_FOLDER` to directories
+beneath the temporary evidence root before launching. The probe must report the
+same WebView2 root; otherwise stop.
+
+Run the native probe from the repository root:
+
+```powershell
+.\apps\desktop\tauri\Test-TauriShell-WebViewUiAutomationProbe.ps1 -ExpectedWebView2UserDataFolder $env:WEBVIEW2_USER_DATA_FOLDER
+```
+
+Success criteria:
+
+1. `Open Log Window` creates a distinct native window titled `Pipeline Log`.
+2. UI Automation exposes `Follow`, `Pipeline Log display mode`, and `Refresh
+   Now`; changing mode and refreshing updates the secondary content without a
+   backend mutation POST.
+3. Closing the Pipeline Log window destroys or hides only its distinct native
+   handle. The main shell remains visible, navigable, and connected.
+4. Closing the main shell afterward passes close-readiness and exact-process
+   cleanup. No unowned process is terminated.
+
+Failure capture: preserve the probe JSON, stdout/stderr log paths, inspected UIA
+rows, both native window handles, content-accessibility blocker, close outcome,
+and exact-process cleanup result. If the secondary WebView2 provider still does
+not expose descendants or independent close remains unverified, retain the
+ledger status as blocked/manual-native-only.
+
+### NATIVE-04 — genuine shell failure paths
+
+Owner: Tauri release QA.
+
+Using only the isolated evidence root, separately exercise a missing/denied
+temporary target, a canceled picker, an unavailable file association, and a
+secondary-window open/close failure if it can be induced without changing
+machine policy. Success means the UI stays responsive, reports the exact owning
+failure and next action, writes no secret/raw personal path to shared evidence,
+and cleans up only processes launched by the test. Do not change Windows-wide
+permissions, default applications, network state, or playback-device settings
+for this recipe; if those conditions are not already available, record them as
+blocked prerequisites.
+
+---
+
 ## End-of-Run Mutation Boundary Confirmation
 
 After completing all 13 pages:
@@ -453,6 +715,9 @@ This script is for human observation. Automated equivalents:
 
 | Page | Automated smoke |
 |---|---|
+| Current Work deterministic states/accessibility/responsive | `test_webview_browser_run_monitor_smoke.py` |
+| Native Tauri Home/reopen name evidence | `Test-TauriShell-WebViewUiAutomationProbe.ps1 -HomeOnly` plus `test_tauri_shell_scaffold.py` |
+| Backend Queue Run Once full journey | `Test-WebViewBrowserQueueLaunchCompletedSmoke.ps1` |
 | Queue / Completed / Pending (row detail) | `Test-WebViewRowDetailSmoke.ps1` |
 | Command history | `Test-WebViewCommandEvidenceSmoke.ps1` |
 | Rename readiness | `Test-WebViewRenameReadinessSmoke.ps1` |

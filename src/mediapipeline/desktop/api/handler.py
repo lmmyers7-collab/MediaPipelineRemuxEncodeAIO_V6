@@ -263,10 +263,16 @@ def _strict_command_evidence_payload(
 def _with_strict_command_evidence(payload: dict[str, Any], command_id: str) -> dict[str, Any]:
     result = dict(payload)
     data = dict(result.get("data") or {})
+    evidence_phase = str(data.get("evidence_phase") or "").strip()
+    if not evidence_phase:
+        if str(result.get("command") or "") == "pipeline.start":
+            evidence_phase = "running" if bool(result.get("ok")) else "rejected"
+        else:
+            evidence_phase = "completed" if bool(result.get("ok")) else "rejected_or_failed"
     data.update(
         {
             "command_id": command_id,
-            "evidence_phase": "completed" if bool(result.get("ok")) else "rejected_or_failed",
+            "evidence_phase": evidence_phase,
             "journal_durability": "strict",
             "strict_command_journal_recorded": True,
         }

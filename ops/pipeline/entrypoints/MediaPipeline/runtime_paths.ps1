@@ -34,13 +34,20 @@ $RescanFlag           = $script:LocalStateLayout.Paths.RescanFlag
 $LogFile              = Join-Path $LocalBase "pipeline_debug.log"
 $PauseFlag            = $script:LocalStateLayout.Paths.PauseFlag
 $StopFlag             = $script:LocalStateLayout.Paths.StopFlag
+$StopAfterCurrentFlag = $script:LocalStateLayout.Paths.StopAfterCurrentFlag
 $ProgressFile         = $script:LocalStateLayout.Paths.ProgressFile
 $PipelineEventLogFile = $script:LocalStateLayout.Paths.PipelineEventLogFile
 $script:PipelineEventLogFile = $PipelineEventLogFile
-$script:PipelineRunId = [guid]::NewGuid().ToString("N")
+$script:PipelineRunId = if (-not [string]::IsNullOrWhiteSpace($RunId)) {
+    [string]$RunId
+} else {
+    [guid]::NewGuid().ToString("N")
+}
 if ($WorkerChild -and -not [string]::IsNullOrWhiteSpace($WorkerRunId)) {
     $script:PipelineRunId = $WorkerRunId
 }
+$script:RunMonitorRoot = $script:LocalStateLayout.RunMonitor
+$script:CurrentRunMonitorJobId = if ($WorkerChild) { [string]$WorkerJobId } else { '' }
 $script:WorkerClaimId = if ($WorkerChild) { [string]$WorkerClaimId } else { '' }
 $script:ProgressWriteFailures = 0
 $script:ProgressPersistenceHealthy = $true

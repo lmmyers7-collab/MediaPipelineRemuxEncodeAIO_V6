@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/core/maintenance/state_journal_archive.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: maintenance
@@ -11,7 +14,7 @@ sha256: 0d6371fe28cb725e2ae210afd1fc24595b44a58a9b3cd9f91490cd4370694b53
 
 **Purpose:** Confirmed archive action for oversized runtime event journals.
 
-**Public functions:** `archive_state_journals_payload()`, `close_readiness_blocked_archive_payload()`, `unconfirmed_state_journal_archive_payload()`
+**Public symbols:** `archive_state_journals_payload`, `close_readiness_blocked_archive_payload`, `unconfirmed_state_journal_archive_payload`
 **In-repo imports:** `mediapipeline.core.diagnostics.autonomy_health`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/maintenance/state_journal_archive.py`._

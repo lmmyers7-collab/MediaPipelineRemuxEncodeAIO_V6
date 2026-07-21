@@ -322,8 +322,19 @@ function Get-PreferredDefaultAudioIndex {
 }
 
 function Set-LastAudioDecisionRecords {
-    param([array] $Records = @())
+    param([array] $Records = @(), [switch] $FinalPolicy)
     $script:LastAudioDecisionRecords = @($Records | Where-Object { $null -ne $_ })
+    if ($FinalPolicy -and
+        -not [string]::IsNullOrWhiteSpace([string]$script:PipelineRunId) -and
+        -not [string]::IsNullOrWhiteSpace([string]$script:CurrentRunMonitorJobId) -and
+        (Get-Command -Name Set-MediaPipelineRunMonitorAudioRecords -ErrorAction SilentlyContinue)) {
+        try {
+            Set-MediaPipelineRunMonitorAudioRecords -RunId ([string]$script:PipelineRunId) -JobId ([string]$script:CurrentRunMonitorJobId) -Records $script:LastAudioDecisionRecords -FinalPolicy | Out-Null
+        } catch {
+            $script:RunMonitorPersistenceHealthy = $false
+            Write-Log "Run Monitor audio policy evidence failed: $($_.Exception.Message)" 'WARN'
+        }
+    }
 }
 
 function Get-LastAudioDecisionRecords {
@@ -431,7 +442,7 @@ function Build-AudioArgs {
             $message = "SOURCE_MEDIA_AUDIO_MISSING: no audio streams found in $FilePath"
             if (Get-EffectiveAllowNoAudio) {
                 Write-Log "$message; AllowNoAudio is enabled, output will omit audio." "WARN"
-                Set-LastAudioDecisionRecords @((New-AudioOmitAllDecisionRecord -PassthroughProfile $passthroughProfile))
+                Set-LastAudioDecisionRecords @((New-AudioOmitAllDecisionRecord -PassthroughProfile $passthroughProfile)) -FinalPolicy
                 Write-AudioTrackProgress -Stage 'audio_policy' -Status 'Audio omitted by backend policy' -AudioAction 'omit' -Reason 'AllowNoAudio enabled' -Detail (Split-Path -Leaf $FilePath) -Completed
                 return @('-an')
             }
@@ -463,16 +474,22 @@ function Build-AudioArgs {
         -PreferredLanguages $preferredLanguages `
         -Mp4CompatibilityMode:$mp4CompatibilityMode
 
+    # Seed the exact backend track identities before any per-track progress is
+    # emitted. Otherwise the Run Monitor cannot correlate the first policy
+    # update and must reject it rather than guessing from an ordinal.
+    Set-LastAudioDecisionRecords @($decisionPlan.Records) -FinalPolicy
+
     $audioStepTotal = [math]::Max(1, @($decisionPlan.Tracks).Count)
     $audioStepIndex = 0
     foreach ($decision in @($decisionPlan.Tracks)) {
         $audioStepIndex++
         $i = [int]$decision.SourceOrdinal
+        $progressStreamIndex = if ($null -eq $decision.SourceStreamIndex) { -1 } else { [int]$decision.SourceStreamIndex }
         if ($decision.Action -eq 'drop') {
             $dropReason = if ($decision.Reason -eq 'mp4_single_eac3_compatibility') { 'MP4 compatibility single-audio policy' } else { 'file override' }
             Write-Log "Audio $i ($($decision.SourceCodec), $($decision.SourceChannels)ch, $($decision.Language)) -> dropped by $dropReason" "DEBUG"
             Write-AudioTrackProgress `
-                -StreamIndex $i `
+                -StreamIndex $progressStreamIndex `
                 -Stage 'audio_policy' `
                 -Status "Audio stream $i dropped by backend policy" `
                 -AudioAction 'drop' `
@@ -496,7 +513,7 @@ function Build-AudioArgs {
             }
             Write-Log "Audio $i ($($decision.SourceCodec), $($decision.SourceChannels)ch, $($decision.Language)) -> $($decision.OutputCodecLabel) $($decision.OutputChannels)ch @ $($decision.Bitrate) ($($decision.Reason); bitrate $($decision.BitrateSource))" "DEBUG"
             Write-AudioTrackProgress `
-                -StreamIndex $i `
+                -StreamIndex $progressStreamIndex `
                 -Stage 'audio_policy' `
                 -Status "Audio stream $i will be transcoded" `
                 -AudioAction 'transcode' `
@@ -516,7 +533,7 @@ function Build-AudioArgs {
             # some builds reject -channel_layout with -c:a copy.
             Write-Log "Audio $i ($($decision.SourceCodec), $($decision.SourceChannels)ch, $($decision.Language)) -> copy" "DEBUG"
             Write-AudioTrackProgress `
-                -StreamIndex $i `
+                -StreamIndex $progressStreamIndex `
                 -Stage 'audio_policy' `
                 -Status "Audio stream $i will be passed through" `
                 -AudioAction 'copy' `
@@ -547,7 +564,6 @@ function Build-AudioArgs {
         $message = "SOURCE_MEDIA_AUDIO_OVERRIDE_STRIPPED: all audio streams dropped by file override for $FilePath"
         if (Get-EffectiveAllowNoAudio) {
             Write-Log "$message; AllowNoAudio is enabled, output will omit audio." "WARN"
-            Set-LastAudioDecisionRecords @($decisionPlan.Records)
             Write-AudioTrackProgress -Stage 'audio_policy' -Status 'Audio omitted by backend policy' -AudioAction 'omit' -Reason 'All audio streams dropped and AllowNoAudio enabled' -Detail (Split-Path -Leaf $FilePath) -Completed
             return @('-an')
         }
@@ -559,7 +575,6 @@ function Build-AudioArgs {
     foreach ($disposition in @($decisionPlan.Dispositions)) {
         $codecArgs.AddRange([string[]]@("-disposition:a:$($disposition.AudioOrdinal)",$disposition.Value))
     }
-    Set-LastAudioDecisionRecords @($decisionPlan.Records)
     # R9 fix — surface the chosen default audio index AND total audio
     # track count so Do-Remux can emit explicit `--default-track aN:yes/no`
     # flags to mkvmerge. ffmpeg's -disposition flags carry through to

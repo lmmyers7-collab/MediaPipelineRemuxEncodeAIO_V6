@@ -5,6 +5,77 @@ function Get-MediaPipelineEncodeFallbackBoundaryVersion {
     return 'encode_fallback_boundary.v1'
 }
 
+function Set-MediaPipelineEncodeRuntimeRouteEvidence {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('encode_hardware','encode-cpu-fallback','remux')]
+        [string] $Route,
+        [Parameter(Mandatory)] [string] $ReasonCode,
+        [Parameter(Mandatory)] [string] $Reason
+    )
+
+    # Keep a dedicated copy of the last backend-confirmed runtime route for
+    # terminal failure artifacts. Do not overload CurrentRouteReason*: those
+    # fields are also consumed by media-size policy and retain their existing
+    # semantics until the route succeeds.
+    $script:CurrentExecutedRoute = $Route
+    $script:CurrentExecutedRouteReasonCode = $ReasonCode
+    $script:CurrentExecutedRouteReason = $Reason
+
+    $runId = [string]$script:PipelineRunId
+    $jobId = [string]$script:CurrentRunMonitorJobId
+    if ([string]::IsNullOrWhiteSpace($runId) -or [string]::IsNullOrWhiteSpace($jobId)) {
+        return $false
+    }
+    if (-not (Get-Command -Name Set-MediaPipelineRunMonitorExecutedRoute -ErrorAction SilentlyContinue)) {
+        return $false
+    }
+
+    try {
+        Set-MediaPipelineRunMonitorExecutedRoute `
+            -RunId $runId `
+            -JobId $jobId `
+            -Route $Route `
+            -ReasonCode $ReasonCode `
+            -Reason $Reason | Out-Null
+        return $true
+    } catch {
+        $script:RunMonitorPersistenceHealthy = $false
+        if (Get-Command -Name Write-Log -ErrorAction SilentlyContinue) {
+            Write-Log "Run Monitor encoder route evidence failed: $($_.Exception.Message)" 'WARN'
+        }
+        return $false
+    }
+}
+
+function Set-MediaPipelineEncodeRemuxFallbackRouteEvidence {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('preflight_projection','live_projection','live_projection_safe_retry','post_encode_size_guard','dynamic_hdr_prefer_remux')]
+        [string] $Trigger,
+        [Parameter(Mandatory)] [string] $Reason
+    )
+
+    $reasonCode = switch ($Trigger) {
+        'preflight_projection' { 'encode_waste_guard_preflight_remux_fallback' }
+        'live_projection' { 'encode_waste_guard_live_remux_fallback' }
+        'live_projection_safe_retry' { 'encode_waste_guard_safe_retry_remux_fallback' }
+        'post_encode_size_guard' { 'encode_size_guard_remux_fallback' }
+        'dynamic_hdr_prefer_remux' { 'dynamic_hdr_prefer_remux' }
+    }
+    $detail = if ([string]::IsNullOrWhiteSpace($Reason)) {
+        "Backend trigger '$Trigger' selected remux fallback before media work began."
+    } else {
+        $Reason
+    }
+    return Set-MediaPipelineEncodeRuntimeRouteEvidence `
+        -Route remux `
+        -ReasonCode $reasonCode `
+        -Reason $detail
+}
+
 function Get-CurrentEncodeRouteIntentReasonCode {
     $routeIntentReasonCode = ''
     if ($script:CurrentRoutePlan -and $script:CurrentRoutePlan.PSObject.Properties['ReasonCode']) {
@@ -324,6 +395,9 @@ function Invoke-MediaPipelineEncodeDynamicHdrPolicy {
                     summary     = [string]$script:CurrentDynamicHdrEvidence.summary
                 } | Out-Null
                 $script:LastDynamicHdrRemuxFallbackRejection = $null
+                Set-MediaPipelineEncodeRemuxFallbackRouteEvidence `
+                    -Trigger 'dynamic_hdr_prefer_remux' `
+                    -Reason ([string]$script:CurrentRouteReason) | Out-Null
                 $dynamicHdrRemuxOk = Do-Remux $file $isTV $tvInfo -FallbackFromDynamicHdrEncode
                 if ($dynamicHdrRemuxOk) {
                     $Context.LocalIn = $null
@@ -521,6 +595,9 @@ function Invoke-MediaPipelineEncodeAttemptLadder {
     $tempOut    = [string]$primaryAttempt.OutputPath
     $encodePlan = $primaryAttempt.Plan
     $ffArgs     = Get-MediaPipelineEncodeCommandArgumentList -Plan $encodePlan
+    if (Get-Command -Name Set-MediaPipelineCurrentRunMonitorOutput -ErrorAction SilentlyContinue) {
+        Set-MediaPipelineCurrentRunMonitorOutput -State active -ScratchPath ([string]$localIn) -WorkingOutputPath $tempOut -IntendedFinalPath ([string]$Context.Paths.ServerOut) -VerificationState not_started | Out-Null
+    }
 
     $nullCount = @($ffArgs | Where-Object { $null -eq $_ }).Count
     if ($nullCount -gt 0) {
@@ -575,6 +652,12 @@ function Invoke-MediaPipelineEncodeAttemptLadder {
         $script:LastFFmpegStderr = if ($dynamicHdrForceCpuEncode) { 'Dynamic HDR preservation requires CPU/libx265; primary hardware attempt skipped' } elseif ($forceCpuBackendEncode) { 'EncoderBackend=cpu selected; primary hardware attempt skipped' } else { "selected hardware descriptor '$selectedHardwareEncoder' runtime probe reports unavailable; primary hardware attempt skipped" }
         $script:LastFFmpegExit = 1
     } else {
+        if ($hardwareDescriptorSelected) {
+            Set-MediaPipelineEncodeRuntimeRouteEvidence `
+                -Route 'encode_hardware' `
+                -ReasonCode 'hardware_encoder_selected' `
+                -Reason "Runtime probe confirmed $selectedHardwareBackend encoder '$selectedHardwareEncoder'; the primary hardware encode was selected." | Out-Null
+        }
         $success = Invoke-MediaPipelineEncodeAttemptExecution -Plan $encodePlan -ArgumentList $ffArgs -InputPath $localIn -OutputPath $tempOut -TimeoutSeconds $script:FFmpegEncodeTimeoutSeconds -WasteGuardContext $wasteGuardContext
         & $recordEncodeAttempt $encodePlan ([bool]$success)
     }
@@ -642,6 +725,12 @@ function Invoke-MediaPipelineEncodeAttemptLadder {
             $ffArgs     = Get-MediaPipelineEncodeCommandArgumentList -Plan $encodePlan
             if ($wasteGuardContext) {
                 $wasteGuardContext.OutputPath = $tempOut
+            }
+            if ($hardwareDescriptorSelected) {
+                Set-MediaPipelineEncodeRuntimeRouteEvidence `
+                    -Route 'encode_hardware' `
+                    -ReasonCode 'hardware_encoder_safe_retry_started' `
+                    -Reason "The primary $selectedHardwareBackend encode failed; compatibility retry with '$selectedHardwareEncoder' was selected." | Out-Null
             }
             $success    = Invoke-MediaPipelineEncodeAttemptExecution -Plan $encodePlan -ArgumentList $ffArgs -InputPath $localIn -OutputPath $tempOut -TimeoutSeconds $script:FFmpegEncodeTimeoutSeconds -WasteGuardContext $wasteGuardContext
             & $recordEncodeAttempt $encodePlan ([bool]$success)
@@ -717,6 +806,9 @@ function Invoke-MediaPipelineEncodeAttemptLadder {
                 Remove-Item -LiteralPath $tempOut -Force -ErrorAction SilentlyContinue
             }
             $tempOut    = Join-Path $script:processingDir "encode_temp_cpu_$([guid]::NewGuid().ToString('N')).$OutputContainer"
+            if (Get-Command -Name Set-MediaPipelineCurrentRunMonitorOutput -ErrorAction SilentlyContinue) {
+                Set-MediaPipelineCurrentRunMonitorOutput -State active -ScratchPath ([string]$localIn) -WorkingOutputPath $tempOut -IntendedFinalPath ([string]$Context.Paths.ServerOut) -VerificationState not_started | Out-Null
+            }
             # F-new-1 - re-validate scratch space with the CPU-aware
             # multiplier *before* the (potentially multi-hour) CPU
             # run. The original pre-flight at the top of Do-Encode used
@@ -757,6 +849,28 @@ function Invoke-MediaPipelineEncodeAttemptLadder {
                 -Hdr10PlusJsonPath $dynamicHdrHdr10PlusJsonPath
             $ffArgs     = @($encodePlan.ArgumentList)
             $cpuFallbackEncoderName = [string]$encodePlan.SelectedEncoder
+            $cpuRuntimeReasonCode = if ($dynamicHdrForceCpuEncode) {
+                'dynamic_hdr_preserve_cpu_encode'
+            } elseif ($forceCpuBackendEncode) {
+                'encoder_backend_cpu_selected'
+            } elseif ($skipGpuDueToProbe) {
+                'gpu_unavailable_cpu_only'
+            } else {
+                'hardware_encoder_cpu_fallback'
+            }
+            $cpuRuntimeReason = if ($dynamicHdrForceCpuEncode) {
+                "Dynamic HDR preservation selected CPU encoder '$cpuFallbackEncoderName'."
+            } elseif ($forceCpuBackendEncode) {
+                "EncoderBackend=cpu selected CPU encoder '$cpuFallbackEncoderName' without a hardware attempt."
+            } elseif ($skipGpuDueToProbe) {
+                "Runtime probe rejected $selectedHardwareBackend encoder '$selectedHardwareEncoder'; CPU encoder '$cpuFallbackEncoderName' was selected."
+            } else {
+                "Hardware encode attempts failed; CPU encoder '$cpuFallbackEncoderName' was selected for fallback."
+            }
+            Set-MediaPipelineEncodeRuntimeRouteEvidence `
+                -Route 'encode-cpu-fallback' `
+                -ReasonCode $cpuRuntimeReasonCode `
+                -Reason $cpuRuntimeReason | Out-Null
             # Differentiate the GUI status string. app/status/service.py renders
             # `encode_cpu` with its own label, but the user-facing status
             # text (currentStatus) is also surfaced verbatim in the live
@@ -773,7 +887,20 @@ function Invoke-MediaPipelineEncodeAttemptLadder {
                 Set-ProgressStage -Stage 'encode_cpu' -Status "Waiting for CPU encode slot" -Route 'encode-cpu-fallback' -Percent 0 -SaveNow
                 $script:pipelineStatus = "Waiting for CPU encode slot"
                 $cpuMutexWaitSeconds = [int]$script:CpuEncodeMutexWaitSeconds
-                $cpuMutexLock = Acquire-CpuEncodeMutex -TimeoutSeconds $cpuMutexWaitSeconds
+                $cpuMutexPollHandler = if (Get-Command -Name New-MediaPipelineCurrentStageNativePollHandler -ErrorAction SilentlyContinue) {
+                    New-MediaPipelineCurrentStageNativePollHandler `
+                        -Stage 'encode_cpu' `
+                        -Status 'Waiting for CPU encode slot' `
+                        -Route 'encode-cpu-fallback' `
+                        -MinimumIntervalSeconds 15 `
+                        -EvidenceSource 'encode_cpu_mutex_heartbeat'
+                } else {
+                    $null
+                }
+                $cpuMutexLock = Acquire-CpuEncodeMutex `
+                    -TimeoutSeconds $cpuMutexWaitSeconds `
+                    -PollHandler $cpuMutexPollHandler `
+                    -PollMilliseconds 1000
             }
             if (-not $cpuMutexLock.Acquired) {
                 $reason = "ENCODE-CPU: CPU encode mutex was not acquired after waiting $([int]$script:CpuEncodeMutexWaitSeconds) seconds; refusing to start overlapping CPU fallback"
@@ -789,7 +916,7 @@ function Invoke-MediaPipelineEncodeAttemptLadder {
                 # CPU encodes get their own (typically larger) timeout
                 # so a slow software encode is not killed at the 6-hour
                 # GPU ceiling.
-                $success    = Invoke-FFmpegWithProgress $ffArgs $encodePlan.Label $localIn -TimeoutSeconds $script:FFmpegCpuEncodeTimeoutSeconds -ProgressStage $encodePlan.ProgressStage -ProgressRoute $encodePlan.ProgressRoute -ReproStage $encodePlan.ReproStage -CpuEncode -ProcessPriority $script:CpuEncodeProcessPriority -WorkingDirectory $dynamicHdrWorkingDirectory
+                $success    = Invoke-FFmpegWithProgress $ffArgs $encodePlan.Label $localIn -TimeoutSeconds $script:FFmpegCpuEncodeTimeoutSeconds -ProgressStage $encodePlan.ProgressStage -ProgressRoute $encodePlan.ProgressRoute -ReproStage $encodePlan.ReproStage -CpuEncode -ProcessPriority $script:CpuEncodeProcessPriority -WorkingDirectory $dynamicHdrWorkingDirectory -TrackAudioWork
             } finally {
                 if ($cpuMutexLock -and $cpuMutexLock.Acquired) { & $cpuMutexLock.Release }
             }

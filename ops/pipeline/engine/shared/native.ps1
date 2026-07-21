@@ -32,6 +32,115 @@ if (-not (Get-Command -Name New-NativeCommandResult -ErrorAction SilentlyContinu
     }
 }
 
+function New-ThrottledNativePollHandler {
+    <#
+    .SYNOPSIS
+    Wraps a native-process poll callback with elapsed-time throttling.
+
+    .DESCRIPTION
+    Invoke-NativeProcess polls frequently for stop/timeout responsiveness. Evidence
+    writers should not persist at that cadence, so this helper invokes the supplied
+    handler on the first poll and then only after MinimumIntervalSeconds has elapsed.
+    The wrapped handler receives the original elapsed-seconds/process arguments and
+    its return value (including a native abort request) is preserved.
+    #>
+    param(
+        [Parameter(Mandatory)] [scriptblock] $Handler,
+        [double] $MinimumIntervalSeconds = 5
+    )
+
+    $minimumInterval = [math]::Max(0.0, [double]$MinimumIntervalSeconds)
+    $throttleState = [pscustomobject]@{
+        HasInvoked = $false
+        LastInvokedElapsed = 0.0
+    }
+    return {
+        param($ElapsedSeconds, $Process)
+
+        $elapsed = 0.0
+        try { $elapsed = [double]$ElapsedSeconds } catch { $elapsed = 0.0 }
+        if ([double]::IsNaN($elapsed) -or [double]::IsInfinity($elapsed) -or $elapsed -lt 0) {
+            $elapsed = 0.0
+        }
+        $shouldInvoke = (-not [bool]$throttleState.HasInvoked) -or
+            ($elapsed -lt [double]$throttleState.LastInvokedElapsed) -or
+            (($elapsed - [double]$throttleState.LastInvokedElapsed) -ge $minimumInterval)
+        if (-not $shouldInvoke) { return $null }
+
+        $throttleState.HasInvoked = $true
+        $throttleState.LastInvokedElapsed = $elapsed
+        return (& $Handler $ElapsedSeconds $Process)
+    }.GetNewClosure()
+}
+
+function New-MediaPipelineNativeCommandFallbackPollHandler {
+    <#
+    .SYNOPSIS
+    Creates a safe current-stage heartbeat for an otherwise uninstrumented native command.
+
+    .DESCRIPTION
+    The shared native wrapper is used by operations whose subprocesses can remain
+    healthy longer than the Run Monitor freshness window. When the caller has not
+    supplied a more specific callback, this helper may ask the status subsystem for
+    a heartbeat bound to the exact current run, job, and backend-authored stage.
+
+    Tool names and Invoke-ExternalToolCommand's Stage parameter are deliberately not
+    inputs: neither is authoritative current-work evidence. Missing, unmapped, or
+    terminal current-stage context fails closed and returns no callback.
+    #>
+    param()
+
+    if (-not (Get-Command -Name New-MediaPipelineCurrentStageNativePollHandler -ErrorAction SilentlyContinue) -or
+        -not (Get-Command -Name ConvertTo-MediaPipelineRunMonitorStageId -ErrorAction SilentlyContinue)) {
+        return $null
+    }
+
+    $runVariable = Get-Variable -Name PipelineRunId -Scope Script -ErrorAction SilentlyContinue
+    $jobVariable = Get-Variable -Name CurrentRunMonitorJobId -Scope Script -ErrorAction SilentlyContinue
+    $stageVariable = Get-Variable -Name currentStage -Scope Script -ErrorAction SilentlyContinue
+    $statusVariable = Get-Variable -Name pipelineStatus -Scope Script -ErrorAction SilentlyContinue
+
+    $runId = if ($null -ne $runVariable) { [string]$runVariable.Value } else { '' }
+    $jobId = if ($null -ne $jobVariable) { [string]$jobVariable.Value } else { '' }
+    $currentStage = if ($null -ne $stageVariable) { [string]$stageVariable.Value } else { '' }
+    $currentStatus = if ($null -ne $statusVariable) { [string]$statusVariable.Value } else { '' }
+
+    if ([string]::IsNullOrWhiteSpace($runId) -or
+        [string]::IsNullOrWhiteSpace($jobId) -or
+        [string]::IsNullOrWhiteSpace($currentStage)) {
+        return $null
+    }
+
+    try {
+        $canonicalStage = ConvertTo-MediaPipelineRunMonitorStageId -PipelineStage $currentStage
+        if ([string]::IsNullOrWhiteSpace([string]$canonicalStage) -or [string]$canonicalStage -eq 'final_evidence') {
+            return $null
+        }
+        return New-MediaPipelineCurrentStageNativePollHandler `
+            -Stage $currentStage `
+            -Status $currentStatus `
+            -MinimumIntervalSeconds 15 `
+            -EvidenceSource 'native_process_fallback_heartbeat'
+    } catch {
+        if (Get-Command -Name DebugLog -ErrorAction SilentlyContinue) {
+            DebugLog ("Native fallback heartbeat unavailable: {0}" -f $_.Exception.Message)
+        }
+        return $null
+    }
+}
+
+function Invoke-MediaPipelineElapsedPollHandler {
+    <# Best-effort liveness tick for synchronous backend loops. #>
+    param(
+        [scriptblock] $PollHandler,
+        [System.Diagnostics.Stopwatch] $Stopwatch
+    )
+
+    if (-not $PollHandler) { return }
+    $elapsedSeconds = if ($Stopwatch) { [double]$Stopwatch.Elapsed.TotalSeconds } else { 0.0 }
+    try { & $PollHandler $elapsedSeconds $null | Out-Null } catch {}
+}
+
 # Aggressive process-tree teardown. .NET's Kill($true) is preferred (it walks
 # child PIDs via the Win32 job-object API), but on PowerShell 7 with some
 # bundled exes Kill($true) fails with "Access is denied" — in that case
@@ -106,7 +215,18 @@ function Get-CompletedTaskTextWithBoundedDrain {
 # if the wait was cut short by the stop flag, $true if it ran to completion.
 # Polls in 1-second steps so the worst-case responsiveness is ~1 s.
 function Start-StopAwareSleep {
-    param([int]$Seconds)
+    param(
+        [int]$Seconds,
+        [scriptblock]$PollHandler = $null
+    )
+    $effectivePollHandler = $PollHandler
+    if (-not $effectivePollHandler) {
+        $effectivePollHandler = New-MediaPipelineNativeCommandFallbackPollHandler
+    }
+    $waitStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    if ($effectivePollHandler) {
+        try { & $effectivePollHandler 0 $null | Out-Null } catch {}
+    }
     $remainingMs = [math]::Max(0, $Seconds * 1000)
     while ($remainingMs -gt 0) {
         if (Test-Path -LiteralPath $StopFlag -ErrorAction SilentlyContinue) {
@@ -118,7 +238,11 @@ function Start-StopAwareSleep {
         $step = [math]::Min(1000, $remainingMs)
         Start-Sleep -Milliseconds $step
         $remainingMs -= $step
+        if ($effectivePollHandler) {
+            try { & $effectivePollHandler ([double]$waitStopwatch.Elapsed.TotalSeconds) $null | Out-Null } catch {}
+        }
     }
+    $waitStopwatch.Stop()
     return $true
 }
 
@@ -166,7 +290,8 @@ function Invoke-RecursivePathScan {
         [Parameter(Mandatory)] [string] $Path,
         [ValidateSet('File','Directory')] [string] $ItemType = 'File',
         [int] $TimeoutSeconds = 300,
-        [string] $Label = 'recursive scan'
+        [string] $Label = 'recursive scan',
+        [scriptblock] $PollHandler = $null
     )
 
     $script:LastRecursivePathScanStatus = 'started'
@@ -193,7 +318,15 @@ function Invoke-RecursivePathScan {
     } -ArgumentList $Path, $ItemType
 
     $startedAt = Get-Date
+    $scanStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    $effectivePollHandler = $PollHandler
+    if (-not $effectivePollHandler) {
+        $effectivePollHandler = New-MediaPipelineNativeCommandFallbackPollHandler
+    }
     try {
+        if ($effectivePollHandler) {
+            try { & $effectivePollHandler 0 $null | Out-Null } catch {}
+        }
         while ($true) {
             if ($script:StopRequested -or (Test-Path -LiteralPath $StopFlag -ErrorAction SilentlyContinue)) {
                 Write-Log "$Label stopped during recursive scan: $Path" "WARN"
@@ -212,6 +345,10 @@ function Invoke-RecursivePathScan {
                 )
             }
 
+            if ($effectivePollHandler) {
+                try { & $effectivePollHandler ([double]$scanStopwatch.Elapsed.TotalSeconds) $null | Out-Null } catch {}
+            }
+
             if ($TimeoutSeconds -gt 0 -and ((Get-Date) - $startedAt).TotalSeconds -ge $TimeoutSeconds) {
                 Stop-Job $job -ErrorAction SilentlyContinue
                 Write-Log "$Label timed out after ${TimeoutSeconds}s while scanning $Path" "WARN"
@@ -224,6 +361,7 @@ function Invoke-RecursivePathScan {
         $script:LastRecursivePathScanStatus = 'error'
         return @()
     } finally {
+        $scanStopwatch.Stop()
         Remove-Job $job -Force -ErrorAction SilentlyContinue
     }
 }
@@ -592,6 +730,8 @@ function Invoke-ExternalToolCommand {
         # ProcessPriorityClass right after launch. Used by BDPGS OCR and
         # other CPU-bound tool calls so they don't starve the desktop.
         [string]$ProcessPriority = 'inherit',
+        [scriptblock]$PollHandler,
+        [int]$PollMilliseconds = 100,
         [int]$IdleTimeoutSeconds = 0,
         [string]$IdleTimeoutErrorCode = 'NATIVE_IDLE_TIMEOUT',
         [string]$WorkingDirectory = '',
@@ -622,6 +762,7 @@ function Invoke-ExternalToolCommand {
         ArgumentList    = $ArgumentList
         TimeoutSeconds  = $TimeoutSeconds
         ProcessPriority = $ProcessPriority
+        PollMilliseconds = $PollMilliseconds
         IdleTimeoutSeconds = $IdleTimeoutSeconds
         IdleTimeoutErrorCode = $IdleTimeoutErrorCode
         WorkingDirectory = $WorkingDirectory
@@ -629,6 +770,11 @@ function Invoke-ExternalToolCommand {
     if ($ErrorHandler) {
         $nativeArgs.ErrorHandler = $ErrorHandler
     }
+    $effectivePollHandler = $PollHandler
+    if (-not $effectivePollHandler) {
+        $effectivePollHandler = New-MediaPipelineNativeCommandFallbackPollHandler
+    }
+    if ($effectivePollHandler) { $nativeArgs.PollHandler = $effectivePollHandler }
 
     $result = Invoke-NativeCommand @nativeArgs
     $completedAt = Get-Date
@@ -706,10 +852,12 @@ function Invoke-FFprobeCommand {
         [int]$TimeoutSeconds = 30,
         [string]$Stage = 'ffprobe',
         [switch]$SaveReproOnFailure,
-        [scriptblock]$ErrorHandler
+        [scriptblock]$ErrorHandler,
+        [scriptblock]$PollHandler,
+        [int]$PollMilliseconds = 100
     )
 
-    return Invoke-ExternalToolCommand -ToolName 'ffprobe' -FilePath $ffprobePath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler
+    return Invoke-ExternalToolCommand -ToolName 'ffprobe' -FilePath $ffprobePath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
 }
 
 function Invoke-FFmpegCommand {
@@ -720,11 +868,13 @@ function Invoke-FFmpegCommand {
         [switch]$SaveReproOnFailure,
         [scriptblock]$ErrorHandler,
         [string]$ProcessPriority = 'inherit',
+        [scriptblock]$PollHandler,
+        [int]$PollMilliseconds = 100,
         [int]$IdleTimeoutSeconds = 0,
         [string]$WorkingDirectory = ''
     )
 
-    return Invoke-ExternalToolCommand -ToolName 'ffmpeg' -FilePath $ffmpegPath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority -IdleTimeoutSeconds $IdleTimeoutSeconds -WorkingDirectory $WorkingDirectory
+    return Invoke-ExternalToolCommand -ToolName 'ffmpeg' -FilePath $ffmpegPath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds -IdleTimeoutSeconds $IdleTimeoutSeconds -WorkingDirectory $WorkingDirectory
 }
 
 function Invoke-MkvmergeCommand {
@@ -735,10 +885,12 @@ function Invoke-MkvmergeCommand {
         [switch]$SaveReproOnFailure,
         [scriptblock]$ErrorHandler,
         [string]$ProcessPriority = 'inherit',
+        [scriptblock]$PollHandler,
+        [int]$PollMilliseconds = 100,
         [int]$IdleTimeoutSeconds = 0
     )
 
-    return Invoke-ExternalToolCommand -ToolName 'mkvmerge' -FilePath $mkvmergePath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority -IdleTimeoutSeconds $IdleTimeoutSeconds
+    return Invoke-ExternalToolCommand -ToolName 'mkvmerge' -FilePath $mkvmergePath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds -IdleTimeoutSeconds $IdleTimeoutSeconds
 }
 
 function Invoke-MkvextractCommand {
@@ -749,10 +901,12 @@ function Invoke-MkvextractCommand {
         [string]$Stage = 'mkvextract',
         [switch]$SaveReproOnFailure,
         [scriptblock]$ErrorHandler,
-        [string]$ProcessPriority = 'inherit'
+        [string]$ProcessPriority = 'inherit',
+        [scriptblock]$PollHandler,
+        [int]$PollMilliseconds = 100
     )
 
-    return Invoke-ExternalToolCommand -ToolName 'mkvextract' -FilePath $FilePath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority
+    return Invoke-ExternalToolCommand -ToolName 'mkvextract' -FilePath $FilePath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
 }
 
 function Invoke-PythonToolCommand {
@@ -763,10 +917,12 @@ function Invoke-PythonToolCommand {
         [switch]$SaveReproOnFailure,
         [scriptblock]$ErrorHandler,
         [string]$ProcessPriority = 'inherit',
+        [scriptblock]$PollHandler,
+        [int]$PollMilliseconds = 100,
         [int[]]$SuccessExitCodes = @(0)
     )
 
-    return Invoke-ExternalToolCommand -ToolName 'python' -FilePath $pythonPath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority -SuccessExitCodes $SuccessExitCodes
+    return Invoke-ExternalToolCommand -ToolName 'python' -FilePath $pythonPath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds -SuccessExitCodes $SuccessExitCodes
 }
 
 function Invoke-BdpgsOcrCommand {
@@ -777,10 +933,12 @@ function Invoke-BdpgsOcrCommand {
         [string]$Stage = 'subtitle-bdpgs-ocr',
         [switch]$SaveReproOnFailure,
         [scriptblock]$ErrorHandler,
-        [string]$ProcessPriority = 'inherit'
+        [string]$ProcessPriority = 'inherit',
+        [scriptblock]$PollHandler,
+        [int]$PollMilliseconds = 100
     )
 
-    return Invoke-ExternalToolCommand -ToolName 'bdpgs-ocr' -FilePath $FilePath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority
+    return Invoke-ExternalToolCommand -ToolName 'bdpgs-ocr' -FilePath $FilePath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
 }
 
 function Invoke-VobSubOcrCommand {
@@ -791,10 +949,12 @@ function Invoke-VobSubOcrCommand {
         [string]$Stage = 'subtitle-vobsub-ocr',
         [switch]$SaveReproOnFailure,
         [scriptblock]$ErrorHandler,
-        [string]$ProcessPriority = 'inherit'
+        [string]$ProcessPriority = 'inherit',
+        [scriptblock]$PollHandler,
+        [int]$PollMilliseconds = 100
     )
 
-    return Invoke-ExternalToolCommand -ToolName 'vobsub-ocr' -FilePath $FilePath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority
+    return Invoke-ExternalToolCommand -ToolName 'vobsub-ocr' -FilePath $FilePath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
 }
 
 # Drops a copy-pasteable command line into Failed\Reports\ next to the

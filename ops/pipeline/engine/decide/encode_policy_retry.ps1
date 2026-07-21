@@ -22,7 +22,9 @@ function Acquire-CpuEncodeMutex {
     #>
     param(
         [string] $Name = 'Global\MediaPipelineCpuEncodeMutex',
-        [int]    $TimeoutSeconds = -1
+        [int]    $TimeoutSeconds = -1,
+        [scriptblock] $PollHandler,
+        [int] $PollMilliseconds = 1000
     )
 
     try {
@@ -42,17 +44,49 @@ function Acquire-CpuEncodeMutex {
 
     $waitMs = if ($TimeoutSeconds -lt 0) { -1 } else { [int]([math]::Min([int]::MaxValue, [double]$TimeoutSeconds * 1000)) }
     $acquired = $false
-    try {
-        $acquired = $mutex.WaitOne($waitMs)
-    } catch [System.Threading.AbandonedMutexException] {
-        # An earlier holder exited without releasing (process killed mid-
-        # encode). WaitOne returns true after this exception, so we own
-        # the mutex now.
-        $acquired = $true
-        Write-Log "CPU-encode mutex was abandoned by a previous holder; recovered ownership" "WARN"
-    } catch {
-        Write-Log "CPU-encode mutex wait failed: $($_.Exception.Message)" "WARN"
-        $acquired = $false
+    if ($PollHandler -and $TimeoutSeconds -ne 0) {
+        $waitStartedAt = Get-Date
+        $safePollMilliseconds = [math]::Max(10, [int]$PollMilliseconds)
+        while (-not $acquired) {
+            $elapsedMilliseconds = [math]::Max(0.0, ((Get-Date) - $waitStartedAt).TotalMilliseconds)
+            if ($waitMs -ge 0 -and $elapsedMilliseconds -ge $waitMs) { break }
+            $sliceMilliseconds = if ($waitMs -lt 0) {
+                $safePollMilliseconds
+            } else {
+                [math]::Max(1, [math]::Min($safePollMilliseconds, [int][math]::Ceiling($waitMs - $elapsedMilliseconds)))
+            }
+            try {
+                $acquired = $mutex.WaitOne($sliceMilliseconds)
+            } catch [System.Threading.AbandonedMutexException] {
+                $acquired = $true
+                Write-Log "CPU-encode mutex was abandoned by a previous holder; recovered ownership" "WARN"
+            } catch {
+                Write-Log "CPU-encode mutex wait failed: $($_.Exception.Message)" "WARN"
+                break
+            }
+            if (-not $acquired) {
+                try {
+                    & $PollHandler ([math]::Round(((Get-Date) - $waitStartedAt).TotalSeconds, 3)) $null | Out-Null
+                } catch {
+                    if (Get-Command -Name DebugLog -ErrorAction SilentlyContinue) {
+                        DebugLog "CPU-encode mutex poll handler failed: $_"
+                    }
+                }
+            }
+        }
+    } else {
+        try {
+            $acquired = $mutex.WaitOne($waitMs)
+        } catch [System.Threading.AbandonedMutexException] {
+            # An earlier holder exited without releasing (process killed mid-
+            # encode). WaitOne returns true after this exception, so we own
+            # the mutex now.
+            $acquired = $true
+            Write-Log "CPU-encode mutex was abandoned by a previous holder; recovered ownership" "WARN"
+        } catch {
+            Write-Log "CPU-encode mutex wait failed: $($_.Exception.Message)" "WARN"
+            $acquired = $false
+        }
     }
 
     if (-not $acquired) {

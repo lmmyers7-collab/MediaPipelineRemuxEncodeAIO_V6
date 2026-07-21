@@ -50,6 +50,24 @@ function DebugLog {
     Write-Log -Message $Message -Level 'DEBUG'
 }
 
+$script:RunMonitorSubtitlePolicyCalls = [System.Collections.Generic.List[object]]::new()
+$script:SubtitleMonitorOrder = [System.Collections.Generic.List[string]]::new()
+function Set-MediaPipelineRunMonitorSubtitleRecords {
+    param(
+        [string] $RunId,
+        [string] $JobId,
+        [array] $Records,
+        [switch] $FinalPolicy
+    )
+    $script:RunMonitorSubtitlePolicyCalls.Add([pscustomobject]@{
+        RunId = $RunId
+        JobId = $JobId
+        Records = @($Records)
+        FinalPolicy = [bool]$FinalPolicy
+    }) | Out-Null
+    $script:SubtitleMonitorOrder.Add('policy') | Out-Null
+}
+
 function Get-EffectiveSubtitleSwitch {
     param([string] $Name, [bool] $Default)
     if ($script:SubtitleSwitches.ContainsKey($Name)) {
@@ -228,8 +246,10 @@ function New-TestSubtitleEntry {
         [string] $SourceKind = 'embedded',
         [switch] $SourceDefault,
         [bool] $LanguagePolicyMatched = $true,
-        [string] $RetainReason = 'language_policy'
+        [string] $RetainReason = 'language_policy',
+        [int] $SubtitleOrdinal = -1
     )
+    if ($SubtitleOrdinal -lt 0) { $SubtitleOrdinal = $Index }
     return @{
         Stream = [pscustomobject]@{ index = $Index }
         Lang = $Lang
@@ -247,6 +267,7 @@ function New-TestSubtitleEntry {
         LanguagePolicyMatched = [bool]$LanguagePolicyMatched
         RetainReason = $RetainReason
         SourceKind = $SourceKind
+        SubtitleOrdinal = $SubtitleOrdinal
     }
 }
 
@@ -256,8 +277,10 @@ function Write-TestSrt {
 }
 
 function Convert-AssToSrt {
-    param([string] $SourceFile, [int] $StreamIndex, $StreamInfo)
+    param([string] $SourceFile, [int] $StreamIndex, $StreamInfo, [string] $TrackId = '')
     $script:ConversionCalls.Add("ass:$StreamIndex") | Out-Null
+    $script:ConversionTrackIds.Add("ass:$TrackId") | Out-Null
+    $script:SubtitleMonitorOrder.Add("convert:ass:$TrackId") | Out-Null
     if ($script:AssConversionMode -eq 'fail') {
         return [pscustomobject]@{
             Ok = $false
@@ -271,8 +294,10 @@ function Convert-AssToSrt {
 }
 
 function Convert-Tx3gToSrt {
-    param([string] $SourceFile, [int] $StreamIndex, $StreamInfo, [string] $DestinationPath, [string] $Context)
+    param([string] $SourceFile, [int] $StreamIndex, $StreamInfo, [string] $DestinationPath, [string] $Context, [string] $TrackId = '')
     $script:ConversionCalls.Add("tx3g:$StreamIndex") | Out-Null
+    $script:ConversionTrackIds.Add("tx3g:$TrackId") | Out-Null
+    $script:SubtitleMonitorOrder.Add("convert:tx3g:$TrackId") | Out-Null
     if ($script:Tx3gConversionMode -eq 'fail') {
         return [pscustomobject]@{
             Ok = $false
@@ -286,8 +311,10 @@ function Convert-Tx3gToSrt {
 }
 
 function Convert-BdpgsToSrt {
-    param([string] $SourceFile, [int] $StreamIndex, $StreamInfo, [string] $DestinationPath, [string] $Context)
+    param([string] $SourceFile, [int] $StreamIndex, $StreamInfo, [string] $DestinationPath, [string] $Context, [string] $TrackId = '')
     $script:ConversionCalls.Add("bdpgs:$StreamIndex") | Out-Null
+    $script:ConversionTrackIds.Add("bdpgs:$TrackId") | Out-Null
+    $script:SubtitleMonitorOrder.Add("convert:bdpgs:$TrackId") | Out-Null
     if ($script:BdpgsConversionMode -eq 'fail') {
         return [pscustomobject]@{
             Ok = $false
@@ -300,8 +327,10 @@ function Convert-BdpgsToSrt {
 }
 
 function Convert-VobSubToSrt {
-    param([string] $SourceFile, [int] $StreamIndex, $StreamInfo, [string] $DestinationPath, [string] $Context)
+    param([string] $SourceFile, [int] $StreamIndex, $StreamInfo, [string] $DestinationPath, [string] $Context, [string] $TrackId = '')
     $script:ConversionCalls.Add("vobsub:$StreamIndex") | Out-Null
+    $script:ConversionTrackIds.Add("vobsub:$TrackId") | Out-Null
+    $script:SubtitleMonitorOrder.Add("convert:vobsub:$TrackId") | Out-Null
     if ($script:VobSubConversionMode -eq 'fail') {
         return [pscustomobject]@{
             Ok = $false
@@ -357,6 +386,7 @@ function Get-SubtitleOperationTimeoutSeconds {
 
 $script:LogRows = [System.Collections.Generic.List[object]]::new()
 $script:ConversionCalls = [System.Collections.Generic.List[string]]::new()
+$script:ConversionTrackIds = [System.Collections.Generic.List[string]]::new()
 $script:SubtitleSwitches = @{
     DropAssAfterConversion = $false
     DropTx3gAfterConversion = $false
@@ -418,6 +448,17 @@ try {
     Assert-True ($script:SubtitleProbeArgumentList -contains 'stream=index,codec_name,codec_long_name,codec_tag_string,codec_tag:stream_tags=language,title:stream_disposition=default,forced') 'Subtitle discovery must explicitly request ffprobe default/forced dispositions.'
     Assert-Equal @($probeFilter.Keep).Count 1 'Forced English SRT fixture should remain in the keep plan.'
     Assert-True ([bool]$probeFilter.Keep[0].IsForced) 'Subtitle discovery must carry the source forced disposition into the resolved plan.'
+    Assert-Equal $probeFilter.Keep[0].TrackId 'subtitle:embedded:0' 'Subtitle discovery must assign the stable backend TrackId used by runtime policy and terminal artifacts.'
+    Assert-Equal $probeFilter.Decisions[0].track_id 'subtitle:embedded:0' 'Terminal subtitle routing evidence must retain the same TrackId as the runtime entry.'
+    Assert-Equal $probeFilter.Decisions[0].planned_action 'preserve_original' 'Terminal routing evidence must retain the backend-authored planned action.'
+
+    $script:SubtitleLanguagePolicy = @('jpn')
+    $droppedProbeFilter = Filter-SubtitleStreams -FilePath (Join-Path $script:processingDir 'source.mkv') -Context 'TEST DROP: '
+    Assert-Equal @($droppedProbeFilter.Drop).Count 1 'Non-policy subtitle fixture should enter the explicit drop plan.'
+    Assert-Equal $droppedProbeFilter.Decisions[0].track_id 'subtitle:embedded:stream-3' 'Dropped embedded terminal evidence must use the same stream-backed identity as the builder policy entry.'
+    $droppedProbeRecords = @(Get-SubtitleBuilderTrackDecisionRecords -FilterResult $droppedProbeFilter -Builder 'FFmpeg')
+    Assert-Equal $droppedProbeRecords[0].TrackId $droppedProbeFilter.Decisions[0].track_id 'Dropped runtime and terminal subtitle packets must correlate by exact TrackId.'
+    $script:SubtitleLanguagePolicy = @('eng')
 
     $literalKeywordResults = & {
         . (Join-Path $repoRoot 'ops\pipeline\engine\subtitles\language_policy.ps1')
@@ -515,10 +556,13 @@ try {
             (New-TestSubtitleEntry -Index 13 -Lang 'eng' -Title 'Kept PGS' -Codec 'hdmv_pgs_subtitle' -Bdpgs),
             (New-TestSubtitleEntry -Index 14 -Lang 'und' -Title 'Undefined SRT' -Codec 'subrip')
         )
+        Drop = @(
+            (New-TestSubtitleEntry -Index 15 -Lang 'fra' -Title 'Dropped French SRT' -Codec 'subrip')
+        )
     }
 
     $records = @(Get-SubtitleBuilderTrackDecisionRecords -FilterResult $filter -Builder 'FFmpeg' -CanPreserveTx3g:$false -CanPreserveBdpgs:$false)
-    Assert-Equal $records.Count 5 'decision planner should emit one record per routed subtitle entry.'
+    Assert-Equal $records.Count 6 'decision planner should emit one record per routed subtitle entry, including explicit drops.'
     Assert-Equal $script:ConversionCalls.Count 0 'decision planner must not call conversion/OCR helpers.'
     Assert-Equal @(Get-ChildItem -LiteralPath $script:processingDir -Filter '*.srt' -File -ErrorAction SilentlyContinue).Count 0 'decision planner must not create SRT temp artifacts.'
 
@@ -527,6 +571,13 @@ try {
     Assert-Equal $assDecision.ConversionKind 'ass_to_srt' 'ASS conversion decision should name the SRT conversion kind.'
     Assert-True $assDecision.ConversionFailureRoutesToReview 'ASS conversion failure should remain review-routed.'
     Assert-True $assDecision.IsPreferredDefaultCandidate 'English ASS should be a preferred default candidate.'
+    Assert-True $assDecision.Extract 'ASS conversion policy should explicitly report extraction work.'
+    Assert-True $assDecision.Convert 'ASS conversion policy should explicitly report conversion work.'
+    Assert-True (-not $assDecision.Ocr) 'ASS conversion policy must not report OCR.'
+    Assert-Equal $assDecision.PlannedAction 'convert_ass_to_srt' 'ASS planned action should be backend-authored.'
+    Assert-Equal $assDecision.SourceType 'text' 'ASS source type should be text.'
+    Assert-Equal $assDecision.SourceKind 'embedded' 'Embedded subtitle provenance should be explicit.'
+    Assert-Equal $assDecision.TrackId 'subtitle:embedded:10' 'Subtitle decision identity must use backend source kind and source ordinal.'
 
     $tx3gDecision = @($records | Where-Object { $_.Action -eq 'ConvertTx3g' })[0]
     Assert-True (-not $tx3gDecision.PreserveOriginal) 'TX3G should not be preserved when the FFmpeg output container cannot carry it.'
@@ -537,6 +588,8 @@ try {
     Assert-True (-not $bdpgsConvertDecision.PreserveOriginal) 'BDPGS should not be preserved when the FFmpeg output container cannot carry it.'
     Assert-Equal $bdpgsConvertDecision.OriginalPreserveReason 'container_does_not_preserve_bdpgs' 'BDPGS preserve reason should record container incompatibility.'
     Assert-True $bdpgsConvertDecision.ConversionFailureRoutesToReview 'BDPGS OCR failure should remain review-routed.'
+    Assert-True $bdpgsConvertDecision.Ocr 'BDPGS conversion policy should explicitly report OCR work.'
+    Assert-Equal $bdpgsConvertDecision.PlannedAction 'ocr_bdpgs_to_srt' 'BDPGS planned action should be backend-authored.'
 
     $bdpgsKeepDecision = @($records | Where-Object { $_.Action -eq 'Keep' -and $_.Entry.IsBdpgs })[0]
     Assert-True $bdpgsKeepDecision.RoutesToReview 'Kept BDPGS should route to review when FFmpeg output cannot preserve it.'
@@ -547,7 +600,17 @@ try {
     Assert-True $srtKeepDecision.RoutesToReview 'MP4 compatibility should route embedded SRT preserve attempts to review.'
     Assert-Equal $srtKeepDecision.ReviewErrorCode 'SUBTITLE_MP4_EXTERNAL_SRT_REQUIRED' 'MP4 embedded subtitle review route should be explicit.'
 
+    $dropDecision = @($records | Where-Object { $_.Action -eq 'Drop' })[0]
+    Assert-True $dropDecision.Drop 'Dropped subtitle policy should be explicit.'
+    Assert-Equal $dropDecision.PlannedAction 'drop' 'Dropped subtitle planned action should be backend-authored.'
+    Assert-Equal $dropDecision.PolicyReason 'backend_subtitle_policy_drop' 'Dropped subtitle policy should retain a stable reason.'
+
+    $script:PipelineRunId = 'subtitle-order-run'
+    $script:CurrentRunMonitorJobId = 'subtitle-order-run:item:1'
+    $script:SubtitleMonitorOrder.Clear()
     $mp4Build = Build-SubtitleArgsForFFmpeg -FilterResult $filter -DefaultAudioLang 'eng' -SourceFile (Join-Path $script:processingDir 'source.mkv') -Context 'TEST: '
+    Assert-Equal $script:SubtitleMonitorOrder[0] 'policy' 'The final backend subtitle policy must be seeded before any exact conversion/OCR track progress can be emitted.'
+    Assert-True ([bool]($script:SubtitleMonitorOrder[1] -like 'convert:*')) 'Production subtitle conversion must begin only after the monitor policy seed.'
     Assert-Equal $mp4Build.TrackCount 0 'MP4 compatibility should not emit embedded subtitle tracks.'
     Assert-Equal $mp4Build.MapArgs.Count 0 'MP4 compatibility should not emit subtitle map args.'
     Assert-Equal $mp4Build.ExtraInputs.Count 0 'MP4 compatibility should not add generated SRT inputs for embedding.'
@@ -561,6 +624,10 @@ try {
     Assert-Equal $selectedMp4Sidecar.SourceSubtitleKind 'ass' 'Selected MP4 sidecar should retain the source subtitle kind.'
     Assert-Equal $selectedMp4Sidecar.SourceSubtitleCodec 'ass' 'Selected MP4 sidecar should retain the source subtitle codec.'
     Assert-Equal $selectedMp4Sidecar.SourceKind 'embedded' 'Selected MP4 sidecar should retain embedded-vs-sidecar provenance.'
+    Assert-Equal $selectedMp4Sidecar.TrackId 'subtitle:embedded:10' 'Converted sidecar evidence must retain the exact subtitle track identity.'
+    Assert-True ([bool]($script:ConversionTrackIds -contains 'ass:subtitle:embedded:10')) 'ASS conversion must receive the exact backend subtitle TrackId.'
+    Assert-True ([bool]($script:ConversionTrackIds -contains 'tx3g:subtitle:embedded:11')) 'TX3G conversion must receive the exact backend subtitle TrackId.'
+    Assert-True ([bool]($script:ConversionTrackIds -contains 'bdpgs:subtitle:embedded:12')) 'BDPGS conversion must receive the exact backend subtitle TrackId.'
     Assert-Equal @($mp4Build.Tx3gTracks)[0].ConversionKind 'ass_to_srt' 'Compatibility TX3G sidecar field should not erase non-TX3G provenance.'
     Assert-True ($mp4Build.DroppedEmbeddedTrackCount -ge 3) 'MP4 compatibility should report dropped embedded subtitle candidates.'
     $reducedMp4Kinds = (@($mp4Build.SubtitleOutputReduction) | ForEach-Object { $_.source_subtitle_kind }) -join ','
@@ -776,6 +843,9 @@ try {
     $script:VobSubConversionMode = 'success'
 
     $script:ConversionCalls.Clear()
+    $script:RunMonitorSubtitlePolicyCalls.Clear()
+    $script:PipelineRunId = 'subtitle-burn-run'
+    $script:CurrentRunMonitorJobId = 'subtitle-burn-run:item:1'
     $textBurnEntry = New-TestSubtitleEntry -Index 33 -Lang 'eng' -Title 'English SRT burn' -Codec 'subrip'
     $textBurnEntry['SubtitleInputOrdinal'] = 1
     $textBurnBuild = Build-SubtitleArgsForFFmpeg -FilterResult @{ Burn = @($textBurnEntry) } -DefaultAudioLang 'jpn' -SourceFile (Join-Path $script:processingDir 'source.mkv') -Context 'TEST: '
@@ -788,15 +858,21 @@ try {
     Assert-ContainsText ($textBurnBuild.VideoFilterArgs -join ' ') ':si=1' 'Text subtitle burn should select the exact subtitle input ordinal.'
     Assert-Equal $textBurnBuild.VideoFilterArgs[-2] '-map' 'Text subtitle burn should map the filtered video output.'
     Assert-Equal $textBurnBuild.VideoFilterArgs[-1] '[vout]' 'Text subtitle burn should map only the burn-filtered video pad.'
+    Assert-Equal $script:RunMonitorSubtitlePolicyCalls.Count 1 'Text burn-in must publish backend subtitle policy before the builder returns early.'
+    Assert-True $script:RunMonitorSubtitlePolicyCalls[0].FinalPolicy 'Text burn-in policy must be marked final.'
+    Assert-Equal $script:RunMonitorSubtitlePolicyCalls[0].Records[0].PlannedAction 'burn_in' 'Text burn-in monitor policy must retain the backend-authored action.'
+    Assert-Equal $script:RunMonitorSubtitlePolicyCalls[0].Records[0].TrackId 'subtitle:embedded:33' 'Text burn-in monitor policy must retain the exact subtitle TrackId.'
 
     $imageBurnEntry = New-TestSubtitleEntry -Index 34 -Lang 'eng' -Title 'English PGS burn' -Codec 'hdmv_pgs_subtitle' -Bdpgs
     $imageBurnEntry['SubtitleInputOrdinal'] = 2
+    $script:RunMonitorSubtitlePolicyCalls.Clear()
     $imageBurnBuild = Build-SubtitleArgsForFFmpeg -FilterResult @{ Burn = @($imageBurnEntry) } -DefaultAudioLang 'jpn' -SourceFile (Join-Path $script:processingDir 'source.mkv') -Context 'TEST: '
     Assert-Equal $imageBurnBuild.TrackCount 0 'Image subtitle burn should not emit selectable subtitle output tracks.'
     Assert-Equal $imageBurnBuild.MapArgs.Count 0 'Image subtitle burn should not map selectable subtitles.'
     Assert-Equal $imageBurnBuild.ExtraInputs.Count 0 'Image subtitle burn should not create generated subtitle inputs.'
     Assert-ContainsText ($imageBurnBuild.VideoFilterArgs -join ' ') 'overlay=eof_action=pass:repeatlast=0' 'Image subtitle burn should overlay the exact bitmap subtitle ordinal.'
     Assert-Equal ([int]$imageBurnBuild.BurnTrack.Stream.index) 34 'Image subtitle burn should keep evidence for the burned stream index.'
+    Assert-Equal $script:RunMonitorSubtitlePolicyCalls.Count 1 'Image burn-in must publish backend subtitle policy before the builder returns early.'
 
     . (Join-Path $repoRoot 'ops\pipeline\engine\subtitles\srt.ps1')
     $validSrtPath = Join-Path $script:processingDir 'valid.srt'
@@ -821,6 +897,60 @@ try {
     $mergedSrtText = [System.IO.File]::ReadAllText($mergeSrtPath, [System.Text.Encoding]::UTF8)
     Assert-ContainsText $mergedSrtText '00:00:00,000 --> 00:00:02,000' 'SRT adjacent identical cue merge should use the local timestamp parser and extend the first cue.'
     Assert-True ([bool](Test-SrtFileUsable -Path $mergeSrtPath).Ok) 'Merged SRT should remain usable after atomic rewrite.'
+
+    $script:BdpgsHeartbeatRequests = [System.Collections.Generic.List[object]]::new()
+    $script:BdpgsHeartbeatState = [pscustomobject]@{ PollCount = 0 }
+    $script:BdpgsHeartbeatOrder = [System.Collections.Generic.List[string]]::new()
+    function New-SubtitleTrackHeartbeatHandler {
+        param(
+            [string] $Kind,
+            [string] $TrackId,
+            [int] $StreamIndex,
+            [string] $Stage,
+            [string] $Status,
+            [int] $StepIndex,
+            [int] $StepTotal,
+            [array] $Steps,
+            [string] $Detail,
+            [double] $MinimumIntervalSeconds = 5
+        )
+        $script:BdpgsHeartbeatRequests.Add([pscustomobject]@{
+            Kind = $Kind
+            TrackId = $TrackId
+            StreamIndex = $StreamIndex
+            Stage = $Stage
+            Status = $Status
+            Detail = $Detail
+        }) | Out-Null
+        $heartbeatState = $script:BdpgsHeartbeatState
+        $heartbeatOrder = $script:BdpgsHeartbeatOrder
+        $heartbeatStatus = $Status
+        return {
+            param($ElapsedSeconds, $Process)
+            $heartbeatState.PollCount++
+            $heartbeatOrder.Add("poll:$heartbeatStatus") | Out-Null
+            return $null
+        }.GetNewClosure()
+    }
+
+    $script:BdpgsMutexAcquireCount = 0
+    function Acquire-CpuEncodeMutex {
+        param(
+            [int] $TimeoutSeconds,
+            [scriptblock] $PollHandler,
+            [int] $PollMilliseconds = 1000
+        )
+        $script:BdpgsMutexAcquireCount++
+        if ($script:BdpgsMutexAcquireCount -eq 1) {
+            return [pscustomobject]@{ Acquired = $false; Reason = 'fixture CPU slot busy'; Release = {} }
+        }
+        $script:BdpgsMutexPollMilliseconds = $PollMilliseconds
+        if ($PollHandler) {
+            & $PollHandler 0 $null
+            & $PollHandler 6 $null
+        }
+        return [pscustomobject]@{ Acquired = $true; Reason = ''; Release = {} }
+    }
 
     . (Join-Path $repoRoot 'ops\pipeline\engine\subtitles\bdpgs.ps1')
     $bdpgsPipeGlyphText = "1`r`n00:00:00,200 --> 00:00:01,400`r`n| never said |t was over.`r`n`r`n2`r`n00:00:01,500 --> 00:00:02,000`r`nNo pipe here.`r`n"
@@ -867,9 +997,16 @@ try {
             [int] $TimeoutSeconds,
             [string] $Stage,
             [switch] $SaveReproOnFailure,
-            [string] $ProcessPriority
+            [string] $ProcessPriority,
+            [scriptblock] $PollHandler,
+            [int] $PollMilliseconds = 100
         )
         $script:BdpgsOcrInvocationCount++
+        $script:BdpgsOcrPollMilliseconds = $PollMilliseconds
+        $script:BdpgsHeartbeatOrder.Add('tool_started') | Out-Null
+        Assert-True ($null -ne $PollHandler) 'BDPGS OCR must pass an exact active-track heartbeat into the native wrapper.'
+        & $PollHandler 0 $null
+        & $PollHandler 6 $null
         $outputIndex = [array]::IndexOf($ArgumentList, '--output')
         $outputPath = [string]$ArgumentList[$outputIndex + 1]
         [System.IO.File]::WriteAllText($outputPath, "1`r`n00:00:00,200 --> 00:00:01,400`r`n| am here.`r`n", [System.Text.UTF8Encoding]::new($false))
@@ -879,14 +1016,28 @@ try {
     $script:BdpgsOcrToolPath = $PSCommandPath
     $script:BdpgsOcrTessdataPath = ''
     $script:BdpgsOcrInvocationCount = 0
+    $script:BdpgsMutexAcquireCount = 0
+    $script:BdpgsHeartbeatRequests.Clear()
+    $script:BdpgsHeartbeatState.PollCount = 0
+    $script:BdpgsHeartbeatOrder.Clear()
     Assert-Equal (Resolve-BdpgsOcrLanguage 'und') 'und' 'BDPGS OCR must not silently default undetermined language to English.'
     Assert-Equal (Resolve-BdpgsOcrLanguage '') 'und' 'BDPGS OCR must not silently default blank language to English.'
     $bdpgsConvertedPath = Join-Path $script:processingDir 'bdpgs-converted-pipe-glyph.srt'
-    $bdpgsConverted = Convert-BdpgsToSrt -SourceFile (Join-Path $script:processingDir 'source.mkv') -StreamIndex 40 -StreamInfo (New-TestSubtitleEntry -Index 40 -Lang 'eng' -Title 'English PGS' -Codec 'hdmv_pgs_subtitle' -Bdpgs) -DestinationPath $bdpgsConvertedPath -Context 'TEST: '
+    $bdpgsHeartbeatEntry = New-TestSubtitleEntry -Index 40 -Lang 'eng' -Title 'English PGS' -Codec 'hdmv_pgs_subtitle' -Bdpgs
+    $bdpgsHeartbeatEntry['TrackId'] = 'subtitle:embedded:40'
+    $bdpgsConverted = Convert-BdpgsToSrt -SourceFile (Join-Path $script:processingDir 'source.mkv') -StreamIndex 40 -StreamInfo $bdpgsHeartbeatEntry -DestinationPath $bdpgsConvertedPath -Context 'TEST: ' -TrackId $bdpgsHeartbeatEntry.TrackId
     Assert-True ([bool]$bdpgsConverted.Ok) ("BDPGS OCR conversion with pipe-glyph repair should succeed: {0}" -f $bdpgsConverted.Reason)
     $bdpgsConvertedText = [System.IO.File]::ReadAllText($bdpgsConvertedPath, [System.Text.Encoding]::UTF8)
     Assert-ContainsText $bdpgsConvertedText 'I am here.' 'BDPGS OCR conversion should repair pipe glyphs before accepting the SRT.'
     Assert-True (-not ($bdpgsConvertedText -match '\|')) 'BDPGS OCR conversion should not publish OCR pipe glyphs in cue text.'
+    Assert-True (@($script:BdpgsHeartbeatRequests | Where-Object { $_.TrackId -eq 'subtitle:embedded:40' -and $_.Stage -eq 'convert_ocr' -and $_.Status -like 'Waiting for CPU slot*' }).Count -eq 1) 'BDPGS CPU-slot wait must create one exact correlated heartbeat.'
+    Assert-True (@($script:BdpgsHeartbeatRequests | Where-Object { $_.TrackId -eq 'subtitle:embedded:40' -and $_.Stage -eq 'convert_ocr' -and $_.Status -eq 'Running BDPGS OCR' }).Count -eq 1) 'BDPGS OCR work must create one exact correlated heartbeat.'
+    Assert-True ($script:BdpgsHeartbeatState.PollCount -ge 4) 'Fake BDPGS mutex wait and OCR tool must both propagate their heartbeat handlers.'
+    Assert-Equal $script:BdpgsMutexPollMilliseconds 1000 'BDPGS CPU-slot wait must use an explicit bounded polling cadence.'
+    Assert-Equal $script:BdpgsOcrPollMilliseconds 250 'BDPGS OCR native polling must use an explicit bounded cadence.'
+    $bdpgsWaitPollIndex = [array]::IndexOf(@($script:BdpgsHeartbeatOrder), 'poll:Waiting for CPU slot for BDPGS OCR')
+    $bdpgsToolStartIndex = [array]::IndexOf(@($script:BdpgsHeartbeatOrder), 'tool_started')
+    Assert-True ($bdpgsWaitPollIndex -ge 0 -and $bdpgsWaitPollIndex -lt $bdpgsToolStartIndex) 'BDPGS CPU-slot heartbeat must fire before the OCR tool starts.'
 
     $script:BdpgsOcrInvocationCount = 0
     $bdpgsUnknownLanguagePath = Join-Path $script:processingDir 'bdpgs-unknown-language.srt'

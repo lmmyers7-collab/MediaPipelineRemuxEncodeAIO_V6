@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/core/processes/rerun_source_health.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
@@ -11,8 +14,7 @@ sha256: 2cd182a45b8ce6fe86833f82a25a91ce2871e3d8200f129c6c5307816dc8ce2d
 
 **Purpose:** Backend-owned source availability and identity classification for CSV reruns.
 
-**Classes:** `RerunSourceHealth`
-**Public functions:** `probe_rerun_source_health()`
+**Public symbols:** `probe_rerun_source_health`, `RerunSourceHealth`
 **In-repo imports:** `mediapipeline.core.paths.contracts`, `mediapipeline.core.processes.source_probe`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/processes/rerun_source_health.py`._

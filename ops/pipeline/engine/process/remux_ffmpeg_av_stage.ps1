@@ -106,6 +106,9 @@ function Invoke-MediaPipelineRemuxFfmpegAvStage {
     param([Parameter(Mandatory)] $Context)
 
     $Context.TempAvFile = Join-Path $script:processingDir "temp_av_$([guid]::NewGuid().ToString('N')).mkv"
+    if (Get-Command -Name Set-MediaPipelineCurrentRunMonitorOutput -ErrorAction SilentlyContinue) {
+        Set-MediaPipelineCurrentRunMonitorOutput -State active -ScratchPath ([string]$Context.LocalIn) -WorkingOutputPath ([string]$Context.TempAvFile) -IntendedFinalPath ([string]$Context.Paths.ServerOut) -VerificationState not_started | Out-Null
+    }
     $videoArgs = New-MediaPipelineRemuxVideoArgumentList -Context $Context
 
     $threadCapArgs = @()
@@ -126,7 +129,21 @@ function Invoke-MediaPipelineRemuxFfmpegAvStage {
         if (-not $remuxAvCpuLock.Acquired) {
             Write-Log "REMUX-AV: another CPU-bound job is already in progress on this machine; waiting for it ($($remuxAvCpuLock.Reason))" "WARN"
             Set-ProgressStage -Stage 'remux_av' -Status "Waiting for CPU slot (audio transcode)" -Route 'remux' -Percent 0 -SaveNow
-            $remuxAvCpuLock = Acquire-CpuEncodeMutex -TimeoutSeconds $script:FFmpegRemuxTimeoutSeconds
+            $remuxAvMutexPollHandler = if (Get-Command -Name New-MediaPipelineCurrentStageNativePollHandler -ErrorAction SilentlyContinue) {
+                New-MediaPipelineCurrentStageNativePollHandler `
+                    -Stage 'remux_av' `
+                    -Status 'Waiting for CPU slot (audio transcode)' `
+                    -Route 'remux' `
+                    -MinimumIntervalSeconds 15 `
+                    -RefreshActiveAudioTracks `
+                    -EvidenceSource 'remux_audio_cpu_mutex_heartbeat'
+            } else {
+                $null
+            }
+            $remuxAvCpuLock = Acquire-CpuEncodeMutex `
+                -TimeoutSeconds $script:FFmpegRemuxTimeoutSeconds `
+                -PollHandler $remuxAvMutexPollHandler `
+                -PollMilliseconds 1000
         }
     }
     try {
@@ -138,6 +155,7 @@ function Invoke-MediaPipelineRemuxFfmpegAvStage {
             ProgressStage   = 'remux_av'
             ProgressRoute   = 'remux'
             ReproStage      = 'remux-av'
+            TrackAudioWork  = $true
         }
         if ($remuxAvCpuEncode) {
             $remuxAvCallArgs['CpuEncode']       = $true

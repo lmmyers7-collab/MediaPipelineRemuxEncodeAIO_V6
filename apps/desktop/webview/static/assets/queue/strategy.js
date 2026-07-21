@@ -11,6 +11,7 @@
     const setActiveStrategy = typeof deps.setActiveStrategy === "function" ? deps.setActiveStrategy : () => {};
     const renderRows = typeof deps.renderRows === "function" ? deps.renderRows : () => {};
     const updateManualOrderControls = typeof deps.updateManualOrderControls === "function" ? deps.updateManualOrderControls : () => {};
+    const requestQueueScan = typeof deps.requestQueueScan === "function" ? deps.requestQueueScan : async () => {};
     const document = deps.documentRef || window.document;
     const QUEUE_STRATEGY_ROUTE = deps.strategyRoute || "/api/queue/strategy";
 
@@ -180,6 +181,7 @@
         // Reload the strategy display to confirm round-trip
         await loadQueueStrategy();
         updateManualOrderControls();
+        await requestQueueScan();
       } else {
         const msg = (payload && payload.message) ? payload.message : "Unknown error.";
         if (status) status.textContent = `Error: ${msg} Selector reset to active strategy "${getActiveStrategy()}".`;

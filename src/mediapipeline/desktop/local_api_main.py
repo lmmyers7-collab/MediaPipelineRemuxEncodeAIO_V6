@@ -20,6 +20,12 @@ from mediapipeline.core.api.file_overrides.remux_pilot import file_override_remu
 from .api import LocalApiServer
 from .api.http_helpers import NO_TOKEN_DEV_ENV_VAR, no_token_dev_allowed
 from .application import MediaPipelineApplicationFacade
+from .backend_instance import (
+    BACKEND_INSTANCE_ERROR_SCHEMA_VERSION,
+    BackendInstanceAlreadyRunning,
+    BackendInstanceGuard,
+    default_backend_instance_state_root,
+)
 from .backend_bootstrap import BOOTSTRAP_SCHEMA_VERSION, backend_bootstrap_payload, startup_progress_payload, startup_step
 from .models import ResolvedPaths
 from .services import DesktopAppService
@@ -68,6 +74,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=0, help="Bind port. Use 0 to let Windows choose a free port.")
     parser.add_argument("--token", default="", help="Optional explicit bearer token for the local shell.")
     parser.add_argument("--shell-surface", default="webview", choices=("webview", "tauri"), help="Frontend shell surface label exposed to WebView evidence payloads.")
+    parser.add_argument(
+        "--instance-state-root",
+        default="",
+        help="Backend ownership metadata root. Defaults to the per-user LocalAppData lifecycle root.",
+    )
     parser.add_argument("--emit-startup-progress", action="store_true", help="Emit startup checkpoint JSON lines before the final bootstrap payload.")
     parser.add_argument("--no-token", action="store_true", help="Disable token checks. Intended only for isolated development.")
     return parser.parse_args(argv)
@@ -75,6 +86,52 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def default_app_root() -> Path:
     return find_repo_root(Path(__file__)) / "apps" / "desktop"
+
+
+def _record_pipeline_terminal_command_evidence(
+    server: LocalApiServer,
+    *,
+    command_id: str,
+    phase: str,
+    return_code: int | None,
+    pid: int,
+    mode: str,
+) -> None:
+    ok = phase == "completed"
+    payload = {
+        "schema_version": "desktop_command_result.v1",
+        "command": "pipeline.start",
+        "ok": ok,
+        "severity": "info" if ok else ("warning" if phase == "interrupted" else "error"),
+        "message": (
+            f"Pipeline PID {pid} completed."
+            if ok
+            else f"Pipeline PID {pid} ended with {phase} evidence (return code {return_code})."
+        ),
+        "refresh_hint": "snapshot",
+        "data": {
+            "command_id": command_id,
+            "route": "/api/pipeline/start",
+            "evidence_phase": phase,
+            "journal_durability": "strict",
+            "pid": pid,
+            "mode": mode,
+            "return_code": return_code,
+        },
+    }
+    try:
+        server._record_command_journal(
+            payload,
+            request={"_command_id": command_id, "mode": mode},
+            strict=True,
+        )
+    except Exception as exc:
+        server._mark_command_evidence_indeterminate(
+            command_id=command_id,
+            route="/api/pipeline/start",
+            reason=f"Terminal pipeline command evidence could not be persisted: {exc}",
+        )
+        raise
 
 
 def record_startup_step(
@@ -319,6 +376,10 @@ def build_backend(
         shell_surface=shell_surface,
         startup_progress=startup_progress,
     )
+
+    service.configure_process_terminal_command_evidence(
+        lambda **evidence: _record_pipeline_terminal_command_evidence(server, **evidence)
+    )
     startup_progress = record_startup_step(
         startup_steps,
         "create_local_api",
@@ -377,18 +438,47 @@ def main(argv: Sequence[str] | None = None) -> int:
     require_token = not bool(args.no_token)
     stop_event = threading.Event()
     startup_callback = emit_startup_progress if bool(args.emit_startup_progress) else None
-    service, resolved, server = build_backend(
-        app_root=app_root,
-        pipeline_path=pipeline_path,
-        config_path=config_path,
-        host=host,
-        port=int(args.port or 0),
-        token=str(args.token or "") or None,
-        require_token=require_token,
-        shell_surface=str(args.shell_surface or "webview"),
-        shutdown_request=stop_event,
-        startup_progress_callback=startup_callback,
+    instance_state_root = (
+        Path(args.instance_state_root).expanduser()
+        if str(args.instance_state_root or "").strip()
+        else default_backend_instance_state_root()
     )
+    try:
+        instance_guard = BackendInstanceGuard.acquire(
+            instance_state_root,
+            shell_surface=str(args.shell_surface or "webview"),
+        )
+    except BackendInstanceAlreadyRunning as exc:
+        print(
+            json.dumps(
+                {
+                    "schema_version": BACKEND_INSTANCE_ERROR_SCHEMA_VERSION,
+                    "error": str(exc),
+                },
+                sort_keys=True,
+            ),
+            flush=True,
+        )
+        return 3
+    try:
+        service, resolved, server = build_backend(
+            app_root=app_root,
+            pipeline_path=pipeline_path,
+            config_path=config_path,
+            host=host,
+            port=int(args.port or 0),
+            token=str(args.token or "") or None,
+            require_token=require_token,
+            shell_surface=str(args.shell_surface or "webview"),
+            shutdown_request=stop_event,
+            startup_progress_callback=startup_callback,
+        )
+    except BaseException:
+        try:
+            instance_guard.mark_cleanup()
+        finally:
+            instance_guard.release()
+        raise
     try:
         def current_resolved() -> ResolvedPaths:
             provider = server.resolved_provider
@@ -407,6 +497,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         )
         server.start()
+        instance_guard.mark_listening(server.url)
         startup_steps = list(server.startup_progress.get("steps", [])) if isinstance(server.startup_progress, dict) else []
         server.set_startup_progress(
             record_startup_step(
@@ -482,8 +573,26 @@ def main(argv: Sequence[str] | None = None) -> int:
     except KeyboardInterrupt:
         return 0
     finally:
-        server.stop()
-        service.stop_background_tasks()
+        try:
+            instance_guard.mark_cleanup()
+        except Exception as exc:
+            print(
+                json.dumps(
+                    {
+                        "schema_version": BACKEND_INSTANCE_ERROR_SCHEMA_VERSION,
+                        "error": f"Backend cleanup ownership metadata could not be updated: {exc}",
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+        try:
+            server.stop()
+        finally:
+            try:
+                service.stop_background_tasks()
+            finally:
+                instance_guard.release()
     return 0
 
 

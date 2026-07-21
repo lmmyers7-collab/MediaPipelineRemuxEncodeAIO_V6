@@ -370,7 +370,9 @@ def _browser_lifecycle_runner_source() -> str:
                 (() => ({
                   activePages: Array.from(document.querySelectorAll("[data-page-panel].is-visible")).map((node) => node.dataset.pagePanel || ""),
                   ariaPages: Array.from(document.querySelectorAll('.nav-button[aria-current="page"]')).map((node) => node.dataset.page || ""),
-                  focusedPage: document.activeElement?.dataset?.page || "",
+                  focusedPage: document.activeElement?.closest?.("[data-page-panel]")?.dataset?.pagePanel || "",
+                  focusedTag: document.activeElement?.tagName || "",
+                  focusedText: document.activeElement?.textContent?.trim() || "",
                   clicks: window.__primaryNavKeyboardProbe.clicks.slice(),
                 }))()
               `);
@@ -382,7 +384,10 @@ def _browser_lifecycle_runner_source() -> str:
                 throw new Error(`${keyName} did not set aria-current only on ${target}: ${JSON.stringify(observed)}`);
               }
               if (observed.focusedPage !== target) {
-                throw new Error(`${keyName} moved focus away from ${target}: ${JSON.stringify(observed)}`);
+                throw new Error(`${keyName} did not move focus into destination ${target}: ${JSON.stringify(observed)}`);
+              }
+              if (observed.focusedTag !== "H1") {
+                throw new Error(`${keyName} did not land focus on the destination heading for ${target}: ${JSON.stringify(observed)}`);
               }
               if (JSON.stringify(observed.clicks) !== JSON.stringify(expectedClicks)) {
                 throw new Error(`${keyName} produced unexpected click activation for ${target}: ${JSON.stringify(observed)}`);
@@ -652,10 +657,12 @@ class WebViewBrowserLifecycleSmoke(unittest.TestCase):
             resolved, service = self._service_with_fixture(root)
             media_snapshot = capture_media_no_mutation_snapshot(root)
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            proc = DummyProc(24680)
+            proc._mediapipeline_launch_id = "browser-lifecycle-stop-requested-launch"
             facade._schedule_stop_watcher.arm(
                 service=service,
                 resolved=resolved,
-                proc=DummyProc(24680),
+                proc=proc,
                 deadline=datetime.now() - timedelta(seconds=1),
             )
             watcher_deadline = time.monotonic() + 2.0

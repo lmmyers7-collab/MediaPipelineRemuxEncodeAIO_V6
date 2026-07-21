@@ -650,6 +650,9 @@ class WorkflowEnhancementTests(unittest.TestCase):
             def reclaim_stale(self, _timeout: float) -> list:
                 return []
 
+            def reclaimed_source_quarantine_snapshot(self) -> list[dict]:
+                return []
+
             def save(self, _path: Path) -> None:
                 raise RuntimeError("save denied")
 
@@ -693,6 +696,9 @@ class WorkflowEnhancementTests(unittest.TestCase):
                         source_path=r"C:\Media\stale.mkv",
                     )
                 ]
+
+            def reclaimed_source_quarantine_snapshot(self) -> list[dict]:
+                return []
 
             def save(self, path: Path) -> None:
                 self.saved.append(path)

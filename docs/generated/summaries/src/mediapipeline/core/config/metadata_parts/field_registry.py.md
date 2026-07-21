@@ -1,5 +1,8 @@
 ---
 file: src/mediapipeline/core/config/metadata_parts/field_registry.py
+summary_schema: 2
+generator_fingerprint: d9adcc41cc119663ac0895aef6e8bd45f9aa21e5691feb0d359c1a4224030a5d
+file_type: Python
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
@@ -11,5 +14,6 @@ sha256: 2c0bac39d6e3fe504dc34f1db288279c37edfd0263161e097c13d721afcb1cb4
 
 **Purpose:** Ordered settings field registry.
 
+**In-repo imports:** `.advanced_fields`, `.basic_fields`, `.network_fields`, `.queue_fields`, `.subtitle_fields`, `.video_fields`, `.watch_fields`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/config/metadata_parts/field_registry.py`._

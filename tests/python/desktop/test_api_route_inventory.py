@@ -188,6 +188,28 @@ class ApiRouteInventoryTests(unittest.TestCase):
         contract_keys = _contract_route_keys()
         self.assertTrue(all(_route_keys_from_markdown(path) == contract_keys for path in paths))
 
+    def test_run_monitor_artifact_and_authority_boundaries_are_documented(self) -> None:
+        runtime_inventory = (REPO_ROOT / "docs" / "inventories" / "RUNTIME_ARTIFACT_INVENTORY.md").read_text(
+            encoding="utf-8"
+        )
+        state_reference = (REPO_ROOT / "docs" / "inventories" / "STATE_FILE_SCHEMA_REFERENCE.md").read_text(
+            encoding="utf-8"
+        )
+        architecture = (REPO_ROOT / "docs" / "architecture" / "ARCHITECTURE.md").read_text(encoding="utf-8")
+        module_map = (REPO_ROOT / "docs" / "architecture" / "MODULE_MAP.md").read_text(encoding="utf-8")
+
+        self.assertIn(r"State\RunMonitor\<run_id>.json", runtime_inventory)
+        self.assertIn(r"State\RunMonitor\latest.json", runtime_inventory)
+        self.assertIn("`GET /api/run-monitor`", runtime_inventory)
+        self.assertIn("## RunMonitorRecord", state_reference)
+        self.assertIn("`pipeline_run_monitor.v1`", state_reference)
+        self.assertIn("`pipeline_run_monitor_pointer.v1`", state_reference)
+        self.assertIn("`desktop_run_monitor.v1`", state_reference)
+        self.assertIn("authoritative for accepted run membership", architecture)
+        self.assertIn("Completed, Pending Publish, and failure artifacts remain terminal proof authorities", architecture)
+        self.assertIn(r"RunMonitor/<run_id>.json", module_map)
+        self.assertIn("GET `/api/run-monitor`", module_map)
+
 
 if __name__ == "__main__":
     unittest.main()

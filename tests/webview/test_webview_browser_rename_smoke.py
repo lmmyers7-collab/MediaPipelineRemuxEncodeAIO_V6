@@ -361,8 +361,12 @@ def _browser_rename_runner_source() -> str:
             setValue("settings-rename-workbench-expected-movie-title", "Scary Movie");
             setValue("settings-rename-workbench-expected-year", "2026");
             click("#settings-rename-workbench-test-button", "backend filename cleaner workbench test");
-            await new Promise((resolve) => setTimeout(resolve, 600));
-            requireText("settings-rename-workbench-output", ["Actual: Scary Movie 1080p DCPRip X264-FS (2026).mkv", "Expected: Scary Movie (2026).mkv", "Result: Needs review", "Source: backend rename cleaner"]);
+            await waitFor(
+              () => text("settings-rename-workbench-output").includes("Source: production pipeline destination plan"),
+              "production movie naming comparison",
+              15000,
+            );
+            requireText("settings-rename-workbench-output", ["Actual: Scary Movie 1080p DCPRip X264-FS (2026).mkv", "Expected: Scary Movie (2026).mkv", "Result: Needs review", "Runtime parity: match", "Source: production pipeline destination plan"]);
             requireText("settings-rename-workbench-status", ["Needs review"]);
             requireText("settings-rename-workbench-suggestions", ["1080p", "DCPRip", "movie filter category is off"]);
             if (byId("settings-rename-workbench-stage-suggestions-button").disabled) {
@@ -375,7 +379,11 @@ def _browser_rename_runner_source() -> str:
             }
             requireText("settings-rename-workbench-message", ["draft only", "Retest"]);
             click("#settings-rename-workbench-retest-button", "retest staged backend workbench suggestions");
-            await new Promise((resolve) => setTimeout(resolve, 700));
+            await waitFor(
+              () => text("settings-rename-workbench-output").includes("Actual: Scary Movie (2026).mkv"),
+              "staged production movie naming comparison",
+              15000,
+            );
             requireText("settings-rename-workbench-output", ["Actual: Scary Movie (2026).mkv", "Expected: Scary Movie (2026).mkv", "Result: Pass"]);
             requireText("settings-rename-workbench-message", ["Retest passed", "Save New Filters"]);
             if (byId("settings-rename-workbench-save-filters-button").disabled) {
@@ -394,7 +402,11 @@ def _browser_rename_runner_source() -> str:
             setValue("settings-rename-workbench-expected-episode-title", "Pilot");
             setCheckedBySelector('[data-rename-tv-filter="release_groups"]', true);
             click("#settings-rename-workbench-test-button", "backend TV filename cleaner workbench test");
-            await new Promise((resolve) => setTimeout(resolve, 600));
+            await waitFor(
+              () => text("settings-rename-workbench-output").includes("Actual: The Web - S01E01 - Pilot.mkv"),
+              "production TV naming comparison",
+              15000,
+            );
             requireText("settings-rename-workbench-output", ["Actual: The Web - S01E01 - Pilot.mkv", "Expected: The Web - S01E01 - Pilot.mkv", "Result: Pass"]);
 
             window.showPage("rename");
@@ -970,6 +982,9 @@ class WebViewBrowserRenameSmoke(unittest.TestCase):
             resolved, _source, _output = _write_fixture_state(root)
             media_snapshot = capture_media_no_mutation_snapshot(root)
             service = DummyWorkflowFacadeService(root)
+            repo_root = find_repo_root(Path(__file__))
+            service.workspace_root = repo_root
+            resolved.powershell_host = str(repo_root / "ops" / "pipeline" / "runtime" / "PowerShell-7.6.0-win-x64" / "pwsh.exe")
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             server = LocalApiServer(
                 facade,

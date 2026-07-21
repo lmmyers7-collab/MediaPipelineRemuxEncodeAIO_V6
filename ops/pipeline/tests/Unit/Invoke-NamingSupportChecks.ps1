@@ -95,7 +95,7 @@ try {
         release_groups = $true
     }
     $script:RenameMovieFilterTerms = @{
-        release_groups = @('SupaCvnt', 'BYNDR')
+        release_groups = @('SupaCvnt', 'BYNDR', 'YIFY', 'YTS.AM', 'YTS.MX', 'BONE')
         services_containers = @('MA')
         languages_subs_dubs = @('ita', 'eng', 'sub', 'dub')
     }
@@ -110,9 +110,19 @@ try {
         'The.Lord.Of.The.Rings.The.War.Of.The.Rohirrim.2024.1080p.WEBRip.10Bit.DDP5.1.x265-Asiimov.mkv' = 'The Lord of the Rings The War of the Rohirrim (2024).mkv'
         'Mortal.Kombat.II.2026.1080p.WEBRip.AAC5.1.10bits.x265-Rapta.mkv' = 'Mortal Kombat II (2026).mkv'
         'Cast Away (2000) UpScaled 2160p H265 10 bit DV HDR10+ ita eng AC3 5.1 sub ita eng Licdom.mkv' = 'Cast Away (2000).mkv'
+        # GalaxyRG265 is intentionally not configured as an exact or custom
+        # term. A technical anchor makes the whole release-metadata tail non-title text.
+        'Edge.of.Tomorrow.2014.1080p.BluRay.DDP5.1.x265.10bit-GalaxyRG265.mkv' = 'Edge of Tomorrow (2014).mkv'
+        'Django.Unchained.2012.1080p.BluRay.x264.YIFY.mp4' = 'Django Unchained (2012).mp4'
+        'Furiosa.A.Mad.Max.Saga.2024.1080p.BluRay.x264.AAC5.1-[YTS.MX].mp4' = 'Furiosa A Mad Max Saga (2024).mp4'
+        'Hereditary.2018.1080p.BluRay.x264-[YTS.AM].mp4' = 'Hereditary (2018).mp4'
+        'Jabberwocky 1977 1080p Criterion BluRay HEVC x265 5.1 BONE.mkv' = 'Jabberwocky (1977).mkv'
+        'Obsession 2026 1080p WEB-DL HEVC x265 5.1 BONE.mkv' = 'Obsession (2026).mkv'
+        'The.Fast.and.the.Furious.Tokyo.Drift.2011.1080p.BrRip.x264.YIFY.mp4' = 'The Fast and the Furious Tokyo Drift (2011).mp4'
     }
     foreach ($case in $strictMovieCases.GetEnumerator()) {
-        $plan = New-PlexMovieDestinationPlan -OriginalName $case.Key -Extension 'mkv'
+        $caseExtension = [System.IO.Path]::GetExtension([string]$case.Key).TrimStart('.')
+        $plan = New-PlexMovieDestinationPlan -OriginalName $case.Key -Extension $caseExtension
         Assert-Equal $plan.FileName $case.Value "Strict movie rename filters should scrub leaked release metadata from '$($case.Key)'."
     }
     $baseMovieRemoveTerms = @('sample', 'trailer', 'extras', 'featurette', 'deleted scenes', 'behind the scenes')
@@ -195,6 +205,7 @@ try {
     }
     $script:RenameTVFilterTerms = @{
         video_source = @('MoonSource')
+        release_groups = @('Judas', 'SubsPlease', 'ToonsHub')
     }
     $script:RenameTVRemoveTerms = @('UnwantedLeaf')
     Assert-Equal (Get-CleanTVOutputNamePart 'Example Show MoonSource') 'Example Show' 'TV naming should remove a configured custom term when every filter category is enabled.'
@@ -404,6 +415,36 @@ try {
     $genericKananInfo = Get-TVInfoFromFile -file (Get-Item -LiteralPath $genericKananPath) -SourceRootPath $rootTvFolder -LibraryName 'TV' -LibraryId 'tv' -LibraryDesignation 'tv'
     Assert-True ([bool]$genericKananInfo.IsReliable) 'A credible anime-style bare revision token should parse under a generic source folder.'
     Assert-Equal $genericKananInfo.ShowName 'Kanan-sama wa Akumade Choroi' 'A generic Anime folder should not override credible show text before the bare episode token.'
+    $script:RenameTVFilterOptions = Get-NamingRenameTVFilterDefaultOptions
+    $script:RenameTVFilterTerms = @{
+        services_containers = @('NF', 'AMZN')
+        languages_subs_dubs = @('JPN', 'MSubs', 'DUAL')
+        release_groups = @('Judas', 'SubsPlease', 'ToonsHub')
+    }
+    $screenshotTVCases = @(
+        [ordered]@{
+            Name = '[Judas] Isekai Nonbiri - S02E11.mkv'
+            Expected = 'Isekai Nonbiri - S02E11.mkv'
+        },
+        [ordered]@{
+            Name = 'Chainsmoker.Cat.S01E01.1080p.NF.WEB-DL.JPN.AAC2.0.H.264.MSubs-ToonsHub.mkv'
+            Expected = 'Chainsmoker Cat - S01E01.mkv'
+        },
+        [ordered]@{
+            Name = 'NIPPON.SANGOKU.The.Three.Nations.of.the.Crimson.Sun.S01E04.The.Seii.Coup.1080p.AMZN.WEB-DL.DUAL.DDP2.0.H.265.MSubs-ToonsHub.mkv'
+            Expected = 'NIPPON SANGOKU The Three Nations of the Crimson Sun - S01E04.mkv'
+        }
+    )
+    foreach ($case in $screenshotTVCases) {
+        $casePath = Join-Path $genericAnimeRoot ([string]$case.Name)
+        [System.IO.File]::WriteAllBytes($casePath, [System.Text.Encoding]::UTF8.GetBytes('screenshot-tv-name'))
+        $caseInfo = Get-TVInfoFromFile -file (Get-Item -LiteralPath $casePath) -SourceRootPath $rootTvFolder -LibraryName 'TV' -LibraryId 'tv' -LibraryDesignation 'tv'
+        $casePlan = New-PlexDestinationPlan -MediaKind TV -File (Get-Item -LiteralPath $casePath) -TvInfo $caseInfo -OriginalName $caseInfo.OriginalName -Extension 'mkv' -IncludeLibraryFolder
+        Assert-True ([bool]$caseInfo.IsReliable) "Screenshot-style accepted workload name '$($case.Name)' must have reliable backend TV identity."
+        Assert-Equal $casePlan.FileName ([string]$case.Expected) "Screenshot-style accepted workload name '$($case.Name)' must use the production cleaned filename."
+    }
+    Remove-Variable -Name RenameTVFilterOptions -Scope Script -ErrorAction SilentlyContinue
+    Remove-Variable -Name RenameTVFilterTerms -Scope Script -ErrorAction SilentlyContinue
     Assert-Equal (Get-TVShowNameBeforeBareEpisodeToken -BaseName 'The 100.mkv' -Episode 100) '' 'A title-ending number without a release separator must not be treated as a bare anime episode boundary.'
     Assert-Equal (Get-TVShowNameBeforeBareEpisodeToken -BaseName 'Example Show - 12 Monkeys.mkv' -Episode 12) '' 'A number followed by legitimate title text must not truncate the show at a false bare episode boundary.'
 

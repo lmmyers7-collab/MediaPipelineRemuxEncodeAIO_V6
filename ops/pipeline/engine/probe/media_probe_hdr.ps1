@@ -1,7 +1,11 @@
 # Extracted from ops/pipeline/engine/probe/media_probe.ps1. Responsibility: HDR, dynamic-HDR, and route-profile projection
 
 function Get-DefaultAudioLang {
-    param([string]$FilePath)
+    param(
+        [string]$FilePath,
+        [scriptblock] $PollHandler = $null,
+        [int] $PollMilliseconds = 100
+    )
     $r = Invoke-FFprobeCommand -ArgumentList @(
         "-v","error","-select_streams","a",
         "-show_entries","stream=index,disposition:stream_tags=language",
@@ -103,7 +107,7 @@ function Get-SourceHdr10MasteringMetadata {
         "-show_frames","-read_intervals","%+#1",
         "-show_entries","frame=side_data_list",
         "-of","json","--",$FilePath
-    ) -TimeoutSeconds 30 -Stage 'hdr10-mastering-probe'
+    ) -TimeoutSeconds 30 -Stage 'hdr10-mastering-probe' -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
 
     $base = [pscustomobject][ordered]@{
         Known            = $false
@@ -233,7 +237,11 @@ function Get-DynamicHdrObjectValue {
 }
 
 function Get-DolbyVisionState {
-    param([string]$FilePath)
+    param(
+        [string]$FilePath,
+        [scriptblock] $PollHandler = $null,
+        [int] $PollMilliseconds = 100
+    )
 
     $base = [pscustomobject][ordered]@{
         Known          = $false
@@ -250,7 +258,7 @@ function Get-DolbyVisionState {
         "-v","error","-select_streams","v:0",
         "-show_entries","stream=codec_name:stream_side_data_list",
         "-of","json","--",$FilePath
-    ) -TimeoutSeconds 30 -Stage 'dovi-detection'
+    ) -TimeoutSeconds 30 -Stage 'dovi-detection' -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
 
     if ($r.ExitCode -ne 0 -or $r.TimedOut -or $r.Stopped) {
         $base.Reason = Get-DynamicHdrProbeFailureReason -ProbeResult $r -Stage 'Dolby Vision detection'
@@ -290,7 +298,12 @@ function Get-DolbyVisionState {
 }
 
 function Test-Hdr10PlusPresence {
-    param([string]$FilePath, [int]$FrameSampleCount = 24)
+    param(
+        [string]$FilePath,
+        [int]$FrameSampleCount = 24,
+        [scriptblock] $PollHandler = $null,
+        [int] $PollMilliseconds = 100
+    )
 
     if ($FrameSampleCount -lt 1) { $FrameSampleCount = 24 }
     $base = [pscustomobject][ordered]@{
@@ -305,7 +318,7 @@ function Test-Hdr10PlusPresence {
         "-read_intervals","%+#$FrameSampleCount",
         "-show_frames","-show_entries","frame=side_data_list",
         "-of","json","--",$FilePath
-    ) -TimeoutSeconds 60 -Stage 'hdr10plus-detection'
+    ) -TimeoutSeconds 60 -Stage 'hdr10plus-detection' -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
 
     if ($r.ExitCode -ne 0 -or $r.TimedOut -or $r.Stopped) {
         $base.Reason = Get-DynamicHdrProbeFailureReason -ProbeResult $r -Stage 'HDR10+ detection'
@@ -438,7 +451,9 @@ function Test-IsHDR {
 function Get-SourceMediaRouteProfile {
     param(
         [Parameter(Mandatory)] [string] $FilePath,
-        [long] $FileSizeBytes = -1
+        [long] $FileSizeBytes = -1,
+        [scriptblock] $PollHandler = $null,
+        [int] $PollMilliseconds = 100
     )
 
     if ([string]::IsNullOrWhiteSpace($FilePath)) {
@@ -494,7 +509,7 @@ function Get-SourceMediaRouteProfile {
         '-show_entries', 'format=duration,bit_rate:stream=index,codec_type,codec_name,width,height,color_transfer,bit_rate',
         '-of', 'json',
         '--', $FilePath
-    ) -TimeoutSeconds 45 -Stage 'source-route-profile'
+    ) -TimeoutSeconds 45 -Stage 'source-route-profile' -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
 
     if ($probe.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace([string]$probe.Output)) {
         return (& $emptyProfile 'ffprobe_failed')
@@ -569,7 +584,7 @@ function Get-SourceMediaRouteProfile {
                 '-show_entries', 'stream=nb_read_packets',
                 '-of', 'json',
                 '--', $FilePath
-            ) -TimeoutSeconds 30 -Stage 'source-video-packet-probe'
+            ) -TimeoutSeconds 30 -Stage 'source-video-packet-probe' -PollHandler $PollHandler -PollMilliseconds $PollMilliseconds
             if ($packetProbe.ExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace([string]$packetProbe.Output)) {
                 try {
                     $packetJson = $packetProbe.Output | ConvertFrom-Json -ErrorAction Stop

@@ -1,10 +1,36 @@
 # State File Schema Reference
 
-Date: 2026-07-15
+Date: 2026-07-20
 
 Schema-level documentation for runtime state contracts in MediaPipelineRemuxEncodeAIO. Each section gives the schema version, field names with types/defaults, valid enum values, and the artifact that holds the data. Primary dataclass contracts live under `src/mediapipeline/desktop/contracts/`; focused helper contracts are called out by file.
 
 Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Schema versions are validated at deserialization where the contract exposes a typed loader; helper-owned state files document their validation notes in their section.
+
+---
+
+## ScratchSourceIdentity
+
+**Contract file**: helper-owned by `ops/pipeline/engine/storage/scratch_copy.ps1`; no generated JSON schema is emitted.
+**Artifact**: `<scratch-file>.srcinfo` beside a copied scratch source.
+**Schema version**: `scratch_source_identity.v2`.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `schema_version` | `str` | Yes | Must equal `"scratch_source_identity.v2"` |
+| `hash_algorithm` | `str` | Yes | Must equal `"sha256"` (case-insensitive); no fallback algorithm is accepted |
+| `source_path` | `str` | Yes | Canonical source path; Windows-equivalent case differences are accepted, while a different canonical path denies reuse |
+| `source_size` | `int` | Yes | Source size observed during stable full-file hashing |
+| `source_mtime_utc` | `str` | Yes | Source timestamp observed during hashing; metadata is supporting evidence and never establishes content equality |
+| `source_sha256` | `str` | Yes | Exactly 64 hexadecimal characters |
+| `scratch_size` | `int` | Yes | Landed scratch size observed during stable full-file hashing |
+| `scratch_sha256` | `str` | Yes | Exactly 64 hexadecimal characters |
+| `verified_at_utc` | `str` | Yes | UTC time when the sidecar was atomically promoted after copy verification |
+
+### Notes
+
+- A sidecar is evidence for scratch reuse, not mutation or processing authority. Before reuse, the pipeline re-hashes the current source, the current scratch file, and the source again. Source observations must remain stable; current source and scratch sizes and SHA-256 values must match each other and the saved evidence.
+- Missing, malformed, incomplete, legacy, or unsupported evidence never authorizes reuse. A mismatch enters the guarded scratch replacement/re-copy path; if replacement or identity proof is unsafe or unavailable, the copy fails closed.
+- The evidence is written atomically only after the copied scratch bytes match a stable pre/post source identity. Processing does not start when evidence cannot be written, and a restart revalidates content rather than trusting the sidecar alone.
 
 ---
 
@@ -77,6 +103,9 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 | `rerun_auto_destination_policy` | `str` | `""` | CSV rerun policy that parked the output, currently `auto_replace_clean_else_pending_review` when remaining issue evidence requires Pending Publish review |
 | `rerun_auto_destination_decision` | `str` | `""` | Backend/PowerShell auto-return decision such as `pending_publish_review` |
 | `rerun_auto_review_issues` | `list[dict]` | `[]` | Backend/PowerShell issue evidence that blocked clean replacement and routed the rerun output to Pending Publish/review |
+| `audio_decisions` | `list[dict]` | `[]` | Terminal per-source-track audio policy evidence captured at park time. Current records use stable track identity/source stream index so the Run Monitor can reconcile exact tracks without guessing; absence in an older manifest remains unknown. |
+| `subtitle_decisions` | `list[dict]` | `[]` | Terminal per-source-track subtitle policy evidence captured at park time. Current records carry stable `track_id` values; older records without exact identity remain terminally unknown rather than being matched by language, filename, or ordinal similarity. |
+| `subtitle_conversion_results` | `list[dict]` | `[]` | Correlated conversion/OCR outcome evidence, including output or review/failure detail when produced by the subtitle tools. |
 | `sidecar_files` | `list` | — | Associated sidecar file list (required; empty list allowed) |
 | `tx3g_srt_tracks` | `list` | — | TX3G SRT sidecar evidence carried into drain (required; empty list allowed) |
 | `tx3g_srt_failures` | `list` | — | TX3G SRT publish/conversion failures (required; empty list allowed) |
@@ -111,6 +140,7 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 ### Notes
 
 - The Pending Publish Manifest is evidence for parked outputs, not standalone mutation authority. The WebView Pending Publish page reads this via `GET /api/pending-publish`.
+- `audio_decisions`, `subtitle_decisions`, and `subtitle_conversion_results` provide track-level terminal proof for new manifests. They are additive for backward compatibility: their absence never permits the Run Monitor or WebView to infer a decision from route text, filenames, neighboring tracks, or runtime history.
 - Current manifests must use `schema_version = "pending_push_manifest.v1"` and carry non-empty `pipeline_version`, `publish_transaction_id`, `manifest_state`, `local_file`, `server_out`, `route`, `source_identity_v2`, `source_identity_v2_algorithm`, and `source_path`, plus non-negative `output_size` and the required sidecar/subtitle arrays. Legacy manifests remain scan-visible for operator review but are not auto-drainable or auto-repairable.
 - Auto-drain requires a trusted manifest file under `State\PendingServerPush`, a present `local_file` and sidecar payloads under the pending root, and a `server_out` under the configured output root, not under local state or pending roots. Source-root destinations are trusted only when `confirm_source_overwrite` is boolean `true` and `server_out` resolves to the same path as `source_path`; sidecars are limited to files beside that confirmed target.
 - `do_not_drain` guidance in the Pending Publish table derives from `manifest_state` combined with backend safety analysis, not from a dedicated field.
@@ -468,11 +498,11 @@ Notes:
 
 ## QueuePlanSnapshot
 
-**Contract file**: `src/mediapipeline/desktop/contracts/queue_snapshot.py`
+**Contract file**: `src/mediapipeline/core/kernel/contracts/queue_snapshot.py`
 **Artifact**: `State\Progress\queue_snapshot.json` — rewritten each time the queue is evaluated
 **Schema version**: `queue_plan_snapshot.v1`
 
-The snapshot contains a container record and two row lists: queue display rows and excluded rows. `runnable_count` reports only items ready to process; display rows can include blocked or held rows for operator review.
+The snapshot contains a container record and three row lists: the uncapped accepted Run Once workload, queue display rows, and excluded rows. `runnable_count` reports only items ready to process; display rows can include blocked or held rows for operator review. Queue filters, pagination, and display caps never define launch scope.
 
 ### QueuePlanSnapshot (Container)
 
@@ -489,11 +519,47 @@ The snapshot contains a container record and two row lists: queue display rows a
 | `tv_count_total` | `int` | `0` | Total TV episode count |
 | `priority_count` | `int` | `0` | Priority items count |
 | `runnable_count` | `int` | `0` | Items ready to process |
+| `queue_snapshot_origin` | `str` | `"unknown"` | `dry_run` for a backend Queue preview; active discovery emits `active_run` before the dry-run runner promotes a preview |
+| `desktop_queue_preview_request_id` | `str` | `""` | Unique dry-run request ID; must match the completed scan status before blank Run Once |
+| `queue_input_fingerprint_schema` | `str` | `""` | Queue input fingerprint schema, currently `queue_input_fingerprint.v1` |
+| `queue_input_fingerprint` | `str` | `""` | Digest of config, priority, strategy, and file-override inputs used by the preview |
+| `queue_input_components` | `object` | `{}` | Per-input status and SHA-256 evidence used to explain changed/unavailable preview inputs |
+| `queue_plan_fingerprint_schema` | `str` | `""` | Active/dry plan fingerprint schema, currently `queue_plan_fingerprint.v1` |
+| `queue_plan_fingerprint` | `str` | `""` | Digest of uncapped ordered rows, exclusions, accepted source identities and backend naming-plan filenames, input fingerprint, strategy, pending-index health, and pending-publish backpressure |
+| `accepted_run_rows_fingerprint_schema` | `str` | `""` | Accepted-membership digest schema, currently `accepted_run_rows_fingerprint.v1` |
+| `accepted_run_rows_fingerprint` | `str` | `""` | Digest of every uncapped accepted row's position, stable identity/path, planned filename and evidence source, planned route/reason, parent context, and intended destination; v1 makes path fields absolute, uses forward slashes, folds ASCII `A-Z` only, and preserves non-ASCII plus non-path text exactly; recomputed before launch and engine adoption |
+| `pending_publish_index_health` | `object` | `{}` | Read-only pending-manifest index health used during preview and launch gating |
+| `pending_publish_backpressure` | `object` | `{}` | Pending-publish count/threshold signature and launch-block decision |
+| `desktop_queue_snapshot_fallback_used` | `bool` | `False` | Explicitly identifies a cached snapshot returned after a failed live dry-run; cached fallback is never launchable |
+| `desktop_queue_snapshot_fallback_reason` | `str` | `""` | Failure reason when cached evidence is displayed |
+| `total_row_count` | `int` | `0` | Full row count before display truncation |
+| `shown_row_count` | `int` | `0` | Rows included in this snapshot payload |
+| `row_limit` | `int` | `0` | Maximum displayed rows written to the snapshot |
+| `rows_truncated` | `bool` | `False` | Whether display rows were capped; plan fingerprint still covers the full plan |
 | `excluded_count` | `int` | `0` | Excluded items count |
 | `excluded_row_limit` | `int` | `0` | Max excluded rows reported |
 | `excluded_rows_truncated` | `bool` | `False` | Whether excluded list was truncated |
+| `accepted_run_rows` | `list[QueueAcceptedRunRow]` | `[]` | Uncapped, ordered Backend Queue Run Once acceptance contract. It contains every accepted source exactly once, independent of `rows` display truncation. |
 | `rows` | `list[QueuePlanRow]` | `[]` | Runnable/queued items |
 | `excluded_rows` | `list[QueuePlanExcludedRow]` | `[]` | Excluded items |
+
+### QueueAcceptedRunRow (Uncapped Run Once Membership)
+
+| Field | Type | Notes |
+|---|---|---|
+| `source_identity` | `str` | Stable backend source identity (required and unique in the accepted workload) |
+| `source_identity_algorithm` | `str` | Algorithm/version that produced `source_identity` (required) |
+| `source_path` | `str` | Exact accepted source path (required and unique, case-insensitive) |
+| `display_name` | `str` | Compatibility copy of `planned_display_name` for older consumers; it is not independently authoritative and the public Queue row field of the same name is only a raw display label |
+| `planned_display_name` | `str` | Required nonblank filename from the backend production destination plan; remains distinct from the raw `source_path` leaf |
+| `planned_display_name_source` | `str` | Required evidence version, exactly `plex_destination_plan.v1` for a newly launchable row |
+| `parent_context` | `str` | Distinguishing parent/path context for identical leaf filenames |
+| `run_queue_index` | `int` | One-based run-wide position; positions must be contiguous and ordered |
+| `run_queue_total` | `int` | Full accepted workload total; every row must carry the same total |
+| `route` | `str` | Planned route only |
+| `route_reason_code` | `str` | Planned route reason code only |
+| `route_reason` | `str` | Planned route reason only |
+| `intended_final_path` | `str` | Planned intended final destination when backend planning can provide it |
 
 ### QueuePlanRow (Individual Queued Item)
 
@@ -543,11 +609,60 @@ The snapshot contains a container record and two row lists: queue display rows a
 
 ### Notes
 
+- The Python dry-run runner writes a request-unique temporary snapshot, validates freshness and stable input fingerprints, atomically publishes the canonical snapshot, mirrors it to SQLite as non-authoritative evidence, and removes the temporary file on success or failure.
+- Destination naming is part of acceptance evidence. If override resolution or production destination naming cannot produce a nonblank filename, that Queue row is blocked with `destination_naming_plan_failed` and cannot enter `accepted_run_rows`; neither Python nor PowerShell seed boundaries substitute the raw source leaf. The planned name and exact evidence-source token participate in both fingerprints. At execution, after the same effective override layers are active and before probe/scratch work, a fingerprinted Backend Queue job must verify its correlated `plex_destination_plan.v1` / `queue_plan` evidence and match the recomputed production filename to the immutable accepted `display_name`. The verified output-path object is carried through encode, remux, and their fallbacks rather than recomputed. Missing/tampered evidence and plan drift stop as `DESTINATION_NAMING_EVIDENCE_MISSING` or `DESTINATION_NAMING_PLAN_MISMATCH`; they never fall through to encode/remux/publish.
+- Blank normal-Queue Run Once is rejected unless the canonical snapshot is a current `dry_run` with matching scan/request/scope/input evidence, a nonempty plan fingerprint, a valid accepted-membership content fingerprint, and a complete `accepted_run_rows` contract whose count matches `runnable_count`. The Python launch backend recomputes the accepted digest, retains that uncapped contract, creates the immutable `starting` Run Monitor before process spawn, and returns the same run/fingerprint identity. The active PowerShell process recomputes the digest, adopts that exact run-specific seed, and must reproduce both its Queue-plan fingerprint and accepted membership before media dispatch; it never redefines membership from a refreshed shared Queue snapshot.
+- Legacy Queue snapshots without versioned planned-name evidence or the accepted-membership digest remain displayable for diagnosis but are not launchable. Refresh Queue with the current backend; do not migrate a raw label into verified evidence.
+- `GET /api/queue` remains a read of the latest backend-owned snapshot. It may label cached/legacy evidence for display but does not generate or promote a Queue plan.
+
 - The queue snapshot is rebuilt each time a dry-run or queue evaluation is performed. It is not an append-only log.
 - `GET /api/queue` projects only normal queue rows and preserves compatibility metadata with `queue_sources=["normal_queue"]`, `dedicated_rerun_visible_count=0`, and an empty `rerun_correlation`; CSV rerun state is never merged into the normal queue projection.
-- Blank Run Once launch preflight treats a matching queue snapshot as authoritative only when both `produced_at` and the file modification time are within `QueueLaunchSnapshotFreshnessSeconds` (default 60; range 15–3600). A future-skewed timestamp or stale, missing, mismatched, unreadable, or actively scanning evidence is review/unknown rather than a scope block; only fresh zero-runnable evidence blocks with `no_runnable_work`.
+- Blank Run Once launch preflight treats `produced_at`, file modification time, and clock skew as advisory preview-age evidence under `QueueLaunchSnapshotFreshnessSeconds` (default 60; range 15–3600). Age alone never blocks launch because the engine rebuilds the queue and requires the accepted plan fingerprint before media dispatch. Missing, mismatched, unreadable, actively scanning, wrong-origin, input-inconsistent, unversioned-name, or digest-mismatched plan evidence still blocks with an actionable Queue refresh; a validated zero-runnable plan blocks with `no_runnable_work`.
 - The `blocked_reason_code` on `QueuePlanRow` drives the blocked-row warning signals in the Queue table.
 - The `route` field is a prediction at queue-plan time. The final route in the completed manifest may differ if runtime conditions change.
+
+---
+
+## RunMonitorRecord
+
+**Contract file**: `src/mediapipeline/contracts/run_monitor.py`
+**Artifacts**: `State\RunMonitor\<run_id>.json` plus identity-only pointer `State\RunMonitor\latest.json`
+**Schema versions**: durable record `pipeline_run_monitor.v1`, pointer `pipeline_run_monitor_pointer.v1`, Local API projection `desktop_run_monitor.v1`
+
+The durable record is the backend authority for one accepted Backend Queue Run Once workload: stable run ID, accepted Queue plan fingerprint, immutable job/source membership, run-wide positions/totals, run-scoped counts, lifecycle, explicit per-file stages, per-track audio/subtitle evidence, all current workers, freshness timestamps, Stop After Current state, and correlated terminal references. The launch command returns `desktop_run_monitor_launch.v1` identity containing the same run ID and accepted Queue fingerprint so the frontend can connect the accepted launch to this record without matching filenames or Queue render order.
+
+The Local API item projection keeps durable acceptance evidence distinct from
+the operator-facing label:
+
+| Projection field | Meaning |
+|---|---|
+| `accepted_display_name` | Exact label stored in the immutable per-run item. It is retained even when a newer projection label is available. |
+| `display_name` | Effective operator label. It is the verified Queue-plan name for current records, an exactly proven terminal output filename for an eligible legacy terminal item, or the unchanged accepted label when neither authority exists. |
+| `display_name_basis` | Explicit authority classification: `verified_queue_plan`, `terminal_output`, or `legacy_accepted`. |
+| `display_name_evidence` | Source, provenance, timestamp, and freshness for the effective label. Terminal reconciliation requires exact same-run/item/job correlation and an exact Completed or Pending Publish path reference; filename similarity is never evidence. |
+
+| Surface | Authority boundary |
+|---|---|
+| Queue snapshot | Planned workload and planned route/reason before launch; its accepted plan fingerprint is captured by the monitor but the current Queue display is not run membership. |
+| Run monitor | Accepted membership and correlated runtime lifecycle/stage/track/worker evidence for that run. It may reference terminal proof but does not replace terminal artifacts. |
+| Completed manifest/sidecar | Terminal proof for verified direct publication and final route/reason. |
+| Pending Publish manifest | Terminal proof for manifest-backed parking, parked path, and intended final destination. |
+| Failure/review artifact | Terminal proof for failure, block, review ownership, retryability, and recovery action. |
+| Pipeline progress/events/logs | Supporting evidence only. An event, log tail, or raw progress claim cannot populate current work unless the monitor has exact run/job correlation and passes the single backend freshness decision. |
+| SQLite/generated summaries | Non-authoritative mirrors/navigation evidence; never used to recover accepted membership or assert current/terminal state. |
+
+Storage invariants:
+
+- `<run_id>.json` is selected only by a safe exact backend identity; path fragments, reserved `latest`, and ambiguous query values are rejected.
+- The Python launch backend atomically seeds the complete immutable `starting` record before spawn from validated `accepted_run_rows`. An exact retry with the same command, fingerprint, and membership may adopt that record and repair `latest.json`; any mismatch or terminal record fails closed.
+- After process start, the PowerShell engine adopts the exact seed, verifies active discovery parity, and is the sole runtime evidence writer. A Queue refresh cannot add, remove, or reorder accepted items. A pre-spawn failure is terminalized by Python; a post-spawn exception is terminalized only when child cleanup is proven, otherwise the nonterminal seed remains honest pending reconciliation.
+- `write_sequence` must increase. Accepted membership, source identity, and run-wide position/total are immutable after creation.
+- Newly seeded items carry `display_name_evidence` with source `plex_destination_plan.v1` and provenance `queue_plan`. Older records without it are never adopted or rewritten because the accepted label participates in immutable membership/signature evidence. For a completed/published item, the read-only Local API may derive the effective filename from the terminal published path only when terminal output evidence and the exact job-correlated Completed reference prove the same path. For a parked item, it may use the intended-final filename only when terminal output evidence and an exact Pending Publish or manifest reference prove the park. The projection then reports `display_name_basis=terminal_output`, preserves the stored label in `accepted_display_name`, and exposes the terminal evidence; absent, future-dated, or contradictory proof remains `legacy_accepted`/unknown. The frontend does not clean names and the current Queue snapshot is not consulted.
+- Terminal run/item states cannot regress. Active workers must correlate to an accepted job in the same run.
+- A verified terminal artifact that proves failure/review before route selection closes Final route as explicit `unknown` (or `not_applicable` when the artifact proves that semantic) with the terminal artifact's reason, reason code, timestamp, and source. `awaiting_evidence` is never a terminal substitute. Terminal output-sidecar paths receive terminal provenance only when they are listed by the exact correlated Completed or Pending Publish artifact; process-result-only paths remain supporting evidence.
+- Storage retains the latest ten terminal per-run records by default, never prunes nonterminal records, and preserves the latest selected record. `latest.json` is an identity-only pointer that can be repaired only from the exact persisted record.
+- Missing or invalid records return an explicit unavailable projection. Stale, future-dated, backend-unavailable, or contradictory evidence suppresses active file/stage/route/worker/progress claims and may appear only as “Last known — not current.”
+- Backward-compatible absent optional track/output evidence remains `unknown`/empty; it is never relabeled as pending and never reconstructed from legacy current-work payloads.
 
 ---
 

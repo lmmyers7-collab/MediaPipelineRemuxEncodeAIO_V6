@@ -66,7 +66,7 @@ _STABLE_DATA_ATTRIBUTES = (
     "data-cross-page-target",
     "data-quick-link-focus",
 )
-_SURFACE_EXPECTED_COUNTS = {"settings": 324, "libraries": 17, "schedule": 10}
+_SURFACE_EXPECTED_COUNTS = {"settings": 325, "libraries": 17, "schedule": 10}
 
 
 class _StaticInteractiveParser(HTMLParser):
@@ -175,7 +175,7 @@ def _browser_settings_control_census_runner_source() -> str:
         r"""
         async function browserSettingsControlCensus(data) {
           const descriptors = Array.isArray(data.descriptors) ? data.descriptors : [];
-          const expectedSurfaceCounts = { settings: 324, libraries: 17, schedule: 10 };
+          const expectedSurfaceCounts = { settings: 325, libraries: 17, schedule: 10 };
           const classifications = {};
           const finiteValues = {};
           const blockedFiniteValues = {};
@@ -730,7 +730,7 @@ class WebViewBrowserSettingsControlCensusSmoke(unittest.TestCase):
 
         repo_root = find_repo_root(Path(__file__))
         descriptors = _static_control_descriptors(repo_root)
-        self.assertEqual(len(descriptors), 351)
+        self.assertEqual(len(descriptors), 352)
 
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -783,7 +783,7 @@ class WebViewBrowserSettingsControlCensusSmoke(unittest.TestCase):
                 + "\n",
                 encoding="utf-8",
             )
-        self.assertEqual(census["discovered_count"], 351)
+        self.assertEqual(census["discovered_count"], 352)
         self.assertEqual(census["surface_counts"], _SURFACE_EXPECTED_COUNTS)
         self.assertEqual(census["failed_count"], 0, census["failed_ids"])
         self.assertEqual(census["unclassified_count"], 0, census["unclassified_ids"])

@@ -116,6 +116,7 @@ function New-BdpgsFailureRecord {
     $category = if ($ErrorCode -match 'TOOL_MISSING|TESSDATA_MISSING') { 'tool_missing' } else { 'subtitle_conversion' }
     $operation = if ($ErrorCode -match 'SUP_') { 'subtitle-bdpgs-sup-extract' } else { 'subtitle-bdpgs-ocr' }
     return New-StandardFailureRecord -Stage $operation -Operation $operation -Category $category -Reason $Reason -ErrorCode $ErrorCode -Tool 'bdpgs-ocr' -ReproPath $ReproPath -Retryable $true -AdditionalProperties @{
+        track_id        = if ($Entry -and $Entry.ContainsKey('TrackId')) { [string]$Entry.TrackId } else { '' }
         StreamIndex     = $streamIndex
         stream_index    = $streamIndex
         SubtitleOrdinal = if ($Entry -and $Entry.ContainsKey('SubtitleOrdinal')) { $Entry.SubtitleOrdinal } else { $null }
@@ -141,6 +142,9 @@ function ConvertTo-BdpgsEmbeddedSrtTrackRecords {
         if (-not $entry) { continue }
 
         $records.Add([pscustomobject]@{
+            track_id                 = if ($track.ContainsKey('TrackId')) { [string]$track.TrackId } else { '' }
+            output_codec             = 'subrip'
+            output_location          = 'embedded'
             source_stream_index      = if ($entry.Stream) { [int]$entry.Stream.index } else { -1 }
             subtitle_ordinal         = if ($entry.ContainsKey('SubtitleOrdinal')) { $entry.SubtitleOrdinal } else { $null }
             language                 = if ($entry.ContainsKey('Lang')) { $entry.Lang } else { 'und' }
@@ -281,7 +285,8 @@ function Convert-BdpgsToSrt {
         [Parameter(Mandatory)] [int]$StreamIndex,
         [hashtable]$StreamInfo = @{},
         [Parameter(Mandatory)] [string]$DestinationPath,
-        [string]$Context = ""
+        [string]$Context = "",
+        [string]$TrackId = ''
     )
 
     if (-not (Get-Command -Name Write-SubtitleTrackProgress -ErrorAction SilentlyContinue)) {
@@ -304,6 +309,8 @@ function Convert-BdpgsToSrt {
 
     $supPath = Join-Path $script:processingDir "sub_bdpgs_$([guid]::NewGuid().ToString('N')).sup"
     $ocrTempSrt = $null
+    $previousSubtitleEvidenceTrackId = if (Get-Variable -Name CurrentSubtitleEvidenceTrackId -Scope Script -ErrorAction SilentlyContinue) { [string]$script:CurrentSubtitleEvidenceTrackId } else { '' }
+    $script:CurrentSubtitleEvidenceTrackId = $TrackId
     try {
         $sup = Extract-BdpgsToSup -SourceFile $SourceFile -StreamIndex $StreamIndex -DestinationPath $supPath -StreamInfo $StreamInfo -Context $Context
         if (-not $sup.Ok) { return $sup }
@@ -359,12 +366,38 @@ function Convert-BdpgsToSrt {
                 $ocrCpuLock = Acquire-CpuEncodeMutex -TimeoutSeconds 0
                 if (-not $ocrCpuLock.Acquired) {
                     Write-Log "${Context}BDPGS OCR: another CPU-bound job is running; waiting for slot ($($ocrCpuLock.Reason))" "WARN"
-                    $ocrCpuLock = Acquire-CpuEncodeMutex -TimeoutSeconds $timeoutSeconds
+                    $waitDetail = [System.IO.Path]::GetFileName($sup.Path)
+                    Write-SubtitleTrackProgress -Kind 'bdpgs' -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'Waiting for CPU slot for BDPGS OCR' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $waitDetail
+                    $waitHeartbeat = if (Get-Command -Name New-SubtitleTrackHeartbeatHandler -ErrorAction SilentlyContinue) {
+                        New-SubtitleTrackHeartbeatHandler -Kind 'bdpgs' -TrackId $TrackId -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'Waiting for CPU slot for BDPGS OCR' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $waitDetail
+                    } else { $null }
+                    $mutexWaitArgs = @{ TimeoutSeconds = $timeoutSeconds }
+                    if ($waitHeartbeat) {
+                        $mutexWaitArgs['PollHandler'] = $waitHeartbeat
+                        $mutexWaitArgs['PollMilliseconds'] = 1000
+                    }
+                    $ocrCpuLock = Acquire-CpuEncodeMutex @mutexWaitArgs
                 }
             }
             try {
-                Write-SubtitleTrackProgress -Kind 'bdpgs' -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'Running BDPGS OCR' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail ([System.IO.Path]::GetFileName($sup.Path))
-                $result = Invoke-BdpgsOcrCommand -FilePath $tool.FilePath -ArgumentList @($ocrArgs.ToArray()) -TimeoutSeconds $timeoutSeconds -Stage 'subtitle-bdpgs-ocr' -SaveReproOnFailure -ProcessPriority $ocrPriority
+                $ocrDetail = [System.IO.Path]::GetFileName($sup.Path)
+                Write-SubtitleTrackProgress -Kind 'bdpgs' -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'Running BDPGS OCR' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $ocrDetail
+                $ocrHeartbeat = if (Get-Command -Name New-SubtitleTrackHeartbeatHandler -ErrorAction SilentlyContinue) {
+                    New-SubtitleTrackHeartbeatHandler -Kind 'bdpgs' -TrackId $TrackId -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'Running BDPGS OCR' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $ocrDetail
+                } else { $null }
+                $ocrCommandArgs = @{
+                    FilePath = $tool.FilePath
+                    ArgumentList = @($ocrArgs.ToArray())
+                    TimeoutSeconds = $timeoutSeconds
+                    Stage = 'subtitle-bdpgs-ocr'
+                    SaveReproOnFailure = $true
+                    ProcessPriority = $ocrPriority
+                }
+                if ($ocrHeartbeat) {
+                    $ocrCommandArgs['PollHandler'] = $ocrHeartbeat
+                    $ocrCommandArgs['PollMilliseconds'] = 250
+                }
+                $result = Invoke-BdpgsOcrCommand @ocrCommandArgs
             } finally {
                 if ($ocrCpuLock -and $ocrCpuLock.Acquired) { & $ocrCpuLock.Release }
             }
@@ -410,6 +443,7 @@ function Convert-BdpgsToSrt {
             Failure = (New-BdpgsFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_BDPGS_OCR_EXCEPTION')
         }
     } finally {
+        $script:CurrentSubtitleEvidenceTrackId = $previousSubtitleEvidenceTrackId
         if ($supPath -and (Test-Path -LiteralPath $supPath -ErrorAction SilentlyContinue)) {
             Remove-Item -LiteralPath $supPath -Force -ErrorAction SilentlyContinue
         }
