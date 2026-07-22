@@ -1,6 +1,6 @@
 # Module Ownership Map
 
-Status: all active top-level and implementation domains are assigned an owner role and mutation boundary. Exact per-file owner, layer, worker, dependencies, routes, state, tests, and review status remain machine-authoritative in `COVERAGE_MATRIX.jsonl`.
+Status: **final ownership review complete**. All active top-level, implementation, generated, metadata, vendor/runtime, test, and audit-evidence domains are assigned an owner role and mutation boundary. Exact per-file owner, layer, worker, dependencies, routes, state, tests, findings, and review status are machine-authoritative in the external `COVERAGE_MATRIX.jsonl`.
 
 ## Ownership rules
 
@@ -189,4 +189,4 @@ For every tracked path, `COVERAGE_MATRIX.jsonl` must carry exactly one:
 - relevant tests and findings/errors;
 - current hash-bound review status and independent-review state.
 
-Final ownership completion requires zero unknown/default owners for achieved rows, no unsupported duplicate authority, and exact consistency with the route, state, process, config, failure, dependency, security, and test maps.
+Final ownership checks require zero unknown/default owners for achieved rows, no unsupported duplicate authority, and exact consistency with the route, state, process, config, failure, dependency, security, and test maps. Those checks are enforced by the external 6,499-path freeze. Ownership ambiguities listed above remain finding-backed product debt rather than unreviewed scope.

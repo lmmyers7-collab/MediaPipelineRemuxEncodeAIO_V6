@@ -1,6 +1,6 @@
 # Architecture Map
 
-Status: runtime layers, ownership boundaries, primary control/data flows, and tracked top-level composition are mapped. Exact per-file coverage remains authoritative in `COVERAGE_MATRIX.jsonl`; route and non-Python dependency joins are still being finalized in their dedicated maps.
+Status: **final audit synthesis complete at the frozen tracked universe**. Runtime layers, ownership boundaries, primary control/data flows, route/command joins, lifecycle, failure/recovery, validation, and cross-language dependency families have current hash-bound review evidence. The authoritative external `COVERAGE_MATRIX.jsonl` remains the per-file proof; open findings qualify production readiness but do not leave architecture-review scope unfinished.
 
 ## System shape
 
@@ -225,4 +225,4 @@ Meaningful changes require a structured packet under `ops/release/changes/unrele
 | Dead/shim/duplicate candidates | `DEAD_CODE_DUPLICATION_MAP.md` |
 | Trust boundaries | `SECURITY_AND_TRUST_BOUNDARY_MAP.md` |
 
-Final architecture completion requires exact consistency across those joins at stable file hashes; a diagram alone is not coverage proof.
+The final external freeze enforces exact consistency across these joins at stable file hashes. The diagrams remain explanatory views; the 6,499-row ledger, finding/error joins, independent attestations, and strict checks are the completion proof. Recorded product defects and later representative-runtime validation remain remediation work, not missing audit coverage.

@@ -1,6 +1,6 @@
 # Test and Validation Map
 
-Status: validation spine inventoried and the five active workflow files line-reviewed at their coverage-baseline hashes. A distinct reviewer attested all five exact finding sets; behavior-to-test joins and current-worktree execution remain incomplete.
+Status: **final validation-spine review complete at frozen hashes**. Workflow, test, smoke, browser, PowerShell, Tauri, generated-media, release, external-analysis, and representative-media rungs are inventoried and joined to current behavior. Executed results retain every failure, skip, timeout, and unavailable external proof; product remediation and later release validation remain separate from audit completion.
 
 Evidence sources include:
 
@@ -135,7 +135,7 @@ Worker 05 completed 132/132 exact-hash first-pass rows and 11 findings. Its sour
 
 Worker 09 completed 43/43 current-hash rows and 13 findings. Ten PowerShell files parsed; four JSON plus three TOML/lock inputs parsed; `cargo check --locked`, 56 Rust library tests, production-surface checks, 26 adversarial-close scaffold tests, and eight private-beta layout/release tests passed. The 95-test Tauri scaffold suite had one focused failure for the two missing priority-export routes, and `cargo fmt --check` failed reproducibly. List-only inspection of the existing NSIS archive found only six NSIS support files plus the shell executable. No installer/package was executed, no real media was used, and native crash/relaunch, active-work close, and updater installation remain external proof requirements.
 
-## Planned safe order
+## Product remediation and release-validation order
 
 1. AI guardrail plan, static/deep checks, and every omitted check mode.
 2. GitHub spine, WebView prework, and PSScriptAnalyzer.
@@ -148,4 +148,4 @@ Worker 09 completed 43/43 current-hash rows and 13 findings. Ten PowerShell file
 9. Adversarial generated-media force-kill.
 10. Local Ruff SARIF and externally provisioned Semgrep/CodeQL evidence.
 
-Prior 2026-07-19 validation is provenance only and cannot certify the current dirty worktree.
+Prior 2026-07-19 validation remains provenance only. The final audit claims only the current commands and exact frozen-byte evidence in the authoritative external ledger; it does not convert recorded failures or unavailable real-world proof into passes.

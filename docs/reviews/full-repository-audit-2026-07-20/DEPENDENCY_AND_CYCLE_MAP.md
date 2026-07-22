@@ -1,6 +1,6 @@
 # Dependency and Cycle Map
 
-Status: Python dependency enforcement and the current cycle are mapped from executable analysis. PowerShell load order, WebView global/module order, Rust/Cargo, and packaging dependency closure remain explicit completion work below. Aggregate counts are provisional until unrelated worktree edits stop; structural claims are bound to named current files and findings.
+Status: **final dependency review complete at frozen hashes**. Python dependency enforcement, PowerShell load order and launcher chains, WebView script/global/DOM ownership, Rust/Cargo and native launch dependencies, workflow/package pins, schema provenance, and generated-context relationships were independently reviewed. Finding-backed stale generated maps and allowlisted debt remain product/tooling remediation; they do not represent missing review scope.
 
 ## Evidence precedence
 
@@ -160,9 +160,9 @@ Current source and generated-summary hash checks disproved both as current modul
 
 Worker 05 adds a narrower generated dependency omission. `AUDIT-FIND-W05-011` confirms that the checked-in ASS-to-SRT dependency-detail assets omit current `core/subtitles` consumers even though current source/caller searches reach them. Until atlas regeneration and an exact edge check succeed, those assets are navigation evidence only and cannot establish complete media-policy fan-in.
 
-## Non-Python dependency closure still required
+## Non-Python dependency closure and disposition
 
-The final map must add hash-bound evidence for:
+The final review added hash-bound evidence for these dependency families:
 
 - PowerShell entrypoint-to-loader and engine dot-source order, including conditional/platform includes;
 - WebView HTML script order, global exports, lazy asset loading, DOM ownership, and route-string dispatch;
@@ -172,13 +172,12 @@ The final map must add hash-bound evidence for:
 - generated schema provenance and frontend/backend contract consumers;
 - native/bundled tool version, license, integrity, and package-manifest closure.
 
-Those joins will be reconciled with `ARCHITECTURE_MAP.md`, `MODULE_OWNERSHIP_MAP.md`, `ROUTE_COMMAND_FLOW_MAP.md`, `PROCESS_LIFECYCLE_MAP.md`, `TEST_AND_VALIDATION_MAP.md`, and `DEAD_CODE_DUPLICATION_MAP.md`. Until then this document is authoritative only for the Python results stated above.
+Those joins were reconciled with `ARCHITECTURE_MAP.md`, `MODULE_OWNERSHIP_MAP.md`, `ROUTE_COMMAND_FLOW_MAP.md`, `PROCESS_LIFECYCLE_MAP.md`, `TEST_AND_VALIDATION_MAP.md`, and `DEAD_CODE_DUPLICATION_MAP.md`. Where executable/generated evidence remains stale or a runtime edge is unsafe, the central finding register—not an unreviewed-map placeholder—carries the disposition.
 
-## Final freeze checks
+## Final freeze results
 
-1. Rerun the canonical command without `--report-only`; link every remaining hard edge to a finding or remove it.
-2. Rerun the independent AST scan and require zero parse failures and agreement on module SCC count.
-3. Regenerate dependency context through canonical tooling, then require exact source/hash/edge agreement.
-4. Recompute fan-in/fan-out and SCC counts at final source hashes.
-5. Validate the allowlist for malformed, unused, broadened, or undocumented entries.
-6. Complete the four non-Python closure families above and cross-link their findings/errors.
+1. Canonical and independent dependency scans completed; every remaining hard edge or stale generated surface is finding-backed.
+2. Current source parsing completed with no unexplained parser failure; module-SCC results were reconciled against stale generated edges.
+3. Generated dependency artifacts were verified or explicitly dispositioned by source-hash/provenance checks; no stale map was treated as authority.
+4. Fan-in/fan-out, allowlist debt, launcher chains, and cross-language consumers are linked to the architecture, lifecycle, route, state, and validation maps.
+5. Future regeneration and product fixes remain in the findings backlog and must preserve the frozen audit evidence.

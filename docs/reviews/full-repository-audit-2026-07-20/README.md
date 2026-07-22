@@ -9,9 +9,10 @@ Inventory every Git-tracked file, semantically review every line of first-party 
 ## Baseline
 
 - Branch: `codex/ci-browser-shards`
-- HEAD: `039658158d8439a868eff3c8c37e314845e9e22a`
-- Git-tracked files: 6,061
-- Audit-owned nonignored files included in the working ledger: 3
+- Final reviewed HEAD: `2494bea1fd6280f41bec3f56e21b8bd98dd20829`
+- Git-tracked files at final freeze: 6,499
+- Non-audit tracked paths: 6,182
+- Tracked audit artifacts: 317
 - Current `PROJECT_INDEX.jsonl` records: 2,410
 - Prior 2026-06-11 audit: explicitly partial against a 1,296-file index
 - Initial semantic review completion: 0 files; inventory is not review proof
@@ -35,9 +36,9 @@ Path and review-state invariants are checked by:
 
 The generator preserves review fields only while a file's SHA-256 is unchanged. Changed content resets prior terminal review evidence to `pending`.
 
-## Current phase
+## Final phase
 
-Phase 2 is in progress: exhaustive partition review and high-risk independent attestation. Baseline capture, prior-audit reconciliation, schema-v2 evidence joins, and the latest central mirror rebuild are complete; 764 of 6,064 rows currently have achieved hash-bound reviews, 97 rows have distinct current-hash attestations, and the central registers contain 112 deduplicated findings plus 442 execution/error records. The maps and worker ledgers intentionally identify incomplete sections. No completion claim is made until every gate in `FINAL_SYNTHESIS.md` is proven from the current worktree.
+The exhaustive review, interrupted-fragment reconciliation, schema-v2 joins, global P0/P1/high-risk gate, map refresh, and external non-self-referential freeze are complete. The in-repository matrices remain a historical working mirror because including their own tracked bytes would be self-referential; `FINAL_SYNTHESIS.md` and the external `BASELINE.md` identify the authoritative final ledger. Product remediation and later representative runtime/release proof remain separate.
 
 ## Safety posture
 

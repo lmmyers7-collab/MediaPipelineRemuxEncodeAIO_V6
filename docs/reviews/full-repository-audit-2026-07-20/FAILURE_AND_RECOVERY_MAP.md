@@ -1,6 +1,6 @@
 # Failure and Recovery Map
 
-Status: the current failure/outcome registries and seven recovery workflows are mapped to machine-readable evidence. Four defects remain open, including one P1 cross-language pending-manifest contract split. Final counts must be rebound after concurrent source edits freeze.
+Status: **final failure/recovery review complete at frozen hashes**. The current failure/outcome registries, recovery workflows, fail-closed/fail-open boundaries, retry classifications, manifest transactions, and cross-language recovery contracts are mapped to machine-readable evidence. Recorded defects—including the P1 pending-manifest split—remain product remediation, not unfinished audit coverage.
 
 ## Authoritative audit evidence
 
@@ -158,9 +158,9 @@ Remaining gaps:
 
 No real media or production state was used.
 
-## Required closure
+## Remediation and later runtime proof
 
-1. Independently second-review `AUDIT-FIND-W15-001` and every high-risk pending-manifest file at final hashes.
+1. Preserve the completed independent disposition of `AUDIT-FIND-W15-001` and every high-risk pending-manifest file while remediating the recorded contract split.
 2. Reconcile Python and PowerShell current-manifest contracts without weakening hash-bound drain safety.
 3. Register all four live missing outcomes with exact retryability/guidance.
 4. Replace or comprehensively self-test the emitted-code scanner.

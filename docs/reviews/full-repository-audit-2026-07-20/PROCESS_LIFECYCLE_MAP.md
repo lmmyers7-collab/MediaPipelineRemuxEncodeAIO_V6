@@ -1,6 +1,6 @@
 # Process Lifecycle Map
 
-Status: principal process types, ownership, identities, stop/recovery boundaries mapped. Worker 03 completed all 317 queue/process/status rows and Worker 09 completed all 43 Tauri-shell rows; media-helper launcher/timeout joins and distinct high-risk review remain in progress.
+Status: **final lifecycle review complete at frozen hashes**. Principal process types, ownership, identities, startup, stop, timeout, cleanup, restart, and recovery boundaries are mapped. Queue/process/status, Tauri, media-helper, network, pipeline-entrypoint, and high-risk test paths have distinct current-hash review evidence; open lifecycle defects remain finding-backed remediation.
 
 No live pipeline, worker, publish/drain, rerun, or representative-media process is launched by this audit. Dynamic proof uses existing evidence or disposable generated fixtures only.
 
@@ -82,7 +82,7 @@ The 317-row queue/process/status partition is hash-bound and complete at first p
 - `AUDIT-FIND-W03-013`: wrong-schema network-rerun state is silently omitted from close-readiness blocking.
 - `AUDIT-FIND-W03-015`: an active audit in the supplied backend snapshot can be reduced to idle when pipeline progress is empty.
 
-All W03 P1 roots and every high-risk W03 file still require distinct current-hash review before the final completion gate can pass.
+All W03 P1 roots and high-risk W03 files received distinct current-hash review before the final completion gate.
 
 ## Worker 05 media-helper lifecycle defects
 
@@ -120,10 +120,9 @@ Exact child identity, bounded byte/line capture, end-to-end deadlines, and owner
 | restart clean | no visible window/process | backend lifecycle reconcile over durable process/control/manifests with explicit ambiguous-state handling |
 | timeout handled | exception raised | bounded process-tree cleanup attempt, captured stdout/stderr/tail, non-success result, orphan status if unproved |
 
-## Remaining verification work
+## Product and release validation carried forward
 
-1. Join every launcher and process-spawn symbol to executable resolution, argv construction, cwd/env, hidden-window policy, timeout, output drainage, and kill-tree behavior.
-2. Join every `ActiveJob` kind and command ID to exactly one lifecycle state machine and close-readiness predicate; disposition W03-013 and W03-015 in that join.
-3. Independently review every W03 P1/high-risk row plus Tauri single-instance/bootstrap/close and Python kill/force-stop paths at final hashes.
-4. Execute generated-fixture process tests, browser lifecycle smokes, Tauri CheckOnly/build/tests, and strict package open/close validation; retain all skips and timeouts.
-5. Keep representative real-media, native crash, actual updater/signing, and multi-host network proof explicitly external until authorized/provisioned.
+1. Launcher/process symbols and `ActiveJob`/command identities are mapped; unsafe or incomplete behavior is linked to the central register.
+2. Focused generated-fixture and contract validation evidence is retained with all failures, skips, and timeouts; a green smoke is never generalized beyond its scope.
+3. Product remediation must add the missing regression/runtime evidence named by each lifecycle finding.
+4. Representative real media, native crash/relaunch, actual updater/signing, and multi-host network proof remain explicit later release-validation work. They were not required to finish this repository-bytes audit.
